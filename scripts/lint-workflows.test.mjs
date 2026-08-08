@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 
 import {
@@ -173,8 +173,15 @@ for (const [lineEnding, workflow] of [
   });
 }
 
-test("all 49 release-chain actions are SHA-pinned and checkouts erase credentials", () => {
-  for (const file of Object.keys(ACTION_INVENTORIES)) {
+test("all 114 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+  const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
+  const workflowFiles = readdirSync(".github/workflows")
+    .filter((name) => /\.ya?ml$/i.test(name))
+    .map((name) => `.github/workflows/${name}`)
+    .sort();
+  assert.deepEqual(inventoryFiles, workflowFiles);
+
+  for (const file of inventoryFiles) {
     assert.deepEqual(
       actionDependencyProblems(readFileSync(file, "utf8"), file),
       [],
@@ -187,7 +194,7 @@ test("all 49 release-chain actions are SHA-pinned and checkouts erase credential
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    49,
+    114,
   );
   assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
 });
@@ -234,14 +241,36 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const bypassedGuard = workflow.replace(
-    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]",
+  const skippedFatalGate = workflow.replace(
     "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
+    "needs: [check, workflows, package, jars, test-world]",
   );
-  assert.notEqual(bypassedGuard, workflow);
+  assert.notEqual(skippedFatalGate, workflow);
   assert.ok(
-    actionDependencyProblems(bypassedGuard, FILE).some((problem) =>
+    actionDependencyProblems(skippedFatalGate, FILE).some((problem) =>
       /release must depend/.test(problem.message),
+    ),
+  );
+
+  const screenshotGate = workflow.replace(
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]",
+  );
+  assert.notEqual(screenshotGate, workflow);
+  assert.ok(
+    actionDependencyProblems(screenshotGate, FILE).some((problem) =>
+      /release must depend/.test(problem.message),
+    ),
+  );
+
+  const fatalScreenshots = workflow.replace(
+    "continue-on-error: true",
+    "continue-on-error: false",
+  );
+  assert.notEqual(fatalScreenshots, workflow);
+  assert.ok(
+    actionDependencyProblems(fatalScreenshots, FILE).some((problem) =>
+      /screenshot capture must remain advisory/.test(problem.message),
     ),
   );
 
@@ -263,6 +292,17 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
   assert.ok(
     actionDependencyProblems(mutableReusable, BUILD_JARS_FILE).some((problem) =>
+      /not in the exact SHA inventory/.test(problem.message),
+    ),
+  );
+
+  const pagesFile = ".github/workflows/pages.yml";
+  const mutablePages = readFileSync(pagesFile, "utf8").replace(
+    "actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+    "actions/deploy-pages@v4",
+  );
+  assert.ok(
+    actionDependencyProblems(mutablePages, pagesFile).some((problem) =>
       /not in the exact SHA inventory/.test(problem.message),
     ),
   );

@@ -1074,7 +1074,8 @@ remembers to run the harness. Tracked as
 ## Release integrity follow-up (2026-08-08)
 
 - [x] Gate publication on workflow lint, the full application/test chain, real Java round trip,
-      jars, test-world render, Windows package and committed screenshot capture.
+      jars, test-world render and Windows packaging. Keep screenshot capture diagnostic and
+      warning-only, with any images or traces uploaded without blocking publication.
 - [x] Keep signing permanently disabled, disable certificate auto-discovery, apply Windows branding
       through a resource-only hook, and require every emitted executable to remain `NotSigned`.
 - [x] Clear package outputs first and accept only one fresh, internally consistent Squirrel set.
@@ -1084,6 +1085,8 @@ remembers to run the harness. Tracked as
       exact target, notes and non-draft release metadata.
 - [x] Pin all hosted workflow labels to `ubuntu-24.04` or `windows-2022` and reject mutable,
       self-hosted, expression-derived and unknown alternatives through an exact job inventory.
+- [x] Pin all 114 external action uses across all seven executable workflows to immutable SHAs,
+      erase checkout credentials and fail when a workflow is missing from the exact inventory.
 - [x] Make changelog freshness a satisfiable pre-release gate by excluding generated-only commits
       and running `node scripts/build-changelog.mjs --check` over full history.
 - [ ] Record the final remote CI verdict and resulting release evidence after this candidate lands

@@ -4126,7 +4126,12 @@ The dim-sum consumer now reads the public catalog's authoritative English and Tr
 names and resolves only an existing `catalog-v1*` asset URL. It does not download, copy, cache or
 attach photo bytes. Every executable workflow runner is pinned to `ubuntu-24.04` or
 `windows-2022`, with exact job inventory tests that reject `*-latest`, self-hosted, expressions and
-unknown labels. The focused release contracts pass **15/15 tests**; the combined runner,
+unknown labels. All **114** external action uses across the seven executable workflows are pinned
+to reviewed full SHAs, every checkout erases its credential, and the guard fails if a workflow is
+missing from that exact inventory. Screenshot capture remains visible diagnostic evidence with
+job-level `continue-on-error: true`; available images and traces still upload, but capture is not a
+publisher dependency and cannot make an otherwise valid release fail. The workflow guard passes
+**30/30 tests**; the focused release contracts pass **16/16 tests**; the combined runner,
 packaging and Windows CSS set passes **19/19**; the full retrying suite passed **10,074/10,107**
 tests with **33 skipped** after one known Vitest worker-heartbeat retry. The remaining external
 proof is a terminal CI run at the integrated `main` commit and its main-only publisher; no release

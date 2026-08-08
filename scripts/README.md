@@ -116,9 +116,12 @@ and pins the complete normalized `env` and `run` blocks with SHA-256. Any added 
 fails, including a line that recovers data indirectly through `printenv` or shell parameter
 indirection. It additionally scans every executable region in the release job and fingerprints the
 complete job, so a differently named adjacent shell step is not outside the inventory. The same
-guard inventories all 49 external action uses in `ci.yml` and
-`build-jars.yml`, requires immutable full SHAs, disables persisted checkout credentials and proves
-the release depends on the workflow-security job. The same early job proves the committed
+guard inventories all 114 external action uses across all seven executable workflows, requires
+immutable full SHAs and explicit supported hosted images, disables persisted checkout credentials,
+and proves the release depends on every fatal workflow-security, test, render and packaging job.
+Screenshot capture is separately required to remain advisory through job-level
+`continue-on-error: true` and must stay outside the publisher's `needs` list. The same early job
+proves the committed
 changelog outputs are current; generated-only commits are excluded by the generator so this gate
 is satisfiable. The tests read the exact historical workflows
 from Git: 11 findings at recovered revision `98988e3`, 19 at the assigned

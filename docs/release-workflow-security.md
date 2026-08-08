@@ -55,8 +55,10 @@ with `stepFingerprint()` and `jobFingerprint()` values. A fingerprint update is 
 decision, not a mechanical response to a red test. New dynamic values still need an exact `env:`
 binding, a quoted data-only use, and negative fixtures for their context.
 
-All 49 external action invocations in `ci.yml` and its `build-jars.yml` reusable workflow are pinned
-to full commit SHAs. To update one, resolve the intended major tag from the action's official
+All 114 external action invocations across the repository's seven executable workflows are pinned
+to full commit SHAs. The hand-written inventory must name every workflow, every external action and
+its exact per-file use count; a new workflow missing from that inventory fails the guard. To update
+one, resolve the intended major tag from the action's official
 repository with `git ls-remote <official-repository> refs/tags/v4`, review that commit and its
 release, replace the SHA and update the exact per-file count in `ACTION_INVENTORIES`. The tests must
 fail on a mutable tag before the new SHA is accepted.
@@ -66,12 +68,15 @@ All executable workflows use explicit supported hosted-runner labels (`ubuntu-24
 by the hand-written job inventory in `cloudRunnerPolicy.test.ts`.
 
 The workflow defaults to `contents: read`; only the release job receives `contents: write`. Every
-checkout in `ci.yml` sets `persist-credentials: false`, including the release checkout. The catalog
+checkout in every executable workflow sets `persist-credentials: false`, including the release
+checkout. The catalog
 API may use the configured token for rate limits, but the public asset download never receives it.
 The release job explicitly depends on the workflow-security job, so a failing root guard,
 actionlint run or `build-changelog.mjs --check` blocks publication. It also depends on application
 lint, build, typecheck, the full test suite, the real Java round trip, jar build, real test-world
-render, Windows packaging and screenshot capture. A failure or skipped dependency means no publish.
+render and Windows packaging. A failure or skipped fatal dependency means no publish. Screenshot
+capture runs as advisory diagnostic evidence with job-level `continue-on-error: true`, uploads
+available images and failure traces, and is deliberately absent from the publisher's dependencies.
 Pushes on `main` nominate publication automatically; manual dispatch must explicitly retain its
 publish input. The serialized publisher checks existing published releases by exact commit SHA, so
 one intended commit is nominated at most once and an existing exact target is verified rather than
@@ -127,8 +132,9 @@ fail at its original 11 direct-expression sites. The assigned baseline
 `e13777927876a3d7898778f18193e9465bc97cc2` must fail at its exact 19 sites. The checked-in fixed
 workflow must have zero findings, exact provenance and reviewed block fingerprints. Focused fixtures
 also cover multiline expressions, YAML aliases, altered provenance, indirect `printenv`/parameter
-execution, harmless block drift, an adjacent differently named shell step, all 49 immutable action
-pins, release-gate dependency, real
+execution, harmless block drift, an adjacent differently named shell step, all 114 immutable action
+pins across every executable workflow, exact workflow-inventory completeness, advisory screenshot
+status, fatal release-gate dependency, real
 235-character alternative text, malformed schema, control characters, unsafe Markdown contexts,
 wrong asset origins, no-photo-download enforcement, path containment, zero/stale/duplicate/wrong-
 version Squirrel fixtures, RELEASES hash/size mismatches, duplicate/empty release-manifest assets,

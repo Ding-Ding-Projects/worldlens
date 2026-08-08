@@ -32,8 +32,10 @@ See [Rendering engines](#rendering-engines).
 · [documentation site](https://ding-ding-projects.github.io/worldlens/)
 
 Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
-unknown-publisher warning. A publish is allowed only after every required test and screenshot gate
-passes. The packaging job clears its validated output locations, accepts exactly one fresh
+unknown-publisher warning. A publish is allowed only after every required test, security,
+rendering and packaging gate passes. Screenshot capture remains visible diagnostic evidence, but a
+capture failure is advisory and never blocks an otherwise valid release. The packaging job clears
+its validated output locations, accepts exactly one fresh
 `Setup.exe`, one full `.nupkg`, optional delta packages and a non-empty matching `RELEASES`, then
 checks every emitted executable is Authenticode `NotSigned`. Release notes identify the exact
 commit and timing, include the reproducible line-count and SHA-256 tables, and link the bilingual

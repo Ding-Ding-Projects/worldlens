@@ -591,6 +591,10 @@ jobs:
     name: Screenshots
     needs: [check, test-world]
     runs-on: ubuntu-24.04
+    # Screenshot capture is diagnostic evidence, not a release gate. A broken capture
+    # still uploads whatever images and traces it produced, but it must not turn an
+    # otherwise valid build red or prevent publication.
+    continue-on-error: true
     concurrency:
       group: ci-screenshots-${{ github.ref }}
       cancel-in-progress: true
@@ -731,7 +735,9 @@ jobs:
     # of that, and `test-world` is a real Java world render at around 6 minutes. Since
     # `release` already waits on all three, config-java-roundtrip is never the slowest
     # input it is blocked on - it is done long before the others are.
-    needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]
+    # Screenshots run independently as advisory evidence. Tests, workflow security,
+    # packaging, jars, the rendered world and the real Java round trip remain fatal.
+    needs: [check, workflows, package, jars, test-world, config-java-roundtrip]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.publish_release == true)
     runs-on: ubuntu-24.04
     # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like

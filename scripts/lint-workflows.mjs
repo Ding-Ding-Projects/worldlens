@@ -7,7 +7,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -108,7 +108,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 });
 
 const RELEASE_JOB_FINGERPRINT =
-  "879d721fed1a873309338b938b9f26082e81818a64689ab218cfadf850f9b202";
+  "31dfcbdfcce4382dd5188bb583b2e07ad9f7ad47376812559413bb953a3ad7cf";
 
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
@@ -160,10 +160,165 @@ const BUILD_JARS_PINNED_ACTIONS = Object.freeze({
   }),
 });
 
+const PAGES_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+  "actions/configure-pages": Object.freeze({
+    sha: "983d7736d9b0ae728b81ab479565c72886d7745b",
+    count: 1,
+  }),
+  "actions/upload-pages-artifact": Object.freeze({
+    sha: "56afc609e74202658d3ffba0e8f6dda462b719fa",
+    count: 1,
+  }),
+  "actions/deploy-pages": Object.freeze({
+    sha: "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+    count: 1,
+  }),
+});
+
+const RENDER_PRIVATE_WORLD_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 5,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 4,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 4,
+  }),
+  "actions/setup-java": Object.freeze({
+    sha: "cf277c60eb25467037889841efdb72551f06f6c3",
+    count: 2,
+  }),
+  "gradle/actions/setup-gradle": Object.freeze({
+    sha: "0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 1,
+  }),
+  "actions/download-artifact": Object.freeze({
+    sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    count: 1,
+  }),
+});
+
+const RENDER_SHARD_WAVE_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+  "actions/setup-java": Object.freeze({
+    sha: "cf277c60eb25467037889841efdb72551f06f6c3",
+    count: 1,
+  }),
+  "actions/download-artifact": Object.freeze({
+    sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    count: 3,
+  }),
+  "actions/cache/restore": Object.freeze({
+    sha: "0057852bfaa89a56745cba8c7296529d2fc39830",
+    count: 1,
+  }),
+  "actions/cache/save": Object.freeze({
+    sha: "0057852bfaa89a56745cba8c7296529d2fc39830",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 2,
+  }),
+});
+
+const RENDER_WORLD_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 4,
+  }),
+  "actions/setup-java": Object.freeze({
+    sha: "cf277c60eb25467037889841efdb72551f06f6c3",
+    count: 1,
+  }),
+  "gradle/actions/setup-gradle": Object.freeze({
+    sha: "0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 7,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 3,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 3,
+  }),
+  "actions/download-artifact": Object.freeze({
+    sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    count: 6,
+  }),
+  "actions/upload-pages-artifact": Object.freeze({
+    sha: "56afc609e74202658d3ffba0e8f6dda462b719fa",
+    count: 1,
+  }),
+  "actions/deploy-pages": Object.freeze({
+    sha: "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+    count: 1,
+  }),
+});
+
+const SCHEDULED_RENDER_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+});
+
 const ACTION_INVENTORIES = Object.freeze({
   ".github/workflows/ci.yml": PINNED_ACTIONS,
   ".github/workflows/build-jars.yml": BUILD_JARS_PINNED_ACTIONS,
+  ".github/workflows/pages.yml": PAGES_PINNED_ACTIONS,
+  ".github/workflows/render-private-world.yml":
+    RENDER_PRIVATE_WORLD_PINNED_ACTIONS,
+  ".github/workflows/render-shard-wave.yml": RENDER_SHARD_WAVE_PINNED_ACTIONS,
+  ".github/workflows/render-world.yml": RENDER_WORLD_PINNED_ACTIONS,
+  ".github/workflows/scheduled-render.yml": SCHEDULED_RENDER_PINNED_ACTIONS,
 });
+
+const SUPPORTED_HOSTED_RUNNERS = new Set(["ubuntu-24.04", "windows-2022"]);
 
 const REQUIRED_STEP_LINES = Object.freeze({
   "Guard executable workflow expressions and release metadata": Object.freeze([
@@ -581,25 +736,44 @@ function actionDependencyProblems(text, file) {
     }
   }
 
-  if (file !== ".github/workflows/ci.yml") return problems;
-
   for (let index = 0; index < lines.length; index++) {
-    if (/^\s*runs-on:\s*[^#\s]*-latest\s*(?:#.*)?$/.test(lines[index])) {
+    const runner = /^\s*runs-on:\s*([^#\s]+)\s*(?:#.*)?$/.exec(lines[index]);
+    if (runner && !SUPPORTED_HOSTED_RUNNERS.has(runner[1])) {
       problems.push({
         file,
         line: index + 1,
         stepName: null,
         expression: null,
-        message: "hosted runner labels must name an explicit supported image",
+        message:
+          "hosted runner labels must name an explicit supported image from the reviewed inventory",
       });
     }
+  }
+
+  if (file !== ".github/workflows/ci.yml") return problems;
+
+  const screenshots = jobBlock(lines, "screenshots");
+  const advisoryScreenshotLines = screenshots
+    ? lines
+        .slice(screenshots.start + 1, screenshots.end)
+        .filter((line) => /^ {4}continue-on-error:\s+true\s*$/.test(line))
+    : [];
+  if (!screenshots || advisoryScreenshotLines.length !== 1) {
+    problems.push({
+      file,
+      line: (screenshots?.start ?? 0) + 1,
+      stepName: null,
+      expression: null,
+      message:
+        "screenshot capture must remain advisory with exactly one job-level continue-on-error: true",
+    });
   }
 
   const release = jobBlock(lines, "release");
   const releaseStart = release?.start ?? -1;
   const releaseEnd = release?.end ?? lines.length;
   const expectedReleaseNeeds =
-    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]";
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]";
   const releaseNeeds =
     releaseStart < 0
       ? []
@@ -661,6 +835,41 @@ function actionDependencyProblems(text, file) {
 
 function lintInventory(root = process.cwd()) {
   const problems = [];
+  try {
+    const workflowDirectory = resolve(root, ".github/workflows");
+    const discovered = readdirSync(workflowDirectory)
+      .filter((name) => /\.ya?ml$/i.test(name))
+      .map((name) => `.github/workflows/${name}`)
+      .sort();
+    const inventoried = Object.keys(ACTION_INVENTORIES).sort();
+    for (const relativePath of new Set([...discovered, ...inventoried])) {
+      if (!discovered.includes(relativePath)) {
+        problems.push({
+          file: relativePath,
+          line: 1,
+          stepName: null,
+          expression: null,
+          message: "action inventory names a workflow that does not exist",
+        });
+      } else if (!inventoried.includes(relativePath)) {
+        problems.push({
+          file: relativePath,
+          line: 1,
+          stepName: null,
+          expression: null,
+          message: "executable workflow is missing from the exact action inventory",
+        });
+      }
+    }
+  } catch (error) {
+    problems.push({
+      file: ".github/workflows",
+      line: 1,
+      stepName: null,
+      expression: null,
+      message: `workflow inventory cannot be read (${error.code ?? "unknown error"})`,
+    });
+  }
   for (const [relativePath, watched] of Object.entries(WATCHED_SCRIPT_STEPS)) {
     try {
       const text = readFileSync(resolve(root, relativePath), "utf8");
@@ -725,8 +934,14 @@ function main() {
       (total, steps) => total + Object.keys(steps).length,
       0,
     );
+    const actionCount = Object.values(ACTION_INVENTORIES).reduce(
+      (total, inventory) =>
+        total +
+        Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
+      0,
+    );
     process.stdout.write(
-      `lint-workflows: 2 workflows, 49 pinned actions and ${watchedCount} watched release steps clean\n`,
+      `lint-workflows: ${Object.keys(ACTION_INVENTORIES).length} workflows, ${actionCount} pinned actions and ${watchedCount} watched release steps clean\n`,
     );
   }
 }

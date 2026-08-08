@@ -62,19 +62,21 @@ jobs:
       matrix:
         shard: ${{ fromJSON(inputs.shards) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: design/pnpm-lock.yaml
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           # Must match the version `build-jars.yml` compiles the jar with. It compiles at
@@ -92,17 +94,17 @@ jobs:
         working-directory: design
         run: pnpm --filter "@worldlens/render-actions..." run build
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bluemap-cli
           path: cli
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: world
           path: world-in
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: render-plan
 
@@ -124,7 +126,7 @@ jobs:
       # that still runs after a render that ran out of time.
       - name: Restore this shard's render state
         id: restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             bluemap-out/maps
@@ -195,7 +197,7 @@ jobs:
       # because nothing new was rendered.
       - name: Save this shard's render state
         if: always() && steps.restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             bluemap-out/maps
@@ -257,7 +259,7 @@ jobs:
       # Uploaded whether or not it finished. The marker inside says which it was, and the
       # merge refuses any shard whose marker is missing rather than merging it short.
       # `include-hidden-files` is off, so nothing here is named with a leading dot.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: ${{ steps.shard.outputs.shard-artifact }}
@@ -266,7 +268,7 @@ jobs:
           compression-level: 1
 
       # The webapp shell is identical from every shard, so exactly one of them uploads it.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: inputs.wave == 1 && matrix.shard == 0
         with:
           name: webapp
