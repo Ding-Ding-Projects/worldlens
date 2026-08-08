@@ -281,31 +281,54 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("opens a fresh install as four tabs and three named groups rather than twelve flat ones", () => {
+    it("opens a fresh install as four loose tabs and three named groups, not twelve flat ones", () => {
         shell();
 
-        expect(tabLabels()).toEqual([
-            // Pinned tabs announce that state in their own accessible name - see
-            // `TabButton.vue`'s `tabs.strip.pinnedTab` - which is also the proof that Home
-            // really did seed pinned rather than merely first in the ordinary region.
-            "Home, pinned",
-            // The two things somebody meeting this application actually does, and the one
-            // they reach for when the rest of it has stopped making sense. Everything else
-            // is a workflow they need later, and is one named group away.
-            "Map",
-            "Make a map",
-            "Docs",
-        ]);
+        // Pinned tabs announce that state in their own accessible name - see
+        // `TabButton.vue`'s `tabs.strip.pinnedTab` - which is also the proof that Home really
+        // did seed pinned rather than merely first in the ordinary region. Then the two
+        // things somebody meeting this application actually does, and the one they reach for
+        // when the rest of it has stopped making sense.
+        expect(tabLabels().slice(0, 4)).toEqual(["Home, pinned", "Map", "Make a map", "Docs"]);
 
         expect(shellGroupHeads().map((head) => head.getAttribute("aria-label"))).toEqual([
             "Rendering, 3 tabs",
             "Finished maps, 3 tabs",
             "Keeping a copy, 2 tabs",
         ]);
+    });
+
+    /*
+     * Seeded open, which is the half of this that is easy to get backwards. A shorter strip
+     * is not the goal; a legible one is. The names over the groups are what stop twelve
+     * destinations reading as one undifferentiated list, and they do that whether or not the
+     * members are showing - while collapsing on top of it removes destinations rather than
+     * clutter, and makes reaching them depend on a control being pressable. See `App.vue`'s
+     * own note above `initialGroups` for the capture run that made that cost concrete.
+     */
+    it("shows every destination from the first launch, with the groups seeded open", () => {
+        shell();
+
         expect(shellGroupHeads().map((head) => head.getAttribute("aria-expanded"))).toEqual([
-            "false",
-            "false",
-            "false",
+            "true",
+            "true",
+            "true",
+        ]);
+
+        // All twelve, on screen, with no disclosure to press first.
+        expect(tabLabels()).toEqual([
+            "Home, pinned",
+            "Map",
+            "Make a map",
+            "Docs",
+            "Projects",
+            "GitHub runners",
+            "Renders",
+            "Maps and servers",
+            "Publish to Pages",
+            "Watch it live",
+            "Backups",
+            "World repository",
         ]);
     });
 

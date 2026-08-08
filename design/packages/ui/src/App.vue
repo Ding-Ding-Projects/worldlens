@@ -218,7 +218,7 @@ const pages = computed<TabPage[]>(() => [
  * destination - every one of them is somebody's whole reason for opening the app - but to
  * say out loud which ones belong together, which is what the tab strip's own groups are for.
  *
- * So a fresh install seeds three collapsed groups and leaves four things in front of them:
+ * So a fresh install seeds three named groups and leaves four things in front of them:
  *
  *  - **Home**, pinned by `pinned-page-ids` below and therefore outside every group, because
  *    the pinned region is what keeps the landing page at the front of the strip.
@@ -249,27 +249,50 @@ const pages = computed<TabPage[]>(() => [
  * gets persisted; nothing re-applies this list to a workspace that already exists, which is
  * the whole reason it is passed as a seed rather than enforced on every mount. A returning
  * user's strip is exactly the one they arranged, groups and all.
+ *
+ * ## They are seeded open, and that is deliberate
+ *
+ * The first version of this seeded them collapsed, on the reasoning that the shortest
+ * possible strip is the least cluttered one. It is, and it costs more than it saves. What
+ * makes twelve flat tabs hard to read is that nothing says which of them belong together,
+ * and a name over a group fixes that on its own - the reader's eye gets three labelled
+ * regions instead of one undifferentiated list, whether or not the members are showing.
+ * Collapsing on top of that does not remove clutter so much as remove *destinations*: every
+ * page below a header becomes a thing you must already know is there to go looking for, and
+ * the strip stops being able to answer "what can this application do" by being looked at.
+ *
+ * There is a concrete cost too, and it is the kind that is easy to miss from a wide window.
+ * A disclosure is a control, and a control is something that can fail to be pressed - by
+ * automation, by an assistive technology driving the strip, or by anyone on a short window
+ * where the header itself is what scrolled out of reach. Reachability that depends on a
+ * click is strictly weaker than reachability that does not, and the capture harness proved
+ * it: with the groups seeded shut, five destinations became unreachable to it, on a strip
+ * whose own diagnostics reported every group present, named and correct.
+ *
+ * Open by default, then. The grouping does the de-cluttering, the strip stays honest about
+ * what the application contains, and collapsing is left as what it always should have been:
+ * something the reader does to the sections they have decided they do not need.
  */
 const initialGroups = computed<TabGroupSeed[]>(() => [
     {
         id: "seed-rendering",
         name: t("tabs.group.seed.rendering", "Rendering"),
         color: "primary",
-        collapsed: true,
+        collapsed: false,
         pageIds: [PAGE_PROJECTS, PAGE_CIRENDER, PAGE_RENDERS],
     },
     {
         id: "seed-finished",
         name: t("tabs.group.seed.finished", "Finished maps"),
         color: "tertiary",
-        collapsed: true,
+        collapsed: false,
         pageIds: [PAGE_SERVERS, PAGE_PAGES, PAGE_PREVIEW],
     },
     {
         id: "seed-copies",
         name: t("tabs.group.seed.copies", "Keeping a copy"),
         color: "secondary",
-        collapsed: true,
+        collapsed: false,
         pageIds: [PAGE_BACKUPS, PAGE_WORLDREPO],
     },
 ]);

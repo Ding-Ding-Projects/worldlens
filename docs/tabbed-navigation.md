@@ -68,16 +68,16 @@ they are the single biggest source of "cluttered" a newcomer meets: the two thin
 the first day sit in a list with nine they need later and one they need when stuck, all in the
 same typeface, none of them explaining the others.
 
-So `App.vue` passes `initial-groups`, and a workspace with nothing saved yet opens as four rows
-and three named, collapsed groups instead:
+So `App.vue` passes `initial-groups`, and a workspace with nothing saved yet opens as four loose
+rows and three named groups instead:
 
 | Where it sits              | What is in it                                    | Why those belong together                                                                                                                        |
 | -------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Pinned                     | Home                                             | The landing page, first in the strip and outside every group, because the pinned region is what keeps it there. `pinned-page-ids` names it.       |
 | Loose                      | Map, Make a map, Docs                            | The two things a newcomer actually does, and the one they reach for when the rest has stopped making sense. Docs is one tab, and a group holding one tab is a header that hides exactly one row. |
-| **Rendering** (collapsed)  | Projects, GitHub runners, Renders                | How a render is set up and what it is doing: the settings a project carries, the fourth answer to "where does this render run", and the count in flight. |
-| **Finished maps** (collapsed) | Maps and servers, Publish to Pages, Watch it live | A map that already exists, and the three places it can be looked at: this application's own list, somebody else's static host, and this computer serving it off its own disk. |
-| **Keeping a copy** (collapsed) | Backups, World repository                     | The two ways a world or a render is put somewhere that is not this one machine: a versioned upload to GitHub, and a git repository a second computer can adopt. |
+| **Rendering**              | Projects, GitHub runners, Renders                | How a render is set up and what it is doing: the settings a project carries, the fourth answer to "where does this render run", and the count in flight. |
+| **Finished maps**          | Maps and servers, Publish to Pages, Watch it live | A map that already exists, and the three places it can be looked at: this application's own list, somebody else's static host, and this computer serving it off its own disk. |
+| **Keeping a copy**         | Backups, World repository                     | The two ways a world or a render is put somewhere that is not this one machine: a versioned upload to GitHub, and a git repository a second computer can adopt. |
 
 Three things this deliberately is not:
 
@@ -90,8 +90,20 @@ Three things this deliberately is not:
   them; a strip somebody arranged by hand is never re-shaped to match a default they never saw.
   `ensurePage`, the upgrade path below, adds its tab **outside** every group for the same
   reason.
-- **It is not hiding anything.** A collapsed group's members are still in the strip, still in
-  every search, still counted by a bulk close and still reachable in one click on the header.
+- **It is not hiding anything.** The groups are seeded **open**, so all twelve destinations are
+  on screen from the first launch with no disclosure to press first. That is deliberate, and it
+  is the half of this that is easy to get backwards: a shorter strip is not the goal, a legible
+  one is, and the names over the groups are what stop twelve destinations reading as one
+  undifferentiated list - which they do whether or not the members are showing. Collapsing on
+  top of that removes destinations rather than clutter, and it makes reaching them depend on a
+  control being pressable, which is strictly weaker than not needing one. The first version of
+  this did seed them shut, and the capture harness measured the cost: five destinations became
+  unreachable to it on a strip whose own diagnostics reported every group present, named and
+  correct.
+
+  Collapsing stays exactly where it belongs - something the reader does to the sections they
+  have decided they do not need - and a collapsed group still hides nothing: its members remain
+  in the strip's model, in every search, counted by a bulk close, and one click from the header.
   `revealPage` - the route the command palette, a finished render and a glossary link all take -
   reveals a collapsed group holding the tab it activates, through the runtime `revealed` set, so
   the strip never shows a panel whose tab is nowhere on screen and the group's saved preference
