@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fail-closed contract for dynamic values in the three release scripts.
+ * Fail-closed contract for dynamic values in every release script that receives
+ * an Actions expression through its environment.
  * Every dynamic env key, its Actions-expression provenance, and every exact
  * script line allowed to read it are inventoried below. Anything else fails.
  */
@@ -17,10 +18,31 @@ const contract = (expression, uses = [], implicit = false) =>
 
 const WATCHED_SCRIPT_STEPS = Object.freeze({
   ".github/workflows/ci.yml": Object.freeze({
+    "Resolve release tag": Object.freeze({
+      GH_TOKEN: contract(secretChain, [], true),
+    }),
+    "Verify nominated release already exists": Object.freeze({
+      GH_TOKEN: contract(secretChain, [], true),
+      RELEASE_TAG: contract("steps.tag.outputs.tag", [
+        'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \\',
+        '--tag "$RELEASE_TAG"',
+      ]),
+    }),
     "Resolve dim sum code name": Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
       ORDINAL: contract("steps.tag.outputs.ordinal", [
-        'node scripts/pick-dim-sum.mjs --ordinal "$ORDINAL" --out dim-sum-out',
+        'node scripts/pick-dim-sum.mjs --ordinal "$ORDINAL"',
+      ]),
+    }),
+    "Prepare release payload and hash manifest": Object.freeze({
+      BLUEMAP_VERSION: contract("needs.jars.outputs.version", [
+        'if [[ ! "$BLUEMAP_VERSION" =~ ^[0-9]+\\.[0-9]+(\\.[0-9]+)?([.-][0-9A-Za-z.-]+)?$ ]]; then',
+        'jars="bluemap-server-plugins-${BLUEMAP_VERSION}"',
+        "printf 'BlueMap %s server plugins\\n\\n' \"$BLUEMAP_VERSION\"",
+      ]),
+      RELEASE_TAG: contract("steps.tag.outputs.tag", [
+        'extras="worldlens-${RELEASE_TAG}-extras"',
+        "printf 'Worldlens %s - extras\\n\\n' \"$RELEASE_TAG\"",
       ]),
     }),
     "Compose release notes": Object.freeze({
@@ -32,16 +54,10 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
         'printf \'**Code name: %s · %s**\\n\\n\' "$DISH_NAME_EN" "$DISH_NAME_ZH"',
       ]),
       DISH_ALT_EN: contract("steps.dish.outputs.dish_alt_en", [
-        '"$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"',
+        "printf '![%s](%s)\\n\\n' \"$DISH_ALT_EN\" \"$DISH_PHOTO_URL\"",
       ]),
-      DISH_FILE_NAME: contract("steps.dish.outputs.dish_file_name", [
-        '"$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"',
-      ]),
-      DISH_VOLUME: contract("steps.dish.outputs.dish_volume", [
-        '"$DISH_VOLUME"',
-      ]),
-      RELEASE_TAG: contract("steps.tag.outputs.tag", [
-        '"$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"',
+      DISH_PHOTO_URL: contract("steps.dish.outputs.dish_photo_url", [
+        "printf '![%s](%s)\\n\\n' \"$DISH_ALT_EN\" \"$DISH_PHOTO_URL\"",
       ]),
       SPLIT: contract("steps.split.outputs.split", [
         'if [ "$SPLIT" = "1" ]; then',
@@ -50,17 +66,13 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
     }),
     Publish: Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
-      BLUEMAP_VERSION: contract("needs.jars.outputs.version", [
-        'jars="bluemap-server-plugins-${BLUEMAP_VERSION}"',
-        "printf 'BlueMap %s server plugins\\n\\n' \"$BLUEMAP_VERSION\"",
-      ]),
       RELEASE_TAG: contract("steps.tag.outputs.tag", [
-        'extras="worldlens-${RELEASE_TAG}-extras"',
-        "printf 'Worldlens %s - extras\\n\\n' \"$RELEASE_TAG\"",
         'gh release create "$RELEASE_TAG" \\',
         '--title "Worldlens $RELEASE_TAG" \\',
+        'gh release download "$RELEASE_TAG" \\',
         'gh release edit "$RELEASE_TAG" \\',
-        'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \\',
+        'gh release view "$RELEASE_TAG" \\',
+        '--tag "$RELEASE_TAG" \\',
       ]),
     }),
   }),
@@ -68,23 +80,35 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
 
 const WATCHED_STEP_FINGERPRINTS = Object.freeze({
   ".github/workflows/ci.yml": Object.freeze({
+    "Resolve release tag": Object.freeze({
+      env: "73dc8da2d166a44852cc6016f1152bfbb40706a31aeade8422c602454a532e00",
+      run: "1726f7d170248aa12f239b47391bf734c0871dc59669823aa936f7d054ad1b63",
+    }),
+    "Verify nominated release already exists": Object.freeze({
+      env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
+      run: "b0da8c167531db49d589e30969ddf99d35909ee9b494321d85ee7798caccdf4d",
+    }),
     "Resolve dim sum code name": Object.freeze({
       env: "ac9ce0136bb0c6611abee76c2b2cc24d3380b23f7dc6d660f03b4977280fc471",
-      run: "e8b171b7170173016649dfb65ae654678e711f93fcd0b2b0795226f4036dc3ca",
+      run: "2b1bc043e18d45c182097662e979e13f016e57a774370b93879ceb8af3375024",
+    }),
+    "Prepare release payload and hash manifest": Object.freeze({
+      env: "86be77600a8afab48d850356b53c73175c6770b4659857690388ea1d3025cdb9",
+      run: "23bf88a53aaf6237b92f1229cdbdc79dab1c79a790badc810dcb5bf54c6884d5",
     }),
     "Compose release notes": Object.freeze({
-      env: "caed41d074403c32376a58e8f01edc7c6e03a0b181235c85078eaccf819e9ca5",
-      run: "f0ae3ff87b620e873b29d1e0ed81ec97e5cae55f0941092dba895dc493e10d13",
+      env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
+      run: "67c07269c6d3f7835b23ed5fd3e50e1e8dd0f6c5985efc9eb69ed16450625f27",
     }),
     Publish: Object.freeze({
-      env: "f951560bc01336f0c08b2b8fc66f8b9bc7745b1593b3560718edb128c9f3b823",
-      run: "1dfc2b0093f507fd475701a56896ae9f5285f5963c3e60db6b99983575939eb0",
+      env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
+      run: "58ab850c32a1a3f4e15a25747e9c3aa8108e8933c73c608a132457457c3e09c7",
     }),
   }),
 });
 
 const RELEASE_JOB_FINGERPRINT =
-  "436b4fb744b42764ce97238e8edc252c771b80e08cd746697518be63bfd39e60";
+  "ba4f19c5a4d7311e42264909aac9719d5c893bc36f4421630f8ded16422e396d";
 
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
@@ -143,7 +167,7 @@ const ACTION_INVENTORIES = Object.freeze({
 
 const REQUIRED_STEP_LINES = Object.freeze({
   "Guard executable workflow expressions and release metadata": Object.freeze([
-    "node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs",
     "node scripts/lint-workflows.mjs",
   ]),
   "Resolve release tag": Object.freeze([
@@ -170,6 +194,22 @@ const REQUIRED_STEP_LINES = Object.freeze({
   "Compose release notes": Object.freeze([
     'echo "> [!WARNING]"',
     'echo "> Worldlens for Windows is intentionally and permanently unsigned. Windows SmartScreen may warn that the publisher is unknown; review the exact SHA-256 digest on this release before choosing to run it. The Squirrel package hash detects changed bytes, but an unsigned package does not authenticate who published or authored those bytes."',
+  ]),
+  "Prepare one fresh Squirrel release set": Object.freeze([
+    "node scripts/collect-squirrel-release.mjs prepare `",
+    '--state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `',
+  ]),
+  "Collect installer artifacts": Object.freeze([
+    "node scripts/collect-squirrel-release.mjs collect `",
+    '--state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `',
+  ]),
+  "Prove generated Windows executables are unsigned and branded": Object.freeze([
+    "$signature = Get-AuthenticodeSignature -LiteralPath $executable.FullName",
+    "if ($signature.Status -ne 'NotSigned') {",
+  ]),
+  Publish: Object.freeze([
+    "node scripts/release-asset-manifest.mjs verify \\",
+    "node scripts/release-asset-manifest.mjs verify-metadata \\",
   ]),
 });
 
@@ -541,11 +581,23 @@ function actionDependencyProblems(text, file) {
 
   if (file !== ".github/workflows/ci.yml") return problems;
 
+  for (let index = 0; index < lines.length; index++) {
+    if (/^\s*runs-on:\s*[^#\s]*-latest\s*(?:#.*)?$/.test(lines[index])) {
+      problems.push({
+        file,
+        line: index + 1,
+        stepName: null,
+        expression: null,
+        message: "hosted runner labels must name an explicit supported image",
+      });
+    }
+  }
+
   const release = jobBlock(lines, "release");
   const releaseStart = release?.start ?? -1;
   const releaseEnd = release?.end ?? lines.length;
   const expectedReleaseNeeds =
-    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]";
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]";
   const releaseNeeds =
     releaseStart < 0
       ? []
@@ -667,8 +719,12 @@ function main() {
     );
     process.exitCode = 1;
   } else {
+    const watchedCount = Object.values(WATCHED_SCRIPT_STEPS).reduce(
+      (total, steps) => total + Object.keys(steps).length,
+      0,
+    );
     process.stdout.write(
-      "lint-workflows: 2 workflows, 49 pinned actions and 3 watched release steps clean\n",
+      `lint-workflows: 2 workflows, 49 pinned actions and ${watchedCount} watched release steps clean\n`,
     );
   }
 }

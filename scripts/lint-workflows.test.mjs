@@ -215,7 +215,7 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
 
   const unwired = workflow.replace(
-    "node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs",
     "echo skipped",
   );
   assert.ok(
@@ -235,12 +235,24 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
 
   const bypassedGuard = workflow.replace(
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]",
     "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
-    "needs: [check, package, jars, test-world, config-java-roundtrip]",
   );
+  assert.notEqual(bypassedGuard, workflow);
   assert.ok(
     actionDependencyProblems(bypassedGuard, FILE).some((problem) =>
       /release must depend/.test(problem.message),
+    ),
+  );
+
+  const floatingRunner = workflow.replace(
+    "runs-on: ubuntu-24.04",
+    "runs-on: ubuntu-latest",
+  );
+  assert.notEqual(floatingRunner, workflow);
+  assert.ok(
+    actionDependencyProblems(floatingRunner, FILE).some((problem) =>
+      /explicit supported image/.test(problem.message),
     ),
   );
 
@@ -266,7 +278,7 @@ test("the hand-written inventory fails when a watched step disappears", () => {
     problems.filter((problem) =>
       /must exist exactly once/.test(problem.message),
     ).length,
-    2,
+    Object.keys(WATCHED).length - 1,
   );
 });
 
