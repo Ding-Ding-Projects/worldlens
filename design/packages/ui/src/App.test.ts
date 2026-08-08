@@ -234,6 +234,30 @@ function tabButton(label: string): HTMLElement {
     return node;
 }
 
+/** The seeded groups' own headers, in strip order. */
+function shellGroupHeads(): HTMLElement[] {
+    return [
+        ...document.querySelectorAll<HTMLElement>(".mb-shell-tabs .mb-tabs-strip__group-head"),
+    ];
+}
+
+/**
+ * Opens every collapsed group in the shell's strip.
+ *
+ * A fresh workspace is seeded into three collapsed groups (see `App.vue`'s `initialGroups`
+ * and the reasoning above it), and a collapsed group's members are deliberately not drawn -
+ * they are still in the strip, still searched and still counted, but a test that clicks a tab
+ * has to open the group first, exactly as a person does. That is the whole difference between
+ * a destination being one disclosure away and being gone, so the cases below call this rather
+ * than reaching past the strip's own state.
+ */
+async function expandShellGroups(): Promise<void> {
+    for (const head of shellGroupHeads()) {
+        if (head.getAttribute("aria-expanded") === "false") head.click();
+    }
+    await settle();
+}
+
 function tabLabels(): (string | null)[] {
     return shellTabs().map((node) => node.getAttribute("aria-label"));
 }
@@ -257,16 +281,66 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into twelve pages behind one persistent strip", () => {
+    it("opens a fresh install as four loose tabs and three named groups, not twelve flat ones", () => {
         shell();
 
+        // Pinned tabs announce that state in their own accessible name - see
+        // `TabButton.vue`'s `tabs.strip.pinnedTab` - which is also the proof that Home really
+        // did seed pinned rather than merely first in the ordinary region. Then the two
+        // things somebody meeting this application actually does, and the one they reach for
+        // when the rest of it has stopped making sense.
+        expect(tabLabels().slice(0, 4)).toEqual(["Home, pinned", "Map", "Make a map", "Docs"]);
+
+        expect(shellGroupHeads().map((head) => head.getAttribute("aria-label"))).toEqual([
+            "Rendering, 3 tabs",
+            "Finished maps, 3 tabs",
+            "Keeping a copy, 2 tabs",
+        ]);
+    });
+
+    /*
+     * Seeded open, which is the half of this that is easy to get backwards. A shorter strip
+     * is not the goal; a legible one is. The names over the groups are what stop twelve
+     * destinations reading as one undifferentiated list, and they do that whether or not the
+     * members are showing - while collapsing on top of it removes destinations rather than
+     * clutter, and makes reaching them depend on a control being pressable. See `App.vue`'s
+     * own note above `initialGroups` for the capture run that made that cost concrete.
+     */
+    it("shows every destination from the first launch, with the groups seeded open", () => {
+        shell();
+
+        expect(shellGroupHeads().map((head) => head.getAttribute("aria-expanded"))).toEqual([
+            "true",
+            "true",
+            "true",
+        ]);
+
+        // All twelve, on screen, with no disclosure to press first.
         expect(tabLabels()).toEqual([
-            // Pinned tabs announce that state in their own accessible name - see
-            // `TabButton.vue`'s `tabs.strip.pinnedTab` - which is also the proof that Home
-            // really did seed pinned rather than merely first in the ordinary region.
             "Home, pinned",
             "Map",
             "Make a map",
+            "Docs",
+            "Projects",
+            "GitHub runners",
+            "Renders",
+            "Maps and servers",
+            "Publish to Pages",
+            "Watch it live",
+            "Backups",
+            "World repository",
+        ]);
+    });
+
+    it("still separates the shell into twelve pages, every one of them one disclosure away", async () => {
+        shell();
+        await expandShellGroups();
+
+        expect(tabLabels()).toEqual([
+            "Home, pinned",
+            "Map",
+            "Make a map",
+            "Docs",
             "Projects",
             "GitHub runners",
             // No count in the label: nothing in this shell's fake bridges reports a render in
@@ -274,16 +348,15 @@ describe("the tab strip", () => {
             // as it should for a shell with nothing running.
             "Renders",
             "Maps and servers",
-            "Backups",
             "Publish to Pages",
+            // The local twin of Pages: no address for a fake bridge-less shell to have
+            // started hosting, so this always mounts as an ordinary, unhosted tab.
+            "Watch it live",
+            "Backups",
             // A world synced into a git repository, and a repository this application already
             // prepared on another computer recognised and adopted - see
             // WorldRepoScreen.vue's own doc comment.
             "World repository",
-            // The local twin of Pages: no address for a fake bridge-less shell to have
-            // started hosting, so this always mounts as an ordinary, unhosted tab.
-            "Watch it live",
-            "Docs",
         ]);
     });
 
@@ -409,6 +482,7 @@ describe("the tab strip", () => {
         // reaching the same surface are two navigation models arguing on one screen.
         expect(document.querySelector('button[aria-label="Servers"]')).toBeNull();
 
+        await expandShellGroups();
         tabButton("Maps and servers").click();
         await settle();
 
@@ -422,6 +496,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(ProjectsScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("Projects").click();
         await settle();
 
@@ -458,6 +533,7 @@ describe("the tab strip", () => {
         };
 
         const app = shell();
+        await expandShellGroups();
         tabButton("Projects").click();
         await settle();
         const row = app.findComponent(ProjectsScreen).find('[role="option"]');
@@ -515,6 +591,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(BackupScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("Backups").click();
         await settle();
 
@@ -528,6 +605,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(CiRenderScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("GitHub runners").click();
         await settle();
 
@@ -540,6 +618,7 @@ describe("the tab strip", () => {
         // sign-in row the button claims to open. A click that looks like it worked and
         // leaves the person exactly where they started is worse than no button.
         const app = shell();
+        await expandShellGroups();
         tabButton("GitHub runners").click();
         await settle();
 
@@ -555,6 +634,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(PagesScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("Publish to Pages").click();
         await settle();
 
@@ -567,6 +647,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(WorldRepoScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("World repository").click();
         await settle();
 
@@ -575,6 +656,7 @@ describe("the tab strip", () => {
 
     it("takes an adopted repository's project to the Projects page, open at that world", async () => {
         const app = shell();
+        await expandShellGroups();
         tabButton("World repository").click();
         await settle();
 
@@ -589,6 +671,7 @@ describe("the tab strip", () => {
 
     it("routes the world-repository screen's Settings request to the dependency anchor it names", async () => {
         const app = shell();
+        await expandShellGroups();
         tabButton("World repository").click();
         await settle();
 
@@ -604,6 +687,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(PreviewScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("Watch it live").click();
         await settle();
 
@@ -655,6 +739,7 @@ describe("the tab strip", () => {
         // Choosing a map on the server list, or finishing a render in the wizard, would
         // otherwise load the map correctly and invisibly behind the page still on screen.
         const app = shell();
+        await expandShellGroups();
         tabButton("Maps and servers").click();
         await settle();
         expect(app.findComponent(ProfileManager).exists()).toBe(true);

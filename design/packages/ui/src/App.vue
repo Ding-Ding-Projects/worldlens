@@ -53,7 +53,7 @@ import type { ConsoleTarget } from "./components/renders/activeRenders.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import type { PaletteConfigTarget } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
-import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
+import { TabbedNavigation, type TabGroupSeed, type TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
 import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
@@ -148,9 +148,11 @@ const pages = computed<TabPage[]>(() => [
     { id: PAGE_HOME, label: t("tabs.page.home", "Home"), icon: mdiHomeOutline },
     { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
     { id: PAGE_WORLD, label: t("tabs.page.world", "Make a map"), icon: mdiMapPlus },
-    // Next to the guide rather than at the end of the strip, because they are the two ends
-    // of one job: the guide asks five questions and writes a project, and this is where
-    // every other setting that project can carry actually lives.
+    // Declared next to the guide because they are the two ends of one job: the guide asks
+    // five questions and writes a project, and this is where every other setting that
+    // project can carry actually lives. On a fresh install it is seeded into the "Rendering"
+    // group rather than sitting beside the guide in the strip - see `initialGroups` below
+    // for why a newcomer meets the guide and not the settings behind it.
     {
         id: PAGE_PROJECTS,
         label: t("tabs.page.projects", "Projects"),
@@ -203,6 +205,96 @@ const pages = computed<TabPage[]>(() => [
     // changelog this is a browsable, searchable set of 25-odd articles that deserves the
     // same reach as every other destination in the strip.
     { id: PAGE_DOCS, label: t("tabs.page.docs", "Docs"), icon: mdiFileDocumentOutline },
+]);
+
+/**
+ * How a brand-new workspace is arranged, and why it is not twelve flat tabs.
+ *
+ * Twelve equal-weight destinations is what every one of the pages above deserves and not
+ * what a person meeting this application deserves: the two they need on the first day sit in
+ * a list with nine they will need later and one they need when stuck, all in the same
+ * typeface, all the same size, none of them explaining the others. That flat list is this
+ * shell's single biggest source of "cluttered", and the answer is not to delete a
+ * destination - every one of them is somebody's whole reason for opening the app - but to
+ * say out loud which ones belong together, which is what the tab strip's own groups are for.
+ *
+ * So a fresh install seeds three named groups and leaves four things in front of them:
+ *
+ *  - **Home**, pinned by `pinned-page-ids` below and therefore outside every group, because
+ *    the pinned region is what keeps the landing page at the front of the strip.
+ *  - **Map** and **Make a map**, loose. They are the two things a newcomer actually does -
+ *    look at a map, or make one - and putting either behind a disclosure would be answering
+ *    "too much on screen" by hiding the part that is not too much.
+ *  - **Docs**, loose. It is the destination somebody reaches for precisely when the rest of
+ *    the strip has stopped making sense, and it is one tab: a group holding a single tab is
+ *    a header that hides exactly one thing and saves exactly one row, which is an
+ *    indirection charging rent it does not pay.
+ *
+ * The three groups are named for the job their members share, taken from what each page is
+ * for rather than from where it happens to sit in the list above:
+ *
+ *  - **Rendering** - Projects, GitHub runners, Renders. Everything that decides how a render
+ *    is set up and shows what it is doing: the settings a project carries, the fourth answer
+ *    to "where does this render run", and the count of what is in flight.
+ *  - **Finished maps** - Maps and servers, Publish to Pages, Watch it live. A map that
+ *    already exists, and the three places it can be looked at: this application's own list
+ *    of local and remote maps, somebody else's static host, and this computer serving it
+ *    straight off its own disk.
+ *  - **Keeping a copy** - Backups, World repository. The two ways a world or a render is put
+ *    somewhere that is not this one machine: a versioned upload to GitHub, and a git
+ *    repository a second computer can adopt.
+ *
+ * This is a default rather than a structure. Every group here can be renamed, recoloured,
+ * reordered, emptied or ungrouped from the moment the strip is drawn, and that choice is what
+ * gets persisted; nothing re-applies this list to a workspace that already exists, which is
+ * the whole reason it is passed as a seed rather than enforced on every mount. A returning
+ * user's strip is exactly the one they arranged, groups and all.
+ *
+ * ## They are seeded open, and that is deliberate
+ *
+ * The first version of this seeded them collapsed, on the reasoning that the shortest
+ * possible strip is the least cluttered one. It is, and it costs more than it saves. What
+ * makes twelve flat tabs hard to read is that nothing says which of them belong together,
+ * and a name over a group fixes that on its own - the reader's eye gets three labelled
+ * regions instead of one undifferentiated list, whether or not the members are showing.
+ * Collapsing on top of that does not remove clutter so much as remove *destinations*: every
+ * page below a header becomes a thing you must already know is there to go looking for, and
+ * the strip stops being able to answer "what can this application do" by being looked at.
+ *
+ * There is a concrete cost too, and it is the kind that is easy to miss from a wide window.
+ * A disclosure is a control, and a control is something that can fail to be pressed - by
+ * automation, by an assistive technology driving the strip, or by anyone on a short window
+ * where the header itself is what scrolled out of reach. Reachability that depends on a
+ * click is strictly weaker than reachability that does not, and the capture harness proved
+ * it: with the groups seeded shut, five destinations became unreachable to it, on a strip
+ * whose own diagnostics reported every group present, named and correct.
+ *
+ * Open by default, then. The grouping does the de-cluttering, the strip stays honest about
+ * what the application contains, and collapsing is left as what it always should have been:
+ * something the reader does to the sections they have decided they do not need.
+ */
+const initialGroups = computed<TabGroupSeed[]>(() => [
+    {
+        id: "seed-rendering",
+        name: t("tabs.group.seed.rendering", "Rendering"),
+        color: "primary",
+        collapsed: false,
+        pageIds: [PAGE_PROJECTS, PAGE_CIRENDER, PAGE_RENDERS],
+    },
+    {
+        id: "seed-finished",
+        name: t("tabs.group.seed.finished", "Finished maps"),
+        color: "tertiary",
+        collapsed: false,
+        pageIds: [PAGE_SERVERS, PAGE_PAGES, PAGE_PREVIEW],
+    },
+    {
+        id: "seed-copies",
+        name: t("tabs.group.seed.copies", "Keeping a copy"),
+        color: "secondary",
+        collapsed: false,
+        pageIds: [PAGE_BACKUPS, PAGE_WORLDREPO],
+    },
 ]);
 
 const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
@@ -796,6 +888,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         panel-pass-through
                         :pages="pages"
                         :pinned-page-ids="[PAGE_HOME]"
+                        publishes-inset
+                        :initial-groups="initialGroups"
                     >
                         <!--
                             Home draws no canvas and owns no shell-level state, so its page
@@ -1377,9 +1471,28 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     padding: 16px;
 }
 
+/*
+ * Clear of the tab strip, not on top of it.
+ *
+ * This stack is `position: fixed` in the bottom-left corner, which was the empty corner
+ * when the strip ran along the top of the window. The strip's default placement is the left
+ * edge, so that corner belongs to the strip now: a real capture of the running application
+ * shows the configuration button drawn over the strip's own overflow and search controls,
+ * and a tab that reaches that far down is a tab whose click the button intercepts.
+ *
+ * `--mb-tabs-strip-inline-size` is published by `TabStrip.vue` from its own measured width,
+ * and is `0px` for every placement that leaves the left edge alone - so a top, bottom or
+ * right strip puts these buttons back exactly where they have always been. The fallback is
+ * `0px` for the same reason: a build that somehow renders no strip at all should not push
+ * its buttons into the middle of the window.
+ *
+ * `.mb-world-host`'s own 76px gutter still covers these buttons where they land, because
+ * that gutter is measured from the page panel's left edge and the panel begins where the
+ * strip ends.
+ */
 .mb-shell-fabs {
     position: fixed;
-    left: calc(12px + env(safe-area-inset-left, 0px));
+    left: calc(12px + var(--mb-tabs-strip-inline-size, 0px) + env(safe-area-inset-left, 0px));
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;

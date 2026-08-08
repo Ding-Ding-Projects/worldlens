@@ -1,5 +1,98 @@
 # Handoff
 
+## 2026-08-08 (later) — the interface rewrite: a different look, a calmer first launch, and motion
+
+Branch `claude/interface-usability-clipping-k4to32`, continuing the entry below. The brief was
+a genuinely different Material Design 3 look that a newcomer does not read as cluttered, with
+no feature removed.
+
+**What made this more than a token dump.** Vuetify's `rounded` scale is Material 2 arithmetic
+wearing Material 3 names: its `lg` is 8px against M3's 16px, its `xl` is 24px against 28px, and
+it has no `md` step at all. The md3 blueprint already set cards to `rounded="lg"`, so the cards
+were asking for the large corner and getting 8px — meaning component defaults alone would have
+been a visible no-op. `global.scss` therefore re-points the utility classes themselves at the
+tokens, and the same treatment gives `.elevation-0..5` M3's key-plus-ambient ladder instead of
+M2's umbra/penumbra/ambient triple and re-tunes Vuetify's state-layer variables from
+0.04/0.12/0.12/0.08 to M3's 0.08/0.1/0.1/0.16. That is what actually changes every screen.
+
+**The token system** (`styles/md3.scss`, `docs/design-system.md`): the shape scale, fifteen type
+ramps with size/line-height/weight/tracking, elevation 0-5, four state-layer opacities, seven
+Expressive easings and the twelve-step duration ladder. Every type value is `rem` and nothing
+sets a root font size, so the interface-size dial still owns scale. Prose is capped at 68ch —
+the wizard was running ~150 characters a line — released inside tables, `pre`, `code`, `kbd`
+and `samp`. The elevation tokens are deliberately **not** named `--md-sys-elevation-levelN`:
+`markers.scss` owns that name for a `drop-shadow()` chain and is imported later, so a
+`box-shadow` under it would be silently clobbered and every elevated surface would go flat.
+
+**De-cluttering, all of it additive.** Home went from ~25 equal cards to one hero plus five
+collapsed disclosures whose headings state their own counts; its capability id set is identical
+before and after, all 28, verified against the previous revision and pinned as an exact set.
+The navigation strip seeds a fresh workspace into four rows plus three named collapsed groups
+instead of twelve flat tabs, with the groupings read off `App.vue`'s own per-page comments; a
+saved workspace is never re-shaped, which two tests pin specifically. The corner FAB stack went
+from four buttons to the two workbench controls, with the licence and welcome panels keeping
+their Home cards and gaining palette rows.
+
+**Motion** (`styles/motion.scss`): tab panels, expanding groups, Home's disclosures, three
+lists, the notification stack and the overlay scrim, all from tokens — a test fails the build
+on a hard-coded millisecond or `cubic-bezier`. It exposed two reduced-motion holes that predate
+it: the `global.scss` kill switch zeroes durations but **not delays** (a 0.01ms animation with
+a 200ms delay and a backwards fill holds content invisible for a fifth of a second), and it
+cannot reach overlays at all because Vuetify teleports `.v-overlay-container` to `<body>`,
+outside `#app`. Both are now covered — shorthand resets for the first, a `no-preference` media
+query for the second.
+
+**Visual bugs found by looking at the real application**, not by testing it. Reading the
+committed screenshots caught two defects invisible to ~9,800 tests: the consent row rendering
+"…client download:not accepted yet" because Vue condenses the whitespace-only newline between
+`</strong>` and a `<template v-if>` (all three language modes and all five funny levels at
+once), and the wizard's run-options row misaligning when one label wraps. The second is worth
+reading in full: the row was level in that screenshot **only by coincidence** — all three hints
+happened to run to three lines, so three stretched control rows came out equal. The mechanism
+was grid `stretch` plus Vuetify's `grid-template-rows: 1fr auto` putting the surplus in the
+control row plus `.v-selection-control`'s centring; the fix removes the stretch, and the labels
+that never wrapped do not move.
+
+**The screenshot harness was run for real, and it is what found the rest.** Electron under
+`xvfb-run`, four rounds, each one exposing something no unit test can see because all of it
+lives in how a flex box lays its children out and jsdom does no layout at all:
+
+1. Eleven surfaces could not be opened. Tabs that live inside a collapsed group are genuinely
+   not on screen until the group is opened, so the harness expands them first now — the same
+   class of failure this file already documents for the profile manager, whose capture went on
+   clicking a floating button the shell had deliberately deleted.
+2. The shell's floating buttons were drawn **on top of the tab strip**, intercepting clicks on
+   its own overflow and search controls. Fixed by measurement, as described above.
+3. Each collapsed group's commands menu dropped onto **a full-width row of its own** beneath
+   the group name — three orphaned rows reading as bare ellipses.
+4. The fix for (2) was published by **all four** of this application's tab strips, so whichever
+   mounted last won and the shell's buttons were offset by a panel's width. Publishing is an
+   explicit opt-in now, and the measurement is `getBoundingClientRect().right`.
+
+After those, every surface captures. **One genuine finding is left deliberately unfixed and is
+recorded here rather than papered over:** opening the Pages tab makes live calls to
+`api.github.com/user` and `/user/repos` even when nobody is signed in, because
+`PagesScreen.vue`'s `onMounted` gates `loadOwners()` on `canListOwners`, which asks whether
+this *build* can list owners rather than whether anybody is *signed in*. The harness's
+offline guard fails on it. It predates all of this work and was invisible only because that
+surface could never be opened in a capture run before; changing when the application talks to
+a third party is a behaviour decision that does not belong in a look-and-feel change.
+
+Verification: `pnpm lint`, `pnpm build` and per-package typechecks clean; the full workspace
+vitest run green; every wave verified before its own push; the harness green apart from the
+network guard described above.
+
+**CI was red for most of this branch's life, and the reason is worth recording.** `pnpm
+typecheck` at the workspace root runs `vue-tsc`/`tsc` across all thirteen packages; the
+per-package checks run during the work only covered `ui` and `app`, so a `ui` failure
+introduced after that check went unnoticed locally while every push went red. The failure
+itself: an optional `publishesInset?: boolean` forwarded bare from `TabbedNavigation` to
+`TabStrip`. `vue-tsc` types a template reference to an optional prop from its *declared*
+type rather than its `withDefaults` value, so the binding is `boolean | undefined`, and this
+workspace's `exactOptionalPropertyTypes` refuses that against a receiving `?: boolean`. The
+component's other optional booleans are only ever coerced in the template, which is why this
+was the one that tripped. Run `pnpm typecheck` from `design/`, not per package - that is
+what CI runs.
 ## 2026-08-08 — #117 RemoteFileBrowser has no narrow-dialog horizontal scroll trap
 
 At 30rem and below, the remote file listing now uses a fixed table layout, retains the name and
