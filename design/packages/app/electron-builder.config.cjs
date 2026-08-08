@@ -51,7 +51,7 @@ async function brandWindowsExecutable(context) {
     const executablePath = `${context.appOutDir}/${executableName}`;
     const iconPath = `${__dirname}/build/icon.ico`;
     const version = context.packager.appInfo.version;
-    const { default: rcedit } = await import("rcedit");
+    const { rcedit } = await import("rcedit");
 
     await rcedit(executablePath, {
         icon: iconPath,

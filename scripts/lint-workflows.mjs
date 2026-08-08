@@ -204,6 +204,7 @@ const REQUIRED_STEP_LINES = Object.freeze({
     '--state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `',
   ]),
   "Prove generated Windows executables are unsigned and branded": Object.freeze([
+    "Get-ChildItem -LiteralPath $applicationDirectories[0] -File -Filter '*.exe' -Recurse",
     "$signature = Get-AuthenticodeSignature -LiteralPath $executable.FullName",
     "if ($signature.Status -ne 'NotSigned') {",
   ]),

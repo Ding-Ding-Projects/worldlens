@@ -126,7 +126,7 @@ jobs:
   # ---------------------------------------------------------------------------------
   cli:
     name: Build the BlueMap CLI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -170,7 +170,7 @@ jobs:
   # ---------------------------------------------------------------------------------
   plan:
     name: Measure and plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       shard-ids: ${{ steps.plan.outputs.shard-ids }}
       shard-count: ${{ steps.plan.outputs.shard-count }}
@@ -511,7 +511,7 @@ jobs:
       # `df` on THIS runner, not the published runner spec: this project has already caught
       # that spec understating a real runner's free disk by a wide margin (see
       # docs/world-sources.md), so trusting it here would make this check reject worlds a
-      # real runner could actually hold. ubuntu-latest runners are provisioned from the same
+      # real runner could actually hold. ubuntu-24.04 hosted runners are provisioned from the same
       # image, so this runner's disk - measured right after the same world fetch a shard
       # runner would also do - stands in for what the wave jobs this same run dispatches
       # will have.
@@ -783,7 +783,7 @@ jobs:
         && needs.wave10.result != 'failure' && needs.wave10.result != 'cancelled'
         && needs.wave11.result != 'failure' && needs.wave11.result != 'cancelled'
         && needs.wave12.result != 'failure' && needs.wave12.result != 'cancelled' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -1007,7 +1007,7 @@ jobs:
     name: Merge the lowres pyramid
     needs: [plan, merge]
     if: needs.plan.outputs.single-group != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -1128,7 +1128,7 @@ jobs:
     name: Publish to Pages
     needs: [plan, merge]
     if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pages: write

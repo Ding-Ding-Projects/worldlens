@@ -65,7 +65,7 @@ concurrency:
 jobs:
   check:
     name: Check whether the scheduled world changed
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 

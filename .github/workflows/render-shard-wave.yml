@@ -51,7 +51,7 @@ permissions:
 jobs:
   render:
     name: Wave ${{ inputs.wave }} shard ${{ matrix.shard }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Below GitHub's own six hour ceiling. The render step has a shorter timeout still,
     # so a shard that runs out of time fails that one step rather than having the job
     # cancelled underneath it - which is what lets the cache be saved and the partial

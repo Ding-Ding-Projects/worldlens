@@ -331,20 +331,31 @@ jobs:
           PACKAGE_VERSION: ${{ steps.version.outputs.version }}
         shell: pwsh
         run: |
-          $applicationCandidates = @(
-            'design/packages/app/release/win-unpacked/Worldlens.exe',
-            'design/packages/app/dist/win-unpacked/Worldlens.exe'
-          ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
-          if ($applicationCandidates.Count -ne 1) {
-            Write-Host "::error::expected one packaged Worldlens.exe, found $($applicationCandidates.Count)"
+          $applicationDirectories = @(
+            'design/packages/app/release/win-unpacked',
+            'design/packages/app/dist/win-unpacked'
+          ) | Where-Object { Test-Path -LiteralPath $_ -PathType Container }
+          if ($applicationDirectories.Count -ne 1) {
+            Write-Host "::error::expected one packaged application directory, found $($applicationDirectories.Count)"
             exit 1
           }
+          $packagedExecutables = @(
+            Get-ChildItem -LiteralPath $applicationDirectories[0] -File -Filter '*.exe' -Recurse
+          )
           $releaseExecutables = @(Get-ChildItem -LiteralPath installer-out -File -Filter '*.exe')
           if ($releaseExecutables.Count -lt 1) {
             Write-Host '::error::the collected Squirrel set contains no setup executable'
             exit 1
           }
-          $executables = @((Get-Item -LiteralPath $applicationCandidates[0])) + $releaseExecutables
+          $executables = @(
+            $packagedExecutables
+            $releaseExecutables
+          ) | Sort-Object -Property FullName -Unique
+          $applicationCandidates = @($packagedExecutables | Where-Object { $_.Name -eq 'Worldlens.exe' })
+          if ($applicationCandidates.Count -ne 1) {
+            Write-Host "::error::expected one packaged Worldlens.exe, found $($applicationCandidates.Count)"
+            exit 1
+          }
           foreach ($executable in $executables) {
             $signature = Get-AuthenticodeSignature -LiteralPath $executable.FullName
             if ($signature.Status -ne 'NotSigned') {
@@ -352,7 +363,7 @@ jobs:
               exit 1
             }
           }
-          $versionInfo = $executables[0].VersionInfo
+          $versionInfo = $applicationCandidates[0].VersionInfo
           if ($versionInfo.ProductName -ne 'Worldlens' -or $versionInfo.FileDescription -ne 'Worldlens') {
             Write-Host '::error::the resource-only branding hook did not apply Worldlens metadata'
             exit 1

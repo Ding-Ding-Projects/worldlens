@@ -79,7 +79,7 @@ jobs:
   # ---------------------------------------------------------------------------------
   preflight:
     name: Preflight
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       staging-tag: ${{ steps.ids.outputs.staging }}
       release-tag: ${{ steps.ids.outputs.release }}
@@ -165,7 +165,7 @@ jobs:
   # ---------------------------------------------------------------------------------
   cli:
     name: Build the renderer
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -211,7 +211,7 @@ jobs:
   prepare:
     name: Prepare
     needs: preflight
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       shard-ids: ${{ steps.plan.outputs.shard-ids }}
       shard-count: ${{ steps.plan.outputs.shard-count }}
@@ -312,7 +312,7 @@ jobs:
   render:
     name: Render ${{ matrix.shard }}
     needs: [preflight, cli, prepare]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 350
     strategy:
       fail-fast: false
@@ -449,7 +449,7 @@ jobs:
   assemble:
     name: Assemble
     needs: [preflight, prepare, render]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -579,7 +579,7 @@ jobs:
     name: Clean up
     needs: [preflight, assemble]
     if: always() && needs.preflight.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Delete the staging release
         env:

@@ -15,6 +15,8 @@ import type {
 import type { RuntimeBridge } from "../remote/remoteBridge.js";
 
 const vuetify = createVuetify();
+// Raw imports preserve checkout line endings. Assert the CSS contract, not the host OS.
+const normalizedDockerWorldSourcePanelSource = dockerWorldSourcePanelSource.replace(/\r\n?/g, "\n");
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -290,7 +292,7 @@ describe("the source-kind toggle's sizing rule", () => {
     it("keeps 44px as a floor rather than a ceiling, so a second label line can grow the box", () => {
         const rule =
             /\.mb-docker-world \.v-btn-toggle,\s*\.mb-docker-world \.v-btn-toggle \.v-btn\s*\{[^}]*\}/.exec(
-                dockerWorldSourcePanelSource,
+                normalizedDockerWorldSourcePanelSource,
             )?.[0] ?? "";
         const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, "");
         expect(declarations).not.toBe("");
@@ -305,7 +307,7 @@ describe("the source-kind toggle's sizing rule", () => {
         // this same selector preceded by a comma.
         const rule =
             /(?<!,\n)\.mb-docker-world \.v-btn-toggle \.v-btn\s*\{[^}]*\}/.exec(
-                dockerWorldSourcePanelSource,
+                normalizedDockerWorldSourcePanelSource,
             )?.[0] ?? "";
         const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, "");
         expect(declarations).not.toBe("");

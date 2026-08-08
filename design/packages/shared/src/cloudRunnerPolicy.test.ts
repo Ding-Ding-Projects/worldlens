@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
-type HostedRunner = "ubuntu-latest" | "windows-latest" | "macos-latest";
+type HostedRunner = "ubuntu-24.04" | "windows-2022";
 
 interface RunnerJob {
     readonly workflow: string;
@@ -38,35 +38,35 @@ const WORKFLOWS = [
  * removing, or renaming a job must update this inventory in the same commit.
  */
 const WORKFLOW_JOBS: readonly WorkflowJob[] = [
-    { workflow: "build-jars.yml", job: "build", runner: "ubuntu-latest" },
-    { workflow: "ci.yml", job: "workflows", runner: "ubuntu-latest" },
-    { workflow: "ci.yml", job: "check", runner: "ubuntu-latest" },
-    { workflow: "ci.yml", job: "package", runner: "windows-latest" },
+    { workflow: "build-jars.yml", job: "build", runner: "ubuntu-24.04" },
+    { workflow: "ci.yml", job: "workflows", runner: "ubuntu-24.04" },
+    { workflow: "ci.yml", job: "check", runner: "ubuntu-24.04" },
+    { workflow: "ci.yml", job: "package", runner: "windows-2022" },
     { workflow: "ci.yml", job: "jars", uses: "./.github/workflows/build-jars.yml" },
-    { workflow: "ci.yml", job: "config-java-roundtrip", runner: "ubuntu-latest" },
-    { workflow: "ci.yml", job: "test-world", runner: "ubuntu-latest" },
-    { workflow: "ci.yml", job: "screenshots", runner: "ubuntu-latest" },
-    { workflow: "ci.yml", job: "release", runner: "ubuntu-latest" },
-    { workflow: "pages.yml", job: "build", runner: "ubuntu-latest" },
-    { workflow: "pages.yml", job: "deploy", runner: "ubuntu-latest" },
-    { workflow: "render-private-world.yml", job: "preflight", runner: "ubuntu-latest" },
-    { workflow: "render-private-world.yml", job: "cli", runner: "ubuntu-latest" },
-    { workflow: "render-private-world.yml", job: "prepare", runner: "ubuntu-latest" },
-    { workflow: "render-private-world.yml", job: "render", runner: "ubuntu-latest" },
-    { workflow: "render-private-world.yml", job: "assemble", runner: "ubuntu-latest" },
-    { workflow: "render-private-world.yml", job: "cleanup", runner: "ubuntu-latest" },
-    { workflow: "render-shard-wave.yml", job: "render", runner: "ubuntu-latest" },
-    { workflow: "render-world.yml", job: "cli", runner: "ubuntu-latest" },
-    { workflow: "render-world.yml", job: "plan", runner: "ubuntu-latest" },
+    { workflow: "ci.yml", job: "config-java-roundtrip", runner: "ubuntu-24.04" },
+    { workflow: "ci.yml", job: "test-world", runner: "ubuntu-24.04" },
+    { workflow: "ci.yml", job: "screenshots", runner: "ubuntu-24.04" },
+    { workflow: "ci.yml", job: "release", runner: "ubuntu-24.04" },
+    { workflow: "pages.yml", job: "build", runner: "ubuntu-24.04" },
+    { workflow: "pages.yml", job: "deploy", runner: "ubuntu-24.04" },
+    { workflow: "render-private-world.yml", job: "preflight", runner: "ubuntu-24.04" },
+    { workflow: "render-private-world.yml", job: "cli", runner: "ubuntu-24.04" },
+    { workflow: "render-private-world.yml", job: "prepare", runner: "ubuntu-24.04" },
+    { workflow: "render-private-world.yml", job: "render", runner: "ubuntu-24.04" },
+    { workflow: "render-private-world.yml", job: "assemble", runner: "ubuntu-24.04" },
+    { workflow: "render-private-world.yml", job: "cleanup", runner: "ubuntu-24.04" },
+    { workflow: "render-shard-wave.yml", job: "render", runner: "ubuntu-24.04" },
+    { workflow: "render-world.yml", job: "cli", runner: "ubuntu-24.04" },
+    { workflow: "render-world.yml", job: "plan", runner: "ubuntu-24.04" },
     ...Array.from({ length: 12 }, (_, index) => ({
         workflow: "render-world.yml",
         job: `wave${index + 1}`,
         uses: "./.github/workflows/render-shard-wave.yml",
     })),
-    { workflow: "render-world.yml", job: "merge", runner: "ubuntu-latest" },
-    { workflow: "render-world.yml", job: "merge-lowres", runner: "ubuntu-latest" },
-    { workflow: "render-world.yml", job: "publish", runner: "ubuntu-latest" },
-    { workflow: "scheduled-render.yml", job: "check", runner: "ubuntu-latest" },
+    { workflow: "render-world.yml", job: "merge", runner: "ubuntu-24.04" },
+    { workflow: "render-world.yml", job: "merge-lowres", runner: "ubuntu-24.04" },
+    { workflow: "render-world.yml", job: "publish", runner: "ubuntu-24.04" },
+    { workflow: "scheduled-render.yml", job: "check", runner: "ubuntu-24.04" },
 ];
 
 function workflowText(name: string): string {
@@ -93,6 +93,31 @@ function jobBlocks(text: string): Map<string, string> {
 
 function jobKey(job: Pick<WorkflowJob, "workflow" | "job">): string {
     return `${job.workflow}:${job.job}`;
+}
+
+function runnerPolicyProblems(workflow: string, text: string): string[] {
+    const problems: string[] = [];
+    const allowed = new Set<HostedRunner>(["ubuntu-24.04", "windows-2022"]);
+    const expectedJobs = WORKFLOW_JOBS.filter((entry) => entry.workflow === workflow);
+    const blocks = jobBlocks(text);
+
+    for (const expected of expectedJobs) {
+        const block = blocks.get(expected.job);
+        if (block === undefined) {
+            problems.push(`${jobKey(expected)} is missing`);
+            continue;
+        }
+        if (!("runner" in expected)) continue;
+        const match = block.match(/^\s*runs-on:\s*(.+?)\s*$/m);
+        const actual = match?.[1] ?? "<missing>";
+        if (!allowed.has(actual as HostedRunner)) {
+            problems.push(`${jobKey(expected)} uses unapproved runner ${actual}`);
+        }
+        if (actual !== expected.runner) {
+            problems.push(`${jobKey(expected)} expected ${expected.runner}, found ${actual}`);
+        }
+    }
+    return problems;
 }
 
 describe("GitHub-hosted runner policy", () => {
@@ -124,16 +149,31 @@ describe("GitHub-hosted runner policy", () => {
     });
 
     it("rejects self-hosted labels, expressions, and non-standard runner labels", () => {
-        const allowed = new Set<HostedRunner>(["ubuntu-latest", "windows-latest", "macos-latest"]);
         for (const workflow of WORKFLOWS) {
             const text = workflowText(workflow);
             expect(text.toLowerCase()).not.toContain("self-hosted");
-            for (const [job, block] of jobBlocks(text)) {
-                const match = block.match(/^\s*runs-on:\s*(.+?)\s*$/m);
-                if (!match) continue;
-                expect(allowed.has(match[1] as HostedRunner), `${workflow}:${job} runner`).toBe(
-                    true,
+            expect(runnerPolicyProblems(workflow, text)).toEqual([]);
+        }
+    });
+
+    it("rejects mutable, self-hosted, expression, and unknown labels in every pinned inventory", () => {
+        for (const workflowName of WORKFLOWS) {
+            const workflow = workflowText(workflowName);
+            for (const replacement of [
+                "ubuntu-latest",
+                "self-hosted",
+                "${{ matrix.runner }}",
+                "ubuntu-nightly",
+            ]) {
+                const mutated = workflow.replace(
+                    "runs-on: ubuntu-24.04",
+                    `runs-on: ${replacement}`,
                 );
+                expect(mutated, workflowName).not.toBe(workflow);
+                expect(
+                    runnerPolicyProblems(workflowName, mutated),
+                    `${workflowName}: ${replacement}`,
+                ).not.toEqual([]);
             }
         }
     });

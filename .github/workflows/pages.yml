@@ -29,7 +29,7 @@ jobs:
     # No additional job-level concurrency is needed on top of the workflow-level
     # `pages` group above: it already serialises deployments without cancelling one in
     # flight. Standard hosted Linux supplies a clean, reproducible build environment.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # The vendored BlueMap submodule is a large Java reference tree that nothing in
       # this build reads, so it is deliberately not checked out.
@@ -109,7 +109,7 @@ jobs:
   deploy:
     name: Deploy to Pages
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
