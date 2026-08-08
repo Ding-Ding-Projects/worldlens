@@ -78,6 +78,7 @@ import type {
     AppSettingsState,
 } from "../main/settings/index.js";
 import type { RestoreResult } from "../main/history/index.js";
+import type { StartupDiagnosticsSnapshot, StartupExportFormat } from "../main/startup/index.js";
 import {
     toBridgeCoordinates,
     toBridgeDiscoveryResult,
@@ -1328,6 +1329,9 @@ export interface WorldRepoMarker {
     version: number;
     branch: string;
     updatedAt: string;
+    snapshotId?: string;
+    batchCount?: number;
+    bytes?: number;
 }
 
 /** Mirrors `GhStatus` in `main/cirender/gh.ts`, read here through `WorldRepoPreflight.gh`. */
@@ -1406,6 +1410,9 @@ export interface WorldRepoSyncReport {
     pushVerified: boolean;
     bytes: number;
     fileCount: number;
+    batchCount: number;
+    maxCommitBytes: number;
+    maxPushBytes: number;
     notes: string[];
 }
 
@@ -1438,6 +1445,9 @@ export type WorldRepoEvent =
           description: string;
           done: number;
           total: number;
+          unit?: "files" | "bytes" | "batches";
+          batch?: number;
+          batches?: number;
           at: string;
       }
     | { type: "log"; key: string; level: "info" | "warning" | "error"; message: string; at: string }
@@ -1562,7 +1572,7 @@ export interface WorldRepoBridge {
     owners(): Promise<WorldRepoAnswer<readonly WorldRepoOwner[]>>;
     /** What a sync would do, before it does any of it. */
     preflight(target: WorldRepoTarget): Promise<WorldRepoAnswer<WorldRepoPreflight>>;
-    /** Pushes the world folder itself as one commit, force-replacing the branch each time. */
+    /** Uploads bounded commits to a leased staging ref, then atomically replaces the world branch. */
     sync(request: WorldRepoSyncRequest): Promise<WorldRepoSyncResult>;
     /** Deletes the branch this application made for a world. Never touches the world folder. */
     remove(target: WorldRepoTarget): Promise<WorldRepoRemoveResult>;
@@ -2227,6 +2237,44 @@ export interface GhCliSwitchResult {
     message: string;
 }
 
+export type GhCliLoginStage =
+    | "requesting-code"
+    | "waiting-for-approval"
+    | "storing-credential"
+    | "verifying"
+    | "succeeded"
+    | "denied"
+    | "expired"
+    | "cancelled"
+    | "failed";
+
+/** Secret-free progress pushed by the main process while `gh` sign-in is running. */
+export interface GhCliLoginState {
+    stage: GhCliLoginStage;
+    host: "github.com";
+    expectedLogin: string | null;
+    userCode: string | null;
+    verificationUri: string | null;
+    verificationUriComplete: string | null;
+    expiresAt: number | null;
+    secondsRemaining: number | null;
+    attempt: number;
+    browserOpened: boolean;
+    account: GhCliAccount | null;
+    failureCode: string | null;
+    message: string;
+}
+
+export interface GhCliLoginResult {
+    ok: boolean;
+    state: GhCliLoginState;
+}
+
+export interface GhCliCancelLoginResult {
+    cancelled: boolean;
+    message: string;
+}
+
 export /**
  * The backup types come from the main process itself rather than being restated here, so
  * this bridge cannot drift from what actually crosses. Only the two names the UI spells
@@ -2263,6 +2311,14 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    startup: {
+        read(): Promise<StartupDiagnosticsSnapshot>;
+        copy(): Promise<{ ok: boolean; message: string }>;
+        export(
+            format: StartupExportFormat,
+        ): Promise<{ ok: boolean; path: string | null; message: string }>;
+        retry(): Promise<{ ok: boolean; message: string }>;
+    };
 
     /**
      * The window buttons, for the app's own title bar.
@@ -2737,6 +2793,15 @@ interface WorldlensBridge {
      */
     ghCliSwitchAccount(host: string, login: string): Promise<GhCliSwitchResult>;
 
+    /** Starts the GUI device flow. The approved token never crosses this bridge. */
+    ghCliStartLogin(expectedLogin?: string): Promise<GhCliLoginResult>;
+
+    /** Cancels the login started by this renderer window, if one is active. */
+    ghCliCancelLogin(): Promise<GhCliCancelLoginResult>;
+
+    /** Subscribes to secret-free code, URL, countdown, and verification progress. */
+    onGhCliLoginState(listener: (state: GhCliLoginState) => void): () => void;
+
     /**
      * Reading and writing a BlueMap config folder, for the options screen.
      *
@@ -3121,6 +3186,12 @@ const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
+    startup: {
+        read: () => ipcRenderer.invoke("startup:read"),
+        copy: () => ipcRenderer.invoke("startup:copy"),
+        export: (format) => ipcRenderer.invoke("startup:export", format),
+        retry: () => ipcRenderer.invoke("startup:retry"),
+    },
 
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggleMaximize"),
@@ -3274,6 +3345,20 @@ const bridge: WorldlensBridge = {
 
     ghCliListAccounts: () => ipcRenderer.invoke("ghCli:listAccounts"),
     ghCliSwitchAccount: (host, login) => ipcRenderer.invoke("ghCli:switchAccount", { host, login }),
+    ghCliStartLogin: (expectedLogin) =>
+        ipcRenderer.invoke(
+            "ghCli:startLogin",
+            expectedLogin === undefined ? {} : { expectedLogin },
+        ),
+    ghCliCancelLogin: () => ipcRenderer.invoke("ghCli:cancelLogin"),
+    onGhCliLoginState: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: GhCliLoginState): void =>
+            listener(payload);
+        ipcRenderer.on("ghCli:loginState", forward);
+        return () => {
+            ipcRenderer.off("ghCli:loginState", forward);
+        };
+    },
 
     config: {
         readFolder: (folder) => ipcRenderer.invoke("config:readFolder", folder),

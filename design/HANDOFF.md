@@ -93,6 +93,24 @@ workspace's `exactOptionalPropertyTypes` refuses that against a receiving `?: bo
 component's other optional booleans are only ever coerced in the template, which is why this
 was the one that tripped. Run `pnpm typecheck` from `design/`, not per package - that is
 what CI runs.
+## 2026-08-08 — #117 RemoteFileBrowser has no narrow-dialog horizontal scroll trap
+
+At 30rem and below, the remote file listing now uses a fixed table layout, retains the name and
+size columns, hides only the timestamp column, and collapses a world-status badge to its already
+accessible icon. The grid wrapper clips horizontal overflow rather than exposing a sideways scroll
+region inside a dialog. `remoteFileBrowserSizing.test.ts` guards the responsive rules; 16 focused
+remote-browser tests and the UI typecheck pass. The issue stays open until a genuine built narrow
+dialog capture and exact-main CI verdict are available.
+
+## 2026-08-08 — #116 tab finder and group-menu viewport clamp
+
+`TabFinder` and `TabGroupMenu` previously imposed desktop intrinsic minimum widths (340px and
+320px) even when their containing tab sheet was constrained to `calc(100vw - 16px)`. Both now use
+that same bounded width expression with `box-sizing: border-box` and `min-width: 0`, so the inner
+panels cannot force the tab sheet beyond a narrow viewport. `tabMenuSizing.test.ts` pins the two
+rules; the focused pair of tab tests passes (3 assertions), the UI dependency closure builds, and
+the UI typecheck passes. The issue remains open until an issue-specific real narrow-viewport capture
+and exact-main CI proof are available.
 
 ## 2026-08-08 — Display and ease of use, the complete MD3 colour system, and the clipping sweep's continuation
 
@@ -128,6 +146,52 @@ Local verification for both: ui `vue-tsc` and app `tsc` typechecks, eslint on ev
 file, and the full ui vitest suite - 267 files, 4134 passed, 2 pre-existing skips (one
 vitest-worker `onTaskUpdate` RPC timeout in the run's teardown, not a test failure). CI has not
 run against these commits yet.
+## Pages rewrite update, 2026-08-07 — explicit M3 shell and twelve action walkthroughs
+
+Issue #107's Pages rewrite was integrated into `main` at `de324d7`. The start checkpoint `e5ff0d5`
+preserves a genuine headless capture of the then-live public site before the rewrite. The public
+Pages deployment is not claimed to contain this work until exact-main CI and live read-back land.
+
+`ExpressiveSiteShell.ts` replaces the old entry-point-owned layout with a top app bar, adaptive
+navigation, content canvas and footer. Existing tab, search, regex, settings, appearance,
+notification and palette controllers remain the single source of state. The rewritten shell keeps
+the mobile toggle reachable, uses a bounded drawer/scrim, exposes four real quick actions, paints a
+lens-and-voxel mark, wraps bilingual content, and has explicit reduced-motion/forced-colour paths.
+
+The new walkthrough package adds a hand-written twelve-action manifest, gallery renderer, responsive
+styles, 12 GIFs, 12 PNG stills, a deterministic capture-frame encoder and an audit test. The media
+comes from genuine built app/site captures but is labelled as explanatory imagery rather than
+runtime/deployment evidence. Current generated GIF payload is 427,520 bytes total; each file is well
+below the 900 KiB individual limit.
+
+Focused tests and site typecheck/build are green after the shell and media changes. Remaining work
+is the full site/repository suite, the 360/390/414/desktop/bilingual-200% cheap-headless matrix,
+final screenshots and exact-main CI. The final owner must keep issue #107 open until the exact main
+commit and live Pages deployment have genuine captures and terminal proof.
+## Branch checkpoint, 2026-08-07 — startup failures retain a recovery surface and Worldlens has its own mark
+
+Issue #106 is integrated through this completion merge. The exact-main CI, packaged cheap-headless
+recovery capture and release proof still remain gates; none are implied by local tests or a merge.
+
+The main process now creates a real window before optional feature initialization and isolates
+configuration, dependency, update, network and general initialization failures per feature. Hard
+profile-migration, preload, renderer, app-ready and uncaught-error boundaries retire the unsafe
+ordinary window and open a no-JavaScript/no-preload recovery renderer with working window controls,
+restart, copy, JSON export and Markdown export. Diagnostics are redacted before they append to a
+separate `Worldlens Recovery/startup-diagnostics.jsonl`, outside both migration profiles. Launch,
+retry, export and mounted recovery actions have single-flight re-entry guards.
+
+The generated source image at `design/brand/worldlens-logo-source.png` is now the sole logo source.
+`packages/app/scripts/build-brand-assets.mjs` derives five committed PNG destinations and a Windows
+ICO with nine sizes. The same mark reaches the app title bar, About surface, recovery shell,
+BrowserWindow, Windows executable/installer resources, README, site Home button and favicon.
+Resource editing is enabled so Windows receives the icon; signing remains permanently disabled.
+
+Focused verification is green at 61 tests across the startup model/store/IPC, profile ordering,
+coverage inventory, packaging policy, mounted recovery banner and About mark. App, UI and site
+typechecks pass, and `brand:build -- --check` proves all derivatives current. The full build/test,
+packaged probe, genuine after capture and exact-main CI remain pending and must not be inferred
+from these focused gates.
 
 **The clipping sweep, closed out (`418559f`, `a9025c3`, `db358c1`).** A systematic scan of every
 `.vue` - kebab and PascalCase tags, authored flex rules and Vuetify's `d-flex` utility, the two
@@ -325,6 +389,7 @@ the follow-up uses only two adjacent, explained suppressions. Exact `b2e4338` br
 `31149413047` was in progress when this handoff entry was written. No release was published and no
 workflow was manually dispatched. The reviewed phase is integrated at `e21aaee`; issue #90 stays
 open until exact-main CI, release-note, asset and published-record proof are terminal and read back.
+
 ## Update, 2026-08-07 — Worldlens identity and lossless migration
 
 The product, workspace packages, preload namespace, installer, data root, marker writes and

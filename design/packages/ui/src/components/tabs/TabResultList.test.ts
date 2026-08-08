@@ -19,7 +19,6 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { VApp } from "vuetify/components";
 import TabResultList from "./TabResultList.vue";
-import tabResultListSource from "./TabResultList.vue?raw";
 import type { TabHit } from "./tabSearch.js";
 
 beforeAll(() => {
@@ -118,26 +117,24 @@ describe("a search result row's label", () => {
     });
 });
 
-describe("the label rule that produces that ellipsis", () => {
+describe("a search result row's tab-group chip", () => {
     /**
-     * Regression: the label span is a flex item inside Vuetify's `.v-btn__content`, and a
-     * flex item's default `min-width: auto` refuses to shrink below its content -- so the
-     * rule's `text-overflow: ellipsis` never fired, and `.v-btn`'s own overflow hard-clipped
-     * the label mid-glyph with no ellipsis at all. `min-width: 0` is the shrink floor that
-     * lets the ellipsis actually paint; `.mb-tabs-strip__label` in `TabStrip.vue` already
-     * sets the same floor on the strip's own labels.
-     *
-     * Asserted against the component source because this workspace's `vitest.config.ts`
-     * does not enable `test.css`, so no stylesheet reaches a mounted component and the
-     * cascade the mounted tests above run under is not observable here.
+     * jsdom does not load an SFC's stylesheet for this suite, so asserting a computed
+     * value would exercise its empty test stylesheet rather than the shipped component.
+     * Read the component as Vite's raw asset and keep the regression tied to the exact
+     * selector that owns the user-authored group name.
      */
-    it("lets the span shrink so the ellipsis can actually fire", () => {
-        const rule = /\.mb-tabs-results__label\s*\{[^}]*\}/.exec(tabResultListSource)?.[0] ?? "";
-        const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, "");
-        expect(declarations).not.toBe("");
-        expect(declarations).toContain("min-width: 0");
-        expect(declarations).toContain("overflow: hidden");
-        expect(declarations).toContain("text-overflow: ellipsis");
-        expect(declarations).toContain("white-space: nowrap");
+    it("wraps a long group name rather than inheriting Vuetify's hard single-line clip", async () => {
+        const source = (await import("./TabResultList.vue?raw")).default as string;
+        const chipRule =
+            /\.mb-tabs-results__group-name\.v-chip\s*\{[^}]*\}/.exec(source)?.[0] ?? "";
+        const contentRule =
+            /\.mb-tabs-results__group-name\s+\.v-chip__content\s*\{[^}]*\}/.exec(source)?.[0] ?? "";
+
+        expect(chipRule).toContain("min-width: 0");
+        expect(chipRule).toContain("max-width: 100%");
+        expect(chipRule).toContain("height: auto");
+        expect(contentRule).toContain("white-space: normal");
+        expect(contentRule).toContain("overflow-wrap: anywhere");
     });
 });

@@ -134,6 +134,9 @@ function fakeWorldRepo(overrides: Partial<WorldRepoBridge> = {}): FakeWorldRepo 
                     pushVerified: true,
                     bytes: 100,
                     fileCount: 5,
+                    batchCount: 1,
+                    maxCommitBytes: 100,
+                    maxPushBytes: 100,
                     notes: [],
                 },
                 durationMs: 10,
@@ -329,9 +332,10 @@ describe("checking, then syncing", () => {
         await flushPromises();
         await wrapper.find('[data-test="sync"]').trigger("click");
         await flushPromises();
-        fake.fire({ type: "progress", key: "octocat__andyville-world__world", phase: "staging", description: "Staging the world's files", done: 40, total: 100, at: "t" });
+        fake.fire({ type: "progress", key: "octocat__andyville-world__world", phase: "staging", description: "Staging the world's files", done: 40, total: 100, unit: "bytes", batch: 2, batches: 4, at: "t" });
         await flushPromises();
-        expect(wrapper.find('[data-test="progress"]').text()).toContain("40");
+        expect(wrapper.find('[data-test="progress"]').text()).toContain("40 B");
+        expect(wrapper.find('[data-test="progress"]').text()).toContain("Batch 2 / 4");
     });
 });
 
@@ -544,8 +548,8 @@ describe("a syncing row's title is not silently clipped by a long owner/repo/bra
 
         // The template actually wires the class onto the title and the span, not just the
         // stylesheet declaring it in isolation.
-        expect(source).toMatch(/VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title"/);
-        expect(source).toMatch(/<span class="mb-worldrepo-row__name">\{\{ row\.target \}\}<\/span>/);
+        expect(source).toMatch(/VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title mb-responsive-card-title"/);
+        expect(source).toMatch(/<span class="mb-worldrepo-row__name mb-responsive-card-title__text">\{\{ row\.target \}\}<\/span>/);
     });
 });
 

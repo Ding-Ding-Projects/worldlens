@@ -70,6 +70,16 @@ const regexMode = ref(false);
 const flags = ref("im");
 const showAdvanced = ref(false);
 const rawOpen = ref(false);
+/**
+ * The raw-source disclosure needs a real, stable target for its `aria-controls`.
+ *
+ * `file.path` is the config file's identity within a workspace, and normalising it
+ * keeps the resulting DOM id valid even for map and storage paths such as
+ * `maps/overworld.conf`.
+ */
+const rawPanelId = computed(
+    () => `mb-config-form-source-${props.file.path.replace(/[^A-Za-z0-9_-]+/g, "-")}`,
+);
 const worldOrientation = computed<WorldOrientation>(() => props.world);
 const copyState = ref("");
 
@@ -285,10 +295,12 @@ async function copyText(): Promise<void> {
             </v-expansion-panels>
 
             <v-card variant="tonal" class="mb-config-form__source">
-                <v-card-title class="mb-config-form__source-head">
+                <v-card-title class="mb-config-form__source-head mb-responsive-card-title">
                     <v-btn
+                        class="mb-responsive-card-title__action"
                         :prepend-icon="mdiCodeBraces"
                         :aria-expanded="rawOpen ? 'true' : 'false'"
+                        :aria-controls="rawPanelId"
                         variant="text"
                         size="small"
                         density="comfortable"
@@ -296,11 +308,11 @@ async function copyText(): Promise<void> {
                     >
                         {{ rawOpen ? t("config.form.hideSource", "Hide the file") : t("config.form.showSource", "Show the file as it will be written") }}
                     </v-btn>
-                    <v-btn :prepend-icon="mdiContentCopy" variant="text" size="small" density="comfortable" @click="copyText">
+                    <v-btn class="mb-responsive-card-title__action" :prepend-icon="mdiContentCopy" variant="text" size="small" density="comfortable" @click="copyText">
                         {{ t("config.form.copy", "Copy") }}
                     </v-btn>
                 </v-card-title>
-                <v-card-text v-if="rawOpen">
+                <v-card-text v-if="rawOpen" :id="rawPanelId">
                     <pre class="mb-config-form__pre">{{ file.text }}</pre>
                 </v-card-text>
             </v-card>
@@ -363,6 +375,12 @@ async function copyText(): Promise<void> {
 
 .mb-config-form__group {
     font-weight: 500;
+    /*
+     * This translated schema label is a flex child of Vuetify's expansion-panel
+     * title. Permit it to shrink and wrap instead of widening a narrow panel.
+     */
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .mb-config-form__count {
@@ -370,6 +388,7 @@ async function copyText(): Promise<void> {
     margin-inline-end: 12px;
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

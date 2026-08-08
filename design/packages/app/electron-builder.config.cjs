@@ -75,7 +75,7 @@ module.exports = {
             to: "jars",
             filter: ["**/*"],
         },
-        // The two render workflow files a CI-render bootstrap commits to a repository -
+        // The complete managed workflow set a CI-render bootstrap commits to a repository -
         // see cirender/workflowTemplates.ts's `loadCiWorkflowTemplates`, which reads them
         // back from `resourcesPath/workflows/` in a packaged build. Without this entry a
         // shipped installer has no `.github/workflows` to walk up to (the packaged app's
@@ -88,7 +88,19 @@ module.exports = {
         {
             from: "../../../.github/workflows",
             to: "workflows",
-            filter: ["render-world.yml", "render-shard-wave.yml"],
+            filter: ["render-world.yml", "render-shard-wave.yml", "scheduled-render.yml"],
+        },
+        // Recovery mode is deliberately independent of the ordinary renderer bundle and
+        // preload. These two local assets let the minimal no-script recovery window retain
+        // the product identity even when either of those normal startup layers is the thing
+        // that failed.
+        {
+            from: "build/icon.ico",
+            to: "brand/worldlens.ico",
+        },
+        {
+            from: "../ui/public/assets/logoCircle512.png",
+            to: "brand/worldlens-logo.png",
         },
     ],
     asar: true,
@@ -102,7 +114,10 @@ module.exports = {
         // Multi-size .ico (256px + 64px) derived from the tracked project logo.
         icon: "build/icon.ico",
         signExecutable: false,
-        signAndEditExecutable: false,
+        // Resource editing applies the logo and version metadata; signing remains disabled.
+        // Keeping this false discarded the configured icon along with the forbidden signing
+        // pass, producing a generic Electron executable despite a valid ICO being present.
+        signAndEditExecutable: true,
         target: [
             {
                 target: "squirrel",

@@ -29,6 +29,7 @@ import { MainMenu, provideBlueMap, useBlueMapTheme } from "./components/menu/ind
 import { MarkerMenu } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import { AppTitleBar } from "./components/shell/index.js";
+import { StartupRecoveryBanner } from "./components/startup/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
 import { onDocsArticleRequested } from "./components/docs/docsLink.js";
 import {
@@ -122,7 +123,9 @@ const PAGE_DOCS = "docs";
  * three routes through the same aggregator, so the count in the tab strip can never disagree
  * with the list it leads to.
  */
-const renderIndicator = createActiveRenders({ ciRenders: createCiRenders(resolveCiRenderBridge()) });
+const renderIndicator = createActiveRenders({
+    ciRenders: createCiRenders(resolveCiRenderBridge()),
+});
 onMounted(() => {
     void renderIndicator.reconcile();
 });
@@ -150,13 +153,21 @@ const pages = computed<TabPage[]>(() => [
     // project can carry actually lives. On a fresh install it is seeded into the "Rendering"
     // group rather than sitting beside the guide in the strip - see `initialGroups` below
     // for why a newcomer meets the guide and not the settings behind it.
-    { id: PAGE_PROJECTS, label: t("tabs.page.projects", "Projects"), icon: mdiFolderMultipleOutline },
+    {
+        id: PAGE_PROJECTS,
+        label: t("tabs.page.projects", "Projects"),
+        icon: mdiFolderMultipleOutline,
+    },
     // The fourth answer to "where does this render run": GitHub's machines do the work and
     // this one only uploads and downloads. It is a page rather than a radio button on the
     // guide because it is a workflow - a repository, two consents, an upload, and a run
     // watched job by job - and the guide's "where it runs" card links straight to it, so all
     // four places are named in one list without four screens to discover separately.
-    { id: PAGE_CIRENDER, label: t("tabs.page.ciRender", "GitHub runners"), icon: mdiCloudSyncOutline },
+    {
+        id: PAGE_CIRENDER,
+        label: t("tabs.page.ciRender", "GitHub runners"),
+        icon: mdiCloudSyncOutline,
+    },
     // The label itself carries the count, which is what makes this the persistent,
     // unobtrusive indicator the contract asks for: it says something is going wherever the
     // tab strip is drawn, without a toast, a badge dot with no number, or a second surface
@@ -179,7 +190,11 @@ const pages = computed<TabPage[]>(() => [
     // A world, rather than a render, going the other direction: kept in a git repository so
     // it updates incrementally instead of being re-zipped whole, and recognised again on a
     // second computer that has never touched it - see WorldRepoScreen.vue's own doc comment.
-    { id: PAGE_WORLDREPO, label: t("tabs.page.worldRepo", "World repository"), icon: mdiSourceRepository },
+    {
+        id: PAGE_WORLDREPO,
+        label: t("tabs.page.worldRepo", "World repository"),
+        icon: mdiSourceRepository,
+    },
     // The local twin of the Pages tab above: that one puts a render on somebody else's
     // static host, this one serves it straight off this computer's own disk so it can be
     // watched in a browser while it is still being rendered. See `PreviewScreen.vue`'s own
@@ -390,7 +405,12 @@ function openInBrowser(url: string): void {
  * silently changes a screen the person is not looking at reads as a button that did
  * nothing.
  */
-function revealBackupRestore(where: { owner: string; repo: string; tag: string; asset: string }): void {
+function revealBackupRestore(where: {
+    owner: string;
+    repo: string;
+    tag: string;
+    asset: string;
+}): void {
     openSettings();
     raiseNotice(
         "info",
@@ -437,10 +457,17 @@ function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: s
  * the moment this decides to navigate there is no component to call a method on.
  */
 const projectToOpen = ref<string | null>(null);
+const ciWorldToOpen = ref<string | null>(null);
 
 function openProject(world: string): void {
     projectToOpen.value = world;
     revealPage(PAGE_PROJECTS);
+}
+
+/** Opens the GitHub Actions renderer, optionally prefilled from a project's saved route. */
+function openCiRender(world: string | null = null): void {
+    ciWorldToOpen.value = world;
+    revealPage(PAGE_CIRENDER);
 }
 
 /**
@@ -802,6 +829,15 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             @open-notes="openInBrowser"
         />
 
+        <!--
+            Startup failures are not a reason to erase the shell. This persistent,
+            non-modal surface names the unavailable path and keeps the complete local
+            diagnostics inspectable, copyable and exportable. The same errors are also
+            raised through the one notification queue mounted below, so they remain in
+            notification history after this fold is collapsed.
+        -->
+        <StartupRecoveryBanner />
+
         <v-main class="mb-main">
             <!--
                 The viewer, which renders into #map-container rather than into this tree, so
@@ -934,7 +970,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
                                     @open-project="openProject"
-                                    @open-ci-render="revealPage(PAGE_CIRENDER)"
+                                    @open-ci-render="openCiRender()"
                                 />
                             </div>
                         </template>
@@ -953,6 +989,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     @consent="openSettings('mojang-download-consent')"
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
+                                    @cloud-render="openCiRender"
                                 />
                             </div>
                         </template>
@@ -974,6 +1011,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
                                     <CiRenderScreen
+                                        :key="ciWorldToOpen ?? 'manual'"
+                                        :worlds="
+                                            ciWorldToOpen === null
+                                                ? []
+                                                : [{ folder: ciWorldToOpen, label: ciWorldToOpen }]
+                                        "
                                         :can-open-settings="true"
                                         @sign-in="openSettings('github-account')"
                                         @open-consent="openSettings('mojang-download-consent')"
@@ -1133,10 +1176,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 command-palette row each, so the stack holds only the two workbench
                 controls somebody reaches for repeatedly.
             -->
-            <div
-                class="mb-shell-fabs"
-                :class="{ 'mb-shell-fabs--lifted': showFreeFlightControls }"
-            >
+            <div class="mb-shell-fabs" :class="{ 'mb-shell-fabs--lifted': showFreeFlightControls }">
                 <v-tooltip :text="t('settings.title', 'Settings')" location="end">
                     <template #activator="{ props: tooltipProps }">
                         <v-btn
@@ -1290,10 +1330,28 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     min-block-size: 0;
 }
 
-/* Real chrome, so it takes pointer events, and it never gives up height to the panel. */
+/*
+ * Real chrome, so it takes pointer events. Only a horizontal strip gets the old
+ * `flex: 0 0 auto`: on a left/right strip that shorthand replaces TabStrip's bounded
+ * width with the labels' intrinsic width, which can starve the active panel.
+ */
 .mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row) {
-    flex: 0 0 auto;
     pointer-events: auto;
+}
+
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="top"]),
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="bottom"]) {
+    flex: 0 0 auto;
+}
+
+/*
+ * The two bottom-left workbench buttons are fixed over the shell. A left-docked tab
+ * strip therefore reserves their complete 12 + 48 + 8 + 48 footprint at its bottom;
+ * the tab overflow machinery uses the reduced height and no tab or strip control can
+ * scroll underneath an opaque button. Other placements do not occupy that corner.
+ */
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="left"]) {
+    padding-block-end: calc(12px + 48px + 8px + 48px);
 }
 
 /*

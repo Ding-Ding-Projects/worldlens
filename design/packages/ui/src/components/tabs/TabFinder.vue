@@ -295,7 +295,14 @@ function isOpen(key: string): boolean {
                             {{ hit.name }}
                         </v-btn>
                         <div class="mb-tabs-finder__group-meta">
-                            <v-chip size="x-small" :color="hit.color" variant="tonal">{{ hit.name }}</v-chip>
+                            <v-chip
+                                class="mb-tabs-finder__group-name"
+                                size="x-small"
+                                :color="hit.color"
+                                variant="tonal"
+                            >
+                                {{ hit.name }}
+                            </v-chip>
                             <v-chip size="x-small" variant="outlined">
                                 {{ t("tabs.find.groupCount", { count: hit.tabCount }, "{count} tabs") }}
                             </v-chip>
@@ -345,7 +352,12 @@ function isOpen(key: string): boolean {
 
 <style>
 .mb-tabs-finder {
-    min-width: 340px;
+    /* This content is mounted inside the tab sheet, which is itself clamped to
+       `calc(100vw - 16px)`. A fixed minimum used to overflow that sheet at phone
+       widths before the sheet's own max-width could help. */
+    box-sizing: border-box;
+    width: min(340px, calc(100vw - 16px));
+    min-width: 0;
     max-width: 460px;
     padding: 12px;
 }
@@ -408,6 +420,21 @@ function isOpen(key: string): boolean {
     gap: 4px;
     padding-inline: 8px;
     padding-block-end: 4px;
+}
+
+/* A group name is user-authored. Vuetify chips default to a single clipped line,
+   which turns a narrow finder into a silent character cutter. Keep the compact
+   chip, but let its full accessible text wrap inside the available row width. */
+.mb-tabs-finder__group-name.v-chip {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.mb-tabs-finder__group-name .v-chip__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding-block: 2px;
 }
 
 .mb-tabs-finder__empty {

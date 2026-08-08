@@ -87,6 +87,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "config-history.md",
     "render-mask-drawing.md",
     "eula-and-consent.md",
+    "startup-recovery.md",
     "dependency-provisioning.md",
     "gh-cli-accounts.md",
     "automatic-updates.md",
@@ -97,6 +98,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "pages-feature-parity.md",
     "scheduled-settings-and-external-sources.md",
     "panel-geometry.md",
+    "server-hosted-material-ui.md",
 ];
 
 /** The same, for the "Rendering" table. */

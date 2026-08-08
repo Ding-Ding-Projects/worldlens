@@ -698,9 +698,9 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
                         `mb-worldrepo-row__title` wins on specificity (a scoped class beats
                         Vuetify's bare `.v-card-title`) and lets the row wrap instead.
                     -->
-                    <VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title">
-                        <span class="mb-worldrepo-row__name">{{ row.target }}</span>
-                        <VChip size="small" data-test="row-state">{{ row.state }}</VChip>
+                    <VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title mb-responsive-card-title">
+                        <span class="mb-worldrepo-row__name mb-responsive-card-title__text">{{ row.target }}</span>
+                        <VChip class="mb-responsive-card-title__meta" size="small" data-test="row-state">{{ row.state }}</VChip>
                         <VProgressCircular v-if="row.state === 'syncing'" indeterminate size="18" />
                     </VCardTitle>
                     <VCardText>
@@ -708,7 +708,12 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
                         <template v-if="row.progress !== null">
                             <VProgressLinear :model-value="row.progress.percent" class="my-2" data-test="progress-bar" />
                             <p class="text-medium-emphasis" data-test="progress">
-                                {{ row.progress.description }} - {{ row.progress.done }} / {{ row.progress.total }}
+                                {{ row.progress.description }} -
+                                {{ row.progress.unit === "bytes" ? formatBytes(row.progress.done, t) : row.progress.done }} /
+                                {{ row.progress.unit === "bytes" ? formatBytes(row.progress.total, t) : row.progress.total }}
+                                <span v-if="row.progress.batch !== null && row.progress.batches !== null">
+                                    - {{ t("worldrepo.progress.batch", { batch: row.progress.batch, batches: row.progress.batches }, "Batch {batch} / {batches}") }}
+                                </span>
                             </p>
                         </template>
                         <VAlert v-if="row.failure !== null" type="error" variant="tonal" class="mt-3" data-test="row-failure">

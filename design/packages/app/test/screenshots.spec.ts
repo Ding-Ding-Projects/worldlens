@@ -1085,7 +1085,13 @@ test.beforeAll(async () => {
             "--force-prefers-reduced-motion",
             `--user-data-dir=${userData}`,
         ],
-        env: { ...process.env, WORLDLENS_SCREENSHOTS: "1" },
+        env: {
+            ...process.env,
+            // main/index.ts honours --user-data-dir only under this explicit capture
+            // seam. Production launches still pin storage to the immutable product
+            // identity; this throwaway run gets a genuine empty first-run profile.
+            WORLDLENS_SCREENSHOTS: "1",
+        },
     });
 
     // Before anything is pointed at a map. The app makes no outbound request until a
@@ -1169,6 +1175,11 @@ test.afterAll(async () => {
 test("captures the render location choice for routing evidence", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
+    // The render-location card belongs to the Make a map wizard and is intentionally
+    // absent while a saved map is active. Reset to the truthful empty-profile state
+    // before selecting the wizard tab; otherwise a fresh CI profile can leave the
+    // screenshot waiting on a card that the current page correctly does not render.
+    await pointAppAtNoMap();
     const worldTab = page.locator('[role="tab"]', { hasText: /Make a map/i }).first();
     await worldTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
     if ((await worldTab.getAttribute("aria-selected")) !== "true") await worldTab.click();
@@ -1181,6 +1192,11 @@ test("captures the render location choice for routing evidence", async () => {
         "The render-location choice: local, Docker on this computer, and another machine over SSH, with Docker's real daemon state and the route that will actually be used",
         { crop: card, cropped: "the render-location card", mapArea: "covered" },
     );
+
+    // The remaining capture sequence needs the rendered-map shell again. Keep the
+    // wizard state truthful for this shot, then restore the target profile before
+    // menu, popup, and viewer captures run.
+    await pointAppAtCaptureTarget();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -1206,6 +1222,7 @@ test("captures the window's own chrome", async () => {
     });
 
     await attempt("Viewer control bar", async () => {
+        await ensureMapTabActive();
         const bar = page.locator(".mb-cb");
         await bar.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
@@ -1249,6 +1266,86 @@ test("captures the shell at every supported display scale", async () => {
     await page.evaluate(() => {
         document.documentElement.style.zoom = "1";
     });
+});
+
+test("captures the map popup retained at the lower-right viewport edge", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    if (target.profile === null) {
+        skip("Map popup at the viewport edge", "this run has no rendered map to click");
+        return;
+    }
+
+    await ensureMapTabActive();
+    await page.setViewportSize({ width: 800, height: 600 });
+    await page.waitForTimeout(500);
+
+    const canvas = page.locator("#map-container canvas").first();
+    if (!(await canvas.isVisible().catch(() => false))) {
+        skip(
+            "Map popup at the viewport edge",
+            "the packaged app exposed no visible map canvas in this run, so there is no truthful block to click",
+        );
+        return;
+    }
+    const canvasBox = await canvas.boundingBox();
+    expect(canvasBox, "the live viewer canvas had no measurable bounds").not.toBeNull();
+
+    const popup = page.locator(".bm-marker-popup").first();
+    const edgeOffsets = [24, 48, 80, 120, 160];
+    let opened = false;
+    for (const bottom of edgeOffsets) {
+        for (const right of edgeOffsets) {
+            await page.mouse.click(
+                canvasBox!.x + canvasBox!.width - right,
+                canvasBox!.y + canvasBox!.height - bottom,
+            );
+            await page.waitForTimeout(250);
+            if (await popup.isVisible()) {
+                opened = true;
+                break;
+            }
+        }
+        if (opened) break;
+    }
+
+    expect(opened, "no rendered block near the lower-right canvas edge opened the popup").toBe(
+        true,
+    );
+
+    const geometry = await popup.evaluate((element) => {
+        const wrapper = element.parentElement;
+        const container = wrapper?.parentElement;
+        if (!wrapper || !container) return null;
+        const rect = wrapper.getBoundingClientRect();
+        const bounds = container.getBoundingClientRect();
+        return {
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            boundsLeft: bounds.left,
+            boundsTop: bounds.top,
+            boundsRight: bounds.right,
+            boundsBottom: bounds.bottom,
+        };
+    });
+
+    expect(geometry, "the popup had no CSS2D wrapper and container").not.toBeNull();
+    expect(geometry!.left).toBeGreaterThanOrEqual(geometry!.boundsLeft - 1);
+    expect(geometry!.top).toBeGreaterThanOrEqual(geometry!.boundsTop - 1);
+    expect(geometry!.right).toBeLessThanOrEqual(geometry!.boundsRight + 1);
+    expect(geometry!.bottom).toBeLessThanOrEqual(geometry!.boundsBottom + 1);
+
+    await shoot(
+        "issue-105-popup-edge",
+        "The block-coordinate popup opened from a real map click near the lower-right viewport edge, with every coordinate row retained inside the map",
+        {
+            note: `Measured popup ${Math.round(geometry!.right - geometry!.left)}×${Math.round(geometry!.bottom - geometry!.top)} pixels inside CSS2D bounds ${Math.round(geometry!.boundsRight - geometry!.boundsLeft)}×${Math.round(geometry!.boundsBottom - geometry!.boundsTop)} pixels.`,
+        },
+    );
+
+    await page.setViewportSize(SURFACE_VIEWPORT);
 });
 
 test("captures each navigable page", async () => {
