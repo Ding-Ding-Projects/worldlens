@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "ecae18e5783c34919cc13c21d18b5d68b45476ab",
+        shortSha: "ecae18e578",
+        date: "2026-08-08T18:53:05-04:00",
+        subject: "Pin every workflow action and make captures advisory",
+        details: "All seven executable workflows now use reviewed immutable action SHAs, explicit hosted images, and checkout credential cleanup. The guard counts all 114 uses, while screenshots keep their evidence without holding the release door hostage like a camera demanding executive approval.\\n\\n七個 workflow 嘅 114 個 action 而家全部釘實 SHA，checkout 憑證亦即用即清。截圖照樣留證據，但影相失手唔會再扮董事會主席封住出貨門口。",
+        category: "build",
+        areas: ["build", "docs"],
+        files: 13,
+    },
+    {
         sha: "42f1988abf15503a752aa47441f628b5553d9501",
         shortSha: "42f1988abf",
         date: "2026-08-08T18:35:57-04:00",

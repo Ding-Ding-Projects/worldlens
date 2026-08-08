@@ -47,6 +47,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Pin every workflow action and make captures advisory - [`ecae18e578`](https://github.com/Ding-Ding-Projects/worldlens/commit/ecae18e5783c34919cc13c21d18b5d68b45476ab)
 - Pin hosted runners and audit unsigned executables - [`a957bb8ec4`](https://github.com/Ding-Ding-Projects/worldlens/commit/a957bb8ec4ab04693e319f85ea664a47d4ed5e89)
 - Repair release lock and workflow fingerprints - [`867e3fe424`](https://github.com/Ding-Ding-Projects/worldlens/commit/867e3fe424b1ef290efd4f72ed2b9425a264c79e)
 - Lay unsigned release integrity foundations - [`dc61e79688`](https://github.com/Ding-Ding-Projects/worldlens/commit/dc61e79688951cdc4e5f1000abb78aefe83c14b7)
