@@ -188,9 +188,14 @@ the same step that records the failure, and a test asserts exactly that.
   than handed to the shell.
 - **The artifacts are unsigned by permanent policy.** Packaging fixes
   `forceCodeSigning`, `signExecutable`, and `signAndEditExecutable` to `false` and clears
-  signing environment inputs. There is no publisher-authenticity claim: HTTPS identifies the
-  contacted host and protects transport, while Squirrel metadata and package hashes detect bytes
-  that differ from what that host advertised. A hash mismatch is never installed.
+  signing environment inputs. It also sets `CSC_IDENTITY_AUTO_DISCOVERY=false`, so clearing an
+  inherited certificate does not quietly restore electron-builder's automatic certificate search.
+  The tracked icon and version resources are applied by a resource-only `rcedit` hook while the
+  combined signer/editor route remains disabled. CI recursively checks every packaged executable
+  and the collected installer with `Get-AuthenticodeSignature`; anything other than `NotSigned`
+  blocks publication. There is no publisher-authenticity claim: HTTPS identifies the contacted
+  host and protects transport, while Squirrel metadata and package hashes detect bytes that differ
+  from what that host advertised. A hash mismatch is never installed.
 
 ## Opening a folder the app wrote
 

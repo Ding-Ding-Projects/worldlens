@@ -4105,3 +4105,29 @@ release failure without fallback, and resume. No real repository was created or 
 no genuine ~2 GB rerun was performed. A genuine built-app capture of the recovery state is still
 blocked because reaching it in the current runtime harness would require either injecting a fake
 bridge state (not genuine runtime evidence) or performing a real network/repository operation.
+
+## 2026-08-08 — release integrity closes the stale-output trap
+
+The release lane now fails closed from package start through published readback. The Windows job
+clears every validated Squirrel output candidate, records its version and start time, and accepts
+only one fresh `Setup.exe`, one full `.nupkg`, optional delta packages, and a non-empty `RELEASES`
+whose filenames, SHA-1 values and byte counts match. A separate exact manifest carries every
+published asset's name, size and SHA-256; the publisher downloads the entire release again and
+requires an exact unique set plus the nominated tag, commit, notes and non-draft state.
+
+Signing remains permanently off: all signing inputs are cleared,
+`CSC_IDENTITY_AUTO_DISCOVERY=false`, and `forceCodeSigning`, `signExecutable`, and
+`signAndEditExecutable` stay false. A named `rcedit` import applies only the tracked icon and PE
+version resources, after which every packaged executable and the installer must report
+Authenticode `NotSigned`. A real local Squirrel build produced and validated the complete fresh
+set; no binaries or staging output are committed.
+
+The dim-sum consumer now reads the public catalog's authoritative English and Traditional Chinese
+names and resolves only an existing `catalog-v1*` asset URL. It does not download, copy, cache or
+attach photo bytes. Every executable workflow runner is pinned to `ubuntu-24.04` or
+`windows-2022`, with exact job inventory tests that reject `*-latest`, self-hosted, expressions and
+unknown labels. The focused release contracts pass **15/15 tests**; the combined runner,
+packaging and Windows CSS set passes **19/19**; the full retrying suite passed **10,074/10,107**
+tests with **33 skipped** after one known Vitest worker-heartbeat retry. The remaining external
+proof is a terminal CI run at the integrated `main` commit and its main-only publisher; no release
+was created manually during this lane.

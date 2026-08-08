@@ -1070,3 +1070,21 @@ remembers to run the harness. Tracked as
 - [ ] Re-run the original multi-gigabyte CI-render release flow against an explicitly disposable
       repository and capture the genuine built-app recovery/success surface. This remains external
       verification; the target repository reported by the user was deliberately not mutated.
+
+## Release integrity follow-up (2026-08-08)
+
+- [x] Gate publication on workflow lint, the full application/test chain, real Java round trip,
+      jars, test-world render, Windows package and committed screenshot capture.
+- [x] Keep signing permanently disabled, disable certificate auto-discovery, apply Windows branding
+      through a resource-only hook, and require every emitted executable to remain `NotSigned`.
+- [x] Clear package outputs first and accept only one fresh, internally consistent Squirrel set.
+- [x] Resolve bilingual code-name metadata and the authoritative public catalog URL without
+      downloading, copying or attaching the photo in this consumer release.
+- [x] Publish from an exact asset manifest, then download and verify every asset and read back the
+      exact target, notes and non-draft release metadata.
+- [x] Pin all hosted workflow labels to `ubuntu-24.04` or `windows-2022` and reject mutable,
+      self-hosted, expression-derived and unknown alternatives through an exact job inventory.
+- [x] Make changelog freshness a satisfiable pre-release gate by excluding generated-only commits
+      and running `node scripts/build-changelog.mjs --check` over full history.
+- [ ] Record the final remote CI verdict and resulting release evidence after this candidate lands
+      on `main`; branch-only runs cannot prove the main-only publisher.

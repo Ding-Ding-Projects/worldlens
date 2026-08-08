@@ -349,17 +349,18 @@ created.
   be the artifact that run genuinely built.
 - Publish the appropriate installable artifact: a Windows installer for a Windows app, a Linux
   installer for a Linux app, both for a cross-platform app, or the closest conventional
-  installable package otherwise. For Electron apps targeting Windows, prefer a Squirrel.Windows
-  installer and its update artifacts over NSIS, and use NSIS only when Squirrel is technically
-  incompatible with a documented requirement.
-- Every release also attaches at least one image asset drawn from the organization's verified,
-  tracked image catalog. Identify the exact asset filename in the release notes and validate that
-  the image decodes. Never generate, download, or fetch a substitute at publishing time.
-- Every build or release carries a code name drawn from that same catalog, shown beside the
-  version and never in place of it. Use only a catalog record whose image actually exists, use
-  each name once per project, record which release took which name, and never invent one. The
-  code name is decoration with a purpose, not a gate: if none can be resolved, ship with the
-  version alone and say so.
+  installable package otherwise. Every Windows Electron release uses Squirrel.Windows and ships
+  `Setup.exe`, `RELEASES`, one full `.nupkg`, and generated delta packages where available.
+- Code signing is permanently disabled. Packaging clears signing inputs, explicitly disables
+  certificate auto-discovery, keeps `forceCodeSigning`, `signExecutable`, and
+  `signAndEditExecutable` false, and verifies every emitted executable is Authenticode
+  `NotSigned`. Release notes warn that SmartScreen may report an unknown publisher.
+- Consumer repositories resolve bilingual code names from
+  `https://raw.githubusercontent.com/Ding-Ding-Projects/dim-sum-photos/main/catalog/index.json`
+  and use only photos already published in that repository's `catalog-v1*` release assets. They
+  may link to the public photo, but never generate, download, copy, vendor, or attach it to their
+  own release. If no unused published record resolves, publish the version without a code name
+  and report the missing catalog evidence.
 - Try a cloud-hosted runner first. Public repositories get unlimited standard-runner minutes and
   a disposable, reproducible environment. Measure a hosted runner's actual CPU, memory and free
   disk before concluding it is too small. Move to a self-hosted or larger runner only with a
@@ -474,19 +475,19 @@ created.
 - Present it as a non-blocking, auto-dismissing surface that never gates startup, never steals
   focus, and never delays the app becoming usable. It must not appear during a first run, an
   error path, an update, or any flow where the user is mid-task.
-- Ship the images as bundled local assets: no network fetch, no third-party CDN, no tracking.
-  Give each meaningful alt text naming the dish, and respect reduced-motion and any quiet or
-  do-not-disturb setting.
+- Resolve images only from the public catalog's published release assets. A validated
+  application-data cache may keep normal offline behaviour, but the consumer repository never
+  vendors a copy. Give each meaningful alt text naming the dish, and respect reduced-motion and
+  any quiet or do-not-disturb setting; if the public asset is unavailable, omit the surprise.
 - It cannot be opted out of: ship no setting that disables it, and migrate old profiles forward
   so they rejoin the draw. Derive the 10% from a fresh random draw per launch, never more
   frequent than stated, and never twice in one launch.
-- **Agents never generate images for ordinary project work.** No image-generation service, no
-  raster placeholders, no downloaded stock or third-party pictures, no scraped images, no runtime
-  artwork from a CDN. Use only images already tracked in the organization's verified catalog,
-  referenced byte for byte from their indexed paths, and verify that the local file exists and
-  decodes before using it. If no suitable tracked image exists, omit the image or report the
-  exact missing asset. (A narrow, time-limited exception exists for the agents assigned to
-  complete that catalog inside the catalog's own repository. It never applies here.)
+- **Agents never generate or vendor dim-sum photos in this consumer repository.** The only public
+  authority is `Ding-Ding-Projects/dim-sum-photos`: names come from its live catalog index and
+  images come from its published `catalog-v1*` release assets. This repository may keep a public
+  asset URL or an application-data cache, but it never commits, downloads during release,
+  duplicates, or attaches the image. If the catalog has no published asset for a record, omit the
+  image and report the missing public asset rather than filling the gap locally.
 
 </details>
 

@@ -98,7 +98,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
     }),
     "Compose release notes": Object.freeze({
       env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
-      run: "67c07269c6d3f7835b23ed5fd3e50e1e8dd0f6c5985efc9eb69ed16450625f27",
+      run: "029583c565452f9d481fdb394dc8562a5832c32a2835d54f33c81b2edd217389",
     }),
     Publish: Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
@@ -108,7 +108,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 });
 
 const RELEASE_JOB_FINGERPRINT =
-  "ba4f19c5a4d7311e42264909aac9719d5c893bc36f4421630f8ded16422e396d";
+  "879d721fed1a873309338b938b9f26082e81818a64689ab218cfadf850f9b202";
 
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
@@ -169,6 +169,7 @@ const REQUIRED_STEP_LINES = Object.freeze({
   "Guard executable workflow expressions and release metadata": Object.freeze([
     "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs",
     "node scripts/lint-workflows.mjs",
+    "node scripts/build-changelog.mjs --check",
   ]),
   "Resolve release tag": Object.freeze([
     'if [[ ! "$version" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then',

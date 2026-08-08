@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import {
   parseArgs,
+  selectUnusedDish,
   validateAsset,
   validateDish,
   workflowOutputText,
@@ -39,6 +40,14 @@ test("authoritative bilingual names and the real 235-character alt are accepted"
   assert.equal(result.nameZh, "蝦餃。「茶樓」");
   assert.equal(result.altEn, alt);
   assert.throws(() => validateDish(validDish("a".repeat(236)), "hk-dish-0001"), /235/);
+});
+
+test("an exhausted catalog fails without reusing an earlier release code name", () => {
+  assert.equal(selectUnusedDish([validDish()], 1).nameEn, "Classic Har Gow");
+  assert.throws(
+    () => selectUnusedDish([validDish()], 2),
+    /no unused published-name record hk-dish-0002/,
+  );
 });
 
 test("network metadata is bounded to one published public catalog asset URL", () => {

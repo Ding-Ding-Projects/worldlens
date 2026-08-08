@@ -96,6 +96,21 @@ function validateDish(dish, expectedId) {
   };
 }
 
+function selectUnusedDish(dishes, ordinal) {
+  requireArray("catalog.dishes", dishes, 1, MAX_CATALOG_DISHES);
+  if (!Number.isSafeInteger(ordinal) || ordinal < 1) {
+    throw new Error("release ordinal must be a positive integer");
+  }
+  const requestedId = `hk-dish-${String(ordinal).padStart(4, "0")}`;
+  const rawDish = dishes.find((dish) => dish?.id === requestedId);
+  if (!rawDish) {
+    throw new Error(
+      `catalog has no unused published-name record ${requestedId}; refusing to reuse an earlier code name`,
+    );
+  }
+  return validateDish(rawDish, requestedId);
+}
+
 function validateAsset(asset, volume, expectedFileName) {
   requireObject("asset", asset);
   const fileName = requireString("asset.name", asset.name, {
@@ -231,14 +246,9 @@ async function loadAssetIndex() {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const requestedId = `hk-dish-${String(args.ordinal).padStart(4, "0")}`;
   const catalog = requireObject("catalog", await fetchJson(CATALOG_INDEX_URL));
   const dishes = requireArray("catalog.dishes", catalog.dishes, 1, MAX_CATALOG_DISHES);
-  const wrapped = ((args.ordinal - 1) % dishes.length) + 1;
-  const wrappedId = `hk-dish-${String(wrapped).padStart(4, "0")}`;
-  const rawDish = dishes.find((dish) => dish?.id === wrappedId);
-  if (!rawDish) throw new Error(`catalog has no record ${wrappedId} (asked for ${requestedId})`);
-  const dish = validateDish(rawDish, wrappedId);
+  const dish = selectUnusedDish(dishes, args.ordinal);
 
   const fileName = `${dish.id}-${dish.slug}.png`;
   if (!SAFE_FILE_NAME.test(fileName)) throw metadataError("asset.name", "derived name is invalid");
@@ -256,7 +266,6 @@ async function main() {
     bytes: asset.size,
     volume: assetEntry.volume,
     sourceUrl: asset.sourceUrl,
-    reusedAfterWrap: wrapped !== args.ordinal,
   };
 
   if (args.json) {
@@ -264,10 +273,7 @@ async function main() {
   } else {
     process.stdout.write(
       `${result.nameEn} · ${result.nameZh} (${result.jyutping})\n` +
-        `  ${result.sourceUrl}\n` +
-        (result.reusedAfterWrap
-          ? `  NOTE: ordinal ${args.ordinal} wrapped to ${wrapped}; the catalog has ${dishes.length} records\n`
-          : ""),
+        `  ${result.sourceUrl}\n`,
     );
   }
   if (process.env.GITHUB_OUTPUT) {
@@ -277,7 +283,7 @@ async function main() {
   }
 }
 
-export { parseArgs, validateAsset, validateDish, workflowOutputText };
+export { parseArgs, selectUnusedDish, validateAsset, validateDish, workflowOutputText };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch((error) => {
