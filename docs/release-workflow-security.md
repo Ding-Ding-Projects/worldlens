@@ -89,7 +89,7 @@ runner remain the trust boundary.
 ## Verification
 
 ```bash
-node --test scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
+node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
 node scripts/lint-workflows.mjs
 actionlint -no-color -oneline
 ```

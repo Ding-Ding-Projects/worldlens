@@ -392,14 +392,17 @@ node scripts/bootstrap.mjs
 
 That one command installs and **verifies** everything: workspace dependencies, the
 Electron binary, a JDK matching upstream's toolchain, Gradle, the BlueMap jars built from the
-vendored source, and the Playwright browsers the screenshot harness drives. It asks nothing and
+vendored source, and the Playwright tooling the Electron screenshot harness drives. It asks nothing and
 needs no administrator rights, and every install is repository-local or user-scoped so no
 machine-wide toolchain is touched.
 
 It verifies rather than assumes, which is not pedantry: Electron once shipped a `dist/` folder
 containing only `locales/`, with no binary at all, and its own installer kept exiting 0 because
 the folder existed. A presence check passes that; running the binary does not. Where a
-dependency's own installer is the thing that is broken, bootstrap repairs it.
+dependency's own installer is the thing that is broken, bootstrap verifies the cached archive
+against Electron's package checksum manifest, clears partial output again, and extracts it from
+scratch. The command also invokes the exact `pnpm` version pinned by `design/package.json`, so a
+different global package-manager version cannot quietly decide the dependency graph.
 
 ```sh
 node scripts/bootstrap.mjs --check       # verify only, install nothing
@@ -410,6 +413,12 @@ pnpm build
 pnpm test
 pnpm lint
 ```
+
+`--check` is read-only even on a fresh npm cache: it verifies the installed workspace and runs the
+local Playwright CLI directly, so it never asks `npm exec` to download pnpm. Electron recovery
+validates the cached archive before extraction, refuses recursive deletion through a path escape or
+reparse point, and accepts a BlueMap shadow JAR only when it is a real, non-trivial ZIP/JAR rather
+than a zero-byte or stale filename.
 
 Everything except `plan.md` and repository metadata lives in `design/`, a pnpm workspace of
 thirteen packages.
