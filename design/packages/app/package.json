@@ -22,6 +22,7 @@
         "esbuild": "^0.25.12",
         "@playwright/test": "^1.50.0",
         "@bokuweb/zstd-wasm": "^0.0.27",
+        "rcedit": "5.0.2",
         "sharp": "0.35.3"
     },
     "dependencies": {
