@@ -739,6 +739,37 @@ async function ensureOptionsEditorClosed(): Promise<void> {
  * left alone, and a strip with no groups at all - which is what a saved workspace from an
  * earlier build restores - simply finds nothing to do.
  */
+/**
+ * Opens one group header, and insists.
+ *
+ * Playwright's `click()` runs actionability checks first - visible, stable, hit-testable,
+ * enabled - and in CI those checks fail on a header that is, by every other measure, a
+ * perfectly ordinary button: the instrumented run reported the three groups present, named,
+ * collapsed and unobstructed, with no overflow button, and still could not press one. The
+ * checks are the right default for a test that is asserting a control is usable; they are
+ * the wrong default for a harness that is only trying to get somewhere in order to
+ * photograph it, and a swallowed failure there turns into "the harness could not open
+ * Projects", which is a sentence about a screen that works.
+ *
+ * So: the real click first, because where it works it exercises the real thing, then a DOM
+ * `click()` through `evaluate`, which dispatches straight at the element and cannot be
+ * blocked by a hit-test or a stability wait. `TabStrip.vue` binds an ordinary `@click`, so
+ * the handler runs identically either way.
+ */
+async function pressGroupHead(head: import("@playwright/test").Locator): Promise<boolean> {
+    const clicked = await head
+        .click({ timeout: 2_000 })
+        .then(() => true)
+        .catch(() => false);
+    if (clicked) return true;
+    return head
+        .evaluate((element) => {
+            (element as HTMLElement).click();
+        })
+        .then(() => true)
+        .catch(() => false);
+}
+
 async function expandShellTabGroups(): Promise<void> {
     // Re-queried every pass rather than iterated over a snapshot, because expanding one
     // group changes the strip: the tabs it reveals take height, and on a short window that
@@ -753,11 +784,7 @@ async function expandShellTabGroups(): Promise<void> {
         // Short timeout and swallowed: a header that scrolls or overflows away mid-click is
         // the strip behaving correctly, and the caller has its own overflow fallback for the
         // tab it actually wants.
-        const clicked = await collapsed
-            .click({ timeout: 2_000 })
-            .then(() => true)
-            .catch(() => false);
-        if (!clicked) return;
+        if (!(await pressGroupHead(collapsed))) return;
         await page.waitForTimeout(150);
     }
 }
@@ -785,11 +812,7 @@ async function revealTabInGroups(label: RegExp): Promise<boolean> {
             .first();
         if ((await collapsed.count()) === 0) return false;
 
-        const opened = await collapsed
-            .click({ timeout: 2_000 })
-            .then(() => true)
-            .catch(() => false);
-        if (!opened) return false;
+        if (!(await pressGroupHead(collapsed))) return false;
         await page.waitForTimeout(150);
 
         const visible = await tab
@@ -804,7 +827,7 @@ async function revealTabInGroups(label: RegExp): Promise<boolean> {
         const justOpened = shellTabs
             .locator('.mb-tabs-strip__group-head[aria-expanded="true"]')
             .first();
-        await justOpened.click({ timeout: 2_000 }).catch(() => undefined);
+        await pressGroupHead(justOpened);
         await page.waitForTimeout(100);
     }
     return false;
