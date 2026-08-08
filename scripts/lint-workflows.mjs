@@ -143,7 +143,7 @@ const ACTION_INVENTORIES = Object.freeze({
 
 const REQUIRED_STEP_LINES = Object.freeze({
   "Guard executable workflow expressions and release metadata": Object.freeze([
-    "node --test scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
     "node scripts/lint-workflows.mjs",
   ]),
   "Resolve release tag": Object.freeze([

@@ -215,7 +215,7 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
 
   const unwired = workflow.replace(
-    "node --test scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
     "echo skipped",
   );
   assert.ok(
