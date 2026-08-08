@@ -21,8 +21,6 @@
 // Worldlens releases are permanently unsigned. Clear every electron-builder signing input
 // before configuration is evaluated so a developer shell or runner secret cannot silently
 // turn one build into a differently trusted artifact.
-const { join } = require("node:path");
-
 for (const key of [
     "CSC_LINK",
     "CSC_KEY_PASSWORD",
@@ -48,8 +46,10 @@ async function brandWindowsExecutable(context) {
     if (context.electronPlatformName !== "win32") return;
 
     const executableName = `${context.packager.appInfo.productFilename}.exe`;
-    const executablePath = join(context.appOutDir, executableName);
-    const iconPath = join(__dirname, "build", "icon.ico");
+    // Node and rcedit accept forward slashes on Windows, so these stay ordinary strings
+    // and the CommonJS configuration needs no lint-forbidden `require()` helper.
+    const executablePath = `${context.appOutDir}/${executableName}`;
+    const iconPath = `${__dirname}/build/icon.ico`;
     const version = context.packager.appInfo.version;
     const { default: rcedit } = await import("rcedit");
 
