@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
+  fetchJson,
   parseArgs,
   selectUnusedDish,
   validateAsset,
@@ -114,4 +115,33 @@ test("the consumer picker has no photo-byte download or filesystem-write impleme
   assert.doesNotMatch(source, /fetch\(asset\.sourceUrl/);
   assert.doesNotMatch(source, /writeFile\(|mkdir\(|verifyPng|readBoundedResponse/);
   assert.doesNotMatch(source, /--out/);
+});
+
+test("catalog metadata intake has a real deadline and a streamed byte ceiling", async () => {
+  await assert.rejects(
+    fetchJson("https://example.invalid/hangs", false, {
+      fetchImpl: () => new Promise(() => {}),
+      timeoutMs: 10,
+      maxBytes: 64,
+    }),
+    /timed out after 10 ms/,
+  );
+
+  await assert.rejects(
+    fetchJson("https://example.invalid/oversized", false, {
+      fetchImpl: async () => new Response(new Uint8Array(65), { status: 200 }),
+      timeoutMs: 1_000,
+      maxBytes: 64,
+    }),
+    /64-byte boundary/,
+  );
+
+  assert.deepEqual(
+    await fetchJson("https://example.invalid/valid", false, {
+      fetchImpl: async () => new Response('{"ok":true}', { status: 200 }),
+      timeoutMs: 1_000,
+      maxBytes: 64,
+    }),
+    { ok: true },
+  );
 });

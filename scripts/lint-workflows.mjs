@@ -25,7 +25,8 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
       RELEASE_TAG: contract("steps.tag.outputs.tag", [
         'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \\',
-        '--tag "$RELEASE_TAG"',
+        'gh release download "$RELEASE_TAG" \\',
+        '--tag "$RELEASE_TAG" \\',
       ]),
     }),
     "Resolve dim sum code name": Object.freeze({
@@ -69,9 +70,11 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
       RELEASE_TAG: contract("steps.tag.outputs.tag", [
         'gh release create "$RELEASE_TAG" \\',
         '--title "Worldlens $RELEASE_TAG" \\',
-        'gh release download "$RELEASE_TAG" \\',
-        'gh release edit "$RELEASE_TAG" \\',
+        'draft_matches=$(jq --arg tag "$RELEASE_TAG" --arg sha "$GITHUB_SHA" \\',
+        'echo "::error::expected exactly one draft for $RELEASE_TAG at $GITHUB_SHA; found $draft_matches"',
+        'jq --arg tag "$RELEASE_TAG" --arg sha "$GITHUB_SHA" \\',
         'gh release view "$RELEASE_TAG" \\',
+        '--tag "$RELEASE_TAG"',
         '--tag "$RELEASE_TAG" \\',
       ]),
     }),
@@ -82,11 +85,11 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
   ".github/workflows/ci.yml": Object.freeze({
     "Resolve release tag": Object.freeze({
       env: "73dc8da2d166a44852cc6016f1152bfbb40706a31aeade8422c602454a532e00",
-      run: "1726f7d170248aa12f239b47391bf734c0871dc59669823aa936f7d054ad1b63",
+      run: "c00c07cbdcb9b01798cf371af3641d81fd6cd255e6410d32dccfa6be3547e5f9",
     }),
     "Verify nominated release already exists": Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
-      run: "b0da8c167531db49d589e30969ddf99d35909ee9b494321d85ee7798caccdf4d",
+      run: "a41230946577f47939bf5408f9e70eaa6ad390d4e8a661b743bdf9005e9d949c",
     }),
     "Resolve dim sum code name": Object.freeze({
       env: "ac9ce0136bb0c6611abee76c2b2cc24d3380b23f7dc6d660f03b4977280fc471",
@@ -98,17 +101,17 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
     }),
     "Compose release notes": Object.freeze({
       env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
-      run: "029583c565452f9d481fdb394dc8562a5832c32a2835d54f33c81b2edd217389",
+      run: "5b50e85d972724ed2689cdee2d25de39562fdd0fe1024b7a6f5b149b7b4fdabe",
     }),
     Publish: Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
-      run: "58ab850c32a1a3f4e15a25747e9c3aa8108e8933c73c608a132457457c3e09c7",
+      run: "f1be5492bc3af1415c7ae31ff7389990b37c8ad56f03ec2498d9a919ccb7dcbd",
     }),
   }),
 });
 
 const RELEASE_JOB_FINGERPRINT =
-  "31dfcbdfcce4382dd5188bb583b2e07ad9f7ad47376812559413bb953a3ad7cf";
+  "25c485dac86b3396da41e6db991087f3f7da9232668d039bf584d2602a5015cd";
 
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
@@ -329,7 +332,7 @@ const REQUIRED_STEP_LINES = Object.freeze({
   "Resolve release tag": Object.freeze([
     'if [[ ! "$version" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then',
     'if [[ ! "$GITHUB_RUN_NUMBER" =~ ^[1-9][0-9]{0,17}$ ]]; then',
-    'if [[ ! "$count" =~ ^[0-9]{1,6}$ ]] || [ "$count" -gt 999999 ]; then',
+    "ordinal=$GITHUB_RUN_NUMBER",
     "printf 'tag=%s\\n' \"$tag\"",
     "printf 'version=%s\\n' \"$version\"",
     "printf 'ordinal=%s\\n' \"$ordinal\"",
@@ -360,13 +363,19 @@ const REQUIRED_STEP_LINES = Object.freeze({
     '--state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `',
   ]),
   "Prove generated Windows executables are unsigned and branded": Object.freeze([
+    "$applicationDirectories = @(",
+    "@(",
+    ") | Where-Object { Test-Path -LiteralPath $_ -PathType Container }",
     "Get-ChildItem -LiteralPath $applicationDirectories[0] -File -Filter '*.exe' -Recurse",
     "$signature = Get-AuthenticodeSignature -LiteralPath $executable.FullName",
     "if ($signature.Status -ne 'NotSigned') {",
   ]),
   Publish: Object.freeze([
+    "node scripts/release-asset-manifest.mjs verify-draft \\",
     "node scripts/release-asset-manifest.mjs verify \\",
     "node scripts/release-asset-manifest.mjs verify-metadata \\",
+    "gh api --method PATCH \\",
+    "--draft \\",
   ]),
 });
 

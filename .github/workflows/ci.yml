@@ -321,9 +321,11 @@ jobs:
         shell: pwsh
         run: |
           $applicationDirectories = @(
-            'design/packages/app/release/win-unpacked',
-            'design/packages/app/dist/win-unpacked'
-          ) | Where-Object { Test-Path -LiteralPath $_ -PathType Container }
+            @(
+              'design/packages/app/release/win-unpacked',
+              'design/packages/app/dist/win-unpacked'
+            ) | Where-Object { Test-Path -LiteralPath $_ -PathType Container }
+          )
           if ($applicationDirectories.Count -ne 1) {
             Write-Host "::error::expected one packaged application directory, found $($applicationDirectories.Count)"
             exit 1
@@ -895,9 +897,9 @@ jobs:
             echo "::error::GITHUB_RUN_NUMBER is not a bounded positive integer"
             exit 1
           fi
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > release-inventory-pages.json
           mapfile -t existing_tags < <(
-            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
-              jq -r --arg sha "$GITHUB_SHA" '.[][] | select(.draft == false and .target_commitish == $sha) | .tag_name'
+            jq -r --arg sha "$GITHUB_SHA" '.[][] | select(.draft == false and .target_commitish == $sha) | .tag_name' release-inventory-pages.json
           )
           if [ "${#existing_tags[@]}" -gt 1 ]; then
             echo "::error::commit $GITHUB_SHA already has ${#existing_tags[@]} releases; refusing to add another"
@@ -913,19 +915,30 @@ jobs:
             exit 0
           fi
           tag="v${version}-build.${GITHUB_RUN_NUMBER}"
+          mapfile -t stale_drafts < <(
+            jq -r --arg tag "$tag" '.[][] | select(.draft == true and .tag_name == $tag) | [.id, .target_commitish] | @tsv' release-inventory-pages.json
+          )
+          if [ "${#stale_drafts[@]}" -gt 1 ]; then
+            echo "::error::tag $tag has multiple draft releases; refusing ambiguous cleanup"
+            exit 1
+          fi
+          if [ "${#stale_drafts[@]}" -eq 1 ]; then
+            IFS=$'\t' read -r stale_draft_id stale_draft_target <<< "${stale_drafts[0]}"
+            if [[ ! "$stale_draft_id" =~ ^[1-9][0-9]{0,19}$ ]] || [ "$stale_draft_target" != "$GITHUB_SHA" ]; then
+              echo "::error::the stale draft for $tag does not have a bounded id and exact target"
+              exit 1
+            fi
+            echo "::warning::removing failed draft $stale_draft_id for this exact run before rebuilding it"
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/$stale_draft_id"
+          fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::tag $tag already exists; refusing to recycle a published release"
             exit 1
           fi
-          # The release ordinal drives the dim sum code name. It is monotonic, so
-          # a dish is never silently reused, and no ledger has to be committed
-          # back by CI, which would be an automation loop.
-          count=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100000 --json tagName --jq 'length')
-          if [[ ! "$count" =~ ^[0-9]{1,6}$ ]] || [ "$count" -gt 999999 ]; then
-            echo "::error::release inventory count is not a bounded non-negative integer"
-            exit 1
-          fi
-          ordinal=$((count + 1))
+          # The workflow run number is monotonic and never decreases when a release
+          # is deleted. Failed runs may leave a dish unused, but no later release can
+          # silently reuse the code name from a deleted release.
+          ordinal=$GITHUB_RUN_NUMBER
           {
             printf 'publish=true\n'
             printf 'tag=%s\n' "$tag"
@@ -942,10 +955,19 @@ jobs:
           set -euo pipefail
           gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --json isDraft,isPrerelease,tagName,targetCommitish,body,assets > existing-release.json
+          if [ -e existing-release-readback ]; then
+            echo "::error::existing release readback directory already exists"
+            exit 1
+          fi
+          mkdir existing-release-readback
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir existing-release-readback
           node scripts/release-asset-manifest.mjs verify-nomination \
             --metadata existing-release.json \
             --commit "$GITHUB_SHA" \
-            --tag "$RELEASE_TAG"
+            --tag "$RELEASE_TAG" \
+            --directory existing-release-readback
 
       # Not a gate: a release must never be blocked because the photo catalog is
       # unavailable. A failure here is reported in the notes instead.
@@ -956,6 +978,7 @@ jobs:
         if: steps.tag.outputs.publish == 'true'
         id: dish
         continue-on-error: true
+        timeout-minutes: 1
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
           ORDINAL: ${{ steps.tag.outputs.ordinal }}
@@ -1086,7 +1109,7 @@ jobs:
             fi
             echo "## What is in this build"
             echo
-            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). This release exists only because workflow lint, application lint, build, typecheck, the full test suite, Java round-trip, real world render, Windows packaging, and screenshot capture all passed first."
+            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). This release exists only because workflow lint, application lint, build, typecheck, the full test suite, Java round-trip, real world render, and Windows packaging all passed first. Screenshot capture runs independently as advisory diagnostic evidence and does not block publication."
             echo
             node scripts/count-lines.mjs --format=markdown
             echo
@@ -1117,16 +1140,54 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Worldlens $RELEASE_TAG" \
             --notes-file release-notes.md \
+            --draft \
             "${assets[@]}"
+
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > draft-release-pages.json
+          draft_matches=$(jq --arg tag "$RELEASE_TAG" --arg sha "$GITHUB_SHA" \
+            '[.[][] | select(.draft == true and .tag_name == $tag and .target_commitish == $sha)] | length' \
+            draft-release-pages.json)
+          if [ "$draft_matches" != "1" ]; then
+            echo "::error::expected exactly one draft for $RELEASE_TAG at $GITHUB_SHA; found $draft_matches"
+            exit 1
+          fi
+          jq --arg tag "$RELEASE_TAG" --arg sha "$GITHUB_SHA" \
+            '.[][] | select(.draft == true and .tag_name == $tag and .target_commitish == $sha) |
+             {id, isDraft: .draft, isPrerelease: .prerelease, tagName: .tag_name,
+              targetCommitish: .target_commitish, body,
+              assets: [.assets[] | {id, name, size}]}' \
+            draft-release-pages.json > draft-release.json
+          draft_id=$(jq -r '.id' draft-release.json)
+          if [[ ! "$draft_id" =~ ^[1-9][0-9]{0,19}$ ]]; then
+            echo "::error::draft release id is not a bounded positive integer"
+            exit 1
+          fi
+          node scripts/release-asset-manifest.mjs verify-draft \
+            --metadata draft-release.json \
+            --manifest release-assets.json \
+            --commit "$GITHUB_SHA" \
+            --tag "$RELEASE_TAG"
 
           if [ -e release-readback ]; then
             echo "::error::release readback directory already exists"
             exit 1
           fi
           mkdir release-readback
-          gh release download "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --dir release-readback
+          downloaded_assets=0
+          while IFS=$'\t' read -r asset_id asset_name; do
+            if [[ ! "$asset_id" =~ ^[1-9][0-9]{0,19}$ ]] ||
+               [[ ! "$asset_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,239}$ ]]; then
+              echo "::error::draft asset metadata is outside the bounded id/name schema"
+              exit 1
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" \
+              -H "Accept: application/octet-stream" > "release-readback/$asset_name"
+            downloaded_assets=$((downloaded_assets + 1))
+          done < <(jq -r '.assets[] | [.id, .name] | @tsv' draft-release.json)
+          if [ "$downloaded_assets" -eq 0 ]; then
+            echo "::error::the draft exposed no downloadable assets"
+            exit 1
+          fi
           node scripts/release-asset-manifest.mjs verify \
             --manifest release-assets.json \
             --directory release-readback
@@ -1162,9 +1223,10 @@ jobs:
               echo "- Workflow completed: $workflow_completed"
               echo "- Workflow duration: $workflow_duration"
             } > release-notes.md
-            gh release edit "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --notes-file release-notes.md
+            jq -n --rawfile body release-notes.md '{body: $body, draft: false}' > publish-release.json
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/releases/$draft_id" \
+              --input publish-release.json > publish-response.json
             gh release view "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --json isDraft,isPrerelease,tagName,targetCommitish,body,assets \

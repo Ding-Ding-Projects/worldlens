@@ -267,6 +267,17 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     "continue-on-error: true",
     "continue-on-error: false",
   );
+
+  const collapsedApplicationDirectory = workflow.replace(
+    "          $applicationDirectories = @(\n            @(\n",
+    "          $applicationDirectories = @(\n",
+  );
+  assert.notEqual(collapsedApplicationDirectory, workflow);
+  assert.ok(
+    actionDependencyProblems(collapsedApplicationDirectory, FILE).some((problem) =>
+      /security contract must run exactly once/.test(problem.message),
+    ),
+  );
   assert.notEqual(fatalScreenshots, workflow);
   assert.ok(
     actionDependencyProblems(fatalScreenshots, FILE).some((problem) =>

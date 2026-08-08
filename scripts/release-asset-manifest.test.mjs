@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { test } from "node:test";
@@ -9,6 +15,8 @@ import {
   markdownForManifest,
   requireNomination,
   verifyDirectory,
+  verifyDraftMetadata,
+  verifyExistingNomination,
   verifyMetadata,
 } from "./release-asset-manifest.mjs";
 
@@ -64,13 +72,19 @@ test("manifest records unique non-empty assets and renders explicit size/hash ro
 
 test("downloaded read-back must match every byte and no extra asset may appear", () => {
   const item = fixture();
-  assert.equal(verifyDirectory(item.manifest, item.downloaded), 5);
+  assert.equal(verifyDirectory(item.manifest, item.downloaded, { root: item.root }), 5);
   writeFileSync(resolve(item.downloaded, "Worldlens-0.1.42-Setup.exe"), "changed");
-  assert.throws(() => verifyDirectory(item.manifest, item.downloaded), /size differs|SHA-256 differs/);
+  assert.throws(
+    () => verifyDirectory(item.manifest, item.downloaded, { root: item.root }),
+    /size differs|SHA-256 differs/,
+  );
 
   const extra = fixture();
   writeFileSync(resolve(extra.downloaded, "surprise.zip"), "unexpected");
-  assert.throws(() => verifyDirectory(extra.manifest, extra.downloaded), /asset set differs/);
+  assert.throws(
+    () => verifyDirectory(extra.manifest, extra.downloaded, { root: extra.root }),
+    /asset set differs/,
+  );
 });
 
 test("metadata requires exact immutable target, final notes, and the same asset inventory", () => {
@@ -102,6 +116,51 @@ test("metadata requires exact immutable target, final notes, and the same asset 
       ),
     /asset count differs/,
   );
+
+  verifyDraftMetadata(
+    { ...item.metadata, isDraft: true },
+    item.manifest,
+    { commit: COMMIT, tag: TAG },
+  );
+  assert.throws(
+    () =>
+      verifyDraftMetadata(
+        { ...item.metadata, isDraft: true, assets: [] },
+        item.manifest,
+        { commit: COMMIT, tag: TAG },
+      ),
+    /asset count differs/,
+  );
+});
+
+test("an existing nomination must carry complete notes and matching downloaded bytes", () => {
+  const item = fixture();
+  assert.equal(
+    verifyExistingNomination(item.metadata, {
+      commit: COMMIT,
+      tag: TAG,
+      directory: item.downloaded,
+      root: item.root,
+    }),
+    5,
+  );
+
+  for (const metadata of [
+    { ...item.metadata, body: "", assets: [] },
+    { ...item.metadata, body: item.metadata.body, assets: [] },
+    { ...item.metadata, body: item.metadata.body.replace("## Workflow timing", "## Missing") },
+  ]) {
+    assert.throws(
+      () =>
+        verifyExistingNomination(metadata, {
+          commit: COMMIT,
+          tag: TAG,
+          directory: item.downloaded,
+          root: item.root,
+        }),
+      /notes|asset/,
+    );
+  }
 });
 
 test("deliberately red duplicate basenames, empty files, and paths outside root fail", () => {
@@ -118,4 +177,33 @@ test("deliberately red duplicate basenames, empty files, and paths outside root 
   const outside = resolve(tmpdir(), "outside-release-asset.zip");
   writeFileSync(outside, "outside");
   assert.throws(() => createManifest([outside], { root }), /child/);
+});
+
+test("asset and download paths reject ancestor symbolic links or junctions", () => {
+  const root = mkdtempSync(resolve(tmpdir(), "worldlens-release-link-root-"));
+  const outside = mkdtempSync(resolve(tmpdir(), "worldlens-release-link-outside-"));
+  const outsideAsset = resolve(outside, "outside.zip");
+  writeFileSync(outsideAsset, "outside bytes");
+  const link = resolve(root, "linked");
+  symlinkSync(outside, link, process.platform === "win32" ? "junction" : "dir");
+
+  assert.throws(
+    () => createManifest([resolve(link, "outside.zip")], { root }),
+    /symbolic link or junction/,
+  );
+  const manifest = {
+    schemaVersion: 1,
+    assets: [
+      {
+        name: "outside.zip",
+        path: "outside.zip",
+        size: 13,
+        sha256: "a".repeat(64),
+      },
+    ],
+  };
+  assert.throws(
+    () => verifyDirectory(manifest, link, { root }),
+    /symbolic link or junction/,
+  );
 });

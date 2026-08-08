@@ -56,6 +56,13 @@ function requireInside(root, candidate, label) {
   ) {
     fail(`${label} must resolve to a child of the repository root`);
   }
+  let current = absoluteRoot;
+  for (const component of pathFromRoot.split(/[\\/]+/)) {
+    current = resolve(current, component);
+    if (existsSync(current) && lstatSync(current).isSymbolicLink()) {
+      fail(`${label} crosses a symbolic link or junction at ${current}`);
+    }
+  }
   return absoluteCandidate;
 }
 

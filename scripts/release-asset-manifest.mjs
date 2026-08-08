@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  lstatSync,
   readFileSync,
   readdirSync,
   statSync,
@@ -37,6 +38,13 @@ function requireChild(root, path, label) {
     fromRoot.startsWith(`..${sep}`)
   ) {
     fail(`${label} must be a child of the repository root`);
+  }
+  let current = absoluteRoot;
+  for (const component of fromRoot.split(/[\\/]+/)) {
+    current = resolve(current, component);
+    if (existsSync(current) && lstatSync(current).isSymbolicLink()) {
+      fail(`${label} crosses a symbolic link or junction at ${current}`);
+    }
   }
   return { absolutePath, relativePath: fromRoot.replaceAll("\\", "/") };
 }
@@ -115,8 +123,9 @@ function markdownForManifest(manifest) {
   ].join("\n");
 }
 
-function verifyDirectory(manifest, directory) {
-  const actualNames = readdirSync(directory, { withFileTypes: true })
+function verifyDirectory(manifest, directory, { root = process.cwd() } = {}) {
+  const { absolutePath } = requireChild(root, directory, "download directory");
+  const actualNames = readdirSync(absolutePath, { withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name)
     .sort();
@@ -127,27 +136,55 @@ function verifyDirectory(manifest, directory) {
     );
   }
   for (const record of manifest.assets) {
-    const path = resolve(directory, record.name);
+    const path = resolve(absolutePath, record.name);
     if (statSync(path).size !== record.size) fail(`downloaded size differs for ${record.name}`);
     if (digest(path) !== record.sha256) fail(`downloaded SHA-256 differs for ${record.name}`);
   }
   return expectedNames.length;
 }
 
-function requireNomination(metadata, { commit, tag }) {
+function requireReleaseIdentity(metadata, { commit, tag, draft }) {
   if (!COMMIT.test(commit)) fail("expected commit is not a full SHA");
   if (!SAFE_TAG.test(tag)) fail("expected tag is outside the release schema");
-  if (metadata?.isDraft !== false || metadata?.isPrerelease !== false) {
-    fail("release is draft or prerelease");
+  if (metadata?.isDraft !== draft || metadata?.isPrerelease !== false) {
+    fail(draft ? "release is not the expected draft" : "release is draft or prerelease");
   }
   if (metadata.tagName !== tag) fail("release tag differs from the nomination");
   if (metadata.targetCommitish !== commit) fail("release target differs from the nominated commit");
 }
 
-function verifyMetadata(metadata, manifest, { commit, tag, notes }) {
-  requireNomination(metadata, { commit, tag });
-  const expectedNotes = readFileSync(notes, "utf8");
-  if (metadata.body !== expectedNotes) fail("published release notes differ from the verified file");
+function requireNomination(metadata, { commit, tag }) {
+  requireReleaseIdentity(metadata, { commit, tag, draft: false });
+}
+
+function verifyMetadataAssets(metadata, manifest) {
+  if (!Array.isArray(metadata?.assets)) fail("published release has no asset inventory");
+  const metadataAssets = new Map();
+  for (const asset of metadata.assets) {
+    if (!asset || typeof asset !== "object" || !SAFE_NAME.test(asset.name)) {
+      fail("published release contains an unsafe asset record");
+    }
+    if (!Number.isSafeInteger(asset.size) || asset.size < 1) {
+      fail(`published asset is empty or has an invalid size: ${asset.name}`);
+    }
+    if (metadataAssets.has(asset.name)) fail(`published release repeats ${asset.name}`);
+    metadataAssets.set(asset.name, asset);
+  }
+  if (metadataAssets.size !== manifest.assets.length) {
+    fail("published asset count differs from the verified manifest");
+  }
+  for (const record of manifest.assets) {
+    const published = metadataAssets.get(record.name);
+    if (!published || published.size !== record.size) {
+      fail(`published metadata differs for ${record.name}`);
+    }
+  }
+}
+
+function requireNoteMarkers(notes, commit) {
+  if (typeof notes !== "string" || notes.length < 1 || notes.length > MAX_MANIFEST_BYTES) {
+    fail("release notes are empty or outside the supported boundary");
+  }
   for (const marker of [
     `Commit \`${commit}\``,
     `Changelog commit: \`${commit}\``,
@@ -158,21 +195,66 @@ function verifyMetadata(metadata, manifest, { commit, tag, notes }) {
     "- Workflow completed:",
     "- Workflow duration:",
   ]) {
-    if (!expectedNotes.includes(marker)) fail(`release notes are missing ${marker}`);
+    if (!notes.includes(marker)) fail(`release notes are missing ${marker}`);
   }
+}
 
-  const metadataAssets = new Map(
-    (metadata.assets ?? []).map((asset) => [asset.name, asset]),
+function manifestFromReleaseNotes(notes) {
+  const normalized = notes.replaceAll("\r\n", "\n");
+  const heading = "## Release asset SHA-256";
+  const start = normalized.indexOf(heading);
+  if (start < 0 || normalized.indexOf(heading, start + heading.length) >= 0) {
+    fail("release notes must contain exactly one asset SHA-256 section");
+  }
+  const afterHeading = start + heading.length;
+  const nextHeading = normalized.indexOf("\n## ", afterHeading);
+  const section = normalized.slice(
+    afterHeading,
+    nextHeading < 0 ? normalized.length : nextHeading,
   );
-  if (metadataAssets.size !== manifest.assets.length) {
-    fail("published asset count differs from the verified manifest");
+  const assets = [];
+  const names = new Set();
+  for (const line of section.split("\n")) {
+    const match = /^\| `([A-Za-z0-9][A-Za-z0-9._-]{0,239})` \| ([1-9]\d*) \| `([0-9a-f]{64})` \|$/.exec(
+      line,
+    );
+    if (!match) continue;
+    const size = Number(match[2]);
+    const record = requireRecord({
+      name: match[1],
+      path: match[1],
+      size,
+      sha256: match[3],
+    });
+    if (names.has(record.name)) fail(`release notes repeat ${record.name}`);
+    names.add(record.name);
+    assets.push(record);
   }
-  for (const record of manifest.assets) {
-    const published = metadataAssets.get(record.name);
-    if (!published || published.size !== record.size) {
-      fail(`published metadata differs for ${record.name}`);
-    }
-  }
+  if (assets.length < 1) fail("release notes contain no asset SHA-256 rows");
+  assets.sort((left, right) => left.name.localeCompare(right.name));
+  return { schemaVersion: 1, assets };
+}
+
+function verifyDraftMetadata(metadata, manifest, { commit, tag }) {
+  requireReleaseIdentity(metadata, { commit, tag, draft: true });
+  verifyMetadataAssets(metadata, manifest);
+}
+
+function verifyExistingNomination(metadata, { commit, tag, directory, root }) {
+  requireNomination(metadata, { commit, tag });
+  requireNoteMarkers(metadata.body, commit);
+  const manifest = manifestFromReleaseNotes(metadata.body);
+  verifyMetadataAssets(metadata, manifest);
+  verifyDirectory(manifest, directory, { root });
+  return manifest.assets.length;
+}
+
+function verifyMetadata(metadata, manifest, { commit, tag, notes }) {
+  requireNomination(metadata, { commit, tag });
+  const expectedNotes = readFileSync(notes, "utf8");
+  if (metadata.body !== expectedNotes) fail("published release notes differ from the verified file");
+  requireNoteMarkers(expectedNotes, commit);
+  verifyMetadataAssets(metadata, manifest);
 }
 
 function parseOptions(argv) {
@@ -209,14 +291,20 @@ function main() {
     return;
   }
   if (mode === "verify-nomination") {
-    for (const required of ["metadata", "commit", "tag"]) {
+    for (const required of ["metadata", "commit", "tag", "directory"]) {
       if (!values[required]) fail(`verify-nomination requires --${required}`);
     }
-    requireNomination(JSON.parse(readFileSync(values.metadata, "utf8")), {
-      commit: values.commit,
-      tag: values.tag,
-    });
-    process.stdout.write("verified the existing nominated release target\n");
+    const count = verifyExistingNomination(
+      JSON.parse(readFileSync(values.metadata, "utf8")),
+      {
+        commit: values.commit,
+        tag: values.tag,
+        directory: values.directory,
+      },
+    );
+    process.stdout.write(
+      `verified the existing nominated release target, notes, and ${count} downloaded assets\n`,
+    );
     return;
   }
   if (!values.manifest) fail(`${mode} requires --manifest`);
@@ -226,6 +314,15 @@ function main() {
   } else if (mode === "verify") {
     if (!values.directory) fail("verify requires --directory");
     process.stdout.write(`verified ${verifyDirectory(manifest, values.directory)} downloaded assets\n`);
+  } else if (mode === "verify-draft") {
+    for (const required of ["metadata", "commit", "tag"]) {
+      if (!values[required]) fail(`verify-draft requires --${required}`);
+    }
+    verifyDraftMetadata(JSON.parse(readFileSync(values.metadata, "utf8")), manifest, {
+      commit: values.commit,
+      tag: values.tag,
+    });
+    process.stdout.write("verified the draft target and exact asset inventory\n");
   } else if (mode === "verify-metadata") {
     for (const required of ["metadata", "commit", "tag", "notes"]) {
       if (!values[required]) fail(`verify-metadata requires --${required}`);
@@ -238,16 +335,19 @@ function main() {
     });
     process.stdout.write("verified release metadata, exact target, notes, and asset inventory\n");
   } else {
-    fail("mode must be create, list, verify, verify-metadata, or verify-nomination");
+    fail("mode must be create, list, verify, verify-draft, verify-metadata, or verify-nomination");
   }
 }
 
 export {
   createManifest,
   markdownForManifest,
+  manifestFromReleaseNotes,
   readManifest,
   requireNomination,
   verifyDirectory,
+  verifyDraftMetadata,
+  verifyExistingNomination,
   verifyMetadata,
 };
 

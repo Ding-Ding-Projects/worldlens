@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from "node:fs";
@@ -190,4 +191,32 @@ test("collection rejects two populated candidate directories and a pre-existing 
       }),
     /exactly one populated/,
   );
+});
+
+test("prepare rejects an ancestor symbolic link or junction before recursive cleanup", () => {
+  const root = mkdtempSync(resolve(tmpdir(), "worldlens-squirrel-link-root-"));
+  const outside = mkdtempSync(resolve(tmpdir(), "worldlens-squirrel-link-outside-"));
+  const packageDirectory = resolve(root, "design", "packages", "app");
+  const sentinel = resolve(outside, "squirrel-windows", "keep-me.txt");
+  mkdirSync(dirname(sentinel), { recursive: true });
+  mkdirSync(packageDirectory, { recursive: true });
+  writeFileSync(sentinel, "outside must survive");
+  symlinkSync(
+    outside,
+    resolve(packageDirectory, "release"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+
+  assert.throws(
+    () =>
+      prepareOutputs({
+        root,
+        packageDirectory,
+        outputDirectory: resolve(root, "installer-out"),
+        stateFile: resolve(root, "state", "build.json"),
+        version: "0.1.42",
+      }),
+    /symbolic link or junction/,
+  );
+  assert.equal(readFileSync(sentinel, "utf8"), "outside must survive");
 });

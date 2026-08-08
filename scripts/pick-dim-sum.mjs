@@ -21,6 +21,8 @@ const MAX_CATALOG_DISHES = 10_000;
 const MAX_RELEASES = 100;
 const MAX_ASSETS_PER_RELEASE = 1_000;
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
+const MAX_METADATA_BYTES = 16 * 1024 * 1024;
+const FETCH_TIMEOUT_MS = 10_000;
 
 const SAFE_HUMAN_TEXT = /^[\p{L}\p{M}\p{N} '’.,，。、「」《》·-]+$/u;
 const SAFE_ID = /^hk-dish-\d{4}$/;
@@ -207,12 +209,85 @@ function headers(authenticated) {
   return result;
 }
 
-async function fetchJson(url, authenticated = false) {
-  const response = await fetch(url, { headers: headers(authenticated) });
+async function readJsonBytes(response, maxBytes) {
+  const declared = response.headers.get("content-length");
+  if (declared !== null) {
+    const declaredBytes = Number(declared);
+    if (!Number.isSafeInteger(declaredBytes) || declaredBytes < 0) {
+      throw new Error("catalog response has an invalid Content-Length");
+    }
+    if (declaredBytes > maxBytes) {
+      throw new Error(`catalog response exceeds the ${maxBytes}-byte boundary`);
+    }
+  }
+  if (!response.body) throw new Error("catalog response has no body");
+
+  const chunks = [];
+  let received = 0;
+  const reader = response.body.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      await reader.cancel();
+      throw new Error(`catalog response exceeds the ${maxBytes}-byte boundary`);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  } catch {
+    throw new Error("catalog response is not bounded valid UTF-8 JSON");
+  }
+}
+
+async function fetchJson(
+  url,
+  authenticated = false,
+  {
+    fetchImpl = globalThis.fetch,
+    timeoutMs = FETCH_TIMEOUT_MS,
+    maxBytes = MAX_METADATA_BYTES,
+  } = {},
+) {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60_000) {
+    throw new Error("catalog timeout is outside the supported boundary");
+  }
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_METADATA_BYTES) {
+    throw new Error("catalog byte limit is outside the supported boundary");
+  }
+  const controller = new AbortController();
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`GET ${url} timed out after ${timeoutMs} ms`));
+    }, timeoutMs);
+  });
+  let response;
+  try {
+    response = await Promise.race([
+      fetchImpl(url, {
+        headers: headers(authenticated),
+        signal: controller.signal,
+        redirect: "error",
+      }),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
   if (!response.ok) {
     throw new Error(`GET ${url} -> ${response.status} ${response.statusText}`);
   }
-  return response.json();
+  return readJsonBytes(response, maxBytes);
 }
 
 async function loadAssetIndex() {
@@ -283,7 +358,14 @@ async function main() {
   }
 }
 
-export { parseArgs, selectUnusedDish, validateAsset, validateDish, workflowOutputText };
+export {
+  fetchJson,
+  parseArgs,
+  selectUnusedDish,
+  validateAsset,
+  validateDish,
+  workflowOutputText,
+};
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch((error) => {
