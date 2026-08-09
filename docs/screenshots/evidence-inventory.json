@@ -1,7 +1,7 @@
 {
     "version": 1,
     "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-    "expectedTargetCount": 156,
+    "expectedTargetCount": 159,
     "evidenceRoots": [
         "docs/screenshots",
         "design/docs/assets/issues",
@@ -237,13 +237,16 @@
             "reproducibility": "historical-or-data-dependent",
             "blocker": "These files record pre-fix or in-progress states. A current-build image must not be relabelled as an historical before-state; data-dependent rows require their real owning operation and long-value fixture.",
             "replacementPolicy": "Create a separately named current after-capture and update references; retain truthful historical semantics until the public record no longer depends on them.",
-            "expectedCount": 12,
+            "expectedCount": 15,
             "targets": [
                 "design/docs/assets/issues/106-before-startup-blocked.png",
                 "docs/screenshots/issue-100-in-progress-container-offers.png",
                 "docs/screenshots/issue-101-in-progress-interrupted-renders.png",
                 "docs/screenshots/issue-103-in-progress-pages.png",
                 "docs/screenshots/issue-103-in-progress-world-repo.png",
+                "docs/screenshots/issue-107-before-pages-replacement.png",
+                "docs/screenshots/issue-123-before-account-overview.png",
+                "docs/screenshots/issue-123-before-credential-surface.png",
                 "docs/screenshots/issue-93-in-progress-backup-run.png",
                 "docs/screenshots/issue-94-in-progress-backup-listing.png",
                 "docs/screenshots/issue-95-in-progress-config-save.png",

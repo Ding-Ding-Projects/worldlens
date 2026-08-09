@@ -831,7 +831,7 @@ export function effectiveValue(
     option: DownloaderOption,
     options: Readonly<Record<string, string | number | boolean>>,
 ): string | number | boolean {
-    return option.key in options ? options[option.key] : option.fallback;
+    return options[option.key] ?? option.fallback;
 }
 
 /** Whether every gate on this option is satisfied, so the tool would honour it. */
