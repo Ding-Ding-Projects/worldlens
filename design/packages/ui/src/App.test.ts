@@ -213,6 +213,20 @@ function shell(): VueWrapper {
     return wrapper;
 }
 
+/**
+ * Which destination the rail says is showing.
+ *
+ * Every layer stays mounted - that is the contract that keeps the WebGL scene alive across
+ * navigation - so `findComponent(...).exists()` answers "was it built", not "is it in front".
+ * The rail's own `aria-current` is the shell's public answer to the second question, and it is
+ * the same string a screen reader is told.
+ */
+function currentDestination(): string | null {
+    const active = [...document.querySelectorAll<HTMLElement>(".wl-rail-item")].find(
+        (node) => node.getAttribute("aria-current") === "page",
+    );
+    return active?.querySelector(".wl-rail-label")?.textContent?.trim() ?? null;
+}
 /** Switches to a rail destination the way a person does: by pressing it. */
 async function goTo(destination: "Home" | "Map" | "Work"): Promise<void> {
     // Matched on the label element rather than on the button's whole text: the Work item carries
@@ -384,30 +398,32 @@ describe("the tab strip", () => {
 
         // Ten, not twelve. Home and Map left the strip entirely - they are rail destinations now,
         // and a Home tab beside a Home rail item would be two navigation models arguing.
-        expect(tabLabels()).toEqual([
-            "Make a map, pinned",
+        //
+        // Sorted, because what this case is about is that all ten are reachable rather than which
+        // order a test helper happened to open them in. A sequence assertion here would go red
+        // every time the job registry is reordered, for no defect at all.
+        expect([...tabLabels()].sort()).toEqual([
+            "Backups",
             "Docs",
-            "Projects",
             "GitHub runners",
+            "Make a map, pinned",
+            "Maps and servers",
+            "Projects",
+            "Publish to Pages",
             // No count in the label: nothing in this shell's fake bridges reports a render in
             // flight, so the always-mounted indicator behind this label reads zero, exactly as it
             // should for a shell with nothing running.
             "Renders",
-            "Maps and servers",
-            "Publish to Pages",
             "Watch it live",
-            "Backups",
             "World repository",
         ]);
     });
+
     it("reaches Home from the rail, where no bulk close can ever touch it", async () => {
         const app = shell();
 
         await goTo("Home");
-        expect(homeTab.closest(".mb-tabs-strip__pinned")).not.toBeNull();
 
-        homeTab.click();
-        await settle();
 
         expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
     });
@@ -430,6 +446,7 @@ describe("the tab strip", () => {
         // the two apart.
         const app = shell();
 
+        expect(currentDestination()).toBe("Home");
         expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
         // The map layer is mounted at all times on purpose: unmounting it would throw away the
         // WebGL scene every time somebody looked at Home. Not showing means inert.
@@ -451,11 +468,14 @@ describe("the tab strip", () => {
         await app.findComponent(FirstRunSetup).vm.$emit("finished");
         await settle();
 
+        expect(currentDestination()).toBe("Home");
         expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
         // The map layer is mounted at all times on purpose: unmounting it would throw away the
         // WebGL scene every time somebody looked at Home. Not showing means inert.
         expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
-        expect(app.findComponent(WorldScreen).exists()).toBe(false);
+        // The guide is the pinned, active job, so it is built from the first frame. What a fresh
+        // install has not done is *shown* it - Home is the destination in front.
+        expect(currentDestination()).toBe("Home");
         expect(
             [...document.querySelectorAll<HTMLElement>(".wl-rail-item")]
                 .find((node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home")
@@ -497,7 +517,7 @@ describe("the tab strip", () => {
         const app = shell();
 
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(app.findComponent(HomeCatalogues).exists()).toBe(false);
+        expect(currentDestination()).not.toBe("Home");
         expect(tabButton("Make a map").getAttribute("aria-selected")).toBe("true");
     });
 
@@ -511,15 +531,19 @@ describe("the tab strip", () => {
         expect(document.querySelector(".mb-map-state")?.textContent).toContain("No map loaded.");
     });
 
-    it("reaches the wizard through its tab rather than through having no profile", async () => {
-        // The wizard used to appear only because `profilesStore.activeId` was null, which made
-        // it unreachable the moment a map was open. A tab is a door that is always there.
+    it("reaches the wizard through its job rather than through having no profile", async () => {
+        // The wizard used to appear only because `profilesStore.activeId` was null, which made it
+        // unreachable the moment a map was open. A job is a door that is always there.
         const app = shell();
-        expect(app.findComponent(WorldScreen).exists()).toBe(false);
+        // A fresh install lands on Home. The guide is built - every layer stays mounted so
+        // navigation never costs a WebGL scene - but it is not the destination in front.
+        expect(currentDestination()).toBe("Home");
 
+        await goTo("Work");
         tabButton("Make a map").click();
         await settle();
 
+        expect(currentDestination()).toBe("Work");
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
         // The map layer is mounted at all times on purpose: unmounting it would throw away the
         // WebGL scene every time somebody looked at Home. Not showing means inert.
@@ -750,7 +774,7 @@ describe("the tab strip", () => {
         // the local-versus-container choice and the whole SSH path had no control anywhere
         // in the application. This is that door.
         const app = shell();
-        expect(app.findComponent(RunLocationCard).exists()).toBe(false);
+        expect(currentDestination()).toBe("Home");
 
         tabButton("Make a map").click();
         await settle();
