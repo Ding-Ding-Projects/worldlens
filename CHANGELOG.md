@@ -20,6 +20,27 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Desktop shell
+
+- Finish automatic updater safety and bound screenshot capture - [`5202fd564e`](https://github.com/Ding-Ding-Projects/worldlens/commit/5202fd564ed08ea20bea6ccd4aff55a31e8b3d51)
+- Keep resource branding lint-clean - [`100625f679`](https://github.com/Ding-Ding-Projects/worldlens/commit/100625f6799d35f19940d432ccc03d0be865e43d)
+
+### Build, release and tooling
+
+- Make release publication prove itself before going public - [`672d7b95af`](https://github.com/Ding-Ding-Projects/worldlens/commit/672d7b95afd81a5db724de027d39e7827520d2cc)
+- Pin every workflow action and make captures advisory - [`ecae18e578`](https://github.com/Ding-Ding-Projects/worldlens/commit/ecae18e5783c34919cc13c21d18b5d68b45476ab)
+- Pin hosted runners and audit unsigned executables - [`a957bb8ec4`](https://github.com/Ding-Ding-Projects/worldlens/commit/a957bb8ec4ab04693e319f85ea664a47d4ed5e89)
+- Repair release lock and workflow fingerprints - [`867e3fe424`](https://github.com/Ding-Ding-Projects/worldlens/commit/867e3fe424b1ef290efd4f72ed2b9425a264c79e)
+- Lay unsigned release integrity foundations - [`dc61e79688`](https://github.com/Ding-Ding-Projects/worldlens/commit/dc61e79688951cdc4e5f1000abb78aefe83c14b7)
+
+### Documentation
+
+- Gate releases on fresh integrity records - [`42f1988abf`](https://github.com/Ding-Ding-Projects/worldlens/commit/42f1988abf15503a752aa47441f628b5553d9501)
+
+## 0.1.0-build.862 - 2026-08-08
+
+Tagged at [`324e21d07b`](https://github.com/Ding-Ding-Projects/worldlens/commit/324e21d07bceabf69131250c42f6cf3c104b0500).
+
 ### Interface
 
 - Merge pull request #124 from Ding-Ding-Projects/claude/interface-usability-clipping-k4to32 - [`6de9bc2b38`](https://github.com/Ding-Ding-Projects/worldlens/commit/6de9bc2b38c7f451a9e4e1346464330efc380a40) _(summary of 22 commits, also listed here)_
@@ -39,7 +60,6 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
-- Keep resource branding lint-clean - [`100625f679`](https://github.com/Ding-Ding-Projects/worldlens/commit/100625f6799d35f19940d432ccc03d0be865e43d)
 - test(app): press a collapsed group at DOM level when the click cannot land - [`ad99045528`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad990455288ac49f60f83681eb42a7eab6453ad4)
 - test(app): one more route to a tab, and say what the strip held when none worked - [`6546f7287e`](https://github.com/Ding-Ding-Projects/worldlens/commit/6546f7287e743c901d5150700a128df53dee0ec3)
 - test(app): capture with reduced motion, so a click is not racing an animation - [`3dcab132ca`](https://github.com/Ding-Ding-Projects/worldlens/commit/3dcab132ca3d097929efef7f5eeab9db461388ff)
@@ -47,15 +67,10 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
-- Pin every workflow action and make captures advisory - [`ecae18e578`](https://github.com/Ding-Ding-Projects/worldlens/commit/ecae18e5783c34919cc13c21d18b5d68b45476ab)
-- Pin hosted runners and audit unsigned executables - [`a957bb8ec4`](https://github.com/Ding-Ding-Projects/worldlens/commit/a957bb8ec4ab04693e319f85ea664a47d4ed5e89)
-- Repair release lock and workflow fingerprints - [`867e3fe424`](https://github.com/Ding-Ding-Projects/worldlens/commit/867e3fe424b1ef290efd4f72ed2b9425a264c79e)
-- Lay unsigned release integrity foundations - [`dc61e79688`](https://github.com/Ding-Ding-Projects/worldlens/commit/dc61e79688951cdc4e5f1000abb78aefe83c14b7)
 - Harden fresh-checkout bootstrap recovery - [`7ca58da466`](https://github.com/Ding-Ding-Projects/worldlens/commit/7ca58da466334dc06dc4b3acbac64b6b5c37f0d0)
 
 ### Documentation
 
-- Gate releases on fresh integrity records - [`42f1988abf`](https://github.com/Ding-Ding-Projects/worldlens/commit/42f1988abf15503a752aa47441f628b5553d9501)
 - Merge origin/main into PR branch - [`2350a0cada`](https://github.com/Ding-Ding-Projects/worldlens/commit/2350a0cada82118b7e7e932d74211c32795c9599) _(summary of 82 commits, also listed here)_
 - docs: record what the screenshot harness found, including what is left unfixed - [`7a38fdabd7`](https://github.com/Ding-Ding-Projects/worldlens/commit/7a38fdabd76927e58bd7191cd05361597fc886bc)
 - docs: record the interface rewrite in HANDOFF - [`75d69084a7`](https://github.com/Ding-Ding-Projects/worldlens/commit/75d69084a7dc599fafb0b8b6ce55507c163d67cf)
