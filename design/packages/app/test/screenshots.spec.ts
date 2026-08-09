@@ -412,6 +412,25 @@ async function pointAppAtNoMap(): Promise<void> {
      * rather than assume an empty profile list shows it. Waiting for `.mb-world-wizard`
      * without that is a thirty second timeout describing a wizard that is fine.
      */
+    /*
+     * And now it is a tab inside a destination, which is a second move rather than a harder one.
+     *
+     * The Material Design 3 shell put the tab strip behind Work: the application opens on Home,
+     * a rail of five catalogues, and no tab strip exists on screen until somebody presses Work.
+     * This helper waited straight for the "Make a map" tab and got a thirty second timeout
+     * describing an application that was working perfectly - the same failure mode the comment
+     * above records from the previous shell change, one layer further out.
+     *
+     * `data-destination` is the rail's own stable hook. The visible label is translated and moves
+     * with the language mode, and `aria-current` says which destination is *already* active rather
+     * than naming the one we want, so neither is a selector this can navigate by.
+     */
+    const workDestination = page.locator('[data-destination="work"]');
+    await workDestination.waitFor({ state: "visible", timeout: 30_000 });
+    if ((await workDestination.getAttribute("aria-current")) !== "page") {
+        await workDestination.click({ timeout: ELEMENT_TIMEOUT });
+    }
+
     const wizardTab = page.locator('[role="tab"]', { hasText: /make a map/i }).first();
     await wizardTab.waitFor({ state: "visible", timeout: 30_000 });
     if ((await wizardTab.getAttribute("aria-selected")) !== "true") {

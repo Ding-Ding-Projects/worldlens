@@ -14,7 +14,9 @@
         "package": "node scripts/build-brand-assets.mjs --check && node build.mjs && electron-builder --dir --config electron-builder.config.cjs",
         "make": "node scripts/build-brand-assets.mjs --check && node build.mjs && electron-builder --win --config electron-builder.config.cjs --publish never",
         "screenshots": "playwright test --config playwright.config.ts",
-        "typecheck": "tsc -p tsconfig.json --noEmit"
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "prestart": "node ../../scripts/ensure-electron-binary.mjs",
+        "prescreenshots": "node ../../scripts/ensure-electron-binary.mjs"
     },
     "devDependencies": {
         "electron": "^37.10.3",

@@ -259,9 +259,11 @@ export const HOME_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const HOME_FIXED = {
-    /* The shell tab that opens this page. */
-    "tabs.page.home": { en: "Home", yue: "主頁" },
-
+    /*
+     * `tabs.page.home` used to be here: the tab that opened this page back when Home was one of
+     * twelve tabs. The shell rewrite made Home a rail destination rather than a tab, so the key had
+     * no call site left and translated nothing. `rail.home` in `shell.ts` is what names it now.
+     */
     "home.title": { en: "Home", yue: "主頁" },
     "home.intro.show": { en: "Show the explanation", yue: "顯示解說" },
     "home.intro.hide": { en: "Hide the explanation", yue: "收埋解說" },

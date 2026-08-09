@@ -141,6 +141,7 @@ const unreadLabel = computed(() =>
                     :class="{ 'wl-rail-item--active': destination === item.id }"
                     :aria-current="destination === item.id ? 'page' : undefined"
                     :aria-label="item.badgeLabel === '' ? undefined : `${item.label}, ${item.badgeLabel}`"
+                    :data-destination="item.id"
                     @click="emit('select', item.id)"
                 >
                     <span class="wl-rail-pill">

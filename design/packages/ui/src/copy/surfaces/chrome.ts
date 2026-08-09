@@ -350,7 +350,13 @@ export const CHROME_FIXED = {
     "world.rendered": { en: "Rendered map", yue: "算好嘅地圖" },
     "config.title": { en: "Server configuration", yue: "伺服器設定" },
     "appearance.target.app.titleBar": { en: "The window title bar", yue: "視窗標題列" },
-    "appearance.target.app.tabBar": { en: "The tab bar", yue: "分頁列" },
+    /*
+     * Renamed from `appearance.target.app.tabBar` when the shell rewrite replaced the twelve-page
+     * tab bar with the application rail. The old key had no call site left, which meant its
+     * translation was reaching nobody while `appearance.target.app.rail` fell back to English in
+     * every language - two halves of the same defect, wearing different names.
+     */
+    "appearance.target.app.rail": { en: "The application rail", yue: "應用程式側欄" },
     /*
      * The map viewer's own control bar, named here rather than in a controlbar module
      * because it is the only key on that whole strip this catalogue is allowed to answer:

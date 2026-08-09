@@ -204,9 +204,38 @@ function callSitePlaceholders(): Map<string, Set<string>> {
     const byKey = new Map<string, Set<string>>();
     const call = /(?<![\w$.])\$?t[xp]?\s*\(\s*(["'])([A-Za-z0-9_.\-]+)\1\s*,/g;
 
+    /*
+     * A key named by a registry rather than typed at the `t()` call.
+     *
+     * `components/shell/jobRegistry.ts` declares each job's `labelKey` and each seed group's
+     * `nameKey`, and `WorkPane.vue` resolves them with `t(job.labelKey, job.labelFallback)`. The
+     * regex above sees only `t(job.labelKey, ...)` - a variable, not a literal - so every one of
+     * those keys looked like a catalogue entry nobody calls, and the honest reading of that report
+     * is "delete them", which would have deleted the Cantonese for every job tab and every group
+     * heading in the application.
+     *
+     * So a `<something>Key: "dotted.key"` property counts as a call site. It is narrower than it
+     * looks: the name must end in `Key`, which is the naming this codebase uses precisely to mark
+     * "this string is a catalogue key that something else will translate".
+     *
+     * Placeholders are deliberately not collected from these. The fallback sits in a sibling
+     * property rather than in the call, and a registry-declared label takes no placeholders in the
+     * first place - the one that does (`tabs.page.rendersCounted`) is written out longhand at its
+     * call site for exactly that reason.
+     */
+    const registryKey = /\b[A-Za-z][A-Za-z0-9]*Key\s*:\s*(["'])([A-Za-z0-9_.\-]+)\1/g;
+
     for (const file of sourceFiles(sourceRoot)) {
         if (file.endsWith(".test.ts")) continue;
         const text = readFileSync(file, "utf8");
+
+        registryKey.lastIndex = 0;
+        let declared: RegExpExecArray | null;
+        while ((declared = registryKey.exec(text)) !== null) {
+            const key = declared[2] as string;
+            if (catalogue.has(key) && !byKey.has(key)) byKey.set(key, new Set<string>());
+        }
+
         call.lastIndex = 0;
         let match: RegExpExecArray | null;
         while ((match = call.exec(text)) !== null) {

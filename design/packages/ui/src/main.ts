@@ -38,6 +38,12 @@ import "./styles/global.scss";
 // rules, and before `markers.scss` so the marker layer keeps the last word on the handful of
 // token *values* it re-declares - this sheet declares no tokens of its own.
 import "./styles/motion.scss";
+// The approved prototype's surface language, re-pointing the shared Vuetify primitives so the
+// re-hosted job screens arrive in the new design rather than the old one. Last of the chrome
+// sheets on purpose: it is the one that has to beat Vuetify's own component rules, and every
+// selector in it is written two deep for the same reason - see its own header. It declares no
+// tokens, so `markers.scss` still has the final word on the names it re-declares.
+import "./styles/prototypeSurface.scss";
 import "./styles/markers.scss";
 import { installUiSize } from "./components/settings/index.js";
 
