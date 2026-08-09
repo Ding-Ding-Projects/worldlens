@@ -1512,7 +1512,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             closes that surface can still report where it wrote. Exactly one instance reads
             the shared queue; a second would show every notice twice.
         -->
-        <ConfigNotifications :state="notices" />
+        <ConfigNotifications :state="notices" rail-owns-bell />
     </v-app>
 </template>
 

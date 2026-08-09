@@ -90,7 +90,7 @@ const totalCount = computed(() => catalogue.value?.features.length ?? 0);
 const summary = computed(() =>
     matcher.value.active
         ? t(
-              "catalogue.search.summary",
+              "shell.catalogue.search.summary",
               { shown: String(shownCount.value), total: String(totalCount.value) },
               "{shown} of {total}",
           )
@@ -122,7 +122,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
         <div class="wl-catalogue__backrow">
             <button type="button" class="wl-back mb-interactive" @click="emit('back')">
                 <v-icon :icon="mdiArrowLeft" size="18" />
-                <span>{{ t("catalogue.back", "All five catalogues") }}</span>
+                <span>{{ t("shell.catalogue.back", "All five catalogues") }}</span>
             </button>
         </div>
 
@@ -201,7 +201,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
             </section>
 
             <p v-if="catalogue && shownCount === 0" class="wl-catalogue__empty" role="status">
-                {{ t("catalogue.search.none", { query }, "Nothing in this list matches “{query}”.") }}
+                {{ t("shell.catalogue.search.none", { query }, "Nothing in this list matches “{query}”.") }}
             </p>
         </div>
     </div>

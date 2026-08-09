@@ -22,7 +22,24 @@ import { dismiss, dismissAll, type Notice, type NoticeState } from "./notificati
  * was a control that looked like a notification centre in a screenshot and was
  * not one by the tenth entry.
  */
-const props = defineProps<{ state: NoticeState }>();
+const props = withDefaults(
+    defineProps<{
+        state: NoticeState;
+        /**
+         * Hides the corner bell, because something else is already drawing one.
+         *
+         * The Material Design 3 shell puts the notification bell in the application rail's footer
+         * and anchors the history to it. Two bells is not a cosmetic duplication: they would each
+         * hold their own open state, each mark the history reviewed on their own schedule, and the
+         * unread badge would start disagreeing with itself depending on which one was last opened.
+         *
+         * Defaulted false so every other consumer - and the browser build, which has no rail -
+         * keeps the corner bell it has always had.
+         */
+        railOwnsBell?: boolean;
+    }>(),
+    { railOwnsBell: false },
+);
 
 const { t } = useI18n();
 
@@ -158,7 +175,13 @@ function close(id: number): void {
                 rather than in a settings tab because the corner is where somebody is
                 looking at the moment they realise the message they wanted has gone.
             -->
-            <NotificationCentre :state="state" />
+            <!--
+                Hidden where the application rail already draws one. Two bells would each hold
+                their own open state and each mark the history reviewed on their own schedule, and
+                the unread badge would start disagreeing with itself depending on which was last
+                opened. See the prop own doc comment.
+            -->
+            <NotificationCentre v-if="!railOwnsBell" :state="state" />
         </div>
     </div>
 </template>

@@ -122,7 +122,7 @@ const heroGroups = computed<readonly string[]>(() => {
 const summary = computed(() =>
     searching.value
         ? t(
-              "home.search.summary",
+              "shell.home.search.summary",
               { shown: String(matchCount.value), total: String(allFeatures.value.length) },
               "{shown} of {total} features",
           )
@@ -136,7 +136,7 @@ function preview(catalogue: ResolvedCatalogue): readonly ResolvedFeature[] {
 
 function countLabel(catalogue: ResolvedCatalogue): string {
     return t(
-        "home.card.count",
+        "shell.home.card.count",
         { count: String(catalogue.features.length) },
         "{count} features",
     );
@@ -153,11 +153,11 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                     rather than the shipped one - renaming the application renames this.
                 -->
                 <p class="wl-home__overline">{{ productName }}</p>
-                <h1 class="wl-home__title">{{ t("home.title", "What are you here to do?") }}</h1>
+                <h1 class="wl-home__title">{{ t("shell.home.title", "What are you here to do?") }}</h1>
                 <p class="wl-home__lede">
                     {{
                         t(
-                            "home.lede",
+                            "shell.home.lede",
                             { count: String(allFeatures.length) },
                             "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to.",
                         )
@@ -225,14 +225,14 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                             class="wl-hero__primary mb-interactive"
                             @click.stop="emit('newMap')"
                         >
-                            {{ t("home.hero.newMap", "New map") }}
+                            {{ t("shell.home.hero.newMap", "New map") }}
                         </button>
                         <button
                             type="button"
                             class="wl-hero__secondary mb-interactive"
                             @click.stop="emit('walkMeThrough')"
                         >
-                            {{ t("home.hero.guide", "Or walk me through it") }}
+                            {{ t("shell.home.hero.guide", "Or walk me through it") }}
                         </button>
                     </div>
                 </section>
@@ -283,7 +283,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
             <p v-if="searching && matchCount === 0" class="wl-home__empty" role="status">
                 {{
                     t(
-                        "home.search.none",
+                        "shell.home.search.none",
                         { query },
                         "Nothing matches “{query}”. Try a shorter word, or turn the regular expression off.",
                     )
