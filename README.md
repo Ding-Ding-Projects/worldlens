@@ -205,6 +205,25 @@ A status card with demo values is still a fake integration.
 
 </details>
 
+<details open>
+<summary><b>The shell, captured from the built application</b></summary>
+
+Real captures of the packaged installer, taken through the headless capture harness at commit
+`5ba8093`. Not mockups, and not the prototype.
+
+**Home** — five catalogue cards behind an 80 px rail, dark by default. The hero spans both columns
+and carries the Make a map catalogue's own group headings as chips; the count in the lede is the
+live number of features this build actually exposes, not a number typed into a sentence.
+
+![Worldlens Home: an 80 px application rail on the left showing Home, Map and Work with a badge on Work, and a dark Home page headed What are you here to do? with a search field, a wide Make a map hero card carrying five group chips and New map and Or walk me through it buttons, and outlined cards for Your maps and Share a map each listing four features](docs/screenshots/shell-home.png)
+
+**Work** — the existing tabbed workspace, re-hosted. It holds only the jobs actually opened; on a
+fresh install that is the pinned guide alone, and the other ten destinations are reached from Home's
+catalogues rather than crowding the strip.
+
+![Worldlens Work: the same rail with Work active, showing the render guide's Where this render runs step with three run-location choices and a Docker status panel](docs/screenshots/shell-work.png)
+
+</details>
 ## Screenshots
 
 Photographed from the real running application by the project's Playwright harness. None is a

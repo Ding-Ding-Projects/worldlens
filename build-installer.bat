@@ -73,6 +73,30 @@ if defined DIRTY (
     echo       working tree clean
 )
 
+rem --- Version ----------------------------------------------------------------
+rem A hand-built installer has to be *newer* than whatever is already installed, or it cannot
+rem replace it.
+rem
+rem This is not hypothetical. CI stamps `0.1.<run number>` into package.json before packaging, so a
+rem machine that installed a CI build is sitting on something like 0.1.855. This script used the raw
+rem `0.1.0` the repository carries, Squirrel compared 0.1.0 against 0.1.855, concluded the installer
+rem was older, and every hand-built installer silently failed to take - the application kept
+rem launching the old build while its author kept wondering why the interface had not changed.
+rem
+rem So the patch number is one past the highest version this machine can see: the installed app
+rem folders, and whatever the repository manifest says. Restored afterwards, so the checkout is
+rem never left carrying a version nobody chose.
+echo.
+echo [2b/4] Version
+pushd "%APPDIR%"
+call node -e "const fs=require('fs'),path=require('path'),os=require('os');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));fs.writeFileSync('.version-backup',j.version);const base=j.version.split('.').slice(0,2).join('.');let hi=Number(j.version.split('.')[2]||0);for(const dir of [path.join(process.env.LOCALAPPDATA||'','Worldlens')]){try{for(const n of fs.readdirSync(dir)){const m=/^app-\d+\.\d+\.(\d+)$/.exec(n);if(m)hi=Math.max(hi,Number(m[1]));}}catch{}}j.version=base+'.'+(hi+1);fs.writeFileSync(p,JSON.stringify(j,null,4)+'\n');console.log('      packaging as '+j.version+' (highest seen was '+hi+')');"
+if errorlevel 1 (
+    popd
+    echo ERROR: could not stamp a version. 1>&2
+    exit /b 1
+)
+popd
+
 rem --- Package ---------------------------------------------------------------
 rem `make`, which is the app package's own Squirrel.Windows path, with
 rem `--publish never` already inside it. Signing is not requested and not
