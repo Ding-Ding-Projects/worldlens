@@ -5,7 +5,17 @@ import {
     schemeToCustomProperties,
 } from "@worldlens/shared";
 import type { MapInteractionEventDetail } from "./MapViewer";
-import { ViewerPresentationPolicy } from "./presentationPolicy";
+import {
+    materialShellCopy,
+    type MaterialShellCopyKey,
+    type MaterialShellCopyValues,
+} from "./materialShellPresentation";
+import {
+    normaliseViewerLanguageMode,
+    ViewerPresentationPolicy,
+    type ViewerLanguageMode,
+    type ViewerPresentationLanguage,
+} from "./presentationPolicy";
 
 type Pin = {
     id: string;
@@ -20,17 +30,14 @@ type Pin = {
 type ThemeName = "dark" | "light" | "contrast";
 type SearchScopeName = "map-controls" | "command-palette";
 type SearchActionId =
-    | "map-menu"
-    | "appearance"
-    | "command-palette"
-    | "map-search"
-    | "notification-history";
+    "map-menu" | "appearance" | "command-palette" | "map-search" | "notification-history";
 
 type ViewerNoticeLevel = "status" | "alert";
 
 type ViewerNotice = {
     readonly id: number;
-    readonly message: string;
+    readonly messageKey: MaterialShellCopyKey;
+    readonly values: MaterialShellCopyValues;
     readonly createdAt: string;
     readonly level: ViewerNoticeLevel;
 };
@@ -63,7 +70,7 @@ type RegexToken = {
     readonly label: string;
     readonly before: string;
     readonly after?: string;
-    readonly hint: string;
+    readonly copyKey: MaterialShellCopyKey;
 };
 
 const REGEX_FLAGS = ["g", "i", "m", "s", "u", "y"] as const;
@@ -71,13 +78,18 @@ const MAX_REGEX_PATTERN_LENGTH = 512;
 const MAX_REGEX_SAMPLE_LENGTH = 4_000;
 const MAX_REGEX_MATCHES = 40;
 const NOTICE_HISTORY_LIMIT = 50;
+const PRESENTATION_LANGUAGE_STORAGE_KEY = "bluemap-presentation-language-mode";
+const FUNNY_LEVEL_STORAGE_KEY: Readonly<Record<ViewerPresentationLanguage, string>> = {
+    en: "bluemap-funny-level-en",
+    yue: "bluemap-funny-level-yue",
+};
 
 const REGEX_TOKENS: readonly RegexToken[] = [
-    { label: "[abc]", before: "[", after: "]", hint: "Character class" },
-    { label: "^", before: "^", hint: "Start anchor" },
-    { label: "( )", before: "(", after: ")", hint: "Capturing group" },
-    { label: "|", before: "|", hint: "Alternation" },
-    { label: "+", before: "+", hint: "One or more" },
+    { label: "[abc]", before: "[", after: "]", copyKey: "characterClass" },
+    { label: "^", before: "^", copyKey: "startAnchor" },
+    { label: "( )", before: "(", after: ")", copyKey: "capturingGroup" },
+    { label: "|", before: "|", copyKey: "alternation" },
+    { label: "+", before: "+", copyKey: "oneOrMore" },
 ];
 
 /**
@@ -118,14 +130,16 @@ function previewRegex(pattern: string, flags: string, sample: string): RegexPrev
     const error = regexError(pattern, flags);
     const sampleTruncated = sample.length > MAX_REGEX_SAMPLE_LENGTH;
     const boundedSample = sample.slice(0, MAX_REGEX_SAMPLE_LENGTH);
-    if (error !== null || pattern.length === 0)
-        return { error, matches: [], sampleTruncated };
+    if (error !== null || pattern.length === 0) return { error, matches: [], sampleTruncated };
 
     const previewFlags = normaliseRegexFlags(flags).replace(/[gy]/g, "") + "g";
     const expression = new RegExp(pattern, previewFlags);
     const matches: RegexMatch[] = [];
     let result: RegExpExecArray | null;
-    while ((result = expression.exec(boundedSample)) !== null && matches.length < MAX_REGEX_MATCHES) {
+    while (
+        (result = expression.exec(boundedSample)) !== null &&
+        matches.length < MAX_REGEX_MATCHES
+    ) {
         const groups = result.slice(1).map((group, index) => `${index + 1}: ${group ?? ""}`);
         if (result.groups)
             for (const [name, value] of Object.entries(result.groups))
@@ -173,7 +187,7 @@ ${SHELL_CONTRAST}
 .bm-m3-coordinates{display:grid;grid-template-columns:repeat(2,minmax(68px,1fr));flex:0 1 160px;gap:4px;min-width:0}.bm-m3-coordinate{display:flex;align-items:center;min-height:48px;padding:0 10px;border:1px solid var(--bm-outline-variant);border-radius:12px;background:var(--bm-surface);font-family:ui-monospace,"Roboto Mono",monospace;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .bm-m3-menu{position:fixed;z-index:40;box-sizing:border-box;width:min(280px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow-y:auto;padding:8px;border-radius:16px;background:var(--bm-surface);box-shadow:var(--bm-shadow);border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent)}.bm-m3-menu[hidden],.bm-m3-map-menu[hidden],.bm-m3-settings[hidden],.bm-m3-notification-history[hidden]{display:none}.bm-m3-menu button,.bm-m3-map-menu button,.bm-m3-settings button,.bm-m3-notification-history button{display:block;box-sizing:border-box;width:100%;min-height:48px;border:0;background:transparent;color:inherit;text-align:left;padding:11px 12px;border-radius:12px;cursor:pointer}.bm-m3-menu button:hover,.bm-m3-menu button:focus-visible,.bm-m3-map-menu button:hover,.bm-m3-map-menu button:focus-visible,.bm-m3-settings button:hover,.bm-m3-settings button:focus-visible,.bm-m3-notification-history button:hover,.bm-m3-notification-history button:focus-visible{background:var(--bm-surface-container-high);outline:2px solid var(--bm-primary);outline-offset:-2px}
 .bm-m3-map-menu{position:fixed;z-index:41;left:18px;top:76px;bottom:18px;display:flex;box-sizing:border-box;width:min(340px,calc(100vw - 36px));max-height:calc(100dvh - 94px);flex-direction:column;border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent);border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-map-menu__header{display:flex;align-items:center;gap:8px;padding:10px 10px 8px 16px;border-bottom:1px solid var(--bm-surface-container)}.bm-m3-map-menu__header h2{flex:1;margin:0;font-size:18px}.bm-m3-map-menu__header button{width:auto;min-width:48px}.bm-m3-map-menu__body{overflow-y:auto;padding:8px}
-.bm-m3-settings{position:fixed;z-index:42;right:18px;top:76px;box-sizing:border-box;width:min(340px,calc(100vw - 36px));max-height:calc(100dvh - 94px);overflow-y:auto;padding:16px;border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow);border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent)}.bm-m3-settings h2{font-size:18px;margin:0 0 12px}.bm-m3-setting{display:grid;gap:6px;margin:12px 0}.bm-m3-setting select,.bm-m3-setting input[type=range]{width:100%;min-height:48px}.bm-m3-setting select{padding:9px;border-radius:10px;border:1px solid var(--bm-outline);background:var(--bm-surface);color:inherit}
+.bm-m3-settings{position:fixed;z-index:42;right:18px;top:76px;box-sizing:border-box;width:min(340px,calc(100vw - 36px));max-height:calc(100dvh - 94px);overflow-y:auto;padding:16px;border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow);border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent)}.bm-m3-settings__header{display:flex;align-items:center;gap:8px;margin:0 0 12px}.bm-m3-settings__header h2{flex:1;margin:0;font-size:18px;overflow-wrap:anywhere}.bm-m3-settings__header button{width:auto;min-width:48px}.bm-m3-settings__subheading{margin:18px 0 0;font-size:14px}.bm-m3-setting{display:grid;gap:6px;margin:12px 0}.bm-m3-setting select,.bm-m3-setting input[type=range]{width:100%;min-height:48px}.bm-m3-setting select{padding:9px;border-radius:10px;border:1px solid var(--bm-outline);background:var(--bm-surface);color:inherit}.bm-m3-settings small{overflow-wrap:anywhere}
 .bm-m3-pin{position:fixed;z-index:25;transform:translate(-50%,-100%);padding:7px 10px;border-radius:12px;background:var(--bm-primary);color:var(--bm-on-primary);box-shadow:var(--bm-shadow);font-size:12px;pointer-events:none}.bm-m3-pin::after{content:"";position:absolute;left:50%;bottom:-7px;border:7px solid transparent;border-top-color:var(--bm-primary);border-bottom:0;transform:translateX(-50%)}
 .bm-m3-notification-history{position:fixed;z-index:42;right:18px;top:76px;box-sizing:border-box;width:min(360px,calc(100vw - 36px));max-height:calc(100dvh - 94px);overflow-y:auto;padding:10px;border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent);border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-notification-history__header{display:flex;align-items:center;gap:8px;padding:0 0 8px 6px;border-bottom:1px solid var(--bm-surface-container)}.bm-m3-notification-history__header h2{flex:1;margin:0;font-size:18px}.bm-m3-notification-history__header button{width:auto;min-width:48px}.bm-m3-notification-history__empty{margin:14px 6px;color:var(--bm-on-surface-variant)}.bm-m3-notification-history__list{display:grid;gap:8px;margin:10px 0 0;padding:0;list-style:none}.bm-m3-notification-history__item{padding:10px;border-radius:14px;background:var(--bm-surface-container-low)}.bm-m3-notification-history__item[data-level="alert"]{border-left:4px solid var(--bm-error)}.bm-m3-notification-history__item p{margin:0}.bm-m3-notification-history__meta{display:block;margin-top:4px;color:var(--bm-on-surface-variant);font-size:12px}.bm-m3-notification-announcer{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
 .bm-m3-shell[data-theme="contrast"] .bm-m3-appbar{background:var(--bm-surface);backdrop-filter:none}.bm-m3-subtitle{color:var(--bm-on-surface-variant);opacity:1}.bm-m3-search-wrap{display:flex;align-items:stretch;flex:0 1 min(32vw,340px);min-width:13rem}.bm-m3-search-wrap .bm-m3-search{flex:1 1 auto;min-width:0;border-radius:24px 0 0 24px}.bm-m3-regex-button{display:grid;place-items:center;min-width:48px;min-height:48px;border:1px solid var(--bm-outline);border-left:0;background:var(--bm-surface);color:var(--bm-on-surface);cursor:pointer}.bm-m3-regex-button:last-child{border-radius:0 24px 24px 0}.bm-m3-regex-button:focus-visible,.bm-m3-regex-button[aria-pressed="true"]{outline:2px solid var(--bm-primary);outline-offset:-2px;background:var(--bm-primary-container);color:var(--bm-on-primary-container)}.bm-m3-search-results{position:fixed;z-index:43;top:76px;right:12px;box-sizing:border-box;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 96px);overflow-y:auto;padding:8px;border:1px solid var(--bm-outline-variant);border-radius:16px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-search-results[hidden],.bm-m3-regex-builder[hidden],.bm-m3-command-palette[hidden]{display:none}.bm-m3-search-results__summary{margin:4px 8px 8px;color:var(--bm-on-surface-variant);font-size:12px}.bm-m3-search-results button{display:block;box-sizing:border-box;width:100%;min-height:48px;border:0;border-radius:12px;background:transparent;color:var(--bm-on-surface);cursor:pointer;text-align:left;padding:11px 12px}.bm-m3-search-results button:hover,.bm-m3-search-results button:focus-visible{background:var(--bm-surface-container-high);outline:2px solid var(--bm-primary);outline-offset:-2px}.bm-m3-regex-builder{position:fixed;z-index:44;top:76px;right:12px;box-sizing:border-box;width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 96px);overflow-y:auto;padding:16px;border:1px solid var(--bm-outline-variant);border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-regex-builder h3{margin:0 0 6px}.bm-m3-regex-builder p{margin:0 0 12px;color:var(--bm-on-surface-variant);font-size:12px}.bm-m3-regex-builder label,.bm-m3-regex-builder legend{display:block;color:var(--bm-on-surface);font-size:13px}.bm-m3-regex-builder textarea{box-sizing:border-box;width:100%;min-height:72px;margin:4px 0 10px;padding:8px;border:1px solid var(--bm-outline);border-radius:12px;background:var(--bm-surface-container-low);color:var(--bm-on-surface);font:inherit}.bm-m3-regex-builder fieldset{margin:0 0 10px;border:0;padding:0}.bm-m3-regex-builder__flags{display:flex;flex-wrap:wrap;gap:8px}.bm-m3-regex-builder__tokens{display:flex;flex-wrap:wrap;gap:6px}.bm-m3-regex-builder button{min-height:40px;border:1px solid var(--bm-outline-variant);border-radius:20px;background:var(--bm-surface-container);color:var(--bm-on-surface);cursor:pointer;padding:6px 10px}.bm-m3-regex-builder button:hover,.bm-m3-regex-builder button:focus-visible{background:var(--bm-primary-container);color:var(--bm-on-primary-container);outline:2px solid var(--bm-primary);outline-offset:2px}.bm-m3-regex-builder__feedback{margin:8px 0;white-space:pre-wrap;color:var(--bm-on-surface-variant)}.bm-m3-regex-builder__feedback[data-state="error"]{color:var(--bm-error)}.bm-m3-regex-builder__actions{display:flex;flex-wrap:wrap;gap:8px}.bm-m3-command-palette{position:fixed;z-index:45;inset:0;display:grid;place-items:start center;box-sizing:border-box;padding:clamp(8px,10dvh,80px) 12px 12px;background:color-mix(in srgb,var(--bm-scrim) 48%,transparent)}.bm-m3-command-palette__card{box-sizing:border-box;width:min(680px,100%);max-height:calc(100dvh - 24px);overflow-y:auto;padding:20px;border:1px solid var(--bm-outline-variant);border-radius:28px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-command-palette__heading{display:flex;align-items:center;gap:8px;margin-bottom:12px}.bm-m3-command-palette__heading h2{flex:1;margin:0;font-size:22px}.bm-m3-command-palette__heading button{min-width:48px;min-height:48px;border:0;border-radius:50%;background:transparent;color:var(--bm-on-surface);cursor:pointer}.bm-m3-command-palette .bm-m3-search-wrap{width:100%;max-width:none}.bm-m3-command-palette .bm-m3-search-results{position:static;width:auto;max-height:none;margin-top:8px;box-shadow:none}.bm-m3-command-palette .bm-m3-regex-builder{position:static;width:auto;max-height:none;margin-top:8px;box-shadow:none}
@@ -188,6 +202,7 @@ export class MaterialShell {
     private readonly mapMenu: HTMLElement;
     private readonly mapMenuButton: HTMLButtonElement;
     private readonly settings: HTMLDivElement;
+    private readonly settingsButton: HTMLButtonElement;
     private readonly search: HTMLInputElement;
     private readonly mapSearch: SearchScope;
     private readonly commandPalette: HTMLElement;
@@ -198,6 +213,7 @@ export class MaterialShell {
     private readonly notificationAnnouncer: HTMLElement;
     private readonly coordinates: HTMLDivElement;
     private readonly pinsLayer: HTMLDivElement;
+    private unsubscribePresentation: (() => void) | null = null;
     private pins: Pin[] = [];
     private pinCounter = 0;
     private notices: ViewerNotice[] = [];
@@ -207,6 +223,8 @@ export class MaterialShell {
     private contextMenuInvoker: HTMLElement | null = null;
     /** The exact palette opener, restored when the command card closes. */
     private commandPaletteInvoker: HTMLElement | null = null;
+    /** The exact settings opener, restored after close or Escape. */
+    private settingsInvoker: HTMLElement | null = null;
 
     constructor(root: Element, presentationPolicy = new ViewerPresentationPolicy()) {
         this.root = root as HTMLElement;
@@ -221,24 +239,26 @@ export class MaterialShell {
         this.pins = this.readPins();
         const bar = document.createElement("header");
         bar.className = "bm-m3-appbar bm-m3-control-bar";
-        bar.innerHTML = `<nav class="bm-m3-map-rail" aria-label="Map navigation"><button class="bm-m3-rail-menu" type="button" data-action="map-menu" aria-label="Open map menu" aria-controls="bm-m3-map-menu" aria-expanded="false" title="Open map menu">☰</button></nav><div class="bm-m3-brand-group"><div class="bm-m3-brand">BlueMap</div><div class="bm-m3-subtitle">Material map server</div></div><div class="bm-m3-search-wrap" role="search" data-search-scope="map-controls"><input class="bm-m3-search" type="search" aria-label="Search map controls" placeholder="Search controls…" autocomplete="off" spellcheck="false"><button class="bm-m3-regex-button" type="button" data-search-action="toggle-regex" aria-label="Search with a regular expression" aria-pressed="false">Regex</button><button class="bm-m3-regex-button" type="button" data-search-action="builder" aria-label="Open the regex builder for map controls" aria-expanded="false">.*</button></div><div class="bm-m3-coordinates" role="status" aria-label="Current map coordinates"><output class="bm-m3-coordinate" data-coordinate="x" aria-label="Current X coordinate: unavailable">x —</output><output class="bm-m3-coordinate" data-coordinate="z" aria-label="Current Z coordinate: unavailable">z —</output></div><button class="bm-m3-icon bm-m3-notification-control" type="button" data-action="notifications" aria-controls="bm-m3-notification-history" aria-expanded="false">🔔</button><button class="bm-m3-icon bm-m3-settings-control" type="button" data-action="settings" aria-label="Open settings">⚙</button><button class="bm-m3-icon bm-m3-command" type="button" data-action="command" aria-label="Open command palette" title="Ctrl+Shift+F">⌘</button>`;
+        bar.innerHTML = `<nav class="bm-m3-map-rail" data-copy-aria-label="mapNavigation"><button class="bm-m3-rail-menu" type="button" data-action="map-menu" data-copy-aria-label="openMapMenu" data-copy-title="openMapMenu" aria-controls="bm-m3-map-menu" aria-expanded="false" title="Open map menu">☰</button></nav><div class="bm-m3-brand-group"><div class="bm-m3-brand">BlueMap</div><div class="bm-m3-subtitle" data-copy="materialMapServer">Material map server</div></div><div class="bm-m3-search-wrap" role="search" data-search-scope="map-controls"><input class="bm-m3-search" type="search" data-copy-aria-label="searchMapControls" data-copy-placeholder="searchControlsPlaceholder" autocomplete="off" spellcheck="false"><button class="bm-m3-regex-button" type="button" data-search-action="toggle-regex" data-copy-aria-label="regexSearch" aria-pressed="false">Regex</button><button class="bm-m3-regex-button" type="button" data-search-action="builder" data-copy-aria-label="openMapRegexBuilder" aria-expanded="false">.*</button></div><div class="bm-m3-coordinates" role="status" data-copy-aria-label="currentMapCoordinates"><output class="bm-m3-coordinate" data-coordinate="x">x —</output><output class="bm-m3-coordinate" data-coordinate="z">z —</output></div><button class="bm-m3-icon bm-m3-notification-control" type="button" data-action="notifications" aria-controls="bm-m3-notification-history" aria-expanded="false">🔔</button><button class="bm-m3-icon bm-m3-settings-control" type="button" data-action="settings" data-copy-aria-label="openSettings" aria-controls="bm-m3-settings" aria-expanded="false">⚙</button><button class="bm-m3-icon bm-m3-command" type="button" data-action="command" data-copy-aria-label="openCommandPalette" title="Ctrl+Shift+F">⌘</button>`;
         this.root.appendChild(bar);
         this.mapMenuButton = bar.querySelector<HTMLButtonElement>('[data-action="map-menu"]')!;
-        this.commandPaletteButton = bar.querySelector<HTMLButtonElement>('[data-action="command"]')!;
-        this.notificationBell = bar.querySelector<HTMLButtonElement>('[data-action="notifications"]')!;
+        this.commandPaletteButton =
+            bar.querySelector<HTMLButtonElement>('[data-action="command"]')!;
+        this.notificationBell = bar.querySelector<HTMLButtonElement>(
+            '[data-action="notifications"]',
+        )!;
         this.search = bar.querySelector<HTMLInputElement>("input")!;
         this.coordinates = bar.querySelector<HTMLDivElement>(".bm-m3-coordinates")!;
         const mapSearchResults = document.createElement("section");
         mapSearchResults.className = "bm-m3-search-results";
         mapSearchResults.dataset.searchResults = "map-controls";
-        mapSearchResults.setAttribute("aria-label", "Map control search results");
+        mapSearchResults.dataset.copyAriaLabel = "mapControlSearchResults";
         mapSearchResults.hidden = true;
         this.root.appendChild(mapSearchResults);
         this.mapSearch = this.createSearchScope("map-controls", bar, mapSearchResults);
-        const settingsButton = bar.querySelector<HTMLButtonElement>('[data-action="settings"]')!;
-        settingsButton.addEventListener(
-            "click",
-            () => (this.settings.hidden = !this.settings.hidden),
+        this.settingsButton = bar.querySelector<HTMLButtonElement>('[data-action="settings"]')!;
+        this.settingsButton.addEventListener("click", () =>
+            this.toggleSettings(this.settingsButton),
         );
         this.mapMenuButton.addEventListener("click", () => this.toggleMapMenu());
 
@@ -246,8 +266,8 @@ export class MaterialShell {
         this.menu.className = "bm-m3-menu";
         this.menu.hidden = true;
         this.menu.setAttribute("role", "menu");
-        this.menu.setAttribute("aria-label", "Terrain actions");
-        this.menu.innerHTML = `<button type="button" role="menuitem" data-action="pin">📍 Add pinpoint here</button><button type="button" role="menuitem" data-action="copy">Copy coordinates</button><button type="button" role="menuitem" data-action="cancel">Cancel</button>`;
+        this.menu.dataset.copyAriaLabel = "terrainActions";
+        this.menu.innerHTML = `<button type="button" role="menuitem" data-action="pin">📍 <span data-copy="addPinpoint">Add pinpoint here</span></button><button type="button" role="menuitem" data-action="copy" data-copy="copyCoordinates">Copy coordinates</button><button type="button" role="menuitem" data-action="cancel" data-copy="cancel">Cancel</button>`;
         this.root.appendChild(this.menu);
         this.menu.addEventListener("click", (event) => this.handleMenuClick(event));
         this.menu.addEventListener("keydown", this.handleContextMenuKeydown);
@@ -256,9 +276,9 @@ export class MaterialShell {
         this.mapMenu.id = "bm-m3-map-menu";
         this.mapMenu.className = "bm-m3-map-menu";
         this.mapMenu.hidden = true;
-        this.mapMenu.setAttribute("aria-label", "Map menu");
+        this.mapMenu.dataset.copyAriaLabel = "mapMenu";
         this.mapMenu.setAttribute("data-presentation", "side-sheet");
-        this.mapMenu.innerHTML = `<div class="bm-m3-map-menu__header"><h2>Map menu</h2><button type="button" data-map-action="close" aria-label="Close map menu">Close</button></div><div class="bm-m3-map-menu__body"><button type="button" data-map-action="search">Search map controls</button><button type="button" data-map-action="appearance">Map appearance</button><button type="button" data-map-action="notifications">Notification history</button><button type="button" data-map-action="palette">Open command palette</button></div>`;
+        this.mapMenu.innerHTML = `<div class="bm-m3-map-menu__header"><h2 data-copy="mapMenu">Map menu</h2><button type="button" data-map-action="close" data-copy="close" data-copy-aria-label="closeMapMenu">Close</button></div><div class="bm-m3-map-menu__body"><button type="button" data-map-action="search" data-copy="searchMapControls">Search map controls</button><button type="button" data-map-action="appearance" data-copy="mapAppearance">Map appearance</button><button type="button" data-map-action="notifications" data-copy="notificationHistory">Notification history</button><button type="button" data-map-action="palette" data-copy="openCommandPalette">Open command palette</button></div>`;
         this.root.appendChild(this.mapMenu);
         this.mapMenu.addEventListener("click", (event) => this.handleMapMenuClick(event));
 
@@ -267,11 +287,11 @@ export class MaterialShell {
         this.notificationHistory.className = "bm-m3-notification-history";
         this.notificationHistory.hidden = true;
         this.notificationHistory.setAttribute("role", "region");
-        this.notificationHistory.setAttribute("aria-label", "Notification history");
+        this.notificationHistory.dataset.copyAriaLabel = "notificationHistory";
         this.root.appendChild(this.notificationHistory);
         this.notificationHistory.addEventListener("click", (event) => {
-            const action = (event.target as HTMLElement).closest<HTMLButtonElement>("button")?.dataset
-                .notificationAction;
+            const action = (event.target as HTMLElement).closest<HTMLButtonElement>("button")
+                ?.dataset.notificationAction;
             if (action === "close") this.closeNotificationHistory();
         });
 
@@ -285,10 +305,19 @@ export class MaterialShell {
         this.renderNotificationHistory();
 
         this.settings = document.createElement("div");
+        this.settings.id = "bm-m3-settings";
         this.settings.className = "bm-m3-settings";
         this.settings.hidden = true;
-        this.settings.innerHTML = `<h2>Map appearance</h2><div class="bm-m3-setting"><label for="bm-theme">Theme</label><select id="bm-theme"><option value="light">Light</option><option value="dark">Dark</option><option value="contrast">Contrast</option></select></div><div class="bm-m3-setting"><label for="bm-density">Density</label><input id="bm-density" type="range" min="1" max="5" value="3"><small>Controls spacing without changing map data.</small></div><div data-message-style-slot></div>`;
+        this.settings.setAttribute("role", "dialog");
+        this.settings.setAttribute("aria-modal", "false");
+        this.settings.setAttribute("aria-labelledby", "bm-m3-settings-title");
+        this.settings.innerHTML = `<div class="bm-m3-settings__header"><h2 id="bm-m3-settings-title" data-copy="mapAppearance">Map appearance</h2><button type="button" data-settings-action="close" data-copy="close" data-copy-aria-label="closeSettings">Close</button></div><div class="bm-m3-setting"><label for="bm-theme" data-copy="theme">Theme</label><select id="bm-theme"><option value="light" data-copy="light">Light</option><option value="dark" data-copy="dark">Dark</option><option value="contrast" data-copy="contrast">Contrast</option></select></div><div class="bm-m3-setting"><label for="bm-density" data-copy="density">Density</label><input id="bm-density" type="range" min="1" max="5" value="3"><small data-copy="densityDescription">Controls spacing without changing map data.</small></div><div data-message-style-slot></div>`;
         this.root.appendChild(this.settings);
+        this.settings.addEventListener("click", (event) => {
+            const action = (event.target as HTMLElement).closest<HTMLButtonElement>("button")
+                ?.dataset.settingsAction;
+            if (action === "close") this.closeSettings();
+        });
         this.settings
             .querySelector("select")!
             .addEventListener("change", (event) =>
@@ -300,12 +329,11 @@ export class MaterialShell {
                 "input",
                 (event) => (this.root.dataset.density = (event.target as HTMLInputElement).value),
             );
-        this.refreshPresentation();
 
         this.commandPalette = document.createElement("section");
         this.commandPalette.className = "bm-m3-command-palette";
         this.commandPalette.hidden = true;
-        this.commandPalette.innerHTML = `<div class="bm-m3-command-palette__card" role="dialog" aria-modal="true" aria-label="Command palette"><div class="bm-m3-command-palette__heading"><h2>Command palette</h2><button type="button" data-command-action="close" aria-label="Close command palette">Close</button></div><p>Type a map command, then choose the real control to run. Ctrl+Shift+F opens this palette.</p><div class="bm-m3-search-wrap" role="search" data-search-scope="command-palette"><input class="bm-m3-search" type="search" aria-label="Search commands" placeholder="Search commands…" autocomplete="off" spellcheck="false"><button class="bm-m3-regex-button" type="button" data-search-action="toggle-regex" aria-label="Search commands with a regular expression" aria-pressed="false">Regex</button><button class="bm-m3-regex-button" type="button" data-search-action="builder" aria-label="Open the regex builder for commands" aria-expanded="false">.*</button></div><section class="bm-m3-search-results" data-search-results="command-palette" aria-label="Command results"></section></div>`;
+        this.commandPalette.innerHTML = `<div class="bm-m3-command-palette__card" role="dialog" aria-modal="true" data-copy-aria-label="commandPalette"><div class="bm-m3-command-palette__heading"><h2 data-copy="commandPalette">Command palette</h2><button type="button" data-command-action="close" data-copy="close" data-copy-aria-label="closeCommandPalette">Close</button></div><p data-copy="commandPaletteDescription">Type a map command, then choose the real control to run. Ctrl+Shift+F opens this palette.</p><div class="bm-m3-search-wrap" role="search" data-search-scope="command-palette"><input class="bm-m3-search" type="search" data-copy-aria-label="searchCommands" data-copy-placeholder="searchCommandsPlaceholder" autocomplete="off" spellcheck="false"><button class="bm-m3-regex-button" type="button" data-search-action="toggle-regex" data-copy-aria-label="searchCommandsRegex" aria-pressed="false">Regex</button><button class="bm-m3-regex-button" type="button" data-search-action="builder" data-copy-aria-label="openCommandRegexBuilder" aria-expanded="false">.*</button></div><section class="bm-m3-search-results" data-search-results="command-palette" data-copy-aria-label="commandResults"></section></div>`;
         this.root.appendChild(this.commandPalette);
         const commandSearchResults = this.commandPalette.querySelector<HTMLElement>(
             '[data-search-results="command-palette"]',
@@ -319,13 +347,13 @@ export class MaterialShell {
             this.openCommandPalette(this.commandPaletteButton),
         );
         this.commandPalette.addEventListener("click", (event) => {
-            const action = (event.target as HTMLElement).closest<HTMLButtonElement>("button")?.dataset
-                .commandAction;
+            const action = (event.target as HTMLElement).closest<HTMLButtonElement>("button")
+                ?.dataset.commandAction;
             if (action === "close") this.closeCommandPalette();
         });
 
         this.pinsLayer = document.createElement("div");
-        this.pinsLayer.setAttribute("aria-label", "Saved pinpoints");
+        this.pinsLayer.dataset.copyAriaLabel = "savedPinpoints";
         this.root.appendChild(this.pinsLayer);
         this.renderPins();
         this.setTheme(localStorage.getItem("bluemap-theme") || "dark");
@@ -335,18 +363,106 @@ export class MaterialShell {
         document.addEventListener("keydown", this.dismissContextMenuWithEscape);
         document.addEventListener("keydown", this.handleGlobalShortcut);
         window.addEventListener("resize", this.syncViewportLayout);
+        this.root.addEventListener("bluemapAlert", this.handleBlueMapAlert as EventListener);
+        this.unsubscribePresentation = this.presentationPolicy.subscribePresentation(() =>
+            this.refreshPresentation(),
+        );
+        this.refreshPresentation();
     }
 
     /** Re-renders host-restricted controls without coupling this standalone shell to a UI package. */
     refreshPresentation(): void {
-        const funnyLevel = this.presentationPolicy.effectiveFunnyLevel(this.readFunnyLevel());
-        this.root.dataset.funnyLevel = String(funnyLevel);
+        const languageMode = this.languageMode();
+        const funnyLevels = this.funnyLevels();
+        this.root.dataset.languageMode = languageMode;
+        this.root.dataset.funnyLevelEn = String(funnyLevels.en);
+        this.root.dataset.funnyLevelYue = String(funnyLevels.yue);
+        // Keep the original one-value data hook useful to existing standalone host themes.
+        this.root.dataset.funnyLevel = String(funnyLevels.en);
+        this.root.lang = languageMode === "yue" ? "yue-Hant-HK" : "en";
+        this.applyPresentationCopy();
         this.renderMessageStyleControl();
+        this.renderNotificationHistory();
+        this.renderSearchResults(this.mapSearch);
+        this.renderSearchResults(this.commandSearch);
     }
 
-    private readFunnyLevel(): number {
-        const parsed = Number.parseInt(localStorage.getItem("bluemap-funny-level-en") ?? "2", 10);
-        return Number.isFinite(parsed) && parsed >= 1 && parsed <= 5 ? parsed : 2;
+    private languageMode(): ViewerLanguageMode {
+        const raw = normaliseViewerLanguageMode(
+            localStorage.getItem(PRESENTATION_LANGUAGE_STORAGE_KEY),
+        );
+        return this.presentationPolicy.effectiveLanguageMode(raw);
+    }
+
+    private funnyLevels(): Readonly<Record<ViewerPresentationLanguage, number>> {
+        return {
+            en: this.presentationPolicy.effectiveFunnyLevel(this.readFunnyLevel("en")),
+            yue: this.presentationPolicy.effectiveFunnyLevel(this.readFunnyLevel("yue")),
+        };
+    }
+
+    private readFunnyLevel(language: ViewerPresentationLanguage): 1 | 2 | 3 | 4 | 5 {
+        const parsed = Number.parseInt(
+            localStorage.getItem(FUNNY_LEVEL_STORAGE_KEY[language]) ?? "2",
+            10,
+        );
+        return Number.isFinite(parsed) && parsed >= 1 && parsed <= 5
+            ? (parsed as 1 | 2 | 3 | 4 | 5)
+            : 2;
+    }
+
+    private copy(key: MaterialShellCopyKey, values: MaterialShellCopyValues = {}): string {
+        return materialShellCopy(
+            key,
+            this.languageMode(),
+            this.funnyLevels(),
+            values,
+            this.presentationPolicy.presentationAdapter,
+        );
+    }
+
+    private applyPresentationCopy(): void {
+        for (const element of this.root.querySelectorAll<HTMLElement>("[data-copy]")) {
+            const key = element.dataset.copy as MaterialShellCopyKey;
+            element.textContent =
+                key === "regexBuilderDescription"
+                    ? this.copy(key, {
+                          patternLimit: MAX_REGEX_PATTERN_LENGTH,
+                          sampleLimit: MAX_REGEX_SAMPLE_LENGTH,
+                      })
+                    : this.copy(key);
+        }
+        for (const element of this.root.querySelectorAll<HTMLElement>("[data-copy-aria-label]")) {
+            element.setAttribute(
+                "aria-label",
+                this.copy(element.dataset.copyAriaLabel as MaterialShellCopyKey),
+            );
+        }
+        for (const element of this.root.querySelectorAll<HTMLElement>("[data-copy-title]")) {
+            element.setAttribute(
+                "title",
+                this.copy(element.dataset.copyTitle as MaterialShellCopyKey),
+            );
+        }
+        for (const input of this.root.querySelectorAll<HTMLInputElement>(
+            "[data-copy-placeholder]",
+        )) {
+            input.placeholder = this.copy(input.dataset.copyPlaceholder as MaterialShellCopyKey);
+        }
+        for (const button of this.root.querySelectorAll<HTMLButtonElement>("[data-regex-token]")) {
+            const token = REGEX_TOKENS[Number(button.dataset.regexToken)];
+            if (token === undefined) continue;
+            const hint = this.copy(token.copyKey);
+            button.title = hint;
+            button.setAttribute("aria-label", `${token.label}: ${hint}`);
+        }
+        for (const field of this.coordinates.querySelectorAll<HTMLOutputElement>(
+            "[data-coordinate]",
+        )) {
+            const axis = field.dataset.coordinate?.toUpperCase() ?? "";
+            if (field.textContent?.endsWith("—"))
+                field.setAttribute("aria-label", this.copy("coordinateUnavailable", { axis }));
+        }
     }
 
     /**
@@ -358,27 +474,64 @@ export class MaterialShell {
         slot.replaceChildren();
         if (this.presentationPolicy.languageAndToneRestricted) return;
 
-        const setting = document.createElement("div");
-        setting.className = "bm-m3-setting";
-        const label = document.createElement("label");
-        label.htmlFor = "bm-funny";
-        label.textContent = "Message style";
-        const input = document.createElement("input");
-        input.id = "bm-funny";
-        input.type = "range";
-        input.min = "1";
-        input.max = "5";
-        input.value = String(this.readFunnyLevel());
-        const detail = document.createElement("small");
-        detail.textContent = "Styles notifications only; facts stay exact.";
-        input.addEventListener("input", () => {
-            const level = this.presentationPolicy.effectiveFunnyLevel(Number(input.value));
-            input.value = String(level);
-            this.root.dataset.funnyLevel = String(level);
-            localStorage.setItem("bluemap-funny-level-en", String(level));
+        const languageSetting = document.createElement("div");
+        languageSetting.className = "bm-m3-setting";
+        const languageLabel = document.createElement("label");
+        languageLabel.htmlFor = "bm-language-mode";
+        languageLabel.textContent = this.copy("languageMode");
+        const languageMode = document.createElement("select");
+        languageMode.id = "bm-language-mode";
+        for (const [value, key] of [
+            ["en", "languageEnglish"],
+            ["yue", "languageYue"],
+            ["bilingual", "languageBilingual"],
+        ] as const) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = this.copy(key);
+            languageMode.appendChild(option);
+        }
+        languageMode.value = normaliseViewerLanguageMode(
+            localStorage.getItem(PRESENTATION_LANGUAGE_STORAGE_KEY),
+        );
+        languageMode.addEventListener("change", () => {
+            localStorage.setItem(PRESENTATION_LANGUAGE_STORAGE_KEY, languageMode.value);
+            this.refreshPresentation();
+            this.settings.querySelector<HTMLSelectElement>("#bm-language-mode")?.focus();
         });
-        setting.append(label, input, detail);
-        slot.appendChild(setting);
+        languageSetting.append(languageLabel, languageMode);
+
+        const toneHeading = document.createElement("h3");
+        toneHeading.className = "bm-m3-settings__subheading";
+        toneHeading.textContent = this.copy("languageTone");
+        slot.append(languageSetting, toneHeading);
+        for (const language of ["en", "yue"] as const) {
+            const setting = document.createElement("div");
+            setting.className = "bm-m3-setting";
+            const label = document.createElement("label");
+            label.htmlFor = `bm-funny-${language}`;
+            label.textContent = this.copy(language === "en" ? "funnyEn" : "funnyYue");
+            const input = document.createElement("input");
+            input.id = `bm-funny-${language}`;
+            input.type = "range";
+            input.min = "1";
+            input.max = "5";
+            input.value = String(this.readFunnyLevel(language));
+            input.setAttribute(
+                "aria-valuetext",
+                this.copy("funnyLevelValue", { level: input.value }),
+            );
+            const detail = document.createElement("small");
+            detail.textContent = this.copy("funnyDescription");
+            input.addEventListener("input", () => {
+                const level = Math.max(1, Math.min(5, Number(input.value)));
+                localStorage.setItem(FUNNY_LEVEL_STORAGE_KEY[language], String(level));
+                this.refreshPresentation();
+                this.settings.querySelector<HTMLInputElement>(`#bm-funny-${language}`)?.focus();
+            });
+            setting.append(label, input, detail);
+            slot.appendChild(setting);
+        }
     }
 
     private createSearchScope(
@@ -386,9 +539,7 @@ export class MaterialShell {
         host: ParentNode,
         results: HTMLElement,
     ): SearchScope {
-        const scopeElement = host.querySelector<HTMLElement>(
-            '[data-search-scope="' + name + '"]',
-        )!;
+        const scopeElement = host.querySelector<HTMLElement>('[data-search-scope="' + name + '"]')!;
         const input = scopeElement.querySelector<HTMLInputElement>(".bm-m3-search")!;
         const regexToggle = scopeElement.querySelector<HTMLButtonElement>(
             '[data-search-action="toggle-regex"]',
@@ -422,7 +573,10 @@ export class MaterialShell {
             const action = (event.target as HTMLElement).closest<HTMLButtonElement>(
                 "[data-search-result]",
             )?.dataset.searchResult as SearchActionId | undefined;
-            if (action !== undefined) this.activateSearchAction(action);
+            if (action !== undefined) {
+                event.stopPropagation();
+                this.activateSearchAction(action);
+            }
         });
         builder.addEventListener("input", (event) => this.handleRegexBuilderInput(event, scope));
         builder.addEventListener("change", (event) => this.handleRegexBuilderInput(event, scope));
@@ -443,7 +597,7 @@ export class MaterialShell {
         builder.className = "bm-m3-regex-builder";
         builder.dataset.searchScope = name;
         builder.setAttribute("role", "dialog");
-        builder.setAttribute("aria-label", "Regex builder");
+        builder.dataset.copyAriaLabel = "regexBuilder";
         builder.hidden = true;
         const flags = REGEX_FLAGS.map(
             (flag) =>
@@ -459,38 +613,28 @@ export class MaterialShell {
             (token, index) =>
                 '<button type="button" data-regex-token="' +
                 index +
-                '" title="' +
-                token.hint +
-                '" aria-label="' +
-                token.label +
-                ": " +
-                token.hint +
                 '">' +
                 token.label +
                 "</button>",
         ).join("");
         builder.innerHTML =
-            "<h3>Regex builder</h3>" +
-            "<p>ECMAScript RegExp runs locally against this search. Pattern " +
-            MAX_REGEX_PATTERN_LENGTH +
-            " characters; sample " +
-            MAX_REGEX_SAMPLE_LENGTH +
-            " characters.</p>" +
-            '<label>Pattern<textarea data-regex-pattern rows="2" maxlength="' +
+            '<h3 data-copy="regexBuilder">Regex builder</h3>' +
+            '<p data-copy="regexBuilderDescription">ECMAScript RegExp runs locally against this search.</p>' +
+            '<label><span data-copy="pattern">Pattern</span><textarea data-regex-pattern rows="2" maxlength="' +
             MAX_REGEX_PATTERN_LENGTH +
             '" spellcheck="false"></textarea></label>' +
-            '<fieldset><legend>Flags</legend><div class="bm-m3-regex-builder__flags">' +
+            '<fieldset><legend data-copy="flags">Flags</legend><div class="bm-m3-regex-builder__flags">' +
             flags +
             "</div></fieldset>" +
-            '<fieldset><legend>Build pattern</legend><div class="bm-m3-regex-builder__tokens">' +
+            '<fieldset><legend data-copy="buildPattern">Build pattern</legend><div class="bm-m3-regex-builder__tokens">' +
             tokens +
-            '<button type="button" data-regex-action="escape">Escape literal</button></div></fieldset>' +
-            '<label>Sample text<textarea data-regex-sample rows="3" maxlength="' +
+            '<button type="button" data-regex-action="escape" data-copy="escapeLiteral">Escape literal</button></div></fieldset>' +
+            '<label><span data-copy="sampleText">Sample text</span><textarea data-regex-sample rows="3" maxlength="' +
             MAX_REGEX_SAMPLE_LENGTH +
             '" spellcheck="false"></textarea></label>' +
             '<output class="bm-m3-regex-builder__feedback" data-regex-feedback aria-live="polite"></output>' +
             '<p data-regex-copy-status aria-live="polite"></p>' +
-            '<div class="bm-m3-regex-builder__actions"><button type="button" data-regex-action="copy">Copy pattern</button><button type="button" data-regex-action="export">Export pattern</button><button type="button" data-regex-action="close">Close</button></div>';
+            '<div class="bm-m3-regex-builder__actions"><button type="button" data-regex-action="copy" data-copy="copyPattern">Copy pattern</button><button type="button" data-regex-action="export" data-copy="exportPattern">Export pattern</button><button type="button" data-regex-action="close" data-copy="close">Close</button></div>';
         return builder;
     }
 
@@ -501,28 +645,28 @@ export class MaterialShell {
     }[] => [
         {
             id: "map-menu",
-            label: "Open map menu",
-            keywords: "navigation control layers markers map",
+            label: this.copy("actionMapMenu"),
+            keywords: this.copy("actionMapMenuKeywords"),
         },
         {
             id: "appearance",
-            label: "Open map appearance",
-            keywords: "settings theme light dark contrast density",
+            label: this.copy("actionAppearance"),
+            keywords: this.copy("actionAppearanceKeywords"),
         },
         {
             id: "command-palette",
-            label: "Open command palette",
-            keywords: "commands keyboard Ctrl Shift F",
+            label: this.copy("actionPalette"),
+            keywords: this.copy("actionPaletteKeywords"),
         },
         {
             id: "map-search",
-            label: "Focus map control search",
-            keywords: "find search controls regex",
+            label: this.copy("actionMapSearch"),
+            keywords: this.copy("actionMapSearchKeywords"),
         },
         {
             id: "notification-history",
-            label: "Open notification history",
-            keywords: "bell alerts messages status activity",
+            label: this.copy("actionNotifications"),
+            keywords: this.copy("actionNotificationsKeywords"),
         },
     ];
 
@@ -538,13 +682,16 @@ export class MaterialShell {
         scope.regexToggle.setAttribute("aria-pressed", String(scope.regex));
         scope.regexToggle.setAttribute(
             "aria-label",
-            scope.regex
-                ? "Search plain text instead of a regular expression"
-                : "Search with a regular expression",
+            this.copy(
+                scope.regex
+                    ? "regexPlainSearch"
+                    : scope.name === "command-palette"
+                      ? "searchCommandsRegex"
+                      : "regexSearch",
+            ),
         );
-        const patternField = scope.builder.querySelector<HTMLTextAreaElement>(
-            "[data-regex-pattern]",
-        )!;
+        const patternField =
+            scope.builder.querySelector<HTMLTextAreaElement>("[data-regex-pattern]")!;
         if (patternField.value !== pattern) patternField.value = pattern;
         for (const flag of REGEX_FLAGS) {
             const field = scope.builder.querySelector<HTMLInputElement>(
@@ -552,9 +699,8 @@ export class MaterialShell {
             )!;
             field.checked = scope.flags.includes(flag);
         }
-        const sampleField = scope.builder.querySelector<HTMLTextAreaElement>(
-            "[data-regex-sample]",
-        )!;
+        const sampleField =
+            scope.builder.querySelector<HTMLTextAreaElement>("[data-regex-sample]")!;
         if (sampleField.value !== scope.sample) sampleField.value = scope.sample;
         this.renderRegexFeedback(scope);
         this.renderSearchResults(scope);
@@ -615,10 +761,11 @@ export class MaterialShell {
             return;
         }
         if (target.matches("[data-regex-flag]")) {
-            scope.flags = REGEX_FLAGS.filter((flag) =>
-                scope.builder.querySelector<HTMLInputElement>(
-                    '[data-regex-flag="' + flag + '"]',
-                )!.checked,
+            scope.flags = REGEX_FLAGS.filter(
+                (flag) =>
+                    scope.builder.querySelector<HTMLInputElement>(
+                        '[data-regex-flag="' + flag + '"]',
+                    )!.checked,
             ).join("");
             scope.regex = true;
             this.syncSearchScope(scope);
@@ -656,7 +803,11 @@ export class MaterialShell {
         const start = field.selectionStart ?? pattern.length;
         const end = field.selectionEnd ?? start;
         const next =
-            pattern.slice(0, start) + before + pattern.slice(start, end) + after + pattern.slice(end);
+            pattern.slice(0, start) +
+            before +
+            pattern.slice(start, end) +
+            after +
+            pattern.slice(end);
         scope.input.value = next.slice(0, MAX_REGEX_PATTERN_LENGTH);
         scope.regex = true;
         this.syncSearchScope(scope);
@@ -685,38 +836,33 @@ export class MaterialShell {
     }
 
     private renderRegexFeedback(scope: SearchScope): void {
-        const feedback = scope.builder.querySelector<HTMLOutputElement>(
-            "[data-regex-feedback]",
-        )!;
+        const feedback = scope.builder.querySelector<HTMLOutputElement>("[data-regex-feedback]")!;
         const preview = previewRegex(scope.input.value, scope.flags, scope.sample);
         feedback.dataset.state = preview.error === null ? "ready" : "error";
         if (preview.error !== null) {
-            feedback.textContent = "Pattern error: " + preview.error;
+            feedback.textContent = this.copy("patternError", { error: preview.error });
             return;
         }
         if (scope.input.value.length === 0) {
-            feedback.textContent = "No pattern yet. Plain-text search remains the default.";
+            feedback.textContent = this.copy("noPatternYet");
             return;
         }
         const captureLines = preview.matches
             .map((match) =>
                 match.groups.length > 0
-                    ? "“" +
-                      match.text +
-                      "” at " +
-                      match.index +
-                      "; " +
-                      match.groups.join(", ")
+                    ? "“" + match.text + "” at " + match.index + "; " + match.groups.join(", ")
                     : "“" + match.text + "” at " + match.index,
             )
             .join("\n");
         feedback.textContent =
-            preview.matches.length +
-            " live match" +
-            (preview.matches.length === 1 ? "" : "es") +
-            "." +
+            this.copy("liveMatches", {
+                count: preview.matches.length,
+                matchWord: this.copy(
+                    preview.matches.length === 1 ? "liveMatch" : "liveMatchesPlural",
+                ),
+            }) +
             (preview.sampleTruncated
-                ? " Sample limited to " + MAX_REGEX_SAMPLE_LENGTH + " characters."
+                ? ` ${this.copy("sampleLimited", { limit: MAX_REGEX_SAMPLE_LENGTH })}`
                 : "") +
             (captureLines ? "\n" + captureLines : "");
     }
@@ -732,7 +878,7 @@ export class MaterialShell {
         const summary = document.createElement("p");
         summary.className = "bm-m3-search-results__summary";
         if (error !== null) {
-            summary.textContent = "Pattern error: " + error;
+            summary.textContent = this.copy("patternError", { error });
             summary.setAttribute("role", "alert");
             scope.results.appendChild(summary);
             return;
@@ -741,20 +887,18 @@ export class MaterialShell {
         const actions = this.searchActions().filter((action) => {
             const searchable = action.label + " " + action.keywords;
             if (query.length === 0) return true;
-            if (!scope.regex) return searchable.toLocaleLowerCase().includes(query.toLocaleLowerCase());
+            if (!scope.regex)
+                return searchable.toLocaleLowerCase().includes(query.toLocaleLowerCase());
             const expression = new RegExp(
                 query,
                 normaliseRegexFlags(scope.flags).replace(/[gy]/g, ""),
             );
             return expression.test(searchable);
         });
-        summary.textContent =
-            actions.length +
-            " control" +
-            (actions.length === 1 ? "" : "s") +
-            (scope.regex
-                ? " match this regular expression."
-                : " match this plain-text search.");
+        summary.textContent = this.copy(scope.regex ? "controlsMatchRegex" : "controlsMatchPlain", {
+            count: actions.length,
+            controlWord: this.copy(actions.length === 1 ? "control" : "controls"),
+        });
         scope.results.appendChild(summary);
         for (const action of actions) {
             const button = document.createElement("button");
@@ -770,15 +914,14 @@ export class MaterialShell {
         this.mapSearch.results.hidden = true;
         switch (action) {
             case "map-menu":
-                this.settings.hidden = true;
+                this.closeSettings(false);
                 this.mapMenu.hidden = false;
                 this.mapMenuButton.setAttribute("aria-expanded", "true");
                 this.mapMenuButton.focus();
                 break;
             case "appearance":
                 this.closeMapMenu();
-                this.settings.hidden = false;
-                this.settings.querySelector<HTMLSelectElement>("#bm-theme")!.focus();
+                this.openSettings(this.search);
                 break;
             case "command-palette":
                 this.openCommandPalette(this.search);
@@ -794,7 +937,7 @@ export class MaterialShell {
 
     private openCommandPalette(invoker: HTMLElement): void {
         this.closeMapMenu();
-        this.settings.hidden = true;
+        this.closeSettings(false);
         this.mapSearch.results.hidden = true;
         this.closeRegexBuilder(this.mapSearch, false);
         this.commandPaletteInvoker = invoker;
@@ -814,19 +957,19 @@ export class MaterialShell {
     private copyRegexPattern(scope: SearchScope): void {
         const status = scope.builder.querySelector<HTMLElement>("[data-regex-copy-status]")!;
         if (!navigator.clipboard?.writeText) {
-            status.textContent = "Clipboard access is unavailable in this browser.";
+            status.textContent = this.copy("clipboardUnavailable");
             return;
         }
         void navigator.clipboard
             .writeText("/" + scope.input.value + "/" + scope.flags)
-            .then(() => (status.textContent = "Pattern copied."))
-            .catch(() => (status.textContent = "Could not copy the pattern."));
+            .then(() => (status.textContent = this.copy("patternCopied")))
+            .catch(() => (status.textContent = this.copy("patternCopyFailed")));
     }
 
     private exportRegexPattern(scope: SearchScope): void {
         const status = scope.builder.querySelector<HTMLElement>("[data-regex-copy-status]")!;
         if (typeof URL.createObjectURL !== "function") {
-            status.textContent = "Download export is unavailable in this browser.";
+            status.textContent = this.copy("exportUnavailable");
             return;
         }
         const payload = JSON.stringify(
@@ -846,7 +989,7 @@ export class MaterialShell {
         link.download = "bluemap-regex.json";
         link.click();
         URL.revokeObjectURL(href);
-        status.textContent = "Pattern export started.";
+        status.textContent = this.copy("exportStarted");
     }
 
     private readonly handleGlobalShortcut = (event: KeyboardEvent): void => {
@@ -869,6 +1012,11 @@ export class MaterialShell {
             this.closeNotificationHistory();
             return;
         }
+        if (!this.settings.hidden) {
+            event.preventDefault();
+            this.closeSettings();
+            return;
+        }
         if (!this.mapSearch.builder.hidden) {
             event.preventDefault();
             this.closeRegexBuilder(this.mapSearch);
@@ -887,6 +1035,11 @@ export class MaterialShell {
             !this.notificationBell.contains(event.target as Node)
         )
             this.closeNotificationHistory(false);
+        if (
+            !this.settings.contains(event.target as Node) &&
+            !this.settingsButton.contains(event.target as Node)
+        )
+            this.closeSettings(false);
     };
 
     private readonly dismissMapMenuWithEscape = (event: KeyboardEvent): void => {
@@ -901,7 +1054,9 @@ export class MaterialShell {
     };
 
     private readonly handleContextMenuKeydown = (event: KeyboardEvent): void => {
-        const actions = [...this.menu.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]')];
+        const actions = [
+            ...this.menu.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]'),
+        ];
         const current = actions.indexOf(document.activeElement as HTMLButtonElement);
         if (event.key === "Escape") {
             event.preventDefault();
@@ -928,7 +1083,7 @@ export class MaterialShell {
 
     private toggleMapMenu(): void {
         if (this.mapMenu.hidden) {
-            this.settings.hidden = true;
+            this.closeSettings(false);
             this.mapMenu.hidden = false;
             this.mapMenuButton.setAttribute("aria-expanded", "true");
             return;
@@ -939,6 +1094,34 @@ export class MaterialShell {
     private closeMapMenu(): void {
         this.mapMenu.hidden = true;
         this.mapMenuButton.setAttribute("aria-expanded", "false");
+    }
+
+    private toggleSettings(invoker: HTMLElement): void {
+        if (this.settings.hidden) {
+            this.openSettings(invoker);
+            return;
+        }
+        this.closeSettings();
+    }
+
+    private openSettings(invoker: HTMLElement): void {
+        this.closeMapMenu();
+        this.closeNotificationHistory(false);
+        this.closeCommandPalette(false);
+        this.closeRegexBuilder(this.mapSearch, false);
+        this.mapSearch.results.hidden = true;
+        this.settingsInvoker = invoker;
+        this.settings.hidden = false;
+        this.settingsButton.setAttribute("aria-expanded", "true");
+        this.settings.querySelector<HTMLSelectElement>("#bm-theme")!.focus();
+    }
+
+    private closeSettings(restoreFocus = true): void {
+        if (this.settings.hidden) return;
+        this.settings.hidden = true;
+        this.settingsButton.setAttribute("aria-expanded", "false");
+        if (restoreFocus) this.settingsInvoker?.focus();
+        this.settingsInvoker = null;
     }
 
     /**
@@ -955,7 +1138,7 @@ export class MaterialShell {
 
     private openNotificationHistory(): void {
         this.closeMapMenu();
-        this.settings.hidden = true;
+        this.closeSettings(false);
         this.notificationHistory.hidden = false;
         const newest = this.notices.at(0);
         if (newest !== undefined) this.reviewedNoticeId = newest.id;
@@ -974,31 +1157,34 @@ export class MaterialShell {
 
     private notificationBellLabel(): string {
         const unread = this.notices.filter((notice) => notice.id > this.reviewedNoticeId).length;
-        if (this.notices.length === 0) return "Notification history. No recorded notifications.";
-        return `Notification history. ${this.notices.length} recorded, ${unread} unread.`;
+        if (this.notices.length === 0) return this.copy("notificationBellEmpty");
+        return this.copy("notificationBellCount", { count: this.notices.length, unread });
     }
 
     private renderNotificationHistory(): void {
         this.notificationBell.setAttribute("aria-label", this.notificationBellLabel());
-        this.notificationBell.setAttribute("aria-expanded", String(!this.notificationHistory.hidden));
+        this.notificationBell.setAttribute(
+            "aria-expanded",
+            String(!this.notificationHistory.hidden),
+        );
         this.notificationHistory.replaceChildren();
 
         const header = document.createElement("div");
         header.className = "bm-m3-notification-history__header";
         const title = document.createElement("h2");
-        title.textContent = "Notification history";
+        title.textContent = this.copy("notificationHistory");
         const close = document.createElement("button");
         close.type = "button";
         close.dataset.notificationAction = "close";
-        close.setAttribute("aria-label", "Close notification history");
-        close.textContent = "Close";
+        close.setAttribute("aria-label", this.copy("closeNotificationHistory"));
+        close.textContent = this.copy("close");
         header.append(title, close);
         this.notificationHistory.appendChild(header);
 
         if (this.notices.length === 0) {
             const empty = document.createElement("p");
             empty.className = "bm-m3-notification-history__empty";
-            empty.textContent = "No notifications have been recorded yet.";
+            empty.textContent = this.copy("noNotificationsRecorded");
             this.notificationHistory.appendChild(empty);
             return;
         }
@@ -1010,11 +1196,14 @@ export class MaterialShell {
             item.className = "bm-m3-notification-history__item";
             item.dataset.level = notice.level;
             const message = document.createElement("p");
-            message.textContent = notice.message;
+            message.textContent = this.copy(notice.messageKey, notice.values);
             const meta = document.createElement("time");
             meta.className = "bm-m3-notification-history__meta";
             meta.dateTime = notice.createdAt;
-            meta.textContent = `${notice.level === "alert" ? "Alert" : "Notice"} · ${notice.createdAt}`;
+            meta.textContent = this.copy("notificationMeta", {
+                kind: this.copy(notice.level === "alert" ? "alert" : "notice"),
+                time: notice.createdAt,
+            });
             item.append(message, meta);
             list.appendChild(item);
         }
@@ -1022,10 +1211,15 @@ export class MaterialShell {
     }
 
     /** Records feedback for the bell/history and announces it without drawing over map content. */
-    private recordNotice(message: string, level: ViewerNoticeLevel = "status"): void {
+    private recordNotice(
+        messageKey: MaterialShellCopyKey,
+        level: ViewerNoticeLevel = "status",
+        values: MaterialShellCopyValues = {},
+    ): void {
         const notice: ViewerNotice = {
             id: this.nextNoticeId++,
-            message,
+            messageKey,
+            values,
             createdAt: new Date().toISOString(),
             level,
         };
@@ -1033,13 +1227,24 @@ export class MaterialShell {
         if (this.notices.length > NOTICE_HISTORY_LIMIT) this.notices.pop();
         if (!this.notificationHistory.hidden) this.reviewedNoticeId = notice.id;
         this.notificationAnnouncer.setAttribute("role", level === "alert" ? "alert" : "status");
-        this.notificationAnnouncer.textContent = message;
+        this.notificationAnnouncer.textContent = this.copy(messageKey, values);
         this.renderNotificationHistory();
     }
+
+    /** Routes native BlueMap feedback into history only; it never opens an overlay over the map. */
+    private readonly handleBlueMapAlert = (event: Event): void => {
+        const detail = (event as CustomEvent<{ message?: unknown; level?: unknown }>).detail;
+        const message = detail?.message;
+        const text = message instanceof Error ? message.message : String(message ?? "");
+        if (text.length === 0) return;
+        const level = detail?.level === "error" || detail?.level === "warning" ? "alert" : "status";
+        this.recordNotice("externalAlert", level, { message: text });
+    };
 
     private handleMapMenuClick(event: Event): void {
         const action = (event.target as HTMLElement).closest<HTMLButtonElement>("button")?.dataset
             .mapAction;
+        if (action !== undefined) event.stopPropagation();
         if (action === "close") {
             this.closeMapMenu();
             this.mapMenuButton.focus();
@@ -1052,7 +1257,7 @@ export class MaterialShell {
         }
         if (action === "appearance") {
             this.closeMapMenu();
-            this.settings.hidden = false;
+            this.openSettings(this.mapMenuButton);
             return;
         }
         if (action === "notifications") {
@@ -1074,7 +1279,7 @@ export class MaterialShell {
     ): void {
         const point = detail.hit?.point;
         if (!point) {
-            this.recordNotice("No terrain at that point; move over a loaded map tile first.", "alert");
+            this.recordNotice("noTerrain", "alert");
             return;
         }
         this.menu.dataset.x = String(point.x);
@@ -1095,7 +1300,7 @@ export class MaterialShell {
         if (action === "copy") {
             const coords = `${this.menu.dataset.x}, ${this.menu.dataset.y}, ${this.menu.dataset.z}`;
             void navigator.clipboard?.writeText(coords);
-            this.recordNotice(`Coordinates copied: ${coords}`);
+            this.recordNotice("coordinatesCopied", "status", { coordinates: coords });
             this.closeContextMenu();
         }
         if (action === "pin") {
@@ -1104,15 +1309,18 @@ export class MaterialShell {
                 x: Number(this.menu.dataset.x),
                 y: Number(this.menu.dataset.y),
                 z: Number(this.menu.dataset.z),
-                label: `Pinpoint ${this.pinCounter}`,
+                label: this.copy("pinpoint", { count: this.pinCounter }),
                 screenX: Number(this.menu.style.left.replace("px", "")),
                 screenY: Number(this.menu.style.top.replace("px", "")),
             };
             this.pins.push(pin);
             this.writePins();
-            this.recordNotice(
-                `${pin.label} saved at ${pin.x.toFixed(0)}, ${pin.y.toFixed(0)}, ${pin.z.toFixed(0)}.`,
-            );
+            this.recordNotice("pinSaved", "status", {
+                label: pin.label,
+                x: pin.x.toFixed(0),
+                y: pin.y.toFixed(0),
+                z: pin.z.toFixed(0),
+            });
             this.closeContextMenu();
         }
     }
@@ -1151,6 +1359,19 @@ export class MaterialShell {
         localStorage.setItem("bluemap-pinpoints", JSON.stringify(this.pins));
         this.renderPins();
     }
+
+    /** Releases document, window, host-copy, and BlueMap-alert subscriptions for discarded maps. */
+    dispose(): void {
+        document.removeEventListener("click", this.dismiss);
+        document.removeEventListener("keydown", this.dismissMapMenuWithEscape);
+        document.removeEventListener("keydown", this.dismissContextMenuWithEscape);
+        document.removeEventListener("keydown", this.handleGlobalShortcut);
+        window.removeEventListener("resize", this.syncViewportLayout);
+        this.root.removeEventListener("bluemapAlert", this.handleBlueMapAlert as EventListener);
+        this.unsubscribePresentation?.();
+        this.unsubscribePresentation = null;
+    }
+
     private updateCoordinates(x: number, z: number): void {
         for (const [axis, value] of [
             ["x", x],
@@ -1163,13 +1384,12 @@ export class MaterialShell {
             field.textContent = `${axis} ${rounded}`;
             field.setAttribute(
                 "aria-label",
-                `Current ${axis.toUpperCase()} coordinate: ${rounded}`,
+                this.copy("currentCoordinate", { axis: axis.toUpperCase(), value: rounded }),
             );
         }
     }
     private setTheme(theme: string): void {
-        const selectedTheme: ThemeName =
-            theme === "light" || theme === "contrast" ? theme : "dark";
+        const selectedTheme: ThemeName = theme === "light" || theme === "contrast" ? theme : "dark";
         this.root.dataset.theme = selectedTheme;
         this.settings.querySelector<HTMLSelectElement>("#bm-theme")!.value = selectedTheme;
         localStorage.setItem("bluemap-theme", selectedTheme);

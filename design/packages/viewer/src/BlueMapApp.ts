@@ -20,7 +20,10 @@ import { makeReactive } from "./util/reactivity";
 import type { ControlsLike } from "./controls/ControlsManager";
 import { MaterialShell } from "./materialShell";
 import { ViewerPresentationPolicy } from "./presentationPolicy";
-import type { ViewerPresentationRestriction } from "./presentationPolicy";
+import type {
+    ViewerPresentationAdapter,
+    ViewerPresentationRestriction,
+} from "./presentationPolicy";
 
 export interface BlueMapAppSettings {
     version: string;
@@ -81,6 +84,11 @@ export interface BlueMapAppOptions {
      * tone controls.  This is plain viewer data, not an import of any desktop UI state.
      */
     presentationRestriction?: ViewerPresentationRestriction;
+    /**
+     * Optional host copy bridge for the served material shell.  It is viewer-owned data only:
+     * no UI package or framework type reaches this public map runtime.
+     */
+    presentationAdapter?: ViewerPresentationAdapter;
 }
 
 interface PlayerLike {
@@ -143,7 +151,10 @@ export class BlueMapApp {
 
         this.allowRemoteInjection = options.allowRemoteInjection ?? (() => false);
         this.dataRoot = (options.dataRoot ?? "").replace(/\/+$/, "");
-        this.presentationPolicy = new ViewerPresentationPolicy(options.presentationRestriction);
+        this.presentationPolicy = new ViewerPresentationPolicy(
+            options.presentationRestriction,
+            options.presentationAdapter,
+        );
 
         this.mapViewer = new MapViewer(rootElement, this.events);
         this.materialShell = new MaterialShell(rootElement, this.presentationPolicy);
@@ -493,6 +504,7 @@ export class BlueMapApp {
         this.mapEventSource = null;
         this.playerMarkerManager?.dispose();
         this.markerFileManager?.dispose();
+        this.materialShell.dispose();
     }
 
     loadSettings(): Promise<Partial<BlueMapAppSettings>> {

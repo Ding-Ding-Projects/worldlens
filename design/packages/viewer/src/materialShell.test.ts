@@ -62,26 +62,99 @@ describe("MaterialShell", () => {
         expect(css).toContain("color:var(--bm-on-surface-variant);opacity:1");
     });
 
-    it("removes the message-style route while restricted without overwriting its raw value", () => {
+    it("hides language and tone controls while restricted without overwriting raw presentation values", () => {
+        localStorage.setItem("bluemap-presentation-language-mode", "bilingual");
         localStorage.setItem("bluemap-funny-level-en", "5");
+        localStorage.setItem("bluemap-funny-level-yue", "4");
         const policy = new ViewerPresentationPolicy({ languageAndToneRestricted: true });
         const shell = new MaterialShell(document.querySelector("main")!, policy);
 
-        expect(shell.root.querySelector("#bm-funny")).toBeNull();
-        expect(shell.root.textContent).not.toContain("Message style");
+        expect(shell.root.querySelector("#bm-language-mode")).toBeNull();
+        expect(shell.root.querySelector("#bm-funny-en")).toBeNull();
+        expect(shell.root.querySelector("#bm-funny-yue")).toBeNull();
+        expect(shell.root.dataset.languageMode).toBe("en");
         expect(shell.root.dataset.funnyLevel).toBe("1");
+        expect(shell.root.dataset.funnyLevelYue).toBe("1");
         expect(localStorage.getItem("bluemap-funny-level-en")).toBe("5");
+        expect(localStorage.getItem("bluemap-funny-level-yue")).toBe("4");
+        expect(localStorage.getItem("bluemap-presentation-language-mode")).toBe("bilingual");
 
         policy.setRestriction({ languageAndToneRestricted: false }, "en");
         shell.refreshPresentation();
 
-        expect((shell.root.querySelector("#bm-funny") as HTMLInputElement).value).toBe("5");
+        expect((shell.root.querySelector("#bm-language-mode") as HTMLSelectElement).value).toBe(
+            "bilingual",
+        );
+        expect((shell.root.querySelector("#bm-funny-en") as HTMLInputElement).value).toBe("5");
+        expect((shell.root.querySelector("#bm-funny-yue") as HTMLInputElement).value).toBe("4");
+        expect(shell.root.dataset.languageMode).toBe("bilingual");
         expect(shell.root.dataset.funnyLevel).toBe("5");
+    });
+
+    it("renders English, Cantonese, and bilingual material-shell copy in visible and ARIA text", () => {
+        localStorage.setItem("bluemap-presentation-language-mode", "yue");
+        const shell = new MaterialShell(document.querySelector("main")!);
+        const settingsButton = shell.root.querySelector<HTMLButtonElement>(
+            '[data-action="settings"]',
+        )!;
+
+        expect(shell.root.querySelector(".bm-m3-subtitle")?.textContent).toBe(
+            "Material 地圖伺服器",
+        );
+        expect(settingsButton.getAttribute("aria-label")).toBe("開啟設定");
+        expect(shell.root.querySelector("#bm-m3-settings-title")?.textContent).toBe("地圖外觀");
+
+        localStorage.setItem("bluemap-presentation-language-mode", "bilingual");
+        shell.refreshPresentation();
+
+        expect(shell.root.querySelector(".bm-m3-subtitle")?.textContent).toBe(
+            "Material map server / Material 地圖伺服器",
+        );
+        expect(settingsButton.getAttribute("aria-label")).toBe("Open settings / 開啟設定");
+        expect(shell.root.querySelector("#bm-m3-settings-title")?.textContent).toBe(
+            "Map appearance / 地圖外觀",
+        );
+    });
+
+    it("persists independent English and Cantonese funny levels and refreshes rendered copy", () => {
+        localStorage.setItem("bluemap-presentation-language-mode", "bilingual");
+        localStorage.setItem("bluemap-funny-level-en", "1");
+        localStorage.setItem("bluemap-funny-level-yue", "1");
+        const shell = new MaterialShell(document.querySelector("main")!);
+
+        const english = shell.root.querySelector<HTMLInputElement>("#bm-funny-en")!;
+        english.value = "5";
+        english.dispatchEvent(new Event("input"));
+
+        expect(localStorage.getItem("bluemap-funny-level-en")).toBe("5");
+        expect(localStorage.getItem("bluemap-funny-level-yue")).toBe("1");
+        expect(shell.root.dataset.funnyLevelEn).toBe("5");
+        expect(shell.root.dataset.funnyLevelYue).toBe("1");
+        expect(shell.root.querySelector(".bm-m3-subtitle")?.textContent).toBe(
+            "Material map server, map magic on standby / Material 地圖伺服器",
+        );
+
+        const cantonese = shell.root.querySelector<HTMLInputElement>("#bm-funny-yue")!;
+        cantonese.value = "5";
+        cantonese.dispatchEvent(new Event("input"));
+
+        expect(localStorage.getItem("bluemap-funny-level-en")).toBe("5");
+        expect(localStorage.getItem("bluemap-funny-level-yue")).toBe("5");
+        expect(shell.root.querySelector(".bm-m3-subtitle")?.textContent).toBe(
+            "Material map server, map magic on standby / Material 地圖伺服器，地圖魔法候命",
+        );
+        expect(
+            shell.root
+                .querySelector<HTMLInputElement>("#bm-funny-en")
+                ?.getAttribute("aria-valuetext"),
+        ).toBe("Level 5 / 第 5 級");
     });
 
     it("runs a matching map-control result without creating a notification overlay", () => {
         const shell = new MaterialShell(document.querySelector("main")!);
-        const search = shell.root.querySelector<HTMLInputElement>('[aria-label="Search map controls"]')!;
+        const search = shell.root.querySelector<HTMLInputElement>(
+            '[aria-label="Search map controls"]',
+        )!;
         const results = shell.root.querySelector<HTMLElement>(
             '[data-search-results="map-controls"]',
         )!;
@@ -89,9 +162,9 @@ describe("MaterialShell", () => {
         search.value = "appearance";
         search.dispatchEvent(new Event("input"));
         expect(results.hidden).toBe(false);
-        const appearance = [...results.querySelectorAll<HTMLButtonElement>("[data-search-result]")].find(
-            (button) => button.textContent === "Open map appearance",
-        );
+        const appearance = [
+            ...results.querySelectorAll<HTMLButtonElement>("[data-search-result]"),
+        ].find((button) => button.textContent === "Open map appearance");
         expect(appearance).toBeTruthy();
         appearance!.click();
 
@@ -124,16 +197,72 @@ describe("MaterialShell", () => {
         expect(history.getAttribute("role")).toBe("region");
         expect(history.getAttribute("aria-label")).toBe("Notification history");
         expect(history.textContent).toContain("No terrain at that point");
-        expect(history.querySelector("[data-level=\"alert\"]")).toBeTruthy();
+        expect(history.querySelector('[data-level="alert"]')).toBeTruthy();
 
-        (history.querySelector<HTMLButtonElement>('[data-notification-action="close"]')!).click();
+        history.querySelector<HTMLButtonElement>('[data-notification-action="close"]')!.click();
         expect(history.hidden).toBe(true);
         expect(document.activeElement).toBe(bell);
+
+        localStorage.setItem("bluemap-presentation-language-mode", "yue");
+        shell.refreshPresentation();
+        expect(bell.getAttribute("aria-label")).toBe("通知紀錄。已記錄 1 個，未讀 0 個。");
+        bell.click();
+        expect(history.textContent).toContain("嗰個位置未有地形");
+    });
+
+    it("routes direct BlueMap alerts into the bell history without opening a map overlay", () => {
+        const shell = new MaterialShell(document.querySelector("main")!);
+        const bell = shell.root.querySelector<HTMLButtonElement>(
+            '[aria-controls="bm-m3-notification-history"]',
+        )!;
+        const history = shell.root.querySelector<HTMLElement>(".bm-m3-notification-history")!;
+
+        shell.root.dispatchEvent(
+            new CustomEvent("bluemapAlert", {
+                detail: { level: "warning", message: "Map feed needs attention" },
+            }),
+        );
+
+        expect(shell.root.querySelector(".bm-m3-toast")).toBeNull();
+        expect(history.hidden).toBe(true);
+        expect(bell.getAttribute("aria-label")).toBe("Notification history. 1 recorded, 1 unread.");
+
+        bell.click();
+        expect(history.textContent).toContain("Map feed needs attention");
+        expect(history.querySelector('[data-level="alert"]')).toBeTruthy();
+    });
+
+    it("uses the optional viewer presentation adapter and releases its subscription on disposal", () => {
+        let listener: (() => void) | undefined;
+        let settingsCopy = "Host settings";
+        const policy = new ViewerPresentationPolicy(undefined, {
+            copy: (request) => (request.key === "openSettings" ? settingsCopy : undefined),
+            subscribe: (next) => {
+                listener = next;
+                return () => {
+                    listener = undefined;
+                };
+            },
+        });
+        const shell = new MaterialShell(document.querySelector("main")!, policy);
+        const settingsButton = shell.root.querySelector<HTMLButtonElement>(
+            '[data-action="settings"]',
+        )!;
+
+        expect(settingsButton.getAttribute("aria-label")).toBe("Host settings");
+        settingsCopy = "Updated host settings";
+        listener?.();
+        expect(settingsButton.getAttribute("aria-label")).toBe("Updated host settings");
+
+        shell.dispose();
+        expect(listener).toBeUndefined();
     });
 
     it("binds the anchored regex builder to its search and surfaces live capture feedback", () => {
         const shell = new MaterialShell(document.querySelector("main")!);
-        const search = shell.root.querySelector<HTMLInputElement>('[aria-label="Search map controls"]')!;
+        const search = shell.root.querySelector<HTMLInputElement>(
+            '[aria-label="Search map controls"]',
+        )!;
         const builderButton = shell.root.querySelector<HTMLButtonElement>(
             '[aria-label="Open the regex builder for map controls"]',
         )!;
@@ -148,15 +277,17 @@ describe("MaterialShell", () => {
         pattern.dispatchEvent(new Event("input", { bubbles: true }));
         expect(search.value).toBe("(Open) map menu");
         expect(
-            shell.root.querySelector('[aria-label="Search plain text instead of a regular expression"]'),
+            shell.root.querySelector(
+                '[aria-label="Search plain text instead of a regular expression"]',
+            ),
         ).toBeTruthy();
         expect(builder.querySelector("[data-regex-feedback]")?.textContent).toContain("1: Open");
-        expect(
-            builder.querySelector<HTMLButtonElement>('[data-regex-token="0"]'),
-        ).toBeTruthy();
+        expect(builder.querySelector<HTMLButtonElement>('[data-regex-token="0"]')).toBeTruthy();
         pattern.value = "(";
         pattern.dispatchEvent(new Event("input", { bubbles: true }));
-        expect(builder.querySelector("[data-regex-feedback]")?.textContent).toContain("Pattern error:");
+        expect(builder.querySelector("[data-regex-feedback]")?.textContent).toContain(
+            "Pattern error:",
+        );
 
         builder.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
         expect(builder.hidden).toBe(true);
@@ -170,7 +301,12 @@ describe("MaterialShell", () => {
         )!;
         commandButton.focus();
         document.dispatchEvent(
-            new KeyboardEvent("keydown", { bubbles: true, ctrlKey: true, shiftKey: true, key: "F" }),
+            new KeyboardEvent("keydown", {
+                bubbles: true,
+                ctrlKey: true,
+                shiftKey: true,
+                key: "F",
+            }),
         );
         const palette = shell.root.querySelector<HTMLElement>(".bm-m3-command-palette")!;
         const search = palette.querySelector<HTMLInputElement>('[aria-label="Search commands"]')!;
@@ -182,11 +318,9 @@ describe("MaterialShell", () => {
         ).toBeTruthy();
         search.value = "appearance";
         search.dispatchEvent(new Event("input"));
-        (
-            [...palette.querySelectorAll<HTMLButtonElement>("[data-search-result]")].find(
-                (button) => button.textContent === "Open map appearance",
-            )!
-        ).click();
+        [...palette.querySelectorAll<HTMLButtonElement>("[data-search-result]")]
+            .find((button) => button.textContent === "Open map appearance")!
+            .click();
 
         expect(palette.hidden).toBe(true);
         expect(shell.root.querySelector<HTMLElement>(".bm-m3-settings")!.hidden).toBe(false);
@@ -199,9 +333,7 @@ describe("MaterialShell", () => {
             '[aria-label="Open map menu"]',
         )!;
         mapMenuButton.click();
-        (
-            shell.root.querySelector<HTMLButtonElement>('[data-map-action="palette"]')!
-        ).click();
+        shell.root.querySelector<HTMLButtonElement>('[data-map-action="palette"]')!.click();
 
         const palette = shell.root.querySelector<HTMLElement>(".bm-m3-command-palette")!;
         expect(palette.hidden).toBe(false);
@@ -290,21 +422,25 @@ describe("MaterialShell", () => {
         )!;
         const mapMenu = shell.root.querySelector<HTMLElement>(".bm-m3-map-menu")!;
         const settings = shell.root.querySelector<HTMLElement>(".bm-m3-settings")!;
+        const settingsButton = shell.root.querySelector<HTMLButtonElement>(
+            '[data-action="settings"]',
+        )!;
 
         mapMenuButton.click();
         (mapMenu.querySelector('[data-map-action="appearance"]') as HTMLButtonElement).click();
         expect(mapMenu.hidden).toBe(true);
         expect(settings.hidden).toBe(false);
+        expect(settingsButton.getAttribute("aria-expanded")).toBe("true");
+        expect(document.activeElement).toBe(settings.querySelector("#bm-theme"));
 
-        mapMenuButton.focus();
-        expect(document.activeElement).toBe(mapMenuButton);
-        mapMenuButton.click();
         document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
         expect(mapMenu.hidden).toBe(true);
+        expect(settings.hidden).toBe(true);
+        expect(settingsButton.getAttribute("aria-expanded")).toBe("false");
         expect(document.activeElement).toBe(mapMenuButton);
     });
 
-    it("leaves other map controls alone when Escape arrives with the map menu closed", () => {
+    it("makes the wide settings dialog dismissible with Escape and returns focus to its opener", () => {
         const shell = new MaterialShell(document.querySelector("main")!);
         const mapMenu = shell.root.querySelector<HTMLElement>(".bm-m3-map-menu")!;
         const settings = shell.root.querySelector<HTMLElement>(".bm-m3-settings")!;
@@ -312,13 +448,27 @@ describe("MaterialShell", () => {
             '[aria-label="Open settings"]',
         )!;
 
+        expect(settings.id).toBe("bm-m3-settings");
+        expect(settings.getAttribute("role")).toBe("dialog");
+        expect(settings.getAttribute("aria-modal")).toBe("false");
+        expect(settingsButton.getAttribute("aria-controls")).toBe("bm-m3-settings");
+        expect(settingsButton.getAttribute("aria-expanded")).toBe("false");
         settingsButton.click();
         expect(settings.hidden).toBe(false);
         expect(mapMenu.hidden).toBe(true);
+        expect(settingsButton.getAttribute("aria-expanded")).toBe("true");
+        expect(document.activeElement).toBe(settings.querySelector("#bm-theme"));
 
         document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
-        expect(settings.hidden).toBe(false);
+        expect(settings.hidden).toBe(true);
         expect(mapMenu.hidden).toBe(true);
+        expect(settingsButton.getAttribute("aria-expanded")).toBe("false");
+        expect(document.activeElement).toBe(settingsButton);
+
+        settingsButton.click();
+        settings.querySelector<HTMLButtonElement>('[data-settings-action="close"]')!.click();
+        expect(settings.hidden).toBe(true);
+        expect(document.activeElement).toBe(settingsButton);
     });
 
     it("keeps the compact CSS bounded and wraps the coordinate fields without shrinking controls", () => {

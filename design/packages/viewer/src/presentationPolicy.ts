@@ -12,6 +12,38 @@ export interface ViewerPresentationRestriction {
     readonly languageAndToneRestricted: boolean;
 }
 
+/** The three persisted presentation choices the standalone served shell can render. */
+export const VIEWER_LANGUAGE_MODES = ["en", "yue", "bilingual"] as const;
+export type ViewerLanguageMode = (typeof VIEWER_LANGUAGE_MODES)[number];
+export type ViewerPresentationLanguage = Exclude<ViewerLanguageMode, "bilingual">;
+
+/** A host-owned, framework-neutral copy bridge for the standalone served shell. */
+export interface ViewerPresentationCopyRequest {
+    readonly surface: "material-shell";
+    readonly key: string;
+    readonly language: ViewerPresentationLanguage;
+    readonly funnyLevel: 1 | 2 | 3 | 4 | 5;
+    readonly values: Readonly<Record<string, string | number>>;
+}
+
+/**
+ * Deliberately independent from the upstream `i18n` lookup adapter.
+ *
+ * The served shell owns its three language modes and its two tone levels; an embedding host can
+ * supply compatible copy without importing a UI framework into the viewer.  A subscription is
+ * optional, but when supplied it must return a disposer so discarded map shells release it.
+ */
+export interface ViewerPresentationAdapter {
+    copy(request: ViewerPresentationCopyRequest): string | undefined;
+    subscribe?(listener: () => void): () => void;
+}
+
+export function normaliseViewerLanguageMode(value: string | null | undefined): ViewerLanguageMode {
+    return VIEWER_LANGUAGE_MODES.includes(value as ViewerLanguageMode)
+        ? (value as ViewerLanguageMode)
+        : "en";
+}
+
 const UNRESTRICTED: ViewerPresentationRestriction = { languageAndToneRestricted: false };
 
 function normaliseRestriction(
@@ -36,9 +68,14 @@ function isStoredLocale(value: string): boolean {
 export class ViewerPresentationPolicy {
     private restriction: ViewerPresentationRestriction;
     private rememberedLocale: string | null = null;
+    readonly presentationAdapter: ViewerPresentationAdapter | undefined;
 
-    constructor(restriction?: ViewerPresentationRestriction) {
+    constructor(
+        restriction?: ViewerPresentationRestriction,
+        presentationAdapter?: ViewerPresentationAdapter,
+    ) {
         this.restriction = normaliseRestriction(restriction);
+        this.presentationAdapter = presentationAdapter;
     }
 
     get languageAndToneRestricted(): boolean {
@@ -64,7 +101,10 @@ export class ViewerPresentationPolicy {
      * Updates the restriction and returns a locale the host should install, if the current
      * effective locale must change.  `null` means the current locale already matches policy.
      */
-    setRestriction(restriction: ViewerPresentationRestriction, currentLocale: string): string | null {
+    setRestriction(
+        restriction: ViewerPresentationRestriction,
+        currentLocale: string,
+    ): string | null {
         const wasRestricted = this.languageAndToneRestricted;
         this.restriction = normaliseRestriction(restriction);
 
@@ -83,6 +123,16 @@ export class ViewerPresentationPolicy {
     /** Level one is the serious effective value without writing over the person's slider. */
     effectiveFunnyLevel(level: number): number {
         return this.languageAndToneRestricted ? 1 : level;
+    }
+
+    /** Restriction forces English presentation without changing the stored viewer choice. */
+    effectiveLanguageMode(mode: ViewerLanguageMode): ViewerLanguageMode {
+        return this.languageAndToneRestricted ? "en" : mode;
+    }
+
+    /** Subscribes only when the embedding host has a live presentation source. */
+    subscribePresentation(listener: () => void): () => void {
+        return this.presentationAdapter?.subscribe?.(listener) ?? (() => {});
     }
 
     private remember(locale: string): void {
