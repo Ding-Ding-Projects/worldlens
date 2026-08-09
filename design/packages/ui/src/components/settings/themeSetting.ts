@@ -48,17 +48,39 @@ function isThemeChoice(value: unknown): value is ThemeChoice {
     return value === null || value === "dark" || value === "light" || value === "contrast";
 }
 
-/** The stored choice, or "follow the system" when there is none or it does not parse. */
+/**
+ * What a profile that has never chosen a theme gets.
+ *
+ * Dark, not follow-the-system, and the Material Design 3 rewrite is why. The shell is a map
+ * viewer: the canvas is a lit 3D world and the chrome around it is a frame, so a light frame puts
+ * the brightest thing on screen around the thing you are meant to be looking at. Following the
+ * system meant a majority of fresh installs opened light and every screenshot of the product
+ * disagreed with every other one.
+ *
+ * It is a **default**, not a policy. Light and contrast are one press away and a stored choice
+ * always wins - `readStoredTheme` returns exactly what was written, including an explicit
+ * follow-the-system, so nobody who chose is overridden by this.
+ */
+export const FRESH_INSTALL_THEME: ThemeChoice = "dark";
+
+/**
+ * The stored choice, or the fresh-install default when there is none or it does not parse.
+ *
+ * A stored `null` is a real value meaning "follow the system", and it is preserved: only the
+ * *absence* of a record falls through to {@link FRESH_INSTALL_THEME}. That distinction is the
+ * whole reason this is not a coalesce at the call site - conflating "never chose" with "chose to
+ * follow the system" would silently overwrite a deliberate choice on the next launch.
+ */
 export function readStoredTheme(): ThemeChoice {
     try {
         const raw = globalThis.localStorage?.getItem(THEME_STORAGE_KEY);
-        if (raw === null || raw === undefined) return null;
+        if (raw === null || raw === undefined) return FRESH_INSTALL_THEME;
         const parsed: unknown = JSON.parse(raw);
-        return isThemeChoice(parsed) ? parsed : null;
+        return isThemeChoice(parsed) ? parsed : FRESH_INSTALL_THEME;
     } catch {
-        // A blocked store or a value that is not JSON both mean the same thing here:
-        // no usable stored choice, so follow the system.
-        return null;
+        // A blocked store and a value that is not JSON both mean the same thing here: no usable
+        // stored choice, so the fresh-install default rather than the system's.
+        return FRESH_INSTALL_THEME;
     }
 }
 

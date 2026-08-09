@@ -31,3 +31,9 @@ tools/oracle/prbm/out/
 # Extracted design reference for the Material Design 3 shell rewrite. The prototype runtime,
 # its screenshots and its 6 MB of PNGs are inspected, never shipped.
 .codex/
+
+# Locally built installers. uild-installer.bat writes here so the artifact is always in
+# one predictable place next to the checkout - and never committed: a 157 MB setup in Git
+# history is a repository nobody can clone.
+/installer/
+

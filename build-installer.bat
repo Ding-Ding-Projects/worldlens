@@ -130,6 +130,20 @@ for /f "skip=1 tokens=* usebackq" %%h in (`certutil -hashfile "%SETUP%" SHA256 2
     if not defined SETUP_SHA set "SETUP_SHA=%%h"
 )
 
+rem --- Collect into one predictable place ------------------------------------
+rem electron-builder writes wherever its config says, which is three directories deep and
+rem different per target. Everything shippable is copied to `installer\` at the repository root
+rem so a person, a release script and another agent all look in the same place - and it is
+rem gitignored, because a 157 MB setup in Git history is a repository nobody can clone.
+echo.
+echo Collecting into %ROOT%installer
+if not exist "%ROOT%installer" mkdir "%ROOT%installer" >nul 2>&1
+copy /y "%SETUP%" "%ROOT%installer\" >nul 2>&1
+if exist "%APPDIR%\release\squirrel-windows\RELEASES" copy /y "%APPDIR%\release\squirrel-windows\RELEASES" "%ROOT%installer\" >nul 2>&1
+for %%f in ("%APPDIR%\release\squirrel-windows\*.nupkg") do copy /y "%%f" "%ROOT%installer\" >nul 2>&1
+for %%f in ("%SETUP%") do set "SETUP_NAME=%%~nxf"
+if exist "%ROOT%installer\%SETUP_NAME%" set "SETUP=%ROOT%installer\%SETUP_NAME%"
+
 echo.
 echo == Installer built ==
 echo    path    %SETUP%
