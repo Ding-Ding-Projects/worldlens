@@ -12,9 +12,18 @@ Replay action and a link to the feature article. Replay does nothing in reduced-
 
 ## Inventory and provenance
 
-The source frames are genuine built Worldlens app/site captures. They are explanatory sequences,
-not claims that the branch is already deployed. The final live Pages capture and workflow remain a
-separate release gate.
+The source frames are genuine built app/site captures. They are explanatory sequences, not claims
+that the branch is already deployed. The final live Pages capture and workflow remain a separate
+release gate.
+
+One row is worth reading before the rest of the table is trusted. `theme-switch.gif` named
+`theme-light.png` and `theme-dark.png` as its frames, and those two files were byte-identical for
+as long as the harness produced them - so on the face of it that GIF was a colour-scheme switch in
+which nothing switched. It is not: its two frames genuinely go light to dark, and they are a
+*different* capture entirely, of a pre-rewrite build's render-location wizard step under the old
+product name. The column has been corrected to say what the frames actually are. A provenance line
+that names the wrong source is worse than an empty one, because it survives every check that reads
+the line rather than the picture.
 
 | Action | GIF | Bytes | Real source frames |
 |---|---:|---:|---|
@@ -22,7 +31,7 @@ separate release gate.
 | Open the global command palette | `command-palette.gif` | 36,107 | Current branch production build, Home and opened palette |
 | Search every documentation article | `documentation-search.gif` | 33,167 | Current branch production build, Home and Search surfaces |
 | Build and apply a regular expression | `regex-builder.gif` | 36,180 | `settings-search.png`, `settings-regex-builder.png` |
-| Switch the live colour scheme | `theme-switch.gif` | 47,388 | `theme-light.png`, `theme-dark.png` |
+| Switch the live colour scheme | `theme-switch.gif` | 47,388 | a pre-rewrite *Material BlueMap* build's "Where this render runs" wizard step, light and dark - **not** `theme-light.png` / `theme-dark.png`, which this column used to name |
 | Change language and both tone levels | `language-tone.gif` | 41,502 | `settings-section-language-and-tone.png`, compact bilingual Pages proof |
 | Create and collapse a tab group | `tab-groups.gif` | 30,960 | compact Pages tab/group proof, bottom-tab proof |
 | Find a tab across the workspace | `tab-discovery.gif` | 33,474 | real root and search menu captures |

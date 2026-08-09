@@ -111,6 +111,8 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
+import { COLOR_SCHEMES, DARK_SCHEME, LIGHT_SCHEME, type SchemeName } from "@worldlens/shared";
 import { migrationEnvironment, resolveCaptureTarget } from "./captureTarget.js";
 import type { CaptureTarget } from "./captureTarget.js";
 import {
@@ -677,9 +679,7 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
         // Every route failed. Say what the strip actually held rather than reporting a timeout on
         // a locator, which names the thing that was not found and nothing about why - and on a run
         // that mostly happens in CI, that difference is the whole diagnosis.
-        throw new Error(
-            `no route to the "${pageId}" job. ` + (await describeShellStrip()),
-        );
+        throw new Error(`no route to the "${pageId}" job. ` + (await describeShellStrip()));
     }
 
     await overflowButton.click({ timeout: ELEMENT_TIMEOUT });
@@ -738,7 +738,9 @@ async function describeShellStrip(): Promise<string> {
     const shellTabs = workTabs();
     const tabs = await shellTabs
         .locator('[role="tab"]')
-        .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? node.textContent ?? ""))
+        .evaluateAll((nodes) =>
+            nodes.map((node) => node.getAttribute("aria-label") ?? node.textContent ?? ""),
+        )
         .catch(() => []);
     const heads = shellTabs.locator(".mb-tabs-strip__group-head");
     const groups: string[] = [];
@@ -1663,13 +1665,203 @@ test("captures the map popup retained at the lower-right viewport edge", async (
  * red run rather than a quietly shorter gallery.
  */
 
-test("captures both themes", async () => {
-    for (const theme of ["light", "dark"] as const) {
-        await page.emulateMedia({ colorScheme: theme });
-        await page.waitForTimeout(300);
-        await shoot(`theme-${theme}`, `The application shell in the ${theme} theme`);
+/**
+ * The scheme's own `surface`, as Vuetify writes it into a custom property: `"248,249,251"`.
+ *
+ * Read from `@worldlens/shared`, which is where the three schemes live and the only place
+ * they live - the Vuetify themes in `packages/ui/src/vuetify.ts` are built from these exact
+ * objects. A literal here would be a second authority that agrees with the product until
+ * somebody edits one of them.
+ */
+function surfaceTriple(scheme: SchemeName): string {
+    const hex = COLOR_SCHEMES[scheme].surface.replace("#", "");
+    const channel = (at: number): number => Number.parseInt(hex.slice(at, at + 2), 16);
+    return `${channel(0)},${channel(2)},${channel(4)}`;
+}
+
+/**
+ * Chooses a colour scheme the way a person does, and waits until it has actually been painted.
+ *
+ * `page.emulateMedia({ colorScheme })` stood here, and it moved nothing whatsoever. The app
+ * consults `prefers-color-scheme` only while the chosen theme is "follow the system", and a
+ * fresh profile does not choose that: `themeSetting.ts`'s `FRESH_INSTALL_THEME` is an explicit
+ * dark, deliberately, so that a majority of installs do not open with a bright frame around a
+ * lit 3D world. So the media query the harness was emulating had no reader, and the pair it
+ * produced was one picture written to two filenames - byte-identical, same md5, in both the
+ * no-map and the map-loaded runs. It photographed a colour-scheme switch in which nothing
+ * switched, and nothing about it looked wrong: two files, two captions, a green test.
+ *
+ * The wait is on the applied value rather than on a timeout for the same reason: a fixed
+ * `waitForTimeout` after a control that reaches nothing waits exactly as successfully as one
+ * after a control that works. `--v-theme-surface` is what the rail and the panels behind this
+ * capture are actually painted from, so a wait that sees it change has seen the thing the
+ * photograph is about to record.
+ */
+async function chooseColourScheme(scheme: "dark" | "light"): Promise<void> {
+    await openSettingsSection("display", "Display and ease of use");
+
+    /*
+     * By position, not by label. `THEME_CHOICES` in `themeSetting.ts` is the order the row
+     * renders - follow the system, dark, light, contrast - while the labels are localised and
+     * Vuetify upper-cases them in CSS, which is the trap this file's own header warns about:
+     * an accessible name computed after `text-transform` matches nothing and fails as a
+     * timeout rather than as a not-found.
+     */
+    const choices = page.locator(`${APP_SETTINGS} .mb-theme-row__toggle .v-btn`);
+    await choices.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    await choices.nth(scheme === "dark" ? 1 : 2).click({ timeout: ELEMENT_TIMEOUT });
+
+    // The settings panel covers the destination this capture is of, so it goes away before the
+    // wait rather than after it - the scheme applies to the whole shell either way.
+    await dismiss();
+
+    /*
+     * Escape hands focus back to the button that opened the panel, which is correct behaviour and
+     * ruins the photograph: that button is the rail's Settings, a focused rail button shows its
+     * tooltip, and the capture then publishes a floating black label over the interface with a
+     * focus ring beside it. `parkPointer` already solves the hover half of exactly this; nothing
+     * solved the focus half, because until now nothing in this file opened a panel and then
+     * photographed what was behind it.
+     */
+    await page.evaluate(() => {
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement) focused.blur();
+    });
+
+    const expected = surfaceTriple(scheme);
+    await page.waitForFunction(
+        (want: string) => {
+            const root = document.querySelector(".mb-app");
+            if (root === null) return false;
+            return (
+                getComputedStyle(root)
+                    .getPropertyValue("--v-theme-surface")
+                    .replace(/\s+/gu, "") === want
+            );
+        },
+        expected,
+        { timeout: ELEMENT_TIMEOUT },
+    );
+    await page.waitForTimeout(400);
+}
+
+/**
+ * The colour that covers most of a capture's application rail.
+ *
+ * Modal rather than a single sampled pixel because the rail carries icons, a selected
+ * destination's pill and a badge; a fixed coordinate lands on one of them the first time
+ * somebody adds a destination, and the assertion then fails for a reason that has nothing to
+ * do with the theme. The rail's own bounding box comes from the running page, so this does not
+ * encode where the rail happens to sit today either.
+ */
+async function dominantRailColour(
+    file: string,
+    box: { x: number; y: number; width: number; height: number },
+    pageWidth: number,
+): Promise<string> {
+    const image = sharp(file);
+    const meta = await image.metadata();
+    const scale = (meta.width ?? pageWidth) / pageWidth;
+    const region = {
+        left: Math.round(box.x * scale),
+        top: Math.round(box.y * scale),
+        width: Math.max(1, Math.round(box.width * scale)),
+        height: Math.max(1, Math.round(box.height * scale)),
+    };
+
+    const { data, info } = await sharp(file)
+        .extract(region)
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+    const tally = new Map<string, number>();
+    for (let at = 0; at + info.channels <= data.length; at += info.channels) {
+        const hex = `#${[data[at]!, data[at + 1]!, data[at + 2]!]
+            .map((value) => value.toString(16).padStart(2, "0").toUpperCase())
+            .join("")}`;
+        tally.set(hex, (tally.get(hex) ?? 0) + 1);
     }
-    await page.emulateMedia({ colorScheme: null });
+
+    let winner = "";
+    let best = -1;
+    for (const [hex, count] of tally) {
+        if (count > best) {
+            winner = hex;
+            best = count;
+        }
+    }
+    return winner;
+}
+
+test("captures both themes", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    /*
+     * The map destination, because it is the one this pair is documented as being of and the one
+     * that carries the surface most likely to be left behind by a theme: the viewer's own control
+     * bar, which is the viewer's chrome rather than the shell's and reads the same tokens only
+     * because `styles/markers.scss` maps them across.
+     */
+    await selectDestination("map");
+
+    /*
+     * There is no camera settle before these two captures, and that is a decision rather than an
+     * omission. The viewer's camera is live and keeps moving on its own, so the two shots - which
+     * are now seconds apart, because changing the scheme means opening a panel and pressing a real
+     * control rather than emulating a media query - show the world a few degrees apart. Measured
+     * across one pair: about 5% of the map area differs, and it does not converge, so a wait for
+     * two matching frames would burn its whole budget every run and then fall out of the loop
+     * reporting success. That is a timeout wearing a wait's clothing, which this file has been
+     * bitten by before. The chrome is what this pair is of; the caption says so, and the assertion
+     * below reads the chrome rather than the world.
+     */
+
+    const rail = page.locator(".wl-rail").first();
+    const viewport = page.viewportSize();
+    expect(
+        viewport,
+        "no viewport size; the capture would have no scale to measure against",
+    ).not.toBeNull();
+
+    const painted = new Map<string, string>();
+
+    for (const scheme of ["light", "dark"] as const) {
+        await chooseColourScheme(scheme);
+        await shoot(`theme-${scheme}`, `The application shell in the ${scheme} theme`);
+
+        const box = await rail.boundingBox();
+        expect(
+            box,
+            `the application rail was not on screen for the ${scheme} capture`,
+        ).not.toBeNull();
+        painted.set(
+            scheme,
+            await dominantRailColour(join(shotDir, `theme-${scheme}.png`), box!, viewport!.width),
+        );
+    }
+
+    /*
+     * The assertion is on the photograph, not on the setting.
+     *
+     * A test that reads the theme back out of the app would have passed throughout the entire
+     * period these two files were identical: the value was always stored, and storing it was
+     * never the thing that was broken. So this reads the pixels that were actually written to
+     * disk, against the schemes in `@worldlens/shared` that the product itself is painted from.
+     */
+    expect(painted.get("light"), "the light capture's rail is not the light scheme's surface").toBe(
+        LIGHT_SCHEME.surface.toUpperCase(),
+    );
+    expect(painted.get("dark"), "the dark capture's rail is not the dark scheme's surface").toBe(
+        DARK_SCHEME.surface.toUpperCase(),
+    );
+    expect(
+        painted.get("light"),
+        "the two colour-scheme captures are the same picture; the scheme reached nothing",
+    ).not.toBe(painted.get("dark"));
+
+    // Left the way a fresh install opens, so every capture after this one is the shipped default
+    // rather than whichever scheme this test happened to finish on.
+    await chooseColourScheme("dark");
 });
 
 /* -------------------------------------------------------------------------- */
@@ -2544,7 +2736,7 @@ test("captures the notification corner and its history", async () => {
     skip(
         "Notification centre opened from the rail's bell",
         "the rail's Notifications button does not open the panel it anchors: pressing it on a " +
-            "fresh profile leaves its own aria-expanded at \"false\" and puts neither " +
+            'fresh profile leaves its own aria-expanded at "false" and puts neither ' +
             ".wl-notifications nor .mb-notice-centre in the document, while the command palette's " +
             "row for the same panel opens it every time. The panel itself is captured above " +
             "through that working route; what has no honest capture is the bell working",

@@ -132,15 +132,15 @@ The block-coordinate popup opened from a real map click near the lower-right vie
 
 ## theme-light
 
-![The application shell in the light theme](theme-light.png)
+![The application shell in the light theme, on the Map destination: title bar, application rail and viewer control bar all drawn on light surfaces](theme-light.png)
 
-The application shell in the light theme. Real Electron app. The map was rendered by upstream BlueMap Java engine (CLI 5.22-27), built from the vendored source in this repository from a synthetic world this repository generated (seed 1, 512x512 blocks), and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, no map is loaded, so the application is showing the wizard for making one.
+The application shell in the light theme, on the Map destination, with the light scheme chosen through the app's own theme control in Settings. Real Electron app. The map was rendered by upstream BlueMap Java engine (CLI 5.22-27), built from the vendored source in this repository from a synthetic world this repository generated (seed 1, 512x512 blocks), and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, the map area shows that locally rendered world. Paired with `theme-dark.png`: the two are the same destination moments apart, so the chrome differs by scheme while the world beneath sits a few degrees around, because the viewer's camera is live and choosing a scheme takes a real trip through Settings.
 
 ## theme-dark
 
-![The application shell in the dark theme](theme-dark.png)
+![The application shell in the dark theme, on the Map destination: title bar, application rail and viewer control bar all drawn on dark surfaces](theme-dark.png)
 
-The application shell in the dark theme. Real Electron app. The map was rendered by upstream BlueMap Java engine (CLI 5.22-27), built from the vendored source in this repository from a synthetic world this repository generated (seed 1, 512x512 blocks), and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, no map is loaded, so the application is showing the wizard for making one.
+The application shell in the dark theme - what a fresh install opens in - on the Map destination, with the dark scheme chosen through the app's own theme control in Settings. Real Electron app. The map was rendered by upstream BlueMap Java engine (CLI 5.22-27), built from the vendored source in this repository from a synthetic world this repository generated (seed 1, 512x512 blocks), and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, the map area shows that locally rendered world. Paired with `theme-light.png`: the rail is `#101418` here against `#F8F9FB` there, which are the two schemes' own `surface` values in `packages/shared/src/colorRoles.ts`.
 
 ## menu-root
 
