@@ -43,10 +43,23 @@ const props = withDefaults(
         /** The palette's real chord, so the tooltip cannot drift from the binding. */
         paletteShortcut?: string;
         /** Reflected into `aria-expanded` so the footer buttons describe their own surfaces. */
+        /**
+         * The DOM id the notification history anchors to.
+         *
+         * Passed in rather than generated here so the shell can hand the same id to the panel: an
+         * anchored panel needs a stable selector for the control that opens it, and a control that
+         * generated its own id would be one the panel could never find.
+         */
+        notificationsActivatorId?: string;
         notificationsOpen?: boolean;
         settingsOpen?: boolean;
     }>(),
-    { paletteShortcut: "Ctrl+Shift+F", notificationsOpen: false, settingsOpen: false },
+    {
+        paletteShortcut: "Ctrl+Shift+F",
+        notificationsActivatorId: "",
+        notificationsOpen: false,
+        settingsOpen: false,
+    },
 );
 
 const emit = defineEmits<{
@@ -167,6 +180,7 @@ const unreadLabel = computed(() =>
             </button>
 
             <button
+                :id="notificationsActivatorId === '' ? undefined : notificationsActivatorId"
                 type="button"
                 class="wl-rail-action mb-interactive"
                 :aria-label="unreadLabel"

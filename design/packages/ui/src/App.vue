@@ -29,12 +29,17 @@ import {
     CataloguePage,
     HomeCatalogues,
     WorkPane,
+    NotificationPanel,
+    ProblemsPanel,
+    StatusStrip,
+    collectProblems,
     createShellNavigation,
     markMigrationRan,
     migrateWorkspace,
     migrationAlreadyRan,
     type CatalogueFeatureDefinition,
     type CatalogueMetaSources,
+    type FeatureTarget,
     type RailDestination,
 } from "./components/shell/index.js";
 import { AppTitleBar } from "./components/shell/index.js";
@@ -348,10 +353,50 @@ const shell = createShellNavigation({
         // An unknown or unavailable target is never a click that silently does nothing. It says
         // so, once, through the same notice history everything else uses.
         raiseNotice("warning", problem.message);
+        if (!routingFailures.value.some((entry) => entry.id === problem.id)) {
+            routingFailures.value = [...routingFailures.value, { id: problem.id, message: problem.message }];
+        }
     },
 });
 
 const destination = shell.destination;
+
+/**
+ * Targets this build could not route, and the panel that shows them.
+ *
+ * A routing failure used to be a click that silently did nothing. It is a visible, dismissible
+ * problem now, with the same wording the development-time error carries - a row that cannot be
+ * opened says so rather than teaching somebody that the catalogue is decorative.
+ */
+const routingFailures = ref<{ id: string; message: string }[]>([]);
+const problemsOpen = ref(false);
+
+/**
+ * The rail bell the notification history anchors to.
+ *
+ * Generated rather than spelled out so nothing else in the document can collide with it, and
+ * handed to both the rail and the panel so the panel anchors to the exact control that opens it.
+ */
+const notificationsActivatorId = useId();
+const notificationsOpen = ref(false);
+
+const problems = computed(() =>
+    collectProblems(
+        {
+            unresolvedPageIds: unresolvedPageIds.value,
+            routingFailures: routingFailures.value,
+        },
+        t as never,
+    ),
+);
+
+/** Page ids restored from a workspace nothing in this build declares. Kept, never deleted. */
+const unresolvedPageIds = ref<readonly string[]>([]);
+
+/** A remedy button routes through the same activation path every catalogue row uses. */
+function onProblemRemedy(target: FeatureTarget): void {
+    void shell.activateTarget(target);
+}
 
 /** Open jobs, read back from the tab workspace rather than kept in a second array here. */
 const openJobIds = ref<readonly string[]>([]);
@@ -367,6 +412,7 @@ onMounted(() => {
     if (migrationAlreadyRan()) return;
     const result = migrateWorkspace(readTabWorkspace());
     if (result.workspace !== null) writeTabWorkspace(result.workspace);
+    unresolvedPageIds.value = result.unresolvedPageIds;
     markMigrationRan();
     shell.destination.value = result.destination;
     if (result.activeJobId !== null) {
@@ -972,6 +1018,19 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
         -->
         <StartupRecoveryBanner />
 
+        <!--
+            One reflowing line, and only when there is something to say. Under the banners and
+            above the content, in the layout rather than over it: a status line that floated would
+            be a toast with a different name.
+        -->
+        <StatusStrip
+            :running-render-count="runningRenderCount"
+            :problem-count="problems.length"
+            :problems-open="problemsOpen"
+            @open-renders="revealPage(PAGE_RENDERS)"
+            @toggle-problems="problemsOpen = !problemsOpen"
+        />
+
         <v-main class="mb-main">
             <!--
                 The viewer, which renders into #map-container rather than into this tree, so
@@ -1005,7 +1064,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :open-job-count="openJobIds.length"
                         :unread-count="unreadNoticeCount"
                         :product-name="productDisplayName"
-                        :notifications-open="false"
+                        :notifications-activator-id="notificationsActivatorId"
+                        :notifications-open="notificationsOpen"
                         :settings-open="settingsOpen"
                         @select="onRailSelect"
                         @open-palette="paletteOpen = true"
@@ -1299,6 +1359,19 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         </template>
                         </WorkPane>
                     </div>
+
+                    <!--
+                        Docked to the bottom of the content, full width excluding the rail. It
+                        reflows the destination above it rather than covering it - a panel over
+                        the bottom of the screen would hide the Save button on the very surface
+                        the problem is about.
+                    -->
+                    <ProblemsPanel
+                        :problems="problems"
+                        :open="problemsOpen"
+                        @update:open="problemsOpen = $event"
+                        @remedy="onProblemRemedy"
+                    />
                 </div>
             </div>
 
@@ -1351,6 +1424,17 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 footer now and the options editor is a row in Set up & help, which is the
                 difference between chrome and litter: chrome has somewhere to live.
             -->
+
+            <!--
+                The history, anchored beside the rail and opened only because somebody pressed the
+                bell or asked for it by name. `raiseNotice()` is untouched: a notice still lands in
+                the history and still moves the badge, and still never appears over the content.
+            -->
+            <NotificationPanel
+                :state="notices"
+                :activator="`#${notificationsActivatorId}`"
+                @update:open="notificationsOpen = $event"
+            />
 
             <AppSettings
                 :open="settingsOpen"
@@ -1463,6 +1547,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     position: relative;
     flex: 1 1 auto;
     min-inline-size: 0;
+    /* Column, so the docked Problems panel is a sibling that takes height from the layer
+     * stack above it rather than floating over it. */
+    display: flex;
+    flex-direction: column;
     /*
      * The one place the shell's own height is decided. Nothing here scrolls: every visible pane
      * owns exactly one scroll region of its own, which is what keeps a wheel gesture from being
@@ -1483,6 +1571,9 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * has to be rebuilt, and navigation must never cost a scene, a camera or a marker selection.
  */
 .mb-shell-layer {
+    /* All three stacked in the same box.  against the growing area above the
+     * Problems panel rather than against the whole content, so opening the panel shortens the
+     * destination instead of being drawn on top of it. */
     position: absolute;
     inset: 0;
     display: flex;

@@ -28,6 +28,11 @@ export { default as AppRail } from "./AppRail.vue";
 export { default as HomeCatalogues } from "./HomeCatalogues.vue";
 export { default as CataloguePage } from "./CataloguePage.vue";
 export { default as WorkPane } from "./WorkPane.vue";
+export { default as StatusStrip } from "./StatusStrip.vue";
+export { default as ProblemsPanel } from "./ProblemsPanel.vue";
+export { default as NotificationPanel } from "./NotificationPanel.vue";
+export { collectProblems, severityLabel, unresolvedCount } from "./problemsAdapter.js";
+export type { Problem, ProblemSeverity, ProblemSources } from "./problemsAdapter.js";
 
 export { CATALOGUES, ALL_CATALOGUE_FEATURES, findCatalogue, findFeature } from "./catalogues.js";
 export { CATALOGUE_IDS, describeTarget, targetDestination, unwrapTarget } from "./featureTargets.js";
