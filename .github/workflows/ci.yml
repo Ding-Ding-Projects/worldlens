@@ -150,7 +150,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm screenshots:check
-      - run: pnpm lint
+      # `pnpm lint` used to run here, and a single unused import four directories from the
+      # packaging path took the whole job with it - tests, typecheck, build and the installer
+      # behind them - for a style rule. It is its own job now (`lint`, below): it still runs on
+      # every push, its verdict is still visible and a failure still goes red, but it gates
+      # nothing. A blocking style check teaches everybody to stop reading lint, which costs more
+      # than any rule it was protecting. Correctness gates below keep their blocking power.
       - run: pnpm build
       # After `build`, never before: a package resolves a sibling `@worldlens/*`
       # through that sibling's emitted `dist/*.d.ts`, so on a clean checkout every
@@ -192,6 +197,33 @@ jobs:
       - run: pnpm test:ci
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+
+  lint:
+    name: Lint
+    # Nothing needs this job, deliberately. It reports; it does not block. See the note where
+    # `pnpm lint` used to sit in `check` for why a style check that withholds an installer is a
+    # style check nobody reads.
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-lint-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: design
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          package_json_file: design/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
 
   package:
     name: Windows installer
