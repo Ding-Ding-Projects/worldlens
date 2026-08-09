@@ -26,6 +26,48 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "f641518bbd0c5beb3f009444495cf3bd4ee6fede",
+        shortSha: "f641518bbd",
+        date: "2026-08-09T19:26:11-04:00",
+        subject: "Replace Pages site with the supplied Material Design 3 experience",
+        details: "The old shell had a perfectly good site, and then the ZIP arrived with a full apartment. This makes the supplied 59-article experience the production entry, bundles React locally, compiles away the prototype evaluator and host bridge, preserves project-base URLs, and restores reduced-motion and focus behavior.\n\n舊殼本來住得幾好，ZIP 一到就帶埋全屋傢俬。今次將 59 篇文章嘅完整體驗搬入正式入口，React 本地化，原型 evaluator 同 host bridge 收工，Pages 子路徑、減少動效同焦點操作全部照顧好。",
+        category: "site",
+        areas: ["site", "build"],
+        files: 37,
+    },
+    {
+        sha: "b3f556547c4c6431911d49ffdf7953419bbc7cc1",
+        shortSha: "b3f556547c",
+        date: "2026-08-09T19:09:02-04:00",
+        subject: "Repair baseline typecheck, lint, and screenshot evidence",
+        details: "The downloader option lookup now falls back only when a value is absent, the seven unused bindings have left their rent-free desks, and the evidence ledger records the missing issue baselines plus the genuine pre-replacement Pages capture.\n\n下載設定而家只會喺真係冇值時先用 fallback；七件無人認領嘅變數行李已經拎走，證據清單亦補返 issue baseline 同真實 Pages 換版前畫面，唔再叫 CI 玩尋寶。",
+        category: "shell",
+        areas: ["shell", "docs", "services"],
+        files: 8,
+    },
+    {
+        sha: "3e89b4a87a10a7847468d9979680f0f886d9daef",
+        shortSha: "3e89b4a87a",
+        date: "2026-08-09T16:12:35-04:00",
+        subject: "Merge pull request #136 from Ding-Ding-Projects/codex/rewrite-electron-from-redesign",
+        details: "Codex/rewrite electron from redesign",
+        category: "other",
+        areas: ["other"],
+        files: 0,
+        summarizes: 2,
+    },
+    {
+        sha: "110e8cc16111fc265809a958f7017e314a4ddb02",
+        shortSha: "110e8cc161",
+        date: "2026-08-09T16:12:12-04:00",
+        subject: "Merge remote-tracking branch 'origin/codex/rewrite-electron-from-redesign-final'",
+        details: "",
+        category: "interface",
+        areas: ["interface", "shell", "engine", "services", "docs"],
+        files: 95,
+        summarizes: 21,
+    },
+    {
         sha: "264897262ac0ed163df3e694493691e590c33884",
         shortSha: "264897262a",
         date: "2026-08-09T14:59:03-04:00",
@@ -214,6 +256,47 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         category: "interface",
         areas: ["interface"],
         files: 2,
+    },
+    {
+        sha: "316e1a11128faa6421e111d302334c6f6e6d3983",
+        shortSha: "316e1a1112",
+        date: "2026-08-09T16:07:16-04:00",
+        subject: "Merge branch 'codex/credential-boundary-20260808'",
+        details: "",
+        category: "shell",
+        areas: ["shell", "interface", "docs"],
+        files: 147,
+        summarizes: 3,
+    },
+    {
+        sha: "2a3684f6b45b37f9a665636192ce81c2942554d3",
+        shortSha: "2a3684f6b4",
+        date: "2026-08-09T05:28:51-04:00",
+        subject: "Route every GitHub credential through the gh CLI and delete the in-app token store",
+        details: "The app used to be its own password manager, which is a career nobody asked it\nto have. main/github/ held a token store, a session layer, a device flow and an\nencrypted credential file on disk, and the renderer shipped a form inviting you\nto paste a personal access token into a text box. All of it is now gone.\nmain/ghcli/ leases accounts from the GitHub CLI instead: the broker selects an\naccount, runs one bounded command, and puts the previously active account back\nafterwards. No token is returned to a caller, copied into an environment\nvariable, or sent across IPC, because the process never asks for one.\n\nGenuinely retired, not merely orphaned: all of main/github/ (accounts, config,\nindex, ipc, session, storage, token), main/download/token.ts, and\nmain/ghcli/routing.ts, plus the renderer's GitHubTokenForm,\nGitHubDeviceFlowPanel, GitHubAccountRow, GitHubAccountsList, GitHubStatusRow,\ngithubBridge and githubAccountsStore. The new credentialBoundary.test.ts\nasserts each retired path no longer exists on disk, so the token box cannot\nquietly move back in next time somebody is in a hurry.\n\nThree files moved rather than died. redact.ts and external.ts went to\nmain/security/ untouched, because neither was ever about GitHub: one is about\nnot printing secrets and the other is about not opening hostile URLs. deviceFlow\nmoved to main/ghcli/ and now proves a sign-in rather than storing its spoils.\n\nNew surfaces: GhEntityPicker for choosing which owner an operation runs against,\nand LegacyCredentialCleanup, which removes an old profile's leftover credential\nfiles using metadata alone. It never opens them, parses them, or describes what\nwas inside, which is the polite way to take out somebody else's rubbish.\n\nThis is a half-finished checkpoint, stated plainly. The shape is coherent and\nthe boundary test writes the contract down, but no test suite has been run over\nthis tree, design/packages/site still describes the deleted GitHubAccountsList\nand GitHubStatusRow in its super-confirmation article, and a stale comment in\ncirender/index.ts still points at main/github/.\n\n以前個 app 兼職做密碼管理員，冇人請佢做呢份工。main/github/ 收埋 token store、\nsession、device flow，仲寫個加密憑證檔落硬碟，renderer 更加擺個表格叫你手動貼\npersonal access token 落去。而家全部拆晒。改由 main/ghcli/ 向 GitHub CLI 借戶口：\nbroker 揀戶口、跑一條有界限嘅指令、跑完即刻換返原本嗰個戶口。冇 token 交畀 caller、\n冇 token 入環境變數、冇 token 過 IPC，因為個 process 由頭到尾都冇問人攞過。\n\n真係退役，唔係擺埋一邊當睇唔到：main/github/ 全家（accounts、config、index、ipc、\nsession、storage、token）、main/download/token.ts、main/ghcli/routing.ts，加埋\nrenderer 嗰堆 GitHubTokenForm、GitHubDeviceFlowPanel、GitHubAccountRow、\nGitHubAccountsList、GitHubStatusRow、githubBridge、githubAccountsStore。新寫嘅\ncredentialBoundary.test.ts 會逐個 path 查實佢哋真係唔喺度，想趕住收工偷偷擺返個\ntoken 格返嚟？唔使旨意。\n\n有三個檔係搬屋唔係送終。redact.ts 同 external.ts 原封不動搬去 main/security/，\n因為佢哋由頭到尾都唔關 GitHub 事：一個係唔想漏秘密，一個係唔想亂開危險網址。\ndeviceFlow 就搬入 main/ghcli/，而家淨係負責證明你簽咗名，唔再收埋啲戰利品。\n\n新嘢有兩件：GhEntityPicker 揀邊個 owner 執行操作；LegacyCredentialCleanup 幫舊\nprofile 清走剩低嘅憑證檔，全程只睇 metadata，唔開、唔解析、唔講入面有咩，\n幫人倒垃圾就係要咁有禮貌。\n\n講明白：呢個係做咗一半嘅 checkpoint。個形狀砌得通，boundary test 都白紙黑字寫低\n份合約，但係呢個 tree 一個 test suite 都未跑過，design/packages/site 嘅\nsuper-confirmation 文章仲寫緊已經刪咗嘅 GitHubAccountsList 同 GitHubStatusRow，\ncirender/index.ts 仲有段舊註解指住 main/github/。",
+        category: "shell",
+        areas: ["shell", "interface"],
+        files: 147,
+    },
+    {
+        sha: "67767606adb555d974d727a91301e113ad43ae88",
+        shortSha: "67767606ad",
+        date: "2026-08-08T17:32:10-04:00",
+        subject: "Capture the legacy GitHub credential surface",
+        details: "The packaged Settings panel now has an immutable before-state witness: browser sign-in, PAT intake, and gh CLI accounts were all sharing one very crowded hallway. No credential data was captured; the test profile and gh configuration were empty.\n\n打包版設定頁而家有張不可變嘅『改之前』證件相：瀏覽器登入、PAT 輸入同 gh CLI 帳戶三個一齊逼喺同一條走廊，迫過茶餐廳午市。截圖用全新空白 profile 同 gh 設定，冇影到任何憑證資料。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
+        sha: "5b35d6cf1b55814a615da0a295bb47456b439cdf",
+        shortSha: "5b35d6cf1b",
+        date: "2026-08-09T16:06:01-04:00",
+        subject: "Auto commit 2026-08-09 20:05:25.178Z",
+        details: "16 files changed\n\n- design/packages/app/src/main/worlddownloader/chunks.test.ts\n- design/packages/app/src/main/worlddownloader/chunks.ts\n- design/packages/app/src/main/worlddownloader/ipc.ts\n- design/packages/app/src/main/worlddownloader/jar.test.ts\n- design/packages/app/src/main/worlddownloader/jar.ts\n- design/packages/app/src/main/worlddownloader/ping.test.ts\n- design/packages/app/src/main/worlddownloader/ping.ts\n- design/packages/app/src/main/worlddownloader/secret.ts\n- design/packages/app/src/main/worlddownloader/session.ts\n- design/packages/app/src/main/worlddownloader/settingsStore.ts\n- …and 6 more",
+        category: "shell",
+        areas: ["shell", "interface", "services"],
+        files: 16,
     }
 ];
 
@@ -225,6 +308,16 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T13:47:02-04:00",
         commit: "ef45eea2494e9266d291d7b4d3235650819516cf",
         entries: [
+            {
+                sha: "ef45eea2494e9266d291d7b4d3235650819516cf",
+                shortSha: "ef45eea249",
+                date: "2026-08-09T13:47:02-04:00",
+                subject: "fix(ui): stop the viewer forging a theme nobody chose",
+                details: "A fresh install opens dark, and then quietly recorded an explicit \"light\" as\nthough the person had picked it - after which it was honoured forever, and null,\nwhich means follow the system, was gone for good.\n\nThe chain, traced rather than guessed. A decorative shell inside the viewer falls\nback to `localStorage.getItem(\"bluemap-theme\") || \"light\"` and writes it back\n**unencoded**, as five bare characters, while every other record the viewer keeps\nis JSON. Reading it back therefore throws, and the catch hands out the raw\nstring. That lands in `appState.theme` - and because the viewer loads its own\npersisted settings *after* it is in the store, it arrives looking exactly like a\nchange somebody made inside the running application. The old watcher mirrored any\nsuch change back out, JSON-encoded it on the way, and produced the well-formed\n\"light\" that every later read honoured.\n\nThe watcher could never have got this right, because both events are the same\nevent: a plain change to `appState.theme`. So intent is stated now rather than\ninferred. The stored record is the only authority; the mirror-back is gone; and\nevery control that offers a theme - the settings row, the in-map menu, the\npalette's viewer settings - calls `changeTheme()`, which writes the record.\n\nBoth behaviours the old code existed for still hold. A viewer that has wandered\noff the record is pushed back onto it - every time rather than once when it first\nappears, which is required rather than incidental, since the viewer's own startup\nis a same-app change. And an in-map choice survives the app being torn down,\nbecause the record is written when the button is pressed rather than mirrored out\nafterwards.\n\nThe test asserts the persisted record, not the rendered theme. With the old arm\nrestored it fails with `expected '\"light\"' to be null` - literally the forged,\nJSON-quoted record from the capture run that started this. A test asserting what\nthe window looks like would have passed throughout: the window was always right.\n\nNot fixed, and stated rather than buried: the origin write is still there. That\nshell still invents `light` and still writes it unparseable on every fresh\nprofile. Nothing reaches the record but `changeTheme` now, and the live viewer is\ncorrected, so the symptom is gone either way - but an unencoded record is a\nlandmine for any future reader that does JSON-parse it. It lives in the viewer\npackage, which another worker is rewriting.\n\n全新安裝開機係 dark，然後佢會靜靜雞記低咗個「light」，當係你自己揀嘅 —— 之後就永\n遠照住嚟做，而 null（即係「跟系統」）就此消失。\n\n查到底：viewer 入面有個裝飾用嘅 shell，冇記錄嗰陣就 `|| \"light\"`，仲要寫返落去嗰\n陣冇 JSON 編碼，得五個字母。讀返出嚟就爆，個 catch 就照交條原始字串出嚟。跟住因為\nviewer 係入咗 store 之後先讀返自己啲設定，所以呢下睇落同「有人喺 app 入面撳咗個\n掣」一模一樣。舊嗰個 watcher 見到就照抄返出去，順手 JSON 編碼埋，於是就整出咗嗰個\n四正嘅 \"light\"。\n\n個 watcher 點做都唔會啱，因為兩件事根本係同一件事。所以而家改成用講嘅，唔靠估。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 7,
+            }
         ],
     },
     {
@@ -233,6 +326,16 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T13:17:11-04:00",
         commit: "83aad54fa53218dc29801a1f5968a3b71f0bafb1",
         entries: [
+            {
+                sha: "83aad54fa53218dc29801a1f5968a3b71f0bafb1",
+                shortSha: "83aad54fa5",
+                date: "2026-08-09T13:17:11-04:00",
+                subject: "fix(app): photograph the theme by using the theme control, not a media query",
+                details: "The light and dark captures were byte-different and pixel-identical in every\npiece of chrome, and the reason is the plainest version of a defect this\nrepository keeps finding: the lever had no reader.\n\nThe test set `emulateMedia({ colorScheme })` and nothing else. The application\nconsults `prefers-color-scheme` only while the chosen theme is \"follow the\nsystem\", and a fresh profile does not choose that - the shipped fresh-install\ntheme is an explicit dark. So the media query moved nothing, in either direction,\nand the two files differed only in the noise of a live camera. That also disposes\nof the other candidate explanation outright: no amount of waiting helps a control\nthat reaches nothing.\n\nThe capture now drives the real control. It opens the display settings, presses\nthe theme row by position rather than by label - the labels are localized and the\nframework upper-cases them - and then waits on the *applied* value: the rail's\nown resolved surface custom property equalling that scheme's surface from the\nshared colour module. Not a timeout. It also selects the Map destination first,\nso the pair is finally a photograph of the surface it has always claimed to be.\n\nThe regression test asserts the photograph rather than the setting: it reads the\nwritten PNG, takes the modal colour over the rail's real bounding box, and\nrequires it to equal each scheme's surface and the two to differ. A test that\nread the theme back out of the application would have passed happily throughout\nthe entire period the two files were identical, because the value was always\nstored. That is the distinction worth having.\n\nThe crop that found this - 420x200 at the top-left - now differs in 19% of its\npixels rather than 0%.\n\nSeparately, `theme-switch.gif` turned out to be fine and its provenance line\nfalse. It genuinely goes light to dark, but its frames are a pre-rewrite build's\nrender-location wizard step, old product name in the title bar, not these two\nPNGs and not the Map destination at all. The row said otherwise, and a provenance\nline naming the wrong source survives every check that reads the line instead of\nthe picture.\n\n明暗兩張相 byte 唔同，但啲 chrome 一個 pixel 都冇變。原因係最典型嗰種：條掣根本冇\n人聽。\n\n個 test 淨係做咗 `emulateMedia`，但個 app 只有喺「跟系統」嗰陣先會理 `prefers-color-scheme`，\n而全新 profile 一開始就係寫死咗 dark，唔係「跟系統」。所以個 media query 由頭到尾\n都推唔郁任何嘢，兩張相之間唔同嘅，得個鏡頭自己郁咗少少。\n\n而家改成撳返個真掣，然後等到個值真係上咗身先影 —— 睇條 rail 自己 resolve 出嚟嘅\nsurface，唔係等秒數。",
+                category: "docs",
+                areas: ["docs", "shell"],
+                files: 6,
+            }
         ],
     },
     {
@@ -241,6 +344,16 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T12:58:47-04:00",
         commit: "618c441fd7b425a985bbc30ad0a7f755cb3b2083",
         entries: [
+            {
+                sha: "618c441fd7b425a985bbc30ad0a7f755cb3b2083",
+                shortSha: "618c441fd7",
+                date: "2026-08-09T12:58:47-04:00",
+                subject: "fix(ui): give the map drawer Material Design 3, and clear ten rules that matched nothing",
+                details: "The drawer was the last surface still wearing Material 2 after everything around\nit was rewritten, and the ten dead style rules were the wreckage of the element\nthat used to carry them.\n\nThe drawer's conversion is mostly measurements, but two of them changed what a\nperson can actually see. Every map's sky dot was drawn at 0.6 opacity, which does\nnot dim a colour - it blends it with the sheet, so the swatch was showing 60% of\nthat map's sky and 40% of the drawer, which is a different colour from the one it\nclaims to be sampling. And the regex builder and the destructive gate teleport\noutside the application root, so the shared surface sheet never reached them at\nall; they were stock framework chrome sitting inside a redesigned application.\n\nThe find worth recording is a specificity conflict that made four touch targets\nsmaller than their own stated floor, in one language mode only. `bilingual.css`\nreleases every button's fixed height so a second language has room to grow, at\ntwo classes of weight. A logical `min-block-size` and a physical `min-height`\ncascade as one property, so four two-class rules silently lost to it: the regex\nbuilder's one-character flag chips, which are the smallest targets in the\napplication, and - worse - the emergency exit of the destructive-action gate,\nwhose own comment promises it is never smaller than the floor. None of them\ncarries a label, so there was no second line to grow them back; they were simply\n36px whenever somebody read the interface in two languages. The repository's\nchangelog records a previous round of exactly this conflict, which is why each\nfix now names it.\n\nThe dead rules got a verdict each rather than a bulk delete. Three re-homed onto\nselectors that match, five dropped with the reason, and one confirmed already\nre-homed. The one that reserved 116px for the floating button stack is gone\nbecause that stack is gone - and a committed test asserts it never returns, so\nholding the space would be permanent dead room.\n\n`cursorAffordance.test.ts` was checking a class no element carried, which is a\nguard that has quietly stopped guarding. Repointed, then proved: the same defect\nwas introduced twice, once against the new selectors, where it went red naming\nthe exact rule, and once against the old token list, where it passed. That second\nrun is the evidence - the filed defect sitting in the file, unflagged.\n\n個抽屜係最後一塊仲著住 Material 2 嘅地方，而嗰十條死 style rule，就係當初掛住佢哋\n嗰個元素拆走之後剩低嘅殘骸。\n\n有兩樣係真係眼見到嘅。每個地圖嘅天空色點畫喺 0.6 opacity —— 咁樣唔係「暗啲」，係\n同張紙撈埋一齊，即係你見到嗰粒色，六成係嗰個地圖嘅天，四成係個抽屜，根本唔係佢話\n緊嗰隻色。仲有 regex builder 同個危險操作閘係 teleport 出咗個 app 之外，共用嗰張\nsurface sheet 掂唔到佢哋，所以佢哋一直係原廠 Vuetify 樣。\n\n最抵記低嗰個係四粒掣細過自己寫明嘅最細尺寸，而且淨係雙語模式先中招。其中一粒係個\n緊急退出掣 —— 佢自己段註釋仲寫住「永遠唔會細過個下限」。",
+                category: "interface",
+                areas: ["interface"],
+                files: 20,
+            }
         ],
     },
     {
@@ -249,6 +362,16 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T12:41:00-04:00",
         commit: "924e7fdfb642a516f7d29a5d926486f3f4f1ab78",
         entries: [
+            {
+                sha: "924e7fdfb642a516f7d29a5d926486f3f4f1ab78",
+                shortSha: "924e7fdfb6",
+                date: "2026-08-09T12:41:00-04:00",
+                subject: "fix(site): put glyphs in the icon buttons, and localize the names they were missing",
+                details: "Seven buttons in the appearance editor were word text inside a fixed\nminimum-touch-target square with no overflow guard - the exact shape that\nproduced the clipped \"Clear search\" defect this package already has a test for.\nReset, Close, the colour row's inherit-clear, the picker's per-representation\ncopy, preset rename, preset delete, and both ends of every number stepper.\n\nThe stepper is the one worth recording. It survived the first sweep because its\ntext was a single character: a lone hyphen or plus does not visibly wrap out of a\n48px square, so nothing looked broken in a screenshot while being the same defect\nas the six that did. Its two ends now take an `IconName` rather than a string, so\nthere is no argument you can pass that produces word text again.\n\nTwo of them were also not localized. \"Reset\" was a hard-coded English literal, so\nit stayed English in Cantonese and in bilingual mode. The stepper's accessible\nnames were worse than that: assembled in TypeScript as `${t(name)} -${step}`, so\nthe property half was translated and the sentence structure around it was not,\nproducing 字體 -0.5 for a reader in Cantonese. Both are catalogue keys now, with\nthe step interpolated because it is the one thing a glyph cannot say.\n\nThe guard that found the stepper is the point. It was written for the first\nbutton, and it immediately named one its author had not reached - which is what\na family of defects looks like, and why the search-field version of this test\nexists at all. Both of its arms were watched failing before being trusted.\n\nAlso declares `platform/layoutRescue.ts` in the destructive-action registry,\nwhich the live-site dock fix landed without. It clears the stored layout\npreferences and nothing else, and it is deliberately not gated: it is the escape\nhatch from a layout that made the site unusable, so a confirmation would sit\nbehind the same wall the visitor is trying to get out from. A rescue that asks\npermission is no rescue at all.\n\n七粒掣本身係喺一個固定尺寸嘅方格入面塞住文字，冇任何 overflow 保護 —— 呢個形狀正\n正就係之前整到「清除搜尋」畀人剪頭剪尾嗰個 error，呢個 package 仲要為咗佢寫過\n一個 test。\n\n最抵讚係個 stepper。佢第一輪掃唔到，因為佢啲字得一個字元 —— 一個「-」或者一個「+」\n喺 48px 格入面唔會明顯溢出，所以影相睇落乜事都冇，但本質同其餘六個一模一樣。\n\n仲有兩個連翻譯都冇做好。「Reset」直頭係寫死嘅英文。個 stepper 更加離譜：喺\nTypeScript 度砌成 `${t(name)} -${step}`，即係屬性個名譯咗，包住佢嗰句嘅結構冇譯，\n廣東話讀者見到嘅係「字體 -0.5」。",
+                category: "site",
+                areas: ["site"],
+                files: 9,
+            }
         ],
     },
     {
@@ -257,6 +380,16 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T12:26:05-04:00",
         commit: "e57ded531c2388a5563487dbd41ffdea7737ce1d",
         entries: [
+            {
+                sha: "e57ded531c2388a5563487dbd41ffdea7737ce1d",
+                shortSha: "e57ded531c",
+                date: "2026-08-09T12:26:05-04:00",
+                subject: "fix(site): stop a top-docked rail hanging a scrim over the whole page",
+                details: "Changing the tab dock to top made the site completely unclickable, and the\nsetting persists, so a visitor who tried it was stranded across reloads with the\ncontrol that would undo it sitting under the thing blocking them.\n\nOne boolean caused it. The shell asked \"is the navigation open\" and answered from\nthe collapsed flag alone. A top-docked rail is permanently not-collapsed - it is\nnot a drawer and has no collapsed state to be in - so that flag said the drawer\nwas open about a rail that is not a drawer. The scrim then covered the viewport\nwith a translucent black button that swallowed every tap and, being wired to\ncollapse a sidebar a horizontal dock has no concept of, did nothing when tapped.\n\nThe photograph a user sent is what identified it: the content was *dimmed*, not\nmerely dead. A transparent full-viewport element would have swallowed clicks and\nchanged nothing visible, so the tint said the thing on top had a background\ncolour, which pointed straight at a scrim rather than at the layout.\n\nThe dismiss layer now belongs to the overlay drawer and to nothing else: a\nvertical placement, not collapsed, and a compact viewport, all three at once.\nEvery one of those is load-bearing, and a check written against the collapsed\nflag alone reads as though it covers the placement and does not.\n\nA layout preference should not be able to strand somebody, so there is now a\nrescue path that runs before any preference is read - a rescued visitor gets a\nshell built from the rescued state rather than one built from the state that\ntrapped them and corrected afterwards.\n\nThe chrome test asserted the drawer through the old single flag. It now pins the\ntwo conditions that actually decide it, because a test satisfied by either one\nalone would pass on exactly the broken state it exists to catch.\n\n個 dock 轉去 top 就成個網站撳唔郁，而且個設定仲會記住，即係話你試完就困死喺嗰度，\n連撳返轉頭嗰粒掣都畀件嘢冚住。\n\n死喺一個 boolean 度：個 shell 問「導覽開咗未」，淨係睇個 collapsed flag。但橫向嗰\n條 rail 根本冇 collapsed 呢個概念，永遠都係「未 collapse」，於是個 flag 就話「抽屜\n開緊」—— 講緊一條唔係抽屜嘅 rail。跟住個 scrim 就冚晒成版，變咗一粒吞晒你所有觸控\n嘅半透明黑掣，而佢係駁去收埋一條橫向 dock 根本冇嘅側欄，所以撳極都冇反應。\n\n用戶影嗰張相先係破案關鍵：啲內容係灰咗，唔係淨係唔郁。透明嘅嘢會食咗你啲 click 但\n乜都唔會變色，灰咗就即係上面嗰件嘢有底色 —— 一睇就知係 scrim，唔係 layout。",
+                category: "site",
+                areas: ["site"],
+                files: 6,
+            }
         ],
     },
     {
@@ -265,6 +398,16 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T12:20:08-04:00",
         commit: "11a89a367af21b989bce18701b5110c61262dabd",
         entries: [
+            {
+                sha: "11a89a367af21b989bce18701b5110c61262dabd",
+                shortSha: "11a89a367a",
+                date: "2026-08-09T12:20:08-04:00",
+                subject: "chore: keep the installer's stashed version out of the repository",
+                details: "`build-installer.bat` stamps a version aside while it packages so it can put the\nreal one back afterwards, and the restore deletes the file. A copy surviving\nmeans a run was interrupted - and one was found holding 0.1.857 hours later,\nwhich is exactly the kind of stray file that gets committed by accident and then\nreads to the next person as a deliberate release decision.\n\n個 installer 打包嗰陣會將個真版本號擺埋一邊，搞掂再擺返。有份剩低即係做到一半斷咗\n纜。今日就執到一份寫住 0.1.857 —— 呢種嘢一唔覺意 commit 咗落去，下一個人睇落就以\n為係有人特登改嘅版本號。",
+                category: "build",
+                areas: ["build"],
+                files: 1,
+            }
         ],
     },
     {
@@ -273,6 +416,17 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T12:13:09-04:00",
         commit: "d22f5d1f4337825c37f7ccffb9a2b09fca2fe856",
         entries: [
+            {
+                sha: "d22f5d1f4337825c37f7ccffb9a2b09fca2fe856",
+                shortSha: "d22f5d1f43",
+                date: "2026-08-09T12:13:09-04:00",
+                subject: "Merge the parallel Electron redesign branch, which fixed the same defect from the other side",
+                details: "Two workers were on this rewrite at once and both found the colour-roles build\nordering. The fixes are complementary rather than competing, so both are kept.\n\nThat branch declared the workspace edge: `@worldlens/shared` is now a build-time\ndependency of the site, so pnpm schedules it first and the generator no longer\nasks for an authority the package graph did not know existed. That is the\nstructural fix and it is the right default - the normal path now works because\nthe manifest describes reality.\n\nThis branch made the generator repair its own missing input: build the authority\nrather than exit 1, and clear the incremental build record first so the repair is\nunconditional. That covers what the declaration cannot - a fresh clone, a partial\nclean, a cache restored without its outputs - where tsc consults its own record,\nbelieves the output is current, emits nothing and reports success.\n\nVerified together on the merged tree: the lockfile is already correct for a\nfrozen install, and the site builds from a deliberately deleted shared/dist.\n\n兩個工人同時做緊呢個 rewrite，兩個都撞到同一個問題：個網站要用 shared 嘅顏色來源，\n但冇人叫 pnpm 先起佢。兩邊嘅解法唔係打交，係啱啱好互補，所以兩樣都留。\n\n嗰邊喺 manifest 度寫返條 workspace edge，等 pnpm 知道要先起 shared - 呢個係正路，\n因為個 manifest 而家講返事實。呢邊就教個 generator 自己起返個缺咗嘅嘢，仲要先清咗\ntsc 嗰個 incremental 記錄，因為佢會信自己張紙，乜都唔出又話成功。",
+                category: "build",
+                areas: ["build"],
+                files: 2,
+                summarizes: 3,
+            },
             {
                 sha: "215e849101bd96edf6140eabdef88c38da9038f9",
                 shortSha: "215e849101",
@@ -302,6 +456,26 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T12:06:35-04:00",
         commit: "3f3c213eb6c333022c709f9ea35491119c8bf3b2",
         entries: [
+            {
+                sha: "3f3c213eb6c333022c709f9ea35491119c8bf3b2",
+                shortSha: "3f3c213eb6",
+                date: "2026-08-09T12:06:35-04:00",
+                subject: "fix(tutorial): make the two map steps describe the thing they are pointing at",
+                details: "The shell rewrite moved Map out of the tab strip and onto the application rail,\nand the tour's anchors were updated to follow it. Its words were not. So both\nsteps highlighted a rail button while the sentence underneath talked about a tab,\nwhich is worse than a stale sentence: the highlight and the text actively\ndisagreed, and the reader had to decide which one to believe.\n\nThe second step was the worse of the two. It highlighted the rail's Map button\nwhile saying \"come back to this tab any time to open what BlueMap made\" - and\nthat sentence was originally about the wizard's own \"Open the map\" button, so\nafter the move \"this tab\" named neither the highlight nor the subject.\n\nBoth now name the rail. `makeAMap` and `publish` also say \"this tab\" and are\ndeliberately untouched, because those two really are still tabs in the strip;\nsweeping the phrase everywhere would have broken two correct steps to fix two\nwrong ones.\n\nFallbacks and catalogue entries were changed together, at all five funny levels\nin both languages. Only changing the fallback would have looked right in every\nsource file and changed nothing whatsoever in the running application, because a\ncatalogue key answers before the fallback is ever reached. That is not a\nhypothetical: it happened in this repository this week, and was found by\nphotographing the packaged build rather than by any test.\n\nOne thing deliberately left undone, because it is a copy decision rather than a\nfix: the rail is not pinned in the facts guard the way GitHub Pages and\nCtrl+Shift+F are. The obvious English word to pin is \"Map\", which is useless\nbecause \"BlueMap\" contains it, so a real guard would have to pin \"rail\" and\nthereby freeze the noun against ever being renamed.\n\nShell 改完之後，「地圖」由 tab 搬咗去側邊導覽欄，個導覽嘅 anchor 跟咗，啲字冇跟。\n結果就係：個高亮圈住條 rail 嘅掣，下面句嘢就同你講緊 tab。呢種唔係「舊咗」咁簡單\n—— 係兩樣嘢當面拗撬，睇嘅人要自己揀信邊個。\n\n第二步仲離譜：圈住 rail 嘅「地圖」掣，但句嘢本身講緊嚮導自己嗰粒「打開地圖」掣，\n搬完之後「呢個分頁」邊個都唔係。\n\nfallback 同 catalogue 一齊改。淨係改 fallback 嘅話，睇原始碼會覺得樣樣啱，但行起\n上嚟一個字都唔會變 —— 因為 catalogue 有 key 就會搶先答。呢個唔係講嚟嚇你嘅，今個\n禮拜喺呢個 repo 度真係發生過，仲要係影相先影到出嚟。",
+                category: "interface",
+                areas: ["interface"],
+                files: 2,
+            },
+            {
+                sha: "511edcd8677ee6c0ecbf796b6896f1c702a5cb15",
+                shortSha: "511edcd867",
+                date: "2026-08-09T12:06:06-04:00",
+                subject: "fix(docs): stop the captures describing an application that no longer exists",
+                details: "The images were regenerated two commits ago. The words around them were not, and\na correct picture under a caption describing a surface that was deleted is\nexactly as misleading as a stale picture - more so, because nothing looks wrong.\n\nTwenty-seven of the site's sixty-one capture records were rewritten. The worst\nwas the landing page's own lead image: a build titled Material BlueMap, showing\nthe eight-tab strip and the three floating buttons, presented as \"The installed\napplication\". The first thing any visitor saw was a product that has not existed\nfor a day. Home and the rail lead now, and that image is kept as a labelled\nhistorical record rather than a gallery tile.\n\nThe rest were quieter and just as wrong. A drawer said it opened over the map\nwith five settings; it is a rail-opened panel with fifteen. The config screen\nclaimed seven tabs and a notice it does not carry; it has eight. The\nnotifications capture described a bell with the number three, and the image is a\ntoast with a dismiss button - no bell, no count. Control-bar inputs said 500 and\nread 256. Ten entries had alt text naming only a pixel size, which is true and\nuseless to somebody who cannot see the picture.\n\nThe README's lead alt described the settings, servers and configuration buttons\nat the bottom left, which the rewrite deleted. Its title-bar caveat said the\ncapture was a pre-rename historical one and the shipped title is now Worldlens -\nbut that image was regenerated and now reads Worldlens, so the caveat had become\nthe only false statement in the paragraph. \"What is not captured, and why\" listed\nfour surfaces as having no capture step written; all four are captured, and two\nreal gaps it omitted are now named.\n\nThe retired capture of the deleted button stack is out of the gallery and kept on\ndisk under a retired group. A photograph does not stop being true when its\nsubject stops existing, and it is the evidence for a claim the README and the\nsite both make. What it must not be is a tile in a gallery of what the\napplication looks like.\n\nAlso fixed: `build-installer.bat` said it restored the version it stamps and\nnever did. It wrote `.version-backup` and nothing ever read it, so every run left\nthe checkout carrying a version nobody chose - one past whatever happened to be\ninstalled on that machine. A sweep found package.json sitting at 0.1.858 hours\nafter the build that stamped it, which is the kind of change that gets committed\nby accident and then reads to the next person as a deliberate release decision.\nThe restore is now a real step, and it runs on the failure path too, because a\ncleanup that only runs when everything worked is a cleanup that will not run on\nthe day it matters.\n\n啲相兩個 commit 之前已經影返晒新嘅，但啲字冇跟住改。一張啱嘅相配一段講緊已經冇咗\n嘅畫面嘅說明，其實同一張舊相一樣咁誤導 —— 仲衰，因為表面上乜事都冇。\n\n最離譜嗰張係個網站首頁自己嗰張：個 app 叫 Material BlueMap，八個 tab 加三粒浮\n掣，寫住「已安裝嘅應用程式」。即係話每個訪客見到嘅第一樣嘢，係一件已經冇咗成日\n嘅產品。\n\n仲有 build-installer.bat 一路話會將個 version 改返，其實乜都冇做過：寫咗個\n.version-backup 出嚟，然後冇人讀。所以每次行完，個 checkout 就掛住一個冇人揀過嘅\n版本號。",
+                category: "docs",
+                areas: ["docs", "site", "other"],
+                files: 12,
+            }
         ],
     },
     {
@@ -310,6 +484,16 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         date: "2026-08-09T11:51:17-04:00",
         commit: "16325aa1352642087882671c9d7cfce4e4491e47",
         entries: [
+            {
+                sha: "16325aa1352642087882671c9d7cfce4e4491e47",
+                shortSha: "16325aa135",
+                date: "2026-08-09T11:51:17-04:00",
+                subject: "feat(ui): rewrite the project editor to the prototype, and make it name real values",
+                details: "The editor's header was a card with a back button in it, which is a dialog rather\nthan a page, and the render tab looked like a different application from the two\ntabs beside it. Both are now the prototype's page: a 40px icon tile beside a\n26px title, a lede on a 70ch measure, the project file as an ellipsised mono\npath, and field rows with the same anatomy the config editor already uses.\n\nThree things here are substance rather than appearance.\n\n\"Revert to default\" now names the value it would restore - \"Revert to off\",\n\"Revert to 4\", \"Revert to This computer\" rather than the word \"default\". The\nroute case matters most: the file stores \"local\" and the control has never shown\nthat word, so a revert naming the stored value would offer to restore something\nnobody can see on screen.\n\nTwo options genuinely cost something to change, and now say so where the control\nis rather than in a tooltip: forcing a render redraws every tile, and moving the\noutput folder leaves the already-rendered tiles behind in the old one. The other\nfour carry nothing, because a warning on every row is a warning nobody reads.\n\nThe generated-defaults count follows the schema instead of being a number\nsomebody typed. The prototype's own copy goes further than we can honestly\nfollow - it promises an untouched value is written exactly as BlueMap would write\nit, and this application leaves untouched values out of the file entirely. Same\nrendered result, different promise, so the copy states ours.\n\nThe render mask card caught a real trap while it was being built. A map written\nfrom upstream's template arrives carrying one fully-unbounded box, so a card that\ncounted shapes would announce \"1 added\" on a mask that limits nothing at all. It\nsays \"1 added and 0 cut out\" with upstream's own no-limit line, and reserves\n\"renders everything\" for a genuinely empty list.\n\nThe 900px measure now comes off while the editor is open. It exists so a line of\nprose does not run the full width of a 1440px window, and an editor is not prose:\napplied indiscriminately it was silently deciding the editor's layout, and the\nonly visible symptom was a rail's worth of content stacked down the page.\n\nNot done, and worth stating rather than implying: there is no per-field save diff,\nbecause the editor is handed the project and a dirty flag and never the on-disk\ncopy, so a field-level list would have to be invented. The plan names the file,\nwhat it will hold, the history revision, and the row people actually want - that\nthe world folder and every rendered tile are untouched.\n\n個 editor 個頭本來係一張 card 加粒返回掣，咁即係 dialog，唔係 page；而 render 嗰\n版睇落更加似另一個 app。而家兩樣都跟返 prototype。\n\n有三樣係真嘢，唔係得個樣：「還原做 default」而家會講返個真值出嚟 - 還原做 off、\n還原做 4、還原做「呢部電腦」，唔係得個 default 字。個 route 嗰個最緊要，因為個檔\n入面寫住 local，但個掣由頭到尾都冇出過呢個字。\n\n另外兩個改咗係要俾代價嘅：force 會成幅重畫，換 output folder 會將已經 render 好嘅\ntiles 掉喺舊 folder。呢兩個先講，其餘四個唔講，因為每行都貼個警告即係冇人會睇。",
+                category: "interface",
+                areas: ["interface"],
+                files: 9,
+            }
         ],
     },
     {
@@ -7639,22 +7823,6 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         ],
     },
     {
-        version: "0.1.0-build.11",
-        tag: "v0.1.0-build.11",
-        date: "2026-08-04T18:03:34-04:00",
-        commit: "de209a13a1bd1cbadab48dded613725582b32702",
-        entries: [
-        ],
-    },
-    {
-        version: "0.1.0-build.7",
-        tag: "v0.1.0-build.7",
-        date: "2026-08-04T17:07:01-04:00",
-        commit: "e68c670ea32df8fbe5891393deb4037499894fc8",
-        entries: [
-        ],
-    },
-    {
         version: "0.1.0-build.244",
         tag: "v0.1.0-build.244",
         date: "2026-08-04T16:53:46-04:00",
@@ -8036,14 +8204,6 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 areas: ["docs"],
                 files: 62,
             }
-        ],
-    },
-    {
-        version: "0.1.0-build.6",
-        tag: "v0.1.0-build.6",
-        date: "2026-08-04T16:45:39-04:00",
-        commit: "691e5769c8238bf6947814f2a5952438b59c91ed",
-        entries: [
         ],
     },
     {
@@ -8668,14 +8828,6 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         ],
     },
     {
-        version: "0.1.0-build.3",
-        tag: "v0.1.0-build.3",
-        date: "2026-08-04T00:45:47-04:00",
-        commit: "f1b03475cdb565c74f3100ef0e4911691ae6e251",
-        entries: [
-        ],
-    },
-    {
         version: "0.1.0-build.123",
         tag: "v0.1.0-build.123",
         date: "2026-08-04T00:45:47-04:00",
@@ -8706,14 +8858,6 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
     {
         version: "0.1.0-build.121",
         tag: "v0.1.0-build.121",
-        date: "2026-08-04T00:37:25-04:00",
-        commit: "1997278fcba1143fd525eacdb033cbccadea4c11",
-        entries: [
-        ],
-    },
-    {
-        version: "0.1.0-build.1",
-        tag: "v0.1.0-build.1",
         date: "2026-08-04T00:37:25-04:00",
         commit: "1997278fcba1143fd525eacdb033cbccadea4c11",
         entries: [

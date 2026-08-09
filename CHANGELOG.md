@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge remote-tracking branch 'origin/codex/rewrite-electron-from-redesign-final' - [`110e8cc161`](https://github.com/Ding-Ding-Projects/worldlens/commit/110e8cc16111fc265809a958f7017e314a4ddb02) _(summary of 21 commits, also listed here)_
 - feat(project): route map masks through one editor - [`45bb81fde0`](https://github.com/Ding-Ding-Projects/worldlens/commit/45bb81fde0fcc9bab3215529a67ab68eb904bba1)
 - feat(notifications): keep redesigned shells history-only - [`45fa6f42ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/45fa6f42ae9583506c9a42e69de377ed390227a2)
 - fix(project): narrow legacy render routes safely - [`98db049c5e`](https://github.com/Ding-Ding-Projects/worldlens/commit/98db049c5eabc7b2519c96d6976033a0420aa9c7)
@@ -46,43 +47,71 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Repair baseline typecheck, lint, and screenshot evidence - [`b3f556547c`](https://github.com/Ding-Ding-Projects/worldlens/commit/b3f556547c4c6431911d49ffdf7953419bbc7cc1)
 - test(captures): exercise rail notifications and fresh config toasts - [`01db881ca4`](https://github.com/Ding-Ding-Projects/worldlens/commit/01db881ca4edf73e97e8f3f49b7f1d098728f3d8)
+- Merge branch 'codex/credential-boundary-20260808' - [`316e1a1112`](https://github.com/Ding-Ding-Projects/worldlens/commit/316e1a11128faa6421e111d302334c6f6e6d3983) _(summary of 3 commits, also listed here)_
+- Route every GitHub credential through the gh CLI and delete the in-app token store - [`2a3684f6b4`](https://github.com/Ding-Ding-Projects/worldlens/commit/2a3684f6b45b37f9a665636192ce81c2942554d3)
+- Auto commit 2026-08-09 20:05:25.178Z - [`5b35d6cf1b`](https://github.com/Ding-Ding-Projects/worldlens/commit/5b35d6cf1b55814a615da0a295bb47456b439cdf)
+
+### Landing page and documentation site
+
+- Replace Pages site with the supplied Material Design 3 experience - [`f641518bbd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f641518bbd0c5beb3f009444495cf3bd4ee6fede)
+
+### Documentation
+
+- Capture the legacy GitHub credential surface - [`67767606ad`](https://github.com/Ding-Ding-Projects/worldlens/commit/67767606adb555d974d727a91301e113ad43ae88)
+
+### Elsewhere in the repository
+
+- Merge pull request #136 from Ding-Ding-Projects/codex/rewrite-electron-from-redesign - [`3e89b4a87a`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e89b4a87a10a7847468d9979680f0f886d9daef) _(summary of 2 commits, also listed here)_
 
 ## 0.1.943 - 2026-08-09
 
 Tagged at [`ef45eea249`](https://github.com/Ding-Ding-Projects/worldlens/commit/ef45eea2494e9266d291d7b4d3235650819516cf).
 
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+### Interface
+
+- fix(ui): stop the viewer forging a theme nobody chose - [`ef45eea249`](https://github.com/Ding-Ding-Projects/worldlens/commit/ef45eea2494e9266d291d7b4d3235650819516cf)
 
 ## 0.1.938 - 2026-08-09
 
 Tagged at [`83aad54fa5`](https://github.com/Ding-Ding-Projects/worldlens/commit/83aad54fa53218dc29801a1f5968a3b71f0bafb1).
 
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+### Documentation
+
+- fix(app): photograph the theme by using the theme control, not a media query - [`83aad54fa5`](https://github.com/Ding-Ding-Projects/worldlens/commit/83aad54fa53218dc29801a1f5968a3b71f0bafb1)
 
 ## 0.1.935 - 2026-08-09
 
 Tagged at [`618c441fd7`](https://github.com/Ding-Ding-Projects/worldlens/commit/618c441fd7b425a985bbc30ad0a7f755cb3b2083).
 
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+### Interface
+
+- fix(ui): give the map drawer Material Design 3, and clear ten rules that matched nothing - [`618c441fd7`](https://github.com/Ding-Ding-Projects/worldlens/commit/618c441fd7b425a985bbc30ad0a7f755cb3b2083)
 
 ## 0.1.931 - 2026-08-09
 
 Tagged at [`924e7fdfb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/924e7fdfb642a516f7d29a5d926486f3f4f1ab78).
 
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+### Landing page and documentation site
+
+- fix(site): put glyphs in the icon buttons, and localize the names they were missing - [`924e7fdfb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/924e7fdfb642a516f7d29a5d926486f3f4f1ab78)
 
 ## 0.1.922 - 2026-08-09
 
 Tagged at [`e57ded531c`](https://github.com/Ding-Ding-Projects/worldlens/commit/e57ded531c2388a5563487dbd41ffdea7737ce1d).
 
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+### Landing page and documentation site
+
+- fix(site): stop a top-docked rail hanging a scrim over the whole page - [`e57ded531c`](https://github.com/Ding-Ding-Projects/worldlens/commit/e57ded531c2388a5563487dbd41ffdea7737ce1d)
 
 ## 0.1.920 - 2026-08-09
 
 Tagged at [`11a89a367a`](https://github.com/Ding-Ding-Projects/worldlens/commit/11a89a367af21b989bce18701b5110c61262dabd).
 
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+### Build, release and tooling
+
+- chore: keep the installer's stashed version out of the repository - [`11a89a367a`](https://github.com/Ding-Ding-Projects/worldlens/commit/11a89a367af21b989bce18701b5110c61262dabd)
 
 ## 0.1.917 - 2026-08-09
 
@@ -90,6 +119,7 @@ Tagged at [`d22f5d1f43`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Build, release and tooling
 
+- Merge the parallel Electron redesign branch, which fixed the same defect from the other side - [`d22f5d1f43`](https://github.com/Ding-Ding-Projects/worldlens/commit/d22f5d1f4337825c37f7ccffb9a2b09fca2fe856) _(summary of 3 commits, also listed here)_
 - merge: reconcile current main before Electron redesign - [`215e849101`](https://github.com/Ding-Ding-Projects/worldlens/commit/215e849101bd96edf6140eabdef88c38da9038f9) _(summary of 14 commits, also listed here)_
 - fix(build): order shared colour roles before site generation - [`5f2e4c5d88`](https://github.com/Ding-Ding-Projects/worldlens/commit/5f2e4c5d88f96a1a7caece39dbd46419e7ff8c4e)
 
@@ -97,13 +127,21 @@ Tagged at [`d22f5d1f43`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 Tagged at [`3f3c213eb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f3c213eb6c333022c709f9ea35491119c8bf3b2).
 
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+### Interface
+
+- fix(tutorial): make the two map steps describe the thing they are pointing at - [`3f3c213eb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f3c213eb6c333022c709f9ea35491119c8bf3b2)
+
+### Documentation
+
+- fix(docs): stop the captures describing an application that no longer exists - [`511edcd867`](https://github.com/Ding-Ding-Projects/worldlens/commit/511edcd8677ee6c0ecbf796b6896f1c702a5cb15)
 
 ## 0.1.912 - 2026-08-09
 
 Tagged at [`16325aa135`](https://github.com/Ding-Ding-Projects/worldlens/commit/16325aa1352642087882671c9d7cfce4e4491e47).
 
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+### Interface
+
+- feat(ui): rewrite the project editor to the prototype, and make it name real values - [`16325aa135`](https://github.com/Ding-Ding-Projects/worldlens/commit/16325aa1352642087882671c9d7cfce4e4491e47)
 
 ## 0.1.910 - 2026-08-09
 
@@ -1549,18 +1587,6 @@ Tagged at [`e680b40540`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Document Bedrock conversion honestly - [`216024ae7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/216024ae7bfa937076abb9d2278a56796e0a0ec1)
 - Record render checkpoint parity - [`1e036c1aac`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e036c1aacb7fb093a3356565040648306ed0cc0)
 
-## 0.1.0-build.11 - 2026-08-04
-
-Tagged at [`de209a13a1`](https://github.com/Ding-Ding-Projects/worldlens/commit/de209a13a1bd1cbadab48dded613725582b32702).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
-
-## 0.1.0-build.7 - 2026-08-04
-
-Tagged at [`e68c670ea3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e68c670ea32df8fbe5891393deb4037499894fc8).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
-
 ## 0.1.0-build.244 - 2026-08-04
 
 Tagged at [`ecc5168e94`](https://github.com/Ding-Ding-Projects/worldlens/commit/ecc5168e94234f87ebdcd595a1655dfebfa723b6).
@@ -1616,12 +1642,6 @@ Tagged at [`ecc5168e94`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Merge current default work before integrating Pages docs - [`12432939ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/12432939aec0a423693303b1f35719a3a18027ed) _(summary of 16 commits, also listed here)_
 - Mention the Pages tab appearance editor - [`542e7eeeaa`](https://github.com/Ding-Ding-Projects/worldlens/commit/542e7eeeaaac172737a1d093cade00ddc6d57c3a)
 - Photograph the History tab, and every wizard step, from a green run - [`531b817588`](https://github.com/Ding-Ding-Projects/worldlens/commit/531b8175889dfd9c7f50de9683dba48b5f84dc1e)
-
-## 0.1.0-build.6 - 2026-08-04
-
-Tagged at [`691e5769c8`](https://github.com/Ding-Ding-Projects/worldlens/commit/691e5769c8238bf6947814f2a5952438b59c91ed).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
 
 ## 0.1.0-build.196 - 2026-08-04
 
@@ -1822,12 +1842,6 @@ Tagged at [`fc084e8b8d`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 - Give the app a palette, a notice history, a changelog, and a builder on every search - [`fc084e8b8d`](https://github.com/Ding-Ding-Projects/worldlens/commit/fc084e8b8d17e86bf3c082de208f9e5d36e168b2)
 
-## 0.1.0-build.3 - 2026-08-04
-
-Tagged at [`f1b03475cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f1b03475cdb565c74f3100ef0e4911691ae6e251).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
-
 ## 0.1.0-build.123 - 2026-08-04
 
 Tagged at [`f1b03475cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f1b03475cdb565c74f3100ef0e4911691ae6e251).
@@ -1838,12 +1852,6 @@ Tagged at [`f1b03475cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Let the site know which repository it is being served from - [`81715bf346`](https://github.com/Ding-Ding-Projects/worldlens/commit/81715bf34696542939948994e64f1c277f29d544)
 
 ## 0.1.0-build.121 - 2026-08-04
-
-Tagged at [`1997278fcb`](https://github.com/Ding-Ding-Projects/worldlens/commit/1997278fcba1143fd525eacdb033cbccadea4c11).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
-
-## 0.1.0-build.1 - 2026-08-04
 
 Tagged at [`1997278fcb`](https://github.com/Ding-Ding-Projects/worldlens/commit/1997278fcba1143fd525eacdb033cbccadea4c11).
 
