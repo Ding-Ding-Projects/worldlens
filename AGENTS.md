@@ -157,6 +157,13 @@ next person and as a decision to nobody.
   clients, even when one is installed and already authenticated. If an operation is not
   available through `git` or `gh`, report the exact CLI limitation and stop rather than silently
   changing routes.
+- **One co-author name across every repository.** Every commit ends with exactly
+  `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` and no other co-author trailer — not the
+  model that happened to write it, not a second agent, not a tool. The reason is arithmetic rather
+  than credit: the release line counter attributes per surviving line with `git blame` and reports
+  what agents wrote beside what people wrote, and a trailer naming whichever model ran that hour
+  splits one author into a dozen identities no total can put back together. The human author of
+  record on the commit is untouched; this is the co-author trailer only.
 - Write commit messages bilingually in English and playful Hong Kong-style Cantonese. Keep the
   English subject concise and put the Cantonese counterpart in the body when a combined subject
   would be unclear or too long.
@@ -341,6 +348,16 @@ created.
 <summary><b>Continuous integration and releases</b></summary>
 
 - Every project has a CI workflow triggered by every push and by manual dispatch.
+- **A lint failure reports, it does not block.** Lint runs on every push and its verdict stays
+  visible and honest — a red lint job stays red — but it never withholds the build, the packaging,
+  the installer, or the release. A style rule, an unused import, or a formatting nit four
+  directories from the packaging path is not a reason to deny somebody the one artifact they can
+  actually run, and treating it as one trains everybody to stop reading lint at all. Run it as its
+  own job so its result is separate and legible, keep it out of every downstream job's `needs`
+  gate, and let the release notes state its real result beside the gates that did pass. Correctness
+  gates — tests, typecheck, the build itself — keep whatever blocking power the project has given
+  them; this is about style, not about proof. Fix the lint failure in the same task regardless: not
+  blocking is not the same as not mattering.
 - A successful run tests the project before publishing exactly one new, uniquely tagged,
   non-draft release. A failed test creates no release.
 - Every push and every manual dispatch that passes publishes a real release carrying a real
@@ -907,6 +924,49 @@ than emitting a dead link. Where one entry summarizes several commits, link the 
 the change and say so. Exports keep the SHA in text form. Never invent entries, dates, or fixes; a
 version with no recorded changes says so. The changelog is brought current in every
 project-changing task, not at release time, worked out from the real commit history.
+
+</details>
+
+<details id="one-click-build-scripts">
+<summary><b>Every repository root carries a one-click build script</b></summary>
+
+- **`build.bat` at the root** takes a checkout with nothing installed and gets it to a built,
+  runnable program. Not a wrapper that assumes the dependencies are there, and not a README note
+  listing four commands — the script *is* those commands, in order, with the failures handled.
+- **Assume a fresh Windows install, and be touchless.** The machine has no runtime, no package
+  manager, no SDK, no build tools. The script obtains every one of them itself, with no prompt, no
+  manual download, and no sentence beginning "Install X and run this again". Prefer the platform
+  package manager that ships with current Windows for a user-scoped install, and fall back to a
+  portable extract into a per-user toolchain directory when it is absent or refuses. **Refresh the
+  current process's `PATH` after installing** rather than assuming it: a package manager writes
+  `PATH` for *future* shells, so the very next line of the same script still cannot find what was
+  just installed — a mistake that reads as "the install failed" when it in fact succeeded.
+- It builds the real artifact through the project's own supported packaging path, the same one CI
+  uses, then **asks whether to run it** — last, never first, so a failed build never gets as far as
+  offering to launch nothing.
+- **It has a silent mode** (`/s`, `--silent`, or a `SILENT=1` environment variable) that installs
+  and builds with no prompt and no interactive pause, exiting non-zero on the first real failure.
+  That is the mode CI, a scheduled task, and another agent use.
+- It reports honestly per phase, is idempotent and safe to re-run, never requires elevation when a
+  user-scoped path exists, never mutates an unrelated global toolchain in place, and never installs
+  secrets, credentials, or a code-signing certificate.
+- **`build-installer.bat` beside it** produces the installer somebody downloads, through the same
+  packaging path CI uses, so a locally built installer and a released one are the same thing rather
+  than two things that resemble each other. Same contract, same silent mode. It **verifies what it
+  built** before claiming success — the file exists, its path, size, and SHA-256 are reported, and
+  the source commit is named — because a green packaging exit code is not an artifact. It states
+  plainly that the installer is unsigned. It never publishes, tags, pushes, or creates a release.
+- **Agents ship every manual release through these scripts, never around them.** A script that only
+  ever runs on a warm developer machine is a script nobody has proven works, and the first time it
+  is genuinely needed is the worst time to find out. Making it the only path means every manual
+  release is also an end-to-end test of what a new machine does. If a script fails during a
+  release, the fix is to the script, in a commit, before the release goes out. The release report
+  names which scripts ran, their exact output, the artifact path and its SHA-256, and confirms the
+  digest matches what was published.
+- Non-Windows hosts get the equivalent alongside (`build.sh`, same flags, same phases) where the
+  project supports them. Both scripts are documented in the README and kept working in every
+  project-changing task: a build script that has silently stopped working is worse than none,
+  because it is the first thing a new machine runs.
 
 </details>
 
