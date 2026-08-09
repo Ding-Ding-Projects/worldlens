@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiChevronRight, mdiMapPlus } from "@mdi/js";
-import { VBtn, VIcon } from "vuetify/components";
+import { mdiChevronRight } from "@mdi/js";
+import { VIcon } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { productDisplayName } from "../../stores/productName.js";
 import { resolveMeta, type CatalogueMetaSources } from "./catalogueMeta.js";
 import {
     catalogueSampleText,
@@ -57,6 +58,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
+/** The user own chosen name for this application, or the shipped one. */
+const productName = productDisplayName;
+
 const query = ref("");
 const regexMode = ref(false);
 const flags = ref("i");
@@ -93,6 +97,28 @@ const hero = computed(() => shown.value.find((catalogue) => catalogue.id === "ma
 
 const rest = computed(() => shown.value.filter((catalogue) => catalogue.id !== "make"));
 
+/**
+ * The hero's own group headings, deduplicated in first-appearance order.
+ *
+ * Derived from the manifest rather than listed, so a group added to Make a map appears here in
+ * the same commit that adds it. First-appearance rather than sorted, because the order the rows
+ * are declared in is the order somebody reads them on the catalogue page - and a chip row that
+ * disagreed with the page behind it would be worse than no chips.
+ */
+const heroGroups = computed<readonly string[]>(() => {
+    const current = hero.value;
+    if (current === null) return [];
+    const seen = new Set<string>();
+    const order: string[] = [];
+    for (const feature of current.definition.features) {
+        const heading = t(feature.groupKey, feature.groupFallback);
+        if (seen.has(heading)) continue;
+        seen.add(heading);
+        order.push(heading);
+    }
+    return order;
+});
+
 const summary = computed(() =>
     searching.value
         ? t(
@@ -121,21 +147,27 @@ function countLabel(catalogue: ResolvedCatalogue): string {
     <div class="wl-home">
         <div class="wl-home__inner">
             <header class="wl-home__header">
-                <h1 class="wl-home__title">{{ t("home.title", "What would you like to do?") }}</h1>
+                <!--
+                    The product's own name as an overline. It is the one place the shell says what
+                    it is without leaning on a window title, and it is the user's chosen name
+                    rather than the shipped one - renaming the application renames this.
+                -->
+                <p class="wl-home__overline">{{ productName }}</p>
+                <h1 class="wl-home__title">{{ t("home.title", "What are you here to do?") }}</h1>
                 <p class="wl-home__lede">
                     {{
                         t(
                             "home.lede",
-                            "Everything this application can do, in five places. Open one to see what is inside it.",
+                            { count: String(allFeatures.length) },
+                            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to.",
                         )
                     }}
                 </p>
             </header>
 
             <!--
-                The same search component every other surface in this application uses, so the
-                anchored regex builder is here for free rather than being a second, weaker filter
-                that happens to look the same.
+                The same search component every other surface here uses, so the anchored regex
+                builder comes with it rather than being a second, weaker filter that looks alike.
             -->
             <ConfigSearchField
                 v-model="query"
@@ -149,62 +181,62 @@ function countLabel(catalogue: ResolvedCatalogue): string {
             />
 
             <!--
-                Searching does not create a sixth card and does not collapse the grid: the five
-                cards stay five cards and each says honestly how much of it matched. A grid that
-                reflowed from five to two and back while somebody typed is a worse answer to "what
-                matched" than a card reading zero.
+                Two columns, hero spanning both. Deliberately a fixed two rather than an auto-fit:
+                five cards in an auto-fit grid reflow between three-and-two and two-and-three on a
+                few pixels of window width, and the hero stops reading as the one thing a newcomer
+                is here for the moment a sibling lands beside it.
             -->
-            <section
-                v-if="hero"
-                class="wl-card wl-card--hero"
-                :aria-labelledby="`wl-card-title-${hero.id}`"
-            >
-                <button
-                    type="button"
-                    class="wl-card__body"
-                    @click="emit('openCatalogue', hero.id)"
-                >
-                    <span class="wl-card__head">
-                        <span class="wl-card__avatar wl-card__avatar--hero">
-                            <v-icon :icon="hero.definition.icon" size="24" />
-                        </span>
-                        <span :id="`wl-card-title-${hero.id}`" class="wl-card__title wl-card__title--hero">
-                            {{ hero.title }}
-                        </span>
-                        <span class="wl-card__count">{{ countLabel(hero) }}</span>
-                    </span>
-                    <span class="wl-card__blurb">{{ hero.blurb }}</span>
-                </button>
-
-                <ul class="wl-card__preview">
-                    <li v-for="feature in preview(hero)" :key="feature.definition.key">
-                        <v-icon :icon="mdiChevronRight" size="14" />
-                        <span>{{ feature.name }}</span>
-                    </li>
-                </ul>
-
-                <!--
-                    Outside the card body button, not inside it: a button inside a button is
-                    invalid markup that browsers repair in ways nobody can predict, and the stopped
-                    propagation below is the behavioural half of the same fix.
-                -->
-                <div class="wl-card__actions">
-                    <v-btn
-                        class="mb-interactive"
-                        color="primary"
-                        variant="flat"
-                        :prepend-icon="mdiMapPlus"
-                        @click.stop="emit('newMap')"
-                    >
-                        {{ t("home.hero.newMap", "New map") }}
-                    </v-btn>
-                    <v-btn class="mb-interactive" variant="text" @click.stop="emit('walkMeThrough')">
-                        {{ t("home.hero.guide", "Or walk me through it") }}
-                    </v-btn>
-                </div>
-            </section>
-
             <div class="wl-home__grid">
+                <section v-if="hero" class="wl-hero" :aria-labelledby="`wl-card-title-${hero.id}`">
+                    <button
+                        type="button"
+                        class="wl-hero__body mb-interactive"
+                        @click="emit('openCatalogue', hero.id)"
+                    >
+                        <span class="wl-hero__avatar">
+                            <v-icon :icon="hero.definition.icon" size="30" />
+                        </span>
+                        <span class="wl-hero__text">
+                            <span :id="`wl-card-title-${hero.id}`" class="wl-hero__title">
+                                {{ hero.title }}
+                            </span>
+                            <span class="wl-hero__blurb">{{ hero.blurb }}</span>
+                            <!--
+                                The catalogue's own group headings, as chips. Explanatory rather
+                                than navigational: they say what shape the catalogue has before it
+                                is opened, which is the question a card exists to answer.
+                            -->
+                            <span class="wl-hero__chips">
+                                <span v-for="group in heroGroups" :key="group" class="wl-chip">
+                                    {{ group }}
+                                </span>
+                            </span>
+                        </span>
+                    </button>
+
+                    <!--
+                        Outside the card body, never inside it: a button inside a button is invalid
+                        markup that browsers repair unpredictably, and the stopped propagation is
+                        the behavioural half of the same fix.
+                    -->
+                    <div class="wl-hero__actions">
+                        <button
+                            type="button"
+                            class="wl-hero__primary mb-interactive"
+                            @click.stop="emit('newMap')"
+                        >
+                            {{ t("home.hero.newMap", "New map") }}
+                        </button>
+                        <button
+                            type="button"
+                            class="wl-hero__secondary mb-interactive"
+                            @click.stop="emit('walkMeThrough')"
+                        >
+                            {{ t("home.hero.guide", "Or walk me through it") }}
+                        </button>
+                    </div>
+                </section>
+
                 <section
                     v-for="catalogue in rest"
                     :key="catalogue.id"
@@ -213,11 +245,14 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                 >
                     <button
                         type="button"
-                        class="wl-card__body"
+                        class="wl-card__body mb-interactive"
                         @click="emit('openCatalogue', catalogue.id)"
                     >
                         <span class="wl-card__head">
-                            <span class="wl-card__avatar">
+                            <span
+                                class="wl-card__avatar"
+                                :class="`wl-card__avatar--${catalogue.id}`"
+                            >
                                 <v-icon :icon="catalogue.definition.icon" size="22" />
                             </span>
                             <span :id="`wl-card-title-${catalogue.id}`" class="wl-card__title">
@@ -226,14 +261,22 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                             <span class="wl-card__count">{{ countLabel(catalogue) }}</span>
                         </span>
                         <span class="wl-card__blurb">{{ catalogue.blurb }}</span>
+                        <!--
+                            Explanatory, capped at four. Deliberately not four more buttons: four
+                            nested controls inside a card that is itself a control is how a
+                            keyboard user ends up pressing Tab nine times to get past Home.
+                        -->
+                        <span class="wl-card__preview">
+                            <span
+                                v-for="feature in preview(catalogue)"
+                                :key="feature.definition.key"
+                                class="wl-card__preview-row"
+                            >
+                                <v-icon :icon="mdiChevronRight" size="16" />
+                                <span>{{ feature.name }}</span>
+                            </span>
+                        </span>
                     </button>
-
-                    <ul class="wl-card__preview">
-                        <li v-for="feature in preview(catalogue)" :key="feature.definition.key">
-                            <v-icon :icon="mdiChevronRight" size="14" />
-                            <span>{{ feature.name }}</span>
-                        </li>
-                    </ul>
                 </section>
             </div>
 
@@ -264,10 +307,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 .wl-home__inner {
     max-inline-size: 1010px;
     margin-inline: auto;
-    padding: 32px 48px 48px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    padding: 30px 48px 48px;
 }
 
 @media (max-width: 900px) {
@@ -276,93 +316,242 @@ function countLabel(catalogue: ResolvedCatalogue): string {
     }
 }
 
-.wl-home__title {
-    font-size: 2rem;
-    line-height: 1.25;
-    font-weight: 400;
+.wl-home__overline {
     margin: 0;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
+}
+
+.wl-home__title {
+    margin: 8px 0 6px;
+    font-size: 2rem;
+    line-height: 40px;
+    font-weight: 400;
     color: rgb(var(--v-theme-on-surface));
 }
 
 .wl-home__lede {
-    margin: 8px 0 0;
+    margin: 0 0 20px;
     max-inline-size: 68ch;
     font-size: 0.875rem;
-    line-height: 1.5;
+    line-height: 21px;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
 }
 
 .wl-home__search {
-    max-inline-size: 520px;
+    margin-block-end: 26px;
 }
 
 .wl-home__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
 }
 
-.wl-card {
+/* One column below the two-column measure, so a card is never narrower than its own prose. */
+@media (max-width: 860px) {
+    .wl-home__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The hero                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.wl-hero {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 24px 26px;
+    border-radius: var(--md-sys-shape-corner-lg, 16px);
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+}
+
+@media (max-width: 860px) {
+    .wl-hero {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+.wl-hero__body {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    background: none;
+    border: 0;
+    padding: 0;
+    text-align: start;
+    cursor: pointer;
+    color: inherit;
+}
+
+.wl-hero__body:focus-visible,
+.wl-card__body:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+.wl-hero__avatar {
+    inline-size: 56px;
+    block-size: 56px;
+    flex: 0 0 56px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--md-sys-shape-corner-lg, 16px);
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+}
+
+.wl-hero__text {
+    flex: 1 1 auto;
+    /* The flex child that can shrink. Without it a long translated title hard-clips instead of
+       wrapping - the defect this project has fixed in a dozen other flexed titles. */
+    min-inline-size: 0;
     display: flex;
     flex-direction: column;
+}
+
+.wl-hero__title {
+    font-size: 1.375rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.wl-hero__blurb {
+    margin-block-start: 4px;
+    max-inline-size: 62ch;
+    font-size: 0.875rem;
+    line-height: 21px;
+    opacity: 0.88;
+    text-wrap: pretty;
+}
+
+.wl-hero__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-block-start: 14px;
+}
+
+.wl-chip {
+    font-size: 0.75rem;
+    padding: 5px 11px;
+    border-radius: var(--md-sys-shape-corner-full, 999px);
+    border: 1px solid currentColor;
+    opacity: 0.72;
+}
+
+.wl-hero__actions {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+}
+
+/*
+ * The only filled primary action on Home, because making a map is the one thing a newcomer is
+ * here for. It fills with the container's own `on-` role rather than the page-level primary,
+ * which would vanish into the card behind it.
+ */
+.wl-hero__primary {
+    block-size: 44px;
+    padding-inline: 26px;
+    border: 0;
+    border-radius: 22px;
+    background: rgb(var(--v-theme-on-primary-container));
+    color: rgb(var(--v-theme-primary-container));
+    font-size: 0.9375rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.wl-hero__secondary {
+    /* 36px is under the 48px minimum on its own, so the row gap plus the hero's own padding is
+       what carries the target: the two actions sit in a 44 + 8 + 36 column inside 24px padding,
+       and neither has a neighbour within 8px of its own hit area. */
+    block-size: 36px;
+    padding-inline: 22px;
+    border: 1px solid currentColor;
+    border-radius: 18px;
+    background: none;
+    color: inherit;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.wl-hero__primary:focus-visible,
+.wl-hero__secondary:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The other four                                                             */
+/* -------------------------------------------------------------------------- */
+
+.wl-card {
     border-radius: var(--md-sys-shape-corner-lg, 16px);
     border: 1px solid rgb(var(--v-theme-outline-variant));
     background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
     overflow: hidden;
 }
 
-.wl-card--hero {
-    border-color: transparent;
-    background: rgb(var(--v-theme-primary-container));
-    color: rgb(var(--v-theme-on-primary-container));
-}
-
 .wl-card__body {
+    inline-size: 100%;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 18px 18px 12px;
+    padding: 20px;
     background: none;
     border: 0;
     text-align: start;
     cursor: pointer;
     color: inherit;
-    min-block-size: 48px;
 }
 
 .wl-card__body:hover {
-    background: rgba(var(--v-theme-on-surface), 0.05);
-}
-
-.wl-card__body:focus-visible {
-    outline: 2px solid rgb(var(--v-theme-primary));
-    outline-offset: -2px;
+    background: rgb(var(--v-theme-surface-container-high, var(--v-theme-surface-container)));
 }
 
 .wl-card__head {
     display: flex;
     align-items: center;
     gap: 12px;
-    /* min-inline-size: 0 on the flex child is what stops a long translated title hard-clipping
-       instead of wrapping - the defect this project has fixed in a dozen other card titles. */
     min-inline-size: 0;
 }
 
 .wl-card__avatar {
-    display: grid;
-    place-items: center;
     inline-size: 40px;
     block-size: 40px;
-    flex: 0 0 auto;
+    flex: 0 0 40px;
+    display: grid;
+    place-items: center;
     border-radius: var(--md-sys-shape-corner-md, 12px);
     background: rgb(var(--v-theme-secondary-container, var(--v-theme-surface)));
     color: rgb(var(--v-theme-on-secondary-container, var(--v-theme-on-surface)));
 }
 
-.wl-card__avatar--hero {
-    background: rgb(var(--v-theme-primary));
-    color: rgb(var(--v-theme-on-primary));
+/*
+ * Sharing is tertiary, which is the same distinction the rest of this application already draws:
+ * the share and unsaved-changes emphasis is tertiary everywhere else it appears, so a share
+ * catalogue wearing the secondary role would be the one place that disagreed.
+ */
+.wl-card__avatar--share {
+    background: rgb(var(--v-theme-tertiary-container, var(--v-theme-surface)));
+    color: rgb(var(--v-theme-on-tertiary-container, var(--v-theme-on-surface)));
 }
 
 .wl-card__title {
@@ -370,66 +559,50 @@ function countLabel(catalogue: ResolvedCatalogue): string {
     min-inline-size: 0;
     font-size: 1.0625rem;
     font-weight: 500;
+    color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
-}
-
-.wl-card__title--hero {
-    font-size: 1.375rem;
 }
 
 .wl-card__count {
     flex: 0 0 auto;
     font-size: 0.75rem;
-    opacity: 0.85;
+    color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
 }
 
 .wl-card__blurb {
-    max-inline-size: 68ch;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    opacity: 0.9;
+    margin: 13px 0 14px;
+    font-size: 0.8125rem;
+    line-height: 20px;
+    color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
 }
 
-/*
- * Explanatory, not navigational: these name what is inside the card so the card does not have to
- * be opened to be understood. They are deliberately not four more buttons - four nested controls
- * inside a card that is itself a control is how a keyboard user ends up pressing Tab nine times
- * to get past Home.
- */
 .wl-card__preview {
-    list-style: none;
-    margin: 0;
-    padding: 0 18px 14px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 8px;
     font-size: 0.8125rem;
-    opacity: 0.8;
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
-.wl-card__preview li {
+.wl-card__preview-row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     min-inline-size: 0;
 }
 
-.wl-card__preview span {
+.wl-card__preview-row :deep(.v-icon) {
+    color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
+}
+
+.wl-card__preview-row span {
     min-inline-size: 0;
     overflow-wrap: anywhere;
 }
 
-.wl-card__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 0 18px 18px;
-}
-
 .wl-home__empty {
-    margin: 0;
-    padding: 24px 0;
+    margin: 24px 0 0;
     font-size: 0.875rem;
     color: rgb(var(--v-theme-on-surface-variant));
 }

@@ -222,7 +222,9 @@ const unreadLabel = computed(() =>
     inline-size: 80px;
     min-inline-size: 80px;
     flex: 0 0 80px;
-    padding-block: 8px 12px;
+    /* The prototype prints 14/12 and a 2px gap, and the difference from a symmetric 12 is
+     * visible: the first pill sits one notch lower than the title bar bottom edge. */
+    padding: 14px 0 12px;
     background: rgb(var(--v-theme-surface));
     border-inline-end: 1px solid rgb(var(--v-theme-outline-variant));
     overflow-y: auto;
@@ -235,7 +237,7 @@ const unreadLabel = computed(() =>
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
 .wl-rail__footer {
@@ -243,7 +245,7 @@ const unreadLabel = computed(() =>
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     padding-block-start: 12px;
 }
 
@@ -300,7 +302,14 @@ const unreadLabel = computed(() =>
  * the longest of them is what decides whether this rail clips - so it is allowed to grow.
  */
 .wl-rail-label {
-    font-size: 0.75rem;
+    /*
+     * 11px with 0.04em tracking, from the prototype. A label this small needs the tracking or it
+     * reads as a smudge at 100% scale, and the weight is what keeps it legible against the pill
+     * above it rather than looking like a caption that fell off something.
+     */
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
     line-height: 1.25;
     text-align: center;
     inline-size: 100%;
@@ -314,7 +323,12 @@ const unreadLabel = computed(() =>
     inline-size: 48px;
     block-size: 48px;
     border: 0;
-    border-radius: var(--md-sys-shape-corner-full, 9999px);
+    /*
+     * 14px, not a full pill. A full radius on a 48px square is a circle, and a circle in a corner
+     * is exactly the floating-button shape this rewrite removed - the footer actions have to read
+     * as part of the rail rather than as three FABs that happened to line up.
+     */
+    border-radius: 14px;
     background: none;
     cursor: pointer;
     color: rgb(var(--v-theme-on-surface-variant));
@@ -333,18 +347,28 @@ const unreadLabel = computed(() =>
 .wl-rail-badge {
     position: absolute;
     inset-block-start: -6px;
-    inset-inline-end: 2px;
-    min-inline-size: 18px;
-    block-size: 18px;
-    padding-inline: 5px;
+    inset-inline-end: -12px;
+    min-inline-size: 16px;
+    block-size: 16px;
+    padding-inline: 3px;
     display: grid;
     place-items: center;
     border-radius: var(--md-sys-shape-corner-full, 9999px);
     background: rgb(var(--v-theme-primary));
     color: rgb(var(--v-theme-on-primary));
-    font-size: 0.6875rem;
-    font-weight: 600;
-    line-height: 1;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 16px;
+}
+
+/*
+ * The bell badge is an error colour in the prototype where the Work badge is primary, and that is
+ * a real distinction rather than a palette slip. The Work badge counts things you opened; the bell
+ * counts things that happened to you. One is neutral information and the other wants an eye.
+ */
+.wl-rail-action .wl-rail-badge {
+    background: rgb(var(--v-theme-error-container, var(--v-theme-error)));
+    color: rgb(var(--v-theme-on-error-container, var(--v-theme-on-error)));
 }
 
 /* Visible focus in all three themes, using the existing focus role rather than a new colour. */
