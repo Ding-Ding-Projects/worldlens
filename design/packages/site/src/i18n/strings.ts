@@ -152,6 +152,38 @@ export const VOICED = {
             "放側邊導航出返迷你喼仔",
         ],
     },
+    "shell.layoutReset": {
+        en: [
+            "The tab dock and the navigation rail have been returned to their defaults.",
+            "The tab dock and the navigation rail are back to their defaults.",
+            "Dock and rail put back where they started. Fresh slate.",
+            "Dock and rail have been marched back to their default positions.",
+            "Dock and rail have been escorted back to their factory seats, no questions asked.",
+        ],
+        yue: [
+            "分頁停靠位置同導航列已經還原做預設值。",
+            "分頁停靠位置同導航列已經還原做預設。",
+            "停靠位置同導航列已經打返原形，重新開始。",
+            "停靠位置同導航列已經俾人押返去預設位置。",
+            "停靠位置同導航列已經俾人請返出廠嗰個位，唔問因由。",
+        ],
+    },
+    "shell.layoutResetAll": {
+        en: [
+            "Every preference this site keeps has been forgotten.",
+            "Every preference this site keeps has been forgotten.",
+            "Every preference has been forgotten. Clean slate.",
+            "Every preference this site had about you is gone.",
+            "Every preference has been forgotten. The site has no idea who you are any more.",
+        ],
+        yue: [
+            "本網站儲存嘅所有偏好設定已經清除。",
+            "本網站儲存嘅所有偏好設定已經清除。",
+            "所有偏好設定已經清空，由頭嚟過。",
+            "本網站記住你嘅嘢，全部唔記得晒。",
+            "所有偏好設定清晒，個網站而家完全唔認得你。",
+        ],
+    },
     "appearance.title": {
         en: [
             "Appearance",

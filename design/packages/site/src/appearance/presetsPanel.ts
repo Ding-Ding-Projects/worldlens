@@ -9,7 +9,7 @@
  * element it belonged to, reported by name, and written out again unchanged.
  */
 
-import { clear, el, uniqueId } from "../platform/dom.js";
+import { clear, el, icon, uniqueId } from "../platform/dom.js";
 import { announce, downloadFile, pickFile } from "../settings/dom.js";
 import { fillPhrase, t } from "../settings/i18n.js";
 import type { AppearanceController } from "./controller.js";
@@ -348,9 +348,15 @@ export function createPresetsPanel(options: PresetsPanelOptions): PresetsPanelVi
 
             const rename = el("button", {
                 class: "md-icon-button",
-                text: t("preset.renameShort"),
-                attrs: { type: "button", "aria-label": t("preset.rename", { name: preset.name }) },
+                attrs: {
+                    type: "button",
+                    // The short verb survives as a hover tooltip, where nothing constrains its
+                    // width, while the accessible name keeps naming which preset it acts on.
+                    title: t("preset.renameShort"),
+                    "aria-label": t("preset.rename", { name: preset.name }),
+                },
             });
+            rename.append(icon("edit"));
             rename.addEventListener("click", () => {
                 nameInput.value = preset.name;
                 nameInput.focus();
@@ -359,9 +365,16 @@ export function createPresetsPanel(options: PresetsPanelOptions): PresetsPanelVi
 
             const remove = el("button", {
                 class: "md-icon-button md-button--danger",
-                text: t("preset.deleteShort"),
-                attrs: { type: "button", "aria-label": t("preset.delete", { name: preset.name }) },
+                attrs: {
+                    type: "button",
+                    title: t("preset.deleteShort"),
+                    "aria-label": t("preset.delete", { name: preset.name }),
+                },
             });
+            // Every saved preset grows a rename and a delete button, so a visitor with a
+            // dozen presets was reading two clipped words twelve times over. `.md-icon-button`
+            // is a fixed square with no overflow guard; a glyph is what fits inside one.
+            remove.append(icon("trash"));
             remove.addEventListener("click", () => {
                 void (async (): Promise<void> => {
                     const confirmed = await options.confirmDestructive(

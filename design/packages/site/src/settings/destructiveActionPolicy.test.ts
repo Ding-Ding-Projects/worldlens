@@ -148,6 +148,27 @@ interface DestructiveFile {
  * Ordered by path so the diff of adding one reads as an addition rather than a reshuffle.
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
+    "platform/layoutRescue.ts": {
+        count: 1,
+        destroys:
+            "the stored tab dock and sidebar layout preferences, and nothing else -- no content, " +
+            "no appearance, no saved preset, no history",
+        standing: "reversible",
+        note:
+            "This is the escape hatch from a layout that made the site unusable, so gating it " +
+            "behind a confirmation would put the confirmation behind the same wall the visitor is " +
+            "trying to get out from. A top-docked rail once hung a scrim over the whole page: " +
+            "every tap was swallowed, the choice persisted, and the control that would undo it was " +
+            "under the thing blocking it. A rescue that asks permission is no rescue at all.\n\n" +
+            "`reversible` rather than `gated` because what it clears is a layout preference " +
+            "somebody can set again in two clicks, and it only runs when the visitor asked for it " +
+            "by the reset parameter.\n\n" +
+            "One call, not two. The file also calls `searchParams.delete` to take that parameter " +
+            "back out of the address, so a reload does not silently re-run the rescue and discard " +
+            "a layout the visitor has since chosen on purpose. That is housekeeping on a URL " +
+            "rather than a deletion of anything the visitor owns, and the scanner correctly does " +
+            "not count it.",
+    },
     "appearance/presetsPanel.ts": {
         count: 3,
         destroys:

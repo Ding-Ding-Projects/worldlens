@@ -11,7 +11,7 @@
  * left out.
  */
 
-import { clear, el, formatShortcut, uniqueId } from "../../platform/dom.js";
+import { clear, el, formatShortcut, icon, uniqueId } from "../../platform/dom.js";
 import { announce } from "../../settings/dom.js";
 import { fillPhrase, t } from "../../settings/i18n.js";
 import { AnchoredPanel } from "../../search/anchoredPanel.js";
@@ -113,9 +113,13 @@ export function openAppearanceEditor(options: OpenEditorOptions): void {
 
     const closeButton = el("button", {
         class: "md-icon-button",
-        text: "Close",
         attrs: { type: "button", "aria-label": t("editor.close") },
     });
+    // The same glyph the settings search fields and the tab close buttons use. The literal
+    // "Close" that stood here was an English word inside a fixed square with no overflow
+    // guard, so it both clipped and stayed English for a visitor reading in Cantonese; the
+    // `aria-label` above was already the real, localised name and is now the only one.
+    closeButton.append(icon("close"));
     closeButton.addEventListener("click", () => {
         panel.close();
     });
