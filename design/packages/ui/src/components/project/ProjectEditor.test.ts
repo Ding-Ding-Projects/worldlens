@@ -22,6 +22,7 @@ import { resolve } from "node:path";
 import { CLI_FLAGS, descriptorFor, type ProjectFile } from "@worldlens/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
+import ConfigMaskField from "../config/ConfigMaskField.vue";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
 import TabbedNavigation from "../tabs/TabbedNavigation.vue";
@@ -201,6 +202,25 @@ describe("every map setting, before the render starts", () => {
         expect(paths).toContain("sky-color");
         expect(paths).toContain("remove-caves-below-y");
         expect(paths).toContain("marker-sets");
+
+        // The map form keeps every FieldMeta row visible, but its render-mask row is a route
+        // into the one map-node card rather than a second editor/draft inside the generated form.
+        const visiblePaths = form
+            .findAll("[data-field-path]")
+            .map((row) => row.attributes("data-field-path"));
+        expect(visiblePaths).toHaveLength(paths.length);
+        expect(form.findAll("[data-field-type]")).toHaveLength(paths.length);
+        expect(form.findAll("[data-field-provenance]")).toHaveLength(paths.length);
+        const maskRow = form.find('[data-field-path="render-mask"]');
+        expect(maskRow.exists()).toBe(true);
+        const launcher = buttonIn(
+            maskRow.element as unknown as ParentNode,
+            "Open the shared Render mask card",
+        );
+        expect(launcher).toBeDefined();
+        launcher!.click();
+        await flushPromises();
+        expect(wrapper.findAllComponents(ConfigMaskField)).toHaveLength(1);
         wrapper.unmount();
     });
 

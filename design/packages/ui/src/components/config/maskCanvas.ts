@@ -44,7 +44,7 @@
  * "unlimited" -- typing `-2147483648` by hand remains the way to leave an axis unbounded.
  */
 
-import type { MaskConfig, PlainValue } from "@worldlens/config";
+import type { PlainValue } from "@worldlens/config";
 import { JAVA_DOUBLE_MAX, JAVA_INT_MAX, JAVA_INT_MIN, isUnboundedSentinel } from "./fieldValue.js";
 
 /* -------------------------------------------------------------------------- */
@@ -509,22 +509,20 @@ export interface Preset {
 const UNBOUNDED_HEIGHT: HeightRange = { minY: JAVA_INT_MIN, maxY: JAVA_INT_MAX };
 
 /**
- * The whole world: a box with every axis left at BlueMap's own "no limit" sentinel.
+ * One unbounded layer: a box with every axis left at BlueMap's own "no limit" sentinel.
  *
- * This is not a guess at the world's size -- it is the literal value an empty mask list
- * already means (`CombinedMask.layers.isEmpty()` renders everything), spelled out as one
- * explicit unbounded box so "reset" and "whole world" are the same real value whether or
- * not a world has ever been measured.
+ * This intentionally changes only the row being edited. It is not a reset of the complete
+ * render-mask list: later ordered layers can still add areas or cut them out. Removing the
+ * whole explicit `render-mask` field is the separate map-level inherited-default action.
  *
  * Always a box, regardless of the shape being edited when it is applied. Every other
  * preset below deliberately stays inside the current shape's own kind -- swapping a
  * circle for a box because someone asked to move it near spawn would be a surprise -- but
- * "whole world" and "reset" are a genuine start-over, and a box is the only shape whose
- * unbounded form is a literal file default rather than an equivalent stand-in. A circle's
- * own unbounded radius (`Double.MAX_VALUE`) means the same thing and stays available by
+ * an unbounded layer needs the one literal BlueMap box representation rather than an
+ * equivalent stand-in. A circle's unbounded radius (`Double.MAX_VALUE`) stays available by
  * typing it into the radius field directly.
  */
-export function wholeWorldPreset(): Preset {
+export function unboundedLayerPreset(): Preset {
     return {
         shape: {
             kind: "box",
@@ -535,7 +533,7 @@ export function wholeWorldPreset(): Preset {
             ...UNBOUNDED_HEIGHT,
         },
         description:
-            "Every axis set to BlueMap's own unlimited sentinel -- the same as having no mask at all.",
+            "This changes only this ordered layer: it has no X, Y, or Z limit. Later ordered layers can still add areas or cut them out.",
     };
 }
 
@@ -882,43 +880,4 @@ export function toMaskRecord(shape: DrawableShape): Record<string, PlainValue> {
         case "polygon":
             return { shape: shape.points.map((point) => ({ x: point.x, z: point.z })), ...height };
     }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Cloud/Actions render parity                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The name is retained for the drawing surface's existing contract. Every schema-valid
- * shape now survives the cloud/Actions path exactly, including subtractive layers; the CLI
- * ports BlueMap's concrete MaskConfig constructors rather than special-casing a box.
- */
-export interface SingleShapeCloudFidelity {
-    /** Always true for a schema-valid shape. */
-    readonly honored: boolean;
-    /** Named, not guessed. `null` exactly when `honored` is `true`. */
-    readonly unsupportedReason: string | null;
-}
-
-export function cloudFidelityForSingleShape(
-    _kind: ShapeKind,
-    _subtract: boolean,
-): SingleShapeCloudFidelity {
-    return { honored: true, unsupportedReason: null };
-}
-
-/**
- * Whether the **whole** render-mask list reaches the cloud/Actions path exactly. The UI cannot
- * import the Electron main-process fidelity service or the CLI, so this small boundary contract
- * is tested against the same empty, multi-layer, subtractive, and recursive-shape cases.
- */
-export interface MaskListCloudFidelity {
-    /** Always true for a schema-valid render-mask list. */
-    readonly honored: boolean;
-    /** Named, not guessed. `null` exactly when `honored` is `true`. */
-    readonly unsupportedReason: string | null;
-}
-
-export function cloudFidelityForMask(_masks: readonly MaskConfig[]): MaskListCloudFidelity {
-    return { honored: true, unsupportedReason: null };
 }
