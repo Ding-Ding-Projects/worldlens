@@ -193,6 +193,9 @@ importers:
 
   packages/site:
     devDependencies:
+      '@worldlens/shared':
+        specifier: workspace:*
+        version: link:../shared
       gifenc:
         specifier: 1.0.3
         version: 1.0.3
