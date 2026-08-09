@@ -1,5 +1,74 @@
 # Handoff
 
+## 2026-08-08 (latest) — the Material Design 3 shell rewrite: rail, catalogues, Work
+
+The approved prototype is the product shell now. Nothing underneath it changed: domain logic,
+config schemas, render orchestration, persistence, security behaviour, Electron integration and
+server behaviour are all exactly where they were. No capability was removed — only how it is
+reached.
+
+**Three destinations behind an 80 px rail.** Home is five catalogue cards over 85 features
+(28/6/6/7/38). Map is the live canvas. Work is the existing tab system re-hosted, holding only the
+jobs somebody actually started. The rail footer carries command search, the notification bell and
+settings — as rail actions, never floating buttons.
+
+**Where the work is.** `components/shell/` holds it all: `featureTargets.ts` (the target union),
+`jobRegistry.ts` (eleven jobs; semantic names map onto the *persisted* page ids, so `wizard` is
+stored as `world` and `runners` as `cirender` — renaming a persisted page id is how a returning user
+loses an open tab), `catalogues.ts` (the 85), `catalogueMeta.ts` (live resolvers only — no count in
+this codebase is transcribed from the prototype, which reported two different totals for the same
+editor), `capabilities.ts` (nine rows gated because their only implementation is a contract this
+public checkout does not carry), `shellNavigation.ts` (one `activateFeature` that every surface
+calls) and `tabWorkspaceMigration.ts`.
+
+**The migration removes exactly two tabs** — Home and Map — and touches nothing else. It moves the
+strip from left to top only when the whole workspace is provably the untouched default, judged on
+semantic fields rather than timestamps or key order. The version marker is written after the
+workspace persists, never before, so a crash between the two leaves it to run again rather than
+leaving a half-migrated strip stamped done.
+
+**`TabbedNavigation` was re-hosted, not rewritten.** Four backwards-compatible additions
+(`seedPageIds`, `defaultPlacement`, `fileNewTabsIntoSeedGroups`, a `workspace-change` emit), every
+default identical to the previous behaviour. **247/247 of its tests pass unchanged.**
+
+**Two root scripts.** `build.bat` assumes a fresh Windows install and installs Node itself
+(user-scoped winget, portable fallback, process PATH refreshed afterwards — a package manager
+writes PATH for *future* shells, so the next line of the same script would otherwise still not find
+it). `build-installer.bat` produces the Squirrel installer and verifies it rather than trusting the
+exit code. Both take `/s`. Manual releases go through them, which makes every hand-cut release an
+end-to-end test of what a new machine does.
+
+**CI changed shape.** Lint is its own job and gates nothing; `package` builds whenever `jars` is
+available; `release` publishes whenever there is a real installer, with a warning callout and a
+per-gate table in the notes so "it shipped" never silently implies "it passed".
+
+### Verified, as observed
+
+| Gate | Result |
+| --- | --- |
+| `catalogues.test.ts` | 19/19 |
+| `components/tabs` | 247/247, contract unchanged |
+| `App.shellFabClearance.test.ts` | 7/7, rewritten to the no-FAB contract |
+| `vue-tsc` on `@worldlens/ui` | clean |
+| `pnpm build` | green, 14/14 projects |
+| `build.bat /s` | exit 0, 24s |
+| `build-installer.bat /s` | `Worldlens-0.1.0-Setup.exe`, 157,187,584 bytes, sha256 `5bab46cb…4f07ad` |
+| `App.test.ts` | **20 failed, 21 passed** — see below |
+
+### What is still red, and what is not done
+
+`App.test.ts` has **20 failures**, all of them cases that assert the shell this rewrite replaced: a
+Home tab, a Map tab, twelve pages one disclosure away, and the configuration FAB. They are the old
+contract still being enforced, not a defect in the new shell. None was skipped, weakened or deleted
+to make a number look better. Rewriting them is tracked on issue #134.
+
+Not built: `StatusStrip`, `ProblemsPanel` and `NotificationPanel` (#130) — the notification centre
+is still reached through the existing `requestReveal('noticeCentre')` path. The Work strip's `+`
+still opens the existing page picker rather than returning Home (#129). Phases 5–8 (#131 #132 #133
+#134) are not done, including the project editor's three panes, served-viewer token identity and
+the recaptured screenshot matrix.
+
+
 ## 2026-08-08 (later) — the interface rewrite: a different look, a calmer first launch, and motion
 
 Branch `claude/interface-usability-clipping-k4to32`, continuing the entry below. The brief was
