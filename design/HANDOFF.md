@@ -1,6 +1,86 @@
 # Handoff
 
-## 2026-08-08 (latest) — the Material Design 3 shell rewrite: rail, catalogues, Work
+## 2026-08-08 (latest) — shell rewrite: phases 1–4 shipped, App suite green
+
+Read this first. The state below is observed, not planned.
+
+### Where it stands
+
+| Phase | Scope | State |
+| --- | --- | --- |
+| 1 | Typed catalogue manifest, job registry, shell navigation, workspace migration | ✅ shipped |
+| 2 | `AppRail`, `HomeCatalogues`, `CataloguePage` | ✅ shipped |
+| 3 | `WorkPane` re-host and job lifecycle | ✅ shipped |
+| 4 | Map shell, `StatusStrip`, `ProblemsPanel`, `NotificationPanel`, FAB removal | ✅ shipped |
+| 5 | Project editor as the primary New map path, deep reveals | ⏳ not started (#131) |
+| 6 | Served-viewer parity, one canonical token output | ⏳ not started (#132) |
+| 7 | Localization, accessibility, responsive, motion, contrast sweep | ⏳ not started (#133) |
+| 8 | Full gates, capture matrix, documentation, cleanup | 🏃 in progress (#134) |
+
+Shipped by hand through `build-installer.bat`: `v0.1.0-phase4.1` (commit `cb3dd01`) and
+`v0.1.0-phase4.2` (commit `99c316d`, dark by default).
+
+### Verified, as observed
+
+| Gate | Result |
+| --- | --- |
+| `App.test.ts` + `App.shellFabClearance.test.ts` | ✅ **48/48** — was 37 failures |
+| `catalogues.test.ts` | ✅ 19/19 |
+| `components/tabs` | ✅ **247/247, contract unchanged** |
+| `vue-tsc` on `@worldlens/ui` | ✅ clean |
+| `pnpm lint` | ✅ clean |
+| `pnpm build` | ✅ 14/14 workspace projects |
+| Rest of the UI suite | ⚠️ 27 failures, **all pre-existing** |
+
+Those 27 were verified by checking out `324e21d` — the commit before this rewrite began — and
+running them there: they fail identically. Theme storage, copy-catalogue coverage, an overlay
+inventory, a Docker panel padding rule. Not caused by the rewrite and not claimed as fixed by it.
+
+### The one thing that is genuinely unfinished, and is not a test
+
+**No pixel-level pass against `Worldlens.dc.html` has been done.** The shell's *structure* matches
+the approved prototype — three destinations behind an 80 px rail, five catalogue cards, catalogue
+pages as divided lists, no floating buttons, dark by default — and the built renderer demonstrably
+contains it (`wl-rail` is present in the shipped bundle JS). What has **not** been checked against
+the prototype is spacing, the type scale in use, and which colour role each surface actually spends.
+If somebody reports "it still looks like the old app" and they are on `v0.1.0-phase4.2` or later,
+that is the gap, not a missing rail.
+
+### Traps this pass paid for, so the next one does not
+
+- **A persisted page id is a user's open tab.** `wizard` is stored as `world` and `runners` as
+  `cirender`; the semantic names live in `jobRegistry.ts` and map onto the stored ids. Rename one on
+  disk and a returning user loses that tab.
+- **A package manager writes `PATH` for *future* shells.** After a winget install, the very next
+  line of the same script still cannot find what it just installed — which reads as "the install
+  failed" when it in fact succeeded. `build.bat` refreshes the process `PATH` explicitly.
+- **A green `electron-builder` exit is not an artifact.** It writes to `release\squirrel-windows\`,
+  not `dist\`; a collector looking only in `dist` reported "nothing was produced" seconds after
+  producing a 157 MB installer.
+- **`display: none` on a canvas host loses the WebGL scene.** The map layer stays mounted with
+  `inert` and `aria-hidden`; Home and Work are opaque layers over it. Navigation must never cost a
+  scene, a camera or a marker selection.
+- **`exists()` answers "was it built", not "is it in front".** Every destination layer stays
+  mounted, so tests read the rail's own `aria-current` through `currentDestination()`.
+- **`actionlint` deadlocks on Windows with shellcheck integration on.** Run it with
+  `-shellcheck=` for the structural verdict and say plainly that the `run:` shell went unchecked by
+  that pass; the hosted runner checks it properly.
+
+### CI changed shape
+
+Lint is its own job and gates nothing. `package` builds whenever `jars` is available. `release`
+publishes whenever there is a real installer, with a warning callout and a per-gate table in the
+notes, so "it shipped" never silently implies "it passed".
+
+### Next session starts here
+
+1. The pixel pass against the prototype (spacing, type ramp, colour roles) — phase 8's real content.
+2. Phase 5: the project editor's three panes, generated defaults, `FieldMeta` rendering, the save
+   plan, CLI resolution, mask integration.
+3. The 27 pre-existing failures, which nobody has owned yet.
+
+
+## 2026-08-08 — the Material Design 3 shell rewrite: rail, catalogues, Work
 
 The approved prototype is the product shell now. Nothing underneath it changed: domain logic,
 config schemas, render orchestration, persistence, security behaviour, Electron integration and
