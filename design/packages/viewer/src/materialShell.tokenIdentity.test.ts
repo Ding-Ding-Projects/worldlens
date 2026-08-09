@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
     COLOR_ROLES,
+    CONTRAST_SCHEME,
     DARK_SCHEME,
     LIGHT_SCHEME,
     schemeToCustomProperties,
@@ -33,13 +34,15 @@ import {
 const source = readFileSync(fileURLToPath(new URL("./materialShell.ts", import.meta.url)), "utf8");
 
 describe("one canonical token source", () => {
-    it("emits every canonical role as a custom property, in both schemes", () => {
+    it("emits every canonical role as a custom property, in all three schemes", () => {
         const light = schemeToCustomProperties(LIGHT_SCHEME);
         const dark = schemeToCustomProperties(DARK_SCHEME);
+        const contrast = schemeToCustomProperties(CONTRAST_SCHEME);
 
         for (const role of COLOR_ROLES) {
             expect(light, role).toContain(`--bm-${role}:${LIGHT_SCHEME[role]};`);
             expect(dark, role).toContain(`--bm-${role}:${DARK_SCHEME[role]};`);
+            expect(contrast, role).toContain(`--bm-${role}:${CONTRAST_SCHEME[role]};`);
         }
     });
 
