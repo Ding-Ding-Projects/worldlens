@@ -27,3 +27,7 @@ test-world/
 
 # Compiled classes and dumps of the unit-level PRBM reference capture.
 tools/oracle/prbm/out/
+
+# Extracted design reference for the Material Design 3 shell rewrite. The prototype runtime,
+# its screenshots and its 6 MB of PNGs are inspected, never shipped.
+.codex/
