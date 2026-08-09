@@ -96,17 +96,32 @@ rem this is its digest". A build that produced nothing fails here rather than
 rem being reported as a success with nothing to show.
 echo.
 echo [4/4] Verifying the artifact
+rem electron-builder writes Squirrel output to `release\squirrel-windows\`, not to
+rem `dist\`. Searching only `dist` is exactly the trap this project has hit
+rem before - a collector reports a missing setup right after packaging succeeded -
+rem so both roots are searched, `release` first because that is where this
+rem configuration actually puts it.
 set "SETUP="
-for /f "delims=" %%f in ('dir /b /s "%APPDIR%\dist\*Setup*.exe" 2^>nul') do set "SETUP=%%f"
+for /f "delims=" %%f in ('dir /b /s "%APPDIR%\release\*Setup*.exe" 2^>nul') do set "SETUP=%%f"
 if not defined SETUP (
-    for /f "delims=" %%f in ('dir /b /s "%APPDIR%\dist\squirrel-windows\*.exe" 2^>nul') do set "SETUP=%%f"
+    for /f "delims=" %%f in ('dir /b /s "%APPDIR%\dist\*Setup*.exe" 2^>nul') do set "SETUP=%%f"
 )
 if not defined SETUP (
     echo.
     echo ERROR: packaging reported success but no installer was found under 1>&2
-    echo        %APPDIR%\dist 1>&2
+    echo        %APPDIR%\release or %APPDIR%\dist 1>&2
     echo        A green exit code is not an artifact. Nothing was produced. 1>&2
     exit /b 1
+)
+
+rem The rest of the Squirrel set, named so a manual release knows what to attach.
+rem An update feed with a setup and no RELEASES is an installer that can never
+rem update itself, which is a defect nobody notices until the second release.
+if exist "%APPDIR%\release\squirrel-windows\RELEASES" (
+    echo       RELEASES present
+) else (
+    echo       WARNING: no RELEASES file beside the installer - automatic updates
+    echo       will not work for a release built from this run
 )
 
 for %%f in ("%SETUP%") do set "SETUP_SIZE=%%~zf"
