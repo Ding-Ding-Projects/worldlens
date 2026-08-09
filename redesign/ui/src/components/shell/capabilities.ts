@@ -1,0 +1,103 @@
+/**
+ * Whether a catalogue row's destination actually exists in this build.
+ *
+ * Seven Set up & help rows and two Language rows describe surfaces whose only implementation is
+ * a contract that is not in this public checkout. The approved design accounts for them - the
+ * eighty-five is a contract of its own - and the honest thing to do with a row whose destination
+ * does not exist is to remove the row, not to draw it as a card with invented status values. A
+ * status card with demo values is still a fake integration, and a clickable no-op is worse than
+ * an absence because it teaches somebody the application is broken.
+ *
+ * So availability is resolved here, from things that are genuinely observable:
+ *
+ *  - `memory-console` - the shared cross-application console. **Absent.** Nothing in this
+ *    repository implements it, and inventing a control plane, a sync attestation or a secret
+ *    intake to fill the gap would put private implementation details into a public repository by
+ *    implication.
+ *  - `restricted-mode` - the shared, renamable mode with its locally verified exit credential.
+ *    **Still absent from this route.** The renderer now has a deliberately local School-mode
+ *    policy under Settings, but this checkout still has no reader for the shared application-data
+ *    record or privileged credential verifier. Calling the local policy universal here would be
+ *    a false capability claim.
+ *  - `personal-vocabulary` - **absent**, and absent is its correct default: the contract says the
+ *    feature exists only when the user supplies an explicit private file, and that without one an
+ *    app "exposes no vocabulary feature at all". A surface that collected one would be the exact
+ *    thing the rule forbids.
+ *  - `narrator` - **absent.** `docs/contracts/localization.md` specifies it; no settings row
+ *    implements it yet. The row stays in the manifest and stays out of the interface until one
+ *    does, rather than routing to a settings section that is not there.
+ *  - `shared-localization-contract` - **present**, because the article genuinely is bundled. This
+ *    one is resolved by asking the docs registry rather than by a constant, so it stops being
+ *    available the moment the article stops being shipped.
+ *
+ * Each of these is a documented boundary rather than a silent gap. `capabilities.test.ts` pins
+ * the reasons so a later change has to state its own.
+ */
+
+import { DOCS_ARTICLE_IDS } from "../docs/docsContent.js";
+
+/** What a capability resolver answers. */
+export interface CapabilityState {
+    readonly available: boolean;
+    /**
+     * Why, in one sentence, for the documentation boundary and for a development-time warning.
+     * Never shown as a disabled tooltip on a control the user can see: an unavailable feature is
+     * absent, not greyed out.
+     */
+    readonly reason: string;
+}
+
+const PRESENT: CapabilityState = { available: true, reason: "" };
+
+function absent(reason: string): CapabilityState {
+    return { available: false, reason };
+}
+
+/**
+ * The resolvers, by capability name.
+ *
+ * Functions rather than constants so a capability that becomes observable later - the docs one
+ * already is - can start answering from real state without every caller changing.
+ */
+const RESOLVERS: Record<string, () => CapabilityState> = {
+    "memory-console": () =>
+        absent(
+            "No public implementation of the shared console, control plane, attestation or secret intake exists in this checkout, and a demonstration of one would be a fake integration.",
+        ),
+    "restricted-mode": () =>
+        absent(
+            "A renderer-local School-mode policy exists in Settings, but the shared application-data record and privileged credential verifier are not exposed here, so the universal restricted-mode route remains unavailable.",
+        ),
+    "personal-vocabulary": () =>
+        absent(
+            "Personal vocabulary exists only from a private file the user supplies. Without one, the correct behaviour is to expose no vocabulary surface at all rather than a control that collects one.",
+        ),
+    narrator: () =>
+        absent(
+            "The spoken narrator is specified in the localization contract and has no settings row yet. The row stays out of the interface until one exists rather than routing to a section that is not there.",
+        ),
+    "shared-localization-contract": () =>
+        DOCS_ARTICLE_IDS.has("localization-contract") || DOCS_ARTICLE_IDS.has("localization")
+            ? PRESENT
+            : absent("The localization contract article is not bundled in this build."),
+};
+
+/**
+ * The state of one capability. An unknown name is available, deliberately: a row that names no
+ * capability is unconditional, and this is called with `undefined` from exactly that path.
+ */
+export function capabilityState(name: string | undefined): CapabilityState {
+    if (name === undefined) return PRESENT;
+    const resolver = RESOLVERS[name];
+    return resolver === undefined ? PRESENT : resolver();
+}
+
+/** Convenience for the common question. */
+export function capabilityAvailable(name: string | undefined): boolean {
+    return capabilityState(name).available;
+}
+
+/** Every capability this build knows how to answer for, for the documentation boundary test. */
+export function knownCapabilities(): readonly string[] {
+    return Object.keys(RESOLVERS);
+}

@@ -1,0 +1,118 @@
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { mdiChevronRight, mdiMapPlus } from "@mdi/js";
+import { VBtn, VIcon } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { resolveMeta, type CatalogueMetaSources } from "./catalogueMeta.js";
+import {
+    catalogueSampleText,
+    createCatalogueMatcher,
+    filterCatalogues,
+    flattenFeatures,
+    resolveCatalogues,
+    type ResolvedCatalogue,
+    type ResolvedFeature,
+} from "./catalogueSearch.js";
+import type { CatalogueFeatureDefinition, CatalogueId } from "./featureTargets.js";
+
+/**
+ * Home: a heading, a search field, and five cards.
+ *
+ * That is the whole page, and the restraint is the point. The pre-rewrite Home was a tile grid
+ * that grew a row every time the application grew a capability, so it answered "what can this do"
+ * by making somebody read forty tiles. Five cards answer it in five words, and the catalogue page
+ * behind each one answers it properly.
+ *
+ * ### The hero has three actions and they do three different things
+ *
+ * The card body opens the Make a map catalogue. **New map** opens the project editor. **Or walk me
+ * through it** opens the guide. All three live inside one card, so every one of them stops
+ * propagation - without that, pressing New map would also fire the card body underneath it and
+ * the person would land on the catalogue they did not ask for, one frame after the editor they
+ * did. `HomeCatalogues.test.ts` asserts each fires alone.
+ *
+ * ### Counts come from array lengths
+ *
+ * Every card header shows `features.length`. Never a literal, and never a number typed into a
+ * translation string, so a feature added to the manifest is counted by the card the same commit.
+ */
+const props = withDefaults(
+    defineProps<{
+        /** Live values for the row metas. Absent fields simply render no meta. */
+        metaSources?: CatalogueMetaSources;
+        /** Removes the rows the restricted-mode contract requires to be absent. */
+        restrictedModeActive?: boolean;
+    }>(),
+    { metaSources: () => ({}), restrictedModeActive: false },
+);
+
+const emit = defineEmits<{
+    openCatalogue: [id: CatalogueId];
+    activateFeature: [feature: CatalogueFeatureDefinition];
+    /** The two hero actions, which are jobs rather than catalogue rows. */
+    newMap: [];
+    walkMeThrough: [];
+}>();
+
+const { t } = useI18n();
+
+const query = ref("");
+const regexMode = ref(false);
+const flags = ref("i");
+
+/**
+ * Resolved at render time rather than once at setup, so a language-mode change or a funny-level
+ * slider moves this page's copy with everything else. `computed` is what makes that free.
+ */
+const catalogues = computed(() =>
+    resolveCatalogues(
+        t as never,
+        (feature) => resolveMeta(feature.metaResolver, props.metaSources, t as never),
+        props.restrictedModeActive,
+    ),
+);
+
+const allFeatures = computed(() => flattenFeatures(catalogues.value));
+
+const matcher = computed(() => createCatalogueMatcher(query.value, regexMode.value, flags.value));
+
+const shown = computed<readonly ResolvedCatalogue[]>(() =>
+    filterCatalogues(catalogues.value, matcher.value),
+);
+
+const matchCount = computed(() =>
+    shown.value.reduce((total, catalogue) => total + catalogue.features.length, 0),
+);
+
+const searching = computed(() => matcher.value.active);
+
+/** The hero is the first catalogue. Named rather than indexed, so reordering cannot silently
+ * promote a different card to hero and change what the primary button does. */
+const hero = computed(() => shown.value.find((catalogue) => catalogue.id === "make") ?? null);
+
+const rest = computed(() => shown.value.filter((catalogue) => catalogue.id !== "make"));
+
+const summary = computed(() =>
+    searching.value
+        ? t(
+              "home.search.summary",
+              { shown: String(matchCount.value), total: String(allFeatures.value.length) },
+              "{shown} of {total} features",
+          )
+        : "",
+);
+
+/** At most four, always. A card that listed everything would be the tile grid again. */
+function preview(catalogue: ResolvedCatalogue): readonly ResolvedFeature[] {
+    return catalogue.features.slice(0, 4);
+}
+
+function countLabel(catalogue: ResolvedCatalogue): string {
+    return t(
+        "home.card.count",
+        { count: String(catalogue.features.length) },
+        "{count} features",
+    );
+}
+</script>
