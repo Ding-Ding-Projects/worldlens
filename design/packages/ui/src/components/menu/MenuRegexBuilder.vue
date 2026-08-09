@@ -364,27 +364,131 @@ async function copy(value: string, what: string): Promise<void> {
 </template>
 
 <style>
-.mb-regex-builder {
+/* ===========================================================================
+ * This panel has to state its own surface, and that is not a stylistic choice.
+ *
+ * Vuetify's `useTeleport` appends `.v-overlay-container` to `<body>`, a sibling of `#app` -
+ * `motion.scss` documents the same fact for the reduced-motion kill switch it puts out of
+ * reach. So this card is outside `.v-application` *and* outside `.mb-shell-layer`, which
+ * means every rule in `prototypeSurface.scss` that gives the application its card, its list
+ * row, its button and its field misses it entirely. Left alone it renders in stock Vuetify:
+ * a 4px corner, a Material 2 three-shadow elevation and an upper-cased button label, opened
+ * from a field that is none of those things.
+ *
+ * That is why the block below spends the `md3.scss` tokens directly rather than reaching for
+ * the shared classes. It is not a second opinion about what a card is; it is the same opinion
+ * in the one place the shared sheet cannot be heard.
+ * ------------------------------------------------------------------------- */
+.mb-regex-builder.v-card {
     max-height: min(70vh, 640px);
     overflow-y: auto;
+
+    /*
+     * M3 puts a menu's container one step above the surface it opens over, which is what
+     * stops an anchored panel from reading as a hole in the page behind it. Opaque, and
+     * stated: this panel can be opened from the map menu, and everything that opens over a
+     * terrain render in this application paints its own surface.
+     */
+    background: rgb(var(--v-theme-surface-container-high));
+    color: rgb(var(--v-theme-on-surface));
+
+    /*
+     * The step between M3's menu corner (4dp, sized for a strip of commands) and its dialog
+     * corner (28dp, sized for a full-screen decision). This is a 420px panel that declares
+     * `role="dialog"` and is anchored like a menu, and `corner-lg` is both the scale step
+     * that suits it and a hair off the 14px every card in the application already uses.
+     */
+    border-radius: var(--md-sys-shape-corner-lg);
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+
+    /* M3's own elevation for a menu, from the two-shadow ladder rather than Vuetify's M2
+       umbra/penumbra/ambient triple - which is the reason a stock Vuetify overlay looks
+       heavier and muddier than an M3 one at the same nominal level. */
+    box-shadow: var(--md-sys-elevation-shadow-level2);
 }
 
 .mb-regex-builder__body {
     padding: 12px 16px 16px;
 }
 
+/*
+ * The panel's own headline, at M3's title-medium - the same ramp the drawer's header takes,
+ * because they are the same kind of thing. The prose under it drops two full steps to
+ * body-small, so "Regex builder" and "ECMAScript RegExp, evaluated locally" are told apart
+ * by size and colour rather than by being read.
+ */
 .mb-regex-builder__heading {
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: var(--md-sys-typescale-title-medium-size);
+    line-height: var(--md-sys-typescale-title-medium-line-height);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    letter-spacing: var(--md-sys-typescale-title-medium-tracking);
     margin-block-end: 2px;
 }
 
 .mb-regex-builder__engine,
 .mb-regex-builder__summary {
-    font-size: 0.75rem;
-    line-height: 1.4;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
     margin-block: 4px;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/*
+ * The token buttons and the flag chips, which are the panel's whole vocabulary and are
+ * pressed far more often than anything else in it. Outside the shell layer they keep
+ * Vuetify's Material 2 shape and upper-cased label, and a `\d` rendered upper-case is a
+ * different pattern from the one on the button - so the label casing here is correctness
+ * rather than taste. 40x40 is this project's floor for a target, and a row of eleven
+ * 28px chips is exactly the case it was written for.
+ *
+ * The compound `.mb-regex-builder.v-card` at the front is what makes the floor survive
+ * bilingual mode, and it is not decoration. `copy/bilingual.css` sizes every button and chip
+ * in the application as `html[data-language-mode="bilingual"] .v-btn { height: auto;
+ * min-height: 36px }` so a two-line label can push the box down - correct, and at (0,2,1) it
+ * out-ranks a two-class rule here. A logical `min-block-size` and a physical `min-height`
+ * cascade against each other as one property, so the 40px floor below would simply have
+ * become 36px the moment somebody switched language, on the smallest targets in the whole
+ * application: a one-character flag chip has no second line to grow it back. That exact
+ * conflict has already been fixed once in this repository, on `MenuChoice.vue`'s segmented
+ * buttons, which is why it is worth naming rather than leaving to be rediscovered.
+ */
+.mb-regex-builder.v-card .v-btn {
+    border-radius: var(--md-sys-shape-corner-full);
+    min-block-size: 40px;
+    min-inline-size: 40px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    text-transform: none;
+}
+
+/*
+ * M3 draws a filter chip at 32dp. These are drawn at 40, because this project's own floor for
+ * a hit target is 40x40 and a one-character flag chip is the smallest thing in the whole
+ * application to aim at - the case that floor exists for. `corner-sm` is M3's chip corner.
+ *
+ * Three deep for the bilingual reason given over the button rule above; a flag chip is the
+ * single worst place in the application for a 40px floor to quietly become 36px.
+ */
+.mb-regex-builder.v-card .v-chip {
+    border-radius: var(--md-sys-shape-corner-sm);
+    min-block-size: 40px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+}
+
+.mb-regex-builder .v-field {
+    border-radius: var(--md-sys-shape-corner-md);
+}
+
+.mb-regex-builder .v-divider {
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
+}
+
+.mb-regex-builder .v-alert {
+    border-radius: var(--md-sys-shape-corner-md);
 }
 
 .mb-regex-builder__pattern textarea,
@@ -403,19 +507,30 @@ async function copy(value: string, what: string): Promise<void> {
     align-items: center;
 }
 
+/*
+ * Each fieldset's legend is a section label for the row of tokens under it, so it takes the
+ * same uppercase label-medium in the primary role that `mb-section-label` gives every other
+ * heading in the design. Spelled out rather than classed, for the teleport reason at the top
+ * of this block: `.v-application .mb-section-label` cannot reach a card inside
+ * `.v-overlay-container`.
+ */
 .mb-regex-builder__flags legend,
 .mb-regex-builder__tokens legend {
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
     width: 100%;
     padding: 0;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-size: var(--md-sys-typescale-label-medium-size);
+    line-height: var(--md-sys-typescale-label-medium-line-height);
+    font-weight: var(--md-sys-typescale-label-medium-weight);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-primary));
 }
 
 .mb-regex-builder__matches {
     margin: 4px 0 0 1.2em;
     padding: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
     max-height: 9em;
     overflow-y: auto;
 }
@@ -423,7 +538,7 @@ async function copy(value: string, what: string): Promise<void> {
 .mb-regex-builder__at,
 .mb-regex-builder__groups {
     margin-inline-start: 6px;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-regex-builder__actions {

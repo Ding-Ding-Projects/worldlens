@@ -82,31 +82,53 @@ function flush(): void {
 </template>
 
 <style>
-.mb-menu-slider {
+/*
+ * A slider row is the one row in the drawer that is two things stacked rather than one line,
+ * so it opts out of the sheet's flex row and lays itself out as a block. Everything else -
+ * the corner, the tint, the state layers, the inline padding - is still the sheet's.
+ */
+.v-application .mb-side-sheet .mb-menu-slider.v-list-item {
     display: block;
-    min-height: 48px;
-    padding-block: 4px;
+    min-block-size: 56px;
+    padding-block: 8px;
 }
 
 .mb-menu-slider__head {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    font-size: 0.875rem;
-    line-height: 1.4;
 }
 
+/*
+ * The label takes the same label-large ramp as every other row title, and the readout beside
+ * it drops a step to body-small in `on-surface-variant`. Those two used to be one size at one
+ * weight, separated only by an opacity, which is exactly the "three sizes within a point of
+ * each other" the type scale exists to end: the name of the setting and its current value
+ * are different kinds of thing and should not have to be read to be told apart.
+ */
 .mb-menu-slider__label {
     flex: 1 1 auto;
+    font-size: var(--md-sys-typescale-label-large-size);
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
     overflow-wrap: anywhere;
 }
 
 .mb-menu-slider__value {
     flex: 0 0 auto;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    /* So the number stops jittering sideways while the thumb is being dragged. */
     font-variant-numeric: tabular-nums;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
+/*
+ * The track is inset by the thumb's own radius so that a thumb parked at either end sits
+ * inside the row's 12px padding rather than overhanging it into the sheet's 8px gutter.
+ */
 .mb-menu-slider__control.v-slider {
     margin-inline: 4px;
 }

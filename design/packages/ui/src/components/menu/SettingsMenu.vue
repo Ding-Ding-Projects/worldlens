@@ -593,13 +593,40 @@ const visibleLanguageOptions = computed(() =>
 </template>
 
 <style>
+/*
+ * Every row on this page - switch, slider, option list, the reset command at the foot - takes
+ * its shape, tint, height, type ramps and selection treatment from the one place they are
+ * stated for the whole drawer, at the foot of `MenuSideSheet.vue`. This page used to be the
+ * clearest evidence that they were not stated anywhere: a 48px switch, a 44px option, a 48px
+ * slider and a 32px segmented control, four different ideas of a corner between them, all
+ * stacked in a 340px column.
+ */
 .mb-settings {
     padding-block-end: 8px;
 }
 
+/*
+ * "No map loaded" and "Nothing matches that search" are sentences about the absence of the
+ * rows they replace, so they take the supporting ramp and the variant colour rather than a
+ * body size within an eighth of a rem of the settings labels they stand in for. The inline
+ * padding is the drawer's row inset, so the sentence starts where those labels would have.
+ */
 .mb-settings__empty {
-    padding: 12px 16px;
-    font-size: 0.875rem;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    margin: 0;
+    padding: 12px 12px 16px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/*
+ * The three loose rows at the foot - chunk borders, debug, and the reset gate - belong to no
+ * group and get no heading, so the only thing separating them from the last titled group
+ * above is this gap. Same 16px a group ends with, so the page keeps one rhythm all the way
+ * down rather than closing tighter than it opened.
+ */
+.mb-settings .mb-settings__tail {
+    margin-block-start: 16px;
 }
 </style>

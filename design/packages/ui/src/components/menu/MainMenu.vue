@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+    mdiCameraOutline,
+    mdiCogOutline,
+    mdiCrosshairsGps,
+    mdiFullscreen,
+    mdiInformationOutline,
+    mdiMapMarkerOutline,
+    mdiMapOutline,
+    mdiRefresh,
+} from "@mdi/js";
 import { VDivider, VList } from "vuetify/components";
 import type { BlueMapApp } from "@worldlens/viewer";
 import InfoPage from "./InfoPage.vue";
@@ -127,32 +137,55 @@ function updateMap(): void {
         @back="goBack"
         @close="closeAll"
     >
+        <!--
+            The glyph on each row is the prototype's, and every one of them is decoration:
+            `MenuOption` marks it `aria-hidden`, no two rows are told apart by their icon
+            alone, and the label is unchanged - so nothing here needs a catalogue entry and
+            nothing here renders differently in one language than another.
+        -->
         <v-list v-if="pageId === 'root'" class="mb-main-menu__root" density="compact" nav>
-            <MenuOption submenu @action="openPage('maps', 'maps.title', 'Maps')">
+            <MenuOption submenu :icon="mdiMapOutline" @action="openPage('maps', 'maps.title', 'Maps')">
                 {{ t("maps.button", "Maps") }}
             </MenuOption>
-            <MenuOption submenu @action="openMarkers">
+            <MenuOption submenu :icon="mdiMapMarkerOutline" @action="openMarkers">
                 {{ t("markers.button", "Markers") }}
             </MenuOption>
-            <MenuOption submenu @action="openPage('settings', 'settings.title', 'Settings')">
+            <MenuOption
+                submenu
+                :icon="mdiCogOutline"
+                @action="openPage('settings', 'settings.title', 'Settings')"
+            >
                 {{ t("settings.button", "Settings") }}
             </MenuOption>
-            <MenuOption submenu @action="openPage('info', 'info.title', 'Info')">
+            <MenuOption
+                submenu
+                :icon="mdiInformationOutline"
+                @action="openPage('info', 'info.title', 'Info')"
+            >
                 {{ t("info.button", "Info") }}
             </MenuOption>
 
-            <v-divider class="my-2" />
+            <v-divider class="mb-main-menu__rule" />
 
-            <MenuOption :disabled="!fullscreenAvailable" :tooltip="fullscreenTooltip" @action="goFullscreen">
+            <MenuOption
+                :icon="mdiFullscreen"
+                :disabled="!fullscreenAvailable"
+                :tooltip="fullscreenTooltip"
+                @action="goFullscreen"
+            >
                 {{ t("goFullscreen.button", "Go Fullscreen") }}
             </MenuOption>
-            <MenuOption @action="resetCamera">
+            <MenuOption :icon="mdiCrosshairsGps" @action="resetCamera">
                 {{ t("resetCamera.button", "Reset Camera") }}
             </MenuOption>
-            <MenuOption @action="takeScreenshot">
+            <MenuOption :icon="mdiCameraOutline" @action="takeScreenshot">
                 {{ t("screenshot.button", "Take Screenshot") }}
             </MenuOption>
-            <MenuOption :tooltip="t('updateMap.tooltip', 'Clear Tile Cache')" @action="updateMap">
+            <MenuOption
+                :icon="mdiRefresh"
+                :tooltip="t('updateMap.tooltip', 'Clear Tile Cache')"
+                @action="updateMap"
+            >
                 {{ t("updateMap.button", "Update Map") }}
             </MenuOption>
         </v-list>
@@ -180,9 +213,34 @@ function updateMap(): void {
 </template>
 
 <style>
+/*
+ * The two blocks of this menu are "places to go" and "things to do here", which is a real
+ * division and not a decorative one. It is drawn as a hairline in the one colour every other
+ * edge in the drawer uses; Vuetify's divider arrives at 0.12 opacity of a border colour,
+ * which over a bright terrain render is invisible.
+ *
+ * `mb-section-rule` from `prototypeSurface.scss` is the richer form of this and is
+ * deliberately not used: it exists to carry an uppercase label, and neither of these two
+ * blocks has a name that is not already obvious from its own four rows.
+ */
+.v-application .mb-main-menu__rule.v-divider {
+    margin-block: 8px;
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
+}
+
+/*
+ * An empty state is a sentence about why there is nothing here, so it takes the drawer's
+ * supporting-text ramp rather than a body size an eighth larger than the row titles above
+ * it. `mb-footnote` is the shared class for exactly this and is not used here only because
+ * it carries a 26px bottom margin sized for a 900px page.
+ */
 .mb-main-menu__empty {
-    padding: 12px 16px;
-    font-size: 0.875rem;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    margin: 0;
+    padding: 12px 12px 16px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 </style>

@@ -236,36 +236,120 @@ function cancel(): void {
 </template>
 
 <style>
+/* ===========================================================================
+ * Appearance only. Nothing below reaches the gate.
+ *
+ * The two keys, the full-range slider, the emergency exit, Escape, and the focus that goes
+ * back where it came from are all in the script above and in
+ * `../confirm/superConfirmGate.ts`; not one of them is expressible in CSS and not one of them
+ * is touched here. What is touched is that this dialog used to arrive in stock Vuetify - a
+ * Material 2 corner, a three-shadow elevation and a heading a point and a half above its own
+ * body copy - because, exactly as `MenuRegexBuilder.vue` explains at length, Vuetify teleports
+ * `.v-overlay-container` to `<body>` and every rule in `prototypeSurface.scss` is scoped
+ * under `.v-application` or `.mb-shell-layer`, so none of them can see a dialog.
+ *
+ * One thing the styling must never do is soften what the gate says. The heading names the
+ * destructive action, the sentence under it names what happens, the list names what is
+ * affected, and every one of those keeps a full-strength `on-surface`: quieting a warning to
+ * make a dialog look calmer is the failure this whole surface exists to prevent.
+ * ------------------------------------------------------------------------- */
+.mb-super-confirm.v-card {
+    /*
+     * M3's dialog corner - the one shape in the scale reserved for a surface that takes the
+     * whole screen's attention, which is what this one is for.
+     */
+    border-radius: var(--md-sys-shape-corner-xl);
+    background: rgb(var(--v-theme-surface-container-high));
+    color: rgb(var(--v-theme-on-surface));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    /* M3 puts a dialog at level 3, a step above the anchored menus at level 2. */
+    box-shadow: var(--md-sys-elevation-shadow-level3);
+}
+
+.mb-super-confirm .v-card-text {
+    padding: 24px 24px 8px;
+}
+
+.mb-super-confirm .v-card-actions {
+    padding: 8px 24px 24px;
+    gap: 8px;
+}
+
+.mb-super-confirm .v-divider {
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
+}
+
+/*
+ * Three classes deep, and the `.v-card` half of the compound is load-bearing rather than
+ * tidy. `copy/bilingual.css` grows every button in the application for a second language with
+ * `html[data-language-mode="bilingual"] .v-btn { height: auto; min-height: 36px }`, which is
+ * right and which out-ranks a two-class rule here; a logical `min-block-size` and a physical
+ * `min-height` cascade as one property, so this floor would have dropped to 36px in bilingual
+ * mode. On the surface that gates a destructive action, the buttons quietly shrinking in one
+ * language mode is not a cosmetic difference.
+ */
+.mb-super-confirm.v-card .v-btn {
+    border-radius: var(--md-sys-shape-corner-full);
+    min-block-size: 40px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    text-transform: none;
+}
+
 .mb-super-confirm__head {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
+/*
+ * M3's headline-small, which is the ramp a dialog title takes. The old 1.125rem sat one
+ * eighth of a rem above the 0.875rem sentence beneath it - close enough that the two read as
+ * one paragraph, on the one surface where a person has to notice the heading before they read
+ * anything else.
+ */
 .mb-super-confirm__title {
-    font-size: 1.125rem;
-    font-weight: 500;
-    line-height: 1.3;
+    font-size: var(--md-sys-typescale-headline-small-size);
+    line-height: var(--md-sys-typescale-headline-small-line-height);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    letter-spacing: var(--md-sys-typescale-headline-small-tracking);
 }
 
+/*
+ * The sentence that names what is about to happen, and the list of what it happens to. Both
+ * at body-medium in full-strength `on-surface`: this is the text the decision is made from,
+ * so it is deliberately the one thing on the surface that is not dimmed.
+ */
 .mb-super-confirm__action {
     margin-block-start: 8px;
-    font-size: 0.875rem;
-    line-height: 1.5;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+    letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+    color: rgb(var(--v-theme-on-surface));
 }
 
 .mb-super-confirm__affected {
     margin: 8px 0 0 1.2em;
-    font-size: 0.8125rem;
-    line-height: 1.5;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+    letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+    color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
 }
 
+/*
+ * The instruction and the live status are about how to operate the gate rather than about
+ * what it does, so they drop a step to body-small in the variant colour - the same pair every
+ * other piece of supporting text in this design uses.
+ */
 .mb-super-confirm__step,
 .mb-super-confirm__status {
-    font-size: 0.8125rem;
-    line-height: 1.4;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-super-confirm__status {
@@ -288,29 +372,92 @@ function cancel(): void {
     flex: 1 1 8rem;
 }
 
-.mb-super-confirm__exit {
+/*
+ * The way out, always available and never smaller than the floor. It is the only control on
+ * this surface a person may need in a hurry, so it keeps its own height rule even though the
+ * `.v-btn` block above already grants it - a later retune of that block must not be able to
+ * shrink the emergency exit by accident.
+ *
+ * That is also why it is written three deep rather than as the bare `.mb-super-confirm__exit`
+ * it used to be. A single class loses to `copy/bilingual.css`'s `html[data-language-mode=
+ * "bilingual"] .v-btn { min-height: 36px }` at (0,2,1), so the one control on this surface
+ * that is described as never being smaller than the floor was the one control actually below
+ * it, in one language mode, with nothing on screen to say so.
+ */
+.mb-super-confirm.v-card .mb-super-confirm__exit {
     min-height: 40px;
 }
 
+/* ---------------------------------------------------------------------------
+ * The three animations, on the token ladder rather than on numbers typed here.
+ *
+ * These were the last hand-written durations and curves left in the menu directory, and they
+ * are the ones that matter most: this is the only surface in the application where motion is
+ * carrying information rather than polish. The slider is being held, the gate has opened, the
+ * decision has been taken - a person watching those three moments is reading them, so they
+ * have to keep their character while still moving to the same clock as everything else. A
+ * global retune of the motion scale now reaches them too, which is the point of a scale.
+ * ------------------------------------------------------------------------- */
+
+/*
+ * No transition at all, deliberately: the bar is a readout of exactly where the slider is,
+ * and a bar easing towards a thumb that has already stopped is a bar reporting a position
+ * the gate is not in. On this surface that is a lie about how far through a destructive
+ * authorization somebody is.
+ */
 .mb-super-confirm__progress {
     transition: none;
 }
 
+/*
+ * The breathing pulse while the slider is being dragged - an ambient loop rather than a
+ * transition, which is why its duration is the only one on this surface that is not a bare
+ * token: M3's ladder describes how long a change takes and stops at 600ms, and a loop is not
+ * a change. It is written as a multiple of the longest step instead of as a fourth number
+ * nobody can trace, so it still moves when the scale does.
+ *
+ * `easing-standard` is M3's symmetric in-and-out curve, which is what a breath is; an
+ * accelerate or decelerate curve would give the loop a direction and make it read as
+ * something repeatedly arriving.
+ */
 .mb-super-confirm__progress--live {
-    animation: mb-super-confirm-pulse 900ms ease-in-out infinite;
+    animation: mb-super-confirm-pulse calc(var(--md-sys-motion-duration-long4) * 1.5)
+        var(--md-sys-motion-easing-standard) infinite;
 }
 
+/*
+ * The ring that goes out from the dialog once both keys and the full travel are in. An
+ * expanding ring is a thing leaving, and `medium4` is the longest single step - long enough
+ * to be seen finishing on the frame the gate opens, short enough not to delay the action it
+ * is announcing. The decelerate curve is what makes it dissipate rather than snap.
+ */
 .mb-super-confirm--authorized {
-    animation: mb-super-confirm-flash 420ms ease-out;
+    animation: mb-super-confirm-flash var(--md-sys-motion-duration-medium4)
+        var(--md-sys-motion-easing-emphasized-decelerate);
 }
 
+/*
+ * The tick appearing beside "Authorized." A small element arriving takes the short end of
+ * the ladder on the decelerate curve - M3's own enter pattern, and the same pairing the
+ * drawer's rows and the search field's unrolling already use.
+ */
 .mb-super-confirm__tick {
-    animation: mb-super-confirm-pop 260ms ease-out;
+    animation: mb-super-confirm-pop var(--md-sys-motion-duration-medium1)
+        var(--md-sys-motion-easing-emphasized-decelerate);
 }
 
+/*
+ * The name of what the slider authorises, sitting where a confirm button would be on any
+ * other dialog - which is the point: there is deliberately nothing to press there. It takes a
+ * button's own label ramp so it reads as the thing the slider is aimed at rather than as a
+ * caption, at full `on-surface` strength, because it names a destructive action.
+ */
 .mb-super-confirm__label {
-    font-size: 0.8125rem;
-    font-weight: 500;
+    font-size: var(--md-sys-typescale-label-large-size);
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    color: rgb(var(--v-theme-on-surface));
 }
 
 @keyframes mb-super-confirm-pulse {

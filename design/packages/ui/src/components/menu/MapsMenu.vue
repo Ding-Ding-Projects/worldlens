@@ -102,10 +102,10 @@ function switchMap(mapId: string): void {
                 :key="map.id"
                 :value="map.id"
                 :title="map.name"
-                rounded="lg"
             >
                 <template #prepend>
                     <v-icon
+                        class="mb-maps-menu__sky"
                         :icon="mdiCircleMedium"
                         :style="skyStyle(map.skyColor)"
                         aria-hidden="true"
@@ -118,10 +118,30 @@ function switchMap(mapId: string): void {
 </template>
 
 <style>
+/*
+ * A map row's shape, tint, height, type ramps and - the whole point of this page - what the
+ * *current* map looks like are the drawer's, stated once in `MenuSideSheet.vue`. Choosing a
+ * map is the one selection in this menu a person makes on purpose and then wants to see from
+ * across the room, and it is now an M3 filled `secondary-container` row rather than the
+ * 10%-of-primary wash Vuetify paints over an active list item.
+ *
+ * The `rounded="lg"` that used to be on each row is gone with it: Vuetify's radius utilities
+ * are `!important`, so a corner set by a prop is a corner no stylesheet can ever correct.
+ */
+
+/*
+ * Two lines of empty-state prose in a 340px sheet, at the drawer's supporting-text ramp
+ * rather than a body size within a point of the map names above it. The inline padding is
+ * the row's 12px, so the sentence starts where the names it is explaining the absence of
+ * would have.
+ */
 .mb-maps-menu__empty {
-    padding: 12px 16px;
-    font-size: 0.875rem;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    margin: 0;
+    padding: 12px 12px 16px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-maps-menu__list .v-list-item__content {
@@ -129,7 +149,23 @@ function switchMap(mapId: string): void {
     overflow-wrap: anywhere;
 }
 
-.mb-maps-menu__list .v-list-item {
-    min-height: 44px;
+/*
+ * The sky dot is functional data colour - `map.skyColor`, straight off the map - so it is
+ * deliberately not a theme role, and deliberately not swept into the selected row's
+ * `currentColor` rule that the main menu's decorative glyphs follow. Changing it with the
+ * selection would destroy the one thing it is there to say. Its size is the 21px the prototype
+ * draws a row glyph at, so this page's leading column lines up with the root menu's rather
+ * than sitting a few pixels in from it.
+ *
+ * `opacity: 1` is a correctness fix rather than a measurement. Vuetify dims every prepend
+ * icon in a list to `--v-medium-emphasis-opacity`, which is 0.6 - so this dot has been
+ * showing sixty per cent of each map's sky colour blended with the sheet behind it, which is
+ * a different colour from that map's sky. A swatch that is not the value it stands for is
+ * worse than no swatch, and this one would have gone on being wrong in a way no screenshot
+ * reveals, because a slightly-too-dark blue still looks like a perfectly plausible sky.
+ */
+.mb-maps-menu__list .mb-maps-menu__sky {
+    font-size: 21px;
+    opacity: 1;
 }
 </style>
