@@ -207,7 +207,7 @@ const MAKE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "The guide",
         blurbKey: "catalogue.make.guide.blurb",
         blurbFallback:
-            "The five-question version of the same thing, for a first map. It writes a project, which is then edited in the project editor like any other.",
+            "The five-question version of the same thing for a first map, writing a project that is then edited in the project editor like any other.",
         target: { kind: "job", jobId: "world", reveal: "step-1" },
         metaResolver: "wizard.stepCount",
     }),
@@ -768,7 +768,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Appearance editors",
         blurbKey: "catalogue.setup.appearance.blurb",
         blurbFallback:
-            "Per-element Edit appearance, with a continuous colour picker and Word-depth typography. Its overrides always win.",
+            "Per-element Edit appearance, with a continuous colour picker and Word-depth typography whose overrides always win over the theme underneath.",
         target: { kind: "overlay", overlay: "settings", reveal: "appearance" },
     }),
     feature("howTheInterfaceBehaves", {
@@ -840,7 +840,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Theme",
         blurbKey: "catalogue.setup.theme.blurb",
         blurbFallback:
-            "Dark, light and contrast. The contrast theme is deliberately not tonal, because deriving it from a seed would defeat the one thing it exists for.",
+            "Dark, light and contrast, the contrast theme deliberately not tonal because deriving it from a seed would defeat the one thing it exists for.",
         target: { kind: "overlay", overlay: "settings", reveal: "theme" },
         metaResolver: "theme.schemeCount",
     }),
@@ -851,7 +851,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "How long a notice stays",
         blurbKey: "catalogue.setup.noticeDuration.blurb",
         blurbFallback:
-            "How long a non-blocking notice waits before it leaves. Whichever you pick, it stays readable in the history.",
+            "How long a non-blocking notice waits before it leaves, staying readable in the history afterwards whichever you pick.",
         target: { kind: "overlay", overlay: "settings", reveal: "notice-duration" },
         metaResolver: "notice.durationLevelCount",
     }),
@@ -862,7 +862,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Downloads at once",
         blurbKey: "catalogue.setup.downloadConcurrency.blurb",
         blurbFallback:
-            "How many parts of a world, backup or dependency are fetched in parallel. More is faster on a fat connection and worse on a thin one.",
+            "How many parts of a world, backup or dependency are fetched in parallel, which is faster on a fat connection and worse on a thin one.",
         target: { kind: "overlay", overlay: "settings", reveal: "download-concurrency" },
         metaResolver: "download.concurrencyRange",
     }),
@@ -873,7 +873,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "What this application is called",
         blurbKey: "catalogue.setup.productName.blurb",
         blurbFallback:
-            "The name in the title bar and in every sentence the app writes about itself. Changing it renames nothing on disk.",
+            "The name in the title bar and in every sentence the app writes about itself, which renames nothing on disk when you change it.",
         target: { kind: "overlay", overlay: "settings", reveal: "product-display-name" },
     }),
 
@@ -911,7 +911,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Personal vocabulary",
         blurbKey: "catalogue.setup.personalVocabulary.blurb",
         blurbFallback:
-            "Applied only from a private file the user supplies. There is no upload and no share control, and nothing is ever collected.",
+            "Applied only from a private file the user supplies, with no upload control, no share control and nothing ever collected.",
         target: {
             kind: "conditional",
             capability: "personal-vocabulary",
@@ -938,7 +938,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Scheduled language and appearance",
         blurbKey: "catalogue.setup.schedule.blurb",
         blurbFallback:
-            "Applies versioned rules by date, time, weekday and timezone, optionally gated by a bounded API or a boolean entity. Tokens stay in session memory.",
+            "Applies versioned rules by date, time, weekday and timezone, optionally gated by a bounded API or a boolean entity, with tokens kept in session memory.",
         target: { kind: "overlay", overlay: "settings", reveal: "language-appearance-schedule" },
     }),
 
@@ -963,7 +963,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Status Hub",
         blurbKey: "catalogue.setup.statusHub.blurb",
         blurbFallback:
-            "Real synchronization evidence from the shared service where one is present. No simulated health values.",
+            "Real synchronization evidence from the shared service where one is present, never a simulated health value.",
         target: {
             kind: "conditional",
             capability: "memory-console",
@@ -991,7 +991,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Sync attestation",
         blurbKey: "catalogue.setup.syncAttestation.blurb",
         blurbFallback:
-            "Displays and verifies the existing attestation contract only. No invented schema, signature, repository or sample identity.",
+            "Displays and verifies the existing attestation contract only, with no invented schema, signature, repository or sample identity.",
         target: {
             kind: "conditional",
             capability: "memory-console",
@@ -1005,7 +1005,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Secret intake",
         blurbKey: "catalogue.setup.secretIntake.blurb",
         blurbFallback:
-            "The guarded intake and keychain boundary already implemented here. No secret enters renderer state, logs, screenshots, exports or source.",
+            "The guarded intake and keychain boundary already implemented here, where no secret enters renderer state, logs, screenshots, exports or source.",
         target: {
             kind: "conditional",
             capability: "memory-console",
@@ -1080,7 +1080,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Memory console settings",
         blurbKey: "catalogue.setup.memoryConsoleSetting.blurb",
         blurbFallback:
-            "The console's own settings row, present only where the console itself is. Absent rather than shown as an empty panel.",
+            "The console's own settings row, present only where the console itself is, and absent rather than shown as an empty panel.",
         target: {
             kind: "conditional",
             capability: "memory-console",
@@ -1095,7 +1095,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Docs",
         blurbKey: "catalogue.setup.docs.blurb",
         blurbFallback:
-            "Full-text, in-app documentation, bundled, with no network needed to read it. Every article states behaviour, configuration, failure modes, security and verification.",
+            "Full-text, in-app documentation bundled with no network needed to read it, every article stating behaviour, configuration, failure modes, security and verification.",
         target: { kind: "job", jobId: "docs", reveal: "home" },
         metaResolver: "docs.articleCount",
     }),
@@ -1138,7 +1138,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "The interactive tour",
         blurbKey: "catalogue.setup.tour.blurb",
         blurbFallback:
-            "Walks through finding a world, rendering it and opening the result, on your own machine. Offered once, never twice.",
+            "Walks through finding a world, rendering it and opening the result on your own machine, offered once and never twice.",
         target: { kind: "overlay", overlay: "tour" },
     }),
     feature("readingAboutIt", {
