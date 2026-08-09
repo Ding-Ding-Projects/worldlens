@@ -25,15 +25,27 @@ import { flat, funnyLevel, languageMode, levelName } from "./setupI18n.js";
 export function languageSearchLabels(): string[] {
     const school = useSchoolMode();
     const name = schoolModeName(flat("school.shippedName"));
-    // The settings search is a discovery route. Once School mode is active, including the
-    // suppressed language/tone labels in its corpus would make a search result advertise a
-    // control that is intentionally absent. The local policy remains findable by its chosen name.
+    // The settings search is a discovery route. Once the shared policy is active, including the
+    // suppressed language/tone labels in its corpus would advertise a control that is absent.
+    // The browser fallback has its own explicit labels and never claims this state is shared.
+    if (school.source.value === "unavailable") {
+        return [name, flat("school.hostUnavailable"), flat("school.retry")];
+    }
     if (school.enabled.value) {
         return [
             name,
-            flat("school.status.on", { name }),
-            flat("school.deleteLocalRecord", { name }),
-            flat("school.boundary", { name }),
+            school.source.value === "shared"
+                ? flat("school.status.on", { name })
+                : flat("school.localFallbackOn", { name }),
+            school.source.value === "shared"
+                ? flat("school.disable", { name })
+                : flat("school.disableLocal", { name }),
+            school.source.value === "shared"
+                ? flat("school.reset", { name })
+                : flat("school.localFallbackBoundary"),
+            school.source.value === "shared"
+                ? flat("school.boundary", { name })
+                : flat("school.localFallbackStatus"),
         ];
     }
     const en = funnyLevel("en");
@@ -42,7 +54,9 @@ export function languageSearchLabels(): string[] {
         name,
         flat("school.status.off", { name }),
         flat("school.renameLabel"),
-        flat("school.enable", { name }),
+        school.source.value === "shared"
+            ? flat("school.enable", { name })
+            : flat("school.enableLocal", { name }),
         flat("language.settingsTitle"),
         flat("language.title"),
         flat(`language.mode.${languageMode()}` as const),

@@ -110,10 +110,20 @@ export {
     reloadSchoolMode,
     renameSchoolMode,
     resetSchoolModeRecordAdapter,
+    resetSchoolModeRecord,
+    schoolModeRestriction,
     schoolModeChosenName,
     schoolModeEnabled,
     schoolModeName,
     setSchoolModeRecordAdapter,
     useSchoolMode,
 } from "./schoolMode.js";
-export type { SchoolModeRecordAdapter, SchoolModeView } from "./schoolMode.js";
+export type {
+    SchoolModeEnableRequest,
+    SchoolModeRecordAdapter,
+    SchoolModeRestriction,
+    SchoolModeResult,
+    SchoolModeSnapshot,
+    SchoolModeSource,
+    SchoolModeView,
+} from "./schoolMode.js";

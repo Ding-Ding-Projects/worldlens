@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 
 import LanguageSettingsRow from "./LanguageSettingsRow.vue";
+import { i18nModule } from "../../i18n.js";
 import {
-    deleteSchoolModeLocalRecord,
     resetSchoolModeRecordAdapter,
-    schoolModeEnabled,
+    setSchoolModeRecordAdapter,
+    type SchoolModeRecordAdapter,
+    type SchoolModeSnapshot,
 } from "./schoolMode.js";
 import {
     funnyLevel,
@@ -50,7 +52,7 @@ const Host = defineComponent({
 let wrapper: VueWrapper | null = null;
 
 async function settle(): Promise<void> {
-    for (let index = 0; index < 6; index++) {
+    for (let index = 0; index < 8; index++) {
         await nextTick();
         await Promise.resolve();
     }
@@ -70,70 +72,150 @@ function schoolButton(label: string): HTMLButtonElement {
     return button;
 }
 
-async function renameThroughTheField(value: string): Promise<void> {
-    const input = schoolControl().querySelector<HTMLInputElement>("input");
-    if (input === null) throw new Error("the School mode name field never mounted");
+function textInputs(): HTMLInputElement[] {
+    return [...schoolControl().querySelectorAll<HTMLInputElement>("input")];
+}
+
+async function setInput(input: HTMLInputElement, value: string): Promise<void> {
     input.value = value;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     await settle();
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    await settle();
 }
 
-beforeEach(() => {
+const disabled: SchoolModeSnapshot = {
+    version: 1,
+    enabled: false,
+    name: null,
+    credentialConfigured: false,
+};
+
+beforeEach(async () => {
     setSetupStorage(memoryStorage());
-    resetSchoolModeRecordAdapter();
+    await resetSchoolModeRecordAdapter();
     reloadSetupLanguage();
     setLanguageMode("bilingual");
     setFunnyLevel("en", 5);
     setFunnyLevel("yue", 4);
 });
 
-afterEach(() => {
+afterEach(async () => {
     wrapper?.unmount();
     wrapper = null;
-    deleteSchoolModeLocalRecord();
-    resetSchoolModeRecordAdapter();
+    await resetSchoolModeRecordAdapter();
     document.body.innerHTML = "";
 });
 
-describe("the School mode settings control", () => {
-    it("renames, activates, removes the real language controls, and restores saved choices by deleting its local record", async () => {
-        wrapper = mount(Host, { global: { plugins: [vuetify] }, attachTo: document.body });
+describe("the shared School-mode settings control", () => {
+    it("collects and clears the enable/disable credential while rendering only a safe shared snapshot", async () => {
+        let snapshot: SchoolModeSnapshot = disabled;
+        const enable = vi.fn(async (request: { name: string | null; credential: string }) => {
+            snapshot = { version: 1, enabled: true, name: request.name, credentialConfigured: true };
+            return { ok: true as const, state: snapshot };
+        });
+        const disable = vi.fn(async (credential: string) => {
+            if (credential !== "test-only-unlock") {
+                return {
+                    ok: false as const,
+                    code: "credential-invalid",
+                    message: "That PIN or password did not unlock this mode.",
+                    state: snapshot,
+                };
+            }
+            snapshot = { ...snapshot, enabled: false };
+            return { ok: true as const, state: snapshot };
+        });
+        const adapter: SchoolModeRecordAdapter = {
+            source: "shared",
+            read: async () => ({ ok: true as const, state: snapshot }),
+            enable,
+            rename: async (name) => {
+                snapshot = { ...snapshot, name };
+                return { ok: true as const, state: snapshot };
+            },
+            disable,
+            reset: async () => ({ ok: true as const, state: disabled }),
+        };
+        await setSchoolModeRecordAdapter(adapter);
+        wrapper = mount(Host, { global: { plugins: [vuetify, i18nModule] }, attachTo: document.body });
         await settle();
 
-        expect(document.querySelector(".mb-setup-language")).not.toBeNull();
-        await renameThroughTheField("Focus room");
-        schoolButton("Turn on Focus room in this app").click();
+        const [nameInput, enableInput] = textInputs();
+        if (nameInput === undefined || enableInput === undefined) throw new Error("shared fields did not render");
+        await setInput(nameInput, "Focus room");
+        await setInput(enableInput, "test-only-unlock");
+        schoolButton("Turn on").click();
         await settle();
 
-        expect(schoolModeEnabled()).toBe(true);
+        expect(enable).toHaveBeenCalledWith({ name: "Focus room", credential: "test-only-unlock" });
+        expect(textInputs().filter((input) => input.type === "password")[0]?.value).toBe("");
+        expect(schoolControl().textContent).not.toContain("test-only-unlock");
         expect(document.querySelector(".mb-setup-language")).toBeNull();
         expect(schoolControl().getAttribute("aria-label")).toBe("Focus room");
         expect(schoolControl().querySelector('[role="status"]')?.textContent).toContain(
-            "Focus room is on in this app",
+            "Focus room is on across participating apps",
         );
-        expect(schoolControl().textContent).not.toContain("School mode");
         expect(schoolControl().querySelector('[role="note"]')?.textContent).toContain(
             "not a security boundary",
         );
         expect(languageMode()).toBe("en");
         expect(funnyLevel("en")).toBe(1);
 
-        // The field stays active, so a rename is an actual operation in the active state rather
-        // than a setting stranded behind the only button that enabled it.
-        await renameThroughTheField("Quiet study");
-        expect(schoolControl().getAttribute("aria-label")).toBe("Quiet study");
-        expect(schoolControl().textContent).not.toContain("Focus room");
-
-        schoolButton("Delete this app's local Quiet study record").click();
+        const disableInput = textInputs().find((input) => input.type === "password");
+        if (disableInput === undefined) throw new Error("the shared unlock field did not render");
+        await setInput(disableInput, "wrong-unlock");
+        schoolButton("Turn off Focus room").click();
         await settle();
 
-        expect(schoolModeEnabled()).toBe(false);
+        expect(disable).toHaveBeenCalledWith("wrong-unlock");
+        const retryInput = textInputs().find((input) => input.type === "password");
+        if (retryInput === undefined) throw new Error("the unlock field did not remain available after refusal");
+        expect(retryInput.value).toBe("");
+        expect(schoolControl().textContent).not.toContain("wrong-unlock");
+
+        await setInput(retryInput, "test-only-unlock");
+        schoolButton("Turn off Focus room").click();
+        await settle();
+
+        expect(disable).toHaveBeenCalledWith("test-only-unlock");
+        expect(schoolControl().textContent).not.toContain("test-only-unlock");
         expect(document.querySelector(".mb-setup-language")).not.toBeNull();
         expect(languageMode()).toBe("bilingual");
         expect(funnyLevel("en")).toBe(5);
-        expect(funnyLevel("yue")).toBe(4);
         expect(setupStorage().read("worldlens.language.mode")).toBe("bilingual");
+    });
+
+    it("renders an honest unavailable state when the packaged host read fails instead of showing local fallback controls", async () => {
+        const failedHost: SchoolModeRecordAdapter = {
+            source: "shared",
+            read: async () => ({
+                ok: false as const,
+                code: "storage-unavailable",
+                message: "The shared mode record could not be read.",
+                state: null,
+            }),
+            enable: async () => ({ ok: true as const, state: disabled }),
+            rename: async () => ({ ok: true as const, state: disabled }),
+            disable: async () => ({ ok: true as const, state: disabled }),
+            reset: async () => ({ ok: true as const, state: disabled }),
+        };
+        await setSchoolModeRecordAdapter(failedHost);
+        wrapper = mount(Host, { global: { plugins: [vuetify, i18nModule] }, attachTo: document.body });
+        await settle();
+
+        expect(schoolControl().textContent).toContain("The shared mode record could not be read.");
+        expect(schoolControl().textContent).toContain("Retry shared record");
+        expect(schoolControl().textContent).not.toContain("Local browser fallback only");
+        expect(schoolControl().textContent).not.toContain("Turn on");
+        expect(textInputs()).toHaveLength(0);
+    });
+
+    it("labels the no-preload route as browser-local only and does not render credential fields", async () => {
+        await resetSchoolModeRecordAdapter();
+        wrapper = mount(Host, { global: { plugins: [vuetify, i18nModule] }, attachTo: document.body });
+        await settle();
+
+        expect(schoolControl().textContent).toContain("Local browser fallback only");
+        expect(() => schoolButton("Turn on School mode")).not.toThrow();
+        expect(textInputs().filter((input) => input.type === "password")).toHaveLength(0);
     });
 });

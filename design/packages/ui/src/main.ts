@@ -46,6 +46,7 @@ import "./styles/motion.scss";
 import "./styles/prototypeSurface.scss";
 import "./styles/markers.scss";
 import { installUiSize } from "./components/settings/index.js";
+import { ensureSchoolModeReady } from "./components/setup/schoolMode.js";
 
 // Install Vue's reactivity into the framework-free viewer BEFORE any viewer object is
 // constructed (upstream wrapped its data objects with reactive() directly).
@@ -75,9 +76,21 @@ setI18nAdapter(
 // should never have to read it even once per launch on the way to their own setting.
 installUiSize();
 
-const app = createApp(App);
-app.use(vuetify);
-app.use(i18nModule);
-app.mount("#app");
+/**
+ * A packaged renderer must know whether the shared record is active before it mounts any copy.
+ * `ensureSchoolModeReady` resolves immediately for the explicit browser/unit-test fallback, but
+ * waits for preload IPC in Electron and reports a host failure honestly instead of substituting
+ * renderer-local state for a shared record.
+ */
+async function mountApplication(): Promise<void> {
+    await ensureSchoolModeReady();
 
-void loadLanguage(i18nModule);
+    const app = createApp(App);
+    app.use(vuetify);
+    app.use(i18nModule);
+    app.mount("#app");
+
+    void loadLanguage(i18nModule);
+}
+
+void mountApplication();

@@ -663,10 +663,39 @@ interface BlueMapStartupBridge {
     retry(): Promise<{ readonly ok: boolean; readonly message: string }>;
 }
 
+/**
+ * The narrow shared School-mode record bridge.  It deliberately returns only safe state and
+ * accepts a credential only for the one enable/disable call that consumes it.
+ */
+interface SharedSchoolModeSnapshot {
+    readonly version: 1;
+    readonly enabled: boolean;
+    readonly name: string | null;
+    readonly credentialConfigured: boolean;
+}
+
+type SharedSchoolModeResult =
+    | { readonly ok: true; readonly state: SharedSchoolModeSnapshot }
+    | {
+          readonly ok: false;
+          readonly code: string;
+          readonly message: string;
+          readonly state: SharedSchoolModeSnapshot | null;
+      };
+
+interface SharedSchoolModeBridge {
+    read(): Promise<SharedSchoolModeResult>;
+    enable(request: { readonly name: string | null; readonly credential: string }): Promise<SharedSchoolModeResult>;
+    rename(name: string | null): Promise<SharedSchoolModeResult>;
+    disable(credential: string): Promise<SharedSchoolModeResult>;
+    reset(): Promise<SharedSchoolModeResult>;
+}
+
 interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    schoolMode?: SharedSchoolModeBridge;
     startup: BlueMapStartupBridge;
 
     /**

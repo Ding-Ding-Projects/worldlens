@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
+import type { SchoolModeResult } from "../main/schoolMode/index.js";
 import type {
     CiBootstrapEvent,
     CiBootstrapResult,
@@ -2311,6 +2312,17 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    /**
+     * The renderer-safe face of the OS application-data School-mode record.  Its snapshot
+     * never includes a PIN, password, salt, verifier, file path, or other credential material.
+     */
+    schoolMode: {
+        read(): Promise<SchoolModeResult>;
+        enable(request: { readonly name: string | null; readonly credential: string }): Promise<SchoolModeResult>;
+        rename(name: string | null): Promise<SchoolModeResult>;
+        disable(credential: string): Promise<SchoolModeResult>;
+        reset(): Promise<SchoolModeResult>;
+    };
     startup: {
         read(): Promise<StartupDiagnosticsSnapshot>;
         copy(): Promise<{ ok: boolean; message: string }>;
@@ -3189,6 +3201,13 @@ const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
+    schoolMode: {
+        read: () => ipcRenderer.invoke("schoolMode:read"),
+        enable: (request) => ipcRenderer.invoke("schoolMode:enable", request),
+        rename: (name) => ipcRenderer.invoke("schoolMode:rename", name),
+        disable: (credential) => ipcRenderer.invoke("schoolMode:disable", credential),
+        reset: () => ipcRenderer.invoke("schoolMode:reset"),
+    },
     startup: {
         read: () => ipcRenderer.invoke("startup:read"),
         copy: () => ipcRenderer.invoke("startup:copy"),
