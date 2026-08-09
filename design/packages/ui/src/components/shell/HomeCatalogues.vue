@@ -174,8 +174,8 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                 v-model:regex="regexMode"
                 v-model:flags="flags"
                 class="wl-home__search"
-                :label="t('home.search.label', 'Search everything')"
-                :placeholder="t('home.search.placeholder', 'Try: mask, backup, Cantonese, publish')"
+                :label="t('shell.home.search.label', 'Search everything')"
+                :placeholder="t('shell.home.search.placeholder', 'Try: mask, backup, Cantonese, publish')"
                 :sample="catalogueSampleText(allFeatures)"
                 :summary="summary"
             />

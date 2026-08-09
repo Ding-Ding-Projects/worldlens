@@ -143,7 +143,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
                 v-model:regex="regexMode"
                 v-model:flags="flags"
                 class="wl-catalogue__search"
-                :label="t('catalogue.search.label', 'Search this list')"
+                :label="t('shell.catalogue.search.label', 'Search this list')"
                 :sample="catalogueSampleText(catalogue.features)"
                 :summary="summary"
             />

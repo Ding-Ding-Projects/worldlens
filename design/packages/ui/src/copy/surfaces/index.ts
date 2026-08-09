@@ -22,6 +22,7 @@ import { APPEARANCE_FACTS, APPEARANCE_FIXED, APPEARANCE_VOICED } from "./appeara
 import { BACKUP_FACTS, BACKUP_FIXED, BACKUP_VOICED } from "./backup.js";
 import { CHANGELOG_FACTS, CHANGELOG_FIXED, CHANGELOG_VOICED } from "./changelog.js";
 import { CHROME_FACTS, CHROME_FIXED, CHROME_VOICED } from "./chrome.js";
+import { SHELL_FACTS, SHELL_FIXED, SHELL_VOICED } from "./shell.js";
 import { CIRENDER_FACTS, CIRENDER_FIXED, CIRENDER_VOICED } from "./cirender.js";
 import { CONFIGEDITOR_FACTS, CONFIGEDITOR_FIXED, CONFIGEDITOR_VOICED } from "./configEditor.js";
 import { CONFIGEXPLAIN_FACTS, CONFIGEXPLAIN_FIXED, CONFIGEXPLAIN_VOICED } from "./configExplain.js";
@@ -68,6 +69,7 @@ import { WORLDREPO_FACTS, WORLDREPO_FIXED, WORLDREPO_VOICED } from "./worldrepo.
 
 export const SURFACE_VOICED = {
     ...CHROME_VOICED,
+    ...SHELL_VOICED,
     ...ACCOUNTS_VOICED,
     ...APPEARANCE_VOICED,
     ...BACKUP_VOICED,
@@ -115,6 +117,7 @@ export const SURFACE_VOICED = {
 
 export const SURFACE_FIXED = {
     ...CHROME_FIXED,
+    ...SHELL_FIXED,
     ...ACCOUNTS_FIXED,
     ...APPEARANCE_FIXED,
     ...BACKUP_FIXED,
@@ -162,6 +165,7 @@ export const SURFACE_FIXED = {
 
 export const SURFACE_FACTS = {
     ...CHROME_FACTS,
+    ...SHELL_FACTS,
     ...ACCOUNTS_FACTS,
     ...APPEARANCE_FACTS,
     ...BACKUP_FACTS,
