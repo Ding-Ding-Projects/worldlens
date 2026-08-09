@@ -483,7 +483,7 @@ describe("the tab strip", () => {
         ).toBe("page");
     });
 
-    it("returns a user with a saved workspace to their last active tab, not forced back to Home", () => {
+    it("returns a user with a saved workspace to their last active tab, not forced back to Home", async () => {
         // The regression the Home fix above could plausibly introduce: a persisted
         // workspace, from a build old enough to have Home but a person who was last looking
         // at "Make a map", must not be yanked back to Home just because the shell mounted.
@@ -515,9 +515,15 @@ describe("the tab strip", () => {
         );
 
         const app = shell();
+        // Awaited, unlike the cases above it: the migration off the twelve-page model runs in
+        // `onMounted` and decides the landing destination from whichever page was last active, so
+        // a synchronous assertion here reads the frame before that decision rather than after it.
+        await settle();
 
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(currentDestination()).not.toBe("Home");
+        // Work, because the page they left off on was a job. Home and Map are the only two the
+        // migration lifts out of the workspace, and `world` is neither.
+        expect(currentDestination()).toBe("Work");
         expect(tabButton("Make a map").getAttribute("aria-selected")).toBe("true");
     });
 
@@ -616,15 +622,16 @@ describe("the tab strip", () => {
         await row.trigger("click");
         await settle();
 
-        const outerPanel = document.querySelector<HTMLElement>(
-            ".mb-tabs__panel--pointer-passthrough",
-        );
+        // The outer panel no longer passes pointer events through, and that is the rewrite rather
+        // than a regression: the map used to sit behind every page, so the shell's own tab panel
+        // had to be click-through or the map became undraggable everywhere except the gaps
+        // between the floating controls. Work is an opaque destination layer now and the map has
+        // a destination of its own, so there is nothing behind Work to click through *to*.
         const nestedPanel = document.querySelector<HTMLElement>(
             ".mb-project-editor__tabs .mb-tabs__panel",
         );
-        expect(outerPanel).not.toBeNull();
+        expect(document.querySelector(".mb-tabs__panel--pointer-passthrough")).toBeNull();
         expect(nestedPanel).not.toBeNull();
-        expect(getComputedStyle(outerPanel!).pointerEvents).toBe("none");
         expect(getComputedStyle(nestedPanel!).pointerEvents).not.toBe("none");
 
         const core = [...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]')]
@@ -823,7 +830,12 @@ describe("the tab strip", () => {
         await settle();
 
         expect(document.querySelector(".mb-map-page")).not.toBeNull();
-        expect(app.findComponent(ProfileManager).exists()).toBe(false);
+        // The rail says Map, which is the claim: choosing a map takes you to it. The server list
+        // is still built behind the Work layer - unmounting a destination on every navigation
+        // would throw away whatever somebody had part-filled on it - so "you left it" is a
+        // destination change rather than a component disappearing.
+        expect(currentDestination()).toBe("Map");
+        expect(app.findComponent(ProfileManager).exists()).toBe(true);
     });
 });
 
@@ -867,7 +879,10 @@ describe("the licence viewer", () => {
 
         // The corner stack holds the two workbench controls and nothing else.
         expect(document.querySelector('button[aria-label="The Minecraft licence"]')).toBeNull();
-        expect(document.querySelectorAll(".mb-shell-fab")).toHaveLength(2);
+        // There is no corner stack at all any more. The two workbench controls that survived
+        // the first cull moved into the rail footer and the Set up and help catalogue, so the
+        // honest assertion is not "two remain" but "none of them float".
+        expect(document.querySelectorAll(".mb-shell-fab")).toHaveLength(0);
 
         const panel = document.querySelector<HTMLElement>('[role="dialog"].mb-eula-surface');
         expect(panel).not.toBeNull();
@@ -959,10 +974,12 @@ describe("the shell's appearance targets", () => {
         expect(ids).toContain("app.tabBar");
     });
 
-    it("opens the anchored editor straight from a Shift+right-click on the tab bar", async () => {
+    it("opens the anchored editor straight from a Shift+right-click on the rail", async () => {
         shell();
 
-        const target = document.querySelector<HTMLElement>(".wl-work .mb-appearance-target");
+        // The target that wrapped the tab bar wraps the application rail now: same registered id,
+        // new home, because the rail is the chrome that is on screen no matter what.
+        const target = document.querySelector<HTMLElement>(".mb-shell-body .mb-appearance-target");
         expect(target).not.toBeNull();
 
         target?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }));
