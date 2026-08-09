@@ -142,6 +142,69 @@ states its behaviour, configuration, failure modes, security considerations and 
 
 </details>
 
+## The interface: three destinations, not twelve tabs
+
+The desktop shell is a Material Design 3 rewrite, and the whole of it fits in one sentence:
+**everything this application can do is reached from three places.**
+
+| Rail | What it is |
+| --- | --- |
+| **Home** | Five catalogue cards over **85 features**. Open one to see what is inside it. |
+| **Map** | The live 3D canvas and its viewer controls. |
+| **Work** | The tab system, holding only the jobs you have actually started. |
+
+The rail footer carries command search (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>), the
+notification bell and settings — as rail actions, never floating buttons. **Nothing floats over
+the content**, and nothing appears unprompted: a notice lands in the history and moves the bell
+badge rather than covering what you are reading.
+
+What changed is how a destination is reached, not what it does. Every screen the previous shell
+had is still the same component, still doing the same thing, re-hosted rather than rewritten —
+and `TabbedNavigation` keeps every one of its powers: docking to any edge, named and coloured
+groups, pinning, reordering, overflow, all four discovery searches, bulk close with a preview,
+and the whole persisted workspace.
+
+<details>
+<summary><b>Rewrite phases, and where each one stands</b></summary>
+
+Tracked on [#126](https://github.com/Ding-Ding-Projects/worldlens/issues/126), one issue per
+phase. States are the real ones, not a plan.
+
+| Phase | Scope | State |
+| --- | --- | --- |
+| 1 | Typed catalogue manifest, job registry, shell navigation, workspace migration | ✅ shipped |
+| 2 | `AppRail`, `HomeCatalogues`, `CataloguePage` | ✅ shipped |
+| 3 | `WorkPane` re-host and job lifecycle | ✅ shipped |
+| 4 | Map shell, status strip, Problems panel, notification history, FAB removal | ✅ shipped |
+| 5 | Project editor as the primary New map path, deep reveals | ⏳ not started |
+| 6 | Served-viewer parity and one canonical token output | ⏳ not started |
+| 7 | Localization, accessibility, responsive, motion, contrast sweep | ⏳ not started |
+| 8 | Full gates, capture matrix, documentation, cleanup | 🏃 in progress |
+
+**Honest verification state.** `catalogues.test.ts` 19/19 · the tab suite **247/247 unchanged** ·
+`App.shellFabClearance.test.ts` 7/7 · `vue-tsc` clean · `pnpm build` green across all 14 workspace
+projects. `App.test.ts` has **5 failing cases** remaining, down from 37: each one asserts the shell
+this rewrite replaced, and not one was skipped, weakened or deleted to bring that number down.
+
+</details>
+
+<details>
+<summary><b>The five catalogues</b></summary>
+
+| Catalogue | Features | What is in it |
+| --- | ---: | --- |
+| **Make a map** | 28 | Finding a world, setting up a render, where it runs, what it is doing right now, and what it needs from this machine |
+| **Your maps** | 6 | Local renders and remote BlueMap servers in one list, the viewer, and its markers |
+| **Share a map** | 6 | Publishing, remote hosting, private worlds, and watching a render live off this machine's own disk |
+| **Keep a copy** | 7 | Backups, the world git repository, the sources a copy comes back from, and the append-only local history |
+| **Set up & help** | 38 | Every preference, every BlueMap configuration option, how the interface itself behaves, and every documentation article, offline |
+
+Nine of those rows are capability-gated: their only implementation is a contract this public
+checkout does not carry, so they are **absent** rather than drawn as cards with invented status.
+A status card with demo values is still a fake integration.
+
+</details>
+
 ## Screenshots
 
 Photographed from the real running application by the project's Playwright harness. None is a
@@ -392,14 +455,17 @@ node scripts/bootstrap.mjs
 
 That one command installs and **verifies** everything: workspace dependencies, the
 Electron binary, a JDK matching upstream's toolchain, Gradle, the BlueMap jars built from the
-vendored source, and the Playwright browsers the screenshot harness drives. It asks nothing and
+vendored source, and the Playwright tooling the Electron screenshot harness drives. It asks nothing and
 needs no administrator rights, and every install is repository-local or user-scoped so no
 machine-wide toolchain is touched.
 
 It verifies rather than assumes, which is not pedantry: Electron once shipped a `dist/` folder
 containing only `locales/`, with no binary at all, and its own installer kept exiting 0 because
 the folder existed. A presence check passes that; running the binary does not. Where a
-dependency's own installer is the thing that is broken, bootstrap repairs it.
+dependency's own installer is the thing that is broken, bootstrap verifies the cached archive
+against Electron's package checksum manifest, clears partial output again, and extracts it from
+scratch. The command also invokes the exact `pnpm` version pinned by `design/package.json`, so a
+different global package-manager version cannot quietly decide the dependency graph.
 
 ```sh
 node scripts/bootstrap.mjs --check       # verify only, install nothing
@@ -410,6 +476,12 @@ pnpm build
 pnpm test
 pnpm lint
 ```
+
+`--check` is read-only even on a fresh npm cache: it verifies the installed workspace and runs the
+local Playwright CLI directly, so it never asks `npm exec` to download pnpm. Electron recovery
+validates the cached archive before extraction, refuses recursive deletion through a path escape or
+reparse point, and accepts a BlueMap shadow JAR only when it is a real, non-trivial ZIP/JAR rather
+than a zero-byte or stale filename.
 
 Everything except `plan.md` and repository metadata lives in `design/`, a pnpm workspace of
 thirteen packages.

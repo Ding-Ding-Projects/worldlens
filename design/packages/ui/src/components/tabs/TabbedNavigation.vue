@@ -7,6 +7,7 @@ import TabStrip from "./TabStrip.vue";
 import { applyClosePlan, type TabClosePlan } from "./closePlans.js";
 import {
     addTab,
+    applyGroupSeeds,
     assignTabToGroup,
     closeTabs,
     createGroup,
@@ -17,11 +18,15 @@ import {
     removeGroup,
     renameGroup,
     renameTab,
+    seedTabOrder,
     setActiveTab,
+    DEFAULT_TAB_PLACEMENT,
+    type TabPlacement,
     setGroupCollapsed,
     setGroupColor,
     setTabPlacement,
     unpinTab,
+    type TabGroupSeed,
     type TabPage,
     type TabStripState,
     type TabWorkspaceState,
@@ -55,6 +60,24 @@ import { DEFAULT_TAB_STORAGE_KEY, readTabWorkspace, writeTabWorkspace } from "./
  * page. That is a deliberate choice over restoring half a layout, because half
  * a layout is indistinguishable from a bug and a fresh one is obviously a fresh
  * one.
+ *
+ * ### Seeding a default that is not a wall of tabs
+ *
+ * "One tab per declared page" is honest and, for a shell with twelve
+ * destinations, unreadable: a newcomer meets twelve flat, equal-weight names
+ * and has no way to tell the two they need from the nine they will need later.
+ * {@link initialGroups} lets the host say which pages belong together and under
+ * what name, and {@link seedStrip} builds that shape once - a short strip of
+ * loose tabs and named, collapsed groups, with every destination one disclosure
+ * away rather than removed.
+ *
+ * This changes nothing about a workspace that already exists. `seedStrip` runs
+ * only where `readTabWorkspace` returned null, which is the same condition it
+ * always ran under, so a returning user's own order, pins, groups and collapse
+ * states are restored exactly as they left them and never re-shaped to match a
+ * default they never saw. A seeded group is also an ordinary group from the
+ * moment it exists: renaming, recolouring, reordering, ungrouping and deleting
+ * it all work, and the result is what gets persisted.
  *
  * ### Revealing without un-collapsing
  *
@@ -91,20 +114,113 @@ const props = withDefaults(
          */
         pinnedPageIds?: readonly string[];
         /**
+         * The groups a **genuinely fresh** workspace is seeded into, named by page id.
+         *
+         * A host that declares more destinations than a person can read at a glance uses
+         * this to hand a newcomer a short strip instead of a flat list: pages a seed names
+         * are created inside that group, everything else stays a loose tab in declared
+         * order, and the groups sit after the loose tabs in the order they are declared
+         * here. Left empty - the default - the strip seeds exactly as it always has, one
+         * loose tab per page.
+         *
+         * A host is expected to leave its landing page out of every seed - pinning it, as
+         * `pinnedPageIds` does, or leaving it loose. Seeding the first declared page into a
+         * collapsed group is not refused, but it opens on a tab that is not drawn until the
+         * group is expanded, which is a layout nobody would choose on purpose.
+         *
+         * Consulted only when there is no saved workspace to restore. It is a default
+         * layout, not a structure this component maintains: nothing re-applies a seed to a
+         * workspace that already exists, no later mount repairs a group the user renamed,
+         * emptied or deleted, and {@link ensurePage} adds its tab outside every group
+         * because a page that arrives after somebody's layout was saved has no business
+         * being filed into a group they may have taken apart months ago.
+         */
+        initialGroups?: readonly TabGroupSeed[];
+        /**
          * Lets a map-owning shell pass pointer input through this one panel to the canvas
          * behind it. Nested tab sets stay interactive because false is the default; the
          * empty state is explicitly interactive so its reopen buttons remain usable.
          */
         panelPassThrough?: boolean;
+        /**
+         * Whether this strip publishes its left-edge inset as `--mb-tabs-strip-inline-size`,
+         * for the shell chrome that floats over it. True for the shell's own strip and no
+         * other: the document has one custom property, and this application draws four.
+         *
+         * Forwarded to `TabStrip` as `publishesInset === true` rather than bare. It has a
+         * default here, but `vue-tsc` types a template reference to an optional prop from
+         * its *declared* type, so the bare name is `boolean | undefined` at the binding -
+         * and under this workspace's `exactOptionalPropertyTypes` that is not assignable to
+         * the receiving `?: boolean`. The other optional booleans on this component are only
+         * ever coerced in the template, which is why this is the one that trips it.
+         */
+        publishesInset?: boolean;
+        /**
+         * Which of the declared pages a **genuinely fresh** workspace opens a tab for.
+         *
+         * The default is every page, which is what this component has always done and what every
+         * consumer other than the Work workspace still wants. Work passes one id - the pinned
+         * guide - because a workspace of jobs is meant to hold the jobs somebody actually
+         * started, and seeding it with ten would put the twelve-tab strip back under a new name.
+         *
+         * It restricts seeding only. Every page in {@link pages} stays available to
+         * {@link openPage}, {@link revealPage}, {@link ensurePage}, the tab finder and a restored
+         * workspace, so nothing becomes unreachable by not being seeded - which is the difference
+         * between a short strip and a smaller application.
+         */
+        seedPageIds?: readonly string[];
+        /**
+         * Where a fresh workspace docks its strip.
+         *
+         * Left, unchanged, for every existing consumer. Work passes `top`, because the
+         * application rail owns the outer left edge now and two things stacked against the same
+         * edge is how a shell ends up with sixteen wasted columns. A restored workspace's own
+         * placement always wins over this: it is a default, not a policy.
+         */
+        defaultPlacement?: TabPlacement;
+        /**
+         * Whether a tab created *after* seeding is filed into the seed group that names its page.
+         *
+         * False everywhere else, because a page that arrives after somebody's layout was saved has
+         * no business being filed into a group they may have taken apart months ago - which is
+         * what {@link ensurePage}'s own doc comment says and still means.
+         *
+         * Work is the one consumer where it is true, and the reason is specific rather than
+         * general: Work seeds one tab, so its three groups start with no members at all and
+         * `applyGroupSeeds` correctly creates none of them. Opening Projects from a catalogue must
+         * then put it under "Rendering" the way it always has, or the seeded grouping would be a
+         * feature that only ever existed on installs that never used it.
+         */
+        fileNewTabsIntoSeedGroups?: boolean;
     }>(),
     {
         windowLabel: "",
         stripLabel: "",
         storageKey: DEFAULT_TAB_STORAGE_KEY,
         pinnedPageIds: () => [],
+        initialGroups: () => [],
         panelPassThrough: false,
+        publishesInset: false,
+        // `seedPageIds` deliberately has no default. Under `exactOptionalPropertyTypes` a default
+        // of `undefined` is not the same as an absent one, and absent is exactly the signal
+        // `seedablePages()` reads as "seed every declared page, as this component always has".
+        defaultPlacement: DEFAULT_TAB_PLACEMENT,
+        fileNewTabsIntoSeedGroups: false,
     },
 );
+
+/**
+ * Told whenever the set of open pages changes, so a host can derive a count without keeping a
+ * second copy of the workspace.
+ *
+ * The rewrite's application rail shows the number of open jobs on its Work item, and the one
+ * thing it must not do to get that number is persist an `openJobIds` array beside this
+ * component's own workspace. Two answers to "which jobs are open" is how a badge ends up
+ * confidently reporting four when the strip is showing three.
+ */
+const emit = defineEmits<{
+    "workspace-change": [pageIds: readonly string[]];
+}>();
 
 const { t } = useI18n();
 
@@ -115,6 +231,20 @@ const panelId = `${idPrefix}-panel`;
 /* State                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The pages a fresh workspace opens a tab for: every declared page, unless the host named a
+ * subset.
+ *
+ * `undefined` rather than an empty array is the "no subset given" signal, because an empty array
+ * is a legitimate thing for a host to pass - a workspace that starts with nothing open - and
+ * conflating the two would make that impossible to express.
+ */
+function seedablePages(): readonly TabPage[] {
+    const allowed = props.seedPageIds;
+    if (allowed === undefined) return props.pages;
+    return props.pages.filter((page) => allowed.includes(page.id));
+}
+
 function seedStrip(): TabStripState {
     const empty: TabStripState = {
         id: "strip-main",
@@ -122,29 +252,37 @@ function seedStrip(): TabStripState {
         windowId: "window-main",
         windowLabel:
             props.windowLabel === "" ? t("tabs.window.main", "This window") : props.windowLabel,
-        placement: "left",
+        placement: props.defaultPlacement,
         tabs: [],
         groups: [],
         pinnedOrder: [],
         slots: [],
         activeTabId: null,
     };
-    const seeded = props.pages.reduce<TabStripState>(
+    // Ungrouped pages first, then each group's pages: `seedTabOrder`'s own doc comment says
+    // why the creation order is what decides where the groups land.
+    const seeded = seedTabOrder(seedablePages(), props.initialGroups).reduce<TabStripState>(
         (state, page) => addTab(state, { pageId: page.id, label: page.label, icon: page.icon }),
         empty,
     );
-    // Pinned before the active tab is chosen: pinning never touches `activeTabId`, so the
-    // order makes no difference to which tab ends up in front, but doing it first keeps
-    // this function reading top-to-bottom as "build the tabs, plant the pins, then choose
-    // what is in front" rather than interleaving the two concerns.
+    // Pinned before the groups are made and before the active tab is chosen: pinning never
+    // touches `activeTabId`, so the order makes no difference to which tab ends up in front,
+    // but doing it first keeps this function reading top-to-bottom as "build the tabs, plant
+    // the pins, gather the rest into their groups, then choose what is in front" rather than
+    // interleaving the concerns - and it is what lets `applyGroupSeeds` leave a pinned tab
+    // alone rather than quietly unpinning a landing tab a seed also named.
     const pinned = props.pinnedPageIds.reduce<TabStripState>((state, pageId) => {
         const tab = state.tabs.find((candidate) => candidate.pageId === pageId);
         return tab === undefined ? state : pinTab(state, tab.id);
     }, seeded);
-    // The first page rather than the last one opened, which is what a fresh
-    // install should land on.
-    const first = pinned.tabs[0];
-    return first === undefined ? pinned : setActiveTab(pinned, first.id);
+    const grouped = applyGroupSeeds(pinned, props.initialGroups);
+    // The first *declared* page rather than the last one opened, which is what a fresh
+    // install should land on. Read off `props.pages` rather than off the strip, because the
+    // strip's own creation order is the seeding order above: the first tab created is the
+    // first ungrouped page, which is only the same thing while no seed names page one.
+    const landing =
+        grouped.tabs.find((tab) => tab.pageId === seedablePages()[0]?.id) ?? grouped.tabs[0];
+    return landing === undefined ? grouped : setActiveTab(grouped, landing.id);
 }
 
 const workspace = ref<TabWorkspaceState>(
@@ -225,10 +363,53 @@ const activePage = computed(() =>
 /* Actions                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Files a freshly created tab into the seed group that names its page, when the host asked for
+ * that - creating the group if seeding never did, because a group whose members were all still
+ * unopened correctly created nothing.
+ *
+ * Pinned tabs are skipped for the same reason `applyGroupSeeds` skips them: `createGroup` unpins
+ * what it takes, and a host asking for a page to be both pinned and grouped means the pin.
+ */
+function fileIntoSeedGroup(state: TabStripState, pageId: string): TabStripState {
+    if (!props.fileNewTabsIntoSeedGroups) return state;
+    const seed = props.initialGroups.find((candidate) => candidate.pageIds.includes(pageId));
+    if (seed === undefined) return state;
+    const tab = state.tabs.find((candidate) => candidate.pageId === pageId);
+    if (tab === undefined || state.pinnedOrder.includes(tab.id)) return state;
+    if (state.groups.some((group) => group.tabIds.includes(tab.id))) return state;
+
+    const existing =
+        seed.id === undefined
+            ? undefined
+            : state.groups.find((group) => group.id === seed.id);
+    if (existing !== undefined) return assignTabToGroup(state, tab.id, existing.id);
+
+    const created = createGroup(
+        state,
+        {
+            ...(seed.id === undefined ? {} : { id: seed.id }),
+            name: seed.name,
+            ...(seed.color === undefined ? {} : { color: seed.color }),
+        },
+        [tab.id],
+    );
+    // A seed that asked to start collapsed still does, even though its first member has only just
+    // arrived: the seed is a statement about how the group should look, not about when it was made.
+    return seed.collapsed === true && seed.id !== undefined
+        ? setGroupCollapsed(created, seed.id, true)
+        : created;
+}
+
 function openPage(pageId: string): void {
     const page = props.pages.find((candidate) => candidate.id === pageId);
     if (page === undefined) return;
-    update(addTab(strip.value, { pageId: page.id, label: page.label, icon: page.icon }));
+    update(
+        fileIntoSeedGroup(
+            addTab(strip.value, { pageId: page.id, label: page.label, icon: page.icon }),
+            pageId,
+        ),
+    );
 }
 
 /**
@@ -244,6 +425,11 @@ function openPage(pageId: string): void {
  * That is the behaviour a person expects from a destination - "take me there", not "make me
  * another one" - and it is why closing the map tab still leaves the palette able to reach the
  * map rather than silently doing nothing.
+ *
+ * A tab inside a collapsed group is revealed on the way, through the same runtime set a search
+ * result uses: the strip would otherwise show a panel with no selected tab anywhere in it,
+ * which reads as the navigation having gone wrong. Revealed rather than expanded, so the
+ * group's own saved preference is left exactly as the user set it - see `revealed` above.
  */
 function revealPage(pageId: string): void {
     const existing = strip.value.tabs.find((tab) => tab.pageId === pageId);
@@ -251,6 +437,8 @@ function revealPage(pageId: string): void {
         openPage(pageId);
         return;
     }
+    const holding = strip.value.groups.find((group) => group.tabIds.includes(existing.id));
+    if (holding !== undefined && holding.collapsed) reveal(holding.id);
     update(setActiveTab(strip.value, existing.id));
 }
 
@@ -289,8 +477,27 @@ function ensurePage(pageId: string): void {
         if (created !== undefined) next = pinTab(next, created.id);
     }
 
-    update(next);
+    update(fileIntoSeedGroup(next, pageId));
 }
+
+/**
+ * The pages this workspace currently has a tab for, deduplicated.
+ *
+ * Deduplicated because a page can legitimately have two tabs - the context menu offers Duplicate -
+ * and "how many jobs are open" is a question about destinations rather than about tabs. A badge
+ * reading 4 over a strip showing three names is worse than no badge.
+ */
+const openPageIds = computed<readonly string[]>(() => [
+    ...new Set(strip.value.tabs.map((tab) => tab.pageId)),
+]);
+
+watch(
+    openPageIds,
+    (value) => {
+        emit("workspace-change", value);
+    },
+    { immediate: true },
+);
 
 /**
  * Renames every open tab that shows one page.
@@ -323,7 +530,7 @@ function renamePage(pageId: string, label: string): void {
  * narrower write: it can only add a tab for a page that has none, never move, close or
  * rename one that already exists.
  */
-defineExpose({ activePage, revealPage, renamePage, ensurePage });
+defineExpose({ activePage, revealPage, renamePage, ensurePage, openPageIds });
 
 function newGroup(tabId: string): void {
     update(createGroup(strip.value, { name: t("tabs.group.newName", "New group") }, [tabId]));
@@ -402,6 +609,7 @@ function applyPlan(
             :panel-id="panelId"
             :id-prefix="idPrefix"
             :pages="pages"
+            :publishes-inset="publishesInset === true"
             @set-placement="update(setTabPlacement(strip, $event))"
             @activate="(tabId, stripId) => updateIn(stripId, (state) => setActiveTab(state, tabId))"
             @close="(tabId, stripId) => updateIn(stripId, (state) => closeTabs(state, [tabId]))"
@@ -428,60 +636,80 @@ function applyPlan(
             One panel, named by the tab that selected it. Only the active page is
             rendered: a hidden panel per tab would keep every page alive, and one
             of them owns a map renderer.
-        -->
-        <div
-            v-if="activeTab !== null && activePage !== null"
-            :id="panelId"
-            class="mb-tabs__panel"
-            :class="{ 'mb-tabs__panel--pointer-passthrough': panelPassThrough }"
-            :style="{ pointerEvents: panelPassThrough ? 'none' : 'auto' }"
-            role="tabpanel"
-            :aria-labelledby="`${idPrefix}-tab-${activeTab.id}`"
-            tabindex="0"
-        >
-            <slot :name="activePage.id" :tab="activeTab" :page="activePage">
-                <!--
-                    A page with no slot says so rather than showing an empty
-                    rectangle that reads as a rendering fault.
-                -->
-                <p class="mb-tabs__missing">
-                    {{
-                        t(
-                            "tabs.panel.missing",
-                            { page: activePage.label },
-                            "This build has no content for the page {page}.",
-                        )
-                    }}
-                </p>
-            </slot>
-        </div>
 
-        <!--
-            Every tab closed. An honest empty state with the one action that
-            leaves it, rather than a blank area or a tab conjured up to keep the
-            strip looking populated.
+            The arrival is animated through `styles/motion.scss`'s `mb-page` class family -
+            a short fade with a small rise on the decelerate curve, on the incoming panel
+            only. Three things about this are deliberate:
+
+             - `mode="out-in"` keeps the "only the active page is rendered" promise above
+               literally true. The default mode overlaps the two, which would mount two
+               pages - one of them the map - for as long as the leave takes;
+             - there is no leave animation at all (no `.mb-page-leave-*` rule exists), so
+               "as long as the leave takes" is one frame rather than a wait. Nothing is
+               made unclickable and nothing is delayed by an animation;
+             - the key is the *page*, not the tab. Two tabs may name the same page, and
+               switching between them must not tear the page down and build it again -
+               that would be a behaviour change wearing a transition's clothes. Switching
+               to a different page already replaces the slot's whole subtree, so keying on
+               it costs nothing.
         -->
-        <div
-            v-else
-            class="mb-tabs__empty"
-            :class="{ 'mb-tabs__empty--pointer-interactive': panelPassThrough }"
-            :style="{ pointerEvents: 'auto' }"
-            role="status"
-        >
-            <p class="mb-tabs__empty-line">{{ t("tabs.panel.empty", "Every tab is closed.") }}</p>
-            <div class="mb-tabs__empty-actions">
-                <v-btn
-                    v-for="page in pages"
-                    :key="page.id"
-                    variant="tonal"
-                    size="small"
-                    @click="openPage(page.id)"
-                >
-                    <v-icon v-if="page.icon" :icon="page.icon" size="18" start aria-hidden="true" />
-                    {{ page.label }}
-                </v-btn>
+        <Transition name="mb-page" mode="out-in">
+            <div
+                v-if="activeTab !== null && activePage !== null"
+                :key="activePage.id"
+                :id="panelId"
+                class="mb-tabs__panel"
+                :class="{ 'mb-tabs__panel--pointer-passthrough': panelPassThrough }"
+                :style="{ pointerEvents: panelPassThrough ? 'none' : 'auto' }"
+                role="tabpanel"
+                :aria-labelledby="`${idPrefix}-tab-${activeTab.id}`"
+                tabindex="0"
+            >
+                <slot :name="activePage.id" :tab="activeTab" :page="activePage">
+                    <!--
+                        A page with no slot says so rather than showing an empty
+                        rectangle that reads as a rendering fault.
+                    -->
+                    <p class="mb-tabs__missing">
+                        {{
+                            t(
+                                "tabs.panel.missing",
+                                { page: activePage.label },
+                                "This build has no content for the page {page}.",
+                            )
+                        }}
+                    </p>
+                </slot>
             </div>
-        </div>
+
+            <!--
+                Every tab closed. An honest empty state with the one action that
+                leaves it, rather than a blank area or a tab conjured up to keep the
+                strip looking populated.
+            -->
+            <div
+                v-else
+                key="mb-tabs-empty"
+                class="mb-tabs__empty"
+                :class="{ 'mb-tabs__empty--pointer-interactive': panelPassThrough }"
+                :style="{ pointerEvents: 'auto' }"
+                role="status"
+            >
+                <p class="mb-tabs__empty-line">{{ t("tabs.panel.empty", "Every tab is closed.") }}</p>
+                <div class="mb-tabs__empty-actions">
+                    <v-btn
+                        v-for="page in pages"
+                        :key="page.id"
+                        variant="tonal"
+                        size="small"
+                        @click="openPage(page.id)"
+                    >
+                        <v-icon v-if="page.icon" :icon="page.icon" size="18" start aria-hidden="true" />
+                        {{ page.label }}
+                    </v-btn>
+                </div>
+            </div>
+        </Transition>
     </div>
 </template>
 

@@ -5,6 +5,20 @@ beyond the standard library and `git`, so they run identically on a developer ma
 runner. `split-parts.mjs` and `join-parts.mjs` are thin command lines over the workspace package
 `@worldlens/parts`, which has to be built first; they say so and exit 2 when it is not.
 
+## `bootstrap.mjs`
+
+Bootstraps the fresh-checkout dependencies and verifies that each one is usable. `--check` is a
+strict read-only mode: it checks the already-installed workspace, Electron binary, Java toolchain,
+BlueMap shadow JAR and local Playwright CLI without invoking `npm exec`, downloading pnpm, or
+installing a browser dependency. The normal mode uses the manifest-pinned pnpm version and the
+same local Playwright CLI to install what is missing.
+
+The Electron recovery path verifies the cached archive against Electron's checksum manifest before
+extracting it. Its recursive cleanup is bounded to the package directory and rejects lexical escapes
+and Windows reparse points (or POSIX symbolic links) before removing anything. Shadow-JAR detection
+requires a regular, non-trivial ZIP/JAR with both a local-file header and an end-of-central-directory
+record; a zero-byte, tiny, stale or non-JAR file does not satisfy the check.
+
 ## `count-lines.mjs`
 
 Prints the line-count table that every release publishes. CI runs it at the tagged commit, so
@@ -93,7 +107,7 @@ Guards the three release steps that accept dynamic metadata:
 
 ```bash
 node scripts/lint-workflows.mjs
-node --test scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
+node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
 ```
 
 Its hand-written inventory pins each expected environment variable to its exact Actions expression

@@ -1,5 +1,247 @@
 # Handoff
 
+## 2026-08-08 (latest) — shell rewrite: phases 1–4 shipped, App suite green
+
+Read this first. The state below is observed, not planned.
+
+### Where it stands
+
+| Phase | Scope | State |
+| --- | --- | --- |
+| 1 | Typed catalogue manifest, job registry, shell navigation, workspace migration | ✅ shipped |
+| 2 | `AppRail`, `HomeCatalogues`, `CataloguePage` | ✅ shipped |
+| 3 | `WorkPane` re-host and job lifecycle | ✅ shipped |
+| 4 | Map shell, `StatusStrip`, `ProblemsPanel`, `NotificationPanel`, FAB removal | ✅ shipped |
+| 5 | Project editor as the primary New map path, deep reveals | ⏳ not started (#131) |
+| 6 | Served-viewer parity, one canonical token output | ⏳ not started (#132) |
+| 7 | Localization, accessibility, responsive, motion, contrast sweep | ⏳ not started (#133) |
+| 8 | Full gates, capture matrix, documentation, cleanup | 🏃 in progress (#134) |
+
+Shipped by hand through `build-installer.bat`: `v0.1.0-phase4.1` (commit `cb3dd01`) and
+`v0.1.0-phase4.2` (commit `99c316d`, dark by default).
+
+### Verified, as observed
+
+| Gate | Result |
+| --- | --- |
+| `App.test.ts` + `App.shellFabClearance.test.ts` | ✅ **48/48** — was 37 failures |
+| `catalogues.test.ts` | ✅ 19/19 |
+| `components/tabs` | ✅ **247/247, contract unchanged** |
+| `vue-tsc` on `@worldlens/ui` | ✅ clean |
+| `pnpm lint` | ✅ clean |
+| `pnpm build` | ✅ 14/14 workspace projects |
+| Rest of the UI suite | ⚠️ 27 failures, **all pre-existing** |
+
+Those 27 were verified by checking out `324e21d` — the commit before this rewrite began — and
+running them there: they fail identically. Theme storage, copy-catalogue coverage, an overlay
+inventory, a Docker panel padding rule. Not caused by the rewrite and not claimed as fixed by it.
+
+### The one thing that is genuinely unfinished, and is not a test
+
+**No pixel-level pass against `Worldlens.dc.html` has been done.** The shell's *structure* matches
+the approved prototype — three destinations behind an 80 px rail, five catalogue cards, catalogue
+pages as divided lists, no floating buttons, dark by default — and the built renderer demonstrably
+contains it (`wl-rail` is present in the shipped bundle JS). What has **not** been checked against
+the prototype is spacing, the type scale in use, and which colour role each surface actually spends.
+If somebody reports "it still looks like the old app" and they are on `v0.1.0-phase4.2` or later,
+that is the gap, not a missing rail.
+
+### Traps this pass paid for, so the next one does not
+
+- **A persisted page id is a user's open tab.** `wizard` is stored as `world` and `runners` as
+  `cirender`; the semantic names live in `jobRegistry.ts` and map onto the stored ids. Rename one on
+  disk and a returning user loses that tab.
+- **A package manager writes `PATH` for *future* shells.** After a winget install, the very next
+  line of the same script still cannot find what it just installed — which reads as "the install
+  failed" when it in fact succeeded. `build.bat` refreshes the process `PATH` explicitly.
+- **A green `electron-builder` exit is not an artifact.** It writes to `release\squirrel-windows\`,
+  not `dist\`; a collector looking only in `dist` reported "nothing was produced" seconds after
+  producing a 157 MB installer.
+- **`display: none` on a canvas host loses the WebGL scene.** The map layer stays mounted with
+  `inert` and `aria-hidden`; Home and Work are opaque layers over it. Navigation must never cost a
+  scene, a camera or a marker selection.
+- **`exists()` answers "was it built", not "is it in front".** Every destination layer stays
+  mounted, so tests read the rail's own `aria-current` through `currentDestination()`.
+- **`actionlint` deadlocks on Windows with shellcheck integration on.** Run it with
+  `-shellcheck=` for the structural verdict and say plainly that the `run:` shell went unchecked by
+  that pass; the hosted runner checks it properly.
+
+### CI changed shape
+
+Lint is its own job and gates nothing. `package` builds whenever `jars` is available. `release`
+publishes whenever there is a real installer, with a warning callout and a per-gate table in the
+notes, so "it shipped" never silently implies "it passed".
+
+### Next session starts here
+
+1. The pixel pass against the prototype (spacing, type ramp, colour roles) — phase 8's real content.
+2. Phase 5: the project editor's three panes, generated defaults, `FieldMeta` rendering, the save
+   plan, CLI resolution, mask integration.
+3. The 27 pre-existing failures, which nobody has owned yet.
+
+
+## 2026-08-08 — the Material Design 3 shell rewrite: rail, catalogues, Work
+
+The approved prototype is the product shell now. Nothing underneath it changed: domain logic,
+config schemas, render orchestration, persistence, security behaviour, Electron integration and
+server behaviour are all exactly where they were. No capability was removed — only how it is
+reached.
+
+**Three destinations behind an 80 px rail.** Home is five catalogue cards over 85 features
+(28/6/6/7/38). Map is the live canvas. Work is the existing tab system re-hosted, holding only the
+jobs somebody actually started. The rail footer carries command search, the notification bell and
+settings — as rail actions, never floating buttons.
+
+**Where the work is.** `components/shell/` holds it all: `featureTargets.ts` (the target union),
+`jobRegistry.ts` (eleven jobs; semantic names map onto the *persisted* page ids, so `wizard` is
+stored as `world` and `runners` as `cirender` — renaming a persisted page id is how a returning user
+loses an open tab), `catalogues.ts` (the 85), `catalogueMeta.ts` (live resolvers only — no count in
+this codebase is transcribed from the prototype, which reported two different totals for the same
+editor), `capabilities.ts` (nine rows gated because their only implementation is a contract this
+public checkout does not carry), `shellNavigation.ts` (one `activateFeature` that every surface
+calls) and `tabWorkspaceMigration.ts`.
+
+**The migration removes exactly two tabs** — Home and Map — and touches nothing else. It moves the
+strip from left to top only when the whole workspace is provably the untouched default, judged on
+semantic fields rather than timestamps or key order. The version marker is written after the
+workspace persists, never before, so a crash between the two leaves it to run again rather than
+leaving a half-migrated strip stamped done.
+
+**`TabbedNavigation` was re-hosted, not rewritten.** Four backwards-compatible additions
+(`seedPageIds`, `defaultPlacement`, `fileNewTabsIntoSeedGroups`, a `workspace-change` emit), every
+default identical to the previous behaviour. **247/247 of its tests pass unchanged.**
+
+**Two root scripts.** `build.bat` assumes a fresh Windows install and installs Node itself
+(user-scoped winget, portable fallback, process PATH refreshed afterwards — a package manager
+writes PATH for *future* shells, so the next line of the same script would otherwise still not find
+it). `build-installer.bat` produces the Squirrel installer and verifies it rather than trusting the
+exit code. Both take `/s`. Manual releases go through them, which makes every hand-cut release an
+end-to-end test of what a new machine does.
+
+**CI changed shape.** Lint is its own job and gates nothing; `package` builds whenever `jars` is
+available; `release` publishes whenever there is a real installer, with a warning callout and a
+per-gate table in the notes so "it shipped" never silently implies "it passed".
+
+### Verified, as observed
+
+| Gate | Result |
+| --- | --- |
+| `catalogues.test.ts` | 19/19 |
+| `components/tabs` | 247/247, contract unchanged |
+| `App.shellFabClearance.test.ts` | 7/7, rewritten to the no-FAB contract |
+| `vue-tsc` on `@worldlens/ui` | clean |
+| `pnpm build` | green, 14/14 projects |
+| `build.bat /s` | exit 0, 24s |
+| `build-installer.bat /s` | `Worldlens-0.1.0-Setup.exe`, 157,187,584 bytes, sha256 `5bab46cb…4f07ad` |
+| `App.test.ts` | **20 failed, 21 passed** — see below |
+
+### What is still red, and what is not done
+
+`App.test.ts` has **20 failures**, all of them cases that assert the shell this rewrite replaced: a
+Home tab, a Map tab, twelve pages one disclosure away, and the configuration FAB. They are the old
+contract still being enforced, not a defect in the new shell. None was skipped, weakened or deleted
+to make a number look better. Rewriting them is tracked on issue #134.
+
+Not built: `StatusStrip`, `ProblemsPanel` and `NotificationPanel` (#130) — the notification centre
+is still reached through the existing `requestReveal('noticeCentre')` path. The Work strip's `+`
+still opens the existing page picker rather than returning Home (#129). Phases 5–8 (#131 #132 #133
+#134) are not done, including the project editor's three panes, served-viewer token identity and
+the recaptured screenshot matrix.
+
+
+## 2026-08-08 (later) — the interface rewrite: a different look, a calmer first launch, and motion
+
+Branch `claude/interface-usability-clipping-k4to32`, continuing the entry below. The brief was
+a genuinely different Material Design 3 look that a newcomer does not read as cluttered, with
+no feature removed.
+
+**What made this more than a token dump.** Vuetify's `rounded` scale is Material 2 arithmetic
+wearing Material 3 names: its `lg` is 8px against M3's 16px, its `xl` is 24px against 28px, and
+it has no `md` step at all. The md3 blueprint already set cards to `rounded="lg"`, so the cards
+were asking for the large corner and getting 8px — meaning component defaults alone would have
+been a visible no-op. `global.scss` therefore re-points the utility classes themselves at the
+tokens, and the same treatment gives `.elevation-0..5` M3's key-plus-ambient ladder instead of
+M2's umbra/penumbra/ambient triple and re-tunes Vuetify's state-layer variables from
+0.04/0.12/0.12/0.08 to M3's 0.08/0.1/0.1/0.16. That is what actually changes every screen.
+
+**The token system** (`styles/md3.scss`, `docs/design-system.md`): the shape scale, fifteen type
+ramps with size/line-height/weight/tracking, elevation 0-5, four state-layer opacities, seven
+Expressive easings and the twelve-step duration ladder. Every type value is `rem` and nothing
+sets a root font size, so the interface-size dial still owns scale. Prose is capped at 68ch —
+the wizard was running ~150 characters a line — released inside tables, `pre`, `code`, `kbd`
+and `samp`. The elevation tokens are deliberately **not** named `--md-sys-elevation-levelN`:
+`markers.scss` owns that name for a `drop-shadow()` chain and is imported later, so a
+`box-shadow` under it would be silently clobbered and every elevated surface would go flat.
+
+**De-cluttering, all of it additive.** Home went from ~25 equal cards to one hero plus five
+collapsed disclosures whose headings state their own counts; its capability id set is identical
+before and after, all 28, verified against the previous revision and pinned as an exact set.
+The navigation strip seeds a fresh workspace into four rows plus three named collapsed groups
+instead of twelve flat tabs, with the groupings read off `App.vue`'s own per-page comments; a
+saved workspace is never re-shaped, which two tests pin specifically. The corner FAB stack went
+from four buttons to the two workbench controls, with the licence and welcome panels keeping
+their Home cards and gaining palette rows.
+
+**Motion** (`styles/motion.scss`): tab panels, expanding groups, Home's disclosures, three
+lists, the notification stack and the overlay scrim, all from tokens — a test fails the build
+on a hard-coded millisecond or `cubic-bezier`. It exposed two reduced-motion holes that predate
+it: the `global.scss` kill switch zeroes durations but **not delays** (a 0.01ms animation with
+a 200ms delay and a backwards fill holds content invisible for a fifth of a second), and it
+cannot reach overlays at all because Vuetify teleports `.v-overlay-container` to `<body>`,
+outside `#app`. Both are now covered — shorthand resets for the first, a `no-preference` media
+query for the second.
+
+**Visual bugs found by looking at the real application**, not by testing it. Reading the
+committed screenshots caught two defects invisible to ~9,800 tests: the consent row rendering
+"…client download:not accepted yet" because Vue condenses the whitespace-only newline between
+`</strong>` and a `<template v-if>` (all three language modes and all five funny levels at
+once), and the wizard's run-options row misaligning when one label wraps. The second is worth
+reading in full: the row was level in that screenshot **only by coincidence** — all three hints
+happened to run to three lines, so three stretched control rows came out equal. The mechanism
+was grid `stretch` plus Vuetify's `grid-template-rows: 1fr auto` putting the surplus in the
+control row plus `.v-selection-control`'s centring; the fix removes the stretch, and the labels
+that never wrapped do not move.
+
+**The screenshot harness was run for real, and it is what found the rest.** Electron under
+`xvfb-run`, four rounds, each one exposing something no unit test can see because all of it
+lives in how a flex box lays its children out and jsdom does no layout at all:
+
+1. Eleven surfaces could not be opened. Tabs that live inside a collapsed group are genuinely
+   not on screen until the group is opened, so the harness expands them first now — the same
+   class of failure this file already documents for the profile manager, whose capture went on
+   clicking a floating button the shell had deliberately deleted.
+2. The shell's floating buttons were drawn **on top of the tab strip**, intercepting clicks on
+   its own overflow and search controls. Fixed by measurement, as described above.
+3. Each collapsed group's commands menu dropped onto **a full-width row of its own** beneath
+   the group name — three orphaned rows reading as bare ellipses.
+4. The fix for (2) was published by **all four** of this application's tab strips, so whichever
+   mounted last won and the shell's buttons were offset by a panel's width. Publishing is an
+   explicit opt-in now, and the measurement is `getBoundingClientRect().right`.
+
+After those, every surface captures. **One genuine finding is left deliberately unfixed and is
+recorded here rather than papered over:** opening the Pages tab makes live calls to
+`api.github.com/user` and `/user/repos` even when nobody is signed in, because
+`PagesScreen.vue`'s `onMounted` gates `loadOwners()` on `canListOwners`, which asks whether
+this *build* can list owners rather than whether anybody is *signed in*. The harness's
+offline guard fails on it. It predates all of this work and was invisible only because that
+surface could never be opened in a capture run before; changing when the application talks to
+a third party is a behaviour decision that does not belong in a look-and-feel change.
+
+Verification: `pnpm lint`, `pnpm build` and per-package typechecks clean; the full workspace
+vitest run green; every wave verified before its own push; the harness green apart from the
+network guard described above.
+
+**CI was red for most of this branch's life, and the reason is worth recording.** `pnpm
+typecheck` at the workspace root runs `vue-tsc`/`tsc` across all thirteen packages; the
+per-package checks run during the work only covered `ui` and `app`, so a `ui` failure
+introduced after that check went unnoticed locally while every push went red. The failure
+itself: an optional `publishesInset?: boolean` forwarded bare from `TabbedNavigation` to
+`TabStrip`. `vue-tsc` types a template reference to an optional prop from its *declared*
+type rather than its `withDefaults` value, so the binding is `boolean | undefined`, and this
+workspace's `exactOptionalPropertyTypes` refuses that against a receiving `?: boolean`. The
+component's other optional booleans are only ever coerced in the template, which is why this
+was the one that tripped. Run `pnpm typecheck` from `design/`, not per package - that is
+what CI runs.
 ## 2026-08-08 — #117 RemoteFileBrowser has no narrow-dialog horizontal scroll trap
 
 At 30rem and below, the remote file listing now uses a fixed table layout, retains the name and

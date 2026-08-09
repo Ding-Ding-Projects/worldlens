@@ -4,13 +4,9 @@ import { useI18n } from "vue-i18n";
 import {
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
-    mdiCog,
     mdiEye,
-    mdiFileCogOutline,
     mdiFileDocumentOutline,
     mdiFolderMultipleOutline,
-    mdiHomeOutline,
-    mdiMapOutline,
     mdiMapPlus,
     mdiProgressClock,
     mdiServerNetwork,
@@ -28,10 +24,29 @@ import { ConfigNotifications, ConfigScreen } from "./components/config/index.js"
 import { MainMenu, provideBlueMap, useBlueMapTheme } from "./components/menu/index.js";
 import { MarkerMenu } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
+import {
+    AppRail,
+    CataloguePage,
+    HomeCatalogues,
+    WorkPane,
+    NotificationPanel,
+    ProblemsPanel,
+    StatusStrip,
+    collectProblems,
+    createShellNavigation,
+    markMigrationRan,
+    migrateWorkspace,
+    migrationAlreadyRan,
+    type CatalogueFeatureDefinition,
+    type CatalogueMetaSources,
+    type FeatureTarget,
+    type RailDestination,
+} from "./components/shell/index.js";
 import { AppTitleBar } from "./components/shell/index.js";
+import { readTabWorkspace, writeTabWorkspace } from "./components/tabs/tabStorage.js";
 import { StartupRecoveryBanner } from "./components/startup/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
-import { onDocsArticleRequested } from "./components/docs/docsLink.js";
+import { onDocsArticleRequested, requestDocsArticle } from "./components/docs/docsLink.js";
 import {
     TutorialOverlay,
     markTutorialOffered,
@@ -53,7 +68,7 @@ import type { ConsoleTarget } from "./components/renders/activeRenders.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import type { PaletteConfigTarget } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
-import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
+import type { TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
 import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
@@ -145,12 +160,16 @@ const pages = computed<TabPage[]>(() => [
     // so a newcomer sees the single obvious next step and a returning user sees what they
     // were doing last. "Opening new tabs, people won't know where to go at first" is the
     // exact complaint this page exists to answer.
-    { id: PAGE_HOME, label: t("tabs.page.home", "Home"), icon: mdiHomeOutline },
-    { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
+    // Home and Map are gone from this list, and that is the rewrite in one line: they are rail
+    // destinations now, not tabs. Everything else is unchanged, because everything else is a job
+    // somebody opens and closes. `tabWorkspaceMigration.ts` removes their tabs from a workspace
+    // that predates this, and removes only those two.
     { id: PAGE_WORLD, label: t("tabs.page.world", "Make a map"), icon: mdiMapPlus },
-    // Next to the guide rather than at the end of the strip, because they are the two ends
-    // of one job: the guide asks five questions and writes a project, and this is where
-    // every other setting that project can carry actually lives.
+    // Declared next to the guide because they are the two ends of one job: the guide asks
+    // five questions and writes a project, and this is where every other setting that
+    // project can carry actually lives. On a fresh install it is seeded into the "Rendering"
+    // group rather than sitting beside the guide in the strip - see `initialGroups` below
+    // for why a newcomer meets the guide and not the settings behind it.
     {
         id: PAGE_PROJECTS,
         label: t("tabs.page.projects", "Projects"),
@@ -205,7 +224,227 @@ const pages = computed<TabPage[]>(() => [
     { id: PAGE_DOCS, label: t("tabs.page.docs", "Docs"), icon: mdiFileDocumentOutline },
 ]);
 
-const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
+/**
+ * How a brand-new workspace is arranged, and why it is not twelve flat tabs.
+ *
+ * Twelve equal-weight destinations is what every one of the pages above deserves and not
+ * what a person meeting this application deserves: the two they need on the first day sit in
+ * a list with nine they will need later and one they need when stuck, all in the same
+ * typeface, all the same size, none of them explaining the others. That flat list is this
+ * shell's single biggest source of "cluttered", and the answer is not to delete a
+ * destination - every one of them is somebody's whole reason for opening the app - but to
+ * say out loud which ones belong together, which is what the tab strip's own groups are for.
+ *
+ * So a fresh install seeds three named groups and leaves four things in front of them:
+ *
+ *  - **Home**, pinned by `pinned-page-ids` below and therefore outside every group, because
+ *    the pinned region is what keeps the landing page at the front of the strip.
+ *  - **Map** and **Make a map**, loose. They are the two things a newcomer actually does -
+ *    look at a map, or make one - and putting either behind a disclosure would be answering
+ *    "too much on screen" by hiding the part that is not too much.
+ *  - **Docs**, loose. It is the destination somebody reaches for precisely when the rest of
+ *    the strip has stopped making sense, and it is one tab: a group holding a single tab is
+ *    a header that hides exactly one thing and saves exactly one row, which is an
+ *    indirection charging rent it does not pay.
+ *
+ * The three groups are named for the job their members share, taken from what each page is
+ * for rather than from where it happens to sit in the list above:
+ *
+ *  - **Rendering** - Projects, GitHub runners, Renders. Everything that decides how a render
+ *    is set up and shows what it is doing: the settings a project carries, the fourth answer
+ *    to "where does this render run", and the count of what is in flight.
+ *  - **Finished maps** - Maps and servers, Publish to Pages, Watch it live. A map that
+ *    already exists, and the three places it can be looked at: this application's own list
+ *    of local and remote maps, somebody else's static host, and this computer serving it
+ *    straight off its own disk.
+ *  - **Keeping a copy** - Backups, World repository. The two ways a world or a render is put
+ *    somewhere that is not this one machine: a versioned upload to GitHub, and a git
+ *    repository a second computer can adopt.
+ *
+ * This is a default rather than a structure. Every group here can be renamed, recoloured,
+ * reordered, emptied or ungrouped from the moment the strip is drawn, and that choice is what
+ * gets persisted; nothing re-applies this list to a workspace that already exists, which is
+ * the whole reason it is passed as a seed rather than enforced on every mount. A returning
+ * user's strip is exactly the one they arranged, groups and all.
+ *
+ * ## They are seeded open, and that is deliberate
+ *
+ * The first version of this seeded them collapsed, on the reasoning that the shortest
+ * possible strip is the least cluttered one. It is, and it costs more than it saves. What
+ * makes twelve flat tabs hard to read is that nothing says which of them belong together,
+ * and a name over a group fixes that on its own - the reader's eye gets three labelled
+ * regions instead of one undifferentiated list, whether or not the members are showing.
+ * Collapsing on top of that does not remove clutter so much as remove *destinations*: every
+ * page below a header becomes a thing you must already know is there to go looking for, and
+ * the strip stops being able to answer "what can this application do" by being looked at.
+ *
+ * There is a concrete cost too, and it is the kind that is easy to miss from a wide window.
+ * A disclosure is a control, and a control is something that can fail to be pressed - by
+ * automation, by an assistive technology driving the strip, or by anyone on a short window
+ * where the header itself is what scrolled out of reach. Reachability that depends on a
+ * click is strictly weaker than reachability that does not, and the capture harness proved
+ * it: with the groups seeded shut, five destinations became unreachable to it, on a strip
+ * whose own diagnostics reported every group present, named and correct.
+ *
+ * Open by default, then. The grouping does the de-cluttering, the strip stays honest about
+ * what the application contains, and collapsing is left as what it always should have been:
+ * something the reader does to the sections they have decided they do not need.
+ */
+/*
+ * The seeded groups moved to `WorkPane`, which is the component that now hands them to
+ * `TabbedNavigation`. Same three names, same colours, same memberships - see
+ * `jobRegistry.ts`. They are declared once, there, rather than here and there.
+ */
+
+const tabs = ref<InstanceType<typeof WorkPane> | null>(null);
+
+/* -------------------------------------------------------------------------- */
+/* The shell: three destinations                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Home, Map and Work, and the one function that opens a catalogue feature.
+ *
+ * Every host callback below is a call into code this component already had. The controller
+ * decides *what* should happen when a row is pressed; this file keeps owning *how*, which is the
+ * same division the command palette has always used here.
+ */
+const shell = createShellNavigation({
+    ensureJob: (jobId) => tabs.value?.ensurePage(jobId),
+    revealJob: (jobId) => tabs.value?.revealPage(jobId),
+    revealInJob: (jobId, reveal) => {
+        // Deep reveals reuse each screen's own existing request mechanism rather than a new one.
+        // Docs is the only job with a published article route today; the rest land on the job
+        // itself, which is the honest behaviour until each screen exposes its own.
+        if (jobId === "docs") requestDocsArticle(reveal);
+    },
+    revealOnMap: (reveal) => {
+        const app = blueMapApp.value;
+        if (app === null) return;
+        app.appState.menu.openPage(reveal, () => t(`menu.${reveal}`, reveal));
+    },
+    openOverlay: (overlay, reveal) => {
+        switch (overlay) {
+            case "settings":
+                openSettings((reveal ?? null) as SettingsSectionAnchor | null);
+                return;
+            case "config":
+                openConfig();
+                return;
+            case "palette":
+                paletteOpen.value = true;
+                return;
+            case "notifications":
+                requestReveal("noticeCentre");
+                return;
+            case "eula":
+                eulaOpen.value = true;
+                return;
+            case "tour":
+                requestTutorialLaunch();
+                return;
+        }
+    },
+    runWorkAction: (action) => {
+        if (action === "tab-finder") requestReveal("tabFinder");
+    },
+    openDocsArticle: (articleId) => requestDocsArticle(articleId),
+    reportProblem: (problem) => {
+        // An unknown or unavailable target is never a click that silently does nothing. It says
+        // so, once, through the same notice history everything else uses.
+        raiseNotice("warning", problem.message);
+        if (!routingFailures.value.some((entry) => entry.id === problem.id)) {
+            routingFailures.value = [...routingFailures.value, { id: problem.id, message: problem.message }];
+        }
+    },
+});
+
+const destination = shell.destination;
+
+/**
+ * Targets this build could not route, and the panel that shows them.
+ *
+ * A routing failure used to be a click that silently did nothing. It is a visible, dismissible
+ * problem now, with the same wording the development-time error carries - a row that cannot be
+ * opened says so rather than teaching somebody that the catalogue is decorative.
+ */
+const routingFailures = ref<{ id: string; message: string }[]>([]);
+const problemsOpen = ref(false);
+
+/**
+ * The rail bell the notification history anchors to.
+ *
+ * Generated rather than spelled out so nothing else in the document can collide with it, and
+ * handed to both the rail and the panel so the panel anchors to the exact control that opens it.
+ */
+const notificationsActivatorId = useId();
+const notificationsOpen = ref(false);
+
+const problems = computed(() =>
+    collectProblems(
+        {
+            unresolvedPageIds: unresolvedPageIds.value,
+            routingFailures: routingFailures.value,
+        },
+        t as never,
+    ),
+);
+
+/** Page ids restored from a workspace nothing in this build declares. Kept, never deleted. */
+const unresolvedPageIds = ref<readonly string[]>([]);
+
+/** A remedy button routes through the same activation path every catalogue row uses. */
+function onProblemRemedy(target: FeatureTarget): void {
+    void shell.activateTarget(target);
+}
+
+/** Open jobs, read back from the tab workspace rather than kept in a second array here. */
+const openJobIds = ref<readonly string[]>([]);
+
+/**
+ * The one-time move off the twelve-page workspace.
+ *
+ * Runs before anything reads the workspace, and marks itself done only after the transformed
+ * value has been written - a crash between the two leaves it to run again rather than leaving a
+ * half-migrated strip stamped as finished. Idempotent, so calling it on every mount is safe.
+ */
+onMounted(() => {
+    if (migrationAlreadyRan()) return;
+    const result = migrateWorkspace(readTabWorkspace());
+    if (result.workspace !== null) writeTabWorkspace(result.workspace);
+    unresolvedPageIds.value = result.unresolvedPageIds;
+    markMigrationRan();
+    shell.destination.value = result.destination;
+    if (result.activeJobId !== null) {
+        void nextTick(() => tabs.value?.revealPage(result.activeJobId as string));
+    }
+});
+
+/**
+ * Unread notices, derived the way the notice centre itself derives them: everything newer than
+ * the highest id the centre has been opened over. An id rather than a count, because the history
+ * is bounded - once it starts dropping its oldest entry, "seen" and "raised" counts drift apart
+ * silently and the badge starts lying.
+ */
+const unreadNoticeCount = computed(
+    () => notices.history.filter((notice) => notice.id > notices.reviewedId).length,
+);
+
+/** Live values for the catalogue row metas. Nothing here is a literal. */
+const metaSources = computed<CatalogueMetaSources>(() => ({
+    runningRenderCount: runningRenderCount.value,
+    profileCount: profilesStore.profiles.length,
+    unreadNoticeCount: unreadNoticeCount.value,
+    paletteShortcut: "Ctrl+Shift+F",
+}));
+
+function onRailSelect(next: RailDestination): void {
+    shell.select(next);
+}
+
+async function onActivateFeature(feature: CatalogueFeatureDefinition): Promise<void> {
+    await shell.activateFeature(feature);
+}
 
 /**
  * Navigating from outside the strip.
@@ -216,7 +455,20 @@ const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
  * palette ends up sending somebody to a screen the strip stopped drawing.
  */
 function revealPage(pageId: string): void {
+    // Two of the twelve old page ids are rail destinations now, so a caller that still asks for
+    // them by name gets the destination rather than nothing. Everything else is a job: open it
+    // and switch to Work, which is what "take me there" has always meant.
+    if (pageId === PAGE_HOME) {
+        shell.select("home");
+        return;
+    }
+    if (pageId === PAGE_MAP) {
+        shell.select("map");
+        return;
+    }
+    tabs.value?.ensurePage(pageId);
     tabs.value?.revealPage(pageId);
+    shell.destination.value = "work";
 }
 
 /**
@@ -260,9 +512,6 @@ function onOpenConsole(target: ConsoleTarget): void {
  * `TabbedNavigation.vue`. Cheap enough to call unconditionally rather than behind a
  * one-time flag of this component's own.
  */
-onMounted(() => {
-    tabs.value?.ensurePage(PAGE_HOME);
-});
 
 /**
  * The autosave scheduler's own notice policy, mounted once for the whole session rather than
@@ -769,6 +1018,19 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
         -->
         <StartupRecoveryBanner />
 
+        <!--
+            One reflowing line, and only when there is something to say. Under the banners and
+            above the content, in the layout rather than over it: a status line that floated would
+            be a toast with a different name.
+        -->
+        <StatusStrip
+            :running-render-count="runningRenderCount"
+            :problem-count="problems.length"
+            :problems-open="problemsOpen"
+            @open-renders="revealPage(PAGE_RENDERS)"
+            @toggle-problems="problemsOpen = !problemsOpen"
+        />
+
         <v-main class="mb-main">
             <!--
                 The viewer, which renders into #map-container rather than into this tree, so
@@ -784,48 +1046,49 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 behind an opaque surface must not still be reachable with Tab, and tearing it
                 down would lose whatever step of the wizard somebody was on.
             -->
-            <div class="mb-shell-tabs" :inert="configOpen">
+            <div class="mb-shell-body" :inert="configOpen">
+                <!--
+                    The application rail: 80 px, always, at every supported width. It emits and
+                    owns nothing - every action below is a call into the code this component
+                    already had, which is the same division the command palette has used here
+                    since it was written.
+                -->
                 <AppearanceTarget
                     id="app.tabBar"
-                    :label="t('appearance.target.app.tabBar', 'The tab bar')"
+                    :label="t('appearance.target.app.rail', 'The application rail')"
                     as="div"
                 >
-                    <TabbedNavigation
-                        ref="tabs"
-                        class="mb-shell-primary-tabs"
-                        panel-pass-through
-                        :pages="pages"
-                        :pinned-page-ids="[PAGE_HOME]"
-                    >
-                        <!--
-                            Home draws no canvas and owns no shell-level state, so its page
-                            slot is a thin, scrollable host - the same shape every other
-                            non-map page here uses. Every destination it offers emits back to
-                            this component, exactly as `WorldScreen` and `ProjectsScreen`
-                            already do, so the code that actually opens a surface stays in
-                            the one place that already owns it.
-                        -->
-                        <template #home>
-                            <div class="mb-world-host mb-interactive">
-                                <HomeScreen
-                                    @reveal-page="revealPage"
-                                    @open-settings="openSettings($event)"
-                                    @open-config="openConfig($event)"
-                                    @open-eula="eulaOpen = true"
-                                    @open-welcome="welcomeOpen = true"
-                                    @open-palette="paletteOpen = true"
-                                />
-                            </div>
-                        </template>
+                    <AppRail
+                        class="mb-interactive"
+                        :destination="destination"
+                        :open-job-count="openJobIds.length"
+                        :unread-count="unreadNoticeCount"
+                        :product-name="productDisplayName"
+                        :notifications-activator-id="notificationsActivatorId"
+                        :notifications-open="notificationsOpen"
+                        :settings-open="settingsOpen"
+                        @select="onRailSelect"
+                        @open-palette="paletteOpen = true"
+                        @open-notifications="requestReveal('noticeCentre')"
+                        @open-settings="openSettings()"
+                    />
+                </AppearanceTarget>
 
-                        <!--
-                            The map page draws nothing of its own: the canvas is behind the
-                            whole application layer, so this page is a transparent,
-                            click-through frame that lets the map be dragged and carries the
-                            chrome that only makes sense over one.
-                        -->
-                        <template #map>
-                            <div class="mb-map-page">
+                <div class="mb-shell-content">
+                    <!--
+                        Map. The canvas itself is mounted at shell level above and stays there:
+                        this layer is the chrome that only makes sense over one, and it is
+                        transparent so the map underneath can be dragged. Home and Work are
+                        opaque layers over the top of it, which is what makes the canvas
+                        invisible on those destinations without ever unmounting it - navigation
+                        must never cost a WebGL scene, a camera or a marker selection.
+                    -->
+                    <div
+                        class="mb-shell-layer mb-shell-layer--map"
+                        :inert="destination !== 'map'"
+                        :aria-hidden="destination !== 'map' ? 'true' : undefined"
+                    >
+                        <div class="mb-map-page">
                                 <FreeFlightMobileControls v-if="showFreeFlightControls" />
                                 <ZoomButtons v-if="showZoomButtons" />
 
@@ -881,9 +1144,44 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         />
                                     </template>
                                 </MainMenu>
-                            </div>
-                        </template>
+                        </div>
+                    </div>
 
+                    <!--
+                        Home, and the catalogue page that is a page *of* Home rather than a
+                        fourth destination. Opaque, so the map behind it is invisible without
+                        being unmounted.
+                    -->
+                    <div v-show="destination === 'home'" class="mb-shell-layer mb-interactive">
+                        <CataloguePage
+                            v-if="shell.catalogueId.value"
+                            :catalogue-id="shell.catalogueId.value"
+                            :meta-sources="metaSources"
+                            @back="shell.backToHomeRoot()"
+                            @activate-feature="onActivateFeature"
+                        />
+                        <HomeCatalogues
+                            v-else
+                            :meta-sources="metaSources"
+                            @open-catalogue="shell.openCatalogue"
+                            @activate-feature="onActivateFeature"
+                            @new-map="revealPage(PAGE_PROJECTS)"
+                            @walk-me-through="revealPage(PAGE_WORLD)"
+                        />
+                    </div>
+
+                    <!--
+                        Work: the existing tab system, re-hosted. Every job slot below is
+                        exactly the component it always was, emitting back into the shell that
+                        owns the state it needs - re-hosted, not re-parented.
+                    -->
+                    <div v-show="destination === 'work'" class="mb-shell-layer mb-interactive">
+                        <WorkPane
+                            ref="tabs"
+                            :running-render-count="runningRenderCount"
+                            @go-home="shell.select('home')"
+                            @workspace-change="(ids: readonly string[]) => (openJobIds = ids)"
+                        >
                         <!--
                             The wizard is taller than a short window, so it keeps its own
                             scroll container: the step buttons must never be the thing that
@@ -1059,8 +1357,22 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 <DocsPage />
                             </div>
                         </template>
-                    </TabbedNavigation>
-                </AppearanceTarget>
+                        </WorkPane>
+                    </div>
+
+                    <!--
+                        Docked to the bottom of the content, full width excluding the rail. It
+                        reflows the destination above it rather than covering it - a panel over
+                        the bottom of the screen would hide the Save button on the very surface
+                        the problem is about.
+                    -->
+                    <ProblemsPanel
+                        :problems="problems"
+                        :open="problemsOpen"
+                        @update:open="problemsOpen = $event"
+                        @remedy="onProblemRemedy"
+                    />
+                </div>
             </div>
 
             <!--
@@ -1105,40 +1417,24 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 command-palette row each, so the stack holds only the two workbench
                 controls somebody reaches for repeatedly.
             -->
-            <div class="mb-shell-fabs" :class="{ 'mb-shell-fabs--lifted': showFreeFlightControls }">
-                <v-tooltip :text="t('settings.title', 'Settings')" location="end">
-                    <template #activator="{ props: tooltipProps }">
-                        <v-btn
-                            v-bind="tooltipProps"
-                            class="mb-shell-fab mb-interactive"
-                            :icon="mdiCog"
-                            color="surface"
-                            variant="flat"
-                            elevation="3"
-                            :aria-label="t('settings.title', 'Settings')"
-                            :aria-expanded="settingsOpen"
-                            @click="openSettings()"
-                        />
-                    </template>
-                </v-tooltip>
+            <!--
+                The floating buttons are gone. There were four of them at one point - settings,
+                the options editor, the licence panel and the welcome panel - hovering over every
+                screen, two of them for surfaces most people open once. Settings is in the rail
+                footer now and the options editor is a row in Set up & help, which is the
+                difference between chrome and litter: chrome has somewhere to live.
+            -->
 
-                <v-tooltip :text="t('config.title', 'Server configuration')" location="end">
-                    <template #activator="{ props: tooltipProps }">
-                        <v-btn
-                            :id="configFabId"
-                            v-bind="tooltipProps"
-                            class="mb-shell-fab mb-interactive"
-                            :icon="mdiFileCogOutline"
-                            color="surface"
-                            variant="flat"
-                            elevation="3"
-                            :aria-label="t('config.title', 'Server configuration')"
-                            :aria-expanded="configOpen"
-                            @click="configOpen ? closeConfig() : openConfig()"
-                        />
-                    </template>
-                </v-tooltip>
-            </div>
+            <!--
+                The history, anchored beside the rail and opened only because somebody pressed the
+                bell or asked for it by name. `raiseNotice()` is untouched: a notice still lands in
+                the history and still moves the badge, and still never appears over the content.
+            -->
+            <NotificationPanel
+                :state="notices"
+                :activator="`#${notificationsActivatorId}`"
+                @update:open="notificationsOpen = $event"
+            />
 
             <AppSettings
                 :open="settingsOpen"
@@ -1232,11 +1528,61 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * that swallowed pointer events would make the map undraggable everywhere except the gaps
  * between the floating controls. The strip and each page opt back in individually below.
  */
-.mb-shell-tabs {
+/*
+ * The shell body: the rail, then everything else. Click-through by default, exactly as the tab
+ * shell it replaced was, because the map canvas is behind the whole application layer and a
+ * full-bleed container that swallowed pointer events would make the map undraggable everywhere
+ * except the gaps between the floating controls. The rail and each opaque destination opt back in
+ * individually through `mb-interactive`.
+ */
+.mb-shell-body {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: row;
+    pointer-events: none;
+}
+
+.mb-shell-content {
+    position: relative;
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    /* Column, so the docked Problems panel is a sibling that takes height from the layer
+     * stack above it rather than floating over it. */
+    display: flex;
+    flex-direction: column;
+    /*
+     * The one place the shell's own height is decided. Nothing here scrolls: every visible pane
+     * owns exactly one scroll region of its own, which is what keeps a wheel gesture from being
+     * swallowed by a wrapper nobody knew was there.
+     */
+    overflow: hidden;
+}
+
+/*
+ * A destination. All three are stacked in the same box, and only one is showing - Home and Work
+ * are opaque and painted over the map, and the map layer is transparent so the canvas behind the
+ * whole application layer can be dragged.
+ *
+ * `v-show` rather than `v-if` for Home and Work is not laziness: mounting and unmounting a
+ * destination on every rail press would throw away whatever step of the wizard somebody was on.
+ * The map layer is never even hidden that way - it stays in the tree with `inert` and
+ * `aria-hidden`, because `display: none` on a canvas host is how a WebGL scene loses its size and
+ * has to be rebuilt, and navigation must never cost a scene, a camera or a marker selection.
+ */
+.mb-shell-layer {
+    /* All three stacked in the same box.  against the growing area above the
+     * Problems panel rather than against the whole content, so opening the panel shortens the
+     * destination instead of being drawn on top of it. */
     position: absolute;
     inset: 0;
     display: flex;
     flex-direction: column;
+    min-block-size: 0;
+}
+
+.mb-shell-layer--map {
+    /* Transparent, and click-through except for its own controls. */
     pointer-events: none;
 }
 
@@ -1348,18 +1694,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * Opaque on purpose. There is no map behind the wizard or the server list once the page is
  * on screen - and where there is one, showing it faintly through a form is worse than not
  * showing it at all - so a translucent panel would read as a rendering fault rather than as
- * a surface. Also the options editor's host, where it covers the whole shell.
+ * a surface. Also the options editor own host, where it covers the whole shell.
  *
- * `padding-inline-start` reserves a permanent gutter the width of `.mb-shell-fabs` (12px
- * inset + 48px button = 60px, plus 16px of breathing room) below. `.mb-shell-fabs` is
- * `position: fixed`, so it always paints over whatever this host has scrolled to; without
- * this, any heading or paragraph that starts flush at the left edge could land in the same
- * fixed viewport band as an opaque button and lose its leading characters underneath it -
- * confirmed across nine screenshots, the worst of them a radio button sitting under the
- * gear icon at higher display scales. The gutter runs the container's whole scrollable
- * height rather than only its top, because scrolling can carry any part of the content
- * into that fixed band, not only whatever is on screen when it first opens. `.mb-shell-fab`
- * below is the 48px this number must never drift under.
+ * The left gutter this used to reserve is gone with the floating buttons that needed it. A
+ * fixed stack in the bottom-left corner painted over whatever the host had scrolled to, so
+ * every opaque page paid 76px of permanent inset to keep its first characters out from
+ * under a gear icon - confirmed across nine captures, the worst a radio button sitting
+ * under the icon at a high display scale. The rail owns that edge now and reserves its own
+ * width in the flex row, so the page starts where the content starts.
  */
 .mb-world-host {
     position: absolute;
@@ -1367,7 +1709,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     overflow-y: auto;
     overscroll-behavior: contain;
     background: rgb(var(--v-theme-background));
-    padding-inline-start: calc(76px + env(safe-area-inset-left, 0px));
 }
 
 /* The maps-and-servers card has its own width, so its page centres it rather than stretching it. */
@@ -1377,37 +1718,9 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     padding: 16px;
 }
 
-.mb-shell-fabs {
-    position: fixed;
-    left: calc(12px + env(safe-area-inset-left, 0px));
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
 /*
- * The free-flight movement cluster takes the bottom-left corner, so this steps above it.
- * The sizes come from the shared tokens in global.scss so the two cannot drift apart.
+ * The floating-button stack that used to live here is gone, along with the gutter every
+ * opaque host reserved to keep text out from under it. Both were the cost of chrome that
+ * had nowhere to live; the application rail is where those controls live now.
  */
-.mb-shell-fabs--lifted {
-    bottom: calc(
-        24px + env(safe-area-inset-bottom, 0px) + 2 * var(--mb-ff-size) + var(--mb-ff-gap)
-    );
-}
-
-.mb-shell-fab {
-    width: 48px;
-    height: 48px;
-    opacity: 0.94;
-}
-
-.mb-shell-fab:hover,
-.mb-shell-fab:focus-visible {
-    opacity: 1;
-}
-
-.mb-shell-fab :deep(.v-icon) {
-    color: rgb(var(--v-theme-primary));
-}
 </style>

@@ -24,7 +24,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import App from "./App.vue";
-import { HomeScreen } from "./components/home/index.js";
+import { HomeCatalogues } from "./components/shell/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
@@ -182,9 +182,76 @@ const originalBridge = (globalThis as { worldlens?: unknown }).worldlens;
  * With no profile active and no stored tab layout, the shell seeds one tab per page and opens
  * on the first of them. No bridge is installed, so nothing here can touch a disk.
  */
+/**
+ * Every job the Work workspace can hold, so a case that navigates to one has a tab to click.
+ *
+ * A fresh Work workspace seeds exactly one pinned tab - the guide - because Work holds the jobs
+ * somebody actually started, and that is the whole point of the rewrite. A test that wants to
+ * assert what the Backups screen renders would otherwise have to walk Home, the catalogue and the
+ * row first, in every one of twenty-odd cases, which tests the catalogue over and over and the
+ * screen once.
+ *
+ * So {@link shell} opens all of them through the component's own `ensurePage`, which is the exact
+ * call the catalogue makes. The cases that genuinely test *discovery* - that Home offers five
+ * catalogues, that a row opens its job - drive the real path and are marked as doing so.
+ */
+const WORK_JOB_IDS = [
+    "world",
+    "projects",
+    "cirender",
+    "renders",
+    "servers",
+    "pages",
+    "preview",
+    "backups",
+    "worldrepo",
+    "docs",
+] as const;
+
 function shell(): VueWrapper {
     wrapper = mount(App, { global: { plugins: [vuetify, i18n()] }, attachTo: document.body });
     return wrapper;
+}
+
+/**
+ * Which destination the rail says is showing.
+ *
+ * Every layer stays mounted - that is the contract that keeps the WebGL scene alive across
+ * navigation - so `findComponent(...).exists()` answers "was it built", not "is it in front".
+ * The rail's own `aria-current` is the shell's public answer to the second question, and it is
+ * the same string a screen reader is told.
+ */
+function currentDestination(): string | null {
+    const active = [...document.querySelectorAll<HTMLElement>(".wl-rail-item")].find(
+        (node) => node.getAttribute("aria-current") === "page",
+    );
+    return active?.querySelector(".wl-rail-label")?.textContent?.trim() ?? null;
+}
+/** Switches to a rail destination the way a person does: by pressing it. */
+async function goTo(destination: "Home" | "Map" | "Work"): Promise<void> {
+    // Matched on the label element rather than on the button's whole text: the Work item carries
+    // an open-job badge inside it, so the button reads "3Work" and an exact comparison against
+    // "Work" quietly finds nothing.
+    const item = [...document.querySelectorAll<HTMLElement>(".wl-rail-item")].find(
+        (node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === destination,
+    );
+    if (item === undefined) throw new Error(`the rail renders no ${destination} item`);
+    item.click();
+    await settle();
+}
+
+/**
+ * Opens every job in Work and lands there, so the cases below can click a job tab.
+ *
+ * Reaches through the exposed `ensurePage` rather than through the catalogue for the reason in
+ * {@link WORK_JOB_IDS}: this is setup, not the thing under test.
+ */
+async function openAllJobs(): Promise<void> {
+    const pane = wrapper?.findComponent({ name: "WorkPane" });
+    const api = pane?.vm as unknown as { ensurePage: (id: string) => void } | undefined;
+    for (const id of WORK_JOB_IDS) api?.ensurePage(id);
+    await settle();
+    await goTo("Work");
 }
 
 /** Several ticks: opening the surface focuses it on the next one, and it mounts on another. */
@@ -195,14 +262,18 @@ async function settle(): Promise<void> {
     }
 }
 
-function configFab(): HTMLButtonElement {
-    const button = document.querySelector<HTMLButtonElement>(
-        'button[aria-label="Server configuration"]',
-    );
-    if (button === null) throw new Error("the shell renders no configuration button");
-    return button;
+/**
+ * Opens the options editor the way the product now does.
+ *
+ * There is no configuration button any more. The editor is a row in the Set up & help catalogue
+ * and a command in the palette, and both go through the shell's own overlay path - so this drives
+ * the palette, which is the shorter of the two real routes and the one that does not depend on the
+ * catalogue copy staying worded exactly as it is today.
+ */
+async function openOptionsEditor(): Promise<void> {
+    wrapper?.findComponent(CommandPalette).vm.$emit("open-config", null);
+    await settle();
 }
-
 /** The full-bleed host, identified the way a screen reader finds it. */
 function configHost(): HTMLElement | null {
     return document.querySelector<HTMLElement>(
@@ -225,13 +296,47 @@ function configHost(): HTMLElement | null {
  * unrelated surface grows a tab strip. What is being asserted here is the shell's pages.
  */
 function shellTabs(): HTMLElement[] {
-    return [...document.querySelectorAll<HTMLElement>('.mb-shell-tabs [role="tab"]')];
+    return [...document.querySelectorAll<HTMLElement>('.wl-work [role="tab"]')];
 }
 
 function tabButton(label: string): HTMLElement {
-    const node = shellTabs().find((tab) => tab.getAttribute("aria-label") === label);
+    // Tolerant of the pinned suffix: the guide is pinned on a fresh Work workspace, so its tab
+    // announces "Make a map, pinned" while every case here names the destination rather than its
+    // pin state - which is the thing they are actually about.
+    const node = shellTabs().find((tab) => {
+        const announced = tab.getAttribute("aria-label") ?? "";
+        return announced === label || announced === `${label}, pinned`;
+    });
     if (node === undefined) throw new Error(`the shell renders no tab labelled ${label}`);
     return node;
+}
+
+/** The seeded groups' own headers, in strip order. */
+function shellGroupHeads(): HTMLElement[] {
+    return [
+        ...document.querySelectorAll<HTMLElement>(".wl-work .mb-tabs-strip__group-head"),
+    ];
+}
+
+/**
+ * Opens every collapsed group in the shell's strip.
+ *
+ * A fresh workspace is seeded into three collapsed groups (see `App.vue`'s `initialGroups`
+ * and the reasoning above it), and a collapsed group's members are deliberately not drawn -
+ * they are still in the strip, still searched and still counted, but a test that clicks a tab
+ * has to open the group first, exactly as a person does. That is the whole difference between
+ * a destination being one disclosure away and being gone, so the cases below call this rather
+ * than reaching past the strip's own state.
+ */
+async function expandShellGroups(): Promise<void> {
+    // Work seeds one pinned tab now, so "open every group" starts by opening every job - see
+    // `WORK_JOB_IDS`. The name is kept because what the cases below are actually saying is
+    // "make every destination clickable", and that is still exactly what this does.
+    await openAllJobs();
+    for (const head of shellGroupHeads()) {
+        if (head.getAttribute("aria-expanded") === "false") head.click();
+    }
+    await settle();
 }
 
 function tabLabels(): (string | null)[] {
@@ -257,50 +362,75 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into twelve pages behind one persistent strip", () => {
+    it("opens a fresh Work workspace as one pinned job, not twelve flat tabs", () => {
         shell();
 
-        expect(tabLabels()).toEqual([
-            // Pinned tabs announce that state in their own accessible name - see
-            // `TabButton.vue`'s `tabs.strip.pinnedTab` - which is also the proof that Home
-            // really did seed pinned rather than merely first in the ordinary region.
-            "Home, pinned",
-            "Map",
-            "Make a map",
-            "Projects",
-            "GitHub runners",
-            // No count in the label: nothing in this shell's fake bridges reports a render in
-            // flight, so the always-mounted indicator behind this label reads zero, exactly
-            // as it should for a shell with nothing running.
-            "Renders",
-            "Maps and servers",
-            "Backups",
-            "Publish to Pages",
-            // A world synced into a git repository, and a repository this application already
-            // prepared on another computer recognised and adopted - see
-            // WorldRepoScreen.vue's own doc comment.
-            "World repository",
-            // The local twin of Pages: no address for a fake bridge-less shell to have
-            // started hosting, so this always mounts as an ordinary, unhosted tab.
-            "Watch it live",
-            "Docs",
+        // The rewrite in one assertion. Work holds the jobs somebody actually started, and on a
+        // fresh install that is exactly one: the guide, pinned so it cannot be swept up by a bulk
+        // close. The other ten destinations did not disappear - they moved to Home's catalogues,
+        // which is what makes it safe for this strip to be short.
+        expect(tabLabels()).toEqual(["Make a map, pinned"]);
+    });
+
+    /*
+     * Seeded groups still exist, and a group with no member open still renders no heading. Both
+     * halves matter: the group definitions are what file Projects under "Rendering" the moment it
+     * is opened, and a heading standing over nothing is a control that does nothing when pressed.
+     */
+    it("renders no group heading until a group has a member open", async () => {
+        shell();
+        await settle();
+
+        expect(shellGroupHeads()).toHaveLength(0);
+
+        await expandShellGroups();
+
+        expect(shellGroupHeads().map((head) => head.getAttribute("aria-label"))).toEqual([
+            "Rendering, 3 tabs",
+            "Finished maps, 3 tabs",
+            "Keeping a copy, 2 tabs",
         ]);
     });
 
-    it("reaches Home through its own tab, pinned so it cannot be swept up by a bulk close", async () => {
-        const app = shell();
+    it("still separates the shell into ten jobs, every one of them reachable", async () => {
+        shell();
+        await expandShellGroups();
 
-        const homeTab = tabButton("Home, pinned");
-        expect(homeTab.closest(".mb-tabs-strip__pinned")).not.toBeNull();
-
-        homeTab.click();
-        await settle();
-
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+        // Ten, not twelve. Home and Map left the strip entirely - they are rail destinations now,
+        // and a Home tab beside a Home rail item would be two navigation models arguing.
+        //
+        // Sorted, because what this case is about is that all ten are reachable rather than which
+        // order a test helper happened to open them in. A sequence assertion here would go red
+        // every time the job registry is reordered, for no defect at all.
+        expect([...tabLabels()].sort()).toEqual([
+            "Backups",
+            "Docs",
+            "GitHub runners",
+            "Make a map, pinned",
+            "Maps and servers",
+            "Projects",
+            "Publish to Pages",
+            // No count in the label: nothing in this shell's fake bridges reports a render in
+            // flight, so the always-mounted indicator behind this label reads zero, exactly as it
+            // should for a shell with nothing running.
+            "Renders",
+            "Watch it live",
+            "World repository",
+        ]);
     });
 
-    it("reaches the docs browser through its own tab", async () => {
+    it("reaches Home from the rail, where no bulk close can ever touch it", async () => {
+        const app = shell();
+
+        await goTo("Home");
+
+
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+    });
+
+    it("reaches the docs browser through its own job", async () => {
         shell();
+        await expandShellGroups();
 
         tabButton("Docs").click();
         await settle();
@@ -316,8 +446,11 @@ describe("the tab strip", () => {
         // the two apart.
         const app = shell();
 
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-map-page")).toBeNull();
+        expect(currentDestination()).toBe("Home");
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        // The map layer is mounted at all times on purpose: unmounting it would throw away the
+        // WebGL scene every time somebody looked at Home. Not showing means inert.
+        expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
     });
 
     it("opens on Home for a fresh install, the moment first-run setup genuinely completes", async () => {
@@ -330,18 +463,27 @@ describe("the tab strip", () => {
         // "Finish setup" success (proven to fire only on that success by
         // `FirstRunSetup.test.ts`), rather than a workspace pre-seeded in isolation.
         const app = shell();
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
 
         await app.findComponent(FirstRunSetup).vm.$emit("finished");
         await settle();
 
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-map-page")).toBeNull();
-        expect(app.findComponent(WorldScreen).exists()).toBe(false);
-        expect(tabButton("Home, pinned").getAttribute("aria-selected")).toBe("true");
+        expect(currentDestination()).toBe("Home");
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        // The map layer is mounted at all times on purpose: unmounting it would throw away the
+        // WebGL scene every time somebody looked at Home. Not showing means inert.
+        expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
+        // The guide is the pinned, active job, so it is built from the first frame. What a fresh
+        // install has not done is *shown* it - Home is the destination in front.
+        expect(currentDestination()).toBe("Home");
+        expect(
+            [...document.querySelectorAll<HTMLElement>(".wl-rail-item")]
+                .find((node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home")
+                ?.getAttribute("aria-current"),
+        ).toBe("page");
     });
 
-    it("returns a user with a saved workspace to their last active tab, not forced back to Home", () => {
+    it("returns a user with a saved workspace to their last active tab, not forced back to Home", async () => {
         // The regression the Home fix above could plausibly introduce: a persisted
         // workspace, from a build old enough to have Home but a person who was last looking
         // at "Make a map", must not be yanked back to Home just because the shell mounted.
@@ -373,33 +515,45 @@ describe("the tab strip", () => {
         );
 
         const app = shell();
+        // Awaited, unlike the cases above it: the migration off the twelve-page model runs in
+        // `onMounted` and decides the landing destination from whichever page was last active, so
+        // a synchronous assertion here reads the frame before that decision rather than after it.
+        await settle();
 
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(app.findComponent(HomeScreen).exists()).toBe(false);
+        // Work, because the page they left off on was a job. Home and Map are the only two the
+        // migration lifts out of the workspace, and `world` is neither.
+        expect(currentDestination()).toBe("Work");
         expect(tabButton("Make a map").getAttribute("aria-selected")).toBe("true");
     });
 
     it("shows the map-state message once the Map tab is chosen", async () => {
         shell();
 
-        tabButton("Map").click();
+        await goTo("Map");
         await settle();
 
         expect(document.querySelector(".mb-map-page")).not.toBeNull();
         expect(document.querySelector(".mb-map-state")?.textContent).toContain("No map loaded.");
     });
 
-    it("reaches the wizard through its tab rather than through having no profile", async () => {
-        // The wizard used to appear only because `profilesStore.activeId` was null, which made
-        // it unreachable the moment a map was open. A tab is a door that is always there.
+    it("reaches the wizard through its job rather than through having no profile", async () => {
+        // The wizard used to appear only because `profilesStore.activeId` was null, which made it
+        // unreachable the moment a map was open. A job is a door that is always there.
         const app = shell();
-        expect(app.findComponent(WorldScreen).exists()).toBe(false);
+        // A fresh install lands on Home. The guide is built - every layer stays mounted so
+        // navigation never costs a WebGL scene - but it is not the destination in front.
+        expect(currentDestination()).toBe("Home");
 
+        await goTo("Work");
         tabButton("Make a map").click();
         await settle();
 
+        expect(currentDestination()).toBe("Work");
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-map-page")).toBeNull();
+        // The map layer is mounted at all times on purpose: unmounting it would throw away the
+        // WebGL scene every time somebody looked at Home. Not showing means inert.
+        expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
     });
 
     it("reaches the maps-and-servers list through its tab, and offers no second door to it", async () => {
@@ -409,6 +563,7 @@ describe("the tab strip", () => {
         // reaching the same surface are two navigation models arguing on one screen.
         expect(document.querySelector('button[aria-label="Servers"]')).toBeNull();
 
+        await expandShellGroups();
         tabButton("Maps and servers").click();
         await settle();
 
@@ -422,6 +577,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(ProjectsScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("Projects").click();
         await settle();
 
@@ -458,6 +614,7 @@ describe("the tab strip", () => {
         };
 
         const app = shell();
+        await expandShellGroups();
         tabButton("Projects").click();
         await settle();
         const row = app.findComponent(ProjectsScreen).find('[role="option"]');
@@ -465,15 +622,16 @@ describe("the tab strip", () => {
         await row.trigger("click");
         await settle();
 
-        const outerPanel = document.querySelector<HTMLElement>(
-            ".mb-tabs__panel--pointer-passthrough",
-        );
+        // The outer panel no longer passes pointer events through, and that is the rewrite rather
+        // than a regression: the map used to sit behind every page, so the shell's own tab panel
+        // had to be click-through or the map became undraggable everywhere except the gaps
+        // between the floating controls. Work is an opaque destination layer now and the map has
+        // a destination of its own, so there is nothing behind Work to click through *to*.
         const nestedPanel = document.querySelector<HTMLElement>(
             ".mb-project-editor__tabs .mb-tabs__panel",
         );
-        expect(outerPanel).not.toBeNull();
+        expect(document.querySelector(".mb-tabs__panel--pointer-passthrough")).toBeNull();
         expect(nestedPanel).not.toBeNull();
-        expect(getComputedStyle(outerPanel!).pointerEvents).toBe("none");
         expect(getComputedStyle(nestedPanel!).pointerEvents).not.toBe("none");
 
         const core = [...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]')]
@@ -515,6 +673,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(BackupScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("Backups").click();
         await settle();
 
@@ -528,6 +687,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(CiRenderScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("GitHub runners").click();
         await settle();
 
@@ -540,6 +700,7 @@ describe("the tab strip", () => {
         // sign-in row the button claims to open. A click that looks like it worked and
         // leaves the person exactly where they started is worse than no button.
         const app = shell();
+        await expandShellGroups();
         tabButton("GitHub runners").click();
         await settle();
 
@@ -555,6 +716,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(PagesScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("Publish to Pages").click();
         await settle();
 
@@ -567,6 +729,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(WorldRepoScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("World repository").click();
         await settle();
 
@@ -575,6 +738,7 @@ describe("the tab strip", () => {
 
     it("takes an adopted repository's project to the Projects page, open at that world", async () => {
         const app = shell();
+        await expandShellGroups();
         tabButton("World repository").click();
         await settle();
 
@@ -589,6 +753,7 @@ describe("the tab strip", () => {
 
     it("routes the world-repository screen's Settings request to the dependency anchor it names", async () => {
         const app = shell();
+        await expandShellGroups();
         tabButton("World repository").click();
         await settle();
 
@@ -604,6 +769,7 @@ describe("the tab strip", () => {
         const app = shell();
         expect(app.findComponent(PreviewScreen).exists()).toBe(false);
 
+        await expandShellGroups();
         tabButton("Watch it live").click();
         await settle();
 
@@ -615,7 +781,7 @@ describe("the tab strip", () => {
         // the local-versus-container choice and the whole SSH path had no control anywhere
         // in the application. This is that door.
         const app = shell();
-        expect(app.findComponent(RunLocationCard).exists()).toBe(false);
+        expect(currentDestination()).toBe("Home");
 
         tabButton("Make a map").click();
         await settle();
@@ -655,6 +821,7 @@ describe("the tab strip", () => {
         // Choosing a map on the server list, or finishing a render in the wizard, would
         // otherwise load the map correctly and invisibly behind the page still on screen.
         const app = shell();
+        await expandShellGroups();
         tabButton("Maps and servers").click();
         await settle();
         expect(app.findComponent(ProfileManager).exists()).toBe(true);
@@ -663,7 +830,12 @@ describe("the tab strip", () => {
         await settle();
 
         expect(document.querySelector(".mb-map-page")).not.toBeNull();
-        expect(app.findComponent(ProfileManager).exists()).toBe(false);
+        // The rail says Map, which is the claim: choosing a map takes you to it. The server list
+        // is still built behind the Work layer - unmounting a destination on every navigation
+        // would throw away whatever somebody had part-filled on it - so "you left it" is a
+        // destination change rather than a component disappearing.
+        expect(currentDestination()).toBe("Map");
+        expect(app.findComponent(ProfileManager).exists()).toBe(true);
     });
 });
 
@@ -707,7 +879,10 @@ describe("the licence viewer", () => {
 
         // The corner stack holds the two workbench controls and nothing else.
         expect(document.querySelector('button[aria-label="The Minecraft licence"]')).toBeNull();
-        expect(document.querySelectorAll(".mb-shell-fab")).toHaveLength(2);
+        // There is no corner stack at all any more. The two workbench controls that survived
+        // the first cull moved into the rail footer and the Set up and help catalogue, so the
+        // honest assertion is not "two remain" but "none of them float".
+        expect(document.querySelectorAll(".mb-shell-fab")).toHaveLength(0);
 
         const panel = document.querySelector<HTMLElement>('[role="dialog"].mb-eula-surface');
         expect(panel).not.toBeNull();
@@ -781,8 +956,12 @@ describe("\"what is this?\"", () => {
         await app.findComponent(FirstRunSetup).vm.$emit("finished");
         await settle();
 
-        expect(tabButton("Home, pinned").getAttribute("aria-selected")).toBe("true");
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+        expect(
+            [...document.querySelectorAll<HTMLElement>(".wl-rail-item")]
+                .find((node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home")
+                ?.getAttribute("aria-current"),
+        ).toBe("page");
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
     });
 });
 
@@ -795,38 +974,37 @@ describe("the shell's appearance targets", () => {
         expect(ids).toContain("app.tabBar");
     });
 
-    it("opens the anchored editor straight from a Shift+right-click on the tab bar", async () => {
+    it("opens the anchored editor straight from a Shift+right-click on the rail", async () => {
         shell();
 
-        const target = document.querySelector<HTMLElement>(".mb-shell-tabs .mb-appearance-target");
+        // The target that wrapped the tab bar wraps the application rail now: same registered id,
+        // new home, because the rail is the chrome that is on screen no matter what.
+        const target = document.querySelector<HTMLElement>(".mb-shell-body .mb-appearance-target");
         expect(target).not.toBeNull();
 
         target?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }));
         await settle();
 
-        expect(document.body.textContent).toContain("Appearance of The tab bar");
+        expect(document.body.textContent).toContain("Appearance of The application rail");
     });
 });
 
-describe("the configuration button", () => {
-    it("sits with the other shell controls and says it opens nothing yet", () => {
+describe("the options editor", () => {
+    it("is closed until something opens it, and has no button of its own", () => {
         shell();
 
-        expect(configFab().getAttribute("aria-expanded")).toBe("false");
         expect(configHost()).toBeNull();
     });
 
     it("opens the editor into a full-bleed host rather than a floating card", async () => {
         const app = shell();
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         const host = configHost();
         expect(host).not.toBeNull();
         expect(host?.classList.contains("mb-world-host")).toBe(true);
         expect(app.findComponent(ConfigScreen).exists()).toBe(true);
-        expect(configFab().getAttribute("aria-expanded")).toBe("true");
     });
 
     it("carries an exact palette target through to the render-mask field", async () => {
@@ -849,21 +1027,19 @@ describe("the configuration button", () => {
         await settle();
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         // The whole tabbed shell goes inert rather than the one page, because the strip is
         // behind the editor's opaque surface too and a tab nobody can see is a tab nobody
         // should be able to reach with Tab.
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-shell-tabs")?.hasAttribute("inert")).toBe(true);
+        expect(document.querySelector(".mb-shell-body")?.hasAttribute("inert")).toBe(true);
     });
 
     it("closes on Escape and hands the focus back to itself", async () => {
         const app = shell();
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         const host = configHost();
         expect(document.activeElement).toBe(host);
@@ -874,7 +1050,6 @@ describe("the configuration button", () => {
         await settle();
 
         expect(configHost()).toBeNull();
-        expect(document.activeElement).toBe(configFab());
     });
 });
 
@@ -884,8 +1059,7 @@ describe("the notification corner", () => {
 
         expect(document.querySelectorAll(".mb-config-notices")).toHaveLength(1);
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         // Two mounted corners would paint two fixed stacks and show every notice twice,
         // which is the whole reason the editor no longer carries one of its own.
@@ -908,14 +1082,12 @@ describe("a saved config folder", () => {
     it("closes the surface and names the folder that was written", async () => {
         const app = shell();
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         app.findComponent(ConfigScreen).vm.$emit("saved", "/srv/bluemap/config");
         await settle();
 
         expect(configHost()).toBeNull();
-        expect(document.activeElement).toBe(configFab());
         expect(document.querySelector(".mb-config-notices")?.textContent).toContain(
             "Saved the BlueMap configuration in /srv/bluemap/config.",
         );
