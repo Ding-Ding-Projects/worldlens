@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { i18nModule, setLanguage } from "./i18n.js";
+import { i18nModule, loadLanguage, setLanguage } from "./i18n.js";
 import {
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
@@ -87,21 +87,30 @@ const { t } = useI18n();
 const schoolMode = useSchoolMode();
 
 /**
- * The viewer's own locale picker is a separate upstream seam from setupI18n. While the
- * renderer-local School mode is active, keep it on English as well so a prior viewer locale
- * cannot leak Cantonese back through map controls or configuration copy. This deliberately
- * remains an effective policy: it does not overwrite the user's saved viewer locale, and a
- * later shared-record owner can replace the reactive source without changing this safeguard.
+ * The viewer's own locale picker is a separate upstream seam from setupI18n. While the shared
+ * presentation restriction is active, keep the UI locale on English too so a prior viewer locale
+ * cannot leak Cantonese back through map controls or configuration copy. MapView gives the
+ * viewer the same value-only restriction and preserves its raw `bluemap-lang` preference; when
+ * the restriction ends, reload that raw choice rather than leaving the temporary English value.
  */
 let applyingSchoolModeEnglish = false;
+let restoringSchoolModeLanguage = false;
 watch(
     [schoolMode.enabled, () => (i18nModule.global.locale as unknown as { value: string }).value],
-    ([active, locale]) => {
-        if (!active || locale === "en" || applyingSchoolModeEnglish) return;
-        applyingSchoolModeEnglish = true;
-        void setLanguage(i18nModule, "en").finally(() => {
-            applyingSchoolModeEnglish = false;
-        });
+    ([active, locale], previous) => {
+        if (active && locale !== "en" && !applyingSchoolModeEnglish) {
+            applyingSchoolModeEnglish = true;
+            void setLanguage(i18nModule, "en").finally(() => {
+                applyingSchoolModeEnglish = false;
+            });
+            return;
+        }
+        if (!active && previous?.[0] && !restoringSchoolModeLanguage) {
+            restoringSchoolModeLanguage = true;
+            void loadLanguage(i18nModule).finally(() => {
+                restoringSchoolModeLanguage = false;
+            });
+        }
     },
     { immediate: true },
 );

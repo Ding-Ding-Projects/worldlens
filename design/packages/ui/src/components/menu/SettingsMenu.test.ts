@@ -27,7 +27,7 @@
  * (`visibleQualityOptions` etc.) while an option-specific search now narrows to it.
  */
 
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { defineComponent, h } from "vue";
 import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
@@ -36,7 +36,29 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { VApp } from "vuetify/components";
 import type { BlueMapApp } from "@worldlens/viewer";
+import {
+    createSetupStorageSchoolModeAdapter,
+    enableSchoolMode,
+    memoryStorage,
+    resetSchoolModeRecordAdapter,
+    setSchoolModeRecordAdapter,
+} from "../setup/index.js";
 import SettingsMenu from "./SettingsMenu.vue";
+
+// The real locale list is fetched during application startup.  These tests need a stable
+// two-language list so they can prove that an active restriction removes a route that would
+// otherwise render, rather than merely observing an already-empty fixture.
+vi.mock("../../i18n", async () => {
+    const { createI18n } = await import("vue-i18n");
+    return {
+        i18nModule: createI18n({ legacy: false, locale: "en", messages: {} }),
+        languages: [
+            { locale: "en", name: "English" },
+            { locale: "zh-HK", name: "Cantonese" },
+        ],
+        setLanguage: async () => undefined,
+    };
+});
 
 const storageCells = new Map<string, string>();
 
@@ -77,8 +99,9 @@ beforeAll(() => {
     });
 });
 
-afterEach(() => {
+afterEach(async () => {
     storageCells.clear();
+    await resetSchoolModeRecordAdapter();
 });
 
 const vuetify = createVuetify({ components, directives });
@@ -249,5 +272,30 @@ describe("switch- and slider-based groups do filter their own members", () => {
         expect(wrapper.text()).toContain("Nothing matches that search");
         expect(wrapper.text()).not.toContain("Sunlight");
         expect(wrapper.text()).not.toContain("Perspective");
+    });
+});
+
+describe("active School mode removes native language routes", () => {
+    it("removes the language menu, its options, and its settings-search matches without changing the raw list", async () => {
+        // Establish that this fixture really has a language route before policy activation.
+        const unrestricted = render();
+        await search(unrestricted, "");
+        expect(unrestricted.text()).toContain("Language");
+        expect(unrestricted.text()).toContain("Cantonese");
+        unrestricted.unmount();
+
+        await setSchoolModeRecordAdapter(createSetupStorageSchoolModeAdapter(memoryStorage()));
+        const result = await enableSchoolMode({ name: null, credential: "" });
+        expect(result.ok).toBe(true);
+
+        const restricted = render();
+        await restricted.vm.$nextTick();
+        expect(restricted.text()).not.toContain("Language");
+        expect(restricted.text()).not.toContain("Cantonese");
+
+        await search(restricted, "Language");
+        expect(restricted.text()).toContain("Nothing matches that search");
+        expect(restricted.text()).not.toContain("Cantonese");
+        restricted.unmount();
     });
 });

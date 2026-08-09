@@ -5,6 +5,7 @@ import {
     schemeToCustomProperties,
 } from "@worldlens/shared";
 import type { MapInteractionEventDetail } from "./MapViewer";
+import { ViewerPresentationPolicy } from "./presentationPolicy";
 
 type Pin = {
     id: string;
@@ -167,6 +168,7 @@ ${SHELL_CONTRAST}
 
 export class MaterialShell {
     readonly root: HTMLElement;
+    private readonly presentationPolicy: ViewerPresentationPolicy;
     private readonly menu: HTMLDivElement;
     private readonly mapMenu: HTMLElement;
     private readonly mapMenuButton: HTMLButtonElement;
@@ -186,8 +188,9 @@ export class MaterialShell {
     /** The exact palette opener, restored when the command card closes. */
     private commandPaletteInvoker: HTMLElement | null = null;
 
-    constructor(root: Element) {
+    constructor(root: Element, presentationPolicy = new ViewerPresentationPolicy()) {
         this.root = root as HTMLElement;
+        this.presentationPolicy = presentationPolicy;
         this.root.classList.add("bm-m3-shell");
         if (!document.getElementById("bm-m3-style")) {
             const style = document.createElement("style");
@@ -241,7 +244,7 @@ export class MaterialShell {
         this.settings = document.createElement("div");
         this.settings.className = "bm-m3-settings";
         this.settings.hidden = true;
-        this.settings.innerHTML = `<h2>Map appearance</h2><div class="bm-m3-setting"><label for="bm-theme">Theme</label><select id="bm-theme"><option value="light">Light</option><option value="dark">Dark</option><option value="contrast">Contrast</option></select></div><div class="bm-m3-setting"><label for="bm-density">Density</label><input id="bm-density" type="range" min="1" max="5" value="3"><small>Controls spacing without changing map data.</small></div><div class="bm-m3-setting"><label for="bm-funny">Message style</label><input id="bm-funny" type="range" min="1" max="5" value="2"><small>Styles notifications only; facts stay exact.</small></div>`;
+        this.settings.innerHTML = `<h2>Map appearance</h2><div class="bm-m3-setting"><label for="bm-theme">Theme</label><select id="bm-theme"><option value="light">Light</option><option value="dark">Dark</option><option value="contrast">Contrast</option></select></div><div class="bm-m3-setting"><label for="bm-density">Density</label><input id="bm-density" type="range" min="1" max="5" value="3"><small>Controls spacing without changing map data.</small></div><div data-message-style-slot></div>`;
         this.root.appendChild(this.settings);
         this.settings
             .querySelector("select")!
@@ -254,14 +257,7 @@ export class MaterialShell {
                 "input",
                 (event) => (this.root.dataset.density = (event.target as HTMLInputElement).value),
             );
-        this.settings
-            .querySelector("input#bm-funny")!
-            .addEventListener("input", (event) =>
-                localStorage.setItem(
-                    "bluemap-funny-level-en",
-                    (event.target as HTMLInputElement).value,
-                ),
-            );
+        this.refreshPresentation();
 
         this.commandPalette = document.createElement("section");
         this.commandPalette.className = "bm-m3-command-palette";
@@ -296,6 +292,50 @@ export class MaterialShell {
         document.addEventListener("keydown", this.dismissContextMenuWithEscape);
         document.addEventListener("keydown", this.handleGlobalShortcut);
         window.addEventListener("resize", this.syncViewportLayout);
+    }
+
+    /** Re-renders host-restricted controls without coupling this standalone shell to a UI package. */
+    refreshPresentation(): void {
+        const funnyLevel = this.presentationPolicy.effectiveFunnyLevel(this.readFunnyLevel());
+        this.root.dataset.funnyLevel = String(funnyLevel);
+        this.renderMessageStyleControl();
+    }
+
+    private readFunnyLevel(): number {
+        const parsed = Number.parseInt(localStorage.getItem("bluemap-funny-level-en") ?? "2", 10);
+        return Number.isFinite(parsed) && parsed >= 1 && parsed <= 5 ? parsed : 2;
+    }
+
+    /**
+     * Removes the control rather than disabling it while the host restricts language and tone.
+     * The raw value is left in the existing storage key so it comes back when the policy ends.
+     */
+    private renderMessageStyleControl(): void {
+        const slot = this.settings.querySelector<HTMLElement>("[data-message-style-slot]")!;
+        slot.replaceChildren();
+        if (this.presentationPolicy.languageAndToneRestricted) return;
+
+        const setting = document.createElement("div");
+        setting.className = "bm-m3-setting";
+        const label = document.createElement("label");
+        label.htmlFor = "bm-funny";
+        label.textContent = "Message style";
+        const input = document.createElement("input");
+        input.id = "bm-funny";
+        input.type = "range";
+        input.min = "1";
+        input.max = "5";
+        input.value = String(this.readFunnyLevel());
+        const detail = document.createElement("small");
+        detail.textContent = "Styles notifications only; facts stay exact.";
+        input.addEventListener("input", () => {
+            const level = this.presentationPolicy.effectiveFunnyLevel(Number(input.value));
+            input.value = String(level);
+            this.root.dataset.funnyLevel = String(level);
+            localStorage.setItem("bluemap-funny-level-en", String(level));
+        });
+        setting.append(label, input, detail);
+        slot.appendChild(setting);
     }
 
     private createSearchScope(

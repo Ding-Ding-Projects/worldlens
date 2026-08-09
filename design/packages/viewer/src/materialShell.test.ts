@@ -5,6 +5,7 @@ import {
     SERVED_COMPACT_LAYOUT_MAX_WIDTH,
     SERVED_PHONE_VIEWPORTS,
 } from "./materialShell";
+import { ViewerPresentationPolicy } from "./presentationPolicy";
 
 function setViewport(width: number, height = 800): void {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
@@ -59,6 +60,23 @@ describe("MaterialShell", () => {
         const css = document.getElementById("bm-m3-style")?.textContent ?? "";
         expect(css).toContain('.bm-m3-shell[data-theme="contrast"]');
         expect(css).toContain("color:var(--bm-on-surface-variant);opacity:1");
+    });
+
+    it("removes the message-style route while restricted without overwriting its raw value", () => {
+        localStorage.setItem("bluemap-funny-level-en", "5");
+        const policy = new ViewerPresentationPolicy({ languageAndToneRestricted: true });
+        const shell = new MaterialShell(document.querySelector("main")!, policy);
+
+        expect(shell.root.querySelector("#bm-funny")).toBeNull();
+        expect(shell.root.textContent).not.toContain("Message style");
+        expect(shell.root.dataset.funnyLevel).toBe("1");
+        expect(localStorage.getItem("bluemap-funny-level-en")).toBe("5");
+
+        policy.setRestriction({ languageAndToneRestricted: false }, "en");
+        shell.refreshPresentation();
+
+        expect((shell.root.querySelector("#bm-funny") as HTMLInputElement).value).toBe("5");
+        expect(shell.root.dataset.funnyLevel).toBe("5");
     });
 
     it("runs a matching map-control result rather than leaving search as a toast-only stub", () => {
