@@ -17,11 +17,15 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ProjectFile } from "@worldlens/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
-import { createProject, withMapAdded, withRender } from "./projectModel.js";
+import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
+import TabbedNavigation from "../tabs/TabbedNavigation.vue";
+import { createProject, withMapAdded, withRender, withStorageAdded } from "./projectModel.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -94,6 +98,10 @@ function i18n() {
 
 const STAMP = { now: "2026-08-04T09:00:00+01:00", id: "p1", appVersion: null };
 const WORLD = "C:/saves/Survival";
+const projectEditorSource = readFileSync(
+    resolve(process.cwd(), "packages/ui/src/components/project/ProjectEditor.vue"),
+    "utf8",
+);
 
 function seeded(): ProjectFile {
     return withMapAdded(createProject("Survival", STAMP), {
@@ -400,7 +408,7 @@ describe("saving", () => {
         const changed = await editor(seeded(), { dirty: true });
         await flushPromises();
         expect(buttonNamed(changed, "Save now")?.disabled).toBe(false);
-        expect(changed.text()).toContain("waiting to auto-save");
+        expect(changed.text()).toContain("Unsaved changes");
         changed.unmount();
     });
 
@@ -650,5 +658,132 @@ describe("the history tab", () => {
 
         expect(wrapper.text()).toContain("no version history");
         wrapper.unmount();
+    });
+});
+
+describe("the project-shaped workspace", () => {
+    it("uses a real project navigation list to select the actual map editor, alongside its fields and context rail", async () => {
+        let project = seeded();
+        project = withMapAdded(project, {
+            id: "nether",
+            name: "The Nether",
+            dimension: "minecraft:the_nether",
+            world: WORLD,
+        });
+        project = withStorageAdded(project, "archive", "storage-type: FILE\nroot: ./archive\n");
+        const wrapper = await editor(project);
+
+        const navigator = wrapper.find('nav[aria-label="Project structure"]');
+        const editorPane = wrapper.find('section[aria-label="Project settings editor"]');
+        const context = wrapper.find('aside[aria-label="Render consequences and save plan"]');
+        expect(navigator.exists()).toBe(true);
+        expect(editorPane.exists()).toBe(true);
+        expect(context.exists()).toBe(true);
+
+        const nether = wrapper.find('[data-workspace-node="map:nether"]');
+        expect(nether.element.tagName).toBe("BUTTON");
+        await nether.trigger("click");
+        await flushPromises();
+
+        expect(nether.attributes("aria-current")).toBe("page");
+        expect(wrapper.findComponent(ProjectMapsPanel).props("selectedId")).toBe("nether");
+        // The map entry opens the existing schema-driven form rather than a parallel, reduced
+        // editor: selecting a node must not silently drop FieldMeta-driven map settings.
+        expect(wrapper.findComponent(ConfigFileForm).exists()).toBe(true);
+
+        const archive = wrapper.find('[data-workspace-node="storage:archive"]');
+        await archive.trigger("click");
+        await flushPromises();
+        expect(archive.attributes("aria-current")).toBe("page");
+        expect(wrapper.findComponent(ProjectStoragesPanel).props("selectedId")).toBe("archive");
+        wrapper.unmount();
+    });
+
+    it("keeps the project tree aria-current node aligned when TabbedNavigation changes the active section", async () => {
+        let project = seeded();
+        project = withStorageAdded(project, "archive", "storage-type: FILE\nroot: ./archive\n");
+        const wrapper = await editor(project);
+
+        const maps = wrapper.find('[data-workspace-node="maps"]');
+        const storages = wrapper.find('[data-workspace-node="storages"]');
+        const archive = wrapper.find('[data-workspace-node="storage:archive"]');
+        const core = wrapper.find('[data-workspace-node="core"]');
+
+        const storagesTab = wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("Storages"));
+        expect(storagesTab).toBeDefined();
+        await storagesTab?.trigger("click");
+        await flushPromises();
+        await flushPromises();
+        expect(storagesTab?.attributes("aria-selected")).toBe("true");
+        expect(
+            (wrapper.findComponent(TabbedNavigation).vm as unknown as { activePage: { id: string } })
+                .activePage.id,
+        ).toBe("storages");
+        expect(archive.attributes("aria-current")).toBe("page");
+        expect(storages.attributes("aria-current")).toBeUndefined();
+        expect(maps.attributes("aria-current")).toBeUndefined();
+
+        const coreTab = wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("Core"));
+        expect(coreTab).toBeDefined();
+        await coreTab?.trigger("click");
+        await flushPromises();
+        await flushPromises();
+        expect(coreTab?.attributes("aria-selected")).toBe("true");
+        expect(core.attributes("aria-current")).toBe("page");
+        expect(archive.attributes("aria-current")).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it("shows the standalone CLI resolver's command and resolved render branch without inventing bridge-only flags or a revision", async () => {
+        const wrapper = await editor(
+            withRender(seeded(), { force: true, fixEdges: true }),
+            { dirty: true },
+        );
+        const context = wrapper.find('aside[aria-label="Render consequences and save plan"]');
+
+        expect(context.text()).toContain("Consequences");
+        expect(context.text()).toContain("1 enabled map(s) are ready for the selected route.");
+        expect(context.text()).toContain("Resolved bluemap-cli preview");
+        expect(context.get("[data-project-cli-command]").text()).toBe(
+            "bluemap-cli -r -f -e -m overworld",
+        );
+        expect(context.text()).toContain(
+            "The standalone CLI resolves to rendering only overworld, re-rendering everything.",
+        );
+        expect(context.text()).toContain("Desktop render bridge");
+        expect(context.text()).toContain("worldlens.project.json · C:/saves/Survival");
+        expect(context.text()).toContain("The desktop bridge still starts this project.");
+        expect(context.text()).toContain("map bodies, threads, metrics and output directory");
+        expect(context.text()).toContain("write worldlens.project.json");
+        expect(context.text()).toContain("last confirmed project state");
+        expect(context.text()).toContain(
+            "A revision is recorded only after a successful project-file write changes its bytes.",
+        );
+        expect(context.text()).not.toMatch(/revision\s+\d+/i);
+        wrapper.unmount();
+    });
+
+    it("does not fabricate a local CLI command when GitHub Actions owns the render route", async () => {
+        const wrapper = await editor(withRender(seeded(), { route: "github-actions" }));
+        const context = wrapper.find('aside[aria-label="Render consequences and save plan"]');
+
+        expect(context.find("[data-project-cli-command]").exists()).toBe(false);
+        expect(context.text()).toContain("No CLI preview:");
+        expect(context.text()).toContain("GitHub Actions owns this start");
+        wrapper.unmount();
+    });
+
+    it("has a three-pane desktop grid that collapses by container width before narrow layouts can overflow", () => {
+        expect(projectEditorSource).toMatch(
+            /grid-template-columns:\s*minmax\(12rem, 0\.72fr\) minmax\(0, 2fr\) minmax\(17rem, 0\.9fr\)/,
+        );
+        expect(projectEditorSource).toContain("@container project-editor (max-width: 72rem)");
+        expect(projectEditorSource).toContain("@container project-editor (max-width: 52rem)");
+        expect(projectEditorSource).toMatch(
+            /\.mb-project-editor__workspace\s*\{[^}]*min-inline-size:\s*0/s,
+        );
+        expect(projectEditorSource).toContain("grid-template-columns: minmax(0, 1fr)");
     });
 });
