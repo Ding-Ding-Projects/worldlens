@@ -29,19 +29,21 @@ jobs:
     # No additional job-level concurrency is needed on top of the workflow-level
     # `pages` group above: it already serialises deployments without cancelling one in
     # flight. Standard hosted Linux supplies a clean, reproducible build environment.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # The vendored BlueMap submodule is a large Java reference tree that nothing in
       # this build reads, so it is deliberately not checked out.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in ci.yml's `check` job for why.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           package_json_file: design/package.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -97,22 +99,22 @@ jobs:
       # workflow token remains the last resort. A repository where none of them may create
       # a Pages site gets a clear refusal from this step rather than a green deploy nobody
       # can visit.
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
         with:
           enablement: true
           token: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: design/packages/site/dist
 
   deploy:
     name: Deploy to Pages
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

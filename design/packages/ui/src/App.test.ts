@@ -41,6 +41,7 @@ import { AppSettings } from "./components/settings/index.js";
 import { EulaSurface } from "./components/eula/index.js";
 import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
 import { appearanceTargets } from "./components/appearance/index.js";
+import { unknownUpdateState } from "./components/update/updateModel.js";
 import { addLocalMap, profilesStore, removeProfile } from "./stores/profiles.js";
 import { notices, raiseNotice } from "./stores/notices.js";
 import { createProject, withMapAdded } from "./components/project/projectModel.js";
@@ -68,16 +69,17 @@ import { createProject, withMapAdded } from "./components/project/projectModel.j
  *   - It is not this file, or App.vue, getting slower to start: `ProjectEditor.test.ts`, a
  *     comparably heavy jsdom-mount file elsewhere in this package, took 119199ms in that
  *     same CI run against 27.99s run alone locally - roughly the same ~4x factor - while
- *     running concurrently with this file in the other of `vitest.config.ts`'s two pinned
- *     forks. A `TabGroupPicker.typecheck.test.ts` in the same run spent 53941ms shelling
- *     out to `vue-tsc` in that same two-fork pool. Profiling `App.vue`'s own mount path
+ *     running concurrently with this file in the other of `vitest.config.ts`'s then-two
+ *     pinned forks. A `TabGroupPicker.typecheck.test.ts` in the same run spent 53941ms
+ *     shelling out to `vue-tsc` in that same historical two-fork pool. Profiling
+ *     `App.vue`'s own mount path
  *     found nothing eager to blame either: `renderIndicator.reconcile()`, wired in
  *     `onMounted`, resolves near-instantly the moment `window.worldlens` is
  *     undefined (true for every test in this file), and `HomeScreen` - the page the shell
  *     opens on by default - has no eager work of its own. Measured here: 952ms and 563ms
- *     mounting alone, 972ms and 606ms mounting early inside a full, two-fork-pinned run of
- *     this workspace's entire 9,329-test suite. The shell is not the regression; the
- *     runner's shared two-process pool getting oversubscribed by other files' real work is.
+ *     mounting alone, 972ms and 606ms mounting early inside that full, two-fork-pinned run
+ *     of this workspace's then-9,329-test suite. The shell was not the regression; the
+ *     runner's shared two-process pool was oversubscribed by other files' real work.
  *
  * 60s (this codebase's own convention for known-slow, real-world work - see the several
  * `{ timeout: 60_000 }` "on a real disk" describes in `packages/app`) leaves comfortable
@@ -1005,6 +1007,95 @@ describe("the options editor", () => {
         expect(host).not.toBeNull();
         expect(host?.classList.contains("mb-world-host")).toBe(true);
         expect(app.findComponent(ConfigScreen).exists()).toBe(true);
+    });
+
+    /*
+     * Restart protection, proved through the real editor rather than through the updater's own
+     * unit tests. `useUpdates.test.ts` already proves that a controller told it has unsaved work
+     * refuses to restart; what it cannot prove is that anything in the shipping shell ever tells
+     * it so. These two cases are the wiring: an editor that reports itself dirty, an `App.vue`
+     * that collects both flags, and a banner whose Restart button is genuinely unpressable while
+     * either of them is set.
+     *
+     * They are two cases rather than one because the two editors reach the flag by different
+     * routes and each has its own way of going stale - the configuration editor clears on
+     * unmount, the project editor clears on save - so a single case would leave whichever route
+     * it did not take completely unguarded.
+     */
+    it("holds an update restart while the real config workspace is unsaved", async () => {
+        let restartCalls = 0;
+        const ready = {
+            ...unknownUpdateState("0.1.0"),
+            status: "ready" as const,
+            readyVersion: "0.2.0",
+        };
+        (globalThis as { worldlens?: unknown }).worldlens = {
+            updateState: async () => ready,
+            checkForUpdates: async () => ready,
+            restartToInstallUpdate: async () => {
+                restartCalls += 1;
+                return { ok: true as const, version: "0.2.0" };
+            },
+            onUpdateEvent: () => () => {},
+        };
+        const app = shell();
+        await settle();
+
+        expect(app.find(".mb-update-banner__restart").attributes("disabled")).toBeUndefined();
+
+        await openOptionsEditor();
+
+        const restart = app.find(".mb-update-banner__restart");
+        expect(app.findComponent(ConfigScreen).text()).toContain("Unsaved changes");
+        expect(restart.attributes("disabled")).toBeDefined();
+        expect(app.find(".mb-update-banner").text().toLowerCase()).toContain("unsaved");
+        await restart.trigger("click");
+        expect(restartCalls).toBe(0);
+
+        // Closed through the editor's own Escape route rather than by re-pressing a button,
+        // because the button this used to toggle no longer exists - and closing this way also
+        // exercises the unmount path that is what actually clears the flag.
+        await app.find('[role="region"][aria-label="Server configuration"]').trigger("keydown", {
+            key: "Escape",
+        });
+        await settle();
+        expect(app.find(".mb-update-banner__restart").attributes("disabled")).toBeUndefined();
+    });
+
+    it("holds an update restart when the project editor reports a visible unsaved edit", async () => {
+        let restartCalls = 0;
+        const ready = {
+            ...unknownUpdateState("0.1.0"),
+            status: "ready" as const,
+            readyVersion: "0.2.0",
+        };
+        (globalThis as { worldlens?: unknown }).worldlens = {
+            updateState: async () => ready,
+            acknowledgeUpdateInstallOutcome: async () => undefined,
+            checkForUpdates: async () => ready,
+            restartToInstallUpdate: async () => {
+                restartCalls += 1;
+                return { ok: true as const, version: "0.2.0" };
+            },
+            onUpdateEvent: () => () => {},
+        };
+        const app = shell();
+        // Projects is a Work job now rather than a tab that exists from the first frame, so it
+        // has to be opened before it can be clicked - see `expandShellGroups`.
+        await expandShellGroups();
+        tabButton("Projects").click();
+        await settle();
+
+        const projects = app.findComponent(ProjectsScreen);
+        expect(projects.exists()).toBe(true);
+        projects.vm.$emit("dirty-change", true);
+        await settle();
+
+        const restart = app.find(".mb-update-banner__restart");
+        expect(restart.attributes("disabled")).toBeDefined();
+        expect(app.find(".mb-update-banner").text().toLowerCase()).toContain("unsaved");
+        await restart.trigger("click");
+        expect(restartCalls).toBe(0);
     });
 
     it("carries an exact palette target through to the render-mask field", async () => {

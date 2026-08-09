@@ -93,7 +93,11 @@ const HIDDEN: UpdateBannerModel = {
  */
 export function bannerFor(
     state: UpdateState,
-    options: { readonly dismissedVersion?: string | null; readonly canRestart?: boolean } = {},
+    options: {
+        readonly dismissedVersion?: string | null;
+        readonly canRestart?: boolean;
+        readonly unsavedWork?: boolean;
+    } = {},
 ): UpdateBannerModel {
     const version = state.readyVersion;
     if (state.status !== "ready" || version === null) return HIDDEN;
@@ -101,12 +105,17 @@ export function bannerFor(
     const dismissed = options.dismissedVersion ?? null;
     if (dismissed === version) return HIDDEN;
 
-    const held = state.renderInProgress;
+    const unsaved = options.unsavedWork ?? false;
+    const held = state.renderInProgress || unsaved;
     return {
         visible: true,
         tone: held ? "warning" : "success",
         titleKey: "update.banner.readyTitle",
-        bodyKey: held ? "update.banner.heldBody" : "update.banner.readyBody",
+        bodyKey: state.renderInProgress
+            ? "update.banner.heldBody"
+            : unsaved
+              ? "update.banner.unsavedBody"
+              : "update.banner.readyBody",
         vars: { version },
         canRestart: !held && (options.canRestart ?? true),
         notesUrl: state.releaseNotesUrl,
@@ -145,19 +154,30 @@ export interface UpdateStatusModel {
  */
 export function statusFor(
     state: UpdateState,
-    options: { readonly canCheck?: boolean; readonly canRestart?: boolean } = {},
+    options: {
+        readonly canCheck?: boolean;
+        readonly canRestart?: boolean;
+        readonly unsavedWork?: boolean;
+    } = {},
 ): UpdateStatusModel {
     const staged = state.status === "ready" && state.readyVersion !== null;
+    const unsaved = options.unsavedWork ?? false;
     const base = {
         failureMessage: state.failure?.message ?? null,
         failureDetail: state.failure?.detail ?? null,
         unsupportedReason: state.unsupportedReason,
         canCheck: (options.canCheck ?? true) && !state.checking && state.status !== "unsupported",
-        canRestart: staged && !state.renderInProgress && (options.canRestart ?? true),
+        canRestart: staged && !state.renderInProgress && !unsaved && (options.canRestart ?? true),
     };
 
     if (state.checking) {
-        return { ...base, status: "checking", tone: "info", messageKey: "update.status.checking", vars: {} };
+        return {
+            ...base,
+            status: "checking",
+            tone: "info",
+            messageKey: "update.status.checking",
+            vars: {},
+        };
     }
 
     switch (state.status) {
@@ -166,11 +186,20 @@ export function statusFor(
                 ...base,
                 status: "unsupported",
                 tone: "info",
-                messageKey: state.newVersion === null ? "update.status.unsupported" : "update.status.available",
+                messageKey:
+                    state.newVersion === null
+                        ? "update.status.unsupported"
+                        : "update.status.available",
                 vars: state.newVersion === null ? {} : { version: state.newVersion },
             };
         case "up-to-date":
-            return { ...base, status: "up-to-date", tone: "success", messageKey: "update.status.upToDate", vars: {} };
+            return {
+                ...base,
+                status: "up-to-date",
+                tone: "success",
+                messageKey: "update.status.upToDate",
+                vars: {},
+            };
         case "available":
             return {
                 ...base,
@@ -187,18 +216,36 @@ export function statusFor(
                 messageKey: "update.status.downloading",
                 vars: {},
             };
-        case "ready":
+        case "ready": {
+            const heldMessage = state.renderInProgress
+                ? "update.banner.heldBody"
+                : unsaved
+                  ? "update.banner.unsavedBody"
+                  : "update.banner.readyTitle";
             return {
                 ...base,
                 status: "ready",
-                tone: state.renderInProgress ? "warning" : "success",
-                messageKey: state.renderInProgress ? "update.banner.heldBody" : "update.banner.readyTitle",
+                tone: state.renderInProgress || unsaved ? "warning" : "success",
+                messageKey: heldMessage,
                 vars: { version: state.readyVersion ?? "" },
             };
+        }
         case "failed":
-            return { ...base, status: "failed", tone: "error", messageKey: "update.status.failed", vars: {} };
+            return {
+                ...base,
+                status: "failed",
+                tone: "error",
+                messageKey: "update.status.failed",
+                vars: {},
+            };
         case "idle":
-            return { ...base, status: "idle", tone: "info", messageKey: "update.status.idle", vars: {} };
+            return {
+                ...base,
+                status: "idle",
+                tone: "info",
+                messageKey: "update.status.idle",
+                vars: {},
+            };
     }
 }
 

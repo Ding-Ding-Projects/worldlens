@@ -18,6 +18,10 @@ commit that cannot be resolved.
 
 Both are generated. Neither is edited by hand.
 
+Commits that change only these two generated outputs are excluded from the Unreleased input. That
+makes the freshness contract stable: generate, commit the two outputs, and the new generated-only
+commit does not immediately make its own result stale.
+
 - **Versions are the tags the release workflow published.** A version's entries are the commits
   reachable from its tag and from no earlier tag. That is not `previous..current`: three tags in
   this repository sit on a side branch that was merged later, and a range against the immediately
@@ -77,8 +81,9 @@ node scripts/build-changelog.mjs --check
 ```
 
 `--check` compares both outputs against what the current history produces and exits non-zero with
-the file that is stale. It needs the full history: a default `actions/checkout` is a depth-1
-clone, so a job running this needs `fetch-depth: 0`.
+the file that is stale. The early workflow-security job runs it before any release can publish. It
+needs the full history: a default `actions/checkout` is a depth-1 clone, so that job uses
+`fetch-depth: 0`.
 
 ## Failure modes
 

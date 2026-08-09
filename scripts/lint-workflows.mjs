@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * Fail-closed contract for dynamic values in the three release scripts.
+ * Fail-closed contract for dynamic values in every release script that receives
+ * an Actions expression through its environment.
  * Every dynamic env key, its Actions-expression provenance, and every exact
  * script line allowed to read it are inventoried below. Anything else fails.
  */
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -17,10 +18,32 @@ const contract = (expression, uses = [], implicit = false) =>
 
 const WATCHED_SCRIPT_STEPS = Object.freeze({
   ".github/workflows/ci.yml": Object.freeze({
+    "Resolve release tag": Object.freeze({
+      GH_TOKEN: contract(secretChain, [], true),
+    }),
+    "Verify nominated release already exists": Object.freeze({
+      GH_TOKEN: contract(secretChain, [], true),
+      RELEASE_TAG: contract("steps.tag.outputs.tag", [
+        'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \\',
+        'gh release download "$RELEASE_TAG" \\',
+        '--tag "$RELEASE_TAG" \\',
+      ]),
+    }),
     "Resolve dim sum code name": Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
       ORDINAL: contract("steps.tag.outputs.ordinal", [
-        'node scripts/pick-dim-sum.mjs --ordinal "$ORDINAL" --out dim-sum-out',
+        'node scripts/pick-dim-sum.mjs --ordinal "$ORDINAL"',
+      ]),
+    }),
+    "Prepare release payload and hash manifest": Object.freeze({
+      BLUEMAP_VERSION: contract("needs.jars.outputs.version", [
+        'if [[ ! "$BLUEMAP_VERSION" =~ ^[0-9]+\\.[0-9]+(\\.[0-9]+)?([.-][0-9A-Za-z.-]+)?$ ]]; then',
+        'jars="bluemap-server-plugins-${BLUEMAP_VERSION}"',
+        "printf 'BlueMap %s server plugins\\n\\n' \"$BLUEMAP_VERSION\"",
+      ]),
+      RELEASE_TAG: contract("steps.tag.outputs.tag", [
+        'extras="worldlens-${RELEASE_TAG}-extras"',
+        "printf 'Worldlens %s - extras\\n\\n' \"$RELEASE_TAG\"",
       ]),
     }),
     "Compose release notes": Object.freeze({
@@ -32,16 +55,10 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
         'printf \'**Code name: %s · %s**\\n\\n\' "$DISH_NAME_EN" "$DISH_NAME_ZH"',
       ]),
       DISH_ALT_EN: contract("steps.dish.outputs.dish_alt_en", [
-        '"$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"',
+        "printf '![%s](%s)\\n\\n' \"$DISH_ALT_EN\" \"$DISH_PHOTO_URL\"",
       ]),
-      DISH_FILE_NAME: contract("steps.dish.outputs.dish_file_name", [
-        '"$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"',
-      ]),
-      DISH_VOLUME: contract("steps.dish.outputs.dish_volume", [
-        '"$DISH_VOLUME"',
-      ]),
-      RELEASE_TAG: contract("steps.tag.outputs.tag", [
-        '"$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"',
+      DISH_PHOTO_URL: contract("steps.dish.outputs.dish_photo_url", [
+        "printf '![%s](%s)\\n\\n' \"$DISH_ALT_EN\" \"$DISH_PHOTO_URL\"",
       ]),
       SPLIT: contract("steps.split.outputs.split", [
         'if [ "$SPLIT" = "1" ]; then',
@@ -74,17 +91,15 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
     }),
     Publish: Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
-      BLUEMAP_VERSION: contract("needs.jars.outputs.version", [
-        'jars="bluemap-server-plugins-${BLUEMAP_VERSION}"',
-        "printf 'BlueMap %s server plugins\\n\\n' \"$BLUEMAP_VERSION\"",
-      ]),
       RELEASE_TAG: contract("steps.tag.outputs.tag", [
-        'extras="worldlens-${RELEASE_TAG}-extras"',
-        "printf 'Worldlens %s - extras\\n\\n' \"$RELEASE_TAG\"",
         'gh release create "$RELEASE_TAG" \\',
         '--title "Worldlens $RELEASE_TAG" \\',
-        'gh release edit "$RELEASE_TAG" \\',
-        'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \\',
+        'draft_matches=$(jq --arg tag "$RELEASE_TAG" --arg sha "$GITHUB_SHA" \\',
+        'echo "::error::expected exactly one draft for $RELEASE_TAG at $GITHUB_SHA; found $draft_matches"',
+        'jq --arg tag "$RELEASE_TAG" --arg sha "$GITHUB_SHA" \\',
+        'gh release view "$RELEASE_TAG" \\',
+        '--tag "$RELEASE_TAG"',
+        '--tag "$RELEASE_TAG" \\',
       ]),
     }),
   }),
@@ -92,33 +107,52 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
 
 const WATCHED_STEP_FINGERPRINTS = Object.freeze({
   ".github/workflows/ci.yml": Object.freeze({
+    "Resolve release tag": Object.freeze({
+      env: "73dc8da2d166a44852cc6016f1152bfbb40706a31aeade8422c602454a532e00",
+      run: "754209609f12a8d39dbfc09010466b2d389199635af113823c3920e93c42930b",
+    }),
+    "Verify nominated release already exists": Object.freeze({
+      env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
+      run: "a41230946577f47939bf5408f9e70eaa6ad390d4e8a661b743bdf9005e9d949c",
+    }),
     "Resolve dim sum code name": Object.freeze({
       env: "ac9ce0136bb0c6611abee76c2b2cc24d3380b23f7dc6d660f03b4977280fc471",
-      run: "e8b171b7170173016649dfb65ae654678e711f93fcd0b2b0795226f4036dc3ca",
+      run: "2b1bc043e18d45c182097662e979e13f016e57a774370b93879ceb8af3375024",
     }),
-    // Reviewed at the commit that made a release publish whether or not the gates went
-    // green: the env block gained the four GATE_* bindings above, and the run block gained
-    // the warning callout, the gate table and the `gate_line` helper that prints it. Both
-    // digests were recomputed only after reading that diff line by line.
+    "Prepare release payload and hash manifest": Object.freeze({
+      env: "86be77600a8afab48d850356b53c73175c6770b4659857690388ea1d3025cdb9",
+      run: "23bf88a53aaf6237b92f1229cdbdc79dab1c79a790badc810dcb5bf54c6884d5",
+    }),
+    // Reviewed twice over, at two changes that landed together in one merge.
+    //
+    // The first made a release publish whether or not the gates went green: the env block
+    // gained the four GATE_* bindings above, and the run block gained the warning callout,
+    // the gate table and the `gate_line` helper that prints it. The second replaced the
+    // downloaded dim sum photo with a link to the public catalog's own asset, which retired
+    // DISH_FILE_NAME, DISH_VOLUME and this step's RELEASE_TAG in favour of DISH_PHOTO_URL,
+    // and rewrote the "what is in this build" sentence to name each gate it actually
+    // consulted. Both digests were recomputed only after reading that combined diff line by
+    // line, never regenerated to make the linter stop complaining.
     "Compose release notes": Object.freeze({
-      env: "ee53f8602049edcbdaf4b6b1a5a2d5479f4a7cce003a3d45788b8c55aa49669e",
-      run: "f8cc63f9c0067811ffb5055e1d9c28393e70a398b75699318a5dcb8d50972b8e",
+      env: "e5e6961c708d394b45c860fdfc5c2191cf6269674b25f5dd52ef4b222f145200",
+      run: "d07129e822d1e243d78d4cb98a93d99978bf93e3a2e266149753e6d9cb83685b",
     }),
     Publish: Object.freeze({
-      env: "f951560bc01336f0c08b2b8fc66f8b9bc7745b1593b3560718edb128c9f3b823",
-      run: "1dfc2b0093f507fd475701a56896ae9f5285f5963c3e60db6b99983575939eb0",
+      env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
+      run: "f1be5492bc3af1415c7ae31ff7389990b37c8ad56f03ec2498d9a919ccb7dcbd",
     }),
   }),
 });
 
 // Covers the whole `release` job, not only its watched steps, so a new step cannot be
-// slipped in beside the reviewed ones. Its previous value held from the commit that
-// introduced it until the release condition was deliberately relaxed to publish on any
-// run that produced a real installer; the diff between the two is that condition, the
-// four gate bindings, the gate table they feed, and the "what is in this build" sentence
-// that now stops claiming a clean suite when there was not one.
+// slipped in beside the reviewed ones. This value covers two deliberate changes that
+// arrived together: the release condition relaxed to publish on any run that produced a
+// real installer (with the four gate bindings, the gate table they feed, and a "what is
+// in this build" sentence that no longer claims a clean suite when there was not one),
+// and the draft-first publication path that proves a release against its own asset
+// manifest before it stops being a draft. Neither one removed a check the other added.
 const RELEASE_JOB_FINGERPRINT =
-  "3d416529075c476e21da2d4499f7be62e2015b26d1cc6dc2c0dac46dfab28070";
+  "f88d501c3bfee10868a770d9eb156e0aaaac60e9f006f7ca346d140513bd68d2";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this
@@ -178,28 +212,189 @@ const BUILD_JARS_PINNED_ACTIONS = Object.freeze({
   }),
 });
 
+const PAGES_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+  "actions/configure-pages": Object.freeze({
+    sha: "983d7736d9b0ae728b81ab479565c72886d7745b",
+    count: 1,
+  }),
+  "actions/upload-pages-artifact": Object.freeze({
+    sha: "56afc609e74202658d3ffba0e8f6dda462b719fa",
+    count: 1,
+  }),
+  "actions/deploy-pages": Object.freeze({
+    sha: "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+    count: 1,
+  }),
+});
+
+const RENDER_PRIVATE_WORLD_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 5,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 4,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 4,
+  }),
+  "actions/setup-java": Object.freeze({
+    sha: "cf277c60eb25467037889841efdb72551f06f6c3",
+    count: 2,
+  }),
+  "gradle/actions/setup-gradle": Object.freeze({
+    sha: "0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 1,
+  }),
+  "actions/download-artifact": Object.freeze({
+    sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    count: 1,
+  }),
+});
+
+const RENDER_SHARD_WAVE_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+  "actions/setup-java": Object.freeze({
+    sha: "cf277c60eb25467037889841efdb72551f06f6c3",
+    count: 1,
+  }),
+  "actions/download-artifact": Object.freeze({
+    sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    count: 3,
+  }),
+  "actions/cache/restore": Object.freeze({
+    sha: "0057852bfaa89a56745cba8c7296529d2fc39830",
+    count: 1,
+  }),
+  "actions/cache/save": Object.freeze({
+    sha: "0057852bfaa89a56745cba8c7296529d2fc39830",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 2,
+  }),
+});
+
+const RENDER_WORLD_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 4,
+  }),
+  "actions/setup-java": Object.freeze({
+    sha: "cf277c60eb25467037889841efdb72551f06f6c3",
+    count: 1,
+  }),
+  "gradle/actions/setup-gradle": Object.freeze({
+    sha: "0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 7,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 3,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 3,
+  }),
+  "actions/download-artifact": Object.freeze({
+    sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    count: 6,
+  }),
+  "actions/upload-pages-artifact": Object.freeze({
+    sha: "56afc609e74202658d3ffba0e8f6dda462b719fa",
+    count: 1,
+  }),
+  "actions/deploy-pages": Object.freeze({
+    sha: "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+    count: 1,
+  }),
+});
+
+const SCHEDULED_RENDER_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+});
+
 const ACTION_INVENTORIES = Object.freeze({
   ".github/workflows/ci.yml": PINNED_ACTIONS,
   ".github/workflows/build-jars.yml": BUILD_JARS_PINNED_ACTIONS,
+  ".github/workflows/pages.yml": PAGES_PINNED_ACTIONS,
+  ".github/workflows/render-private-world.yml":
+    RENDER_PRIVATE_WORLD_PINNED_ACTIONS,
+  ".github/workflows/render-shard-wave.yml": RENDER_SHARD_WAVE_PINNED_ACTIONS,
+  ".github/workflows/render-world.yml": RENDER_WORLD_PINNED_ACTIONS,
+  ".github/workflows/scheduled-render.yml": SCHEDULED_RENDER_PINNED_ACTIONS,
 });
+
+const SUPPORTED_HOSTED_RUNNERS = new Set(["ubuntu-24.04", "windows-2022"]);
 
 const REQUIRED_STEP_LINES = Object.freeze({
   "Guard executable workflow expressions and release metadata": Object.freeze([
-    "node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs",
     "node scripts/lint-workflows.mjs",
+    "node scripts/build-changelog.mjs --check",
   ]),
   "Resolve release tag": Object.freeze([
-    'if [[ ! "$version" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then',
-    'if [[ ! "$GITHUB_RUN_NUMBER" =~ ^[1-9][0-9]{0,17}$ ]]; then',
-    'if [[ ! "$count" =~ ^[0-9]{1,6}$ ]] || [ "$count" -gt 999999 ]; then',
+    "mapfile -t release_identity < <(",
+    "node scripts/release-version.mjs \\",
+    "--package design/packages/app/package.json \\",
+    'if [ "$tag" != "v$version" ]; then',
+    "ordinal=$GITHUB_RUN_NUMBER",
     "printf 'tag=%s\\n' \"$tag\"",
     "printf 'version=%s\\n' \"$version\"",
     "printf 'ordinal=%s\\n' \"$ordinal\"",
   ]),
   "Stamp this build's version": Object.freeze([
-    "if ($base -notmatch '^[0-9]+\\.[0-9]+$') {",
-    "if ($env:GITHUB_RUN_NUMBER -notmatch '^[1-9][0-9]{0,17}$') {",
+    "$identity = @(node scripts/release-version.mjs `",
+    "--package design/packages/app/package.json `",
+    "--write-package `",
+    'if ($tag -ne "v$version") {',
     '"version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append',
+    '"tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append',
   ]),
   "Stage the CLI jar to bundle": Object.freeze([
     "$actual = (Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA256).Hash.ToLowerInvariant()",
@@ -211,6 +406,29 @@ const REQUIRED_STEP_LINES = Object.freeze({
   ]),
   "Compose release notes": Object.freeze([
     'echo "> Worldlens for Windows is intentionally and permanently unsigned. Windows SmartScreen may warn that the publisher is unknown; review the exact SHA-256 digest on this release before choosing to run it. The Squirrel package hash detects changed bytes, but an unsigned package does not authenticate who published or authored those bytes."',
+  ]),
+  "Prepare one fresh Squirrel release set": Object.freeze([
+    "node scripts/collect-squirrel-release.mjs prepare `",
+    '--state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `',
+  ]),
+  "Collect installer artifacts": Object.freeze([
+    "node scripts/collect-squirrel-release.mjs collect `",
+    '--state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `',
+  ]),
+  "Prove generated Windows executables are unsigned and branded": Object.freeze([
+    "$applicationDirectories = @(",
+    "@(",
+    ") | Where-Object { Test-Path -LiteralPath $_ -PathType Container }",
+    "Get-ChildItem -LiteralPath $applicationDirectories[0] -File -Filter '*.exe' -Recurse",
+    "$signature = Get-AuthenticodeSignature -LiteralPath $executable.FullName",
+    "if ($signature.Status -ne 'NotSigned') {",
+  ]),
+  Publish: Object.freeze([
+    "node scripts/release-asset-manifest.mjs verify-draft \\",
+    "node scripts/release-asset-manifest.mjs verify \\",
+    "node scripts/release-asset-manifest.mjs verify-metadata \\",
+    "gh api --method PATCH \\",
+    "--draft \\",
   ]),
 });
 
@@ -601,7 +819,53 @@ function actionDependencyProblems(text, file) {
     }
   }
 
+  for (let index = 0; index < lines.length; index++) {
+    const runner = /^\s*runs-on:\s*([^#\s]+)\s*(?:#.*)?$/.exec(lines[index]);
+    if (runner && !SUPPORTED_HOSTED_RUNNERS.has(runner[1])) {
+      problems.push({
+        file,
+        line: index + 1,
+        stepName: null,
+        expression: null,
+        message:
+          "hosted runner labels must name an explicit supported image from the reviewed inventory",
+      });
+    }
+  }
+
   if (file !== ".github/workflows/ci.yml") return problems;
+
+  const screenshots = jobBlock(lines, "screenshots");
+  const advisoryScreenshotLines = screenshots
+    ? lines
+        .slice(screenshots.start + 1, screenshots.end)
+        .filter((line) => /^ {4}continue-on-error:\s+true\s*$/.test(line))
+    : [];
+  if (!screenshots || advisoryScreenshotLines.length !== 1) {
+    problems.push({
+      file,
+      line: (screenshots?.start ?? 0) + 1,
+      stepName: null,
+      expression: null,
+      message:
+        "screenshot capture must remain advisory with exactly one job-level continue-on-error: true",
+    });
+  }
+  const screenshotTimeouts = screenshots
+    ? lines
+        .slice(screenshots.start + 1, screenshots.end)
+        .map((line) => /^ {4}timeout-minutes:\s+(\d+)\s*$/.exec(line)?.[1] ?? null)
+        .filter((value) => value !== null)
+    : [];
+  if (screenshotTimeouts.length !== 1 || screenshotTimeouts[0] !== "20") {
+    problems.push({
+      file,
+      line: (screenshots?.start ?? 0) + 1,
+      stepName: null,
+      expression: null,
+      message: "advisory screenshot capture must retain the reviewed 20-minute job timeout",
+    });
+  }
 
   const release = jobBlock(lines, "release");
   const releaseStart = release?.start ?? -1;
@@ -690,6 +954,41 @@ function actionDependencyProblems(text, file) {
 
 function lintInventory(root = process.cwd()) {
   const problems = [];
+  try {
+    const workflowDirectory = resolve(root, ".github/workflows");
+    const discovered = readdirSync(workflowDirectory)
+      .filter((name) => /\.ya?ml$/i.test(name))
+      .map((name) => `.github/workflows/${name}`)
+      .sort();
+    const inventoried = Object.keys(ACTION_INVENTORIES).sort();
+    for (const relativePath of new Set([...discovered, ...inventoried])) {
+      if (!discovered.includes(relativePath)) {
+        problems.push({
+          file: relativePath,
+          line: 1,
+          stepName: null,
+          expression: null,
+          message: "action inventory names a workflow that does not exist",
+        });
+      } else if (!inventoried.includes(relativePath)) {
+        problems.push({
+          file: relativePath,
+          line: 1,
+          stepName: null,
+          expression: null,
+          message: "executable workflow is missing from the exact action inventory",
+        });
+      }
+    }
+  } catch (error) {
+    problems.push({
+      file: ".github/workflows",
+      line: 1,
+      stepName: null,
+      expression: null,
+      message: `workflow inventory cannot be read (${error.code ?? "unknown error"})`,
+    });
+  }
   for (const [relativePath, watched] of Object.entries(WATCHED_SCRIPT_STEPS)) {
     try {
       const text = readFileSync(resolve(root, relativePath), "utf8");
@@ -750,8 +1049,18 @@ function main() {
     );
     process.exitCode = 1;
   } else {
+    const watchedCount = Object.values(WATCHED_SCRIPT_STEPS).reduce(
+      (total, steps) => total + Object.keys(steps).length,
+      0,
+    );
+    const actionCount = Object.values(ACTION_INVENTORIES).reduce(
+      (total, inventory) =>
+        total +
+        Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
+      0,
+    );
     process.stdout.write(
-      "lint-workflows: 2 workflows, 52 pinned actions and 3 watched release steps clean\n",
+      `lint-workflows: ${Object.keys(ACTION_INVENTORIES).length} workflows, ${actionCount} pinned actions and ${watchedCount} watched release steps clean\n`,
     );
   }
 }

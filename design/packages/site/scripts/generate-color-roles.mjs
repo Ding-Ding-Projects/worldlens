@@ -35,8 +35,11 @@
  *   node scripts/generate-color-roles.mjs
  */
 
+import { execFileSync } from "node:child_process";
+import { rmSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 
 import { SITE_ROOT, log } from "./shared.mjs";
@@ -90,14 +93,74 @@ async function main() {
     let shared;
     try {
         shared = await import(SHARED_COLOR_ROLES.href);
-    } catch (error) {
-        log(
-            SCRIPT,
-            `cannot import the shared colour authority at ${SHARED_COLOR_ROLES.pathname}. ` +
-                `Build @worldlens/shared first (pnpm --filter @worldlens/shared run build). ${String(error)}`,
-        );
-        process.exit(1);
-        return;
+    } catch {
+        /*
+         * Build the authority rather than refusing, because this failed every GitHub Pages deploy
+         * from the moment the site started reading it.
+         *
+         * The site's `package.json` declares no dependency on `@worldlens/shared` - it consumes it
+         * only through this build-time script, never through an import in its own source - so
+         * `pnpm --filter "@worldlens/site..." run build`, which the Pages workflow runs, has no
+         * reason to build it first. The whole `...` suffix means "and its dependencies", and by the
+         * manifest there were none. `dist/colorRoles.js` therefore did not exist on a clean runner,
+         * this script exited 1, and the deploy went red while every local build passed because a
+         * developer's tree already had `dist/` from some earlier full build.
+         *
+         * The cost of that was not a red tick somebody would notice. It was the published site
+         * silently staying on the last commit that happened to deploy, so a redesign could land,
+         * pass its tests, be committed and pushed, and change nothing whatsoever for a reader -
+         * with the repository insisting the work was done.
+         *
+         * So: build it, once, and try again. Same shape as `scripts/ensure-electron-binary.mjs` at
+         * the repository root and for the same reason - a build step that can repair its own
+         * missing input is worth more than one that reports the input is missing.
+         */
+        log(SCRIPT, "the shared colour authority is not built yet; building it now");
+        try {
+            /*
+             * `shell` on Windows, because pnpm is a `.cmd` shim there and Node refuses to spawn one
+             * directly - it answers `EINVAL` from `spawnSync`, which reads like a bad argument and
+             * is actually the CVE-2024-27980 mitigation declining to execute a batch file without a
+             * shell. The arguments here are all literals, so the usual objection to `shell: true`
+             * does not apply; nothing user-supplied reaches the command line.
+             */
+            /*
+             * The incremental build record goes first, and this is not belt-and-braces.
+             *
+             * `tsc -p` consults `tsconfig.tsbuildinfo` and emits nothing when it believes the
+             * output is already current. If `dist/` has gone missing while that record survives -
+             * a partial clean, a cache restored without its outputs, somebody deleting a folder -
+             * the build reports success, writes no files, and this script then fails a second time
+             * with a message accusing the build of lying. Removing the record first makes the
+             * repair unconditional, which is the only useful kind: a self-healing step that heals
+             * only when the damage is of the expected shape is a step that will not be there on
+             * the day it is needed.
+             */
+            const sharedRoot = fileURLToPath(new URL("../../shared", import.meta.url));
+            rmSync(resolve(sharedRoot, "tsconfig.tsbuildinfo"), { force: true });
+
+            execFileSync("pnpm", ["--filter", "@worldlens/shared", "run", "build"], {
+                cwd: fileURLToPath(new URL("../../..", import.meta.url)),
+                stdio: "inherit",
+                shell: process.platform === "win32",
+            });
+        } catch (buildError) {
+            log(SCRIPT, `could not build @worldlens/shared: ${String(buildError)}`);
+            process.exit(1);
+            return;
+        }
+
+        try {
+            shared = await import(SHARED_COLOR_ROLES.href);
+        } catch (error) {
+            log(
+                SCRIPT,
+                `built @worldlens/shared but still cannot import ${SHARED_COLOR_ROLES.pathname}. ` +
+                    `The build reported success and produced nothing usable. ${String(error)}`,
+            );
+            process.exit(1);
+            return;
+        }
     }
 
     const { LIGHT_SCHEME, DARK_SCHEME, COLOR_ROLES } = shared;
