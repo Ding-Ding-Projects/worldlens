@@ -7,6 +7,7 @@
  * place a visitor looks.
  */
 
+import { BRAND_ACCENT_SEED } from "../theme/generated/seed.js";
 import type { SettingDefinition, SettingsTab } from "./types.js";
 
 export const SETTINGS_TABS: readonly SettingsTab[] = [
@@ -131,12 +132,14 @@ export const SETTINGS: readonly SettingDefinition[] = [
         labelKey: "set.accentSeed",
         descriptionKey: "set.accentSeed.desc",
         keywords: ["primary", "seed", "brand", "主色", "品牌色"],
-        // Beacon Amber, the shipped brand seed (see theme/tokens.css). This is what "reset
-        // to default" restores to, and what every visitor who has never touched this control
-        // is actually seeing - applyRootAppearance() overrides --md-sys-color-primary from
-        // this value unconditionally on every page load, so a stale seed here would silently
-        // repaint the whole site back to the old brand regardless of what tokens.css says.
-        defaultValue: "#7e4e00",
+        // Generated from the project's one colour authority rather than written here, because
+        // applyRootAppearance() overrides --md-sys-color-primary from this value unconditionally
+        // on every page load. A literal that drifted from the stylesheet would win silently and
+        // repaint the whole site to a brand no file claims - which is not hypothetical: this
+        // constant held the previous amber seed and went on painting the site amber for a full
+        // build after the role sheet had been switched to the shared blue, with nothing
+        // anywhere reporting a problem.
+        defaultValue: BRAND_ACCENT_SEED,
     },
     {
         id: "theme.surfaceTint",

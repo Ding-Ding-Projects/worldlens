@@ -2,3 +2,8 @@
 # Ding-Ding-Projects/dim-sum-photos release volumes. Those images belong to that
 # repository and are never committed here.
 src/dimsum/generated/
+
+# The Material colour roles are generated at build time from
+# packages/shared/src/colorRoles.ts, which is the one place this project decides a
+# colour. Committing the emitted copy would create a second one that could drift.
+src/theme/generated/

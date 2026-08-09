@@ -16,6 +16,7 @@ import { clear, el, icon, uniqueId } from "../platform/dom.js";
 import { announce, flashAttention } from "./dom.js";
 import { fillPhrase, searchableText, setI18nState, subscribeI18n, t } from "./i18n.js";
 import type { FunnyLevel, LanguageMode } from "./i18n.js";
+import type { I18n } from "../i18n/I18n.js";
 import type { Preferences } from "../platform/Preferences.js";
 import type { ThemeController } from "../theme/ThemeController.js";
 import { TAB_PLACEMENTS, type TabModel, type TabPlacement } from "../tabs/TabModel.js";
@@ -86,6 +87,18 @@ export interface SettingsPageOptions {
     readonly tabs?: TabModel | undefined;
     /** When supplied, the navigation-collapse row drives the real side rail. */
     readonly sidebar?: SidebarNavigation | undefined;
+    /**
+     * When supplied, the language and funny-level rows drive the shell's own translator.
+     *
+     * Without it those rows are half-connected in a way that looks entirely correct: the
+     * settings surface and the appearance editor re-render immediately, because they read the
+     * separate language port this module owns, while the shell chrome, the tab labels, the
+     * notifications, the dim sum card and every word of article copy keep their old wording
+     * until the page is reloaded. A visitor moving the funny slider therefore watches half the
+     * site change voice and concludes the control is broken - which, for the half that did not
+     * move, it was.
+     */
+    readonly i18n?: I18n | undefined;
     /** Non-blocking site notification route for schedule success and recoverable failures. */
     readonly notify?: ((message: string, error: boolean) => void) | undefined;
 }
@@ -1349,7 +1362,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
 
     disposers.push(
         store.subscribe(() => {
-            syncLanguageFromSettings(store);
+            syncLanguageFromSettings(store, options.i18n);
             refresh();
         }),
     );
@@ -1364,7 +1377,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         }) ?? (() => undefined),
     );
 
-    syncLanguageFromSettings(store);
+    syncLanguageFromSettings(store, options.i18n);
     activateTab(activeTab);
     refresh();
     scheduleController.start();
@@ -1531,15 +1544,34 @@ function installBridges(store: SettingsStore, options: SettingsPageOptions): voi
     }
 }
 
-/** Push the language settings into the language port, which every phrase reads from. */
-function syncLanguageFromSettings(store: SettingsStore): void {
-    setI18nState({
-        mode: store.getString("language.mode") as LanguageMode,
-        funnyEn: store.getNumber("language.funny.en") as FunnyLevel,
-        funnyYue: store.getNumber("language.funny.yue") as FunnyLevel,
-    });
+/**
+ * Push the language settings into both translators, which is more than it sounds.
+ *
+ * There are two, for a reason that is structural rather than accidental: `settings/i18n.ts` is
+ * a module-level port this surface reads through, and `i18n/I18n.ts` is an instance the shell
+ * owns and binds its DOM to. Writing only the port left the second one holding whatever it
+ * read in its constructor, so the language and funny-level rows appeared to work - the surface
+ * you were looking at while you moved them re-rendered at once - and silently did nothing to
+ * the rest of the site until a reload.
+ *
+ * The instance is optional because this module is constructed in tests without a shell. When
+ * it is absent the port is still updated, which is exactly the old behaviour and still correct
+ * for a surface that has no shell to inform.
+ */
+function syncLanguageFromSettings(store: SettingsStore, i18n?: I18n | undefined): void {
+    const mode = store.getString("language.mode") as LanguageMode;
+    const funnyEn = store.getNumber("language.funny.en") as FunnyLevel;
+    const funnyYue = store.getNumber("language.funny.yue") as FunnyLevel;
+
+    setI18nState({ mode, funnyEn, funnyYue });
+
+    // Each setter is a no-op when the value already matches, so this cannot loop back through
+    // the store subscription that called it.
+    i18n?.setMode(mode);
+    i18n?.setFunnyLevel("en", funnyEn);
+    i18n?.setFunnyLevel("yue", funnyYue);
+
     const root = document.documentElement;
-    const mode = store.getString("language.mode");
     root.dataset["language"] = mode;
     root.lang = mode === "yue" ? "zh-HK" : "en";
     root.dataset["secondaryInline"] = store.getBoolean("language.secondaryInline")

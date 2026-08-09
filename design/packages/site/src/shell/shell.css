@@ -1,169 +1,78 @@
 /*
- * Worldlens Pages application shell — Material Design 3 Expressive.
+ * Worldlens Pages application shell — Material Design 3 Expressive, rail-led.
  *
- * This is intentionally a complete shell stylesheet, not a compatibility layer over the old
- * topbar. The DOM it styles is owned by ExpressiveSiteShell.ts and has four explicit regions:
- * top app bar, adaptive page navigation, content canvas and footer. Every value consumes the
- * repository's M3 reference/system tokens; there is no second colour or type system hiding in
- * this file.
+ * ## The look this file builds, stated so the next person does not have to infer it
+ *
+ * **Layout archetype.** A full-height navigation rail beside a single inset content canvas.
+ * There is no top app bar; there is no centred column of stacked sections. The previous shell
+ * was a sticky full-width app bar over a navigation column over a centred canvas, washed in a
+ * soft radial gradient - the shape almost every documentation site lands on. It spent the top
+ * band of the viewport, across the whole width, on a wordmark that never changed. Here the
+ * chrome is one narrow column running the full height of the window, and everything else is
+ * canvas.
+ *
+ * **Compositional rhythm.** The eye enters at the top-left, on the brand, and then travels
+ * down the rail's list of destinations rather than across a banner. The canvas is deliberately
+ * asymmetric: it starts hard against the rail and keeps a generous right margin at wide widths
+ * instead of centring, so long-form text keeps a comfortable measure without the page reading
+ * as a narrow column floating in emptiness. Space is spent on the gutter between panes, which
+ * is what makes the panes read as panes.
+ *
+ * **Shape language.** One confident corner family from the shared scale: `extra-large` on the
+ * panes that make up the frame, `large` on things inside them, `full` only on genuine pills.
+ * The rail's outer edge is square against the viewport and its inner edge is round, so the
+ * frame reads as an inset panel rather than as a floating card - the single detail that most
+ * separates this from a generic card-on-background layout.
+ *
+ * **Colour.** Tonal surfaces do the structural work. The window is `surface-container-lowest`,
+ * which is the gutter; the rail is `surface-container-high`; the canvas is `surface`. Three
+ * different tones of the same neutral, in a deliberate order, rather than one background with
+ * shadows drawn on it. Every value is a role from the generated sheet - this file decides no
+ * colour and contains no hex literal.
+ *
+ * **Type.** The rail speaks in `label-large`, the canvas in the display and headline ramps.
+ * The jump between them is intentional and large; three sizes that are nearly the same is the
+ * failure this avoids.
+ *
+ * **Motion.** The standard-decelerate easing on the rail's width change, at `medium2`. The
+ * global reduced-motion rule in `tokens.css` collapses every duration to a single frame, and
+ * this file adds nothing that escapes it.
+ *
+ * ## The DOM it styles
+ *
+ * Owned by `ExpressiveSiteShell.ts`, with three explicit regions: the rail (brand, tab strip,
+ * quick actions), the content canvas, and the footer that lives inside the canvas. The tab
+ * strip *is* the navigation; see that file for why there is no second navigation list.
  */
 
 :root {
-    --mb-app-bar-height: 4.5rem;
-    --mb-navigation-width: clamp(15.5rem, 22vw, 20rem);
+    --mb-navigation-width: clamp(14rem, 19vw, 17.5rem);
     --mb-navigation-collapsed-width: 4.5rem;
-    --mb-content-max-width: 92rem;
+    /*
+     * The measure the canvas holds long-form text to. Wider than a pure prose measure because
+     * the canvas also carries tables and capture grids that genuinely need the room, and
+     * narrower than the viewport so 1920 does not produce a line nobody can track back from.
+     */
+    --mb-content-max-width: 76rem;
+    --mb-frame-gap: var(--md-sys-spacing-3);
 }
 
 .mb-app-shell {
     min-width: 0;
     min-height: 100dvh;
-    background:
-        radial-gradient(
-            circle at 8% 4%,
-            color-mix(in srgb, var(--md-sys-color-primary-container) 38%, transparent) 0 10rem,
-            transparent 26rem
-        ),
-        radial-gradient(
-            circle at 96% 16%,
-            color-mix(in srgb, var(--md-sys-color-tertiary-container) 30%, transparent) 0 8rem,
-            transparent 24rem
-        ),
-        var(--md-sys-color-surface);
+    background: var(--md-sys-color-surface-container-lowest);
     color: var(--md-sys-color-on-surface);
 }
 
-/* ---- Top app bar ------------------------------------------------------------------- */
-
-.mb-app-bar {
-    display: grid;
-    position: sticky;
-    z-index: 40;
-    top: 0;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    min-height: var(--mb-app-bar-height);
-    padding: var(--md-sys-spacing-2) clamp(var(--md-sys-spacing-3), 2vw, var(--md-sys-spacing-6));
-    border-bottom: 1px solid transparent;
-    background: color-mix(in srgb, var(--md-sys-color-surface) 92%, transparent);
-    box-shadow: none;
-    backdrop-filter: blur(18px) saturate(120%);
-    transition:
-        background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
-        border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
-        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
-}
-
-.mb-app-bar[data-scrolled="true"] {
-    border-bottom-color: var(--md-sys-color-outline-variant);
-    background: color-mix(in srgb, var(--md-sys-color-surface-container) 94%, transparent);
-    box-shadow: var(--md-sys-elevation-level2);
-}
-
-.mb-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--md-sys-spacing-3);
-    min-width: 0;
-    min-height: var(--md-sys-min-touch-target);
-    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-3) var(--md-sys-spacing-1)
-        var(--md-sys-spacing-1);
-    border: 0;
-    border-radius: var(--md-sys-shape-corner-full);
-    background: transparent;
-    color: var(--md-sys-color-on-surface);
-    cursor: pointer;
-}
-
-.mb-brand:hover {
-    background: color-mix(
-        in srgb,
-        var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity),
-        transparent
-    );
-}
-
-.mb-brand:active {
-    background: color-mix(
-        in srgb,
-        var(--md-sys-color-on-surface) var(--md-sys-state-pressed-opacity),
-        transparent
-    );
-}
-
-.mb-brand-mark {
-    display: block;
-    flex: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-    object-fit: cover;
-    box-shadow: var(--md-sys-elevation-level1);
-}
-
-.mb-brand-word {
-    font-family: var(--md-sys-typescale-title-large-font);
-    font-size: var(--md-sys-typescale-title-large-size);
-    font-weight: 720;
-    letter-spacing: -0.025em;
-    white-space: nowrap;
-}
-
-.mb-app-bar__copy {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    padding-inline: clamp(var(--md-sys-spacing-2), 2vw, var(--md-sys-spacing-6));
-}
-
-.mb-app-bar__context {
-    overflow: hidden;
-    color: var(--md-sys-color-primary);
-    font-family: var(--md-sys-typescale-label-medium-font);
-    font-size: var(--md-sys-typescale-label-medium-size);
-    font-weight: 700;
-    letter-spacing: 0.09em;
-    text-overflow: ellipsis;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.mb-app-bar__tagline {
-    overflow: hidden;
-    color: var(--md-sys-color-on-surface-variant);
-    font-family: var(--md-sys-typescale-body-small-font);
-    font-size: var(--md-sys-typescale-body-small-size);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.mb-app-bar__actions {
-    display: flex;
-    align-items: center;
-    gap: var(--md-sys-spacing-1);
-}
-
-.mb-app-bar__action {
-    flex: none;
-}
-
-.mb-app-bar__palette-action {
-    width: auto;
-    min-width: var(--md-sys-min-touch-target);
-    padding-inline: var(--md-sys-spacing-3);
-    border-radius: var(--md-sys-shape-corner-full);
-    background: var(--md-sys-color-primary-container);
-    color: var(--md-sys-color-on-primary-container);
-}
-
-/* ---- Adaptive navigation and content ---------------------------------------------- */
+/* ---- Frame ------------------------------------------------------------------------- */
 
 .mb-shell-workspace {
     display: flex;
     max-width: 100%;
     min-width: 0;
-    min-height: calc(100dvh - var(--mb-app-bar-height));
+    min-height: 100dvh;
     align-items: stretch;
+    gap: var(--mb-frame-gap);
 }
 
 .mb-shell-workspace[data-tab-placement="right"] {
@@ -179,24 +88,31 @@
     order: 2;
 }
 
+/* ---- The rail ---------------------------------------------------------------------- */
+
 .mb-shell-topbar {
     display: flex;
     position: sticky;
     z-index: 30;
-    top: var(--mb-app-bar-height);
+    top: 0;
     flex: 0 0 var(--mb-navigation-width);
     flex-direction: column;
     align-self: flex-start;
     width: var(--mb-navigation-width);
-    max-height: calc(100dvh - var(--mb-app-bar-height));
+    max-height: 100dvh;
     min-width: 0;
-    min-height: calc(100dvh - var(--mb-app-bar-height));
-    padding: var(--md-sys-spacing-2);
+    min-height: 100dvh;
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-2);
+    gap: var(--md-sys-spacing-2);
     overflow: hidden;
-    border-right: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: 0 var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0;
-    background: var(--md-sys-color-surface-container-low);
-    box-shadow: var(--md-sys-elevation-level1);
+    /*
+     * Square against the viewport edge, round against the canvas. This is the detail that
+     * makes the frame read as an inset panel rather than as a card that happens to be tall,
+     * and it flips with the dock so the round edge always faces the content.
+     */
+    border-radius: 0 var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large)
+        0;
+    background: var(--md-sys-color-surface-container-high);
     transition:
         flex-basis var(--md-sys-motion-duration-medium2)
             var(--md-sys-motion-easing-standard-decelerate),
@@ -204,9 +120,8 @@
 }
 
 .mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar {
-    border-right: 0;
-    border-left: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-extra-large) 0 0 var(--md-sys-shape-corner-extra-large);
+    border-radius: var(--md-sys-shape-corner-extra-large) 0 0
+        var(--md-sys-shape-corner-extra-large);
 }
 
 .mb-shell-workspace[data-sidebar-collapsed="true"] .mb-shell-topbar {
@@ -214,12 +129,81 @@
     width: var(--mb-navigation-collapsed-width);
 }
 
-.mb-sidebar-toggle {
-    align-self: center;
+.mb-rail__head {
+    display: flex;
     flex: none;
-    margin: var(--md-sys-spacing-1) 0 var(--md-sys-spacing-2);
-    background: var(--md-sys-color-secondary-container);
-    color: var(--md-sys-color-on-secondary-container);
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    gap: var(--md-sys-spacing-1);
+}
+
+.mb-brand {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    min-height: var(--md-sys-min-touch-target);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-2) var(--md-sys-spacing-1)
+        var(--md-sys-spacing-1);
+    gap: var(--md-sys-spacing-2);
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+}
+
+.mb-brand:hover {
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity),
+        transparent
+    );
+}
+
+.mb-brand:focus-visible {
+    outline: var(--md-sys-focus-ring-width) solid var(--md-sys-color-primary);
+    outline-offset: var(--md-sys-focus-ring-offset);
+}
+
+.mb-brand-mark {
+    flex: none;
+    width: 2rem;
+    height: 2rem;
+    max-width: 100%;
+    border-radius: var(--md-sys-shape-corner-small);
+}
+
+.mb-brand-word {
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--md-sys-typescale-title-medium-font);
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: 600;
+    line-height: var(--md-sys-typescale-title-medium-line-height);
+    letter-spacing: 0.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/*
+ * Collapsing the rail hides the wordmark and the action labels but never the controls
+ * themselves, so a collapsed rail is still a complete navigation surface rather than a
+ * decorative strip. `display: none` rather than visibility, because a zero-width flex item
+ * still claims its gap and would push the mark off-centre in a 4.5rem column.
+ */
+.mb-shell-workspace[data-sidebar-collapsed="true"] .mb-brand-word {
+    display: none;
+}
+
+.mb-shell-workspace[data-sidebar-collapsed="true"] .mb-rail__head {
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.mb-sidebar-toggle {
+    flex: none;
+    color: var(--md-sys-color-on-surface-variant);
 }
 
 .mb-sidebar-toggle[hidden] {
@@ -227,7 +211,7 @@
 }
 
 .mb-sidebar-toggle svg,
-.mb-app-bar__action svg {
+.mb-rail__action svg {
     width: 1.35rem;
     height: 1.35rem;
 }
@@ -247,27 +231,58 @@
     box-shadow: none;
 }
 
+/*
+ * The rail's utility actions, at its foot. A separator rather than a background change,
+ * because a second tone inside the rail would start competing with the active-tab indicator
+ * for "this is the selected thing" and the indicator has to win that.
+ */
+.mb-rail__actions {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: var(--md-sys-spacing-2);
+    gap: var(--md-sys-spacing-1);
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.mb-rail__action {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-shell-workspace[data-sidebar-collapsed="true"] .mb-rail__actions {
+    flex-direction: column;
+}
+
+/* ---- Horizontal docks -------------------------------------------------------------- */
+
+/*
+ * Docking top or bottom lays the same rail out along its other axis. Everything the vertical
+ * rail does still applies - the brand, the strip, the actions, the overflow surface - which is
+ * the whole reason the rail and the navigation are one element rather than two.
+ */
 .mb-shell-workspace[data-tab-placement="top"] .mb-shell-topbar,
 .mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
     position: sticky;
-    top: var(--mb-app-bar-height);
+    top: 0;
     flex: none;
+    flex-direction: row;
+    align-items: center;
     align-self: stretch;
     width: 100%;
-    min-height: 0;
     max-height: none;
-    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-3);
-    border: 0;
-    border-bottom: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: 0;
-    box-shadow: var(--md-sys-elevation-level1);
+    min-height: 0;
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-3);
+    border-radius: 0 0 var(--md-sys-shape-corner-extra-large)
+        var(--md-sys-shape-corner-extra-large);
 }
 
 .mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
     top: auto;
     bottom: 0;
-    border-top: 1px solid var(--md-sys-color-outline-variant);
-    border-bottom: 0;
+    border-radius: var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0
+        0;
 }
 
 .mb-shell-workspace[data-tab-placement="top"] .mb-shell-topbar > .tab-bar,
@@ -275,24 +290,55 @@
     overflow: visible;
 }
 
-.mb-main {
-    flex: 1 1 auto;
-    width: 100%;
-    min-width: 0;
-    padding: clamp(var(--md-sys-spacing-3), 2.5vw, var(--md-sys-spacing-8));
+.mb-shell-workspace[data-tab-placement="top"] .mb-rail__actions,
+.mb-shell-workspace[data-tab-placement="bottom"] .mb-rail__actions {
+    flex-wrap: nowrap;
+    padding-top: 0;
+    padding-left: var(--md-sys-spacing-2);
+    border-top: 0;
+    border-left: 1px solid var(--md-sys-color-outline-variant);
 }
 
+/* ---- The canvas -------------------------------------------------------------------- */
+
+.mb-main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    margin: var(--mb-frame-gap) var(--mb-frame-gap) var(--mb-frame-gap) 0;
+    padding: clamp(var(--md-sys-spacing-4), 2.5vw, var(--md-sys-spacing-8));
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    background: var(--md-sys-color-surface);
+}
+
+.mb-shell-workspace[data-tab-placement="right"] .mb-main {
+    margin-right: 0;
+    margin-left: var(--mb-frame-gap);
+}
+
+.mb-shell-workspace[data-tab-placement="top"] .mb-main,
+.mb-shell-workspace[data-tab-placement="bottom"] .mb-main {
+    margin-inline: var(--mb-frame-gap);
+}
+
+/*
+ * Left-aligned rather than centred, up to a measure. Centring inside an already-inset canvas
+ * produces two competing gutters and reads as indecision; anchoring the text to the rail and
+ * letting the right margin grow is what makes the composition asymmetric on purpose.
+ */
 .mb-main > .tab-panels {
     width: min(100%, var(--mb-content-max-width));
     min-width: 0;
-    margin-inline: auto;
+    margin-inline: 0 auto;
 }
 
 .mb-navigation-scrim {
     display: none;
     position: fixed;
     z-index: 25;
-    inset: var(--mb-app-bar-height) 0 0;
+    inset: 0;
     width: auto;
     height: auto;
     padding: 0;
@@ -307,30 +353,16 @@
 
 /* ---- Footer ------------------------------------------------------------------------ */
 
+/*
+ * Inside the canvas, aligned with its text rather than centred across the window. The old
+ * footer was a full-width band with a three-colour gradient rule above it, which is a
+ * marketing-page device; here it is simply the last thing in the column.
+ */
 .mb-shell-footer {
-    display: grid;
-    position: relative;
-    min-height: 7rem;
-    place-items: center;
-    padding: var(--md-sys-spacing-8) max(var(--md-sys-spacing-4), env(safe-area-inset-right))
-        max(var(--md-sys-spacing-8), env(safe-area-inset-bottom))
-        max(var(--md-sys-spacing-4), env(safe-area-inset-left));
-    overflow: hidden;
+    width: min(100%, var(--mb-content-max-width));
+    margin: var(--md-sys-spacing-8) auto 0 0;
+    padding-top: var(--md-sys-spacing-4);
     border-top: 1px solid var(--md-sys-color-outline-variant);
-    background: var(--md-sys-color-surface-container-low);
-}
-
-.mb-shell-footer::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto;
-    height: 0.25rem;
-    background: linear-gradient(
-        90deg,
-        var(--md-sys-color-primary),
-        var(--md-sys-color-secondary),
-        var(--md-sys-color-tertiary)
-    );
 }
 
 .mb-shell-footer-note {
@@ -340,62 +372,45 @@
     font-family: var(--md-sys-typescale-body-small-font);
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: var(--md-sys-typescale-body-small-line-height);
-    text-align: center;
 }
 
 /* ---- Compact layouts --------------------------------------------------------------- */
 
 @media (width <= 720px) {
     :root {
-        --mb-app-bar-height: 4rem;
         --mb-navigation-width: min(19rem, calc(100vw - 3rem));
         --mb-navigation-collapsed-width: 4rem;
+        --mb-frame-gap: var(--md-sys-spacing-2);
     }
 
-    .mb-app-bar {
-        grid-template-columns: minmax(0, 1fr) auto;
-        padding-inline: var(--md-sys-spacing-2);
-    }
-
-    .mb-app-bar__copy {
-        display: none;
-    }
-
-    .mb-brand {
-        justify-self: start;
-    }
-
-    .mb-brand-word {
-        max-width: 8.5rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .mb-app-bar__actions .mb-app-bar__action:not(.mb-app-bar__palette-action) {
-        display: none;
-    }
-
-    .mb-app-bar__palette-action {
-        width: var(--md-sys-min-touch-target);
-        padding: 0;
-    }
-
+    /*
+     * Below this width the rail stops being a column beside the canvas and becomes an
+     * overlay drawer, because a 14rem rail against a 375px viewport leaves no canvas at all.
+     * The collapsed rail stays on screen so navigation is always one tap away, and the canvas
+     * is padded clear of it rather than sliding under it.
+     */
     .mb-shell-workspace[data-tab-placement="left"],
     .mb-shell-workspace[data-tab-placement="right"] {
         display: block;
     }
 
+    /*
+     * The base rule's `min-height`/`max-height: 100dvh` pair is deliberately left alone here.
+     *
+     * The previous shell had to cancel both, because its rail started below a top app bar and
+     * a full-viewport height would have overflowed by the height of that bar. There is no app
+     * bar now, so cancelling them is not merely unnecessary - it breaks the rail: a fixed box
+     * with `top` and `bottom` both zero still collapses to its content height once the
+     * constraint that stretched it is removed, which left a 321px drawer floating in an 812px
+     * viewport with the tab list scrolling inside it for no reason.
+     */
     .mb-shell-workspace[data-tab-placement="left"] .mb-shell-topbar,
     .mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar {
         position: fixed;
         z-index: 35;
-        top: var(--mb-app-bar-height);
+        top: 0;
         bottom: 0;
         width: var(--mb-navigation-width);
-        max-height: none;
-        min-height: 0;
-        border-radius: 0 var(--md-sys-shape-corner-extra-large)
-            var(--md-sys-shape-corner-extra-large) 0;
         box-shadow: var(--md-sys-elevation-level3);
     }
 
@@ -405,27 +420,21 @@
 
     .mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar {
         right: 0;
-        border-radius: var(--md-sys-shape-corner-extra-large) 0 0
-            var(--md-sys-shape-corner-extra-large);
     }
 
     .mb-shell-workspace[data-sidebar-collapsed="true"] .mb-shell-topbar {
         width: var(--mb-navigation-collapsed-width);
-        border-radius: 0 var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-large) 0;
         box-shadow: var(--md-sys-elevation-level1);
     }
 
-    .mb-shell-workspace[data-tab-placement="right"][data-sidebar-collapsed="true"]
-        .mb-shell-topbar {
-        border-radius: var(--md-sys-shape-corner-large) 0 0 var(--md-sys-shape-corner-large);
-    }
-
     .mb-shell-workspace[data-tab-placement="left"] .mb-main {
-        padding-left: calc(var(--mb-navigation-collapsed-width) + var(--md-sys-spacing-2));
+        margin-left: 0;
+        padding-left: calc(var(--mb-navigation-collapsed-width) + var(--md-sys-spacing-3));
     }
 
     .mb-shell-workspace[data-tab-placement="right"] .mb-main {
-        padding-right: calc(var(--mb-navigation-collapsed-width) + var(--md-sys-spacing-2));
+        margin-right: 0;
+        padding-right: calc(var(--mb-navigation-collapsed-width) + var(--md-sys-spacing-3));
     }
 
     .mb-app-shell[data-navigation-open="true"] .mb-navigation-scrim:not([hidden]) {
@@ -433,35 +442,27 @@
     }
 
     .mb-main {
-        padding-block: var(--md-sys-spacing-3);
-        padding-inline: var(--md-sys-spacing-2);
+        margin: var(--mb-frame-gap);
+        padding-block: var(--md-sys-spacing-4);
+        padding-inline: var(--md-sys-spacing-3);
     }
 }
 
 @media (width <= 390px) {
-    .mb-brand-word {
-        display: none;
-    }
-
-    .mb-brand {
-        padding-right: var(--md-sys-spacing-1);
-    }
-
     .mb-main {
-        padding-inline: var(--md-sys-spacing-1);
+        padding-inline: var(--md-sys-spacing-2);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .mb-app-bar,
     .mb-shell-topbar {
         transition: none;
     }
 }
 
 @media (forced-colors: active) {
-    .mb-app-bar,
     .mb-shell-topbar,
+    .mb-main,
     .mb-shell-footer {
         border: 1px solid CanvasText;
         background: Canvas;

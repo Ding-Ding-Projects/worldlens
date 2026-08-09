@@ -938,6 +938,7 @@ function boot(): void {
         theme,
         tabs: model,
         sidebar,
+        i18n,
         notify: (message, error) => {
             notifications.notify({
                 severity: error ? "error" : "success",
