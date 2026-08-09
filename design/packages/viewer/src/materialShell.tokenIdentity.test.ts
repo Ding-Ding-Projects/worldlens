@@ -69,7 +69,10 @@ describe("the viewer shell owns no colour vocabulary of its own", () => {
         // The whole failure mode in one assertion. A hex literal here is a second source of truth
         // by definition, and the last time there was one it disagreed with the first about every
         // single value.
-        const style = source.slice(source.indexOf("const SHELL_BASE"), source.indexOf("export class"));
+        const style = source.slice(
+            source.indexOf("const SHELL_BASE"),
+            source.indexOf("export class"),
+        );
         const literals = [...style.matchAll(/#[0-9A-Fa-f]{3,8}\b/g)].map((match) => match[0]);
         expect(literals).toEqual([]);
     });
@@ -80,5 +83,14 @@ describe("the viewer shell owns no colour vocabulary of its own", () => {
         // would drag a UI runtime into a package the CLI serves to ordinary browsers.
         expect(source).not.toContain("vuetify");
         expect(source).not.toContain('from "vue"');
+    });
+
+    it("keeps the served shell self-contained instead of adding a network dependency", () => {
+        // The static map host has no reason to contact a third party for chrome. Fonts, icons
+        // and map data are supplied by the published bundle and the existing local handler;
+        // this shell must not grow a remote URL, stylesheet import, or direct fetch around it.
+        expect(source).not.toMatch(/https?:\/\//);
+        expect(source).not.toContain("@import");
+        expect(source).not.toContain("fetch(");
     });
 });
