@@ -248,14 +248,18 @@ async function settle(): Promise<void> {
     }
 }
 
-function configFab(): HTMLButtonElement {
-    const button = document.querySelector<HTMLButtonElement>(
-        'button[aria-label="Server configuration"]',
-    );
-    if (button === null) throw new Error("the shell renders no configuration button");
-    return button;
+/**
+ * Opens the options editor the way the product now does.
+ *
+ * There is no configuration button any more. The editor is a row in the Set up & help catalogue
+ * and a command in the palette, and both go through the shell's own overlay path - so this drives
+ * the palette, which is the shorter of the two real routes and the one that does not depend on the
+ * catalogue copy staying worded exactly as it is today.
+ */
+async function openOptionsEditor(): Promise<void> {
+    wrapper?.findComponent(CommandPalette).vm.$emit("open-config", null);
+    await settle();
 }
-
 /** The full-bleed host, identified the way a screen reader finds it. */
 function configHost(): HTMLElement | null {
     return document.querySelector<HTMLElement>(
@@ -956,25 +960,22 @@ describe("the shell's appearance targets", () => {
     });
 });
 
-describe("the configuration button", () => {
-    it("sits with the other shell controls and says it opens nothing yet", () => {
+describe("the options editor", () => {
+    it("is closed until something opens it, and has no button of its own", () => {
         shell();
 
-        expect(configFab().getAttribute("aria-expanded")).toBe("false");
         expect(configHost()).toBeNull();
     });
 
     it("opens the editor into a full-bleed host rather than a floating card", async () => {
         const app = shell();
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         const host = configHost();
         expect(host).not.toBeNull();
         expect(host?.classList.contains("mb-world-host")).toBe(true);
         expect(app.findComponent(ConfigScreen).exists()).toBe(true);
-        expect(configFab().getAttribute("aria-expanded")).toBe("true");
     });
 
     it("carries an exact palette target through to the render-mask field", async () => {
@@ -997,8 +998,7 @@ describe("the configuration button", () => {
         await settle();
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         // The whole tabbed shell goes inert rather than the one page, because the strip is
         // behind the editor's opaque surface too and a tab nobody can see is a tab nobody
@@ -1010,8 +1010,7 @@ describe("the configuration button", () => {
     it("closes on Escape and hands the focus back to itself", async () => {
         const app = shell();
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         const host = configHost();
         expect(document.activeElement).toBe(host);
@@ -1022,7 +1021,6 @@ describe("the configuration button", () => {
         await settle();
 
         expect(configHost()).toBeNull();
-        expect(document.activeElement).toBe(configFab());
     });
 });
 
@@ -1032,8 +1030,7 @@ describe("the notification corner", () => {
 
         expect(document.querySelectorAll(".mb-config-notices")).toHaveLength(1);
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         // Two mounted corners would paint two fixed stacks and show every notice twice,
         // which is the whole reason the editor no longer carries one of its own.
@@ -1056,14 +1053,12 @@ describe("a saved config folder", () => {
     it("closes the surface and names the folder that was written", async () => {
         const app = shell();
 
-        configFab().click();
-        await settle();
+        await openOptionsEditor();
 
         app.findComponent(ConfigScreen).vm.$emit("saved", "/srv/bluemap/config");
         await settle();
 
         expect(configHost()).toBeNull();
-        expect(document.activeElement).toBe(configFab());
         expect(document.querySelector(".mb-config-notices")?.textContent).toContain(
             "Saved the BlueMap configuration in /srv/bluemap/config.",
         );
