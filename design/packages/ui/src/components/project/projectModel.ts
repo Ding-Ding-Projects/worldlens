@@ -210,7 +210,7 @@ export const EMPTY_RENDER: ProjectRender = {
  * absence deliberately means the original local behaviour rather than forcing a migration.
  */
 export function projectRenderRoute(project: ProjectFile): "local" | "github-actions" {
-    return project.render.route ?? "local";
+    return project.render.route === "github-actions" ? "github-actions" : "local";
 }
 
 /**
