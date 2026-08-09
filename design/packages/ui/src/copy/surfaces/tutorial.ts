@@ -10,6 +10,17 @@
  * "point BlueMap at a world, answer a few short steps", that is `world.screen.blurb`'s own
  * wording, not an invention for this file.
  *
+ * Two of the seven steps say where the map lives, and where it lives changed: the Material
+ * Design 3 shell rewrite moved Home and Map off the tab strip and onto the application rail,
+ * so `welcome` and `openMap` name the rail's Map button rather than a Map tab, at every level
+ * and in both languages. Their anchors in `tutorialSteps.ts` were moved to `rail-map` in that
+ * rewrite while these sentences were left behind, which put the highlight on the rail and the
+ * words on a tab that no longer exists - the one failure a tour anchored to real controls is
+ * supposed to be immune to, since the user can see both at once. `makeAMap` and `publish` still
+ * say "this tab" because the world wizard and the publishing screen genuinely are still tabs in
+ * the strip, and rewording them to match their neighbours would introduce the same defect in
+ * the opposite direction.
+ *
  * `tutorial.step.*.title` and the control labels are `FIXED`: short, and a funny level
  * restyling "Next" or "Back" would make a button somebody has to re-read mid-click. The step
  * bodies, the progress line and the one-time invitation are `VOICED`, because they are real
@@ -23,18 +34,18 @@ import type { FixedString, VoicedString } from "../../components/setup/setupStri
 export const TUTORIAL_VOICED = {
     "tutorial.step.welcome.body": {
         en: [
-            "BlueMap turns a Minecraft world into a map you can pan, zoom and explore, right here on the Map tab.",
-            "BlueMap turns a Minecraft world into a map you can pan, zoom and explore, right here on the Map tab.",
-            "BlueMap reads a Minecraft world and turns it into a map you can pan, zoom and explore, right here on the Map tab.",
-            "Point BlueMap at a Minecraft world and it hands back a map you can pan, zoom and wander through, right here on the Map tab.",
-            "Point BlueMap at a Minecraft world and it hands back a map you can pan, zoom and happily get lost in, right here on the Map tab.",
+            "BlueMap turns a Minecraft world into a map you can pan, zoom and explore, and the Map button on the navigation rail is what opens it.",
+            "BlueMap turns a Minecraft world into a map you can pan, zoom and explore, and the Map button on the navigation rail is what opens it.",
+            "BlueMap reads a Minecraft world and turns it into a map you can pan, zoom and explore. The Map button on the navigation rail is what opens it.",
+            "Point BlueMap at a Minecraft world and it hands back a map you can pan, zoom and wander through. The Map button on the navigation rail is what opens it.",
+            "Point BlueMap at a Minecraft world and it hands back a map you can pan, zoom and happily get lost in. The Map button on the navigation rail opens it, and it is not going anywhere.",
         ],
         yue: [
-            "BlueMap 會將一個 Minecraft 世界變成一張地圖，喺呢個「地圖」分頁度就可以拖動、縮放同探索。",
-            "BlueMap 會將一個 Minecraft 世界變成一張地圖，喺呢個「地圖」分頁度就可以拖動、縮放同探索。",
-            "BlueMap 會讀取一個 Minecraft 世界，變成一張地圖，喺呢個「地圖」分頁度拖動、縮放同探索。",
-            "同 BlueMap 講一個 Minecraft 世界俾佢聽，佢就變返一張地圖俾你，喺呢個「地圖」分頁度拖動、縮放、周圍逛。",
-            "同 BlueMap 講一個 Minecraft 世界俾佢聽，佢就變返一張地圖俾你，喺呢個「地圖」分頁度拖動、縮放，仲可以開心咁逛到唔記得返屋企。",
+            "BlueMap 會將一個 Minecraft 世界變成一張可以拖動、縮放同探索嘅地圖，撳側邊導覽欄嘅「地圖」掣就打得開。",
+            "BlueMap 會將一個 Minecraft 世界變成一張可以拖動、縮放同探索嘅地圖，撳側邊導覽欄嘅「地圖」掣就打得開。",
+            "BlueMap 會讀取一個 Minecraft 世界，變成一張可以拖動、縮放同探索嘅地圖；打開佢嘅係側邊導覽欄嘅「地圖」掣。",
+            "同 BlueMap 講一個 Minecraft 世界俾佢聽，佢就變返一張地圖俾你，可以拖動、縮放、周圍逛；撳側邊導覽欄嘅「地圖」掣就打得開。",
+            "同 BlueMap 講一個 Minecraft 世界俾佢聽，佢就變返一張地圖俾你，可以拖動、縮放，仲可以開心咁逛到唔記得返屋企；撳側邊導覽欄嘅「地圖」掣就打得開，佢一直喺度等你。",
         ],
     },
     "tutorial.step.makeAMap.body": {
@@ -87,18 +98,18 @@ export const TUTORIAL_VOICED = {
     },
     "tutorial.step.openMap.body": {
         en: [
-            "When a render finishes, its tiles are written straight into your maps folder, and an Open the map button appears. Come back to this tab any time to open what BlueMap made.",
-            "When a render finishes, its tiles are written straight into your maps folder, and an Open the map button appears. Come back to this tab any time to open what BlueMap made.",
-            "When a render finishes, its tiles land in your maps folder, and an Open the map button appears. Come back to this tab whenever you like to open what BlueMap made.",
-            "A finished render writes its tiles into your maps folder and drops an Open the map button right where the wizard was. This tab is also where you come back to open it later.",
-            "A finished render writes its tiles into your maps folder and drops an Open the map button right where the wizard was, no hunting required. This tab is also where you come back to open it later, whenever the mood strikes.",
+            "When a render finishes, its tiles are written straight into your maps folder, and an Open the map button appears. The Map button on the navigation rail opens what BlueMap made, any time you want it.",
+            "When a render finishes, its tiles are written straight into your maps folder, and an Open the map button appears. The Map button on the navigation rail opens what BlueMap made, any time you want it.",
+            "When a render finishes, its tiles land in your maps folder, and an Open the map button appears. The Map button on the navigation rail opens what BlueMap made, whenever you like.",
+            "A finished render writes its tiles into your maps folder and drops an Open the map button right where the wizard was. Later on, the Map button on the navigation rail is how you come back to it.",
+            "A finished render writes its tiles into your maps folder and drops an Open the map button right where the wizard was, no hunting required. Later on, the Map button on the navigation rail is how you come back to it, whenever the mood strikes.",
         ],
         yue: [
-            "算好之後，圖磚會直接寫入你嘅地圖資料夾，仲會出現一個「打開地圖」掣。之後隨時返呢個分頁就可以打開 BlueMap 整好嘅嘢。",
-            "算好之後，圖磚會直接寫入你嘅地圖資料夾，仲會出現一個「打開地圖」掣。之後隨時返呢個分頁就可以打開 BlueMap 整好嘅嘢。",
-            "算好之後，圖磚會落咗喺你嘅地圖資料夾，仲會出現一個「打開地圖」掣。想幾時返呢個分頁打開都得。",
-            "算好一次之後，圖磚就寫入咗你嘅地圖資料夾，跟住喺原本個精靈嘅位置會出現一個「打開地圖」掣。呢個分頁亦都係之後返嚟打開佢嘅地方。",
-            "算好一次之後，圖磚就寫入咗你嘅地圖資料夾，跟住喺原本個精靈嘅位置直接彈返個「打開地圖」掣出嚟，唔使周圍搵。呢個分頁亦都係之後幾時想返嚟打開佢都得嘅地方。",
+            "算好之後，圖磚會直接寫入你嘅地圖資料夾，仲會出現一個「打開地圖」掣。想幾時打開 BlueMap 整好嘅嘢，撳側邊導覽欄嘅「地圖」掣就得。",
+            "算好之後，圖磚會直接寫入你嘅地圖資料夾，仲會出現一個「打開地圖」掣。想幾時打開 BlueMap 整好嘅嘢，撳側邊導覽欄嘅「地圖」掣就得。",
+            "算好之後，圖磚會落咗喺你嘅地圖資料夾，仲會出現一個「打開地圖」掣。之後想幾時打開都得，撳側邊導覽欄嘅「地圖」掣就打得返出嚟。",
+            "算好一次之後，圖磚就寫入咗你嘅地圖資料夾，跟住喺原本個精靈嘅位置會出現一個「打開地圖」掣。之後想返嚟睇，就撳側邊導覽欄嘅「地圖」掣。",
+            "算好一次之後，圖磚就寫入咗你嘅地圖資料夾，跟住喺原本個精靈嘅位置直接彈返個「打開地圖」掣出嚟，唔使周圍搵。之後幾時想返嚟睇都得，撳側邊導覽欄嘅「地圖」掣就打得返出嚟。",
         ],
     },
     "tutorial.step.publish.body": {
