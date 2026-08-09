@@ -205,6 +205,14 @@ function isLive(notice: Notice): boolean {
     return props.state.live.some((entry) => entry.id === notice.id);
 }
 
+/**
+ * A history-only entry intentionally has no corner stack to restore into. Hiding the action is
+ * more honest than offering a button which can only put an invisible object into `state.live`.
+ */
+function canShowAgain(notice: Notice): boolean {
+    return notice.delivery !== "history";
+}
+
 function showAgain(notice: Notice): void {
     restore(props.state, notice.id);
 }
@@ -389,7 +397,7 @@ async function copyVisible(): Promise<void> {
                     </v-btn>
 
                     <v-btn
-                        v-if="!isLive(notice)"
+                        v-if="canShowAgain(notice) && !isLive(notice)"
                         :prepend-icon="mdiRestore"
                         variant="text"
                         size="small"
@@ -398,7 +406,7 @@ async function copyVisible(): Promise<void> {
                     >
                         {{ t("notices.centre.showAgain", "Show again") }}
                     </v-btn>
-                    <span v-else class="mb-notice-centre__showing">
+                    <span v-else-if="canShowAgain(notice)" class="mb-notice-centre__showing">
                         {{ t("notices.centre.showing", "Showing now") }}
                     </span>
                 </div>

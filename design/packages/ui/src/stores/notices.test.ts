@@ -4,7 +4,7 @@
  * The rules the queue follows are already covered next door in
  * `components/config/notifications.test.ts`; nothing here re-tests them. What this file
  * pins is the part only a singleton can get wrong: that every caller writes to the same
- * state, that the state is reactive so one mounted corner repaints for all of them, and
+ * state, that the state is reactive so the rail badge updates for all of them, and
  * that a message outlives the screen that raised it. That last one is the whole reason the
  * queue was hoisted out of the options editor, and it is invisible to a test that builds
  * its own state with `createNoticeState()`.
@@ -25,13 +25,22 @@ beforeEach(() => {
     productDisplayName.value = "Worldlens";
 });
 
-describe("the shared corner", () => {
-    it("puts a raised notice on the one state every reader is watching", () => {
+describe("the shared rail history", () => {
+    it("records a raised notice for the rail bell without creating a fixed toast", () => {
         const notice = raiseNotice("success", "Wrote 9 files in /srv/bluemap.");
 
-        expect(notices.live).toEqual([notice]);
+        expect(notices.live).toEqual([]);
         expect(notices.history).toEqual([notice]);
+        expect(notice.delivery).toBe("history");
         expect(notice.title).toBe("Worldlens");
+    });
+
+    it("keeps direct shared-queue writers at the rail too, not just raiseNotice callers", () => {
+        const notice = notify(notices, "info", "The options editor recorded its defaults.");
+
+        expect(notices.live).toEqual([]);
+        expect(notices.history).toEqual([notice]);
+        expect(notice.delivery).toBe("history");
     });
 
     it("uses the cosmetic display name as the default notification title", () => {
@@ -43,12 +52,12 @@ describe("the shared corner", () => {
     it("carries a detail through to the same state", () => {
         raiseNotice("error", "The files were not written.", "EACCES: permission denied");
 
-        expect(notices.live[0]?.detail).toBe("EACCES: permission denied");
+        expect(notices.history[0]?.detail).toBe("EACCES: permission denied");
     });
 
-    it("is reactive, so a corner mounted once repaints when anything raises a notice", () => {
+    it("is reactive, so the rail badge sees anything the shared helper records", () => {
         const seen: number[] = [];
-        const stop = watchEffect(() => seen.push(notices.live.length), { flush: "sync" });
+        const stop = watchEffect(() => seen.push(notices.history.length), { flush: "sync" });
 
         raiseNotice("info", "Read 4 config files.");
         stop();
@@ -56,13 +65,14 @@ describe("the shared corner", () => {
         expect(seen).toEqual([0, 1]);
     });
 
-    it("is the same queue whether it is written through the helper or through notify", () => {
+    it("keeps several shared events in the one reviewable history", () => {
         raiseNotice("info", "from the shell");
-        notify(notices, "info", "from the options editor");
+        raiseNotice("info", "from the options editor");
 
-        expect(notices.live.map((notice) => notice.message)).toEqual([
-            "from the shell",
+        expect(notices.live).toEqual([]);
+        expect(notices.history.map((notice) => notice.message)).toEqual([
             "from the options editor",
+            "from the shell",
         ]);
     });
 
@@ -72,7 +82,8 @@ describe("the shared corner", () => {
         // message with it and a warning about maps needing a re-render still gets read.
         raiseNotice("warning", "These maps have to be rendered again: overworld.");
 
-        expect(notices.live).toHaveLength(1);
+        expect(notices.live).toHaveLength(0);
+        expect(notices.history).toHaveLength(1);
     });
 });
 

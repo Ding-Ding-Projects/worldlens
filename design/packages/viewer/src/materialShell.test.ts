@@ -79,7 +79,7 @@ describe("MaterialShell", () => {
         expect(shell.root.dataset.funnyLevel).toBe("5");
     });
 
-    it("runs a matching map-control result rather than leaving search as a toast-only stub", () => {
+    it("runs a matching map-control result without creating a notification overlay", () => {
         const shell = new MaterialShell(document.querySelector("main")!);
         const search = shell.root.querySelector<HTMLInputElement>('[aria-label="Search map controls"]')!;
         const results = shell.root.querySelector<HTMLElement>(
@@ -97,6 +97,38 @@ describe("MaterialShell", () => {
 
         expect(shell.root.querySelector<HTMLElement>(".bm-m3-settings")!.hidden).toBe(false);
         expect(shell.root.querySelector(".bm-m3-toast")).toBeNull();
+    });
+
+    it("records feedback at the bell history, announces alerts, and never opens a live map overlay", () => {
+        const shell = new MaterialShell(document.querySelector("main")!);
+        const bell = shell.root.querySelector<HTMLButtonElement>(
+            '[aria-controls="bm-m3-notification-history"]',
+        )!;
+        const history = shell.root.querySelector<HTMLElement>(".bm-m3-notification-history")!;
+        const announcer = shell.root.querySelector<HTMLElement>(".bm-m3-notification-announcer")!;
+
+        shell.openContextMenu({} as never, 120, 180);
+
+        expect(shell.root.querySelector(".bm-m3-toast")).toBeNull();
+        expect(history.hidden).toBe(true);
+        expect(bell.getAttribute("aria-expanded")).toBe("false");
+        expect(bell.getAttribute("aria-label")).toBe("Notification history. 1 recorded, 1 unread.");
+        expect(announcer.getAttribute("role")).toBe("alert");
+        expect(announcer.textContent).toContain("No terrain at that point");
+
+        bell.click();
+
+        expect(bell.getAttribute("aria-expanded")).toBe("true");
+        expect(bell.getAttribute("aria-label")).toBe("Notification history. 1 recorded, 0 unread.");
+        expect(history.hidden).toBe(false);
+        expect(history.getAttribute("role")).toBe("region");
+        expect(history.getAttribute("aria-label")).toBe("Notification history");
+        expect(history.textContent).toContain("No terrain at that point");
+        expect(history.querySelector("[data-level=\"alert\"]")).toBeTruthy();
+
+        (history.querySelector<HTMLButtonElement>('[data-notification-action="close"]')!).click();
+        expect(history.hidden).toBe(true);
+        expect(document.activeElement).toBe(bell);
     });
 
     it("binds the anchored regex builder to its search and surfaces live capture feedback", () => {
@@ -224,6 +256,9 @@ describe("MaterialShell", () => {
             expect(mapMenu.dataset.presentation).toBe("bottom-sheet");
             expect(shell.root.querySelector('[aria-label="Map navigation"]')).toBeTruthy();
             expect(shell.root.querySelectorAll(".bm-m3-coordinate")).toHaveLength(2);
+            expect(
+                shell.root.querySelector('[aria-controls="bm-m3-notification-history"]'),
+            ).toBeTruthy();
             expect(mapMenuButton.getAttribute("aria-expanded")).toBe("false");
 
             mapMenuButton.click();

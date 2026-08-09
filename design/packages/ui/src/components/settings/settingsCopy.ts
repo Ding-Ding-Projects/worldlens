@@ -116,13 +116,6 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "How much memory the render process may use, as a JVM heap ceiling. Automatic works out a sensible number from this machine's own memory; Manual lets you set your own.",
             ),
         },
-        "notification-duration": {
-            title: t("settings.noticeDuration.title", "Notification duration"),
-            description: t(
-                "settings.noticeDuration.description",
-                "How long an informational or success toast stays on screen before it dismisses itself. Warnings and errors are never affected: they always stay until you dismiss them.",
-            ),
-        },
         "download-concurrency": {
             title: t("settings.downloadConcurrency.title", "Download concurrency"),
             description: t(

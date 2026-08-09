@@ -96,6 +96,17 @@ describe("raising a notice", () => {
         expect(state.history.map((notice) => notice.message)).toEqual(["second", "first"]);
     });
 
+    it("lets a rail-owned state retain every entry in history even when a caller asks for a toast", () => {
+        const state = createNoticeState({ delivery: "history" });
+        const notice = notify(state, "warning", "The render needs attention.", {
+            delivery: "toast",
+        });
+
+        expect(state.live).toEqual([]);
+        expect(state.history).toEqual([notice]);
+        expect(notice.delivery).toBe("history");
+    });
+
     it("carries a detail when there is one, and leaves the field off when there is not", () => {
         const state = createNoticeState();
         const withDetail = notify(state, "error", "The files were not written.", "EACCES: permission denied");

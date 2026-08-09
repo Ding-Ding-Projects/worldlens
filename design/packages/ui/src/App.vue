@@ -21,7 +21,7 @@ import ProfileManager from "./components/ProfileManager.vue";
 import ZoomButtons from "./components/controls/ZoomButtons.vue";
 import FreeFlightMobileControls from "./components/controls/FreeFlightMobileControls.vue";
 import { ControlBar } from "./components/controlbar/index.js";
-import { ConfigNotifications, ConfigScreen } from "./components/config/index.js";
+import { ConfigScreen } from "./components/config/index.js";
 import { MainMenu, provideBlueMap, useBlueMapTheme } from "./components/menu/index.js";
 import { MarkerMenu } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
@@ -1549,23 +1549,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
         <!--
             The interactive tour: a highlighted control and a card of text beside it, never a
-            backdrop and never blocking. Mounted here for the same reason `CommandPalette` and
-            `ConfigNotifications` are - it is asked to open from three places that are nowhere
-            near each other in this tree (Info, the docs browser, the command palette row
+            backdrop and never blocking. Mounted here for the same reason `CommandPalette` is -
+            it is asked to open from three places that are nowhere near each other in this tree
+            (Info, the docs browser, the command palette row
             above), via `requestTutorialLaunch()`, and it drives the tab strip itself through
             `revealPage` as its steps advance.
         -->
         <TutorialOverlay :reveal-page="revealPage" />
 
-        <!--
-            The one notification corner, mounted for the same reason and in the same place:
-            it is fixed to the bottom-right at z-index 2400 and must stack above everything,
-            never as a child of the click-through layer. It lives here rather than inside the
-            options editor so a message outlives the screen that raised it - a save that
-            closes that surface can still report where it wrote. Exactly one instance reads
-            the shared queue; a second would show every notice twice.
-        -->
-        <ConfigNotifications :state="notices" rail-owns-bell />
     </v-app>
 </template>
 

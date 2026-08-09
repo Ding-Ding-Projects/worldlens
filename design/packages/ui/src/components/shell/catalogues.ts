@@ -844,17 +844,6 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         metaResolver: "theme.schemeCount",
     }),
     feature("howTheInterfaceBehaves", {
-        key: "setup.how-the-interface-behaves.how-long-a-notice-stays",
-        icon: mdiTimerOutline,
-        nameKey: "catalogue.setup.noticeDuration.name",
-        nameFallback: "How long a notice stays",
-        blurbKey: "catalogue.setup.noticeDuration.blurb",
-        blurbFallback:
-            "How long a non-blocking notice waits before it leaves, staying readable in the history afterwards whichever you pick.",
-        target: { kind: "overlay", overlay: "settings", reveal: "notice-duration" },
-        metaResolver: "notice.durationLevelCount",
-    }),
-    feature("howTheInterfaceBehaves", {
         key: "setup.how-the-interface-behaves.downloads-at-once",
         icon: mdiDownloadOutline,
         nameKey: "catalogue.setup.downloadConcurrency.name",

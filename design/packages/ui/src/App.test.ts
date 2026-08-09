@@ -4,15 +4,15 @@
  * The shell, mounted, from the outside.
  *
  * Every claim here is about a door rather than about a room. The tab system, the appearance
- * editor, the options editor, the notification corner and the surfaces behind them are all
+ * editor, the options editor, the rail notification history and the surfaces behind them are all
  * tested on their own next door; what none of those tests can see is whether anything in the
  * running application ever reaches them. This project's recurring defect is a finished feature
  * nobody can open, so these assertions start where a user starts - at a tab or a button in the
  * corner - and go through the rendered DOM rather than through the component's internals.
  *
  * Three things are checked that only a mounted shell can answer: that Escape gives the focus
- * back to the button that opened the surface, that exactly one notification corner is on
- * screen, and that a feature reachable from two places does not end up with two competing ways
+ * back to the button that opened the surface, that a raised notice waits at the rail bell rather
+ * than covering content, and that a feature reachable from two places does not end up with two competing ways
  * in. All three are invisible to a test that pokes at state.
  */
 
@@ -33,7 +33,7 @@ import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { CiRenderScreen } from "./components/cirender/index.js";
 import { RunLocationCard } from "./components/remote/index.js";
 import { ConfigScreen } from "./components/config/index.js";
-import { dismissAll } from "./components/config/notifications.js";
+import { dismissAll, markReviewed } from "./components/config/notifications.js";
 import { CommandPalette } from "./components/palette/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
@@ -281,6 +281,20 @@ function configHost(): HTMLElement | null {
     return document.querySelector<HTMLElement>(
         '[role="region"][aria-label="Server configuration"]',
     );
+}
+
+/** The rail owns the one notification route in the redesigned shell. */
+function notificationBell(): HTMLButtonElement {
+    const bell = [...document.querySelectorAll<HTMLButtonElement>(".wl-rail-action")].find((button) =>
+        button.getAttribute("aria-label")?.startsWith("Notifications"),
+    );
+    if (bell === undefined) throw new Error("the shell renders no notification bell");
+    return bell;
+}
+
+/** Vuetify teleports the explicitly opened rail history outside the mounted app wrapper. */
+function activeNotificationHistory(): HTMLElement | null {
+    return document.querySelector<HTMLElement>(".v-overlay--active .wl-notifications");
 }
 
 /**
@@ -1144,28 +1158,47 @@ describe("the options editor", () => {
     });
 });
 
-describe("the notification corner", () => {
-    it("is mounted once by the shell, whether or not the editor is open", async () => {
+describe("the rail notification history", () => {
+    it("keeps raised notices out of a fixed overlay until the bell is explicitly opened", async () => {
         shell();
+        // The first-run tutorial may legitimately record its own history entry when the full
+        // shell mounts. It is already present before this interaction, so mark that baseline
+        // read and assert the new event rather than making this overlay contract depend on
+        // unrelated onboarding timing.
+        await settle();
+        markReviewed(notices);
+        const historyBefore = notices.history.length;
 
-        expect(document.querySelectorAll(".mb-config-notices")).toHaveLength(1);
-
-        await openOptionsEditor();
-
-        // Two mounted corners would paint two fixed stacks and show every notice twice,
-        // which is the whole reason the editor no longer carries one of its own.
-        expect(document.querySelectorAll(".mb-config-notices")).toHaveLength(1);
-    });
-
-    it("shows a message raised while nothing is open", async () => {
-        shell();
+        expect(document.querySelectorAll(".mb-config-notices")).toHaveLength(0);
+        expect(activeNotificationHistory()).toBeNull();
 
         raiseNotice("warning", "The render engine is not installed.");
         await settle();
 
-        expect(document.querySelector(".mb-config-notices")?.textContent).toContain(
-            "The render engine is not installed.",
+        const bell = notificationBell();
+        expect(bell.getAttribute("aria-expanded")).toBe("false");
+        expect(bell.getAttribute("aria-label")).toBe("Notifications, 1 unread");
+        expect(notices.live).toEqual([]);
+        expect(notices.history).toHaveLength(historyBefore + 1);
+        expect(notices.history[0]?.message).toBe("The render engine is not installed.");
+        expect(document.querySelectorAll(".mb-config-notices")).toHaveLength(0);
+        expect(activeNotificationHistory()).toBeNull();
+
+        bell.click();
+        await settle();
+
+        const history = activeNotificationHistory();
+        expect(bell.getAttribute("aria-expanded")).toBe("true");
+        expect(history).not.toBeNull();
+        expect(history?.getAttribute("aria-label")).toBe("Notifications");
+        expect(history?.querySelector('[role="region"]')?.getAttribute("aria-label")).toBe(
+            "Notification centre",
         );
+        expect(history?.textContent).toContain("The render engine is not installed.");
+        // A history-only entry has no fixed toast to restore, so the panel cannot claim one is
+        // already showing or offer a control that only mutates invisible queue state.
+        expect(history?.textContent).not.toContain("Showing now");
+        expect(history?.textContent).not.toContain("Show again");
     });
 });
 
@@ -1179,7 +1212,10 @@ describe("a saved config folder", () => {
         await settle();
 
         expect(configHost()).toBeNull();
-        expect(document.querySelector(".mb-config-notices")?.textContent).toContain(
+        expect(document.querySelectorAll(".mb-config-notices")).toHaveLength(0);
+        notificationBell().click();
+        await settle();
+        expect(activeNotificationHistory()?.textContent).toContain(
             "Saved the BlueMap configuration in /srv/bluemap/config.",
         );
     });

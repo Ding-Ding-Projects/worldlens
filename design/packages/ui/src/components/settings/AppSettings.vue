@@ -30,7 +30,6 @@ import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
 import { createMapStorageSetting } from "./mapStorageSetting.js";
 import { createRenderMemorySetting } from "./renderMemorySetting.js";
 import RenderMemoryRow from "./RenderMemoryRow.vue";
-import NotificationDurationRow from "./NotificationDurationRow.vue";
 import ProductDisplayNameRow from "./ProductDisplayNameRow.vue";
 import UiSizeRow from "./UiSizeRow.vue";
 import ThemeRow from "./ThemeRow.vue";
@@ -42,7 +41,6 @@ import {
     dockPlacementLabel,
     githubSectionCopy,
     javaUnsupportedCopy,
-    noticeDurationLevelLabel,
     sectionCopy,
     themeChoiceLabel,
     uiSizeLevelLabel,
@@ -162,7 +160,6 @@ const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const displaySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(null);
-const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -339,17 +336,6 @@ const sections = computed<SettingsSectionText[]>(() => {
                           renderMemory.readout.value.explanation,
                       ],
         },
-        // The five level names, so typing "Relaxed" or "Stay until dismissed" finds this
-        // tab by the words its own toggle buttons show - the same rule every other
-        // section's search follows.
-        {
-            anchor: "notification-duration",
-            title: text["notification-duration"].title,
-            description: text["notification-duration"].description,
-            values: [1, 2, 3, 4, 5].map((level) =>
-                noticeDurationLevelLabel(t, level as 1 | 2 | 3 | 4 | 5),
-            ),
-        },
         // The current worker count and its own explanation - the same "search what is
         // actually on screen" rule every other section follows, so typing "4" or "bandwidth"
         // finds this tab.
@@ -484,8 +470,6 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return placementSection.value;
         case "render-memory":
             return renderMemorySection.value;
-        case "notification-duration":
-            return noticeDurationSection.value;
         case "download-concurrency":
             return downloadConcurrencySection.value;
         case "system-dependencies":
@@ -896,24 +880,6 @@ function onDrawer(value: boolean): void {
                         :description="copy['render-memory'].description"
                     >
                         <RenderMemoryRow :setting="renderMemory" />
-                    </SettingsSection>
-                </template>
-
-                <!--
-                    How long an informational or success toast stays before dismissing
-                    itself, per `components/config/notifications.ts` and the novice dial in
-                    `noticeDurationLevels.ts`. No props: the row reads and writes the one
-                    shared `stores/notices.ts` singleton directly, the same way
-                    `SurfacePlacementRow` reads `dockedSurfaces()` directly.
-                -->
-                <template #notification-duration>
-                    <SettingsSection
-                        ref="noticeDurationSection"
-                        anchor="notification-duration"
-                        :title="copy['notification-duration'].title"
-                        :description="copy['notification-duration'].description"
-                    >
-                        <NotificationDurationRow />
                     </SettingsSection>
                 </template>
 
