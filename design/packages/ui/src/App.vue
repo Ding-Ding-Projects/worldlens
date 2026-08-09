@@ -399,7 +399,9 @@ const mapPageActive = computed(() => tabs.value?.activePage?.id === PAGE_MAP);
  * A refusal becomes an ordinary notice rather than a thrown error: "a render is running"
  * is a sentence, not a fault.
  */
+const unsavedConfigChanges = ref(false);
 const updates = createUpdates({
+    hasUnsavedWork: () => unsavedConfigChanges.value,
     onRefusal: (message: string) => {
         raiseNotice("warning", message);
     },
@@ -1184,6 +1186,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     "
                     @consent="openSettings('mojang-download-consent')"
                     @saved="configSaved"
+                    @dirty-change="unsavedConfigChanges = $event"
                 />
             </div>
 

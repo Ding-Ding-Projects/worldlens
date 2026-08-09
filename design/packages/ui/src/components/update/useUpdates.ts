@@ -23,7 +23,12 @@ import {
     type UpdateBannerModel,
     type UpdateStatusModel,
 } from "./updateModel.js";
-import { resolveUpdateBridge, type UpdateBridge, type UpdateRestartResult, type UpdateState } from "./updateBridge.js";
+import {
+    resolveUpdateBridge,
+    type UpdateBridge,
+    type UpdateRestartResult,
+    type UpdateState,
+} from "./updateBridge.js";
 
 export interface UpdatesController {
     /** The last state the main process reported. Replaced whole, never patched. */
@@ -48,6 +53,8 @@ export interface UpdatesOptions {
     readonly bridge?: UpdateBridge | null;
     /** The version to show before the main process has answered. */
     readonly currentVersion?: string;
+    /** Read at render and restart time; unknown/throwing is treated as unsaved. */
+    readonly hasUnsavedWork?: () => boolean;
     /**
      * Called with a refusal's sentence, so the shell can raise it on the notification
      * corner rather than this module reaching for a store it does not own.
@@ -72,6 +79,14 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
      */
     let pushed = false;
 
+    const hasUnsavedWork = (): boolean => {
+        try {
+            return options.hasUnsavedWork?.() ?? false;
+        } catch {
+            return true;
+        }
+    };
+
     if (bridge !== null) {
         unsubscribe = bridge.onUpdateEvent((next) => {
             pushed = true;
@@ -92,6 +107,7 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
         bannerFor(state.value, {
             dismissedVersion: dismissed.value,
             canRestart: bridge?.canRestart ?? false,
+            unsavedWork: hasUnsavedWork(),
         }),
     );
 
@@ -99,6 +115,7 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
         statusFor(state.value, {
             canCheck: bridge?.canCheck ?? false,
             canRestart: bridge?.canRestart ?? false,
+            unsavedWork: hasUnsavedWork(),
         }),
     );
 
@@ -132,7 +149,18 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
                 options.onRefusal?.(answer.message);
                 return answer;
             }
-            const answer = await bridge.restart();
+            if (hasUnsavedWork()) {
+                const answer: UpdateRestartResult = {
+                    ok: false,
+                    code: "unsaved-work",
+                    message:
+                        "Unsaved configuration changes are open. Save or discard them before restarting to install the update; the staged update will wait.",
+                };
+                refusal.value = answer.message;
+                options.onRefusal?.(answer.message);
+                return answer;
+            }
+            const answer = await bridge.restart(false);
             if (!answer.ok) {
                 refusal.value = answer.message;
                 options.onRefusal?.(answer.message);

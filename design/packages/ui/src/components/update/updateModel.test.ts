@@ -28,7 +28,9 @@ describe("bannerFor", () => {
     it("shows nothing until there is something staged", () => {
         expect(bannerFor(state()).visible).toBe(false);
         expect(bannerFor(state({ status: "up-to-date" })).visible).toBe(false);
-        expect(bannerFor(state({ status: "downloading", newVersion: "0.2.0" })).visible).toBe(false);
+        expect(bannerFor(state({ status: "downloading", newVersion: "0.2.0" })).visible).toBe(
+            false,
+        );
         // A failed check informs; it belongs in the notification corner, not in a fixture
         // that occupies the top of the window until somebody dismisses it.
         expect(bannerFor(state({ status: "failed" })).visible).toBe(false);
@@ -50,6 +52,14 @@ describe("bannerFor", () => {
         // A different sentence, not merely a disabled button: a control that looks live and
         // does nothing is indistinguishable from a broken one.
         expect(banner.bodyKey).toBe("update.banner.heldBody");
+    });
+
+    it("holds Restart visibly while configuration work is unsaved", () => {
+        const banner = bannerFor(ready, { unsavedWork: true });
+        expect(banner.canRestart).toBe(false);
+        expect(banner.tone).toBe("warning");
+        expect(banner.bodyKey).toBe("update.banner.unsavedBody");
+        expect(statusFor(ready, { unsavedWork: true }).canRestart).toBe(false);
     });
 
     it("hides Restart when the build can report an update but not install one", () => {
@@ -114,7 +124,12 @@ describe("statusFor", () => {
             state({
                 status: "failed",
                 checking: true,
-                failure: { code: "offline", message: "Offline.", detail: "ENOTFOUND", retryable: true },
+                failure: {
+                    code: "offline",
+                    message: "Offline.",
+                    detail: "ENOTFOUND",
+                    retryable: true,
+                },
             }),
         );
         // The spinner sits beside what is known, never instead of it - which is the whole
@@ -129,14 +144,20 @@ describe("statusFor", () => {
     });
 
     it("offers no check at all on a build that cannot update", () => {
-        const model = statusFor(state({ status: "unsupported", unsupportedReason: "Not packaged." }));
+        const model = statusFor(
+            state({ status: "unsupported", unsupportedReason: "Not packaged." }),
+        );
         expect(model.canCheck).toBe(false);
         expect(model.unsupportedReason).toBe("Not packaged.");
     });
 
     it("reports a version an unsupported build cannot install, without offering to", () => {
         const model = statusFor(
-            state({ status: "unsupported", unsupportedReason: "Not packaged.", newVersion: "0.9.0" }),
+            state({
+                status: "unsupported",
+                unsupportedReason: "Not packaged.",
+                newVersion: "0.9.0",
+            }),
         );
         expect(model.messageKey).toBe("update.status.available");
         expect(model.vars["version"]).toBe("0.9.0");

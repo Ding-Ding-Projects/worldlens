@@ -597,6 +597,9 @@ jobs:
     # still uploads whatever images and traces it produced, but it must not turn an
     # otherwise valid build red or prevent publication.
     continue-on-error: true
+    # A wedged browser must not retain the workflow indefinitely. Timing out remains an
+    # advisory job result because this job is deliberately absent from the release needs.
+    timeout-minutes: 20
     concurrency:
       group: ci-screenshots-${{ github.ref }}
       cancel-in-progress: true

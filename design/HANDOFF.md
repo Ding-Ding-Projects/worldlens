@@ -1,5 +1,56 @@
 # Handoff
 
+## 2026-08-08 (release/update integrity) — exact restart receipts and honest blockers
+
+**Implemented on `codex/release-integrity-20260808`; default-branch integration, a replacement
+hosted run, and installed N→N+1 proof remain with the release owner.** The automatic updater now
+requires one exact feed version, writes an atomic transition receipt before `quitAndInstall()`, and
+reconciles that receipt against the version that actually starts next. The outcomes distinguish a
+successful target, the previous version still running (`rollback`), a different version
+(`feed-mismatch`), and an invalid receipt. A receipt write failure keeps the update staged and does
+not quit; a refused Squirrel restart clears the attempted receipt.
+
+The renderer now supplies a real unsaved-work boundary. `ConfigScreen.vue` emits its computed
+`isWorkspaceDirty` state, `App.vue` feeds that reactive value into the single `createUpdates`
+controller, and both the model and the restart method fail closed before calling the preload bridge.
+The preload also carries the bounded boolean across IPC and the main controller independently
+refuses true, missing, or malformed values, so an older renderer fails safe.
+The banner changes to localized unsaved-work copy, so its disabled Restart control says why. The
+mounted-shell regression opens the real generated config workspace, proves Restart becomes
+disabled, proves the bridge restart count stays zero, then closes the surface and proves Restart is
+available again. Existing render-in-progress protection remains independently enforced by the main
+process.
+
+The screenshot job remains advisory and absent from release dependencies, but now has a reviewed
+20-minute job timeout. A hung browser therefore stops retaining a workflow indefinitely without
+turning capture evidence into a release gate. The workflow guard fails if either
+`continue-on-error: true`, the timeout, or the fatal release dependency inventory is weakened.
+
+**Honest installed-proof boundary.** `v0.1.0-build.828` and the shipped bootstrap checkpoint
+`v0.1.0-build.862` both report `immutable: false` from the GitHub release API and both predate the
+new receipt/unsaved-work code. There is consequently no pair of consecutive immutable packages that
+can truthfully exercise this implementation yet. The current user's installed `0.1.855` copy was
+not replaced or downgraded. A clean isolated N→N+1 install, feed/hash/staging proof, settings,
+project, history, cache and focus continuity, release read-back, and cheap-headless captures remain
+required after two immutable builds exist. Electron's Squirrel `autoUpdater` also exposes no
+supported user-cancellation API for an in-flight package download; controller disposal cancels
+timers and ignores late events, but that is not relabelled as the missing cancellation acceptance
+case. Issue #79 must remain open until those external/runtime gates are genuine.
+
+Local evidence at this checkpoint: 138/138 focused updater tests; 42/42 mounted shell tests,
+including the real-workspace unsaved-restart regression; app and UI typechecks; and the complete
+Node 22 CI-equivalent suite at 694/699 passing files plus five skipped, 10,090/10,123 passing tests
+plus 33 skipped. The release-contract suite is 55/55, the seven-workflow inventory is clean with
+114 SHA-pinned actions and six watched release steps, and structural `actionlint` passes on Windows
+with shellcheck disabled under the documented platform limitation. A fresh local Squirrel build
+produced one 150,099,968-byte Setup executable, one 149,351,631-byte full package, and one nonempty
+80-byte `RELEASES`; four generated executables were branded and reported `NotSigned`.
+
+Hosted run `31283417322` proved the Windows installer and its unsigned/branding assertion, but
+remained red because its checked-in changelog outputs predated the release-integrity commit. The
+generated changelog is intentionally refreshed only after this source commit so the replacement
+run checks the complete history once.
+
 ## 2026-08-08 (later) — the interface rewrite: a different look, a calmer first launch, and motion
 
 Branch `claude/interface-usability-clipping-k4to32`, continuing the entry below. The brief was

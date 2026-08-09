@@ -131,10 +131,33 @@ describe("registerUpdateHandlers", () => {
 
         // A rejected `invoke` becomes an unhandled promise inside a component, and the
         // user sees nothing happen at all - indistinguishable from a broken button.
-        const result = (await ipcMain.handlers.get("update:restart")?.(noEvent)) as UpdateRestartResult;
+        const result = (await ipcMain.handlers
+            .get("update:restart")
+            ?.(noEvent, { unsavedWork: false })) as UpdateRestartResult;
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.code).toBe("render-in-progress");
+        expect(engine.installs).toBe(0);
+        installed.dispose();
+    });
+
+    it("fails safe when an older renderer omits the unsaved-work context", async () => {
+        const ipcMain = fakeIpcMain();
+        const engine = new FakeEngine();
+        const installed = installUpdateIpc(ipcMain, {
+            currentVersion: "0.1.0",
+            feed,
+            engine,
+            renderInProgress: () => false,
+            broadcast: () => {},
+            timers: noTimers,
+        });
+        engine.emit("update-downloaded", {}, null, "0.2.0", new Date(), null);
+
+        const result = (await ipcMain.handlers.get("update:restart")?.(noEvent)) as UpdateRestartResult;
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.code).toBe("unsaved-work");
         expect(engine.installs).toBe(0);
         installed.dispose();
     });
@@ -152,7 +175,9 @@ describe("registerUpdateHandlers", () => {
         });
         engine.emit("update-downloaded", {}, null, "0.2.0", new Date(), null);
 
-        const result = (await ipcMain.handlers.get("update:restart")?.(noEvent)) as UpdateRestartResult;
+        const result = (await ipcMain.handlers
+            .get("update:restart")
+            ?.(noEvent, { unsavedWork: false })) as UpdateRestartResult;
         expect(result).toEqual({ ok: true, version: "0.2.0" });
         expect(engine.installs).toBe(1);
         installed.dispose();

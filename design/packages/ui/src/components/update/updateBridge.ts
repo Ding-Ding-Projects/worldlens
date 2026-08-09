@@ -20,13 +20,7 @@
  */
 
 export type UpdateStatus =
-    | "unsupported"
-    | "idle"
-    | "up-to-date"
-    | "available"
-    | "downloading"
-    | "ready"
-    | "failed";
+    "unsupported" | "idle" | "up-to-date" | "available" | "downloading" | "ready" | "failed";
 
 export type UpdateFailureCode =
     | "offline"
@@ -34,6 +28,8 @@ export type UpdateFailureCode =
     | "corrupt-asset"
     | "not-installed"
     | "staging-failed"
+    | "rollback"
+    | "feed-mismatch"
     | "unknown";
 
 export interface UpdateFailure {
@@ -62,7 +58,8 @@ export interface UpdateState {
     readonly feedUrl: string | null;
 }
 
-export type UpdateRestartRefusal = "nothing-ready" | "render-in-progress" | "unsupported" | "failed";
+export type UpdateRestartRefusal =
+    "nothing-ready" | "render-in-progress" | "unsaved-work" | "unsupported" | "failed";
 
 export type UpdateRestartResult =
     | { readonly ok: true; readonly version: string }
@@ -73,7 +70,7 @@ export interface UpdateBridge {
     /** Asks now. The answer arrives on {@link UpdateBridge.onUpdateEvent}, not from this. */
     check(): Promise<UpdateState>;
     /** Never rejects: a refusal comes back `ok: false` with a code and a sentence. */
-    restart(): Promise<UpdateRestartResult>;
+    restart(unsavedWork: boolean): Promise<UpdateRestartResult>;
     onUpdateEvent(listener: (state: UpdateState) => void): () => void;
     /** False when this build can report an update but not install one. */
     readonly canRestart: boolean;
@@ -85,7 +82,7 @@ export interface UpdateBridge {
 type Host = Partial<{
     updateState: () => Promise<UpdateState>;
     checkForUpdates: () => Promise<UpdateState>;
-    restartToInstallUpdate: () => Promise<UpdateRestartResult>;
+    restartToInstallUpdate: (unsavedWork: boolean) => Promise<UpdateRestartResult>;
     onUpdateEvent: (listener: (state: UpdateState) => void) => () => void;
 }>;
 
@@ -119,9 +116,9 @@ export function resolveUpdateBridge(): UpdateBridge | null {
         // check" and "the check found nothing" both leave the same screen, and `canCheck`
         // is what says which of the two it is.
         check: () => (isFunction(host.checkForUpdates) ? host.checkForUpdates() : updateState()),
-        restart: () =>
+        restart: (unsavedWork) =>
             isFunction(host.restartToInstallUpdate)
-                ? host.restartToInstallUpdate()
+                ? host.restartToInstallUpdate(unsavedWork)
                 : Promise.resolve({
                       ok: false,
                       code: "unsupported",

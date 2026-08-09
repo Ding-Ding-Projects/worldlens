@@ -285,6 +285,14 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
+  const unboundedScreenshots = workflow.replace("    timeout-minutes: 20\n", "");
+  assert.notEqual(unboundedScreenshots, workflow);
+  assert.ok(
+    actionDependencyProblems(unboundedScreenshots, FILE).some((problem) =>
+      /20-minute job timeout/.test(problem.message),
+    ),
+  );
+
   const floatingRunner = workflow.replace(
     "runs-on: ubuntu-24.04",
     "runs-on: ubuntu-latest",

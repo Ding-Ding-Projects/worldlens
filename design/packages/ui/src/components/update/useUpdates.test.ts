@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 import { createUpdates } from "./useUpdates.js";
-import { resolveUpdateBridge, type UpdateBridge, type UpdateRestartResult, type UpdateState } from "./updateBridge.js";
+import {
+    resolveUpdateBridge,
+    type UpdateBridge,
+    type UpdateRestartResult,
+    type UpdateState,
+} from "./updateBridge.js";
 import { unknownUpdateState } from "./updateModel.js";
 
 beforeEach(() => {
@@ -41,7 +46,7 @@ function fakeBridge(
             counters.checks += 1;
             return Promise.resolve({ ...unknownUpdateState("0.1.0"), checking: true });
         },
-        restart: () => {
+        restart: (_unsavedWork) => {
             counters.restarts += 1;
             return Promise.resolve(options.restart ?? { ok: true, version: "0.2.0" });
         },
@@ -130,13 +135,47 @@ describe("createUpdates", () => {
                 message: "A render is running.",
             },
         });
-        const updates = createUpdates({ bridge: fake.bridge, onRefusal: (message) => seen.push(message) });
+        const updates = createUpdates({
+            bridge: fake.bridge,
+            onRefusal: (message) => seen.push(message),
+        });
         fake.push(ready({ renderInProgress: true }));
 
         const answer = await updates.restart();
         expect(answer.ok).toBe(false);
         expect(updates.refusal.value).toBe("A render is running.");
         expect(seen).toEqual(["A render is running."]);
+    });
+
+    it("refuses real unsaved configuration work before the bridge can quit", async () => {
+        const seen: string[] = [];
+        const fake = fakeBridge();
+        const updates = createUpdates({
+            bridge: fake.bridge,
+            hasUnsavedWork: () => true,
+            onRefusal: (message) => seen.push(message),
+        });
+        fake.push(ready());
+
+        expect(updates.banner.value.canRestart).toBe(false);
+        expect(updates.banner.value.bodyKey).toBe("update.banner.unsavedBody");
+        const answer = await updates.restart();
+        expect(answer).toMatchObject({ ok: false, code: "unsaved-work" });
+        expect(fake.restarts).toBe(0);
+        expect(seen[0]).toMatch(/Unsaved configuration changes/);
+    });
+
+    it("treats a broken unsaved-work probe as busy in the safe direction", async () => {
+        const fake = fakeBridge();
+        const updates = createUpdates({
+            bridge: fake.bridge,
+            hasUnsavedWork: () => {
+                throw new Error("editor vanished");
+            },
+        });
+        fake.push(ready());
+        expect((await updates.restart()).ok).toBe(false);
+        expect(fake.restarts).toBe(0);
     });
 
     it("passes a manual check through, and clears the last refusal", async () => {
@@ -194,7 +233,7 @@ describe("resolveUpdateBridge", () => {
         expect(bridge?.canRestart).toBe(false);
         expect(bridge?.canCheck).toBe(false);
 
-        const refusal = await bridge?.restart();
+        const refusal = await bridge?.restart(false);
         expect(refusal?.ok).toBe(false);
     });
 });

@@ -25,7 +25,12 @@
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import { UpdateController, type UpdateControllerOptions, type UpdateRestartResult } from "./controller.js";
+import {
+    UpdateController,
+    type UpdateControllerOptions,
+    type UpdateRestartContext,
+    type UpdateRestartResult,
+} from "./controller.js";
 import type { UpdateState } from "./state.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
@@ -40,6 +45,20 @@ export interface UpdateIpcOptions {
 
 export interface UpdateIpc {
     dispose(): void;
+}
+
+function restartContext(value: unknown): UpdateRestartContext {
+    if (
+        typeof value === "object" &&
+        value !== null &&
+        "unsavedWork" in value &&
+        value.unsavedWork === false
+    ) {
+        return { unsavedWork: false };
+    }
+    // Missing, malformed, and true all fail safe. This also protects a newer main process
+    // from an older renderer that invokes the channel without the new context.
+    return { unsavedWork: true };
 }
 
 /**
@@ -58,7 +77,8 @@ export function registerUpdateHandlers(ipcMain: IpcMain, options: UpdateIpcOptio
 
     ipcMain.handle(
         "update:restart",
-        (_event: IpcMainInvokeEvent): UpdateRestartResult => controller.restart(),
+        (_event: IpcMainInvokeEvent, context: unknown): UpdateRestartResult =>
+            controller.restart(restartContext(context)),
     );
 
     return {

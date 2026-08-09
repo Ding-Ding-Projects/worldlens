@@ -1,5 +1,26 @@
 # Roadmap
 
+## Automatic updater restart integrity and issue #79 closure gate (2026-08-08)
+
+**Implementation complete on `codex/release-integrity-20260808`; installed acceptance remains
+blocked by release state.** The existing startup-plus-six-hour updater, HTTPS Squirrel feed,
+background download, package-hash handling, persistent exact-version banner, Later action, manual
+check, explicit Restart, unsigned warning, render protection and offline/corrupt-asset tests now add
+an atomic N→N+1 transition receipt, next-launch rollback/version-mismatch reporting, strict exact
+feed versions, and a real reactive unsaved-configuration refusal wired from the editor through IPC
+to the renderer and main-process controllers. A broken dirty-state probe and a missing/malformed
+IPC value fail safe, and a receipt that cannot be written leaves the staged update in place without
+quitting.
+
+The full issue is deliberately not marked done. The two inspected consecutive release candidates
+predating this code are mutable (`immutable: false`), so they cannot prove the requested immutable
+N→N+1 path. Once two immutable releases containing this code exist, the remaining gate is a clean
+isolated install/update with feed and asset-hash read-back, settings/project/history/cache and focus
+continuity, rollback/corruption/unsigned/feed-mismatch evidence, and genuine cheap-headless captures.
+Electron's Squirrel updater has no supported API to cancel an in-flight package download, so that
+user-cancellation case also remains an explicit platform/API blocker rather than a passing disposal
+test.
+
 ## Ground-up Material Design 3 Expressive Pages rewrite (2026-08-07)
 
 **Integrated into `main` at `de324d7`; exact-tip CI and live deployment proof remain

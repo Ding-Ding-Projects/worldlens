@@ -41,6 +41,7 @@ import { AppSettings } from "./components/settings/index.js";
 import { EulaSurface } from "./components/eula/index.js";
 import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
 import { appearanceTargets } from "./components/appearance/index.js";
+import { unknownUpdateState } from "./components/update/updateModel.js";
 import { addLocalMap, profilesStore, removeProfile } from "./stores/profiles.js";
 import { notices, raiseNotice } from "./stores/notices.js";
 import { createProject, withMapAdded } from "./components/project/projectModel.js";
@@ -912,6 +913,42 @@ describe("the configuration button", () => {
         expect(host?.classList.contains("mb-world-host")).toBe(true);
         expect(app.findComponent(ConfigScreen).exists()).toBe(true);
         expect(configFab().getAttribute("aria-expanded")).toBe("true");
+    });
+
+    it("holds an update restart while the real config workspace is unsaved", async () => {
+        let restartCalls = 0;
+        const ready = {
+            ...unknownUpdateState("0.1.0"),
+            status: "ready" as const,
+            readyVersion: "0.2.0",
+        };
+        (globalThis as { worldlens?: unknown }).worldlens = {
+            updateState: async () => ready,
+            checkForUpdates: async () => ready,
+            restartToInstallUpdate: async () => {
+                restartCalls += 1;
+                return { ok: true as const, version: "0.2.0" };
+            },
+            onUpdateEvent: () => () => {},
+        };
+        const app = shell();
+        await settle();
+
+        expect(app.find(".mb-update-banner__restart").attributes("disabled")).toBeUndefined();
+
+        configFab().click();
+        await settle();
+
+        const restart = app.find(".mb-update-banner__restart");
+        expect(app.findComponent(ConfigScreen).text()).toContain("Unsaved changes");
+        expect(restart.attributes("disabled")).toBeDefined();
+        expect(app.find(".mb-update-banner").text().toLowerCase()).toContain("unsaved");
+        await restart.trigger("click");
+        expect(restartCalls).toBe(0);
+
+        configFab().click();
+        await settle();
+        expect(app.find(".mb-update-banner__restart").attributes("disabled")).toBeUndefined();
     });
 
     it("carries an exact palette target through to the render-mask field", async () => {

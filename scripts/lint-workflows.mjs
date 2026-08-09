@@ -777,6 +777,21 @@ function actionDependencyProblems(text, file) {
         "screenshot capture must remain advisory with exactly one job-level continue-on-error: true",
     });
   }
+  const screenshotTimeouts = screenshots
+    ? lines
+        .slice(screenshots.start + 1, screenshots.end)
+        .map((line) => /^ {4}timeout-minutes:\s+(\d+)\s*$/.exec(line)?.[1] ?? null)
+        .filter((value) => value !== null)
+    : [];
+  if (screenshotTimeouts.length !== 1 || screenshotTimeouts[0] !== "20") {
+    problems.push({
+      file,
+      line: (screenshots?.start ?? 0) + 1,
+      stepName: null,
+      expression: null,
+      message: "advisory screenshot capture must retain the reviewed 20-minute job timeout",
+    });
+  }
 
   const release = jobBlock(lines, "release");
   const releaseStart = release?.start ?? -1;

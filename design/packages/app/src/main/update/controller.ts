@@ -26,9 +26,10 @@
  * frozen" is the failure this whole subsystem exists to avoid producing.
  */
 
-import { classifyUpdateFailure } from "./failure.js";
+import { classifyUpdateFailure, updateFailure } from "./failure.js";
 import { describeFeed, type FeedConfiguration, type FeedResolution } from "./feed.js";
 import type { UpdateFeedHandoff } from "./feedHandoff.js";
+import type { UpdateInstallJournal, UpdateInstallOutcome } from "./installJournal.js";
 import {
     STARTUP_DELAY_MS,
     initialSchedule,
@@ -119,6 +120,8 @@ export type UpdateRestartRefusal =
     | "nothing-ready"
     /** A render is running. Restarting would throw away hours of work. */
     | "render-in-progress"
+    /** The renderer reports in-memory work that a process restart would discard. */
+    | "unsaved-work"
     /** This build has no updater at all. */
     | "unsupported"
     /** The updater was asked to install and refused. */
@@ -127,6 +130,11 @@ export type UpdateRestartRefusal =
 export type UpdateRestartResult =
     | { readonly ok: true; readonly version: string }
     | { readonly ok: false; readonly code: UpdateRestartRefusal; readonly message: string };
+
+export interface UpdateRestartContext {
+    /** Read from the renderer's real dirty-state source at the moment Restart is pressed. */
+    readonly unsavedWork: boolean;
+}
 
 export interface UpdateControllerOptions {
     /** `app.getVersion()`. Shown verbatim; no funny level ever touches it. */
@@ -143,6 +151,8 @@ export interface UpdateControllerOptions {
     readonly now?: () => Date;
     /** Durable proof that this profile has received an update from the current feed. */
     readonly feedHandoff?: UpdateFeedHandoff;
+    /** Durable proof of what version really started after `quitAndInstall`. */
+    readonly installJournal?: UpdateInstallJournal;
     /**
      * Optional metadata-only lookup, used when this build cannot install an update.
      *
@@ -172,6 +182,13 @@ const REAL_TIMERS: UpdateTimers = {
         clearTimeout(handle as ReturnType<typeof setTimeout>);
     },
 };
+
+const EXACT_UPDATE_VERSION = /^v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)$/;
+
+function exactUpdateVersion(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    return EXACT_UPDATE_VERSION.exec(value.trim())?.[1] ?? null;
+}
 
 export class UpdateController {
     private readonly options: UpdateControllerOptions;
@@ -208,6 +225,7 @@ export class UpdateController {
     start(): void {
         if (this.started || this.disposed) return;
         this.started = true;
+        this.reportPriorInstallOutcome(this.reconcilePriorInstall());
 
         if (!this.options.feed.ok) {
             this.apply({ type: "unsupported", reason: this.options.feed.reason });
@@ -307,7 +325,7 @@ export class UpdateController {
      * state was published when the banner was drawn and a render can start between the
      * banner appearing and the button being pressed.
      */
-    restart(): UpdateRestartResult {
+    restart(context: UpdateRestartContext = { unsavedWork: false }): UpdateRestartResult {
         if (this.state.status === "unsupported") {
             return {
                 ok: false,
@@ -324,6 +342,15 @@ export class UpdateController {
                     "There is no update staged on this machine yet, so a restart would come back to the same version.",
             };
         }
+        if (context.unsavedWork) {
+            return {
+                ok: false,
+                code: "unsaved-work",
+                message:
+                    "Unsaved configuration changes are open. Save or discard them before restarting to install the update; " +
+                    `version ${version} remains staged.`,
+            };
+        }
         if (this.readRenderActivity()) {
             return {
                 ok: false,
@@ -338,8 +365,29 @@ export class UpdateController {
             return { ok: false, code: "unsupported", message: "This build has no updater to run." };
         }
         try {
+            this.options.installJournal?.begin(this.state.currentVersion, version);
+        } catch (error) {
+            const failure = updateFailure(
+                "staging-failed",
+                "The update is staged, but the app could not record the version transition safely, so it did not restart. " +
+                    `Version ${version} remains staged and can be tried again.`,
+                {
+                    detail: error instanceof Error ? error.message : String(error),
+                    retryable: true,
+                },
+            );
+            this.fail(failure);
+            return { ok: false, code: "failed", message: failure.message };
+        }
+        try {
             engine.quitAndInstall();
         } catch (error) {
+            try {
+                this.options.installJournal?.clear();
+            } catch {
+                // The failed quit is already being reported. A stale record is consumed and
+                // reported honestly on the next launch rather than hiding this failure now.
+            }
             const failure = classifyUpdateFailure(error);
             this.fail(failure);
             return { ok: false, code: "failed", message: failure.message };
@@ -394,15 +442,29 @@ export class UpdateController {
             if (this.activeFeed === "current") this.confirmCurrentFeed();
             // Electron's signature: (event, releaseNotes, releaseName, releaseDate, updateURL).
             const notes = typeof args[1] === "string" && args[1].trim() !== "" ? args[1] : null;
-            const name = typeof args[2] === "string" && args[2].trim() !== "" ? args[2] : null;
+            const name = exactUpdateVersion(args[2]);
             const url =
                 typeof args[4] === "string" && args[4].startsWith("https://") ? args[4] : null;
+            if (name === null) {
+                this.fail(
+                    updateFailure(
+                        "feed-mismatch",
+                        "The update package downloaded, but its feed did not name one exact version, so the app will not offer to install it.",
+                        {
+                            detail:
+                                typeof args[2] === "string"
+                                    ? `Received release name: ${args[2]}`
+                                    : "The release name was missing.",
+                            retryable: false,
+                        },
+                    ),
+                );
+                return;
+            }
             this.schedule = scheduleAfterSuccess(this.schedule, true);
             this.apply({
                 type: "downloaded",
-                // Never invented. An installer whose version the feed did not name is still
-                // an installer, and "a newer version" beats a version number nobody checked.
-                version: name ?? "a newer version",
+                version: name,
                 notes,
                 notesUrl: url,
                 at: this.stamp(),
@@ -503,6 +565,59 @@ export class UpdateController {
         this.schedule = scheduleAfterFailure(this.schedule);
         this.apply({ type: "failed", failure, at: this.stamp() });
         this.rearm();
+    }
+
+    private reconcilePriorInstall(): UpdateInstallOutcome {
+        try {
+            return (
+                this.options.installJournal?.reconcile(this.options.currentVersion) ?? {
+                    status: "none",
+                }
+            );
+        } catch {
+            return { status: "corrupt" };
+        }
+    }
+
+    private reportPriorInstallOutcome(outcome: UpdateInstallOutcome): void {
+        if (outcome.status === "none" || outcome.status === "installed") return;
+        if (outcome.status === "rolled-back") {
+            this.apply({
+                type: "failed",
+                failure: updateFailure(
+                    "rollback",
+                    `The requested update to version ${outcome.attempt.targetVersion} did not become the version that started. ` +
+                        `Version ${outcome.attempt.fromVersion} is still running, so the update was rolled back or did not finish. ` +
+                        "The existing app data remains in its normal data folder.",
+                    { retryable: true },
+                ),
+                at: this.stamp(),
+            });
+            return;
+        }
+        if (outcome.status === "version-mismatch") {
+            this.apply({
+                type: "failed",
+                failure: updateFailure(
+                    "feed-mismatch",
+                    `The updater expected version ${outcome.attempt.targetVersion}, but version ${outcome.actualVersion} started. ` +
+                        "The app will not describe that transition as a successful update.",
+                    { retryable: false },
+                ),
+                at: this.stamp(),
+            });
+            return;
+        }
+        this.apply({
+            type: "failed",
+            failure: updateFailure(
+                "feed-mismatch",
+                "The previous update transition record was invalid, so the app cannot prove what that restart installed. " +
+                    "Nothing is being described as a successful update.",
+                { retryable: false },
+            ),
+            at: this.stamp(),
+        });
     }
 
     private apply(event: UpdateEvent): void {
