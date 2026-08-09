@@ -156,6 +156,49 @@ defineExpose({
     min-block-size: 0;
 }
 
+/*
+ * The job strip's own look, from the approved prototype.
+ *
+ * Applied from here as a scoped override rather than by editing `TabStrip.vue`, and that is a
+ * deliberate boundary: `TabStrip` is shared by the config editor and the project editor as well
+ * as by Work, and its 247-case contract suite is what proves docking, groups, pinning, overflow
+ * and bulk close still behave. Restyling it in place would put that suite at risk for a change
+ * that is only about how Work looks. Everything below is appearance; not one rule changes what a
+ * chip does.
+ *
+ * `:deep()` because these elements are `TabStrip`'s, not this component's.
+ */
+.wl-work :deep(.mb-tabs-strip) {
+    padding: 8px 12px 0;
+    background: rgb(var(--v-theme-surface));
+    border-block-end: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+/*
+ * A tab shape, not a pill: square at the bottom so a chip meets the pane it opens, rounded at the
+ * top so the strip reads as a row of sheets rather than a row of buttons. That is the whole
+ * difference between "browser-style tabs" and "a toolbar", and it is the shape the prototype
+ * draws.
+ */
+.wl-work :deep(.mb-tabs-strip__tab),
+.wl-work :deep(.mb-tab-button) {
+    border-start-start-radius: 10px;
+    border-start-end-radius: 10px;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    min-block-size: 38px;
+}
+
+/* The group label above its first member: a small rounded chip, not a full pill. */
+.wl-work :deep(.mb-tabs-strip__group-head) {
+    min-block-size: 24px;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
 .wl-work__empty {
     position: absolute;
     inset: 0;

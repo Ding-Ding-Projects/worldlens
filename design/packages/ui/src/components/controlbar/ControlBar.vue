@@ -239,12 +239,30 @@ function resetCamera(): void {
     padding: 4px;
 
     border-radius: calc(var(--mb-cb-size) / 2 + 4px);
-    background: rgb(var(--v-theme-surface));
+    /*
+     * One `surface-container` pill with an `outline-variant` border, from the approved
+     * prototype. `surface` alone was the same colour as the window behind it, so on the map the
+     * cluster read as a shadow with buttons in it rather than as a control that had an edge -
+     * the border is what makes it a pill over a lit 3D scene rather than a smudge on one.
+     */
+    background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
     color: rgb(var(--v-theme-on-surface));
     /* MD3 elevation level 2. */
     box-shadow:
         0 1px 2px rgba(0, 0, 0, 0.3),
         0 2px 6px 2px rgba(0, 0, 0, 0.15);
+}
+
+/*
+ * The coordinates are the one thing on this bar somebody might retype, so they are monospace -
+ * the same rule the rest of this application follows for paths, keys, digests and shortcuts.
+ * Tabular figures too: without them a coordinate counting down through 1000 jitters sideways as
+ * the digit widths change, which is exactly the thing a live readout must not do.
+ */
+.mb-cb__position :deep(input) {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
 }
 
 /*
