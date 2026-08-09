@@ -14,6 +14,7 @@ import MenuSwitch from "./MenuSwitch.vue";
 import { useMenuSearch } from "./menuPrefs";
 import { createMatcher } from "./regex";
 import { useBlueMap, useBlueMapTheme } from "./useBlueMap";
+import { changeTheme, currentTheme, themeChoiceFromId } from "../settings/themeSetting.js";
 import { i18nModule, languages, setLanguage } from "../../i18n";
 
 /**
@@ -202,13 +203,24 @@ const themeOptions = computed<MenuChoiceOption[]>(() => [
     { id: "contrast", name: t("theme.contrast", "Contrast") },
 ]);
 
-const themeSelection = computed(() => app.value?.appState.theme ?? "default");
+const themeSelection = computed(() => currentTheme.value ?? "default");
 
+/**
+ * Routed through `changeTheme` rather than `instance.setTheme`, and this is the one place
+ * in this file where that distinction matters.
+ *
+ * `appState.theme` is written by the viewer's own startup as well as by this menu - see
+ * `settings/themeSetting.ts` for the chain that ends in an unencoded "light" - so a shell
+ * that learned the chosen theme by watching that field could not tell the two apart and
+ * persisted both. Calling `changeTheme` states the intent instead of leaving it to be
+ * inferred: it writes the stored record, pushes the value into this same live viewer, and
+ * records it in the settings history, so this control and the one in Settings cannot
+ * disagree about what was chosen. `saveUserSettings()` still runs afterwards for the
+ * viewer's own bag, exactly as every other handler here does.
+ */
 function setTheme(id: string): void {
-    const instance = app.value;
-    if (!instance) return;
-    instance.setTheme(id === "default" ? null : id);
-    instance.saveUserSettings();
+    changeTheme(themeChoiceFromId(id));
+    app.value?.saveUserSettings();
 }
 
 // ---------------------------------------------------------------- screenshot

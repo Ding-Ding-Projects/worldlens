@@ -3,24 +3,34 @@
  * reachable without a map.
  *
  * The viewer has always offered this, in its own settings menu, and that menu only
- * exists while a map is open: `SettingsMenu.vue` writes `app.appState.theme` and the
- * viewer persists it through `saveUserSettings()`. Somebody who has not rendered
- * anything yet - the exact person most likely to be setting the app up to their eyes -
- * had no theme control at all. This module gives the settings surface the same choice
- * against the same stored record, so the two controls can never disagree about what was
- * chosen.
+ * exists while a map is open. Somebody who has not rendered anything yet - the exact
+ * person most likely to be setting the app up to their eyes - had no theme control at
+ * all. This module gives the settings surface the same choice against the same stored
+ * record, so the two controls can never disagree about what was chosen.
  *
- * ## One record, two writers, one precedence rule
+ * ## One record, one authority
  *
  * The stored record is the viewer's own `bluemap-theme` localStorage entry, written
- * through the same JSON encoding `BlueMapApp.saveUserSetting` uses. While a viewer app
- * is live, its `appState.theme` is authoritative - it loaded that same record at
- * startup, and the in-map menu writes it - so this module's setter routes through
- * `app.setTheme()` and lets the viewer persist as it always has. With no app running,
- * the setter writes the record directly, and the next app to be created reads it back
- * through its own `loadUserSettings()`. `useBlueMapTheme` reads {@link currentTheme},
- * which resolves the same precedence, so the Vuetify chrome follows whichever writer
- * spoke last.
+ * through the same JSON encoding `BlueMapApp.saveUserSetting` uses. That record - not
+ * the running viewer's `appState.theme` - is the authority, and every control a person
+ * can actually press routes through {@link changeTheme}, which writes the record and
+ * then pushes the result into whatever viewer happens to be running. `currentTheme`
+ * reports the record, `useBlueMapTheme` reads `currentTheme`, and the module watcher
+ * below holds the live viewer to it.
+ *
+ * It used to be the other way round: while a viewer was live its `appState.theme` won,
+ * and this module mirrored any change to that field back out into the record. The
+ * trouble is that `appState.theme` has writers that are not people. `BlueMapApp`'s
+ * constructor builds a `MaterialShell`, whose own constructor resolves
+ * `localStorage.getItem("bluemap-theme") || "light"` and writes the result back
+ * unencoded; `loadUserSettings()` then reads that unparseable record through
+ * `getLocalStorage`, which hands back the raw string on a JSON failure, and calls
+ * `setTheme("light")`. That arrives at a mirror-back watcher looking exactly like a
+ * person pressing Light, and gets written into the record as a deliberate choice - one
+ * that `readStoredTheme` then honours forever, on a profile where nobody ever touched a
+ * theme control. Reversing the precedence is what makes that class of forgery
+ * impossible rather than merely unlikely: a value can only reach the record by being
+ * passed to `changeTheme`, and only a control calls that.
  *
  * `null` is a real choice, not an absence: it means "follow the system", exactly as it
  * does in the viewer.
@@ -46,6 +56,21 @@ export const THEME_STORAGE_KEY = "bluemap-theme";
 
 function isThemeChoice(value: unknown): value is ThemeChoice {
     return value === null || value === "dark" || value === "light" || value === "contrast";
+}
+
+/**
+ * The option id a button group or palette row carries, as a choice.
+ *
+ * Those surfaces spell follow-the-system `"default"` rather than `null`, because a toggle
+ * group needs a value for every button and `null` is not one. An id that is neither
+ * `"default"` nor a theme cannot come from a rendered control, so it resolves to
+ * follow-the-system too - the same answer {@link readStoredTheme} gives an unusable
+ * record, and the only answer that cannot leave the interface showing something nobody
+ * asked for.
+ */
+export function themeChoiceFromId(id: string): ThemeChoice {
+    if (id === "default") return null;
+    return isThemeChoice(id) ? id : null;
 }
 
 /**
@@ -94,7 +119,7 @@ function writeStoredTheme(choice: ThemeChoice): void {
 }
 
 /**
- * The choice as this shell last saw it, used only while no viewer app is running.
+ * The chosen theme, as this shell last read or wrote it.
  *
  * A module-level ref for the same reason `uiSizeSetting.ts`'s readout is one: there is
  * exactly one theme, and the settings row and the Vuetify theme bridge must be reading
@@ -103,20 +128,18 @@ function writeStoredTheme(choice: ThemeChoice): void {
 const storedTheme = ref<ThemeChoice>(readStoredTheme());
 
 /**
- * The one resolved answer to "what theme was chosen": the live app's while there is
- * one, the stored record's otherwise.
+ * The one answer to "what theme was chosen".
+ *
+ * Deliberately the record rather than the running viewer's `appState.theme`. Reading the
+ * viewer first would mean every surface briefly reports whatever that field happened to
+ * be resolved to by the viewer's own startup, which is a value nobody chose; it would
+ * also reintroduce, in the readers, exactly the ambiguity the watcher below exists to
+ * remove. Where a viewer is running the two agree, because the watcher holds it to this.
  */
-export const currentTheme: ComputedRef<ThemeChoice> = computed(() => {
-    const app = blueMapApp.value;
-    if (app !== null) {
-        const selected = app.appState.theme;
-        return isThemeChoice(selected) ? selected : null;
-    }
-    return storedTheme.value;
-});
+export const currentTheme: ComputedRef<ThemeChoice> = computed(() => storedTheme.value);
 
 /**
- * Keeps the two writers convergent, in both directions, for the life of the page.
+ * Holds the live viewer to the chosen theme, for the life of the page.
  *
  * A module-level watcher rather than one per component, because it must run even while
  * no settings surface is mounted; it lives as long as the store it watches, exactly like
@@ -130,43 +153,42 @@ export const currentTheme: ComputedRef<ThemeChoice> = computed(() => {
  * second opinion: where the viewer *does* load its settings, it reads the very record
  * this module writes, so both writers arrive at the same value in either order.
  *
- * **A change inside the same app is mirrored back out.** The in-map settings menu writes
- * `appState.theme`; mirroring it into {@link storedTheme} (and the stored record, which
- * the viewer only persists itself behind that same `useCookies` gate) is what keeps the
- * choice after the app is torn down on a profile switch, instead of snapping back to
- * whatever the record held when this module first loaded.
+ * **A change made in the in-map settings menu still survives the viewer being torn down**
+ * on a profile switch - but it survives because the menu writes the record itself, not
+ * because this watcher copies it out afterwards. `menu/SettingsMenu.vue` and the command
+ * palette's viewer section both call {@link changeTheme}, so the choice is durable at the
+ * moment it is made, before any of it depends on a watcher noticing.
+ *
+ * The push is deliberately not restricted to the first time a given app is seen. The
+ * viewer resolves its own theme *after* it has been installed into the store - `MapView`
+ * calls `setBlueMapApp(app)` and only then awaits `app.load()`, which reaches
+ * `loadUserSettings()` several steps in - so a same-app change is the normal way the
+ * viewer's startup announces a theme this shell never agreed to. Re-asserting is what
+ * turns that into a corrected frame instead of a forged choice.
  */
-let syncedApp: unknown = null;
-
 watch(
     () => [blueMapApp.value, blueMapApp.value?.appState.theme] as const,
-    ([app, selected]) => {
-        if (app === null) {
-            syncedApp = null;
-            return;
-        }
-
-        if (app !== syncedApp) {
-            syncedApp = app;
-            const loaded = isThemeChoice(selected) ? selected : null;
-            if (loaded !== storedTheme.value) app.setTheme(storedTheme.value);
-            return;
-        }
-
-        if (selected === undefined) return;
-        const chosen = isThemeChoice(selected) ? selected : null;
-        if (chosen !== storedTheme.value) {
-            storedTheme.value = chosen;
-            writeStoredTheme(chosen);
-        }
+    ([app, live]) => {
+        if (app === null) return;
+        const showing = isThemeChoice(live) ? live : null;
+        if (showing !== storedTheme.value) app.setTheme(storedTheme.value);
     },
 );
 
 /**
- * Changes the theme: through the live app where there is one - which repaints the map's
- * own marker chrome and persists through the viewer's own path - and straight to the
- * stored record otherwise. Either way the choice is mirrored into the settings history
- * bag under `theme`, fire-and-forget like every other key `recordAppSetting` carries.
+ * Changes the theme. The single way a chosen theme becomes a stored one.
+ *
+ * The record is written first and unconditionally, because that is what makes the choice
+ * durable whether or not a viewer is running and whether or not the map it is showing
+ * ever opted into `useCookies`. The live app is then pushed to match, which repaints the
+ * map's own marker chrome, and the choice is mirrored into the settings history bag under
+ * `theme`, fire-and-forget like every other key `recordAppSetting` carries.
+ *
+ * Every theme control calls this - the settings row, the in-map settings menu, the
+ * command palette. Nothing else may write the record, and nothing that writes
+ * `appState.theme` behind this function's back will be persisted, which is the entire
+ * point: see the module comment for the viewer's own startup writing "light" into that
+ * field on a profile where nobody chose anything.
  */
 export function changeTheme(choice: ThemeChoice): void {
     storedTheme.value = choice;

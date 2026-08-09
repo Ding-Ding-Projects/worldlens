@@ -4,8 +4,9 @@
  * The shell-level theme choice: that it reads and writes the viewer's own stored record
  * (same key, same JSON encoding), that a choice made with no map open reaches the next
  * viewer to start - including one whose map never opted into `useCookies` and so loads
- * no stored settings of its own - and that a change made inside the in-map menu is
- * mirrored back out so it survives that viewer being torn down.
+ * no stored settings of its own - that a change made through the in-map menu survives
+ * that viewer being torn down, and that a theme the viewer resolved for itself is never
+ * written to the record as though somebody had chosen it.
  *
  * The Vuetify half - `useBlueMapTheme` falling back to this module's `currentTheme` when
  * no app is running - is asserted through `currentTheme` itself here: that computed is
@@ -141,19 +142,115 @@ describe("when a viewer starts", () => {
 });
 
 describe("when the in-map menu changes the theme", () => {
-    it("mirrors the change out, so it survives the viewer being torn down", async () => {
+    /**
+     * The in-map menu and the palette both call `changeTheme` now rather than writing
+     * `appState.theme`, so the choice is durable at the moment it is made instead of at
+     * the moment a watcher notices. This asserts the outcome the old mirror-back arm
+     * existed to produce - the choice outliving the viewer - through the path that
+     * actually produces it.
+     */
+    it("keeps the choice after the viewer is torn down", async () => {
         const app = fakeApp(null);
         install(app);
         await nextTick();
 
-        // The viewer's own settings menu writes appState.theme directly.
-        app.appState.theme = "light";
+        changeTheme("light");
         await nextTick();
+
+        expect(app.setTheme).toHaveBeenCalledWith("light" satisfies ThemeChoice);
 
         setBlueMapApp(null);
         await nextTick();
 
         expect(currentTheme.value).toBe("light" satisfies ThemeChoice);
         expect(readStoredTheme()).toBe("light");
+    });
+});
+
+/**
+ * The regression this module was rewritten for.
+ *
+ * `appState.theme` is not written only by people. `BlueMapApp`'s constructor builds a
+ * `MaterialShell`, which resolves `localStorage.getItem("bluemap-theme") || "light"` and
+ * writes the answer back unencoded; `loadUserSettings()` then reads that unparseable
+ * record through `getLocalStorage`, gets the raw string back because `JSON.parse` threw,
+ * and calls `setTheme("light")`. All of that happens *after* `MapView` has installed the
+ * app into the store - it calls `setBlueMapApp(app)` and only then awaits `app.load()` -
+ * so it arrives here as a change to the same app that was already being watched.
+ *
+ * The old watcher treated that as somebody having pressed Light and wrote it into the
+ * record, which `readStoredTheme` then honoured on every launch afterwards. What these
+ * assert is the *persisted record*, not the rendered theme: a session in which nobody
+ * touched a theme control must leave the stored record exactly as it found it.
+ */
+describe("when the viewer resolves a theme of its own", () => {
+    it("does not persist it as a choice, on a profile that has never chosen", async () => {
+        // A genuinely fresh profile: nothing stored, so the fresh-install default applies.
+        changeTheme(FRESH_INSTALL_THEME);
+        localStorage.removeItem(THEME_STORAGE_KEY);
+
+        const app = fakeApp(null);
+        install(app);
+        await nextTick();
+        expect(app.setTheme).toHaveBeenCalledWith(FRESH_INSTALL_THEME);
+
+        // The viewer's own startup, several steps into `load()`. Nobody pressed anything.
+        app.appState.theme = "light";
+        await nextTick();
+
+        setBlueMapApp(null);
+        await nextTick();
+
+        expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+        expect(readStoredTheme()).toBe(FRESH_INSTALL_THEME);
+        expect(currentTheme.value).toBe(FRESH_INSTALL_THEME);
+    });
+
+    it("does not overwrite a choice that was made", async () => {
+        changeTheme("contrast");
+
+        const app = fakeApp(null);
+        install(app);
+        await nextTick();
+
+        app.appState.theme = "light";
+        await nextTick();
+
+        expect(readStoredTheme()).toBe("contrast");
+        expect(currentTheme.value).toBe("contrast" satisfies ThemeChoice);
+    });
+
+    /**
+     * A stored follow-the-system is the case with the most to lose, because `null` is the
+     * one choice the viewer's own resolution can never produce - it always lands on a
+     * concrete theme - so a mirror-back arm destroyed it every single time a map opened.
+     */
+    it("does not destroy a stored follow-the-system", async () => {
+        changeTheme(null);
+
+        const app = fakeApp(null);
+        install(app);
+        await nextTick();
+
+        app.appState.theme = "light";
+        await nextTick();
+
+        expect(readStoredTheme()).toBeNull();
+        expect(currentTheme.value).toBeNull();
+    });
+
+    /** The correction is applied to the live viewer, not merely withheld from the record. */
+    it("puts the chosen theme back into the viewer that wandered off it", async () => {
+        changeTheme("dark");
+
+        const app = fakeApp("dark");
+        install(app);
+        await nextTick();
+
+        app.appState.theme = "light";
+        await nextTick();
+
+        expect(app.setTheme).toHaveBeenLastCalledWith("dark" satisfies ThemeChoice);
+        expect(app.appState.theme).toBe("dark");
     });
 });
