@@ -114,6 +114,30 @@ export class ExpressiveSiteShell {
         this.navigationScrim.setAttribute("aria-label", "Close navigation");
         this.navigationScrim.addEventListener("click", () => options.sidebar.setCollapsed(true));
 
+        /*
+         * Escape closes the overlay drawer, the same way it closes every other thing that floats
+         * over this site's content. Tapping the scrim was previously the only way out, which is
+         * fine for a pointer and useless for a keyboard: the scrim carries `tabIndex = -1` on
+         * purpose, so it is not something a visitor can reach and press.
+         *
+         * Registered on the bubble phase and skipped once anything has already handled the key,
+         * so a menu, a popover or a dialog layered above the drawer still wins Escape - closing
+         * the drawer out from under an open dialog would be the drawer answering a key that was
+         * not addressed to it. The listener only acts while the scrim is genuinely painted, which
+         * after `drawerIsOverlaying` means a compact viewport with a side dock and an open rail.
+         *
+         * The viewport is re-read here rather than trusted from the last `syncLayout`. Nothing
+         * re-runs that on a resize, so widening the window past the drawer breakpoint leaves the
+         * stored flag saying "overlaying" while the stylesheet has already stopped painting it -
+         * and Escape would then collapse a rail the visitor can see perfectly well.
+         */
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape" || event.defaultPrevented) return;
+            if (this.navigationScrim.hidden || !this.compactViewport()) return;
+            event.preventDefault();
+            options.sidebar.setCollapsed(true);
+        });
+
         this.element.append(frame, this.navigationScrim);
         options.root.append(this.skipLink, this.element);
 
@@ -235,7 +259,24 @@ export class ExpressiveSiteShell {
         );
         this.element.dataset["navigationOpen"] = applied.collapsed ? "false" : "true";
         this.element.dataset["tabPlacement"] = placement;
-        this.navigationScrim.hidden = applied.collapsed || !this.compactViewport();
+        this.navigationScrim.hidden = !this.drawerIsOverlaying(placement, applied.collapsed);
+    }
+
+    /**
+     * Whether the rail is currently floating over the canvas, which is the only situation in
+     * which a dismiss layer has anything to dismiss.
+     *
+     * Three conditions have to hold at once, and the placement one is the condition whose
+     * absence took the site down. `applied.collapsed` is already false for every horizontal
+     * dock by construction, so a check written only against it reads as though it covers this
+     * and does not: a top-docked rail is permanently "not collapsed", which said "the drawer is
+     * open" about a rail that is not a drawer. The scrim then covered the viewport with a
+     * translucent black button that swallowed every tap and, being wired to collapse a sidebar
+     * a horizontal dock has no concept of, did nothing when tapped.
+     */
+    private drawerIsOverlaying(placement: string, collapsed: boolean): boolean {
+        const vertical = placement === "left" || placement === "right";
+        return vertical && !collapsed && this.compactViewport();
     }
 
     private compactViewport(): boolean {

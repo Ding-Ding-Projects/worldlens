@@ -80,7 +80,23 @@ describe("rail-led M3 Expressive shell", () => {
         expect(shellCss).toContain("@media (width <= 720px)");
         expect(shellCss).toContain("--mb-navigation-width: min(19rem, calc(100vw - 3rem))");
         expect(shellCss).toContain("--mb-navigation-collapsed-width: 4rem");
-        expect(shellCss).toContain('.mb-app-shell[data-navigation-open="true"]');
+        /*
+         * The drawer is selected by placement and collapsed state, not by a
+         * `data-navigation-open` flag on the shell root, and that rename is the fix rather than
+         * a casualty of it.
+         *
+         * A single "is the navigation open" boolean was what took the site down: a top-docked
+         * rail is permanently not-collapsed, so the flag said the drawer was open about a rail
+         * that is not a drawer, and the scrim covered the viewport with a translucent button
+         * wired to collapse a sidebar a horizontal dock has no concept of. Every tap was
+         * swallowed and nothing dismissed it.
+         *
+         * So the assertion now pins the two conditions that actually decide it - a vertical
+         * placement, and not collapsed - because a test that accepted either one alone would
+         * pass on the broken state it exists to catch.
+         */
+        expect(shellCss).toContain('.mb-shell-workspace[data-tab-placement="left"]');
+        expect(shellCss).toContain('[data-sidebar-collapsed="true"]');
         expect(shellTs).toContain('this.navigationScrim.className = "mb-navigation-scrim"');
         expect(shellTs).toContain("options.sidebar.setCollapsed(true)");
     });

@@ -305,7 +305,20 @@
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
-    width: 100%;
+    /*
+     * `auto`, not `100%`. The canvas carries an inline margin on every side that faces a gutter,
+     * and a width of 100% is 100% of the space *before* those margins are subtracted - so the
+     * pane ended up exactly one gutter wider than the room it had and hung off the right edge of
+     * the window. Measured with `100%`: the canvas right edge reached 1292 in a 1280 viewport
+     * docked top, 1932 in 1920, and 383 in 375 - consistently the frame gap too far, in every
+     * layout where the canvas has a margin on both sides. Nothing scrolled sideways to reveal it
+     * because the overflow is clipped, so the loss was silent: the pane's own rounded right
+     * corner and the last few pixels of its surface simply were not on the screen. With `auto`
+     * the flex basis comes from the content and `flex-grow` fills whatever is genuinely left,
+     * which is the same width in the cases that were already right and the correct one in the
+     * cases that were not.
+     */
+    width: auto;
     min-width: 0;
     margin: var(--mb-frame-gap) var(--mb-frame-gap) var(--mb-frame-gap) 0;
     padding: clamp(var(--md-sys-spacing-4), 2.5vw, var(--md-sys-spacing-8));
@@ -422,7 +435,14 @@
         right: 0;
     }
 
-    .mb-shell-workspace[data-sidebar-collapsed="true"] .mb-shell-topbar {
+    /*
+     * Scoped to the two placements that actually have a drawer. A horizontal rail is never
+     * collapsed - `applySidebarNavigation` forces the collapsed flag false for top and bottom -
+     * so this could not fire there today, but an unscoped width on a rail that runs along the
+     * other axis is a trap waiting for the first change that lets the flag through.
+     */
+    .mb-shell-workspace[data-tab-placement="left"][data-sidebar-collapsed="true"] .mb-shell-topbar,
+    .mb-shell-workspace[data-tab-placement="right"][data-sidebar-collapsed="true"] .mb-shell-topbar {
         width: var(--mb-navigation-collapsed-width);
         box-shadow: var(--md-sys-elevation-level1);
     }
@@ -437,8 +457,76 @@
         padding-right: calc(var(--mb-navigation-collapsed-width) + var(--md-sys-spacing-3));
     }
 
-    .mb-app-shell[data-navigation-open="true"] .mb-navigation-scrim:not([hidden]) {
+    /*
+     * The scrim belongs to the overlay drawer directly above, and to nothing else.
+     *
+     * It exists so that a rail which has stopped being a column beside the canvas, and started
+     * floating over it, can be dismissed by tapping the page it is covering. A top- or
+     * bottom-docked rail never floats over anything - it is a band in normal flow with the
+     * canvas beneath it - so there is nothing for a dismiss layer to dismiss.
+     *
+     * Leaving this selector unscoped to placement is what took the whole site down on a phone.
+     * The rule fires on `data-navigation-open="true"`, and that attribute is derived from the
+     * *collapsed* flag, which `applySidebarNavigation` deliberately forces to false for a
+     * horizontal dock - so a top-docked rail is permanently "open", and this painted a fixed,
+     * inset-0, 36%-black button at z-index 25 across the entire viewport. Measured on a 375x812
+     * phone: rect [0, 0, 375, 812], `pointer-events: auto`, sitting above the canvas and below
+     * only the rail's own z-index 30. Every tap below the band hit the scrim, the page underneath
+     * was visibly tinted, and the scrim's own click handler collapses a sidebar that a horizontal
+     * dock does not have - so the tap did nothing, forever. The dock choice persists, so a
+     * reload came back into the same state.
+     *
+     * Scoping to left and right is the fix: only the placements that can produce a floating
+     * drawer can produce the layer that closes it. `ExpressiveSiteShell` sets the `hidden`
+     * attribute along the same rule, so the element is out of the accessibility tree as well as
+     * out of the picture, but this selector is what actually decides whether it paints.
+     */
+    .mb-app-shell[data-tab-placement="left"][data-navigation-open="true"]
+        .mb-navigation-scrim:not([hidden]),
+    .mb-app-shell[data-tab-placement="right"][data-navigation-open="true"]
+        .mb-navigation-scrim:not([hidden]) {
         display: block;
+    }
+
+    /*
+     * A horizontal rail wraps here rather than crushing the navigation out of existence.
+     *
+     * Docked top or bottom, the rail is a single flex row of three things: the brand, the tab
+     * strip, and the quick actions. Only the strip can shrink - the other two are `flex: none` -
+     * so the strip absorbs every pixel the row is short by. On a 375px phone the brand measured
+     * 124px and the four quick actions 197px, which with the rail's own padding and gaps left
+     * the strip exactly 14px. Inside it, `.tab-strip__main` came out 0px wide holding 853px of
+     * tabs, and the pinned active tab was clipped to a 9px vertical sliver - which is precisely
+     * what the reporter photographed sitting beside the wordmark. The compact block in tabs.css
+     * also suppresses the overflow button for a horizontal strip, on the correct assumption that
+     * such a strip scrolls instead; a strip with no width to scroll in has neither route.
+     *
+     * Letting the row wrap gives the strip its own full-width line, with the brand and the
+     * actions sharing the line above it: 124 + 197 + one gap fits inside 375 comfortably, and
+     * the strip gets the whole width to scroll its tabs in, which is the behaviour tabs.css
+     * already documents for a compact horizontal strip. The `order` values are what keep the
+     * strip on the second line rather than pushing the actions onto a third.
+     */
+    .mb-shell-workspace[data-tab-placement="top"] .mb-shell-topbar,
+    .mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
+        flex-wrap: wrap;
+    }
+
+    .mb-shell-workspace[data-tab-placement="top"] .mb-rail__head,
+    .mb-shell-workspace[data-tab-placement="bottom"] .mb-rail__head {
+        order: 1;
+    }
+
+    .mb-shell-workspace[data-tab-placement="top"] .mb-rail__actions,
+    .mb-shell-workspace[data-tab-placement="bottom"] .mb-rail__actions {
+        order: 2;
+        margin-left: auto;
+    }
+
+    .mb-shell-workspace[data-tab-placement="top"] .mb-shell-topbar > .tab-bar,
+    .mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar > .tab-bar {
+        flex-basis: 100%;
+        order: 3;
     }
 
     .mb-main {
