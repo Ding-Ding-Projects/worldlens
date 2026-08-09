@@ -48,7 +48,6 @@ import {
     mdiCalendarClock,
     mdiCheckDecagramOutline,
     mdiCloudOutline,
-    mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiCogOutline,
     mdiCompassOutline,

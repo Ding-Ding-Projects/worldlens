@@ -200,6 +200,18 @@ jobs:
     # installer, but every local render in that installer fails immediately with
     # "The BlueMap engine is not installed" - see jars.ts and orchestrator.ts.
     needs: [check, jars]
+    # Builds even when `check` failed, and the reason is not laxity about gates.
+    #
+    # An installer is the only artifact anybody can actually run, and a lint error four
+    # directories away from the packaging path used to withhold it - so a failure in a file the
+    # installer does not contain became a failure to produce the installer. That trade is wrong
+    # in both directions: the gate still fails, still goes red, and still blocks nothing it
+    # should, while the person waiting for something to install gets something to install.
+    #
+    # `jars` stays a hard requirement, because it is not a gate - it is an input. Without the
+    # engine jar the installer builds and then fails on the first local render with "The BlueMap
+    # engine is not installed", which is a broken artifact rather than an ungated one.
+    if: always() && needs.jars.result == 'success'
     runs-on: windows-latest
     concurrency:
       group: ci-package-${{ github.ref }}
@@ -695,7 +707,23 @@ jobs:
     # `release` already waits on all three, config-java-roundtrip is never the slowest
     # input it is blocked on - it is done long before the others are.
     needs: [check, workflows, package, jars, test-world, config-java-roundtrip]
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Publishes whenever there is a real installer to publish, whether or not the gates above
+    # went green - a deliberate, recorded change from "a failed test creates no release".
+    #
+    # What it does *not* do is pretend. When a gate failed, the notes say so at the top, name
+    # every gate and its result, and link the run. The release is still real, still uniquely
+    # tagged, still carries the installer that run genuinely built; what a reader loses is the
+    # inference "this shipped, therefore it passed", and they lose it by being told rather than
+    # by not being told.
+    #
+    # `package` and `jars` are inputs rather than gates: with either missing there is no
+    # installer and no engine, so there is nothing to publish and the job correctly does not run.
+    if: >-
+      always()
+      && github.event_name != 'pull_request'
+      && github.ref == 'refs/heads/main'
+      && needs.package.result == 'success'
+      && needs.jars.result == 'success'
     runs-on: ubuntu-latest
     # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like
     # the other jobs in this file now do (see the top-of-file comment): that pattern
@@ -895,9 +923,44 @@ jobs:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           SPLIT: ${{ steps.split.outputs.split }}
           SPLIT_NAMES: ${{ steps.split.outputs.names }}
+          GATE_CHECK: ${{ needs.check.result }}
+          GATE_WORKFLOWS: ${{ needs.workflows.result }}
+          GATE_TEST_WORLD: ${{ needs.test-world.result }}
+          GATE_CONFIG_JAVA: ${{ needs.config-java-roundtrip.result }}
         run: |
           set -euo pipefail
+          # Every gate's real result, so the notes can state it rather than imply it. A release
+          # now ships whenever there is an installer to ship, which makes "it was published"
+          # stop meaning "it passed" - and the only honest response to that is to say which
+          # gates passed, in the release itself, where a reader already is.
+          gates_failed=0
+          for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do
+            if [ "$result" != "success" ]; then gates_failed=1; fi
+          done
+          gate_line() {
+            case "$2" in
+              success) printf '| %s | ✅ passed |\n' "$1" ;;
+              skipped) printf '| %s | ⏭️ skipped |\n' "$1" ;;
+              cancelled) printf '| %s | 🚫 cancelled |\n' "$1" ;;
+              *) printf '| %s | ❌ failed |\n' "$1" ;;
+            esac
+          }
           {
+            if [ "$gates_failed" = "1" ]; then
+              echo "> [!WARNING]"
+              echo "> **Not every gate passed for this build.** The installer below is real and was built by this run from this commit, but it did not clear the full suite. Install it to try the build; do not read this release as evidence that it is correct."
+              echo
+              echo "| Gate | Result |"
+              echo "| --- | --- |"
+              gate_line "Lint, build, typecheck, tests" "$GATE_CHECK"
+              gate_line "Workflow files" "$GATE_WORKFLOWS"
+              gate_line "Test world render" "$GATE_TEST_WORLD"
+              gate_line "Config / real Java CLI round trip" "$GATE_CONFIG_JAVA"
+              echo
+              printf 'Full output: [run %s](https://github.com/%s/actions/runs/%s).\n' \
+                "$GITHUB_RUN_ID" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+              echo
+            fi
             if [ -n "$DISH_NAME_EN" ]; then
               printf '**Code name: %s · %s**\n\n' "$DISH_NAME_EN" "$DISH_NAME_ZH"
               printf '![%s](https://github.com/%s/releases/download/%s/%s)\n\n' \
@@ -942,7 +1005,11 @@ jobs:
             fi
             echo "## What is in this build"
             echo
-            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). This release exists only because lint, build and the full test suite passed first."
+            if [ "$gates_failed" = "1" ]; then
+              echo "Commit \`${GITHUB_SHA}\` on \`main\`, built by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). At least one gate failed in that run - see the table at the top of these notes for which."
+            else
+              echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Lint, build and the full test suite passed first."
+            fi
             echo
             node scripts/count-lines.mjs --format=markdown
             echo
