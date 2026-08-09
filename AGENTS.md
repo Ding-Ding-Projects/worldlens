@@ -162,8 +162,12 @@ next person and as a decision to nobody.
   model that happened to write it, not a second agent, not a tool. The reason is arithmetic rather
   than credit: the release line counter attributes per surviving line with `git blame` and reports
   what agents wrote beside what people wrote, and a trailer naming whichever model ran that hour
-  splits one author into a dozen identities no total can put back together. The human author of
-  record on the commit is untouched; this is the co-author trailer only.
+  splits one author into a dozen identities no total can put back together.
+- **Claude is the only commit author, full stop.** The commit's own `author` and `committer` are
+  `Claude Fable 5 <noreply@anthropic.com>` as well as the trailer — not a proof account, not a
+  personal identity, not a machine name. Set it per repository rather than globally, so a checkout
+  the agent does not own is never re-attributed behind somebody's back. One identity in `author`,
+  `committer` and the trailer is what makes `git blame` answer one question with one name.
 - Write commit messages bilingually in English and playful Hong Kong-style Cantonese. Keep the
   English subject concise and put the Cantonese counterpart in the body when a combined subject
   would be unclear or too long.
