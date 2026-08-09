@@ -263,7 +263,13 @@ export const PRESETS_FIXED = {
     },
     "project.presets.apply": { en: "Use this preset", yue: "用呢個 preset" },
 
-    "project.fieldDefault.reset": { en: "Reset to BlueMap's default", yue: "打返去 BlueMap 嘅 default" },
+    /*
+     * `project.fieldDefault.reset` used to live here, reading "Reset to BlueMap's default".
+     * The editor's revert button now names the value it would restore instead of the word
+     * "default" ("Revert to off", "Revert to This computer"), which needs a placeholder this
+     * key never had, so its call site is gone and the entry with it. The two sentences beside
+     * it, `atDefault` and `changed`, are unchanged and still say what the value is.
+     */
 } as const satisfies Record<string, FixedString>;
 
 export const PRESETS_FACTS = {

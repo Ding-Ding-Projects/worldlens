@@ -10,7 +10,6 @@ import {
     VCardActions,
     VCardText,
     VCardTitle,
-    VChip,
     VDialog,
     VDivider,
     VList,
@@ -254,6 +253,11 @@ function confirmRemoval(): void {
 <template>
     <div class="mb-project-storages">
         <aside class="mb-project-storages__list" :aria-label="t('project.storages.listLabel', 'Storages in this project')">
+            <div class="mb-section-rule">
+                <span class="mb-section-label">{{
+                    t("project.storages.listLabel", "Storages in this project")
+                }}</span>
+            </div>
             <ConfigSearchField
                 v-model="query"
                 v-model:regex="regexMode"
@@ -275,9 +279,12 @@ function confirmRemoval(): void {
                     @click="emit('update:selectedId', storage.id)"
                 >
                     <template #append>
-                        <v-chip v-if="storageCarriesCredentials(storage.config)" size="x-small" color="error" variant="flat">
+                        <span
+                            v-if="storageCarriesCredentials(storage.config)"
+                            class="mb-badge-pill mb-project-storages__secret"
+                        >
                             {{ t("project.storages.secretChip", "secret") }}
-                        </v-chip>
+                        </span>
                     </template>
                 </v-list-item>
             </v-list>
@@ -347,6 +354,12 @@ function confirmRemoval(): void {
 
         <section class="mb-project-storages__editor">
             <template v-if="selected && file">
+                <div class="mb-section-rule">
+                    <span class="mb-section-label">{{
+                        t("project.storages.whereTiles", "Where the tiles go")
+                    }}</span>
+                </div>
+
                 <v-alert v-if="credentialled" type="error" density="compact" variant="tonal" class="mb-3" role="alert">
                     {{
                         t(
@@ -444,8 +457,36 @@ function confirmRemoval(): void {
 .mb-project-storages__note {
     font-size: 0.75rem;
     line-height: 1.45;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
+    overflow-wrap: anywhere;
+}
+
+/*
+ * The one badge in this panel that reports a refusal rather than a kind: a storage carrying
+ * `connection-properties` is a project that will not save, so it gets the error container the
+ * prototype reserves for exactly that.
+ */
+.mb-project-storages__secret {
+    background: rgb(var(--v-theme-error-container));
+    color: rgb(var(--v-theme-on-error-container));
+}
+
+.mb-project-storages .v-btn,
+.mb-project-storages .v-list-item {
+    min-block-size: 44px;
+}
+
+.mb-project-storages .v-btn {
+    block-size: auto;
+    max-inline-size: 100%;
+}
+
+.mb-project-storages .v-btn .v-btn__content,
+.mb-project-storages .v-list-item-title,
+.mb-project-storages .v-list-item-subtitle {
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .mb-project-storages__create {
