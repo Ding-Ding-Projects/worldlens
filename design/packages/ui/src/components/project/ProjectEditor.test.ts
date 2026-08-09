@@ -19,13 +19,19 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { ProjectFile } from "@worldlens/config";
+import { CLI_FLAGS, descriptorFor, type ProjectFile } from "@worldlens/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
 import TabbedNavigation from "../tabs/TabbedNavigation.vue";
-import { createProject, withMapAdded, withRender, withStorageAdded } from "./projectModel.js";
+import {
+    createProject,
+    mapDescriptor,
+    withMapAdded,
+    withRender,
+    withStorageAdded,
+} from "./projectModel.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -586,15 +592,16 @@ describe("the render tab", () => {
             ?.trigger("click");
         await flushPromises();
 
-        expect(wrapper.text()).toContain("Render threads");
-        expect(wrapper.text()).toContain("Redraw the edges too");
+        const projectRunSettings = wrapper.find(".mb-project-editor__project-run-settings");
+        expect(projectRunSettings.text()).toContain("Render threads");
+        expect(projectRunSettings.text()).toContain("Redraw the edges too");
 
-        const search = wrapper.findAll(".mb-config-search input").at(-1);
+        const search = projectRunSettings.find(".mb-config-search input");
         await search?.setValue("threads");
         await flushPromises();
 
-        expect(wrapper.text()).toContain("Render threads");
-        expect(wrapper.text()).not.toContain("Redraw the edges too");
+        expect(projectRunSettings.text()).toContain("Render threads");
+        expect(projectRunSettings.text()).not.toContain("Redraw the edges too");
         wrapper.unmount();
     });
 });
@@ -718,8 +725,11 @@ describe("the project-shaped workspace", () => {
         await flushPromises();
         expect(storagesTab?.attributes("aria-selected")).toBe("true");
         expect(
-            (wrapper.findComponent(TabbedNavigation).vm as unknown as { activePage: { id: string } })
-                .activePage.id,
+            (
+                wrapper.findComponent(TabbedNavigation).vm as unknown as {
+                    activePage: { id: string };
+                }
+            ).activePage.id,
         ).toBe("storages");
         expect(archive.attributes("aria-current")).toBe("page");
         expect(storages.attributes("aria-current")).toBeUndefined();
@@ -733,14 +743,65 @@ describe("the project-shaped workspace", () => {
         expect(coreTab?.attributes("aria-selected")).toBe("true");
         expect(core.attributes("aria-current")).toBe("page");
         expect(archive.attributes("aria-current")).toBeUndefined();
+
+        // A palette/deep-link calls the tab component directly, so no editor click or keydown
+        // event reaches the workspace wrapper. The tree must still follow the authoritative
+        // exposed active page rather than remaining on the last pointer-selected node.
+        const navigation = wrapper.findComponent(TabbedNavigation);
+        (navigation.vm as unknown as { revealPage: (pageId: string) => void }).revealPage("maps");
+        await flushPromises();
+        await flushPromises();
+        // Maps retains its selected map when the destination is revealed, so the real leaf is
+        // highlighted rather than the generic section heading.
+        expect(
+            wrapper.find('[data-workspace-node="map:overworld"]').attributes("aria-current"),
+        ).toBe("page");
+        expect(core.attributes("aria-current")).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it("shows each editable tree node's schema or CLI count instead of asking a reader to guess", async () => {
+        const wrapper = await editor();
+        const mapNode = wrapper.find('[data-workspace-node="map:overworld"]');
+        const coreNode = wrapper.find('[data-workspace-node="core"]');
+        const cliNode = wrapper.find('[data-workspace-node="render"]');
+        const coreCount = descriptorFor("core").fields.length;
+
+        expect(mapNode.get("[data-workspace-node-count]").text()).toBe(
+            `${mapDescriptor().fields.length} settings`,
+        );
+        expect(coreNode.get("[data-workspace-node-count]").text()).toBe(`${coreCount} settings`);
+        expect(cliNode.get("[data-workspace-node-count]").text()).toBe(`${CLI_FLAGS.length} flags`);
+        expect(cliNode.text()).toContain(`${CLI_FLAGS.length} CLI flags`);
+        wrapper.unmount();
+    });
+
+    it("renders the complete schema-owned CLI editor through the existing resolver", async () => {
+        const wrapper = await editor();
+        const renderTab = wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"));
+        expect(renderTab).toBeDefined();
+        await renderTab?.trigger("click");
+        await flushPromises();
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(
+            `Every one of BlueMap's ${CLI_FLAGS.length} documented CLI flags`,
+        );
+        expect(wrapper.findAll(".mb-config-run__flag")).toHaveLength(CLI_FLAGS.length);
+        // The project context and the complete editor use the same resolver rather than a
+        // second hand-made flag list; every defined option reaches the interactive surface.
+        for (const flag of CLI_FLAGS) {
+            expect(wrapper.text()).toContain(`--${flag.long}`);
+        }
         wrapper.unmount();
     });
 
     it("shows the standalone CLI resolver's command and resolved render branch without inventing bridge-only flags or a revision", async () => {
-        const wrapper = await editor(
-            withRender(seeded(), { force: true, fixEdges: true }),
-            { dirty: true },
-        );
+        const wrapper = await editor(withRender(seeded(), { force: true, fixEdges: true }), {
+            dirty: true,
+        });
         const context = wrapper.find('aside[aria-label="Render consequences and save plan"]');
 
         expect(context.text()).toContain("Consequences");
@@ -757,9 +818,11 @@ describe("the project-shaped workspace", () => {
         expect(context.text()).toContain("The desktop bridge still starts this project.");
         expect(context.text()).toContain("map bodies, threads, metrics and output directory");
         expect(context.text()).toContain("write worldlens.project.json");
-        expect(context.text()).toContain("last confirmed project state");
         expect(context.text()).toContain(
-            "A revision is recorded only after a successful project-file write changes its bytes.",
+            "1 map config(s), 0 storage config(s), and 0 whole-file config(s)",
+        );
+        expect(context.text()).toContain(
+            "One revision is recorded only after that project-file write succeeds and changes its bytes.",
         );
         expect(context.text()).not.toMatch(/revision\s+\d+/i);
         wrapper.unmount();

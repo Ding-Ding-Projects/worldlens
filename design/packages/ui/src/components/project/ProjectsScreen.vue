@@ -19,7 +19,7 @@ import ProjectEditor from "./ProjectEditor.vue";
 import ProjectList from "./ProjectList.vue";
 import DiscoveredWorldsPanel from "./DiscoveredWorldsPanel.vue";
 import {
-    createProject,
+    createProjectFromGeneratedDefaults,
     projectRenderRoute,
     projectToRenderRequest,
     renderProblems,
@@ -476,7 +476,13 @@ async function pickWorld(): Promise<void> {
  */
 function openNewProjectFor(world: string, route: "local" | "github-actions" = "local"): boolean {
     if (blockUnsavedTransition("start another project")) return false;
-    const project = withRender(createProject(worldLeaf(world)), { route });
+    const project = withRender(
+        createProjectFromGeneratedDefaults(worldLeaf(world), {
+            world,
+            separator: separator.value,
+        }),
+        { route },
+    );
 
     openWorld.value = world;
     openProject.value = project;
@@ -487,7 +493,7 @@ function openNewProjectFor(world: string, route: "local" | "github-actions" = "l
         "info",
         t(
             "project.create.started",
-            "The project is open in memory. Add maps or change settings, then choose Save when you are ready to write it into the world folder.",
+            "The full BlueMap-generated project is open in memory. Review or change its maps and settings, then choose Save when you are ready to write it into the world folder.",
         ),
     );
     return true;
@@ -746,6 +752,7 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :save-failure="saveFailure"
             :can-render="bridge !== null || projectRenderRoute(openProject) === 'github-actions'"
             :rendering="run.active.value"
+            :consent-accepted="consentIsAccepted"
             :separator="separator"
             :default-root="defaultRoot"
             @update:project="(value) => (openProject = value)"

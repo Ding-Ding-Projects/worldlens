@@ -37,6 +37,7 @@ import {
     PROJECT_SCHEMA_ID,
     descriptorFor,
     findField,
+    generateConfigSet,
     renderFileStorageTemplate,
     renderMapTemplate,
     renderSqlStorageTemplate,
@@ -236,6 +237,92 @@ export function createProject(name: string, stamp: ProjectStamp = defaultStamp()
         webserver: null,
         plugin: null,
         fromWizard: false,
+    };
+}
+
+/**
+ * The inputs BlueMap's own generator needs for a fresh project.
+ *
+ * The project file is deliberately portable, so the defaults are the same relative
+ * `data`/`web` roots the CLI writes unless its caller has a real local root to give it.
+ * `world` is the one required value: it is the map template's actual source world, not a
+ * placeholder that would silently point a rendered project at a folder named `world`.
+ */
+export interface GeneratedProjectDefaults {
+    /** The world folder the project belongs to and every generated map should read. */
+    readonly world: string;
+    /** BlueMap's generated `data` root, or a caller's known equivalent. */
+    readonly dataFolder?: string;
+    /** BlueMap's generated `web` root, or a caller's known equivalent. */
+    readonly webroot?: string;
+    /** The version text included in BlueMap's generated comment header. */
+    readonly version?: string;
+    /** The platform spelling used by the generated HOCON paths. */
+    readonly separator?: string;
+}
+
+/**
+ * A new project containing BlueMap's actual generated configuration rather than a sparse
+ * record that merely *claims* to follow defaults.
+ *
+ * `generateConfigSet` is the one generator already compared byte-for-byte with the Java CLI.
+ * This function only maps those generated files into the portable project schema; it does not
+ * rebuild values from a hand-written list. The server plugin's own generated template is added
+ * too, because the project editor exposes that descriptor from its first frame.
+ *
+ * The Java CLI also writes `storages/sql.conf`. That template contains
+ * `connection-properties`, which the project-file schema rightly refuses: a project travels
+ * with a Minecraft world and must never become a credential container. The editable file
+ * storage is materialized here; a database storage remains an explicit, app-data-backed choice.
+ */
+export function createProjectFromGeneratedDefaults(
+    name: string,
+    options: GeneratedProjectDefaults,
+    stamp: ProjectStamp = defaultStamp(),
+): ProjectFile {
+    const dataFolder = options.dataFolder ?? "data";
+    const webroot = options.webroot ?? "web";
+    const version = options.version ?? "Worldlens";
+    const generated = generateConfigSet({
+        webroot,
+        dataFolder,
+        world: options.world,
+        version,
+        includePluginConfig: true,
+        ...(options.separator === undefined ? {} : { separator: options.separator }),
+    });
+    const byPath = new Map(generated.map((file) => [file.path, file.text]));
+    const required = (path: string): string => {
+        const text = byPath.get(path);
+        if (text === undefined) throw new Error(`BlueMap generator did not produce ${path}`);
+        return text;
+    };
+
+    const maps: ProjectMap[] = (
+        [
+            ["overworld", "Overworld", "minecraft:overworld", 0],
+            ["nether", "Nether", "minecraft:the_nether", 100],
+            ["end", "End", "minecraft:the_end", 200],
+        ] as const
+    ).map(([id, mapName, dimension, sorting]) => ({
+        id,
+        name: mapName,
+        world: options.world,
+        dimension,
+        config: required(`maps/${id}.conf`),
+        storage: "file",
+        sorting,
+        enabled: true,
+    }));
+
+    return {
+        ...createProject(name, stamp),
+        maps,
+        storages: [{ id: "file", config: required("storages/file.conf") }],
+        core: required("core.conf"),
+        webapp: required("webapp.conf"),
+        webserver: required("webserver.conf"),
+        plugin: required("plugin.conf"),
     };
 }
 

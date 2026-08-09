@@ -224,6 +224,17 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         // been written already - nothing was asked of the host's writeProject yet.
         expect(view.text()).toContain("Save");
         expect(host.written).toHaveLength(0);
+
+        // Fresh means BlueMap's generated proposal, not a sparse record that *claims* its
+        // null singletons will somehow be visible or editable. This is the exact project the
+        // editor receives before a person has chosen Save.
+        const project = view.findComponent(ProjectEditor).props("project") as ProjectFile;
+        expect(project.maps.map((map) => map.id)).toEqual(["overworld", "nether", "end"]);
+        expect(project.storages.map((storage) => storage.id)).toEqual(["file"]);
+        expect(project.core).toContain("accept-download:");
+        expect(project.webapp).toContain("webroot:");
+        expect(project.webserver).toContain("port:");
+        expect(project.plugin).not.toBeNull();
         view.unmount();
     });
 

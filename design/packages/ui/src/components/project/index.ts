@@ -48,6 +48,7 @@ export {
     SINGLETONS,
     STORAGE_ID_PATTERN,
     createProject,
+    createProjectFromGeneratedDefaults,
     defaultStamp,
     exportFileName,
     exportProjects,
@@ -104,6 +105,7 @@ export {
 } from "./projectModel.js";
 export type {
     ExportFormat,
+    GeneratedProjectDefaults,
     IdProblem,
     MapIdentity,
     NewMap,

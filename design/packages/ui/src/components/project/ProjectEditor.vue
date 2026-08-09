@@ -15,6 +15,7 @@ import {
     VTextField,
 } from "vuetify/components";
 import {
+    CLI_FLAGS,
     EMPTY_INVOCATION,
     PROJECT_FILE_NAME,
     buildCliArgs,
@@ -28,6 +29,7 @@ import {
 import PathField from "../PathField.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import RunScreen from "../config/RunScreen.vue";
 import { clearFieldValue, replaceText, setFieldValue } from "../config/configModel.js";
 import { valueToText } from "../config/fieldValue.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
@@ -40,7 +42,10 @@ import {
     EMPTY_RENDER,
     SINGLETONS,
     isRenderFieldDefault,
+    mapDescriptor,
+    openMapFile,
     openSingletonFile,
+    openStorageFile,
     orderedMaps,
     projectRenderRoute,
     renderProblems,
@@ -65,14 +70,12 @@ import {
  * controls, the documentation and the defaults all come from `@worldlens/config`.
  * A setting added to the schema tomorrow appears here with no change to this file.
  *
- * ## Absent is not empty
+ * ## Generated defaults and existing projects
  *
- * The four singletons start absent, and absent means "this project never touched it, so
- * BlueMap's own default applies at render time". That is why each of those tabs opens an
- * empty body rather than a generated template: a project that shipped a full generated
- * `core.conf` would be asserting a hundred values nobody chose, and a later change to
- * BlueMap's defaults would silently not reach it. The form writes only what somebody
- * actually sets, and a body that ends up with nothing in it is stored as absent again.
+ * New projects arrive through `createProjectFromGeneratedDefaults`, so their map, storage and
+ * singleton bodies are the real templates BlueMap would generate and every schema row is
+ * reviewable before the first Save. Older project files may still omit a singleton; that remains
+ * meaningful compatibility data rather than an excuse to hide the descriptor from the form.
  */
 const props = withDefaults(
     defineProps<{
@@ -88,6 +91,8 @@ const props = withDefaults(
         canRender?: boolean;
         /** True while a render is already going, so a second start is refused. */
         rendering?: boolean;
+        /** True when the app's one Mojang-download consent record was accepted. */
+        consentAccepted?: boolean;
         separator?: string;
         /** Where the app writes renders, used as the root of a new file storage. */
         defaultRoot?: string;
@@ -98,6 +103,7 @@ const props = withDefaults(
         saveFailure: null,
         canRender: false,
         rendering: false,
+        consentAccepted: false,
         separator: "/",
         defaultRoot: "",
     },
@@ -124,6 +130,7 @@ const isDirty = computed(() => props.dirty === true);
 const isSaving = computed(() => props.saving === true);
 const renderable = computed(() => props.canRender === true);
 const isRendering = computed(() => props.rendering === true);
+const consentAcceptedValue = computed(() => props.consentAccepted === true);
 const selectedRenderRoute = computed(() => projectRenderRoute(props.project));
 const separatorValue = computed(() => props.separator ?? "/");
 const defaultRootValue = computed(() => props.defaultRoot ?? "");
@@ -240,6 +247,10 @@ interface WorkspaceNode {
     readonly page: string;
     readonly label: string;
     readonly detail: string;
+    /** The descriptor fields or CLI flags this node exposes, when it is an editable node. */
+    readonly settingsCount?: number;
+    /** A CLI node is counted as flags; config nodes are counted as descriptor settings. */
+    readonly countKind?: "settings" | "flags";
     readonly kind: WorkspaceNodeKind;
     readonly depth: 0 | 1;
     readonly mapId?: string;
@@ -248,30 +259,49 @@ interface WorkspaceNode {
 
 const activeWorkspaceNode = ref(TAB_MAPS);
 
+const mapSettingsCount = computed(() => mapDescriptor().fields.length);
+
+function singletonSettingsCount(kind: SingletonKind): number {
+    return openSingletonFile(props.project, kind).descriptor.fields.length;
+}
+
 const workspaceNodes = computed<readonly WorkspaceNode[]>(() => [
     {
         id: TAB_MAPS,
         page: TAB_MAPS,
         label: t("project.workspace.maps", "Maps"),
-        detail: t("project.workspace.mapsCount", { count: maps.value.length }, "{count} map(s)"),
+        detail: t(
+            "project.workspace.mapsCount",
+            { count: maps.value.length, fields: mapSettingsCount.value },
+            "{count} map(s) · {fields} settings each",
+        ),
+        settingsCount: mapSettingsCount.value,
         kind: "section",
         depth: 0,
     },
-    ...maps.value.map<WorkspaceNode>((map) => ({
-        id: `map:${map.id}`,
-        page: TAB_MAPS,
-        label: map.name,
-        detail: map.enabled
-            ? t(
-                  "project.workspace.mapDetail",
-                  { id: map.id, dimension: map.dimension },
-                  "{id} · {dimension}",
-              )
-            : t("project.workspace.mapDisabled", { id: map.id }, "{id} · disabled"),
-        kind: "map",
-        depth: 1,
-        mapId: map.id,
-    })),
+    ...maps.value.map<WorkspaceNode>((map) => {
+        const settingsCount = openMapFile(map).descriptor.fields.length;
+        return {
+            id: `map:${map.id}`,
+            page: TAB_MAPS,
+            label: map.name,
+            detail: map.enabled
+                ? t(
+                      "project.workspace.mapDetail",
+                      { id: map.id, dimension: map.dimension, fields: settingsCount },
+                      "{fields} settings · {id} · {dimension}",
+                  )
+                : t(
+                      "project.workspace.mapDisabled",
+                      { id: map.id, fields: settingsCount },
+                      "{fields} settings · {id} · disabled",
+                  ),
+            settingsCount,
+            kind: "map",
+            depth: 1,
+            mapId: map.id,
+        };
+    }),
     {
         id: TAB_STORAGES,
         page: TAB_STORAGES,
@@ -284,23 +314,40 @@ const workspaceNodes = computed<readonly WorkspaceNode[]>(() => [
         kind: "section",
         depth: 0,
     },
-    ...props.project.storages.map<WorkspaceNode>((storage) => ({
-        id: `storage:${storage.id}`,
-        page: TAB_STORAGES,
-        label: storage.id,
-        detail: t("project.workspace.storageDetail", "Tile storage"),
-        kind: "storage",
-        depth: 1,
-        storageId: storage.id,
-    })),
+    ...props.project.storages.map<WorkspaceNode>((storage) => {
+        const settingsCount = openStorageFile(storage).descriptor.fields.length;
+        return {
+            id: `storage:${storage.id}`,
+            page: TAB_STORAGES,
+            label: storage.id,
+            detail: t(
+                "project.workspace.storageDetail",
+                { fields: settingsCount },
+                "{fields} settings · tile storage",
+            ),
+            settingsCount,
+            kind: "storage",
+            depth: 1,
+            storageId: storage.id,
+        };
+    }),
     {
         id: TAB_RENDER,
         page: TAB_RENDER,
-        label: t("project.workspace.render", "How it renders"),
-        detail:
-            selectedRenderRoute.value === "github-actions"
-                ? t("project.workspace.renderActions", "GitHub Actions")
-                : t("project.workspace.renderLocal", "This computer"),
+        label: t("project.workspace.render", "Command line"),
+        detail: t(
+            "project.workspace.renderDetail",
+            {
+                flags: CLI_FLAGS.length,
+                route:
+                    selectedRenderRoute.value === "github-actions"
+                        ? t("project.workspace.renderActions", "GitHub Actions")
+                        : t("project.workspace.renderLocal", "This computer"),
+            },
+            "{flags} CLI flags · {route}",
+        ),
+        settingsCount: CLI_FLAGS.length,
+        countKind: "flags",
         kind: "render",
         depth: 0,
     },
@@ -312,20 +359,28 @@ const workspaceNodes = computed<readonly WorkspaceNode[]>(() => [
         kind: "history",
         depth: 0,
     },
-    ...singletonTabs.value.map<WorkspaceNode>((tab) => ({
-        id: tab.id,
-        page: tab.id,
-        label: tab.label,
-        detail: tab.touched
-            ? t("project.workspace.singletonOwn", { file: `${tab.id}.conf` }, "Uses its own {file}")
-            : t(
-                  "project.workspace.singletonDefault",
-                  { file: `${tab.id}.conf` },
-                  "Follows BlueMap's {file} defaults",
-              ),
-        kind: "singleton",
-        depth: 0,
-    })),
+    ...singletonTabs.value.map<WorkspaceNode>((tab) => {
+        const settingsCount = singletonSettingsCount(tab.id);
+        return {
+            id: tab.id,
+            page: tab.id,
+            label: tab.label,
+            detail: tab.touched
+                ? t(
+                      "project.workspace.singletonOwn",
+                      { file: `${tab.id}.conf`, fields: settingsCount },
+                      "{fields} settings · uses its own {file}",
+                  )
+                : t(
+                      "project.workspace.singletonDefault",
+                      { file: `${tab.id}.conf`, fields: settingsCount },
+                      "{fields} settings · follows BlueMap's {file} defaults",
+                  ),
+            settingsCount,
+            kind: "singleton",
+            depth: 0,
+        };
+    }),
 ]);
 
 watch(
@@ -366,6 +421,18 @@ function queueWorkspaceNodeSync(): void {
  * aria-current never lags behind the tab strip.
  */
 onMounted(queueWorkspaceNodeSync);
+
+/*
+ * Click and key events cover the ordinary strip controls, but they do not cover a host calling
+ * TabbedNavigation.revealPage() directly (palette/deep-link/restored-workspace routes). Watch
+ * the strip's exposed reactive active page instead, so the tree's aria-current state follows
+ * the authoritative tab selection no matter how it changed.
+ */
+watch(
+    () => tabsNav.value?.activePage?.id as string | undefined,
+    (pageId) => syncWorkspaceNode(pageId),
+    { flush: "post" },
+);
 
 function selectMap(value: string | null): void {
     selectedMap.value = value;
@@ -431,10 +498,7 @@ const resolvedCliSummary = computed(() => {
         render.force === "all"
             ? t("project.context.cliForceAll", "re-rendering everything")
             : render.force === "edge"
-              ? t(
-                    "project.context.cliForceEdges",
-                    "re-rendering changed chunks and their edges",
-                )
+              ? t("project.context.cliForceEdges", "re-rendering changed chunks and their edges")
               : t("project.context.cliForceChanged", "rendering only changed chunks");
     return t(
         "project.context.cliSummary",
@@ -476,31 +540,62 @@ const resolvedRunRows = computed(() => [
     },
 ]);
 
-const savePlan = computed(() => [
-    {
-        verb: isDirty.value
-            ? t("project.context.savePlan.write", "write")
-            : t("project.context.savePlan.current", "current"),
-        target: PROJECT_FILE_NAME,
-        detail: isDirty.value
-            ? t(
-                  "project.context.savePlan.pending",
-                  "The editor differs from its last confirmed project state.",
-              )
-            : t(
-                  "project.context.savePlan.noPending",
-                  "The editor matches its last confirmed project state.",
-              ),
-    },
-    {
-        verb: t("project.context.savePlan.record", "record"),
-        target: t("project.context.savePlan.history", "local project history"),
-        detail: t(
-            "project.context.savePlan.historyDetail",
-            "A revision is recorded only after a successful project-file write changes its bytes.",
-        ),
-    },
-]);
+/**
+ * The host writes one portable project record, not a pretend collection of loose config
+ * files. Spell that out here so the consequence panel never promises writes that the save
+ * path does not make. A local history revision is likewise conditional on that one write
+ * successfully changing bytes.
+ */
+const savePlan = computed(() => {
+    const singletonFiles = SINGLETONS.filter((kind) => props.project[kind] !== null).length;
+    const configFiles = maps.value.length + props.project.storages.length + singletonFiles;
+
+    if (!isDirty.value) {
+        return [
+            {
+                verb: t("project.context.savePlan.current", "current"),
+                target: PROJECT_FILE_NAME,
+                detail: t(
+                    "project.context.savePlan.noPending",
+                    "The editor matches its last confirmed project state, so Save has no project-file write to make.",
+                ),
+            },
+            {
+                verb: t("project.context.savePlan.noRevision", "no revision"),
+                target: t("project.context.savePlan.history", "local project history"),
+                detail: t(
+                    "project.context.savePlan.noRevisionDetail",
+                    "No byte-changing project-file write is pending, so no local revision will be recorded.",
+                ),
+            },
+        ];
+    }
+
+    return [
+        {
+            verb: t("project.context.savePlan.write", "write"),
+            target: PROJECT_FILE_NAME,
+            detail: t(
+                "project.context.savePlan.pending",
+                {
+                    maps: maps.value.length,
+                    storages: props.project.storages.length,
+                    singletons: singletonFiles,
+                    configs: configFiles,
+                },
+                "Writes one project file containing {maps} map config(s), {storages} storage config(s), and {singletons} whole-file config(s) ({configs} config bodies total).",
+            ),
+        },
+        {
+            verb: t("project.context.savePlan.record", "record"),
+            target: t("project.context.savePlan.history", "local project history"),
+            detail: t(
+                "project.context.savePlan.historyDetail",
+                "One revision is recorded only after that project-file write succeeds and changes its bytes.",
+            ),
+        },
+    ];
+});
 
 const consequenceRows = computed(() => {
     if (problemTexts.value.length > 0) return problemTexts.value;
@@ -724,6 +819,59 @@ function setRenderRoute(value: "local" | "github-actions" | null): void {
     emit("update:project", withRender(props.project, { route: value }));
 }
 
+/* -------------------------------------------------------------------------- */
+/* The complete standalone CLI model                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The project stores the render settings that have durable meaning for its desktop bridge;
+ * the CLI has seventeen flags, several of which are deliberately one-shot actions such as
+ * `--help`, `--markers`, or `--generate-websettings`. Keep those in an explicit preview
+ * invocation rather than pretending the project file persists semantics it does not own.
+ *
+ * `RunScreen` renders this directly from `CLI_FLAGS` and sends it through the shared resolver,
+ * so a new upstream flag cannot be silently omitted or represented by a fabricated checkbox.
+ */
+const standaloneCliInvocation = ref<CliInvocation>({ ...EMPTY_INVOCATION });
+
+watch(
+    () => [
+        props.project.render.force,
+        props.project.render.fixEdges,
+        enabledMaps.value.map((map) => map.id).join("\u0000"),
+    ],
+    () => {
+        standaloneCliInvocation.value = {
+            ...standaloneCliInvocation.value,
+            render: true,
+            forceRender: props.project.render.force,
+            fixEdges: props.project.render.fixEdges,
+            maps: enabledMaps.value.map((map) => map.id),
+        };
+    },
+    { immediate: true },
+);
+
+function updateStandaloneCliInvocation(value: CliInvocation): void {
+    standaloneCliInvocation.value = value;
+
+    // These two flags are the project-owned portion of the CLI render branch. The rest remain
+    // an interactive standalone preview, named as such below, so Save never implies it will
+    // persist an action or a path the project format has nowhere safe to store.
+    if (
+        value.forceRender !== props.project.render.force ||
+        value.fixEdges !== props.project.render.fixEdges
+    ) {
+        emit(
+            "update:project",
+            withRender(props.project, {
+                force: value.forceRender,
+                fixEdges: value.fixEdges,
+            }),
+        );
+    }
+}
+
 const renderButtonLabel = computed(() =>
     selectedRenderRoute.value === "github-actions"
         ? t(
@@ -888,6 +1036,25 @@ const renderButtonLabel = computed(() =>
                         @click="revealWorkspaceNode(node)"
                     >
                         <span class="mb-project-editor__navigator-label">{{ node.label }}</span>
+                        <span
+                            v-if="node.settingsCount !== undefined"
+                            class="mb-project-editor__navigator-count"
+                            data-workspace-node-count
+                        >
+                            {{
+                                node.countKind === "flags"
+                                    ? t(
+                                          "project.workspace.flagCount",
+                                          { count: node.settingsCount },
+                                          "{count} flags",
+                                      )
+                                    : t(
+                                          "project.workspace.settingCount",
+                                          { count: node.settingsCount },
+                                          "{count} settings",
+                                      )
+                            }}
+                        </span>
                         <span class="mb-project-editor__navigator-detail">{{ node.detail }}</span>
                     </button>
                 </div>
@@ -939,276 +1106,325 @@ const renderButtonLabel = computed(() =>
                             class="mb-project-editor__run"
                             :aria-label="t('project.editor.tab.render', 'How it renders')"
                         >
-                            <ConfigSearchField
-                                v-model="runQuery"
-                                v-model:regex="runRegex"
-                                v-model:flags="runFlags"
-                                :label="t('project.render.search', 'Search these settings')"
-                                :placeholder="
-                                    t('project.render.searchHint', 'threads, edges, output')
-                                "
-                                :sample="runSample"
-                                :summary="runSummary"
-                            />
+                            <div class="mb-project-editor__project-run-settings">
+                                <ConfigSearchField
+                                    v-model="runQuery"
+                                    v-model:regex="runRegex"
+                                    v-model:flags="runFlags"
+                                    :label="t('project.render.search', 'Search these settings')"
+                                    :placeholder="
+                                        t('project.render.searchHint', 'threads, edges, output')
+                                    "
+                                    :sample="runSample"
+                                    :summary="runSummary"
+                                />
 
-                            <v-select
-                                v-if="showsRun('route')"
-                                :model-value="selectedRenderRoute"
-                                :items="renderRouteItems"
-                                :label="t('project.render.route', 'Where this project renders')"
-                                :hint="
-                                    t(
-                                        'project.render.routeHint',
-                                        'Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps going after this computer is off.',
-                                    )
-                                "
-                                persistent-hint
-                                variant="outlined"
-                                density="compact"
-                                class="mt-3"
-                                @update:model-value="setRenderRoute"
-                            />
-                            <div v-if="showsRun('route')" class="mb-project-editor__fieldDefault">
-                                <span>{{ fieldDefaultText("route", selectedRenderRoute) }}</span>
-                                <v-btn
-                                    v-if="!isRenderFieldDefault(project, 'route')"
-                                    variant="text"
-                                    size="x-small"
-                                    density="comfortable"
-                                    @click="resetRenderField('route')"
+                                <v-select
+                                    v-if="showsRun('route')"
+                                    :model-value="selectedRenderRoute"
+                                    :items="renderRouteItems"
+                                    :label="t('project.render.route', 'Where this project renders')"
+                                    :hint="
+                                        t(
+                                            'project.render.routeHint',
+                                            'Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps going after this computer is off.',
+                                        )
+                                    "
+                                    persistent-hint
+                                    variant="outlined"
+                                    density="compact"
+                                    class="mt-3"
+                                    @update:model-value="setRenderRoute"
+                                />
+                                <div
+                                    v-if="showsRun('route')"
+                                    class="mb-project-editor__fieldDefault"
+                                >
+                                    <span>{{
+                                        fieldDefaultText("route", selectedRenderRoute)
+                                    }}</span>
+                                    <v-btn
+                                        v-if="!isRenderFieldDefault(project, 'route')"
+                                        variant="text"
+                                        size="x-small"
+                                        density="comfortable"
+                                        @click="resetRenderField('route')"
+                                    >
+                                        {{
+                                            t(
+                                                "project.fieldDefault.reset",
+                                                "Reset to BlueMap's default",
+                                            )
+                                        }}
+                                    </v-btn>
+                                </div>
+
+                                <v-text-field
+                                    v-if="showsRun('threads')"
+                                    :model-value="project.render.threads ?? ''"
+                                    :label="t('project.render.threads', 'Render threads')"
+                                    :hint="
+                                        t(
+                                            'project.render.threadsHint',
+                                            'How many chunks are drawn at once. Left empty, BlueMap decides from the machine it is on, which is usually the right answer.',
+                                        )
+                                    "
+                                    persistent-hint
+                                    type="number"
+                                    min="1"
+                                    variant="outlined"
+                                    density="compact"
+                                    class="mt-3"
+                                    @update:model-value="setThreads"
+                                />
+                                <div
+                                    v-if="showsRun('threads')"
+                                    class="mb-project-editor__fieldDefault"
+                                >
+                                    <span>{{
+                                        fieldDefaultText("threads", project.render.threads)
+                                    }}</span>
+                                    <v-btn
+                                        v-if="!isRenderFieldDefault(project, 'threads')"
+                                        variant="text"
+                                        size="x-small"
+                                        density="comfortable"
+                                        @click="resetRenderField('threads')"
+                                    >
+                                        {{
+                                            t(
+                                                "project.fieldDefault.reset",
+                                                "Reset to BlueMap's default",
+                                            )
+                                        }}
+                                    </v-btn>
+                                </div>
+
+                                <v-switch
+                                    v-if="showsRun('force')"
+                                    :model-value="project.render.force"
+                                    :label="t('project.render.force', 'Draw everything again')"
+                                    :hint="
+                                        t(
+                                            'project.render.forceHint',
+                                            'Redraws every chunk rather than only the ones that changed. Slow, and what you want after changing how the map looks.',
+                                        )
+                                    "
+                                    persistent-hint
+                                    color="primary"
+                                    density="compact"
+                                    inset
+                                    @update:model-value="
+                                        (value: boolean | null) =>
+                                            emit(
+                                                'update:project',
+                                                withRender(project, { force: value === true }),
+                                            )
+                                    "
+                                />
+                                <div
+                                    v-if="showsRun('force')"
+                                    class="mb-project-editor__fieldDefault"
+                                >
+                                    <span>{{
+                                        fieldDefaultText("force", project.render.force)
+                                    }}</span>
+                                    <v-btn
+                                        v-if="!isRenderFieldDefault(project, 'force')"
+                                        variant="text"
+                                        size="x-small"
+                                        density="comfortable"
+                                        @click="resetRenderField('force')"
+                                    >
+                                        {{
+                                            t(
+                                                "project.fieldDefault.reset",
+                                                "Reset to BlueMap's default",
+                                            )
+                                        }}
+                                    </v-btn>
+                                </div>
+
+                                <v-switch
+                                    v-if="showsRun('fixEdges')"
+                                    :model-value="project.render.fixEdges"
+                                    :label="t('project.render.fixEdges', 'Redraw the edges too')"
+                                    :hint="
+                                        t(
+                                            'project.render.fixEdgesHint',
+                                            'Redraws the boundary between chunks as well as the chunks themselves, which is what fixes seams left by an interrupted render.',
+                                        )
+                                    "
+                                    persistent-hint
+                                    color="primary"
+                                    density="compact"
+                                    inset
+                                    @update:model-value="
+                                        (value: boolean | null) =>
+                                            emit(
+                                                'update:project',
+                                                withRender(project, { fixEdges: value === true }),
+                                            )
+                                    "
+                                />
+                                <div
+                                    v-if="showsRun('fixEdges')"
+                                    class="mb-project-editor__fieldDefault"
+                                >
+                                    <span>{{
+                                        fieldDefaultText("fixEdges", project.render.fixEdges)
+                                    }}</span>
+                                    <v-btn
+                                        v-if="!isRenderFieldDefault(project, 'fixEdges')"
+                                        variant="text"
+                                        size="x-small"
+                                        density="comfortable"
+                                        @click="resetRenderField('fixEdges')"
+                                    >
+                                        {{
+                                            t(
+                                                "project.fieldDefault.reset",
+                                                "Reset to BlueMap's default",
+                                            )
+                                        }}
+                                    </v-btn>
+                                </div>
+
+                                <v-switch
+                                    v-if="showsRun('metrics')"
+                                    :model-value="project.render.metrics"
+                                    :label="
+                                        t(
+                                            'project.render.metrics',
+                                            'Send BlueMap\'s anonymous usage report',
+                                        )
+                                    "
+                                    :hint="
+                                        t(
+                                            'project.render.metricsHint',
+                                            'Off unless deliberately turned on. Nothing about your world is in it.',
+                                        )
+                                    "
+                                    persistent-hint
+                                    color="primary"
+                                    density="compact"
+                                    inset
+                                    @update:model-value="
+                                        (value: boolean | null) =>
+                                            emit(
+                                                'update:project',
+                                                withRender(project, { metrics: value === true }),
+                                            )
+                                    "
+                                />
+                                <div
+                                    v-if="showsRun('metrics')"
+                                    class="mb-project-editor__fieldDefault"
+                                >
+                                    <span>{{
+                                        fieldDefaultText("metrics", project.render.metrics)
+                                    }}</span>
+                                    <v-btn
+                                        v-if="!isRenderFieldDefault(project, 'metrics')"
+                                        variant="text"
+                                        size="x-small"
+                                        density="comfortable"
+                                        @click="resetRenderField('metrics')"
+                                    >
+                                        {{
+                                            t(
+                                                "project.fieldDefault.reset",
+                                                "Reset to BlueMap's default",
+                                            )
+                                        }}
+                                    </v-btn>
+                                </div>
+
+                                <PathField
+                                    v-if="showsRun('outputFolder')"
+                                    :model-value="project.render.outputFolder ?? ''"
+                                    field="the render output folder"
+                                    semantic="folder"
+                                    :label="
+                                        t(
+                                            'project.render.outputFolder',
+                                            'Where the rendered map is written',
+                                        )
+                                    "
+                                    class="mt-3"
+                                    @update:model-value="setOutputFolder"
+                                />
+                                <p v-if="showsRun('outputFolder')" class="mb-project-editor__note">
+                                    {{
+                                        t(
+                                            "project.render.outputFolderHint",
+                                            "Left empty, the app writes into the folder chosen during setup. This is the one absolute path a project carries, because the output belongs outside the world the file lives in.",
+                                        )
+                                    }}
+                                </p>
+                                <div
+                                    v-if="showsRun('outputFolder')"
+                                    class="mb-project-editor__fieldDefault"
+                                >
+                                    <span>{{
+                                        fieldDefaultText(
+                                            "outputFolder",
+                                            project.render.outputFolder,
+                                        )
+                                    }}</span>
+                                    <v-btn
+                                        v-if="!isRenderFieldDefault(project, 'outputFolder')"
+                                        variant="text"
+                                        size="x-small"
+                                        density="comfortable"
+                                        @click="resetRenderField('outputFolder')"
+                                    >
+                                        {{
+                                            t(
+                                                "project.fieldDefault.reset",
+                                                "Reset to BlueMap's default",
+                                            )
+                                        }}
+                                    </v-btn>
+                                </div>
+
+                                <p
+                                    v-if="visibleRunRows.length === 0"
+                                    class="mb-project-editor__note"
                                 >
                                     {{
                                         t(
-                                            "project.fieldDefault.reset",
-                                            "Reset to BlueMap's default",
+                                            "project.render.noMatches",
+                                            "Nothing on this tab matches. The other tabs may still have results.",
                                         )
                                     }}
-                                </v-btn>
+                                </p>
                             </div>
 
-                            <v-text-field
-                                v-if="showsRun('threads')"
-                                :model-value="project.render.threads ?? ''"
-                                :label="t('project.render.threads', 'Render threads')"
-                                :hint="
-                                    t(
-                                        'project.render.threadsHint',
-                                        'How many chunks are drawn at once. Left empty, BlueMap decides from the machine it is on, which is usually the right answer.',
-                                    )
-                                "
-                                persistent-hint
-                                type="number"
-                                min="1"
-                                variant="outlined"
-                                density="compact"
-                                class="mt-3"
-                                @update:model-value="setThreads"
-                            />
-                            <div v-if="showsRun('threads')" class="mb-project-editor__fieldDefault">
-                                <span>{{
-                                    fieldDefaultText("threads", project.render.threads)
-                                }}</span>
-                                <v-btn
-                                    v-if="!isRenderFieldDefault(project, 'threads')"
-                                    variant="text"
-                                    size="x-small"
-                                    density="comfortable"
-                                    @click="resetRenderField('threads')"
-                                >
-                                    {{
-                                        t(
-                                            "project.fieldDefault.reset",
-                                            "Reset to BlueMap's default",
-                                        )
-                                    }}
-                                </v-btn>
-                            </div>
-
-                            <v-switch
-                                v-if="showsRun('force')"
-                                :model-value="project.render.force"
-                                :label="t('project.render.force', 'Draw everything again')"
-                                :hint="
-                                    t(
-                                        'project.render.forceHint',
-                                        'Redraws every chunk rather than only the ones that changed. Slow, and what you want after changing how the map looks.',
-                                    )
-                                "
-                                persistent-hint
-                                color="primary"
-                                density="compact"
-                                inset
-                                @update:model-value="
-                                    (value: boolean | null) =>
-                                        emit(
-                                            'update:project',
-                                            withRender(project, { force: value === true }),
-                                        )
-                                "
-                            />
-                            <div v-if="showsRun('force')" class="mb-project-editor__fieldDefault">
-                                <span>{{ fieldDefaultText("force", project.render.force) }}</span>
-                                <v-btn
-                                    v-if="!isRenderFieldDefault(project, 'force')"
-                                    variant="text"
-                                    size="x-small"
-                                    density="comfortable"
-                                    @click="resetRenderField('force')"
-                                >
-                                    {{
-                                        t(
-                                            "project.fieldDefault.reset",
-                                            "Reset to BlueMap's default",
-                                        )
-                                    }}
-                                </v-btn>
-                            </div>
-
-                            <v-switch
-                                v-if="showsRun('fixEdges')"
-                                :model-value="project.render.fixEdges"
-                                :label="t('project.render.fixEdges', 'Redraw the edges too')"
-                                :hint="
-                                    t(
-                                        'project.render.fixEdgesHint',
-                                        'Redraws the boundary between chunks as well as the chunks themselves, which is what fixes seams left by an interrupted render.',
-                                    )
-                                "
-                                persistent-hint
-                                color="primary"
-                                density="compact"
-                                inset
-                                @update:model-value="
-                                    (value: boolean | null) =>
-                                        emit(
-                                            'update:project',
-                                            withRender(project, { fixEdges: value === true }),
-                                        )
-                                "
-                            />
-                            <div
-                                v-if="showsRun('fixEdges')"
-                                class="mb-project-editor__fieldDefault"
+                            <section
+                                class="mb-project-editor__cli-editor"
+                                :aria-label="t('project.render.allFlags', 'All command-line flags')"
                             >
-                                <span>{{
-                                    fieldDefaultText("fixEdges", project.render.fixEdges)
-                                }}</span>
-                                <v-btn
-                                    v-if="!isRenderFieldDefault(project, 'fixEdges')"
-                                    variant="text"
-                                    size="x-small"
-                                    density="comfortable"
-                                    @click="resetRenderField('fixEdges')"
-                                >
+                                <p class="mb-project-editor__eyebrow">
+                                    {{ t("project.render.allFlags", "All command-line flags") }}
+                                </p>
+                                <p class="mb-project-editor__note">
                                     {{
                                         t(
-                                            "project.fieldDefault.reset",
-                                            "Reset to BlueMap's default",
+                                            "project.render.allFlagsNote",
+                                            { flags: CLI_FLAGS.length },
+                                            "Every one of BlueMap's {flags} documented CLI flags is editable below and its preview is resolved by the shared CLI model. Force and edge repair are saved with this project; one-shot flags remain an explicit preview and are never silently written into a project file.",
                                         )
                                     }}
-                                </v-btn>
-                            </div>
-
-                            <v-switch
-                                v-if="showsRun('metrics')"
-                                :model-value="project.render.metrics"
-                                :label="
-                                    t(
-                                        'project.render.metrics',
-                                        'Send BlueMap\'s anonymous usage report',
-                                    )
-                                "
-                                :hint="
-                                    t(
-                                        'project.render.metricsHint',
-                                        'Off unless deliberately turned on. Nothing about your world is in it.',
-                                    )
-                                "
-                                persistent-hint
-                                color="primary"
-                                density="compact"
-                                inset
-                                @update:model-value="
-                                    (value: boolean | null) =>
-                                        emit(
-                                            'update:project',
-                                            withRender(project, { metrics: value === true }),
-                                        )
-                                "
-                            />
-                            <div v-if="showsRun('metrics')" class="mb-project-editor__fieldDefault">
-                                <span>{{
-                                    fieldDefaultText("metrics", project.render.metrics)
-                                }}</span>
-                                <v-btn
-                                    v-if="!isRenderFieldDefault(project, 'metrics')"
-                                    variant="text"
-                                    size="x-small"
-                                    density="comfortable"
-                                    @click="resetRenderField('metrics')"
-                                >
-                                    {{
-                                        t(
-                                            "project.fieldDefault.reset",
-                                            "Reset to BlueMap's default",
-                                        )
-                                    }}
-                                </v-btn>
-                            </div>
-
-                            <PathField
-                                v-if="showsRun('outputFolder')"
-                                :model-value="project.render.outputFolder ?? ''"
-                                field="the render output folder"
-                                semantic="folder"
-                                :label="
-                                    t(
-                                        'project.render.outputFolder',
-                                        'Where the rendered map is written',
-                                    )
-                                "
-                                class="mt-3"
-                                @update:model-value="setOutputFolder"
-                            />
-                            <p v-if="showsRun('outputFolder')" class="mb-project-editor__note">
-                                {{
-                                    t(
-                                        "project.render.outputFolderHint",
-                                        "Left empty, the app writes into the folder chosen during setup. This is the one absolute path a project carries, because the output belongs outside the world the file lives in.",
-                                    )
-                                }}
-                            </p>
-                            <div
-                                v-if="showsRun('outputFolder')"
-                                class="mb-project-editor__fieldDefault"
-                            >
-                                <span>{{
-                                    fieldDefaultText("outputFolder", project.render.outputFolder)
-                                }}</span>
-                                <v-btn
-                                    v-if="!isRenderFieldDefault(project, 'outputFolder')"
-                                    variant="text"
-                                    size="x-small"
-                                    density="comfortable"
-                                    @click="resetRenderField('outputFolder')"
-                                >
-                                    {{
-                                        t(
-                                            "project.fieldDefault.reset",
-                                            "Reset to BlueMap's default",
-                                        )
-                                    }}
-                                </v-btn>
-                            </div>
-
-                            <p v-if="visibleRunRows.length === 0" class="mb-project-editor__note">
-                                {{
-                                    t(
-                                        "project.render.noMatches",
-                                        "Nothing on this tab matches. The other tabs may still have results.",
-                                    )
-                                }}
-                            </p>
+                                </p>
+                                <RunScreen
+                                    :invocation="standaloneCliInvocation"
+                                    jar-path="bluemap-cli.jar"
+                                    :consent-accepted="consentAcceptedValue"
+                                    @update:invocation="updateStandaloneCliInvocation"
+                                    @consent="emit('consent')"
+                                />
+                            </section>
                         </section>
                     </template>
 
@@ -1462,7 +1678,7 @@ const renderButtonLabel = computed(() =>
 
 .mb-project-editor__navigator-node {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 2px;
     inline-size: 100%;
     min-block-size: 44px;
@@ -1514,17 +1730,27 @@ const renderButtonLabel = computed(() =>
     white-space: nowrap;
 }
 
+.mb-project-editor__navigator-count {
+    align-self: start;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 0.625rem;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
 .mb-project-editor__navigator-detail {
+    grid-column: 1 / -1;
     min-inline-size: 0;
-    overflow: hidden;
     font-size: 0.6875rem;
     line-height: 1.3;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    white-space: normal;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
-.mb-project-editor__navigator-node--active .mb-project-editor__navigator-detail {
+.mb-project-editor__navigator-node--active .mb-project-editor__navigator-detail,
+.mb-project-editor__navigator-node--active .mb-project-editor__navigator-count {
     color: rgba(var(--v-theme-on-primary-container), var(--v-medium-emphasis-opacity));
 }
 
@@ -1606,6 +1832,20 @@ const renderButtonLabel = computed(() =>
     gap: 8px;
     max-inline-size: 720px;
     inline-size: 100%;
+    min-inline-size: 0;
+}
+
+.mb-project-editor__project-run-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-inline-size: 0;
+}
+
+.mb-project-editor__cli-editor {
+    margin-block-start: 16px;
+    padding-block-start: 16px;
+    border-block-start: 1px solid rgba(var(--v-theme-on-surface), var(--v-border-opacity));
     min-inline-size: 0;
 }
 

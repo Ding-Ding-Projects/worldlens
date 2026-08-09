@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiAlertOutline, mdiBackupRestore, mdiChevronDown, mdiChevronUp, mdiRefreshAuto, mdiShieldCheckOutline } from "@mdi/js";
+import {
+    mdiAlertOutline,
+    mdiBackupRestore,
+    mdiChevronDown,
+    mdiChevronUp,
+    mdiRefreshAuto,
+    mdiShieldCheckOutline,
+} from "@mdi/js";
 import { VAlert, VBtn, VChip, VIcon, VTooltip } from "vuetify/components";
 import type { FieldMeta, PlainValue } from "@worldlens/config";
 import ConfigControl from "./ConfigControl.vue";
@@ -53,7 +60,6 @@ const docOpen = ref(false);
 const isDisabled = computed(() => props.disabled === true);
 const worldOrientation = computed<WorldOrientation>(() => props.world);
 
-
 const value = computed(() => fieldValue(props.file, props.field));
 const controlValue = computed(() => toControlValue(props.field.control, value.value));
 const explicit = computed(() => isExplicit(props.file, props.field));
@@ -61,10 +67,14 @@ const usingDefault = computed(() => isDefaultValue(props.field, value.value));
 
 const docLines = computed(() => props.field.doc.split("\n"));
 const docIsLong = computed(() => docLines.value.length > 3);
-const docShown = computed(() => (docIsLong.value && !docOpen.value ? docLines.value.slice(0, 3).join("\n") : props.field.doc));
+const docShown = computed(() =>
+    docIsLong.value && !docOpen.value ? docLines.value.slice(0, 3).join("\n") : props.field.doc,
+);
 
 const issues = computed(() => props.file.issues.filter((issue) => issue.path === props.field.path));
-const errorText = computed(() => issues.value.find((issue) => issue.severity === "error")?.message ?? null);
+const errorText = computed(
+    () => issues.value.find((issue) => issue.severity === "error")?.message ?? null,
+);
 const warnings = computed(() => issues.value.filter((issue) => issue.severity === "warning"));
 
 /**
@@ -89,7 +99,10 @@ const accepted = computed(() => value.value === true);
  */
 const consentSentence = computed(() =>
     accepted.value
-        ? t("config.field.consentAccepted", "accepted, so rendering can download the files it needs.")
+        ? t(
+              "config.field.consentAccepted",
+              "accepted, so rendering can download the files it needs.",
+          )
         : t(
               "config.field.consentMissing",
               "not accepted yet, so a render stops before it starts. It is answered once, in the app's own settings.",
@@ -112,6 +125,26 @@ const templateNote = computed(() => {
     );
 });
 
+/**
+ * `FieldMeta.control.kind` is the schema's honest type vocabulary. Showing it beside the
+ * dotted path makes a dense generated form inspectable: a reader can distinguish a switch,
+ * an ordered list, a mask and a free text value without having to infer it from the widget.
+ */
+const controlType = computed(() =>
+    t("config.field.type", { type: props.field.control.kind }, "Type: {type}"),
+);
+
+/**
+ * The documentation is not anonymous product copy. Most rows quote BlueMap's generated
+ * template; the few structured rows that upstream documents as one block say plainly that
+ * their explanation was derived from the upstream source instead.
+ */
+const documentationProvenance = computed(() =>
+    props.field.docSource === "authored"
+        ? t("config.field.sourceAuthored", "Docs: BlueMap source-derived explanation")
+        : t("config.field.sourceUpstream", "Docs: BlueMap generated template"),
+);
+
 function set(next: PlainValue): void {
     emit("set", props.field, next);
 }
@@ -124,7 +157,19 @@ function set(next: PlainValue): void {
         :data-field-path="field.path"
     >
         <div class="mb-config-field__badges">
-            <v-chip v-if="field.invalidatesTiles" size="x-small" variant="tonal" color="warning" :prepend-icon="mdiRefreshAuto">
+            <v-chip size="x-small" variant="outlined" data-field-type>
+                {{ controlType }}
+            </v-chip>
+            <v-chip size="x-small" variant="outlined" data-field-provenance>
+                {{ documentationProvenance }}
+            </v-chip>
+            <v-chip
+                v-if="field.invalidatesTiles"
+                size="x-small"
+                variant="tonal"
+                color="warning"
+                :prepend-icon="mdiRefreshAuto"
+            >
                 {{ t("config.field.reRender", "Re-render") }}
                 <v-tooltip
                     activator="parent"
@@ -162,7 +207,11 @@ function set(next: PlainValue): void {
 
         <!-- consent-gated: reported, never re-asked -->
         <div v-if="consentGated" class="mb-config-field__consent">
-            <v-icon :icon="accepted ? mdiShieldCheckOutline : mdiAlertOutline" :color="accepted ? 'success' : 'warning'" aria-hidden="true" />
+            <v-icon
+                :icon="accepted ? mdiShieldCheckOutline : mdiAlertOutline"
+                :color="accepted ? 'success' : 'warning'"
+                aria-hidden="true"
+            />
             <div>
                 <!--
                     The sentence is resolved in the script and interpolated on the same line
@@ -193,7 +242,11 @@ function set(next: PlainValue): void {
             />
             <ConfigMarkerSetsField
                 v-else-if="field.control.kind === 'marker-sets'"
-                :model-value="typeof value === 'object' && value !== null && !Array.isArray(value) ? value : null"
+                :model-value="
+                    typeof value === 'object' && value !== null && !Array.isArray(value)
+                        ? value
+                        : null
+                "
                 :label="field.label"
                 :disabled="isDisabled"
                 @update:model-value="set"
@@ -210,7 +263,11 @@ function set(next: PlainValue): void {
                 v-else-if="field.control.kind === 'key-value'"
                 :control="field.control"
                 :model-value="
-                    typeof controlValue === 'object' && controlValue !== null && !Array.isArray(controlValue) ? controlValue : {}
+                    typeof controlValue === 'object' &&
+                    controlValue !== null &&
+                    !Array.isArray(controlValue)
+                        ? controlValue
+                        : {}
                 "
                 :label="field.label"
                 :disabled="isDisabled"
@@ -229,7 +286,7 @@ function set(next: PlainValue): void {
                 :label="field.label"
                 :disabled="isDisabled"
                 :error="errorText"
-                :reset-value="(field.default as PlainValue)"
+                :reset-value="field.default as PlainValue"
                 @update:model-value="set"
             />
         </template>
@@ -244,15 +301,34 @@ function set(next: PlainValue): void {
             density="comfortable"
             @click="docOpen = !docOpen"
         >
-            {{ docOpen ? t("config.field.less", "Show less") : t("config.field.more", "Show the rest of the explanation") }}
+            {{
+                docOpen
+                    ? t("config.field.less", "Show less")
+                    : t("config.field.more", "Show the rest of the explanation")
+            }}
         </v-btn>
 
-        <p v-if="templateNote" class="mb-config-field__doc mb-config-field__doc--faint">{{ templateNote }}</p>
+        <p v-if="templateNote" class="mb-config-field__doc mb-config-field__doc--faint">
+            {{ templateNote }}
+        </p>
 
-        <v-alert v-for="warning in warnings" :key="warning.message" type="warning" density="compact" variant="tonal" class="mt-2">
+        <v-alert
+            v-for="warning in warnings"
+            :key="warning.message"
+            type="warning"
+            density="compact"
+            variant="tonal"
+            class="mt-2"
+        >
             {{ warning.message }}
         </v-alert>
-        <v-alert v-if="advisoryText && warnings.length === 0" type="info" density="compact" variant="tonal" class="mt-2">
+        <v-alert
+            v-if="advisoryText && warnings.length === 0"
+            type="info"
+            density="compact"
+            variant="tonal"
+            class="mt-2"
+        >
             {{ advisoryText }}
         </v-alert>
 
@@ -261,19 +337,32 @@ function set(next: PlainValue): void {
                 {{
                     t(
                         "config.field.inherited",
-                        { value: valueToText(field.default as PlainValue) || t("config.field.nothing", "nothing") },
+                        {
+                            value:
+                                valueToText(field.default as PlainValue) ||
+                                t("config.field.nothing", "nothing"),
+                        },
                         "Not set in this file, so BlueMap uses {value}.",
                     )
                 }}
             </span>
             <span v-else-if="usingDefault">
-                {{ t("config.field.setToDefault", "Written in the file, and the same as BlueMap's default.") }}
+                {{
+                    t(
+                        "config.field.setToDefault",
+                        "Written in the file, and the same as BlueMap's default.",
+                    )
+                }}
             </span>
             <span v-else>
                 {{
                     t(
                         "config.field.changed",
-                        { value: valueToText(field.default as PlainValue) || t("config.field.nothing", "nothing") },
+                        {
+                            value:
+                                valueToText(field.default as PlainValue) ||
+                                t("config.field.nothing", "nothing"),
+                        },
                         "Set in this file. BlueMap's default is {value}.",
                     )
                 }}
@@ -283,12 +372,13 @@ function set(next: PlainValue): void {
                 v-if="explicit && !consentGated"
                 :prepend-icon="mdiBackupRestore"
                 :disabled="isDisabled"
+                color="primary"
                 variant="text"
                 size="x-small"
                 density="comfortable"
                 @click="emit('clear', field)"
             >
-                {{ t("config.field.reset", "Remove this line") }}
+                {{ t("config.field.reset", "Revert to default") }}
                 <v-tooltip
                     activator="parent"
                     location="top"
