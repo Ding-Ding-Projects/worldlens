@@ -1,0 +1,141 @@
+@echo off
+setlocal EnableDelayedExpansion
+rem ===========================================================================
+rem  Worldlens - build the installer
+rem
+rem  build.bat gets you a program you can run out of the checkout. This produces
+rem  the artifact a person downloads and installs, through the same supported
+rem  packaging path CI uses, so a locally built installer and a released one are
+rem  the same thing rather than two things that resemble each other.
+rem
+rem  Usage:
+rem    build-installer.bat        build the installer, then report it
+rem    build-installer.bat /s     silent: no prompt, no pause
+rem
+rem  Agents ship every manual release through this script rather than around it.
+rem  That is not tidiness: a script only ever run on a warm developer machine is
+rem  a script nobody has proven works, and the first time it is genuinely needed
+rem  is the worst possible moment to discover that. Using it as the only path
+rem  makes every hand-cut release an end-to-end test of what a new machine does.
+rem  If it fails during a release, fix the script in a commit - do not work
+rem  around it once and leave it broken for whoever comes next.
+rem
+rem  It does not publish, tag, push or create a release. Building an installer
+rem  and shipping it are different actions with different authority.
+rem
+rem  The installer is permanently unsigned, by policy, and this says so rather
+rem  than letting you find out from a SmartScreen warning.
+rem ===========================================================================
+
+set "SILENT_MODE=0"
+if /i "%~1"=="/s" set "SILENT_MODE=1"
+if /i "%~1"=="-s" set "SILENT_MODE=1"
+if /i "%~1"=="--silent" set "SILENT_MODE=1"
+if /i "%~1"=="/silent" set "SILENT_MODE=1"
+if defined SILENT if not "%SILENT%"=="0" set "SILENT_MODE=1"
+
+set "ROOT=%~dp0"
+set "DESIGN=%ROOT%design"
+set "APPDIR=%DESIGN%\packages\app"
+set "STARTED=%TIME%"
+
+echo == Worldlens installer build ==
+echo    repository: %ROOT%
+if "%SILENT_MODE%"=="1" echo    mode: silent
+
+rem --- Everything build.bat does ---------------------------------------------
+rem Delegated rather than duplicated. Two copies of the dependency logic is two
+rem places for it to drift, and the installer path must not be the one that
+rem quietly stops matching.
+echo.
+echo [1/4] Dependencies and workspace build
+call "%ROOT%build.bat" /s
+if errorlevel 1 (
+    echo.
+    echo ERROR: build.bat failed. The installer needs a built workspace. 1>&2
+    exit /b 1
+)
+
+rem --- The commit this is built from ------------------------------------------
+rem Recorded before packaging, so the report names the commit the artifact
+rem actually came from rather than whatever HEAD is by the time it finishes.
+for /f "tokens=* usebackq" %%s in (`git -C "%ROOT%." rev-parse HEAD 2^>nul`) do set "COMMIT=%%s"
+if not defined COMMIT set "COMMIT=(not a git checkout)"
+for /f "tokens=* usebackq" %%s in (`git -C "%ROOT%." status --porcelain 2^>nul`) do set "DIRTY=1"
+
+echo.
+echo [2/4] Source state
+echo       commit %COMMIT%
+if defined DIRTY (
+    echo       working tree has uncommitted changes - this installer will not
+    echo       match a release built from %COMMIT% alone
+) else (
+    echo       working tree clean
+)
+
+rem --- Package ---------------------------------------------------------------
+rem `make`, which is the app package's own Squirrel.Windows path, with
+rem `--publish never` already inside it. Signing is not requested and not
+rem configured: Worldlens installers are permanently unsigned by policy.
+echo.
+echo [3/4] Packaging the Windows installer
+pushd "%APPDIR%" || (echo ERROR: no app package at %APPDIR% 1>&2 & exit /b 1)
+call pnpm run make
+if errorlevel 1 (
+    popd
+    echo.
+    echo ERROR: electron-builder failed. The output above names the step. 1>&2
+    exit /b 1
+)
+popd
+
+rem --- Verify what was actually built ----------------------------------------
+rem A green packaging step is not evidence that an installer exists: the search
+rem below is what turns "it exited 0" into "here is the file, this is its size,
+rem this is its digest". A build that produced nothing fails here rather than
+rem being reported as a success with nothing to show.
+echo.
+echo [4/4] Verifying the artifact
+set "SETUP="
+for /f "delims=" %%f in ('dir /b /s "%APPDIR%\dist\*Setup*.exe" 2^>nul') do set "SETUP=%%f"
+if not defined SETUP (
+    for /f "delims=" %%f in ('dir /b /s "%APPDIR%\dist\squirrel-windows\*.exe" 2^>nul') do set "SETUP=%%f"
+)
+if not defined SETUP (
+    echo.
+    echo ERROR: packaging reported success but no installer was found under 1>&2
+    echo        %APPDIR%\dist 1>&2
+    echo        A green exit code is not an artifact. Nothing was produced. 1>&2
+    exit /b 1
+)
+
+for %%f in ("%SETUP%") do set "SETUP_SIZE=%%~zf"
+set "SETUP_SHA="
+for /f "skip=1 tokens=* usebackq" %%h in (`certutil -hashfile "%SETUP%" SHA256 2^>nul`) do (
+    if not defined SETUP_SHA set "SETUP_SHA=%%h"
+)
+
+echo.
+echo == Installer built ==
+echo    path    %SETUP%
+echo    size    %SETUP_SIZE% bytes
+echo    sha256  %SETUP_SHA%
+echo    commit  %COMMIT%
+echo    started %STARTED%
+echo    finished %TIME%
+echo.
+echo    This installer is UNSIGNED, permanently and on purpose. Windows
+echo    SmartScreen will say the publisher is unknown. Compare the SHA-256
+echo    above against the one in the release notes before running it - the
+echo    digest detects changed bytes, it does not authenticate who wrote them.
+echo.
+echo    Nothing has been published, tagged or pushed. Shipping this is a
+echo    separate, deliberate action.
+
+if "%SILENT_MODE%"=="1" exit /b 0
+
+echo.
+choice /c YN /n /m "Open the folder containing the installer? [Y/N] "
+if errorlevel 2 exit /b 0
+for %%f in ("%SETUP%") do start "" explorer "%%~dpf"
+exit /b 0
