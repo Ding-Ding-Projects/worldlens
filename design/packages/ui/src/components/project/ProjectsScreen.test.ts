@@ -20,6 +20,7 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import type { ProjectFile } from "@worldlens/config";
 import ProjectsScreen from "./ProjectsScreen.vue";
+import ProjectEditor from "./ProjectEditor.vue";
 import type { ProjectHost, ProjectListing, ProjectWriteAnswer } from "./projectHost.js";
 import { createProject, withMapAdded, withRender } from "./projectModel.js";
 import type {
@@ -150,7 +151,11 @@ function fakeCatalog(worlds: readonly MinecraftWorldSummary[]): WorldCatalogBrid
     };
 }
 
-function screen(host: ProjectHost, catalog: WorldCatalogBridge | null) {
+function screen(
+    host: ProjectHost,
+    catalog: WorldCatalogBridge | null,
+    props: { openWorld?: string | null } = {},
+) {
     return mount(ProjectsScreen, {
         props: {
             host,
@@ -158,6 +163,7 @@ function screen(host: ProjectHost, catalog: WorldCatalogBridge | null) {
             optionalBridge: null,
             worldCatalogBridge: catalog,
             configHost: null,
+            ...props,
         },
         global: { plugins: [vuetify, i18n()] },
         attachTo: document.body,
@@ -205,7 +211,8 @@ describe("the discovered-worlds panel, wired into the tab", () => {
     });
 
     it("one click on a discovered world opens the editor, pre-filled and unsaved", async () => {
-        const view = screen(fakeHost(), fakeCatalog([world()]));
+        const host = fakeHost();
+        const view = screen(host, fakeCatalog([world()]));
         await flushPromises();
 
         const option = document.querySelector('[role="option"]');
@@ -216,52 +223,11 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         // The editor is open (its own Save control exists) rather than the project having
         // been written already - nothing was asked of the host's writeProject yet.
         expect(view.text()).toContain("Save");
-        expect((fakeHost() as unknown as { written: unknown[] }).written).toHaveLength(0);
+        expect(host.written).toHaveLength(0);
         view.unmount();
     });
 
-    it("queues every newly opened project for automatic saving", async () => {
-        const notifyAutosaveChange = vi.fn(
-            async (_worldFolder: string, _project: ProjectFile) => undefined,
-        );
-        const host = { ...fakeHost(), notifyAutosaveChange };
-        const view = screen(host, fakeCatalog([world()]));
-        await flushPromises();
-
-        document
-            .querySelector('[role="option"]')
-            ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        await flushPromises();
-
-        expect(notifyAutosaveChange).toHaveBeenCalledOnce();
-        expect(notifyAutosaveChange.mock.calls[0]?.[0]).toBe("/home/ada/.minecraft/saves/Bastion");
-        expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
-        view.unmount();
-    });
-
-    it("keeps the process-wide dirty signal true when autosave notification rejects", async () => {
-        const host = {
-            ...fakeHost(),
-            notifyAutosaveChange: vi.fn(async () => {
-                throw new Error("autosave channel refused the edit");
-            }),
-        };
-        const view = screen(host, fakeCatalog([world()]));
-        await flushPromises();
-
-        document
-            .querySelector('[role="option"]')
-            ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        await flushPromises();
-        await flushPromises();
-
-        expect(host.notifyAutosaveChange).toHaveBeenCalledOnce();
-        expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
-        expect(view.text()).toContain("Save");
-        view.unmount();
-    });
-
-    it("the bulk action writes projects through the host and they vanish from the discovered list", async () => {
+    it("opens a selected world through the editor without writing a default project", async () => {
         const host = fakeHost();
         const worlds = [
             world({ path: "/a/Bastion", directoryName: "Bastion", name: "Bastion" }),
@@ -270,9 +236,8 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         const view = screen(host, fakeCatalog(worlds));
         await flushPromises();
 
-        for (const checkbox of Array.from(document.querySelectorAll('input[type="checkbox"]'))) {
-            (checkbox as HTMLInputElement).click();
-        }
+        const checkbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        checkbox.click();
         await flushPromises();
 
         const bulkButton = [...document.querySelectorAll("button")].find((button) =>
@@ -280,12 +245,102 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         );
         bulkButton?.click();
         await flushPromises();
+
+        expect(host.written).toHaveLength(0);
+        expect(view.findComponent(ProjectEditor).exists()).toBe(true);
+        view.unmount();
+    });
+
+    it("keeps edits in renderer memory and blocks dirty close, switch, and render boundaries", async () => {
+        const folder = "/home/ada/.minecraft/saves/Bastion";
+        const initial = withRender(createProject("Bastion"), { route: "github-actions" });
+        const notifyAutosaveChange = vi.fn(
+            async (_worldFolder: string, _project: ProjectFile) => undefined,
+        );
+        const flushAutosave = vi.fn(async () => ({
+            ok: true as const,
+            file: `${folder}/worldlens.project.json`,
+        }));
+        const readProject = vi.fn(async () => ({
+            ok: true as const,
+            file: `${folder}/worldlens.project.json`,
+            project: initial,
+        }));
+        const host = {
+            ...fakeHost(),
+            readProject,
+            notifyAutosaveChange,
+            flushAutosave,
+        };
+        const view = screen(host, null, { openWorld: folder });
         await flushPromises();
 
-        expect(host.written.map(([writtenWorld]) => writtenWorld).sort()).toEqual([
-            "/a/Bastion",
-            "/a/Creative",
-        ]);
+        const editor = view.findComponent(ProjectEditor);
+        expect(editor.exists()).toBe(true);
+        editor.vm.$emit("update:project", withRender(initial, { force: true }));
+        await flushPromises();
+
+        expect(notifyAutosaveChange).not.toHaveBeenCalled();
+        expect(flushAutosave).not.toHaveBeenCalled();
+        expect(host.written).toHaveLength(0);
+        expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
+
+        editor.vm.$emit("close");
+        editor.vm.$emit("render");
+        await flushPromises();
+
+        await view.setProps({ openWorld: "/home/ada/.minecraft/saves/Creative" });
+        await flushPromises();
+
+        expect(view.findComponent(ProjectEditor).exists()).toBe(true);
+        expect(readProject).toHaveBeenCalledTimes(1);
+        expect(notifyAutosaveChange).not.toHaveBeenCalled();
+        expect(flushAutosave).not.toHaveBeenCalled();
+        expect(host.written).toHaveLength(0);
+        expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
+        view.unmount();
+    });
+
+    it("writes an edited project only after the explicit Save event", async () => {
+        const folder = "/home/ada/.minecraft/saves/Bastion";
+        const initial = withRender(createProject("Bastion"), { route: "github-actions" });
+        const notifyAutosaveChange = vi.fn(
+            async (_worldFolder: string, _project: ProjectFile) => undefined,
+        );
+        const flushAutosave = vi.fn(async () => ({
+            ok: true as const,
+            file: `${folder}/worldlens.project.json`,
+        }));
+        const host = {
+            ...fakeHost(),
+            readProject: async () => ({
+                ok: true as const,
+                file: `${folder}/worldlens.project.json`,
+                project: initial,
+            }),
+            notifyAutosaveChange,
+            flushAutosave,
+        };
+        const view = screen(host, null, { openWorld: folder });
+        await flushPromises();
+
+        const editor = view.findComponent(ProjectEditor);
+        editor.vm.$emit("update:project", withRender(initial, { force: true }));
+        await flushPromises();
+
+        expect(host.written).toHaveLength(0);
+        expect(notifyAutosaveChange).not.toHaveBeenCalled();
+        expect(flushAutosave).not.toHaveBeenCalled();
+
+        editor.vm.$emit("save");
+        await flushPromises();
+        await flushPromises();
+
+        expect(host.written).toHaveLength(1);
+        expect(host.written[0]?.[0]).toBe(folder);
+        expect(notifyAutosaveChange).not.toHaveBeenCalled();
+        expect(flushAutosave).not.toHaveBeenCalled();
+        expect(view.emitted("dirty-change")?.at(-1)).toEqual([false]);
         view.unmount();
     });
 

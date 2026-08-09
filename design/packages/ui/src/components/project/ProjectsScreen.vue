@@ -204,6 +204,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     run.dispose();
+    emit("dirty-change", false);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -232,85 +233,34 @@ const dirty = computed(
             serializeProjectFile(openProject.value) !== serializeProjectFile(savedProject.value)),
 );
 
-// This is the same comparison that drives Save and autosave. Reporting a second inferred
-// flag from the shell would let the update guard disagree with the editor after a rejected
-// autosave notification, exactly when the visible edit exists only in renderer memory.
+// This is the same comparison that drives Save and the transition guard. Reporting a second
+// inferred flag from the shell would let the update guard disagree with the editor exactly when
+// the visible edit exists only in renderer memory.
 watch(dirty, (value) => emit("dirty-change", value), { immediate: true });
 
-let stopAutosaveEvents: (() => void) | null = null;
-
 /**
- * Every project edit reaches the main process's debounced autosave scheduler. The complete
- * project is sent each time, so a later edit replaces an earlier pending snapshot instead
- * of building a queue of stale writes. A failed notification is surfaced, but never makes
- * the field edit itself fail.
+ * Stops a transition that would hide, replace, or render edits that only exist in memory.
+ *
+ * The redesign contract is intentionally manual: opening or changing a project must not write
+ * into a world folder until someone presses Save. A transition is therefore a prompt to use the
+ * existing Save or Revert controls, never a reason for this screen to write behind their back.
  */
-watch([openWorld, openProject], ([world, project]) => {
-    if (
-        world === null ||
-        project === null ||
-        !dirty.value ||
-        host?.notifyAutosaveChange === undefined
-    )
-        return;
-    void host.notifyAutosaveChange(world, project).catch((error: unknown) => {
-        raiseNotice(
-            "error",
-            t(
-                "project.autosave.queueFailed",
-                { message: error instanceof Error ? error.message : String(error) },
-                "This edit is still on screen, but it could not be queued for automatic saving: {message}",
-            ),
-        );
-    });
-});
-
-onMounted(() => {
-    stopAutosaveEvents =
-        host?.onAutosaveEvent?.((event) => {
-            if (event.worldFolder !== openWorld.value || !event.result.ok) return;
-            // The scheduler returns the exact snapshot it wrote. If another edit arrived while
-            // that write was in flight, `openProject` is newer and the dirty comparison remains
-            // true; otherwise the saved indicator clears without pretending an older value won.
-            savedProject.value = event.result.project;
-        }) ?? null;
-});
-
-onBeforeUnmount(() => {
-    stopAutosaveEvents?.();
-    stopAutosaveEvents = null;
-    emit("dirty-change", false);
-});
-
-async function flushPendingAutosave(): Promise<boolean> {
-    const world = openWorld.value;
-    const project = openProject.value;
-    if (world === null || project === null || !dirty.value) return true;
-    if (host?.flushAutosave === undefined) {
-        await save();
-        return !dirty.value;
-    }
-    try {
-        const result = await host.flushAutosave(world, "boundary");
-        if (result === null) return true;
-        if (!result.ok) {
-            saveFailure.value = result.message;
-            raiseNotice("error", result.message);
-            return false;
-        }
-        savedProject.value = project;
-        saveFailure.value = null;
-        return true;
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        saveFailure.value = message;
-        raiseNotice("error", message);
-        return false;
-    }
+function blockUnsavedTransition(action: string): boolean {
+    if (!dirty.value) return false;
+    raiseNotice(
+        "warning",
+        t(
+            "project.unsaved.transitionBlocked",
+            { action },
+            "This project has unsaved changes. Save it, or Revert the changes, before you {action}. Nothing has been written automatically.",
+        ),
+    );
+    return true;
 }
 
 async function open(world: string): Promise<void> {
     if (host === null) return;
+    if (world !== openWorld.value && blockUnsavedTransition("open another project")) return;
     openFailure.value = null;
     saveFailure.value = null;
     busy.value = true;
@@ -346,7 +296,6 @@ watch(
     () => props.openWorld,
     (world) => {
         if (world === null || world === "" || world === openWorld.value) return;
-        if (dirty.value) return;
         void open(world);
     },
     { immediate: true },
@@ -397,8 +346,8 @@ function describeFailure(failure: {
     }
 }
 
-async function closeEditor(flush = true): Promise<void> {
-    if (flush && !(await flushPendingAutosave())) return;
+function closeEditor(): void {
+    if (blockUnsavedTransition("close the editor")) return;
     openWorld.value = null;
     openProject.value = null;
     savedProject.value = null;
@@ -406,7 +355,12 @@ async function closeEditor(flush = true): Promise<void> {
 }
 
 function revert(): void {
-    openProject.value = savedProject.value;
+    if (savedProject.value === null) {
+        openWorld.value = null;
+        openProject.value = null;
+    } else {
+        openProject.value = savedProject.value;
+    }
     saveFailure.value = null;
 }
 
@@ -520,7 +474,8 @@ async function pickWorld(): Promise<void> {
  * does not show it until it has been saved - a row for a file that is not there would be
  * the list asserting something untrue.
  */
-function openNewProjectFor(world: string, route: "local" | "github-actions" = "local"): void {
+function openNewProjectFor(world: string, route: "local" | "github-actions" = "local"): boolean {
+    if (blockUnsavedTransition("start another project")) return false;
     const project = withRender(createProject(worldLeaf(world)), { route });
 
     openWorld.value = world;
@@ -532,19 +487,21 @@ function openNewProjectFor(world: string, route: "local" | "github-actions" = "l
         "info",
         t(
             "project.create.started",
-            "The project is open and automatic saving is on. Add maps or change settings; a quiet pause saves it, and Save now is always available.",
+            "The project is open in memory. Add maps or change settings, then choose Save when you are ready to write it into the world folder.",
         ),
     );
+    return true;
 }
 
 function confirmCreate(): void {
     if (createProblem.value !== null) return;
     const world = createWorld.value.trim();
     const route = createRoute.value;
-    createOpen.value = false;
-    createWorld.value = "";
-    createRoute.value = "local";
-    openNewProjectFor(world, route);
+    if (openNewProjectFor(world, route)) {
+        createOpen.value = false;
+        createWorld.value = "";
+        createRoute.value = "local";
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -561,63 +518,31 @@ function confirmCreate(): void {
  * unsaved edits to honour a click elsewhere in the same tab is not a trade this makes.
  */
 function useDiscoveredWorld(world: string): void {
-    if (dirty.value) {
-        raiseNotice(
-            "warning",
-            t(
-                "project.discovered.unsavedInTheWay",
-                "There is an unsaved project open already. Save or close it first, then choose this world again.",
-            ),
-        );
-        return;
-    }
     openNewProjectFor(world);
 }
 
 /**
- * Several discovered worlds at once: a default project is written for each immediately,
- * rather than opening an editor nobody would review one at a time. Failures are reported
- * per world, the same honesty `forget` below gives a batch delete.
+ * A selected discovery still opens a project through the editor rather than writing defaults.
+ *
+ * The old bulk route created files nobody had reviewed. That conflicts with the contract that
+ * a project is an in-memory proposal until its explicit Save. One selected world can therefore
+ * open directly; a multi-selection explains why it cannot silently create several files.
  */
-async function useDiscoveredWorlds(worlds: readonly string[]): Promise<void> {
-    if (host === null || worlds.length === 0) return;
-
-    busy.value = true;
-    const failures: string[] = [];
-    let created = 0;
-    for (const world of worlds) {
-        try {
-            const project = touch(createProject(worldLeaf(world)));
-            const answer = await host.writeProject(world, project);
-            if (answer.ok) created += 1;
-            else failures.push(`${world}: ${answer.message}`);
-        } catch (error) {
-            failures.push(`${world}: ${error instanceof Error ? error.message : String(error)}`);
-        }
+function useDiscoveredWorlds(worlds: readonly string[]): void {
+    if (worlds.length === 0) return;
+    if (worlds.length === 1) {
+        const world = worlds[0];
+        if (world !== undefined) openNewProjectFor(world);
+        return;
     }
-    busy.value = false;
-
-    if (created > 0) {
-        raiseNotice(
-            "success",
-            t(
-                "project.discovered.createdMany",
-                { created },
-                "Started {created} projects, with their default maps. Open one to change anything.",
-            ),
-        );
-    }
-    for (const failure of failures) {
-        raiseNotice(
-            "error",
-            t(
-                "project.discovered.createFailed",
-                { failure },
-                "This one could not be started: {failure}",
-            ),
-        );
-    }
-    void reload();
+    raiseNotice(
+        "warning",
+        t(
+            "project.discovered.multiNeedsReview",
+            { count: worlds.length },
+            "{count} worlds are selected. Projects are saved one at a time so you can review each world before Save writes anything. Choose one world to open its editor.",
+        ),
+    );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -634,6 +559,16 @@ async function useDiscoveredWorlds(worlds: readonly string[]): Promise<void> {
  * their machine is in.
  */
 async function forget(worlds: readonly string[]): Promise<void> {
+    if (openWorld.value !== null && worlds.includes(openWorld.value) && dirty.value) {
+        raiseNotice(
+            "warning",
+            t(
+                "project.forget.unsavedInTheWay",
+                "This project has unsaved changes. Save it, or Revert the changes, before removing its saved project file.",
+            ),
+        );
+        return;
+    }
     // Called through the host rather than through a local alias on purpose.
     // `components/confirm/superConfirmPolicy.test.ts` finds destructive call sites by name,
     // and a `remove.call(host, world)` would slip past it - which would leave the one
@@ -655,7 +590,7 @@ async function forget(worlds: readonly string[]): Promise<void> {
     }
     busy.value = false;
 
-    if (openWorld.value !== null && worlds.includes(openWorld.value)) void closeEditor(false);
+    if (openWorld.value !== null && worlds.includes(openWorld.value)) closeEditor();
 
     if (gone > 0) {
         raiseNotice(
@@ -740,7 +675,7 @@ async function renderOpen(): Promise<void> {
     const world = openWorld.value;
     const project = openProject.value;
     if (world === null || project === null) return;
-    if (!(await flushPendingAutosave())) return;
+    if (blockUnsavedTransition("render the open project")) return;
     await startRender(world, project);
 }
 
@@ -893,7 +828,7 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
                     {{
                         t(
                             "project.create.blurb",
-                            "The project file lives at the root of the world folder, so the world carries its settings wherever it goes. Automatic saving starts as soon as the project opens.",
+                            "The project file lives at the root of the world folder, so the world carries its settings wherever it goes. The editor starts in memory; Save is the action that writes it.",
                         )
                     }}
                 </p>
