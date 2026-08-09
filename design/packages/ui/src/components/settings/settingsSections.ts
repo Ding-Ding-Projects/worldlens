@@ -160,6 +160,11 @@ export function isSettingsSection(value: unknown): value is SettingsSectionAncho
  */
 export interface SettingsSectionText {
     readonly anchor: SettingsSectionAnchor;
+    /**
+     * The stable anchor is normally searchable as a convenience, but an active policy can
+     * suppress a capability while retaining its host section for unrelated settings.
+     */
+    readonly searchableAnchor?: string | null;
     readonly title: string;
     readonly description: string;
     /** Current values and any other text the section renders. */
@@ -168,8 +173,9 @@ export interface SettingsSectionText {
 
 /** One string per section, which is what a query is tested against. */
 export function sectionHaystack(section: SettingsSectionText): string {
-    return [section.anchor, section.title, section.description, ...section.values]
-        .filter((part) => part.trim().length > 0)
+    const searchableAnchor = section.searchableAnchor === undefined ? section.anchor : section.searchableAnchor;
+    return [searchableAnchor, section.title, section.description, ...section.values]
+        .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
         .join("\n");
 }
 

@@ -281,6 +281,19 @@ describe("what a section can be found by", () => {
         });
         expect(haystack).toBe("world-folder\nWorld folder");
     });
+
+    it("can omit a stable anchor from search when it names a suppressed capability", () => {
+        const haystack = sectionHaystack({
+            anchor: "language-and-tone",
+            searchableAnchor: null,
+            title: "Quiet study",
+            description: "English-only, fully serious presentation is in force.",
+            values: ["Quiet study is on in this app"],
+        });
+
+        expect(haystack).not.toContain("language-and-tone");
+        expect(haystack).toContain("Quiet study");
+    });
 });
 
 describe("filtering the surface", () => {

@@ -10,6 +10,7 @@ import LanguageSettingsRow from "../setup/LanguageSettingsRow.vue";
 import { consentSearchLabels } from "../setup/consentSearch.js";
 import { languageSearchLabels } from "../setup/languageSearch.js";
 import { defaultMapStorageDir } from "../setup/mapStorage.js";
+import { schoolModeEnabled } from "../setup/schoolMode.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import DockedSurface from "./DockedSurface.vue";
 import DependencyInstallerPanel from "./DependencyInstallerPanel.vue";
@@ -284,6 +285,7 @@ const sections = computed<SettingsSectionText[]>(() => {
         // number.
         {
             anchor: "language-and-tone",
+            searchableAnchor: schoolModeEnabled() ? null : "language-and-tone",
             title: text["language-and-tone"].title,
             description: text["language-and-tone"].description,
             values: [

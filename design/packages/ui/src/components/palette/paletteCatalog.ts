@@ -65,6 +65,7 @@ import {
     isSettingsAnchor,
     type SettingsSectionAnchor,
 } from "../settings/settingsSections.js";
+import { schoolModeEnabled } from "../setup/schoolMode.js";
 import type { PaletteChoice, PaletteItem, Translate } from "./paletteItems.js";
 import { PALETTE_SIZES, type PaletteSize } from "./palettePrefs.js";
 import { viewerSettingItems } from "./viewerSettings.js";
@@ -394,6 +395,10 @@ function settingsSectionItems(input: PaletteCatalogInput, group: string): Palett
 
     return SETTINGS_SECTIONS.map((anchor: SettingsSectionAnchor): PaletteItem => {
         const section = copy[anchor];
+        const keywords =
+            anchor === "language-and-tone" && schoolModeEnabled()
+                ? [section.title]
+                : [anchor.replaceAll("-", " ")];
         if (isSettingsAnchor(anchor)) {
             return {
                 kind: "destination",
@@ -401,7 +406,7 @@ function settingsSectionItems(input: PaletteCatalogInput, group: string): Palett
                 group,
                 title: section.title,
                 description: section.description,
-                keywords: [anchor.replaceAll("-", " ")],
+                keywords,
                 where: t("palette.where.section", "Opens Settings and outlines this setting."),
                 go: () => actions.revealSetting({ surface: "settings", anchor, missing: false }),
             };
@@ -413,7 +418,7 @@ function settingsSectionItems(input: PaletteCatalogInput, group: string): Palett
             group,
             title: section.title,
             description: section.description,
-            keywords: [anchor.replaceAll("-", " ")],
+            keywords,
             where: t(
                 "palette.where.githubSection",
                 "Opens Settings. This one is the last section in the panel; nothing outlines it, because no failure links to it.",

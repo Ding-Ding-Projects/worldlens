@@ -16,6 +16,8 @@
  */
 
 import type { NoticeDurationLevel } from "../config/noticeDurationLevels.js";
+import { schoolModeName, schoolModeEnabled } from "../setup/schoolMode.js";
+import { flat } from "../setup/setupI18n.js";
 import type { DockPlacement } from "./dockPlacement.js";
 import type { SettingsSectionAnchor } from "./settingsSections.js";
 
@@ -40,6 +42,9 @@ export interface SectionCopy {
  * settings rather than one, and that the level reaches errors and warnings too.
  */
 export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor, SectionCopy>> {
+    const schoolActive = schoolModeEnabled();
+    const schoolName = schoolModeName(flat("school.shippedName"));
+
     return {
         "mojang-download-consent": {
             title: t("settings.consent.title", "Mojang download consent"),
@@ -76,13 +81,20 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Signing in lets the app reach worlds in private repositories and download release assets that are not public. Everything public works without it, so this is optional. The token is held by the app itself and never shown on this screen.",
             ),
         },
-        "language-and-tone": {
-            title: t("settings.language.title", "Language and tone"),
-            description: t(
-                "settings.language.description",
-                "Which language the app speaks, and how playful it is in each one. The two funny levels are separate settings, and the level styles every message including errors and warnings.",
-            ),
-        },
+        "language-and-tone": schoolActive
+            ? {
+                  // Keep this host section discoverable because it also carries the product
+                  // display-name setting, while its suppressed language/tone controls stay absent.
+                  title: schoolName,
+                  description: flat("school.activeLead"),
+              }
+            : {
+                  title: t("settings.language.title", "Language and tone"),
+                  description: t(
+                      "settings.language.description",
+                      "Which language the app speaks, and how playful it is in each one. The two funny levels are separate settings, and the level styles every message including errors and warnings.",
+                  ),
+              },
         "display": {
             title: t("settings.display.title", "Display and ease of use"),
             description: t(

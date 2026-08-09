@@ -32,6 +32,7 @@
 
 import type { BlueMapApp } from "@worldlens/viewer";
 import { i18nModule, languages, setLanguage } from "../../i18n.js";
+import { schoolModeEnabled } from "../setup/schoolMode.js";
 import type { PaletteChoice, PaletteItem, PaletteSetting, Translate } from "./paletteItems.js";
 
 /** The group headings viewer settings are listed under, resolved once per build. */
@@ -346,7 +347,7 @@ export function viewerSettingItems(app: BlueMapApp | null, t: Translate, locale:
         ),
     );
 
-    if (languages.length > 1) {
+    if (!schoolModeEnabled() && languages.length > 1) {
         items.push(
             choice(
                 "viewer.language",

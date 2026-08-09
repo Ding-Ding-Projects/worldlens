@@ -22,6 +22,13 @@ import type { BlueMapApp } from "@worldlens/viewer";
 import CommandPalette from "./CommandPalette.vue";
 import { usePaletteShortcut } from "./palettePrefs.js";
 import { setBlueMapApp } from "../../stores/bluemap.js";
+import {
+    deleteSchoolModeLocalRecord,
+    enableSchoolMode,
+    renameSchoolMode,
+    resetSchoolModeRecordAdapter,
+} from "../setup/schoolMode.js";
+import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 
 beforeAll(() => {
     // jsdom has no layout engine, so none of these exist. Vuetify's overlay observes its own
@@ -225,9 +232,13 @@ async function type(text: string): Promise<void> {
 beforeEach(() => {
     setBlueMapApp(null);
     localStorage.clear();
+    setSetupStorage(memoryStorage());
+    resetSchoolModeRecordAdapter();
 });
 
 afterEach(() => {
+    deleteSchoolModeLocalRecord();
+    resetSchoolModeRecordAdapter();
     wrapper?.unmount();
     wrapper = null;
     setBlueMapApp(null);
@@ -298,6 +309,23 @@ describe("searching", () => {
         await type("[unclosed");
         expect(rows()).toHaveLength(0);
         expect(document.body.textContent).toContain("The pattern is not valid");
+    });
+
+    it("removes forbidden routes from the live palette and keeps the renamed School mode route", async () => {
+        await open();
+        await type("funny");
+        expect(rows().some((row) => row.textContent?.includes("Language and tone") === true)).toBe(true);
+
+        renameSchoolMode("Quiet study");
+        enableSchoolMode();
+        await nextTick();
+        await nextTick();
+
+        expect(rows()).toHaveLength(0);
+
+        await type("Quiet study");
+        expect(rows().some((row) => row.textContent?.includes("Quiet study") === true)).toBe(true);
+        expect(document.body.textContent).not.toContain("School mode");
     });
 });
 

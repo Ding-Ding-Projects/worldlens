@@ -34,6 +34,12 @@ import AppSettings from "./AppSettings.vue";
 import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
 import SetupLanguagePanel from "../setup/SetupLanguagePanel.vue";
 import { currentPlatform, mapStorageExample, readMapStorageDir } from "../setup/mapStorage.js";
+import {
+    deleteSchoolModeLocalRecord,
+    enableSchoolMode,
+    renameSchoolMode,
+    resetSchoolModeRecordAdapter,
+} from "../setup/schoolMode.js";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 import { reloadSetupLanguage, setLanguageMode } from "../setup/setupI18n.js";
 import { createUpdates } from "../update/useUpdates.js";
@@ -43,6 +49,7 @@ import {
     type SettingsSectionAnchor,
 } from "./settingsSections.js";
 import { DEFAULT_UI_SIZE_LEVEL, changeUiSize, currentUiSizeLevel } from "./uiSizeSetting.js";
+import ProductDisplayNameRow from "./ProductDisplayNameRow.vue";
 
 /** The fallback title `sectionCopy` gives each anchor, which is what the tabs read. */
 const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
@@ -260,12 +267,15 @@ beforeEach(() => {
     // already clear theirs.
     localStorage.clear();
     setSetupStorage(memoryStorage());
+    resetSchoolModeRecordAdapter();
     reloadSetupLanguage();
     scrollIntoView.mockClear();
     (globalThis as { worldlens?: unknown }).worldlens = fakeBridge();
 });
 
 afterEach(() => {
+    deleteSchoolModeLocalRecord();
+    resetSchoolModeRecordAdapter();
     wrapper?.unmount();
     wrapper = null;
     delete (globalThis as { worldlens?: unknown }).worldlens;
@@ -590,6 +600,32 @@ describe("the language and tone setting", () => {
         await settle();
 
         expect(resultTitles()).toContain(SECTION_TITLE["language-and-tone"]);
+    });
+
+    it("keeps the renamed School mode route but removes the unavailable language and tone route", async () => {
+        renameSchoolMode("Quiet study");
+        enableSchoolMode();
+
+        open({ anchor: "language-and-tone" });
+        await settle();
+
+        const element = requireSection("language-and-tone");
+        expect(tabButtons().some((button) => button.textContent?.includes("Quiet study") === true)).toBe(true);
+        expect(element.textContent).toContain("Quiet study");
+        expect(element.textContent).not.toContain("School mode");
+        expect(element.textContent).not.toContain("Language and tone");
+        expect(element.querySelector(".mb-setup-language")).toBeNull();
+        expect(wrapper?.findComponent(ProductDisplayNameRow).exists()).toBe(true);
+
+        const field = wrapper?.find(".mb-config-search input");
+        await field?.setValue("funny");
+        await settle();
+        expect(resultTitles()).not.toContain("Quiet study");
+
+        await field?.setValue("Quiet study");
+        await settle();
+        expect(resultTitles()).toContain("Quiet study");
+        expect(tabButtons().some((button) => button.textContent?.includes(SECTION_TITLE.display) === true)).toBe(true);
     });
 });
 
