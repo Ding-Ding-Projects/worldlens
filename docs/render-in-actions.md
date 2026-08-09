@@ -779,4 +779,4 @@ npx vitest run packages/render-actions
 The following capture is from the hosted tiny test world, not a mock or a hand-edited image.
 It records the browser address and the map viewer after the published URL answered `200`:
 
-![Hosted tiny test world in the BlueMap viewer](screenshots/map-hosted-on-github-pages.png)
+![The hosted tiny test world in the BlueMap viewer, served from GitHub Pages: the viewer's own control bar across the top with live x and z readouts both at zero, and the rendered ground a small sand-coloured patch in the lower right of an otherwise empty frame, because the world is deliberately tiny](screenshots/map-hosted-on-github-pages.png)
