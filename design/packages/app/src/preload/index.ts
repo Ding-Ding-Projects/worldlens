@@ -3099,14 +3099,17 @@ interface WorldlensBridge {
     onPreviewEvent(listener: (event: PreviewEvent) => void): () => void;
 
     updateState(): Promise<UpdateState>;
+    /** Clears the durable restart receipt only after the renderer has applied `updateState`. */
+    acknowledgeUpdateInstallOutcome(): Promise<void>;
     checkForUpdates(): Promise<UpdateState>;
     /**
      * Quits into the installer, if nothing is in the way.
      *
-     * Refuses rather than throwing when a render is running: that is hours of work, and
-     * this is the moment the guard is re-read rather than an earlier sample.
+     * Refuses rather than throwing when a render or renderer-owned unsaved work is in the
+     * way. The main process treats a missing/malformed context as unsaved for older-renderer
+     * compatibility in the safe direction.
      */
-    restartToInstallUpdate(): Promise<UpdateRestartResult>;
+    restartToInstallUpdate(unsavedWork: boolean): Promise<UpdateRestartResult>;
     onUpdateEvent(listener: (state: UpdateState) => void): () => void;
 
     /* ---- Folders this application owns ---------------------------------- */
@@ -3553,8 +3556,10 @@ const bridge: WorldlensBridge = {
     },
 
     updateState: () => ipcRenderer.invoke("update:state"),
+    acknowledgeUpdateInstallOutcome: () => ipcRenderer.invoke("update:acknowledgeInstallOutcome"),
     checkForUpdates: () => ipcRenderer.invoke("update:check"),
-    restartToInstallUpdate: () => ipcRenderer.invoke("update:restart"),
+    restartToInstallUpdate: (unsavedWork: boolean) =>
+        ipcRenderer.invoke("update:restart", { unsavedWork }),
     onUpdateEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, state: UpdateState): void => listener(state);
         ipcRenderer.on("update:event", forward);

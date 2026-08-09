@@ -4,6 +4,12 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Nominate this dispatch to publish if the exact commit has no release yet
+        required: false
+        default: true
+        type: boolean
 
 # No *workflow*-level concurrency group: a run is never wholesale-cancelled by a later one.
 #
@@ -37,7 +43,7 @@ jobs:
   # checkout of anything but the workflows and no toolchain at all.
   workflows:
     name: Lint the workflow files
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: ci-workflows-${{ github.ref }}
       cancel-in-progress: true
@@ -62,23 +68,12 @@ jobs:
       - name: Guard executable workflow expressions and release metadata
         run: |
           set -euo pipefail
-          node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
+          node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
           node scripts/lint-workflows.mjs
-
-      # There is deliberately NO changelog freshness check here, and the reason is worth
-      # recording so nobody adds one back without solving it first.
-      #
-      # `build-changelog.mjs` records unreleased commits as well as released versions, so
-      # its output changes with every push - including the push that regenerates it. A
-      # check over that output is unsatisfiable by construction: regenerate, commit, and
-      # the commit you just made is the one now missing. It failed the first build it ever
-      # ran in, on the commit that had just brought the changelog up to date.
-      #
-      # Making it satisfiable means grading only the released history, which is the part a
-      # reader relies on and the part that changes only when a tag appears. Until the
-      # generator can render that half on its own, a gate here would fail every build,
-      # which teaches people to ignore a red X rather than to keep the changelog current.
-      # Regenerate with `node scripts/build-changelog.mjs` when cutting a release.
+          # Generated-only commits are deliberately excluded by the generator, so a commit
+          # containing only its two outputs does not make itself stale. Full history above
+          # keeps both released versions and the Unreleased section reproducible.
+          node scripts/build-changelog.mjs --check
 
       - name: actionlint
         run: |
@@ -98,7 +93,7 @@ jobs:
 
   check:
     name: Lint, build, test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: ci-check-${{ github.ref }}
       cancel-in-progress: true
@@ -203,7 +198,12 @@ jobs:
     # Nothing needs this job, deliberately. It reports; it does not block. See the note where
     # `pnpm lint` used to sit in `check` for why a style check that withholds an installer is a
     # style check nobody reads.
-    runs-on: ubuntu-latest
+    #
+    # Pinned rather than `ubuntu-latest` like every other job in this repository, and enforced
+    # by `cloudRunnerPolicy.test.ts`'s hand-written inventory: a job that reports rather than
+    # gates is still a job whose runner image must not change underneath it without anybody
+    # deciding to change it.
+    runs-on: ubuntu-24.04
     concurrency:
       group: ci-lint-${{ github.ref }}
       cancel-in-progress: true
@@ -244,7 +244,7 @@ jobs:
     # engine jar the installer builds and then fails on the first local render with "The BlueMap
     # engine is not installed", which is a broken artifact rather than an ungated one.
     if: always() && needs.jars.result == 'success'
-    runs-on: windows-latest
+    runs-on: windows-2022
     concurrency:
       group: ci-package-${{ github.ref }}
       cancel-in-progress: true
@@ -322,53 +322,101 @@ jobs:
       - name: Stamp this build's version
         id: version
         shell: pwsh
-        working-directory: design/packages/app
         run: |
-          $base = node -p "require('./package.json').version.split('.').slice(0,2).join('.')"
-          if ($base -notmatch '^[0-9]+\.[0-9]+$') {
-            Write-Host '::error::application package version is outside the supported major.minor schema'
+          $identity = @(node scripts/release-version.mjs `
+            --package design/packages/app/package.json `
+            --run-number "$env:GITHUB_RUN_NUMBER" `
+            --write-package `
+            --format lines)
+          if ($LASTEXITCODE -ne 0 -or $identity.Count -ne 2) {
+            Write-Host '::error::release version resolver did not return one version and one tag'
             exit 1
           }
-          if ($env:GITHUB_RUN_NUMBER -notmatch '^[1-9][0-9]{0,17}$') {
-            Write-Host '::error::GITHUB_RUN_NUMBER is not a bounded positive integer'
+          $version = $identity[0]
+          $tag = $identity[1]
+          if ($tag -ne "v$version") {
+            Write-Host '::error::package version and GitHub release tag are not one SemVer identity'
             exit 1
           }
-          $version = "$base.$env:GITHUB_RUN_NUMBER"
-          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,4)+String.fromCharCode(10));" $version
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "building installer version $version"
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "building installer version $version for release $tag"
+
+      - name: Prepare one fresh Squirrel release set
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        shell: pwsh
+        run: |
+          node scripts/collect-squirrel-release.mjs prepare `
+            --package-dir design/packages/app `
+            --output installer-out `
+            --state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `
+            --version "$env:PACKAGE_VERSION"
 
       - name: Build Squirrel.Windows installer
         working-directory: design/packages/app
         run: pnpm run make
 
       - name: Collect installer artifacts
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
         shell: pwsh
-        working-directory: design/packages/app
         run: |
-          $output = Join-Path $env:GITHUB_WORKSPACE 'installer-out'
-          New-Item -ItemType Directory -Force -Path $output | Out-Null
-          $found = @()
-          # Only the Squirrel output directory. A plain `*.exe` sweep also picks up
-          # `win-unpacked/Worldlens.exe`, which is the unpacked binary: 204 MB,
-          # useless on its own, and the largest thing in the release.
-          foreach ($directory in @('release/squirrel-windows', 'dist/squirrel-windows', '../../release/squirrel-windows')) {
-            if (-not (Test-Path -LiteralPath $directory -PathType Container)) { continue }
-            $found += Get-ChildItem -LiteralPath $directory -File | Where-Object {
-              $_.Name -like '*Setup.exe' -or $_.Extension -eq '.nupkg' -or $_.Name -in @('RELEASES', 'Squirrel.exe')
-            }
-          }
-          if ($found.Count -eq 0) {
-            Write-Host '::error::no installer artifacts were produced by electron-builder'
+          node scripts/collect-squirrel-release.mjs collect `
+            --package-dir design/packages/app `
+            --output installer-out `
+            --state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `
+            --version "$env:PACKAGE_VERSION"
+
+      - name: Prove generated Windows executables are unsigned and branded
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        shell: pwsh
+        run: |
+          $applicationDirectories = @(
+            @(
+              'design/packages/app/release/win-unpacked',
+              'design/packages/app/dist/win-unpacked'
+            ) | Where-Object { Test-Path -LiteralPath $_ -PathType Container }
+          )
+          if ($applicationDirectories.Count -ne 1) {
+            Write-Host "::error::expected one packaged application directory, found $($applicationDirectories.Count)"
             exit 1
           }
-          $found | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $output }
-          $digestLines = Get-ChildItem -LiteralPath $output -File | Sort-Object Name | ForEach-Object {
-            $digest = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$digest  $($_.Name)"
+          $packagedExecutables = @(
+            Get-ChildItem -LiteralPath $applicationDirectories[0] -File -Filter '*.exe' -Recurse
+          )
+          $releaseExecutables = @(Get-ChildItem -LiteralPath installer-out -File -Filter '*.exe')
+          if ($releaseExecutables.Count -lt 1) {
+            Write-Host '::error::the collected Squirrel set contains no setup executable'
+            exit 1
           }
-          Set-Content -LiteralPath (Join-Path $output 'installer-out.sha256.txt') -Value $digestLines -Encoding utf8
-          Get-ChildItem -LiteralPath $output
+          $executables = @(
+            $packagedExecutables
+            $releaseExecutables
+          ) | Sort-Object -Property FullName -Unique
+          $applicationCandidates = @($packagedExecutables | Where-Object { $_.Name -eq 'Worldlens.exe' })
+          if ($applicationCandidates.Count -ne 1) {
+            Write-Host "::error::expected one packaged Worldlens.exe, found $($applicationCandidates.Count)"
+            exit 1
+          }
+          foreach ($executable in $executables) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $executable.FullName
+            if ($signature.Status -ne 'NotSigned') {
+              Write-Host "::error::$($executable.Name) has Authenticode status $($signature.Status); signing is prohibited"
+              exit 1
+            }
+          }
+          $versionInfo = $applicationCandidates[0].VersionInfo
+          if ($versionInfo.ProductName -ne 'Worldlens' -or $versionInfo.FileDescription -ne 'Worldlens') {
+            Write-Host '::error::the resource-only branding hook did not apply Worldlens metadata'
+            exit 1
+          }
+          if (-not $versionInfo.ProductVersion.StartsWith($env:PACKAGE_VERSION)) {
+            Write-Host "::error::packaged product version $($versionInfo.ProductVersion) does not match $env:PACKAGE_VERSION"
+            exit 1
+          }
+          Write-Host "verified $($executables.Count) generated executable(s): Worldlens-branded and NotSigned"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -412,7 +460,7 @@ jobs:
   config-java-roundtrip:
     name: Config / real Java CLI round trip
     needs: [jars]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: ci-config-java-roundtrip-${{ github.ref }}
       cancel-in-progress: true
@@ -488,7 +536,7 @@ jobs:
     # `jars` stays a hard input rather than a gate: without the engine there is no render to
     # make, so there is genuinely nothing for this job to do.
     if: always() && needs.jars.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: ci-test-world-${{ github.ref }}
       cancel-in-progress: true
@@ -608,14 +656,26 @@ jobs:
   screenshots:
     name: Screenshots
     needs: [check, test-world]
-    # Same rule, and this is the job the rule exists for. Captures are evidence, and evidence
-    # is worth most on the runs that went wrong. A red unit suite must never be the reason
-    # nobody can see what the application looked like when it went red.
+    # Same rule as `package` and `test-world`, and this is the job the rule exists for. Captures
+    # are evidence, and evidence is worth most on the runs that went wrong. A red unit suite must
+    # never be the reason nobody can see what the application looked like when it went red.
     #
     # `test-world` is a real input: it produces the rendered map this job serves and
     # photographs. With no map there is nothing to capture, so the job correctly does not run.
     if: always() && needs.test-world.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    # Screenshot capture is diagnostic evidence, not a release gate. A broken capture
+    # still uploads whatever images and traces it produced, but it must not turn an
+    # otherwise valid build red or prevent publication.
+    #
+    # This is the other half of the `if:` above, and the two are not redundant: the condition
+    # decides whether the job gets to run at all when something upstream went red, and this
+    # decides that the job's own failure never travels back out to the run. Evidence-gathering
+    # that can veto a release is not evidence-gathering.
+    continue-on-error: true
+    # A wedged browser must not retain the workflow indefinitely. Timing out remains an
+    # advisory job result because this job is deliberately absent from the release needs.
+    timeout-minutes: 20
     concurrency:
       group: ci-screenshots-${{ github.ref }}
       cancel-in-progress: true
@@ -756,44 +816,51 @@ jobs:
     # of that, and `test-world` is a real Java world render at around 6 minutes. Since
     # `release` already waits on all three, config-java-roundtrip is never the slowest
     # input it is blocked on - it is done long before the others are.
+    # Screenshots run independently as advisory evidence. Tests, workflow security,
+    # packaging, jars, the rendered world and the real Java round trip remain fatal.
     needs: [check, workflows, package, jars, test-world, config-java-roundtrip]
     # Publishes whenever there is a real installer to publish, whether or not the gates above
     # went green - a deliberate, recorded change from "a failed test creates no release".
     #
-    # What it does *not* do is pretend. When a gate failed, the notes say so at the top, name
-    # every gate and its result, and link the run. The release is still real, still uniquely
-    # tagged, still carries the installer that run genuinely built; what a reader loses is the
-    # inference "this shipped, therefore it passed", and they lose it by being told rather than
-    # by not being told.
+    # What it does *not* do is pretend, and that is the half that has to survive every future
+    # edit to this condition. When a gate failed, the notes say so at the top, name every gate
+    # and its result, and link the run; and the steps below still prove the release against its
+    # own manifest before it stops being a draft. The release is still real, still uniquely
+    # tagged, still carries the installer that run genuinely built, and is still verified to
+    # carry exactly what it claims; what a reader loses is the inference "this shipped,
+    # therefore it passed", and they lose it by being told rather than by not being told.
     #
     # `package` and `jars` are inputs rather than gates: with either missing there is no
     # installer and no engine, so there is nothing to publish and the job correctly does not run.
+    #
+    # The `publish_release` clause is a separate question from any of that. It is about *which
+    # run* is nominated to publish a given commit rather than about whether the commit deserves
+    # publishing, so a dispatch that only wants the artifacts can decline the nomination and a
+    # push always keeps it.
     if: >-
       always()
       && github.event_name != 'pull_request'
       && github.ref == 'refs/heads/main'
+      && (github.event_name == 'push' || inputs.publish_release == true)
       && needs.package.result == 'success'
       && needs.jars.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like
     # the other jobs in this file now do (see the top-of-file comment): that pattern
     # exists to clear a pileup of *stale* work, and a publish already in flight is never
     # stale. The group below is the one that already existed for a different reason and
     # is unrelated to runner selection - kept exactly as it was.
     #
-    # The one thing that genuinely cannot run twice at once, and not for the reason it
-    # looks like. The tag is `v<version>-build.<run number>`, which is unique per run, so
-    # two releases could never collide on it.
-    #
-    # The dim sum code name can. It is chosen from the ordinal below, and the ordinal is
-    # `how many releases exist right now` - so two publishes in flight together read the
-    # same count, pick the same dish, and ship two different builds under one code name,
-    # which is the single thing a code name exists to prevent.
+    # The tag is the exact Squirrel/app version with a leading `v`:
+    # `v<major>.<minor>.<run number>`. The committed resolver supplies that same identity
+    # to packaging and publication so update.electronjs.org compares the release and
+    # installed app on one monotonic SemVer sequence. The run number also selects the dim
+    # sum code name, so neither tag nor dish depends on a deletable live release count.
     #
     # `cancel-in-progress: false` because a queued publish must wait, never be dropped. A
     # group holds one pending run, so three publishes racing can still evict the middle;
     # that is a narrower window than the whole workflow had, and the honest fix for it is
-    # an ordinal that does not depend on a live count. Recorded rather than papered over.
+    # nominating one publisher per intended commit. Recorded rather than papered over.
     concurrency:
       group: ci-release-${{ github.ref }}
       cancel-in-progress: false
@@ -921,34 +988,92 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          version=$(node -p "require('./design/package.json').version")
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::design/package.json has a release version outside the supported schema"
+          mapfile -t release_identity < <(
+            node scripts/release-version.mjs \
+              --package design/packages/app/package.json \
+              --run-number "$GITHUB_RUN_NUMBER" \
+              --format lines
+          )
+          if [ "${#release_identity[@]}" -ne 2 ]; then
+            echo "::error::release version resolver did not return one version and one tag"
             exit 1
           fi
-          if [[ ! "$GITHUB_RUN_NUMBER" =~ ^[1-9][0-9]{0,17}$ ]]; then
-            echo "::error::GITHUB_RUN_NUMBER is not a bounded positive integer"
+          version=${release_identity[0]}
+          tag=${release_identity[1]}
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::package version and GitHub release tag are not one SemVer identity"
             exit 1
           fi
-          tag="v${version}-build.${GITHUB_RUN_NUMBER}"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > release-inventory-pages.json
+          mapfile -t existing_tags < <(
+            jq -r --arg sha "$GITHUB_SHA" '.[][] | select(.draft == false and .target_commitish == $sha) | .tag_name' release-inventory-pages.json
+          )
+          if [ "${#existing_tags[@]}" -gt 1 ]; then
+            echo "::error::commit $GITHUB_SHA already has ${#existing_tags[@]} releases; refusing to add another"
+            printf '%s\n' "${existing_tags[@]}"
+            exit 1
+          fi
+          if [ "${#existing_tags[@]}" -eq 1 ]; then
+            {
+              printf 'publish=false\n'
+              printf 'tag=%s\n' "${existing_tags[0]}"
+            } >> "$GITHUB_OUTPUT"
+            echo "exact commit $GITHUB_SHA is already nominated by ${existing_tags[0]}; this run will not duplicate it"
+            exit 0
+          fi
+          mapfile -t stale_drafts < <(
+            jq -r --arg tag "$tag" '.[][] | select(.draft == true and .tag_name == $tag) | [.id, .target_commitish] | @tsv' release-inventory-pages.json
+          )
+          if [ "${#stale_drafts[@]}" -gt 1 ]; then
+            echo "::error::tag $tag has multiple draft releases; refusing ambiguous cleanup"
+            exit 1
+          fi
+          if [ "${#stale_drafts[@]}" -eq 1 ]; then
+            IFS=$'\t' read -r stale_draft_id stale_draft_target <<< "${stale_drafts[0]}"
+            if [[ ! "$stale_draft_id" =~ ^[1-9][0-9]{0,19}$ ]] || [ "$stale_draft_target" != "$GITHUB_SHA" ]; then
+              echo "::error::the stale draft for $tag does not have a bounded id and exact target"
+              exit 1
+            fi
+            echo "::warning::removing failed draft $stale_draft_id for this exact run before rebuilding it"
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/$stale_draft_id"
+          fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::tag $tag already exists; refusing to recycle a published release"
             exit 1
           fi
-          # The release ordinal drives the dim sum code name. It is monotonic, so
-          # a dish is never silently reused, and no ledger has to be committed
-          # back by CI, which would be an automation loop.
-          count=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100000 --json tagName --jq 'length')
-          if [[ ! "$count" =~ ^[0-9]{1,6}$ ]] || [ "$count" -gt 999999 ]; then
-            echo "::error::release inventory count is not a bounded non-negative integer"
-            exit 1
-          fi
-          ordinal=$((count + 1))
+          # The workflow run number is monotonic and never decreases when a release
+          # is deleted. Failed runs may leave a dish unused, but no later release can
+          # silently reuse the code name from a deleted release.
+          ordinal=$GITHUB_RUN_NUMBER
           {
+            printf 'publish=true\n'
             printf 'tag=%s\n' "$tag"
             printf 'version=%s\n' "$version"
             printf 'ordinal=%s\n' "$ordinal"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Verify nominated release already exists
+        if: steps.tag.outputs.publish == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease,tagName,targetCommitish,body,assets > existing-release.json
+          if [ -e existing-release-readback ]; then
+            echo "::error::existing release readback directory already exists"
+            exit 1
+          fi
+          mkdir existing-release-readback
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir existing-release-readback
+          node scripts/release-asset-manifest.mjs verify-nomination \
+            --metadata existing-release.json \
+            --commit "$GITHUB_SHA" \
+            --tag "$RELEASE_TAG" \
+            --directory existing-release-readback
 
       # Not a gate: a release must never be blocked because the photo catalog is
       # unavailable. A failure here is reported in the notes instead.
@@ -956,21 +1081,93 @@ jobs:
       # come from another repository and Actions substitutes run-block expressions
       # before bash parses them.
       - name: Resolve dim sum code name
+        if: steps.tag.outputs.publish == 'true'
         id: dish
         continue-on-error: true
+        timeout-minutes: 1
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
           ORDINAL: ${{ steps.tag.outputs.ordinal }}
-        run: node scripts/pick-dim-sum.mjs --ordinal "$ORDINAL" --out dim-sum-out
+        run: node scripts/pick-dim-sum.mjs --ordinal "$ORDINAL"
+
+      - name: Prepare release payload and hash manifest
+        if: steps.tag.outputs.publish == 'true'
+        env:
+          BLUEMAP_VERSION: ${{ needs.jars.outputs.version }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          if [[ ! "$BLUEMAP_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::BlueMap version is outside the bounded archive-name schema"
+            exit 1
+          fi
+
+          jars="bluemap-server-plugins-${BLUEMAP_VERSION}"
+          rm -rf -- "$jars"
+          mkdir -p "$jars"
+          cp jars-out/bluemap-*.jar jars-out/bluemap-jars.sha256.txt jars-out/bluemap-jars.json "$jars/"
+          {
+            printf 'BlueMap %s server plugins\n\n' "$BLUEMAP_VERSION"
+            cat <<'TXT'
+
+          One jar per Minecraft server platform, built from the upstream source
+          vendored in this repository. Take only the one your server runs:
+
+            bluemap-*-paper.jar     Paper
+            bluemap-*-spigot.jar    Spigot
+            bluemap-*-fabric.jar    Fabric
+            bluemap-*-forge.jar     Forge
+            bluemap-*-neoforge.jar  NeoForge
+            bluemap-*-sponge.jar    Sponge
+            bluemap-*-cli.jar       command line renderer, no server needed
+
+          Verify with bluemap-jars.sha256.txt. These are builds of upstream BlueMap,
+          not a reimplementation.
+          TXT
+          } > "$jars/README.txt"
+          zip -qr "$jars.zip" "$jars"
+
+          extras="worldlens-${RELEASE_TAG}-extras"
+          rm -rf -- "$extras"
+          mkdir -p "$extras"/{test-world,update}
+          cp world-out/*.zip "$extras/test-world/"
+          cp installer-out/*.nupkg installer-out/RELEASES "$extras/update/"
+          if [ -e installer-out/Squirrel.exe ]; then
+            cp installer-out/Squirrel.exe "$extras/update/"
+          fi
+          {
+            printf 'Worldlens %s - extras\n\n' "$RELEASE_TAG"
+            cat <<'TXT'
+
+          test-world/  A Minecraft save this project generated in anvil format, with
+                       the seed in its file name. No Minecraft installation and no
+                       Mojang download are needed to render it.
+          update/      Squirrel update files that accompany the installer. You do not
+                       need these to install; they are here so the set is complete.
+
+          The installer and the server plugins are separate downloads on the release
+          page.
+          TXT
+          } > "$extras/README.txt"
+          zip -qr "$extras.zip" "$extras"
+
+          assets=(installer-out/*Setup.exe installer-out/*-full.nupkg installer-out/RELEASES)
+          assets+=(installer-out/*-delta.nupkg)
+          assets+=("$jars.zip" "$extras.zip" jars-out/bluemap-jars.sha256.txt)
+          assets+=(split-out/*)
+          node scripts/release-asset-manifest.mjs create \
+            --manifest release-assets.json \
+            --markdown release-assets.md \
+            -- "${assets[@]}"
 
       - name: Compose release notes
+        if: steps.tag.outputs.publish == 'true'
         env:
           DISH_NAME_EN: ${{ steps.dish.outputs.dish_name_en }}
           DISH_NAME_ZH: ${{ steps.dish.outputs.dish_name_zh }}
           DISH_ALT_EN: ${{ steps.dish.outputs.dish_alt_en }}
-          DISH_FILE_NAME: ${{ steps.dish.outputs.dish_file_name }}
-          DISH_VOLUME: ${{ steps.dish.outputs.dish_volume }}
-          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          DISH_PHOTO_URL: ${{ steps.dish.outputs.dish_photo_url }}
           SPLIT: ${{ steps.split.outputs.split }}
           SPLIT_NAMES: ${{ steps.split.outputs.names }}
           GATE_CHECK: ${{ needs.check.result }}
@@ -1013,15 +1210,13 @@ jobs:
             fi
             if [ -n "$DISH_NAME_EN" ]; then
               printf '**Code name: %s · %s**\n\n' "$DISH_NAME_EN" "$DISH_NAME_ZH"
-              printf '![%s](https://github.com/%s/releases/download/%s/%s)\n\n' \
-                "$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"
+              printf '![%s](%s)\n\n' "$DISH_ALT_EN" "$DISH_PHOTO_URL"
               # The backticks are literal Markdown delimiters in a static format.
               # shellcheck disable=SC2016
-              printf 'Photo from the public `Ding-Ding-Projects/dim-sum-photos` catalog, volume `%s`, downloaded unchanged at release time and checked for manifest size, PNG chunk structure and CRC integrity. It is not stored in this repository.\n' \
-                "$DISH_VOLUME"
+              printf 'Photo remains a public release asset in the `Ding-Ding-Projects/dim-sum-photos` catalog. Worldlens links to that authoritative asset and does not download, copy, or attach it.\n'
             else
               echo "> [!NOTE]"
-              echo "> No dim sum photo is attached to this release: resolving one from the photo catalog failed. The \`Resolve dim sum code name\` step in the run log has the exact URL and status. No substitute was generated."
+              echo "> No dim sum code name or public photo link is shown: catalog resolution failed. The \`Resolve dim sum code name\` step has the exact status. No substitute was generated, downloaded, copied, or attached."
             fi
             echo
             echo "## Install"
@@ -1055,121 +1250,39 @@ jobs:
             fi
             echo "## What is in this build"
             echo
+            # Two sentences rather than one, because the release no longer implies its own
+            # correctness and the notes are the only place a reader can find out which it is.
+            # The green branch deliberately no longer claims application lint: `lint` is its
+            # own non-gating job now, its result is never read here, and a release that asserts
+            # a check it did not consult is worse than one that stays quiet about it.
             if [ "$gates_failed" = "1" ]; then
-              echo "Commit \`${GITHUB_SHA}\` on \`main\`, built by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). At least one gate failed in that run - see the table at the top of these notes for which."
+              echo "Commit \`${GITHUB_SHA}\` on \`main\`, built by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). At least one gate failed in that run - see the table at the top of these notes for which. The installer below is still the one this run built from this commit, and it was still verified against its own asset manifest before publication."
             else
-              echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Lint, build and the full test suite passed first."
+              echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Workflow lint, build, typecheck, the full test suite, the Java round trip, the real world render and Windows packaging all passed first. Application lint and screenshot capture run independently as advisory evidence and do not block publication."
             fi
             echo
             node scripts/count-lines.mjs --format=markdown
             echo
+            cat release-assets.md
+            echo
             echo "## Changelog"
             echo
-            echo "Every commit that landed in this build, grouped and linked by full SHA: [\`CHANGELOG.md\`](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/CHANGELOG.md) at this commit. Regenerated by hand with \`node scripts/build-changelog.mjs\` before a release is cut; \`--check\` proves a given commit's copy is current but does not run as a CI gate (see \`Lint the workflow files\` for why)."
+            echo "Changelog commit: \`${GITHUB_SHA}\`. Every entry is grouped and linked by full SHA in [\`CHANGELOG.md\`](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/CHANGELOG.md) at this exact commit. Regenerated with \`node scripts/build-changelog.mjs\`; the workflow-security job runs \`--check\` over full history before publication."
           } > release-notes.md
           echo "Composed $(wc -l < release-notes.md) lines of release notes"
 
       - name: Publish
+        if: steps.tag.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
-          BLUEMAP_VERSION: ${{ needs.jars.outputs.version }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
           set -euo pipefail
-          # An asset that was split has been removed from its own directory, so without
-          # this a glob that now matches nothing would be passed to `gh` as a literal
-          # pattern and refused as a missing file.
-          shopt -s nullglob
-          # A release should answer "what do I download" in one glance. The installer
-          # is that answer, so it is the only loose artefact besides the code-name
-          # photo, which has to stay a real image for the notes above to render it.
-          #
-          # Everything else - the seven server jars, their digests, the generated test
-          # world, and the Squirrel update files - goes into one archive. None of it is
-          # what a person arriving at the page wants first, and fifteen assets of which
-          # fourteen are for somebody else is a worse page than two and an archive.
-          shopt -s nullglob
-
-          # The seven server plugins get their own archive with their own name, rather
-          # than being buried inside a generic one. Somebody running a Paper server is
-          # looking for exactly this and should not have to guess which download holds
-          # it.
-          jars="bluemap-server-plugins-${BLUEMAP_VERSION}"
-          mkdir -p "$jars"
-          cp jars-out/bluemap-*.jar jars-out/bluemap-jars.sha256.txt jars-out/bluemap-jars.json "$jars/"
-          {
-            printf 'BlueMap %s server plugins\n\n' "$BLUEMAP_VERSION"
-            cat <<'TXT'
-
-            One jar per Minecraft server platform, built from the upstream source
-            vendored in this repository. Take only the one your server runs:
-
-              bluemap-*-paper.jar     Paper
-              bluemap-*-spigot.jar    Spigot
-              bluemap-*-fabric.jar    Fabric
-              bluemap-*-forge.jar     Forge
-              bluemap-*-neoforge.jar  NeoForge
-              bluemap-*-sponge.jar    Sponge
-              bluemap-*-cli.jar       command line renderer, no server needed
-
-            Verify with bluemap-jars.sha256.txt. These are builds of upstream BlueMap,
-            not a reimplementation.
-          TXT
-          } > "$jars/README.txt"
-          zip -qr "$jars.zip" "$jars"
-
-          # Everything else that is not the installer and not the plugins.
-          extras="worldlens-${RELEASE_TAG}-extras"
-          mkdir -p "$extras"/{test-world,update}
-          cp world-out/*.zip "$extras/test-world/"
-          # The .nupkg and RELEASES are the update set and must exist - an unmatched
-          # glob or a missing file fails this loudly. Squirrel.exe is different:
-          # electron-builder keeps it inside the package, so no standalone copy exists
-          # to collect, and requiring one is why build.91's publish died.
-          for f in installer-out/*.nupkg installer-out/RELEASES; do
-            cp "$f" "$extras/update/"
-          done
-          if [ -e installer-out/Squirrel.exe ]; then
-            cp installer-out/Squirrel.exe "$extras/update/"
-          fi
-          {
-            printf 'Worldlens %s - extras\n\n' "$RELEASE_TAG"
-            cat <<'TXT'
-
-            test-world/  A Minecraft save this project generated in anvil format, with
-                         the seed in its file name. No Minecraft installation and no
-                         Mojang download are needed to render it.
-            update/      Squirrel update files that accompany the installer. You do not
-                         need these to install; they are here so the set is complete.
-
-            The installer and the server plugins are separate downloads on the release
-            page.
-          TXT
-          } > "$extras/README.txt"
-          zip -qr "$extras.zip" "$extras"
-          echo "server plugins: $(du -h "$jars.zip" | cut -f1)   extras: $(du -h "$extras.zip" | cut -f1)"
-
-          assets=(installer-out/*Setup.exe "$jars.zip" "$extras.zip" jars-out/bluemap-jars.sha256.txt)
-          # The Squirrel update set has to exist as its own loose release assets, not
-          # only zipped inside $extras.zip. Electron's autoUpdater (and the public
-          # update.electronjs.org feed this app points at by default, see
-          # design/packages/app/src/main/update/feed.ts) fetches RELEASES and the
-          # matching .nupkg straight from
-          # github.com/<repo>/releases/download/<tag>/<filename> - a plain HTTPS GET,
-          # never an unzip step. A release that only ships them inside extras.zip
-          # answers that GET with 404, so every installed copy's "check for updates"
-          # would find the release but never be able to fetch it. The copies inside
-          # extras.zip stay, for the reader who wants the whole set in one file; these
-          # are what the updater itself actually reads.
-          assets+=(installer-out/*.nupkg installer-out/RELEASES)
-          # The parts and manifest of anything that was over the 2 GB cap, attached
-          # instead of the oversized file rather than beside it.
-          assets+=(split-out/*)
-          if [ -d dim-sum-out ] && [ -n "$(ls -A dim-sum-out 2>/dev/null)" ]; then
-            assets+=(dim-sum-out/*)
-          fi
+          mapfile -t assets < <(
+            node scripts/release-asset-manifest.mjs list --manifest release-assets.json
+          )
           if [ "${#assets[@]}" -eq 0 ]; then
-            echo "::error::no assets were resolved for the release"
+            echo "::error::the validated release manifest contains no assets"
             exit 1
           fi
           gh release create "$RELEASE_TAG" \
@@ -1177,17 +1290,61 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Worldlens $RELEASE_TAG" \
             --notes-file release-notes.md \
+            --draft \
             "${assets[@]}"
 
-          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \
-            --jq 'if .isDraft then error("release was published as a draft") elif ([.assets[].name] | index("bluemap-jars.sha256.txt")) == null then error("the direct jar checksum asset is missing") else "published with \(.assets | length) assets" end'
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > draft-release-pages.json
+          draft_matches=$(jq --arg tag "$RELEASE_TAG" --arg sha "$GITHUB_SHA" \
+            '[.[][] | select(.draft == true and .tag_name == $tag and .target_commitish == $sha)] | length' \
+            draft-release-pages.json)
+          if [ "$draft_matches" != "1" ]; then
+            echo "::error::expected exactly one draft for $RELEASE_TAG at $GITHUB_SHA; found $draft_matches"
+            exit 1
+          fi
+          jq --arg tag "$RELEASE_TAG" --arg sha "$GITHUB_SHA" \
+            '.[][] | select(.draft == true and .tag_name == $tag and .target_commitish == $sha) |
+             {id, isDraft: .draft, isPrerelease: .prerelease, tagName: .tag_name,
+              targetCommitish: .target_commitish, body,
+              assets: [.assets[] | {id, name, size}]}' \
+            draft-release-pages.json > draft-release.json
+          draft_id=$(jq -r '.id' draft-release.json)
+          if [[ ! "$draft_id" =~ ^[1-9][0-9]{0,19}$ ]]; then
+            echo "::error::draft release id is not a bounded positive integer"
+            exit 1
+          fi
+          node scripts/release-asset-manifest.mjs verify-draft \
+            --metadata draft-release.json \
+            --manifest release-assets.json \
+            --commit "$GITHUB_SHA" \
+            --tag "$RELEASE_TAG"
 
-          # The release notes are assembled before publication because they contain
-          # the artifact tables and line count. Add the end-to-end stopwatch only
-          # after every other release check. Publication must be the last command in
-          # this step: otherwise the note records an intermediate clock and the step's
-          # own completedAt lands a second later. The first job's startedAt is read
-          # from the run itself rather than inferred from this job's clock.
+          if [ -e release-readback ]; then
+            echo "::error::release readback directory already exists"
+            exit 1
+          fi
+          mkdir release-readback
+          downloaded_assets=0
+          while IFS=$'\t' read -r asset_id asset_name; do
+            if [[ ! "$asset_id" =~ ^[1-9][0-9]{0,19}$ ]] ||
+               [[ ! "$asset_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,239}$ ]]; then
+              echo "::error::draft asset metadata is outside the bounded id/name schema"
+              exit 1
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" \
+              -H "Accept: application/octet-stream" > "release-readback/$asset_name"
+            downloaded_assets=$((downloaded_assets + 1))
+          done < <(jq -r '.assets[] | [.id, .name] | @tsv' draft-release.json)
+          if [ "$downloaded_assets" -eq 0 ]; then
+            echo "::error::the draft exposed no downloadable assets"
+            exit 1
+          fi
+          node scripts/release-asset-manifest.mjs verify \
+            --manifest release-assets.json \
+            --directory release-readback
+
+          # The first job's startedAt is read from the run itself rather than inferred
+          # from this job's clock. The completion value is accepted only when release
+          # note publication and exact metadata readback finish in that same UTC second.
           workflow_started=$(gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.startedAt != null and .startedAt != "0001-01-01T00:00:00Z") | .startedAt] | sort | .[0]')
           if [ -z "$workflow_started" ] || [ "$workflow_started" = "null" ]; then
             echo "::error::could not resolve the first job start time for end-to-end release timing"
@@ -1216,9 +1373,20 @@ jobs:
               echo "- Workflow completed: $workflow_completed"
               echo "- Workflow duration: $workflow_duration"
             } > release-notes.md
-            gh release edit "$RELEASE_TAG" \
+            jq -n --rawfile body release-notes.md '{body: $body, draft: false}' > publish-release.json
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/releases/$draft_id" \
+              --input publish-release.json > publish-response.json
+            gh release view "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
-              --notes-file release-notes.md
+              --json isDraft,isPrerelease,tagName,targetCommitish,body,assets \
+              > release-metadata.json
+            node scripts/release-asset-manifest.mjs verify-metadata \
+              --metadata release-metadata.json \
+              --manifest release-assets.json \
+              --commit "$GITHUB_SHA" \
+              --tag "$RELEASE_TAG" \
+              --notes release-notes.md
             observed_completion=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
             if [ "$observed_completion" = "$workflow_completed" ]; then
               exit 0

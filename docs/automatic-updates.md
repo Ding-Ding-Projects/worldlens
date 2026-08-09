@@ -30,6 +30,20 @@ The download runs in the background and **the app never restarts itself**. Elect
 `autoUpdater` fetches and stages; installation happens only when the user presses **Restart
 to install**.
 
+### One version identity reaches the package, app, feed and release
+
+`scripts/release-version.mjs` derives one monotonic semantic version from the checked-in
+`major.minor.0` base and `GITHUB_RUN_NUMBER`. A run numbered 863 therefore packages and reports
+`0.1.863`, publishes tag `v0.1.863`, writes that version into `RELEASES`, and supplies the same
+value through `app.getVersion()` and the update-feed request. Packaging and publication both call
+the committed resolver independently, and the workflow guard fingerprints both call sites.
+
+This exact identity matters because `update.electronjs.org` compares the installed version with
+the GitHub release **tag** as SemVer. The former split (`0.1.862` in the package beside
+`v0.1.0-build.862`) ordered the release tag below an installed `0.1.828`, so the live service
+correctly returned HTTP 204 even though a newer package was attached. The release manifest now
+rejects that split tag shape and accepts only `v<major>.<minor>.<run>`.
+
 ### The banner
 
 When an installer is downloaded, checked against the feed hash and staged, a persistent, non-blocking banner
@@ -38,7 +52,9 @@ GitHub Desktop's: it sits in the layout rather than over it, never takes focus, 
 anything, and stays until the user acts on it.
 
 It names the exact version, links the release notes when the feed carried a link, and offers
-**Restart to install** and **Later**.
+**Restart to install** and **Later**. A downloaded feed entry whose release name is missing or
+is not one exact semantic version is refused as `feed-mismatch`; the interface never turns an
+ambiguous package name into an invented version.
 
 That persistence is deliberate and is why this one message is a banner rather than a toast.
 The project's rules put anything that merely _informs_ in the notification corner, where it
@@ -51,11 +67,21 @@ still go to the notification corner and the settings row; only "ready to install
 — and the _next_ release announces itself normally. The settings row carries **Show the
 update banner again** so a dismissal is never a one-way door.
 
-### A render in progress protects itself
+### Unsaved configuration, project edits and a render in progress protect themselves
+
+The configuration editor reports its real `isWorkspaceDirty` state to the one update controller
+mounted by `App.vue`. `ProjectsScreen.vue` independently reports the same serialized comparison
+that drives its Save/autosave state. This remains true when `notifyAutosaveChange` rejects and the
+visible edit exists only in renderer memory; an optimistic IPC call is not mistaken for a save.
+While either source is dirty, **Restart to install** is disabled, the localized banner names
+unsaved configuration or project work, and a second check at click time refuses before the renderer
+can call the main-process restart channel. If the dirty-state probe throws, the safe answer is still
+“unsaved”. When a restart does cross IPC, the renderer sends the same bounded boolean and the main
+controller refuses `true`; a missing or malformed value from an older renderer is treated as
+unsaved rather than free. Saving or explicitly discarding the work is the route back to Restart.
 
 A BlueMap render of a large world runs for hours. Quitting into an installer half way through
-throws that time away with no route back to it, so a render is treated exactly as unsaved
-work would be:
+throws that time away with no route back to it, so a render carries the same fail-closed rule:
 
 - while a render is running, **Restart to install** is disabled and the banner's body text
   changes to say why. A control that looks live and silently does nothing is
@@ -67,6 +93,37 @@ work would be:
 
 The refusal is a **value**, not an exception: `{ ok: false, code: "render-in-progress",
 message: … }`. The staged update is untouched, so nothing is lost by trying.
+
+### The restart has a durable receipt
+
+Calling `quitAndInstall()` only proves that Squirrel accepted the request; it cannot prove what
+version the next process actually started. Immediately before that call, the main process writes
+an atomic, permission-restricted receipt in the unchanged application-data directory. It contains
+only the current version, target version, and request timestamp. If that receipt cannot be written,
+the app does not quit and the update remains staged.
+
+The next launch reads at most 4,096 bytes from one regular receipt before JSON parsing, validates
+the exact version and timestamp fields, and compares the running package version with both ends of
+the requested transition:
+
+| Version that actually starts | Reported outcome |
+| ---------------------------- | ---------------- |
+| Requested target             | Installed; the receipt is consumed without a warning. |
+| Previous version             | `rollback`; the target did not take over and the previous app is still running. |
+| Any other version            | `feed-mismatch`; the transition is not described as a success. |
+| Missing or malformed receipt | `feed-mismatch`; the app says it cannot prove the transition. |
+
+The receipt is **not** deleted during that startup read. An automatic check may finish 30 seconds
+after process start while the first renderer window is still loading; its result cannot clear the
+rollback or mismatch finding. The main process pins that finding until the renderer has applied its
+first updater state and sends the distinct acknowledgement IPC. Only then is the receipt removed.
+If removal fails, the evidence remains pinned and is reconciled again on the next launch.
+
+The updater never changes the application identity or its user-data path. Existing settings,
+project history, cache, feed-handoff record, and update receipt therefore remain under the same
+profile directory across Squirrel versions. Existing project autosave still flushes pending
+project state during `before-quit`. This is a storage-boundary guarantee, not a substitute for the
+packaged N→N+1 continuity exercise described under Verification.
 
 ### The visible states
 
@@ -154,6 +211,8 @@ reached, the app will try again by itself" is not.
 | `corrupt-asset`    | The bytes that arrived are not the bytes the feed described.                    | Yes                   |
 | `not-installed`    | This copy was not installed by its installer, so there is no updater beside it. | No                    |
 | `staging-failed`   | The disk is full, or the app's folder is not writable.                          | Yes                   |
+| `rollback`         | The requested target did not become the version that started.                  | Yes                   |
+| `feed-mismatch`    | Feed, receipt, and running-version metadata do not identify one transition.     | No                    |
 | `unknown`          | Recognised as nothing in particular. The updater's own words travel as detail.  | Yes                   |
 
 Worldlens packages are intentionally unsigned. The updater therefore makes no Authenticode
@@ -188,9 +247,14 @@ the same step that records the failure, and a test asserts exactly that.
   than handed to the shell.
 - **The artifacts are unsigned by permanent policy.** Packaging fixes
   `forceCodeSigning`, `signExecutable`, and `signAndEditExecutable` to `false` and clears
-  signing environment inputs. There is no publisher-authenticity claim: HTTPS identifies the
-  contacted host and protects transport, while Squirrel metadata and package hashes detect bytes
-  that differ from what that host advertised. A hash mismatch is never installed.
+  signing environment inputs. It also sets `CSC_IDENTITY_AUTO_DISCOVERY=false`, so clearing an
+  inherited certificate does not quietly restore electron-builder's automatic certificate search.
+  The tracked icon and version resources are applied by a resource-only `rcedit` hook while the
+  combined signer/editor route remains disabled. CI recursively checks every packaged executable
+  and the collected installer with `Get-AuthenticodeSignature`; anything other than `NotSigned`
+  blocks publication. There is no publisher-authenticity claim: HTTPS identifies the contacted
+  host and protects transport, while Squirrel metadata and package hashes detect bytes that differ
+  from what that host advertised. A hash mismatch is never installed.
 
 ## Opening a folder the app wrote
 
@@ -300,9 +364,10 @@ injected seams.
 | Failure classification, every rule and the ordering between them                                                                             | `main/update/failure.test.ts`                                                                                     |
 | Feed resolution, the three refusals, the https rule, the token redaction                                                                     | `main/update/feed.test.ts`                                                                                        |
 | Current-first repository fallback, version-independent identity-pair confirmation, corruption handling                                       | `main/update/feedHandoff.test.ts`, `main/update/controller.test.ts`, `test/updateFeedRepositoryInjection.test.ts` |
+| Exact transition receipt, acknowledgement-only consumption, rollback, mismatch, corruption, bounded fields and bounded bytes                 | `main/update/installJournal.test.ts`                                                                              |
 | The state machine, including "ready survives a failure" and "unsupported is terminal"                                                        | `main/update/state.test.ts`                                                                                       |
 | The schedule: interval, back-off, cap, floor, and stopping once staged                                                                       | `main/update/schedule.test.ts`                                                                                    |
-| No update, available, downloading, ready, restart declined, offline, corrupt asset, cancellation, render activity, and cross-version handoff | `main/update/controller.test.ts`                                                                                  |
+| No update, available, downloading, ready, exact-version refusal, restart journal, early-check rollback retention, acknowledgement failure, offline, corrupt asset, disposal, render activity, and cross-version handoff | `main/update/controller.test.ts` |
 | The channels, the push, and that no credential crosses them                                                                                  | `main/update/ipc.test.ts`                                                                                         |
 | The OneDrive redirect and the user-called-OneDrive guard                                                                                     | `main/files/documents.test.ts`                                                                                    |
 | The reveal allowlist: prefix siblings, links, relative paths, missing roots, files versus folders                                            | `main/files/reveal.test.ts`                                                                                       |
@@ -311,13 +376,29 @@ injected seams.
 | Three language modes, five levels each, and that no level touches a version or a button                                                      | `ui/components/update/updateCopy.test.ts`                                                                         |
 | The live controller and the bridge probe                                                                                                     | `ui/components/update/useUpdates.test.ts`                                                                         |
 | The banner mounted: held Restart, dismissal, bilingual `lang`, exact version at level 5                                                      | `ui/components/update/UpdateBanner.test.ts`                                                                       |
+| The mounted shell's real generated config workspace and project dirty signal disable Restart before the bridge call                          | `ui/App.test.ts`, `ui/components/project/ProjectsScreen.test.ts`                                                   |
 
-**Not verified by running it.** No packaged three-version chain has been installed and updated
-end to end by this work. The required runtime proof is: install the last old-identity release,
-receive and install the dual-feed bridge from the former repository, then receive and install the
-next Worldlens release directly from the current repository with the former repository unavailable.
-Until that exact chain is observed, the handoff is unit/integration/build verified rather than an
-installed-client claim.
+### Packaged proof still required
+
+**Not verified by running it.** No packaged N→N+1 pair containing this transition-receipt and
+unsaved-work implementation exists yet. The two most recent inspected releases before this change,
+`v0.1.0-build.828` and `v0.1.0-build.862`, both report `immutable: false` through the GitHub release
+API and both predate this implementation. Their split tag/package version identity also makes the
+configured service return HTTP 204 for the older installed package. They therefore cannot satisfy
+issue #79's requirement for two consecutive immutable builds of the code under test.
+
+The required runtime proof remains: clean-install immutable N in an isolated profile, let its real
+HTTPS Squirrel feed detect/download/hash/stage immutable N+1, exercise Later and Restart, and verify
+the exact release target, asset hashes, receipt outcome, settings/project/history/cache continuity,
+and returned focus from the N+1 process. The cheap headless capture must come from those real
+installed builds; a mock banner is not evidence.
+
+Electron's Squirrel `autoUpdater` also exposes no supported API for aborting an in-flight download.
+`dispose()` cancels this controller's timers and ignores late events during shutdown, but that is not
+a user-driven package-download cancellation. That acceptance case remains open rather than being
+renamed into a passing test. Until the immutable pair and that supported cancellation route exist,
+the feature is locally implemented and regression-tested but the full installed-client claim is
+blocked.
 
 ## Related
 

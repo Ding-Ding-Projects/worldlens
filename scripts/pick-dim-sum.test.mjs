@@ -1,59 +1,15 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
+  fetchJson,
   parseArgs,
-  readBoundedResponse,
-  resolveOutputPath,
+  selectUnusedDish,
   validateAsset,
   validateDish,
-  verifyPng,
   workflowOutputText,
 } from "./pick-dim-sum.mjs";
-
-const CRC32_TABLE = new Uint32Array(256);
-for (let index = 0; index < CRC32_TABLE.length; index++) {
-  let value = index;
-  for (let bit = 0; bit < 8; bit++) {
-    value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-  }
-  CRC32_TABLE[index] = value >>> 0;
-}
-
-function crc32(buffer) {
-  let crc = 0xffffffff;
-  for (const byte of buffer)
-    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function pngChunk(type, data = Buffer.alloc(0)) {
-  const typeBytes = Buffer.from(type, "ascii");
-  const chunk = Buffer.alloc(12 + data.length);
-  chunk.writeUInt32BE(data.length, 0);
-  typeBytes.copy(chunk, 4);
-  data.copy(chunk, 8);
-  chunk.writeUInt32BE(crc32(Buffer.concat([typeBytes, data])), 8 + data.length);
-  return chunk;
-}
-
-function structuralPng(
-  chunks = [pngChunk("IDAT", Buffer.from([1, 2, 3]))],
-  configureHeader,
-) {
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(1, 0);
-  header.writeUInt32BE(1, 4);
-  header[8] = 8;
-  header[9] = 6;
-  configureHeader?.(header);
-  return Buffer.concat([
-    Buffer.from("89504e470d0a1a0a", "hex"),
-    pngChunk("IHDR", header),
-    ...chunks,
-    pngChunk("IEND"),
-  ]);
-}
 
 function validDish(altEn = "Warm tea-house photograph of Classic Har Gow") {
   return {
@@ -61,255 +17,131 @@ function validDish(altEn = "Warm tea-house photograph of Classic Har Gow") {
     slug: "classic-har-gow",
     name: { en: "Classic Har Gow", zhHant: "蝦餃。「茶樓」" },
     jyutping: "haa1 gaau2",
-    category: "steamed-dim-sum",
     image: { alt: { en: altEn } },
   };
 }
 
-test("legitimate Traditional Chinese punctuation and a real 235-character alt are accepted", () => {
+function validResult() {
+  return {
+    ...validateDish(validDish(), "hk-dish-0001"),
+    fileName: "hk-dish-0001-classic-har-gow.png",
+    bytes: 4096,
+    volume: "catalog-v1.1",
+    sourceUrl:
+      "https://github.com/Ding-Ding-Projects/dim-sum-photos/releases/download/catalog-v1.1/" +
+      "hk-dish-0001-classic-har-gow.png",
+  };
+}
+
+test("authoritative bilingual names and the real 235-character alt are accepted", () => {
   const prefix = "Warm tea-house photograph of Classic Har Gow, showing ";
   const alt = prefix + "a".repeat(235 - prefix.length);
-  assert.equal([...alt].length, 235);
   const result = validateDish(validDish(alt), "hk-dish-0001");
+  assert.equal(result.nameEn, "Classic Har Gow");
   assert.equal(result.nameZh, "蝦餃。「茶樓」");
   assert.equal(result.altEn, alt);
+  assert.throws(() => validateDish(validDish("a".repeat(236)), "hk-dish-0001"), /235/);
 });
 
-test("an alt beyond the supported catalog boundary is rejected", () => {
+test("an exhausted catalog fails without reusing an earlier release code name", () => {
+  assert.equal(selectUnusedDish([validDish()], 1).nameEn, "Classic Har Gow");
   assert.throws(
-    () => validateDish(validDish("a".repeat(236)), "hk-dish-0001"),
-    /235/,
+    () => selectUnusedDish([validDish()], 2),
+    /no unused published-name record hk-dish-0002/,
   );
 });
 
-test("missing and wrong-type catalog fields are rejected without echoing their values", () => {
-  const missing = validDish();
-  delete missing.name;
-  assert.throws(() => validateDish(missing, "hk-dish-0001"), /dish\.name/);
-
-  const wrongType = validDish();
-  wrongType.image.alt.en = 42;
-  assert.throws(() => validateDish(wrongType, "hk-dish-0001"), /expected text/);
-});
-
-test("control, line-separator, shell and Markdown syntax is rejected without disclosure", () => {
+test("network metadata is bounded to one published public catalog asset URL", () => {
+  const result = validResult();
+  const asset = validateAsset(
+    {
+      name: result.fileName,
+      size: result.bytes,
+      browser_download_url: result.sourceUrl,
+    },
+    result.volume,
+    result.fileName,
+  );
+  assert.equal(asset.sourceUrl, result.sourceUrl);
   for (const unsafe of [
-    "\n",
-    "\r",
-    "\0",
-    "\u2028",
-    "`",
-    "$",
-    '"',
-    ";",
-    "&",
-    "|",
-    "<",
-    ">",
-    "[",
-    "]",
+    `https://example.invalid/${result.fileName}`,
+    `https://github.com/Ding-Ding-Projects/other/releases/download/${result.volume}/${result.fileName}`,
+    `${result.sourceUrl}?download=1`,
   ]) {
-    const dish = validDish();
-    dish.name.en = `Unsafe${unsafe}metadata`;
     assert.throws(
-      () => validateDish(dish, "hk-dish-0001"),
-      (error) => {
-        assert.match(error.message, /dish\.name\.en/);
-        assert.equal(error.message.includes(dish.name.en), false);
-        return true;
-      },
+      () =>
+        validateAsset(
+          { name: result.fileName, size: result.bytes, browser_download_url: unsafe },
+          result.volume,
+          result.fileName,
+        ),
+      /selected catalog release asset URL/,
     );
   }
 });
 
-test("asset metadata is bounded to the selected public catalog release", () => {
-  const fileName = "hk-dish-0001-classic-har-gow.png";
-  const asset = validateAsset(
-    {
-      name: fileName,
-      size: 4096,
-      browser_download_url:
-        "https://github.com/Ding-Ding-Projects/dim-sum-photos/releases/download/catalog-v1.1/" +
-        fileName,
-    },
-    "catalog-v1.1",
-    fileName,
-  );
-  assert.equal(asset.fileName, fileName);
-  assert.throws(
-    () =>
-      validateAsset(
-        {
-          name: fileName,
-          size: 4096,
-          browser_download_url: `https://example.invalid/${fileName}`,
-        },
-        "catalog-v1.1",
-        fileName,
-      ),
-    /selected catalog release asset URL/,
-  );
-});
-
-test("PNG verification parses every chunk and validates CRC integrity", () => {
-  const png = structuralPng();
-  assert.deepEqual(verifyPng(png, png.length), { width: 1, height: 1 });
-
-  const corrupt = Buffer.from(png);
-  corrupt[corrupt.length - 17] ^= 0xff;
-  assert.throws(() => verifyPng(corrupt, corrupt.length), /CRC mismatch/);
-});
-
-test("truncated and false-IEND envelopes are rejected", () => {
-  const png = structuralPng();
-  assert.throws(
-    () => verifyPng(png.subarray(0, -2), png.length - 2),
-    /truncated/,
-  );
-
-  const falseEnd = Buffer.concat([
-    Buffer.from("89504e470d0a1a0a", "hex"),
-    Buffer.alloc(20),
-    Buffer.from("IEND0000", "ascii"),
-  ]);
-  assert.throws(() => verifyPng(falseEnd, falseEnd.length), /verification/);
-});
-
-test("PNG ordering, IHDR combinations and the reserved chunk bit are enforced", () => {
-  const imageData = pngChunk("IDAT", Buffer.from([1]));
-  const palette = pngChunk("PLTE", Buffer.from([0, 0, 0]));
-  assert.throws(
-    () => verifyPng(structuralPng([imageData, palette]), undefined),
-    /PLTE/,
-  );
-
-  const text = pngChunk("tEXt", Buffer.from("note"));
-  assert.throws(
-    () => verifyPng(structuralPng([imageData, text, imageData]), undefined),
-    /IDAT ordering/,
-  );
-
-  assert.throws(
-    () =>
-      verifyPng(
-        structuralPng(undefined, (header) => {
-          header[8] = 1;
-        }),
-        undefined,
-      ),
-    /bit-depth\/color pair/,
-  );
-
-  const reservedBit = pngChunk("abcD", Buffer.from([1]));
-  assert.throws(
-    () => verifyPng(structuralPng([reservedBit, imageData]), undefined),
-    /reserved chunk bit/,
-  );
-
-  const threeEntryPalette = pngChunk(
-    "PLTE",
-    Buffer.from([0, 0, 0, 127, 127, 127, 255, 255, 255]),
-  );
-  assert.throws(
-    () =>
-      verifyPng(
-        structuralPng([threeEntryPalette, imageData], (header) => {
-          header[8] = 1;
-          header[9] = 3;
-        }),
-        undefined,
-      ),
-    /PLTE/,
-  );
-});
-
-test("Content-Length and streamed bytes are capped before a full buffer is accepted", async () => {
-  const declaredTooLarge = new Response(new Uint8Array([1]), {
-    headers: { "content-length": "11" },
-  });
-  await assert.rejects(
-    () => readBoundedResponse(declaredTooLarge, 10),
-    /Content-Length/,
-  );
-
-  const streamedTooLarge = new Response(
-    new ReadableStream({
-      start(controller) {
-        controller.enqueue(new Uint8Array(6));
-        controller.enqueue(new Uint8Array(6));
-        controller.close();
-      },
-    }),
-  );
-  await assert.rejects(
-    () => readBoundedResponse(streamedTooLarge, 10),
-    /streamed body/,
-  );
-});
-
-test("workflow output contains only the five consumed, validated single-line fields", () => {
-  const dish = validateDish(validDish(), "hk-dish-0001");
-  const output = workflowOutputText({
-    ...dish,
-    fileName: "hk-dish-0001-classic-har-gow.png",
-    volume: "catalog-v1.1",
-  });
+test("workflow output contains only validated names, alt text, and the public photo URL", () => {
+  const output = workflowOutputText(validResult());
   assert.deepEqual(
     output.split("\n").map((line) => line.slice(0, line.indexOf("="))),
-    [
-      "dish_name_en",
-      "dish_name_zh",
-      "dish_file_name",
-      "dish_alt_en",
-      "dish_volume",
-    ],
+    ["dish_name_en", "dish_name_zh", "dish_alt_en", "dish_photo_url"],
   );
+  assert.match(output, /Ding-Ding-Projects\/dim-sum-photos\/releases\/download/);
 });
 
-test("workflow output rejects controls, wrong types, oversized and Markdown-active fields", () => {
-  const result = {
-    ...validateDish(validDish(), "hk-dish-0001"),
-    fileName: "hk-dish-0001-classic-har-gow.png",
-    volume: "catalog-v1.1",
-  };
-  for (const [field, unsafe] of [
-    ["nameEn", "Classic\rHar Gow"],
-    ["nameZh", "蝦餃`"],
-    ["altEn", "[linked alt]"],
-    ["fileName", "../escape.png"],
-    ["volume", "catalog-v1.1)"],
-  ]) {
-    assert.throws(() => workflowOutputText({ ...result, [field]: unsafe }));
+test("control, Markdown-active, wrong-type, and traversal-shaped metadata is rejected", () => {
+  for (const unsafe of ["\n", "\r", "\0", "\u2028", "`", "$", '"', ";", "&", "|", "<", ">", "[", "]"]) {
+    const dish = validDish();
+    dish.name.en = `Unsafe${unsafe}metadata`;
+    assert.throws(() => validateDish(dish, "hk-dish-0001"), /dish\.name\.en/);
   }
-  assert.throws(() => workflowOutputText({ ...result, nameEn: 42 }), /text/);
-  assert.throws(
-    () => workflowOutputText({ ...result, altEn: "a".repeat(236) }),
-    /235/,
-  );
-});
-
-test("slug validation and output resolution keep the photo inside its directory", () => {
   const traversal = validDish();
   traversal.slug = "../escape";
   assert.throws(() => validateDish(traversal, "hk-dish-0001"), /dish\.slug/);
-  assert.match(
-    resolveOutputPath("safe-output", "photo.png"),
-    /safe-output[\\/]photo\.png$/,
-  );
-  assert.throws(
-    () => resolveOutputPath("safe-output", "../escape.png"),
-    /outside the requested output directory/,
-  );
+  assert.throws(() => workflowOutputText({ ...validResult(), nameEn: 42 }), /text/);
 });
 
-test("argument bounds reject missing values and extreme ordinals", () => {
-  assert.throws(
-    () => parseArgs(["node", "script", "--ordinal", "0"]),
-    /1 through 1000000/,
+test("arguments no longer expose an output directory because no photo is written", () => {
+  assert.deepEqual(parseArgs(["node", "script", "--ordinal", "42", "--json"]), {
+    ordinal: 42,
+    json: true,
+  });
+  assert.throws(() => parseArgs(["node", "script", "--out", "copied-photo"]), /unknown/);
+  assert.throws(() => parseArgs(["node", "script", "--ordinal", "0"]), /1 through/);
+});
+
+test("the consumer picker has no photo-byte download or filesystem-write implementation", () => {
+  const source = readFileSync(new URL("./pick-dim-sum.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /fetch\(asset\.sourceUrl/);
+  assert.doesNotMatch(source, /writeFile\(|mkdir\(|verifyPng|readBoundedResponse/);
+  assert.doesNotMatch(source, /--out/);
+});
+
+test("catalog metadata intake has a real deadline and a streamed byte ceiling", async () => {
+  await assert.rejects(
+    fetchJson("https://example.invalid/hangs", false, {
+      fetchImpl: () => new Promise(() => {}),
+      timeoutMs: 10,
+      maxBytes: 64,
+    }),
+    /timed out after 10 ms/,
   );
-  assert.throws(
-    () => parseArgs(["node", "script", "--ordinal", "1000001"]),
-    /1 through 1000000/,
+
+  await assert.rejects(
+    fetchJson("https://example.invalid/oversized", false, {
+      fetchImpl: async () => new Response(new Uint8Array(65), { status: 200 }),
+      timeoutMs: 1_000,
+      maxBytes: 64,
+    }),
+    /64-byte boundary/,
   );
-  assert.throws(() => parseArgs(["node", "script", "--out"]), /arguments\.out/);
+
+  assert.deepEqual(
+    await fetchJson("https://example.invalid/valid", false, {
+      fetchImpl: async () => new Response('{"ok":true}', { status: 200 }),
+      timeoutMs: 1_000,
+      maxBytes: 64,
+    }),
+    { ok: true },
+  );
 });

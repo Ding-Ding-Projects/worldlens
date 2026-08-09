@@ -37,6 +37,7 @@ import { releaseTokenSource } from "./download/token.js";
 import { totalmem } from "node:os";
 import {
     createFileUpdateFeedHandoff,
+    createFileUpdateInstallJournal,
     engineFromAutoUpdater,
     installUpdateIpc,
     resolveFeed,
@@ -844,6 +845,7 @@ function startUpdates(render: RenderIpc): void {
         }),
         engine: process.platform === "win32" ? engineFromAutoUpdater(autoUpdater) : null,
         feedHandoff: createFileUpdateFeedHandoff(app.getPath("userData")),
+        installJournal: createFileUpdateInstallJournal(app.getPath("userData")),
         renderInProgress: () => render.orchestrator.activeRenderIds().length > 0,
         broadcast: (state) => {
             for (const window of BrowserWindow.getAllWindows()) {

@@ -25,11 +25,21 @@
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import { UpdateController, type UpdateControllerOptions, type UpdateRestartResult } from "./controller.js";
+import {
+    UpdateController,
+    type UpdateControllerOptions,
+    type UpdateRestartContext,
+    type UpdateRestartResult,
+} from "./controller.js";
 import type { UpdateState } from "./state.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
-export const UPDATE_CHANNELS = ["update:state", "update:check", "update:restart"] as const;
+export const UPDATE_CHANNELS = [
+    "update:state",
+    "update:acknowledgeInstallOutcome",
+    "update:check",
+    "update:restart",
+] as const;
 
 /** Where a state change is pushed. One channel, carrying the whole state each time. */
 export const UPDATE_EVENT_CHANNEL = "update:event";
@@ -42,6 +52,20 @@ export interface UpdateIpc {
     dispose(): void;
 }
 
+function restartContext(value: unknown): UpdateRestartContext {
+    if (
+        typeof value === "object" &&
+        value !== null &&
+        "unsavedWork" in value &&
+        value.unsavedWork === false
+    ) {
+        return { unsavedWork: false };
+    }
+    // Missing, malformed, and true all fail safe. This also protects a newer main process
+    // from an older renderer that invokes the channel without the new context.
+    return { unsavedWork: true };
+}
+
 /**
  * Registers the update handlers and returns a `dispose`.
  *
@@ -52,13 +76,22 @@ export interface UpdateIpc {
 export function registerUpdateHandlers(ipcMain: IpcMain, options: UpdateIpcOptions): UpdateIpc {
     const { controller } = options;
 
-    ipcMain.handle("update:state", (_event: IpcMainInvokeEvent): UpdateState => controller.current());
+    ipcMain.handle("update:state", (_event: IpcMainInvokeEvent): UpdateState =>
+        controller.current(),
+    );
 
-    ipcMain.handle("update:check", (_event: IpcMainInvokeEvent): UpdateState => controller.check({ manual: true }));
+    ipcMain.handle("update:acknowledgeInstallOutcome", (_event: IpcMainInvokeEvent): void => {
+        controller.acknowledgeInstallOutcome();
+    });
+
+    ipcMain.handle("update:check", (_event: IpcMainInvokeEvent): UpdateState =>
+        controller.check({ manual: true }),
+    );
 
     ipcMain.handle(
         "update:restart",
-        (_event: IpcMainInvokeEvent): UpdateRestartResult => controller.restart(),
+        (_event: IpcMainInvokeEvent, context: unknown): UpdateRestartResult =>
+            controller.restart(restartContext(context)),
     );
 
     return {

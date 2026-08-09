@@ -68,6 +68,14 @@ export {
 } from "./feedHandoff.js";
 
 export {
+    UPDATE_INSTALL_JOURNAL_FILE,
+    createFileUpdateInstallJournal,
+    type UpdateInstallAttempt,
+    type UpdateInstallJournal,
+    type UpdateInstallOutcome,
+} from "./installJournal.js";
+
+export {
     initialUpdateState,
     isReady,
     reduceUpdate,
@@ -95,6 +103,7 @@ export {
     type UpdateControllerOptions,
     type UpdateEngine,
     type UpdateProbeResult,
+    type UpdateRestartContext,
     type UpdateRestartRefusal,
     type UpdateRestartResult,
     type UpdateTimers,

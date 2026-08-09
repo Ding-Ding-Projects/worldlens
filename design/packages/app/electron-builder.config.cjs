@@ -26,9 +26,45 @@ for (const key of [
     "CSC_KEY_PASSWORD",
     "WIN_CSC_LINK",
     "WIN_CSC_KEY_PASSWORD",
-    "CSC_IDENTITY_AUTO_DISCOVERY",
 ]) {
     delete process.env[key];
+}
+// Deleting this variable restores electron-builder's default, which allows automatic
+// certificate discovery. Set the opt-out explicitly so a runner certificate cannot be
+// discovered after the other inputs above have been cleared.
+process.env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
+
+/**
+ * Apply the tracked icon and Windows version resources without asking electron-builder's
+ * combined sign-and-edit path to touch the executable. `rcedit` edits PE resources only;
+ * the package job separately proves both the application and setup executables remain
+ * Authenticode `NotSigned` after this hook and Squirrel packaging finish.
+ *
+ * @param {import("electron-builder").AfterPackContext} context
+ */
+async function brandWindowsExecutable(context) {
+    if (context.electronPlatformName !== "win32") return;
+
+    const executableName = `${context.packager.appInfo.productFilename}.exe`;
+    // Node and rcedit accept forward slashes on Windows, so these stay ordinary strings
+    // and the CommonJS configuration needs no lint-forbidden `require()` helper.
+    const executablePath = `${context.appOutDir}/${executableName}`;
+    const iconPath = `${__dirname}/build/icon.ico`;
+    const version = context.packager.appInfo.version;
+    const { rcedit } = await import("rcedit");
+
+    await rcedit(executablePath, {
+        icon: iconPath,
+        "file-version": version,
+        "product-version": version,
+        "version-string": {
+            CompanyName: "Worldlens contributors",
+            FileDescription: "Worldlens",
+            InternalName: "Worldlens",
+            OriginalFilename: executableName,
+            ProductName: "Worldlens",
+        },
+    });
 }
 
 /** @type {import("electron-builder").Configuration} */
@@ -104,6 +140,7 @@ module.exports = {
         },
     ],
     asar: true,
+    afterPack: brandWindowsExecutable,
     // Permanent product policy: Worldlens artifacts are intentionally unsigned. Integrity is
     // supplied by HTTPS, the immutable Squirrel feed metadata, and package hashes.
     forceCodeSigning: false,
@@ -114,10 +151,9 @@ module.exports = {
         // Multi-size .ico (256px + 64px) derived from the tracked project logo.
         icon: "build/icon.ico",
         signExecutable: false,
-        // Resource editing applies the logo and version metadata; signing remains disabled.
-        // Keeping this false discarded the configured icon along with the forbidden signing
-        // pass, producing a generic Electron executable despite a valid ICO being present.
-        signAndEditExecutable: true,
+        // Branding is applied by the resource-only afterPack hook above. Keeping the combined
+        // electron-builder sign/edit route disabled prevents it from ever invoking a signer.
+        signAndEditExecutable: false,
         target: [
             {
                 target: "squirrel",

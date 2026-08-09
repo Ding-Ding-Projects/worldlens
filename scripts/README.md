@@ -1,6 +1,7 @@
 # scripts
 
-Release-time scripts. `count-lines.mjs`, `pick-dim-sum.mjs` and `lint-workflows.mjs` are plain Node with no dependencies
+Release-time scripts. `count-lines.mjs`, `pick-dim-sum.mjs`, `release-version.mjs` and
+`lint-workflows.mjs` are plain Node with no dependencies
 beyond the standard library and `git`, so they run identically on a developer machine and on a CI
 runner. `split-parts.mjs` and `join-parts.mjs` are thin command lines over the workspace package
 `@worldlens/parts`, which has to be built first; they say so and exit 2 when it is not.
@@ -69,45 +70,62 @@ prevent.
 
 ## `pick-dim-sum.mjs`
 
-Resolves the dim sum code name for a release, downloads its photo, and verifies it.
+Resolves the authoritative bilingual dim sum code name and the URL of its already-published public
+catalog photo. It never reads or writes photo bytes.
 
 ```bash
-node scripts/pick-dim-sum.mjs --ordinal 1 --out dist/dim-sum
-node scripts/pick-dim-sum.mjs --ordinal 1 --out dist/dim-sum --json
+node scripts/pick-dim-sum.mjs --ordinal 1
+node scripts/pick-dim-sum.mjs --ordinal 1 --json
 ```
 
-The photos are **not stored in this repository**. They live in the public
-`Ding-Ding-Projects/dim-sum-photos` repository, published as GitHub Release assets in capped
-volumes because one release cannot hold the full 4,000-image set. This script fetches the single
-image a release needs, at release time.
+The photos are **not stored in this repository or attached to its releases**. They live in the
+public `Ding-Ding-Projects/dim-sum-photos` repository, published as GitHub Release assets in capped
+`catalog-v1*` volumes. The script reads the canonical catalog index and release metadata, validates
+the selected record and exact asset URL, then emits a link for Worldlens release notes. It never
+downloads, copies, or caches the image in this consumer release.
 
 The volumes are not evenly sized, so the script resolves which one holds a given asset by asking
 the releases API rather than by dividing an ordinal by a page size.
 
-Dish selection is derived from the release ordinal rather than a ledger file. A ledger would
+Dish selection is derived from the monotonic workflow run number rather than a live release count
+or ledger file. A ledger would
 have to be committed back by CI, and a workflow that pushes to its own repository is the
 automation loop the project rules forbid. The ordinal is monotonic, so a dish is never silently
-reused, and the published releases are themselves the auditable mapping.
+reused, and the published releases are themselves the auditable mapping. If the catalog runs out
+of unused records, selection fails and the non-blocking release step omits the code name instead of
+wrapping to an earlier dish.
+
+## `release-version.mjs`
+
+Resolves the one SemVer shared by the Squirrel package, `app.getVersion()`, the update feed and the
+GitHub release tag. The checked-in app manifest stays at a `major.minor.0` base; run number 863
+becomes package version `major.minor.863` and tag `vmajor.minor.863`.
+
+```bash
+node scripts/release-version.mjs --package design/packages/app/package.json --run-number 863
+node scripts/release-version.mjs --package design/packages/app/package.json --run-number 863 --write-package --format lines
+```
+
+Malformed bases, leading-zero or unsafe run numbers, and any tag that is not exactly the packaged
+version with one leading `v` fail closed. Packaging and publication each invoke the helper so one
+job cannot silently recover the former split package/tag sequence.
 
 Network metadata is schema-, type-, character- and length-checked before it becomes runner state.
 The live 2,866-record catalog validates in full, including its real 235-character longest English
-alternative text and Traditional Chinese punctuation. Rejected values are not printed. Public
-asset URLs are pinned to the catalog repository, downloads receive no release token, and both
-`Content-Length` and streamed bytes are capped at 50 MiB before a full buffer is accepted.
-
-Downloaded bytes are verified before anything ships them: manifest size, every PNG chunk and CRC,
-critical-chunk ordering, a terminal zero-length `IEND`, supported IHDR methods and bounded
-dimensions. Indexed palettes are also bounded by the IHDR bit depth. This is chunk/CRC verification,
-not a full pixel decode. **Nothing is generated.** On failure the release continues without a
-code-name photo and says which validation boundary failed, rather than substituting an image.
+alternative text and Traditional Chinese punctuation. Rejected values are not printed. The public
+URL must be HTTPS on `github.com`, must point to the selected `catalog-v1*` asset, and may not carry
+credentials, a port, query, or fragment. **Nothing is generated or downloaded.** On failure the
+release continues without a code name or photo link and names the failed catalog step rather than
+substituting an image.
 
 ## `lint-workflows.mjs`
 
-Guards the three release steps that accept dynamic metadata:
+Guards the six release steps that accept dynamic metadata:
 
 ```bash
 node scripts/lint-workflows.mjs
-node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
+node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
+node scripts/build-changelog.mjs --check
 ```
 
 Its hand-written inventory pins each expected environment variable to its exact Actions expression
@@ -115,9 +133,14 @@ and pins the complete normalized `env` and `run` blocks with SHA-256. Any added 
 fails, including a line that recovers data indirectly through `printenv` or shell parameter
 indirection. It additionally scans every executable region in the release job and fingerprints the
 complete job, so a differently named adjacent shell step is not outside the inventory. The same
-guard inventories all 49 external action uses in `ci.yml` and
-`build-jars.yml`, requires immutable full SHAs, disables persisted checkout credentials and proves
-the release depends on the workflow-security job. The tests read the exact historical workflows
+guard inventories all 114 external action uses across all seven executable workflows, requires
+immutable full SHAs and explicit supported hosted images, disables persisted checkout credentials,
+and proves the release depends on every fatal workflow-security, test, render and packaging job.
+Screenshot capture is separately required to remain advisory through job-level
+`continue-on-error: true` and must stay outside the publisher's `needs` list. The same early job
+proves the committed
+changelog outputs are current; generated-only commits are excluded by the generator so this gate
+is satisfiable. The tests read the exact historical workflows
 from Git: 11 findings at recovered revision `98988e3`, 19 at the assigned
 `e13777927876a3d7898778f18193e9465bc97cc2` baseline, and zero in the fixed workflow.
 

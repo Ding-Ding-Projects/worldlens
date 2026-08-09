@@ -31,6 +31,18 @@ See [Rendering engines](#rendering-engines).
 · [all releases](https://github.com/Ding-Ding-Projects/worldlens/releases)
 · [documentation site](https://ding-ding-projects.github.io/worldlens/)
 
+Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
+unknown-publisher warning. A publish is allowed only after every required test, security,
+rendering and packaging gate passes. Screenshot capture remains visible diagnostic evidence, but a
+capture failure is advisory and never blocks an otherwise valid release. The packaging job clears
+its validated output locations, accepts exactly one fresh
+`Setup.exe`, one full `.nupkg`, optional delta packages and a non-empty matching `RELEASES`, then
+checks every emitted executable is Authenticode `NotSigned`. Release notes identify the exact
+commit and timing, include the reproducible line-count and SHA-256 tables, and link the bilingual
+code name to its existing public photo in
+[`Ding-Ding-Projects/dim-sum-photos`](https://github.com/Ding-Ding-Projects/dim-sum-photos).
+Worldlens never downloads, copies or attaches that catalog photo to its own release.
+
 The documentation site is a full Material Design 3 Expressive application shell rather than a
 long static page. It has adaptive collapsible navigation, real browser-style tabs, all four tab
 searches with anchored regex builders, persisted appearance/language/tone settings, the

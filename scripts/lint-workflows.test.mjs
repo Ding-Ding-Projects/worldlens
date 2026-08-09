@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 
 import {
@@ -173,8 +173,15 @@ for (const [lineEnding, workflow] of [
   });
 }
 
-test("all 52 release-chain actions are SHA-pinned and checkouts erase credentials", () => {
-  for (const file of Object.keys(ACTION_INVENTORIES)) {
+test("all 117 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+  const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
+  const workflowFiles = readdirSync(".github/workflows")
+    .filter((name) => /\.ya?ml$/i.test(name))
+    .map((name) => `.github/workflows/${name}`)
+    .sort();
+  assert.deepEqual(inventoryFiles, workflowFiles);
+
+  for (const file of inventoryFiles) {
     assert.deepEqual(
       actionDependencyProblems(readFileSync(file, "utf8"), file),
       [],
@@ -187,7 +194,7 @@ test("all 52 release-chain actions are SHA-pinned and checkouts erase credential
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    52,
+    117,
   );
   assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
 });
@@ -237,6 +244,32 @@ test("the unsigned-installer warning cannot lose or detach its alert opener", ()
 
 test("mutable action tags, retained checkout credentials and missing root gates fail", () => {
   const workflow = readFileSync(FILE, "utf8");
+  // The checkout's own line ending, for the two mutations below that span more than one
+  // line. Everything else here replaces a fragment that never crosses a newline and so
+  // reads the same on either platform, but a needle with a hard-coded "\n" in it simply
+  // does not occur in a CRLF working copy - the replace silently changes nothing, the
+  // mutation comes back identical to the original, and the test fails claiming a security
+  // contract is missing when the workflow is entirely correct. That is the same failure
+  // `DockerWorldSourcePanel.test.ts` records for the same reason.
+  const eol = workflow.includes("\r\n") ? "\r\n" : "\n";
+  assert.equal(
+    workflow.match(/node scripts\/release-version\.mjs/g)?.length,
+    2,
+    "packaging and publication must both use the committed version resolver",
+  );
+  assert.equal(workflow.includes('-build.${GITHUB_RUN_NUMBER}'), false);
+
+  const splitVersionIdentity = workflow.replace(
+    'if [ "$tag" != "v$version" ]; then',
+    'tag="v${version}-build.${GITHUB_RUN_NUMBER}"',
+  );
+  assert.notEqual(splitVersionIdentity, workflow);
+  assert.ok(
+    actionDependencyProblems(splitVersionIdentity, FILE).some((problem) =>
+      /security contract must run exactly once/.test(problem.message),
+    ),
+  );
+
   const mutable = workflow.replace(
     "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
     "actions/checkout@v4",
@@ -258,7 +291,7 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
 
   const unwired = workflow.replace(
-    "node --test scripts/bootstrap.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs",
     "echo skipped",
   );
   assert.ok(
@@ -277,13 +310,66 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const bypassedGuard = workflow.replace(
+  const skippedFatalGate = workflow.replace(
     "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
-    "needs: [check, package, jars, test-world, config-java-roundtrip]",
+    "needs: [check, workflows, package, jars, test-world]",
   );
+  assert.notEqual(skippedFatalGate, workflow);
   assert.ok(
-    actionDependencyProblems(bypassedGuard, FILE).some((problem) =>
+    actionDependencyProblems(skippedFatalGate, FILE).some((problem) =>
       /release must depend/.test(problem.message),
+    ),
+  );
+
+  const screenshotGate = workflow.replace(
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]",
+  );
+  assert.notEqual(screenshotGate, workflow);
+  assert.ok(
+    actionDependencyProblems(screenshotGate, FILE).some((problem) =>
+      /release must depend/.test(problem.message),
+    ),
+  );
+
+  const fatalScreenshots = workflow.replace(
+    "continue-on-error: true",
+    "continue-on-error: false",
+  );
+
+  const collapsedApplicationDirectory = workflow.replace(
+    `          $applicationDirectories = @(${eol}            @(${eol}`,
+    `          $applicationDirectories = @(${eol}`,
+  );
+  assert.notEqual(collapsedApplicationDirectory, workflow);
+  assert.ok(
+    actionDependencyProblems(collapsedApplicationDirectory, FILE).some((problem) =>
+      /security contract must run exactly once/.test(problem.message),
+    ),
+  );
+  assert.notEqual(fatalScreenshots, workflow);
+  assert.ok(
+    actionDependencyProblems(fatalScreenshots, FILE).some((problem) =>
+      /screenshot capture must remain advisory/.test(problem.message),
+    ),
+  );
+
+  const unboundedScreenshots = workflow.replace(`    timeout-minutes: 20${eol}`, "");
+  assert.notEqual(unboundedScreenshots, workflow);
+  assert.ok(
+    actionDependencyProblems(unboundedScreenshots, FILE).some((problem) =>
+      /20-minute job timeout/.test(problem.message),
+    ),
+  );
+
+  const floatingRunner = workflow.replace(
+    "runs-on: ubuntu-24.04",
+    "runs-on: ubuntu-latest",
+  );
+  assert.notEqual(floatingRunner, workflow);
+  assert.ok(
+    actionDependencyProblems(floatingRunner, FILE).some((problem) =>
+      /explicit supported image/.test(problem.message),
     ),
   );
 
@@ -294,6 +380,17 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
   assert.ok(
     actionDependencyProblems(mutableReusable, BUILD_JARS_FILE).some((problem) =>
+      /not in the exact SHA inventory/.test(problem.message),
+    ),
+  );
+
+  const pagesFile = ".github/workflows/pages.yml";
+  const mutablePages = readFileSync(pagesFile, "utf8").replace(
+    "actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+    "actions/deploy-pages@v4",
+  );
+  assert.ok(
+    actionDependencyProblems(mutablePages, pagesFile).some((problem) =>
       /not in the exact SHA inventory/.test(problem.message),
     ),
   );
@@ -309,7 +406,7 @@ test("the hand-written inventory fails when a watched step disappears", () => {
     problems.filter((problem) =>
       /must exist exactly once/.test(problem.message),
     ).length,
-    2,
+    Object.keys(WATCHED).length - 1,
   );
 });
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiContentSaveOutline,
@@ -99,6 +99,8 @@ const emit = defineEmits<{
     consent: [];
     /** Raised after a successful save, so the shell can offer to start a render. */
     saved: [folder: string];
+    /** Lets the shell hold an updater restart before this in-memory work is discarded. */
+    "dirty-change": [dirty: boolean];
 }>();
 
 const { t } = useI18n();
@@ -512,6 +514,8 @@ async function goTo(screenId: ScreenId, entryKey: string, path: string): Promise
 const plan = computed(() => (workspace.value === null ? null : savePlan(workspace.value)));
 const issues = computed(() => (workspace.value === null ? [] : workspaceIssues(workspace.value)));
 const dirty = computed(() => workspace.value !== null && isWorkspaceDirty(workspace.value));
+watch(dirty, (value) => emit("dirty-change", value), { immediate: true });
+onUnmounted(() => emit("dirty-change", false));
 
 const saveReason = computed(() => {
     if (host === null) return hostMissingReason(t("config.shell.saving", "Saving a config folder"));

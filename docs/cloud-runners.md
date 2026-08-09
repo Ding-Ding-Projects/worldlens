@@ -3,8 +3,9 @@
 ## Behaviour
 
 Every executable job in the repository's seven GitHub Actions workflows runs on an explicit
-standard hosted label. Linux build, test, render, release and Pages work uses `ubuntu-latest`;
-the Squirrel.Windows packaging job uses `windows-latest`. Reusable-workflow call jobs name the
+standard hosted label. Linux build, test, render, release and Pages work uses `ubuntu-24.04`;
+the Squirrel.Windows packaging job uses `windows-2022`. Mutable `*-latest` aliases are rejected.
+Reusable-workflow call jobs name the
 checked-in workflow they call and cannot declare `runs-on` under GitHub Actions syntax.
 
 This restores disposable, isolated environments for a public repository. A failed or cancelled
@@ -16,10 +17,10 @@ can be validated without executing contributor-controlled code on a project-owne
 Runner selection lives beside each executable job in `.github/workflows/`. The workflows retain
 the project's ordinary declared setup:
 
-- `pnpm/action-setup@v4` reads the exact `pnpm@10.33.0` package-manager pin from
+- the SHA-pinned `pnpm/action-setup` action reads the exact `pnpm@10.33.0` package-manager pin from
   `design/package.json`;
-- `actions/setup-node@v4` selects Node 22, matching the workspace engine requirement;
-- `actions/setup-java@v4` selects the Temurin versions required by the vendored BlueMap build;
+- the SHA-pinned `actions/setup-node` action selects Node 22, matching the workspace engine requirement;
+- the SHA-pinned `actions/setup-java` action selects the Temurin versions required by the vendored BlueMap build;
 - `pnpm install --frozen-lockfile` resolves exactly `design/pnpm-lock.yaml`;
 - the workflow-lint job downloads actionlint 1.7.12 from its canonical release, verifies its
   committed SHA-256 digest, and uses shellcheck already present on hosted Ubuntu.

@@ -1,5 +1,30 @@
 # Roadmap
 
+## Automatic updater restart integrity and issue #79 closure gate (2026-08-08)
+
+**Implementation complete on `codex/release-integrity-20260808`; installed acceptance remains
+blocked by release state.** The release path now uses one monotonic SemVer for the package,
+`app.getVersion()`, Squirrel feed and GitHub tag, closing the former split identity that made the
+live update service return HTTP 204 for a newer attached package. The existing startup-plus-six-hour updater, HTTPS Squirrel feed,
+background download, package-hash handling, persistent exact-version banner, Later action, manual
+check, explicit Restart, unsigned warning, render protection and offline/corrupt-asset tests now add
+an atomic N→N+1 transition receipt, next-launch rollback/version-mismatch reporting, strict exact
+feed versions, and real reactive unsaved-configuration and unsaved-project refusals wired from both
+editors through IPC to the renderer and main-process controllers. A failed project autosave
+notification retains the dirty hold. Receipt input is bounded before parsing, and rollback/mismatch
+evidence stays durable until the renderer explicitly acknowledges its first state. A broken
+dirty-state probe and a missing/malformed IPC value fail safe, and a receipt that cannot be written
+leaves the staged update in place without quitting.
+
+The full issue is deliberately not marked done. The two inspected consecutive release candidates
+predating this code are mutable (`immutable: false`) and use the split tag/package sequence, so they cannot prove the requested immutable
+N→N+1 path. Once two immutable releases containing this code exist, the remaining gate is a clean
+isolated install/update with feed and asset-hash read-back, settings/project/history/cache and focus
+continuity, rollback/corruption/unsigned/feed-mismatch evidence, and genuine cheap-headless captures.
+Electron's Squirrel updater has no supported API to cancel an in-flight package download, so that
+user-cancellation case also remains an explicit platform/API blocker rather than a passing disposal
+test.
+
 ## Ground-up Material Design 3 Expressive Pages rewrite (2026-08-07)
 
 **Integrated into `main` at `de324d7`; exact-tip CI and live deployment proof remain
@@ -21,6 +46,7 @@ Focused shell/content/coverage/walkthrough tests, site typecheck and a productio
 except for the final full-suite and runtime matrix still to run after documentation is complete. A
 local build and explanatory animation are not live-deployment proof; exact main CI, Pages workflow
 and live URL read-back remain later gates.
+
 ## Startup resilience and Worldlens brand phase (2026-08-07)
 
 **Merged through the completion pass; packaged and hosted proof remain open.** The app
@@ -1070,3 +1096,24 @@ remembers to run the harness. Tracked as
 - [ ] Re-run the original multi-gigabyte CI-render release flow against an explicitly disposable
       repository and capture the genuine built-app recovery/success surface. This remains external
       verification; the target repository reported by the user was deliberately not mutated.
+
+## Release integrity follow-up (2026-08-08)
+
+- [x] Gate publication on workflow lint, the full application/test chain, real Java round trip,
+      jars, test-world render and Windows packaging. Keep screenshot capture diagnostic and
+      warning-only, with any images or traces uploaded without blocking publication.
+- [x] Keep signing permanently disabled, disable certificate auto-discovery, apply Windows branding
+      through a resource-only hook, and require every emitted executable to remain `NotSigned`.
+- [x] Clear package outputs first and accept only one fresh, internally consistent Squirrel set.
+- [x] Resolve bilingual code-name metadata and the authoritative public catalog URL without
+      downloading, copying or attaching the photo in this consumer release.
+- [x] Publish from an exact asset manifest, then download and verify every asset and read back the
+      exact target, notes and non-draft release metadata.
+- [x] Pin all hosted workflow labels to `ubuntu-24.04` or `windows-2022` and reject mutable,
+      self-hosted, expression-derived and unknown alternatives through an exact job inventory.
+- [x] Pin all 114 external action uses across all seven executable workflows to immutable SHAs,
+      erase checkout credentials and fail when a workflow is missing from the exact inventory.
+- [x] Make changelog freshness a satisfiable pre-release gate by excluding generated-only commits
+      and running `node scripts/build-changelog.mjs --check` over full history.
+- [ ] Record the final remote CI verdict and resulting release evidence after this candidate lands
+      on `main`; branch-only runs cannot prove the main-only publisher.

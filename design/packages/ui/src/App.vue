@@ -556,7 +556,25 @@ const mapPageActive = computed(() => tabs.value?.activePage?.id === PAGE_MAP);
  * A refusal becomes an ordinary notice rather than a thrown error: "a render is running"
  * is a sentence, not a fault.
  */
+/**
+ * Whether the two editors that can hold unsaved work are currently holding some.
+ *
+ * They are tracked as separate flags rather than one because they are owned by two
+ * components that mount and unmount independently: the configuration editor lives in the
+ * settings overlay and the project editor lives on its own destination, so a single shared
+ * flag would be cleared by whichever of them unmounted last regardless of what the other
+ * still had pending. Each emits its own state and each clears its own on unmount.
+ */
+const unsavedConfigChanges = ref(false);
+const unsavedProjectChanges = ref(false);
 const updates = createUpdates({
+    /**
+     * The updater asks before it restarts, and this is the only thing that can answer
+     * truthfully. Restart protection used to cover the configuration editor alone, which
+     * meant a half-written project could be thrown away by an update the user accepted
+     * while looking at a different page entirely.
+     */
+    hasUnsavedWork: () => unsavedConfigChanges.value || unsavedProjectChanges.value,
     onRefusal: (message: string) => {
         raiseNotice("warning", message);
     },
@@ -1068,7 +1086,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :notifications-open="notificationsOpen"
                         :settings-open="settingsOpen"
                         @select="onRailSelect"
-                        @open-palette="paletteOpen = true"
+                        @open-palette="paletteOpen = true"
                         @open-settings="openSettings()"
                     />
                 </AppearanceTarget>
@@ -1215,6 +1233,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
                                     @cloud-render="openCiRender"
+                                    @dirty-change="unsavedProjectChanges = $event"
                                 />
                             </div>
                         </template>
@@ -1400,6 +1419,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     "
                     @consent="openSettings('mojang-download-consent')"
                     @saved="configSaved"
+                    @dirty-change="unsavedConfigChanges = $event"
                 />
             </div>
 

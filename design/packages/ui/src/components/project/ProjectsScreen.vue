@@ -108,6 +108,8 @@ const emit = defineEmits<{
     openMap: [dataRoot: string, mapIds: readonly string[]];
     /** Opens the click-and-run GitHub Actions surface with this project's world prefilled. */
     cloudRender: [world: string];
+    /** Reports the editor's real serialized dirty state to process-wide restart protection. */
+    "dirty-change": [dirty: boolean];
 }>();
 
 const { t } = useI18n();
@@ -230,6 +232,11 @@ const dirty = computed(
             serializeProjectFile(openProject.value) !== serializeProjectFile(savedProject.value)),
 );
 
+// This is the same comparison that drives Save and autosave. Reporting a second inferred
+// flag from the shell would let the update guard disagree with the editor after a rejected
+// autosave notification, exactly when the visible edit exists only in renderer memory.
+watch(dirty, (value) => emit("dirty-change", value), { immediate: true });
+
 let stopAutosaveEvents: (() => void) | null = null;
 
 /**
@@ -272,6 +279,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     stopAutosaveEvents?.();
     stopAutosaveEvents = null;
+    emit("dirty-change", false);
 });
 
 async function flushPendingAutosave(): Promise<boolean> {

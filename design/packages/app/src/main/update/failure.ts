@@ -31,6 +31,10 @@ export type UpdateFailureCode =
     | "not-installed"
     /** The disk filled, or the staging folder could not be written. */
     | "staging-failed"
+    /** The next launch proved that the requested target did not replace the prior version. */
+    | "rollback"
+    /** Feed/version metadata and the version that actually started disagree. */
+    | "feed-mismatch"
     /** Recognised as nothing in particular. The original text travels as `detail`. */
     | "unknown";
 
