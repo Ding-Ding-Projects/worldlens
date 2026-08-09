@@ -69,7 +69,7 @@ import { prepareStaticHost, StaticHostError } from "@worldlens/render-actions";
 import type { StaticHostReport } from "@worldlens/render-actions";
 import { ActionsCallError } from "../cirender/actions.js";
 import { GH_COMMAND, detectGh, ghApiJson, ghApiSend, nodeProcessRunner } from "../cirender/gh.js";
-import type { GhStatus, ProcessRunner } from "../cirender/gh.js";
+import type { GhStatus, ProcessResult, ProcessRunner } from "../cirender/gh.js";
 import { listRenderIds, renderWorkspace } from "../render/workspace.js";
 
 /** The executable, named once so a test and the real runner cannot drift. */
@@ -162,6 +162,7 @@ export interface PagesFailure {
 }
 
 export interface PagesTarget {
+    readonly accountId?: string | undefined;
     readonly renderId: string;
     readonly owner: string;
     readonly repo: string;
@@ -213,6 +214,8 @@ export interface PagesPreflight {
 export interface PagesRecord {
     readonly version: number;
     readonly renderId: string;
+    /** Secret-free gh account identifier used to keep restart actions on the original host. */
+    readonly accountId: string | null;
     readonly owner: string;
     readonly repo: string;
     readonly branch: string;
@@ -339,6 +342,25 @@ function sentence(error: unknown): string {
     if (error instanceof Error && error.message.length > 0) return error.message;
     const text = String(error);
     return text.length > 0 ? text : "The map could not be published, and nothing said why.";
+}
+
+function needsGhSignInFromCli(stderr: string): boolean {
+    return /\bHTTP (?:401|403)\b|authentication|authorization|not authorized|insufficient scope|SSO/i.test(
+        stderr,
+    );
+}
+
+/**
+ * A Git command using the gh credential helper may emit transport diagnostics. Those bytes
+ * are inspected only for the bounded reauthentication discriminator above and are never
+ * returned to the renderer.
+ */
+function credentialGitFailureDetail(result: ProcessResult): string {
+    if (!result.started) return "Git could not be started. Its diagnostic output was withheld.";
+    if (result.code === null) {
+        return "Git stopped without an exit code. Its diagnostic output was withheld.";
+    }
+    return `Git exited with code ${String(result.code)}. Its diagnostic output was withheld.`;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -572,6 +594,7 @@ export class PagesHost {
             return {
                 version: typeof row["version"] === "number" ? row["version"] : 1,
                 renderId,
+                accountId: text(row["accountId"]),
                 owner,
                 repo,
                 branch: text(row["branch"]) ?? DEFAULT_PAGES_BRANCH,
@@ -798,7 +821,7 @@ export class PagesHost {
     }
 
     /** Continue a publish that left a durable record before the application stopped. */
-    async resume(renderId: string): Promise<PagesResult> {
+    async resume(renderId: string, resolvedAccountId?: string): Promise<PagesResult> {
         const saved = await this.readRecord(renderId);
         if (saved === null || saved.stage === "finished") {
             return {
@@ -813,6 +836,9 @@ export class PagesHost {
         }
         return this.publish({
             renderId: saved.renderId,
+            ...((saved.accountId ?? resolvedAccountId) === undefined
+                ? {}
+                : { accountId: saved.accountId ?? resolvedAccountId }),
             owner: saved.owner,
             repo: saved.repo,
             branch: saved.branch,
@@ -903,6 +929,7 @@ export class PagesHost {
         const owner = request.owner.trim();
         const repo = request.repo.trim();
         const renderId = request.renderId;
+        const accountId = request.accountId ?? null;
         const notes: string[] = [];
 
         const saved = await this.readRecord(renderId);
@@ -926,6 +953,7 @@ export class PagesHost {
 
         await this.writeStageRecord({
             renderId,
+            accountId,
             owner,
             repo,
             branch,
@@ -961,6 +989,7 @@ export class PagesHost {
 
         await this.writeStageRecord({
             renderId,
+            accountId,
             owner,
             repo,
             branch,
@@ -1104,6 +1133,7 @@ export class PagesHost {
         }
         await this.writeStageRecord({
             renderId,
+            accountId,
             owner,
             repo,
             branch,
@@ -1146,6 +1176,8 @@ export class PagesHost {
                 "credential.helper=",
                 "-c",
                 `credential.helper=!${GH_COMMAND} auth git-credential`,
+                "-c",
+                "credential.interactive=false",
                 "push",
                 "--force",
                 `https://github.com/${owner}/${repo}.git`,
@@ -1157,7 +1189,8 @@ export class PagesHost {
                 throw new PagesRefusal(
                     "push-refused",
                     `GitHub refused the push to ${owner}/${repo}.`,
-                    pushResult.stderr.trim(),
+                    credentialGitFailureDetail(pushResult),
+                    needsGhSignInFromCli(pushResult.stderr),
                 );
             }
         }
@@ -1181,6 +1214,7 @@ export class PagesHost {
         }
         await this.writeStageRecord({
             renderId,
+            accountId,
             owner,
             repo,
             branch,
@@ -1197,6 +1231,7 @@ export class PagesHost {
         await this.enablePages(owner, repo, branch, signal, notes);
         await this.writeStageRecord({
             renderId,
+            accountId,
             owner,
             repo,
             branch,
@@ -1217,6 +1252,7 @@ export class PagesHost {
         /* -- verify ----------------------------------------------------- */
         await this.writeStageRecord({
             renderId,
+            accountId,
             owner,
             repo,
             branch,
@@ -1254,7 +1290,7 @@ export class PagesHost {
             owner,
             repo,
             branch,
-            repositoryUrl: repository ?? `https://github.com/${owner}/${repo}`,
+            repositoryUrl: repository,
             commit,
             pushVerified,
             status,
@@ -1264,7 +1300,7 @@ export class PagesHost {
             site,
             notes,
         };
-        await this.writeRecord(report);
+        await this.writeRecord(report, accountId);
         return report;
     }
 
@@ -1373,10 +1409,17 @@ export class PagesHost {
         visibility: "public" | "private" | undefined,
         signal: AbortSignal,
         notes: string[],
-    ): Promise<string | null> {
+    ): Promise<string> {
         const call = { runner: this.runner, signal };
         const found = record(await ghJsonOrNull(`repos/${owner}/${repo}`, call));
-        if (found !== null) return text(found["html_url"]);
+        if (found !== null) {
+            const url = text(found["html_url"]);
+            if (url !== null) return url;
+            throw new PagesRefusal(
+                "repo-url-missing",
+                `${owner}/${repo} exists, but GitHub CLI did not return its repository address.`,
+            );
+        }
 
         const wanted = visibility ?? "public";
         const result = await this.runner.run(
@@ -1392,10 +1435,12 @@ export class PagesHost {
             { signal },
         );
         if (!result.started || result.code !== 0) {
+            const needsGhSignIn = needsGhSignInFromCli(result.stderr);
             throw new PagesRefusal(
                 "repo-refused",
                 `${owner}/${repo} does not exist and could not be created.`,
                 result.stderr.trim(),
+                needsGhSignIn,
             );
         }
         notes.push(`Created ${owner}/${repo} as a ${wanted} repository.`);
@@ -1405,7 +1450,15 @@ export class PagesHost {
                     "turning Pages on will be refused.",
             );
         }
-        return `https://github.com/${owner}/${repo}`;
+        const created = record(await ghJsonOrNull(`repos/${owner}/${repo}`, call));
+        const createdUrl = created === null ? null : text(created["html_url"]);
+        if (createdUrl === null) {
+            throw new PagesRefusal(
+                "repo-verification-failed",
+                `${owner}/${repo} was created, but GitHub CLI could not verify its repository address.`,
+            );
+        }
+        return createdUrl;
     }
 
     /**
@@ -1557,10 +1610,11 @@ export class PagesHost {
         return { status, url };
     }
 
-    private async writeRecord(report: PagesPublishReport): Promise<void> {
+    private async writeRecord(report: PagesPublishReport, accountId: string | null): Promise<void> {
         await this.writeRecordValue({
             version: 1,
             renderId: report.renderId,
+            accountId,
             owner: report.owner,
             repo: report.repo,
             branch: report.branch,
@@ -1582,6 +1636,7 @@ export class PagesHost {
     /** Persist a stage before entering it; a crash after this point is discoverable and resumable. */
     private async writeStageRecord(input: {
         readonly renderId: string;
+        readonly accountId: string | null;
         readonly owner: string;
         readonly repo: string;
         readonly branch: string;
@@ -1595,6 +1650,7 @@ export class PagesHost {
             await this.writeRecordValue({
                 version: 1,
                 renderId: input.renderId,
+                accountId: input.accountId,
                 owner: input.owner,
                 repo: input.repo,
                 branch: input.branch,
@@ -1678,7 +1734,7 @@ function toFailure(error: unknown): PagesFailure {
             code: `http-${String(error.status)}`,
             message: error.message,
             detail: error.url,
-            needsGhSignIn: error.status === 401,
+            needsGhSignIn: error.status === 401 || error.status === 403,
         };
     }
     if (error instanceof StaticHostError) {

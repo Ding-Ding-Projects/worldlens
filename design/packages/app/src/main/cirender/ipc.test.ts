@@ -5,8 +5,8 @@
  * channel can be reached exactly as the renderer would reach it with no Electron runtime
  * anywhere near the test.
  *
- * Two assertions matter more than the rest, and both are negative. **The token never
- * crosses**: a renderer that could ask for the credential would make every other
+ * Two assertions matter more than the rest, and both are negative. **Authorization never
+ * crosses**: a renderer that could ask for it would make every other
  * precaution in this feature decorative. And **an acknowledgement is only ever `true`**: a
  * renderer sending the string `"yes"` must not have that read as consent to publish
  * somebody's world.
@@ -17,20 +17,10 @@ import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { RepositoryReport } from "../backup/index.js";
+import { GhCredentialError, type GhCliAccountProvider } from "../ghcli/credentialBroker.js";
+import { fakeGhAccountLease } from "../ghcli/testLease.js";
 import { RecordingGitHub, repositoryJson } from "./recordingGitHub.js";
 import { ciSyncWorkspace, newCiSyncState, syncIdFor, writeCiSyncState } from "./state.js";
-import type { BackupSurface } from "./sync.js";
-import type { ProcessRunner } from "./gh.js";
-
-/** A `gh` that is not installed, so no test here spawns a real process. */
-function noGh(): ProcessRunner {
-    return {
-        run: () => Promise.resolve({ started: false, code: null, stdout: "", stderr: "spawn gh ENOENT" }),
-        runToFile: () =>
-            Promise.resolve({ started: false, code: null, bytes: 0, stderr: "spawn gh ENOENT" }),
-    };
-}
 import { CIRENDER_CHANNELS, CIRENDER_EVENT_CHANNEL, installCiRenderIpc } from "./ipc.js";
 
 type Handler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
@@ -50,7 +40,7 @@ function fakeIpcMain(): IpcMain & { readonly handlers: Map<string, Handler> } {
 }
 
 const noEvent = {} as IpcMainInvokeEvent;
-const TOKEN = "t0k3n-that-must-never-cross";
+const FORBIDDEN_RENDERER_VALUE = "synthetic-authorization-must-never-cross";
 const OWNER = "o";
 const REPO = "r";
 
@@ -91,32 +81,53 @@ afterEach(async () => {
     await rm(workDir, { recursive: true, force: true });
 });
 
-function report(isPrivate: boolean): RepositoryReport {
-    return {
-        owner: OWNER,
-        repo: REPO,
-        fullName: `${OWNER}/${REPO}`,
-        private: isPrivate,
-        canWrite: true,
-        htmlUrl: `https://github.test/${OWNER}/${REPO}`,
-        warning: isPrivate
-            ? { level: "note", message: "This repository is private." }
-            : { level: "warning", message: "This repository is PUBLIC." },
+function accountProvider(
+    calls?: (string | undefined)[],
+    accepted: string | null = null,
+    github: RecordingGitHub = new RecordingGitHub(),
+): GhCliAccountProvider {
+    return async (accountId) => {
+        calls?.push(accountId);
+        if (accepted !== null && accountId !== accepted) return null;
+        const login = accountId === "acct-2" ? "monalisa" : OWNER;
+        return fakeGhAccountLease({
+            accountId: accountId ?? "active-account",
+            login,
+            api: github.fetch,
+            run: async (args) => {
+                if (args.at(-1) === "user") {
+                    return { started: true, code: 0, stdout: JSON.stringify({ login }), stderr: "" };
+                }
+                if (args.includes("graphql")) {
+                    return {
+                        started: true,
+                        code: 0,
+                        stdout: '[{"data":{"viewer":{"organizations":{"nodes":[]}}}}]',
+                        stderr: "",
+                    };
+                }
+                if (args.some((arg) => arg.includes("user/repos"))) {
+                    return { started: true, code: 0, stdout: "[]", stderr: "" };
+                }
+                return {
+                    started: true,
+                    code: 1,
+                    stdout: "",
+                    stderr: "GraphQL: Could not resolve to a Repository with that name. (repository)",
+                };
+            },
+        });
     };
 }
 
-/**
- * The backup surface, which is now only asked to *word* the public-repository warning.
- *
- * The upload itself no longer goes through it - it goes through whichever transport the
- * sync chose - so "was anything uploaded?" is asserted against the recording API fake
- * instead, which is where a release would actually have been created.
- */
-function backupSurface(isPrivate: boolean): BackupSurface {
-    return { inspectRepository: () => Promise.resolve(report(isPrivate)) };
-}
-
-function install(options: { token?: string | null; isPrivate?: boolean; github?: RecordingGitHub } = {}) {
+function install(
+    options: {
+        signedIn?: boolean;
+        isPrivate?: boolean;
+        github?: RecordingGitHub;
+        account?: GhCliAccountProvider;
+    } = {},
+) {
     const ipcMain = fakeIpcMain();
     const broadcast: unknown[] = [];
     const github =
@@ -131,21 +142,18 @@ function install(options: { token?: string | null; isPrivate?: boolean; github?:
                 status: 200,
                 json: repositoryJson({ owner: OWNER, repo: REPO, isPrivate: options.isPrivate ?? true }),
             });
-    const backup = backupSurface(options.isPrivate ?? true);
     const ipc = installCiRenderIpc({
         ipcMain,
         storageDir: () => join(workDir, "maps"),
-        token: () => (options.token === undefined ? TOKEN : options.token),
-        runner: noGh(),
+        account:
+            options.account ??
+            (options.signedIn === false ? async () => null : accountProvider(undefined, null, github)),
         eulaAccepted: () => true,
-        backup,
         broadcast: (event) => broadcast.push(event),
-        fetch: github.fetch,
-        apiBase: "https://api.test",
         sleep: () => Promise.resolve(),
         runLookupAttempts: 1,
     });
-    return { ipcMain, ipc, broadcast, github, backup };
+    return { ipcMain, ipc, broadcast, github };
 }
 
 describe("registration", () => {
@@ -178,7 +186,7 @@ describe("what crosses", () => {
             await (ipcMain.handlers.get("cirender:active") as Handler)(noEvent),
         ];
         for (const answer of answers) {
-            expect(JSON.stringify(answer)).not.toContain(TOKEN);
+            expect(JSON.stringify(answer)).not.toContain(FORBIDDEN_RENDERER_VALUE);
         }
     });
 
@@ -218,31 +226,19 @@ describe("what crosses", () => {
 /**
  * The setup card's account picker names a stored account by id, additively, over these
  * three channels: `cirender:owners`, `cirender:preflight` and `cirender:start`. Each test
- * here proves the id in the request payload actually reaches `options.token`, not merely
- * that the channel still answers something - `install()`'s own `token` above ignores the
- * argument entirely, which is exactly the backward-compatible shape these prove keeps
- * working, and a custom recording `token` is what proves the new parameter is not decorative.
+ * here proves the id in the request payload actually reaches the broker, not merely that
+ * the channel still answers something.
  */
-describe("the account id a request names reaches the token resolver", () => {
+describe("the account id a request names reaches the gh credential broker", () => {
     it("cirender:owners resolves for the account id the request names, and for nobody without one", async () => {
         const ipcMain = fakeIpcMain();
-        const tokenCalls: (string | undefined)[] = [];
-        const github = new RecordingGitHub().on("GET", /\/user$/, { status: 200, json: { login: "monalisa", id: 2 } });
+        const accountCalls: (string | undefined)[] = [];
         installCiRenderIpc({
             ipcMain,
             storageDir: () => join(workDir, "maps"),
-            // Only answers a token for one specific account, so a call that succeeds proves
-            // that exact id was the one asked for rather than merely that some token worked.
-            token: (accountId) => {
-                tokenCalls.push(accountId);
-                return accountId === "acct-2" ? TOKEN : null;
-            },
-            runner: noGh(),
+            account: accountProvider(accountCalls, "acct-2"),
             eulaAccepted: () => true,
-            backup: backupSurface(true),
             broadcast: () => {},
-            fetch: github.fetch,
-            apiBase: "https://api.test",
             sleep: () => Promise.resolve(),
         });
 
@@ -259,12 +255,12 @@ describe("the account id a request names reaches the token resolver", () => {
         expect(withAccount.ok).toBe(true);
         expect(withAccount.login).toBe("monalisa");
 
-        expect(tokenCalls).toEqual([undefined, "acct-2"]);
+        expect(accountCalls).toEqual([undefined, "acct-2"]);
     });
 
-    it("cirender:preflight carries the account id from the request body to the token resolver", async () => {
+    it("cirender:preflight carries the account id from the request body to the account broker", async () => {
         const ipcMain = fakeIpcMain();
-        const tokenCalls: (string | undefined)[] = [];
+        const accountCalls: (string | undefined)[] = [];
         const github = new RecordingGitHub()
             .on("GET", /\/actions\/workflows\/render-world\.yml$/, {
                 status: 200,
@@ -277,16 +273,9 @@ describe("the account id a request names reaches the token resolver", () => {
         installCiRenderIpc({
             ipcMain,
             storageDir: () => join(workDir, "maps"),
-            token: (accountId) => {
-                tokenCalls.push(accountId);
-                return TOKEN;
-            },
-            runner: noGh(),
+            account: accountProvider(accountCalls, null, github),
             eulaAccepted: () => true,
-            backup: backupSurface(true),
             broadcast: () => {},
-            fetch: github.fetch,
-            apiBase: "https://api.test",
             sleep: () => Promise.resolve(),
         });
 
@@ -297,25 +286,19 @@ describe("the account id a request names reaches the token resolver", () => {
             accountId: "acct-9",
         });
 
-        expect(tokenCalls).toContain("acct-9");
+        expect(accountCalls).toContain("acct-9");
     });
 
-    it("cirender:start carries the account id from the request body to the token resolver, refused or not", async () => {
+    it("cirender:start carries the account id from the request body to the account broker, refused or not", async () => {
         const ipcMain = fakeIpcMain();
-        const tokenCalls: (string | undefined)[] = [];
+        const accountCalls: (string | undefined)[] = [];
+        const github = new RecordingGitHub();
         installCiRenderIpc({
             ipcMain,
             storageDir: () => join(workDir, "maps"),
-            token: (accountId) => {
-                tokenCalls.push(accountId);
-                return null;
-            },
-            runner: noGh(),
+            account: accountProvider(accountCalls, null, github),
             eulaAccepted: () => true,
-            backup: backupSurface(true),
             broadcast: () => {},
-            fetch: () => Promise.reject(new Error("no network expected")),
-            apiBase: "https://api.test",
             sleep: () => Promise.resolve(),
         });
 
@@ -328,7 +311,7 @@ describe("the account id a request names reaches the token resolver", () => {
             accountId: "acct-9",
         });
 
-        expect(tokenCalls).toContain("acct-9");
+        expect(accountCalls).toContain("acct-9");
     });
 });
 
@@ -338,7 +321,7 @@ describe("being signed out is an answer, not a crash", () => {
         // happen, and "neither of your two GitHub sign-ins can do this, here is why for
         // each" is exactly that. With no in-app token there is nothing to probe with, and
         // `gh` is stubbed as absent, so not a single request goes out.
-        const { ipcMain, github } = install({ token: null });
+        const { ipcMain, github } = install({ signedIn: false });
         const answer = (await (ipcMain.handlers.get("cirender:preflight") as Handler)(noEvent, {
             worldFolder: world,
             owner: OWNER,
@@ -354,7 +337,7 @@ describe("being signed out is an answer, not a crash", () => {
     });
 
     it("still answers cirender:active and cirender:cancel, which need nothing", async () => {
-        const { ipcMain } = install({ token: null });
+        const { ipcMain } = install({ signedIn: false });
         expect(await (ipcMain.handlers.get("cirender:active") as Handler)(noEvent)).toEqual([]);
         expect(await (ipcMain.handlers.get("cirender:cancel") as Handler)(noEvent, "nope")).toBe(false);
     });
@@ -435,10 +418,42 @@ describe("listing what this computer remembers", () => {
 
 describe("the setup card's own three channels", () => {
     it("cirender:owners answers the login and orgs when signed in", async () => {
-        const github = new RecordingGitHub()
-            .on("GET", /\/user$/, { status: 200, json: { login: OWNER } })
-            .on("GET", /\/user\/orgs/, { status: 200, json: [{ login: "the-nether-guild" }] });
-        const { ipcMain } = install({ github });
+        const account: GhCliAccountProvider = async () => fakeGhAccountLease({
+            accountId: "active-account",
+            login: OWNER,
+            run: async (args) => {
+                if (args.at(-1) === "user") {
+                    return {
+                        started: true,
+                        code: 0,
+                        stdout: JSON.stringify({ login: OWNER }),
+                        stderr: "",
+                    };
+                }
+                return {
+                    started: true,
+                    code: 0,
+                    stdout: JSON.stringify([
+                        {
+                            data: {
+                                viewer: {
+                                    organizations: {
+                                        nodes: [
+                                            {
+                                                login: "the-nether-guild",
+                                                viewerCanCreateRepositories: true,
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ]),
+                    stderr: "",
+                };
+            },
+        });
+        const { ipcMain } = install({ account });
 
         const answer = (await (ipcMain.handlers.get("cirender:owners") as Handler)(noEvent)) as {
             ok: true;
@@ -458,7 +473,7 @@ describe("the setup card's own three channels", () => {
 
     it("cirender:owners answers signedIn: false without calling GitHub, not a throw", async () => {
         const github = new RecordingGitHub();
-        const { ipcMain } = install({ token: null, github });
+        const { ipcMain } = install({ signedIn: false, github });
 
         const answer = (await (ipcMain.handlers.get("cirender:owners") as Handler)(noEvent)) as {
             ok: false;
@@ -484,14 +499,43 @@ describe("the setup card's own three channels", () => {
     });
 
     it("cirender:checkRepoName reports taken, available and unknown honestly", async () => {
-        const github = new RecordingGitHub()
-            .on("GET", /\/repos\/o\/taken$/, {
-                status: 200,
-                json: repositoryJson({ owner: OWNER, repo: "taken", isPrivate: false }),
-            })
-            .on("GET", /\/repos\/o\/free$/, { status: 404, json: { message: "Not Found" } })
-            .on("GET", /\/repos\/o\/rate-limited$/, { status: 403, json: { message: "rate limited" } });
-        const { ipcMain } = install({ github });
+        const account: GhCliAccountProvider = async () => fakeGhAccountLease({
+            accountId: "active-account",
+            login: OWNER,
+            run: async (args) => {
+                const target = args.at(2);
+                if (target?.endsWith("/taken")) {
+                    return {
+                        started: true,
+                        code: 0,
+                        stdout: JSON.stringify({
+                            name: "taken",
+                            nameWithOwner: `${OWNER}/taken`,
+                            owner: { login: OWNER },
+                            isPrivate: false,
+                            url: `https://github.com/${OWNER}/taken`,
+                        }),
+                        stderr: "",
+                    };
+                }
+                if (target?.endsWith("/free")) {
+                    return {
+                        started: true,
+                        code: 1,
+                        stdout: "",
+                        stderr:
+                            "GraphQL: Could not resolve to a Repository with that name. (repository)",
+                    };
+                }
+                return {
+                    started: true,
+                    code: 1,
+                    stdout: "",
+                    stderr: "HTTP 503: service unavailable",
+                };
+            },
+        });
+        const { ipcMain } = install({ account });
         const handler = ipcMain.handlers.get("cirender:checkRepoName") as Handler;
 
         const taken = (await handler(noEvent, { owner: OWNER, repo: "taken" })) as { status: string };
@@ -516,6 +560,25 @@ describe("the setup card's own three channels", () => {
 
         expect(answer.status).toBe("unknown");
         expect(github.calls).toHaveLength(0);
+    });
+
+    it("preserves direct reauthentication recovery when repository creation cannot acquire its write lease", async () => {
+        const { ipcMain } = install({
+            account: async () => {
+                throw new GhCredentialError(
+                    "account-unhealthy",
+                    "The selected GitHub CLI account needs reauthentication.",
+                );
+            },
+        });
+        const answer = (await (ipcMain.handlers.get("cirender:createRepository") as Handler)(noEvent, {
+            ownerLogin: OWNER,
+            ownerKind: "user",
+            name: "fresh",
+            private: true,
+        })) as { ok: false; code: string; needsSignIn?: boolean };
+
+        expect(answer).toMatchObject({ ok: false, code: "cli-failed", needsSignIn: true });
     });
 });
 
@@ -616,6 +679,52 @@ describe("cirender:scheduleRead and cirender:scheduleWrite", () => {
             name: "CIRENDER_SCHEDULE_WORLD",
             value: "mbm-ci-world-2026-08-01T00-00-00Z/world.zip",
         });
+    });
+
+    it("scheduleWrite uses the durable sync account instead of a newer renderer selection", async () => {
+        const github = new RecordingGitHub()
+            .on("GET", /\/actions\/workflows\/render-world\.yml$/, {
+                status: 200,
+                json: { id: 1, name: "Render world", state: "active", path: "x" },
+            })
+            .on("PATCH", /\/actions\/variables\//, { status: 404, json: { message: "Not Found" } })
+            .on("POST", /\/actions\/variables$/, { status: 201 });
+        const accountCalls: (string | undefined)[] = [];
+        const { ipcMain } = install({
+            github,
+            account: accountProvider(accountCalls, null, github),
+            isPrivate: true,
+        });
+
+        const syncId = syncIdFor(OWNER, REPO, world, "world");
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        await writeCiSyncState(workspace.stateFile, {
+            ...newCiSyncState({
+                syncId,
+                owner: OWNER,
+                repo: REPO,
+                accountId: "acct-a",
+                worldFolder: world,
+                mapId: "world",
+                mapName: "World",
+                dimension: "minecraft:overworld",
+                at: "2026-08-01T00:00:00Z",
+            }),
+            releaseTag: "mbm-ci-world-2026-08-01T00-00-00Z",
+            assetName: "world.zip",
+        });
+
+        const answer = (await (ipcMain.handlers.get("cirender:scheduleWrite") as Handler)(noEvent, {
+            syncId,
+            accountId: "acct-b",
+            enabled: true,
+            cadence: "daily",
+        })) as { ok: true; value: { ok: boolean } };
+
+        expect(answer.ok).toBe(true);
+        expect(answer.value.ok).toBe(true);
+        expect(accountCalls).toContain("acct-a");
+        expect(accountCalls).not.toContain("acct-b");
     });
 
     it("scheduleWrite refuses to enable scheduling for a world that has never been uploaded", async () => {

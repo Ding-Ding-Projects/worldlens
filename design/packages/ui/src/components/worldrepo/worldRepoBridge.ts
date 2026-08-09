@@ -41,6 +41,7 @@ export interface WorldRepoFailure {
 }
 
 export interface WorldRepoTarget {
+    readonly accountId?: string | undefined;
     /** Absolute path to the world folder on disk. Never copied; the git work-tree itself. */
     readonly worldPath: string;
     readonly owner: string;
@@ -119,9 +120,11 @@ export interface WorldRepoPreflight {
 export interface WorldRepoRecord {
     readonly version: number;
     readonly worldPath: string;
+    readonly accountId: string | null;
     readonly owner: string;
     readonly repo: string;
     readonly branch: string;
+    readonly repositoryUrl: string | null;
     readonly stage: string;
     readonly commit: string | null;
     readonly pushVerified: boolean;
@@ -336,7 +339,7 @@ export type Answer<T> = { readonly ok: true; readonly value: T } | { readonly ok
  */
 export interface WorldRepoBridge {
     /** The signed-in GitHub account plus every organisation it can write to. */
-    owners(): Promise<Answer<readonly WorldRepoOwner[]>>;
+    owners(accountId?: string): Promise<Answer<readonly WorldRepoOwner[]>>;
     /** What a sync would do, before it does any of it. */
     preflight(target: WorldRepoTarget): Promise<Answer<WorldRepoPreflight>>;
     /** Uploads bounded commits through a leased staging ref, then atomically replaces the target branch. */
@@ -352,22 +355,25 @@ export interface WorldRepoBridge {
     /** Continues a sync whose durable stage marker says it was interrupted. */
     resume(target: WorldRepoTarget): Promise<WorldRepoSyncResult>;
     /** The branch's current commit on GitHub, without touching the local git directory. */
-    remoteTip(
-        owner: string,
-        repo: string,
-        branch?: string,
-    ): Promise<Answer<{ readonly exists: boolean; readonly sha: string | null }>>;
+    remoteTip(request: {
+        readonly owner: string;
+        readonly repo: string;
+        readonly branch?: string;
+        readonly accountId?: string;
+    }): Promise<Answer<{ readonly exists: boolean; readonly sha: string | null }>>;
     /** Which repositories in a list look like ones this application already prepared. */
     adoptionProbe(request: {
         readonly candidates: readonly WorldRepoAdoptionCandidate[];
         readonly branch?: string;
         readonly maxProbes?: number;
+        readonly accountId?: string;
     }): Promise<Answer<readonly WorldRepoAdoptionSignal[]>>;
     /** What adopting one repository would restore, or an honest refusal naming why not. */
     adoptionPlan(request: {
         readonly owner: string;
         readonly repo: string;
         readonly branch?: string;
+        readonly accountId?: string;
     }): Promise<Answer<WorldRepoAdoptionPlan>>;
     /** Subscribes to sync/remove progress. Returns the unsubscribe function. */
     onWorldRepoEvent(listener: (event: WorldRepoEvent) => void): () => void;
@@ -409,7 +415,7 @@ export function resolveWorldRepoBridge(): WorldRepoBridge | null {
 
     const ready = api as WorldRepoBridge;
     return {
-        owners: () => ready.owners(),
+        owners: (accountId) => ready.owners(accountId),
         preflight: (target) => ready.preflight(target),
         sync: (request) => ready.sync(request),
         remove: (target) => ready.remove(target),
@@ -417,7 +423,7 @@ export function resolveWorldRepoBridge(): WorldRepoBridge | null {
         active: () => ready.active(),
         records: () => ready.records(),
         resume: (target) => ready.resume(target),
-        remoteTip: (owner, repo, branch) => ready.remoteTip(owner, repo, branch),
+        remoteTip: (request) => ready.remoteTip(request),
         adoptionProbe: (request) => ready.adoptionProbe(request),
         adoptionPlan: (request) => ready.adoptionPlan(request),
         onWorldRepoEvent: (listener) => ready.onWorldRepoEvent(listener),

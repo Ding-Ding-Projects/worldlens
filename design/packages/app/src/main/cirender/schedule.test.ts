@@ -31,7 +31,7 @@ function fakeTransport(initial: Readonly<Record<string, string>> = {}): CiTransp
         );
     };
     return {
-        route: "session",
+        route: "gh",
         describe: "a fake",
         canUpload: true,
         written,

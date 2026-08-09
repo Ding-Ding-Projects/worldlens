@@ -25,8 +25,12 @@ import {
 import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import { createGitHubAccountsList } from "../github/githubAccountsStore.js";
-import type { GitHubBridge } from "../github/githubBridge.js";
+import GhEntityPicker from "../github/GhEntityPicker.vue";
+import {
+    createGhCliAccountsStore,
+    defaultGhCliAccountId,
+} from "../github/ghCliAccountsStore.js";
+import type { GhCliBridge } from "../github/ghCliBridge.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
 import { resolveWorldCatalogBridge } from "../world/worldCatalog.js";
 import type { WorldCatalogBridge } from "../world/worldCatalog.js";
@@ -91,7 +95,7 @@ import type {
  *
  * **More than one signed-in account, and picking one here never touches the others.** The
  * application can hold several GitHub accounts side by side
- * (`GitHubAccountsList.vue` in Settings is where they are added, removed and made active);
+ * (the GitHub CLI account surface in Settings is where they are added and made active);
  * before this picker existed, every call this screen made - who could own the repository,
  * whether the world was uploaded before, the credential that actually dispatches the
  * workflow - resolved to whichever one was *active*, with no way to render as a different
@@ -126,7 +130,7 @@ const props = withDefaults(
          * and belongs to `github/`, not to this screen, so it is fine for a build to carry
          * one bridge and not the other.
          */
-        accountsBridge?: GitHubBridge | null | undefined;
+        accountsBridge?: GhCliBridge | null | undefined;
         /** True when the shell can open settings at a row. */
         canOpenSettings?: boolean | undefined;
     }>(),
@@ -150,14 +154,14 @@ const bridge = props.bridge === undefined ? resolveCiRenderBridge() : props.brid
 const renders = createCiRenders(bridge);
 
 /**
- * Every GitHub account this computer has stored, and which one is active - the exact same
- * store `GitHubAccountsList.vue` drives from Settings, reused rather than forked so this
+ * Every GitHub CLI account this computer has stored, and which one is active - the exact same
+ * store `GhCliAccountsList.vue` drives from Settings, reused rather than forked so this
  * screen never carries a second idea of what an "account" is. Read-only from here: this
- * screen calls `load()` to list accounts and reads `activeId` as the picker's default, but
- * never calls `setActive()` - see "Render as" below for why. A build carrying no accounts
+ * screen calls `load()` to list accounts and reads the active row as the picker's default, but
+ * never calls the machine-wide switch - see "Render as" below for why. A build carrying no accounts
  * namespace at all reports `canList: false` and the picker section simply never renders.
  */
-const accountsList = createGitHubAccountsList(
+const accountsList = createGhCliAccountsStore(
     props.accountsBridge === undefined ? {} : { bridge: props.accountsBridge },
 );
 
@@ -291,8 +295,12 @@ const accountOrdered = computed(() =>
     [...accountsList.accounts.value].sort((a, b) => a.login.localeCompare(b.login)),
 );
 
-/** The account id every request this screen sends actually carries. Undefined for "active". */
-const effectiveAccountId = computed<string | undefined>(() => selectedAccountId.value ?? undefined);
+const brokerDefaultAccountId = computed(() => defaultGhCliAccountId(accountOrdered.value));
+
+/** The concrete account id both the picker displays and every request carries. */
+const effectiveAccountId = computed<string | undefined>(
+    () => selectedAccountId.value ?? brokerDefaultAccountId.value ?? undefined,
+);
 
 /** Shown once the multi-account registry exists on this build and has answered once. */
 const showAccountPicker = computed(() => accountsList.canList && accountsLoaded.value);
@@ -300,13 +308,28 @@ const showAccountPicker = computed(() => accountsList.canList && accountsLoaded.
 /** Nobody is signed in to GitHub at all - the "sign in" case, not "one account, nothing to choose". */
 const accountSignedOut = computed(() => accountOrdered.value.length === 0);
 
+const accountReauthenticationLabel = computed(() =>
+    t("cirender.account.reauthenticationRequired", "reauthentication required"),
+);
 const accountItems = computed(() =>
-    accountOrdered.value.map((account) => ({
-        title: account.active
-            ? t("cirender.account.itemActive", { login: account.login }, "{login} (active)")
-            : account.login,
-        value: account.id,
-    })),
+    accountOrdered.value.map((account) => {
+        const accountLabel = `${account.login} — ${account.host}`;
+        const title = account.active
+            ? t("cirender.account.itemActive", { login: accountLabel }, "{login} (active)")
+            : accountLabel;
+        const recovery = account.healthy ? null : accountReauthenticationLabel.value;
+        return {
+            title: recovery === null ? title : `${title} — ${recovery}`,
+            value: account.id,
+            searchText: [
+                account.login,
+                account.host,
+                ...account.scopes,
+                ...(recovery === null ? [] : [recovery, account.stateDetail ?? ""]),
+            ].join(" "),
+            props: { disabled: !account.healthy },
+        };
+    }),
 );
 
 /**
@@ -330,7 +353,7 @@ const accountPickerDisabledBecause = computed<string | null>(() => {
  * Chooses which stored account this render authenticates as.
  *
  * Deliberately local to this card and nowhere else: this never calls
- * `accountsList.setActive`, so it never touches which account Settings, downloads or
+ * the machine-wide account switch, so it never touches which account Settings, downloads or
  * backups already resolve to - only which one *this render* does. The owner list is
  * re-resolved for the account just chosen (its own login and organisations, not the
  * previous account's), the repository owner field is cleared because a login or
@@ -339,13 +362,15 @@ const accountPickerDisabledBecause = computed<string | null>(() => {
  * was in play before this choice.
  */
 function chooseAccount(value: unknown): void {
-    const current = selectedAccountId.value ?? accountsList.activeId.value;
+    const current = effectiveAccountId.value;
     if (typeof value !== "string" || value === current) return;
     selectedAccountId.value = value;
     owner.value = "";
     renders.clearPreflight();
+    renders.clearSchedule();
     renders.clearNameAvailability();
     if (renders.canListOwners) void renders.loadOwners(value);
+    if (renders.canListRepositories) void renders.loadRepositories(value);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -355,13 +380,14 @@ function chooseAccount(value: unknown): void {
 const ownerItems = computed(() => {
     const answer = renders.owners.value;
     if (answer === null || !answer.ok) return [];
-    return answer.owners.map((choice) => ({
+        return answer.owners.map((choice) => ({
         title:
             choice.kind === "organization"
                 ? t("cirender.owner.asOrg", { login: choice.login }, "{login} (organization)")
                 : t("cirender.owner.asYou", { login: choice.login }, "{login} (you)"),
-        value: choice.login,
-    }));
+            value: choice.login,
+            searchText: `${choice.login} ${choice.kind}`,
+        }));
 });
 
 function chooseOwner(value: unknown): void {
@@ -395,6 +421,7 @@ const repositoryItems = computed(() =>
             ? t("cirender.repo.itemPrivate", { name: repository.fullName }, "{name} (private)")
             : t("cirender.repo.itemPublic", { name: repository.fullName }, "{name} (PUBLIC)"),
         value: repository.fullName,
+        searchText: [repository.fullName, repository.owner, repository.name].join(" "),
     })),
 );
 
@@ -468,7 +495,7 @@ watch([owner, repo], ([nextOwner, nextRepo]) => {
     if (pickedRepository.value !== null) pickedRepository.value = null;
     if (trimmedOwner === "" || trimmedRepo === "" || repoProblem.value !== null) return;
     nameCheckTimer = setTimeout(() => {
-        void renders.checkRepoName(trimmedOwner, trimmedRepo);
+        void renders.checkRepoName(trimmedOwner, trimmedRepo, effectiveAccountId.value);
     }, 600);
 });
 
@@ -576,40 +603,26 @@ const readinessNeedsSetup = computed<"exists" | "missing" | null>(() => {
     return "missing";
 });
 
-/**
- * The real, working fallback for "this repository needs setting up": opens it on GitHub -
- * or, when it does not exist yet, GitHub's own prefilled "create a repository" page - so a
- * person can create it, or add the render workflow, by hand right now.
- *
- * This is the seam a repository-bootstrap operation is expected to sit in front of: a build
- * that exposes a bridge method for preparing a repository automatically (creating it,
- * committing the workflow file, confirming Actions is enabled) should call that instead,
- * following the same optional-method degrade every other capability on this card already
- * uses (`canManageSchedule`, `canListOwners`, ...) - probe for it, and fall back to this
- * button when a build does not have it. Until then, this is never a dead end: it is a real
- * browser tab a person can act on immediately.
- */
-function openRepositorySetup(): void {
-    const targetOwner = owner.value.trim();
-    const targetRepo = repo.value.trim();
-    if (targetOwner === "" || targetRepo === "") return;
-    const url =
-        readinessNeedsSetup.value === "exists"
-            ? (preflight.value?.repository?.htmlUrl ??
-              `https://github.com/${encodeURIComponent(targetOwner)}/${encodeURIComponent(targetRepo)}`)
-            : `https://github.com/new?owner=${encodeURIComponent(targetOwner)}&name=${encodeURIComponent(targetRepo)}`;
-    emit("open", url);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Preparing a repository automatically: the seam `openRepositorySetup` above */
-/* was left for. See docs/ci-repository-setup.md for the operation itself.    */
-/* -------------------------------------------------------------------------- */
+/* Repository creation and preparation stay inside the gh/main-process bridge. */
 
 /** True only when the build carries both halves of the capability - see `ciRenderBridge.ts`. */
 const canBootstrapAutomatically = computed(
     () => bridge?.bootstrapCiRepository !== undefined && bridge.onCiBootstrapEvent !== undefined,
 );
+const canCreateWithCli = computed(() => bridge?.createCiRepository !== undefined);
+const selectedOwnerKind = computed<"user" | "organization" | null>(() => {
+    const answer = renders.owners.value;
+    if (answer === null || !answer.ok) return null;
+    return (
+        answer.owners.find(
+            (choice) =>
+                choice.login.localeCompare(owner.value.trim(), undefined, {
+                    sensitivity: "accent",
+                }) === 0,
+        )?.kind ?? null
+    );
+});
+const createPrivate = ref(true);
 
 const bootstrapping = ref(false);
 const bootstrapReport = ref<CiBootstrapReport | null>(null);
@@ -624,9 +637,10 @@ const bootstrapConflict = computed(
         bootstrapFailureCode.value === "concurrent-update",
 );
 /** True only for the one failure a re-authorisation button actually fixes. */
-const bootstrapMissingScope = ref(false);
+const bootstrapNeedsReauthentication = ref(false);
 /** The single line shown while a bootstrap runs: the current phase, or the latest log line. */
 const bootstrapProgressText = ref<string | null>(null);
+const repositoryCreationMessage = ref<string | null>(null);
 let unsubscribeBootstrap: (() => void) | null = null;
 
 /**
@@ -678,8 +692,8 @@ function bootstrapPhaseLabel(phase: CiBootstrapPhase): string {
 }
 
 /**
- * Runs the real preparation when the build can, and falls back to the plain "open GitHub"
- * button otherwise - the exact degrade `openRepositorySetup`'s own doc comment describes.
+ * Creates a missing repository and prepares it without opening a browser or guessing from
+ * a stale credential. Every external fact comes back from the selected account's gh lease.
  *
  * Never a spinner that hides a failure: every event this receives updates
  * {@link bootstrapProgressText} on screen, and the outcome - every file's real action, the
@@ -695,16 +709,14 @@ async function setupRepositoryAutomatically(): Promise<boolean> {
     const targetOwner = owner.value.trim();
     const targetRepo = repo.value.trim();
     if (targetOwner === "" || targetRepo === "") return false;
-    if (bridge === null || !canBootstrapAutomatically.value) {
-        openRepositorySetup();
-        return false;
-    }
+    if (bridge === null || !canBootstrapAutomatically.value) return false;
 
     bootstrapping.value = true;
     bootstrapReport.value = null;
     bootstrapFailureMessage.value = null;
     bootstrapFailureCode.value = null;
-    bootstrapMissingScope.value = false;
+    bootstrapNeedsReauthentication.value = false;
+    repositoryCreationMessage.value = null;
     bootstrapProgressText.value = bootstrapPhaseLabel("checking-scopes");
     unsubscribeBootstrap?.();
     unsubscribeBootstrap = bridge.onCiBootstrapEvent!((event: CiBootstrapEvent) => {
@@ -716,6 +728,40 @@ async function setupRepositoryAutomatically(): Promise<boolean> {
     });
 
     try {
+        if (readinessNeedsSetup.value === "missing") {
+            if (!canCreateWithCli.value || selectedOwnerKind.value === null) {
+                bootstrapFailureMessage.value =
+                    "This build cannot create the selected repository through GitHub CLI, or the owner is no longer in the real owner list. Refresh the account and owner pickers.";
+                bootstrapProgressText.value = null;
+                return false;
+            }
+            bootstrapProgressText.value = t(
+                "cirender.bootstrap.creatingRepository",
+                "Creating the repository through GitHub CLI...",
+            );
+            const created = await bridge.createCiRepository!({
+                ...(effectiveAccountId.value === undefined
+                    ? {}
+                    : { accountId: effectiveAccountId.value }),
+                ownerLogin: targetOwner,
+                ownerKind: selectedOwnerKind.value,
+                name: targetRepo,
+                private: createPrivate.value,
+            });
+            if (!created.ok) {
+                bootstrapFailureMessage.value = created.message;
+                bootstrapNeedsReauthentication.value = created.needsSignIn === true;
+                bootstrapProgressText.value = null;
+                return false;
+            }
+            repositoryCreationMessage.value = t(
+                "cirender.bootstrap.repositoryCreated",
+                { name: created.repository.fullName },
+                "GitHub CLI created and verified {name}. Preparing its render workflow now.",
+            );
+            pickedRepository.value = { owner: targetOwner, repo: targetRepo };
+            await renders.loadRepositories(effectiveAccountId.value);
+        }
         const result = await bridge.bootstrapCiRepository!(
             targetOwner,
             targetRepo,
@@ -731,7 +777,7 @@ async function setupRepositoryAutomatically(): Promise<boolean> {
         } else {
             bootstrapFailureMessage.value = result.failure.message;
             bootstrapFailureCode.value = result.failure.code;
-            bootstrapMissingScope.value = result.failure.code === "missing-scope";
+            bootstrapNeedsReauthentication.value = result.failure.code === "missing-scope";
             bootstrapProgressText.value = null;
             return false;
         }
@@ -748,13 +794,7 @@ async function setupRepositoryAutomatically(): Promise<boolean> {
 }
 
 /**
- * What `gh` is on this machine, as one of three sentences rather than "unavailable".
- *
- * The three states have three different remedies and collapsing them sends most people to
- * the wrong one: "not installed" wants a download, "signed out" wants a command run in a
- * terminal that this application deliberately does not drive, and "ready" wants nothing at
- * all. The account is named when there is one, because a machine can be signed in to `gh`
- * as somebody other than the person expects.
+ * What the selected GitHub CLI account can do, with recovery kept on this surface.
  */
 const ghState = computed<{ tone: "info" | "warning"; text: string } | null>(() => {
     const gh = routeReport.value?.gh;
@@ -767,7 +807,7 @@ const ghState = computed<{ tone: "info" | "warning"; text: string } | null>(() =
             tone: "warning",
             text: t(
                 "cirender.gh.missing",
-                "The gh command-line tool is not on this computer, so it cannot be used as a second route. Install it from cli.github.com if you would rather render with it than with the sign-in here.",
+                "The gh command-line tool is not available, so GitHub operations cannot start. Install it from cli.github.com, then return to GitHub Settings.",
             ),
         };
     }
@@ -776,7 +816,7 @@ const ghState = computed<{ tone: "info" | "warning"; text: string } | null>(() =
             tone: "warning",
             text: t(
                 "cirender.gh.signedOut",
-                "The gh command-line tool is installed but nobody is signed in to it. Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
+                "The selected GitHub CLI account is signed out. Reauthenticate it from GitHub Settings, then check again.",
             ),
         };
     }
@@ -793,16 +833,11 @@ const ghState = computed<{ tone: "info" | "warning"; text: string } | null>(() =
     };
 });
 
-/**
- * Why the credential that is *not* driving this sync was passed over.
- *
- * Only when there is a real reason. When the in-app sign-in works, `gh` is not probed at
- * all, and "not needed" is a placeholder rather than something a person should read.
- */
+/** Why the selected GitHub CLI account cannot drive this operation, when it cannot. */
 const routeAside = computed<string | null>(() => {
     const report = routeReport.value;
     if (report === null || report.route === null) return null;
-    const reason = report.route === "gh" ? report.session.reason : report.gh.reason;
+    const reason = report.gh.reason;
     return reason === null || reason === "not needed" ? null : reason;
 });
 
@@ -844,13 +879,12 @@ const blockedBecause = computed<string | null>(() => {
             "This world packs to about {size}, past what one GitHub release asset can hold.",
         );
     }
-    // Both shipped credentials can publish a world, so this is the genuine "neither can"
-    // case rather than the old "gh cannot" one - and it names both remedies, because only
-    // the person knows which of their two GitHub sign-ins they are able to fix.
+    // The broker-backed route can publish; keep the capability check for future read-only
+    // routes and keep recovery on the selected account.
     if (report.uploadNeeded && !report.routeReport.canUpload) {
         return t(
             "cirender.blocked.uploadRoute",
-            "Neither GitHub sign-in on this computer can publish a world. Sign in to GitHub from Settings, or run `gh auth login` in a terminal, then check again.",
+            "The selected GitHub CLI account cannot publish this world. Reauthenticate it from GitHub Settings, then check again.",
         );
     }
     if (report.uploadNeeded && !acknowledgeUpload.value) {
@@ -1095,12 +1129,15 @@ onMounted(() => {
     // invisible here for as long as `loadKnown()` alone takes to catch up (see
     // `CiRenders.reconcile()`'s own doc comment), and could look startable a second time.
     void renders.reconcile();
-    if (renders.canListOwners) void renders.loadOwners(effectiveAccountId.value);
-    if (renders.canListRepositories) void renders.loadRepositories();
     if (accountsList.canList) {
         void accountsList.load().then(() => {
             accountsLoaded.value = true;
+            if (renders.canListOwners) void renders.loadOwners(effectiveAccountId.value);
+            if (renders.canListRepositories) void renders.loadRepositories(effectiveAccountId.value);
         });
+    } else {
+        if (renders.canListOwners) void renders.loadOwners();
+        if (renders.canListRepositories) void renders.loadRepositories();
     }
     // A world already prefilled from `props.worlds` is a world chosen too, so the name
     // suggestion applies to it exactly as it would to one picked or browsed after mount.
@@ -1110,7 +1147,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
     if (nameCheckTimer !== null) clearTimeout(nameCheckTimer);
     renders.dispose();
-    accountsList.dispose();
     unsubscribeBootstrap?.();
 });
 </script>
@@ -1202,54 +1238,25 @@ onBeforeUnmount(() => {
                             </VBtn>
                         </VAlert>
                         <template v-else>
-                            <VAlert
-                                type="warning"
-                                variant="tonal"
-                                density="compact"
-                                class="mb-3"
-                                data-test="gh-auto-switch-warning"
-                            >
-                                {{
-                                    t(
-                                        "cirender.account.ghSwitchWarning",
-                                        "If this render uses gh, checking or uploading may switch gh's active account for the whole computer. The selected account remains active afterward.",
-                                    )
-                                }}
-                            </VAlert>
-                            <VSelect
+                            <GhEntityPicker
                                 :items="accountItems"
-                                :model-value="selectedAccountId ?? accountsList.activeId.value"
-                                :label="t('cirender.account.pick', 'Render as')"
+                                :model-value="effectiveAccountId"
+                                :search-label="t('cirender.account.search', 'Search signed-in accounts')"
+                                :select-label="t('cirender.account.pick', 'Render as')"
+                                :selected-label="t('cirender.account.selected', 'Selected account')"
+                                :empty-message="t('cirender.account.empty', 'No GitHub CLI accounts are signed in.')"
+                                :no-match-message="t('cirender.account.noMatch', 'No signed-in account matches that search.')"
                                 :hint="
                                     t(
                                         'cirender.account.help',
-                                        'Which signed-in account this render authenticates as. Choosing a different one here does not change the active account used anywhere else in the app.',
+                                        'Which signed-in account this render authenticates as. The broker selects it for each gh command and restores the account that was active immediately afterwards. Another gh process can still change that machine-wide account between commands, so avoid running gh account changes while this operation is active.',
                                     )
                                 "
-                                persistent-hint
                                 :disabled="accountPickerDisabledBecause !== null"
-                                :title="accountPickerDisabledBecause ?? undefined"
-                                :aria-label="
-                                    accountPickerDisabledBecause !== null
-                                        ? t(
-                                              'cirender.account.disabledLabel',
-                                              { reason: accountPickerDisabledBecause },
-                                              'Render as: {reason}',
-                                          )
-                                        : undefined
-                                "
-                                variant="outlined"
-                                density="compact"
-                                data-test="account-select"
+                                :disabled-reason="accountPickerDisabledBecause"
+                                data-test-base="cirender-account-picker"
                                 @update:model-value="chooseAccount"
                             />
-                            <p
-                                v-if="accountPickerDisabledBecause !== null"
-                                class="text-medium-emphasis mt-1"
-                                data-test="account-select-disabled"
-                            >
-                                {{ accountPickerDisabledBecause }}
-                            </p>
                         </template>
                     </div>
 
@@ -1328,7 +1335,7 @@ onBeforeUnmount(() => {
                         {{
                             t(
                                 "cirender.owner.signedOut",
-                                "Nobody is signed in to GitHub, so there is no list of accounts to choose from. Sign in from Settings, or type the owner directly below.",
+                                "Nobody is signed in to GitHub, so there is no real owner list. Sign in from Settings before choosing where to render.",
                             )
                         }}
                         <VBtn
@@ -1361,27 +1368,33 @@ onBeforeUnmount(() => {
                         </VBtn>
                     </VAlert>
 
-                    <VSelect
+                    <GhEntityPicker
                         v-if="ownerItems.length > 0"
                         :items="ownerItems"
-                        :label="t('cirender.owner.pick', 'Choose an owner')"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
+                        :model-value="owner || null"
+                        :search-label="t('cirender.owner.search', 'Search personal and organization owners')"
+                        :select-label="t('cirender.owner.pick', 'Choose an owner')"
+                        :selected-label="t('cirender.owner.selected', 'Selected owner')"
+                        :empty-message="t('cirender.owner.empty', 'No owners were returned by GitHub CLI.')"
+                        :no-match-message="t('cirender.owner.noMatch', 'No real owner matches that search.')"
+                        :hint="t('cirender.owner.help', 'Owners are read through GitHub CLI for the selected account and revalidated before a repository is created.')"
                         class="mb-2"
-                        data-test="owner-select"
+                        data-test-base="cirender-owner-picker"
                         @update:model-value="chooseOwner"
                     />
 
-                    <VSelect
+                    <GhEntityPicker
                         v-if="repositoryItems.length > 0"
                         :items="repositoryItems"
-                        :label="t('cirender.repo.pick', 'One of your repositories')"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
+                        :model-value="owner && repo ? `${owner}/${repo}` : null"
+                        :search-label="t('cirender.repo.search', 'Search your repositories')"
+                        :select-label="t('cirender.repo.pick', 'One of your repositories')"
+                        :selected-label="t('cirender.repo.selectedLabel', 'Selected repository')"
+                        :empty-message="t('cirender.repo.empty', 'No writable repositories were returned by GitHub CLI.')"
+                        :no-match-message="t('cirender.repo.noMatch', 'No real repository matches that search.')"
+                        :hint="t('cirender.repo.loadedHint', 'Most recently active first, up to 300 real repositories returned by GitHub CLI.')"
                         class="mb-2"
-                        data-test="repository-select"
+                        data-test-base="cirender-repository-picker"
                         @update:model-value="chooseRepository"
                     />
                     <p
@@ -1403,21 +1416,6 @@ onBeforeUnmount(() => {
                     </VAlert>
 
                     <div class="d-flex ga-2 flex-wrap">
-                        <VTextField
-                            v-model="owner"
-                            :label="t('cirender.field.owner', 'Repository owner')"
-                            :hint="
-                                t(
-                                    'cirender.field.owner.help',
-                                    'Pick an account above, or type any owner you have write access to.',
-                                )
-                            "
-                            persistent-hint
-                            density="compact"
-                            data-test="owner-field"
-                            class="flex-grow-1"
-                            style="min-width: 200px"
-                        />
                         <VTextField
                             v-model="repo"
                             :label="t('cirender.field.repo', 'Repository name')"
@@ -1493,10 +1491,9 @@ onBeforeUnmount(() => {
                 <VCardTitle>{{ t("cirender.report.title", "What this would do") }}</VCardTitle>
                 <VCardText>
                     <!--
-                        Which credential is driving, before the button rather than after a
-                        403. A machine typically holds two GitHub sign-ins and they are not
-                        interchangeable, so the reason the other one was passed over is here
-                        too - "permission denied" is unactionable without it.
+                        Which selected GitHub CLI account is driving, before the button rather
+                        than after a 403. Accounts are not interchangeable, so the refusal
+                        stays attached to the account the user selected.
                     -->
                     <VAlert
                         :type="routeReport?.ready === true ? 'info' : 'warning'"
@@ -1563,19 +1560,29 @@ onBeforeUnmount(() => {
                                 : t(
                                       "cirender.readiness.missing",
                                       { owner: owner.trim(), repo: repo.trim() },
-                                      "{owner}/{repo} may not exist yet. If that name is free, creating it and setting it up is the next step; if it already exists privately, check that the signed-in account can see it.",
+                                      "{owner}/{repo} is not visible to the selected GitHub CLI account. A confirmed missing name can be created here; a CLI failure stays a failure and is never guessed to mean nonexistent.",
                                   )
                         }}
 
                         <!--
-                            The real thing, when this build can do it: a click that
-                            actually adds the render workflow, rather than a link to a
-                            browser tab somebody still has to act in by hand. The manual
-                            fallback stays for "missing" (this may not even exist yet, so
-                            there is nothing to prepare) and for any build without the
-                            capability.
+                            Creation and setup are both main-process gh operations. There
+                            is deliberately no browser-link fallback on this surface.
                         -->
-                        <div v-if="readinessNeedsSetup === 'exists' && canBootstrapAutomatically">
+                        <div
+                            v-if="
+                                canBootstrapAutomatically &&
+                                (readinessNeedsSetup === 'exists' || canCreateWithCli)
+                            "
+                        >
+                            <VSwitch
+                                v-if="readinessNeedsSetup === 'missing'"
+                                v-model="createPrivate"
+                                :label="t('cirender.bootstrap.private', 'Create as a private repository')"
+                                color="primary"
+                                hide-details="auto"
+                                class="mt-2"
+                                data-test="create-private"
+                            />
                             <VBtn
                                 size="small"
                                 variant="tonal"
@@ -1586,7 +1593,17 @@ onBeforeUnmount(() => {
                                 :disabled="bootstrapping"
                                 @click="setupRepositoryAutomatically"
                             >
-                                {{ t("cirender.bootstrap.action", "Set this repository up") }}
+                                {{
+                                    readinessNeedsSetup === "missing"
+                                        ? t(
+                                              "cirender.bootstrap.createAction",
+                                              "Create and set this repository up",
+                                          )
+                                        : t(
+                                              "cirender.bootstrap.action",
+                                              "Set this repository up",
+                                          )
+                                }}
                             </VBtn>
                             <p
                                 v-if="bootstrapping"
@@ -1599,28 +1616,30 @@ onBeforeUnmount(() => {
                                 {{ bootstrapProgressText }}
                             </p>
                         </div>
-                        <VBtn
+                        <p
                             v-else
-                            size="small"
-                            variant="text"
-                            class="mt-2"
-                            data-test="setup-repository"
-                            @click="openRepositorySetup"
+                            class="text-medium-emphasis mt-2"
+                            role="status"
+                            data-test="setup-unavailable"
                         >
                             {{
-                                readinessNeedsSetup === "exists"
-                                    ? t(
-                                          "cirender.readiness.open",
-                                          { owner: owner.trim(), repo: repo.trim() },
-                                          "Open {owner}/{repo} on GitHub to set it up",
-                                      )
-                                    : t(
-                                          "cirender.readiness.create",
-                                          { owner: owner.trim(), repo: repo.trim() },
-                                          "Create {owner}/{repo} on GitHub",
-                                      )
+                                t(
+                                    "cirender.readiness.cliUnavailable",
+                                    "This build cannot complete repository setup through GitHub CLI. No browser page was opened; update or repair the desktop application, then try again.",
+                                )
                             }}
-                        </VBtn>
+                        </p>
+                    </VAlert>
+
+                    <VAlert
+                        v-if="repositoryCreationMessage !== null"
+                        type="success"
+                        variant="tonal"
+                        class="mb-3"
+                        data-test="repository-created"
+                        role="status"
+                    >
+                        {{ repositoryCreationMessage }}
                     </VAlert>
 
                     <!-- The real outcome of a bootstrap attempt: per-file, honest, and never a green tick over a disabled Actions setting. -->
@@ -1667,14 +1686,14 @@ onBeforeUnmount(() => {
                             }}
                         </p>
                         {{ bootstrapFailureMessage }}
-                        <div v-if="bootstrapMissingScope" class="mt-2">
+                        <div v-if="bootstrapNeedsReauthentication" class="mt-2">
                             <VBtn
                                 size="small"
                                 variant="tonal"
                                 color="primary"
                                 @click="emit('signIn')"
                             >
-                                {{ t("cirender.bootstrap.reauth", "Sign in again and grant it") }}
+                                {{ t("cirender.bootstrap.reauth", "Open GitHub accounts") }}
                             </VBtn>
                         </div>
                     </VAlert>
@@ -1724,7 +1743,7 @@ onBeforeUnmount(() => {
                         {{
                             t(
                                 "cirender.repository.unknown",
-                                "Neither GitHub sign-in on this computer could read the repository, so whether it is public could not be checked. Nothing will be uploaded until one of them can.",
+                                "The selected GitHub CLI account could not read the repository, so whether it is public could not be checked. Nothing will be uploaded until that account can.",
                             )
                         }}
                     </VAlert>

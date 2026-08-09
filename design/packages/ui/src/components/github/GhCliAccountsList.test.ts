@@ -3,10 +3,8 @@
 /**
  * The gh command-line tool's own accounts, mounted.
  *
- * A separate suite from `GitHubAccountsList.test.ts` next door, for the same reason the two
- * components are separate: this proves the gh-specific facts (host, machine-wide switch
- * warning, missing-scope command, the three honest empty states) that a shared suite would
- * blur into the app's own account list.
+ * This proves the gh-specific facts: host, explicit machine-wide switching, scope repair,
+ * and the honest empty states.
  */
 
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -68,6 +66,7 @@ const i18n = createI18n({
 
 function account(overrides: Partial<GhCliAccountReadout> = {}): GhCliAccountReadout {
     return {
+        id: "github.com:octocat",
         login: "octocat",
         host: "github.com",
         active: false,
@@ -142,6 +141,13 @@ function scriptedGhCli(
             };
             return Promise.resolve(result);
         },
+        ghCliLogoutAccount: (host, login) => {
+            calls.push(`logout:${host}:${login}`);
+            return Promise.resolve({
+                ok: true,
+                message: `${login} on ${host} was removed from GitHub CLI's credential store.`,
+            });
+        },
         ghCliStartLogin: (expectedLogin): Promise<GhCliLoginResultReadout> => {
             calls.push(`login:${expectedLogin ?? "new"}`);
             const state: GhCliLoginStateReadout = {
@@ -154,7 +160,6 @@ function scriptedGhCli(
                 expiresAt: null,
                 secondsRemaining: null,
                 attempt: 1,
-                browserOpened: true,
                 account: account({ login: expectedLogin ?? "octocat", active: true }),
                 failureCode: null,
                 message: `${expectedLogin ?? "octocat"} is signed in through gh on github.com.`,
@@ -261,6 +266,25 @@ describe("rendering real accounts", () => {
         expect(root.find('[aria-selected="true"]').exists()).toBe(true);
     });
 
+    it("announces independently active accounts on multiple hosts as a multi-select listbox", async () => {
+        const { bridge } = scriptedGhCli({
+            availability: "ready",
+            version: "gh version 2.96.0",
+            accounts: [
+                account({ login: "same", host: "github.com", active: true }),
+                account({ login: "same", host: "enterprise.example", active: true }),
+            ],
+            source: "json",
+            message: "gh has 2 accounts signed in on this computer.",
+        });
+        const state = createGhCliAccountsStore({ bridge });
+        const { wrapper: root } = await readyList(state);
+
+        const listbox = root.get('[role="listbox"]');
+        expect(listbox.attributes("aria-multiselectable")).toBe("true");
+        expect(root.findAll('[role="option"][aria-selected="true"]')).toHaveLength(2);
+    });
+
     it("shows the machine-wide switch warning whenever any account is listed", async () => {
         const { bridge } = scriptedGhCli({
             availability: "ready",
@@ -273,6 +297,27 @@ describe("rendering real accounts", () => {
         const { wrapper: root } = await readyList(state);
 
         expect(root.text()).toContain("whole computer");
+    });
+
+    it("puts per-account sign-out behind the destructive confirmation", async () => {
+        const { bridge, calls } = scriptedGhCli({
+            availability: "ready",
+            version: "gh version 2.96.0",
+            accounts: [account({ login: "octocat", host: "github.com", active: true })],
+            source: "json",
+            message: "gh has 1 account signed in on this computer.",
+        });
+        const state = createGhCliAccountsStore({ bridge });
+        const { wrapper: root } = await readyList(state);
+
+        const gate = root.findComponent({ name: "ConfigSuperConfirm" });
+        expect(gate.exists()).toBe(true);
+        expect(gate.props("action")).toContain("credential store");
+        expect(calls.some((call) => call.startsWith("logout:"))).toBe(false);
+
+        gate.vm.$emit("confirm");
+        await settle();
+        expect(calls).toContain("logout:github.com:octocat");
     });
 
     it("repairs a missing scope through the same GUI login flow, never a terminal command", async () => {
@@ -311,6 +356,52 @@ describe("rendering real accounts", () => {
         expect(calls).toContain("login:narrow");
     });
 
+    it("never routes an enterprise scope repair through a same-login github.com account", async () => {
+        const { bridge, calls } = scriptedGhCli({
+            availability: "ready",
+            version: "gh version 2.96.0",
+            accounts: [
+                account({
+                    id: "github.com:same",
+                    login: "same",
+                    host: "github.com",
+                    missingAppScopes: ["workflow"],
+                }),
+                account({
+                    id: "enterprise.example:same",
+                    login: "same",
+                    host: "enterprise.example",
+                    missingAppScopes: ["workflow"],
+                }),
+            ],
+            source: "json",
+            message: "gh has matching logins on two different hosts.",
+        });
+        const state = createGhCliAccountsStore({ bridge });
+        const { wrapper: root } = await readyList(state);
+        const rows = root.findAll(".mb-ghcli__rowhost");
+        const enterprise = rows.find((row) => row.text().includes("enterprise.example"));
+        const github = rows.find((row) => row.text().includes("github.com"));
+
+        expect(enterprise?.text()).toContain("supports github.com only");
+        expect(
+            enterprise
+                ?.findAll("button")
+                .some((button) => button.text().includes("Approve required permissions")),
+        ).toBe(false);
+        expect(
+            github
+                ?.findAll("button")
+                .some((button) => button.text().includes("Approve required permissions")),
+        ).toBe(true);
+
+        await expect(
+            state.startLogin({ host: "enterprise.example", login: "same" }),
+        ).resolves.toBe(false);
+        expect(calls.some((call) => call.startsWith("login:"))).toBe(false);
+        expect(state.actionFailure.value).toContain("enterprise.example");
+    });
+
     it("marks an unhealthy account with a warning chip", async () => {
         const { bridge } = scriptedGhCli({
             availability: "ready",
@@ -327,7 +418,7 @@ describe("rendering real accounts", () => {
 });
 
 describe("GUI device login", () => {
-    it("shows the one-time code, URL and countdown, then cancels without a terminal command", async () => {
+    it("shows the one-time code, inert URL and countdown, then cancels without a terminal command or browser launch", async () => {
         const listeners = new Set<(state: GhCliLoginStateReadout) => void>();
         let finish: ((result: GhCliLoginResultReadout) => void) | null = null;
         const waiting: GhCliLoginStateReadout = {
@@ -340,10 +431,9 @@ describe("GUI device login", () => {
             expiresAt: Date.now() + 600_000,
             secondsRemaining: 600,
             attempt: 2,
-            browserOpened: true,
             account: null,
             failureCode: null,
-            message: "The GitHub approval page opened in your browser.",
+            message: "Open the displayed GitHub address yourself. This application will not open a browser.",
         };
         const cancelled: GhCliLoginStateReadout = {
             ...waiting,
@@ -392,9 +482,10 @@ describe("GUI device login", () => {
         await settle();
 
         expect(root.get('[data-testid="gh-cli-user-code"]').text()).toContain("ABCD-EFGH");
-        expect(root.get('a[href*="github.com/login/device"]').text()).toContain(
+        expect(root.get('[data-testid="gh-cli-verification-uri"]').text()).toContain(
             "github.com/login/device",
         );
+        expect(root.find('a[href*="github.com/login/device"]').exists()).toBe(false);
         expect(root.text()).toContain("600 seconds remaining");
         expect(root.text()).not.toContain("gh auth login");
 
@@ -438,7 +529,6 @@ describe("GUI device login", () => {
                         expiresAt: Date.now() + 600_000,
                         secondsRemaining: 600,
                         attempt: 1,
-                        browserOpened: true,
                         account: null,
                         failureCode: null,
                         message: "GitHub approved the sign-in. Handing the credential to gh.",
@@ -466,7 +556,9 @@ describe("GUI device login", () => {
             const state = createGhCliAccountsStore({ bridge });
             await state.load();
 
-            await expect(state.startLogin("alpha")).resolves.toBe(false);
+            await expect(
+                state.startLogin({ host: "github.com", login: "alpha" }),
+            ).resolves.toBe(false);
             expect(listCalls).toBe(2);
             expect(state.accounts.value).toEqual([
                 expect.objectContaining({ login: "beta", active: true }),
@@ -792,19 +884,19 @@ describe("the three honest empty/unavailable states", () => {
         expect(calls).toContain("login:new");
     });
 
-    it("says plainly when gh answered something this build does not recognise", async () => {
+    it("says plainly when gh lacks the required structured account capabilities", async () => {
         const { bridge } = scriptedGhCli({
-            availability: "unrecognised",
+            availability: "incompatible",
             version: "gh version 2.96.0",
             accounts: [],
             source: null,
             message:
-                'gh answered "gh auth status" in a format this application does not recognise.',
+                "This GitHub CLI version lacks the structured account or per-user credential command Worldlens requires.",
         });
         const state = createGhCliAccountsStore({ bridge });
         const { wrapper: root } = await readyList(state);
 
-        expect(root.text()).toContain("does not recognise");
+        expect(root.text()).toContain("lacks the structured account");
     });
 
     it("distinguishes a search with no matches from having no accounts at all", async () => {

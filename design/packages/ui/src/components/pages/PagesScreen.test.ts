@@ -34,6 +34,7 @@ import type {
     PagesPreflight,
     PagesPublishRequest,
     PagesRecord,
+    PagesResult,
 } from "./pagesBridge.js";
 
 beforeAll(() => {
@@ -128,6 +129,7 @@ function preflight(overrides: Partial<PagesPreflight> = {}): PagesPreflight {
 const HOSTED: PagesRecord = {
     version: 1,
     renderId: RENDER.renderId,
+    accountId: "acct-persisted",
     owner: "octocat",
     repo: "maps",
     branch: "gh-pages",
@@ -152,6 +154,7 @@ function fakeBridge(
         renders?: readonly PagesCandidate[];
         hosted?: readonly PagesRecord[];
         canStop?: boolean;
+        publishResult?: PagesResult;
     } = {},
 ): Fake {
     const published: PagesPublishRequest[] = [];
@@ -168,10 +171,12 @@ function fakeBridge(
                 : Promise.resolve({ ok: true, value: report }),
         publish: (request) => {
             published.push(request);
-            return Promise.resolve({
-                ok: false,
-                failure: { code: "recorded", message: "recorded", detail: null, needsGhSignIn: false },
-            });
+            return Promise.resolve(
+                options.publishResult ?? {
+                    ok: false,
+                    failure: { code: "recorded", message: "recorded", detail: null, needsGhSignIn: false },
+                },
+            );
         },
         onEvent: (listener) => {
             listeners.push(listener);
@@ -473,8 +478,39 @@ describe("a published site", () => {
         wrapper.findComponent({ name: "ConfigSuperConfirm" }).vm.$emit("confirm");
         await flushPromises();
         expect(fake.removed).toEqual([
-            { renderId: RENDER.renderId, owner: "octocat", repo: "maps", branch: "gh-pages" },
+            {
+                accountId: "acct-persisted",
+                renderId: RENDER.renderId,
+                owner: "octocat",
+                repo: "maps",
+                branch: "gh-pages",
+            },
         ]);
+    });
+
+    it("offers the in-app GitHub account recovery anchor when publish authentication is refused", async () => {
+        const fake = fakeBridge({
+            publishResult: {
+                ok: false,
+                failure: {
+                    code: "account-unhealthy",
+                    message: "The selected GitHub CLI account needs reauthentication.",
+                    detail: null,
+                    needsGhSignIn: true,
+                },
+            },
+        });
+        const wrapper = mountScreen(fake.bridge);
+        await flushPromises();
+        await check(wrapper);
+        await wrapper.find('[data-test="acknowledge"] input').setValue(true);
+        await wrapper.find('[data-test="publish"]').trigger("click");
+        await flushPromises();
+
+        const recovery = wrapper.get('[data-test="reauthenticate"]');
+        expect(recovery.text()).toContain("Reauthenticate");
+        await recovery.trigger("click");
+        expect(wrapper.emitted("openSettings")?.[0]).toEqual(["github-account"]);
     });
 
     it("offers no way to take a site down at all when the build cannot", async () => {

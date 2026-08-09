@@ -946,6 +946,65 @@ export const BACKUP_FIXED = {
     "backup.readFolder": { en: "Read this folder", yue: "讀呢個資料夾" },
 
     "backup.where": { en: "Where to keep it", yue: "擺喺邊" },
+    "backup.account.reauthenticationRequired": {
+        en: "reauthentication required",
+        yue: "需要重新驗證",
+    },
+    "backup.account.active": { en: "{login} (active)", yue: "{login}（使用緊）" },
+    "backup.account.signedOut": {
+        en: "No GitHub CLI account is signed in. Add or reauthenticate an account from GitHub Settings before backing up.",
+        yue: "而家冇 GitHub CLI 帳戶登入。備份之前，請先去 GitHub 設定新增帳戶或者重新驗證。",
+    },
+    "backup.account.openSettings": {
+        en: "Open GitHub Settings",
+        yue: "打開 GitHub 設定",
+    },
+    "backup.account.search": {
+        en: "Search signed-in accounts",
+        yue: "搜尋已登入帳戶",
+    },
+    "backup.account.pick": { en: "Back up as", yue: "用呢個帳戶備份" },
+    "backup.account.selected": { en: "Selected account", yue: "已揀帳戶" },
+    "backup.account.empty": {
+        en: "No GitHub CLI accounts are signed in.",
+        yue: "冇 GitHub CLI 帳戶登入。",
+    },
+    "backup.account.noMatch": {
+        en: "No signed-in account matches that search.",
+        yue: "冇已登入帳戶符合呢個搜尋。",
+    },
+    "backup.account.help": {
+        en: "This operation uses only the selected GitHub CLI account. The broker selects it for each command and restores the account gh had active immediately afterwards. Another gh process can still change that machine-wide account between commands, so avoid running gh account changes while this operation is active.",
+        yue: "呢個操作只會用已揀嘅 GitHub CLI 帳戶。帳戶代理會喺每條指令前揀佢，之後立即還原 gh 原本使用緊嘅帳戶。另一個 gh 程序仍然可能喺指令之間改咗全機帳戶，所以操作進行期間請唔好另外轉 gh 帳戶。",
+    },
+    "backup.owner.personal": { en: "{login} (personal)", yue: "{login}（個人）" },
+    "backup.owner.organization": {
+        en: "{login} (organization)",
+        yue: "{login}（機構）",
+    },
+    "backup.owner.loading": {
+        en: "Reading personal and organization owners...",
+        yue: "讀緊個人同機構擁有者……",
+    },
+    "backup.owner.retry": { en: "Try again", yue: "再試" },
+    "backup.owner.search": {
+        en: "Search personal and organization owners",
+        yue: "搜尋個人同機構擁有者",
+    },
+    "backup.owner.pick": { en: "Create under", yue: "喺邊個名下建立" },
+    "backup.owner.selected": { en: "Selected owner", yue: "已揀擁有者" },
+    "backup.owner.empty": {
+        en: "No owners were returned by GitHub CLI.",
+        yue: "GitHub CLI 冇交返任何擁有者。",
+    },
+    "backup.owner.noMatch": {
+        en: "No real owner matches that search.",
+        yue: "冇真實擁有者符合呢個搜尋。",
+    },
+    "backup.owner.help": {
+        en: "Personal and organization owners are read through GitHub CLI for the selected account and revalidated before creation.",
+        yue: "個人同機構擁有者會經 GitHub CLI 用已揀帳戶讀取，建立之前亦會再驗證。",
+    },
     /*
      * PUBLIC is shouted in both languages, and stays shouted. It is the one word in the
      * repository picker that decides whether a world is about to become downloadable by
@@ -966,6 +1025,15 @@ export const BACKUP_FIXED = {
     /* ---------------------------------------------------------------- */
 
     "backup.repo.search": { en: "Search your repositories", yue: "搵你嘅儲存庫" },
+    "backup.repo.selected": { en: "Selected repository", yue: "已揀儲存庫" },
+    "backup.repo.empty": {
+        en: "No writable repositories were returned by GitHub CLI.",
+        yue: "GitHub CLI 冇交返任何可寫入儲存庫。",
+    },
+    "backup.repo.loadedHint": {
+        en: "Most recently active first, up to 300 real repositories returned by GitHub CLI.",
+        yue: "最近有活動嘅排先，最多顯示 GitHub CLI 交返嘅 300 個真實儲存庫。",
+    },
     "backup.createRepo.ownerKind": { en: "The owner above is", yue: "上面個擁有者係" },
     "backup.createRepo.ownerKind.user": { en: "my own account", yue: "我自己嘅帳戶" },
     "backup.createRepo.ownerKind.org": {

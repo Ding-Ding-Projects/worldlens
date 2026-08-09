@@ -556,13 +556,14 @@ describe("syncing", () => {
         if (result.ok) expect(result.report.pushVerified).toBe(true);
     });
 
-    it("reports a push GitHub refuses with its own words, not a guess", async () => {
+    it("classifies a refused push without returning credential-helper diagnostics", async () => {
         world = await makeWorld();
         const runner = machine();
         runner.api.set("repos/octocat/worlds", repositoryPayload());
+        const diagnostic = "authorization: Bearer renderer-boundary-sentinel";
         runner.failing.set("push", {
             code: 1,
-            stderr: "! [remote rejected] world -> world (protected branch hook declined)",
+            stderr: `HTTP 403\n${diagnostic}`,
         });
 
         const result = await host(runner).sync({
@@ -574,7 +575,11 @@ describe("syncing", () => {
         expect(result.ok).toBe(false);
         if (!result.ok) {
             expect(result.failure.code).toBe("push-refused");
-            expect(result.failure.detail).toContain("protected branch hook declined");
+            expect(result.failure.needsGhSignIn).toBe(true);
+            expect(result.failure.detail).toBe(
+                "Git exited with code 1. Its diagnostic output was withheld.",
+            );
+            expect(JSON.stringify(result)).not.toContain(diagnostic);
         }
     });
 

@@ -16,6 +16,10 @@ import type {
     CiSyncState,
 } from "../main/cirender/index.js";
 import type {
+    GhRepositoryChoice,
+    GhRepositoryCreateResult,
+} from "../main/ghcli/repositories.js";
+import type {
     Answer as PagesAnswer,
     PagesCandidate,
     PagesEvent,
@@ -1297,6 +1301,7 @@ export interface WorldRepoFailure {
 
 /** Mirrors `WorldRepoTarget` in `main/worldrepo/repo.ts`. */
 export interface WorldRepoTarget {
+    accountId?: string;
     /** Absolute path to the world folder on disk. Never copied; the git work-tree itself. */
     worldPath: string;
     owner: string;
@@ -1386,9 +1391,11 @@ export interface WorldRepoPreflight {
 export interface WorldRepoRecord {
     version: number;
     worldPath: string;
+    accountId: string | null;
     owner: string;
     repo: string;
     branch: string;
+    repositoryUrl: string | null;
     stage: string;
     commit: string | null;
     pushVerified: boolean;
@@ -1569,7 +1576,7 @@ type WorldRepoAnswer<T> = { ok: true; value: T } | { ok: false; message: string 
  */
 export interface WorldRepoBridge {
     /** The signed-in GitHub account plus every organisation it can write to. */
-    owners(): Promise<WorldRepoAnswer<readonly WorldRepoOwner[]>>;
+    owners(accountId?: string): Promise<WorldRepoAnswer<readonly WorldRepoOwner[]>>;
     /** What a sync would do, before it does any of it. */
     preflight(target: WorldRepoTarget): Promise<WorldRepoAnswer<WorldRepoPreflight>>;
     /** Uploads bounded commits to a leased staging ref, then atomically replaces the world branch. */
@@ -1585,11 +1592,12 @@ export interface WorldRepoBridge {
     /** Continues a sync whose durable stage marker says it was interrupted. */
     resume(target: WorldRepoTarget): Promise<WorldRepoSyncResult>;
     /** The branch's current commit on GitHub, without touching the local git directory. */
-    remoteTip(
-        owner: string,
-        repo: string,
-        branch?: string,
-    ): Promise<WorldRepoAnswer<{ exists: boolean; sha: string | null }>>;
+    remoteTip(request: {
+        owner: string;
+        repo: string;
+        branch?: string;
+        accountId?: string;
+    }): Promise<WorldRepoAnswer<{ exists: boolean; sha: string | null }>>;
     /**
      * Which repositories in a list look like ones this application already prepared.
      * Bounded - see `main/worldrepo/adopt.ts` - so a long list never becomes an unbounded
@@ -1599,12 +1607,14 @@ export interface WorldRepoBridge {
         candidates: readonly WorldRepoAdoptionCandidate[];
         branch?: string;
         maxProbes?: number;
+        accountId?: string;
     }): Promise<WorldRepoAnswer<readonly WorldRepoAdoptionSignal[]>>;
     /** What adopting one repository would restore, or an honest refusal naming why not. */
     adoptionPlan(request: {
         owner: string;
         repo: string;
         branch?: string;
+        accountId?: string;
     }): Promise<WorldRepoAnswer<WorldRepoAdoptionPlan>>;
     /** Subscribes to sync/remove progress. Returns the unsubscribe function. */
     onWorldRepoEvent(listener: (event: WorldRepoEvent) => void): () => void;
@@ -2012,182 +2022,6 @@ interface AppSettingsHistoryBridge {
 }
 
 /* -------------------------------------------------------------------------- */
-/* GitHub sign-in                                                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Mirrors the types in `main/github/`, restated for the same reason the render types
- * are: the preload is bundled separately, and importing across that boundary would drag
- * the credential store and the whole OAuth flow into the renderer's bundle.
- *
- * The token is deliberately absent from every type here. The renderer is told who is
- * signed in, what that account may do and whether it was stored; the credential itself
- * never leaves the main process, which is the only side that talks to GitHub.
- */
-export interface GitHubAccount {
-    login: string;
-    userId: number | null;
-    name: string | null;
-    scopes: string[];
-    /**
-     * False for a GitHub App user token and for a fine-grained personal access token,
-     * neither of which reports a scope list. It is not a gap: an App's permissions live
-     * on the App and on the repositories it was installed on.
-     */
-    scopesReported: boolean;
-    source: "github-app" | "oauth-app" | "personal-access-token";
-    signedInAt: string;
-    /** Null when the token does not expire, which is the normal OAuth App answer. */
-    expiresAt: string | null;
-    /** True when the sign-in can renew itself without the person doing anything. */
-    refreshable: boolean;
-    /** False when this machine has no credential store; the sign-in lasts this run only. */
-    persisted: boolean;
-    warnings: string[];
-}
-
-export interface GitHubFailure {
-    code: string;
-    message: string;
-    /** Populated for `insufficient-scopes`, so the interface can name them. */
-    missingScopes: string[];
-    /**
-     * True when signing in with the OAuth application instead would likely work. The
-     * screen offers that rather than leaving somebody at a dead end.
-     */
-    offerOAuthFallback: boolean;
-}
-
-/**
- * Whether the signed-in account can reach a repository.
- *
- * The `app-not-installed` case is the one worth handling by name. GitHub answers 404
- * both for a repository that does not exist and for one a GitHub App has not been given,
- * so "not found" is the most misleading true thing the app could say.
- */
-export type GitHubRepositoryAccess =
-    | { ok: true; fullName: string; private: boolean }
-    | {
-          ok: false;
-          failure: {
-              code:
-                  | "app-not-installed"
-                  | "not-found"
-                  | "forbidden"
-                  | "invalid-token"
-                  | "network"
-                  | "http";
-              message: string;
-              manageUrl: string | null;
-              offerOAuthFallback: boolean;
-          };
-      };
-
-export type GitHubSignInResult =
-    { ok: true; account: GitHubAccount } | { ok: false; failure: GitHubFailure };
-
-export interface GitHubSignOutResult {
-    signedOut: boolean;
-    /** True only when GitHub confirmed the revocation, never merely because it was asked. */
-    revoked: boolean;
-    reason: string | null;
-    manageUrl: string | null;
-    /**
-     * Who this fell back to when another account was stored, or null when the sign-out was
-     * complete. The legacy single-account channel now falls back rather than always leaving
-     * nobody signed in, so a screen that ignores this can report "signed out" beside a
-     * still-live account.
-     */
-    fallbackAccount: GitHubAccount | null;
-}
-
-export interface GitHubStatus {
-    signedIn: boolean;
-    account: GitHubAccount | null;
-    /** False when this build has no client configured; only the token path is available. */
-    clientConfigured: boolean;
-    /** Which of the two registered clients this build signs in with. */
-    clientKind: "app" | "oauth" | null;
-    encryptionAvailable: boolean;
-    requiredScopes: string[];
-    signingIn: boolean;
-}
-
-/**
- * What the sign-in screen is told while it waits.
- *
- * `code` carries `expiresAt` because the screen has to show the time left. A user code
- * lives about fifteen minutes; a screen that shows the code with no clock and keeps
- * spinning after it dies is indistinguishable from a hang. When it expires the poll
- * stops on its own and a `failed` event with code `expired` arrives, which is the cue to
- * offer a fresh code rather than keep waiting.
- */
-export type GitHubAuthEvent =
-    | {
-          type: "code";
-          /** Shown exactly as it arrives, hyphen included: it is what the person types. */
-          userCode: string;
-          verificationUri: string;
-          verificationUriComplete: string | null;
-          expiresAt: string;
-          expiresInSeconds: number;
-          intervalSeconds: number;
-          /** False when the browser could not be opened; show the address instead. */
-          browserOpened: boolean;
-      }
-    | { type: "waiting"; secondsRemaining: number; intervalSeconds: number }
-    | { type: "signed-in"; account: GitHubAccount }
-    | { type: "failed"; failure: GitHubFailure }
-    | { type: "cancelled" }
-    | { type: "signed-out" };
-
-/**
- * One stored account, as the multi-account list shows it - every {@link GitHubAccount}
- * fact, plus an id to act on and whether it is the one every single-account channel above
- * currently resolves to.
- */
-export interface GitHubAccountSummary extends GitHubAccount {
-    id: string;
-    active: boolean;
-}
-
-export interface GitHubAccountsList {
-    accounts: GitHubAccountSummary[];
-    activeId: string | null;
-}
-
-/**
- * What removing one stored account actually did.
- *
- * `fallbackAccount` names exactly which account is active afterwards, or is null when
- * nobody else was stored - the honest answer to "who is signed in now", not an assumption
- * that removing the active account always means signing out completely.
- */
-export interface GitHubRemoveAccountResult {
-    removed: boolean;
-    wasActive: boolean;
-    newActiveId: string | null;
-    revoked: boolean;
-    reason: string | null;
-    manageUrl: string | null;
-    fallbackAccount: GitHubAccount | null;
-}
-
-export interface GitHubSetActiveAccountResult {
-    ok: boolean;
-    activeId: string | null;
-    account: GitHubAccount | null;
-    reason: string | null;
-}
-
-/** Never carries the token itself - that never crosses IPC, refreshed or not. */
-export interface GitHubRefreshAccountResult {
-    ok: boolean;
-    account: GitHubAccount | null;
-    failure: GitHubFailure | null;
-}
-
-/* -------------------------------------------------------------------------- */
 /* The gh command-line tool's OWN accounts - a completely separate store      */
 /* -------------------------------------------------------------------------- */
 
@@ -2199,6 +2033,7 @@ export interface GitHubRefreshAccountResult {
  * for the full explanation and why the two are never merged into one list.
  */
 export interface GhCliAccount {
+    id: string;
     login: string;
     host: string;
     active: boolean;
@@ -2213,13 +2048,14 @@ export interface GhCliAccount {
     missingAppScopes: string[];
 }
 
-export type GhCliAvailability = "not-installed" | "no-accounts" | "ready" | "unrecognised";
+export type GhCliAvailability = "not-installed" | "incompatible" | "no-accounts" | "ready";
 
 export interface GhCliAccountsStatus {
     availability: GhCliAvailability;
     version: string | null;
     accounts: GhCliAccount[];
-    source: "json" | "text" | null;
+    source: "json" | null;
+    capabilities: { structuredStatus: boolean };
     message: string;
 }
 
@@ -2259,7 +2095,6 @@ export interface GhCliLoginState {
     expiresAt: number | null;
     secondsRemaining: number | null;
     attempt: number;
-    browserOpened: boolean;
     account: GhCliAccount | null;
     failureCode: string | null;
     message: string;
@@ -2272,6 +2107,23 @@ export interface GhCliLoginResult {
 
 export interface GhCliCancelLoginResult {
     cancelled: boolean;
+    message: string;
+}
+
+export interface GhCliLogoutResult {
+    ok: boolean;
+    message: string;
+}
+
+export interface GhCliLegacyCredentialStatus {
+    present: boolean;
+    locations: number;
+    message: string;
+}
+
+export interface GhCliLegacyCredentialRemoval {
+    removed: boolean;
+    locations: number;
     message: string;
 }
 
@@ -2296,6 +2148,7 @@ type BackupCreateRepositoryAnswer =
           readonly ok: false;
           readonly code: "name-taken" | "not-signed-in" | "other";
           readonly message: string;
+          readonly needsSignIn?: boolean | undefined;
       };
 
 interface BackupSourceReport {
@@ -2654,7 +2507,7 @@ interface WorldlensBridge {
      * A failure comes back `ok: false` with a typed `failure.code`. Watch
      * `onDownloadEvent` for progress in the meantime.
      *
-     * A public release needs no token. `GH_TOKEN` is used when the environment has one.
+     * Public release access uses the selected GitHub CLI account lease in the main process.
      */
     startDownload(request: DownloadRequest): Promise<DownloadResult>;
 
@@ -2697,80 +2550,6 @@ interface WorldlensBridge {
     /* GitHub sign-in                                                          */
     /* ---------------------------------------------------------------------- */
 
-    /**
-     * Who is signed in, and what this machine can do about it.
-     *
-     * Reads stored metadata rather than the token, so asking costs nothing and never
-     * prompts a credential store. `clientConfigured` false means the browser sign-in is
-     * unavailable in this build and only the token path is offered;
-     * `encryptionAvailable` false means a sign-in will not survive a restart, which the
-     * screen should say before somebody signs in rather than after.
-     */
-    githubStatus(): Promise<GitHubStatus>;
-
-    /**
-     * Starts the browser sign-in and resolves when it is over, whichever way it went.
-     *
-     * This can take as long as somebody takes to reach their phone, so watch
-     * `onGitHubAuthEvent` for the code, the countdown and the outcome. It never rejects:
-     * a refusal comes back `ok: false` with a typed `failure.code`.
-     *
-     * `useOAuthFallback` switches from the GitHub App to the OAuth application. Offer it
-     * when a failure comes back with `offerOAuthFallback`, which happens when the App has
-     * not been installed on the repository somebody is trying to render.
-     */
-    githubSignIn(options?: { useOAuthFallback?: boolean }): Promise<GitHubSignInResult>;
-
-    /** Stops a sign-in that is waiting for approval. False when none is running. */
-    githubCancelSignIn(): Promise<boolean>;
-
-    /**
-     * Signs in with a personal access token, checking it before believing it.
-     *
-     * The token is checked against the API on the way in, so a wrong or over-scoped one
-     * is reported here by name rather than at the first render. The token crosses to the
-     * main process and is never handed back.
-     */
-    githubSignInWithToken(token: string): Promise<GitHubSignInResult>;
-
-    /**
-     * Deletes the stored token and attempts to revoke it.
-     *
-     * `revoked` is true only when GitHub confirmed it. A desktop application holds no
-     * client secret, and GitHub's revocation endpoint requires one, so on a shipped build
-     * the honest answer is usually false with a reason and a link to finish the job.
-     */
-    githubSignOut(): Promise<GitHubSignOutResult>;
-
-    /**
-     * Whether the signed-in account can actually reach a repository.
-     *
-     * Worth asking before a render rather than during one. A GitHub App only sees the
-     * repositories it was installed on, and GitHub reports one it has not been given as
-     * "not found", so somebody sent that message goes looking for a spelling mistake
-     * instead of at the installation settings.
-     */
-    githubCheckRepository(owner: string, repo: string): Promise<GitHubRepositoryAccess>;
-
-    /** Subscribes to sign-in progress. Returns the unsubscribe function. */
-    onGitHubAuthEvent(listener: (event: GitHubAuthEvent) => void): () => void;
-
-    /**
-     * Every account this computer has stored, richest first. Additive: a build with no
-     * multi-account support simply lacks this method, and the section falls back to the
-     * single-account facts above.
-     */
-    githubListAccounts(): Promise<GitHubAccountsList>;
-
-    /** Removes one specific account's stored token, active or not. */
-    githubRemoveAccount(id: string): Promise<GitHubRemoveAccountResult>;
-
-    /** Switches which stored account every single-account channel above resolves to. */
-    githubSetActiveAccount(id: string): Promise<GitHubSetActiveAccountResult>;
-
-    /** Renews one specific account's token ahead of its own expiry. */
-    githubRefreshAccount(id: string): Promise<GitHubRefreshAccountResult>;
-
     /* ---------------------------------------------------------------------- */
     /* The gh command-line tool's OWN accounts - a separate credential store   */
     /* ---------------------------------------------------------------------- */
@@ -2793,11 +2572,20 @@ interface WorldlensBridge {
      */
     ghCliSwitchAccount(host: string, login: string): Promise<GhCliSwitchResult>;
 
+    /** Removes one named account from gh's own credential store after in-app confirmation. */
+    ghCliLogoutAccount(host: string, login: string): Promise<GhCliLogoutResult>;
+
     /** Starts the GUI device flow. The approved token never crosses this bridge. */
     ghCliStartLogin(expectedLogin?: string): Promise<GhCliLoginResult>;
 
     /** Cancels the login started by this renderer window, if one is active. */
     ghCliCancelLogin(): Promise<GhCliCancelLoginResult>;
+
+    /** Metadata only; legacy credential contents are never opened or imported. */
+    ghCliLegacyCredentialStatus(): Promise<GhCliLegacyCredentialStatus>;
+
+    /** Deletes exact retired local credential locations after in-app super confirmation. */
+    ghCliRemoveLegacyCredentials(): Promise<GhCliLegacyCredentialRemoval>;
 
     /** Subscribes to secret-free code, URL, countdown, and verification progress. */
     onGhCliLoginState(listener: (state: GhCliLoginState) => void): () => void;
@@ -3007,13 +2795,26 @@ interface WorldlensBridge {
      * the owner list the moment somebody chooses a different signed-in account.
      */
     ciRenderOwners(accountId?: string): Promise<CiOwnerChoicesAnswer>;
+    /** Real writable repositories enumerated by gh for the selected account. */
+    ciRenderRepositories(
+        accountId?: string,
+    ): Promise<{ ok: true; value: readonly GhRepositoryChoice[] } | { ok: false; message: string }>;
     /** A world or map name, sanitized to a name GitHub's own rules will accept. Pure; no network. */
     suggestCiRepoName(sourceName: string): Promise<string>;
     /** Whether `owner/repo` is free. `"unknown"` rather than a guess when it could not be told. */
     checkCiRepoName(request: {
         owner: string;
         repo: string;
+        accountId?: string;
     }): Promise<CiRepositoryNameAvailability>;
+    /** Creates with gh CLI and verifies the exact result without opening a browser. */
+    createCiRepository(request: {
+        accountId?: string;
+        ownerLogin: string;
+        ownerKind: "user" | "organization";
+        name: string;
+        private: boolean;
+    }): Promise<GhRepositoryCreateResult>;
 
     /**
      * Scheduled re-rendering's current status for one repository: on or off, its cadence,
@@ -3046,7 +2847,6 @@ interface WorldlensBridge {
         owner: string,
         repo: string,
         accountId?: string,
-        prefer?: "session" | "gh",
     ): Promise<CiBootstrapResult>;
     onCiBootstrapEvent(listener: (event: CiBootstrapEvent) => void): () => void;
 
@@ -3055,7 +2855,7 @@ interface WorldlensBridge {
     /** Renders on this computer with a web root worth publishing. */
     pagesRenders(): Promise<PagesAnswer<readonly PagesCandidate[]>>;
     /** The account, and every organisation it can write to. */
-    pagesOwners(): Promise<PagesAnswer<readonly PagesOwner[]>>;
+    pagesOwners(accountId?: string): Promise<PagesAnswer<readonly PagesOwner[]>>;
     /**
      * What publishing would do, before it does any of it.
      *
@@ -3077,9 +2877,9 @@ interface WorldlensBridge {
     /** What this computer remembers publishing, so a site can be found again and taken down. */
     publishedPages(): Promise<PagesAnswer<readonly PagesRecord[]>>;
     /** Continue a Pages publish whose durable stage marker says it was interrupted. */
-    resumePages(renderId: string): Promise<PagesResult>;
+    resumePages(request: { renderId: string; accountId?: string }): Promise<PagesResult>;
     /** Re-check GitHub Pages and the published URL for one recorded site. */
-    refreshPagesStatus(renderId: string): Promise<PagesAnswer<PagesRecord>>;
+    refreshPagesStatus(request: { renderId: string; accountId?: string }): Promise<PagesAnswer<PagesRecord>>;
     onPagesEvent(listener: (event: PagesEvent) => void): () => void;
 
     /* ---- Watching a render live, in a real browser tab -------------------- */
@@ -3145,8 +2945,10 @@ interface WorldlensBridge {
 
     /* ---- Backing a world or a rendered map up to GitHub ------------------ */
 
-    /** Repositories the signed-in account can actually write to. */
-    listBackupRepositories(): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
+    /** Personal and organization owners confirmed for the selected gh account. */
+    listBackupOwners(accountId?: string): Promise<CiOwnerChoicesAnswer>;
+    /** Repositories the selected gh account can actually write to. */
+    listBackupRepositories(accountId?: string): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
     /**
      * Creates a brand-new repository for somebody who has none suitable to pick from the
      * list above, and initialises it with one starter commit so a first backup's release
@@ -3154,6 +2956,7 @@ interface WorldlensBridge {
      * that already exists, reported here with its own `name-taken` code.
      */
     createBackupRepository(request: {
+        accountId?: string;
         ownerLogin: string;
         ownerKind: "user" | "organization";
         name: string;
@@ -3161,6 +2964,7 @@ interface WorldlensBridge {
     }): Promise<BackupCreateRepositoryAnswer>;
     /** Reads a repository so the surface can warn about a PUBLIC one before packing. */
     inspectBackupRepository(request: {
+        accountId?: string;
         owner: string;
         repo: string;
     }): Promise<BackupAnswer<BackupRepositoryReport>>;
@@ -3171,6 +2975,7 @@ interface WorldlensBridge {
     }): Promise<BackupAnswer<BackupSourceReport>>;
     /** Backups already on a repository, read from each release's own small assets. */
     listBackups(request: {
+        accountId?: string;
         owner: string;
         repo: string;
     }): Promise<BackupAnswer<readonly BackupListing[]>>;
@@ -3324,36 +3129,17 @@ const bridge: WorldlensBridge = {
         };
     },
 
-    githubStatus: () => ipcRenderer.invoke("github:status"),
-    githubSignIn: (options) => ipcRenderer.invoke("github:signIn", options ?? {}),
-    githubCancelSignIn: () => ipcRenderer.invoke("github:cancelSignIn"),
-    githubSignInWithToken: (token) => ipcRenderer.invoke("github:signInWithToken", token),
-    githubSignOut: () => ipcRenderer.invoke("github:signOut"),
-    githubCheckRepository: (owner, repo) =>
-        ipcRenderer.invoke("github:checkRepository", { owner, repo }),
-
-    onGitHubAuthEvent: (listener) => {
-        const forward = (_event: IpcRendererEvent, payload: GitHubAuthEvent): void =>
-            listener(payload);
-        ipcRenderer.on("github:event", forward);
-        return () => {
-            ipcRenderer.off("github:event", forward);
-        };
-    },
-
-    githubListAccounts: () => ipcRenderer.invoke("github:listAccounts"),
-    githubRemoveAccount: (id) => ipcRenderer.invoke("github:removeAccount", { id }),
-    githubSetActiveAccount: (id) => ipcRenderer.invoke("github:setActiveAccount", { id }),
-    githubRefreshAccount: (id) => ipcRenderer.invoke("github:refreshAccount", { id }),
-
     ghCliListAccounts: () => ipcRenderer.invoke("ghCli:listAccounts"),
     ghCliSwitchAccount: (host, login) => ipcRenderer.invoke("ghCli:switchAccount", { host, login }),
+    ghCliLogoutAccount: (host, login) => ipcRenderer.invoke("ghCli:logoutAccount", { host, login }),
     ghCliStartLogin: (expectedLogin) =>
         ipcRenderer.invoke(
             "ghCli:startLogin",
             expectedLogin === undefined ? {} : { expectedLogin },
         ),
     ghCliCancelLogin: () => ipcRenderer.invoke("ghCli:cancelLogin"),
+    ghCliLegacyCredentialStatus: () => ipcRenderer.invoke("ghCli:legacyCredentialStatus"),
+    ghCliRemoveLegacyCredentials: () => ipcRenderer.invoke("ghCli:removeLegacyCredentials"),
     onGhCliLoginState: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: GhCliLoginState): void =>
             listener(payload);
@@ -3386,7 +3172,7 @@ const bridge: WorldlensBridge = {
     },
 
     worldRepo: {
-        owners: () => ipcRenderer.invoke("worldrepo:owners"),
+        owners: (accountId) => ipcRenderer.invoke("worldrepo:owners", { accountId }),
         preflight: (target) => ipcRenderer.invoke("worldrepo:preflight", target),
         sync: (request) => ipcRenderer.invoke("worldrepo:sync", request),
         remove: (target) => ipcRenderer.invoke("worldrepo:remove", target),
@@ -3394,8 +3180,7 @@ const bridge: WorldlensBridge = {
         active: () => ipcRenderer.invoke("worldrepo:active"),
         records: () => ipcRenderer.invoke("worldrepo:records"),
         resume: (target) => ipcRenderer.invoke("worldrepo:resume", target),
-        remoteTip: (owner, repo, branch) =>
-            ipcRenderer.invoke("worldrepo:remoteTip", { owner, repo, branch }),
+        remoteTip: (request) => ipcRenderer.invoke("worldrepo:remoteTip", request),
         adoptionProbe: (request) => ipcRenderer.invoke("worldrepo:adoptionProbe", request),
         adoptionPlan: (request) => ipcRenderer.invoke("worldrepo:adoptionPlan", request),
         onWorldRepoEvent: (listener) => {
@@ -3502,15 +3287,21 @@ const bridge: WorldlensBridge = {
 
     ciRenderOwners: (accountId) =>
         ipcRenderer.invoke("cirender:owners", accountId === undefined ? undefined : { accountId }),
+    ciRenderRepositories: (accountId) =>
+        ipcRenderer.invoke(
+            "cirender:repositories",
+            accountId === undefined ? undefined : { accountId },
+        ),
     suggestCiRepoName: (sourceName) => ipcRenderer.invoke("cirender:suggestRepoName", sourceName),
     checkCiRepoName: (request) => ipcRenderer.invoke("cirender:checkRepoName", request),
+    createCiRepository: (request) => ipcRenderer.invoke("cirender:createRepository", request),
     ciRenderScheduleRead: (owner, repo, accountId) =>
         ipcRenderer.invoke("cirender:scheduleRead", { owner, repo, accountId }),
     ciRenderScheduleWrite: (syncId, enabled, cadence, accountId) =>
         ipcRenderer.invoke("cirender:scheduleWrite", { syncId, enabled, cadence, accountId }),
 
-    bootstrapCiRepository: (owner, repo, accountId, prefer) =>
-        ipcRenderer.invoke("cirender:bootstrap", { owner, repo, accountId, prefer }),
+    bootstrapCiRepository: (owner, repo, accountId) =>
+        ipcRenderer.invoke("cirender:bootstrap", { owner, repo, accountId }),
     onCiBootstrapEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: CiBootstrapEvent): void =>
             listener(payload);
@@ -3521,15 +3312,15 @@ const bridge: WorldlensBridge = {
     },
 
     pagesRenders: () => ipcRenderer.invoke("pages:renders"),
-    pagesOwners: () => ipcRenderer.invoke("pages:owners"),
+    pagesOwners: (accountId) => ipcRenderer.invoke("pages:owners", { accountId }),
     pagesPreflight: (request) => ipcRenderer.invoke("pages:preflight", request),
     publishPages: (request) => ipcRenderer.invoke("pages:publish", request),
     stopPagesHosting: (request) => ipcRenderer.invoke("pages:stop", request),
     cancelPagesPublish: (renderId) => ipcRenderer.invoke("pages:cancel", renderId),
     activePagesPublishes: () => ipcRenderer.invoke("pages:active"),
     publishedPages: () => ipcRenderer.invoke("pages:published"),
-    resumePages: (renderId) => ipcRenderer.invoke("pages:resume", renderId),
-    refreshPagesStatus: (renderId) => ipcRenderer.invoke("pages:status", renderId),
+    resumePages: (request) => ipcRenderer.invoke("pages:resume", request),
+    refreshPagesStatus: (request) => ipcRenderer.invoke("pages:status", request),
     onPagesEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: PagesEvent): void => listener(payload);
         ipcRenderer.on("pages:event", forward);
@@ -3743,7 +3534,9 @@ const bridge: WorldlensBridge = {
         run: (id) => ipcRenderer.invoke("repair:run", id),
     },
 
-    listBackupRepositories: () => ipcRenderer.invoke("backup:repositories"),
+    listBackupOwners: (accountId) => ipcRenderer.invoke("backup:owners", { accountId }),
+    listBackupRepositories: (accountId) =>
+        ipcRenderer.invoke("backup:repositories", { accountId }),
     createBackupRepository: (request) => ipcRenderer.invoke("backup:createRepository", request),
     inspectBackupRepository: (request) => ipcRenderer.invoke("backup:inspectRepository", request),
     inspectBackupSource: (request) => ipcRenderer.invoke("backup:inspectSource", request),

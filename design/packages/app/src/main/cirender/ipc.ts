@@ -9,11 +9,11 @@
  * fingerprint, the plan, the dispatch, the polling, the collector - be tested with no
  * Electron runtime anywhere near it.
  *
- * ## The token never crosses, and neither does the EULA decision
+ * ## Authorization never crosses, and neither does the EULA decision
  *
- * The credential is resolved here, per call, from the session the main process holds,
- * exactly as the backup and download channels resolve theirs. The renderer learns whether
- * somebody is signed in only from a refusal that says so.
+ * One credential lease is acquired here, per operation, from the main-process `gh` account
+ * broker. The renderer learns whether somebody is signed in only from a refusal that says
+ * so; credential material never crosses this boundary.
  *
  * `eulaAccepted` is a **reader** the application supplies, and there is deliberately no
  * channel that sets it. Mojang's licence is accepted in the one place that already asks,
@@ -31,17 +31,28 @@
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import type { FetchLike, RepositoryReport } from "../backup/index.js";
+import type { RepositoryReport } from "../backup/index.js";
+import type {
+    GhCliAccountProvider,
+    GhCredentialAccess,
+} from "../ghcli/credentialBroker.js";
+import { GhCredentialError } from "../ghcli/credentialBroker.js";
+import {
+    createGhRepository,
+    listGhOwners,
+    listGhRepositories,
+    viewGhRepository,
+    type GhRepositoryCreateResult,
+    type GhRepositoryChoice,
+} from "../ghcli/repositories.js";
 import type { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { RENDER_WORKFLOW_FILE } from "./actions.js";
 import { bootstrapCiRepository } from "./bootstrap.js";
 import type { CiBootstrapEvent, CiBootstrapResult } from "./bootstrap.js";
-import { nodeProcessRunner } from "./gh.js";
 import { isCiScheduleCadence, readCiSchedule, writeCiSchedule } from "./schedule.js";
 import type { CiScheduleStatus, CiScheduleWriteResult } from "./schedule.js";
 import { CiRenderSync } from "./sync.js";
 import type {
-    BackupSurface,
     CiPreflight,
     CiSyncEvent,
     CiSyncRequest,
@@ -49,12 +60,9 @@ import type {
     CiRenderSyncOptions,
 } from "./sync.js";
 import type { CiSyncState } from "./state.js";
-import type { ProcessRunner } from "./gh.js";
 import { resolveTransport } from "./transport.js";
-import type { CiRoute, CiTransport, RouteReport } from "./transport.js";
+import type { CiTransport, RouteReport } from "./transport.js";
 import {
-    checkCiRepositoryNameAvailability,
-    listCiOwnerChoices,
     suggestCiRepositoryName,
 } from "./setup.js";
 import type { CiOwnerChoicesAnswer, CiRepositoryNameAvailability } from "./setup.js";
@@ -75,8 +83,10 @@ export const CIRENDER_CHANNELS = [
     // worth trying, and whether GitHub already has it. Pure additions beside the sync
     // loop above - none of the three touches `sync`, `state.js` or a running job.
     "cirender:owners",
+    "cirender:repositories",
     "cirender:suggestRepoName",
     "cirender:checkRepoName",
+    "cirender:createRepository",
     // Scheduled re-rendering's own configuration screen: reading
     // .github/workflows/scheduled-render.yml's last report, and turning it on or off.
     "cirender:scheduleRead",
@@ -93,42 +103,19 @@ export interface CiRenderIpcOptions {
     readonly ipcMain: IpcMain;
     /** Where maps and sync records live. A function, so a moved storage folder takes effect. */
     readonly storageDir: () => string;
-    /**
-     * The signed-in token, resolved per operation. Null means nobody is signed in.
-     *
-     * Given an account id - see {@link CiSyncRequest.accountId} - resolves that specific
-     * stored account's own token; called with none, exactly as every caller before the
-     * setup card's account picker existed, this resolves to whichever account is active.
-     */
-    readonly token: (accountId?: string | undefined) => Promise<string | null> | string | null;
+    /** Secret-free gh command lease for account, owner and repository routing. */
+    readonly account: GhCliAccountProvider;
     /** Whether Mojang's EULA has been accepted here. Read only; never set from a channel. */
     readonly eulaAccepted: () => boolean | Promise<boolean>;
-    /** The one backup runner the application owns. The upload is a backup, not a copy of one. */
-    readonly backup: BackupSurface;
-    /**
-     * The signed-in login, for a message naming which credential drove a render.
-     *
-     * Takes the same optional account id `token` does, so the message names the account a
-     * request actually chose rather than always the active one.
-     */
-    readonly account?:
-        ((accountId?: string | undefined) => string | null | Promise<string | null>) | undefined;
-    /** How `gh` is run. Left out, real child processes; injected in every test. */
-    readonly runner?: ProcessRunner | undefined;
     /** Overridable so a test can watch what was broadcast. */
     readonly broadcast: (event: CiSyncEvent) => void;
     /** Every `CiBootstrapEvent` a repository preparation in progress emits. */
     readonly broadcastBootstrap?: ((event: CiBootstrapEvent) => void) | undefined;
     readonly mounts?: LocalMapHandler | undefined;
-    /** Overridable so a test never touches the network. */
-    readonly fetch?: FetchLike | undefined;
     readonly appVersion?: string | null | undefined;
     /** Installed builds must use only their own complete packaged workflow resources. */
     readonly packaged?: boolean | undefined;
     readonly resourcesDir?: string | undefined;
-    readonly apiBase?: string | undefined;
-    /** Where release assets are PUT. Overridable so a test never uploads to GitHub. */
-    readonly uploadsBase?: string | undefined;
     readonly pollIntervalMs?: number | undefined;
     readonly runLookupAttempts?: number | undefined;
     readonly sleep?: ((ms: number, signal?: AbortSignal) => Promise<void>) | undefined;
@@ -146,17 +133,11 @@ type Answer<T> =
 export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     const syncOptions: CiRenderSyncOptions = {
         storageDir: options.storageDir,
-        token: options.token,
         eulaAccepted: options.eulaAccepted,
-        backup: options.backup,
         onEvent: options.broadcast,
-        ...(options.account === undefined ? {} : { account: options.account }),
-        ...(options.runner === undefined ? {} : { runner: options.runner }),
+        account: options.account,
         ...(options.mounts === undefined ? {} : { mounts: options.mounts }),
-        ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
         ...(options.appVersion === undefined ? {} : { appVersion: options.appVersion }),
-        ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-        ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
         ...(options.pollIntervalMs === undefined ? {} : { pollIntervalMs: options.pollIntervalMs }),
         ...(options.runLookupAttempts === undefined
             ? {}
@@ -165,6 +146,12 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     };
     const sync = new CiRenderSync(syncOptions);
     const scheduleWrites = new Set<string>();
+
+    const acquireAccount = async (
+        accountId: string | undefined,
+        access: GhCredentialAccess,
+        signal?: AbortSignal,
+    ) => await options.account(accountId, access, signal);
 
     options.ipcMain.handle(
         "cirender:preflight",
@@ -271,9 +258,8 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     // backups. The bridge (`ciRenderBridge.ts`) wires this to `CiRenders.reconcile()`.
     options.ipcMain.handle("cirender:active", () => sync.activeSyncIds());
 
-    // The setup card's own three answers. Each resolves the token the same way `sync`
-    // does - per call, from whatever `options.token` reads right now - and none of them
-    // holds anything between calls.
+    // The setup card's account, owner and repository answers are all produced by gh itself.
+    // No credential is requested from gh and none exists in these renderer-visible shapes.
     //
     // `cirender:owners` takes an optional account id so the account picker can re-resolve
     // this list for whichever stored account was chosen rather than always the active one.
@@ -286,15 +272,44 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         ): Promise<CiOwnerChoicesAnswer> => {
             const accountId = readText(request?.accountId);
             try {
-                return await listCiOwnerChoices({
-                    token: () => options.token(accountId ?? undefined),
-                    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
-                    ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-                });
+                const lease = await acquireAccount(accountId ?? undefined, "read");
+                if (lease === null) {
+                    return {
+                        ok: false,
+                        signedIn: false,
+                        message: "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                    };
+                }
+                return {
+                    ok: true,
+                    login: lease.login,
+                    owners: await listGhOwners(lease),
+                };
             } catch (error) {
                 // listCiOwnerChoices already turns its own failures into a result rather
                 // than a throw; this is a last resort for anything that got past that.
                 return { ok: false, signedIn: true, message: sentence(error) };
+            }
+        },
+    );
+
+    options.ipcMain.handle(
+        "cirender:repositories",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { accountId?: unknown } | undefined,
+        ): Promise<Answer<readonly GhRepositoryChoice[]>> => {
+            try {
+                const lease = await acquireAccount(readText(request?.accountId) ?? undefined, "read");
+                if (lease === null) {
+                    return {
+                        ok: false,
+                        message: "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                    };
+                }
+                return { ok: true, value: await listGhRepositories(lease) };
+            } catch (error) {
+                return { ok: false, message: sentence(error) };
             }
         },
     );
@@ -315,15 +330,88 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 typeof request === "object" && request !== null
                     ? (request as Record<string, unknown>)
                     : {};
-            return await checkCiRepositoryNameAvailability(
-                readText(record["owner"]) ?? "",
-                readText(record["repo"]) ?? "",
-                {
-                    token: options.token,
-                    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
-                    ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-                },
-            );
+            const accountId = readText(record["accountId"]);
+            const owner = readText(record["owner"]) ?? "";
+            const repo = readText(record["repo"]) ?? "";
+            try {
+                const lease = await acquireAccount(accountId ?? undefined, "read");
+                if (lease === null) {
+                    return {
+                        status: "unknown",
+                        owner,
+                        repo,
+                        message: "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                    };
+                }
+                const viewed = await viewGhRepository(lease, owner, repo);
+                if (viewed.status === "missing") return { status: "available", owner, repo };
+                if (viewed.status === "failed") {
+                    return { status: "unknown", owner, repo, message: viewed.message };
+                }
+                return {
+                    status: "taken",
+                    owner,
+                    repo,
+                    private: viewed.repository.private,
+                    htmlUrl: viewed.repository.htmlUrl,
+                };
+            } catch (error) {
+                return { status: "unknown", owner, repo, message: sentence(error) };
+            }
+        },
+    );
+
+    options.ipcMain.handle(
+        "cirender:createRepository",
+        async (
+            _event: IpcMainInvokeEvent,
+            request:
+                | {
+                      accountId?: unknown;
+                      ownerLogin?: unknown;
+                      ownerKind?: unknown;
+                      name?: unknown;
+                      private?: unknown;
+                  }
+                | undefined,
+        ): Promise<GhRepositoryCreateResult> => {
+            const ownerLogin = readText(request?.ownerLogin);
+            const name = readText(request?.name);
+            if (ownerLogin === null || name === null) {
+                return {
+                    ok: false,
+                    code: "invalid-request",
+                    message: "A repository owner and name are required.",
+                };
+            }
+            try {
+                const lease = await acquireAccount(
+                    readText(request?.accountId) ?? undefined,
+                    "write",
+                );
+                if (lease === null) {
+                    return {
+                        ok: false,
+                        code: "cli-failed",
+                        message: "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                        needsSignIn: true,
+                    };
+                }
+                return await createGhRepository(lease, {
+                    ownerLogin,
+                    ownerKind: request?.ownerKind === "organization" ? "organization" : "user",
+                    name,
+                    private: request?.private !== false,
+                });
+            } catch (error) {
+                const needsSignIn = error instanceof GhCredentialError && error.needsSignIn;
+                return {
+                    ok: false,
+                    code: "cli-failed",
+                    message: sentence(error),
+                    ...(needsSignIn ? { needsSignIn: true } : {}),
+                };
+            }
         },
     );
 
@@ -334,18 +422,16 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         owner: string,
         repo: string,
         accountId: string | null,
-    ): Promise<{ transport: CiTransport | null; report: RouteReport }> =>
-        await resolveTransport({
+        access: GhCredentialAccess,
+    ): Promise<{ transport: CiTransport | null; report: RouteReport }> => {
+        const lease = await acquireAccount(accountId ?? undefined, access);
+        return await resolveTransport({
             owner,
             repo,
             workflowFile: RENDER_WORKFLOW_FILE,
-            token: await options.token(accountId ?? undefined),
-            account: (await options.account?.(accountId ?? undefined)) ?? null,
-            fetch: options.fetch ?? ((url, init) => fetch(url, init)),
-            runner: options.runner ?? nodeProcessRunner(),
-            ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-            ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
+            lease,
         });
+    };
 
     options.ipcMain.handle(
         "cirender:scheduleRead",
@@ -363,6 +449,7 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                     owner,
                     repo,
                     readText(request?.accountId),
+                    "read",
                 );
                 if (routed.transport === null)
                     return { ok: false, message: routed.report.describe };
@@ -410,7 +497,11 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 const routed = await resolveScheduleTransport(
                     state.owner,
                     state.repo,
-                    readText(record["accountId"]),
+                    // A renderer may have changed pickers since this sync began. The durable
+                    // account that created the sync owns its later schedule writes; only a
+                    // legacy state with no saved account may fall back to the request.
+                    state.accountId ?? readText(record["accountId"]),
+                    "write",
                 );
                 if (routed.transport === null)
                     return { ok: false, message: routed.report.describe };
@@ -432,9 +523,7 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         "cirender:bootstrap",
         async (
             _event: IpcMainInvokeEvent,
-            request:
-                | { owner?: unknown; repo?: unknown; accountId?: unknown; prefer?: unknown }
-                | undefined,
+            request: { owner?: unknown; repo?: unknown; accountId?: unknown } | undefined,
         ): Promise<CiBootstrapResult> => {
             const owner = readText(request?.owner);
             const repo = readText(request?.repo);
@@ -450,10 +539,6 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 };
             }
             const accountId = readText(request?.accountId);
-            const prefer =
-                request?.prefer === "session" || request?.prefer === "gh"
-                    ? request.prefer
-                    : undefined;
 
             let loaded: Awaited<ReturnType<typeof loadCiWorkflowTemplates>>;
             try {
@@ -479,16 +564,13 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 };
             }
 
+            const lease = await acquireAccount(accountId ?? undefined, "write");
             return await bootstrapCiRepository(
                 { owner, repo },
                 {
-                    token: await options.token(accountId ?? undefined),
-                    account: (await options.account?.(accountId ?? undefined)) ?? null,
-                    fetch: options.fetch ?? ((url, init) => fetch(url, init)),
-                    runner: options.runner ?? nodeProcessRunner(),
+                    lease,
                     templates: loaded.templates,
                     templateVersion: loaded.version,
-                    ...(prefer === undefined ? {} : { prefer }),
                     onEvent: (event) => options.broadcastBootstrap?.(event),
                 },
             );
@@ -521,7 +603,6 @@ function readRequest(value: unknown): CiSyncRequest | null {
 
     const mapId = readText(record["mapId"]);
     const output = record["output"];
-    const route = record["route"];
     const accountId = readText(record["accountId"]);
     return {
         worldFolder,
@@ -538,9 +619,6 @@ function readRequest(value: unknown): CiSyncRequest | null {
             : {}),
         ...(typeof record["maxJobs"] === "number" ? { maxJobs: record["maxJobs"] } : {}),
         ...(output === "artifact" || output === "artifact-and-pages" ? { output } : {}),
-        // Only the two names this build knows. Anything else is not a route, and is
-        // dropped so the probe chooses rather than a typo forcing a credential nobody has.
-        ...(route === "session" || route === "gh" ? { route: route as CiRoute } : {}),
     };
 }
 

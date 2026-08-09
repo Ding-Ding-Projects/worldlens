@@ -307,6 +307,7 @@ describe("the store", () => {
             {
                 version: 1,
                 renderId: "world-1",
+                accountId: null,
                 owner: "octocat",
                 repo: "maps",
                 branch: "gh-pages",

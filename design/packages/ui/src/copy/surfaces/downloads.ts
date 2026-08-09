@@ -226,18 +226,18 @@ export const DOWNLOADS_VOICED = {
 
     "downloads.fail.release": {
         en: [
-            "That release could not be read. Either nothing is published under that tag, or it is private and this machine has not been given a token for it. A public release never needs one.",
-            "That release could not be read. Either nothing is published under that tag, or it is private and this machine has not been given a token for it. A public release never needs one.",
-            "That release could not be read. Either nothing is published under that tag at all, or it is private and this machine has not been given a token for it. A public release never needs one.",
-            "That release could not be read. Either nothing is published under that tag, or it is private and this machine has never been handed a token for it. A public release never needs one, so a token is only worth chasing if the release really is private.",
-            "That release refused to be read. Either nothing is published under that tag, or it is private and this machine was never handed a token for it. A public release never needs one, so go hunting for a token only if the release really is private.",
+            "That release could not be read. Either nothing is published under that tag, or it is private and the selected GitHub CLI account cannot read it. A public release does not need sign-in.",
+            "That release could not be read. Either nothing is published under that tag, or it is private and the selected GitHub CLI account cannot read it. A public release does not need sign-in.",
+            "That release could not be read. Either nothing is published under that tag at all, or it is private and the selected GitHub CLI account cannot read it. A public release does not need sign-in.",
+            "That release could not be read. Either nothing is published under that tag, or it is private and the selected GitHub CLI account needs access. A public release needs no sign-in, so reauthentication is only worth trying when the release is really private.",
+            "That release refused to be read. Either nothing is published under that tag, or it is private and the selected GitHub CLI account needs access. A public release needs no sign-in, so leave the account alone unless the release really is private.",
         ],
         yue: [
-            "讀唔到嗰個 release。可能係嗰個 tag 下面根本冇嘢發佈過，亦可能佢係 private，而呢部機冇俾過 token 佢。公開嘅 release 從來唔需要 token。",
-            "讀唔到嗰個 release。可能係嗰個 tag 下面根本冇嘢發佈過，亦可能佢係 private，而呢部機冇俾過 token 佢。公開嘅 release 從來唔需要 token。",
-            "讀唔到嗰個 release。可能係嗰個 tag 下面根本冇發佈過任何嘢，亦可能佢係 private，而呢部機冇俾過 token 佢。公開嘅 release 從來唔需要 token。",
-            "讀唔到嗰個 release。可能嗰個 tag 下面根本冇嘢發佈過，亦可能佢係 private，而呢部機從來冇攞過 token。公開嘅 release 從來唔需要 token，所以真係 private 先值得去搞個 token。",
-            "嗰個 release 唔肯俾人讀。可能嗰個 tag 下面根本冇嘢發佈過，亦可能佢係 private，而呢部機由頭到尾冇攞過 token。公開嘅 release 從來唔需要 token，所以確定咗係 private 先好去搞。",
+            "讀唔到嗰個 release。可能個 tag 下面根本冇嘢，亦可能佢係 private，而揀咗嘅 GitHub CLI 帳戶冇權讀。公開 release 唔使登入。",
+            "讀唔到嗰個 release。可能個 tag 下面根本冇嘢，亦可能佢係 private，而揀咗嘅 GitHub CLI 帳戶冇權讀。公開 release 唔使登入。",
+            "讀唔到嗰個 release。可能個 tag 下面真係乜都冇，亦可能佢係 private，而揀咗嘅 GitHub CLI 帳戶冇權讀。公開 release 唔使登入。",
+            "讀唔到嗰個 release。可能個 tag 下面冇嘢，亦可能 private release 未畀揀咗嘅 GitHub CLI 帳戶入場。公開 release 唔使登入，所以真係 private 先需要重新認證。",
+            "嗰個 release 唔肯開門。可能個 tag 下面冇嘢，亦可能 private release 未畀揀咗嘅 GitHub CLI 帳戶入場。公開 release 唔使登入，唔好無啦啦搞亂個帳戶。",
         ],
     },
     "downloads.fail.asset": {
@@ -536,23 +536,23 @@ export const DOWNLOADS_VOICED = {
     },
     /*
      * Sits under the main process's own failure sentence, so it never repeats what went
-     * wrong. Its job is the three fields to check and the one environment fact somebody
-     * cannot guess: a private release needs a token on this machine.
+     * wrong. Its job is the three fields to check and the account fact somebody cannot
+     * guess: a private release needs a GitHub CLI account that can read it.
      */
     "downloads.discoveryNote": {
         en: [
-            "Nothing was downloaded. Check the owner, the repository and the tag; a private release also needs this machine to have a GitHub token in its environment.",
-            "Nothing was downloaded. Check the owner, the repository and the tag; a private release also needs this machine to have a GitHub token in its environment.",
-            "Nothing was downloaded. Worth checking the owner, the repository and the tag; a private release also needs this machine to have a GitHub token in its environment.",
-            "Nothing was downloaded, so nothing on disk has changed. Worth checking the owner, the repository and the tag; a private release also needs this machine to have a GitHub token in its environment.",
-            "Nothing was downloaded, so nothing on disk moved an inch. Worth a second look at the owner, the repository and the tag; and a private release also needs this machine to have a GitHub token in its environment.",
+            "Nothing was downloaded. Check the owner, repository and tag; a private release also needs a signed-in GitHub CLI account that can read it. Reauthenticate or choose an account in GitHub Settings.",
+            "Nothing was downloaded. Check the owner, repository and tag; a private release also needs a signed-in GitHub CLI account that can read it. Reauthenticate or choose an account in GitHub Settings.",
+            "Nothing was downloaded. Check the owner, repository and tag; a private release also needs a GitHub CLI account with access. GitHub Settings is the recovery route.",
+            "Nothing was downloaded, so nothing on disk changed. Check the owner, repository and tag; a private release also needs a GitHub CLI account with access. Reauthenticate or choose one in GitHub Settings.",
+            "Nothing was downloaded, so the disk did not move an inch. Check the owner, repository and tag; a private release also needs a GitHub CLI account that has the guest-list clipboard. Reauthenticate or choose one in GitHub Settings.",
         ],
         yue: [
-            "冇下載過任何嘢。檢查吓擁有者、儲存庫同個 tag；private 嘅 release 仲需要呢部機喺環境變數入面有個 GitHub token。",
-            "冇下載過任何嘢。檢查吓擁有者、儲存庫同個 tag；private 嘅 release 仲需要呢部機喺環境變數入面有個 GitHub token。",
-            "冇下載過任何嘢。值得檢查吓擁有者、儲存庫同個 tag；private 嘅 release 仲需要呢部機喺環境變數入面有個 GitHub token。",
-            "冇下載過任何嘢，硬碟上乜都冇變過。值得檢查吓擁有者、儲存庫同個 tag；private 嘅 release 仲需要呢部機喺環境變數入面有個 GitHub token。",
-            "冇下載過任何嘢，硬碟上一粒塵都冇郁過。不妨再睇多次擁有者、儲存庫同個 tag；另外 private 嘅 release 仲需要呢部機喺環境變數入面有個 GitHub token。",
+            "冇下載過任何嘢。檢查擁有者、儲存庫同 tag；private release 仲要揀一個有權讀嘅 GitHub CLI 帳戶。去 GitHub 設定重新認證或者揀第二個。",
+            "冇下載過任何嘢。檢查擁有者、儲存庫同 tag；private release 仲要揀一個有權讀嘅 GitHub CLI 帳戶。去 GitHub 設定重新認證或者揀第二個。",
+            "冇下載過任何嘢。睇多次擁有者、儲存庫同 tag；private release 仲要 GitHub CLI 帳戶有入場權，GitHub 設定就係補飛位。",
+            "冇下載過任何嘢，硬碟乜都冇變。睇多次擁有者、儲存庫同 tag；private release 仲要有權讀嘅 GitHub CLI 帳戶，去 GitHub 設定重新認證或者轉人。",
+            "冇下載過任何嘢，硬碟一粒塵都冇郁。睇多次擁有者、儲存庫同 tag；private release 仲要 GitHub CLI 帳戶喺嘉賓名單，去 GitHub 設定補飛或者轉人。",
         ],
     },
     "downloads.rows.noMatch": {
@@ -761,11 +761,11 @@ export const DOWNLOADS_FACTS = {
         yue: ["設定", "喺呢度開唔到"],
     },
 
-    // Private plus token plus "a public release never needs one": all three, or the
+    // Private plus the selected CLI account plus public-release no-sign-in: all three, or the
     // reader goes looking for a credential a public release does not want.
     "downloads.fail.release": {
-        en: ["private", "token", "public release"],
-        yue: ["token", "公開嘅 release"],
+        en: ["private", "GitHub CLI account", "public release"],
+        yue: ["GitHub CLI 帳戶", "公開 release"],
     },
     "downloads.fail.asset": {
         en: ["nothing by that name", "listed below", "whole file"],
@@ -840,8 +840,8 @@ export const DOWNLOADS_FACTS = {
     },
     "downloads.reading": { en: ["Reading the release"], yue: ["讀緊個 release"] },
     "downloads.discoveryNote": {
-        en: ["Nothing was downloaded", "owner", "repository", "tag", "GitHub token"],
-        yue: ["冇下載過任何嘢", "擁有者", "儲存庫", "tag", "GitHub token"],
+        en: ["Nothing was downloaded", "owner", "repository", "tag", "GitHub CLI account"],
+        yue: ["冇下載過任何嘢", "擁有者", "儲存庫", "tag", "GitHub CLI 帳戶"],
     },
     "downloads.rows.noMatch": {
         en: ["matches that search", "none of them was removed"],

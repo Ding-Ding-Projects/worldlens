@@ -73,9 +73,11 @@ beforeAll(() => {
 const RECORD: WorldRepoRecord = {
     version: 1,
     worldPath: "/worlds/andyville",
+    accountId: "acct-persisted",
     owner: "octocat",
     repo: "andyville-world",
     branch: "world",
+    repositoryUrl: "https://github.example/octocat/andyville-world",
     stage: "finished",
     commit: "abc123",
     pushVerified: true,
@@ -282,7 +284,7 @@ describe("checking, then syncing", () => {
     it("loads owners into a real picker rather than a bare text box", async () => {
         const wrapper = mountScreen(fakeWorldRepo().bridge);
         await flushPromises();
-        expect(wrapper.find('[data-test="owner-select"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="worldrepo-owner-picker-select"]').exists()).toBe(true);
     });
 
     it("shows the report, including GitHub's own warnings, once checked", async () => {
@@ -422,7 +424,7 @@ describe("worlds this computer is tracking", () => {
         slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END);
         await flushPromises();
         expect(fake.removeCalls).toEqual([
-            { worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
+            { accountId: "acct-persisted", worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
         ]);
     });
 
@@ -457,7 +459,7 @@ describe("worlds this computer is tracking", () => {
         slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END);
         await flushPromises();
         expect(fake.removeCalls).toEqual([
-            { worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
+            { accountId: "acct-persisted", worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
         ]);
     });
 
@@ -493,12 +495,38 @@ describe("worlds this computer is tracking", () => {
         await flushPromises();
 
         expect(fake.removeCalls).toEqual([
-            { worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
+            { accountId: "acct-persisted", worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
         ]);
         expect(wrapper.find('[data-test="record"]').exists()).toBe(true);
         expect(wrapper.find('[data-test="remove-failure"]').text()).toContain(
             "The world branch no longer carries this application's marker, so it was not deleted.",
         );
+    });
+
+    it("offers the in-app GitHub account recovery anchor when sync authentication is refused", async () => {
+        const fake = fakeWorldRepo({
+            sync: () => Promise.resolve({
+                ok: false,
+                failure: {
+                    code: "account-unhealthy",
+                    message: "The selected GitHub CLI account needs reauthentication.",
+                    detail: null,
+                    needsGhSignIn: true,
+                },
+            }),
+        });
+        const wrapper = mountScreen(fake.bridge);
+        await flushPromises();
+        await wrapper.find('[data-test="check"]').trigger("click");
+        await flushPromises();
+        await wrapper.find('[data-test="acknowledge"] input').setValue(true);
+        await wrapper.find('[data-test="sync"]').trigger("click");
+        await flushPromises();
+
+        const recovery = wrapper.get('[data-test="reauthenticate"]');
+        expect(recovery.text()).toContain("Reauthenticate");
+        await recovery.trigger("click");
+        expect(wrapper.emitted("openSettings")?.[0]).toEqual(["github-account"]);
     });
 });
 

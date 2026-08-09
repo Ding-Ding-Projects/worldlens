@@ -1,71 +1,21 @@
-/**
- * The two ways a CI render can reach GitHub, behind one interface.
- *
- * There are two credentials on a typical machine and they are not interchangeable. The
- * application's own sign-in is the ordinary one. `gh` is the other, and it routinely holds
- * things the in-app flow does not: an enterprise host, a SAML/SSO session already
- * authorised for an organisation, a token with scopes nobody thought to ask for. Somebody
- * already signed in to `gh` should not have to sign in twice, and somebody whose in-app
- * token turns out to be short a scope should get a route that works.
- *
- * ## One route drives the whole sync, never a mixture
- *
- * {@link resolveTransport} picks a route **once**, before anything starts, and the same
- * transport then dispatches the workflow, follows the run, reads the failing job's log and
- * downloads the artifact. Mixing them - dispatch through `gh`, download through the API -
- * would work perfectly on a machine where both are authorised and fail halfway through on
- * one where only one is, with a message about the download that is really about the
- * credential. Half a render is the worst outcome available here, so it is designed out.
- *
- * ## The probe proves what it proves, and the refusal says which credential is in play
- *
- * Choosing is not guessing: each candidate is asked to read the workflow, which is the
- * cheapest call that proves a credential can see Actions on that repository. It does not
- * prove a dispatch will be permitted - only a dispatch proves that - so every failure
- * carries the route that produced it. "Permission denied" is unactionable when a person
- * cannot tell which of their two GitHub sign-ins was refused.
- *
- * ## The upload too: one packer, two transports
- *
- * The **upload** used to be the one thing a `gh`-only machine could not do, on the grounds
- * that routing it through `gh release upload` would be a second uploader. That reasoning
- * was right about the packer and wrong about the transfer, so the split is now drawn where
- * it belongs.
- *
- * The packing, the splitting, the part naming, the digests, the sidecar and the Cheap LFS
- * pointer all stay in `main/backup/`, are imported rather than restated, and run
- * identically whichever credential is in play - see `upload.ts`. What this interface adds
- * is only the **transfer**: read a repository, create a release, list what a release
- * already holds, put one file on it. The REST calls are that transfer for the in-app
- * session; `gh release create` and `gh release upload --clobber` are that transfer for
- * `gh`. One packer, two transports, and no second set of release rules anywhere.
- */
-
-import { basename } from "node:path";
+/** One GitHub transport built from one main-process-only gh credential lease. */
 import {
     createBackupRelease,
     findExistingAssets,
     findReleaseByTag,
     parseRepositoryRecord,
     readRepository as readRepositoryOverRest,
-    uploadAsset,
 } from "../backup/index.js";
-import type { BackupRelease, FetchLike } from "../backup/index.js";
-import { downloadToFile } from "../download/http.js";
+import type { BackupRelease } from "../backup/index.js";
+import { ghApiBaseForHost } from "../ghcli/credentialBroker.js";
+import type { GhCliAccountLease } from "../ghcli/credentialBroker.js";
 import {
-    artifactDownloadHeaders,
-    artifactZipUrl,
     dispatchWorkflow,
     findDispatchedRun,
     githubApiJson,
     githubApiSendJson,
     isRepositoryEmpty,
     listRunArtifacts,
-    parseArtifacts,
-    parseJobs,
-    parseRun,
-    parseWorkflow,
-    pickDispatchedRun,
     readActionsPolicy,
     readDefaultBranch,
     readJobLogTail,
@@ -73,7 +23,6 @@ import {
     readRepositoryVariable,
     readRun,
     readRunJobs,
-    readTokenScopes,
     readWorkflow,
     writeRepositoryFile,
     writeRepositoryVariable,
@@ -88,19 +37,9 @@ import type {
     WorkflowRun,
     WorkflowSummary,
 } from "./actions.js";
-import {
-    GH_COMMAND,
-    GH_LOGIN_COMMAND,
-    ghApiJson,
-    ghApiPost,
-    ghApiSend,
-    ghApiToFile,
-} from "./gh.js";
-import type { GhStatus, ProcessRunner } from "./gh.js";
-import { listGhCliAccounts, switchGhCliAccount } from "../ghcli/accounts.js";
-import type { GhCliAccountSummary, GhCliAccountsStatus } from "../ghcli/accounts.js";
+import type { GhStatus } from "./gh.js";
 
-export type CiRoute = "session" | "gh";
+export type CiRoute = "gh";
 
 /** A repository as GitHub describes it, in the only four facts a sync acts on. */
 export interface CiRepositoryFacts {
@@ -330,18 +269,9 @@ export interface CiTransport {
     ) => Promise<{ readonly commitSha: string }>;
 }
 
-export interface SessionTransportOptions {
-    readonly fetch: FetchLike;
-    readonly token: string;
+export interface BrokerCliTransportOptions {
+    readonly lease: GhCliAccountLease;
     readonly signal?: AbortSignal | undefined;
-    readonly apiBase?: string | undefined;
-    /**
-     * Where release assets are PUT. A second host, because GitHub uploads on one.
-     *
-     * Overridable for the same reason `apiBase` is: without it a test that exercises an
-     * upload would stream bytes at the real `uploads.github.com`.
-     */
-    readonly uploadsBase?: string | undefined;
     /** How the interface names this credential. The account login when it is known. */
     readonly account?: string | null | undefined;
 }
@@ -464,14 +394,12 @@ async function commitFilesWithApi(
     return { commitSha };
 }
 
-/** The application's own sign-in, over the REST API. The ordinary route. */
-export function sessionTransport(options: SessionTransportOptions): CiTransport {
+/** A main-process broker lease used over the REST API for one complete operation. */
+export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransport {
     const call = {
-        fetch: options.fetch,
-        token: options.token,
+        fetch: (url: string, init?: RequestInit) => options.lease.api(url, init),
+        apiBase: ghApiBaseForHost(options.lease.host),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
-        ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-        ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
     };
     const gitDataApi: GitDataApi = {
         get: (endpoint) => githubApiJson(endpoint, call),
@@ -505,11 +433,11 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
     };
 
     return {
-        route: "session",
+        route: "gh",
         describe:
             options.account === null || options.account === undefined
-                ? "the GitHub sign-in in this application"
-                : `the GitHub sign-in in this application (${options.account})`,
+                ? "the selected GitHub CLI account"
+                : `the selected GitHub CLI account (${options.account})`,
         canUpload: true,
         readWorkflow: (owner, repo, file) => readWorkflow(owner, repo, file, call),
         readDefaultBranch: (owner, repo) => readDefaultBranch(owner, repo, call),
@@ -523,15 +451,18 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
             readJobLogTail(owner, repo, jobId, call, maxLines ?? LOG_TAIL_LINES),
         listRunArtifacts: (owner, repo, runId) => listRunArtifacts(owner, repo, runId, call),
         async downloadArtifact(_owner, _repo, artifact, destination, onBytes): Promise<void> {
-            await downloadToFile(artifact.archiveDownloadUrl, destination, {
-                fetch: options.fetch,
-                headers: artifactDownloadHeaders(options.token),
+            const result = await options.lease.downloadApi(artifact.archiveDownloadUrl, destination, {
                 ...(options.signal === undefined ? {} : { signal: options.signal }),
-                ...(artifact.sizeInBytes > 0 ? { expectedBytes: artifact.sizeInBytes } : {}),
-                ...(onBytes === undefined
-                    ? {}
-                    : { onBytes: (_delta, total) => onBytes(total, artifact.sizeInBytes) }),
             });
+            if (!result.started || result.code !== 0) {
+                throw new ActionsCallError(
+                    "GitHub CLI could not download the workflow artifact.",
+                    cliHttpStatus(result.stderr),
+                    artifact.archiveDownloadUrl,
+                    [401, 403].includes(cliHttpStatus(result.stderr)),
+                );
+            }
+            onBytes?.(result.bytes, artifact.sizeInBytes);
         },
         async releaseHasAsset(owner, repo, tag, assetName): Promise<boolean> {
             // Derived from the listing rather than answered separately, so "is it there"
@@ -578,25 +509,23 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
                 assets: [],
                 createdAt: "",
             };
-            await uploadAsset(
-                release,
+            const result = await options.lease.uploadReleaseAsset(
                 upload.owner,
                 upload.repo,
+                release.tag,
                 upload.assetName,
                 upload.filePath,
-                {
-                    ...call,
-                    ...(upload.onProgress === undefined
-                        ? {}
-                        : {
-                              onProgress: (progress) =>
-                                  upload.onProgress?.({
-                                      bytesSent: progress.bytesSent,
-                                      bytesTotal: progress.bytesTotal,
-                                  }),
-                          }),
-                },
+                options.signal === undefined ? {} : { signal: options.signal },
             );
+            if (!result.started || result.code !== 0) {
+                throw new ActionsCallError(
+                    "GitHub CLI could not upload the release asset.",
+                    cliHttpStatus(result.stderr),
+                    `${upload.owner}/${upload.repo}#${release.tag}`,
+                    [401, 403].includes(cliHttpStatus(result.stderr)),
+                );
+            }
+            upload.onProgress?.({ bytesSent: upload.bytes, bytesTotal: upload.bytes });
         },
 
         readVariable: (owner, repo, name) => readRepositoryVariable(owner, repo, name, call),
@@ -605,7 +534,9 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
 
         isRepositoryEmpty: (owner, repo) => isRepositoryEmpty(owner, repo, call),
         readActionsPolicy: (owner, repo) => readActionsPolicy(owner, repo, call),
-        readTokenScopes: () => readTokenScopes(call),
+        readTokenScopes: async () => ({
+            scopes: options.lease.scopesReported ? options.lease.scopes : null,
+        }),
         readFile: (owner, repo, path, ref) => readRepositoryFile(owner, repo, path, call, ref),
         writeFile: (owner, repo, path, contentBase64, message, sha) =>
             writeRepositoryFile(owner, repo, path, contentBase64, message, call, sha),
@@ -613,703 +544,6 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
         commitFilesAtomically: (owner, repo, request) =>
             commitFilesWithApi(gitDataApi, owner, repo, request),
     };
-}
-
-export interface GhTransportOptions {
-    readonly runner: ProcessRunner;
-    readonly signal?: AbortSignal | undefined;
-    /** A host/account pair read from `gh auth status --json hosts`, never free text. */
-    readonly host: string;
-    readonly account: string;
-}
-
-/**
- * Makes the selected, stored gh account active and proves the identity the next command
- * will actually use. Both host and login came from gh's own account inventory before this
- * function is called; callers never manufacture a token or trust a free-text identity.
- */
-async function ensureGhIdentity(options: GhTransportOptions, what: string): Promise<void> {
-    const status = await listGhCliAccounts({
-        runner: options.runner,
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-    });
-    const stored = status.accounts.find(
-        (candidate) =>
-            candidate.host.toLowerCase() === options.host.toLowerCase() &&
-            candidate.login.toLowerCase() === options.account.toLowerCase(),
-    );
-    if (stored === undefined || !stored.healthy) {
-        throw ghAccountRecoveryError(
-            stored === undefined
-                ? `${options.account} is not signed in to gh on ${options.host}, so ${what} was not attempted.`
-                : `${options.account} is signed in to gh on ${options.host}, but gh reports that account as ${stored.stateDetail ?? "unhealthy"}, so ${what} was not attempted.`,
-            what,
-        );
-    }
-
-    if (!stored.active) {
-        const switched = await switchGhCliAccount(
-            {
-                runner: options.runner,
-                ...(options.signal === undefined ? {} : { signal: options.signal }),
-            },
-            stored.host,
-            stored.login,
-        );
-        if (!switched.ok)
-            throw ghAccountRecoveryError(`${switched.message} ${what} was not attempted.`, what);
-    }
-
-    // This uses the same host and credential resolution as the release command. The
-    // account-list re-read proves gh's stored active bit; this proves the effective caller,
-    // including any environment override inherited by the desktop process.
-    const identity = await options.runner.run(
-        GH_COMMAND,
-        ["api", "--hostname", options.host, "user", "--jq", ".login"],
-        options.signal === undefined ? {} : { signal: options.signal },
-    );
-    const actual = identity.stdout.trim();
-    if (
-        !identity.started ||
-        identity.code !== 0 ||
-        actual.toLowerCase() !== options.account.toLowerCase()
-    ) {
-        const detail =
-            actual === ""
-                ? firstGhLine(identity.stderr)
-                : `gh authenticated as ${actual}, not ${options.account}`;
-        throw ghAccountRecoveryError(
-            `The active gh identity on ${options.host} could not be verified as ${options.account}, so ${what} was not attempted.` +
-                (detail === "" ? "" : ` ${detail}.`),
-            what,
-        );
-    }
-}
-
-/**
- * The `gh` command-line tool, over `gh api` for everything it can express.
- *
- * Every **read** goes through `gh api`, not through `gh run view` or `gh run download`.
- * Two reasons. `gh api` returns GitHub's own JSON, so **the same parsers** run for both
- * routes and the two cannot drift about what a job's status means. And `gh run download`
- * unpacks an artifact into a directory, which would skip the zip - and with it the digest
- * check the collector runs before anything is unpacked.
- *
- * The two **writes** an upload needs are the exception, and deliberately so.
- * `gh release create` and `gh release upload --clobber` are `gh`'s own supported way to put
- * bytes on a release; the equivalent `gh api` call would have to post a binary body to a
- * different host, which `gh api` is not built for. `--clobber` is not a convenience: a part
- * whose previous upload was truncated has to be *replaced*, and without it GitHub refuses
- * the name and a resumed upload can never repair the one asset that is actually broken.
- *
- * Every command is spawned with an argument array and never through a shell, so a tag, an
- * asset name or a repository name cannot become part of a command line. No token is asked
- * for, printed or passed: `gh` uses its own store, and `--show-token` appears nowhere.
- */
-export function ghTransport(options: GhTransportOptions): CiTransport {
-    const api = {
-        runner: options.runner,
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-        host: options.host,
-    };
-    const path = (owner: string, repo: string): string =>
-        `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
-    const gitDataApi: GitDataApi = {
-        get: (endpoint) => ghApiJson(endpoint, api),
-        async send(endpoint, method, body): Promise<unknown> {
-            const raw = await ghApiSend(endpoint, method, body, api);
-            if (raw.trim().length === 0) return null;
-            try {
-                return JSON.parse(raw) as unknown;
-            } catch {
-                throw new ActionsCallError(
-                    `${GH_COMMAND} accepted ${method} ${endpoint} but answered something that was not JSON.`,
-                    0,
-                    endpoint,
-                );
-            }
-        },
-    };
-
-    /**
-     * `gh release` has no `--hostname` flag. Its inherited `--repo` flag accepts
-     * `[HOST/]OWNER/REPO`, which keeps enterprise routing explicit without depending on the
-     * checkout's own repository or silently dropping back to github.com.
-     */
-    const where = (owner: string, repo: string): string[] => [
-        "--repo",
-        `${options.host}/${owner}/${repo}`,
-    ];
-
-    /**
-     * Re-establishes and proves the selected gh identity immediately before a release read
-     * or write. Packing a large world can take hours after preflight; trusting the account
-     * that was active then would let another terminal's later `gh auth switch` redirect the
-     * upload. The selected account is left active, matching gh's existing machine-wide
-     * switching contract rather than silently restoring a different identity afterwards.
-     */
-    const ensureReleaseIdentity = (what: string): Promise<void> => ensureGhIdentity(options, what);
-
-    /** Runs one `gh` subcommand, turning a refusal into the error type both routes raise. */
-    const runGh = async (args: readonly string[], what: string): Promise<void> => {
-        const result = await options.runner.run(GH_COMMAND, args, {
-            ...(options.signal === undefined ? {} : { signal: options.signal }),
-        });
-        if (!result.started) {
-            throw new ActionsCallError(
-                `The ${GH_COMMAND} command-line tool is no longer on PATH, so ${what} could not be ` +
-                    "carried out. Nothing was changed.",
-                0,
-                what,
-            );
-        }
-        if (result.code !== 0) throw ghCommandFailure(result.stderr, what);
-    };
-
-    const readRelease = async (
-        owner: string,
-        repo: string,
-        tag: string,
-    ): Promise<unknown | null> => {
-        await ensureReleaseIdentity(`reading the release tagged ${tag}`);
-        try {
-            return await ghApiJson(
-                `${path(owner, repo)}/releases/tags/${encodeURIComponent(tag)}`,
-                api,
-            );
-        } catch (error) {
-            // 404 is "there is no release under that tag", which is an answer rather than a
-            // failure. Anything else is a real refusal and is not swallowed: reporting a
-            // 403 as "no release" would have a resume quietly create a second one.
-            if (error instanceof ActionsCallError && error.status === 404) return null;
-            throw error;
-        }
-    };
-
-    const listReleaseAssets = async (
-        owner: string,
-        repo: string,
-        tag: string,
-    ): Promise<ReadonlyMap<string, CiReleaseAsset>> => {
-        const found = new Map<string, CiReleaseAsset>();
-        let body: unknown;
-        try {
-            body = await readRelease(owner, repo, tag);
-        } catch (error) {
-            // A missing/changed selected account is not an unreadable release. Swallowing
-            // that guard would let resume continue under an unverified identity.
-            if (error instanceof ActionsCallError && error.needsSignIn) throw error;
-            // Same rule as the API route: a release that cannot be read holds nothing as
-            // far as this is concerned, so its contents are uploaded again.
-            return found;
-        }
-        if (typeof body !== "object" || body === null) return found;
-        const assets = (body as Record<string, unknown>)["assets"];
-        if (!Array.isArray(assets)) return found;
-        for (const asset of assets) {
-            if (typeof asset !== "object" || asset === null) continue;
-            const record = asset as Record<string, unknown>;
-            const name = record["name"];
-            // Only `uploaded`. An asset stuck in `starter` or `new` is a truncated upload,
-            // and skipping it because the name matched is how a backup becomes unrestorable.
-            if (typeof name !== "string" || record["state"] !== "uploaded") continue;
-            found.set(name, {
-                name,
-                size: typeof record["size"] === "number" ? record["size"] : -1,
-            });
-        }
-        return found;
-    };
-
-    return {
-        route: "gh",
-        describe: `the ${GH_COMMAND} command-line tool (${options.account} on ${options.host})`,
-        // The transfer below is route-aware, so somebody signed in to `gh` and not to this
-        // application can publish a world as well as render one. The packer is still the
-        // single one in `main/backup/`; only the four calls that move bytes differ.
-        canUpload: true,
-
-        async readWorkflow(owner, repo, file): Promise<WorkflowSummary> {
-            const body = await ghApiJson(
-                `${path(owner, repo)}/actions/workflows/${encodeURIComponent(file)}`,
-                api,
-            );
-            const summary = parseWorkflow(body);
-            if (summary === null) {
-                throw new ActionsCallError(`${GH_COMMAND} described ${file} unreadably.`, 0, file);
-            }
-            return summary;
-        },
-
-        async readDefaultBranch(owner, repo): Promise<string> {
-            const body = await ghApiJson(path(owner, repo), api);
-            const branch =
-                typeof body === "object" && body !== null
-                    ? (body as Record<string, unknown>)["default_branch"]
-                    : null;
-            if (typeof branch !== "string" || branch.length === 0) {
-                throw new ActionsCallError(
-                    `${GH_COMMAND} did not say which branch is default on ${owner}/${repo}, and a ` +
-                        "workflow cannot be started without one.",
-                    0,
-                    `${owner}/${repo}`,
-                );
-            }
-            return branch;
-        },
-
-        dispatchWorkflow: async (owner, repo, file, ref, inputs): Promise<void> => {
-            await ghApiPost(
-                `${path(owner, repo)}/actions/workflows/${encodeURIComponent(file)}/dispatches`,
-                { ref, inputs },
-                api,
-            );
-        },
-
-        findDispatchedRun: async (owner, repo, file, since): Promise<WorkflowRun | null> =>
-            pickDispatchedRun(
-                await ghApiJson(
-                    `${path(owner, repo)}/actions/workflows/${encodeURIComponent(file)}` +
-                        "/runs?event=workflow_dispatch&per_page=30",
-                    api,
-                ),
-                since,
-            ),
-
-        async readRun(owner, repo, runId): Promise<WorkflowRun> {
-            const run = parseRun(
-                await ghApiJson(`${path(owner, repo)}/actions/runs/${String(runId)}`, api),
-            );
-            if (run === null) {
-                throw new ActionsCallError(
-                    `${GH_COMMAND} described run ${String(runId)} unreadably.`,
-                    0,
-                    String(runId),
-                );
-            }
-            return run;
-        },
-
-        readRunJobs: async (owner, repo, runId): Promise<readonly WorkflowJob[]> =>
-            parseJobs(
-                await ghApiJson(
-                    `${path(owner, repo)}/actions/runs/${String(runId)}/jobs?per_page=100`,
-                    api,
-                ),
-            ),
-
-        async readJobLogTail(owner, repo, jobId, maxLines): Promise<string | null> {
-            // The same rule as the API route: a log that cannot be read answers null, not
-            // an error. A missing log must never replace the render failure it was fetched
-            // to explain.
-            let raw: unknown;
-            try {
-                raw = await ghApiJson(
-                    `${path(owner, repo)}/actions/jobs/${String(jobId)}/logs`,
-                    api,
-                );
-            } catch {
-                return await ghLogText(owner, repo, jobId, api, maxLines ?? LOG_TAIL_LINES);
-            }
-            return typeof raw === "string" ? tail(raw, maxLines ?? LOG_TAIL_LINES) : null;
-        },
-
-        listRunArtifacts: async (owner, repo, runId): Promise<readonly WorkflowArtifact[]> =>
-            parseArtifacts(
-                await ghApiJson(
-                    `${path(owner, repo)}/actions/runs/${String(runId)}/artifacts?per_page=100`,
-                    api,
-                ),
-                artifactZipUrl("", owner, repo),
-            ),
-
-        async downloadArtifact(owner, repo, artifact, destination, onBytes): Promise<void> {
-            const bytes = await ghApiToFile(
-                `${path(owner, repo)}/actions/artifacts/${String(artifact.id)}/zip`,
-                destination,
-                api,
-            );
-            onBytes?.(bytes, artifact.sizeInBytes);
-        },
-
-        async releaseHasAsset(owner, repo, tag, assetName): Promise<boolean> {
-            return (await listReleaseAssets(owner, repo, tag)).has(assetName);
-        },
-
-        async readRepository(owner, repo): Promise<CiRepositoryFacts> {
-            // Parsed by `main/backup/`'s own reader, so "may this credential write here"
-            // and "is this repository public" mean exactly the same thing on both routes.
-            // A second parser would be a second definition of PUBLIC.
-            const repository = parseRepositoryRecord(await ghApiJson(path(owner, repo), api));
-            if (repository === null) {
-                throw new ActionsCallError(
-                    `${GH_COMMAND} described ${owner}/${repo} in a way this build could not read as a ` +
-                        "repository, so whether it is public could not be established. Nothing was uploaded.",
-                    0,
-                    `${owner}/${repo}`,
-                );
-            }
-            return {
-                owner: repository.owner,
-                repo: repository.name,
-                fullName: repository.fullName,
-                private: repository.private,
-                canWrite: repository.canWrite,
-                htmlUrl: repository.htmlUrl,
-            };
-        },
-
-        async findRelease(owner, repo, tag): Promise<CiRelease | null> {
-            const body = await readRelease(owner, repo, tag);
-            if (typeof body !== "object" || body === null) return null;
-            const record = body as Record<string, unknown>;
-            const id = record["id"];
-            if (typeof id !== "number") return null;
-            return {
-                id,
-                tag: typeof record["tag_name"] === "string" ? record["tag_name"] : tag,
-                htmlUrl: typeof record["html_url"] === "string" ? record["html_url"] : "",
-            };
-        },
-
-        async createRelease(owner, repo, tag, name, body): Promise<CiRelease> {
-            /*
-             * The append-only rule, enforced before the write rather than hoped for.
-             *
-             * `gh release create` refuses a duplicate tag itself, but its message is about
-             * the command; this one is about the backup, and it is the sentence somebody
-             * needs to understand that yesterday's upload was left untouched.
-             */
-            const already = await readRelease(owner, repo, tag);
-            if (already !== null) {
-                throw new ActionsCallError(
-                    `${owner}/${repo} already has a release tagged ${tag}. Nothing was changed: an ` +
-                        "upload never edits or replaces an existing release, so this one was left " +
-                        "exactly as it was. Start the upload again to get a fresh tag.",
-                    422,
-                    tag,
-                );
-            }
-
-            await runGh(
-                [
-                    "release",
-                    "create",
-                    tag,
-                    ...where(owner, repo),
-                    "--title",
-                    name,
-                    "--notes",
-                    body,
-                    // A prerelease that is never "latest", exactly as the REST route creates
-                    // it: a stored world quietly becoming somebody's latest release would
-                    // redirect their installer link at a Minecraft save.
-                    "--prerelease",
-                    "--latest=false",
-                ],
-                `creating the release tagged ${tag}`,
-            );
-
-            // Read back rather than parsed out of what the command printed: `gh release
-            // create` prints a URL, and the id is what an upload needs. Reading it also
-            // proves the release really exists before anything is streamed at it.
-            const created = await readRelease(owner, repo, tag);
-            const id =
-                typeof created === "object" && created !== null
-                    ? (created as Record<string, unknown>)["id"]
-                    : null;
-            if (typeof id !== "number") {
-                throw new ActionsCallError(
-                    `${GH_COMMAND} reported that it created the release tagged ${tag} on ${owner}/${repo}, ` +
-                        "but it could not be read back afterwards, so nothing was uploaded to it.",
-                    0,
-                    tag,
-                );
-            }
-            const record = created as Record<string, unknown>;
-            return {
-                id,
-                tag: typeof record["tag_name"] === "string" ? record["tag_name"] : tag,
-                htmlUrl: typeof record["html_url"] === "string" ? record["html_url"] : "",
-            };
-        },
-
-        listReleaseAssets,
-
-        async uploadReleaseAsset(upload): Promise<void> {
-            /*
-             * `gh release upload` names the asset after the file's own basename - the
-             * `file#label` form sets a *label*, not a name - so a mismatch here would put a
-             * part on the release under a name the Cheap LFS pointer does not mention, and
-             * a restore would look for an asset that is not there. The caller stages every
-             * file under its final asset name (see `upload.ts`); this refuses rather than
-             * silently uploading something the pointer cannot find.
-             */
-            if (basename(upload.filePath) !== upload.assetName) {
-                throw new ActionsCallError(
-                    `The ${GH_COMMAND} route uploads a release asset under the staged file's own name, ` +
-                        `and ${basename(upload.filePath)} is not ${upload.assetName}. Nothing was ` +
-                        "uploaded, because an asset under the wrong name is one a restore cannot find.",
-                    0,
-                    upload.assetName,
-                );
-            }
-
-            await ensureReleaseIdentity(`uploading ${upload.assetName}`);
-            await runGh(
-                [
-                    "release",
-                    "upload",
-                    upload.release.tag,
-                    upload.filePath,
-                    ...where(upload.owner, upload.repo),
-                    // Replaces an asset of the same name. A part left truncated by a dropped
-                    // connection is exactly the asset a resumed upload has to overwrite, and
-                    // without this GitHub refuses the name and the break can never be repaired.
-                    "--clobber",
-                ],
-                `uploading ${upload.assetName}`,
-            );
-
-            /*
-             * One progress call, at the end, and it is honest about being one.
-             *
-             * `gh` writes its own progress to a terminal this process does not have, so
-             * there is no byte-by-byte figure to relay. Inventing a moving bar from a timer
-             * would make a stalled upload look busy, which is the one thing a progress
-             * surface must never do; the bar therefore steps once per asset here and the
-             * description beside it names which asset is in flight.
-             */
-            upload.onProgress?.({ bytesSent: upload.bytes, bytesTotal: upload.bytes });
-        },
-
-        async readVariable(owner, repo, name): Promise<string | null> {
-            try {
-                const body = await ghApiJson(
-                    `${path(owner, repo)}/actions/variables/${encodeURIComponent(name)}`,
-                    api,
-                );
-                const value =
-                    typeof body === "object" && body !== null
-                        ? (body as Record<string, unknown>)["value"]
-                        : null;
-                return typeof value === "string" ? value : null;
-            } catch (error) {
-                // Same rule as `readRelease` above: 404 is "not set", an answer rather than
-                // a refusal, and everything else is a real failure that must not be read as one.
-                if (error instanceof ActionsCallError && error.status === 404) return null;
-                throw error;
-            }
-        },
-
-        async writeVariable(owner, repo, name, value): Promise<void> {
-            try {
-                await ghApiSend(
-                    `${path(owner, repo)}/actions/variables/${encodeURIComponent(name)}`,
-                    "PATCH",
-                    { value },
-                    api,
-                );
-                return;
-            } catch (error) {
-                if (!(error instanceof ActionsCallError) || error.status !== 404) throw error;
-            }
-            await ghApiSend(`${path(owner, repo)}/actions/variables`, "POST", { name, value }, api);
-        },
-
-        async isRepositoryEmpty(owner, repo): Promise<boolean> {
-            try {
-                await ghApiJson(`${path(owner, repo)}/commits?per_page=1`, api);
-                return false;
-            } catch (error) {
-                if (error instanceof ActionsCallError && error.status === 409) return true;
-                throw error;
-            }
-        },
-
-        async readActionsPolicy(owner, repo): Promise<ActionsPolicy> {
-            try {
-                const body = await ghApiJson(`${path(owner, repo)}/actions/permissions`, api);
-                const record =
-                    typeof body === "object" && body !== null
-                        ? (body as Record<string, unknown>)
-                        : {};
-                if (record["enabled"] === true) return { state: "enabled" };
-                if (record["enabled"] === false) {
-                    const allowed = record["allowed_actions"];
-                    return {
-                        state: "disabled",
-                        allowedActions: typeof allowed === "string" ? allowed : null,
-                    };
-                }
-                return {
-                    state: "unknown",
-                    reason: `${GH_COMMAND} described the Actions setting in a way this build could not read.`,
-                };
-            } catch (error) {
-                if (
-                    error instanceof ActionsCallError &&
-                    (error.status === 403 || error.status === 404)
-                ) {
-                    return {
-                        state: "unknown",
-                        reason:
-                            "Reading whether Actions is enabled needs admin access to the repository, and" +
-                            ` the account \`${GH_COMMAND}\` is signed in as does not have it here.`,
-                    };
-                }
-                throw error;
-            }
-        },
-
-        // `gh` manages its own token and has no command that reads its scopes back - see
-        // the interface's own note on this method for why `null` is the honest answer here
-        // rather than an empty list.
-        readTokenScopes: () => Promise.resolve({ scopes: null }),
-
-        async readFile(owner, repo, filePath, ref): Promise<RepositoryFile | null> {
-            try {
-                const body = await ghApiJson(
-                    `${path(owner, repo)}/contents/${filePath.split("/").map(encodeURIComponent).join("/")}` +
-                        (ref === undefined ? "" : `?ref=${encodeURIComponent(ref)}`),
-                    api,
-                );
-                const record =
-                    typeof body === "object" && body !== null
-                        ? (body as Record<string, unknown>)
-                        : {};
-                const sha = record["sha"];
-                const content = record["content"];
-                if (typeof sha !== "string" || typeof content !== "string") return null;
-                return { sha, contentBase64: content };
-            } catch (error) {
-                if (error instanceof ActionsCallError && error.status === 404) return null;
-                throw error;
-            }
-        },
-
-        async writeFile(owner, repo, filePath, contentBase64, message, sha) {
-            const raw = await ghApiSend(
-                `${path(owner, repo)}/contents/${filePath.split("/").map(encodeURIComponent).join("/")}`,
-                "PUT",
-                { message, content: contentBase64, ...(sha === undefined ? {} : { sha }) },
-                api,
-            );
-            let parsed: unknown;
-            try {
-                parsed = JSON.parse(raw);
-            } catch {
-                throw new ActionsCallError(
-                    `${GH_COMMAND} accepted the write to ${filePath} on ${owner}/${repo} but answered` +
-                        " something that was not JSON, so the file's new sha could not be read.",
-                    0,
-                    filePath,
-                );
-            }
-            const record =
-                typeof parsed === "object" && parsed !== null
-                    ? (parsed as Record<string, unknown>)
-                    : {};
-            const content = record["content"];
-            const newSha =
-                typeof content === "object" && content !== null
-                    ? (content as Record<string, unknown>)["sha"]
-                    : null;
-            const commit = record["commit"];
-            const commitSha =
-                typeof commit === "object" && commit !== null
-                    ? (commit as Record<string, unknown>)["sha"]
-                    : null;
-            if (typeof newSha !== "string") {
-                throw new ActionsCallError(
-                    `${GH_COMMAND} accepted the write to ${filePath} on ${owner}/${repo} but did not` +
-                        " answer with the file's new sha.",
-                    0,
-                    filePath,
-                );
-            }
-            return { sha: newSha, commitSha: typeof commitSha === "string" ? commitSha : null };
-        },
-        async readRepositoryHead(owner, repo) {
-            await ensureGhIdentity(options, `reading the branch head for ${owner}/${repo}`);
-            return await readHeadWithApi(gitDataApi, owner, repo);
-        },
-        async commitFilesAtomically(owner, repo, request) {
-            await ensureGhIdentity(options, `updating managed workflows on ${owner}/${repo}`);
-            return await commitFilesWithApi(gitDataApi, owner, repo, request);
-        },
-    };
-}
-
-/**
- * A failed `gh` subcommand turned into the same error type every other call raises.
- *
- * `gh release` does not print `(HTTP 403)` the way `gh api` does, so the status is usually
- * unrecoverable and is reported as 0 rather than guessed at. What it does print is the
- * reason, and that is carried through: "release not found", "not authorized" and "asset
- * already exists" are three different problems with three different fixes.
- */
-function ghCommandFailure(stderr: string, what: string): ActionsCallError {
-    const match = /\(HTTP (\d{3})\)/.exec(stderr);
-    const status = match?.[1] === undefined ? 0 : Number.parseInt(match[1], 10);
-    const said = stderr.trim().split(/\r?\n/).slice(0, 4).join(" ").trim();
-    const explanation =
-        status === 401
-            ? ` The \`${GH_COMMAND}\` sign-in is no longer accepted. Run \`${GH_LOGIN_COMMAND}\` in a terminal.`
-            : status === 403
-              ? ` The account \`${GH_COMMAND}\` is signed in as may not have permission to publish` +
-                " releases here, or the organisation needs its SSO authorisation refreshed."
-              : "";
-    return new ActionsCallError(
-        `${GH_COMMAND} failed while ${what}.${explanation}${said === "" ? "" : ` It said: ${said}`}`,
-        status,
-        what,
-    );
-}
-
-function firstGhLine(text: string): string {
-    return (text.split(/\r?\n/)[0] ?? "").trim();
-}
-
-/** A selected gh account needs attention; the visible failure card offers Settings beside it. */
-function ghAccountRecoveryError(message: string, what: string): ActionsCallError {
-    return new ActionsCallError(
-        `${message} Open Settings → GitHub, repair or add that gh command-line account, then carry on; no release data was changed.`,
-        401,
-        what,
-        true,
-    );
-}
-
-/**
- * `gh api` on a `/logs` endpoint follows the redirect and prints plain text, which is not
- * JSON - so the JSON call throws and this reads the same endpoint as text instead. Both
- * are attempted because `gh` has answered each way across versions, and a log is never
- * worth failing a render report over.
- */
-async function ghLogText(
-    owner: string,
-    repo: string,
-    jobId: number,
-    api: { runner: ProcessRunner; signal?: AbortSignal | undefined; host?: string | undefined },
-    maxLines: number,
-): Promise<string | null> {
-    const args = ["api", "-H", "Accept: application/vnd.github+json"];
-    if (api.host !== undefined && api.host.length > 0) args.push("--hostname", api.host);
-    args.push(
-        `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/jobs/${String(jobId)}/logs`,
-    );
-    const result = await api.runner.run(GH_COMMAND, args, {
-        ...(api.signal === undefined ? {} : { signal: api.signal }),
-    });
-    if (!result.started || result.code !== 0) return null;
-    return tail(result.stdout, maxLines);
-}
-
-function tail(body: string, maxLines: number): string | null {
-    const lines = body.split(/\r?\n/).filter((line) => line.trim().length > 0);
-    if (lines.length === 0) return null;
-    return lines.slice(Math.max(0, lines.length - maxLines)).join("\n");
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1338,14 +572,8 @@ export interface RouteReport {
     readonly route: CiRoute | null;
     /** What the interface shows: which credential is driving, or why none can. */
     readonly describe: string;
-    /** The in-app sign-in's own state, so the surface can offer the right button. */
-    readonly session: {
-        readonly signedIn: boolean;
-        readonly usable: boolean;
-        readonly reason: string | null;
-    };
     readonly gh: RouteGhReport;
-    /** False when neither credential can drive a render, with both reasons above. */
+    /** False when the selected gh account cannot drive this operation. */
     readonly ready: boolean;
     /** True only when the chosen route can also upload a world. */
     readonly canUpload: boolean;
@@ -1355,22 +583,9 @@ export interface ResolveTransportOptions {
     readonly owner: string;
     readonly repo: string;
     readonly workflowFile: string;
-    /** The in-app token, or null when nobody is signed in to the application. */
-    readonly token: string | null;
-    readonly account?: string | null | undefined;
-    /**
-     * An explicit gh identity selected from `gh auth status --json hosts`.
-     * It is still revalidated against the live inventory before use; callers cannot turn a
-     * free-text login or host into authority merely by putting it here.
-     */
-    readonly ghTarget?: { readonly host: string; readonly login: string } | undefined;
-    readonly fetch: FetchLike;
-    readonly runner: ProcessRunner;
+    /** One already-selected main-process gh account lease. */
+    readonly lease: GhCliAccountLease | null;
     readonly signal?: AbortSignal | undefined;
-    readonly apiBase?: string | undefined;
-    readonly uploadsBase?: string | undefined;
-    /** Force a route, for somebody who knows which credential they want. */
-    readonly prefer?: CiRoute | undefined;
     /**
      * The capability probe used to decide whether a candidate route is usable.
      *
@@ -1385,104 +600,6 @@ export interface ResolveTransportOptions {
         ((transport: CiTransport, owner: string, repo: string) => Promise<unknown>) | undefined;
 }
 
-interface GhAccountChoice {
-    readonly account: GhCliAccountSummary | null;
-    readonly reason: string | null;
-    readonly recovery: "github-settings" | "dependencies" | null;
-}
-
-/** Selects only from gh's live signed-in inventory; never fabricates an identity. */
-function chooseGhAccount(
-    status: GhCliAccountsStatus,
-    target: { readonly host?: string | undefined; readonly login: string } | null,
-): GhAccountChoice {
-    if (status.availability !== "ready") {
-        return {
-            account: null,
-            reason: status.message,
-            recovery: status.availability === "not-installed" ? "dependencies" : "github-settings",
-        };
-    }
-
-    const healthy = status.accounts.filter((candidate) => candidate.healthy);
-    if (target !== null) {
-        const matching = healthy.filter(
-            (candidate) =>
-                candidate.login.toLowerCase() === target.login.toLowerCase() &&
-                (target.host === undefined ||
-                    candidate.host.toLowerCase() === target.host.toLowerCase()),
-        );
-        const onGithubCom = matching.filter(
-            (candidate) => candidate.host.toLowerCase() === "github.com",
-        );
-        const active = matching.filter((candidate) => candidate.active);
-        const picked =
-            matching.length === 1
-                ? matching[0]!
-                : onGithubCom.length === 1
-                  ? onGithubCom[0]!
-                  : active.length === 1
-                    ? active[0]!
-                    : null;
-        if (picked !== null) return { account: picked, reason: null, recovery: null };
-        if (matching.length === 0) {
-            return {
-                account: null,
-                reason:
-                    `${target.login}` +
-                    (target.host === undefined ? "" : ` on ${target.host}`) +
-                    " is not a healthy account in gh's signed-in account list. Open GitHub settings, sign it in or repair it, then check again.",
-                recovery: "github-settings",
-            };
-        }
-        return {
-            account: null,
-            reason:
-                `${target.login} is signed in to gh on more than one host, so the application will not guess which account should publish the release. ` +
-                "Choose the exact gh account in GitHub settings, then check again.",
-            recovery: "github-settings",
-        };
-    }
-
-    const active = healthy.filter((candidate) => candidate.active);
-    const activeGithubCom = active.filter(
-        (candidate) => candidate.host.toLowerCase() === "github.com",
-    );
-    const picked =
-        activeGithubCom.length === 1
-            ? activeGithubCom[0]!
-            : active.length === 1
-              ? active[0]!
-              : null;
-    if (picked !== null) return { account: picked, reason: null, recovery: null };
-    return {
-        account: null,
-        reason: "gh has more than one possible active host and no exact account was selected, so the application will not guess which identity should publish the release. Choose an account in GitHub settings, then check again.",
-        recovery: "github-settings",
-    };
-}
-
-function ghStatusFrom(status: GhCliAccountsStatus, account: GhCliAccountSummary | null): GhStatus {
-    if (account !== null) {
-        return {
-            availability: "ready",
-            version: status.version,
-            account: account.login,
-            host: account.host,
-            scopes: account.scopesReported ? account.scopes : null,
-            message: `${GH_COMMAND} is signed in as ${account.login} on ${account.host}.`,
-        };
-    }
-    return {
-        availability: status.availability === "not-installed" ? "not-installed" : "signed-out",
-        version: status.version,
-        account: null,
-        host: null,
-        scopes: null,
-        message: status.message,
-    };
-}
-
 export interface ResolvedTransport {
     readonly report: RouteReport;
     /** Null when neither credential could drive a render. `report` says why. */
@@ -1490,17 +607,11 @@ export interface ResolvedTransport {
 }
 
 /**
- * Picks the credential this sync will run on, and says why.
+ * Builds one REST transport from the already-selected broker lease.
  *
- * The in-app sign-in is preferred whenever it exists **and** can actually see the
- * workflow, because it is the credential the application manages and can renew. `gh` is
- * the fallback, and it is a real one rather than an error message: an in-app token short
- * a scope, or an organisation that has not authorised it for SSO, both look like a 403 on
- * the probe and both are exactly the case `gh` usually solves.
- *
- * Nothing is chosen silently. The report names the route, names the account, and carries
- * the other route's reason for not being used, so somebody debugging a permission problem
- * can see which of their two GitHub sign-ins was refused and why.
+ * Credential discovery, account selection and write-identity validation happen before
+ * this function is called. There is deliberately no fallback candidate here: one operation
+ * gets one lease, probes once and then keeps that exact account for every request.
  */
 export async function resolveTransport(
     options: ResolveTransportOptions,
@@ -1508,140 +619,84 @@ export async function resolveTransport(
     const probe =
         options.probe ??
         ((transport, owner, repo) => transport.readWorkflow(owner, repo, options.workflowFile));
-    const wantsGh = options.prefer === "gh";
-    let sessionUsable = false;
-    let sessionReason: string | null = null;
-
-    const session =
-        options.token === null
-            ? null
-            : sessionTransport({
-                  fetch: options.fetch,
-                  token: options.token,
-                  ...(options.signal === undefined ? {} : { signal: options.signal }),
-                  ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-                  ...(options.uploadsBase === undefined
-                      ? {}
-                      : { uploadsBase: options.uploadsBase }),
-                  ...(options.account === undefined ? {} : { account: options.account }),
-              });
-
-    if (session === null) {
-        sessionReason =
-            "nobody is signed in to GitHub inside this application - sign in from Settings";
-    } else if (wantsGh) {
-        sessionReason = `The ${GH_COMMAND} route was asked for explicitly.`;
-    } else {
-        try {
-            await probe(session, options.owner, options.repo);
-            sessionUsable = true;
-        } catch (error) {
-            sessionReason = error instanceof Error ? error.message : String(error);
-        }
-    }
-
-    if (sessionUsable && session !== null) {
+    if (options.lease === null) {
+        const reason =
+            "No gh CLI account credential is available. Sign in or reauthenticate from GitHub Settings.";
         return {
-            transport: session,
+            transport: null,
             report: {
-                route: "session",
-                describe: `Using ${session.describe}.`,
-                session: { signedIn: true, usable: true, reason: null },
-                // Not probed at all: `gh` is the fallback, and running two extra processes
-                // to describe a route that is not going to be used costs a person time
-                // every single sync for information nobody asked for. Reported as
-                // "not-checked" rather than "not-installed", because telling somebody to
-                // install software they may already have is worse than saying nothing.
+                route: null,
+                describe: reason,
                 gh: {
-                    availability: "not-checked",
+                    availability: "signed-out",
                     version: null,
                     account: null,
                     host: null,
                     scopes: null,
-                    message: `${GH_COMMAND} was not checked: the sign-in in this application worked.`,
+                    message: reason,
                     usable: false,
-                    reason: "not needed",
+                    reason,
+                    recovery: "github-settings",
+                },
+                ready: false,
+                canUpload: false,
+            },
+        };
+    }
+
+    const transport = brokerCliTransport({
+        lease: options.lease,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+        account: options.lease.login,
+    });
+    try {
+        await probe(transport, options.owner, options.repo);
+        return {
+            transport,
+            report: {
+                route: "gh",
+                describe: `Using ${transport.describe}.`,
+                gh: {
+                    availability: "ready",
+                    version: null,
+                    account: options.lease.login,
+                    host: options.lease.host,
+                    scopes: options.lease.scopesReported ? options.lease.scopes : null,
+                    message: `Using ${transport.describe}.`,
+                    usable: true,
+                    reason: null,
                     recovery: null,
                 },
                 ready: true,
                 canUpload: true,
             },
         };
-    }
-
-    const ghAccounts = await listGhCliAccounts({
-        runner: options.runner,
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-    });
-    const selected = chooseGhAccount(
-        ghAccounts,
-        options.ghTarget ??
-            (options.account !== null && options.account !== undefined
-                ? { login: options.account }
-                : null),
-    );
-    const gh = ghStatusFrom(ghAccounts, selected.account);
-    let ghUsable = false;
-    let ghReason: string | null =
-        selected.reason ?? (gh.availability === "ready" ? null : gh.message);
-    let ghRecovery = selected.recovery;
-
-    let ghRoute: CiTransport | null = null;
-    if (selected.account !== null) {
-        const ghOptions: GhTransportOptions = {
-            runner: options.runner,
-            ...(options.signal === undefined ? {} : { signal: options.signal }),
-            host: selected.account.host,
-            account: selected.account.login,
-        };
-        try {
-            await ensureGhIdentity(ghOptions, `checking ${options.owner}/${options.repo}`);
-            ghRoute = ghTransport(ghOptions);
-            await probe(ghRoute, options.owner, options.repo);
-            ghUsable = true;
-        } catch (error) {
-            ghReason = error instanceof Error ? error.message : String(error);
-            if (error instanceof ActionsCallError && error.needsSignIn)
-                ghRecovery = "github-settings";
-            ghRoute = null;
-        }
-    }
-
-    if (ghUsable && ghRoute !== null) {
+    } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
         return {
-            transport: ghRoute,
+            transport: null,
             report: {
-                route: "gh",
-                describe:
-                    `Using ${ghRoute.describe}` +
-                    (sessionReason === null
-                        ? "."
-                        : `, because the sign-in in this application could not: ${sessionReason}`),
-                session: { signedIn: options.token !== null, usable: false, reason: sessionReason },
-                gh: { ...gh, usable: true, reason: null, recovery: null },
-                ready: true,
-                // A real fallback, not a read-only one: the transfer is route-aware, so
-                // this route publishes the world as well as rendering it.
-                canUpload: ghRoute.canUpload,
+                route: null,
+                describe: `The selected GitHub CLI account cannot start this operation: ${reason}`,
+                gh: {
+                    availability: "ready",
+                    version: null,
+                    account: options.lease.login,
+                    host: options.lease.host,
+                    scopes: options.lease.scopesReported ? options.lease.scopes : null,
+                    message: reason,
+                    usable: false,
+                    reason,
+                    recovery: "github-settings",
+                },
+                ready: false,
+                canUpload: false,
             },
         };
     }
+}
 
-    return {
-        transport: null,
-        report: {
-            route: null,
-            describe:
-                "Neither GitHub route can start a render on this repository. " +
-                `The sign-in in this application: ${sessionReason ?? "unavailable"}. ` +
-                `${GH_COMMAND}: ${ghReason ?? gh.message}` +
-                (gh.availability === "signed-out"
-                    ? ` Run \`${GH_LOGIN_COMMAND}\` in a terminal.`
-                    : ""),
-            session: { signedIn: options.token !== null, usable: false, reason: sessionReason },
-            gh: { ...gh, usable: false, reason: ghReason, recovery: ghRecovery },
-            ready: false,
-            canUpload: false,
-        },
-    };
+function cliHttpStatus(stderr: string): number {
+    const raw = /(?:\(HTTP |HTTP )(\d{3})/.exec(stderr)?.[1];
+    return raw === undefined ? 0 : Number.parseInt(raw, 10);
 }

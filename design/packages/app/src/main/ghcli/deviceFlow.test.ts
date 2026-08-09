@@ -174,7 +174,8 @@ describe("requestDeviceCode", () => {
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.failure.code).toBe("device-flow-disabled");
-        expect(result.failure.message).toContain("personal access token");
+        expect(result.failure.message).toContain("Enable Device Flow");
+        expect(result.failure.message).toContain("Add account");
     });
 
     it("reports a reply that is not JSON rather than crashing on it", async () => {
@@ -349,6 +350,33 @@ describe("pollForAccessToken", () => {
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.failure.code).toBe("network");
+        expect(result.failure.message).not.toContain(DEVICE_CODE);
+        expect(result.failure.message).toContain("[redacted]");
+    });
+
+    it("redacts a device code echoed by an HTTP error body", async () => {
+        const clock = fakeClock();
+        const { fetch } = scriptedFetch([
+            json(
+                {
+                    error: "invalid_request",
+                    detail: `request contained device_code=${DEVICE_CODE}`,
+                },
+                { status: 400 },
+            ),
+        ]);
+
+        const result = await pollForAccessToken({
+            clientId: "Ov1",
+            grant: grantFor(clock),
+            fetch,
+            sleep: clock.sleep,
+            now: clock.now,
+        });
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("http");
         expect(result.failure.message).not.toContain(DEVICE_CODE);
         expect(result.failure.message).toContain("[redacted]");
     });

@@ -188,7 +188,7 @@ function fetcher(
             onEvent: (event) => events.push(event),
             fetch: server.fetch,
             apiBase: "https://api.example",
-            token: () => null,
+            account: async () => null,
             concurrency: extra.concurrency ?? 2,
             ...(extra.partRetries === undefined ? {} : { partRetries: extra.partRetries }),
         }),
@@ -449,7 +449,7 @@ describe("writing to somewhere unwritable", () => {
             onEvent: (event) => events.push(event),
             fetch: serve(published).fetch,
             apiBase: "https://api.example",
-            token: () => null,
+            account: async () => null,
         });
 
         const result = await subject.fetch({ owner: "cafepromenade", repo: "Andyville-World" });

@@ -128,6 +128,35 @@ const MUST_CARRY_A_SEARCH = [
     "components/worldrepo/WorldRepoScreen.vue",
 ];
 
+/**
+ * The gh account-routing flow has three independent searchable choices on each owning
+ * surface. Listing the instances by stable id catches the omission that a component-level
+ * guard cannot: replacing one picker with a bare select would otherwise leave two valid
+ * imports behind and make the file look covered.
+ */
+const GH_CLI_PICKER_SEARCHES: Readonly<Record<string, readonly string[]>> = {
+    "components/backup/BackupScreen.vue": [
+        "backup-account-picker",
+        "backup-owner-picker",
+        "backup-repository-picker",
+    ],
+    "components/cirender/CiRenderScreen.vue": [
+        "cirender-account-picker",
+        "cirender-owner-picker",
+        "cirender-repository-picker",
+    ],
+    "components/pages/PagesScreen.vue": [
+        "pages-account-picker",
+        "pages-owner-picker",
+        "pages-repository-picker",
+    ],
+    "components/worldrepo/WorldRepoScreen.vue": [
+        "worldrepo-account-picker",
+        "worldrepo-owner-picker",
+        "worldrepo-repository-picker",
+    ],
+};
+
 describe("a settings surface has a search at all, which the rule below cannot see", () => {
     it("finds every listed surface, so a rename cannot quietly empty this list", () => {
         const present = new Set(componentFiles(UI_SRC));
@@ -144,6 +173,31 @@ describe("a settings surface has a search at all, which the rule below cannot se
             missing,
             "these surfaces let somebody hunt by eye for a setting they could have typed the name of",
         ).toEqual([]);
+    });
+});
+
+describe("every gh account, owner, and repository picker keeps its own full regex builder", () => {
+    it("keeps all twelve catalogued picker instances on their owning surfaces", () => {
+        for (const [file, ids] of Object.entries(GH_CLI_PICKER_SEARCHES)) {
+            const source = readFileSync(join(UI_SRC, file), "utf8");
+            expect(source).toMatch(/import\s+GhEntityPicker\b/);
+            for (const id of ids) {
+                expect(source, `${file} lost the ${id} searchable picker`).toContain(
+                    `data-test-base="${id}"`,
+                );
+            }
+        }
+    });
+
+    it("keeps the shared picker wired to ConfigSearchField, whose builder is full-sized", () => {
+        const picker = readFileSync(
+            join(UI_SRC, "components/github/GhEntityPicker.vue"),
+            "utf8",
+        );
+        expect(picker).toMatch(/import\s+ConfigSearchField\b/);
+        expect(picker).toContain("v-model:regex");
+        expect(picker).toContain("v-model:flags");
+        expect(picker).toContain(":sample=\"sample\"");
     });
 });
 

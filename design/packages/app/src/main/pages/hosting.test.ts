@@ -775,6 +775,32 @@ describe("publishing", () => {
         // Authentication for the push is gh's own helper, named rather than a value.
         const push = runner.calls.find((call) => call.args.includes("push"));
         expect(push?.args.join(" ")).toContain("credential.helper=!gh auth git-credential");
+        expect(push?.args).toContain("credential.interactive=false");
+    });
+
+    it("withholds credential-helper diagnostics from a refused push result", async () => {
+        await renderAMap();
+        const runner = machine();
+        readyToRepublish(runner);
+        const diagnostic = "authorization: Bearer renderer-boundary-sentinel";
+        runner.failing.set("push", { code: 1, stderr: `HTTP 403\n${diagnostic}` });
+
+        const result = await host(runner).publish({
+            renderId: RENDER,
+            owner: "octocat",
+            repo: "maps",
+            acknowledgePublish: true,
+        });
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.failure).toMatchObject({
+                code: "push-refused",
+                needsGhSignIn: true,
+                detail: "Git exited with code 1. Its diagnostic output was withheld.",
+            });
+            expect(JSON.stringify(result)).not.toContain(diagnostic);
+        }
     });
 });
 

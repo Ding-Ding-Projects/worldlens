@@ -25,6 +25,7 @@ import type {
 } from "./downloader.js";
 import type { AvailableDownload, FetchLike } from "./release.js";
 import { downloadWorkspace, listDownloadIds } from "./workspace.js";
+import type { GhCliAccountProvider } from "../ghcli/credentialBroker.js";
 
 /** The channel every progress, phase, log and outcome event arrives on. */
 export const DOWNLOAD_EVENT_CHANNEL = "download:event";
@@ -69,13 +70,8 @@ export interface DownloadIpcOptions {
     readonly broadcast?: (event: DownloadEvent) => void;
     /** Overridable so a test never touches the network. */
     readonly fetch?: FetchLike;
-    /**
-     * The GitHub token, or null. Defaults to `GH_TOKEN` from the environment.
-     *
-     * Read every time rather than captured, and never required: a public release
-     * downloads with no token at all, which is the case this exists to serve.
-     */
-    readonly token?: () => string | null | Promise<string | null>;
+    /** Main-process gh account broker. Public releases remain available while signed out. */
+    readonly account?: GhCliAccountProvider | undefined;
     /**
      * How many parts a download fetches at once. A function so a live Settings change
      * takes effect on the next download without a restart - see
@@ -114,7 +110,7 @@ export function installDownloadIpc(options: DownloadIpcOptions): DownloadIpc {
         storageDir: options.storageDir,
         onEvent: broadcast,
         ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
-        token: options.token ?? (() => process.env["GH_TOKEN"] ?? null),
+        ...(options.account === undefined ? {} : { account: options.account }),
         ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
     });
 

@@ -211,6 +211,18 @@ export const GHCLIACCOUNTS_FIXED = {
         en: "Nothing here matches that search. Clearing it brings the whole list back.",
         yue: "冇嘢啱呢個搜尋。清咗佢個列表就會返晒嚟。",
     },
+    "settings.github.picker.summary": {
+        en: "Showing {shown} of {total} choices loaded from GitHub CLI.",
+        yue: "GitHub CLI 載入咗 {total} 個選擇，而家顯示 {shown} 個。",
+    },
+    "settings.github.picker.noneSelected": {
+        en: "No value selected.",
+        yue: "未揀任何值。",
+    },
+    "settings.github.picker.selected": {
+        en: "{label}: {value}",
+        yue: "{label}：{value}",
+    },
     "settings.github.ghCli.active": { en: "Active", yue: "使用緊" },
     "settings.github.ghCli.switchAction": { en: "Switch", yue: "切換" },
     "settings.github.ghCli.switching": { en: "Switching…", yue: "切換緊…" },
@@ -341,6 +353,19 @@ export const GHCLIACCOUNTS_FIXED = {
         en: "gh reports a problem with this account",
         yue: "gh 話呢個帳戶有問題",
     },
+    "settings.github.ghCli.logoutTitle": {
+        en: "Sign out this GitHub CLI account",
+        yue: "登出呢個 GitHub CLI 帳戶",
+    },
+    "settings.github.ghCli.logoutAction": {
+        en: "Remove {login} on {host} from GitHub CLI's credential store on this computer. Other applications that use gh will lose this sign-in too.",
+        yue: "喺呢部電腦嘅 GitHub CLI credential store 移除 {login}（{host}）。其他使用 gh 嘅程式都會失去呢個登入。",
+    },
+    "settings.github.ghCli.logoutConfirm": {
+        en: "Sign out account",
+        yue: "登出帳戶",
+    },
+    "settings.github.ghCli.logout": { en: "Sign out", yue: "登出" },
 } as const satisfies Record<string, FixedString>;
 
 export const GHCLIACCOUNTS_FACTS = {

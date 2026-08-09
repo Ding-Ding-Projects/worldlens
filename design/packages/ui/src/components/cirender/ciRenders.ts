@@ -202,7 +202,7 @@ export function jobTone(job: CiJobReport): "success" | "error" | "warning" | "in
 }
 
 /**
- * Which of the two GitHub credentials is actually driving this row, in words.
+ * Which GitHub CLI route is driving this row, in words.
  *
  * Null before the first `phase` event has arrived, and this returns the empty string for
  * that rather than a placeholder - the caller decides whether to show anything at all, and
@@ -210,9 +210,7 @@ export function jobTone(job: CiJobReport): "success" | "error" | "warning" | "in
  */
 export function routeLabel(route: CiRoute | null, t: T): string {
     if (route === null) return "";
-    return route === "gh"
-        ? t("cirender.row.route.gh", "Using the gh command-line tool")
-        : t("cirender.row.route.session", "Using this application's GitHub sign-in");
+    return t("cirender.row.route.gh", "Using the selected GitHub CLI account");
 }
 
 /** One wave's shards, counted. `wave` is null for the bucket of jobs with no wave in their name. */
@@ -414,9 +412,9 @@ export interface CiRenders {
      * calls the moment somebody chooses a different one.
      */
     loadOwners(accountId?: string): Promise<void>;
-    loadRepositories(): Promise<void>;
+    loadRepositories(accountId?: string): Promise<void>;
     suggestRepoName(sourceName: string): Promise<string | null>;
-    checkRepoName(owner: string, repo: string): Promise<void>;
+    checkRepoName(owner: string, repo: string, accountId?: string): Promise<void>;
     /** Drops whatever the last check said, for a field that just changed underneath it. */
     clearNameAvailability(): void;
     /** Reads the current schedule status for one repository. */
@@ -447,6 +445,8 @@ export interface CiRenders {
      * attempt is made, never silently forgotten by a field changing underneath it.
      */
     clearPreflight(): void;
+    /** Invalidates any in-flight schedule read and clears its account-bound result. */
+    clearSchedule(): void;
     dispose(): void;
 }
 
@@ -478,6 +478,12 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
     const savingSchedule = ref(false);
 
     let nextLogId = 1;
+    // Each picker owns its request generation. An older account may answer after a newer
+    // selection, but it must never repaint the newer account's owners or repositories.
+    let ownersLoadToken = 0;
+    let repositoriesLoadToken = 0;
+    let preflightLoadToken = 0;
+    let scheduleLoadToken = 0;
     // Bumped on every checkRepoName/clearNameAvailability call so a slow, out-of-order
     // availability answer can tell it has been superseded and drop itself instead of
     // overwriting a newer check's result. See checkRepoName below.
@@ -625,16 +631,19 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
 
     async function loadSchedule(owner: string, repo: string, accountId?: string): Promise<void> {
         if (bridge?.ciRenderScheduleRead === undefined) return;
+        const token = ++scheduleLoadToken;
         loadingSchedule.value = true;
+        schedule.value = null;
         scheduleFailure.value = null;
         try {
             const answer = await bridge.ciRenderScheduleRead(owner, repo, accountId);
+            if (token !== scheduleLoadToken) return;
             if (answer.ok) schedule.value = answer.value;
             else scheduleFailure.value = answer.message;
         } catch (error) {
-            scheduleFailure.value = describe(error);
+            if (token === scheduleLoadToken) scheduleFailure.value = describe(error);
         } finally {
-            loadingSchedule.value = false;
+            if (token === scheduleLoadToken) loadingSchedule.value = false;
         }
     }
 
@@ -717,6 +726,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
 
         async check(request: CiSyncRequest): Promise<CiPreflight | null> {
             if (bridge === null) return null;
+            const token = ++preflightLoadToken;
             checking.value = true;
             preflightFailure.value = null;
             // Cleared, not kept: a stale report beside a changed repository name is how
@@ -724,6 +734,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
             preflight.value = null;
             try {
                 const answer = await bridge.ciRenderPreflight(request);
+                if (token !== preflightLoadToken) return null;
                 if (!answer.ok) {
                     preflightFailure.value = answer.message;
                     return null;
@@ -731,10 +742,10 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 preflight.value = answer.value;
                 return answer.value;
             } catch (error) {
-                preflightFailure.value = describe(error);
+                if (token === preflightLoadToken) preflightFailure.value = describe(error);
                 return null;
             } finally {
-                checking.value = false;
+                if (token === preflightLoadToken) checking.value = false;
             }
         },
 
@@ -812,28 +823,37 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
 
         async loadOwners(accountId?: string): Promise<void> {
             if (bridge?.listCiOwners === undefined) return;
+            const token = ++ownersLoadToken;
             loadingOwners.value = true;
+            owners.value = null;
             try {
-                owners.value = await bridge.listCiOwners(accountId);
+                const answer = await bridge.listCiOwners(accountId);
+                if (token === ownersLoadToken) owners.value = answer;
             } catch (error) {
-                owners.value = { ok: false, signedIn: true, message: describe(error) };
+                if (token === ownersLoadToken) {
+                    owners.value = { ok: false, signedIn: true, message: describe(error) };
+                }
             } finally {
-                loadingOwners.value = false;
+                if (token === ownersLoadToken) loadingOwners.value = false;
             }
         },
 
-        async loadRepositories(): Promise<void> {
+        async loadRepositories(accountId?: string): Promise<void> {
             if (bridge?.listExistingRepositories === undefined) return;
+            const token = ++repositoriesLoadToken;
             loadingRepositories.value = true;
+            repositories.value = [];
             repositoriesFailure.value = null;
             try {
-                const answer = await bridge.listExistingRepositories();
-                if (answer.ok) repositories.value = answer.value;
-                else repositoriesFailure.value = answer.message;
+                const answer = await bridge.listExistingRepositories(accountId);
+                if (token === repositoriesLoadToken) {
+                    if (answer.ok) repositories.value = answer.value;
+                    else repositoriesFailure.value = answer.message;
+                }
             } catch (error) {
-                repositoriesFailure.value = describe(error);
+                if (token === repositoriesLoadToken) repositoriesFailure.value = describe(error);
             } finally {
-                loadingRepositories.value = false;
+                if (token === repositoriesLoadToken) loadingRepositories.value = false;
             }
         },
 
@@ -849,14 +869,18 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
             }
         },
 
-        async checkRepoName(owner: string, repo: string): Promise<void> {
+        async checkRepoName(owner: string, repo: string, accountId?: string): Promise<void> {
             if (bridge?.checkCiRepoName === undefined) return;
             // Claim this round before awaiting anything, so a later call - or a clear -
             // fired while this one is still in flight can tell it has been superseded.
             const token = ++nameCheckToken;
             checkingName.value = true;
             try {
-                const answer = await bridge.checkCiRepoName({ owner, repo });
+                const answer = await bridge.checkCiRepoName({
+                    owner,
+                    repo,
+                    ...(accountId === undefined ? {} : { accountId }),
+                });
                 if (token !== nameCheckToken) return; // A newer check (or a clear) already won.
                 nameAvailability.value = answer;
             } catch (error) {
@@ -881,8 +905,17 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         saveSchedule,
 
         clearPreflight(): void {
+            preflightLoadToken += 1;
             preflight.value = null;
             preflightFailure.value = null;
+            checking.value = false;
+        },
+
+        clearSchedule(): void {
+            scheduleLoadToken += 1;
+            schedule.value = null;
+            scheduleFailure.value = null;
+            loadingSchedule.value = false;
         },
 
         dispose(): void {

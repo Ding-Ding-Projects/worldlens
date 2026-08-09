@@ -46,15 +46,13 @@
  *
  * ## What crosses, and what does not
  *
- * The token, like everywhere else in `cirender/`, is resolved per call by the caller and
- * never held here. Nothing here logs, prints, or otherwise carries a credential past the
- * one request it authorizes.
+ * The credential belongs to one main-process-only `gh` broker lease acquired by the caller.
+ * Nothing here logs, prints, serializes, or carries it past the one operation it authorizes.
  */
 
 import { createHash } from "node:crypto";
-import type { FetchLike } from "../backup/index.js";
+import type { GhCliAccountLease } from "../ghcli/credentialBroker.js";
 import { ActionsCallError, RENDER_WORKFLOW_FILE } from "./actions.js";
-import type { ProcessRunner } from "./gh.js";
 import { CiAtomicCommitConflictError, resolveTransport } from "./transport.js";
 import type { CiRoute, CiTransport } from "./transport.js";
 
@@ -186,15 +184,9 @@ export interface CiBootstrapRequest {
 }
 
 export interface CiBootstrapOptions {
-    /** The in-app token, or null when nobody is signed in to the application. */
-    readonly token: string | null;
-    readonly account?: string | null | undefined;
-    readonly fetch: FetchLike;
-    readonly runner: ProcessRunner;
+    /** One already-selected main-process gh account lease. */
+    readonly lease: GhCliAccountLease | null;
     readonly signal?: AbortSignal | undefined;
-    readonly apiBase?: string | undefined;
-    readonly uploadsBase?: string | undefined;
-    readonly prefer?: CiRoute | undefined;
     /** The workflow files to commit. Real content comes from `workflowTemplates.ts`. */
     readonly templates: readonly CiWorkflowTemplate[];
     /** Identifies the shipped template set, for the marker and for staleness reporting. */
@@ -273,14 +265,8 @@ export async function bootstrapCiRepository(
         // Required by the interface but unused by the probe below; kept as the real
         // workflow name so a caller inspecting the report sees something meaningful.
         workflowFile: RENDER_WORKFLOW_FILE,
-        token: options.token,
-        fetch: options.fetch,
-        runner: options.runner,
-        ...(options.account === undefined ? {} : { account: options.account }),
+        lease: options.lease,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
-        ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-        ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
-        ...(options.prefer === undefined ? {} : { prefer: options.prefer }),
         // The whole fix: proves a credential can see the repository, not that it can
         // already see a workflow file a bootstrap exists precisely because is not there.
         probe: (transport, probeOwner, probeRepo) =>

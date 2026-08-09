@@ -332,7 +332,7 @@ defineExpose({ downloads });
                     {{
                         t(
                             "downloads.discoveryNote",
-                            "Nothing was downloaded. Check the owner, the repository and the tag; a private release also needs this machine to have a GitHub token in its environment.",
+                            "Nothing was downloaded. Check the owner, repository and tag; a private release also needs a signed-in GitHub CLI account that can read it. Reauthenticate or choose an account in GitHub Settings.",
                         )
                     }}
                 </p>

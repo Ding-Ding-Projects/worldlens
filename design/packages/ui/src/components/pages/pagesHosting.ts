@@ -213,10 +213,11 @@ export interface PagesHosting {
     readonly stopFailure: Ref<string | null>;
 
     loadCandidates(): Promise<void>;
-    loadOwners(): Promise<void>;
+    loadOwners(accountId?: string): Promise<void>;
     loadPublished(): Promise<void>;
-    resumePublished(site: PagesRecord): Promise<PagesResult | null>;
-    refreshPublishedStatus(site: PagesRecord): Promise<boolean>;
+    resumePublished(site: PagesRecord, accountId?: string): Promise<PagesResult | null>;
+    refreshPublishedStatus(site: PagesRecord, accountId?: string): Promise<boolean>;
+    clearPreflight(): void;
     check(request: PagesTarget): Promise<PagesPreflight | null>;
     publish(request: PagesPublishRequest): Promise<PagesResult | null>;
     stopPublishing(renderId: string): Promise<boolean>;
@@ -245,6 +246,8 @@ export function createPagesHosting(bridge: PagesBridge | null): PagesHosting {
     const stopFailure = ref<string | null>(null);
 
     let nextLogId = 1;
+    let ownersLoadToken = 0;
+    let preflightLoadToken = 0;
 
     const rows = computed<readonly PagesRow[]>(() =>
         Object.values(byId.value).sort((left, right) => {
@@ -403,28 +406,34 @@ export function createPagesHosting(bridge: PagesBridge | null): PagesHosting {
             }
         },
 
-        async loadOwners(): Promise<void> {
+        async loadOwners(accountId?: string): Promise<void> {
             if (bridge === null) return;
+            const token = ++ownersLoadToken;
+            owners.value = [];
             ownersFailure.value = null;
             try {
-                const answer = await bridge.listOwners();
+                const answer = await bridge.listOwners(accountId);
+                if (token !== ownersLoadToken) return;
                 if (answer.ok) owners.value = answer.value;
                 else ownersFailure.value = answer.message;
             } catch (error) {
-                ownersFailure.value = describe(error);
+                if (token === ownersLoadToken) ownersFailure.value = describe(error);
             }
         },
 
         loadPublished: loadPublishedRecords,
 
-        async resumePublished(site: PagesRecord): Promise<PagesResult | null> {
+        async resumePublished(site: PagesRecord, accountId?: string): Promise<PagesResult | null> {
             if (bridge === null) return null;
             starting.value = true;
             startFailure.value = null;
             try {
                 const resume = bridge.resume;
                 if (resume === undefined) return null;
-                const result = await resume(site.renderId);
+                const result = await resume({
+                    renderId: site.renderId,
+                    ...(accountId === undefined ? {} : { accountId }),
+                });
                 if (result.ok) await loadPublishedRecords();
                 else startFailure.value = result.failure;
                 return result;
@@ -441,12 +450,15 @@ export function createPagesHosting(bridge: PagesBridge | null): PagesHosting {
             }
         },
 
-        async refreshPublishedStatus(site: PagesRecord): Promise<boolean> {
+        async refreshPublishedStatus(site: PagesRecord, accountId?: string): Promise<boolean> {
             if (bridge === null) return false;
             try {
                 const refresh = bridge.refreshStatus;
                 if (refresh === undefined) return false;
-                const answer = await refresh(site.renderId);
+                const answer = await refresh({
+                    renderId: site.renderId,
+                    ...(accountId === undefined ? {} : { accountId }),
+                });
                 if (!answer.ok) {
                     publishedFailure.value = answer.message;
                     return false;
@@ -463,6 +475,7 @@ export function createPagesHosting(bridge: PagesBridge | null): PagesHosting {
 
         async check(request: PagesTarget): Promise<PagesPreflight | null> {
             if (bridge === null) return null;
+            const token = ++preflightLoadToken;
             checking.value = true;
             preflightFailure.value = null;
             // Cleared, not kept: a stale report beside a changed repository name is how
@@ -470,6 +483,7 @@ export function createPagesHosting(bridge: PagesBridge | null): PagesHosting {
             preflight.value = null;
             try {
                 const answer = await bridge.preflight(request);
+                if (token !== preflightLoadToken) return null;
                 if (!answer.ok) {
                     preflightFailure.value = answer.message;
                     return null;
@@ -477,11 +491,18 @@ export function createPagesHosting(bridge: PagesBridge | null): PagesHosting {
                 preflight.value = answer.value;
                 return answer.value;
             } catch (error) {
-                preflightFailure.value = describe(error);
+                if (token === preflightLoadToken) preflightFailure.value = describe(error);
                 return null;
             } finally {
-                checking.value = false;
+                if (token === preflightLoadToken) checking.value = false;
             }
+        },
+
+        clearPreflight(): void {
+            preflightLoadToken += 1;
+            preflight.value = null;
+            preflightFailure.value = null;
+            checking.value = false;
         },
 
         async publish(request: PagesPublishRequest): Promise<PagesResult | null> {

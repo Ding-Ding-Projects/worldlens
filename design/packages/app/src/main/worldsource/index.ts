@@ -22,7 +22,7 @@
  * const worldSources = registerWorldSourceHandlers(ipcMain, {
  *     storageDir: () => render.storageDirectory(),
  *     onEvent: broadcastDownloadEvent,   // the SAME channel the downloads panel listens on
- *     token: githubToken,
+ *     account: githubBroker.account,
  *     downloader: downloads.downloader,  // share the instance the panel already lists
  * });
  * ```

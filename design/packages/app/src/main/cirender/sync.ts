@@ -6,8 +6,8 @@
  * append-only release rules, the same public-repository warning. The run is started and
  * watched through `actions.ts`. The map comes back through `download/`'s own transfer and
  * extractor. It is registered through `render/`, so it appears in the map list beside
- * every locally rendered map. The token comes from `github/`, resolved per operation and
- * never held here.
+ * every locally rendered map. A main-process-only `gh` broker lease is acquired once per
+ * operation and never crosses IPC or becomes renderer state.
  *
  * ## Honest, which mostly means refusing to guess
  *
@@ -37,21 +37,23 @@
  *
  * Publishing the world is `upload.ts`, which imports the packer, the splitter, the part
  * naming and the Cheap LFS pointer from `backup/` unchanged and moves the bytes through the
- * **transport**. So a machine signed in to `gh` and not to this application can publish a
- * world as well as render one, and a world published either way is byte-for-byte the same
- * backup. There is still exactly one packer; what has two implementations is the transfer.
+ * broker-backed transport. A world published this way is byte-for-byte the same backup;
+ * there is still exactly one packer and exactly one credential lease for the operation.
  */
 
 import { CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES, inspectBackupSource } from "../backup/index.js";
-import type { FetchLike, RepositoryReport } from "../backup/index.js";
+import type { RepositoryReport } from "../backup/index.js";
 import type { ProjectFile, ProjectMap } from "@worldlens/config";
 import type { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { ActionsCallError, RENDER_WORKFLOW_FILE } from "./actions.js";
 import type { RunStatus, WorkflowJob, WorkflowRun } from "./actions.js";
-import { GH_COMMAND, GH_LOGIN_COMMAND, nodeProcessRunner } from "./gh.js";
-import type { ProcessRunner } from "./gh.js";
 import { resolveTransport } from "./transport.js";
 import type { CiRepositoryFacts, CiRoute, CiTransport, RouteReport } from "./transport.js";
+import type {
+    GhCredentialAccess,
+    GhCliAccountLease,
+    GhCliAccountProvider,
+} from "../ghcli/credentialBroker.js";
 import { uploadWorldForRender } from "./upload.js";
 import { collectRenderedMap } from "./collect.js";
 import { fingerprintWorld, isUnchanged } from "./fingerprint.js";
@@ -319,28 +321,18 @@ export interface CiSyncRequest {
     /** Upload even when the world looks unchanged. The manual override for the detector. */
     readonly forceUpload?: boolean | undefined;
     /**
-     * Which signed-in account this sync authenticates as, by id rather than by token.
+     * Which signed-in `gh` account this sync uses, by secret-free id.
      *
      * Omitted, this resolves to whichever account is active - the exact behaviour every
      * caller had before the setup card's account picker existed, preserved for backward
-     * compatibility. Named explicitly, the credential comes from that specific stored
-     * account instead, so somebody signed in to several accounts can render as one that is
-     * not the active one without switching it. The id is never a token: `sync.ts` resolves
-     * the real credential per call from `GitHubAccountsController`, and nothing carrying
-     * the account's own secret ever crosses back to the renderer.
+     * compatibility. Named explicitly, the broker pins that specific CLI account for the
+     * operation and restores the prior active account afterward. Nothing carrying
+     * authorization ever crosses to the renderer.
      */
     readonly accountId?: string | undefined;
     readonly budgetMinutes?: number | undefined;
     readonly maxJobs?: number | undefined;
     readonly output?: CiRenderOutput | undefined;
-    /**
-     * Force a credential route rather than letting the probe choose.
-     *
-     * For somebody who knows which of their two GitHub sign-ins they want - most often
-     * because the in-app one works for reading and the `gh` one is the one their
-     * organisation has authorised for SSO.
-     */
-    readonly route?: CiRoute | undefined;
     /**
      * False returns as soon as the run's state has been read once, rather than polling
      * until it ends. The result then carries `outcome: "running"`, which is a true
@@ -414,34 +406,11 @@ export interface CiPreflight {
     readonly run: CiRunReport | null;
 }
 
-/**
- * The one thing a CI render still asks of the backup runner: describe a repository.
- *
- * Narrowed on purpose. It used to carry `backup` as well, because the upload was delegated
- * to the runner wholesale and could therefore only happen on the credential that runner
- * holds. The upload is now `upload.ts` - the same packer, driven through whichever
- * transport the sync chose - so what is left here is the **wording** of the
- * public-repository warning, which is written once in `backup/` and must not be written
- * twice. `BackupRunner` satisfies this structurally, and a test can stand one up in three
- * lines.
- */
-export interface BackupSurface {
-    inspectRepository(owner: string, repo: string): Promise<RepositoryReport>;
-}
-
 export interface CiRenderSyncOptions {
     /** Where maps and sync records live. A function, so a moved folder takes effect. */
     readonly storageDir: () => string;
-    /**
-     * The signed-in token, resolved per operation. Null means nobody is signed in.
-     *
-     * Takes the account id a request named explicitly - see {@link CiSyncRequest.accountId}
-     * - and resolves that stored account's own token. Called with no id, or `undefined`,
-     * this resolves to whichever account is active, exactly as every caller before the
-     * account picker existed already relied on; the parameter is additive; a caller that
-     * has never heard of it calls this the same zero-argument way it always did.
-     */
-    readonly token: (accountId?: string | undefined) => Promise<string | null> | string | null;
+    /** One main-process-only gh lease, acquired exactly once per operation. */
+    readonly account: GhCliAccountProvider;
     /**
      * Whether Mojang's EULA has been accepted on this computer.
      *
@@ -451,29 +420,9 @@ export interface CiRenderSyncOptions {
      * refuses with a message pointing at the consent surface that already exists.
      */
     readonly eulaAccepted: () => boolean | Promise<boolean>;
-    readonly backup: BackupSurface;
-    /**
-     * The login the credential in play belongs to, for a message naming which account ran.
-     *
-     * A login, never a token: the credential itself is resolved by `token` and never
-     * stored, logged or described anywhere in this feature. Takes the same optional
-     * account id `token` does, additively, so the message names the account a request
-     * actually chose rather than always the active one.
-     */
-    readonly account?:
-        ((accountId?: string | undefined) => string | null | Promise<string | null>) | undefined;
-    /**
-     * How `gh` is run. Injected so every test in this folder runs on a machine that does
-     * not have it installed - which is the only way "not installed" gets tested at all.
-     */
-    readonly runner?: ProcessRunner | undefined;
     readonly mounts?: LocalMapHandler | undefined;
-    readonly fetch?: FetchLike | undefined;
     readonly onEvent?: ((event: CiSyncEvent) => void) | undefined;
     readonly appVersion?: string | null | undefined;
-    readonly apiBase?: string | undefined;
-    /** Where release assets are PUT. Overridable so a test never uploads to GitHub. */
-    readonly uploadsBase?: string | undefined;
     readonly workflowFile?: string | undefined;
     readonly now?: (() => number) | undefined;
     /** Overridable so a test does not wait. Defaults to a real timer. */
@@ -555,7 +504,7 @@ export class CiRenderSync {
             };
         }
 
-        // No early refusal for a missing in-app token: `gh` may well be signed in, and
+        // No early signed-out guess: `gh` may well be signed in, and
         // finding that out is the whole point of resolving a route before anything else.
         const resolved = await this.#resolveRoute(owner, repo, request);
 
@@ -574,7 +523,12 @@ export class CiRenderSync {
         // there is no transport to fall back on, so this can run unconditionally and the
         // surface gets an honest "the repository exists and is writable, it just is not
         // set up yet" whenever that is what is actually true.
-        const described = await this.#describeRepository(resolved.transport, owner, repo);
+        const described = await this.#describeRepository(
+            resolved.transport,
+            owner,
+            repo,
+            resolved.report.gh.reason,
+        );
         const repository = described.report;
         const repositoryFailure = described.appFailure;
 
@@ -657,89 +611,100 @@ export class CiRenderSync {
     }
 
     /**
-     * Resolves the credential route for one repository.
+     * Resolves the selected gh account for one repository.
      *
-     * Kept in one place so `preflight` and `sync` cannot disagree about which credential
-     * would be used - a preflight that says "gh" followed by a sync that quietly used the
-     * in-app token would make every message about permissions untrustworthy.
+     * Kept in one place so `preflight` and `sync` cannot disagree about which account would
+     * be used. The lease is acquired once and the returned transport retains that exact
+     * credential for every request in the operation.
      */
     async #resolveRoute(
         owner: string,
         repo: string,
-        request: Pick<CiSyncRequest, "route" | "accountId">,
+        request: Pick<CiSyncRequest, "accountId">,
         signal?: AbortSignal,
-    ): Promise<{ transport: CiTransport | null; report: RouteReport }> {
-        return await resolveTransport({
+        access: GhCredentialAccess = "read",
+    ): Promise<{ transport: CiTransport | null; report: RouteReport; accountId: string | null }> {
+        const lease = await this.#account(request.accountId, access, signal);
+        const accountId = lease?.accountId ?? null;
+        const resolved = await resolveTransport({
             owner,
             repo,
             workflowFile: this.#options.workflowFile ?? RENDER_WORKFLOW_FILE,
-            token: await this.#token(request.accountId),
-            account: (await this.#options.account?.(request.accountId)) ?? null,
-            fetch: this.#fetch(),
-            runner: this.#options.runner ?? nodeProcessRunner(),
+            lease,
             ...(signal === undefined ? {} : { signal }),
-            ...(this.#options.apiBase === undefined ? {} : { apiBase: this.#options.apiBase }),
-            ...(this.#options.uploadsBase === undefined
-                ? {}
-                : { uploadsBase: this.#options.uploadsBase }),
-            ...(request.route === undefined ? {} : { prefer: request.route }),
+            probe: (transport, probeOwner, probeRepo) =>
+                transport.readRepository(probeOwner, probeRepo),
         });
+        if (resolved.transport === null) return { ...resolved, accountId };
+
+        try {
+            await resolved.transport.readWorkflow(
+                owner,
+                repo,
+                this.#options.workflowFile ?? RENDER_WORKFLOW_FILE,
+            );
+            return { ...resolved, accountId };
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            const missingWorkflow = error instanceof ActionsCallError && error.status === 404;
+            return {
+                transport: resolved.transport,
+                accountId,
+                report: {
+                    ...resolved.report,
+                    route: null,
+                    describe: missingWorkflow
+                        ? `The selected GitHub CLI account can read ${owner}/${repo}, but the render workflow is not ready yet.`
+                        : `The selected GitHub CLI account cannot use the render workflow in ${owner}/${repo}: ${reason}`,
+                    gh: {
+                        ...resolved.report.gh,
+                        usable: false,
+                        reason,
+                        recovery: missingWorkflow ? null : "github-settings",
+                    },
+                    ready: false,
+                    canUpload: false,
+                },
+            };
+        }
     }
 
     /**
      * What the repository is, and in whose words.
      *
-     * Two sources, in a deliberate order. The backup surface is asked first because it is
-     * where the PUBLIC warning is *worded*, and one description of what publishing to a
-     * public repository means is worth more than a second one that could drift from it.
-     * That reading needs this application's own sign-in, which somebody driving a render
-     * entirely through `gh` does not have - so the transport is asked second, and the
-     * warning is then written here from the facts it returned.
-     *
-     * The fallback wording is short on purpose. It is not a copy of the backup surface's
-     * paragraph competing with it for authority; it is the minimum a person needs to
-     * decide, in the one case where the fuller text is genuinely unavailable. Leaving the
-     * warning out instead - which is what this used to do, by refusing the upload outright -
-     * is no longer an option now that the `gh` route can publish.
-     *
-     * `transport` is nullable because this is now called from `preflight()` even when
-     * {@link resolveTransport} found no dispatch-ready route at all - the primary read
-     * below uses this application's own session and needs no transport of its own. A null
-     * transport simply means there is nothing to fall back to if that primary read fails,
-     * exactly the same "could not be described" outcome this already reported before a
-     * route existed to fall back on.
+     * The same broker transport that will publish performs this read, so account identity
+     * cannot change between the public/private warning and the write. `transport` is null
+     * only when the broker could not issue a usable lease.
      */
     async #describeRepository(
         transport: CiTransport | null,
         owner: string,
         repo: string,
+        noTransportReason: string | null = null,
     ): Promise<{
         report: RepositoryReport | null;
-        /** Why the application's own sign-in could not describe it, when it could not. */
+        /** Why the selected gh account could not describe it, when it could not. */
         appFailure: string | null;
-        /** Why the chosen route could not either, when it could not. */
+        /** Why the selected route could not describe it, when it could not. */
         routeFailure: string | null;
     }> {
-        try {
+        if (transport === null) {
             return {
-                report: await this.#options.backup.inspectRepository(owner, repo),
-                appFailure: null,
+                report: null,
+                appFailure:
+                    noTransportReason ?? "No GitHub CLI credential lease was available.",
                 routeFailure: null,
             };
+        }
+        try {
+            const facts: CiRepositoryFacts = await transport.readRepository(owner, repo);
+            return { report: reportFrom(facts), appFailure: null, routeFailure: null };
         } catch (error) {
-            const appFailure = error instanceof Error ? error.message : String(error);
-            if (transport === null) return { report: null, appFailure, routeFailure: null };
-            let facts: CiRepositoryFacts;
-            try {
-                facts = await transport.readRepository(owner, repo);
-            } catch (second) {
-                return {
-                    report: null,
-                    appFailure,
-                    routeFailure: second instanceof Error ? second.message : String(second),
-                };
-            }
-            return { report: reportFrom(facts), appFailure, routeFailure: null };
+            return {
+                report: null,
+                appFailure: error instanceof Error ? error.message : String(error),
+                routeFailure: error instanceof Error ? error.message : String(error),
+            };
         }
     }
 
@@ -810,6 +775,10 @@ export class CiRenderSync {
                 dimension: picked.map.dimension,
                 at: this.#timestamp(),
             });
+        state = {
+            ...state,
+            accountId: request.accountId ?? state.accountId,
+        };
 
         const controller = new AbortController();
         this.#running.set(syncId, controller);
@@ -827,14 +796,17 @@ export class CiRenderSync {
             // Choosing per operation would let a sync dispatch on one sign-in and download
             // on another, which works on a machine where both are authorised and fails
             // halfway through on one where only one is.
-            const routed = await this.#resolveRoute(owner, repo, request, controller.signal);
-            if (routed.transport === null) {
+            const routed = await this.#resolveRoute(owner, repo, request, controller.signal, "write");
+            if (routed.transport === null || !routed.report.ready) {
                 return this.#failed(
                     syncId,
                     failure("no-route", routed.report.describe, {
-                        needsSignIn: !routed.report.session.signedIn,
+                        needsSignIn: routed.report.gh.recovery === "github-settings",
                     }),
                 );
+            }
+            if (routed.accountId !== null) {
+                state = { ...state, accountId: routed.accountId };
             }
             this.#log(syncId, "info", routed.report.describe);
 
@@ -873,7 +845,7 @@ export class CiRenderSync {
      * so a person always knows which button caused a map to appear.
      */
     async check(syncId: string): Promise<CiSyncResult> {
-        const state = await this.readState(syncId);
+        let state = await this.readState(syncId);
         if (state === null) {
             return this.#failed(
                 syncId,
@@ -883,15 +855,22 @@ export class CiRenderSync {
         if (state.runId === null) {
             return { ok: true, syncId, outcome: "running", run: null, state };
         }
+        const runId = state.runId;
 
-        const routed = await this.#resolveRoute(state.owner, state.repo, {});
-        if (routed.transport === null) {
+        const routed = await this.#resolveRoute(state.owner, state.repo, {
+            ...(state.accountId === null ? {} : { accountId: state.accountId }),
+        });
+        if (routed.transport === null || !routed.report.ready) {
             return this.#failed(
                 syncId,
                 failure("no-route", routed.report.describe, {
-                    needsSignIn: !routed.report.session.signedIn,
+                    needsSignIn: routed.report.gh.recovery === "github-settings",
                 }),
             );
+        }
+        if (state.accountId === null && routed.accountId !== null) {
+            state = { ...state, accountId: routed.accountId, updatedAt: this.#timestamp() };
+            await this.#save(ciSyncWorkspace(this.#options.storageDir(), syncId).stateFile, state);
         }
 
         try {
@@ -899,7 +878,7 @@ export class CiRenderSync {
                 routed.transport,
                 state.owner,
                 state.repo,
-                state.runId,
+                runId,
             );
             this.emit({ type: "run", syncId, run, at: this.#timestamp() });
             return { ok: true, syncId, outcome: "running", run, state };
@@ -943,9 +922,9 @@ export class CiRenderSync {
                 syncId,
                 failure(
                     "repository-unreadable",
-                    `Neither GitHub sign-in on this computer could read ${owner}/${repo}, so whether it ` +
-                        "is public could not be established and nothing was uploaded or started. Sign in " +
-                        `to GitHub in Settings, or run \`${GH_LOGIN_COMMAND}\` in a terminal, and try ` +
+                    `The selected GitHub CLI account could not read ${owner}/${repo}, so whether it ` +
+                        "is public could not be established and nothing was uploaded or started. " +
+                        "Reauthenticate that account from GitHub Settings and try " +
                         `again.${described.routeFailure === null ? "" : ` (${described.routeFailure})`}`,
                     { route, needsSignIn: true, detail: repositoryFailure },
                 ),
@@ -1028,11 +1007,11 @@ export class CiRenderSync {
             /*
              * The one surviving "this route cannot publish" refusal.
              *
-             * Both shipped routes can, so this is unreachable today - and it stays, because
+             * The shipped route can, so this is unreachable today - and it stays, because
              * "can start a render" and "can publish a world" are genuinely two capabilities
              * and a route that only has the first must say so here rather than failing
-             * somewhere inside a packer. It names both remedies, because a machine has two
-             * GitHub sign-ins and only the person knows which of them they can fix.
+             * somewhere inside a packer. Recovery stays on the account that the operation
+             * selected rather than switching identity behind the user's back.
              */
             if (!transport.canUpload) {
                 return this.#failed(
@@ -1041,9 +1020,8 @@ export class CiRenderSync {
                         "upload-route-cannot-publish",
                         "This world has to be uploaded before GitHub can render it, and the credential " +
                             `driving this sync - ${transport.describe} - can start and follow a render ` +
-                            "but not publish a world. Sign in to GitHub in Settings, or run " +
-                            `\`${GH_LOGIN_COMMAND}\` in a terminal so the ${GH_COMMAND} route can be ` +
-                            "used, and try again. A world that is already published renders without " +
+                            "but not publish a world. Reauthenticate that selected account from " +
+                            "GitHub Settings and try again. A world that is already published renders without " +
                             `this step.${repositoryFailure === null ? "" : ` (${repositoryFailure})`}`,
                         { route, needsSignIn: true },
                     ),
@@ -1516,13 +1494,12 @@ export class CiRenderSync {
         }
     }
 
-    #fetch(): FetchLike {
-        return this.#options.fetch ?? ((url, init) => fetch(url, init));
-    }
-
-    async #token(accountId?: string | undefined): Promise<string | null> {
-        const value = await this.#options.token(accountId);
-        return typeof value === "string" && value.length > 0 ? value : null;
+    async #account(
+        accountId: string | undefined,
+        access: GhCredentialAccess,
+        signal?: AbortSignal,
+    ): Promise<GhCliAccountLease | null> {
+        return await this.#options.account(accountId, access, signal);
     }
 
     async #sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -1718,12 +1695,8 @@ function fromError(error: unknown, route: CiRoute | null = null): CiSyncFailure 
             {
                 detail: error.url === "" ? null : error.url,
                 status: error.status,
-                // A 403 on the `gh` route is very often an organisation that has not
-                // authorised that credential for SSO rather than a missing scope, so signing
-                // in to the application again would not help and is not offered.
                 needsSignIn:
-                    error.needsSignIn ||
-                    (route !== "gh" && (error.status === 401 || error.status === 403)),
+                    error.needsSignIn || error.status === 401 || error.status === 403,
                 route,
             },
         );

@@ -234,7 +234,11 @@ export interface Backups {
     readonly repositoriesFailure: Ref<string | null>;
     readonly loadingRepositories: Ref<boolean>;
     readonly creatingRepository: Ref<boolean>;
-    readonly createRepositoryFailure: Ref<{ readonly code: CreateRepositoryFailureCode; readonly message: string } | null>;
+    readonly createRepositoryFailure: Ref<{
+        readonly code: CreateRepositoryFailureCode;
+        readonly message: string;
+        readonly needsSignIn?: boolean | undefined;
+    } | null>;
 
     /** The repository the interface has read, and what uploading to it would mean. */
     readonly report: Ref<RepositoryReport | null>;
@@ -255,8 +259,8 @@ export interface Backups {
     readonly startFailure: Ref<BackupFailure | null>;
     readonly starting: Ref<boolean>;
 
-    check(owner: string, repo: string): Promise<RepositoryReport | null>;
-    loadRepositories(): Promise<void>;
+    check(owner: string, repo: string, accountId?: string): Promise<RepositoryReport | null>;
+    loadRepositories(accountId?: string): Promise<void>;
     /**
      * Creates a brand-new repository and, on success, adds it to {@link Backups.repositories}
      * so it is immediately there to pick - the caller still has to set the owner/repo
@@ -264,7 +268,9 @@ export interface Backups {
      * works, so creating one lands at the same "next real decision" a chosen one does.
      */
     createRepository(request: CreateRepositoryRequest): Promise<RepositoryChoice | null>;
-    loadListings(owner: string, repo: string): Promise<void>;
+    loadListings(owner: string, repo: string, accountId?: string): Promise<void>;
+    /** Invalidates account-bound report/listing reads when the selected account changes. */
+    clearAccountState(): void;
     start(request: BackupRequest): Promise<BackupResult | null>;
     stop(backupId: string): Promise<boolean>;
     /** Adopts anything already in flight, so a backup started elsewhere is on screen. */
@@ -282,7 +288,11 @@ export function createBackups(bridge: BackupBridge | null): Backups {
     const repositoriesFailure = ref<string | null>(null);
     const loadingRepositories = ref(false);
     const creatingRepository = ref(false);
-    const createRepositoryFailure = ref<{ readonly code: CreateRepositoryFailureCode; readonly message: string } | null>(
+    const createRepositoryFailure = ref<{
+        readonly code: CreateRepositoryFailureCode;
+        readonly message: string;
+        readonly needsSignIn?: boolean | undefined;
+    } | null>(
         null,
     );
     const report = ref<RepositoryReport | null>(null);
@@ -295,6 +305,11 @@ export function createBackups(bridge: BackupBridge | null): Backups {
     const starting = ref(false);
 
     let nextLogId = 1;
+    // A slow list from the previous account must not overwrite the repository picker after
+    // the person has already selected a different account.
+    let repositoriesLoadToken = 0;
+    let reportLoadToken = 0;
+    let listingsLoadToken = 0;
 
     const rows = computed<readonly BackupRow[]>(() =>
         Object.values(byId.value).sort((left, right) => {
@@ -418,15 +433,21 @@ export function createBackups(bridge: BackupBridge | null): Backups {
         startFailure,
         starting,
 
-        async check(owner: string, repo: string): Promise<RepositoryReport | null> {
+        async check(owner: string, repo: string, accountId?: string): Promise<RepositoryReport | null> {
             if (bridge === null) return null;
+            const token = ++reportLoadToken;
             checking.value = true;
             reportFailure.value = null;
             // Cleared, not kept: a stale report beside a new repository name is how
             // somebody reads "private" about a repository they have just changed.
             report.value = null;
             try {
-                const answer = await bridge.inspectBackupRepository({ owner, repo });
+                const answer = await bridge.inspectBackupRepository({
+                    ...(accountId === undefined ? {} : { accountId }),
+                    owner,
+                    repo,
+                });
+                if (token !== reportLoadToken) return null;
                 if (!answer.ok) {
                     reportFailure.value = answer.message;
                     return null;
@@ -434,25 +455,29 @@ export function createBackups(bridge: BackupBridge | null): Backups {
                 report.value = answer.value;
                 return answer.value;
             } catch (error) {
-                reportFailure.value = describe(error);
+                if (token === reportLoadToken) reportFailure.value = describe(error);
                 return null;
             } finally {
-                checking.value = false;
+                if (token === reportLoadToken) checking.value = false;
             }
         },
 
-        async loadRepositories(): Promise<void> {
+        async loadRepositories(accountId?: string): Promise<void> {
             if (bridge === null) return;
+            const token = ++repositoriesLoadToken;
             loadingRepositories.value = true;
+            repositories.value = [];
             repositoriesFailure.value = null;
             try {
-                const answer = await bridge.listBackupRepositories();
-                if (answer.ok) repositories.value = answer.value;
-                else repositoriesFailure.value = answer.message;
+                const answer = await bridge.listBackupRepositories(accountId);
+                if (token === repositoriesLoadToken) {
+                    if (answer.ok) repositories.value = answer.value;
+                    else repositoriesFailure.value = answer.message;
+                }
             } catch (error) {
-                repositoriesFailure.value = describe(error);
+                if (token === repositoriesLoadToken) repositoriesFailure.value = describe(error);
             } finally {
-                loadingRepositories.value = false;
+                if (token === repositoriesLoadToken) loadingRepositories.value = false;
             }
         },
 
@@ -463,7 +488,11 @@ export function createBackups(bridge: BackupBridge | null): Backups {
             try {
                 const answer = await bridge.createBackupRepository(request);
                 if (!answer.ok) {
-                    createRepositoryFailure.value = { code: answer.code, message: answer.message };
+                    createRepositoryFailure.value = {
+                        code: answer.code,
+                        message: answer.message,
+                        ...(answer.needsSignIn === true ? { needsSignIn: true } : {}),
+                    };
                     return null;
                 }
                 // Prepended rather than appended, and rather than requiring a re-fetch of
@@ -480,19 +509,37 @@ export function createBackups(bridge: BackupBridge | null): Backups {
             }
         },
 
-        async loadListings(owner: string, repo: string): Promise<void> {
+        async loadListings(owner: string, repo: string, accountId?: string): Promise<void> {
             if (bridge === null) return;
+            const token = ++listingsLoadToken;
             listing.value = true;
+            listings.value = [];
             listingsFailure.value = null;
             try {
-                const answer = await bridge.listBackups({ owner, repo });
+                const answer = await bridge.listBackups({
+                    ...(accountId === undefined ? {} : { accountId }),
+                    owner,
+                    repo,
+                });
+                if (token !== listingsLoadToken) return;
                 if (answer.ok) listings.value = answer.value;
                 else listingsFailure.value = answer.message;
             } catch (error) {
-                listingsFailure.value = describe(error);
+                if (token === listingsLoadToken) listingsFailure.value = describe(error);
             } finally {
-                listing.value = false;
+                if (token === listingsLoadToken) listing.value = false;
             }
+        },
+
+        clearAccountState(): void {
+            reportLoadToken += 1;
+            listingsLoadToken += 1;
+            report.value = null;
+            reportFailure.value = null;
+            checking.value = false;
+            listings.value = [];
+            listingsFailure.value = null;
+            listing.value = false;
         },
 
         async start(request: BackupRequest): Promise<BackupResult | null> {

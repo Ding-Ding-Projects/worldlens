@@ -63,7 +63,7 @@ function fakeTransport(release: CiRelease = { id: 5, tag: "", htmlUrl: "https://
     };
 
     return {
-        route: "session",
+        route: "gh",
         describe: "a fake",
         canUpload: true,
         puts,

@@ -33,7 +33,6 @@ import { installRenderIpc } from "./render/ipc.js";
 import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
 import type { DownloadIpc } from "./download/ipc.js";
-import { releaseTokenSource } from "./download/token.js";
 import { totalmem } from "node:os";
 import {
     createFileUpdateFeedHandoff,
@@ -95,9 +94,7 @@ import {
 import type { AutosaveOutcome, ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
 import type { BackupIpc } from "./backup/ipc.js";
-import { installGitHubIpc } from "./github/ipc.js";
-import type { GitHubIpc } from "./github/ipc.js";
-import { openExternalHttps } from "./github/external.js";
+import { openExternalHttps } from "./security/external.js";
 import { registerJavaHandlers, JAVA_PROVISION_EVENT_CHANNEL } from "./java/ipc.js";
 import type { JavaIpc } from "./java/ipc.js";
 import { registerConfigHandlers } from "./config/index.js";
@@ -122,6 +119,7 @@ import type { SysdepIpc } from "./sysdeps/ipc.js";
 import { spawnProcessRunner } from "./sysdeps/process.js";
 import { registerGhCliHandlers } from "./ghcli/ipc.js";
 import type { GhCliIpc } from "./ghcli/ipc.js";
+import { GhCredentialBroker } from "./ghcli/credentialBroker.js";
 import { nodeProcessRunner } from "./cirender/gh.js";
 import { LEGACY_MATERIAL_BLUEMAP_IDENTITY, WORLDLENS_IDENTITY } from "@worldlens/shared";
 import { migrateWorldlensProfile } from "./migration/index.js";
@@ -542,11 +540,11 @@ function startRendering(): RenderIpc {
  */
 let downloadIpc: DownloadIpc | null = null;
 
-function startDownloads(render: RenderIpc, github: GitHubIpc): DownloadIpc {
+function startDownloads(render: RenderIpc, github: GhCliIpc): DownloadIpc {
     if (downloadIpc !== null) return downloadIpc;
     downloadIpc = installDownloadIpc({
         storageDir: () => render.storageDirectory(),
-        token: releaseTokenSource({ session: github.session }),
+        account: github.broker.account,
         // The worker count somebody chose in Settings, read fresh for every download
         // rather than captured here - `files/downloadConcurrency.ts`'s own store already
         // re-reads its file on every call, so this is never stale.
@@ -560,17 +558,17 @@ function startDownloads(render: RenderIpc, github: GitHubIpc): DownloadIpc {
  *
  * Registered once, for the same reason rendering, downloading and sign-in are. It stages
  * into the same folder downloads use, so a backup follows the storage directory somebody
- * chose in setup, and it borrows the downloader's token source so a backup runs under the
- * account signed in inside the application rather than only under `GH_TOKEN`.
+ * chose in setup, and it borrows the same `gh` account broker so a backup runs under the
+ * selected GitHub CLI account. Worldlens never owns or reads a credential store.
  */
 let backupIpc: BackupIpc | null = null;
 
-function startBackups(render: RenderIpc, github: GitHubIpc): BackupIpc {
+function startBackups(render: RenderIpc, github: GhCliIpc): BackupIpc {
     if (backupIpc !== null) return backupIpc;
     backupIpc = installBackupIpc({
         ipcMain,
         storageDir: () => render.storageDirectory(),
-        token: releaseTokenSource({ session: github.session }),
+        account: github.broker.account,
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
                 if (window.isDestroyed()) continue;
@@ -580,21 +578,6 @@ function startBackups(render: RenderIpc, github: GitHubIpc): BackupIpc {
         appVersion: app.getVersion(),
     });
     return backupIpc;
-}
-
-/**
- * GitHub sign-in.
- *
- * Registered once, for the same reason rendering and downloading are. The session it
- * holds is the only thing in the process that has the token: the renderer is told who is
- * signed in and what that account may do, and never the credential itself.
- */
-let githubIpc: GitHubIpc | null = null;
-
-function startGitHubSignIn(): GitHubIpc {
-    if (githubIpc !== null) return githubIpc;
-    githubIpc = installGitHubIpc();
-    return githubIpc;
 }
 
 /**
@@ -687,7 +670,7 @@ function startSysdepInstaller(): SysdepIpc {
 
 /**
  * The `gh` command-line tool's OWN accounts - a completely separate credential store from
- * `startGitHubSignIn()`'s above. Registered once, for the same reason everything else here
+ * Registered once, for the same reason everything else here
  * is. `nodeProcessRunner()` is the one real child-process runner this reuses, exactly as
  * `cirender/`'s own CI-render `gh` fallback already does; every test in `main/ghcli/` drives
  * a fake instead so nothing there ever spawns a real `gh` or touches this machine's real
@@ -697,9 +680,12 @@ let ghCliIpc: GhCliIpc | null = null;
 
 function startGhCliAccounts(): GhCliIpc {
     if (ghCliIpc !== null) return ghCliIpc;
+    const runner = nodeProcessRunner();
+    const broker = new GhCredentialBroker({ runner });
     ghCliIpc = registerGhCliHandlers(ipcMain, {
-        runner: nodeProcessRunner(),
-        openExternal: openExternalHttps,
+        broker,
+        runner,
+        userDataDirectory: app.getPath("userData"),
     });
     return ghCliIpc;
 }
@@ -912,7 +898,7 @@ function startFileAccess(render: RenderIpc): RenderMemoryStore {
  * Handing a render to GitHub's runners.
  *
  * It borrows rather than duplicates: the backup runner uploads the world, the download side
- * fetches the result, and the token comes from the same source the downloader uses. A second
+ * fetches the result, and the selected `gh` account comes from the same broker. A second
  * uploader would be a second thing to keep correct about digests and resumption.
  *
  * `eulaAccepted` is a reader and nothing else. Mojang's acceptance is a real legal act that
@@ -920,34 +906,15 @@ function startFileAccess(render: RenderIpc): RenderMemoryStore {
  */
 let ciRenderIpc: CiRenderIpc | null = null;
 
-function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc): CiRenderIpc {
+function startCiRenders(render: RenderIpc, github: GhCliIpc): CiRenderIpc {
     if (ciRenderIpc !== null) return ciRenderIpc;
-    const activeAccountToken = releaseTokenSource({ session: github.session });
     ciRenderIpc = installCiRenderIpc({
         ipcMain,
         storageDir: () => render.storageDirectory(),
-        // Resolves the active account, `GH_TOKEN` and all, exactly as before whenever a
-        // request names no account. Named explicitly - by the setup card's account picker
-        // - the credential comes from that specific stored account's own token instead, via
-        // `GitHubAccountsController.accessTokenFor`, without switching which account is
-        // active anywhere else in the application. The token itself never crosses back to
-        // the renderer either way.
-        token: async (accountId) => {
-            if (accountId === undefined || accountId === "") return await activeAccountToken();
-            const result = await github.accounts.accessTokenFor(accountId);
-            return result.ok ? result.token : null;
-        },
+        // The broker returns one fresh, stable lease for the selected gh account. The
+        // credential is consumed only in this main-process operation and never crosses IPC.
+        account: github.broker.account,
         eulaAccepted: () => hasAcceptedDownload(),
-        backup: backup.runner,
-        account: (accountId) => {
-            if (accountId === undefined || accountId === "") {
-                return github.session.status().account?.login ?? null;
-            }
-            return (
-                github.accounts.listAccounts().accounts.find((entry) => entry.id === accountId)
-                    ?.login ?? null
-            );
-        },
         mounts: localMaps,
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
@@ -982,12 +949,13 @@ function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc)
  */
 let pagesIpc: PagesIpc | null = null;
 
-function startPagesHosting(render: RenderIpc): PagesIpc {
+function startPagesHosting(render: RenderIpc, github: GhCliIpc): PagesIpc {
     if (pagesIpc !== null) return pagesIpc;
     pagesIpc = installPagesIpc({
         ipcMain,
         storageDir: () => render.storageDirectory(),
         workRoot: () => join(app.getPath("userData"), "pages-hosting"),
+        account: github.broker.account,
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
                 if (window.isDestroyed()) continue;
@@ -1066,11 +1034,12 @@ function startPreviewHosting(render: RenderIpc, ciRender: CiRenderIpc): PreviewI
  */
 let worldRepoIpc: WorldRepoIpc | null = null;
 
-function startWorldRepoHosting(): WorldRepoIpc {
+function startWorldRepoHosting(github: GhCliIpc | null): WorldRepoIpc {
     if (worldRepoIpc !== null) return worldRepoIpc;
     worldRepoIpc = installWorldRepoIpc({
         ipcMain,
         workRoot: () => join(app.getPath("userData"), "world-repos"),
+        account: github?.broker.account ?? (async () => null),
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
                 if (window.isDestroyed()) continue;
@@ -1095,7 +1064,7 @@ let worldSourceIpc: WorldSourceIpc | null = null;
 function startWorldSources(
     render: RenderIpc,
     downloads: DownloadIpc,
-    github: GitHubIpc,
+    github: GhCliIpc,
 ): WorldSourceIpc {
     if (worldSourceIpc !== null) return worldSourceIpc;
     worldSourceIpc = registerWorldSourceHandlers(ipcMain, {
@@ -1105,7 +1074,7 @@ function startWorldSources(
                 if (!window.isDestroyed()) window.webContents.send(DOWNLOAD_EVENT_CHANNEL, event);
             }
         },
-        token: releaseTokenSource({ session: github.session }),
+        account: github.broker.account,
         downloader: downloads.downloader,
     });
     return worldSourceIpc;
@@ -1545,9 +1514,9 @@ async function createWindow(): Promise<void> {
     );
     const github = await attempt(
         "network",
-        "github-sign-in",
+        "github-cli",
         "GitHub features are unavailable in this launch",
-        startGitHubSignIn,
+        startGhCliAccounts,
     );
     const downloads =
         render !== null && github !== null
@@ -1565,19 +1534,21 @@ async function createWindow(): Promise<void> {
               )
             : null;
     const ciRender =
-        render !== null && github !== null && backups !== null
+        render !== null && github !== null
             ? await attempt(
                   "network",
                   "ci-render",
                   "Cloud rendering is unavailable in this launch",
-                  () => startCiRenders(render, github, backups),
+                  () => startCiRenders(render, github),
               )
             : null;
 
-    if (render !== null) {
+    if (render !== null && github !== null) {
         await attempt("network", "pages", "Pages hosting is unavailable in this launch", () =>
-            startPagesHosting(render),
+            startPagesHosting(render, github),
         );
+    }
+    if (render !== null) {
         await attempt(
             "initialization",
             "runtime",
@@ -1613,7 +1584,7 @@ async function createWindow(): Promise<void> {
             "initialization",
             "world-repository",
             "World repositories are unavailable",
-            startWorldRepoHosting,
+            () => startWorldRepoHosting(github),
         ],
         ["network", "ssh-world-source", "SSH world sources are unavailable", startSshWorldSources],
         ["dependency", "docker-world", "Docker world import is unavailable", startDockerWorld],
@@ -1630,7 +1601,6 @@ async function createWindow(): Promise<void> {
             "Dependency installation is unavailable",
             startSysdepInstaller,
         ],
-        ["dependency", "gh-cli", "GitHub CLI account controls are unavailable", startGhCliAccounts],
         [
             "configuration",
             "config-editor",

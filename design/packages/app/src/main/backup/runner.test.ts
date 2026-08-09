@@ -21,6 +21,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fakeGhAccountLease } from "../ghcli/testLease.js";
 import { BackupRunner, partAssetName } from "./runner.js";
 import type { BackupEvent } from "./runner.js";
 import { readPointer } from "./pointer.js";
@@ -200,12 +201,40 @@ function makeRunner(
 ) {
     return new BackupRunner({
         storageDir: () => join(workDir, "storage"),
-        token: () => "t0k3n",
-        fetch: github.fetch,
+        account: async (accountId) =>
+            fakeGhAccountLease({
+                accountId: accountId ?? "github.com:test",
+                api: github.fetch,
+                uploadReleaseAsset: async (_owner, _repo, tag, assetName, filePath, options) => {
+                    const release = github.releases.get(tag);
+                    if (release === undefined) {
+                        return { started: true, code: 1, stdout: "", stderr: "release missing" };
+                    }
+                    const bytes = await readFile(filePath);
+                    const body = new ReadableStream<Uint8Array>({
+                        start(controller) {
+                            controller.enqueue(bytes);
+                            controller.close();
+                        },
+                    });
+                    const response = await github.fetch(
+                        `https://uploads.test/repos/o/r/releases/${String(release.id)}/assets?name=${encodeURIComponent(assetName)}`,
+                        {
+                            method: "POST",
+                            body: body as unknown as NonNullable<RequestInit["body"]>,
+                            ...(options?.signal === undefined ? {} : { signal: options.signal }),
+                        },
+                    );
+                    return {
+                        started: true,
+                        code: response.ok ? 0 : 1,
+                        stdout: "",
+                        stderr: response.ok ? "" : `upload failed (HTTP ${String(response.status)})`,
+                    };
+                },
+            }),
         onEvent: (event) => events.push(event),
         appVersion: "0.1.0",
-        apiBase: "https://api.test",
-        uploadsBase: "https://uploads.test",
         ...(now === undefined ? {} : { now }),
     });
 }
@@ -466,10 +495,7 @@ describe("refusals that never reach the network", () => {
         const github = fakeGitHub();
         const runner = new BackupRunner({
             storageDir: () => join(workDir, "storage"),
-            token: () => null,
-            fetch: github.fetch,
-            apiBase: "https://api.test",
-            uploadsBase: "https://uploads.test",
+            account: async () => null,
         });
 
         const result = await runner.backup({

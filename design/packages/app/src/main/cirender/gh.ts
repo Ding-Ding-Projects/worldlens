@@ -1,14 +1,11 @@
 /**
- * Driving a CI render through the `gh` command-line tool instead of the in-app sign-in.
+ * Driving a CI render through the `gh` command-line tool.
  *
- * ## Why a second route at all
+ * ## Why this route
  *
- * Plenty of people already have `gh` installed and signed in, and it holds credentials the
- * application's own sign-in does not: an enterprise host, a SAML/SSO session already
- * authorised for an organisation, a token with scopes the in-app flow never asked for.
- * Somebody in that position should be able to render a world without signing in to a
- * second thing, and somebody whose in-app token turns out to be short a scope should get a
- * route that works rather than a dead end.
+ * `gh` already owns account storage, enterprise-host routing and SAML/SSO state. Reusing it
+ * lets the application select a real signed-in account without acquiring, storing or
+ * transporting its authorization material.
  *
  * This module is only the transport. It has no idea what a render is: it detects `gh`,
  * reports honestly what it found, and turns `gh api` calls into JSON and files.
@@ -44,6 +41,10 @@ import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { ActionsCallError } from "./actions.js";
+import {
+    GH_CLI_AUTH_ENVIRONMENT,
+    GIT_CREDENTIAL_DIAGNOSTIC_ENVIRONMENT,
+} from "../ghcli/environment.js";
 
 /** The executable, named once so a test and the real runner cannot drift. */
 export const GH_COMMAND = "gh";
@@ -142,9 +143,10 @@ export function nodeProcessRunner(): ProcessRunner {
                 child.on("close", (code) => {
                     resolve({ started, code, stdout, stderr });
                 });
-                if (options?.input !== undefined) {
-                    child.stdin?.end(options.input, "utf8");
-                }
+                // Every child launched by this headless transport is non-interactive. Always
+                // close stdin, including when the caller has no payload, so a missing Git
+                // credential can fail promptly instead of waiting on an invisible prompt.
+                child.stdin?.end(options?.input ?? "", "utf8");
             });
         },
 
@@ -157,6 +159,7 @@ export function nodeProcessRunner(): ProcessRunner {
                 ...(environment === undefined ? {} : { env: environment }),
                 ...(options?.signal === undefined ? {} : { signal: options.signal }),
             });
+            child.stdin?.end();
             let stderr = "";
             let bytes = 0;
             child.stderr?.setEncoding("utf8");
@@ -190,12 +193,38 @@ export function nodeProcessRunner(): ProcessRunner {
     };
 }
 
-function environmentWithout(names: readonly string[] | undefined): NodeJS.ProcessEnv | undefined {
-    if (names === undefined || names.length === 0) return undefined;
-    const omitted = new Set(names.map((name) => name.toUpperCase()));
-    return Object.fromEntries(
-        Object.entries(process.env).filter(([name]) => !omitted.has(name.toUpperCase())),
+function environmentWithout(names: readonly string[] | undefined): NodeJS.ProcessEnv {
+    // Ambient auth overrides would take precedence over gh's own selected account, including
+    // inside `git` when it invokes `gh auth git-credential`. Every child process launched by
+    // this runner therefore loses them by default; callers may add more omissions but cannot
+    // opt these credential-boundary variables back in.
+    const omitted = new Set(
+        [
+            ...GH_CLI_AUTH_ENVIRONMENT,
+            ...GIT_CREDENTIAL_DIAGNOSTIC_ENVIRONMENT,
+            ...(names ?? []),
+        ].map((name) => name.toUpperCase()),
     );
+    const environment = Object.fromEntries(
+        Object.entries(process.env).filter(([name]) => {
+            const normalized = name.toUpperCase();
+            return !omitted.has(normalized) && !normalized.startsWith("GIT_TRACE");
+        }),
+    );
+    // Git and common credential managers must never prompt from the app's hidden child
+    // process. These values are process-local and do not change the user's shell or config.
+    environment["GIT_TERMINAL_PROMPT"] = "0";
+    environment["GCM_INTERACTIVE"] = "Never";
+    return environment;
+}
+
+function ghProcessOptions(options: ProcessRunOptions = {}): ProcessRunOptions {
+    const omitted = new Map<string, string>();
+    for (const name of [...GH_CLI_AUTH_ENVIRONMENT, ...(options.omitEnvironmentVariables ?? [])]) {
+        const key = name.toLowerCase();
+        if (!omitted.has(key)) omitted.set(key, name);
+    }
+    return { ...options, omitEnvironmentVariables: [...omitted.values()] };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -244,7 +273,7 @@ export async function detectGh(
     runner: ProcessRunner,
     options: { readonly signal?: AbortSignal | undefined } = {},
 ): Promise<GhStatus> {
-    const version = await runner.run(GH_COMMAND, ["--version"], options);
+    const version = await runner.run(GH_COMMAND, ["--version"], ghProcessOptions(options));
     if (!version.started) {
         return {
             availability: "not-installed",
@@ -273,7 +302,7 @@ export async function detectGh(
     // `gh auth status` writes to stdout on current versions and wrote to stderr on older
     // ones. Both are read, because a status that landed on the wrong stream would be
     // reported as "signed out" for somebody who is signed in perfectly well.
-    const status = await runner.run(GH_COMMAND, ["auth", "status"], options);
+    const status = await runner.run(GH_COMMAND, ["auth", "status"], ghProcessOptions(options));
     const combined = `${status.stdout}\n${status.stderr}`;
 
     if (status.code !== 0) {
@@ -366,9 +395,11 @@ function apiArgs(endpoint: string, options: GhApiOptions, extra: readonly string
  * `gh api` takes. It is passed as one argument, never interpolated into a command line.
  */
 export async function ghApiJson(endpoint: string, options: GhApiOptions): Promise<unknown> {
-    const result = await options.runner.run(GH_COMMAND, apiArgs(endpoint, options), {
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-    });
+    const result = await options.runner.run(
+        GH_COMMAND,
+        apiArgs(endpoint, options),
+        ghProcessOptions(options.signal === undefined ? {} : { signal: options.signal }),
+    );
     if (!result.started) throw new ActionsCallError(NOT_INSTALLED, 0, endpoint);
     if (result.code !== 0) throw ghFailure(result.stderr, endpoint);
     try {
@@ -401,10 +432,14 @@ export async function ghApiSend(
     options: GhApiOptions,
 ): Promise<string> {
     const extra = body === undefined ? ["-X", method] : ["-X", method, "--input", "-"];
-    const result = await options.runner.run(GH_COMMAND, apiArgs(endpoint, options, extra), {
-        ...(body === undefined ? {} : { input: JSON.stringify(body) }),
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-    });
+    const result = await options.runner.run(
+        GH_COMMAND,
+        apiArgs(endpoint, options, extra),
+        ghProcessOptions({
+            ...(body === undefined ? {} : { input: JSON.stringify(body) }),
+            ...(options.signal === undefined ? {} : { signal: options.signal }),
+        }),
+    );
     if (!result.started) throw new ActionsCallError(NOT_INSTALLED, 0, endpoint);
     if (result.code !== 0) throw ghFailure(result.stderr, endpoint);
     return result.stdout;
@@ -429,9 +464,7 @@ export async function ghApiToFile(
         GH_COMMAND,
         apiArgs(endpoint, options),
         destination,
-        {
-            ...(options.signal === undefined ? {} : { signal: options.signal }),
-        },
+        ghProcessOptions(options.signal === undefined ? {} : { signal: options.signal }),
     );
     if (!result.started) throw new ActionsCallError(NOT_INSTALLED, 0, endpoint);
     if (result.code !== 0) throw ghFailure(result.stderr, endpoint);

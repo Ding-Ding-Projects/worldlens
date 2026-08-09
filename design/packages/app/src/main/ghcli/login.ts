@@ -16,10 +16,10 @@ import {
     type DeviceFlowFailure,
     type FetchLike,
     type SleepLike,
-} from "../github/deviceFlow.js";
-import { describeError, redactSecrets } from "../github/redact.js";
-import { missingScopes, normalizeRequiredScopes, normalizeScopes } from "../github/token.js";
-import { GH_COMMAND, type ProcessRunner } from "../cirender/gh.js";
+} from "./deviceFlow.js";
+import { describeError, redactSecrets } from "../security/redact.js";
+import { missingScopes, normalizeRequiredScopes, normalizeScopes } from "./scopes.js";
+import type { ProcessRunner } from "../cirender/gh.js";
 import { parseGhAuthStatusJson, type GhCliAccountSummary } from "./accounts.js";
 import { GH_CLI_AUTH_ENVIRONMENT } from "./environment.js";
 
@@ -73,7 +73,6 @@ export interface GhCliLoginState {
     readonly expiresAt: number | null;
     readonly secondsRemaining: number | null;
     readonly attempt: number;
-    readonly browserOpened: boolean;
     readonly account: GhCliAccountSummary | null;
     readonly failureCode: string | null;
     /** Ready to render as-is and guaranteed not to contain the approved token. */
@@ -87,13 +86,18 @@ export interface GhCliLoginResult {
 
 export interface GhCliLoginOptions {
     readonly runner: ProcessRunner;
+    /** The broker-pinned absolute GitHub CLI executable. */
+    readonly executable: string;
     readonly fetch: FetchLike;
     readonly sleep?: SleepLike | undefined;
     readonly now?: (() => number) | undefined;
     readonly signal?: AbortSignal | undefined;
     readonly expectedLogin?: string | null | undefined;
-    readonly openExternal?: ((url: string) => Promise<boolean>) | undefined;
     readonly onState?: ((state: GhCliLoginState) => void) | undefined;
+    /** Broker lane used only after device approval, while gh stores and verifies the account. */
+    readonly withCredentialStoreLock?:
+        | (<T>(operation: () => Promise<T>) => Promise<T>)
+        | undefined;
 }
 
 interface PublicGrant {
@@ -119,7 +123,6 @@ function publicState(
         expiresAt: null,
         secondsRemaining: null,
         attempt: 0,
-        browserOpened: false,
         account: null,
         failureCode: null,
         message,
@@ -258,38 +261,14 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
         );
         return { ok: false, state };
     }
-    const target = grant.verificationUriComplete ?? grant.verificationUri;
-    let browserOpened = false;
-
     emit(
         publicState(
             "waiting-for-approval",
             expectedLogin,
-            "Enter the one-time code on GitHub, then approve the requested permissions.",
-            { ...withGrant(grant), browserOpened },
+            "Open the displayed GitHub address yourself, enter the one-time code, then approve the requested permissions. This application will not open a browser.",
+            withGrant(grant),
         ),
     );
-
-    if (
-        options.openExternal !== undefined &&
-        devicePageAllowed(target, grant.verificationUriComplete === null ? null : grant.userCode)
-    ) {
-        try {
-            browserOpened = await options.openExternal(target);
-        } catch {
-            browserOpened = false;
-        }
-        emit(
-            publicState(
-                "waiting-for-approval",
-                expectedLogin,
-                browserOpened
-                    ? "The GitHub approval page opened in your browser. This application is waiting for approval."
-                    : "Open the displayed GitHub address in a browser and enter the one-time code.",
-                { ...withGrant(grant), browserOpened },
-            ),
-        );
-    }
 
     const sleep =
         options.sleep ?? ((milliseconds: number) => realSleep(milliseconds, options.signal));
@@ -308,7 +287,6 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                     "Waiting for approval on GitHub. The one-time code remains visible until it expires.",
                     {
                         ...withGrant(grant),
-                        browserOpened,
                         secondsRemaining: waiting.secondsRemaining,
                         attempt: waiting.attempt,
                     },
@@ -325,7 +303,6 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                 tokenResult.failure.message,
                 {
                     ...withGrant(grant),
-                    browserOpened,
                     failureCode: tokenResult.failure.code,
                 },
             ),
@@ -348,7 +325,6 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                     "Sign-in was cancelled after GitHub approved it. gh may already have stored the credential; check the account list before trying again.",
                     {
                         ...withGrant(grant),
-                        browserOpened,
                         failureCode: "cancelled",
                     },
                 ),
@@ -364,7 +340,6 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                     "Sign-in was cancelled before gh stored the credential.",
                     {
                         ...withGrant(grant),
-                        browserOpened,
                         failureCode: "cancelled",
                     },
                 ),
@@ -372,17 +347,18 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
             return { ok: false, state };
         }
 
-        emit(
-            publicState(
-                "storing-credential",
-                expectedLogin,
-                "GitHub approved the sign-in. Handing the credential directly to gh's own store.",
-                { ...withGrant(grant), browserOpened },
-            ),
-        );
+        const storeAndVerify = async (): Promise<GhCliLoginResult> => {
+            emit(
+                publicState(
+                    "storing-credential",
+                    expectedLogin,
+                    "GitHub approved the sign-in. Handing the credential directly to gh's own store.",
+                    withGrant(grant),
+                ),
+            );
 
-        const stored = await options.runner.run(
-            GH_COMMAND,
+            const stored = await options.runner.run(
+            options.executable,
             [
                 "auth",
                 "login",
@@ -397,9 +373,9 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                 omitEnvironmentVariables: GH_CLI_AUTH_ENVIRONMENT,
                 ...(options.signal === undefined ? {} : { signal: options.signal }),
             },
-        );
-        if (aborted()) return cancelledAfterApproval();
-        if (!stored.started || stored.code !== 0) {
+            );
+            if (aborted()) return cancelledAfterApproval();
+            if (!stored.started || stored.code !== 0) {
             const said = redactSecrets(firstLine(stored.stderr), [token]);
             const state = emit(
                 publicState(
@@ -410,37 +386,36 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                         : `GitHub approved sign-in, but gh did not accept the credential${said === "" ? "." : `: ${said}`}`,
                     {
                         ...withGrant(grant),
-                        browserOpened,
                         failureCode: !stored.started ? "gh-not-installed" : "gh-login-failed",
                     },
                 ),
             );
-            return { ok: false, state };
-        }
+                return { ok: false, state };
+            }
 
-        emit(
+            emit(
             publicState(
                 "verifying",
                 expectedLogin,
                 "gh accepted the credential. Verifying both its stored account and effective API identity.",
-                { ...withGrant(grant), browserOpened },
+                withGrant(grant),
             ),
-        );
+            );
 
-        const status = await options.runner.run(
-            GH_COMMAND,
+            const status = await options.runner.run(
+            options.executable,
             ["auth", "status", "--hostname", GH_CLI_LOGIN_HOST, "--json", "hosts"],
             {
                 omitEnvironmentVariables: GH_CLI_AUTH_ENVIRONMENT,
                 ...(options.signal === undefined ? {} : { signal: options.signal }),
             },
-        );
-        if (aborted()) return cancelledAfterApproval();
-        const accounts = status.code === 0 ? parseGhAuthStatusJson(status.stdout) : null;
-        const active =
+            );
+            if (aborted()) return cancelledAfterApproval();
+            const accounts = status.code === 0 ? parseGhAuthStatusJson(status.stdout) : null;
+            const active =
             accounts?.find((account) => account.host === GH_CLI_LOGIN_HOST && account.active) ??
             null;
-        if (!status.started || status.code !== 0 || active === null) {
+            if (!status.started || status.code !== 0 || active === null) {
             const said = redactSecrets(firstLine(status.stderr), [token]);
             const state = emit(
                 publicState(
@@ -449,19 +424,18 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                     `gh stored the approved credential, but its account status could not be verified${said === "" ? "." : `: ${said}`}`,
                     {
                         ...withGrant(grant),
-                        browserOpened,
                         failureCode: "gh-status-unverified",
                     },
                 ),
             );
-            return { ok: false, state };
-        }
+                return { ok: false, state };
+            }
 
-        const grantedScopes = normalizeScopes(active.scopes);
-        const missing = active.scopesReported
+            const grantedScopes = normalizeScopes(active.scopes);
+            const missing = active.scopesReported
             ? missingScopes(grantedScopes, NORMALIZED_GH_CLI_LOGIN_SCOPES)
             : NORMALIZED_GH_CLI_LOGIN_SCOPES;
-        if (missing.length > 0) {
+            if (missing.length > 0) {
             const state = emit(
                 publicState(
                     "failed",
@@ -471,31 +445,30 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                         : `gh stored ${active.login}'s approved credential, but the active account did not report scopes, so the requested permissions could not be verified.`,
                     {
                         ...withGrant(grant),
-                        browserOpened,
                         account: active,
                         failureCode: "insufficient-scopes",
                     },
                 ),
             );
-            return { ok: false, state };
-        }
+                return { ok: false, state };
+            }
 
-        const viewer = await options.runner.run(
-            GH_COMMAND,
+            const viewer = await options.runner.run(
+            options.executable,
             ["api", "--hostname", GH_CLI_LOGIN_HOST, "user", "--jq", ".login"],
             {
                 omitEnvironmentVariables: GH_CLI_AUTH_ENVIRONMENT,
                 ...(options.signal === undefined ? {} : { signal: options.signal }),
             },
-        );
-        if (aborted()) return cancelledAfterApproval();
-        const effectiveLogin = viewer.stdout.trim();
-        if (
+            );
+            if (aborted()) return cancelledAfterApproval();
+            const effectiveLogin = viewer.stdout.trim();
+            if (
             !viewer.started ||
             viewer.code !== 0 ||
             effectiveLogin === "" ||
             !sameLogin(active.login, effectiveLogin)
-        ) {
+            ) {
             const said = redactSecrets(firstLine(viewer.stderr), [token]);
             const state = emit(
                 publicState(
@@ -504,16 +477,15 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                     `gh stored the approved credential as ${active.login}, but its effective API identity could not be proved${said === "" ? "." : `: ${said}`}`,
                     {
                         ...withGrant(grant),
-                        browserOpened,
                         account: active,
                         failureCode: "identity-unverified",
                     },
                 ),
             );
-            return { ok: false, state };
-        }
+                return { ok: false, state };
+            }
 
-        if (expectedLogin !== null && !sameLogin(expectedLogin, effectiveLogin)) {
+            if (expectedLogin !== null && !sameLogin(expectedLogin, effectiveLogin)) {
             const state = emit(
                 publicState(
                     "failed",
@@ -521,24 +493,25 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                     `GitHub approved ${effectiveLogin}, not the requested ${expectedLogin}. gh stored and activated ${effectiveLogin}; the requested account was not changed.`,
                     {
                         ...withGrant(grant),
-                        browserOpened,
                         account: active,
                         failureCode: "unexpected-account",
                     },
                 ),
             );
-            return { ok: false, state };
-        }
+                return { ok: false, state };
+            }
 
-        const state = emit(
+            const state = emit(
             publicState(
                 "succeeded",
                 expectedLogin,
                 `${effectiveLogin} is signed in through gh on ${GH_CLI_LOGIN_HOST}. The requested scopes are verified, and gh status and the API identity agree.`,
-                { browserOpened, account: active },
+                { account: active },
             ),
-        );
-        return { ok: true, state };
+            );
+            return { ok: true, state };
+        };
+        return await (options.withCredentialStoreLock?.(storeAndVerify) ?? storeAndVerify());
     } catch (error) {
         const state = emit(
             publicState(
@@ -549,7 +522,6 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                     : `Sign-in could not finish: ${describeError(error, [token])}`,
                 {
                     ...withGrant(grant),
-                    browserOpened,
                     failureCode: aborted() ? "cancelled" : "unexpected",
                 },
             ),

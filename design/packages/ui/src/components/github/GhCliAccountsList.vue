@@ -9,38 +9,36 @@ import {
     mdiContentCopy,
     mdiDownload,
     mdiLogin,
+    mdiLogout,
     mdiOpenInNew,
     mdiRefresh,
     mdiSwapHorizontal,
 } from "@mdi/js";
 import { VAlert, VBtn, VChip, VIcon, VProgressLinear } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { createDependencyInstaller, type DependencyRow } from "../settings/dependencyInstaller.js";
 import type { DependencyInstallerBridge, SysdepOutcome } from "../settings/dependencyBridge.js";
 import { dependencyRouteLabel, dependencyStageLabel } from "../settings/dependencyModel.js";
-import { canWriteClipboard, resolveGitHubBridge } from "./githubBridge.js";
+import { canWriteGhCliClipboard, resolveGhCliBridge } from "./ghCliBridge.js";
 import { ghCliAccountSearchText, type GhCliAccountsStoreState } from "./ghCliAccountsStore.js";
 import type { GhCliAccountReadout } from "./ghCliBridge.js";
 
 /**
- * Every account the `gh` command-line tool itself is signed in as - a completely separate
- * list from `GitHubAccountsList.vue`'s own, which is this application's own multi-account
- * store. The two are never merged: this component's own explainer says so at the top, in
- * every language mode and at every funny level, and nothing here reads a value from the
- * other store or writes one to it.
+ * Every account the `gh` command-line tool itself is signed in as. Worldlens owns no
+ * parallel credential list; this component reads only secret-free metadata from gh.
  *
- * Modelled on `GitHubAccountsList.vue` for the listbox mechanics - roving tabindex, the
- * `role="listbox"`/`role="option"` pair, a row's own action sitting beside the option rather
- * than inside it - but single-action per row (Switch) rather than three, and with no
- * remove/sign-out at all: this application never deletes a `gh` credential, because `gh`'s
- * own sign-in is not something it manages.
+ * The list uses roving tabindex, a `role="listbox"`/`role="option"` pair, and keeps the
+ * explicit machine-wide Switch action beside rather than inside each option.
  *
  * The main process requests the public device code itself, shows only the one-time user code
  * and URL here, and hands the approved token directly to `gh auth login --with-token` over
  * stdin. The token never reaches this component, its store, IPC, a file, or an argument.
- * Adding an account and repairing scopes therefore use the same visible browser-approval
- * flow rather than copying a terminal command that the application cannot monitor. When
+ * Adding a github.com account and repairing its scopes therefore show the same visible
+ * approval code and address without launching a browser or copying a terminal command.
+ * Enterprise accounts name their host-specific GitHub CLI recovery route instead; sending
+ * them through github.com's OAuth client could repair the wrong account. When
  * `gh` is absent, this originating surface first composes the existing system-dependency
  * installer, re-probes the command after verified installation, and only then starts that
  * same device flow.
@@ -404,6 +402,10 @@ function keyOf(account: GhCliAccountReadout): string {
     return `${account.host} ${account.login}`;
 }
 
+function supportsDeviceLogin(account: GhCliAccountReadout): boolean {
+    return account.host.toLowerCase() === "github.com";
+}
+
 const focusedKey = ref<string | null>(null);
 
 const visibleKeys = computed(() => visible.value.map((account) => keyOf(account)));
@@ -491,12 +493,12 @@ const statusLineText = computed(() => {
 /* GUI device login: public code and URL in, no token ever out                */
 /* -------------------------------------------------------------------------- */
 
-const clipboardAvailable = computed(() => canWriteClipboard(resolveGitHubBridge()));
+const clipboardAvailable = computed(() => canWriteGhCliClipboard(resolveGhCliBridge()));
 const copiedKey = ref<string | null>(null);
 
 async function copyValue(value: string, key: string): Promise<void> {
     try {
-        const write = resolveGitHubBridge()?.writeClipboardText;
+        const write = resolveGhCliBridge()?.writeClipboardText;
         if (typeof write === "function") {
             await write(value);
         } else {
@@ -510,9 +512,9 @@ async function copyValue(value: string, key: string): Promise<void> {
     }
 }
 
-const loginLink = computed(() => {
+const approvalUri = computed(() => {
     const current = state.loginState.value;
-    return current?.verificationUriComplete ?? current?.verificationUri ?? null;
+    return current?.verificationUri ?? null;
 });
 
 const loginAlertType = computed<"success" | "error" | "info">(() => {
@@ -522,9 +524,13 @@ const loginAlertType = computed<"success" | "error" | "info">(() => {
     return "info";
 });
 
-async function startLogin(expectedLogin?: string): Promise<void> {
+async function startLogin(account?: GhCliAccountReadout): Promise<void> {
     copiedKey.value = null;
-    await state.startLogin(expectedLogin);
+    await state.startLogin(account);
+}
+
+async function doLogout(account: GhCliAccountReadout): Promise<void> {
+    await state.logoutAccount(account.host, account.login);
 }
 
 async function cancelLogin(): Promise<void> {
@@ -645,19 +651,29 @@ async function checkAgain(): Promise<void> {
                 </v-btn>
             </div>
 
-            <div v-if="loginLink !== null" class="mb-ghcli__verification">
+            <div v-if="approvalUri !== null" class="mb-ghcli__verification">
                 <span class="mb-ghcli__deviceLabel">
                     {{ t("settings.github.ghCli.verificationUrlLabel", "GitHub approval page") }}
                 </span>
-                <a
-                    :href="loginLink"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <code
                     class="mb-ghcli__verificationLink"
+                    data-testid="gh-cli-verification-uri"
                 >
-                    {{ state.loginState.value.verificationUri }}
-                    <v-icon :icon="mdiOpenInNew" size="x-small" aria-hidden="true" />
-                </a>
+                    {{ approvalUri }}
+                </code>
+                <v-btn
+                    v-if="clipboardAvailable"
+                    :prepend-icon="mdiContentCopy"
+                    variant="text"
+                    size="small"
+                    @click="copyValue(approvalUri, 'verification-uri')"
+                >
+                    {{
+                        copiedKey === "verification-uri"
+                            ? t("settings.github.ghCli.urlCopied", "Address copied.")
+                            : t("settings.github.ghCli.copyUrl", "Copy address")
+                    }}
+                </v-btn>
             </div>
 
             <p v-if="state.loginState.value.secondsRemaining !== null" class="mb-ghcli__note">
@@ -895,6 +911,7 @@ async function checkAgain(): Promise<void> {
                     v-else
                     class="mb-ghcli__list"
                     role="listbox"
+                    aria-multiselectable="true"
                     :aria-label="
                         t('settings.github.ghCli.listLabel', 'gh command-line tool accounts')
                     "
@@ -1015,7 +1032,7 @@ async function checkAgain(): Promise<void> {
                                         )
                                     }}
                                 </p>
-                                <p class="mb-ghcli__note">
+                                <p v-if="supportsDeviceLogin(account)" class="mb-ghcli__note">
                                     {{
                                         t(
                                             "settings.github.ghCli.loginExplainer",
@@ -1023,7 +1040,17 @@ async function checkAgain(): Promise<void> {
                                         )
                                     }}
                                 </p>
+                                <p v-else class="mb-ghcli__note">
+                                    {{
+                                        t(
+                                            "settings.github.ghCli.enterpriseScopeRecovery",
+                                            { login: account.login, host: account.host },
+                                            "The in-app approval flow supports github.com only. Repair {login} on {host} with GitHub CLI, then choose Check again. Worldlens will not redirect this enterprise account to github.com.",
+                                        )
+                                    }}
+                                </p>
                                 <v-btn
+                                    v-if="supportsDeviceLogin(account)"
                                     :prepend-icon="mdiAccountKey"
                                     variant="tonal"
                                     size="small"
@@ -1033,7 +1060,7 @@ async function checkAgain(): Promise<void> {
                                         state.loginState.value?.expectedLogin === account.login
                                     "
                                     :disabled="!state.canLogin || state.loginBusy.value"
-                                    @click.stop="startLogin(account.login)"
+                                    @click.stop="startLogin(account)"
                                 >
                                     {{
                                         t(
@@ -1064,6 +1091,39 @@ async function checkAgain(): Promise<void> {
                                             : t("settings.github.ghCli.switchAction", "Switch")
                                     }}
                                 </v-btn>
+                                <ConfigSuperConfirm
+                                    :title="t('settings.github.ghCli.logoutTitle', 'Sign out this GitHub CLI account')"
+                                    :action="
+                                        t(
+                                            'settings.github.ghCli.logoutAction',
+                                            { login: account.login, host: account.host },
+                                            'Remove {login} on {host} from GitHub CLI’s credential store on this computer. Other applications that use gh will lose this sign-in too.',
+                                        )
+                                    "
+                                    :affected="[`${account.login} — ${account.host}`]"
+                                    :confirm-label="t('settings.github.ghCli.logoutConfirm', 'Sign out account')"
+                                    :disabled="
+                                        !state.canLogout ||
+                                        (state.busyKey.value !== null &&
+                                            state.busyKey.value !== keyOf(account))
+                                    "
+                                    @confirm="doLogout(account)"
+                                >
+                                    <template #activator="{ props: activatorProps }">
+                                        <v-btn
+                                            v-bind="activatorProps"
+                                            :prepend-icon="mdiLogout"
+                                            variant="text"
+                                            color="error"
+                                            size="small"
+                                            data-test="logout-account"
+                                            :loading="state.busyKey.value === keyOf(account)"
+                                            :disabled="!state.canLogout"
+                                        >
+                                            {{ t('settings.github.ghCli.logout', 'Sign out') }}
+                                        </v-btn>
+                                    </template>
+                                </ConfigSuperConfirm>
                             </div>
                         </div>
                     </div>

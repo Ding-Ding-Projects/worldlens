@@ -95,10 +95,9 @@ describe("fetchRelease", () => {
         expect(release.assets.map((entry) => entry.name)).toEqual(["good.zip"]);
     });
 
-    it("sends no authorization header without a token, and one with", () => {
-        expect(apiHeaders(null)["authorization"]).toBeUndefined();
-        expect(apiHeaders("")["authorization"]).toBeUndefined();
-        expect(apiHeaders("abc")["authorization"]).toBe("Bearer abc");
+    it("keeps release metadata requests free of renderer-owned authorization", () => {
+        expect(apiHeaders()["authorization"]).toBeUndefined();
+        expect(apiHeaders()["accept"]).toBe("application/vnd.github+json");
     });
 });
 

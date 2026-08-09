@@ -1,31 +1,28 @@
-/**
- * The `gh` command-line tool's account and GUI-login IPC boundary.
- *
- * Login progress is pushed as a deliberately secret-free state object. The OAuth device
- * code and access token never enter an IPC value: `login.ts` retains them in the main
- * process and writes the approved token directly to `gh` over stdin.
- */
+/** Secret-free renderer IPC for GitHub CLI account metadata and GUI device login. */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import { listGhCliAccounts, switchGhCliAccount } from "./accounts.js";
-import type { GhCliAccountsStatus, GhCliSwitchResult } from "./accounts.js";
+import type { GhCliAccountsStatus, GhCliLogoutResult, GhCliSwitchResult } from "./accounts.js";
+import type { GhCredentialBroker } from "./credentialBroker.js";
+import type { FetchLike, SleepLike } from "./deviceFlow.js";
 import {
-    loginGhCli,
-    type GhCliLoginOptions,
-    type GhCliLoginResult,
-} from "./login.js";
-import type { FetchLike, SleepLike } from "../github/deviceFlow.js";
+    legacyCredentialStatus,
+    removeLegacyCredentials,
+    type LegacyCredentialRemoval,
+    type LegacyCredentialStatus,
+} from "./legacyCredentials.js";
+import { loginGhCli, type GhCliLoginOptions, type GhCliLoginResult } from "./login.js";
 import type { ProcessRunner } from "../cirender/gh.js";
 
-/** Every invoke channel this module registers, so `dispose` cannot drift from `register`. */
 export const GH_CLI_CHANNELS = [
     "ghCli:listAccounts",
     "ghCli:switchAccount",
+    "ghCli:logoutAccount",
     "ghCli:startLogin",
     "ghCli:cancelLogin",
+    "ghCli:legacyCredentialStatus",
+    "ghCli:removeLegacyCredentials",
 ] as const;
 
-/** The only event channel. Its payload is always the secret-free login state from `login.ts`. */
 export const GH_CLI_LOGIN_STATE_CHANNEL = "ghCli:loginState" as const;
 
 export interface GhCliCancelLoginResult {
@@ -36,23 +33,24 @@ export interface GhCliCancelLoginResult {
 export type GhCliLoginRunner = (options: GhCliLoginOptions) => Promise<GhCliLoginResult>;
 
 export interface GhCliIpcOptions {
-    /** The real process runner in production; a fake in every test. */
+    readonly broker: GhCredentialBroker;
     readonly runner: ProcessRunner;
-    /** Injectable because unit tests never contact GitHub. */
+    readonly userDataDirectory: string;
     readonly fetch?: FetchLike | undefined;
-    /** Injectable because unit tests never wait through a real polling interval. */
     readonly sleep?: SleepLike | undefined;
-    /** Opens the verification page in the system browser after its URL is allowlisted. */
-    readonly openExternal?: ((url: string) => Promise<boolean>) | undefined;
-    /** Injectable state machine for the IPC-only tests. */
     readonly login?: GhCliLoginRunner | undefined;
 }
 
 export interface GhCliIpc {
+    readonly broker: GhCredentialBroker;
     dispose(): void;
 }
 
-function busyLogin(expectedLogin: string | null): GhCliLoginResult {
+function loginState(
+    expectedLogin: string | null,
+    failureCode: string,
+    message: string,
+): GhCliLoginResult {
     return {
         ok: false,
         state: {
@@ -65,11 +63,9 @@ function busyLogin(expectedLogin: string | null): GhCliLoginResult {
             expiresAt: null,
             secondsRemaining: null,
             attempt: 0,
-            browserOpened: false,
             account: null,
-            failureCode: "login-already-running",
-            message:
-                "Another gh sign-in is already running. Finish or cancel it before starting another.",
+            failureCode,
+            message,
         },
     };
 }
@@ -80,17 +76,14 @@ function expectedLoginFrom(request: { expectedLogin?: unknown } | undefined): st
     return login.length === 0 || login.length > 100 ? null : login;
 }
 
-/** Registers account listing/switching plus one process-wide GUI sign-in at a time. */
 export function registerGhCliHandlers(ipcMain: IpcMain, options: GhCliIpcOptions): GhCliIpc {
     let activeLogin: { readonly senderId: number; readonly controller: AbortController } | null =
         null;
 
     ipcMain.handle(
         "ghCli:listAccounts",
-        async (_event: IpcMainInvokeEvent): Promise<GhCliAccountsStatus> =>
-            await listGhCliAccounts({ runner: options.runner }),
+        async (): Promise<GhCliAccountsStatus> => await options.broker.listAccounts(),
     );
-
     ipcMain.handle(
         "ghCli:switchAccount",
         async (
@@ -100,14 +93,31 @@ export function registerGhCliHandlers(ipcMain: IpcMain, options: GhCliIpcOptions
             const host = typeof request?.host === "string" ? request.host : "";
             const login = typeof request?.login === "string" ? request.login : "";
             if (host === "" || login === "") {
-                return {
-                    ok: false,
-                    account: null,
-                    message: "Give a host and a login to switch to.",
-                };
+                return { ok: false, account: null, message: "Give a host and a login to switch to." };
             }
-            return await switchGhCliAccount({ runner: options.runner }, host, login);
+            return await options.broker.switchAccount(host, login);
         },
+    );
+    ipcMain.handle(
+        "ghCli:logoutAccount",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { host?: unknown; login?: unknown } | undefined,
+        ): Promise<GhCliLogoutResult> => {
+            const host = typeof request?.host === "string" ? request.host : "";
+            const login = typeof request?.login === "string" ? request.login : "";
+            return await options.broker.logoutAccount(host, login);
+        },
+    );
+    ipcMain.handle(
+        "ghCli:legacyCredentialStatus",
+        async (): Promise<LegacyCredentialStatus> =>
+            await legacyCredentialStatus(options.userDataDirectory),
+    );
+    ipcMain.handle(
+        "ghCli:removeLegacyCredentials",
+        async (): Promise<LegacyCredentialRemoval> =>
+            await removeLegacyCredentials(options.userDataDirectory),
     );
 
     ipcMain.handle(
@@ -117,7 +127,21 @@ export function registerGhCliHandlers(ipcMain: IpcMain, options: GhCliIpcOptions
             request: { expectedLogin?: unknown } | undefined,
         ): Promise<GhCliLoginResult> => {
             const expectedLogin = expectedLoginFrom(request);
-            if (activeLogin !== null) return busyLogin(expectedLogin);
+            if (activeLogin !== null) {
+                return loginState(
+                    expectedLogin,
+                    "login-already-running",
+                    "Another gh sign-in is already running. Finish or cancel it before starting another.",
+                );
+            }
+            const executable = await options.broker.executable();
+            if (executable === null) {
+                return loginState(
+                    expectedLogin,
+                    "gh-not-installed",
+                    "GitHub CLI is not installed in a trusted location. Install it from Dependencies, then try again.",
+                );
+            }
 
             const controller = new AbortController();
             activeLogin = { senderId: event.sender.id, controller };
@@ -125,17 +149,16 @@ export function registerGhCliHandlers(ipcMain: IpcMain, options: GhCliIpcOptions
             event.sender.once("destroyed", cancelWhenSenderCloses);
             const runLogin = options.login ?? loginGhCli;
             const fetchImpl: FetchLike = options.fetch ?? ((url, init) => fetch(url, init));
-
             try {
                 return await runLogin({
                     runner: options.runner,
+                    executable,
                     fetch: fetchImpl,
                     ...(options.sleep === undefined ? {} : { sleep: options.sleep }),
                     ...(expectedLogin === null ? {} : { expectedLogin }),
-                    ...(options.openExternal === undefined
-                        ? {}
-                        : { openExternal: options.openExternal }),
                     signal: controller.signal,
+                    withCredentialStoreLock: (operation) =>
+                        options.broker.withCredentialStoreMutation(operation),
                     onState: (state) => {
                         if (!event.sender.isDestroyed()) {
                             event.sender.send(GH_CLI_LOGIN_STATE_CHANNEL, state);
@@ -164,6 +187,7 @@ export function registerGhCliHandlers(ipcMain: IpcMain, options: GhCliIpcOptions
     );
 
     return {
+        broker: options.broker,
         dispose(): void {
             activeLogin?.controller.abort();
             activeLogin = null;

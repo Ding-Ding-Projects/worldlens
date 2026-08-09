@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import GitHubAccountRow from "../github/GitHubAccountRow.vue";
-import { createGitHubAccount, githubSearchValues } from "../github/githubAccount.js";
+import GhCliAccountsList from "../github/GhCliAccountsList.vue";
+import LegacyCredentialCleanup from "../github/LegacyCredentialCleanup.vue";
+import {
+    createGhCliAccountsStore,
+    ghCliAccountSearchText,
+} from "../github/ghCliAccountsStore.js";
 import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
 import LanguageSettingsRow from "../setup/LanguageSettingsRow.vue";
 import { consentSearchLabels } from "../setup/consentSearch.js";
@@ -135,19 +139,12 @@ const { t } = useI18n();
  */
 const storage = createMapStorageSetting();
 const java = createJavaSetting();
-const github = createGitHubAccount();
+const github = createGhCliAccountsStore();
 const renderMemory = createRenderMemorySetting();
 const downloadConcurrency = createDownloadConcurrencySetting();
 
 /** Every docked panel that is open right now, including this one. */
 const surfaces = dockedSurfaces();
-
-// The GitHub controller is the only one of the three that subscribes to a push channel,
-// so it is the only one with a subscription to give back. Left attached it would keep
-// answering events after the surface it draws has gone.
-onBeforeUnmount(() => {
-    github.dispose();
-});
 
 const panel = ref<HTMLElement | null>(null);
 const tabsNav = ref<InstanceType<typeof TabbedNavigation> | null>(null);
@@ -236,14 +233,14 @@ const sections = computed<SettingsSectionText[]>(() => {
         storageValues.push(storage.resolved.value.current, storage.resolved.value.default);
     }
 
-    // The account's own words: the login somebody can see on screen, the kind of token,
-    // the scopes it reports. A build that cannot sign in contributes the sentence saying
-    // so instead, so searching for "GitHub" finds the section either way.
+    // Account metadata is secret-free and comes only from gh's structured status output.
     const githubCopy = githubSectionCopy(t);
     const githubValues = [
-        ...githubSearchValues({ status: github.status.value, account: github.account.value }),
+        github.statusMessage.value,
+        github.listFailure.value ?? "",
+        ...github.accounts.value.map(ghCliAccountSearchText),
         githubCopy.whatItIsFor,
-        github.supported ? "" : githubCopy.unsupported,
+        github.canList ? "" : githubCopy.unsupported,
     ];
 
     return [
@@ -815,10 +812,11 @@ function onDrawer(value: boolean): void {
                         :title="copy['github-account'].title"
                         :description="copy['github-account'].description"
                     >
-                        <GitHubAccountRow
-                            :account="github"
+                        <GhCliAccountsList
+                            :list="github"
                             @open-dependencies="goToSection('system-dependencies')"
                         />
+                        <LegacyCredentialCleanup :has-fresh-account="github.hasAccounts.value" />
                     </SettingsSection>
                 </template>
 

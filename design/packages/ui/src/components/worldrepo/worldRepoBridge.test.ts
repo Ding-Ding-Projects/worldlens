@@ -94,14 +94,31 @@ describe("resolveWorldRepoBridge", () => {
         (globalThis as { worldlens?: unknown }).worldlens = {
             worldRepo: {
                 ...api,
-                remoteTip: (owner: string, repo: string, branch?: string) => {
-                    calls.push([owner, repo, branch]);
-                    return api.remoteTip(owner, repo, branch);
+                remoteTip: (request: {
+                    owner: string;
+                    repo: string;
+                    branch?: string;
+                    accountId?: string;
+                }) => {
+                    calls.push(request);
+                    return api.remoteTip(request);
                 },
             },
         };
         const bridge = resolveWorldRepoBridge();
-        await bridge?.remoteTip("octocat", "world-repo", "world");
-        expect(calls).toEqual([["octocat", "world-repo", "world"]]);
+        await bridge?.remoteTip({
+            owner: "octocat",
+            repo: "world-repo",
+            branch: "world",
+            accountId: "github.com\u0000octocat",
+        });
+        expect(calls).toEqual([
+            {
+                owner: "octocat",
+                repo: "world-repo",
+                branch: "world",
+                accountId: "github.com\u0000octocat",
+            },
+        ]);
     });
 });
