@@ -26,6 +26,37 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "f79df8fea24f9d9e4a8a1a9985c35f7277c938b5",
+        shortSha: "f79df8fea2",
+        date: "2026-08-09T19:28:16-04:00",
+        subject: "Merge concurrent redesign-folder work with the Pages replacement",
+        details: "The default branch moved while the site was packing its boxes, so both sets of work now share one history: the byte-identical redesign copy stays intact and the supplied 59-article Pages experience stays complete.\n\n網站執緊行李時另一邊已經出發，今次將兩條歷史安全合流：byte-identical redesign copy 照留，59 篇文章嘅 Pages 體驗亦一件不少。",
+        category: "other",
+        areas: ["other", "build", "docs"],
+        files: 786,
+        summarizes: 3,
+    },
+    {
+        sha: "ca11561438dbadc09000e5345df5fe370f03bb31",
+        shortSha: "ca11561438",
+        date: "2026-08-09T23:20:33Z",
+        subject: "fix(redesign): keep App.vue byte-identical to design/packages/ui",
+        details: "Pin the original blob so the redesign/ui copy matches the source\npackage exactly, without CRLF normalization.",
+        category: "other",
+        areas: ["other"],
+        files: 1,
+    },
+    {
+        sha: "2bcaed7fc9e6bbd30864934d8a3c0542ead14100",
+        shortSha: "2bcaed7fc9",
+        date: "2026-08-09T23:19:45Z",
+        subject: "feat(redesign): write the full UI into the redesign folder",
+        details: "Copy the complete design/packages/ui package (785 files, verified\nbyte-identical) into redesign/ui so the redesign folder carries the\nfinished UI alongside the prototype and handoff spec.",
+        category: "other",
+        areas: ["other", "build", "docs"],
+        files: 786,
+    },
+    {
         sha: "f641518bbd0c5beb3f009444495cf3bd4ee6fede",
         shortSha: "f641518bbd",
         date: "2026-08-09T19:26:11-04:00",

@@ -63,6 +63,9 @@ full message for the in-app changelog viewer.
 
 ### Elsewhere in the repository
 
+- Merge concurrent redesign-folder work with the Pages replacement - [`f79df8fea2`](https://github.com/Ding-Ding-Projects/worldlens/commit/f79df8fea24f9d9e4a8a1a9985c35f7277c938b5) _(summary of 3 commits, also listed here)_
+- fix(redesign): keep App.vue byte-identical to design/packages/ui - [`ca11561438`](https://github.com/Ding-Ding-Projects/worldlens/commit/ca11561438dbadc09000e5345df5fe370f03bb31)
+- feat(redesign): write the full UI into the redesign folder - [`2bcaed7fc9`](https://github.com/Ding-Ding-Projects/worldlens/commit/2bcaed7fc9e6bbd30864934d8a3c0542ead14100)
 - Merge pull request #136 from Ding-Ding-Projects/codex/rewrite-electron-from-redesign - [`3e89b4a87a`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e89b4a87a10a7847468d9979680f0f886d9daef) _(summary of 2 commits, also listed here)_
 
 ## 0.1.943 - 2026-08-09
