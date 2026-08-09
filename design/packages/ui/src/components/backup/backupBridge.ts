@@ -52,8 +52,22 @@ export interface RepositoryChoice {
     readonly htmlUrl: string;
 }
 
+export interface BackupOwnerChoice {
+    readonly login: string;
+    readonly kind: "user" | "organization";
+}
+
+export type BackupOwnerChoicesAnswer =
+    | {
+          readonly ok: true;
+          readonly login: string;
+          readonly owners: readonly BackupOwnerChoice[];
+      }
+    | { readonly ok: false; readonly signedIn: boolean; readonly message: string };
+
 /** What creating a repository needs: who it belongs to, its name, and its visibility. */
 export interface CreateRepositoryRequest {
+    readonly accountId?: string;
     readonly ownerLogin: string;
     readonly ownerKind: "user" | "organization";
     readonly name: string;
@@ -69,7 +83,12 @@ export type CreateRepositoryFailureCode = "name-taken" | "not-signed-in" | "othe
 
 export type CreateRepositoryAnswer =
     | { readonly ok: true; readonly value: RepositoryChoice }
-    | { readonly ok: false; readonly code: CreateRepositoryFailureCode; readonly message: string };
+    | {
+          readonly ok: false;
+          readonly code: CreateRepositoryFailureCode;
+          readonly message: string;
+          readonly needsSignIn?: boolean | undefined;
+      };
 
 /**
  * One repository, and what uploading to it would mean.
@@ -136,6 +155,7 @@ export interface BackupRequest {
     readonly folder: string;
     readonly owner: string;
     readonly repo: string;
+    readonly accountId?: string;
     /** Set only once the person has been shown, and accepted, that the repository is public. */
     readonly acknowledgePublic?: boolean;
     /** Carry on with an existing backup rather than starting a new one. */
@@ -222,7 +242,8 @@ export type Answer<T> =
 /* -------------------------------------------------------------------------- */
 
 export interface BackupBridge {
-    listBackupRepositories(): Promise<Answer<readonly RepositoryChoice[]>>;
+    listBackupOwners?(accountId?: string): Promise<BackupOwnerChoicesAnswer>;
+    listBackupRepositories(accountId?: string): Promise<Answer<readonly RepositoryChoice[]>>;
     /**
      * Optional: creates a brand-new repository for somebody who has none suitable to pick
      * from the list above. Absent on a build that cannot, in which case the screen simply
@@ -231,6 +252,7 @@ export interface BackupBridge {
      */
     createBackupRepository?(request: CreateRepositoryRequest): Promise<CreateRepositoryAnswer>;
     inspectBackupRepository(request: {
+        accountId?: string;
         owner: string;
         repo: string;
     }): Promise<Answer<RepositoryReport>>;
@@ -238,7 +260,11 @@ export interface BackupBridge {
         kind: BackupSourceKind;
         folder: string;
     }): Promise<Answer<BackupSourceReport>>;
-    listBackups(request: { owner: string; repo: string }): Promise<Answer<readonly BackupListing[]>>;
+    listBackups(request: {
+        accountId?: string;
+        owner: string;
+        repo: string;
+    }): Promise<Answer<readonly BackupListing[]>>;
     startBackup(request: BackupRequest): Promise<BackupResult>;
     cancelBackup(backupId: string): Promise<boolean>;
     activeBackups(): Promise<readonly string[]>;
@@ -257,9 +283,13 @@ export interface BackupBridge {
 
 /** The shape a preload is probed against, one method at a time. */
 type Host = Partial<{
-    listBackupRepositories: () => Promise<Answer<readonly RepositoryChoice[]>>;
+    listBackupOwners: (accountId?: string) => Promise<BackupOwnerChoicesAnswer>;
+    listBackupRepositories: (
+        accountId?: string,
+    ) => Promise<Answer<readonly RepositoryChoice[]>>;
     createBackupRepository: (request: CreateRepositoryRequest) => Promise<CreateRepositoryAnswer>;
     inspectBackupRepository: (request: {
+        accountId?: string;
         owner: string;
         repo: string;
     }) => Promise<Answer<RepositoryReport>>;
@@ -267,7 +297,11 @@ type Host = Partial<{
         kind: BackupSourceKind;
         folder: string;
     }) => Promise<Answer<BackupSourceReport>>;
-    listBackups: (request: { owner: string; repo: string }) => Promise<Answer<readonly BackupListing[]>>;
+    listBackups: (request: {
+        accountId?: string;
+        owner: string;
+        repo: string;
+    }) => Promise<Answer<readonly BackupListing[]>>;
     startBackup: (request: BackupRequest) => Promise<BackupResult>;
     cancelBackup: (backupId: string) => Promise<boolean>;
     activeBackups: () => Promise<readonly string[]>;
@@ -319,9 +353,12 @@ export function resolveBackupBridge(): BackupBridge | null {
             isFunction(host.inspectBackupSource)
                 ? host.inspectBackupSource(request)
                 : missing("read a folder before packing it"),
-        listBackupRepositories: () =>
+        ...(isFunction(host.listBackupOwners)
+            ? { listBackupOwners: (accountId?: string) => host.listBackupOwners!(accountId) }
+            : {}),
+        listBackupRepositories: (accountId) =>
             isFunction(host.listBackupRepositories)
-                ? host.listBackupRepositories()
+                ? host.listBackupRepositories(accountId)
                 : missing("list your repositories"),
         // Left off the returned object entirely when the preload lacks it, exactly like
         // every other optional method on this bridge - the caller checks `canCreateRepository`

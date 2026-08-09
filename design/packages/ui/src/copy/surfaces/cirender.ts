@@ -1142,8 +1142,8 @@ export const CIRENDER_FIXED = {
      */
     "cirender.account.pick": { en: "Render as", yue: "算圖帳戶" },
     "cirender.account.help": {
-        en: "Which signed-in account this render authenticates as. Choosing a different one here does not change the active account used anywhere else in the app.",
-        yue: "呢個算圖用邊個已登入帳戶做認證。喺呢度揀第個都唔會改到程式其他地方用緊嗰個帳戶。",
+        en: "Which signed-in account this render authenticates as. Worldlens selects and restores it around the operation, but another gh process can still change the machine-wide account between commands; avoid running gh account changes while this operation is active.",
+        yue: "呢個算圖用邊個已登入帳戶做認證。Worldlens 會喺操作前後揀返同還原帳戶，但另一個 gh 程序仍可能喺指令之間改咗全機帳戶；操作進行中請唔好另外轉 gh 帳戶。",
     },
     /* Exactly one signed-in account: the picker still shows it, but names why it is fixed. */
     "cirender.account.single": {

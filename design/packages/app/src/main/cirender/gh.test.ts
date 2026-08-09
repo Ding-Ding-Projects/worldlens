@@ -21,6 +21,10 @@ import {
     ghApiToFile,
     nodeProcessRunner,
 } from "./gh.js";
+import {
+    GH_CLI_AUTH_ENVIRONMENT,
+    GIT_CREDENTIAL_DIAGNOSTIC_ENVIRONMENT,
+} from "../ghcli/environment.js";
 import type { ProcessResult, ProcessRunner, ProcessToFileResult } from "./gh.js";
 
 interface Call {
@@ -28,6 +32,7 @@ interface Call {
     readonly args: readonly string[];
     readonly input: string | null;
     readonly destination: string | null;
+    readonly omittedEnvironment: readonly string[];
 }
 
 interface FakeRunner extends ProcessRunner {
@@ -53,11 +58,18 @@ function fakeRunner(
                 args: [...args],
                 input: options?.input ?? null,
                 destination: null,
+                omittedEnvironment: [...(options?.omitEnvironmentVariables ?? [])],
             });
             return Promise.resolve(answer(args));
         },
-        runToFile(command, args, destination) {
-            calls.push({ command, args: [...args], input: null, destination });
+        runToFile(command, args, destination, options) {
+            calls.push({
+                command,
+                args: [...args],
+                input: null,
+                destination,
+                omittedEnvironment: [...(options?.omitEnvironmentVariables ?? [])],
+            });
             return Promise.resolve({ started: true, code: 0, bytes: 12, stderr: "", ...toFile });
         },
     };
@@ -71,26 +83,37 @@ const NOT_ON_PATH: Partial<ProcessResult> = {
 
 describe("process environment boundaries", () => {
     it("omits named inherited variables case-insensitively without putting their values in argv", async () => {
-        const names = ["GH_TOKEN", "GITHUB_TOKEN", "WorldLens_Test_Auth_Override"] as const;
+        const names = [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "GIT_TRACE_CURL",
+            "GIT_CURL_VERBOSE",
+            "GIT_TRACE_REDACT",
+            "WorldLens_Test_Auth_Override",
+        ] as const;
         const original = new Map(names.map((name) => [name, process.env[name]]));
         process.env.GH_TOKEN = "test-gh-token-value";
         process.env.GITHUB_TOKEN = "test-github-token-value";
+        process.env.GIT_TRACE_CURL = "1";
+        process.env.GIT_CURL_VERBOSE = "1";
+        process.env.GIT_TRACE_REDACT = "0";
         process.env.WorldLens_Test_Auth_Override = "test-mixed-case-value";
 
         try {
             const script =
-                "const omitted=['gh_token','github_token','worldlens_test_auth_override'];" +
+                "const omitted=['gh_token','github_token','git_trace_curl','git_curl_verbose','git_trace_redact','worldlens_test_auth_override'];" +
                 "const present=Object.keys(process.env).some(k=>omitted.includes(k.toLowerCase()));" +
-                "process.stdout.write(present?'present':'omitted')";
+                "const prompt=process.env.GIT_TERMINAL_PROMPT==='0'&&process.env.GCM_INTERACTIVE==='Never';" +
+                "process.stdout.write(present?'present':prompt?'omitted-noninteractive':'prompt-enabled')";
             const result = await nodeProcessRunner().run(process.execPath, ["-e", script], {
-                omitEnvironmentVariables: [
-                    "gh_token",
-                    "github_token",
-                    "WORLDLENS_TEST_AUTH_OVERRIDE",
-                ],
+                omitEnvironmentVariables: ["WORLDLENS_TEST_AUTH_OVERRIDE"],
             });
 
-            expect(result).toMatchObject({ started: true, code: 0, stdout: "omitted" });
+            expect(result).toMatchObject({
+                started: true,
+                code: 0,
+                stdout: "omitted-noninteractive",
+            });
             expect(script).not.toContain("test-gh-token-value");
             expect(script).not.toContain("test-github-token-value");
             expect(script).not.toContain("test-mixed-case-value");
@@ -101,6 +124,23 @@ describe("process environment boundaries", () => {
                 else process.env[name] = value;
             }
         }
+    });
+
+    it("closes stdin for a no-input child instead of leaving an invisible prompt open", async () => {
+        const script =
+            "process.stdin.resume();" +
+            "process.stdin.on('end',()=>process.stdout.write('stdin-closed'));";
+        const result = await nodeProcessRunner().run(process.execPath, ["-e", script], {
+            signal: AbortSignal.timeout(2_000),
+        });
+
+        expect(result).toMatchObject({ started: true, code: 0, stdout: "stdin-closed" });
+    });
+
+    it("documents every explicit Git diagnostic omission at the boundary", () => {
+        expect(GIT_CREDENTIAL_DIAGNOSTIC_ENVIRONMENT).toEqual(
+            expect.arrayContaining(["GIT_TRACE", "GIT_TRACE2", "GIT_CURL_VERBOSE", "GIT_TRACE_REDACT"]),
+        );
     });
 });
 
@@ -204,6 +244,9 @@ describe("three states, three sentences", () => {
         for (const call of runner.calls) {
             expect(call.args).not.toContain("--show-token");
             expect(call.args).not.toContain("-t");
+            expect(call.omittedEnvironment).toEqual(
+                expect.arrayContaining([...GH_CLI_AUTH_ENVIRONMENT]),
+            );
         }
     });
 });
@@ -219,6 +262,9 @@ describe("calling the API through it", () => {
         // One argument, never interpolated into a command line: nothing in a repository
         // name can become part of a command when there is no shell to parse it.
         expect(call?.args).toContain("repos/o/r/actions/runs/7");
+        expect(call?.omittedEnvironment).toEqual(
+            expect.arrayContaining([...GH_CLI_AUTH_ENVIRONMENT]),
+        );
     });
 
     it("carries an enterprise host through when gh reported one", async () => {
@@ -280,5 +326,8 @@ describe("calling the API through it", () => {
         });
         expect(bytes).toBe(4096);
         expect(runner.calls[0]?.destination).toBe("/tmp/x.zip");
+        expect(runner.calls[0]?.omittedEnvironment).toEqual(
+            expect.arrayContaining([...GH_CLI_AUTH_ENVIRONMENT]),
+        );
     });
 });

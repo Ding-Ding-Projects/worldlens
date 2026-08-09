@@ -280,6 +280,40 @@ describe("reading a repository", () => {
 });
 
 describe("creating a repository", () => {
+    it("keeps the newest account's repositories when an older request finishes last", async () => {
+        type RepositoryAnswer = Answer<readonly RepositoryChoice[]>;
+        let resolveFirst!: (answer: RepositoryAnswer) => void;
+        let resolveSecond!: (answer: RepositoryAnswer) => void;
+        const first = new Promise<RepositoryAnswer>((resolve) => { resolveFirst = resolve; });
+        const second = new Promise<RepositoryAnswer>((resolve) => { resolveSecond = resolve; });
+        const repository = (owner: string): RepositoryChoice => ({
+            owner,
+            name: "maps",
+            fullName: `${owner}/maps`,
+            private: true,
+            canWrite: true,
+            htmlUrl: `https://github.test/${owner}/maps`,
+        });
+        const bridge = fakeBridge({
+            listBackupRepositories: (accountId) => accountId === "first" ? first : second,
+        });
+        const backups = createBackups(bridge);
+
+        const oldLoad = backups.loadRepositories("first");
+        const newLoad = backups.loadRepositories("second");
+        resolveSecond({ ok: true, value: [repository("new-account")] });
+        await newLoad;
+        resolveFirst({ ok: true, value: [repository("old-account")] });
+        await oldLoad;
+
+        expect(backups.repositories.value.map((choice) => choice.fullName)).toEqual([
+            "new-account/maps",
+        ]);
+        expect(backups.repositoriesFailure.value).toBeNull();
+        expect(backups.loadingRepositories.value).toBe(false);
+        backups.dispose();
+    });
+
     it("puts the new repository at the front of the list, ready to pick", async () => {
         const bridge = fakeBridge({
             listBackupRepositories: () =>

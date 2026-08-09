@@ -72,9 +72,11 @@ function fakeBridge(overrides: Partial<WorldRepoBridge> = {}): FakeBridge {
 const RECORD: WorldRepoRecord = {
     version: 1,
     worldPath: "/worlds/andyville",
+    accountId: null,
     owner: "octocat",
     repo: "andyville-world",
     branch: "world",
+    repositoryUrl: "https://github.example/octocat/andyville-world",
     stage: "finished",
     commit: "abc123",
     pushVerified: true,

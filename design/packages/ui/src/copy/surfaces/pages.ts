@@ -310,6 +310,69 @@ export const PAGES_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const PAGES_FIXED = {
+    "pages.account.reauthenticationRequired": {
+        en: "reauthentication required",
+        yue: "需要重新驗證",
+    },
+    "pages.account.search": { en: "Search signed-in accounts", yue: "搜尋已登入帳戶" },
+    "pages.account.pick": { en: "Publish as", yue: "用呢個帳戶發佈" },
+    "pages.account.selected": { en: "Selected account", yue: "已揀帳戶" },
+    "pages.account.empty": {
+        en: "No GitHub CLI accounts are signed in.",
+        yue: "冇 GitHub CLI 帳戶登入。",
+    },
+    "pages.account.noMatch": {
+        en: "No signed-in account matches that search.",
+        yue: "冇已登入帳戶符合呢個搜尋。",
+    },
+    "pages.account.help": {
+        en: "The selected GitHub CLI account drives owner discovery, repository checks, publication, and removal without exposing its credential. Another gh process can still change that machine-wide account between commands, so avoid running gh account changes while this operation is active.",
+        yue: "已揀嘅 GitHub CLI 帳戶會負責搵擁有者、檢查儲存庫、發佈同移除，而唔會暴露憑證。另一個 gh 程序仍然可能喺指令之間改咗全機帳戶，所以操作進行期間請唔好另外轉 gh 帳戶。",
+    },
+    "pages.owner.personal": { en: "{login} (personal)", yue: "{login}（個人）" },
+    "pages.owner.organization": {
+        en: "{login} (organization)",
+        yue: "{login}（機構）",
+    },
+    "pages.owner.search": {
+        en: "Search personal and writable organization owners",
+        yue: "搜尋個人同可建立儲存庫嘅機構擁有者",
+    },
+    "pages.owner.selected": { en: "Selected owner", yue: "已揀擁有者" },
+    "pages.owner.empty": {
+        en: "No writable owners were returned by GitHub CLI.",
+        yue: "GitHub CLI 冇交返任何可寫入擁有者。",
+    },
+    "pages.owner.noMatch": {
+        en: "No real owner matches that search.",
+        yue: "冇真實擁有者符合呢個搜尋。",
+    },
+    "pages.owner.help": {
+        en: "Organizations appear only when GitHub confirms that the selected account may create repositories there.",
+        yue: "只有 GitHub 確認已揀帳戶可以喺嗰度建立儲存庫，機構先會出現。",
+    },
+    "pages.repo.search": { en: "Search writable repositories", yue: "搜尋可寫入儲存庫" },
+    "pages.repo.pick": {
+        en: "Choose an existing repository",
+        yue: "揀一個現有儲存庫",
+    },
+    "pages.repo.selected": { en: "Selected repository", yue: "已揀儲存庫" },
+    "pages.repo.empty": {
+        en: "No writable repositories were returned by GitHub CLI.",
+        yue: "GitHub CLI 冇交返任何可寫入儲存庫。",
+    },
+    "pages.repo.noMatch": {
+        en: "No real repository matches that search.",
+        yue: "冇真實儲存庫符合呢個搜尋。",
+    },
+    "pages.repo.help": {
+        en: "Up to 300 real writable repositories returned for the selected GitHub CLI account.",
+        yue: "最多顯示已揀 GitHub CLI 帳戶交返嘅 300 個真實可寫入儲存庫。",
+    },
+    "pages.repo.loading": {
+        en: "Reading writable repositories...",
+        yue: "讀緊可寫入儲存庫……",
+    },
     /* Phase names: each one labels a step, and none of them claims an outcome. */
     "pages.phase.starting": { en: "Starting", yue: "開始緊" },
     "pages.phase.checking": {

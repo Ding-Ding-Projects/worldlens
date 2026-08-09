@@ -20,9 +20,10 @@
  * testable: `fetch`, `sleep` and `now` are parameters.
  */
 
-import { GITHUB_OAUTH_BASE } from "./config.js";
-import type { GitHubClientKind } from "./config.js";
-import { describeError, redactSecrets } from "./redact.js";
+import { describeError, redactSecrets } from "../security/redact.js";
+
+const GITHUB_OAUTH_BASE = "https://github.com";
+export type GitHubClientKind = "app" | "oauth";
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -538,6 +539,7 @@ async function postForm(
     const text = await readBodyText(response, secrets);
 
     if (!response.ok) {
+        const safeDetail = redactSecrets(text, secrets);
         return {
             ok: false,
             // A 5xx is GitHub having a moment; a 4xx is this client being wrong, and
@@ -547,7 +549,7 @@ async function postForm(
                 code: "http",
                 message:
                     `GitHub refused the sign-in request with HTTP ${response.status}.` +
-                    (text === "" ? "" : ` ${truncate(text, 300)}`),
+                    (safeDetail === "" ? "" : ` ${truncate(safeDetail, 300)}`),
             },
         };
     }
@@ -604,8 +606,8 @@ function oauthFailure(
             code: "device-flow-disabled",
             message:
                 "This GitHub application does not have the device flow enabled, so it" +
-                " cannot sign anyone in this way. Sign in with a personal access token" +
-                " instead, or turn on 'Enable Device Flow' in the application's settings.",
+                " cannot sign anyone in this way. Turn on 'Enable Device Flow' in the" +
+                " application's settings, then try Add account again.",
         };
     }
     if (error === "access_denied") {

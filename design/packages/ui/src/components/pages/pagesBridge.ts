@@ -114,6 +114,7 @@ export interface PagesPreflight {
 export interface PagesRecord {
     readonly version: number;
     readonly renderId: string;
+    readonly accountId: string | null;
     readonly owner: string;
     readonly repo: string;
     readonly branch: string;
@@ -194,6 +195,7 @@ export interface PagesStopReport {
 /* -------------------------------------------------------------------------- */
 
 export interface PagesTarget {
+    readonly accountId?: string | undefined;
     readonly renderId: string;
     readonly owner: string;
     readonly repo: string;
@@ -257,10 +259,10 @@ export interface PagesBridge {
     publish(request: PagesPublishRequest): Promise<PagesResult>;
     onEvent(listener: (event: PagesEvent) => void): () => void;
 
-    listOwners(): Promise<Answer<readonly PagesOwner[]>>;
+    listOwners(accountId?: string): Promise<Answer<readonly PagesOwner[]>>;
     listPublished(): Promise<Answer<readonly PagesRecord[]>>;
-    resume?(renderId: string): Promise<PagesResult>;
-    refreshStatus?(renderId: string): Promise<Answer<PagesRecord>>;
+    resume?(request: { readonly renderId: string; readonly accountId?: string | undefined }): Promise<PagesResult>;
+    refreshStatus?(request: { readonly renderId: string; readonly accountId?: string | undefined }): Promise<Answer<PagesRecord>>;
     /** Turns Pages off and deletes the publishing branch. Destructive, and gated in the screen. */
     removeHosting(request: PagesTarget): Promise<PagesStopResult>;
     cancel(renderId: string): Promise<boolean>;
@@ -278,15 +280,15 @@ export interface PagesBridge {
 /** The shape a preload is probed against, one method at a time. */
 type Host = Partial<{
     pagesRenders: () => Promise<Answer<readonly PagesCandidate[]>>;
-    pagesOwners: () => Promise<Answer<readonly PagesOwner[]>>;
+    pagesOwners: (accountId?: string) => Promise<Answer<readonly PagesOwner[]>>;
     pagesPreflight: (request: PagesTarget) => Promise<Answer<PagesPreflight>>;
     publishPages: (request: PagesPublishRequest) => Promise<PagesResult>;
     stopPagesHosting: (request: PagesTarget) => Promise<PagesStopResult>;
     cancelPagesPublish: (renderId: string) => Promise<boolean>;
     activePagesPublishes: () => Promise<readonly string[]>;
     publishedPages: () => Promise<Answer<readonly PagesRecord[]>>;
-    resumePages?: (renderId: string) => Promise<PagesResult>;
-    refreshPagesStatus?: (renderId: string) => Promise<Answer<PagesRecord>>;
+    resumePages?: (request: { renderId: string; accountId?: string }) => Promise<PagesResult>;
+    refreshPagesStatus?: (request: { renderId: string; accountId?: string }) => Promise<Answer<PagesRecord>>;
     onPagesEvent: (listener: (event: PagesEvent) => void) => () => void;
 }>;
 
@@ -334,20 +336,23 @@ export function resolvePagesBridge(): PagesBridge | null {
         publish: (request) => publishPages(request),
         onEvent: (listener) => onPagesEvent(listener),
 
-        listOwners: () => {
+        listOwners: (accountId) => {
             const call = host.pagesOwners;
             return isFunction(call)
-                ? call()
+                ? call(accountId)
                 : Promise.resolve(unavailable("list the accounts you can publish under"));
         },
         listPublished: () => {
             const call = host.publishedPages;
             return isFunction(call) ? call() : Promise.resolve(unavailable("list published maps"));
         },
-        resume: (renderId) => {
+        resume: (request) => {
             const call = host.resumePages;
             return isFunction(call)
-                ? call(renderId)
+                ? call({
+                      renderId: request.renderId,
+                      ...(request.accountId === undefined ? {} : { accountId: request.accountId }),
+                  })
                 : Promise.resolve({
                       ok: false,
                       failure: {
@@ -358,10 +363,13 @@ export function resolvePagesBridge(): PagesBridge | null {
                       },
                   });
         },
-        refreshStatus: (renderId) => {
+        refreshStatus: (request) => {
             const call = host.refreshPagesStatus;
             return isFunction(call)
-                ? call(renderId)
+                ? call({
+                      renderId: request.renderId,
+                      ...(request.accountId === undefined ? {} : { accountId: request.accountId }),
+                  })
                 : Promise.resolve(unavailable("refresh a published Pages site"));
         },
         removeHosting: (request) => {

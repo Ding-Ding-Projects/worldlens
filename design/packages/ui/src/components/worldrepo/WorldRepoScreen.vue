@@ -9,7 +9,6 @@ import {
     mdiDeleteSweepOutline,
     mdiFolderSearchOutline,
     mdiGithub,
-    mdiOpenInNew,
     mdiPlus,
     mdiRefresh,
     mdiSelectAll,
@@ -42,6 +41,12 @@ import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import GhEntityPicker from "../github/GhEntityPicker.vue";
+import {
+    createGhCliAccountsStore,
+    defaultGhCliAccountId,
+} from "../github/ghCliAccountsStore.js";
+import type { GhCliBridge } from "../github/ghCliBridge.js";
 import { raiseNotice } from "../../stores/notices.js";
 import { resolveBackupBridge } from "../backup/backupBridge.js";
 import type { BackupBridge, RepositoryChoice } from "../backup/backupBridge.js";
@@ -112,6 +117,7 @@ const props = withDefaults(
          * none.
          */
         repoBridge?: BackupBridge | null | undefined;
+        accountsBridge?: GhCliBridge | null | undefined;
         /**
          * What "Adopt this repository" writes the restored project through. `undefined` probes
          * the real Electron bridge (falling back to whatever a parent has `provideProjectHost`-
@@ -124,10 +130,8 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    /** Open a URL in the system browser. */
-    open: [url: string];
     /** Open the settings surface, optionally at a named anchor. */
-    openSettings: [anchor: "java-runtime" | null];
+    openSettings: [anchor: "github-account" | "java-runtime" | null];
     /** A repository's project was just adopted onto this computer. */
     adopted: [worldPath: string];
 }>();
@@ -138,6 +142,7 @@ const bridge = props.bridge === undefined ? resolveWorldRepoBridge() : props.bri
 const repoBridge = props.repoBridge === undefined ? resolveBackupBridge() : props.repoBridge;
 const projectHost = props.projectHost === undefined ? useProjectHost() : props.projectHost;
 const wr = createWorldRepo(bridge);
+const accountsList = createGhCliAccountsStore({ bridge: props.accountsBridge ?? null });
 
 /* -------------------------------------------------------------------------- */
 /* Which world, and where                                                     */
@@ -148,12 +153,77 @@ const owner = ref("");
 const repo = ref("");
 const branch = ref(DEFAULT_WORLD_BRANCH);
 const acknowledge = ref(false);
+const selectedAccountId = ref<string | null>(null);
+const accountsLoaded = ref(false);
+const accountOrdered = computed(() =>
+    [...accountsList.accounts.value].sort((left, right) =>
+        `${left.login}\0${left.host}`.localeCompare(`${right.login}\0${right.host}`),
+    ),
+);
+const effectiveAccountId = computed<string | undefined>(
+    () => selectedAccountId.value ?? defaultGhCliAccountId(accountOrdered.value) ?? undefined,
+);
+const accountItems = computed(() =>
+    accountOrdered.value.map((account) => {
+        const label = `${account.login} — ${account.host}`;
+        const recovery = account.healthy
+            ? null
+            : t("worldrepo.account.reauthenticationRequired", "reauthentication required");
+        return {
+            title: `${label}${account.active ? " (active)" : ""}${recovery === null ? "" : ` — ${recovery}`}`,
+            value: account.id,
+            searchText: [account.login, account.host, ...account.scopes, recovery ?? "", account.stateDetail ?? ""].join(" "),
+            props: { disabled: !account.healthy },
+        };
+    }),
+);
+const ownerItems = computed(() =>
+    wr.owners.value.map((entry) => ({
+        title:
+            entry.kind === "organization"
+                ? t("worldrepo.owner.organization", { login: entry.login }, "{login} (organization)")
+                : t("worldrepo.owner.personal", { login: entry.login }, "{login} (personal)"),
+        value: entry.login,
+        searchText: `${entry.login} ${entry.kind}`,
+    })),
+);
 
-const showOwnerSelect = computed(() => wr.owners.value.length > 0);
+function chooseOwner(value: unknown): void {
+    if (typeof value !== "string") return;
+    const choice = wr.owners.value.find((entry) => entry.login === value);
+    if (choice === undefined) return;
+    owner.value = choice.login;
+    createOwnerKind.value = choice.kind;
+}
+
+function chooseRepository(value: unknown): void {
+    if (typeof value !== "string") return;
+    const choice = candidates.value.find((entry) => entry.fullName === value);
+    if (choice === undefined) return;
+    owner.value = choice.owner;
+    repo.value = choice.name;
+}
+
+async function loadAccountScope(accountId = effectiveAccountId.value): Promise<void> {
+    wr.clearPreflight();
+    wr.owners.value = [];
+    candidates.value = [];
+    await Promise.all([wr.loadOwners(accountId), loadCandidates(accountId)]);
+}
+
+function chooseAccount(value: unknown): void {
+    if (typeof value !== "string" || value === effectiveAccountId.value) return;
+    selectedAccountId.value = value;
+    owner.value = "";
+    repo.value = "";
+    acknowledge.value = false;
+    void loadAccountScope(value);
+}
 
 async function check(): Promise<void> {
     acknowledge.value = false;
     await wr.check({
+        ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
         worldPath: worldPath.value.trim(),
         owner: owner.value.trim(),
         repo: repo.value.trim(),
@@ -196,6 +266,7 @@ const blockedBecause = computed<string | null>(() => {
 
 async function sync(): Promise<void> {
     const result = await wr.sync({
+        ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
         worldPath: worldPath.value.trim(),
         owner: owner.value.trim(),
         repo: repo.value.trim(),
@@ -247,6 +318,7 @@ async function createRepo(): Promise<void> {
     createRepoFailure.value = null;
     try {
         const answer = await repoBridge.createBackupRepository({
+            ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
             ownerLogin: owner.value.trim(),
             ownerKind: createOwnerKind.value,
             name: repo.value.trim(),
@@ -316,7 +388,13 @@ function selectNone(): void {
 const chosenRecords = computed(() => wr.records.value.filter((record) => chosenKeys.value.includes(recordKey(record))));
 
 function targetOf(record: WorldRepoRecord): WorldRepoTarget {
-    return { worldPath: record.worldPath, owner: record.owner, repo: record.repo, branch: record.branch };
+    return {
+        ...(record.accountId === null ? {} : { accountId: record.accountId }),
+        worldPath: record.worldPath,
+        owner: record.owner,
+        repo: record.repo,
+        branch: record.branch,
+    };
 }
 
 async function removeOne(record: WorldRepoRecord): Promise<void> {
@@ -357,7 +435,8 @@ async function resumeOne(record: WorldRepoRecord): Promise<void> {
 }
 
 function copyRepoUrl(record: WorldRepoRecord): void {
-    void navigator.clipboard?.writeText(`https://github.com/${record.owner}/${record.repo}`);
+    if (record.repositoryUrl === null) return;
+    void navigator.clipboard?.writeText(record.repositoryUrl);
     raiseNotice("info", t("worldrepo.notice.copied", "The repository address was copied."));
 }
 
@@ -377,18 +456,26 @@ const canListCandidates = computed(() => typeof repoBridge?.listBackupRepositori
 const candidates = ref<readonly RepositoryChoice[]>([]);
 const candidatesFailure = ref<string | null>(null);
 const loadingCandidates = ref(false);
+let candidatesLoadToken = 0;
 const adoptBranch = ref(DEFAULT_WORLD_BRANCH);
 
-async function loadCandidates(): Promise<void> {
+async function loadCandidates(accountId = effectiveAccountId.value): Promise<void> {
     if (repoBridge === null || repoBridge === undefined) return;
+    const token = ++candidatesLoadToken;
     loadingCandidates.value = true;
+    candidates.value = [];
     candidatesFailure.value = null;
     try {
-        const answer = await repoBridge.listBackupRepositories();
+        const answer = await repoBridge.listBackupRepositories(accountId);
+        if (token !== candidatesLoadToken) return;
         if (answer.ok) candidates.value = answer.value;
         else candidatesFailure.value = answer.message;
+    } catch (error) {
+        if (token === candidatesLoadToken) {
+            candidatesFailure.value = error instanceof Error ? error.message : String(error);
+        }
     } finally {
-        loadingCandidates.value = false;
+        if (token === candidatesLoadToken) loadingCandidates.value = false;
     }
 }
 
@@ -426,7 +513,11 @@ function selectNoCandidates(): void {
 async function probeChosen(): Promise<void> {
     const chosen = candidates.value.filter((candidate) => chosenCandidates.value.includes(candidate.fullName));
     const list: readonly WorldRepoAdoptionCandidate[] = chosen.length > 0 ? chosen.map((c) => ({ owner: c.owner, repo: c.name })) : shownCandidates.value.map((c) => ({ owner: c.owner, repo: c.name }));
-    await wr.probeAdoption(list, adoptBranch.value.trim() || DEFAULT_WORLD_BRANCH);
+    await wr.probeAdoption(
+        list,
+        adoptBranch.value.trim() || DEFAULT_WORLD_BRANCH,
+        effectiveAccountId.value,
+    );
 }
 
 const STATUS_TONE: Record<WorldRepoAdoptionStatus, "success" | "warning" | "default" | "info"> = {
@@ -469,7 +560,7 @@ async function viewPlan(signal: WorldRepoAdoptionSignal): Promise<void> {
     const [signalOwner, signalRepo] = signal.fullName.split("/");
     if (signalOwner === undefined || signalRepo === undefined) return;
     adoptWorldPath.value = "";
-    await wr.planAdoption(signalOwner, signalRepo, signal.branch);
+    await wr.planAdoption(signalOwner, signalRepo, signal.branch, effectiveAccountId.value);
 }
 
 /* -- the plan: what would be restored, and adopting it ---------------------- */
@@ -513,10 +604,17 @@ async function adoptPlan(): Promise<void> {
 
 onMounted(() => {
     if (bridge !== null) {
-        void wr.loadOwners();
         void wr.loadRecords();
     }
-    void loadCandidates();
+    if (accountsList.canList) {
+        void accountsList.load().then(() => {
+            accountsLoaded.value = true;
+            void loadAccountScope();
+        });
+    } else {
+        accountsLoaded.value = true;
+        void loadAccountScope();
+    }
 });
 
 onBeforeUnmount(() => {
@@ -566,16 +664,53 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
                         :label="t('worldrepo.field.worldPath', 'World folder')"
                     />
 
+                    <GhEntityPicker
+                        v-if="accountsLoaded && accountItems.length > 0"
+                        :items="accountItems"
+                        :model-value="effectiveAccountId"
+                        :search-label="t('worldrepo.account.search', 'Search signed-in accounts')"
+                        :select-label="t('worldrepo.account.pick', 'Sync as')"
+                        :selected-label="t('worldrepo.account.selected', 'Selected account')"
+                        :empty-message="t('worldrepo.account.empty', 'No GitHub CLI accounts are signed in.')"
+                        :no-match-message="t('worldrepo.account.noMatch', 'No signed-in account matches that search.')"
+                        :hint="t('worldrepo.account.help', 'The selected GitHub CLI account drives every owner, repository, preflight, sync, removal, and adoption request without exposing its credential. Another gh process can still change that machine-wide account between commands, so avoid running gh account changes while this operation is active.')"
+                        class="mt-2"
+                        data-test-base="worldrepo-account-picker"
+                        @update:model-value="chooseAccount"
+                    />
+
+                    <GhEntityPicker
+                        v-if="ownerItems.length > 0"
+                        :items="ownerItems"
+                        :model-value="owner || null"
+                        :search-label="t('worldrepo.owner.search', 'Search personal and writable organization owners')"
+                        :select-label="t('worldrepo.field.owner', 'Repository owner')"
+                        :selected-label="t('worldrepo.owner.selected', 'Selected owner')"
+                        :empty-message="t('worldrepo.owner.empty', 'No writable owners were returned by GitHub CLI.')"
+                        :no-match-message="t('worldrepo.owner.noMatch', 'No real owner matches that search.')"
+                        :hint="t('worldrepo.owner.help', 'Organizations appear only when GitHub confirms that the selected account may create repositories there.')"
+                        class="mt-2"
+                        data-test-base="worldrepo-owner-picker"
+                        @update:model-value="chooseOwner"
+                    />
+
+                    <GhEntityPicker
+                        v-if="candidates.length > 0"
+                        :items="candidates.map((entry) => ({ title: entry.fullName, value: entry.fullName, searchText: `${entry.owner} ${entry.name} ${entry.private ? 'private' : 'public'}` }))"
+                        :model-value="owner && repo ? `${owner}/${repo}` : null"
+                        :search-label="t('worldrepo.repo.search', 'Search writable repositories')"
+                        :select-label="t('worldrepo.repo.pick', 'Choose an existing repository')"
+                        :selected-label="t('worldrepo.repo.selected', 'Selected repository')"
+                        :empty-message="t('worldrepo.repo.empty', 'No writable repositories were returned by GitHub CLI.')"
+                        :no-match-message="t('worldrepo.repo.noMatch', 'No real repository matches that search.')"
+                        :hint="t('worldrepo.repo.help', 'Up to 300 real writable repositories returned for the selected GitHub CLI account.')"
+                        class="mt-2"
+                        data-test-base="worldrepo-repository-picker"
+                        @update:model-value="chooseRepository"
+                    />
+
                     <div class="d-flex ga-2 flex-wrap mt-2">
-                        <VSelect
-                            v-if="showOwnerSelect"
-                            v-model="owner"
-                            :items="wr.owners.value.map((entry) => entry.login)"
-                            :label="t('worldrepo.field.owner', 'Repository owner')"
-                            density="compact"
-                            data-test="owner-select"
-                        />
-                        <VTextField v-else v-model="owner" :label="t('worldrepo.field.owner', 'Repository owner')" density="compact" />
+                        <VTextField v-model="owner" :label="t('worldrepo.field.owner', 'Repository owner')" density="compact" />
                         <VTextField v-model="repo" :label="t('worldrepo.field.repo', 'Repository name')" density="compact" />
                         <VTextField v-model="branch" :label="t('worldrepo.field.branch', 'Branch')" density="compact" />
                     </div>
@@ -665,14 +800,15 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
 
             <VAlert v-if="wr.startFailure.value !== null" type="error" variant="tonal" class="mb-4" data-test="start-failure">
                 {{ wr.startFailure.value.message }}
-                <p v-if="wr.startFailure.value.needsGhSignIn" class="mt-2">
-                    {{
-                        t(
-                            "worldrepo.gh.signIn",
-                            "Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
-                        )
-                    }}
-                </p>
+                <VBtn
+                    v-if="wr.startFailure.value.needsGhSignIn"
+                    class="mt-2"
+                    variant="text"
+                    data-test="reauthenticate"
+                    @click="emit('openSettings', 'github-account')"
+                >
+                    {{ t("worldrepo.gh.reauthenticate", "Reauthenticate this GitHub CLI account") }}
+                </VBtn>
             </VAlert>
 
             <!-- What is happening right now, with real numbers rather than a spinner. -->
@@ -816,10 +952,7 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
                                 <VBtn v-if="record.stage !== 'finished'" :prepend-icon="mdiRefresh" size="small" variant="tonal" data-test="record-resume" @click="resumeOne(record)">
                                     {{ t("worldrepo.resume", "Continue this sync") }}
                                 </VBtn>
-                                <VBtn :prepend-icon="mdiOpenInNew" size="small" variant="text" @click="emit('open', `https://github.com/${record.owner}/${record.repo}`)">
-                                    {{ t("worldrepo.open", "Open on GitHub") }}
-                                </VBtn>
-                                <VBtn :prepend-icon="mdiContentCopy" size="small" variant="text" @click="copyRepoUrl(record)">
+                                <VBtn v-if="record.repositoryUrl !== null" :prepend-icon="mdiContentCopy" size="small" variant="text" @click="copyRepoUrl(record)">
                                     {{ t("worldrepo.copy", "Copy the repository address") }}
                                 </VBtn>
                                 <ConfigSuperConfirm
@@ -845,8 +978,7 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
 
                             <template #menu="{ close }">
                                 <VList density="compact" :aria-label="t('worldrepo.records.rowMenuLabel', 'What this tracked world can do')">
-                                    <VListItem :prepend-icon="mdiOpenInNew" :title="t('worldrepo.open', 'Open on GitHub')" @click="() => { close(); emit('open', `https://github.com/${record.owner}/${record.repo}`); }" />
-                                    <VListItem :prepend-icon="mdiContentCopy" :title="t('worldrepo.copy', 'Copy the repository address')" @click="() => { close(); copyRepoUrl(record); }" />
+                                    <VListItem v-if="record.repositoryUrl !== null" :prepend-icon="mdiContentCopy" :title="t('worldrepo.copy', 'Copy the repository address')" @click="() => { close(); copyRepoUrl(record); }" />
                                     <VListItem v-if="record.stage !== 'finished'" :prepend-icon="mdiRefresh" :title="t('worldrepo.resume', 'Continue this sync')" @click="() => { close(); resumeOne(record); }" />
                                 </VList>
                                 <VDivider class="my-1" />

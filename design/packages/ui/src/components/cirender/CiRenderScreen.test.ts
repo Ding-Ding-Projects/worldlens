@@ -32,7 +32,7 @@ import type {
     CiSyncResult,
     RouteReport,
 } from "./ciRenderBridge.js";
-import type { GitHubAccountSummaryReadout, GitHubBridge } from "../github/githubBridge.js";
+import type { GhCliAccountReadout, GhCliBridge } from "../github/ghCliBridge.js";
 import type {
     MinecraftFolder,
     MinecraftWorldSummary,
@@ -71,19 +71,16 @@ beforeAll(() => {
 
 function routeReport(overrides: Partial<RouteReport> = {}): RouteReport {
     return {
-        route: "session",
-        describe: "Using the GitHub sign-in in this application (octocat).",
-        session: { signedIn: true, usable: true, reason: null },
+        route: "gh",
+        describe: "Using the selected GitHub CLI account (octocat).",
         gh: {
-            // Not probed, because the in-app sign-in worked. Distinct from "not installed",
-            // which is what the surface must not claim about software it never looked for.
-            availability: "not-checked",
+            availability: "ready",
             version: null,
-            account: null,
-            host: null,
+            account: "octocat",
+            host: "github.com",
             message: "",
-            usable: false,
-            reason: "not needed",
+            usable: true,
+            reason: null,
         },
         ready: true,
         canUpload: true,
@@ -170,6 +167,13 @@ function fakeBridge(
         cancelCiRender: () => Promise.resolve(true),
         activeCiRenders: () => Promise.resolve([]),
         onCiRenderEvent: (_listener: (event: CiSyncEvent) => void) => () => {},
+        listCiOwners: () =>
+            Promise.resolve({
+                ok: true,
+                login: "o",
+                owners: [{ login: "o", kind: "user" }],
+            }),
+        listExistingRepositories: () => Promise.resolve({ ok: true, value: [] }),
         canCancel: true,
         canList: true,
         canCheck: true,
@@ -313,26 +317,37 @@ function fakeCatalogBridge(
     };
 }
 
-/** A `GitHubAccountSummaryReadout`, filled with sane defaults so a test only names what it cares about. */
+/** A secret-free gh account readout, filled with sane defaults. */
 function ghAccount(
-    overrides: Partial<GitHubAccountSummaryReadout> = {},
-): GitHubAccountSummaryReadout {
+    overrides: Partial<GhCliAccountReadout> = {},
+): GhCliAccountReadout {
     return {
         id: "acct",
         login: "octocat",
-        userId: 1,
-        name: null,
+        host: "github.com",
         scopes: [],
         scopesReported: true,
-        source: "oauth-app",
-        signedInAt: "2026-08-01T00:00:00.000Z",
-        expiresAt: null,
-        refreshable: false,
-        persisted: true,
-        warnings: [],
+        tokenSource: "keyring",
+        gitProtocol: "https",
+        healthy: true,
+        stateDetail: null,
+        missingAppScopes: [],
         active: false,
         ...overrides,
     };
+}
+
+async function selectOwner(
+    wrapper: ReturnType<typeof mountScreen>,
+    login: string,
+): Promise<void> {
+    await flushPromises();
+    const select = wrapper
+        .findAllComponents(VSelect)
+        .find((component) => component.props("label") === "Choose an owner");
+    expect(select, "the real GitHub CLI owner picker").toBeDefined();
+    select?.vm.$emit("update:modelValue", login);
+    await flushPromises();
 }
 
 /**
@@ -342,46 +357,26 @@ function ghAccount(
  * bridge rather than only updating on-screen state.
  */
 function fakeAccountsBridge(
-    accounts: readonly GitHubAccountSummaryReadout[],
+    accounts: readonly GhCliAccountReadout[],
     activeId: string | null,
-    options: { readonly setActiveFails?: string } = {},
-): { bridge: GitHubBridge; calls: string[] } {
-    let active = activeId;
+): { bridge: GhCliBridge; calls: string[] } {
     const calls: string[] = [];
     return {
         calls,
         bridge: {
-            githubListAccounts: () => {
+            ghCliListAccounts: () => {
                 calls.push("list");
                 return Promise.resolve({
+                    availability: accounts.length === 0 ? "no-accounts" : "ready",
+                    version: "gh version 2.97.0",
                     accounts: accounts.map((account) => ({
                         ...account,
-                        active: account.id === active,
+                        active: account.id === activeId,
                     })),
-                    activeId: active,
+                    source: "json",
+                    capabilities: { structuredStatus: true },
+                    message: "ready",
                 });
-            },
-            githubSetActiveAccount: (id) => {
-                calls.push(`setActive:${id}`);
-                if (options.setActiveFails !== undefined) {
-                    return Promise.resolve({
-                        ok: false,
-                        activeId: active,
-                        account: null,
-                        reason: options.setActiveFails,
-                    });
-                }
-                const account = accounts.find((candidate) => candidate.id === id) ?? null;
-                if (account === null) {
-                    return Promise.resolve({
-                        ok: false,
-                        activeId: active,
-                        account: null,
-                        reason: "No stored account has that id.",
-                    });
-                }
-                active = id;
-                return Promise.resolve({ ok: true, activeId: active, account, reason: null });
             },
         },
     };
@@ -393,8 +388,9 @@ async function check(wrapper: ReturnType<typeof mountScreen>): Promise<void> {
     // and only cares what happens once a check actually runs, so ordinary values go in for
     // the three fields first.
     await wrapper.find('[data-test="world-field"] input').setValue("/world");
-    await wrapper.find('[data-test="owner-field"] input').setValue("o");
+    await selectOwner(wrapper, "o");
     await wrapper.find('[data-test="repo-field"] input').setValue("r");
+    await flushPromises();
     const buttons = wrapper.findAll("button");
     const trigger = buttons.find((button) => button.text().includes("Check"));
     await trigger?.trigger("click");
@@ -490,20 +486,19 @@ describe("consent", () => {
 });
 
 describe("which credential is in play is on screen before the button", () => {
-    it("names the in-app sign-in when that is what will drive it", async () => {
+    it("names the selected GitHub CLI account", async () => {
         const wrapper = mountScreen(fakeBridge(preflight()));
         await check(wrapper);
         expect(wrapper.find('[data-test="route"]').text()).toContain("octocat");
     });
 
-    it("names gh when the fallback is what will drive it", async () => {
+    it("names the explicitly selected GitHub CLI account", async () => {
         const wrapper = mountScreen(
             fakeBridge(
                 preflight({
                     routeReport: routeReport({
                         route: "gh",
-                        describe:
-                            "Using the gh command-line tool (ghuser), because the sign-in in this application could not.",
+                        describe: "Using the selected GitHub CLI account (ghuser).",
                         canUpload: false,
                     }),
                     uploadNeeded: false,
@@ -515,12 +510,10 @@ describe("which credential is in play is on screen before the button", () => {
         expect(wrapper.find('[data-test="route"]').text()).toContain("gh command-line tool");
     });
 
-    it("says nothing about gh when it was never probed, rather than calling it missing", async () => {
+    it("shows no secondary refusal when the selected account is ready", async () => {
         const wrapper = mountScreen(fakeBridge(preflight()));
         await check(wrapper);
-        // The in-app sign-in worked, so `gh` was deliberately not looked for. Reporting
-        // that as "not installed" would tell somebody to install software they may have.
-        expect(wrapper.find('[data-test="route-gh"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="route-gh"]').exists()).toBe(true);
         expect(wrapper.find('[data-test="route-aside"]').exists()).toBe(false);
     });
 
@@ -528,10 +521,10 @@ describe("which credential is in play is on screen before the button", () => {
         [
             "not-installed" as const,
             null,
-            "is not on this computer",
+            "is not available",
             "Install it from cli.github.com",
         ],
-        ["signed-out" as const, null, "nobody is signed in to it", "gh auth login"],
+        ["signed-out" as const, null, "signed out", "GitHub Settings"],
         ["ready" as const, "ghuser", "signed in as ghuser", "github.com"],
     ])(
         "keeps the gh state %s distinct, because the remedies differ",
@@ -540,7 +533,7 @@ describe("which credential is in play is on screen before the button", () => {
                 fakeBridge(
                     preflight({
                         routeReport: routeReport({
-                            route: availability === "ready" ? "gh" : "session",
+                            route: availability === "ready" ? "gh" : null,
                             gh: {
                                 availability,
                                 version: null,
@@ -564,22 +557,21 @@ describe("which credential is in play is on screen before the button", () => {
         },
     );
 
-    it("says why the other sign-in was passed over, so a denial is actionable", async () => {
+    it("says why the selected account was refused, so a denial is actionable", async () => {
         const wrapper = mountScreen(
             fakeBridge(
                 preflight({
                     routeReport: routeReport({
                         route: "gh",
                         describe: "Using the gh command-line tool (ghuser).",
-                        session: { signedIn: true, usable: false, reason: "GitHub answered 403" },
                         gh: {
                             availability: "ready",
                             version: null,
                             account: "ghuser",
                             host: "github.com",
                             message: "",
-                            usable: true,
-                            reason: null,
+                            usable: false,
+                            reason: "GitHub answered 403",
                         },
                     }),
                     uploadNeeded: false,
@@ -612,12 +604,11 @@ describe("which credential is in play is on screen before the button", () => {
         );
         await check(cannot);
         const blocked = cannot.find('[data-test="blocked"]').text();
-        // Both remedies, because only the person knows which sign-in they can fix.
         expect(blocked).toContain("Settings");
-        expect(blocked).toContain("gh auth login");
+        expect(blocked).toContain("selected GitHub CLI account");
     });
 
-    it("blocks with the reason when neither credential can drive it", async () => {
+    it("blocks with the reason when the selected credential cannot drive it", async () => {
         const wrapper = mountScreen(
             fakeBridge(
                 preflight({
@@ -625,13 +616,13 @@ describe("which credential is in play is on screen before the button", () => {
                         route: null,
                         ready: false,
                         canUpload: false,
-                        describe: "Neither GitHub route can start a render. gh: not on PATH.",
+                        describe: "The selected GitHub CLI account cannot start a render: gh is not on PATH.",
                     }),
                 }),
             ),
         );
         await check(wrapper);
-        expect(wrapper.find('[data-test="blocked"]').text()).toContain("Neither GitHub route");
+        expect(wrapper.find('[data-test="blocked"]').text()).toContain("selected GitHub CLI account");
     });
 
     it("offers the gh account recovery action on the same card as an identity refusal", async () => {
@@ -795,7 +786,7 @@ describe("a running row shows the real numbers the main process actually sends",
             at: "2026-08-04T10:00:01Z",
         });
         await flushPromises();
-        expect(wrapper.find('[data-test="row-route"]').text()).toContain("gh command-line tool");
+        expect(wrapper.find('[data-test="row-route"]').text()).toContain("selected GitHub CLI account");
     });
 
     it("shows the upload's own item count beside the bytes, not only the bytes", async () => {
@@ -814,7 +805,7 @@ describe("a running row shows the real numbers the main process actually sends",
             type: "phase",
             syncId: "s",
             phase: "uploading",
-            route: "session",
+            route: "gh",
             at: "2026-08-04T10:00:01Z",
         });
         emit({
@@ -1021,7 +1012,7 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
         // signed-out state, which is routine information with a remedy, not an emergency
         // that should interrupt whatever a screen reader was already saying. Every sibling
         // that shows the same kind of "nothing is wrong, here's what to do" info alert -
-        // `GitHubAccountRow.vue`, `JavaRuntimeRow.vue`, `StorageSettingRow.vue`,
+        // the GitHub CLI account row, `JavaRuntimeRow.vue`, `StorageSettingRow.vue`,
         // `ConsentSettingsRow.vue` - downgrades it to the polite `role="status"` instead,
         // and this screen's owner-signed-out alert is the same kind of message.
         const signedOut = mountScreen({
@@ -1073,8 +1064,12 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
             .findAllComponents(VSelect)
             .find((component) => component.props("label") === "Choose an owner");
         expect(select?.props("items")).toEqual([
-            { title: "octocat (you)", value: "octocat" },
-            { title: "octo-org (organization)", value: "octo-org" },
+            { title: "octocat (you)", value: "octocat", searchText: "octocat user" },
+            {
+                title: "octo-org (organization)",
+                value: "octo-org",
+                searchText: "octo-org organization",
+            },
         ]);
     });
 });
@@ -1083,7 +1078,7 @@ describe("render as: which stored GitHub account this render authenticates as", 
     it("shows no picker when this build cannot list accounts at all", async () => {
         const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge: null });
         await flushPromises();
-        expect(wrapper.find('[data-test="account-select"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="cirender-account-picker"]').exists()).toBe(false);
         expect(wrapper.find('[data-test="account-signed-out"]').exists()).toBe(false);
     });
 
@@ -1095,7 +1090,7 @@ describe("render as: which stored GitHub account this render authenticates as", 
         expect(wrapper.find('[data-test="account-signed-out"]').text()).toContain(
             "Nobody is signed in",
         );
-        expect(wrapper.find('[data-test="account-select"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="cirender-account-picker"]').exists()).toBe(false);
         const signInButton = wrapper.find('[data-test="account-signed-out"] button');
         expect(signInButton.exists()).toBe(true);
         await signInButton.trigger("click");
@@ -1115,17 +1110,50 @@ describe("render as: which stored GitHub account this render authenticates as", 
         const select = wrapper
             .findAllComponents(VSelect)
             .find((component) => component.props("label") === "Render as");
-        expect(select?.props("items")).toEqual([{ title: "octocat (active)", value: "a1" }]);
+        expect(select?.props("items")).toEqual([
+            {
+                title: "octocat — github.com (active)",
+                value: "a1",
+                searchText: "octocat github.com",
+                props: { disabled: false },
+            },
+        ]);
         expect(select?.props("disabled")).toBe(true);
-        expect(wrapper.find('[data-test="account-select-disabled"]').text()).toContain(
+        expect(
+            wrapper.find('[data-test="cirender-account-picker-disabled-reason"]').text(),
+        ).toContain(
             "Only one GitHub account is signed in",
         );
-        expect(wrapper.find('[data-test="gh-auto-switch-warning"]').text()).toContain(
-            "whole computer",
+        expect(wrapper.find('[data-test="gh-auto-switch-warning"]').exists()).toBe(false);
+    });
+
+    it("disables an unhealthy account and puts the reauthentication reason in its accessible item name", async () => {
+        const { bridge: accountsBridge } = fakeAccountsBridge(
+            [
+                ghAccount({ id: "a1", login: "healthy", active: true }),
+                ghAccount({
+                    id: "a2",
+                    login: "needs-help",
+                    healthy: false,
+                    stateDetail: "authentication failed",
+                }),
+            ],
+            "a1",
         );
-        expect(wrapper.find('[data-test="gh-auto-switch-warning"]').text()).toContain(
-            "remains active afterward",
+        const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
+        await flushPromises();
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Render as");
+        const unavailable = (select?.props("items") as readonly Record<string, unknown>[]).find(
+            (item) => item["value"] === "a2",
         );
+        expect(unavailable).toMatchObject({
+            title: "needs-help — github.com — reauthentication required",
+            props: { disabled: true },
+        });
+        expect(String(unavailable?.["searchText"])).toContain("reauthentication required");
     });
 
     it("lists every stored account, naming the active one, and defaults the display to it", async () => {
@@ -1140,8 +1168,18 @@ describe("render as: which stored GitHub account this render authenticates as", 
             .findAllComponents(VSelect)
             .find((component) => component.props("label") === "Render as");
         expect(select?.props("items")).toEqual([
-            { title: "monalisa", value: "a2" },
-            { title: "octocat (active)", value: "a1" },
+            {
+                title: "monalisa — github.com",
+                value: "a2",
+                searchText: "monalisa github.com",
+                props: { disabled: false },
+            },
+            {
+                title: "octocat — github.com (active)",
+                value: "a1",
+                searchText: "octocat github.com",
+                props: { disabled: false },
+            },
         ]);
         expect(select?.props("modelValue")).toBe("a1");
         expect(select?.props("disabled")).toBe(false);
@@ -1165,9 +1203,8 @@ describe("render as: which stored GitHub account this render authenticates as", 
             { accountsBridge },
         );
         await flushPromises();
-        // The active account, resolved implicitly - the exact call a single-account build
-        // has always made, with no id named at all.
-        expect(ownerCalls).toEqual([undefined]);
+        // The displayed active account is also the exact id sent to the broker.
+        expect(ownerCalls).toEqual(["a1"]);
 
         // Selecting from the picker is what a keyboard-driven choice reaches too: Vuetify's
         // VSelect emits this same `update:modelValue` event whether an option is activated
@@ -1193,9 +1230,9 @@ describe("render as: which stored GitHub account this render authenticates as", 
         const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
         await check(wrapper);
         expect(wrapper.find('[data-test="route"]').exists()).toBe(true);
-        expect(
-            (wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value,
-        ).toBe("o");
+        expect(wrapper.get('[data-test="cirender-owner-picker-selected"]').text()).toContain(
+            "Selected owner: o",
+        );
 
         const select = wrapper
             .findAllComponents(VSelect)
@@ -1203,9 +1240,9 @@ describe("render as: which stored GitHub account this render authenticates as", 
         await select?.vm.$emit("update:modelValue", "a2");
         await flushPromises();
 
-        expect(
-            (wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value,
-        ).toBe("");
+        expect(wrapper.get('[data-test="cirender-owner-picker-selected"]').text()).toContain(
+            "No value selected",
+        );
         // Nothing re-checks automatically: "Check before anything is sent" stays the one
         // deliberate action that reads a report, so the stale one is dropped rather than
         // silently re-fetched.
@@ -1268,6 +1305,69 @@ describe("render as: which stored GitHub account this render authenticates as", 
         ) as Record<string, unknown>;
         expect("accountId" in request).toBe(false);
     });
+
+    it("routes the displayed default to github.com when the same login is active on two hosts", async () => {
+        const accountsBridge: GhCliBridge = {
+            ghCliListAccounts: () =>
+                Promise.resolve({
+                    availability: "ready",
+                    version: "gh version 2.97.0",
+                    accounts: [
+                        ghAccount({
+                            id: "enterprise.example:alice",
+                            login: "alice",
+                            host: "enterprise.example",
+                            active: true,
+                        }),
+                        ghAccount({
+                            id: "github.com:alice",
+                            login: "alice",
+                            host: "github.com",
+                            active: true,
+                        }),
+                    ],
+                    source: "json",
+                    capabilities: { structuredStatus: true },
+                    message: "ready",
+                }),
+        };
+        const ownerCalls: (string | undefined)[] = [];
+        const preflightRequests: CiSyncRequest[] = [];
+        const wrapper = mountScreen(
+            {
+                ...fakeBridge(preflight()),
+                listCiOwners: (accountId) => {
+                    ownerCalls.push(accountId);
+                    return Promise.resolve({
+                        ok: true,
+                        login: "alice",
+                        owners: [{ login: "alice", kind: "user" }],
+                    });
+                },
+                ciRenderPreflight: (request) => {
+                    preflightRequests.push(request);
+                    return Promise.resolve({ ok: true, value: preflight() });
+                },
+            },
+            { accountsBridge },
+        );
+        await flushPromises();
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Render as");
+        expect(select?.props("modelValue")).toBe("github.com:alice");
+        expect(select?.props("items")).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ title: "alice — enterprise.example (active)" }),
+                expect.objectContaining({ title: "alice — github.com (active)" }),
+            ]),
+        );
+        expect(ownerCalls).toEqual(["github.com:alice"]);
+
+        await check(wrapper);
+        expect(preflightRequests.at(-1)).toMatchObject({ accountId: "github.com:alice" });
+    });
 });
 
 describe("an existing repository, offered because this flow never creates one", () => {
@@ -1296,15 +1396,19 @@ describe("an existing repository, offered because this flow never creates one", 
             .findAllComponents(VSelect)
             .find((component) => component.props("label") === "One of your repositories");
         expect(select?.props("items")).toEqual([
-            { title: "octocat/maps (private)", value: "octocat/maps" },
+            {
+                title: "octocat/maps (private)",
+                value: "octocat/maps",
+                searchText: "octocat/maps octocat maps",
+            },
         ]);
 
         await select?.vm.$emit("update:modelValue", "octocat/maps");
         await flushPromises();
 
-        expect(
-            (wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value,
-        ).toBe("octocat");
+        expect(wrapper.get('[data-test="cirender-owner-picker-selected"]').text()).toContain(
+            "Selected owner: octocat",
+        );
         expect(
             (wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value,
         ).toBe("maps");
@@ -1467,7 +1571,7 @@ describe("an existing repository, offered because this flow never creates one", 
 });
 
 describe("a repository that is not ready says why, without reading as a hard block", () => {
-    it("an existing, writable repository with no route yet is 'not set up', and offers to open it", async () => {
+    it("an existing, writable repository with no route yet is 'not set up' without offering a browser route", async () => {
         const wrapper = mountScreen(
             fakeBridge(
                 preflight({
@@ -1482,7 +1586,7 @@ describe("a repository that is not ready says why, without reading as a hard blo
                     },
                     routeReport: routeReport({
                         ready: false,
-                        describe: "Neither GitHub route can start a render on this repository.",
+                        describe: "The selected GitHub CLI account cannot start a render on this repository.",
                     }),
                 }),
             ),
@@ -1492,13 +1596,10 @@ describe("a repository that is not ready says why, without reading as a hard blo
         const panel = wrapper.find('[data-test="needs-setup"]');
         expect(panel.exists()).toBe(true);
         expect(panel.text()).toContain("o/r");
-        expect(panel.text()).not.toContain("Neither GitHub route can start a render");
-
-        // The real, working fallback: opens the repository itself, using the exact URL the
-        // preflight report already carried - never a guessed or reconstructed one.
-        await wrapper.find('[data-test="setup-repository"]').trigger("click");
-        await flushPromises();
-        expect(wrapper.emitted("open")).toEqual([["https://github.test/o/r"]]);
+        expect(panel.text()).not.toContain("cannot start a render");
+        expect(wrapper.find('[data-test="setup-repository"]').exists()).toBe(false);
+        expect(panel.text()).toContain("No browser page was opened");
+        expect(wrapper.emitted("open")).toBeUndefined();
     });
 
     it("a repository that may not exist yet offers to create it, framed as the ordinary next step", async () => {
@@ -1509,7 +1610,7 @@ describe("a repository that is not ready says why, without reading as a hard blo
                     repositoryFailure: "GitHub answered 404.",
                     routeReport: routeReport({
                         ready: false,
-                        describe: "Neither GitHub route can start a render on this repository.",
+                        describe: "The selected GitHub CLI account cannot start a render on this repository.",
                     }),
                 }),
             ),
@@ -1518,11 +1619,13 @@ describe("a repository that is not ready says why, without reading as a hard blo
 
         const panel = wrapper.find('[data-test="needs-setup"]');
         expect(panel.exists()).toBe(true);
-        expect(panel.text()).toContain("may not exist yet");
+        expect(panel.text()).toContain("not visible to the selected GitHub CLI account");
+        expect(panel.text()).toContain("confirmed missing name can be created here");
         expect(panel.text()).toContain("o/r");
     });
 
-    it("opening the setup action for a missing repository emits GitHub's own prefilled create-repository URL", async () => {
+    it("creates a missing repository through the CLI bridge and never emits an external URL", async () => {
+        let createRequest: unknown = null;
         const wrapper = mountScreen(
             fakeBridge(
                 preflight({
@@ -1530,14 +1633,88 @@ describe("a repository that is not ready says why, without reading as a hard blo
                     repositoryFailure: "GitHub answered 404.",
                     routeReport: routeReport({ ready: false }),
                 }),
+                [],
+                {
+                    createCiRepository: (request) => {
+                        createRequest = request;
+                        return Promise.resolve({
+                            ok: true,
+                            repository: {
+                                owner: "o",
+                                name: "r",
+                                fullName: "o/r",
+                                private: true,
+                                canWrite: true,
+                                htmlUrl: "https://github.test/o/r",
+                            },
+                        });
+                    },
+                    bootstrapCiRepository: () =>
+                        Promise.resolve({
+                            ok: false,
+                            failure: {
+                                code: "missing-scope",
+                                message: "Reauthenticate this GitHub CLI account.",
+                                missingScopes: ["workflow"],
+                            },
+                        }),
+                    onCiBootstrapEvent: () => () => undefined,
+                },
             ),
         );
         await check(wrapper);
 
-        await wrapper.find('[data-test="setup-repository"]').trigger("click");
+        await wrapper.find('[data-test="bootstrap-repository"]').trigger("click");
         await flushPromises();
 
-        expect(wrapper.emitted("open")).toEqual([["https://github.com/new?owner=o&name=r"]]);
+        expect(createRequest).toEqual({
+            ownerLogin: "o",
+            ownerKind: "user",
+            name: "r",
+            private: true,
+        });
+        expect(wrapper.emitted("open")).toBeUndefined();
+        expect(wrapper.find('[data-test="setup-repository"]').exists()).toBe(false);
+    });
+
+    it("offers direct account recovery when repository creation needs reauthentication", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    repository: null,
+                    repositoryFailure: "GitHub answered 404.",
+                    routeReport: routeReport({ ready: false }),
+                }),
+                [],
+                {
+                    createCiRepository: () =>
+                        Promise.resolve({
+                            ok: false,
+                            code: "cli-failed",
+                            message: "The selected GitHub CLI account needs reauthentication.",
+                            needsSignIn: true,
+                        }),
+                    bootstrapCiRepository: () =>
+                        Promise.resolve({
+                            ok: false,
+                            failure: {
+                                code: "missing-scope",
+                                message: "not reached",
+                                missingScopes: ["workflow"],
+                            },
+                        }),
+                    onCiBootstrapEvent: () => () => undefined,
+                },
+            ),
+        );
+        await check(wrapper);
+        await wrapper.find('[data-test="bootstrap-repository"]').trigger("click");
+        await flushPromises();
+
+        const recovery = wrapper.get('[data-test="bootstrap-failure"] button');
+        expect(recovery.text()).toContain("Open GitHub accounts");
+        await recovery.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
     });
 
     it("a genuine block - this credential cannot write to an existing repository - gets no reassuring setup panel", async () => {
@@ -1571,7 +1748,7 @@ describe("a repository that is not ready says why, without reading as a hard blo
                     repositoryFailure: "GitHub answered 404.",
                     routeReport: routeReport({
                         ready: false,
-                        describe: "Neither GitHub route can start a render on this repository.",
+                        describe: "The selected GitHub CLI account cannot start a render on this repository.",
                     }),
                 }),
             ),
@@ -1580,7 +1757,7 @@ describe("a repository that is not ready says why, without reading as a hard blo
 
         expect(wrapper.find('[data-test="start"]').attributes("disabled")).toBeDefined();
         expect(wrapper.find('[data-test="blocked"]').text()).toContain(
-            "Neither GitHub route can start a render",
+            "selected GitHub CLI account cannot start a render",
         );
     });
 });
@@ -1599,17 +1776,21 @@ describe("preparing a repository automatically, rather than sending somebody to 
             },
             routeReport: routeReport({
                 ready: false,
-                describe: "Neither GitHub route can start a render on this repository.",
+                describe: "The selected GitHub CLI account cannot start a render on this repository.",
             }),
         });
     }
 
-    it("a build with no bootstrap capability keeps the plain 'open GitHub' fallback", async () => {
+    it("a build with no bootstrap capability reports the CLI limitation without a browser fallback", async () => {
         const wrapper = mountScreen(fakeBridge(existingUnpreparedPreflight()));
         await check(wrapper);
 
         expect(wrapper.find('[data-test="bootstrap-repository"]').exists()).toBe(false);
-        expect(wrapper.find('[data-test="setup-repository"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="setup-repository"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="setup-unavailable"]').text()).toContain(
+            "No browser page was opened",
+        );
+        expect(wrapper.emitted("open")).toBeUndefined();
     });
 
     it("runs the real operation, shows progress, and lands the repository ready to render", async () => {
@@ -1639,9 +1820,9 @@ describe("preparing a repository automatically, rather than sending somebody to 
                     report: {
                         owner: "o",
                         repo: "r",
-                        route: "session",
+                        route: "gh",
                         credentialDescribe:
-                            "Using the GitHub sign-in in this application (octocat).",
+                            "Using the selected GitHub CLI account (octocat).",
                         files: [
                             {
                                 path: ".github/workflows/render-world.yml",
@@ -1725,9 +1906,9 @@ describe("preparing a repository automatically, rather than sending somebody to 
                     report: {
                         owner: "o",
                         repo: "r",
-                        route: "session",
+                        route: "gh",
                         credentialDescribe:
-                            "Using the GitHub sign-in in this application (octocat).",
+                            "Using the selected GitHub CLI account (octocat).",
                         files: [
                             {
                                 path: ".github/workflows/render-world.yml",
@@ -1777,9 +1958,9 @@ describe("preparing a repository automatically, rather than sending somebody to 
                     report: {
                         owner: "o",
                         repo: "r",
-                        route: "session",
+                        route: "gh",
                         credentialDescribe:
-                            "Using the GitHub sign-in in this application (octocat).",
+                            "Using the selected GitHub CLI account (octocat).",
                         files: [
                             {
                                 path: ".github/workflows/render-world.yml",
@@ -2036,7 +2217,7 @@ describe("the repository name: suggested once a world is chosen, checked live", 
                 };
                 const wrapper = mountScreen(bridgeWithCheck);
 
-                await wrapper.find('[data-test="owner-field"] input').setValue("o");
+                await selectOwner(wrapper, "o");
                 await wrapper.find('[data-test="repo-field"] input').setValue("r");
                 // Nothing yet: the check is debounced rather than fired on every keystroke.
                 expect(wrapper.find('[data-test="repo-availability"]').exists()).toBe(false);
@@ -2069,7 +2250,7 @@ describe("the repository name: suggested once a world is chosen, checked live", 
         };
         const wrapper = mountScreen(bridgeWithCheck);
 
-        await wrapper.find('[data-test="owner-field"] input').setValue("o");
+        await selectOwner(wrapper, "o");
         await wrapper.find('[data-test="repo-field"] input').setValue("r");
 
         // Past the 600ms debounce, so the check has actually started, but the bridge's own
@@ -2108,7 +2289,7 @@ describe("the Check button names exactly which field is missing or invalid", () 
         await flushPromises();
         expect(wrapper.find('[data-test="check-blocked"]').text()).toContain("repository owner");
 
-        await wrapper.find('[data-test="owner-field"] input').setValue("o");
+        await selectOwner(wrapper, "o");
         await flushPromises();
         expect(wrapper.find('[data-test="check-blocked"]').text()).toContain("repository name");
 
@@ -2120,7 +2301,7 @@ describe("the Check button names exactly which field is missing or invalid", () 
     it("stays blocked on an invalid repository name, even once every field has something in it", async () => {
         const wrapper = mountScreen(fakeBridge(preflight()));
         await wrapper.find('[data-test="world-field"] input').setValue("/world");
-        await wrapper.find('[data-test="owner-field"] input').setValue("o");
+        await selectOwner(wrapper, "o");
         await wrapper.find('[data-test="repo-field"] input').setValue("bad name");
         await flushPromises();
         expect(wrapper.find('[data-test="check-blocked"]').text()).toContain("letters, digits");

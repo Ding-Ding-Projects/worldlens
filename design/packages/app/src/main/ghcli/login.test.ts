@@ -99,7 +99,7 @@ function successfulRunner(): ProcessRunner & { calls: Call[] } {
 }
 
 describe("loginGhCli", () => {
-    it("handles pending and slow-down, then stores only through gh stdin and proves the identity", async () => {
+    it("handles pending and slow-down without opening a browser, then stores only through gh stdin and proves the identity", async () => {
         const accessToken = "gho_super_secret_token_123456789";
         const deviceCode = "device-secret-123456789";
         const network = fetchSequence([
@@ -119,32 +119,48 @@ describe("loginGhCli", () => {
                 scope: GH_CLI_LOGIN_SCOPES.join(" "),
             },
         ]);
-        const process = successfulRunner();
+        let storeLockActive = false;
+        let storeLockCalls = 0;
+        const process = runner(
+            {
+                "auth status --hostname github.com --json hosts": { stdout: STATUS },
+                "api --hostname github.com user --jq .login": { stdout: "octocat\n" },
+            },
+            () => expect(storeLockActive).toBe(true),
+        );
         const states: GhCliLoginState[] = [];
-        const opened: string[] = [];
         const waits: number[] = [];
         let now = 1_000;
 
         const result = await loginGhCli({
             runner: process,
-            fetch: network.fetch,
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
+            fetch: (url, init) => {
+                expect(storeLockActive).toBe(false);
+                return network.fetch(url, init);
+            },
             sleep: (milliseconds) => {
                 waits.push(milliseconds);
                 now += milliseconds;
                 return Promise.resolve();
             },
             now: () => now,
-            openExternal: (url) => {
-                opened.push(url);
-                return Promise.resolve(true);
+            withCredentialStoreLock: async (operation) => {
+                storeLockCalls += 1;
+                storeLockActive = true;
+                try {
+                    return await operation();
+                } finally {
+                    storeLockActive = false;
+                }
             },
             onState: (state) => states.push(state),
         });
 
         expect(result.ok).toBe(true);
         expect(result.state).toMatchObject({ stage: "succeeded", account: { login: "octocat" } });
-        expect(opened).toEqual(["https://github.com/login/device?user_code=ABCD-EFGH"]);
         expect(waits).toEqual([1_000, 1_000, 3_000]);
+        expect(storeLockCalls).toBe(1);
         expect(states.map((state) => state.stage)).toEqual(
             expect.arrayContaining([
                 "requesting-code",
@@ -188,6 +204,7 @@ describe("loginGhCli", () => {
         const publicPayload = JSON.stringify({ result, states });
         expect(publicPayload).not.toContain(accessToken);
         expect(publicPayload).not.toContain(deviceCode);
+        expect(publicPayload).not.toContain("browserOpened");
     });
 
     it.each([
@@ -210,6 +227,7 @@ describe("loginGhCli", () => {
             let now = 1_000;
             const result = await loginGhCli({
                 runner: process,
+                executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
                 fetch: network.fetch,
                 sleep: (milliseconds) => {
                     now += milliseconds;
@@ -237,6 +255,7 @@ describe("loginGhCli", () => {
         const process = runner();
         const result = await loginGhCli({
             runner: process,
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
             fetch: network.fetch,
             sleep: () => {
                 controller.abort();
@@ -271,6 +290,7 @@ describe("loginGhCli", () => {
         });
         const result = await loginGhCli({
             runner: process,
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
             fetch: network.fetch,
             sleep: () => Promise.resolve(),
             signal: controller.signal,
@@ -281,7 +301,7 @@ describe("loginGhCli", () => {
         expect(process.calls).toHaveLength(1);
     });
 
-    it("rejects an unexpected verification URL before it reaches the browser or renderer", async () => {
+    it("rejects an unexpected verification URL before it reaches the renderer", async () => {
         const network = fetchSequence([
             {
                 device_code: "device-secret-123456789",
@@ -292,15 +312,11 @@ describe("loginGhCli", () => {
             },
         ]);
         const process = runner();
-        const opened: string[] = [];
         const states: GhCliLoginState[] = [];
         const result = await loginGhCli({
             runner: process,
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
             fetch: network.fetch,
-            openExternal: (url) => {
-                opened.push(url);
-                return Promise.resolve(true);
-            },
             onState: (state) => states.push(state),
         });
 
@@ -308,7 +324,6 @@ describe("loginGhCli", () => {
             ok: false,
             state: { stage: "failed", failureCode: "unsafe-verification-uri" },
         });
-        expect(opened).toEqual([]);
         expect(process.calls).toEqual([]);
         expect(JSON.stringify({ result, states })).not.toContain("example.com");
     });
@@ -333,6 +348,7 @@ describe("loginGhCli", () => {
         });
         const result = await loginGhCli({
             runner: process,
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
             fetch: network.fetch,
             sleep: () => Promise.resolve(),
         });
@@ -368,6 +384,7 @@ describe("loginGhCli", () => {
 
         const result = await loginGhCli({
             runner: process,
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
             fetch: network.fetch,
             sleep: () => Promise.resolve(),
             onState: (state) => states.push(state),
@@ -406,6 +423,7 @@ describe("loginGhCli", () => {
 
         const result = await loginGhCli({
             runner: process,
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
             fetch: network.fetch,
             sleep: () => Promise.resolve(),
         });
@@ -451,6 +469,7 @@ describe("loginGhCli", () => {
 
         const result = await loginGhCli({
             runner: process,
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
             fetch: network.fetch,
             sleep: () => Promise.resolve(),
             onState: (state) => states.push(state),
@@ -478,6 +497,7 @@ describe("loginGhCli", () => {
         ]);
         const result = await loginGhCli({
             runner: successfulRunner(),
+            executable: "C:\\Program Files\\GitHub CLI\\gh.exe",
             fetch: network.fetch,
             sleep: () => Promise.resolve(),
             expectedLogin: "another-account",

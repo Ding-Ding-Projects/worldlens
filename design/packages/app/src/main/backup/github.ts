@@ -28,12 +28,10 @@
  * DOM lib's `RequestInit`, so it is attached through a narrow cast at the one call site
  * rather than by widening the type everywhere.
  *
- * ## The token never comes from here
+ * ## Authentication never comes from here
  *
- * Every function takes the token as an argument, resolved per call by the caller from
- * `github/session.ts`. A token captured once would be the one thing in a multi-hour
- * upload that cannot renew - stale after a refresh, and absent for ever for somebody who
- * signed in a minute after the window opened.
+ * Callers supply a request function from one main-process `gh` account lease. This module
+ * neither accepts nor constructs an authorization value.
  */
 
 import { createReadStream } from "node:fs";
@@ -50,7 +48,6 @@ export const REQUIRED_SCOPE = "repo";
 
 export interface GitHubCallOptions {
     readonly fetch: FetchLike;
-    readonly token: string;
     readonly signal?: AbortSignal | undefined;
     /** Overridable so a test never touches a real hostname. */
     readonly apiBase?: string | undefined;
@@ -100,12 +97,11 @@ export class GitHubCallError extends Error {
     }
 }
 
-function headers(token: string): Record<string, string> {
+function headers(): Record<string, string> {
     return {
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
         "user-agent": "worldlens",
-        authorization: `Bearer ${token}`,
     };
 }
 
@@ -241,7 +237,7 @@ export async function listWritableRepositories(
             `${api}/user/repos?per_page=100&page=${String(page)}` +
             "&sort=pushed&affiliation=owner,collaborator,organization_member";
         const response = await options.fetch(url, {
-            headers: headers(options.token),
+            headers: headers(),
             ...(options.signal === undefined ? {} : { signal: options.signal }),
         });
         if (!response.ok) throw await refuse(response, url, "Listing your repositories");
@@ -275,7 +271,7 @@ export async function readRepository(
     const { api } = bases(options);
     const url = `${api}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
     const response = await options.fetch(url, {
-        headers: headers(options.token),
+        headers: headers(),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
     if (!response.ok) throw await refuse(response, url, `Reading ${owner}/${repo}`);
@@ -357,7 +353,7 @@ export async function createBackupRelease(
     const url = `${api}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases`;
     const response = await options.fetch(url, {
         method: "POST",
-        headers: { ...headers(options.token), "content-type": "application/json" },
+        headers: { ...headers(), "content-type": "application/json" },
         body: JSON.stringify({
             tag_name: tag,
             name,
@@ -426,7 +422,7 @@ export async function createRepository(
             : `${api}/user/repos`;
     const response = await options.fetch(url, {
         method: "POST",
-        headers: { ...headers(options.token), "content-type": "application/json" },
+        headers: { ...headers(), "content-type": "application/json" },
         body: JSON.stringify({ name, private: request.private, auto_init: true }),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
@@ -534,7 +530,7 @@ export async function findReleaseByTag(
         `${api}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
         `/releases/tags/${encodeURIComponent(tag)}`;
     const response = await options.fetch(url, {
-        headers: headers(options.token),
+        headers: headers(),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
     if (response.status === 404) return null;
@@ -579,7 +575,7 @@ export async function listReleases(
             `${api}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
             `/releases?per_page=100&page=${String(page)}`;
         const response = await options.fetch(url, {
-            headers: headers(options.token),
+            headers: headers(),
             ...(options.signal === undefined ? {} : { signal: options.signal }),
         });
         if (!response.ok) throw await refuse(response, url, `Listing releases on ${owner}/${repo}`);
@@ -611,7 +607,7 @@ export async function readTextAsset(
 ): Promise<string | null> {
     if (asset.size > maxBytes) return null;
     const response = await options.fetch(asset.downloadUrl, {
-        headers: { ...headers(options.token), accept: "application/octet-stream" },
+        headers: { ...headers(), accept: "application/octet-stream" },
         ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
     if (!response.ok) return null;
@@ -685,7 +681,7 @@ export async function uploadAsset(
     const init = {
         method: "POST",
         headers: {
-            ...headers(options.token),
+            ...headers(),
             "content-type": "application/octet-stream",
             "content-length": String(stats.size),
         },

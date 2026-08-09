@@ -1,17 +1,15 @@
 /**
- * The `gh` command-line tool's own accounts, and routing a failed GitHub operation through
- * that separate credential store when it is safe to do so.
+ * The `gh` command-line tool's own accounts and main-process operation broker.
  *
- * See `accounts.ts` for the account list/switch itself, and `routing.ts` for why a second
- * credential is (and is not) worth trying automatically. `ipc.ts` is the only file in this
- * directory that imports Electron, and only as a type.
+ * See `accounts.ts` for the account list/switch itself and `credentialBroker.ts` for the
+ * one-account-per-operation lease. `ipc.ts` is the only file in this directory that imports
+ * Electron, and only as a type.
  */
 
 export {
     APP_SCOPES_OF_INTEREST,
     listGhCliAccounts,
     parseGhAuthStatusJson,
-    parseGhAuthStatusText,
     switchGhCliAccount,
 } from "./accounts.js";
 export type {
@@ -38,24 +36,3 @@ export type {
     GhCliLoginStage,
     GhCliLoginState,
 } from "./login.js";
-
-export {
-    chooseAccountForScope,
-    classifyRoutableFailure,
-    decideWriteRoute,
-    routableFromGitHubFailure,
-    routableFromHttpLikeStatus,
-    routeWithFallback,
-} from "./routing.js";
-export type {
-    FailureRoutability,
-    FailureRoutabilityReason,
-    RouteCandidateId,
-    RouteFallback,
-    RouteWithFallbackOptions,
-    RouteWithFallbackResult,
-    RoutableFailure,
-    ScopeCandidate,
-    ScopeChoice,
-    WriteRouteDecision,
-} from "./routing.js";

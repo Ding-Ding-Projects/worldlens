@@ -8,8 +8,8 @@
  *
  * ## What is proven here, and how
  *
- * Set **`MBM_TEST_BACKUP_LIVE=1`**, **`MBM_TEST_BACKUP_TOKEN`** (a real token with `repo`
- * scope) and **`MBM_TEST_BACKUP_REPO`** (`owner/repo` the token can push to) to run it:
+ * Set **`MBM_TEST_BACKUP_LIVE=1`** and **`MBM_TEST_BACKUP_REPO`** (`owner/repo` the
+ * active `gh` CLI account can push to) to run it. Authentication stays in the CLI store:
  *
  * 1. Packs a small multi-part world, publishes it as a real release with `BackupRunner`
  *    against real `api.github.com` and `uploads.github.com`, and confirms the pointer, the
@@ -42,29 +42,29 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { GhCredentialBroker } from "../ghcli/credentialBroker.js";
+import { nodeProcessRunner } from "../cirender/gh.js";
 import { BackupRunner } from "./runner.js";
 import type { BackupEvent } from "./runner.js";
 import { BackupRestoreRunner } from "./restore.js";
 import { archiveNameFromTag } from "./source.js";
 
 const LIVE = process.env["MBM_TEST_BACKUP_LIVE"] === "1";
-const TOKEN = process.env["MBM_TEST_BACKUP_TOKEN"];
 const REPO = process.env["MBM_TEST_BACKUP_REPO"];
 
-if (!LIVE || TOKEN === undefined || TOKEN.trim() === "" || REPO === undefined || REPO.trim() === "") {
+if (!LIVE || REPO === undefined || REPO.trim() === "") {
     describe("a real backup and restore - real github.com", () => {
-        it("is skipped because MBM_TEST_BACKUP_LIVE, _TOKEN or _REPO is not set", () => {
-            // Set all three to run it for real: MBM_TEST_BACKUP_LIVE=1,
-            // MBM_TEST_BACKUP_TOKEN=<a token with repo scope>, and
-            // MBM_TEST_BACKUP_REPO=<owner/repo the token can push to>. Recorded as a
+        it("is skipped because MBM_TEST_BACKUP_LIVE or _REPO is not set", () => {
+            // Set both to run it for real. The selected gh CLI account must be able to
+            // write MBM_TEST_BACKUP_REPO. Recorded as a
             // passing test rather than silence, so a run that never touched real GitHub
             // cannot be mistaken for one that did.
-            expect(LIVE && TOKEN !== undefined && REPO !== undefined).toBe(false);
+            expect(LIVE && REPO !== undefined).toBe(false);
         });
     });
 } else {
     const [owner, repo] = REPO.split("/");
-    const token = TOKEN;
+    const broker = new GhCredentialBroker({ runner: nodeProcessRunner() });
 
     describe("a real backup and restore - real github.com", () => {
         let workDir = "";
@@ -101,7 +101,7 @@ if (!LIVE || TOKEN === undefined || TOKEN.trim() === "" || REPO === undefined ||
         function makeRunner(events: BackupEvent[] = []): BackupRunner {
             return new BackupRunner({
                 storageDir: () => join(workDir, "storage"),
-                token: () => token,
+                account: broker.account,
                 onEvent: (event) => events.push(event),
                 appVersion: "live-proof",
             });
@@ -110,7 +110,7 @@ if (!LIVE || TOKEN === undefined || TOKEN.trim() === "" || REPO === undefined ||
         function makeRestorer(): BackupRestoreRunner {
             return new BackupRestoreRunner({
                 storageDir: () => join(workDir, "restoreStorage"),
-                token: () => token,
+                account: broker.account,
             });
         }
 

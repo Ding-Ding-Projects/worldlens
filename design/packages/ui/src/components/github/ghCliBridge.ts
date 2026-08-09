@@ -1,17 +1,12 @@
 /**
  * The seam between the `gh` command-line tool's own account surface and the main process.
  *
- * A file of its own, deliberately separate from `githubBridge.ts` next door, for the same
- * reason the two account stores are never merged in the interface: `gh` keeps its own
- * credential store, shared by every terminal, script and other tool on this machine, and it
- * is not this application's own multi-account store `githubBridge.ts` already describes.
- * Reusing that file's `GitHubBridge` type for these two methods would make it look, from a
- * type signature alone, like one list - which is exactly the impression every surface using
- * this module has to avoid giving.
+ * GitHub CLI keeps its credential store, shared by terminals and other tools. Worldlens
+ * exposes only the secret-free account metadata and device-login progress described here.
  *
  * Every type here is a structural mirror of what the Electron preload exposes on
  * `window.worldlens`, restated rather than imported, for the same reason
- * `githubBridge.ts` restates its own slice: this package compiles and runs in three places
+ * other bridges restate their own slices: this package compiles and runs in three places
  * (the desktop app, a browser tab, and under Vitest) and only the first of them has a
  * preload.
  *
@@ -21,6 +16,7 @@
 
 /** One account `gh` itself has stored on this computer - never one of this application's own. */
 export interface GhCliAccountReadout {
+    readonly id: string;
     readonly login: string;
     readonly host: string;
     /** True for the one account `gh` would use on this host right now. */
@@ -37,13 +33,20 @@ export interface GhCliAccountReadout {
     readonly missingAppScopes: readonly string[];
 }
 
-export type GhCliAvailabilityReadout = "not-installed" | "no-accounts" | "ready" | "unrecognised";
+export type GhCliAvailabilityReadout =
+    | "not-installed"
+    | "incompatible"
+    | "no-accounts"
+    | "ready";
 
 export interface GhCliAccountsStatusReadout {
     readonly availability: GhCliAvailabilityReadout;
     readonly version: string | null;
     readonly accounts: readonly GhCliAccountReadout[];
-    readonly source: "json" | "text" | null;
+    readonly source: "json" | null;
+    readonly capabilities?:
+        | { readonly structuredStatus: boolean }
+        | undefined;
     readonly message: string;
 }
 
@@ -82,7 +85,6 @@ export interface GhCliLoginStateReadout {
     readonly expiresAt: number | null;
     readonly secondsRemaining: number | null;
     readonly attempt: number;
-    readonly browserOpened: boolean;
     readonly account: GhCliAccountReadout | null;
     readonly failureCode: string | null;
     readonly message: string;
@@ -98,6 +100,23 @@ export interface GhCliCancelLoginReadout {
     readonly message: string;
 }
 
+export interface GhCliLogoutReadout {
+    readonly ok: boolean;
+    readonly message: string;
+}
+
+export interface GhCliLegacyCredentialStatusReadout {
+    readonly present: boolean;
+    readonly locations: number;
+    readonly message: string;
+}
+
+export interface GhCliLegacyCredentialRemovalReadout {
+    readonly removed: boolean;
+    readonly locations: number;
+    readonly message: string;
+}
+
 /**
  * The preload's `gh` CLI namespace, with each method optional and feature-detected one at a
  * time, exactly as `GitHubBridge` treats its own methods: a released shell can load a newer
@@ -106,9 +125,13 @@ export interface GhCliCancelLoginReadout {
 export interface GhCliBridge {
     ghCliListAccounts?: () => Promise<GhCliAccountsStatusReadout>;
     ghCliSwitchAccount?: (host: string, login: string) => Promise<GhCliSwitchReadout>;
+    ghCliLogoutAccount?: (host: string, login: string) => Promise<GhCliLogoutReadout>;
     ghCliStartLogin?: (expectedLogin?: string) => Promise<GhCliLoginResultReadout>;
     ghCliCancelLogin?: () => Promise<GhCliCancelLoginReadout>;
+    ghCliLegacyCredentialStatus?: () => Promise<GhCliLegacyCredentialStatusReadout>;
+    ghCliRemoveLegacyCredentials?: () => Promise<GhCliLegacyCredentialRemovalReadout>;
     onGhCliLoginState?: (listener: (state: GhCliLoginStateReadout) => void) => () => void;
+    writeClipboardText?: (text: string) => Promise<void>;
 }
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -138,4 +161,12 @@ export function canLoginGhCli(bridge: GhCliBridge | null): boolean {
         isFunction(bridge?.ghCliCancelLogin) &&
         isFunction(bridge?.onGhCliLoginState)
     );
+}
+
+export function canLogoutGhCliAccount(bridge: GhCliBridge | null): boolean {
+    return isFunction(bridge?.ghCliLogoutAccount);
+}
+
+export function canWriteGhCliClipboard(bridge: GhCliBridge | null): boolean {
+    return isFunction(bridge?.writeClipboardText);
 }

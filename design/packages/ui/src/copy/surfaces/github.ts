@@ -160,38 +160,6 @@ export const GITHUB_VOICED = {
      * survive level 5 word for word: no password is typed into this app, and the token it
      * receives stays in the app.
      */
-    "settings.github.deviceExplain": {
-        en: [
-            "The app asks GitHub for a short code, you type it on github.com, and the app is told when you have. No password is typed into this app, and the token it receives stays in the app.",
-            "The app asks GitHub for a short code, you type it on github.com, and the app is told when you have. No password is typed into this app, and the token it receives stays in the app.",
-            "The app asks GitHub for a short code, you type it on github.com, and GitHub tells the app when you have. No password is typed into this app, and the token it receives stays in the app.",
-            "The app asks GitHub for a short code, you type it on github.com, and GitHub tells the app the moment you have. No password is typed into this app, and the token it receives stays in the app.",
-            "The app asks GitHub for a short code, you type it on github.com, and GitHub taps the app on the shoulder the moment you have. No password is typed into this app, and the token it receives stays in the app.",
-        ],
-        yue: [
-            "程式向 GitHub 攞一個短 code，你喺 github.com 打入去，然後程式會收到通知。你唔使喺呢個程式打密碼，而程式收到嘅 token 只會留喺程式入面。",
-            "程式向 GitHub 攞一個短 code，你喺 github.com 打入去，然後程式會收到通知。你唔使喺呢個程式打密碼，而程式收到嘅 token 只會留喺程式入面。",
-            "程式向 GitHub 攞一個短 code，你喺 github.com 打入去，GitHub 就會通知程式。你唔使喺呢個程式打密碼，而程式收到嘅 token 只會留喺程式入面。",
-            "程式向 GitHub 攞一個短 code，你喺 github.com 打入去，你一打完 GitHub 就會通知程式。你唔使喺呢個程式打密碼，而程式收到嘅 token 只會留喺程式入面。",
-            "程式向 GitHub 攞一個短 code，你喺 github.com 打入去，你一打完 GitHub 就即刻拍膊頭通知程式。你唔使喺呢個程式打密碼，而程式收到嘅 token 只會留喺程式入面。",
-        ],
-    },
-    "settings.github.noClient": {
-        en: [
-            "This build has no GitHub application configured, so the browser sign-in cannot be started here. A personal access token still works.",
-            "This build has no GitHub application configured, so the browser sign-in cannot be started here. A personal access token still works.",
-            "This build has no GitHub application configured, so the browser sign-in cannot be started from here. A personal access token still works.",
-            "This build has no GitHub application configured, so the browser sign-in cannot be started from here at all. A personal access token still works.",
-            "This build has no GitHub application configured, so the browser sign-in cannot be started from here, not with the best will in the world. A personal access token still works.",
-        ],
-        yue: [
-            "呢個版本冇設定 GitHub application，所以喺呢度開唔到瀏覽器登入。personal access token 一樣用得。",
-            "呢個版本冇設定 GitHub application，所以喺呢度開唔到瀏覽器登入。personal access token 一樣用得。",
-            "呢個版本冇設定 GitHub application，所以喺呢度開唔到瀏覽器登入。用 personal access token 一樣得。",
-            "呢個版本冇設定 GitHub application，所以喺呢度完全開唔到瀏覽器登入。用 personal access token 一樣得。",
-            "呢個版本冇設定 GitHub application，所以喺呢度點都開唔到瀏覽器登入。用 personal access token 一樣得。",
-        ],
-    },
     /*
      * A sign-in started before this screen opened. Its code was handed out somewhere this
      * panel cannot see, so it genuinely cannot be shown, which every level says outright
@@ -513,49 +481,6 @@ export const GITHUB_VOICED = {
         ],
     },
 
-    /* ---------------------------------------------------------------- */
-    /* The token form                                                    */
-    /* ---------------------------------------------------------------- */
-
-    /*
-     * The token is checked with GitHub on the way in rather than at the first render, so a
-     * token with the wrong permissions is refused here in one sentence instead of two
-     * screens later in the middle of a job. That is the sentence, and the check survives
-     * every level.
-     */
-    "settings.github.tokenExplain": {
-        en: [
-            "A personal access token works instead of the browser sign-in, and is the way in when a network blocks GitHub's device sign-in. It is checked with GitHub before it is accepted.",
-            "A personal access token works instead of the browser sign-in, and is the way in when a network blocks GitHub's device sign-in. It is checked with GitHub before it is accepted.",
-            "A personal access token works instead of the browser sign-in, and is the way in when a network blocks GitHub's device sign-in. It is checked with GitHub before it is accepted, not at the first render.",
-            "A personal access token works instead of the browser sign-in, and is the way in when a network blocks GitHub's device sign-in. It is checked with GitHub before it is accepted, rather than two screens later.",
-            "A personal access token works instead of the browser sign-in, and is the way in when a network blocks GitHub's device sign-in. It is checked with GitHub before it is accepted, rather than two screens later in the middle of a job.",
-        ],
-        yue: [
-            "personal access token 可以代替瀏覽器登入，如果個網絡封咗 GitHub 嘅裝置登入，呢個就係入口。佢會先同 GitHub 核對過先接受。",
-            "personal access token 可以代替瀏覽器登入，如果個網絡封咗 GitHub 嘅裝置登入，呢個就係入口。佢會先同 GitHub 核對過先接受。",
-            "personal access token 可以代替瀏覽器登入，如果個網絡封咗 GitHub 嘅裝置登入，呢個就係入口。佢會先同 GitHub 核對過先接受，唔會等到第一次算圖先講。",
-            "personal access token 可以代替瀏覽器登入，如果個網絡封咗 GitHub 嘅裝置登入，呢個就係入口。佢會先同 GitHub 核對過先接受，唔會遲兩版先話你知。",
-            "personal access token 可以代替瀏覽器登入，如果個網絡封咗 GitHub 嘅裝置登入，呢個就係入口。佢會先同 GitHub 核對過先接受，唔會等到你做到一半、遲兩版先話你知。",
-        ],
-    },
-    /* The text of a link out to github.com, so the destination stays in the sentence. */
-    "settings.github.tokenPage": {
-        en: [
-            "Make a token on github.com",
-            "Make a token on github.com",
-            "Make a new token on github.com",
-            "Go and make a token on github.com",
-            "Go and make yourself a token on github.com",
-        ],
-        yue: [
-            "喺 github.com 整一個 token",
-            "喺 github.com 整一個 token",
-            "喺 github.com 整一個新 token",
-            "去 github.com 整一個 token",
-            "去 github.com 整返個 token 俾自己",
-        ],
-    },
 } as const satisfies Record<string, VoicedString>;
 
 export const GITHUB_FIXED = {
@@ -587,10 +512,6 @@ export const GITHUB_FIXED = {
     "settings.github.cancel": { en: "Cancel the sign-in", yue: "取消登入" },
     "settings.github.tryAgain": { en: "Try again", yue: "再試多次" },
     "settings.github.freshCode": { en: "Get a new code", yue: "攞個新 code" },
-    "settings.github.useOAuth": {
-        en: "Sign in with the OAuth application instead",
-        yue: "改用 OAuth application 登入",
-    },
 
     /*
      * How the app got its token. These three are GitHub's own names for three different
@@ -599,7 +520,6 @@ export const GITHUB_FIXED = {
      */
     "settings.github.source.app": { en: "GitHub App", yue: "GitHub App" },
     "settings.github.source.oauth": { en: "OAuth application", yue: "OAuth application" },
-    "settings.github.source.token": { en: "Personal access token", yue: "personal access token" },
 
     /* The status row's field names. */
     "settings.github.signedIn": { en: "Signed in", yue: "已登入" },
@@ -622,11 +542,6 @@ export const GITHUB_FIXED = {
     "settings.github.confirmTitle": { en: "Confirm signing out", yue: "確認登出" },
     "settings.github.confirmSignOut": { en: "Sign out and revoke", yue: "登出並撤銷" },
 
-    /* The token form. The field is a password field; these two label its reveal toggle. */
-    "settings.github.tokenField": { en: "Personal access token", yue: "personal access token" },
-    "settings.github.hideToken": { en: "Hide the token", yue: "收埋個 token" },
-    "settings.github.showToken": { en: "Show the token", yue: "顯示個 token" },
-    "settings.github.tokenSubmit": { en: "Sign in with this token", yue: "用呢個 token 登入" },
 } as const satisfies Record<string, FixedString>;
 
 export const GITHUB_FACTS = {
@@ -665,15 +580,6 @@ export const GITHUB_FACTS = {
         yue: ["由呢部電腦刪走", "撤銷", "所有地方都失效", "唔會郁到", "新 token"],
     },
 
-    // The two security clauses of the device flow, kept word for word.
-    "settings.github.deviceExplain": {
-        en: ["github.com", "No password is typed into this app", "stays in the app"],
-        yue: ["github.com", "唔使喺呢個程式打密碼", "留喺程式入面"],
-    },
-    "settings.github.noClient": {
-        en: ["no GitHub application configured", "browser sign-in", "personal access token"],
-        yue: ["冇設定 GitHub application", "瀏覽器登入", "personal access token"],
-    },
     "settings.github.adopted": {
         en: ["already waiting for approval", "code is not here", "fresh code"],
         yue: ["等緊批准", "唔喺呢度顯示", "新 code"],
@@ -738,15 +644,6 @@ export const GITHUB_FACTS = {
         yue: ["自己續期", "到期之前"],
     },
 
-    "settings.github.tokenExplain": {
-        en: [
-            "personal access token",
-            "browser sign-in",
-            "checked with GitHub before it is accepted",
-        ],
-        yue: ["personal access token", "瀏覽器登入", "同 GitHub 核對過先接受"],
-    },
-    "settings.github.tokenPage": { en: ["token", "github.com"], yue: ["token", "github.com"] },
 } as const satisfies Record<
     keyof typeof GITHUB_VOICED,
     { en: readonly string[]; yue: readonly string[] }

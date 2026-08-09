@@ -25,6 +25,14 @@
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import { nodeProcessRunner } from "../cirender/gh.js";
+import {
+    GhCredentialError,
+    type GhCliAccountProvider,
+    type GhCredentialAccess,
+} from "../ghcli/credentialBroker.js";
+import { listGhOwners } from "../ghcli/repositories.js";
+import { createScopedProcessRunner } from "../ghcli/scopedRunner.js";
 import { PagesHost } from "./hosting.js";
 import type {
     PagesCandidate,
@@ -63,6 +71,8 @@ export type Answer<T> =
 
 export interface PagesIpcOptions extends PagesHostOptions {
     readonly ipcMain: IpcMain;
+    /** Main-process-only gh account broker; credentials never cross IPC. */
+    readonly account?: GhCliAccountProvider | undefined;
     /** Overridable so a test can watch what was broadcast. */
     readonly broadcast: (event: PagesEvent) => void;
 }
@@ -73,11 +83,12 @@ export interface PagesIpc {
 }
 
 export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
+    const runner = createScopedProcessRunner(options.runner ?? nodeProcessRunner());
     const host = new PagesHost({
         storageDir: options.storageDir,
         workRoot: options.workRoot,
         onEvent: options.broadcast,
-        ...(options.runner === undefined ? {} : { runner: options.runner }),
+        runner,
         ...(options.probe === undefined ? {} : { probe: options.probe }),
         ...(options.sleep === undefined ? {} : { sleep: options.sleep }),
         ...(options.pollIntervalMs === undefined ? {} : { pollIntervalMs: options.pollIntervalMs }),
@@ -85,6 +96,31 @@ export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
         ...(options.now === undefined ? {} : { now: options.now }),
         ...(options.committer === undefined ? {} : { committer: options.committer }),
     });
+
+    const withAccount = async <T>(
+        request: unknown,
+        access: GhCredentialAccess,
+        operation: (resolvedAccountId?: string) => Promise<T>,
+        durableAccountId?: string | null,
+    ): Promise<T> => {
+        if (options.account === undefined) {
+            return await operation(durableAccountId ?? readAccountId(request) ?? undefined);
+        }
+        const lease = await options.account(
+            durableAccountId ?? readAccountId(request) ?? undefined,
+            access,
+        );
+        if (lease === null) {
+            throw new GhCredentialError(
+                "account-not-found",
+                "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+            );
+        }
+        return await lease.withAccount(
+            async (accountRunner) =>
+                await runner.withRunner(accountRunner, async () => await operation(lease.accountId)),
+        );
+    };
 
     options.ipcMain.handle("pages:renders", async (): Promise<Answer<readonly PagesCandidate[]>> => {
         try {
@@ -94,9 +130,12 @@ export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
         }
     });
 
-    options.ipcMain.handle("pages:owners", async (): Promise<Answer<readonly PagesOwner[]>> => {
+    options.ipcMain.handle("pages:owners", async (_event, request): Promise<Answer<readonly PagesOwner[]>> => {
         try {
-            return { ok: true, value: await host.owners() };
+            if (options.account === undefined) return { ok: true, value: await host.owners() };
+            const lease = await options.account(readAccountId(request) ?? undefined, "read");
+            if (lease === null) return { ok: false, message: "No GitHub CLI account is signed in." };
+            return { ok: true, value: await listGhOwners(lease) };
         } catch (error) {
             return { ok: false, message: sentence(error) };
         }
@@ -110,7 +149,10 @@ export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
                 return { ok: false, message: "A render, a repository owner and a name are required." };
             }
             try {
-                return { ok: true, value: await host.preflight(parsed) };
+                return {
+                    ok: true,
+                    value: await withAccount(request, "read", async () => await host.preflight(parsed)),
+                };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
             }
@@ -132,7 +174,19 @@ export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
                     },
                 };
             }
-            return await host.publish(parsed);
+            try {
+                return await withAccount(
+                    request,
+                    "write",
+                    async (accountId) =>
+                        await host.publish({
+                            ...parsed,
+                            ...(accountId === undefined ? {} : { accountId }),
+                        }),
+                );
+            } catch (error) {
+                return accountFailure(error);
+            }
         },
     );
 
@@ -151,7 +205,17 @@ export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
                     },
                 };
             }
-            return await host.stopHosting(parsed);
+            try {
+                const saved = await host.readRecord(parsed.renderId);
+                return await withAccount(
+                    request,
+                    "write",
+                    async () => await host.stopHosting(parsed),
+                    saved?.accountId,
+                );
+            } catch (error) {
+                return accountFailure(error);
+            }
         },
     );
 
@@ -172,8 +236,8 @@ export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
 
     options.ipcMain.handle(
         "pages:resume",
-        async (_event: IpcMainInvokeEvent, renderId: unknown): Promise<PagesResult> => {
-            const id = readText(renderId);
+        async (_event: IpcMainInvokeEvent, request: unknown): Promise<PagesResult> => {
+            const id = readRenderId(request);
             if (id === null) {
                 return {
                     ok: false,
@@ -185,17 +249,33 @@ export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
                     },
                 };
             }
-            return await host.resume(id);
+            try {
+                const saved = await host.readRecord(id);
+                return await withAccount(
+                    request,
+                    "write",
+                    async (accountId) => await host.resume(id, accountId),
+                    saved?.accountId,
+                );
+            } catch (error) {
+                return accountFailure(error);
+            }
         },
     );
 
     options.ipcMain.handle(
         "pages:status",
-        async (_event: IpcMainInvokeEvent, renderId: unknown): Promise<Answer<PagesRecord>> => {
-            const id = readText(renderId);
+        async (_event: IpcMainInvokeEvent, request: unknown): Promise<Answer<PagesRecord>> => {
+            const id = readRenderId(request);
             if (id === null) return { ok: false, message: "A render id is required." };
             try {
-                const value = await host.refreshStatus(id);
+                const saved = await host.readRecord(id);
+                const value = await withAccount(
+                    request,
+                    "read",
+                    async () => await host.refreshStatus(id),
+                    saved?.accountId,
+                );
                 return value === null
                     ? { ok: false, message: "This computer has no recorded Pages site for that render." }
                     : { ok: true, value };
@@ -225,7 +305,14 @@ function readTarget(value: unknown): PagesTarget | null {
     const repo = readText(row["repo"]);
     if (renderId === null || owner === null || repo === null) return null;
     const branch = readText(row["branch"]);
-    return { renderId, owner, repo, ...(branch === null ? {} : { branch }) };
+    const accountId = readAccountId(value);
+    return {
+        renderId,
+        owner,
+        repo,
+        ...(accountId === null ? {} : { accountId }),
+        ...(branch === null ? {} : { branch }),
+    };
 }
 
 /**
@@ -251,6 +338,36 @@ function readText(value: unknown): string | null {
     if (typeof value !== "string") return null;
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
+}
+
+function readAccountId(value: unknown): string | null {
+    return typeof value === "object" && value !== null
+        ? readText((value as Record<string, unknown>)["accountId"])
+        : null;
+}
+
+function readRenderId(value: unknown): string | null {
+    return readText(value) ??
+        (typeof value === "object" && value !== null
+            ? readText((value as Record<string, unknown>)["renderId"])
+            : null);
+}
+
+function accountFailure(error: unknown): { ok: false; failure: {
+    code: string;
+    message: string;
+    detail: null;
+    needsGhSignIn: boolean;
+} } {
+    return {
+        ok: false,
+        failure: {
+            code: error instanceof GhCredentialError ? error.code : "account-failed",
+            message: sentence(error),
+            detail: null,
+            needsGhSignIn: error instanceof GhCredentialError ? error.needsSignIn : false,
+        },
+    };
 }
 
 /** One sentence from whatever was thrown, never a stack and never an empty string. */

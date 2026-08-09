@@ -15,7 +15,9 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { VSelect } from "vuetify/components";
 import BackupScreen from "./BackupScreen.vue";
+import type { GhCliBridge } from "../github/ghCliBridge.js";
 import type {
     Answer,
     BackupBridge,
@@ -130,6 +132,12 @@ const listing: BackupListing = {
 
 function fakeBridge(overrides: Partial<BackupBridge> = {}): BackupBridge {
     return {
+        listBackupOwners: () =>
+            Promise.resolve({
+                ok: true,
+                login: "me",
+                owners: [{ login: "me", kind: "user" }],
+            }),
         listBackupRepositories: () =>
             Promise.resolve({ ok: true, value: [] } as Answer<readonly RepositoryChoice[]>),
         inspectBackupRepository: () => Promise.resolve({ ok: true, value: privateReport }),
@@ -187,8 +195,6 @@ interface Exposed {
     createVisibility: "public" | "private";
     createRepo(): Promise<void>;
     canCreateRepo: boolean;
-    repoQuery: string;
-    repoRegex: boolean;
 }
 
 /** The component's own fields and actions, named rather than found by markup order. */
@@ -224,6 +230,127 @@ describe("why this is not Git LFS", () => {
         expect(text).toContain("Git LFS");
         expect(text).toContain("bandwidth");
         expect(text).toContain("Cheap LFS v1");
+    });
+});
+
+describe("back up as: unavailable gh accounts explain their recovery", () => {
+    it("disables an unhealthy account and puts the reauthentication reason in its accessible item name", async () => {
+        const accountsBridge: GhCliBridge = {
+            ghCliListAccounts: () => Promise.resolve({
+                availability: "ready",
+                version: "gh version 2.96.0",
+                accounts: [
+                    {
+                        id: "github.com:healthy",
+                        host: "github.com",
+                        login: "healthy",
+                        active: true,
+                        scopes: ["repo"],
+                        scopesReported: true,
+                        tokenSource: "keyring",
+                        gitProtocol: "https",
+                        healthy: true,
+                        stateDetail: null,
+                        missingAppScopes: [],
+                    },
+                    {
+                        id: "github.com:needs-help",
+                        host: "github.com",
+                        login: "needs-help",
+                        active: false,
+                        scopes: ["repo"],
+                        scopesReported: true,
+                        tokenSource: "keyring",
+                        gitProtocol: "https",
+                        healthy: false,
+                        stateDetail: "authentication failed",
+                        missingAppScopes: [],
+                    },
+                ],
+                source: "json",
+                message: "gh has two accounts.",
+            }),
+        };
+        const wrapper = mountScreen(fakeBridge(), { accountsBridge });
+        await settle(wrapper);
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Back up as");
+        const unavailable = (select?.props("items") as readonly Record<string, unknown>[]).find(
+            (item) => item["value"] === "github.com:needs-help",
+        );
+        expect(unavailable).toMatchObject({
+            title: "needs-help — github.com — reauthentication required",
+            props: { disabled: true },
+        });
+        expect(String(unavailable?.["searchText"])).toContain("reauthentication required");
+    });
+
+    it("shows the host and routes the same-login multi-host default to the broker's github.com account", async () => {
+        const ownerCalls: (string | undefined)[] = [];
+        const accountsBridge: GhCliBridge = {
+            ghCliListAccounts: () => Promise.resolve({
+                availability: "ready",
+                version: "gh version 2.96.0",
+                accounts: [
+                    {
+                        id: "enterprise.example:alice",
+                        host: "enterprise.example",
+                        login: "alice",
+                        active: true,
+                        scopes: ["repo"],
+                        scopesReported: true,
+                        tokenSource: "keyring",
+                        gitProtocol: "https",
+                        healthy: true,
+                        stateDetail: null,
+                        missingAppScopes: [],
+                    },
+                    {
+                        id: "github.com:alice",
+                        host: "github.com",
+                        login: "alice",
+                        active: true,
+                        scopes: ["repo"],
+                        scopesReported: true,
+                        tokenSource: "keyring",
+                        gitProtocol: "https",
+                        healthy: true,
+                        stateDetail: null,
+                        missingAppScopes: [],
+                    },
+                ],
+                source: "json",
+                message: "gh has two host-specific accounts.",
+            }),
+        };
+        const wrapper = mountScreen(
+            fakeBridge({
+                listBackupOwners: (accountId) => {
+                    ownerCalls.push(accountId);
+                    return Promise.resolve({
+                        ok: true,
+                        login: "alice",
+                        owners: [{ login: "alice", kind: "user" }],
+                    });
+                },
+            }),
+            { accountsBridge },
+        );
+        await settle(wrapper);
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Back up as");
+        expect(select?.props("modelValue")).toBe("github.com:alice");
+        expect(select?.props("items")).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ title: "alice — enterprise.example (active)" }),
+                expect.objectContaining({ title: "alice — github.com (active)" }),
+            ]),
+        );
+        expect(ownerCalls).toEqual(["github.com:alice"]);
     });
 });
 
@@ -588,7 +715,7 @@ describe("creating a new repository, beside choosing an existing one", () => {
         const wrapper = mountScreen(fakeBridge());
         await settle(wrapper);
         expect(wrapper.find('[data-test="create-repo"]').exists()).toBe(true);
-        expect(wrapper.find('[data-test="create-repo-blocked"]').text()).toContain("owner");
+        expect(wrapper.find('[data-test="create-repo-blocked"]').text()).toContain("repository name");
         expect(wrapper.find('[data-test="create-repo-button"]').attributes("disabled")).toBeDefined();
     });
 
@@ -654,6 +781,32 @@ describe("creating a new repository, beside choosing an existing one", () => {
         expect(wrapper.find('[data-test="create-repo-failure"]').text()).toContain("taken");
     });
 
+    it("offers GitHub Settings beside a repository-create reauthentication refusal", async () => {
+        const wrapper = mountScreen(
+            fakeBridge({
+                createBackupRepository: () =>
+                    Promise.resolve({
+                        ok: false,
+                        code: "not-signed-in",
+                        message: "The selected GitHub CLI account needs reauthentication.",
+                        needsSignIn: true,
+                    }),
+            }),
+            { canOpenSettings: true },
+        );
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+        screen.owner = "me";
+        screen.repo = "fresh";
+        await screen.createRepo();
+        await settle(wrapper);
+
+        const recovery = wrapper.get('[data-test="create-repo-reauth"]');
+        expect(recovery.text()).toContain("Open GitHub Settings");
+        await recovery.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
+
     it("refuses an invalid name in plain words before anything is sent", async () => {
         const wrapper = mountScreen(fakeBridge());
         await settle(wrapper);
@@ -686,14 +839,15 @@ describe("searching the repository picker", () => {
         );
         await settle(wrapper);
 
-        expect(wrapper.text()).toContain("3 repositories loaded");
+        expect(wrapper.text()).toContain("Showing 3 of 3 choices loaded from GitHub CLI");
 
-        const screen = exposed(wrapper);
-        screen.repoQuery = "nether";
+        await wrapper
+            .find('[data-test="backup-repository-picker-search"] input')
+            .setValue("nether");
         await settle(wrapper);
 
         expect(wrapper.text()).toContain("Showing 1 of 3");
-        const select = wrapper.find('[data-test="repository-search"]');
+        const select = wrapper.find('[data-test="backup-repository-picker-select"]');
         expect(select.exists()).toBe(true);
     });
 
@@ -702,11 +856,14 @@ describe("searching the repository picker", () => {
             fakeBridge({ listBackupRepositories: () => Promise.resolve({ ok: true, value: repositories }) }),
         );
         await settle(wrapper);
-        const screen = exposed(wrapper);
-        screen.repoQuery = "no-such-repository-anywhere";
+        await wrapper
+            .find('[data-test="backup-repository-picker-search"] input')
+            .setValue("no-such-repository-anywhere");
         await settle(wrapper);
 
-        expect(wrapper.find('[data-test="repository-no-match"]').exists()).toBe(true);
+        expect(
+            wrapper.find('[data-test="backup-repository-picker-no-match"]').exists(),
+        ).toBe(true);
     });
 
     it("carries the anchored regex builder rather than plain text alone", async () => {
@@ -714,15 +871,24 @@ describe("searching the repository picker", () => {
             fakeBridge({ listBackupRepositories: () => Promise.resolve({ ok: true, value: repositories }) }),
         );
         await settle(wrapper);
-        const screen = exposed(wrapper);
-
         // Plain text is the default.
-        expect(screen.repoRegex).toBe(false);
-        screen.repoQuery = "^me/nether";
-        screen.repoRegex = true;
+        const regexButton = wrapper
+            .find('[data-test="backup-repository-picker-search"]')
+            .find('button[aria-label="Search with a regular expression"]');
+        expect(regexButton.attributes("aria-pressed")).toBe("false");
+        await wrapper
+            .find('[data-test="backup-repository-picker-search"] input')
+            .setValue("^me/nether");
+        await regexButton.trigger("click");
         await settle(wrapper);
 
         expect(wrapper.text()).toContain("Showing 1 of 3");
+        expect(
+            wrapper
+                .find('[data-test="backup-repository-picker-search"]')
+                .find('button[aria-label="Search plain text instead of a regular expression"]')
+                .attributes("aria-pressed"),
+        ).toBe("true");
     });
 
     it("distinguishes no repositories loaded from a repository search with no matches", async () => {
@@ -730,8 +896,12 @@ describe("searching the repository picker", () => {
         await settle(wrapper);
 
         expect(wrapper.find('[data-test="repository-none"]').exists()).toBe(true);
-        expect(wrapper.find('[data-test="repository-no-match"]').exists()).toBe(false);
-        expect(wrapper.find('[data-test="repository-search"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="backup-repository-picker-no-match"]').exists()).toBe(
+            false,
+        );
+        expect(wrapper.find('[data-test="backup-repository-picker-search"]').exists()).toBe(
+            false,
+        );
     });
 });
 

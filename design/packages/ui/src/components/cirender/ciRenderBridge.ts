@@ -91,6 +91,7 @@ export interface CiSyncState {
     readonly syncId: string;
     readonly owner: string;
     readonly repo: string;
+    readonly accountId: string | null;
     readonly worldFolder: string;
     readonly mapId: string;
     readonly mapName: string;
@@ -174,28 +175,32 @@ export interface CiRepositoryChoice {
     readonly htmlUrl: string;
 }
 
-export type CiRoute = "session" | "gh";
+export type CiRepositoryCreateResult =
+    | { readonly ok: true; readonly repository: CiRepositoryChoice }
+    | {
+          readonly ok: false;
+          readonly code:
+              | "invalid-request"
+              | "owner-not-confirmed"
+              | "name-taken"
+              | "cli-failed"
+              | "verification-failed";
+          readonly message: string;
+          readonly needsSignIn?: boolean | undefined;
+      };
+
+export type CiRoute = "gh";
 
 /**
- * What `gh` is on this machine - and a fourth value for "we did not ask".
- *
- * The first three are genuinely different remedies: install it, sign in to it in a terminal,
- * or nothing at all. `not-checked` is none of those. It is what the report says when the
- * in-app sign-in worked and `gh` was deliberately never probed, and keeping it distinct is
- * what stops the surface telling somebody to install software they already have.
+ * What the selected GitHub CLI account can do for this operation.
  */
 export type GhAvailability = "not-installed" | "signed-out" | "ready" | "not-checked";
 
-/** Which credential would drive a sync, and why the other one would not. */
+/** Which selected GitHub CLI account would drive a sync, or why it cannot. */
 export interface RouteReport {
     readonly route: CiRoute | null;
-    /** One sentence for the interface: the credential in play, or why neither can. */
+    /** One sentence for the interface: the credential in play, or why it cannot proceed. */
     readonly describe: string;
-    readonly session: {
-        readonly signedIn: boolean;
-        readonly usable: boolean;
-        readonly reason: string | null;
-    };
     readonly gh: {
         readonly availability: GhAvailability;
         readonly version: string | null;
@@ -211,8 +216,8 @@ export interface RouteReport {
     /**
      * False when the chosen route can start a render but cannot publish a world.
      *
-     * Both shipped routes can, so this is true whenever `ready` is - the `gh` transfer is
-     * route-aware. It stays on the report because "can start a render" and "can publish a
+         * The shipped broker route can, so this is true whenever `ready` is. It stays on the
+         * report because "can start a render" and "can publish a
      * world" are two capabilities, and the surface has to be able to say which is missing
      * rather than showing a button that fails after an hour of packing.
      */
@@ -305,8 +310,6 @@ export interface CiSyncRequest {
     readonly budgetMinutes?: number;
     readonly maxJobs?: number;
     readonly output?: "artifact" | "artifact-and-pages";
-    /** Force a credential rather than letting the probe choose. */
-    readonly route?: CiRoute;
     readonly follow?: boolean;
     /**
      * Which signed-in account this render authenticates as, by id.
@@ -314,8 +317,8 @@ export interface CiSyncRequest {
      * Omitted, the main process resolves whichever account is active - the setup card's
      * own default, so a single-account build behaves exactly as it always did. Set from
      * the account picker when somebody signed in to several accounts chooses one that is
-     * not the active one. Always an id, never a token: the credential itself never crosses
-     * this bridge in either direction.
+     * not the active one. It is always a secret-free id; authorization never crosses this
+     * bridge in either direction.
      */
     readonly accountId?: string;
 }
@@ -555,9 +558,18 @@ export interface CiRenderBridge {
     checkCiRepoName?(request: {
         readonly owner: string;
         readonly repo: string;
+        readonly accountId?: string | undefined;
     }): Promise<CiRepositoryNameAvailability>;
     /** The signed-in account's own repositories, to pick an existing one instead of typing it. */
-    listExistingRepositories?(): Promise<Answer<readonly CiRepositoryChoice[]>>;
+    listExistingRepositories?(accountId?: string): Promise<Answer<readonly CiRepositoryChoice[]>>;
+    /** Creates and verifies a repository entirely through gh; never opens an external URL. */
+    createCiRepository?(request: {
+        readonly accountId?: string | undefined;
+        readonly ownerLogin: string;
+        readonly ownerKind: "user" | "organization";
+        readonly name: string;
+        readonly private: boolean;
+    }): Promise<CiRepositoryCreateResult>;
     /** Scheduled re-rendering's current status for one repository. See docs/scheduled-render.md. */
     ciRenderScheduleRead?(
         owner: string,
@@ -583,7 +595,6 @@ export interface CiRenderBridge {
         owner: string,
         repo: string,
         accountId?: string,
-        prefer?: CiRoute,
     ): Promise<CiBootstrapResult>;
     /** Progress while a repository is being prepared. Present exactly when the above is. */
     onCiBootstrapEvent?(listener: (event: CiBootstrapEvent) => void): () => void;
@@ -606,8 +617,18 @@ type Host = Partial<{
     checkCiRepoName: (request: {
         owner: string;
         repo: string;
+        accountId?: string;
     }) => Promise<CiRepositoryNameAvailability>;
-    listBackupRepositories: () => Promise<Answer<readonly CiRepositoryChoice[]>>;
+    ciRenderRepositories: (
+        accountId?: string,
+    ) => Promise<Answer<readonly CiRepositoryChoice[]>>;
+    createCiRepository: (request: {
+        accountId?: string;
+        ownerLogin: string;
+        ownerKind: "user" | "organization";
+        name: string;
+        private: boolean;
+    }) => Promise<CiRepositoryCreateResult>;
     ciRenderScheduleRead: (
         owner: string,
         repo: string,
@@ -623,7 +644,6 @@ type Host = Partial<{
         owner: string,
         repo: string,
         accountId?: string,
-        prefer?: CiRoute,
     ) => Promise<CiBootstrapResult>;
     onCiBootstrapEvent: (listener: (event: CiBootstrapEvent) => void) => () => void;
 }>;
@@ -722,8 +742,25 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
                       host.checkCiRepoName!(request),
               }
             : {}),
-        ...(isFunction(host.listBackupRepositories)
-            ? { listExistingRepositories: () => host.listBackupRepositories!() }
+        ...(isFunction(host.ciRenderRepositories)
+            ? {
+                  listExistingRepositories: (accountId?: string) =>
+                      host.ciRenderRepositories!(accountId),
+              }
+            : {}),
+        ...(isFunction(host.createCiRepository)
+            ? {
+                  createCiRepository: (request) =>
+                      host.createCiRepository!({
+                          ownerLogin: request.ownerLogin,
+                          ownerKind: request.ownerKind,
+                          name: request.name,
+                          private: request.private,
+                          ...(request.accountId === undefined
+                              ? {}
+                              : { accountId: request.accountId }),
+                      }),
+              }
             : {}),
         ...(isFunction(host.ciRenderScheduleRead)
             ? {
@@ -749,8 +786,7 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
                       owner: string,
                       repo: string,
                       accountId?: string,
-                      prefer?: CiRoute,
-                  ) => host.bootstrapCiRepository!(owner, repo, accountId, prefer),
+                  ) => host.bootstrapCiRepository!(owner, repo, accountId),
                   onCiBootstrapEvent: (listener: (event: CiBootstrapEvent) => void) =>
                       host.onCiBootstrapEvent!(listener),
               }

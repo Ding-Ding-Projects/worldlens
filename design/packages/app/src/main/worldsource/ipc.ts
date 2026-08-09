@@ -21,6 +21,7 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type { DownloadResult } from "../download/downloader.js";
+import type { DownloadFailure } from "../download/failure.js";
 import * as failures from "../download/failure.js";
 import { WorldSourceFetcher } from "./fetcher.js";
 import type {
@@ -42,7 +43,7 @@ export const WORLD_SOURCE_CHANNELS = [
 
 export type DiscoverAnswer =
     | { readonly ok: true; readonly release: WorldSourceReleaseSummary }
-    | { readonly ok: false; readonly message: string; readonly code: string };
+    | { readonly ok: false; readonly failure: DownloadFailure };
 
 export interface WorldSourceIpc {
     readonly fetcher: WorldSourceFetcher;
@@ -70,9 +71,11 @@ function readRequest(value: unknown): WorldSourceRequest | null {
     const tag = record["tag"];
     const asset = record["asset"];
     const extract = record["extract"];
+    const accountId = record["accountId"];
     return {
         owner,
         repo,
+        ...(typeof accountId === "string" && accountId !== "" ? { accountId } : {}),
         ...(typeof tag === "string" && tag !== "" ? { tag } : {}),
         ...(typeof asset === "string" && asset !== "" ? { asset } : {}),
         ...(typeof extract === "boolean" ? { extract } : {}),
@@ -110,15 +113,21 @@ export function registerWorldSourceHandlers(
             if (parsed === null) {
                 return {
                     ok: false,
-                    code: "invalid-request",
-                    message: "A repository owner and name are required.",
+                    failure: failures.invalidRequest(
+                        "A repository owner and name are required.",
+                    ),
                 };
             }
             try {
-                const found = await fetcher.discover(parsed.owner, parsed.repo, parsed.tag);
+                const found = await fetcher.discover(
+                    parsed.owner,
+                    parsed.repo,
+                    parsed.tag,
+                    parsed.accountId,
+                );
                 return found.ok
                     ? { ok: true, release: found.release }
-                    : { ok: false, code: found.failure.code, message: found.failure.message };
+                    : { ok: false, failure: found.failure };
             } catch (error) {
                 // The fetcher promises not to reject and its own tests hold it to that.
                 // This is the belt: a rejection here would cross the bridge as a bare
@@ -126,8 +135,10 @@ export function registerWorldSourceHandlers(
                 // put on screen.
                 return {
                     ok: false,
-                    code: "network-failed",
-                    message: describe(error),
+                    failure: failures.networkFailed(
+                        `${parsed.owner}/${parsed.repo}`,
+                        describe(error),
+                    ),
                 };
             }
         },

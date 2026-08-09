@@ -1092,7 +1092,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 <div class="mb-shell-centre">
                                     <BackupScreen
                                         :can-open-settings="true"
-                                        @sign-in="openSettings()"
+                                        @sign-in="openSettings('github-account')"
                                         @open="openInBrowser"
                                         @restore="revealBackupRestore"
                                     />
@@ -1103,7 +1103,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #pages>
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
-                                    <PagesScreen @open="openInBrowser" />
+                                    <PagesScreen
+                                        @open="openInBrowser"
+                                        @open-settings="(anchor) => openSettings(anchor)"
+                                    />
                                 </div>
                             </div>
                         </template>

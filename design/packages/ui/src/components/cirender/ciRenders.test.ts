@@ -166,9 +166,8 @@ describe("the line that decides whether somebody starts an upload", () => {
             repository: null,
             repositoryFailure: null,
             routeReport: {
-                route: "session",
+                route: "gh",
                 describe: "Using the GitHub sign-in in this application.",
-                session: { signedIn: true, usable: true, reason: null },
                 gh: {
                     availability: "not-installed",
                     version: null,
@@ -246,7 +245,7 @@ describe("rows follow the events", () => {
                 status: null,
                 needsSignIn: false,
                 needsEula: false,
-                route: "session",
+                route: "gh",
                 run: run({
                     status: "completed",
                     conclusion: "failure",
@@ -323,7 +322,7 @@ describe("rows follow the events", () => {
                 dataRoot: "/local/ci-done",
                 mapId: "world",
                 mapName: "World",
-                route: "session",
+                route: "gh",
                 uploaded: true,
                 artifactBytes: 1,
                 artifactSha256: "x",
@@ -343,7 +342,7 @@ describe("rows follow the events", () => {
             type: "phase",
             syncId: "s",
             phase: "uploading",
-            route: "session",
+            route: "gh",
             at: "2026-08-04T10:00:00Z",
         });
         emit({
@@ -372,7 +371,7 @@ describe("rows follow the events", () => {
             type: "phase",
             syncId: "s",
             phase: "rendering",
-            route: "session",
+            route: "gh",
             at: "2026-08-04T10:05:00Z",
         });
         expect(renders.rows.value[0]?.transfer).toBeNull();
@@ -403,7 +402,7 @@ describe("rows follow the events", () => {
         });
         expect(renders.rows.value[0]?.route).toBe("gh");
         expect(routeLabel(renders.rows.value[0]?.route ?? null, t)).toContain(
-            "gh command-line tool",
+            "selected GitHub CLI account",
         );
 
         emit({
@@ -600,6 +599,36 @@ describe("who could own it: the signed-in login and its organisations", () => {
             login: "monalisa",
             owners: [{ login: "monalisa", kind: "user" }],
         });
+        renders.dispose();
+    });
+
+    it("keeps the newest account's owners when an older request finishes last", async () => {
+        let resolveFirst!: (answer: CiOwnerChoicesAnswer) => void;
+        let resolveSecond!: (answer: CiOwnerChoicesAnswer) => void;
+        const first = new Promise<CiOwnerChoicesAnswer>((resolve) => { resolveFirst = resolve; });
+        const second = new Promise<CiOwnerChoicesAnswer>((resolve) => { resolveSecond = resolve; });
+        const { bridge: host } = bridge({
+            listCiOwners: (accountId) => accountId === "first" ? first : second,
+        });
+        const renders = createCiRenders(host);
+
+        const oldLoad = renders.loadOwners("first");
+        const newLoad = renders.loadOwners("second");
+        resolveSecond({
+            ok: true,
+            login: "new-account",
+            owners: [{ login: "new-account", kind: "user" }],
+        });
+        await newLoad;
+        resolveFirst({
+            ok: true,
+            login: "old-account",
+            owners: [{ login: "old-account", kind: "user" }],
+        });
+        await oldLoad;
+
+        expect(renders.owners.value).toMatchObject({ ok: true, login: "new-account" });
+        expect(renders.loadingOwners.value).toBe(false);
         renders.dispose();
     });
 });
@@ -802,9 +831,8 @@ describe("clearing a stale preflight report", () => {
             repository: null,
             repositoryFailure: null,
             routeReport: {
-                route: "session",
+                route: "gh",
                 describe: "Using this application's GitHub sign-in (octocat).",
-                session: { signedIn: true, usable: true, reason: null },
                 gh: {
                     availability: "not-checked",
                     version: null,
@@ -890,6 +918,43 @@ describe("an existing repository, picked instead of typed", () => {
         await renders.loadRepositories();
         expect(renders.repositories.value).toEqual([]);
         expect(renders.repositoriesFailure.value).toBe("offline");
+        renders.dispose();
+    });
+
+    it("keeps the newest account's repositories when an older request finishes last", async () => {
+        let resolveFirst!: (answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>) => void;
+        let resolveSecond!: (answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>) => void;
+        const first = new Promise<Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>>(
+            (resolve) => { resolveFirst = resolve; },
+        );
+        const second = new Promise<Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>>(
+            (resolve) => { resolveSecond = resolve; },
+        );
+        const repository = (owner: string): CiRepositoryChoice => ({
+            owner,
+            name: "maps",
+            fullName: `${owner}/maps`,
+            private: true,
+            canWrite: true,
+            htmlUrl: `https://github.test/${owner}/maps`,
+        });
+        const { bridge: host } = bridge({
+            listExistingRepositories: (accountId) => accountId === "first" ? first : second,
+        });
+        const renders = createCiRenders(host);
+
+        const oldLoad = renders.loadRepositories("first");
+        const newLoad = renders.loadRepositories("second");
+        resolveSecond({ ok: true, value: [repository("new-account")] });
+        await newLoad;
+        resolveFirst({ ok: true, value: [repository("old-account")] });
+        await oldLoad;
+
+        expect(renders.repositories.value.map((choice) => choice.fullName)).toEqual([
+            "new-account/maps",
+        ]);
+        expect(renders.repositoriesFailure.value).toBeNull();
+        expect(renders.loadingRepositories.value).toBe(false);
         renders.dispose();
     });
 });

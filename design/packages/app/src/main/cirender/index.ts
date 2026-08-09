@@ -85,7 +85,6 @@ export {
     LOG_TAIL_LINES,
     RENDERED_MAP_ARTIFACT,
     RENDER_WORKFLOW_FILE,
-    artifactDownloadHeaders,
     dispatchWorkflow,
     findDispatchedRun,
     listRunArtifacts,
@@ -122,7 +121,7 @@ export type {
     ProcessToFileResult,
 } from "./gh.js";
 
-export { ghTransport, resolveTransport, sessionTransport } from "./transport.js";
+export { brokerCliTransport, resolveTransport } from "./transport.js";
 export type {
     CiAssetUpload,
     CiRelease,
@@ -131,12 +130,11 @@ export type {
     CiRoute,
     CiTransport,
     CiUploadProgress,
-    GhTransportOptions,
     ResolveTransportOptions,
     ResolvedTransport,
     RouteGhReport,
     RouteReport,
-    SessionTransportOptions,
+    BrokerCliTransportOptions,
 } from "./transport.js";
 
 export { uploadWorldForRender } from "./upload.js";
@@ -219,7 +217,6 @@ export {
     firstUnsuccessfulJob,
 } from "./sync.js";
 export type {
-    BackupSurface,
     CiJobReport,
     CiPreflight,
     CiRenderSyncOptions,
@@ -232,20 +229,15 @@ export type {
     CiSyncSummary,
 } from "./sync.js";
 
-// The guided setup card's own data: owner choices, a name suggestion, and whether GitHub
-// already has that name. See `setup.ts` for why each of the three answers what it does.
+// The guided setup card's pure name suggestion and renderer-visible result shapes.
 export {
     CI_REPOSITORY_NAME_FALLBACK,
     MAX_CI_REPOSITORY_NAME_LENGTH,
-    checkCiRepositoryNameAvailability,
-    listCiOwnerChoices,
     suggestCiRepositoryName,
 } from "./setup.js";
 export type {
-    CheckCiRepositoryNameOptions,
     CiOwnerChoice,
     CiOwnerChoicesAnswer,
-    CiOwnerChoicesOptions,
     CiRepositoryNameAvailability,
 } from "./setup.js";
 

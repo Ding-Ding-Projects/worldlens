@@ -9,6 +9,13 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { nodeProcessRunner } from "../cirender/gh.js";
+import {
+    GhCredentialError,
+    type GhCliAccountProvider,
+    type GhCredentialAccess,
+} from "../ghcli/credentialBroker.js";
+import { listGhOwners } from "../ghcli/repositories.js";
+import { createScopedProcessRunner } from "../ghcli/scopedRunner.js";
 import { buildAdoptionPlan, probeAdoptionCandidates } from "./adopt.js";
 import type { AdoptionCandidateInput, AdoptionPlan, AdoptionSignal } from "./adopt.js";
 import { WorldRepoHost } from "./repo.js";
@@ -46,6 +53,7 @@ export type Answer<T> = { readonly ok: true; readonly value: T } | { readonly ok
 
 export interface WorldRepoIpcOptions extends WorldRepoHostOptions {
     readonly ipcMain: IpcMain;
+    readonly account?: GhCliAccountProvider | undefined;
     readonly broadcast: (event: WorldRepoEvent) => void;
 }
 
@@ -57,7 +65,7 @@ export interface WorldRepoIpc {
 export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc {
     // Adoption reads through the same runner `host` itself spawns `git`/`gh` with, so a test
     // that injects one sees adoption's own `gh api` calls exactly as it sees a sync's.
-    const runner = options.runner ?? nodeProcessRunner();
+    const runner = createScopedProcessRunner(options.runner ?? nodeProcessRunner());
     const host = new WorldRepoHost({
         workRoot: options.workRoot,
         onEvent: options.broadcast,
@@ -67,9 +75,37 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
         ...(options.remoteUrl === undefined ? {} : { remoteUrl: options.remoteUrl }),
     });
 
-    options.ipcMain.handle("worldrepo:owners", async (): Promise<Answer<readonly WorldRepoOwner[]>> => {
+    const withAccount = async <T>(
+        request: unknown,
+        access: GhCredentialAccess,
+        operation: (resolvedAccountId?: string) => Promise<T>,
+        durableAccountId?: string | null,
+    ): Promise<T> => {
+        if (options.account === undefined) {
+            return await operation(durableAccountId ?? readAccountId(request) ?? undefined);
+        }
+        const lease = await options.account(
+            durableAccountId ?? readAccountId(request) ?? undefined,
+            access,
+        );
+        if (lease === null) {
+            throw new GhCredentialError(
+                "account-not-found",
+                "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+            );
+        }
+        return await lease.withAccount(
+            async (accountRunner) =>
+                await runner.withRunner(accountRunner, async () => await operation(lease.accountId)),
+        );
+    };
+
+    options.ipcMain.handle("worldrepo:owners", async (_event, request): Promise<Answer<readonly WorldRepoOwner[]>> => {
         try {
-            return { ok: true, value: await host.owners() };
+            if (options.account === undefined) return { ok: true, value: await host.owners() };
+            const lease = await options.account(readAccountId(request) ?? undefined, "read");
+            if (lease === null) return { ok: false, message: "No GitHub CLI account is signed in." };
+            return { ok: true, value: await listGhOwners(lease) };
         } catch (error) {
             return { ok: false, message: sentence(error) };
         }
@@ -83,7 +119,10 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
                 return { ok: false, message: "A world folder, a repository owner and a name are required." };
             }
             try {
-                return { ok: true, value: await host.preflight(parsed) };
+                return {
+                    ok: true,
+                    value: await withAccount(request, "read", async () => await host.preflight(parsed)),
+                };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
             }
@@ -105,7 +144,19 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
                     },
                 };
             }
-            return await host.sync(parsed);
+            try {
+                return await withAccount(
+                    request,
+                    "write",
+                    async (accountId) =>
+                        await host.sync({
+                            ...parsed,
+                            ...(accountId === undefined ? {} : { accountId }),
+                        }),
+                );
+            } catch (error) {
+                return accountFailure(error);
+            }
         },
     );
 
@@ -124,7 +175,17 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
                     },
                 };
             }
-            return await host.remove(parsed);
+            try {
+                const saved = await host.readRecord(parsed);
+                return await withAccount(
+                    request,
+                    "write",
+                    async () => await host.remove(parsed),
+                    saved?.accountId,
+                );
+            } catch (error) {
+                return accountFailure(error);
+            }
         },
     );
 
@@ -158,7 +219,21 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
                     },
                 };
             }
-            return await host.resume(parsed);
+            try {
+                const saved = await host.readRecord(parsed);
+                return await withAccount(
+                    request,
+                    "write",
+                    async (accountId) =>
+                        await host.resume({
+                            ...parsed,
+                            ...(accountId === undefined ? {} : { accountId }),
+                        }),
+                    saved?.accountId,
+                );
+            } catch (error) {
+                return accountFailure(error);
+            }
         },
     );
 
@@ -178,7 +253,11 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
             try {
                 return {
                     ok: true,
-                    value: await host.remoteTip(owner, repo, branch ?? undefined),
+                    value: await withAccount(
+                        request,
+                        "read",
+                        async () => await host.remoteTip(owner, repo, branch ?? undefined),
+                    ),
                 };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
@@ -203,10 +282,12 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
             try {
                 return {
                     ok: true,
-                    value: await probeAdoptionCandidates(host, runner, parsed.candidates, {
-                        ...(parsed.branch === null ? {} : { branch: parsed.branch }),
-                        ...(parsed.maxProbes === null ? {} : { maxProbes: parsed.maxProbes }),
-                    }),
+                    value: await withAccount(request, "read", async () =>
+                        await probeAdoptionCandidates(host, runner, parsed.candidates, {
+                            ...(parsed.branch === null ? {} : { branch: parsed.branch }),
+                            ...(parsed.maxProbes === null ? {} : { maxProbes: parsed.maxProbes }),
+                        }),
+                    ),
                 };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
@@ -233,7 +314,11 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
             try {
                 return {
                     ok: true,
-                    value: await buildAdoptionPlan(host, runner, { owner, repo, ...(branch === null ? {} : { branch }) }),
+                    value: await withAccount(
+                        request,
+                        "read",
+                        async () => await buildAdoptionPlan(host, runner, { owner, repo, ...(branch === null ? {} : { branch }) }),
+                    ),
                 };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
@@ -286,7 +371,14 @@ function readTarget(value: unknown): WorldRepoTarget | null {
     const repo = readText(row["repo"]);
     if (worldPath === null || owner === null || repo === null) return null;
     const branch = readText(row["branch"]);
-    return { worldPath, owner, repo, ...(branch === null ? {} : { branch }) };
+    const accountId = readAccountId(value);
+    return {
+        worldPath,
+        owner,
+        repo,
+        ...(accountId === null ? {} : { accountId }),
+        ...(branch === null ? {} : { branch }),
+    };
 }
 
 function readSync(value: unknown): WorldRepoSyncRequest | null {
@@ -305,6 +397,32 @@ function readText(value: unknown): string | null {
     if (typeof value !== "string") return null;
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
+}
+
+function readAccountId(value: unknown): string | null {
+    return typeof value === "object" && value !== null
+        ? readText((value as Record<string, unknown>)["accountId"])
+        : null;
+}
+
+function accountFailure(error: unknown): {
+    ok: false;
+    failure: {
+        code: string;
+        message: string;
+        detail: null;
+        needsGhSignIn: boolean;
+    };
+} {
+    return {
+        ok: false,
+        failure: {
+            code: error instanceof GhCredentialError ? error.code : "account-failed",
+            message: sentence(error),
+            detail: null,
+            needsGhSignIn: error instanceof GhCredentialError ? error.needsSignIn : false,
+        },
+    };
 }
 
 function sentence(error: unknown): string {

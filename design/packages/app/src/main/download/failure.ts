@@ -18,6 +18,8 @@ export type DownloadFailureCode =
     | "invalid-request"
     /** A download under this id is already in flight. */
     | "already-running"
+    /** The selected GitHub CLI account cannot currently authorize this operation. */
+    | "account-unavailable"
     /** The release does not exist, or this machine is not allowed to see it. */
     | "release-not-found"
     /** The release exists but carries nothing by that name. */
@@ -71,6 +73,12 @@ export function invalidRequest(message: string): DownloadFailure {
 
 export function alreadyRunning(downloadId: string): DownloadFailure {
     return failure("already-running", `A download of '${downloadId}' is already in progress.`);
+}
+
+export function accountUnavailable(message: string): DownloadFailure {
+    return failure("account-unavailable", message, {
+        settings: { surface: "settings", anchor: "github-account", missing: false },
+    });
 }
 
 export function releaseNotFound(reference: string, status: number, detail: string): DownloadFailure {

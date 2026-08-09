@@ -198,7 +198,7 @@ export interface WorldRepo {
     readonly planning: Ref<boolean>;
     readonly planFailure: Ref<string | null>;
 
-    loadOwners(): Promise<void>;
+    loadOwners(accountId?: string): Promise<void>;
     loadRecords(): Promise<void>;
     check(target: WorldRepoTarget): Promise<WorldRepoPreflight | null>;
     sync(request: WorldRepoSyncRequest): Promise<WorldRepoSyncResult | null>;
@@ -207,9 +207,10 @@ export interface WorldRepo {
     /** Stops tracking one target. Never touches the world folder; deletes only the branch. */
     remove(target: WorldRepoTarget): Promise<boolean>;
     /** Checks a bounded list of candidates for this application's own markers. */
-    probeAdoption(candidates: readonly WorldRepoAdoptionCandidate[], branch?: string): Promise<void>;
+    probeAdoption(candidates: readonly WorldRepoAdoptionCandidate[], branch?: string, accountId?: string): Promise<void>;
     /** What adopting one repository would restore, or an honest refusal. */
-    planAdoption(owner: string, repo: string, branch?: string): Promise<WorldRepoAdoptionPlan | null>;
+    planAdoption(owner: string, repo: string, branch?: string, accountId?: string): Promise<WorldRepoAdoptionPlan | null>;
+    clearPreflight(): void;
     clearPlan(): void;
     dispose(): void;
 }
@@ -246,6 +247,8 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
     const planFailure = ref<string | null>(null);
 
     let nextLogId = 1;
+    let ownersLoadToken = 0;
+    let preflightLoadToken = 0;
 
     const rows = computed<readonly WorldRepoRow[]>(() =>
         Object.values(byKey.value).sort((left, right) => {
@@ -412,18 +415,21 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
         planning,
         planFailure,
 
-        async loadOwners(): Promise<void> {
+        async loadOwners(accountId?: string): Promise<void> {
             if (bridge === null) return;
+            const token = ++ownersLoadToken;
             loadingOwners.value = true;
+            owners.value = [];
             ownersFailure.value = null;
             try {
-                const answer = await bridge.owners();
+                const answer = await bridge.owners(accountId);
+                if (token !== ownersLoadToken) return;
                 if (answer.ok) owners.value = answer.value;
                 else ownersFailure.value = answer.message;
             } catch (error) {
-                ownersFailure.value = describe(error);
+                if (token === ownersLoadToken) ownersFailure.value = describe(error);
             } finally {
-                loadingOwners.value = false;
+                if (token === ownersLoadToken) loadingOwners.value = false;
             }
         },
 
@@ -431,6 +437,7 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
 
         async check(target: WorldRepoTarget): Promise<WorldRepoPreflight | null> {
             if (bridge === null) return null;
+            const token = ++preflightLoadToken;
             checking.value = true;
             preflightFailure.value = null;
             // Cleared, not kept: a stale report beside a repository name that was just typed
@@ -438,6 +445,7 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
             preflight.value = null;
             try {
                 const answer = await bridge.preflight(target);
+                if (token !== preflightLoadToken) return null;
                 if (!answer.ok) {
                     preflightFailure.value = answer.message;
                     return null;
@@ -445,11 +453,18 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
                 preflight.value = answer.value;
                 return answer.value;
             } catch (error) {
-                preflightFailure.value = describe(error);
+                if (token === preflightLoadToken) preflightFailure.value = describe(error);
                 return null;
             } finally {
-                checking.value = false;
+                if (token === preflightLoadToken) checking.value = false;
             }
+        },
+
+        clearPreflight(): void {
+            preflightLoadToken += 1;
+            preflight.value = null;
+            preflightFailure.value = null;
+            checking.value = false;
         },
 
         sync: (request: WorldRepoSyncRequest) =>
@@ -488,7 +503,7 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
             }
         },
 
-        async probeAdoption(candidates: readonly WorldRepoAdoptionCandidate[], branch?: string): Promise<void> {
+        async probeAdoption(candidates: readonly WorldRepoAdoptionCandidate[], branch?: string, accountId?: string): Promise<void> {
             if (bridge === null) return;
             probing.value = true;
             probeFailure.value = null;
@@ -496,6 +511,7 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
                 const answer = await bridge.adoptionProbe({
                     candidates,
                     ...(branch === undefined ? {} : { branch }),
+                    ...(accountId === undefined ? {} : { accountId }),
                 });
                 if (answer.ok) adoptionSignals.value = answer.value;
                 else probeFailure.value = answer.message;
@@ -506,13 +522,18 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
             }
         },
 
-        async planAdoption(owner: string, repo: string, branch?: string): Promise<WorldRepoAdoptionPlan | null> {
+        async planAdoption(owner: string, repo: string, branch?: string, accountId?: string): Promise<WorldRepoAdoptionPlan | null> {
             if (bridge === null) return null;
             planning.value = true;
             planFailure.value = null;
             plan.value = null;
             try {
-                const answer = await bridge.adoptionPlan({ owner, repo, ...(branch === undefined ? {} : { branch }) });
+                const answer = await bridge.adoptionPlan({
+                    owner,
+                    repo,
+                    ...(branch === undefined ? {} : { branch }),
+                    ...(accountId === undefined ? {} : { accountId }),
+                });
                 if (!answer.ok) {
                     planFailure.value = answer.message;
                     return null;

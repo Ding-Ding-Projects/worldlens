@@ -57,7 +57,7 @@ import { join } from "node:path";
 import { findWorldDirectories } from "@worldlens/render-actions";
 import { ActionsCallError } from "../cirender/actions.js";
 import { GH_COMMAND, detectGh, ghApiJson, ghApiSend, nodeProcessRunner } from "../cirender/gh.js";
-import type { GhStatus, ProcessRunner } from "../cirender/gh.js";
+import type { GhStatus, ProcessResult, ProcessRunner } from "../cirender/gh.js";
 import { GIT_COMMAND } from "../pages/hosting.js";
 import {
     WORLD_REPO_MAX_INTRODUCED_BYTES,
@@ -134,6 +134,8 @@ export interface WorldRepoFailure {
 }
 
 export interface WorldRepoTarget {
+    /** Secret-free identifier of the exact gh account selected for this operation. */
+    readonly accountId?: string | undefined;
     /** Absolute path to the world folder on disk. Never copied; the git work-tree itself. */
     readonly worldPath: string;
     readonly owner: string;
@@ -195,9 +197,12 @@ export type WorldRepoSyncStage = WorldRepoPhase | "finished";
 export interface WorldRepoRecord {
     readonly version: number;
     readonly worldPath: string;
+    /** Secret-free gh account identifier used to keep restart actions on the original host. */
+    readonly accountId: string | null;
     readonly owner: string;
     readonly repo: string;
     readonly branch: string;
+    readonly repositoryUrl: string | null;
     readonly stage: WorldRepoSyncStage;
     readonly commit: string | null;
     readonly pushVerified: boolean;
@@ -328,6 +333,21 @@ function sentence(error: unknown): string {
     return text.length > 0 ? text : "The world could not be synced, and nothing said why.";
 }
 
+function needsGhSignInFromCli(stderr: string): boolean {
+    return /\bHTTP (?:401|403)\b|authentication|authorization|not authorized|insufficient scope|SSO/i.test(
+        stderr,
+    );
+}
+
+/** Keep credential-helper transport diagnostics inside the main process. */
+function credentialGitFailureDetail(result: ProcessResult): string {
+    if (!result.started) return "Git could not be started. Its diagnostic output was withheld.";
+    if (result.code === null) {
+        return "Git stopped without an exit code. Its diagnostic output was withheld.";
+    }
+    return `Git exited with code ${String(result.code)}. Its diagnostic output was withheld.`;
+}
+
 async function exists(path: string): Promise<boolean> {
     try {
         await stat(path);
@@ -384,9 +404,11 @@ interface WorldRepoBatchState {
 interface WorldRepoSyncStateV2 {
     readonly version: 2;
     readonly worldPath: string;
+    readonly accountId: string | null;
     readonly owner: string;
     readonly repo: string;
     readonly branch: string;
+    readonly repositoryUrl: string;
     readonly stage: WorldRepoSyncStage;
     readonly commit: string | null;
     readonly pushVerified: boolean;
@@ -647,9 +669,11 @@ export class WorldRepoHost {
             return {
                 version: typeof row["version"] === "number" ? row["version"] : 1,
                 worldPath,
+                accountId: text(row["accountId"]),
                 owner,
                 repo,
                 branch: text(row["branch"]) ?? DEFAULT_WORLD_BRANCH,
+                repositoryUrl: text(row["repositoryUrl"]),
                 stage: (text(row["stage"]) ?? "finished") as WorldRepoSyncStage,
                 commit: text(row["commit"]),
                 pushVerified: row["pushVerified"] === true,
@@ -676,9 +700,13 @@ export class WorldRepoHost {
         const row = await this.readRecordRow(key);
         if (row === null || row["version"] !== 2 || !Array.isArray(row["batches"])) return null;
         const worldPath = text(row["worldPath"]);
+        const accountId = text(row["accountId"]);
         const owner = text(row["owner"]);
         const repo = text(row["repo"]);
         const branch = text(row["branch"]);
+        const repositoryUrl =
+            text(row["repositoryUrl"]) ??
+            (owner === null || repo === null ? null : `https://github.com/${owner}/${repo}`);
         const stage = text(row["stage"]);
         const snapshotId = text(row["snapshotId"]);
         const attemptId = text(row["attemptId"]);
@@ -716,6 +744,7 @@ export class WorldRepoHost {
             owner === null ||
             repo === null ||
             branch === null ||
+            repositoryUrl === null ||
             stage === null ||
             snapshotId === null ||
             attemptId === null ||
@@ -750,9 +779,11 @@ export class WorldRepoHost {
         return {
             version: 2,
             worldPath,
+            accountId,
             owner,
             repo,
             branch,
+            repositoryUrl,
             stage: stage as WorldRepoSyncStage,
             commit,
             pushVerified: row["pushVerified"] === true,
@@ -1060,6 +1091,9 @@ export class WorldRepoHost {
         return this.startSync(
             {
                 worldPath: saved.worldPath,
+                ...((saved.accountId ?? target.accountId) === undefined
+                    ? {}
+                    : { accountId: saved.accountId ?? target.accountId }),
                 owner: saved.owner,
                 repo: saved.repo,
                 branch: saved.branch,
@@ -1124,6 +1158,7 @@ export class WorldRepoHost {
         const owner = request.owner.trim();
         const repo = request.repo.trim();
         const worldPath = request.worldPath;
+        const accountId = request.accountId ?? resumeState?.accountId ?? null;
         const notes: string[] = [];
 
         if (owner.length === 0 || repo.length === 0 || worldPath.length === 0) {
@@ -1143,6 +1178,7 @@ export class WorldRepoHost {
         if (resumeState === null) {
             await this.writeStageRecord(key, {
                 worldPath,
+                accountId,
                 owner,
                 repo,
                 branch,
@@ -1287,16 +1323,19 @@ export class WorldRepoHost {
                     throw new WorldRepoRefusal(
                         "fetch-failed",
                         "The current world branch could not be fetched, so a bounded incremental upload cannot be proven safe.",
-                        fetch.stderr.trim(),
+                        credentialGitFailureDetail(fetch),
+                        needsGhSignInFromCli(fetch.stderr),
                     );
                 }
             }
             state = await this.prepareSnapshot({
                 key,
                 worldPath,
+                accountId,
                 owner,
                 repo,
                 branch,
+                repositoryUrl,
                 gitDir,
                 files: snapshotFiles,
                 world,
@@ -1392,7 +1431,8 @@ export class WorldRepoHost {
                     targetPush.code === 0
                         ? "The final branch update reported success but its exact commit could not be read back."
                         : `GitHub refused the leased update to ${owner}/${repo} because the target changed or its rules rejected it.`,
-                    targetPush.stderr.trim(),
+                    credentialGitFailureDetail(targetPush),
+                    targetPush.code !== 0 && needsGhSignInFromCli(targetPush.stderr),
                 );
             }
         }
@@ -1434,7 +1474,7 @@ export class WorldRepoHost {
             owner,
             repo,
             branch,
-            repositoryUrl: repositoryUrl ?? `https://github.com/${owner}/${repo}`,
+            repositoryUrl,
             commit,
             pushVerified: true,
             bytes: world.bytes,
@@ -1450,9 +1490,11 @@ export class WorldRepoHost {
     private async prepareSnapshot(input: {
         readonly key: string;
         readonly worldPath: string;
+        readonly accountId: string | null;
         readonly owner: string;
         readonly repo: string;
         readonly branch: string;
+        readonly repositoryUrl: string;
         readonly gitDir: string;
         readonly files: readonly WorldFileSnapshot[];
         readonly world: WorldRepoReport;
@@ -1672,9 +1714,11 @@ export class WorldRepoHost {
         const state: WorldRepoSyncStateV2 = {
             version: 2,
             worldPath: input.worldPath,
+            accountId: input.accountId,
             owner: input.owner,
             repo: input.repo,
             branch: input.branch,
+            repositoryUrl: input.repositoryUrl,
             stage: "pushing",
             commit: batches.at(-1)?.commit ?? null,
             pushVerified: false,
@@ -1905,7 +1949,8 @@ export class WorldRepoHost {
                     pushed.code === 0
                         ? `Batch ${String(index + 1)} could not be read back after upload.`
                         : `GitHub refused batch ${String(index + 1)} of this world upload.`,
-                    pushed.stderr.trim(),
+                    credentialGitFailureDetail(pushed),
+                    pushed.code !== 0 && needsGhSignInFromCli(pushed.stderr),
                 );
             }
             completedBytes += batch.sourceBytes;
@@ -1941,6 +1986,8 @@ export class WorldRepoHost {
             "credential.helper=",
             "-c",
             `credential.helper=!${GH_COMMAND} auth git-credential`,
+            "-c",
+            "credential.interactive=false",
         ];
     }
 
@@ -2022,7 +2069,8 @@ export class WorldRepoHost {
             throw new WorldRepoRefusal(
                 "remote-read-failed",
                 `Git could not read ${ref} back from the repository.`,
-                result.stderr.trim(),
+                credentialGitFailureDetail(result),
+                needsGhSignInFromCli(result.stderr),
             );
         }
         for (const line of result.stdout.split(/\r?\n/)) {
@@ -2116,10 +2164,17 @@ export class WorldRepoHost {
         visibility: "public" | "private" | undefined,
         signal: AbortSignal,
         notes: string[],
-    ): Promise<string | null> {
+    ): Promise<string> {
         const call = { runner: this.runner, signal };
         const found = record(await ghJsonOrNull(`repos/${owner}/${repo}`, call));
-        if (found !== null) return text(found["html_url"]);
+        if (found !== null) {
+            const url = text(found["html_url"]);
+            if (url !== null) return url;
+            throw new WorldRepoRefusal(
+                "repo-url-missing",
+                `${owner}/${repo} exists, but GitHub CLI did not return its repository address.`,
+            );
+        }
 
         const wanted = visibility ?? "private";
         const result = await this.runner.run(
@@ -2135,14 +2190,24 @@ export class WorldRepoHost {
             { signal },
         );
         if (!result.started || result.code !== 0) {
+            const needsGhSignIn = needsGhSignInFromCli(result.stderr);
             throw new WorldRepoRefusal(
                 "repo-refused",
                 `${owner}/${repo} does not exist and could not be created.`,
                 result.stderr.trim(),
+                needsGhSignIn,
             );
         }
         notes.push(`Created ${owner}/${repo} as a ${wanted} repository.`);
-        return `https://github.com/${owner}/${repo}`;
+        const created = record(await ghJsonOrNull(`repos/${owner}/${repo}`, call));
+        const createdUrl = created === null ? null : text(created["html_url"]);
+        if (createdUrl === null) {
+            throw new WorldRepoRefusal(
+                "repo-verification-failed",
+                `${owner}/${repo} was created, but GitHub CLI could not verify its repository address.`,
+            );
+        }
+        return createdUrl;
     }
 
     private git(
@@ -2177,6 +2242,7 @@ export class WorldRepoHost {
         key: string,
         input: {
             readonly worldPath: string;
+            readonly accountId: string | null;
             readonly owner: string;
             readonly repo: string;
             readonly branch: string;
@@ -2191,9 +2257,11 @@ export class WorldRepoHost {
             await this.writeRecordValue(key, {
                 version: 1,
                 worldPath: input.worldPath,
+                accountId: input.accountId,
                 owner: input.owner,
                 repo: input.repo,
                 branch: input.branch,
+                repositoryUrl: null,
                 stage: input.stage,
                 commit: input.commit,
                 pushVerified: input.pushVerified,
@@ -2281,7 +2349,7 @@ function toFailure(error: unknown): WorldRepoFailure {
             code: `http-${String(error.status)}`,
             message: error.message,
             detail: error.url,
-            needsGhSignIn: error.status === 401,
+            needsGhSignIn: error.status === 401 || error.status === 403,
         };
     }
     return { code: "failed", message: sentence(error), detail: null, needsGhSignIn: false };

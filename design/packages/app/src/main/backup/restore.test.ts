@@ -15,6 +15,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { fakeGhAccountLease } from "../ghcli/testLease.js";
 import { BackupRunner } from "./runner.js";
 import type { BackupEvent } from "./runner.js";
 import { BackupRestoreRunner, RestoreRefusal } from "./restore.js";
@@ -111,6 +112,15 @@ function fakeGitHub(options: { canWrite?: boolean } = {}) {
             return answer(200, asset.bytes, asset.bytes);
         }
 
+        if (method === "GET" && url.includes("/releases/assets/")) {
+            const id = Number(url.split("/").at(-1));
+            const asset = [...releases.values()]
+                .flatMap((release) => release.assets)
+                .find((candidate) => candidate.id === id);
+            if (asset === undefined) return answer(404, "");
+            return answer(200, asset.bytes, asset.bytes);
+        }
+
         if (method === "GET" && /\/repos\/[^/]+\/[^/]+$/.test(url)) {
             return answer(200, {
                 full_name: "o/r",
@@ -191,25 +201,67 @@ function fakeGitHub(options: { canWrite?: boolean } = {}) {
     };
 }
 
+function accountProvider(github: ReturnType<typeof fakeGitHub>) {
+    return async (accountId?: string) =>
+        fakeGhAccountLease({
+            accountId: accountId ?? "github.com:test",
+            api: github.fetch,
+            downloadApi: async (url, destination, options) => {
+                const response = await github.fetch(url, {
+                    headers: { accept: "application/octet-stream" },
+                    ...(options?.signal === undefined ? {} : { signal: options.signal }),
+                });
+                if (!response.ok) {
+                    return { started: true, code: 1, bytes: 0, stderr: `download failed (HTTP ${String(response.status)})` };
+                }
+                const bytes = Buffer.from(await response.arrayBuffer());
+                await writeFile(destination, bytes);
+                return { started: true, code: 0, bytes: bytes.length, stderr: "" };
+            },
+            uploadReleaseAsset: async (_owner, _repo, tag, assetName, filePath, options) => {
+                const release = github.releases.get(tag);
+                if (release === undefined) {
+                    return { started: true, code: 1, stdout: "", stderr: "release missing" };
+                }
+                const bytes = await readFile(filePath);
+                const body = new ReadableStream<Uint8Array>({
+                    start(controller) {
+                        controller.enqueue(bytes);
+                        controller.close();
+                    },
+                });
+                const response = await github.fetch(
+                    `https://uploads.test/repos/o/r/releases/${String(release.id)}/assets?name=${encodeURIComponent(assetName)}`,
+                    {
+                        method: "POST",
+                        body: body as unknown as NonNullable<RequestInit["body"]>,
+                        ...(options?.signal === undefined ? {} : { signal: options.signal }),
+                    },
+                );
+                return {
+                    started: true,
+                    code: response.ok ? 0 : 1,
+                    stdout: "",
+                    stderr: response.ok ? "" : `upload failed (HTTP ${String(response.status)})`,
+                };
+            },
+        });
+}
+
 function makeRunner(github: ReturnType<typeof fakeGitHub>, events: BackupEvent[] = []) {
     return new BackupRunner({
         storageDir: () => join(workDir, "storage"),
-        token: () => "t0k3n",
-        fetch: github.fetch,
+        account: accountProvider(github),
         onEvent: (event) => events.push(event),
         appVersion: "0.1.0",
-        apiBase: "https://api.test",
-        uploadsBase: "https://uploads.test",
     });
 }
 
 function makeRestorer(github: ReturnType<typeof fakeGitHub>, events: RestoreEvent[] = []) {
     return new BackupRestoreRunner({
         storageDir: () => join(workDir, "restoreStorage"),
-        token: () => "t0k3n",
-        fetch: github.fetch,
+        account: accountProvider(github),
         onEvent: (event) => events.push(event),
-        apiBase: "https://api.test",
     });
 }
 

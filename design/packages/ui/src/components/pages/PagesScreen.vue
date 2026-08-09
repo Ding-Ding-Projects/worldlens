@@ -25,6 +25,13 @@ import {
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import GhEntityPicker from "../github/GhEntityPicker.vue";
+import {
+    createGhCliAccountsStore,
+    defaultGhCliAccountId,
+} from "../github/ghCliAccountsStore.js";
+import type { GhCliBridge } from "../github/ghCliBridge.js";
+import { resolveBackupBridge, type BackupBridge, type RepositoryChoice } from "../backup/backupBridge.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { raiseNotice } from "../../stores/notices.js";
 import {
@@ -78,6 +85,8 @@ const props = withDefaults(
          * the unsupported state is what should be shown.
          */
         bridge?: PagesBridge | null | undefined;
+        accountsBridge?: GhCliBridge | null | undefined;
+        repoBridge?: BackupBridge | null | undefined;
     }>(),
     {},
 );
@@ -85,12 +94,16 @@ const props = withDefaults(
 const emit = defineEmits<{
     /** Open a URL in the system browser. */
     open: [url: string];
+    /** Open the in-app gh CLI account recovery surface. */
+    openSettings: [anchor: "github-account"];
 }>();
 
 const { t } = useI18n();
 
 const bridge = props.bridge === undefined ? resolvePagesBridge() : props.bridge;
+const repoBridge = props.repoBridge === undefined ? resolveBackupBridge() : props.repoBridge;
 const pages = createPagesHosting(bridge);
+const accountsList = createGhCliAccountsStore({ bridge: props.accountsBridge ?? null });
 
 const renderId = ref("");
 const owner = ref("");
@@ -98,6 +111,96 @@ const repo = ref("");
 const branch = ref("gh-pages");
 const visibility = ref<"public" | "private">("public");
 const acknowledge = ref(false);
+const selectedAccountId = ref<string | null>(null);
+const accountsLoaded = ref(false);
+const accountOrdered = computed(() =>
+    [...accountsList.accounts.value].sort((left, right) =>
+        `${left.login}\0${left.host}`.localeCompare(`${right.login}\0${right.host}`),
+    ),
+);
+const effectiveAccountId = computed<string | undefined>(
+    () => selectedAccountId.value ?? defaultGhCliAccountId(accountOrdered.value) ?? undefined,
+);
+const accountItems = computed(() =>
+    accountOrdered.value.map((account) => {
+        const label = `${account.login} — ${account.host}`;
+        const recovery = account.healthy
+            ? null
+            : t("pages.account.reauthenticationRequired", "reauthentication required");
+        return {
+            title: `${label}${account.active ? " (active)" : ""}${recovery === null ? "" : ` — ${recovery}`}`,
+            value: account.id,
+            searchText: [account.login, account.host, ...account.scopes, recovery ?? "", account.stateDetail ?? ""].join(" "),
+            props: { disabled: !account.healthy },
+        };
+    }),
+);
+const ownerItems = computed(() =>
+    pages.owners.value.map((entry) => ({
+        title:
+            entry.kind === "organization"
+                ? t("pages.owner.organization", { login: entry.login }, "{login} (organization)")
+                : t("pages.owner.personal", { login: entry.login }, "{login} (personal)"),
+        value: entry.login,
+        searchText: `${entry.login} ${entry.kind}`,
+    })),
+);
+const repositories = ref<readonly RepositoryChoice[]>([]);
+const repositoriesFailure = ref<string | null>(null);
+const loadingRepositories = ref(false);
+let repositoriesLoadToken = 0;
+const repositoryItems = computed(() =>
+    repositories.value.map((entry) => ({
+        title: entry.fullName,
+        value: entry.fullName,
+        searchText: `${entry.owner} ${entry.name} ${entry.fullName} ${entry.private ? "private" : "public"}`,
+    })),
+);
+
+async function loadAccountScope(accountId = effectiveAccountId.value): Promise<void> {
+    const token = ++repositoriesLoadToken;
+    pages.clearPreflight();
+    pages.owners.value = [];
+    repositories.value = [];
+    repositoriesFailure.value = null;
+    const owners = pages.canListOwners ? pages.loadOwners(accountId) : Promise.resolve();
+    if (repoBridge?.listBackupRepositories !== undefined) {
+        loadingRepositories.value = true;
+        try {
+            const answer = await repoBridge.listBackupRepositories(accountId);
+            if (token !== repositoriesLoadToken) return;
+            if (answer.ok) repositories.value = answer.value;
+            else repositoriesFailure.value = answer.message;
+        } catch (error) {
+            if (token === repositoriesLoadToken) {
+                repositoriesFailure.value = error instanceof Error ? error.message : String(error);
+            }
+        } finally {
+            if (token === repositoriesLoadToken) loadingRepositories.value = false;
+        }
+    }
+    await owners;
+}
+
+function chooseAccount(value: unknown): void {
+    if (typeof value !== "string" || value === effectiveAccountId.value) return;
+    selectedAccountId.value = value;
+    owner.value = "";
+    repo.value = "";
+    void loadAccountScope(value);
+}
+
+function chooseOwner(value: unknown): void {
+    if (typeof value === "string") owner.value = value;
+}
+
+function chooseRepository(value: unknown): void {
+    if (typeof value !== "string") return;
+    const match = repositories.value.find((entry) => entry.fullName === value);
+    if (match === undefined) return;
+    owner.value = match.owner;
+    repo.value = match.name;
+}
 
 const preflight = computed<PagesPreflight | null>(() => pages.preflight.value);
 
@@ -176,6 +279,7 @@ const blockedBecause = computed<string | null>(() => {
 
 async function check(): Promise<void> {
     await pages.check({
+        ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
         renderId: renderId.value.trim(),
         owner: owner.value.trim(),
         repo: repo.value.trim(),
@@ -185,6 +289,7 @@ async function check(): Promise<void> {
 
 async function publish(): Promise<void> {
     const result = await pages.publish({
+        ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
         renderId: renderId.value.trim(),
         owner: owner.value.trim(),
         repo: repo.value.trim(),
@@ -221,6 +326,7 @@ function copy(url: string): void {
 
 async function removeHosting(record: PagesRecord): Promise<void> {
     const gone = await pages.removeHosting({
+        ...(record.accountId === null ? {} : { accountId: record.accountId }),
         renderId: record.renderId,
         owner: record.owner,
         repo: record.repo,
@@ -236,7 +342,7 @@ async function removeHosting(record: PagesRecord): Promise<void> {
 }
 
 async function resume(site: PagesRecord): Promise<void> {
-    const result = await pages.resumePublished(site);
+    const result = await pages.resumePublished(site, site.accountId ?? undefined);
     if (result === null) return;
     raiseNotice(
         result.ok ? "info" : "error",
@@ -247,7 +353,7 @@ async function resume(site: PagesRecord): Promise<void> {
 }
 
 async function refreshStatus(site: PagesRecord): Promise<void> {
-    const refreshed = await pages.refreshPublishedStatus(site);
+    const refreshed = await pages.refreshPublishedStatus(site, site.accountId ?? undefined);
     raiseNotice(
         refreshed ? "success" : "error",
         refreshed
@@ -263,7 +369,15 @@ function rowTitle(row: PagesRow): string {
 onMounted(() => {
     void pages.loadCandidates();
     void pages.loadPublished();
-    if (pages.canListOwners) void pages.loadOwners();
+    if (accountsList.canList) {
+        void accountsList.load().then(() => {
+            accountsLoaded.value = true;
+            void loadAccountScope();
+        });
+    } else {
+        accountsLoaded.value = true;
+        void loadAccountScope();
+    }
 });
 
 onBeforeUnmount(() => {
@@ -352,17 +466,56 @@ onBeforeUnmount(() => {
                         </VRadio>
                     </VRadioGroup>
 
+                    <GhEntityPicker
+                        v-if="accountsLoaded && accountItems.length > 0"
+                        :items="accountItems"
+                        :model-value="effectiveAccountId"
+                        :search-label="t('pages.account.search', 'Search signed-in accounts')"
+                        :select-label="t('pages.account.pick', 'Publish as')"
+                        :selected-label="t('pages.account.selected', 'Selected account')"
+                        :empty-message="t('pages.account.empty', 'No GitHub CLI accounts are signed in.')"
+                        :no-match-message="t('pages.account.noMatch', 'No signed-in account matches that search.')"
+                        :hint="t('pages.account.help', 'The selected GitHub CLI account drives owner discovery, repository checks, publication, and removal without exposing its credential. Another gh process can still change that machine-wide account between commands, so avoid running gh account changes while this operation is active.')"
+                        class="mb-2"
+                        data-test-base="pages-account-picker"
+                        @update:model-value="chooseAccount"
+                    />
+                    <GhEntityPicker
+                        v-if="ownerItems.length > 0"
+                        :items="ownerItems"
+                        :model-value="owner || null"
+                        :search-label="t('pages.owner.search', 'Search personal and writable organization owners')"
+                        :select-label="t('pages.field.owner', 'Repository owner')"
+                        :selected-label="t('pages.owner.selected', 'Selected owner')"
+                        :empty-message="t('pages.owner.empty', 'No writable owners were returned by GitHub CLI.')"
+                        :no-match-message="t('pages.owner.noMatch', 'No real owner matches that search.')"
+                        :hint="t('pages.owner.help', 'Organizations appear only when GitHub confirms that the selected account may create repositories there.')"
+                        class="mb-2"
+                        data-test-base="pages-owner-picker"
+                        @update:model-value="chooseOwner"
+                    />
+                    <GhEntityPicker
+                        v-if="repositoryItems.length > 0"
+                        :items="repositoryItems"
+                        :model-value="owner && repo ? `${owner}/${repo}` : null"
+                        :search-label="t('pages.repo.search', 'Search writable repositories')"
+                        :select-label="t('pages.repo.pick', 'Choose an existing repository')"
+                        :selected-label="t('pages.repo.selected', 'Selected repository')"
+                        :empty-message="t('pages.repo.empty', 'No writable repositories were returned by GitHub CLI.')"
+                        :no-match-message="t('pages.repo.noMatch', 'No real repository matches that search.')"
+                        :hint="t('pages.repo.help', 'Up to 300 real writable repositories returned for the selected GitHub CLI account.')"
+                        class="mb-2"
+                        data-test-base="pages-repository-picker"
+                        @update:model-value="chooseRepository"
+                    />
+                    <VAlert v-if="repositoriesFailure !== null" type="warning" variant="tonal" density="compact" class="mb-2">
+                        {{ repositoriesFailure }}
+                    </VAlert>
+                    <p v-else-if="loadingRepositories" class="text-medium-emphasis mb-2" role="status">
+                        {{ t("pages.repo.loading", "Reading writable repositories...") }}
+                    </p>
                     <div class="d-flex ga-2 flex-wrap">
-                        <VSelect
-                            v-if="pages.canListOwners && pages.owners.value.length > 0"
-                            v-model="owner"
-                            :items="pages.owners.value.map((entry) => entry.login)"
-                            :label="t('pages.field.owner', 'Repository owner')"
-                            density="compact"
-                            data-test="owner-select"
-                        />
                         <VTextField
-                            v-else
                             v-model="owner"
                             :label="t('pages.field.owner', 'Repository owner')"
                             density="compact"
@@ -528,14 +681,15 @@ onBeforeUnmount(() => {
                 data-test="start-failure"
             >
                 {{ pages.startFailure.value.message }}
-                <p v-if="pages.startFailure.value.needsGhSignIn" class="mt-2">
-                    {{
-                        t(
-                            "pages.gh.signIn",
-                            "Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
-                        )
-                    }}
-                </p>
+                <VBtn
+                    v-if="pages.startFailure.value.needsGhSignIn"
+                    class="mt-2"
+                    variant="text"
+                    data-test="reauthenticate"
+                    @click="emit('openSettings', 'github-account')"
+                >
+                    {{ t("pages.gh.reauthenticate", "Reauthenticate this GitHub CLI account") }}
+                </VBtn>
             </VAlert>
 
             <!-- What is happening right now, with real numbers rather than a spinner. -->

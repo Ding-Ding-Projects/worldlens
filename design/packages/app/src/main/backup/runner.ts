@@ -43,14 +43,13 @@ import { sha256File, splitFile } from "@worldlens/parts";
 import type { PartsManifest } from "@worldlens/parts";
 import { estimateEta, formatEta } from "../download/downloader.js";
 import { packFolder } from "./archive.js";
-import type { FetchLike, BackupRelease, GitHubCallOptions } from "./github.js";
+import type { BackupRelease, GitHubCallOptions } from "./github.js";
 import {
     GitHubCallError,
     createBackupRelease,
     findExistingAssets,
     findReleaseByTag,
     readRepository,
-    uploadAsset,
 } from "./github.js";
 import {
     CHEAP_LFS_PART_SIZE_BYTES,
@@ -63,6 +62,8 @@ import { SIDECAR_ASSET_NAME, serializeSidecar } from "./sidecar.js";
 import type { BackupSidecar } from "./sidecar.js";
 import { archiveNameFor, archiveNameFromTag, inspectBackupSource, releaseTagFor } from "./source.js";
 import type { BackupSource, BackupSourceKind } from "./source.js";
+import { ghApiBaseForHost } from "../ghcli/credentialBroker.js";
+import type { GhCliAccountLease, GhCliAccountProvider } from "../ghcli/credentialBroker.js";
 import {
     backupIdFor,
     backupWorkspace,
@@ -180,6 +181,8 @@ export interface BackupRequest {
     readonly folder: string;
     readonly owner: string;
     readonly repo: string;
+    /** Secret-free id of the gh account selected for this operation. */
+    readonly accountId?: string | undefined;
     /**
      * Set only when the person has been shown, and accepted, that the repository is
      * public and this upload will be downloadable by anybody.
@@ -208,14 +211,11 @@ export type BackupResult =
 export interface BackupRunnerOptions {
     /** Where backups are staged. A function, because the person can move it while running. */
     readonly storageDir: () => string;
-    /** The signed-in token, resolved per operation. Null means nobody is signed in. */
-    readonly token: () => Promise<string | null> | string | null;
-    readonly fetch?: FetchLike | undefined;
+    /** Main-process-only gh account broker. One stable lease is acquired per operation. */
+    readonly account: GhCliAccountProvider;
     readonly onEvent?: ((event: BackupEvent) => void) | undefined;
     readonly appVersion?: string | null | undefined;
     readonly now?: (() => number) | undefined;
-    readonly apiBase?: string | undefined;
-    readonly uploadsBase?: string | undefined;
 }
 
 /** What a repository looks like before anything is uploaded to it. */
@@ -267,11 +267,15 @@ export class BackupRunner {
      * warning. It is also the only call in this feature that a person makes by typing a
      * repository name, so it is where a typo gets caught.
      */
-    async inspectRepository(owner: string, repo: string): Promise<RepositoryReport> {
-        const token = await this.#token();
-        if (token === null) throw new Error(SIGNED_OUT_MESSAGE);
+    async inspectRepository(
+        owner: string,
+        repo: string,
+        accountId?: string,
+    ): Promise<RepositoryReport> {
+        const lease = await this.#options.account(accountId, "read");
+        if (lease === null) throw new Error(SIGNED_OUT_MESSAGE);
 
-        const repository = await readRepository(owner, repo, this.#callOptions(token));
+        const repository = await readRepository(owner, repo, this.#callOptions(lease));
         const warning = repository.private
             ? ({
                   level: "note",
@@ -320,8 +324,17 @@ export class BackupRunner {
             });
         }
 
-        const token = await this.#token();
-        if (token === null) {
+        let lease: GhCliAccountLease | null;
+        try {
+            lease = await this.#options.account(request.accountId, "write");
+        } catch (error) {
+            return this.#failed("nowhere", {
+                code: "signed-out",
+                message: error instanceof Error ? error.message : SIGNED_OUT_MESSAGE,
+                needsSignIn: true,
+            });
+        }
+        if (lease === null) {
             return this.#failed("nowhere", {
                 code: "signed-out",
                 message: SIGNED_OUT_MESSAGE,
@@ -344,7 +357,7 @@ export class BackupRunner {
 
         let repository;
         try {
-            repository = await readRepository(owner, repo, this.#callOptions(token));
+            repository = await readRepository(owner, repo, this.#callOptions(lease));
         } catch (error) {
             return this.#failed("nowhere", failureFromError(error));
         }
@@ -407,7 +420,7 @@ export class BackupRunner {
                 workspace,
                 archiveName,
                 source,
-                token,
+                lease,
                 signal: controller.signal,
                 startedAt,
             });
@@ -454,7 +467,7 @@ export class BackupRunner {
         workspace: ReturnType<typeof backupWorkspace>;
         archiveName: string;
         source: BackupSource;
-        token: string;
+        lease: GhCliAccountLease;
         signal: AbortSignal;
         startedAt: number;
     }): Promise<BackupSummary> {
@@ -568,7 +581,7 @@ export class BackupRunner {
             context.owner,
             context.repo,
             context.tag,
-            this.#callOptions(context.token, signal),
+            this.#callOptions(context.lease, signal),
         );
 
         const bytesTotal = uploads.reduce((total, upload) => total + upload.bytes, 0);
@@ -611,14 +624,15 @@ export class BackupRunner {
             }
 
             const before = bytesDone;
-            await uploadAsset(
+            await this.#uploadAsset(
+                context.lease,
                 release,
                 context.owner,
                 context.repo,
                 upload.name,
                 upload.path,
                 {
-                    ...this.#callOptions(context.token, signal),
+                    signal,
                     onProgress: (progress) => {
                         bytesDone = before + progress.bytesSent;
                         this.#progress(backupId, "uploading", {
@@ -641,24 +655,26 @@ export class BackupRunner {
         // part is up.
         signal.throwIfAborted();
         if (!existing.has(SIDECAR_ASSET_NAME)) {
-            await uploadAsset(
+            await this.#uploadAsset(
+                context.lease,
                 release,
                 context.owner,
                 context.repo,
                 SIDECAR_ASSET_NAME,
                 workspace.sidecarFile,
-                this.#callOptions(context.token, signal),
+                { signal },
             );
         }
         signal.throwIfAborted();
         if (!existing.has(pointerName)) {
-            await uploadAsset(
+            await this.#uploadAsset(
+                context.lease,
                 release,
                 context.owner,
                 context.repo,
                 pointerName,
                 pointerPath,
-                this.#callOptions(context.token, signal),
+                { signal },
             );
         }
 
@@ -745,10 +761,10 @@ export class BackupRunner {
         tag: string;
         request: BackupRequest;
         source: BackupSource;
-        token: string;
+        lease: GhCliAccountLease;
         signal: AbortSignal;
     }): Promise<BackupRelease> {
-        const options = this.#callOptions(context.token, context.signal);
+        const options = this.#callOptions(context.lease, context.signal);
         if (context.request.resumeTag !== undefined) {
             const existing = await findReleaseByTag(context.owner, context.repo, context.tag, options);
             if (existing === null) {
@@ -772,21 +788,45 @@ export class BackupRunner {
         );
     }
 
-    #callOptions(token: string, signal?: AbortSignal): GitHubCallOptions {
+    #callOptions(lease: GhCliAccountLease, signal?: AbortSignal): GitHubCallOptions {
         return {
-            fetch: this.#options.fetch ?? ((url, init) => fetch(url, init)),
-            token,
+            fetch: (url, init) => lease.api(url, init),
+            apiBase: ghApiBaseForHost(lease.host),
             ...(signal === undefined ? {} : { signal }),
-            ...(this.#options.apiBase === undefined ? {} : { apiBase: this.#options.apiBase }),
-            ...(this.#options.uploadsBase === undefined
-                ? {}
-                : { uploadsBase: this.#options.uploadsBase }),
         };
     }
 
-    async #token(): Promise<string | null> {
-        const value = await this.#options.token();
-        return typeof value === "string" && value.length > 0 ? value : null;
+    async #uploadAsset(
+        lease: GhCliAccountLease,
+        release: BackupRelease,
+        owner: string,
+        repo: string,
+        assetName: string,
+        filePath: string,
+        options: {
+            readonly signal?: AbortSignal | undefined;
+            readonly onProgress?: ((progress: { bytesSent: number; bytesTotal: number }) => void) | undefined;
+        },
+    ): Promise<void> {
+        const bytes = (await stat(filePath)).size;
+        const result = await lease.uploadReleaseAsset(
+            owner,
+            repo,
+            release.tag,
+            assetName,
+            filePath,
+            options.signal === undefined ? {} : { signal: options.signal },
+        );
+        if (!result.started || result.code !== 0) {
+            const statusText = /(?:\(HTTP |HTTP )(\d{3})/.exec(result.stderr)?.[1];
+            const status = statusText === undefined ? 0 : Number.parseInt(statusText, 10);
+            throw new GitHubCallError(
+                `GitHub CLI could not upload ${assetName}. Reauthenticate the selected account and try again.`,
+                status,
+                `${owner}/${repo}#${release.tag}`,
+            );
+        }
+        options.onProgress?.({ bytesSent: bytes, bytesTotal: bytes });
     }
 
     /**

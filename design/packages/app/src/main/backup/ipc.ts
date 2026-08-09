@@ -15,9 +15,9 @@
  * failure object whose message says what could not be done and why, so a subsystem's
  * stack never becomes interface copy.
  *
- * The **token never crosses**. It is resolved here, per call, from the session the main
- * process holds, exactly as `download/ipc.ts` resolves it. The renderer is told who is
- * signed in and what that account may do, and never the credential.
+ * **Authorization never crosses**. One main-process `gh` account lease is resolved per
+ * operation. The renderer is told who is signed in and what that account may do, and never
+ * receives credential material.
  *
  * ## Two channels that look alike and are not
  *
@@ -29,10 +29,20 @@
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import { GhCredentialError, ghApiBaseForHost } from "../ghcli/credentialBroker.js";
+import type {
+    GhCliAccountProvider,
+    GhCredentialAccess,
+} from "../ghcli/credentialBroker.js";
+import type { CiOwnerChoicesAnswer } from "../cirender/setup.js";
+import {
+    createGhRepository,
+    listGhOwners,
+    listGhRepositories,
+} from "../ghcli/repositories.js";
 import { listBackups } from "./catalog.js";
 import type { BackupListing } from "./catalog.js";
-import { createRepository, isRepositoryNameTakenError, listWritableRepositories } from "./github.js";
-import type { FetchLike, RepositoryChoice } from "./github.js";
+import type { RepositoryChoice } from "./github.js";
 import { BackupRunner } from "./runner.js";
 import type {
     BackupEvent,
@@ -49,6 +59,7 @@ export const BACKUP_EVENT_CHANNEL = "backup:event";
 
 /** Every channel this module registers, so `dispose` cannot drift from `install`. */
 export const BACKUP_CHANNELS = [
+    "backup:owners",
     "backup:repositories",
     "backup:createRepository",
     "backup:inspectRepository",
@@ -61,6 +72,7 @@ export const BACKUP_CHANNELS = [
 
 /** What creating a repository from this screen needs, and what it answers with. */
 export interface CreateRepositoryRequest {
+    readonly accountId?: string | undefined;
     readonly ownerLogin: string;
     readonly ownerKind: "user" | "organization";
     readonly name: string;
@@ -71,21 +83,22 @@ export type CreateRepositoryFailureCode = "name-taken" | "not-signed-in" | "othe
 
 export type CreateRepositoryAnswer =
     | { readonly ok: true; readonly value: RepositoryChoice }
-    | { readonly ok: false; readonly code: CreateRepositoryFailureCode; readonly message: string };
+    | {
+          readonly ok: false;
+          readonly code: CreateRepositoryFailureCode;
+          readonly message: string;
+          readonly needsSignIn?: boolean | undefined;
+      };
 
 export interface BackupIpcOptions {
     readonly ipcMain: IpcMain;
     /** Where backups are staged. A function, so a moved storage folder takes effect. */
     readonly storageDir: () => string;
-    /** The signed-in token, resolved per operation. Null means nobody is signed in. */
-    readonly token: () => Promise<string | null> | string | null;
+    /** Secret-free gh command lease for account, owner and repository picker operations. */
+    readonly account: GhCliAccountProvider;
     /** Overridable so a test can watch what was broadcast. */
     readonly broadcast: (event: BackupEvent) => void;
-    /** Overridable so a test never touches the network. */
-    readonly fetch?: FetchLike | undefined;
     readonly appVersion?: string | null | undefined;
-    readonly apiBase?: string | undefined;
-    readonly uploadsBase?: string | undefined;
 }
 
 export interface BackupIpc {
@@ -99,43 +112,47 @@ type Answer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false
 export function installBackupIpc(options: BackupIpcOptions): BackupIpc {
     const runnerOptions: BackupRunnerOptions = {
         storageDir: options.storageDir,
-        token: options.token,
+        account: options.account,
         onEvent: options.broadcast,
-        ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
         ...(options.appVersion === undefined ? {} : { appVersion: options.appVersion }),
-        ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-        ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
     };
     const runner = new BackupRunner(runnerOptions);
 
-    const callOptions = async (): Promise<
-        | { readonly ok: true; readonly token: string }
-        | { readonly ok: false; readonly message: string }
-    > => {
-        const token = await options.token();
-        if (typeof token !== "string" || token.length === 0) {
-            return {
-                ok: false,
-                message:
-                    "Nobody is signed in to GitHub on this computer. Sign in from Settings to" +
-                    " back up to a repository, or to see the backups one already holds.",
-            };
-        }
-        return { ok: true, token };
-    };
+    const acquireAccount = async (accountId: string | null, access: GhCredentialAccess) =>
+        await options.account(accountId ?? undefined, access);
+
+    options.ipcMain.handle(
+        "backup:owners",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { accountId?: unknown } | undefined,
+        ): Promise<CiOwnerChoicesAnswer> => {
+            try {
+                const lease = await acquireAccount(readText(request?.accountId), "read");
+                if (lease === null) {
+                    return { ok: false, signedIn: false, message: signedOutMessage() };
+                }
+                return {
+                    ok: true,
+                    login: lease.login,
+                    owners: await listGhOwners(lease),
+                };
+            } catch (error) {
+                return { ok: false, signedIn: true, message: sentence(error) };
+            }
+        },
+    );
 
     options.ipcMain.handle(
         "backup:repositories",
-        async (): Promise<Answer<readonly RepositoryChoice[]>> => {
-            const resolved = await callOptions();
-            if (!resolved.ok) return { ok: false, message: resolved.message };
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { accountId?: unknown } | undefined,
+        ): Promise<Answer<readonly RepositoryChoice[]>> => {
             try {
-                const repositories = await listWritableRepositories({
-                    fetch: options.fetch ?? ((url, init) => fetch(url, init)),
-                    token: resolved.token,
-                    ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-                });
-                return { ok: true, value: repositories };
+                const lease = await acquireAccount(readText(request?.accountId), "read");
+                if (lease === null) return { ok: false, message: signedOutMessage() };
+                return { ok: true, value: await listGhRepositories(lease) };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
             }
@@ -155,7 +172,13 @@ export function installBackupIpc(options: BackupIpcOptions): BackupIpc {
         "backup:createRepository",
         async (
             _event: IpcMainInvokeEvent,
-            request: { ownerLogin?: unknown; ownerKind?: unknown; name?: unknown; private?: unknown },
+            request: {
+                accountId?: unknown;
+                ownerLogin?: unknown;
+                ownerKind?: unknown;
+                name?: unknown;
+                private?: unknown;
+            },
         ): Promise<CreateRepositoryAnswer> => {
             const ownerLogin = readText(request?.ownerLogin);
             const ownerKind = request?.ownerKind === "organization" ? "organization" : "user";
@@ -167,23 +190,37 @@ export function installBackupIpc(options: BackupIpcOptions): BackupIpc {
                     message: "A repository owner and a name are required to create one.",
                 };
             }
-            const resolved = await callOptions();
-            if (!resolved.ok) return { ok: false, code: "not-signed-in", message: resolved.message };
             try {
-                const created = await createRepository(
-                    { ownerLogin, ownerKind, name, private: request?.private === true },
-                    {
-                        fetch: options.fetch ?? ((url, init) => fetch(url, init)),
-                        token: resolved.token,
-                        ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-                    },
-                );
-                return { ok: true, value: created };
+                const lease = await acquireAccount(readText(request?.accountId), "write");
+                if (lease === null) {
+                    return {
+                        ok: false,
+                        code: "not-signed-in",
+                        message: signedOutMessage(),
+                        needsSignIn: true,
+                    };
+                }
+                const created = await createGhRepository(lease, {
+                    ownerLogin,
+                    ownerKind,
+                    name,
+                    private: request?.private === true,
+                });
+                return created.ok
+                    ? { ok: true, value: created.repository }
+                    : {
+                          ok: false,
+                          code: created.code === "name-taken" ? "name-taken" : "other",
+                          message: created.message,
+                          ...(created.needsSignIn === true ? { needsSignIn: true } : {}),
+                      };
             } catch (error) {
+                const needsSignIn = error instanceof GhCredentialError && error.needsSignIn;
                 return {
                     ok: false,
-                    code: isRepositoryNameTakenError(error) ? "name-taken" : "other",
+                    code: needsSignIn ? "not-signed-in" : "other",
                     message: sentence(error),
+                    ...(needsSignIn ? { needsSignIn: true } : {}),
                 };
             }
         },
@@ -193,7 +230,7 @@ export function installBackupIpc(options: BackupIpcOptions): BackupIpc {
         "backup:inspectRepository",
         async (
             _event: IpcMainInvokeEvent,
-            request: { owner?: unknown; repo?: unknown },
+            request: { accountId?: unknown; owner?: unknown; repo?: unknown },
         ): Promise<Answer<RepositoryReport>> => {
             const owner = readText(request?.owner);
             const repo = readText(request?.repo);
@@ -201,7 +238,14 @@ export function installBackupIpc(options: BackupIpcOptions): BackupIpc {
                 return { ok: false, message: "A repository owner and name are required." };
             }
             try {
-                return { ok: true, value: await runner.inspectRepository(owner, repo) };
+                return {
+                    ok: true,
+                    value: await runner.inspectRepository(
+                        owner,
+                        repo,
+                        readText(request?.accountId) ?? undefined,
+                    ),
+                };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
             }
@@ -240,20 +284,19 @@ export function installBackupIpc(options: BackupIpcOptions): BackupIpc {
         "backup:list",
         async (
             _event: IpcMainInvokeEvent,
-            request: { owner?: unknown; repo?: unknown },
+            request: { accountId?: unknown; owner?: unknown; repo?: unknown },
         ): Promise<Answer<readonly BackupListing[]>> => {
             const owner = readText(request?.owner);
             const repo = readText(request?.repo);
             if (owner === null || repo === null) {
                 return { ok: false, message: "A repository owner and name are required." };
             }
-            const resolved = await callOptions();
-            if (!resolved.ok) return { ok: false, message: resolved.message };
             try {
+                const lease = await acquireAccount(readText(request?.accountId), "read");
+                if (lease === null) return { ok: false, message: signedOutMessage() };
                 const listings = await listBackups(owner, repo, {
-                    fetch: options.fetch ?? ((url, init) => fetch(url, init)),
-                    token: resolved.token,
-                    ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
+                    fetch: (url, init) => lease.api(url, init),
+                    apiBase: ghApiBaseForHost(lease.host),
                 });
                 return { ok: true, value: listings };
             } catch (error) {
@@ -290,6 +333,13 @@ function readText(value: unknown): string | null {
 
 function readKind(value: unknown): BackupSourceKind | null {
     return value === "render" || value === "world" ? value : null;
+}
+
+function signedOutMessage(): string {
+    return (
+        "Nobody is signed in through GitHub CLI on this computer. Sign in from GitHub Settings" +
+        " to back up to a repository, or to see the backups one already holds."
+    );
 }
 
 /** One sentence from whatever was thrown, never a stack and never an empty string. */

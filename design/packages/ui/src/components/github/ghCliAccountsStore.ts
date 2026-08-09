@@ -1,8 +1,7 @@
 /**
  * The gh command-line tool's own accounts, as the interface holds them.
  *
- * `githubAccountsStore.ts` next door is this application's own multi-account store. This
- * module is the completely separate thing: gh's own account list, read fresh every time
+ * This module holds gh's own account list, read fresh every time
  * `load()` is called because gh may also be changed by a terminal or another program with
  * no event this application would ever see. `checkAgain()` is the same honest re-probe as
  * `load()` after either the GUI login flow or an external change.
@@ -16,6 +15,7 @@ import { computed, ref, type ComputedRef, type Ref } from "vue";
 import {
     canLoginGhCli,
     canListGhCliAccounts,
+    canLogoutGhCliAccount,
     canSwitchGhCliAccount,
     resolveGhCliBridge,
     type GhCliAccountReadout,
@@ -38,15 +38,21 @@ export interface GhCliSwitchReport {
     readonly result: GhCliSwitchReadout;
 }
 
+export interface GhCliLoginTarget {
+    readonly host: string;
+    readonly login: string;
+}
+
 export interface GhCliAccountsStoreState {
     readonly canList: boolean;
     readonly canSwitch: boolean;
+    readonly canLogout: boolean;
     readonly canLogin: boolean;
 
     readonly availability: Ref<GhCliAvailabilityReadout | null>;
     readonly version: Ref<string | null>;
     readonly accounts: Ref<readonly GhCliAccountReadout[]>;
-    readonly source: Ref<"json" | "text" | null>;
+    readonly source: Ref<"json" | null>;
     /** The main process's own one-sentence explanation of the current state. */
     readonly statusMessage: Ref<string>;
     readonly loading: Ref<boolean>;
@@ -69,8 +75,9 @@ export interface GhCliAccountsStoreState {
     /** Same call as `load()`, named for an explicit re-probe after any account change. */
     checkAgain(): Promise<void>;
     switchAccount(host: string, login: string): Promise<boolean>;
-    /** `expectedLogin` is supplied when repairing one account's scopes. */
-    startLogin(expectedLogin?: string): Promise<boolean>;
+    logoutAccount(host: string, login: string): Promise<boolean>;
+    /** A target is supplied when repairing one github.com account's scopes. */
+    startLogin(target?: GhCliLoginTarget): Promise<boolean>;
     cancelLogin(): Promise<boolean>;
     clearLogin(): void;
     dismissSwitchReport(): void;
@@ -80,7 +87,7 @@ export interface GhCliAccountsStoreState {
 /**
  * Electron's `ipcRenderer.invoke` re-wraps a handler's rejection as
  * `Error invoking remote method '...': Error: <message>`. Stripped before anything renders
- * it, exactly as `githubAccountsStore.ts` does for the same reason.
+ * it before rendering.
  */
 function describe(error: unknown): string {
     const message = error instanceof Error ? error.message : String(error);
@@ -105,6 +112,26 @@ export function ghCliAccountSearchText(account: GhCliAccountReadout): string {
     return parts.filter((part) => part.trim().length > 0).join(" ");
 }
 
+/**
+ * Mirrors the main-process broker's deterministic default selection without guessing a
+ * different account in the renderer. GitHub CLI has one active account per host, so a
+ * github.com account wins when it is uniquely active there; otherwise only a genuinely
+ * unambiguous healthy account is selected.
+ */
+export function defaultGhCliAccountId(
+    accounts: readonly GhCliAccountReadout[],
+): string | null {
+    const healthy = accounts.filter((account) => account.healthy);
+    const activeGithubCom = healthy.filter(
+        (account) => account.active && account.host.toLowerCase() === "github.com",
+    );
+    if (activeGithubCom.length === 1) return activeGithubCom[0]!.id;
+    const active = healthy.filter((account) => account.active);
+    if (active.length === 1) return active[0]!.id;
+    if (healthy.length === 1) return healthy[0]!.id;
+    return null;
+}
+
 export function createGhCliAccountsStore(
     options: GhCliAccountsStoreOptions = {},
 ): GhCliAccountsStoreState {
@@ -112,12 +139,13 @@ export function createGhCliAccountsStore(
 
     const canList = canListGhCliAccounts(bridge);
     const canSwitch = canSwitchGhCliAccount(bridge);
+    const canLogout = canLogoutGhCliAccount(bridge);
     const canLogin = canLoginGhCli(bridge);
 
     const availability = ref<GhCliAvailabilityReadout | null>(null);
     const version = ref<string | null>(null);
     const accounts = ref<readonly GhCliAccountReadout[]>([]);
-    const source = ref<"json" | "text" | null>(null);
+    const source = ref<"json" | null>(null);
     const statusMessage = ref("");
     const loading = ref(false);
     const listFailure = ref<string | null>(null);
@@ -176,11 +204,40 @@ export function createGhCliAccountsStore(
         }
     }
 
-    async function startLogin(expectedLogin?: string): Promise<boolean> {
+    async function logoutAccount(host: string, login: string): Promise<boolean> {
+        const logout = bridge?.ghCliLogoutAccount;
+        if (typeof logout !== "function" || busyKey.value !== null) return false;
+        busyKey.value = busyKeyOf(host, login);
+        actionFailure.value = null;
+        try {
+            const result = await logout(host, login);
+            if (!result.ok) {
+                actionFailure.value = result.message;
+                return false;
+            }
+            await load();
+            return true;
+        } catch (error) {
+            actionFailure.value = describe(error);
+            return false;
+        } finally {
+            busyKey.value = null;
+        }
+    }
+
+    async function startLogin(target?: GhCliLoginTarget): Promise<boolean> {
         const start = bridge?.ghCliStartLogin;
         const subscribe = bridge?.onGhCliLoginState;
         if (typeof start !== "function" || typeof subscribe !== "function" || loginInFlight.value)
             return false;
+        if (target !== undefined && target.host.toLowerCase() !== "github.com") {
+            actionFailure.value =
+                `The in-app approval flow supports github.com only. Repair ${target.login} on ` +
+                `${target.host} with GitHub CLI, then choose Check again; Worldlens will not ` +
+                "redirect that enterprise account to github.com.";
+            return false;
+        }
+        const expectedLogin = target?.login;
 
         stopLoginEvents?.();
         loginMayHaveChangedAccounts = false;
@@ -243,6 +300,7 @@ export function createGhCliAccountsStore(
     return {
         canList,
         canSwitch,
+        canLogout,
         canLogin,
         availability,
         version,
@@ -261,6 +319,7 @@ export function createGhCliAccountsStore(
         load,
         checkAgain: load,
         switchAccount,
+        logoutAccount,
         startLogin,
         cancelLogin,
         clearLogin,

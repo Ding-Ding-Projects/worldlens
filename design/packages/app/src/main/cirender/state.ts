@@ -57,6 +57,8 @@ export interface CiSyncState {
     readonly syncId: string;
     readonly owner: string;
     readonly repo: string;
+    /** Secret-free GitHub CLI account identity used for every resumed operation. */
+    readonly accountId: string | null;
     /** The world folder, absolute. */
     readonly worldFolder: string;
     readonly mapId: string;
@@ -162,6 +164,7 @@ export interface NewStateInput {
     readonly syncId: string;
     readonly owner: string;
     readonly repo: string;
+    readonly accountId?: string | undefined;
     readonly worldFolder: string;
     readonly mapId: string;
     readonly mapName: string;
@@ -176,6 +179,7 @@ export function newCiSyncState(input: NewStateInput): CiSyncState {
         syncId: input.syncId,
         owner: input.owner,
         repo: input.repo,
+        accountId: input.accountId ?? null,
         worldFolder: resolve(input.worldFolder),
         mapId: input.mapId,
         mapName: input.mapName,
@@ -260,6 +264,9 @@ export async function readCiSyncState(path: string): Promise<CiSyncState | null>
         syncId,
         owner,
         repo,
+        // Records written before account routing was persisted intentionally fall back to
+        // the broker default; new records always retain the concrete picker identity.
+        accountId: str(parsed["accountId"]),
         worldFolder,
         mapId,
         mapName: str(parsed["mapName"]) ?? mapId,

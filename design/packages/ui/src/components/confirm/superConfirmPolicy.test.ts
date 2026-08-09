@@ -326,48 +326,15 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "closes no tab at all. Nothing here touches a clause of the document; a closed tab " +
             "is a way back in, and the viewer's own note says so.",
     },
-    "components/github/GitHubAccountsList.vue": {
+    "components/github/LegacyCredentialCleanup.vue": {
         count: 1,
-        destroys:
-            "one stored account's GitHub token, and the grant on that account when GitHub honours the revocation",
+        destroys: "retired Worldlens-owned local GitHub credential files",
         standing: "gated",
-        gatedIn: "components/github/GitHubAccountsList.vue",
+        gatedIn: "components/github/LegacyCredentialCleanup.vue",
         note:
-            "Issue #10, closed: each row renders its own ConfigSuperConfirm instance, closed " +
-            "over that row's own account id, rather than the two-click inline confirm the " +
-            "row used before.",
-    },
-    "components/github/GitHubStatusRow.vue": {
-        count: 1,
-        destroys:
-            "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
-        standing: "gated",
-        gatedIn: "components/github/GitHubStatusRow.vue",
-        note:
-            "Issue #10, closed: replaced the bespoke inline two-click confirm with " +
-            "ConfigSuperConfirm, the same anchored two-key gate every other destructive " +
-            "control in this application uses.",
-    },
-    "components/github/githubAccount.ts": {
-        count: 1,
-        destroys:
-            "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
-        standing: "gated",
-        gatedIn: "components/github/GitHubStatusRow.vue",
-        note:
-            "Issue #10, closed: the sign-out primitive behind the row above. It moves behind " +
-            "the gate with that row, and is listed separately so the count cannot drift.",
-    },
-    "components/github/githubAccountsStore.ts": {
-        count: 1,
-        destroys:
-            "one stored account's GitHub token, and the grant on that account when GitHub honours the revocation",
-        standing: "gated",
-        gatedIn: "components/github/GitHubAccountsList.vue",
-        note:
-            "Issue #10, closed: the per-account removal primitive behind the row above. Its " +
-            "function declaration is not counted; the one invocation remains behind the gate " +
-            "with that row, and is listed separately so the count cannot drift.",
+            "The renderer can request deletion only from ConfigSuperConfirm's confirm event. " +
+            "The main process deletes two exact retired locations without opening or importing them, " +
+            "and the copy states that local deletion does not revoke provider-side grants.",
     },
     "components/history/HistoryPanel.vue": {
         count: 1,
