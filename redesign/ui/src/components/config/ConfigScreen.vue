@@ -1,0 +1,936 @@
+<script setup lang="ts">
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import {
+    mdiContentSaveOutline,
+    mdiFolderOpenOutline,
+    mdiFolderPlusOutline,
+    mdiInformationOutline,
+    mdiRefresh,
+} from "@mdi/js";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VChip,
+    VList,
+    VListItem,
+    VListSubheader,
+    VProgressLinear,
+    VSpacer,
+    VToolbar,
+    VTooltip,
+} from "vuetify/components";
+import { EMPTY_INVOCATION, type CliInvocation, type FieldMeta, type PlainValue } from "@worldlens/config";
+import ConfigApplyDialog from "./ConfigApplyDialog.vue";
+import { HistoryPanel } from "../history/index.js";
+import { GlossaryTerm } from "../glossary/index.js";
+import ConfigFileForm from "./ConfigFileForm.vue";
+import ConfigSearchField from "./ConfigSearchField.vue";
+import MapsScreen from "./MapsScreen.vue";
+import RunScreen from "./RunScreen.vue";
+import SpeedControl from "./SpeedControl.vue";
+import StoragesScreen from "./StoragesScreen.vue";
+import { TabbedNavigation, type TabPage } from "../tabs/index.js";
+import { clearFieldValue, fieldValue, replaceText, setFieldValue } from "./configModel.js";
+import {
+    createWorkspace,
+    entriesOfKind,
+    isWorkspaceDirty,
+    loadWorkspace,
+    markWorkspaceSaved,
+    replaceFile,
+    savePlan,
+    singletonEntry,
+    workspaceIssues,
+    type ConfigWorkspace,
+    type EntryKind,
+} from "./configWorkspace.js";
+import { SCREENS, buildSettingIndex, groupMatchesByScreen, searchSettings, workspaceSampleText, type ScreenId } from "./configSearch.js";
+import { createBridgeConfigHost, hostMissingReason, provideConfigHost, type ConfigHost } from "./configHost.js";
+import { notify } from "./notifications.js";
+import { notices } from "../../stores/notices.js";
+
+/**
+ * The whole options interface.
+ *
+ * Everything BlueMap can be told, in one place: the four singleton config files,
+ * one editor per map, one per storage, and the command-line flags a run is
+ * started with. Nothing is a curated subset. The forms are generated from
+ * `@worldlens/config`, so what appears here is exactly what BlueMap
+ * reads, and a setting added to the schema arrives with its control, its
+ * documentation and its re-render warning already attached.
+ *
+ * Nothing is written until the user saves, and the save dialog states what is
+ * about to be written, what is about to be deleted, and which maps have to be
+ * rendered again as a result.
+ */
+const props = withDefaults(
+    defineProps<{
+        /** Opened automatically when the shell already knows the folder. */
+        initialFolder?: string | null;
+        /** BlueMap's version, written into a generated core.conf comment. */
+        version?: string;
+        /** Absolute path of the CLI shadow jar, for the run screen's command. */
+        jarPath?: string;
+        /** Tab to reveal when the editor opens from the command palette. */
+        initialScreen?: ScreenId | "history";
+        /** Exact field requested by the command palette after the workspace is ready. */
+        initialFieldPath?: string | null;
+        /**
+         * Injected in tests. Left out, the Electron bridge is probed instead,
+         * which is why this one has no default: `undefined` means "probe" and
+         * `null` means "there is deliberately no host".
+         */
+        host?: ConfigHost | null;
+    }>(),
+    {
+        initialFolder: null,
+        version: "5.22",
+        jarPath: "bluemap-cli.jar",
+        initialScreen: "core",
+        initialFieldPath: null,
+    },
+);
+
+const emit = defineEmits<{
+    /** The app shell opens its own download-consent setting. Never asked here. */
+    consent: [];
+    /** Raised after a successful save, so the shell can offer to start a render. */
+    saved: [folder: string];
+    /** Lets the shell hold an updater restart before this in-memory work is discarded. */
+    "dirty-change": [dirty: boolean];
+}>();
+
+const { t } = useI18n();
+
+/*
+ * The host is used directly and *also* provided to the descendants that need it.
+ *
+ * It used to be read back with `useConfigHost()` immediately after providing it, which
+ * cannot work and failed silently in the direction that looks fine: Vue's `inject` does
+ * not see its own component's `provide`, so `host` was always `null` in the desktop
+ * build. Every control that needs a file system - Open, New, Re-read, Save - stayed
+ * disabled, and the screen fell back to the honest "this is a browser tab" preview it was
+ * written to show in a browser tab. The bridge behind it was fine the whole time; nothing
+ * ever asked it anything.
+ *
+ * Providing to children is still right, so the value is used here and provided from the
+ * same expression rather than round-tripped through the injection it just created.
+ */
+const resolvedHost = props.host === undefined ? createBridgeConfigHost() : props.host;
+provideConfigHost(resolvedHost);
+const host = resolvedHost;
+
+/*
+ * Everything this screen reports goes to the shell's one rail history, which is mounted in
+ * `App.vue` and outlives this component. Two things follow from that, and both are the point
+ * rather than an accident: a save that closes the editor can still say where it wrote, and
+ * there is no `<ConfigNotifications>` in the template below, because the redesigned shell
+ * records notices at its bell instead of covering the editor with a fixed stack.
+ */
+
+const workspace = shallowRef<ConfigWorkspace | null>(null);
+const tabsNav = ref<InstanceType<typeof TabbedNavigation> | null>(null);
+const selectedMapKey = ref<string | null>(null);
+const selectedStorageKey = ref<string | null>(null);
+const highlightPath = ref<string | null>(null);
+
+const busy = ref(false);
+const applyOpen = ref(false);
+const saving = ref(false);
+const saveFailure = ref<string | null>(null);
+
+const invocation = ref<CliInvocation>(EMPTY_INVOCATION);
+const consentAccepted = ref(false);
+
+const query = ref("");
+const regexMode = ref(false);
+// `i` because nobody means case-sensitively when they type a setting name, and
+// `m` because a field's searchable text is several lines (label, key, Java field,
+// upstream's explanation), so `^` and `$` are only useful per line.
+const flags = ref("im");
+
+/**
+ * One browser-style tab per screen, carried by the project's own `TabbedNavigation`
+ * rather than a bespoke `v-tabs`/`v-window` pair: an overflow surface once the strip
+ * cannot fit every screen, reordering, pinning, grouping, the four tab-discovery
+ * searches and a layout that survives a restart under this editor's own storage key.
+ *
+ * "history" is a tab but not a `ScreenId`: the settings search indexes screens by
+ * their fields, and the history panel has none, so it stays out of that union on
+ * purpose and is appended here as one more page rather than folded into `SCREENS`.
+ */
+const pages = computed<TabPage[]>(() => [
+    ...SCREENS.map((screen) => ({ id: screen.id, label: screen.label, icon: null })),
+    { id: "history", label: t("config.history.tab", "History"), icon: null },
+]);
+
+/** The screen actually on screen right now, read back from the mounted strip. */
+const activeScreen = computed<ScreenId | "history">(
+    () => (tabsNav.value?.activePage?.id as ScreenId | "history" | undefined) ?? props.initialScreen,
+);
+
+/**
+ * `initialScreen` is not merely a seed: `App.vue` recomputes it on every palette jump
+ * (`pendingConfigScreen ?? 'core'`) and expects this screen to follow, exactly as the
+ * old `v-model="activeScreen"` did on every prop change. `revealPage` either activates
+ * that screen's existing tab or reopens it, so the persisted tab order this surface
+ * now keeps between restarts is never fought over by two different sources of truth.
+ */
+watch(
+    () => props.initialScreen,
+    (screen) => {
+        if (screen !== undefined) tabsNav.value?.revealPage(screen);
+    },
+);
+
+/**
+ * `TabbedNavigation` is behind `v-if="workspace"`, so it does not exist yet at the
+ * moment this screen's own `onMounted` runs - the earliest a folder or the generated
+ * defaults can be on screen at all. The strip mounts with "core" seeded active by
+ * default; this is what corrects that to whatever `initialScreen` actually asked for,
+ * every time a workspace appears rather than only the first, since that is also the
+ * only path this screen has for opening on the tab that started the workspace.
+ */
+watch(workspace, async (value) => {
+    if (value === null) return;
+    await nextTick();
+    tabsNav.value?.revealPage(props.initialScreen);
+    const path = props.initialFieldPath;
+    if (path !== null && path !== undefined && props.initialScreen === "maps") {
+        const first = entriesOfKind(value, "map")[0];
+        if (first !== undefined) await goTo("maps", first.key, path);
+    }
+});
+
+// ---- consent ---------------------------------------------------------------
+
+/**
+ * Reads the recorded consent. It is never asked for here.
+ *
+ * The app asks once at first launch and remembers the answer forever. This
+ * screen only reports the state, uses it to fill in `accept-download`, and
+ * points at the setting that owns it.
+ */
+async function readConsent(): Promise<void> {
+    const bridge = (window as { worldlens?: { readConsent?: () => Promise<{ accepted: boolean }> } }).worldlens;
+    if (bridge?.readConsent === undefined) return;
+    try {
+        consentAccepted.value = (await bridge.readConsent()).accepted;
+    } catch {
+        consentAccepted.value = false;
+    }
+}
+
+/**
+ * Writes `accept-download: true` into core.conf when consent has already been
+ * given and the file does not say so yet.
+ *
+ * The consent record is the source of truth; core.conf is how BlueMap learns
+ * about it. Doing this here means a render is not blocked by a key nobody knew
+ * they had to tick, and the change is announced and appears in the save plan
+ * rather than happening silently.
+ */
+function syncConsentIntoCore(): void {
+    const current = workspace.value;
+    if (current === null || !consentAccepted.value) return;
+
+    const core = singletonEntry(current, "core");
+    if (core === undefined) return;
+
+    const field = core.file.descriptor.fields.find((candidate) => candidate.path === "accept-download");
+    if (field === undefined || fieldValue(core.file, field) === true) return;
+
+    workspace.value = replaceFile(current, core.key, setFieldValue(core.file, field, true));
+    notify(
+        notices,
+        "info",
+        t(
+            "config.shell.consentApplied",
+            "Set accept-download to true in core.conf, from the download consent you already gave. It is written when you save.",
+        ),
+    );
+}
+
+// ---- opening and creating --------------------------------------------------
+
+async function openFolderAt(folder: string): Promise<void> {
+    if (host === null) return;
+
+    busy.value = true;
+    try {
+        const contents = await host.readFolder(folder);
+        const loaded = loadWorkspace(contents.folder, contents.files);
+        workspace.value = loaded;
+        syncConsentIntoCore();
+        invocation.value = { ...invocation.value, configFolder: contents.folder };
+
+        const maps = loaded.entries.filter((entry) => entry.kind === "map").length;
+        const storages = loaded.entries.filter((entry) => entry.kind === "storage").length;
+        // `t(key, named, fallback)` throughout this file, never `t(key, fallback).replace(...)`:
+        // vue-i18n compiles the message itself, so it consumes `{folder}` and the counts as
+        // its own named parameters and a later `replace` finds nothing left to substitute.
+        // These notifications exist to say which folder was read and how much was in it, so
+        // the broken form leaves a success history entry that reports neither.
+        notify(
+            notices,
+            "success",
+            t(
+                "config.shell.opened",
+                { files: contents.files.length, folder: contents.folder, maps, storages },
+                "Read {files} config files from {folder}: {maps} maps and {storages} storages.",
+            ),
+        );
+
+        if (loaded.unknown.length > 0) {
+            notify(
+                notices,
+                "info",
+                t(
+                    "config.shell.unknownFiles",
+                    { n: loaded.unknown.length },
+                    "{n} files in that folder are not BlueMap configs. They are left exactly as they are.",
+                ),
+                loaded.unknown.join("\n"),
+            );
+        }
+    } catch (error) {
+        notify(
+            notices,
+            "error",
+            t("config.shell.openFailed", { folder }, "Could not read {folder}."),
+            error instanceof Error ? error.message : String(error),
+        );
+    } finally {
+        busy.value = false;
+    }
+}
+
+/**
+ * Import, in one action: pick a folder that already has BlueMap configs in it
+ * and carry on from there, with nothing retyped.
+ */
+async function openFolder(): Promise<void> {
+    if (host === null) return;
+    const chosen = await host.pickDirectory({ title: t("config.shell.pickFolder", "Choose a BlueMap config folder") });
+    if (chosen !== null) await openFolderAt(chosen);
+}
+
+/** A fresh folder, generated exactly as the CLI would generate it. */
+async function newFolder(): Promise<void> {
+    if (host === null) return;
+
+    const folder = await host.pickDirectory({ title: t("config.shell.pickNewFolder", "Choose where the config folder goes") });
+    if (folder === null) return;
+
+    const world = await host.pickDirectory({ title: t("config.shell.pickWorld", "Choose the world folder, the one with level.dat") });
+    if (world === null) return;
+
+    const separator = host.separator;
+    const join = (...parts: string[]): string => parts.join(separator);
+
+    workspace.value = createWorkspace(folder, {
+        webroot: join(folder, "web"),
+        dataFolder: join(folder, "data"),
+        world,
+        version: props.version,
+    });
+    invocation.value = { ...invocation.value, configFolder: folder };
+    syncConsentIntoCore();
+
+    notify(
+        notices,
+        "success",
+        t("config.shell.generated", { folder }, "Generated a full config set for {folder}. Nothing is on disk until you save."),
+    );
+}
+
+/** A workspace with no folder behind it, so the editor is usable in a browser tab. */
+function previewWorkspace(): void {
+    workspace.value = createWorkspace(null, {
+        webroot: "/bluemap/web",
+        dataFolder: "/bluemap/data",
+        world: "/minecraft/world",
+        version: props.version,
+    });
+    notify(
+        notices,
+        "info",
+        t(
+            "config.shell.preview",
+            "Loaded a generated config set to look at. It is not on disk, and this build cannot write one; the paths in it are examples.",
+        ),
+    );
+}
+
+/**
+ * A generated set, in a build that *can* write one.
+ *
+ * Not the same message as `previewWorkspace`, because it is not the same situation: these
+ * settings are editable and savable, they are simply not on a disk yet. Saying "this build
+ * cannot write one" here would be false, and saying nothing would leave somebody editing a
+ * full screen of settings without knowing there is no file behind them.
+ */
+function draftWorkspace(): void {
+    workspace.value = createWorkspace(null, {
+        webroot: "/bluemap/web",
+        dataFolder: "/bluemap/data",
+        world: "/minecraft/world",
+        version: props.version,
+    });
+    notify(
+        notices,
+        "info",
+        t(
+            "config.shell.draft",
+            "Showing BlueMap's own defaults so every setting is here to read. Nothing is on disk yet: choose a folder to save them into, or open one BlueMap already uses.",
+        ),
+    );
+}
+
+/**
+ * What the editor opens on.
+ *
+ * The empty state used to be the whole answer, and it made every setting in the
+ * application invisible until somebody guessed that a folder had to exist first. So: an
+ * explicitly-passed folder wins; otherwise the folder BlueMap already uses on this machine
+ * is opened when it is really there; otherwise the generated defaults are shown, labelled
+ * as not-yet-saved. In every case the tabs and their settings are on screen, which is the
+ * point - an options editor whose options cannot be seen is not an options editor.
+ */
+onMounted(async () => {
+    // Content first, before anything is awaited at all.
+    //
+    // Everything below this line asks the main process something, and every one of those
+    // questions can hang rather than fail - a hang no `catch` can rescue, because the
+    // promise never settles. Awaiting even one of them before showing anything means the
+    // editor's empty state is what somebody sees for as long as the answer takes, and for
+    // ever if it never comes. That is exactly what happened: a fresh profile opened the
+    // options editor on "Nothing is open yet" and stayed there, with every setting in the
+    // application built, reachable and invisible.
+    //
+    // So the defaults go up synchronously, and everything real replaces them when it
+    // arrives. The cost is a screen that may briefly show BlueMap's defaults before showing
+    // the person's own folder; the alternative cost was a screen that showed nothing.
+    if (host === null) previewWorkspace();
+    else draftWorkspace();
+
+    await readConsent();
+    if (props.initialFolder !== null && host !== null) {
+        await openFolderAt(props.initialFolder);
+        return;
+    }
+    if (host === null) return;
+
+    // Settings first, folder second, and deliberately in that order.
+    //
+    // Looking for an existing folder means asking the main process, and this used to be
+    // awaited before anything was shown - so every millisecond of that lookup was a screen
+    // reading "Nothing is open yet", and a lookup that never answered left it that way for
+    // good. A `catch` does not rescue a promise that simply never settles.
+    //
+    // So the defaults go up straight away and the folder, if there is one, replaces them.
+    // The worst case is a screen that briefly shows BlueMap's defaults before showing the
+    // person's own settings; the old worst case was a screen that showed nothing at all and
+    // gave no reason.
+    const existing = await host.suggestConfigFolder().catch(() => "");
+    if (existing === "") return;
+    try {
+        const contents = await host.readFolder(existing);
+        // Only when it really holds something. An empty folder is not a config set, and
+        // opening it would replace the defaults with nothing.
+        if (contents.files.length > 0) await openFolderAt(existing);
+    } catch {
+        // Nothing there to carry on from, which is the ordinary first-run case rather than
+        // a failure worth telling anybody about. The defaults are already on screen.
+    }
+});
+
+watch(consentAccepted, () => syncConsentIntoCore());
+
+// ---- editing the singleton screens ----------------------------------------
+
+function singleton(kind: EntryKind) {
+    return workspace.value === null ? undefined : singletonEntry(workspace.value, kind);
+}
+
+const coreEntry = computed(() => singleton("core"));
+const webappEntry = computed(() => singleton("webapp"));
+const webserverEntry = computed(() => singleton("webserver"));
+const pluginEntry = computed(() => singleton("plugin"));
+
+function editSingleton(kind: EntryKind, field: FieldMeta, value: PlainValue): void {
+    const current = workspace.value;
+    const entry = singleton(kind);
+    if (current === null || entry === undefined) return;
+    workspace.value = replaceFile(current, entry.key, setFieldValue(entry.file, field, value));
+}
+
+function clearSingleton(kind: EntryKind, field: FieldMeta): void {
+    const current = workspace.value;
+    const entry = singleton(kind);
+    if (current === null || entry === undefined) return;
+    workspace.value = replaceFile(current, entry.key, clearFieldValue(entry.file, field));
+}
+
+function rawSingleton(kind: EntryKind, text: string): void {
+    const current = workspace.value;
+    const entry = singleton(kind);
+    if (current === null || entry === undefined) return;
+    workspace.value = replaceFile(current, entry.key, replaceText(entry.file, text));
+}
+
+// ---- search across every screen -------------------------------------------
+
+const index = computed(() => (workspace.value === null ? [] : buildSettingIndex(workspace.value)));
+const results = computed(() => searchSettings(index.value, query.value, regexMode.value, flags.value));
+const grouped = computed(() => (results.value.active ? groupMatchesByScreen(results.value.matches) : []));
+
+const searchSummary = computed(() => {
+    if (results.value.error !== null) return t("config.shell.badPattern", "The pattern is not valid, so nothing is listed.");
+    if (!results.value.active) return t("config.shell.total", { n: index.value.length }, "{n} settings across every screen.");
+    return t(
+        "config.shell.found",
+        { shown: results.value.matches.length, total: results.value.searched, screens: grouped.value.length },
+        "{shown} of {total} settings match, across {screens} screens.",
+    );
+});
+
+/** Opens the screen a result lives on, reveals its group and marks the row. */
+async function goTo(screenId: ScreenId, entryKey: string, path: string): Promise<void> {
+    tabsNav.value?.revealPage(screenId);
+    if (screenId === "maps") selectedMapKey.value = entryKey;
+    if (screenId === "storages") selectedStorageKey.value = entryKey;
+
+    highlightPath.value = null;
+    await nextTick();
+    highlightPath.value = path;
+}
+
+// ---- saving ----------------------------------------------------------------
+
+const plan = computed(() => (workspace.value === null ? null : savePlan(workspace.value)));
+const issues = computed(() => (workspace.value === null ? [] : workspaceIssues(workspace.value)));
+const dirty = computed(() => workspace.value !== null && isWorkspaceDirty(workspace.value));
+watch(dirty, (value) => emit("dirty-change", value), { immediate: true });
+onUnmounted(() => emit("dirty-change", false));
+
+const saveReason = computed(() => {
+    if (host === null) return hostMissingReason(t("config.shell.saving", "Saving a config folder"));
+    if (workspace.value === null) return t("config.shell.noFolder", "Open a config folder first.");
+    if (workspace.value.folder === null) return t("config.shell.noFolderPath", "This config set is not attached to a folder yet.");
+    if (!dirty.value) return t("config.shell.nothingToSave", "Nothing has changed.");
+    return "";
+});
+
+async function confirmSave(): Promise<void> {
+    const current = workspace.value;
+    const currentPlan = plan.value;
+    if (current === null || currentPlan === null || current.folder === null || host === null) return;
+
+    saving.value = true;
+    saveFailure.value = null;
+    try {
+        if (currentPlan.writes.length > 0) await host.writeFiles(current.folder, currentPlan.writes);
+        if (currentPlan.deletes.length > 0) await host.deleteFiles(current.folder, currentPlan.deletes);
+
+        // A history that cannot be kept must not turn a save that worked into one that
+        // failed, so this is fire-and-forget: the bridge call never rejects.
+        void window.worldlens?.history?.snapshot(current.folder);
+
+        workspace.value = markWorkspaceSaved(current, currentPlan);
+        applyOpen.value = false;
+
+        notify(
+            notices,
+            "success",
+            t(
+                "config.shell.saved",
+                { writes: currentPlan.writes.length, deletes: currentPlan.deletes.length, folder: current.folder },
+                "Wrote {writes} files and deleted {deletes} in {folder}.",
+            ),
+        );
+
+        if (currentPlan.affectedMapIds.length > 0) {
+            notify(
+                notices,
+                "warning",
+                t(
+                    "config.shell.needsRender",
+                    { maps: currentPlan.affectedMapIds.join(", ") },
+                    "These maps have to be rendered again before what you see matches what you saved: {maps}.",
+                ),
+            );
+        }
+
+        emit("saved", current.folder);
+    } catch (error) {
+        saveFailure.value = error instanceof Error ? error.message : String(error);
+        notify(notices, "error", t("config.shell.saveFailed", "The files were not written."), saveFailure.value);
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function reload(): Promise<void> {
+    const folder = workspace.value?.folder;
+    if (folder === undefined || folder === null) return;
+    await openFolderAt(folder);
+}
+
+const errorCount = computed(() => issues.value.filter((issue) => issue.severity === "error").length);
+const sample = computed(() => (workspace.value === null ? "" : workspaceSampleText(workspace.value)));
+
+/** Normalised for the same `exactOptionalPropertyTypes` reason as elsewhere. */
+const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
+</script>
+
+<template>
+    <div class="mb-config-screen">
+        <v-toolbar density="comfortable" color="transparent" class="mb-config-screen__bar">
+            <v-btn :prepend-icon="mdiFolderOpenOutline" :disabled="host === null || busy" variant="tonal" size="small" @click="openFolder">
+                {{ t("config.shell.open", "Open or import a config folder") }}
+                <v-tooltip
+                    activator="parent"
+                    location="bottom"
+                    :text="
+                        host === null
+                            ? hostMissingReason(t('config.shell.reading', 'Reading a config folder'))
+                            : t(
+                                  'config.shell.openHint',
+                                  'Point this at a folder BlueMap already uses. Every file in it is read as it is, comments and all.',
+                              )
+                    "
+                />
+            </v-btn>
+            <v-btn :prepend-icon="mdiFolderPlusOutline" :disabled="host === null || busy" variant="text" size="small" @click="newFolder">
+                {{ t("config.shell.new", "New config folder") }}
+            </v-btn>
+            <v-btn
+                :prepend-icon="mdiRefresh"
+                :disabled="host === null || workspace?.folder == null || busy"
+                variant="text"
+                size="small"
+                @click="reload"
+            >
+                {{ t("config.shell.reload", "Re-read from disk") }}
+            </v-btn>
+
+            <v-spacer />
+
+            <v-chip v-if="errorCount > 0" size="small" color="error" variant="flat" class="mr-2">
+                {{ t("config.shell.errorCount", { n: errorCount }, "{n} problems") }}
+            </v-chip>
+            <v-chip v-if="dirty" size="small" color="primary" variant="tonal" class="mr-2">
+                {{ t("config.shell.unsaved", "Unsaved changes") }}
+            </v-chip>
+
+            <v-btn
+                :prepend-icon="mdiContentSaveOutline"
+                :disabled="saveReason !== ''"
+                color="primary"
+                variant="flat"
+                size="small"
+                @click="applyOpen = true"
+            >
+                {{ t("config.shell.save", "Save") }}
+                <v-tooltip v-if="saveReason" activator="parent" location="bottom" :text="saveReason" />
+            </v-btn>
+        </v-toolbar>
+
+        <v-progress-linear v-if="busy" indeterminate color="primary" />
+
+        <v-alert v-if="host === null" type="info" density="compact" variant="tonal" class="mb-3">
+            {{
+                t(
+                    "config.shell.browserMode",
+                    "This build cannot reach a file system, so nothing can be opened or saved. Every editor below still works, and the file text can be copied out of each screen.",
+                )
+            }}
+        </v-alert>
+
+        <template v-if="workspace">
+            <v-card variant="tonal" class="mb-config-screen__search">
+                <v-card-text>
+                    <ConfigSearchField
+                        v-model="query"
+                        v-model:regex="regexMode"
+                        v-model:flags="flags"
+                        :label="t('config.shell.search', 'Search every setting')"
+                        :placeholder="t('config.shell.searchHint', 'name, key, or anything in the explanation')"
+                        :sample="sample"
+                        :summary="searchSummary"
+                        density="comfortable"
+                    />
+
+                    <div v-if="results.active && results.error === null" class="mb-config-screen__results">
+                        <p v-if="grouped.length === 0" class="mb-config-screen__note">
+                            {{ t("config.shell.noMatches", "Nothing matches on any screen.") }}
+                        </p>
+                        <v-list v-else density="compact" class="mb-config-screen__result-list">
+                            <template v-for="screen in grouped" :key="screen.screenId">
+                                <v-list-subheader>
+                                    {{ screen.screenLabel }}
+                                    <v-chip size="x-small" variant="outlined" class="ml-2">{{ screen.count }}</v-chip>
+                                    <span v-if="screen.screenId !== activeScreen" class="mb-config-screen__elsewhere">
+                                        {{ t("config.shell.otherScreen", "on another screen") }}
+                                    </span>
+                                </v-list-subheader>
+                                <template v-for="entry in screen.entries" :key="entry.entryKey">
+                                    <v-list-item
+                                        v-for="match in entry.matches"
+                                        :key="`${entry.entryKey}:${match.field.path}`"
+                                        :title="match.field.label"
+                                        :subtitle="`${entry.entryLabel} · ${match.location.groupLabel} · ${match.field.path} = ${match.valueText}`"
+                                        @click="goTo(screen.screenId, entry.entryKey, match.field.path)"
+                                    />
+                                </template>
+                            </template>
+                        </v-list>
+                    </div>
+                </v-card-text>
+            </v-card>
+
+            <TabbedNavigation
+                ref="tabsNav"
+                :pages="pages"
+                storage-key="worldlens-config-editor-tabs"
+                :window-label="t('config.shell.windowLabel', 'The options editor')"
+                :strip-label="t('config.shell.tabsLabel', 'Config screens')"
+                class="mb-config-screen__tabs"
+            >
+                <template #core>
+                    <p class="mb-config-screen__intro">
+                        <GlossaryTerm term="renderThread" />
+                    </p>
+                    <template v-if="coreEntry">
+                        <!--
+                          The novice "Speed" dial, above the raw settings it drives.
+                          `SpeedControl` writes through the very same `set` event
+                          `ConfigFileForm`'s own fields use, so `render-thread-count`
+                          and `render-thread-priority` below (the second one behind
+                          Advanced) stay the single source of truth and this stays in
+                          sync with them, never the other way round.
+                        -->
+                        <SpeedControl
+                            :file="coreEntry.file"
+                            :disabled="coreEntry.file.readOnly"
+                            @set="(field, value) => editSingleton('core', field, value)"
+                        />
+                        <ConfigFileForm
+                            :file="coreEntry.file"
+                            :highlight-path="highlightPath"
+                            @set="(field, value) => editSingleton('core', field, value)"
+                            @clear="(field) => clearSingleton('core', field)"
+                            @consent="emit('consent')"
+                            @update:text="(text) => rawSingleton('core', text)"
+                        />
+                    </template>
+                    <p v-else class="mb-config-screen__note">{{ t("config.shell.missingCore", "This folder has no core.conf.") }}</p>
+                </template>
+
+                <template #maps>
+                    <MapsScreen
+                        :workspace="workspace"
+                        :selected-key="selectedMapKey"
+                        :highlight-path="highlightPath"
+                        @update:workspace="(value) => (workspace = value)"
+                        @update:selected-key="(value) => (selectedMapKey = value)"
+                        @consent="emit('consent')"
+                        @notify="(message) => notify(notices, 'info', message)"
+                    />
+                </template>
+
+                <template #storages>
+                    <p class="mb-config-screen__intro">
+                        <GlossaryTerm term="storage" />
+                    </p>
+                    <StoragesScreen
+                        :workspace="workspace"
+                        :selected-key="selectedStorageKey"
+                        :highlight-path="highlightPath"
+                        @update:workspace="(value) => (workspace = value)"
+                        @update:selected-key="(value) => (selectedStorageKey = value)"
+                        @consent="emit('consent')"
+                        @notify="(message) => notify(notices, 'info', message)"
+                    />
+                </template>
+
+                <template #webapp>
+                    <ConfigFileForm
+                        v-if="webappEntry"
+                        :file="webappEntry.file"
+                        :highlight-path="highlightPath"
+                        @set="(field, value) => editSingleton('webapp', field, value)"
+                        @clear="(field) => clearSingleton('webapp', field)"
+                        @consent="emit('consent')"
+                        @update:text="(text) => rawSingleton('webapp', text)"
+                    />
+                    <p v-else class="mb-config-screen__note">{{ t("config.shell.missingWebapp", "This folder has no webapp.conf.") }}</p>
+                </template>
+
+                <template #webserver>
+                    <ConfigFileForm
+                        v-if="webserverEntry"
+                        :file="webserverEntry.file"
+                        :highlight-path="highlightPath"
+                        @set="(field, value) => editSingleton('webserver', field, value)"
+                        @clear="(field) => clearSingleton('webserver', field)"
+                        @consent="emit('consent')"
+                        @update:text="(text) => rawSingleton('webserver', text)"
+                    />
+                    <p v-else class="mb-config-screen__note">
+                        {{ t("config.shell.missingWebserver", "This folder has no webserver.conf.") }}
+                    </p>
+                </template>
+
+                <template #plugin>
+                    <p class="mb-config-screen__intro">
+                        <GlossaryTerm term="serverPlugin" />
+                    </p>
+                    <ConfigFileForm
+                        v-if="pluginEntry"
+                        :file="pluginEntry.file"
+                        :highlight-path="highlightPath"
+                        @set="(field, value) => editSingleton('plugin', field, value)"
+                        @clear="(field) => clearSingleton('plugin', field)"
+                        @consent="emit('consent')"
+                        @update:text="(text) => rawSingleton('plugin', text)"
+                    />
+                    <v-alert v-else type="info" density="compact" variant="tonal">
+                        {{
+                            t(
+                                "config.shell.missingPlugin",
+                                "This folder has no plugin.conf. The command-line BlueMap never writes one; only a server plugin reads it.",
+                            )
+                        }}
+                    </v-alert>
+                </template>
+
+                <template #run>
+                    <p class="mb-config-screen__intro">
+                        <GlossaryTerm term="engine" />
+                    </p>
+                    <RunScreen
+                        :invocation="invocation"
+                        :jar-path="jarPathValue"
+                        :consent-accepted="consentAccepted"
+                        @update:invocation="(value) => (invocation = value)"
+                        @consent="emit('consent')"
+                    />
+                </template>
+
+                <template #history>
+                    <HistoryPanel v-if="workspace !== null && workspace.folder !== null" :folder="workspace.folder" />
+                    <p v-else class="mb-config-screen__note">
+                        {{ t("config.history.noFolder", "History follows a folder. Save this config set to one first.") }}
+                    </p>
+                </template>
+            </TabbedNavigation>
+        </template>
+
+        <v-card v-else variant="tonal" class="mb-config-screen__welcome">
+            <v-card-text>
+                <p class="mb-config-screen__welcome-head">
+                    <v-icon :icon="mdiInformationOutline" size="20" aria-hidden="true" />
+                    {{ t("config.shell.welcome", "Nothing is open yet.") }}
+                </p>
+                <p class="mb-config-screen__note">
+                    {{
+                        t(
+                            "config.shell.welcomeBody",
+                            "Open a folder BlueMap already uses to carry on from it, or generate a new set of config files here.",
+                        )
+                    }}
+                    <GlossaryTerm term="configFolder" />
+                </p>
+            </v-card-text>
+        </v-card>
+
+        <ConfigApplyDialog
+            v-if="plan"
+            v-model="applyOpen"
+            :plan="plan"
+            :issues="issues"
+            :folder="workspace?.folder ?? null"
+            :saving="saving"
+            :failure="saveFailure"
+            @confirm="confirmSave"
+        />
+    </div>
+</template>
+
+<style>
+.mb-config-screen {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px 24px;
+    max-width: 1200px;
+    margin-inline: auto;
+}
+
+.mb-config-screen__bar {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.mb-config-screen__search {
+    border-radius: 12px;
+}
+
+.mb-config-screen__results {
+    margin-block-start: 8px;
+}
+
+.mb-config-screen__result-list {
+    max-height: 40vh;
+    overflow-y: auto;
+    background: transparent;
+}
+
+.mb-config-screen__elsewhere {
+    margin-inline-start: 8px;
+    font-size: 0.6875rem;
+    font-style: italic;
+}
+
+.mb-config-screen__tabs {
+    margin-block-start: 8px;
+    padding-block-start: 8px;
+}
+
+.mb-config-screen__note {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-config-screen__intro {
+    margin-block: 0 12px;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-config-screen__welcome {
+    border-radius: 12px;
+}
+
+.mb-config-screen__welcome-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9375rem;
+    margin-block-end: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-config-screen * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+</style>

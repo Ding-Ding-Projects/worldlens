@@ -1,0 +1,372 @@
+/*
+ * The approved prototype's own surface language, applied to the shared primitives.
+ *
+ * ## Why this sheet exists at all
+ *
+ * The rewrite re-hosted the eleven job screens rather than rewriting them: the rail, Home,
+ * the catalogues, the shell layering and the job strip were all built new, and the screens
+ * those jobs open were moved into them unchanged. That is defensible for *behaviour* -
+ * `ProjectsScreen` still owns what a project is - and indefensible for *appearance*, which is
+ * how the application ended up opening on a new Home and then showing the old app the moment
+ * anybody pressed anything. "It matches the prototype" was true of the chrome and false of
+ * everything inside it.
+ *
+ * Eleven separate restyles would have been eleven separate opinions about what a card is.
+ * `Worldlens.dc.html` has exactly one, stated in inline styles on every surface it draws, and
+ * every number below is read from it rather than invented here:
+ *
+ *   heading          26px / 400            page title
+ *   lede             14px / 21px, 70ch     the paragraph under it
+ *   footnote         13px, on-surface-var  the smaller line under that
+ *   section label    12px / 500 / .08em uppercase, primary, with a 1px rule beside it
+ *   card             radius 14px, 15px 18px padding, surface-container, 1px outline
+ *   icon tile        40px square, radius 11px, 21px glyph
+ *   badge            11px, radius 999px, secondary-container
+ *   meta             12px, on-surface-variant
+ *   path             Roboto Mono 11px, ellipsised
+ *   button           44px tall, radius 22px  (34px / 17px where it sits inside a notice)
+ *
+ * ## Why it is one sheet rather than a component
+ *
+ * A `<PrototypeCard>` would only restyle the screens somebody remembered to convert, and the
+ * screens most likely to be forgotten are exactly the ones nobody looks at - which is how the
+ * old look survives in a corner and the next person finds it. This sheet re-points the shared
+ * Vuetify primitives instead, so a screen that was never touched still arrives in the new
+ * language, and a screen added next month does too without being told to.
+ *
+ * ## Specificity, which is the whole difficulty
+ *
+ * Vuetify ships its own rules for every one of these, at one class of specificity. A rule of
+ * ours at the same specificity loses on source order, silently - and that is not hypothetical
+ * in this repository: the notification toast's opaque surface had to be written twice for
+ * precisely this reason, the first attempt passing review and its own test while changing
+ * nothing on screen. So the selectors below are deliberately two deep, scoped under
+ * `.mb-shell-layer` (the destination layers) or `.v-application`, and where Vuetify sets a
+ * shorthand this sets the same shorthand rather than only the longhand it happens to care
+ * about.
+ *
+ * Nothing here changes what a control does. Every rule is appearance, and every colour is a
+ * theme role - not one hex literal - so light, dark and contrast all follow, and
+ * `colorRoles.ts` stays the single place a colour is decided.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Page furniture: the heading, the lede, the footnote, the section rule.
+ *
+ * Screens that already mark these up semantically get the prototype's type scale without
+ * being edited. `h1`/`h2` inside a destination is unambiguous - a screen has one title - and
+ * the `.mb-lede` / `.mb-footnote` / `.mb-section-label` classes are for the rest.
+ * ------------------------------------------------------------------------- */
+.mb-shell-layer h1,
+.v-application .mb-page-title {
+    margin: 0 0 6px;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 32px;
+    letter-spacing: 0;
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-shell-layer h2,
+.v-application .mb-page-subtitle {
+    margin: 0 0 6px;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 26px;
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-shell-layer .mb-lede,
+.v-application .mb-lede {
+    margin: 0 0 8px;
+    max-inline-size: 70ch;
+    font-size: 14px;
+    line-height: 21px;
+    color: rgb(var(--v-theme-on-surface-variant));
+    text-wrap: pretty;
+}
+
+.mb-shell-layer .mb-footnote,
+.v-application .mb-footnote {
+    margin: 0 0 26px;
+    font-size: 13px;
+    line-height: 19px;
+    color: rgb(var(--v-theme-outline));
+}
+
+/*
+ * The section rule: an uppercase label, a hairline that eats the remaining width, and an
+ * optional action on the right. The prototype uses this to separate every list on a screen,
+ * and it is the single most recognisable thing about the design - a screen without it reads
+ * as the old app even when every other measurement is right.
+ */
+.v-application .mb-section-rule {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-block-end: 10px;
+}
+
+.v-application .mb-section-rule::after {
+    content: "";
+    flex: 1 1 auto;
+    block-size: 1px;
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
+.v-application .mb-section-label {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-primary));
+}
+
+/* ---------------------------------------------------------------------------
+ * Cards.
+ *
+ * The prototype has no elevated, bordered, shadowed Material 2 card anywhere in it. Every
+ * surface is a flat container tint with a hairline outline and a 14px corner, and the
+ * difference between that and Vuetify's stock card is most of why the screens still read as
+ * the old application.
+ *
+ * `box-shadow: none` is set explicitly rather than left to the elevation prop: a card that
+ * arrives with `elevation="2"` from a screen nobody has edited must still land flat, or the
+ * conversion is only as complete as the props somebody remembered to change.
+ * ------------------------------------------------------------------------- */
+.mb-shell-layer .v-card,
+.v-application .mb-surface-card {
+    border-radius: 14px;
+    background: rgb(var(--v-theme-surface-container));
+    background-color: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    box-shadow: none;
+}
+
+/*
+ * Vuetify's card slots carry Material 2 padding (16px 16px, with a 20px title). The
+ * prototype's is 15px 18px on the whole card, and its title is a 15px/500 line rather than a
+ * 1.25rem display line, so the two are reconciled here rather than screen by screen.
+ */
+.mb-shell-layer .v-card-title {
+    padding: 15px 18px 0;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 22px;
+    letter-spacing: 0;
+}
+
+.mb-shell-layer .v-card-subtitle {
+    padding-inline: 18px;
+    font-size: 12px;
+    line-height: 18px;
+    opacity: 1;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-shell-layer .v-card-text {
+    padding: 12px 18px;
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.mb-shell-layer .v-card-actions {
+    padding: 0 18px 15px;
+    gap: 8px;
+    min-block-size: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * List rows.
+ *
+ * The discovered-worlds row, the project row, the map row, the backup row - the prototype
+ * draws all of them the same way, and Vuetify's list is Material 2 by default: 48px minimum,
+ * square, no outline, a hover tint and nothing else. This makes a list item the prototype's
+ * card row instead.
+ * ------------------------------------------------------------------------- */
+.mb-shell-layer .v-list {
+    background: transparent;
+    padding: 0;
+}
+
+.mb-shell-layer .v-list-item {
+    border-radius: 14px;
+    padding: 15px 18px;
+    margin-block-end: 10px;
+    background: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    min-block-size: 0;
+}
+
+.mb-shell-layer .v-list-item:last-child {
+    margin-block-end: 0;
+}
+
+.mb-shell-layer .v-list-item-title {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 22px;
+}
+
+.mb-shell-layer .v-list-item-subtitle {
+    font-size: 12px;
+    line-height: 18px;
+    opacity: 1;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/*
+ * The 40px rounded-square icon tile. The prototype never draws a bare icon beside a title -
+ * it always sits in a tinted tile, which is what gives a list its rhythm at a glance.
+ */
+.v-application .mb-icon-tile {
+    inline-size: 40px;
+    block-size: 40px;
+    flex: 0 0 40px;
+    border-radius: 11px;
+    background: rgb(var(--v-theme-surface-container-highest));
+    color: rgb(var(--v-theme-primary));
+    display: grid;
+    place-items: center;
+}
+
+/* The small pill beside a name: a state, a kind, a count. */
+.v-application .mb-badge-pill {
+    font-size: 11px;
+    line-height: 16px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgb(var(--v-theme-secondary-container));
+    color: rgb(var(--v-theme-on-secondary-container));
+    white-space: nowrap;
+}
+
+.v-application .mb-meta {
+    font-size: 12px;
+    line-height: 18px;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/*
+ * A path is monospace and ellipsised, never wrapped. A wrapped path is unreadable and a
+ * wrapping row makes a list jump about as its contents change - the prototype's rows are all
+ * one height for that reason.
+ */
+.v-application .mb-path {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 16px;
+    color: rgb(var(--v-theme-on-surface-variant));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons.
+ *
+ * 44px tall, fully rounded, 24-28px of horizontal padding, label 14px/500 and not
+ * upper-cased. Vuetify's default is 36px, 4px radius and an upper-cased label, which is
+ * Material 2 - and a row of those is instantly recognisable as the old application no matter
+ * what surface they sit on.
+ *
+ * `size="small"` and `size="x-small"` keep a smaller pill rather than being forced up to 44px:
+ * the prototype uses a 34px/17px pill inside notices and dense toolbars, and flattening that
+ * distinction would make every dense row too tall to fit.
+ * ------------------------------------------------------------------------- */
+.mb-shell-layer .v-btn {
+    border-radius: 9999px;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.mb-shell-layer .v-btn--size-default {
+    min-block-size: 44px;
+    padding-inline: 24px;
+}
+
+.mb-shell-layer .v-btn--size-small {
+    min-block-size: 34px;
+    padding-inline: 16px;
+    font-size: 13px;
+}
+
+/*
+ * Icon buttons stay square-ish targets rather than being stretched by the padding above -
+ * a circular icon button with 24px of side padding is an oval, and the app has a lot of them.
+ */
+.mb-shell-layer .v-btn--icon {
+    padding-inline: 0;
+    min-inline-size: 40px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Fields.
+ *
+ * The prototype's inputs are filled, 12px-cornered and quiet - no outline ring at rest. This
+ * only re-points shape and density; validation, focus rings and error states are Vuetify's
+ * and must stay Vuetify's, because they are what makes a field usable rather than pretty.
+ * ------------------------------------------------------------------------- */
+.mb-shell-layer .v-field {
+    border-radius: 12px;
+}
+
+.mb-shell-layer .v-field--variant-solo,
+.mb-shell-layer .v-field--variant-filled {
+    background: rgb(var(--v-theme-surface-container-highest));
+}
+
+/* ---------------------------------------------------------------------------
+ * Chips and dividers.
+ * ------------------------------------------------------------------------- */
+.mb-shell-layer .v-chip {
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.mb-shell-layer .v-divider {
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Alerts.
+ *
+ * The prototype's notice is a tinted block with a 14px corner and a solid surface behind the
+ * tint, for the same reason the notification toast needed one: a translucent notice drawn
+ * over a paragraph puts two texts on top of each other. Same shorthand-beats-shorthand rule
+ * as there.
+ * ------------------------------------------------------------------------- */
+.mb-shell-layer .v-alert {
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 21px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Density.
+ *
+ * The prototype's page gutter is 30px top / 40px side / 48px bottom, and its content is held
+ * to 900px so a line of prose never runs the full width of a 1440px window. Applied to the
+ * scrolling body of a job rather than to the layer, so a screen that draws its own full-width
+ * chrome (the map, the console) is untouched.
+ * ------------------------------------------------------------------------- */
+.v-application .mb-page-body {
+    block-size: 100%;
+    overflow: auto;
+    padding: 30px 40px 48px;
+}
+
+.v-application .mb-page-measure {
+    max-inline-size: 900px;
+}
+
+@media (max-width: 900px) {
+    .v-application .mb-page-body {
+        padding: 20px 16px 32px;
+    }
+}
