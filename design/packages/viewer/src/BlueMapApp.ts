@@ -1020,7 +1020,13 @@ export class BlueMapApp {
     mapInteraction = (event: Event): void => {
         const detail = (
             event as CustomEvent<{
-                data: { doubleTap?: boolean; contextMenu?: boolean; screenX?: number; screenY?: number };
+                data: {
+                    doubleTap?: boolean;
+                    contextMenu?: boolean;
+                    screenX?: number;
+                    screenY?: number;
+                    contextMenuInvoker?: HTMLElement | null;
+                };
                 hit?: Intersection | null;
                 object?: Object3D;
             }>
@@ -1032,6 +1038,7 @@ export class BlueMapApp {
                 detail as unknown as import("./MapViewer").MapInteractionEventDetail,
                 context.screenX ?? 0,
                 context.screenY ?? 0,
+                context.contextMenuInvoker ?? null,
             );
             return;
         }
