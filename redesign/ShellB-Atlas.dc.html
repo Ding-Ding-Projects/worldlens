@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #F8F9FB; }
+  a { color: #00639B; }
+  a:hover { color: #001D31; }
+  .msr { font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: "liga"; -webkit-font-smoothing: antialiased; }
+</style>
+</helmet>
+
+<div style="width: 1280px; height: 800px; display: flex; flex-direction: column; background: #F8F9FB; color: #191C20; font-family: Roboto, Helvetica, sans-serif; overflow: hidden;">
+
+  <div style="height: 56px; flex: 0 0 56px; display: flex; align-items: center; gap: 14px; padding: 0 0 0 16px; background: #F8F9FB;">
+    <img src="assets/worldlens-logo-256.png" alt="Worldlens" style="width: 24px; height: 24px; border-radius: 6px;" />
+    <span style="font-size: 15px; font-weight: 500; color: #191C20;">Worldlens</span>
+
+    <div style="flex: 1; display: flex; justify-content: center;">
+      <div style="display: flex; gap: 4px; background: #ECEEF4; border-radius: 999px; padding: 4px;">
+        <div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 20px; border-radius: 999px; background: #CEE5FF; color: #001D31; font-size: 14px; font-weight: 500;"><span class="msr" style="font-size: 20px;">home</span>Home</div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 20px; border-radius: 999px; color: #42474E; font-size: 14px;"><span class="msr" style="font-size: 20px;">public</span>Map</div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 20px; border-radius: 999px; color: #42474E; font-size: 14px;"><span class="msr" style="font-size: 20px;">handyman</span>Work<span style="min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #00639B; color: #FFFFFF; font-size: 11px; font-weight: 700; display: grid; place-items: center;">2</span></div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 4px; padding-right: 4px;">
+      <div style="width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; color: #42474E;"><span class="msr" style="font-size: 22px;">search</span></div>
+      <div style="width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; color: #42474E; position: relative;"><span class="msr" style="font-size: 22px;">notifications</span><div style="position: absolute; top: 7px; right: 8px; width: 8px; height: 8px; border-radius: 4px; background: #BA1A1A;"></div></div>
+      <div style="width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; color: #42474E;"><span class="msr" style="font-size: 22px;">settings</span></div>
+    </div>
+    <div style="display: flex; height: 56px;">
+      <div style="width: 46px; display: grid; place-items: center; color: #42474E;"><span class="msr" style="font-size: 18px;">remove</span></div>
+      <div style="width: 46px; display: grid; place-items: center; color: #42474E;"><span class="msr" style="font-size: 16px;">crop_square</span></div>
+      <div style="width: 46px; display: grid; place-items: center; color: #42474E;"><span class="msr" style="font-size: 18px;">close</span></div>
+    </div>
+  </div>
+
+  <div style="flex: 1; overflow: auto; padding: 8px 48px 48px;">
+    <div style="max-width: 1080px; margin: 0 auto;">
+
+      <h1 style="margin: 16px 0 8px; font-size: 44px; line-height: 52px; font-weight: 400; letter-spacing: -0.01em;">Good evening.</h1>
+      <p style="margin: 0 0 28px; font-size: 16px; line-height: 24px; color: #42474E; max-width: 62ch; text-wrap: pretty;">Everything Worldlens can do is one of five jobs. Pick the job, not the screen.</p>
+
+      <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px;">
+
+        <div style="grid-column: span 4; background: #CEE5FF; border-radius: 28px; padding: 28px 30px; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 48px; height: 48px; border-radius: 999px; background: #00639B; display: grid; place-items: center; color: #FFFFFF;"><span class="msr" style="font-size: 26px;">add_location_alt</span></div>
+            <div style="font-size: 24px; font-weight: 500; color: #001D31;">Make a map</div>
+          </div>
+          <p style="margin: 16px 0 0; font-size: 15px; line-height: 22px; color: #001D31; max-width: 52ch; text-wrap: pretty;">Turn a Minecraft world into a browsable 3D map. Five questions, then it renders — on this computer, in a container, over SSH, or on GitHub's own runners.</p>
+          <div style="flex: 1; min-height: 20px;"></div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
+            <div style="font-size: 13px; padding: 6px 14px; border-radius: 999px; background: #FFFFFF; color: #00639B; font-weight: 500;">The guide</div>
+            <div style="font-size: 13px; padding: 6px 14px; border-radius: 999px; background: rgba(255,255,255,0.55); color: #001D31;">Projects</div>
+            <div style="font-size: 13px; padding: 6px 14px; border-radius: 999px; background: rgba(255,255,255,0.55); color: #001D31;">GitHub runners</div>
+            <div style="font-size: 13px; padding: 6px 14px; border-radius: 999px; background: rgba(255,255,255,0.55); color: #001D31;">Renders</div>
+            <div style="font-size: 13px; padding: 6px 14px; border-radius: 999px; background: rgba(255,255,255,0.55); color: #001D31;">Render mask</div>
+            <div style="font-size: 13px; padding: 6px 14px; border-radius: 999px; background: rgba(255,255,255,0.55); color: #001D31;">Repair</div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <div style="height: 48px; padding: 0 28px; border-radius: 999px; background: #00639B; color: #FFFFFF; font-size: 15px; font-weight: 500; display: grid; place-items: center;">Start the guide</div>
+            <div style="height: 48px; padding: 0 24px; border-radius: 999px; border: 1px solid #00639B; color: #00639B; font-size: 15px; font-weight: 500; display: grid; place-items: center;">Open a project</div>
+          </div>
+        </div>
+
+        <div style="grid-column: span 2; background: #FFFFFF; border-radius: 28px; padding: 24px; display: flex; flex-direction: column; border: 1px solid #E1E2E8;">
+          <div style="font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #72777F;">In progress</div>
+          <div style="margin-top: 14px; font-size: 17px; font-weight: 500;">heapandyville</div>
+          <div style="font-size: 13px; color: #42474E; margin-top: 2px;">overworld · this computer</div>
+          <div style="margin-top: 16px; height: 8px; border-radius: 4px; background: #DEE3EA; overflow: hidden;"><div style="width: 41%; height: 100%; background: #00639B; border-radius: 4px;"></div></div>
+          <div style="margin-top: 8px; font-size: 13px; color: #42474E;">394 of 961 tiles · 6 min left</div>
+          <div style="flex: 1; min-height: 16px;"></div>
+          <div style="height: 40px; border-radius: 999px; background: #D3E5F5; color: #0C1D2A; font-size: 14px; font-weight: 500; display: grid; place-items: center;">Open console</div>
+        </div>
+
+        <div style="grid-column: span 2; background: #D3E5F5; border-radius: 28px; padding: 24px;">
+          <div style="width: 44px; height: 44px; border-radius: 999px; background: #51606F; display: grid; place-items: center; color: #FFFFFF;"><span class="msr" style="font-size: 24px;">layers</span></div>
+          <div style="margin-top: 16px; font-size: 20px; font-weight: 500; color: #0C1D2A;">Your maps</div>
+          <p style="margin: 8px 0 14px; font-size: 14px; line-height: 20px; color: #0C1D2A; text-wrap: pretty;">Maps rendered here and BlueMap servers somebody else runs, in one list.</p>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #0C1D2A;">
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Maps and servers</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>The viewer</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Markers</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Remote servers</div>
+          </div>
+        </div>
+
+        <div style="grid-column: span 2; background: #EDDCFF; border-radius: 28px; padding: 24px;">
+          <div style="width: 44px; height: 44px; border-radius: 999px; background: #67587A; display: grid; place-items: center; color: #FFFFFF;"><span class="msr" style="font-size: 24px;">ios_share</span></div>
+          <div style="margin-top: 16px; font-size: 20px; font-weight: 500; color: #221534;">Share a map</div>
+          <p style="margin: 8px 0 14px; font-size: 14px; line-height: 20px; color: #221534; text-wrap: pretty;">Put a finished render where other people can open it — or nowhere public at all.</p>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #221534;">
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Publish to Pages</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Watch it live</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Private worlds</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Remote hosting</div>
+          </div>
+        </div>
+
+        <div style="grid-column: span 2; background: #FFFFFF; border: 1px solid #E1E2E8; border-radius: 28px; padding: 24px;">
+          <div style="width: 44px; height: 44px; border-radius: 999px; background: #DEE3EA; display: grid; place-items: center; color: #42474E;"><span class="msr" style="font-size: 24px;">backup</span></div>
+          <div style="margin-top: 16px; font-size: 20px; font-weight: 500;">Keep a copy</div>
+          <p style="margin: 8px 0 14px; font-size: 14px; line-height: 20px; color: #42474E; text-wrap: pretty;">The ways a world or a render ends up somewhere that is not this one machine.</p>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #42474E;">
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Backups</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>World repository</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>Version history</div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 17px; opacity: 0.6;">arrow_right</span>World sources</div>
+          </div>
+        </div>
+
+        <div style="grid-column: span 6; background: #FFFFFF; border: 1px solid #E1E2E8; border-radius: 28px; padding: 22px 26px; display: flex; align-items: center; gap: 22px;">
+          <div style="width: 44px; height: 44px; flex: 0 0 44px; border-radius: 999px; background: #DEE3EA; display: grid; place-items: center; color: #42474E;"><span class="msr" style="font-size: 24px;">tune</span></div>
+          <div style="flex: 0 0 auto;">
+            <div style="font-size: 20px; font-weight: 500;">Set up &amp; help</div>
+            <div style="font-size: 14px; color: #42474E; margin-top: 2px;">Nine places, none of them a surprise.</div>
+          </div>
+          <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end;">
+            <div style="font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid #C2C7CF; color: #42474E;">Settings</div>
+            <div style="font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid #C2C7CF; color: #42474E;">Options editor · 154</div>
+            <div style="font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid #C2C7CF; color: #42474E;">Appearance</div>
+            <div style="font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid #C2C7CF; color: #42474E;">Language &amp; tone</div>
+            <div style="font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid #C2C7CF; color: #42474E;">Docs</div>
+            <div style="font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid #C2C7CF; color: #42474E;">Changelog</div>
+            <div style="font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid #C2C7CF; color: #42474E;">Licence</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1280, &quot;height&quot;: 800}}"></script>
+</body>
+</html>

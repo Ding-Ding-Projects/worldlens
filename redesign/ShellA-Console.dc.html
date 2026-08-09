@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #0B0E11; }
+  a { color: #8FCDFF; }
+  a:hover { color: #CEE5FF; }
+  .msr { font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: "liga"; -webkit-font-smoothing: antialiased; }
+</style>
+</helmet>
+
+<div style="width: 1280px; height: 800px; display: flex; flex-direction: column; background: #0B0E11; color: #E1E2E8; font-family: Roboto, Helvetica, sans-serif; overflow: hidden; position: relative;">
+
+  <div style="height: 36px; flex: 0 0 36px; display: flex; align-items: center; gap: 10px; padding-left: 12px; background: #101418; border-bottom: 1px solid #1D2024; -webkit-app-region: drag;">
+    <img src="assets/worldlens-logo-256.png" alt="Worldlens" style="width: 18px; height: 18px; border-radius: 3px;" />
+    <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.02em; color: #C2C7CF;">Worldlens</span>
+    <span style="flex: 1;"></span>
+    <div style="display: flex; height: 36px;">
+      <div style="width: 46px; display: grid; place-items: center; color: #C2C7CF;"><span class="msr" style="font-size: 18px;">remove</span></div>
+      <div style="width: 46px; display: grid; place-items: center; color: #C2C7CF;"><span class="msr" style="font-size: 16px;">crop_square</span></div>
+      <div style="width: 46px; display: grid; place-items: center; color: #C2C7CF; background: #1D2024;"><span class="msr" style="font-size: 18px;">close</span></div>
+    </div>
+  </div>
+
+  <div style="flex: 1; display: flex; min-height: 0;">
+
+    <div style="width: 76px; flex: 0 0 76px; background: #101418; border-right: 1px solid #1D2024; display: flex; flex-direction: column; align-items: center; padding: 12px 0 10px;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%;">
+        <div style="width: 56px; height: 32px; border-radius: 16px; background: #004B73; display: grid; place-items: center; color: #CEE5FF;"><span class="msr" style="font-size: 22px;">home</span></div>
+        <div style="font-size: 11px; font-weight: 500; color: #E1E2E8; letter-spacing: 0.04em;">Home</div>
+      </div>
+      <div style="height: 16px;"></div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%;">
+        <div style="width: 56px; height: 32px; border-radius: 16px; display: grid; place-items: center; color: #C2C7CF;"><span class="msr" style="font-size: 22px;">public</span></div>
+        <div style="font-size: 11px; color: #C2C7CF; letter-spacing: 0.04em;">Map</div>
+      </div>
+      <div style="height: 16px;"></div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; position: relative;">
+        <div style="width: 56px; height: 32px; border-radius: 16px; display: grid; place-items: center; color: #C2C7CF; position: relative;">
+          <span class="msr" style="font-size: 22px;">handyman</span>
+          <div style="position: absolute; top: 1px; right: 9px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #8FCDFF; color: #003351; font-size: 10px; font-weight: 700; display: grid; place-items: center;">2</div>
+        </div>
+        <div style="font-size: 11px; color: #C2C7CF; letter-spacing: 0.04em;">Work</div>
+      </div>
+      <span style="flex: 1;"></span>
+      <div style="width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #C2C7CF; position: relative;">
+        <span class="msr" style="font-size: 22px;">notifications</span>
+        <div style="position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 4px; background: #8FCDFF;"></div>
+      </div>
+      <div style="width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #C2C7CF;"><span class="msr" style="font-size: 22px;">search</span></div>
+    </div>
+
+    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+
+      <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 8px 24px; background: #191C20; border-bottom: 1px solid #1D2024;">
+        <span class="msr" style="font-size: 18px; color: #8FCDFF;">bolt</span>
+        <div style="font-size: 13px; color: #C2C7CF;">Rendering <span style="color: #E1E2E8; font-weight: 500;">heapandyville · overworld</span> — 41% of 961 tiles</div>
+        <div style="flex: 1; max-width: 220px; height: 4px; border-radius: 2px; background: #323539; overflow: hidden;"><div style="width: 41%; height: 100%; background: #8FCDFF;"></div></div>
+        <span style="flex: 1;"></span>
+        <div style="font-size: 12px; color: #8FCDFF; font-weight: 500;">Open console</div>
+      </div>
+
+      <div style="flex: 1; overflow: auto; padding: 32px 40px 40px;">
+        <div style="max-width: 940px;">
+          <div style="font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8C9199;">Worldlens</div>
+          <h1 style="margin: 6px 0 4px; font-size: 32px; line-height: 40px; font-weight: 400; color: #E1E2E8;">What are you here to do?</h1>
+          <p style="margin: 0 0 28px; font-size: 14px; line-height: 20px; color: #C2C7CF; max-width: 64ch;">Every capability this application has lives in one of the five catalogues below. Nothing is hidden behind a menu you have to already know about.</p>
+
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+
+            <div style="grid-column: 1 / -1; background: #004B73; border-radius: 16px; padding: 22px 24px; display: flex; align-items: center; gap: 20px;">
+              <div style="width: 52px; height: 52px; flex: 0 0 52px; border-radius: 14px; background: #8FCDFF; display: grid; place-items: center; color: #003351;"><span class="msr" style="font-size: 28px;">add_location_alt</span></div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 20px; font-weight: 500; color: #CEE5FF;">Make a map</div>
+                <div style="font-size: 14px; line-height: 20px; color: #CEE5FF; opacity: 0.86; margin-top: 3px;">Turn a Minecraft world into a browsable 3D map — on this computer, in a container, over SSH, or on GitHub's runners.</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;">
+                  <div style="font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid #8FCDFF; color: #CEE5FF;">The guide</div>
+                  <div style="font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid #8FCDFF; color: #CEE5FF;">Projects</div>
+                  <div style="font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid #8FCDFF; color: #CEE5FF;">GitHub runners</div>
+                  <div style="font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid #8FCDFF; color: #CEE5FF;">Renders in progress</div>
+                  <div style="font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid #8FCDFF; color: #CEE5FF;">Render mask</div>
+                  <div style="font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid #8FCDFF; color: #CEE5FF;">+3</div>
+                </div>
+              </div>
+              <div style="height: 40px; padding: 0 24px; border-radius: 20px; background: #CEE5FF; color: #001D31; font-size: 14px; font-weight: 500; display: grid; place-items: center; white-space: nowrap;">Start the guide</div>
+            </div>
+
+            <div style="background: #1D2024; border: 1px solid #42474E; border-radius: 16px; padding: 20px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: #384956; display: grid; place-items: center; color: #D3E5F5;"><span class="msr" style="font-size: 22px;">layers</span></div>
+                <div style="font-size: 17px; font-weight: 500;">Your maps</div>
+                <span style="flex: 1;"></span>
+                <div style="font-size: 12px; color: #8C9199;">4</div>
+              </div>
+              <p style="margin: 12px 0 14px; font-size: 13px; line-height: 19px; color: #C2C7CF;">Maps rendered here and BlueMap servers somebody else runs, in one list. Opening either is the same action.</p>
+              <div style="display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: #C2C7CF;">
+                <div>Maps and servers</div>
+                <div>The viewer and its controls</div>
+                <div>Markers and marker sets</div>
+                <div>Remote BlueMap servers</div>
+              </div>
+            </div>
+
+            <div style="background: #1D2024; border: 1px solid #42474E; border-radius: 16px; padding: 20px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: #4E4161; display: grid; place-items: center; color: #EDDCFF;"><span class="msr" style="font-size: 22px;">ios_share</span></div>
+                <div style="font-size: 17px; font-weight: 500;">Share a map</div>
+                <span style="flex: 1;"></span>
+                <div style="font-size: 12px; color: #8C9199;">4</div>
+              </div>
+              <p style="margin: 12px 0 14px; font-size: 13px; line-height: 19px; color: #C2C7CF;">Put a finished render where other people can open it — GitHub Pages, this machine, or nowhere public at all.</p>
+              <div style="display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: #C2C7CF;">
+                <div>Publish to Pages</div>
+                <div>Watch it live</div>
+                <div>Private worlds</div>
+                <div>Remote hosting</div>
+              </div>
+            </div>
+
+            <div style="background: #1D2024; border: 1px solid #42474E; border-radius: 16px; padding: 20px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: #384956; display: grid; place-items: center; color: #D3E5F5;"><span class="msr" style="font-size: 22px;">backup</span></div>
+                <div style="font-size: 17px; font-weight: 500;">Keep a copy</div>
+                <span style="flex: 1;"></span>
+                <div style="font-size: 12px; color: #8C9199;">4</div>
+              </div>
+              <p style="margin: 12px 0 14px; font-size: 13px; line-height: 19px; color: #C2C7CF;">The ways a world or a render ends up somewhere that is not this one machine.</p>
+              <div style="display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: #C2C7CF;">
+                <div>Backups</div>
+                <div>World repository</div>
+                <div>Local version history</div>
+                <div>World sources</div>
+              </div>
+            </div>
+
+            <div style="background: #1D2024; border: 1px solid #42474E; border-radius: 16px; padding: 20px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: #42474E; display: grid; place-items: center; color: #C2C7CF;"><span class="msr" style="font-size: 22px;">tune</span></div>
+                <div style="font-size: 17px; font-weight: 500;">Set up &amp; help</div>
+                <span style="flex: 1;"></span>
+                <div style="font-size: 12px; color: #8C9199;">9</div>
+              </div>
+              <p style="margin: 12px 0 14px; font-size: 13px; line-height: 19px; color: #C2C7CF;">Application settings, BlueMap's own 154 options, and every article without leaving the app.</p>
+              <div style="display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: #C2C7CF;">
+                <div>Settings</div>
+                <div>Options editor · 8 tabs</div>
+                <div>Appearance and typography</div>
+                <div>Docs, changelog, licence</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 26px; background: #101418; border-top: 1px solid #1D2024; display: flex; align-items: center; gap: 16px; padding: 0 14px; font-family: 'Roboto Mono', monospace; font-size: 11px; color: #8C9199;">
+    <span style="color: #8FCDFF;">●</span> Java 21 ready
+    <span>·</span> engine: upstream BlueMap
+    <span>·</span> config: C:\Users\cntow\worldlens\config
+    <span style="flex: 1;"></span>
+    <span>1 problem</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1280, &quot;height&quot;: 800}}"></script>
+</body>
+</html>
