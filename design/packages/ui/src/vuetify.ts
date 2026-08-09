@@ -4,6 +4,7 @@ import type { ThemeDefinition } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { md3 } from "vuetify/blueprints";
+import { CONTRAST_SCHEME, DARK_SCHEME, LIGHT_SCHEME } from "@worldlens/shared";
 import { aliases, mdi } from "vuetify/iconsets/mdi-svg";
 
 /**
@@ -37,137 +38,33 @@ import { aliases, mdi } from "vuetify/iconsets/mdi-svg";
  * secondary, and the error red on black. Deriving it from a seed would defeat the one
  * thing it exists for.
  */
-const darkScheme: ThemeDefinition = {
-    dark: true,
-    colors: {
-        "primary": "#8FCDFF",
-        "on-primary": "#003351",
-        "primary-container": "#004B73",
-        "on-primary-container": "#CEE5FF",
-        "secondary": "#B7C9D9",
-        "on-secondary": "#22323F",
-        "secondary-container": "#384956",
-        "on-secondary-container": "#D3E5F5",
-        "tertiary": "#D1BFE7",
-        "on-tertiary": "#372A49",
-        "tertiary-container": "#4E4161",
-        "on-tertiary-container": "#EDDCFF",
-        "error": "#FFB4AB",
-        "on-error": "#690005",
-        "error-container": "#93000A",
-        "on-error-container": "#FFDAD6",
-        "background": "#0B0E11",
-        "on-background": "#E1E2E8",
-        "surface": "#101418",
-        "on-surface": "#E1E2E8",
-        "surface-dim": "#101418",
-        "surface-bright": "#37393E",
-        "surface-light": "#272A2E",
-        "surface-container-lowest": "#0B0E11",
-        "surface-container-low": "#191C20",
-        "surface-container": "#1D2024",
-        "surface-container-high": "#272A2E",
-        "surface-container-highest": "#323539",
-        "surface-variant": "#42474E",
-        "on-surface-variant": "#C2C7CF",
-        "outline": "#8C9199",
-        "outline-variant": "#42474E",
-        "inverse-surface": "#E1E2E8",
-        "inverse-on-surface": "#2E3135",
-        "inverse-primary": "#00639B",
-        "surface-tint": "#8FCDFF",
-        "scrim": "#000000",
-        "shadow": "#000000",
-    },
-};
+/*
+ * The three schemes are `@worldlens/shared`'s now, not this file's.
+ *
+ * They lived here, and the served viewer's framework-neutral shell carried a miniature vocabulary
+ * of its own beside them - six roles, hand-picked, in entirely different hex values. The same
+ * product looked like two products depending on whether you opened it or visited it, and nothing
+ * could have caught it because there was nothing to compare against.
+ *
+ * `colorRoles.ts` is plain data with no framework import at all, which is exactly what lets a
+ * Vuetify theme and a shell that must never import Vuetify read the same values.
+ * `materialShell.tokenIdentity.test.ts` fails if they ever stop agreeing.
+ *
+ * What stays here is the one thing that is genuinely Vuetify's: which schemes are dark.
+ */
+const darkScheme: ThemeDefinition = { dark: true, colors: { ...DARK_SCHEME } };
 
-const lightScheme: ThemeDefinition = {
-    dark: false,
-    colors: {
-        "primary": "#00639B",
-        "on-primary": "#FFFFFF",
-        "primary-container": "#CEE5FF",
-        "on-primary-container": "#001D31",
-        "secondary": "#51606F",
-        "on-secondary": "#FFFFFF",
-        "secondary-container": "#D3E5F5",
-        "on-secondary-container": "#0C1D2A",
-        "tertiary": "#67587A",
-        "on-tertiary": "#FFFFFF",
-        "tertiary-container": "#EDDCFF",
-        "on-tertiary-container": "#221534",
-        "error": "#BA1A1A",
-        "on-error": "#FFFFFF",
-        "error-container": "#FFDAD6",
-        "on-error-container": "#410002",
-        "background": "#FFFFFF",
-        "on-background": "#191C20",
-        "surface": "#F8F9FB",
-        "on-surface": "#191C20",
-        "surface-dim": "#D8DAE0",
-        "surface-bright": "#F8F9FB",
-        "surface-light": "#ECEEF4",
-        "surface-container-lowest": "#FFFFFF",
-        "surface-container-low": "#F2F3F9",
-        "surface-container": "#ECEEF4",
-        "surface-container-high": "#E7E8EE",
-        "surface-container-highest": "#E1E2E8",
-        "surface-variant": "#DEE3EA",
-        "on-surface-variant": "#42474E",
-        "outline": "#72777F",
-        "outline-variant": "#C2C7CF",
-        "inverse-surface": "#2E3135",
-        "inverse-on-surface": "#EFF1F6",
-        "inverse-primary": "#8FCDFF",
-        "surface-tint": "#00639B",
-        "scrim": "#000000",
-        "shadow": "#000000",
-    },
-};
 
-const contrastScheme: ThemeDefinition = {
-    dark: true,
-    colors: {
-        "primary": "#FFFFFF",
-        "on-primary": "#000000",
-        "primary-container": "#FFFFFF",
-        "on-primary-container": "#000000",
-        "secondary": "#FFFF00",
-        "on-secondary": "#000000",
-        "secondary-container": "#FFFF00",
-        "on-secondary-container": "#000000",
-        "tertiary": "#FFFFFF",
-        "on-tertiary": "#000000",
-        "tertiary-container": "#FFFFFF",
-        "on-tertiary-container": "#000000",
-        "error": "#FF5449",
-        "on-error": "#000000",
-        "error-container": "#FF5449",
-        "on-error-container": "#000000",
-        "background": "#000000",
-        "on-background": "#FFFFFF",
-        "surface": "#000000",
-        "on-surface": "#FFFFFF",
-        "surface-dim": "#000000",
-        "surface-bright": "#000000",
-        "surface-light": "#000000",
-        "surface-container-lowest": "#000000",
-        "surface-container-low": "#000000",
-        "surface-container": "#000000",
-        "surface-container-high": "#000000",
-        "surface-container-highest": "#000000",
-        "surface-variant": "#000000",
-        "on-surface-variant": "#FFFFFF",
-        "outline": "#FFFFFF",
-        "outline-variant": "#FFFFFF",
-        "inverse-surface": "#FFFFFF",
-        "inverse-on-surface": "#000000",
-        "inverse-primary": "#000000",
-        "surface-tint": "#FFFFFF",
-        "scrim": "#000000",
-        "shadow": "#000000",
-    },
-};
+const lightScheme: ThemeDefinition = { dark: false, colors: { ...LIGHT_SCHEME } };
+
+
+/*
+ * `dark: true` and deliberately not tonal. Contrast answers the same role names with the
+ * highest-contrast values that keep their meaning; deriving it from the blue seed the other two
+ * share would produce a scheme that is merely darker, which defeats the one thing it exists for.
+ */
+const contrastScheme: ThemeDefinition = { dark: true, colors: { ...CONTRAST_SCHEME } };
+
 
 /** The three schemes, exported for the completeness test rather than re-parsed from CSS. */
 export const THEME_SCHEMES: Readonly<Record<"dark" | "light" | "contrast", ThemeDefinition>> = {

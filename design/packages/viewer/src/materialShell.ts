@@ -1,10 +1,31 @@
+import { DARK_SCHEME, LIGHT_SCHEME, schemeToCustomProperties } from "@worldlens/shared";
 import type { MapInteractionEventDetail } from "./MapViewer";
 
 type Pin = { id: string; x: number; y: number; z: number; label: string; screenX?: number; screenY?: number };
 
+/**
+ * The shell's colours, emitted from the one canonical scheme rather than transcribed beside it.
+ *
+ * This file used to carry twelve hex values of its own - six roles for light, six for dark - and
+ * not one of them matched what the desktop application renders. The same product looked like two
+ * products depending on whether you opened it or visited it, and nothing could ever have caught
+ * that, because there was nothing to compare against.
+ *
+ * `@worldlens/shared` is where the schemes live now: plain data, no Vue, no Vuetify, no DOM, which
+ * is exactly what lets this framework-neutral shell read them without growing a runtime it has no
+ * business carrying. `materialShell.tokenIdentity.test.ts` asserts what is emitted here is what
+ * the desktop renders, so a colour cannot change in one place and not the other.
+ *
+ * The `--bm-` prefix stays: it is already in a published stylesheet and renaming it would be a
+ * breaking change for no gain.
+ */
+const SHELL_BASE = `.bm-m3-shell{position:relative;width:100%;height:100%;font:500 14px/1.4 Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;color:${LIGHT_SCHEME["on-surface"]};${schemeToCustomProperties(LIGHT_SCHEME)}--bm-shadow:0 3px 12px ${LIGHT_SCHEME.shadow}33;}`;
+
+const SHELL_DARK = `.bm-m3-shell[data-theme="dark"]{color:${DARK_SCHEME["on-surface"]};${schemeToCustomProperties(DARK_SCHEME)}--bm-shadow:0 3px 12px ${DARK_SCHEME.shadow}55;}`;
+
 const STYLE = `
-.bm-m3-shell{position:relative;width:100%;height:100%;font:500 14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1a1b20;--bm-primary:#415f91;--bm-on-primary:#fff;--bm-surface:#f9f9ff;--bm-surface-container:#edeef4;--bm-outline:#74777f;--bm-shadow:0 3px 12px #001a3a33;}
-.bm-m3-shell[data-theme="dark"]{color:#e2e2e9;--bm-primary:#a9c7ff;--bm-on-primary:#12315c;--bm-surface:#111318;--bm-surface-container:#1e2026;--bm-outline:#8e9099;}
+${SHELL_BASE}
+${SHELL_DARK}
 .bm-m3-appbar{position:absolute;z-index:20;inset:12px 12px auto 12px;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:18px;background:color-mix(in srgb,var(--bm-surface) 92%,transparent);box-shadow:var(--bm-shadow);backdrop-filter:blur(16px);}
 .bm-m3-brand{font-weight:750;letter-spacing:.01em;margin-right:auto}.bm-m3-subtitle{font-size:12px;opacity:.7}.bm-m3-icon{border:0;background:transparent;color:inherit;border-radius:50%;width:40px;height:40px;cursor:pointer;font-size:20px}.bm-m3-icon:hover,.bm-m3-icon:focus-visible{background:var(--bm-surface-container);outline:2px solid var(--bm-primary);outline-offset:2px}
 .bm-m3-search{width:min(28vw,260px);border:1px solid var(--bm-outline);border-radius:24px;padding:10px 14px;background:transparent;color:inherit}.bm-m3-search:focus{outline:2px solid var(--bm-primary);border-color:transparent}
