@@ -73,12 +73,12 @@ import {
  * Nothing here writes a project file on its own. A discovered world is offered, visibly
  * marked as not yet a project (a "not yet a project" pill, a secondary-container tile where
  * the projects list wears a primary-container one, and its own "Use" action rather than the
- * established list's "Open"), and a click routes into starting one - opening the editor
- * pre-filled for a single world, or writing a default project immediately for however many
- * are selected in bulk. Silently writing a project into every world folder this computer can
- * find would put settings nobody asked for on disk the moment this tab is opened, which is
- * the "built, tested, unreachable" failure mode in reverse: a feature that acts without
- * anybody triggering it.
+ * established list's "Open"), and a click routes into starting one. A single selection opens
+ * the editor pre-filled and unsaved; a bulk selection asks the parent to take the user to one
+ * of those pre-filled editors for review. Silently writing a project into every world folder
+ * this computer can find would put settings nobody asked for on disk, which is the "built,
+ * tested, unreachable" failure mode in reverse: a feature that acts without anybody triggering
+ * it.
  */
 const props = defineProps<{
     bridge: WorldCatalogBridge | null;
@@ -89,7 +89,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     /** One world, chosen to start a project from. Opens the editor pre-filled, unsaved. */
     use: [world: string];
-    /** Several worlds at once. Writes a default project for each immediately. */
+    /** Several worlds selected for an explicit, review-before-save start flow. */
     useMany: [worlds: readonly string[]];
     notify: [level: "info" | "success" | "warning" | "error", message: string];
 }>();
