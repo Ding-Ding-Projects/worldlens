@@ -34,7 +34,12 @@ import {
 import type { UpdateState } from "./state.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
-export const UPDATE_CHANNELS = ["update:state", "update:check", "update:restart"] as const;
+export const UPDATE_CHANNELS = [
+    "update:state",
+    "update:acknowledgeInstallOutcome",
+    "update:check",
+    "update:restart",
+] as const;
 
 /** Where a state change is pushed. One channel, carrying the whole state each time. */
 export const UPDATE_EVENT_CHANNEL = "update:event";
@@ -71,9 +76,17 @@ function restartContext(value: unknown): UpdateRestartContext {
 export function registerUpdateHandlers(ipcMain: IpcMain, options: UpdateIpcOptions): UpdateIpc {
     const { controller } = options;
 
-    ipcMain.handle("update:state", (_event: IpcMainInvokeEvent): UpdateState => controller.current());
+    ipcMain.handle("update:state", (_event: IpcMainInvokeEvent): UpdateState =>
+        controller.current(),
+    );
 
-    ipcMain.handle("update:check", (_event: IpcMainInvokeEvent): UpdateState => controller.check({ manual: true }));
+    ipcMain.handle("update:acknowledgeInstallOutcome", (_event: IpcMainInvokeEvent): void => {
+        controller.acknowledgeInstallOutcome();
+    });
+
+    ipcMain.handle("update:check", (_event: IpcMainInvokeEvent): UpdateState =>
+        controller.check({ manual: true }),
+    );
 
     ipcMain.handle(
         "update:restart",

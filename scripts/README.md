@@ -1,6 +1,7 @@
 # scripts
 
-Release-time scripts. `count-lines.mjs`, `pick-dim-sum.mjs` and `lint-workflows.mjs` are plain Node with no dependencies
+Release-time scripts. `count-lines.mjs`, `pick-dim-sum.mjs`, `release-version.mjs` and
+`lint-workflows.mjs` are plain Node with no dependencies
 beyond the standard library and `git`, so they run identically on a developer machine and on a CI
 runner. `split-parts.mjs` and `join-parts.mjs` are thin command lines over the workspace package
 `@worldlens/parts`, which has to be built first; they say so and exit 2 when it is not.
@@ -86,12 +87,28 @@ downloads, copies, or caches the image in this consumer release.
 The volumes are not evenly sized, so the script resolves which one holds a given asset by asking
 the releases API rather than by dividing an ordinal by a page size.
 
-Dish selection is derived from the release ordinal rather than a ledger file. A ledger would
+Dish selection is derived from the monotonic workflow run number rather than a live release count
+or ledger file. A ledger would
 have to be committed back by CI, and a workflow that pushes to its own repository is the
 automation loop the project rules forbid. The ordinal is monotonic, so a dish is never silently
 reused, and the published releases are themselves the auditable mapping. If the catalog runs out
 of unused records, selection fails and the non-blocking release step omits the code name instead of
 wrapping to an earlier dish.
+
+## `release-version.mjs`
+
+Resolves the one SemVer shared by the Squirrel package, `app.getVersion()`, the update feed and the
+GitHub release tag. The checked-in app manifest stays at a `major.minor.0` base; run number 863
+becomes package version `major.minor.863` and tag `vmajor.minor.863`.
+
+```bash
+node scripts/release-version.mjs --package design/packages/app/package.json --run-number 863
+node scripts/release-version.mjs --package design/packages/app/package.json --run-number 863 --write-package --format lines
+```
+
+Malformed bases, leading-zero or unsafe run numbers, and any tag that is not exactly the packaged
+version with one leading `v` fail closed. Packaging and publication each invoke the helper so one
+job cannot silently recover the former split package/tag sequence.
 
 Network metadata is schema-, type-, character- and length-checked before it becomes runner state.
 The live 2,866-record catalog validates in full, including its real 235-character longest English
@@ -107,7 +124,7 @@ Guards the six release steps that accept dynamic metadata:
 
 ```bash
 node scripts/lint-workflows.mjs
-node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs
+node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
 node scripts/build-changelog.mjs --check
 ```
 

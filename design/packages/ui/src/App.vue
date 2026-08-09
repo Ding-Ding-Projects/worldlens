@@ -400,8 +400,9 @@ const mapPageActive = computed(() => tabs.value?.activePage?.id === PAGE_MAP);
  * is a sentence, not a fault.
  */
 const unsavedConfigChanges = ref(false);
+const unsavedProjectChanges = ref(false);
 const updates = createUpdates({
-    hasUnsavedWork: () => unsavedConfigChanges.value,
+    hasUnsavedWork: () => unsavedConfigChanges.value || unsavedProjectChanges.value,
     onRefusal: (message: string) => {
         raiseNotice("warning", message);
     },
@@ -1015,6 +1016,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
                                     @cloud-render="openCiRender"
+                                    @dirty-change="unsavedProjectChanges = $event"
                                 />
                             </div>
                         </template>

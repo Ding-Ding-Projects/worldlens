@@ -68,7 +68,7 @@ jobs:
       - name: Guard executable workflow expressions and release metadata
         run: |
           set -euo pipefail
-          node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs
+          node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
           node scripts/lint-workflows.mjs
           # Generated-only commits are deliberately excluded by the generator, so a commit
           # containing only its two outputs does not make itself stale. Full history above
@@ -273,21 +273,25 @@ jobs:
       - name: Stamp this build's version
         id: version
         shell: pwsh
-        working-directory: design/packages/app
         run: |
-          $base = node -p "require('./package.json').version.split('.').slice(0,2).join('.')"
-          if ($base -notmatch '^[0-9]+\.[0-9]+$') {
-            Write-Host '::error::application package version is outside the supported major.minor schema'
+          $identity = @(node scripts/release-version.mjs `
+            --package design/packages/app/package.json `
+            --run-number "$env:GITHUB_RUN_NUMBER" `
+            --write-package `
+            --format lines)
+          if ($LASTEXITCODE -ne 0 -or $identity.Count -ne 2) {
+            Write-Host '::error::release version resolver did not return one version and one tag'
             exit 1
           }
-          if ($env:GITHUB_RUN_NUMBER -notmatch '^[1-9][0-9]{0,17}$') {
-            Write-Host '::error::GITHUB_RUN_NUMBER is not a bounded positive integer'
+          $version = $identity[0]
+          $tag = $identity[1]
+          if ($tag -ne "v$version") {
+            Write-Host '::error::package version and GitHub release tag are not one SemVer identity'
             exit 1
           }
-          $version = "$base.$env:GITHUB_RUN_NUMBER"
-          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,4)+String.fromCharCode(10));" $version
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "building installer version $version"
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "building installer version $version for release $tag"
 
       - name: Prepare one fresh Squirrel release set
         env:
@@ -751,19 +755,16 @@ jobs:
     # stale. The group below is the one that already existed for a different reason and
     # is unrelated to runner selection - kept exactly as it was.
     #
-    # The one thing that genuinely cannot run twice at once, and not for the reason it
-    # looks like. The tag is `v<version>-build.<run number>`, which is unique per run, so
-    # two releases could never collide on it.
-    #
-    # The dim sum code name can. It is chosen from the ordinal below, and the ordinal is
-    # `how many releases exist right now` - so two publishes in flight together read the
-    # same count, pick the same dish, and ship two different builds under one code name,
-    # which is the single thing a code name exists to prevent.
+    # The tag is the exact Squirrel/app version with a leading `v`:
+    # `v<major>.<minor>.<run number>`. The committed resolver supplies that same identity
+    # to packaging and publication so update.electronjs.org compares the release and
+    # installed app on one monotonic SemVer sequence. The run number also selects the dim
+    # sum code name, so neither tag nor dish depends on a deletable live release count.
     #
     # `cancel-in-progress: false` because a queued publish must wait, never be dropped. A
     # group holds one pending run, so three publishes racing can still evict the middle;
     # that is a narrower window than the whole workflow had, and the honest fix for it is
-    # an ordinal that does not depend on a live count. Recorded rather than papered over.
+    # nominating one publisher per intended commit. Recorded rather than papered over.
     concurrency:
       group: ci-release-${{ github.ref }}
       cancel-in-progress: false
@@ -891,13 +892,20 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          version=$(node -p "require('./design/package.json').version")
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::design/package.json has a release version outside the supported schema"
+          mapfile -t release_identity < <(
+            node scripts/release-version.mjs \
+              --package design/packages/app/package.json \
+              --run-number "$GITHUB_RUN_NUMBER" \
+              --format lines
+          )
+          if [ "${#release_identity[@]}" -ne 2 ]; then
+            echo "::error::release version resolver did not return one version and one tag"
             exit 1
           fi
-          if [[ ! "$GITHUB_RUN_NUMBER" =~ ^[1-9][0-9]{0,17}$ ]]; then
-            echo "::error::GITHUB_RUN_NUMBER is not a bounded positive integer"
+          version=${release_identity[0]}
+          tag=${release_identity[1]}
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::package version and GitHub release tag are not one SemVer identity"
             exit 1
           fi
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > release-inventory-pages.json
@@ -917,7 +925,6 @@ jobs:
             echo "exact commit $GITHUB_SHA is already nominated by ${existing_tags[0]}; this run will not duplicate it"
             exit 0
           fi
-          tag="v${version}-build.${GITHUB_RUN_NUMBER}"
           mapfile -t stale_drafts < <(
             jq -r --arg tag "$tag" '.[][] | select(.draft == true and .tag_name == $tag) | [.id, .target_commitish] | @tsv' release-inventory-pages.json
           )

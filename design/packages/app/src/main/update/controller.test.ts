@@ -144,6 +144,7 @@ class MemoryInstallJournal implements UpdateInstallJournal {
     outcome: UpdateInstallOutcome = { status: "none" };
     beginError: Error | null = null;
     reconcileError: Error | null = null;
+    clearError: Error | null = null;
     clears = 0;
 
     begin(fromVersion: string, targetVersion: string): void {
@@ -157,6 +158,7 @@ class MemoryInstallJournal implements UpdateInstallJournal {
     }
 
     clear(): void {
+        if (this.clearError !== null) throw this.clearError;
         this.clears += 1;
     }
 }
@@ -432,7 +434,7 @@ describe("UpdateController", () => {
         ],
         ["corrupt", { status: "corrupt" } satisfies UpdateInstallOutcome, "feed-mismatch"],
     ] as const)(
-        "reports a prior %s transition without blocking the next schedule",
+        "reports a prior %s transition while still scheduling the next check",
         (_label, outcome, code) => {
             const journal = new MemoryInstallJournal();
             journal.outcome = outcome;
@@ -444,6 +446,47 @@ describe("UpdateController", () => {
             expect(test.timers.pending.size).toBe(1);
         },
     );
+
+    it("keeps rollback evidence through an early automatic result until the renderer acknowledges it", () => {
+        const journal = new MemoryInstallJournal();
+        journal.outcome = { status: "rolled-back", attempt: updateAttempt() };
+        const test = harness({ installJournal: journal });
+        test.controller.start();
+
+        // Reproduce the startup race: the 30-second timer wins before a renderer asks for
+        // state. The successful check must not erase the durable rollback finding.
+        test.timers.fire();
+        test.engine.emit("update-not-available");
+        expect(test.controller.current().status).toBe("up-to-date");
+        expect(test.controller.current().failure?.code).toBe("rollback");
+        expect(journal.clears).toBe(0);
+
+        // This call is reached by a distinct IPC acknowledgement only after the renderer
+        // has applied its first state. Later real updater events can then supersede it.
+        test.controller.acknowledgeInstallOutcome();
+        expect(journal.clears).toBe(1);
+        test.controller.check({ manual: true });
+        test.engine.emit("update-not-available");
+        expect(test.controller.current().failure).toBeNull();
+    });
+
+    it("retains prior install evidence when acknowledgement cannot clear the receipt", () => {
+        const journal = new MemoryInstallJournal();
+        journal.outcome = {
+            status: "version-mismatch",
+            attempt: updateAttempt(),
+            actualVersion: "0.3.0",
+        };
+        journal.clearError = new Error("receipt is read-only");
+        const test = harness({ installJournal: journal });
+        test.controller.start();
+
+        test.controller.acknowledgeInstallOutcome();
+        test.timers.fire();
+        test.engine.emit("update-not-available");
+        expect(test.controller.current().failure?.code).toBe("feed-mismatch");
+        expect(journal.clears).toBe(0);
+    });
 
     it("treats a journal read failure as an unproven transition", () => {
         const journal = new MemoryInstallJournal();

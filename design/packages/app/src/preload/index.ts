@@ -3099,6 +3099,8 @@ interface WorldlensBridge {
     onPreviewEvent(listener: (event: PreviewEvent) => void): () => void;
 
     updateState(): Promise<UpdateState>;
+    /** Clears the durable restart receipt only after the renderer has applied `updateState`. */
+    acknowledgeUpdateInstallOutcome(): Promise<void>;
     checkForUpdates(): Promise<UpdateState>;
     /**
      * Quits into the installer, if nothing is in the way.
@@ -3554,6 +3556,7 @@ const bridge: WorldlensBridge = {
     },
 
     updateState: () => ipcRenderer.invoke("update:state"),
+    acknowledgeUpdateInstallOutcome: () => ipcRenderer.invoke("update:acknowledgeInstallOutcome"),
     checkForUpdates: () => ipcRenderer.invoke("update:check"),
     restartToInstallUpdate: (unsavedWork: boolean) =>
         ipcRenderer.invoke("update:restart", { unsavedWork }),

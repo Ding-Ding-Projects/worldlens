@@ -14,7 +14,10 @@ import { basename, isAbsolute, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,239}$/;
-const SAFE_TAG = /^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?-build\.\d+$/;
+// The GitHub release tag is the exact packaged/app/feed SemVer with one leading `v`.
+// Keeping a second `-build.<run>` sequence here would make update.electronjs.org compare
+// a prerelease tag with a different installed package version and incorrectly return 204.
+const SAFE_TAG = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const MAX_MANIFEST_BYTES = 1024 * 1024;

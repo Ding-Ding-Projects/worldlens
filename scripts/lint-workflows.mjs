@@ -85,7 +85,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
   ".github/workflows/ci.yml": Object.freeze({
     "Resolve release tag": Object.freeze({
       env: "73dc8da2d166a44852cc6016f1152bfbb40706a31aeade8422c602454a532e00",
-      run: "c00c07cbdcb9b01798cf371af3641d81fd6cd255e6410d32dccfa6be3547e5f9",
+      run: "754209609f12a8d39dbfc09010466b2d389199635af113823c3920e93c42930b",
     }),
     "Verify nominated release already exists": Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
@@ -111,7 +111,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 });
 
 const RELEASE_JOB_FINGERPRINT =
-  "25c485dac86b3396da41e6db991087f3f7da9232668d039bf584d2602a5015cd";
+  "9efb7337e2a9dd4a2b53c7e9b31c9cd309a3b2ac67a5dfb9364a22c88fa766ca";
 
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
@@ -325,22 +325,27 @@ const SUPPORTED_HOSTED_RUNNERS = new Set(["ubuntu-24.04", "windows-2022"]);
 
 const REQUIRED_STEP_LINES = Object.freeze({
   "Guard executable workflow expressions and release metadata": Object.freeze([
-    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs",
     "node scripts/lint-workflows.mjs",
     "node scripts/build-changelog.mjs --check",
   ]),
   "Resolve release tag": Object.freeze([
-    'if [[ ! "$version" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then',
-    'if [[ ! "$GITHUB_RUN_NUMBER" =~ ^[1-9][0-9]{0,17}$ ]]; then',
+    "mapfile -t release_identity < <(",
+    "node scripts/release-version.mjs \\",
+    "--package design/packages/app/package.json \\",
+    'if [ "$tag" != "v$version" ]; then',
     "ordinal=$GITHUB_RUN_NUMBER",
     "printf 'tag=%s\\n' \"$tag\"",
     "printf 'version=%s\\n' \"$version\"",
     "printf 'ordinal=%s\\n' \"$ordinal\"",
   ]),
   "Stamp this build's version": Object.freeze([
-    "if ($base -notmatch '^[0-9]+\\.[0-9]+$') {",
-    "if ($env:GITHUB_RUN_NUMBER -notmatch '^[1-9][0-9]{0,17}$') {",
+    "$identity = @(node scripts/release-version.mjs `",
+    "--package design/packages/app/package.json `",
+    "--write-package `",
+    'if ($tag -ne "v$version") {',
     '"version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append',
+    '"tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append',
   ]),
   "Stage the CLI jar to bundle": Object.freeze([
     "$actual = (Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA256).Hash.ToLowerInvariant()",

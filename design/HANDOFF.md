@@ -3,19 +3,30 @@
 ## 2026-08-08 (release/update integrity) — exact restart receipts and honest blockers
 
 **Implemented on `codex/release-integrity-20260808`; default-branch integration, a replacement
-hosted run, and installed N→N+1 proof remain with the release owner.** The automatic updater now
-requires one exact feed version, writes an atomic transition receipt before `quitAndInstall()`, and
-reconciles that receipt against the version that actually starts next. The outcomes distinguish a
-successful target, the previous version still running (`rollback`), a different version
-(`feed-mismatch`), and an invalid receipt. A receipt write failure keeps the update staged and does
-not quit; a refused Squirrel restart clears the attempted receipt.
+hosted run, and installed N→N+1 proof remain with the release owner.** The release workflow now
+derives one exact monotonic SemVer for the Squirrel package, `app.getVersion()`, update feed and
+GitHub release tag: run 863 is `0.1.863` / `v0.1.863`, not the former split
+`0.1.863` / `v0.1.0-build.863`. The workflow guard fingerprints both resolver call sites and the
+release readback rejects the split tag shape.
+
+The automatic updater requires one exact feed version, writes an atomic transition receipt before
+`quitAndInstall()`, and reconciles that receipt against the version that actually starts next. The
+outcomes distinguish a successful target, the previous version still running (`rollback`), a
+different version (`feed-mismatch`), and an invalid receipt. Startup reads are capped at 4,096 bytes
+before JSON parsing. The receipt and any rollback/mismatch failure remain pinned until the renderer
+has applied its first state and acknowledges it through distinct IPC, so the 30-second automatic
+check cannot erase evidence before the first window. A failed acknowledgement keeps the receipt for
+the next launch. A receipt write failure keeps the update staged and does not quit; a refused
+Squirrel restart clears the attempted receipt.
 
 The renderer now supplies a real unsaved-work boundary. `ConfigScreen.vue` emits its computed
-`isWorkspaceDirty` state, `App.vue` feeds that reactive value into the single `createUpdates`
-controller, and both the model and the restart method fail closed before calling the preload bridge.
+`isWorkspaceDirty` state and `ProjectsScreen.vue` emits the exact serialized comparison that drives
+its Save/autosave state. `App.vue` combines both reactive values in the single `createUpdates`
+controller, and both the model and restart method fail closed before calling the preload bridge.
+If project autosave notification rejects, the visible edit remains dirty and still holds Restart.
 The preload also carries the bounded boolean across IPC and the main controller independently
 refuses true, missing, or malformed values, so an older renderer fails safe.
-The banner changes to localized unsaved-work copy, so its disabled Restart control says why. The
+The banner changes to localized configuration-or-project copy, so its disabled Restart control says why. The
 mounted-shell regression opens the real generated config workspace, proves Restart becomes
 disabled, proves the bridge restart count stays zero, then closes the surface and proves Restart is
 available again. Existing render-in-progress protection remains independently enforced by the main
@@ -28,8 +39,11 @@ turning capture evidence into a release gate. The workflow guard fails if either
 
 **Honest installed-proof boundary.** `v0.1.0-build.828` and the shipped bootstrap checkpoint
 `v0.1.0-build.862` both report `immutable: false` from the GitHub release API and both predate the
-new receipt/unsaved-work code. There is consequently no pair of consecutive immutable packages that
-can truthfully exercise this implementation yet. The current user's installed `0.1.855` copy was
+new receipt/unsaved-work code. Their tags also use the old prerelease sequence: the live
+`update.electronjs.org` endpoint returned HTTP 204 for installed `0.1.828` even though the 862
+release carries `Worldlens-0.1.862-full.nupkg`, because the service compares the tag as SemVer.
+There is consequently no pair of consecutive immutable, correctly versioned packages that can
+truthfully exercise this implementation yet. The current user's installed `0.1.855` copy was
 not replaced or downgraded. A clean isolated N→N+1 install, feed/hash/staging proof, settings,
 project, history, cache and focus continuity, release read-back, and cheap-headless captures remain
 required after two immutable builds exist. Electron's Squirrel `autoUpdater` also exposes no
@@ -124,7 +138,7 @@ After those, every surface captures. **One genuine finding is left deliberately 
 recorded here rather than papered over:** opening the Pages tab makes live calls to
 `api.github.com/user` and `/user/repos` even when nobody is signed in, because
 `PagesScreen.vue`'s `onMounted` gates `loadOwners()` on `canListOwners`, which asks whether
-this *build* can list owners rather than whether anybody is *signed in*. The harness's
+this _build_ can list owners rather than whether anybody is _signed in_. The harness's
 offline guard fails on it. It predates all of this work and was invisible only because that
 surface could never be opened in a capture run before; changing when the application talks to
 a third party is a behaviour decision that does not belong in a look-and-feel change.
@@ -138,12 +152,13 @@ typecheck` at the workspace root runs `vue-tsc`/`tsc` across all thirteen packag
 per-package checks run during the work only covered `ui` and `app`, so a `ui` failure
 introduced after that check went unnoticed locally while every push went red. The failure
 itself: an optional `publishesInset?: boolean` forwarded bare from `TabbedNavigation` to
-`TabStrip`. `vue-tsc` types a template reference to an optional prop from its *declared*
+`TabStrip`. `vue-tsc` types a template reference to an optional prop from its _declared_
 type rather than its `withDefaults` value, so the binding is `boolean | undefined`, and this
 workspace's `exactOptionalPropertyTypes` refuses that against a receiving `?: boolean`. The
 component's other optional booleans are only ever coerced in the template, which is why this
 was the one that tripped. Run `pnpm typecheck` from `design/`, not per package - that is
 what CI runs.
+
 ## 2026-08-08 — #117 RemoteFileBrowser has no narrow-dialog horizontal scroll trap
 
 At 30rem and below, the remote file listing now uses a fixed table layout, retains the name and
@@ -197,6 +212,7 @@ Local verification for both: ui `vue-tsc` and app `tsc` typechecks, eslint on ev
 file, and the full ui vitest suite - 267 files, 4134 passed, 2 pre-existing skips (one
 vitest-worker `onTaskUpdate` RPC timeout in the run's teardown, not a test failure). CI has not
 run against these commits yet.
+
 ## Pages rewrite update, 2026-08-07 — explicit M3 shell and twelve action walkthroughs
 
 Issue #107's Pages rewrite was integrated into `main` at `de324d7`. The start checkpoint `e5ff0d5`
@@ -219,6 +235,7 @@ Focused tests and site typecheck/build are green after the shell and media chang
 is the full site/repository suite, the 360/390/414/desktop/bilingual-200% cheap-headless matrix,
 final screenshots and exact-main CI. The final owner must keep issue #107 open until the exact main
 commit and live Pages deployment have genuine captures and terminal proof.
+
 ## Branch checkpoint, 2026-08-07 — startup failures retain a recovery surface and Worldlens has its own mark
 
 Issue #106 is integrated through this completion merge. The exact-main CI, packaged cheap-headless

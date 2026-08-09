@@ -235,6 +235,29 @@ describe("the discovered-worlds panel, wired into the tab", () => {
 
         expect(notifyAutosaveChange).toHaveBeenCalledOnce();
         expect(notifyAutosaveChange.mock.calls[0]?.[0]).toBe("/home/ada/.minecraft/saves/Bastion");
+        expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
+        view.unmount();
+    });
+
+    it("keeps the process-wide dirty signal true when autosave notification rejects", async () => {
+        const host = {
+            ...fakeHost(),
+            notifyAutosaveChange: vi.fn(async () => {
+                throw new Error("autosave channel refused the edit");
+            }),
+        };
+        const view = screen(host, fakeCatalog([world()]));
+        await flushPromises();
+
+        document
+            .querySelector('[role="option"]')
+            ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await flushPromises();
+        await flushPromises();
+
+        expect(host.notifyAutosaveChange).toHaveBeenCalledOnce();
+        expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
+        expect(view.text()).toContain("Save");
         view.unmount();
     });
 

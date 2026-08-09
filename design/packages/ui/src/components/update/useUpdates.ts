@@ -95,6 +95,10 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
         void bridge.state().then(
             (first) => {
                 if (!pushed) state.value = first;
+                // The receipt stays on disk until the state above is present in renderer
+                // memory. If this acknowledgement fails, the main process retains it and
+                // reports the outcome again on the next launch rather than losing evidence.
+                void bridge.acknowledgeInstallOutcome().catch(() => {});
             },
             () => {
                 // A build whose bridge is present but refuses the first read still gets
@@ -154,7 +158,7 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
                     ok: false,
                     code: "unsaved-work",
                     message:
-                        "Unsaved configuration changes are open. Save or discard them before restarting to install the update; the staged update will wait.",
+                        "Unsaved configuration or project changes are open. Save or discard them before restarting to install the update; the staged update will wait.",
                 };
                 refusal.value = answer.message;
                 options.onRefusal?.(answer.message);

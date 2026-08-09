@@ -40,6 +40,13 @@ and one non-empty `RELEASES`. Every package record must match the emitted filena
 SHA-1; empty, stale, duplicate, missing, extra, wrong-version, wrong-size or wrong-hash output fails
 closed.
 
+Before that collection, `scripts/release-version.mjs` resolves one version identity for the
+packaged app, Squirrel `RELEASES`, the updater feed and the GitHub release. For run 863 the package
+version is `0.1.863` and the tag is exactly `v0.1.863`; publication independently recomputes the
+same pair from the unchanged base manifest. A split `v0.1.0-build.863` tag fails the workflow and
+release-manifest contracts because the update service compares the release tag—not the attached
+package filename—with the installed SemVer.
+
 `scripts/release-asset-manifest.mjs` then records the exact unique, non-empty release asset set,
 including Setup, full package, `RELEASES`, extras and jar evidence, with each byte count and
 SHA-256. Publication downloads every asset again into a new directory and requires an exact name,
@@ -121,7 +128,7 @@ trust boundary.
 ## Verification
 
 ```bash
-node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs
+node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
 node scripts/lint-workflows.mjs
 node scripts/build-changelog.mjs --check
 actionlint -no-color -oneline -shellcheck=
@@ -138,7 +145,7 @@ status, fatal release-gate dependency, real
 235-character alternative text, malformed schema, control characters, unsafe Markdown contexts,
 wrong asset origins, no-photo-download enforcement, path containment, zero/stale/duplicate/wrong-
 version Squirrel fixtures, RELEASES hash/size mismatches, duplicate/empty release-manifest assets,
-wrong release target or notes, and downloaded asset-set mismatches. On Windows, `actionlint` with
+split package/tag versions, wrong release target or notes, and downloaded asset-set mismatches. On Windows, `actionlint` with
 shellcheck integration can deadlock; the documented local command proves workflow structure with
 shellcheck disabled, while the pinned Linux hosted job supplies the authoritative shellcheck pass.
 

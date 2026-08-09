@@ -206,6 +206,13 @@ export class UpdateController {
     private fallbackAttempted = false;
     private currentFeedHadNoUpdate = false;
     private currentFeedConfirmed = false;
+    /**
+     * A restart outcome remains durable until the renderer says it has received the state.
+     * Scheduled checks may finish before the first window has loaded, so a failure kept only
+     * in `state` can otherwise be replaced before any person or renderer observes it.
+     */
+    private installOutcomeAwaitingAcknowledgement = false;
+    private priorInstallFailure: Extract<UpdateEvent, { readonly type: "failed" }> | null = null;
 
     constructor(options: UpdateControllerOptions) {
         this.options = options;
@@ -284,6 +291,25 @@ export class UpdateController {
     }
 
     /**
+     * Acknowledges the prior install outcome after the renderer has applied its first state.
+     *
+     * Clearing fails closed: if the receipt cannot be removed, its failure stays pinned and
+     * the next launch reconciles it again. This method intentionally does not publish another
+     * state; the renderer keeps the snapshot it just accepted until a real updater event
+     * supersedes it.
+     */
+    acknowledgeInstallOutcome(): void {
+        if (!this.installOutcomeAwaitingAcknowledgement) return;
+        try {
+            this.options.installJournal?.clear();
+        } catch {
+            return;
+        }
+        this.installOutcomeAwaitingAcknowledgement = false;
+        this.priorInstallFailure = null;
+    }
+
+    /**
      * Asks now rather than at the next scheduled moment.
      *
      * Returns the state rather than a promise of a result: the answer arrives on the change
@@ -347,7 +373,7 @@ export class UpdateController {
                 ok: false,
                 code: "unsaved-work",
                 message:
-                    "Unsaved configuration changes are open. Save or discard them before restarting to install the update; " +
+                    "Unsaved configuration or project changes are open. Save or discard them before restarting to install the update; " +
                     `version ${version} remains staged.`,
             };
         }
@@ -580,9 +606,10 @@ export class UpdateController {
     }
 
     private reportPriorInstallOutcome(outcome: UpdateInstallOutcome): void {
+        this.installOutcomeAwaitingAcknowledgement = outcome.status !== "none";
         if (outcome.status === "none" || outcome.status === "installed") return;
         if (outcome.status === "rolled-back") {
-            this.apply({
+            this.reportPriorInstallFailure({
                 type: "failed",
                 failure: updateFailure(
                     "rollback",
@@ -596,7 +623,7 @@ export class UpdateController {
             return;
         }
         if (outcome.status === "version-mismatch") {
-            this.apply({
+            this.reportPriorInstallFailure({
                 type: "failed",
                 failure: updateFailure(
                     "feed-mismatch",
@@ -608,7 +635,7 @@ export class UpdateController {
             });
             return;
         }
-        this.apply({
+        this.reportPriorInstallFailure({
             type: "failed",
             failure: updateFailure(
                 "feed-mismatch",
@@ -620,8 +647,26 @@ export class UpdateController {
         });
     }
 
+    private reportPriorInstallFailure(
+        event: Extract<UpdateEvent, { readonly type: "failed" }>,
+    ): void {
+        this.priorInstallFailure = event;
+        this.apply(event);
+    }
+
     private apply(event: UpdateEvent): void {
-        const next = reduceUpdate(this.state, event);
+        const reduced = reduceUpdate(this.state, event);
+        // Keep rollback/mismatch evidence visible even when the automatic 30-second check
+        // finishes before the first window. Acknowledgement happens only after the renderer
+        // applies its initial state, at which point later events may supersede it normally.
+        const next =
+            this.priorInstallFailure === null
+                ? reduced
+                : {
+                      ...reduced,
+                      failure: this.priorInstallFailure.failure,
+                      lastCheckedAt: this.priorInstallFailure.at,
+                  };
         const active = this.readRenderActivity();
         this.state =
             active === next.renderInProgress

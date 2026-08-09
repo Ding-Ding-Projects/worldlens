@@ -201,6 +201,24 @@ test("all 114 actions in every executable workflow are SHA-pinned and checkouts 
 
 test("mutable action tags, retained checkout credentials and missing root gates fail", () => {
   const workflow = readFileSync(FILE, "utf8");
+  assert.equal(
+    workflow.match(/node scripts\/release-version\.mjs/g)?.length,
+    2,
+    "packaging and publication must both use the committed version resolver",
+  );
+  assert.equal(workflow.includes('-build.${GITHUB_RUN_NUMBER}'), false);
+
+  const splitVersionIdentity = workflow.replace(
+    'if [ "$tag" != "v$version" ]; then',
+    'tag="v${version}-build.${GITHUB_RUN_NUMBER}"',
+  );
+  assert.notEqual(splitVersionIdentity, workflow);
+  assert.ok(
+    actionDependencyProblems(splitVersionIdentity, FILE).some((problem) =>
+      /security contract must run exactly once/.test(problem.message),
+    ),
+  );
+
   const mutable = workflow.replace(
     "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
     "actions/checkout@v4",
@@ -222,7 +240,7 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
 
   const unwired = workflow.replace(
-    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs",
     "echo skipped",
   );
   assert.ok(

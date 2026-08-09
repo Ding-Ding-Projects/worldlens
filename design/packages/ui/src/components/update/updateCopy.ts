@@ -94,18 +94,18 @@ export const UPDATE_VOICED = {
     },
     "update.banner.unsavedBody": {
         en: [
-            "Configuration changes are not saved. Save or discard them before restarting; the staged update will wait.",
-            "Unsaved configuration changes are open. Save or discard them before Restart becomes available.",
-            "Unsaved configuration changes are open, so Restart is held. The staged update is staying put.",
-            "Configuration edits are still on the workbench. Restart waits while you save them or put them back.",
-            "Configuration edits are still roaming around without a save. Restart is politely guarding the door until they are saved or dismissed.",
+            "Configuration or project changes are not saved. Save or discard them before restarting; the staged update will wait.",
+            "Unsaved configuration or project changes are open. Save or discard them before Restart becomes available.",
+            "Unsaved configuration or project changes are open, so Restart is held. The staged update is staying put.",
+            "Configuration or project edits are still on the workbench. Restart waits while you save them or put them back.",
+            "Configuration or project edits are still roaming around without a save. Restart is politely guarding the door until they are saved or dismissed.",
         ],
         yue: [
-            "設定改動未儲存。請先儲存或放棄改動，更新會繼續等候。",
-            "仲有設定未儲存。儲存或放棄之後，重新開機先會用得。",
-            "有設定改動未 save，所以重新開機暫停；個更新會乖乖留喺度等。",
-            "設定改動仲擺咗喺工作枱，先 save 或收返好，重新開機先開門。",
-            "設定改動仲未 save，周圍散步。重新開機守住門口，等你 save 好或者決定唔要先放行。",
+            "設定或專案改動未儲存。請先儲存或放棄改動，更新會繼續等候。",
+            "仲有設定或專案未儲存。儲存或放棄之後，重新開機先會用得。",
+            "有設定或專案改動未 save，所以重新開機暫停；個更新會乖乖留喺度等。",
+            "設定或專案改動仲擺咗喺工作枱，先 save 或收返好，重新開機先開門。",
+            "設定或專案改動仲未 save，周圍散步。重新開機守住門口，等你 save 好或者決定唔要先放行。",
         ],
     },
     "update.status.idle": {

@@ -15,10 +15,12 @@
 import { randomBytes } from "node:crypto";
 import {
     closeSync,
+    fstatSync,
     fsyncSync,
+    lstatSync,
     mkdirSync,
     openSync,
-    readFileSync,
+    readSync,
     renameSync,
     rmSync,
     writeFileSync,
@@ -26,6 +28,8 @@ import {
 import { dirname, join } from "node:path";
 
 export const UPDATE_INSTALL_JOURNAL_FILE = ".worldlens-update-install.json";
+/** Small enough to read before the window opens without a corrupt local file stalling launch. */
+export const UPDATE_INSTALL_JOURNAL_MAX_BYTES = 4_096;
 
 export interface UpdateInstallAttempt {
     readonly schema: 1;
@@ -51,8 +55,20 @@ export interface UpdateInstallJournal {
     clear(): void;
 }
 
-function nonemptyBounded(value: unknown): value is string {
-    return typeof value === "string" && value.trim() !== "" && value.length <= 128;
+const EXACT_VERSION =
+    /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/;
+
+function exactVersion(value: unknown): value is string {
+    return typeof value === "string" && value.length <= 64 && EXACT_VERSION.test(value);
+}
+
+function exactTimestamp(value: unknown): value is string {
+    if (typeof value !== "string" || value.length > 64) return false;
+    try {
+        return new Date(value).toISOString() === value;
+    } catch {
+        return false;
+    }
 }
 
 function attempt(value: unknown): UpdateInstallAttempt | null {
@@ -60,13 +76,47 @@ function attempt(value: unknown): UpdateInstallAttempt | null {
     const candidate = value as Partial<UpdateInstallAttempt>;
     if (
         candidate.schema !== 1 ||
-        !nonemptyBounded(candidate.fromVersion) ||
-        !nonemptyBounded(candidate.targetVersion) ||
-        !nonemptyBounded(candidate.requestedAt)
+        !exactVersion(candidate.fromVersion) ||
+        !exactVersion(candidate.targetVersion) ||
+        !exactTimestamp(candidate.requestedAt)
     ) {
         return null;
     }
     return candidate as UpdateInstallAttempt;
+}
+
+/**
+ * Read at most one bounded record from a regular file.
+ *
+ * Looking at `stat.size` and then calling `readFileSync` is not a bound: the file can grow
+ * between those calls and `readFileSync` will still allocate for all of it. The descriptor
+ * stays open while this reads one byte past the limit, so both a pre-existing oversized file
+ * and one growing concurrently fail before JSON parsing.
+ */
+function readJournal(path: string): string {
+    if (lstatSync(path).isSymbolicLink()) {
+        throw new Error("update install journal must not be a symbolic link");
+    }
+    const handle = openSync(path, "r");
+    try {
+        const metadata = fstatSync(handle);
+        if (!metadata.isFile() || metadata.size > UPDATE_INSTALL_JOURNAL_MAX_BYTES) {
+            throw new Error("update install journal is not one bounded regular file");
+        }
+        const bytes = Buffer.alloc(UPDATE_INSTALL_JOURNAL_MAX_BYTES + 1);
+        let count = 0;
+        while (count < bytes.length) {
+            const received = readSync(handle, bytes, count, bytes.length - count, count);
+            if (received === 0) break;
+            count += received;
+        }
+        if (count > UPDATE_INSTALL_JOURNAL_MAX_BYTES) {
+            throw new Error("update install journal exceeds its byte limit");
+        }
+        return bytes.subarray(0, count).toString("utf8");
+    } finally {
+        closeSync(handle);
+    }
 }
 
 export function createFileUpdateInstallJournal(
@@ -81,8 +131,8 @@ export function createFileUpdateInstallJournal(
 
     return {
         begin(fromVersion, targetVersion) {
-            if (!nonemptyBounded(fromVersion) || !nonemptyBounded(targetVersion)) {
-                throw new Error("The update transition did not carry two bounded versions.");
+            if (!exactVersion(fromVersion) || !exactVersion(targetVersion)) {
+                throw new Error("The update transition did not carry two exact bounded versions.");
             }
             mkdirSync(dirname(path), { recursive: true });
             const temporary = `${path}.tmp-${process.pid}-${randomBytes(6).toString("hex")}`;
@@ -112,15 +162,13 @@ export function createFileUpdateInstallJournal(
         reconcile(actualVersion) {
             let raw: unknown;
             try {
-                raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+                raw = JSON.parse(readJournal(path)) as unknown;
             } catch (error) {
                 if ((error as NodeJS.ErrnoException).code === "ENOENT") return { status: "none" };
-                clear();
                 return { status: "corrupt" };
             }
 
             const stored = attempt(raw);
-            clear();
             if (stored === null) return { status: "corrupt" };
             if (actualVersion === stored.targetVersion) {
                 return { status: "installed", attempt: stored };

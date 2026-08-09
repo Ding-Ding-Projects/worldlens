@@ -26,6 +26,7 @@ interface Fake {
     push(state: UpdateState): void;
     readonly checks: number;
     readonly restarts: number;
+    readonly acknowledgements: number;
     readonly listeners: number;
 }
 
@@ -38,10 +39,14 @@ function fakeBridge(
     } = {},
 ): Fake {
     const listeners: ((state: UpdateState) => void)[] = [];
-    const counters = { checks: 0, restarts: 0 };
+    const counters = { acknowledgements: 0, checks: 0, restarts: 0 };
 
     const bridge: UpdateBridge = {
         state: () => Promise.resolve(options.first ?? unknownUpdateState("0.1.0")),
+        acknowledgeInstallOutcome: () => {
+            counters.acknowledgements += 1;
+            return Promise.resolve();
+        },
         check: () => {
             counters.checks += 1;
             return Promise.resolve({ ...unknownUpdateState("0.1.0"), checking: true });
@@ -72,6 +77,9 @@ function fakeBridge(
         get restarts(): number {
             return counters.restarts;
         },
+        get acknowledgements(): number {
+            return counters.acknowledgements;
+        },
         get listeners(): number {
             return listeners.length;
         },
@@ -96,8 +104,31 @@ describe("createUpdates", () => {
         fake.push(ready());
         await Promise.resolve();
         expect(updates.banner.value.visible).toBe(true);
+        expect(fake.acknowledgements).toBe(1);
         updates.stop();
         expect(fake.listeners).toBe(0);
+    });
+
+    it("acknowledges the durable install outcome only after applying the initial state", async () => {
+        const fake = fakeBridge({
+            first: {
+                ...unknownUpdateState("0.1.0"),
+                status: "failed",
+                failure: {
+                    code: "rollback",
+                    message: "The requested update rolled back.",
+                    detail: null,
+                    retryable: true,
+                },
+            },
+        });
+        const updates = createUpdates({ bridge: fake.bridge });
+        expect(fake.acknowledgements).toBe(0);
+
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(updates.state.value.failure?.code).toBe("rollback");
+        expect(fake.acknowledgements).toBe(1);
     });
 
     it("shows the banner when a version is staged, and hides it once dismissed", () => {
@@ -162,7 +193,7 @@ describe("createUpdates", () => {
         const answer = await updates.restart();
         expect(answer).toMatchObject({ ok: false, code: "unsaved-work" });
         expect(fake.restarts).toBe(0);
-        expect(seen[0]).toMatch(/Unsaved configuration changes/);
+        expect(seen[0]).toMatch(/Unsaved configuration or project changes/);
     });
 
     it("treats a broken unsaved-work probe as busy in the safe direction", async () => {

@@ -3,17 +3,21 @@
 ## Automatic updater restart integrity and issue #79 closure gate (2026-08-08)
 
 **Implementation complete on `codex/release-integrity-20260808`; installed acceptance remains
-blocked by release state.** The existing startup-plus-six-hour updater, HTTPS Squirrel feed,
+blocked by release state.** The release path now uses one monotonic SemVer for the package,
+`app.getVersion()`, Squirrel feed and GitHub tag, closing the former split identity that made the
+live update service return HTTP 204 for a newer attached package. The existing startup-plus-six-hour updater, HTTPS Squirrel feed,
 background download, package-hash handling, persistent exact-version banner, Later action, manual
 check, explicit Restart, unsigned warning, render protection and offline/corrupt-asset tests now add
 an atomic N→N+1 transition receipt, next-launch rollback/version-mismatch reporting, strict exact
-feed versions, and a real reactive unsaved-configuration refusal wired from the editor through IPC
-to the renderer and main-process controllers. A broken dirty-state probe and a missing/malformed
-IPC value fail safe, and a receipt that cannot be written leaves the staged update in place without
-quitting.
+feed versions, and real reactive unsaved-configuration and unsaved-project refusals wired from both
+editors through IPC to the renderer and main-process controllers. A failed project autosave
+notification retains the dirty hold. Receipt input is bounded before parsing, and rollback/mismatch
+evidence stays durable until the renderer explicitly acknowledges its first state. A broken
+dirty-state probe and a missing/malformed IPC value fail safe, and a receipt that cannot be written
+leaves the staged update in place without quitting.
 
 The full issue is deliberately not marked done. The two inspected consecutive release candidates
-predating this code are mutable (`immutable: false`), so they cannot prove the requested immutable
+predating this code are mutable (`immutable: false`) and use the split tag/package sequence, so they cannot prove the requested immutable
 N→N+1 path. Once two immutable releases containing this code exist, the remaining gate is a clean
 isolated install/update with feed and asset-hash read-back, settings/project/history/cache and focus
 continuity, rollback/corruption/unsigned/feed-mismatch evidence, and genuine cheap-headless captures.
@@ -42,6 +46,7 @@ Focused shell/content/coverage/walkthrough tests, site typecheck and a productio
 except for the final full-suite and runtime matrix still to run after documentation is complete. A
 local build and explanatory animation are not live-deployment proof; exact main CI, Pages workflow
 and live URL read-back remain later gates.
+
 ## Startup resilience and Worldlens brand phase (2026-08-07)
 
 **Merged through the completion pass; packaged and hosted proof remain open.** The app

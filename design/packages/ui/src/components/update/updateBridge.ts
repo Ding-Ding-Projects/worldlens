@@ -67,6 +67,8 @@ export type UpdateRestartResult =
 
 export interface UpdateBridge {
     state(): Promise<UpdateState>;
+    /** Called only after the renderer has applied the durable prior-install outcome. */
+    acknowledgeInstallOutcome(): Promise<void>;
     /** Asks now. The answer arrives on {@link UpdateBridge.onUpdateEvent}, not from this. */
     check(): Promise<UpdateState>;
     /** Never rejects: a refusal comes back `ok: false` with a code and a sentence. */
@@ -81,6 +83,7 @@ export interface UpdateBridge {
 /** The shape a preload is probed against, one method at a time. */
 type Host = Partial<{
     updateState: () => Promise<UpdateState>;
+    acknowledgeUpdateInstallOutcome: () => Promise<void>;
     checkForUpdates: () => Promise<UpdateState>;
     restartToInstallUpdate: (unsavedWork: boolean) => Promise<UpdateRestartResult>;
     onUpdateEvent: (listener: (state: UpdateState) => void) => () => void;
@@ -111,6 +114,10 @@ export function resolveUpdateBridge(): UpdateBridge | null {
 
     return {
         state: () => updateState(),
+        acknowledgeInstallOutcome: () =>
+            isFunction(host.acknowledgeUpdateInstallOutcome)
+                ? host.acknowledgeUpdateInstallOutcome()
+                : Promise.resolve(),
         onUpdateEvent: (listener) => onUpdateEvent(listener),
         // Falls back to reading the state rather than rejecting: "this build has no manual
         // check" and "the check found nothing" both leave the same screen, and `canCheck`

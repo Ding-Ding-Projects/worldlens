@@ -69,16 +69,17 @@ import { createProject, withMapAdded } from "./components/project/projectModel.j
  *   - It is not this file, or App.vue, getting slower to start: `ProjectEditor.test.ts`, a
  *     comparably heavy jsdom-mount file elsewhere in this package, took 119199ms in that
  *     same CI run against 27.99s run alone locally - roughly the same ~4x factor - while
- *     running concurrently with this file in the other of `vitest.config.ts`'s two pinned
- *     forks. A `TabGroupPicker.typecheck.test.ts` in the same run spent 53941ms shelling
- *     out to `vue-tsc` in that same two-fork pool. Profiling `App.vue`'s own mount path
+ *     running concurrently with this file in the other of `vitest.config.ts`'s then-two
+ *     pinned forks. A `TabGroupPicker.typecheck.test.ts` in the same run spent 53941ms
+ *     shelling out to `vue-tsc` in that same historical two-fork pool. Profiling
+ *     `App.vue`'s own mount path
  *     found nothing eager to blame either: `renderIndicator.reconcile()`, wired in
  *     `onMounted`, resolves near-instantly the moment `window.worldlens` is
  *     undefined (true for every test in this file), and `HomeScreen` - the page the shell
  *     opens on by default - has no eager work of its own. Measured here: 952ms and 563ms
- *     mounting alone, 972ms and 606ms mounting early inside a full, two-fork-pinned run of
- *     this workspace's entire 9,329-test suite. The shell is not the regression; the
- *     runner's shared two-process pool getting oversubscribed by other files' real work is.
+ *     mounting alone, 972ms and 606ms mounting early inside that full, two-fork-pinned run
+ *     of this workspace's then-9,329-test suite. The shell was not the regression; the
+ *     runner's shared two-process pool was oversubscribed by other files' real work.
  *
  * 60s (this codebase's own convention for known-slow, real-world work - see the several
  * `{ timeout: 60_000 }` "on a real disk" describes in `packages/app`) leaves comfortable
@@ -237,9 +238,7 @@ function tabButton(label: string): HTMLElement {
 
 /** The seeded groups' own headers, in strip order. */
 function shellGroupHeads(): HTMLElement[] {
-    return [
-        ...document.querySelectorAll<HTMLElement>(".mb-shell-tabs .mb-tabs-strip__group-head"),
-    ];
+    return [...document.querySelectorAll<HTMLElement>(".mb-shell-tabs .mb-tabs-strip__group-head")];
 }
 
 /**
@@ -507,28 +506,38 @@ describe("the tab strip", () => {
     it("keeps a project editor's nested tab panel interactive while the shell panel passes map clicks through", async () => {
         const world = "C:/saves/Survival";
         const project = withMapAdded(
-            createProject("Survival", { now: "2026-08-06T12:00:00Z", id: "project-1", appVersion: null }),
+            createProject("Survival", {
+                now: "2026-08-06T12:00:00Z",
+                id: "project-1",
+                appVersion: null,
+            }),
             { id: "overworld", name: "Overworld", dimension: "minecraft:overworld", world },
         );
         (globalThis as { worldlens?: unknown }).worldlens = {
             project: {
                 listProjects: async () => ({
-                    projects: [{
-                        world,
-                        file: `${world}/worldlens.project.json`,
-                        id: project.id,
-                        name: project.name,
-                        maps: project.maps.length,
-                        createdAt: project.createdAt,
-                        updatedAt: project.updatedAt,
-                        fromWizard: project.fromWizard,
-                        worldName: "Survival",
-                        problem: null,
-                    }],
+                    projects: [
+                        {
+                            world,
+                            file: `${world}/worldlens.project.json`,
+                            id: project.id,
+                            name: project.name,
+                            maps: project.maps.length,
+                            createdAt: project.createdAt,
+                            updatedAt: project.updatedAt,
+                            fromWizard: project.fromWizard,
+                            worldName: "Survival",
+                            problem: null,
+                        },
+                    ],
                     scanned: 1,
                     problems: [],
                 }),
-                readProject: async () => ({ ok: true, project, file: `${world}/worldlens.project.json` }),
+                readProject: async () => ({
+                    ok: true,
+                    project,
+                    file: `${world}/worldlens.project.json`,
+                }),
                 writeProject: async () => ({ ok: true, file: `${world}/worldlens.project.json` }),
             },
         };
@@ -553,18 +562,21 @@ describe("the tab strip", () => {
         expect(getComputedStyle(outerPanel!).pointerEvents).toBe("none");
         expect(getComputedStyle(nestedPanel!).pointerEvents).not.toBe("none");
 
-        const core = [...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]')]
-            .find((tab) => (tab.textContent ?? "").includes("Core"));
+        const core = [
+            ...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]'),
+        ].find((tab) => (tab.textContent ?? "").includes("Core"));
         core?.click();
         await settle();
         expect(core?.getAttribute("aria-selected")).toBe("true");
 
-        const maps = [...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]')]
-            .find((tab) => (tab.textContent ?? "").includes("Maps"));
+        const maps = [
+            ...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]'),
+        ].find((tab) => (tab.textContent ?? "").includes("Maps"));
         maps?.click();
         await settle();
-        const addMap = [...document.querySelectorAll<HTMLButtonElement>(".mb-project-editor button")]
-            .find((button) => (button.textContent ?? "").includes("Add a map"));
+        const addMap = [
+            ...document.querySelectorAll<HTMLButtonElement>(".mb-project-editor button"),
+        ].find((button) => (button.textContent ?? "").includes("Add a map"));
         expect(addMap).toBeDefined();
         addMap?.click();
         await settle();
@@ -664,7 +676,9 @@ describe("the tab strip", () => {
         app.findComponent(WorldRepoScreen).vm.$emit("adopted", "/worlds/andyville");
         await settle();
 
-        expect(tabLabels().some((label) => label !== null && label.startsWith("Projects"))).toBe(true);
+        expect(tabLabels().some((label) => label !== null && label.startsWith("Projects"))).toBe(
+            true,
+        );
         const projects = app.findComponent(ProjectsScreen);
         expect(projects.exists()).toBe(true);
         expect(projects.props("openWorld")).toBe("/worlds/andyville");
@@ -808,7 +822,7 @@ describe("the licence viewer", () => {
     });
 });
 
-describe("\"what is this?\"", () => {
+describe('"what is this?"', () => {
     it("reaches the docked welcome panel through the command palette, and stays reachable after first run", async () => {
         // Same "built, tested, unreachable" regression the EULA test above guards against,
         // for `WelcomeSurface`'s own claim to be a standalone route rather than only
@@ -834,7 +848,7 @@ describe("\"what is this?\"", () => {
         expect(panel?.textContent).toContain("BlueMap turns a Minecraft world into a 3D map");
     });
 
-    it("switches to \"Make a map\" and closes itself when \"Start here\" is pressed", async () => {
+    it('switches to "Make a map" and closes itself when "Start here" is pressed', async () => {
         const app = shell();
         app.findComponent(CommandPalette).vm.$emit("open-welcome");
         await settle();
@@ -851,7 +865,7 @@ describe("\"what is this?\"", () => {
         expect(app.findComponent(WelcomeSurface).props("open")).toBe(false);
     });
 
-    it("lands on Home - not straight on \"Make a map\" - the moment first-run setup genuinely completes", async () => {
+    it('lands on Home - not straight on "Make a map" - the moment first-run setup genuinely completes', async () => {
         // Deliberately a different destination from the test right above. Pressing "Start
         // here" inside the panel is an explicit, in-the-moment choice by someone already
         // reading the panel's own description of the wizard, and `onWelcomeStart` still
@@ -949,6 +963,39 @@ describe("the configuration button", () => {
         configFab().click();
         await settle();
         expect(app.find(".mb-update-banner__restart").attributes("disabled")).toBeUndefined();
+    });
+
+    it("holds an update restart when the project editor reports a visible unsaved edit", async () => {
+        let restartCalls = 0;
+        const ready = {
+            ...unknownUpdateState("0.1.0"),
+            status: "ready" as const,
+            readyVersion: "0.2.0",
+        };
+        (globalThis as { worldlens?: unknown }).worldlens = {
+            updateState: async () => ready,
+            acknowledgeUpdateInstallOutcome: async () => undefined,
+            checkForUpdates: async () => ready,
+            restartToInstallUpdate: async () => {
+                restartCalls += 1;
+                return { ok: true as const, version: "0.2.0" };
+            },
+            onUpdateEvent: () => () => {},
+        };
+        const app = shell();
+        tabButton("Projects").click();
+        await settle();
+
+        const projects = app.findComponent(ProjectsScreen);
+        expect(projects.exists()).toBe(true);
+        projects.vm.$emit("dirty-change", true);
+        await settle();
+
+        const restart = app.find(".mb-update-banner__restart");
+        expect(restart.attributes("disabled")).toBeDefined();
+        expect(app.find(".mb-update-banner").text().toLowerCase()).toContain("unsaved");
+        await restart.trigger("click");
+        expect(restartCalls).toBe(0);
     });
 
     it("carries an exact palette target through to the render-mask field", async () => {

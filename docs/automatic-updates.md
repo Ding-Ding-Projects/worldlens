@@ -30,6 +30,20 @@ The download runs in the background and **the app never restarts itself**. Elect
 `autoUpdater` fetches and stages; installation happens only when the user presses **Restart
 to install**.
 
+### One version identity reaches the package, app, feed and release
+
+`scripts/release-version.mjs` derives one monotonic semantic version from the checked-in
+`major.minor.0` base and `GITHUB_RUN_NUMBER`. A run numbered 863 therefore packages and reports
+`0.1.863`, publishes tag `v0.1.863`, writes that version into `RELEASES`, and supplies the same
+value through `app.getVersion()` and the update-feed request. Packaging and publication both call
+the committed resolver independently, and the workflow guard fingerprints both call sites.
+
+This exact identity matters because `update.electronjs.org` compares the installed version with
+the GitHub release **tag** as SemVer. The former split (`0.1.862` in the package beside
+`v0.1.0-build.862`) ordered the release tag below an installed `0.1.828`, so the live service
+correctly returned HTTP 204 even though a newer package was attached. The release manifest now
+rejects that split tag shape and accepts only `v<major>.<minor>.<run>`.
+
 ### The banner
 
 When an installer is downloaded, checked against the feed hash and staged, a persistent, non-blocking banner
@@ -53,16 +67,18 @@ still go to the notification corner and the settings row; only "ready to install
 — and the _next_ release announces itself normally. The settings row carries **Show the
 update banner again** so a dismissal is never a one-way door.
 
-### Unsaved configuration and a render in progress protect themselves
+### Unsaved configuration, project edits and a render in progress protect themselves
 
 The configuration editor reports its real `isWorkspaceDirty` state to the one update controller
-mounted by `App.vue`. While that state is true, **Restart to install** is disabled, the banner
-names unsaved configuration as the reason, and a second check at click time refuses before the
-renderer can call the main-process restart channel. If the dirty-state probe throws, the safe
-answer is still “unsaved”. When a restart does cross IPC, the renderer sends the same bounded
-boolean and the main controller refuses `true`; a missing or malformed value from an older renderer
-is treated as unsaved rather than free. Closing the editor clears the hold; saving or discarding its
-work is therefore the explicit route back to Restart.
+mounted by `App.vue`. `ProjectsScreen.vue` independently reports the same serialized comparison
+that drives its Save/autosave state. This remains true when `notifyAutosaveChange` rejects and the
+visible edit exists only in renderer memory; an optimistic IPC call is not mistaken for a save.
+While either source is dirty, **Restart to install** is disabled, the localized banner names
+unsaved configuration or project work, and a second check at click time refuses before the renderer
+can call the main-process restart channel. If the dirty-state probe throws, the safe answer is still
+“unsaved”. When a restart does cross IPC, the renderer sends the same bounded boolean and the main
+controller refuses `true`; a missing or malformed value from an older renderer is treated as
+unsaved rather than free. Saving or explicitly discarding the work is the route back to Restart.
 
 A BlueMap render of a large world runs for hours. Quitting into an installer half way through
 throws that time away with no route back to it, so a render carries the same fail-closed rule:
@@ -86,8 +102,9 @@ an atomic, permission-restricted receipt in the unchanged application-data direc
 only the current version, target version, and request timestamp. If that receipt cannot be written,
 the app does not quit and the update remains staged.
 
-The next launch consumes the receipt exactly once and compares the running package version with
-both ends of the requested transition:
+The next launch reads at most 4,096 bytes from one regular receipt before JSON parsing, validates
+the exact version and timestamp fields, and compares the running package version with both ends of
+the requested transition:
 
 | Version that actually starts | Reported outcome |
 | ---------------------------- | ---------------- |
@@ -95,6 +112,12 @@ both ends of the requested transition:
 | Previous version             | `rollback`; the target did not take over and the previous app is still running. |
 | Any other version            | `feed-mismatch`; the transition is not described as a success. |
 | Missing or malformed receipt | `feed-mismatch`; the app says it cannot prove the transition. |
+
+The receipt is **not** deleted during that startup read. An automatic check may finish 30 seconds
+after process start while the first renderer window is still loading; its result cannot clear the
+rollback or mismatch finding. The main process pins that finding until the renderer has applied its
+first updater state and sends the distinct acknowledgement IPC. Only then is the receipt removed.
+If removal fails, the evidence remains pinned and is reconciled again on the next launch.
 
 The updater never changes the application identity or its user-data path. Existing settings,
 project history, cache, feed-handoff record, and update receipt therefore remain under the same
@@ -341,10 +364,10 @@ injected seams.
 | Failure classification, every rule and the ordering between them                                                                             | `main/update/failure.test.ts`                                                                                     |
 | Feed resolution, the three refusals, the https rule, the token redaction                                                                     | `main/update/feed.test.ts`                                                                                        |
 | Current-first repository fallback, version-independent identity-pair confirmation, corruption handling                                       | `main/update/feedHandoff.test.ts`, `main/update/controller.test.ts`, `test/updateFeedRepositoryInjection.test.ts` |
-| Exact transition receipt, one-time consumption, rollback, mismatch, corruption, and bounded fields                                            | `main/update/installJournal.test.ts`                                                                              |
+| Exact transition receipt, acknowledgement-only consumption, rollback, mismatch, corruption, bounded fields and bounded bytes                 | `main/update/installJournal.test.ts`                                                                              |
 | The state machine, including "ready survives a failure" and "unsupported is terminal"                                                        | `main/update/state.test.ts`                                                                                       |
 | The schedule: interval, back-off, cap, floor, and stopping once staged                                                                       | `main/update/schedule.test.ts`                                                                                    |
-| No update, available, downloading, ready, exact-version refusal, restart journal, rollback, offline, corrupt asset, disposal, render activity, and cross-version handoff | `main/update/controller.test.ts`                                                        |
+| No update, available, downloading, ready, exact-version refusal, restart journal, early-check rollback retention, acknowledgement failure, offline, corrupt asset, disposal, render activity, and cross-version handoff | `main/update/controller.test.ts` |
 | The channels, the push, and that no credential crosses them                                                                                  | `main/update/ipc.test.ts`                                                                                         |
 | The OneDrive redirect and the user-called-OneDrive guard                                                                                     | `main/files/documents.test.ts`                                                                                    |
 | The reveal allowlist: prefix siblings, links, relative paths, missing roots, files versus folders                                            | `main/files/reveal.test.ts`                                                                                       |
@@ -353,15 +376,16 @@ injected seams.
 | Three language modes, five levels each, and that no level touches a version or a button                                                      | `ui/components/update/updateCopy.test.ts`                                                                         |
 | The live controller and the bridge probe                                                                                                     | `ui/components/update/useUpdates.test.ts`                                                                         |
 | The banner mounted: held Restart, dismissal, bilingual `lang`, exact version at level 5                                                      | `ui/components/update/UpdateBanner.test.ts`                                                                       |
-| The mounted shell's real generated config workspace disables Restart before the bridge call and releases it on close                         | `ui/App.test.ts`                                                                                                  |
+| The mounted shell's real generated config workspace and project dirty signal disable Restart before the bridge call                          | `ui/App.test.ts`, `ui/components/project/ProjectsScreen.test.ts`                                                   |
 
 ### Packaged proof still required
 
 **Not verified by running it.** No packaged N→N+1 pair containing this transition-receipt and
 unsaved-work implementation exists yet. The two most recent inspected releases before this change,
 `v0.1.0-build.828` and `v0.1.0-build.862`, both report `immutable: false` through the GitHub release
-API and both predate this implementation. They therefore cannot satisfy issue #79's requirement for
-two consecutive immutable builds of the code under test.
+API and both predate this implementation. Their split tag/package version identity also makes the
+configured service return HTTP 204 for the older installed package. They therefore cannot satisfy
+issue #79's requirement for two consecutive immutable builds of the code under test.
 
 The required runtime proof remains: clean-install immutable N in an isolated profile, let its real
 HTTPS Squirrel feed detect/download/hash/stage immutable N+1, exercise Later and Restart, and verify

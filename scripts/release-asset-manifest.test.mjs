@@ -21,7 +21,7 @@ import {
 } from "./release-asset-manifest.mjs";
 
 const COMMIT = "a".repeat(40);
-const TAG = "v0.1.0-build.42";
+const TAG = "v0.1.42";
 
 function fixture() {
   const root = mkdtempSync(resolve(tmpdir(), "worldlens-release-assets-"));
@@ -33,7 +33,7 @@ function fixture() {
     ["Worldlens-0.1.42-Setup.exe", "setup"],
     ["Worldlens-0.1.42-full.nupkg", "package"],
     ["RELEASES", "index"],
-    ["worldlens-v0.1.0-build.42-extras.zip", "extras"],
+    ["worldlens-v0.1.42-extras.zip", "extras"],
     ["bluemap-server-plugins-5.7.zip", "jars"],
   ].map(([name, body]) => {
     const path = resolve(produced, name);
