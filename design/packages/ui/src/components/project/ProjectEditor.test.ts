@@ -17,12 +17,25 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
-import type { ProjectFile } from "@worldlens/config";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { CLI_FLAGS, descriptorFor, type ProjectFile } from "@worldlens/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
+import ConfigMaskField from "../config/ConfigMaskField.vue";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
+import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
+import TabbedNavigation from "../tabs/TabbedNavigation.vue";
 import { editorSettingCount } from "./projectFacts.js";
-import { createProject, withMapAdded, withMapFieldSet, withRender } from "./projectModel.js";
+import {
+    createProject,
+    mapDescriptor,
+    withMapAdded,
+    withMapFieldSet,
+    withRender,
+    withStorageAdded,
+} from "./projectModel.js";
+
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -95,6 +108,10 @@ function i18n() {
 
 const STAMP = { now: "2026-08-04T09:00:00+01:00", id: "p1", appVersion: null };
 const WORLD = "C:/saves/Survival";
+const projectEditorSource = readFileSync(
+    resolve(process.cwd(), "packages/ui/src/components/project/ProjectEditor.vue"),
+    "utf8",
+);
 
 function seeded(): ProjectFile {
     return withMapAdded(createProject("Survival", STAMP), {
@@ -188,6 +205,25 @@ describe("every map setting, before the render starts", () => {
         expect(paths).toContain("sky-color");
         expect(paths).toContain("remove-caves-below-y");
         expect(paths).toContain("marker-sets");
+
+        // The map form keeps every FieldMeta row visible, but its render-mask row is a route
+        // into the one map-node card rather than a second editor/draft inside the generated form.
+        const visiblePaths = form
+            .findAll("[data-field-path]")
+            .map((row) => row.attributes("data-field-path"));
+        expect(visiblePaths).toHaveLength(paths.length);
+        expect(form.findAll("[data-field-type]")).toHaveLength(paths.length);
+        expect(form.findAll("[data-field-provenance]")).toHaveLength(paths.length);
+        const maskRow = form.find('[data-field-path="render-mask"]');
+        expect(maskRow.exists()).toBe(true);
+        const launcher = buttonIn(
+            maskRow.element as unknown as ParentNode,
+            "Open the shared Render mask card",
+        );
+        expect(launcher).toBeDefined();
+        launcher!.click();
+        await flushPromises();
+        expect(wrapper.findAllComponents(ConfigMaskField)).toHaveLength(1);
         wrapper.unmount();
     });
 
@@ -401,7 +437,7 @@ describe("saving", () => {
         const changed = await editor(seeded(), { dirty: true });
         await flushPromises();
         expect(buttonNamed(changed, "Save now")?.disabled).toBe(false);
-        expect(changed.text()).toContain("waiting to auto-save");
+        expect(changed.text()).toContain("Unsaved changes");
         changed.unmount();
     });
 
@@ -721,15 +757,16 @@ describe("the render tab", () => {
             ?.trigger("click");
         await flushPromises();
 
-        expect(wrapper.text()).toContain("Render threads");
-        expect(wrapper.text()).toContain("Redraw the edges too");
+        const projectRunSettings = wrapper.find(".mb-project-editor__project-run-settings");
+        expect(projectRunSettings.text()).toContain("Render threads");
+        expect(projectRunSettings.text()).toContain("Redraw the edges too");
 
-        const search = wrapper.findAll(".mb-config-search input").at(-1);
+        const search = projectRunSettings.find(".mb-config-search input");
         await search?.setValue("threads");
         await flushPromises();
 
-        expect(wrapper.text()).toContain("Render threads");
-        expect(wrapper.text()).not.toContain("Redraw the edges too");
+        expect(projectRunSettings.text()).toContain("Render threads");
+        expect(projectRunSettings.text()).not.toContain("Redraw the edges too");
         wrapper.unmount();
     });
 });
@@ -793,5 +830,188 @@ describe("the history tab", () => {
 
         expect(wrapper.text()).toContain("no version history");
         wrapper.unmount();
+    });
+});
+
+describe("the project-shaped workspace", () => {
+    it("uses a real project navigation list to select the actual map editor, alongside its fields and context rail", async () => {
+        let project = seeded();
+        project = withMapAdded(project, {
+            id: "nether",
+            name: "The Nether",
+            dimension: "minecraft:the_nether",
+            world: WORLD,
+        });
+        project = withStorageAdded(project, "archive", "storage-type: FILE\nroot: ./archive\n");
+        const wrapper = await editor(project);
+
+        const navigator = wrapper.find('nav[aria-label="Project structure"]');
+        const editorPane = wrapper.find('section[aria-label="Project settings editor"]');
+        const context = wrapper.find('aside[aria-label="Render consequences and save plan"]');
+        expect(navigator.exists()).toBe(true);
+        expect(editorPane.exists()).toBe(true);
+        expect(context.exists()).toBe(true);
+
+        const nether = wrapper.find('[data-workspace-node="map:nether"]');
+        expect(nether.element.tagName).toBe("BUTTON");
+        await nether.trigger("click");
+        await flushPromises();
+
+        expect(nether.attributes("aria-current")).toBe("page");
+        expect(wrapper.findComponent(ProjectMapsPanel).props("selectedId")).toBe("nether");
+        // The map entry opens the existing schema-driven form rather than a parallel, reduced
+        // editor: selecting a node must not silently drop FieldMeta-driven map settings.
+        expect(wrapper.findComponent(ConfigFileForm).exists()).toBe(true);
+
+        const archive = wrapper.find('[data-workspace-node="storage:archive"]');
+        await archive.trigger("click");
+        await flushPromises();
+        expect(archive.attributes("aria-current")).toBe("page");
+        expect(wrapper.findComponent(ProjectStoragesPanel).props("selectedId")).toBe("archive");
+        wrapper.unmount();
+    });
+
+    it("keeps the project tree aria-current node aligned when TabbedNavigation changes the active section", async () => {
+        let project = seeded();
+        project = withStorageAdded(project, "archive", "storage-type: FILE\nroot: ./archive\n");
+        const wrapper = await editor(project);
+
+        const maps = wrapper.find('[data-workspace-node="maps"]');
+        const storages = wrapper.find('[data-workspace-node="storages"]');
+        const archive = wrapper.find('[data-workspace-node="storage:archive"]');
+        const core = wrapper.find('[data-workspace-node="core"]');
+
+        const storagesTab = wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("Storages"));
+        expect(storagesTab).toBeDefined();
+        await storagesTab?.trigger("click");
+        await flushPromises();
+        await flushPromises();
+        expect(storagesTab?.attributes("aria-selected")).toBe("true");
+        expect(
+            (
+                wrapper.findComponent(TabbedNavigation).vm as unknown as {
+                    activePage: { id: string };
+                }
+            ).activePage.id,
+        ).toBe("storages");
+        expect(archive.attributes("aria-current")).toBe("page");
+        expect(storages.attributes("aria-current")).toBeUndefined();
+        expect(maps.attributes("aria-current")).toBeUndefined();
+
+        const coreTab = wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("Core"));
+        expect(coreTab).toBeDefined();
+        await coreTab?.trigger("click");
+        await flushPromises();
+        await flushPromises();
+        expect(coreTab?.attributes("aria-selected")).toBe("true");
+        expect(core.attributes("aria-current")).toBe("page");
+        expect(archive.attributes("aria-current")).toBeUndefined();
+
+        // A palette/deep-link calls the tab component directly, so no editor click or keydown
+        // event reaches the workspace wrapper. The tree must still follow the authoritative
+        // exposed active page rather than remaining on the last pointer-selected node.
+        const navigation = wrapper.findComponent(TabbedNavigation);
+        (navigation.vm as unknown as { revealPage: (pageId: string) => void }).revealPage("maps");
+        await flushPromises();
+        await flushPromises();
+        // Maps retains its selected map when the destination is revealed, so the real leaf is
+        // highlighted rather than the generic section heading.
+        expect(
+            wrapper.find('[data-workspace-node="map:overworld"]').attributes("aria-current"),
+        ).toBe("page");
+        expect(core.attributes("aria-current")).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it("shows each editable tree node's schema or CLI count instead of asking a reader to guess", async () => {
+        const wrapper = await editor();
+        const mapNode = wrapper.find('[data-workspace-node="map:overworld"]');
+        const coreNode = wrapper.find('[data-workspace-node="core"]');
+        const cliNode = wrapper.find('[data-workspace-node="render"]');
+        const coreCount = descriptorFor("core").fields.length;
+
+        expect(mapNode.get("[data-workspace-node-count]").text()).toBe(
+            `${mapDescriptor().fields.length} settings`,
+        );
+        expect(coreNode.get("[data-workspace-node-count]").text()).toBe(`${coreCount} settings`);
+        expect(cliNode.get("[data-workspace-node-count]").text()).toBe(`${CLI_FLAGS.length} flags`);
+        expect(cliNode.text()).toContain(`${CLI_FLAGS.length} CLI flags`);
+        wrapper.unmount();
+    });
+
+    it("renders the complete schema-owned CLI editor through the existing resolver", async () => {
+        const wrapper = await editor();
+        const renderTab = wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"));
+        expect(renderTab).toBeDefined();
+        await renderTab?.trigger("click");
+        await flushPromises();
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(
+            `Every one of BlueMap's ${CLI_FLAGS.length} documented CLI flags`,
+        );
+        expect(wrapper.findAll(".mb-config-run__flag")).toHaveLength(CLI_FLAGS.length);
+        // The project context and the complete editor use the same resolver rather than a
+        // second hand-made flag list; every defined option reaches the interactive surface.
+        for (const flag of CLI_FLAGS) {
+            expect(wrapper.text()).toContain(`--${flag.long}`);
+        }
+        wrapper.unmount();
+    });
+
+    it("shows the standalone CLI resolver's command and resolved render branch without inventing bridge-only flags or a revision", async () => {
+        const wrapper = await editor(withRender(seeded(), { force: true, fixEdges: true }), {
+            dirty: true,
+        });
+        const context = wrapper.find('aside[aria-label="Render consequences and save plan"]');
+
+        expect(context.text()).toContain("Consequences");
+        expect(context.text()).toContain("1 enabled map(s) are ready for the selected route.");
+        expect(context.text()).toContain("Resolved bluemap-cli preview");
+        expect(context.get("[data-project-cli-command]").text()).toBe(
+            "bluemap-cli -r -f -e -m overworld",
+        );
+        expect(context.text()).toContain(
+            "The standalone CLI resolves to rendering only overworld, re-rendering everything.",
+        );
+        expect(context.text()).toContain("Desktop render bridge");
+        expect(context.text()).toContain("worldlens.project.json · C:/saves/Survival");
+        expect(context.text()).toContain("The desktop bridge still starts this project.");
+        expect(context.text()).toContain("map bodies, threads, metrics and output directory");
+        expect(context.text()).toContain("write worldlens.project.json");
+        expect(context.text()).toContain(
+            "1 map config(s), 0 storage config(s), and 0 whole-file config(s)",
+        );
+        expect(context.text()).toContain(
+            "One revision is recorded only after that project-file write succeeds and changes its bytes.",
+        );
+        expect(context.text()).not.toMatch(/revision\s+\d+/i);
+        wrapper.unmount();
+    });
+
+    it("does not fabricate a local CLI command when GitHub Actions owns the render route", async () => {
+        const wrapper = await editor(withRender(seeded(), { route: "github-actions" }));
+        const context = wrapper.find('aside[aria-label="Render consequences and save plan"]');
+
+        expect(context.find("[data-project-cli-command]").exists()).toBe(false);
+        expect(context.text()).toContain("No CLI preview:");
+        expect(context.text()).toContain("GitHub Actions owns this start");
+        wrapper.unmount();
+    });
+
+    it("has a three-pane desktop grid that collapses by container width before narrow layouts can overflow", () => {
+        expect(projectEditorSource).toMatch(
+            /grid-template-columns:\s*minmax\(12rem, 0\.72fr\) minmax\(0, 2fr\) minmax\(17rem, 0\.9fr\)/,
+        );
+        expect(projectEditorSource).toContain("@container project-editor (max-width: 72rem)");
+        expect(projectEditorSource).toContain("@container project-editor (max-width: 52rem)");
+        expect(projectEditorSource).toMatch(
+            /\.mb-project-editor__workspace\s*\{[^}]*min-inline-size:\s*0/s,
+        );
+        expect(projectEditorSource).toContain("grid-template-columns: minmax(0, 1fr)");
     });
 });

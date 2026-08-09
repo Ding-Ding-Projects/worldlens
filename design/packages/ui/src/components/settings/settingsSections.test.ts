@@ -76,12 +76,6 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["automatic", "4096"],
     },
     {
-        anchor: "notification-duration",
-        title: "Notification duration",
-        description: "How long an informational or success toast stays on screen before it dismisses itself.",
-        values: ["3 · Balanced"],
-    },
-    {
         anchor: "download-concurrency",
         title: "Download concurrency",
         description: "How many release-asset parts a download fetches at once.",
@@ -173,7 +167,6 @@ describe("every section the surface renders", () => {
             "display",
             "surface-placement",
             "render-memory",
-            "notification-duration",
             "download-concurrency",
             "system-dependencies",
             "updates",
@@ -280,6 +273,19 @@ describe("what a section can be found by", () => {
             values: ["", "   "],
         });
         expect(haystack).toBe("world-folder\nWorld folder");
+    });
+
+    it("can omit a stable anchor from search when it names a suppressed capability", () => {
+        const haystack = sectionHaystack({
+            anchor: "language-and-tone",
+            searchableAnchor: null,
+            title: "Quiet study",
+            description: "English-only, fully serious presentation is in force.",
+            values: ["Quiet study is on in this app"],
+        });
+
+        expect(haystack).not.toContain("language-and-tone");
+        expect(haystack).toContain("Quiet study");
     });
 });
 

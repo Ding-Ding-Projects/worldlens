@@ -26,21 +26,40 @@
  * not there: no viewer settings without a viewer, no Players page without players.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BlueMapApp } from "@worldlens/viewer";
+import { languages } from "../../i18n.js";
 import { withGlobalReset } from "../appearance/appearanceStore.js";
 import { appearanceState, commitAppearance } from "../appearance/useAppearance.js";
 import { SCREENS } from "../config/configSearch.js";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import { SETTINGS_ANCHORS, SETTINGS_SECTIONS } from "../settings/settingsSections.js";
 import { THEME_STORAGE_KEY, changeTheme } from "../settings/themeSetting.js";
 import { setBlueMapApp } from "../../stores/bluemap.js";
+import {
+    deleteSchoolModeLocalRecord,
+    enableSchoolMode,
+    renameSchoolMode,
+    resetSchoolModeRecordAdapter,
+} from "../setup/schoolMode.js";
+import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 import {
     buildPaletteCatalog,
     type PaletteCatalogInput,
     type PaletteConfigTarget,
     type PaletteShellActions,
 } from "./paletteCatalog.js";
-import type { PaletteItem, PaletteSetting, Translate } from "./paletteItems.js";
+import { filterItems, itemHaystack, type PaletteItem, type PaletteSetting, type Translate } from "./paletteItems.js";
+
+beforeEach(() => {
+    setSetupStorage(memoryStorage());
+    resetSchoolModeRecordAdapter();
+});
+
+afterEach(() => {
+    deleteSchoolModeLocalRecord();
+    resetSchoolModeRecordAdapter();
+});
 
 /**
  * The English fallback, which is what `t` returns with no locale loaded.
@@ -388,6 +407,47 @@ describe("what the catalogue covers", () => {
         expect(
             buildPaletteCatalog(input({ app: fakeApp({ views: 3 }).app })).some((item) => item.id === "viewer.view"),
         ).toBe(true);
+    });
+
+    it("reactively removes language routes while retaining a renamed School mode destination", () => {
+        const savedLanguages = [...languages];
+        languages.splice(
+            0,
+            languages.length,
+            { locale: "en", name: "English" },
+            { locale: "zh-HK", name: "Cantonese" },
+        );
+
+        try {
+            const app = fakeApp().app;
+            expect(buildPaletteCatalog(input({ app })).some((item) => item.id === "viewer.language")).toBe(true);
+
+            renameSchoolMode("Quiet study");
+            enableSchoolMode();
+
+            const items = buildPaletteCatalog(input({ app }));
+            const school = byId(items, "settings.language-and-tone");
+            expect(school.title).toBe("Quiet study");
+            expect(itemHaystack(school)).not.toContain("School mode");
+
+            for (const term of ["language", "tone", "funny", "Cantonese", "bilingual", "School mode"]) {
+                expect(
+                    filterItems(items, createSettingMatcher(term, false, "i")).some(
+                        (item) => item.id === "settings.language-and-tone",
+                    ),
+                    term,
+                ).toBe(false);
+            }
+
+            expect(
+                filterItems(items, createSettingMatcher("Quiet study", false, "i")).some(
+                    (item) => item.id === "settings.language-and-tone",
+                ),
+            ).toBe(true);
+            expect(items.some((item) => item.id === "viewer.language")).toBe(false);
+        } finally {
+            languages.splice(0, languages.length, ...savedLanguages);
+        }
     });
 
     it("gives every row a unique id, so a keyed list cannot collide", () => {

@@ -15,8 +15,10 @@
  *    intake to fill the gap would put private implementation details into a public repository by
  *    implication.
  *  - `restricted-mode` - the shared, renamable mode with its locally verified exit credential.
- *    **Absent.** It lives in a shared local application-data record that this checkout has no
- *    reader for, and inventing that storage would mean inventing a credential boundary too.
+ *    **Still absent from this route.** The renderer now has a deliberately local School-mode
+ *    policy under Settings, but this checkout still has no reader for the shared application-data
+ *    record or privileged credential verifier. Calling the local policy universal here would be
+ *    a false capability claim.
  *  - `personal-vocabulary` - **absent**, and absent is its correct default: the contract says the
  *    feature exists only when the user supplies an explicit private file, and that without one an
  *    app "exposes no vocabulary feature at all". A surface that collected one would be the exact
@@ -64,7 +66,7 @@ const RESOLVERS: Record<string, () => CapabilityState> = {
         ),
     "restricted-mode": () =>
         absent(
-            "The shared mode record and its locally verified exit credential are not implemented here, and inventing that storage would mean inventing a credential boundary with it.",
+            "A renderer-local School-mode policy exists in Settings, but the shared application-data record and privileged credential verifier are not exposed here, so the universal restricted-mode route remains unavailable.",
         ),
     "personal-vocabulary": () =>
         absent(

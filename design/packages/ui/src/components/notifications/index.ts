@@ -2,10 +2,10 @@
  * The notification centre.
  *
  * `NotificationCentre` is the whole feature: a bell with an unread count and, behind it,
- * the reviewable history. It is mounted inside the notification corner
- * (`components/config/ConfigNotifications.vue`), which is where the bell already appeared
- * and where somebody looks when a toast has gone. A shell that mounts that one corner
- * therefore gets this for free and needs no second mount.
+ * the reviewable history. The redesigned desktop shell mounts it beside the application rail;
+ * a browser-shaped host can mount it inside `components/config/ConfigNotifications.vue` beside
+ * ordinary toasts. The state decides which delivery contract applies, so the two consumers do
+ * not need duplicate histories or competing live overlays.
  *
  * `NoticeCentrePanel` is the card on its own, exported so a test can mount the panel
  * without driving a menu overlay, and so a future surface (a settings tab, a wider window)

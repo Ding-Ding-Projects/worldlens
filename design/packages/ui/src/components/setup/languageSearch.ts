@@ -19,12 +19,44 @@
  * remembers and a bare "5" matches nothing anybody would type.
  */
 
+import { schoolModeName, useSchoolMode } from "./schoolMode.js";
 import { flat, funnyLevel, languageMode, levelName } from "./setupI18n.js";
 
 export function languageSearchLabels(): string[] {
+    const school = useSchoolMode();
+    const name = schoolModeName(flat("school.shippedName"));
+    // The settings search is a discovery route. Once the shared policy is active, including the
+    // suppressed language/tone labels in its corpus would advertise a control that is absent.
+    // The browser fallback has its own explicit labels and never claims this state is shared.
+    if (school.source.value === "unavailable") {
+        return [name, flat("school.hostUnavailable"), flat("school.retry")];
+    }
+    if (school.enabled.value) {
+        return [
+            name,
+            school.source.value === "shared"
+                ? flat("school.status.on", { name })
+                : flat("school.localFallbackOn", { name }),
+            school.source.value === "shared"
+                ? flat("school.disable", { name })
+                : flat("school.disableLocal", { name }),
+            school.source.value === "shared"
+                ? flat("school.reset", { name })
+                : flat("school.localFallbackBoundary"),
+            school.source.value === "shared"
+                ? flat("school.boundary", { name })
+                : flat("school.localFallbackStatus"),
+        ];
+    }
     const en = funnyLevel("en");
     const yue = funnyLevel("yue");
     return [
+        name,
+        flat("school.status.off", { name }),
+        flat("school.renameLabel"),
+        school.source.value === "shared"
+            ? flat("school.enable", { name })
+            : flat("school.enableLocal", { name }),
         flat("language.settingsTitle"),
         flat("language.title"),
         flat(`language.mode.${languageMode()}` as const),

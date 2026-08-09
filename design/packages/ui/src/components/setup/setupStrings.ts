@@ -223,6 +223,47 @@ export const FIXED = {
     "language.level.4": { en: "Playful", yue: "貪玩" },
     "language.level.5": { en: "Maximum playfulness", yue: "玩到盡" },
 
+    /* The privileged shared record is the real packaged path; browser/test fallback says so. */
+    "school.shippedName": { en: "School mode", yue: "校園模式" },
+    "school.renameLabel": { en: "Name for this mode", yue: "呢個模式叫咩名" },
+    "school.renameHint": {
+        en: "After you rename it, participating apps use only your chosen name.",
+        yue: "改咗名之後，有參與嘅程式都淨係會用你揀嗰個名。",
+    },
+    "school.status.on": { en: "{name} is on across participating apps", yue: "{name} 已經喺有參與嘅程式度開咗" },
+    "school.status.off": { en: "{name} is off", yue: "{name} 未開" },
+    "school.enable": { en: "Turn on {name} everywhere", yue: "喺所有有參與嘅程式開啟 {name}" },
+    "school.disable": { en: "Turn off {name}", yue: "關閉 {name}" },
+    "school.enableCredential": { en: "Choose a PIN or password", yue: "揀一個 PIN 或密碼" },
+    "school.enableCredentialHint": {
+        en: "This shared credential is checked locally when you turn this mode off.",
+        yue: "之後關閉呢個模式嗰陣，會喺本機核對呢個共用憑證。",
+    },
+    "school.disableCredential": { en: "PIN or password to turn off {name}", yue: "用嚟關閉 {name} 嘅 PIN 或密碼" },
+    "school.reset": { en: "Reset {name} record", yue: "重設 {name} 記錄" },
+    "school.resetTitle": { en: "Reset the shared mode record", yue: "重設共用模式記錄" },
+    "school.resetAction": {
+        en: "Resetting removes the shared record and its unlock verifier. Every participating app will see this mode as off, and the old PIN or password cannot restore it.",
+        yue: "重設會刪除共用記錄同埋佢嘅解鎖驗證資料。有參與嘅程式都會見到呢個模式關咗，而舊 PIN 或密碼唔可以還原佢。",
+    },
+    "school.resetConfirm": { en: "Reset shared record", yue: "重設共用記錄" },
+    "school.retry": { en: "Retry shared record", yue: "再試共用記錄" },
+    "school.localFallbackStatus": {
+        en: "Local browser fallback only: not shared with another app and no credential is configured.",
+        yue: "淨係瀏覽器本機備援：唔會同其他程式共用，亦都冇設定憑證。",
+    },
+    "school.localFallbackOn": { en: "{name} is on only in this browser", yue: "{name} 淨係喺呢個瀏覽器開咗" },
+    "school.enableLocal": { en: "Turn on {name} only in this browser", yue: "淨係喺呢個瀏覽器開啟 {name}" },
+    "school.disableLocal": { en: "Turn off local {name}", yue: "關閉本機 {name}" },
+    "school.localFallbackBoundary": {
+        en: "This browser/test fallback is a local preview, not a shared record or a security boundary. Clearing its local record removes it without an unlock.",
+        yue: "呢個瀏覽器／測試備援只係本機預覽，唔係共用記錄，亦唔係保安邊界。清除本機記錄唔使解鎖就會移除佢。",
+    },
+    "school.hostUnavailable": {
+        en: "The packaged app could not read the shared mode record. Local fallback is not used, so no shared state is being claimed.",
+        yue: "呢個已封裝程式讀唔到共用模式記錄。唔會改用本機備援，所以唔會聲稱有共用狀態。",
+    },
+
     "storage.fieldLabel": { en: "Folder for rendered maps", yue: "存放已算圖地圖嘅資料夾" },
     "storage.defaultLabel": { en: "Default", yue: "預設" },
     "storage.invalid": {
@@ -273,9 +314,15 @@ export const FIXED = {
         yue: "而家仲未有文件可以顯示。",
     },
     "eula.export": { en: "Export or copy", yue: "匯出或者複製" },
-    "eula.exportSectionMarkdown": { en: "This section, as Markdown", yue: "呢個章節，Markdown 格式" },
+    "eula.exportSectionMarkdown": {
+        en: "This section, as Markdown",
+        yue: "呢個章節，Markdown 格式",
+    },
     "eula.exportSectionText": { en: "This section, as plain text", yue: "呢個章節，純文字格式" },
-    "eula.exportAllMarkdown": { en: "The whole document, as Markdown", yue: "成份文件，Markdown 格式" },
+    "eula.exportAllMarkdown": {
+        en: "The whole document, as Markdown",
+        yue: "成份文件，Markdown 格式",
+    },
     "eula.exportAllText": { en: "The whole document, as plain text", yue: "成份文件，純文字格式" },
     "eula.copySection": { en: "Copy this section", yue: "複製呢個章節" },
     "eula.copyAll": { en: "Copy the whole document", yue: "複製成份文件" },
@@ -310,6 +357,54 @@ export const FIXED = {
 /* -------------------------------------------------------------------------- */
 
 export const VOICED = {
+    "school.beforeEnable": {
+        en: [
+            "Turn on {name} for English, fully serious presentation across participating apps. Your saved language and tone choices stay stored and return after a verified unlock.",
+            "Turn on {name} for English, fully serious presentation across participating apps. Your saved language and tone choices stay stored and return after a verified unlock.",
+            "Turn on {name} for English, fully serious presentation across participating apps. Your saved language and tone choices are preserved underneath and return after a verified unlock.",
+            "Turn on {name} for English, fully serious presentation across participating apps. Your saved language and tone choices wait safely underneath and return after a verified unlock.",
+            "Turn on {name} for English, fully serious presentation across participating apps. Your saved language and tone choices stay exactly where you left them and return after a verified unlock.",
+        ],
+        yue: [
+            "開啟 {name} 之後，有參與嘅程式都會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會保留，核對解鎖之後會返嚟。",
+            "開啟 {name} 之後，有參與嘅程式都會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會保留，核對解鎖之後會返嚟。",
+            "開啟 {name} 之後，有參與嘅程式都會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會喺底層保留，核對解鎖之後會返嚟。",
+            "開啟 {name} 之後，有參與嘅程式都會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會喺底層好好保存，核對解鎖之後會返嚟。",
+            "開啟 {name} 之後，有參與嘅程式都會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會原封不動留喺底層，核對解鎖之後會返嚟。",
+        ],
+    },
+    "school.activeLead": {
+        en: [
+            "English-only, fully serious presentation is active across participating apps. The suppressed controls are absent; a verified unlock restores your saved choices.",
+            "English-only, fully serious presentation is active across participating apps. The suppressed controls are absent; a verified unlock restores your saved choices.",
+            "English-only, fully serious presentation is active across participating apps. The suppressed controls are absent; a verified unlock restores your saved choices.",
+            "English-only, fully serious presentation is active across participating apps. The controls it suppresses are gone, not disabled; a verified unlock restores your saved choices.",
+            "English-only, fully serious presentation is active across participating apps. The controls it suppresses have packed up and left, not gone grey; a verified unlock restores your saved choices.",
+        ],
+        yue: [
+            "有參與嘅程式而家強制用英文同完全正經嘅語氣。被壓制嘅控制項已經移除；核對解鎖會還原你儲低嘅選擇。",
+            "有參與嘅程式而家強制用英文同完全正經嘅語氣。被壓制嘅控制項已經移除；核對解鎖會還原你儲低嘅選擇。",
+            "有參與嘅程式而家用緊英文同完全正經嘅語氣。被壓制嘅控制項已經移除；核對解鎖會還原你儲低嘅選擇。",
+            "有參與嘅程式而家用緊英文同完全正經嘅語氣。佢壓制嘅控制項係移除咗，唔係灰咗；核對解鎖會還原你儲低嘅選擇。",
+            "有參與嘅程式而家用緊英文同完全正經嘅語氣。佢壓制嘅控制項收工走人，唔係喺度灰住；核對解鎖會還原你儲低嘅選擇。",
+        ],
+    },
+    "school.boundary": {
+        en: [
+            "{name} is a user-experience lock, not a security boundary. You can intentionally reset it by deleting the shared application-data record; that clears the credential verifier too.",
+            "{name} is a user-experience lock, not a security boundary. You can intentionally reset it by deleting the shared application-data record; that clears the credential verifier too.",
+            "{name} is a user-experience lock, not a security boundary. You can intentionally reset it by deleting the shared application-data record; that clears the credential verifier too.",
+            "{name} is a user-experience lock, not a security boundary. You can intentionally reset it by deleting the shared application-data record; that clears the credential verifier too.",
+            "{name} is a user-experience lock, not a security boundary. You can intentionally reset it by deleting the shared application-data record; that clears the credential verifier too.",
+        ],
+        yue: [
+            "{name} 係使用體驗鎖，唔係保安邊界。你可以刻意刪除共用應用程式資料記錄去重設佢；咁做會一齊清除憑證驗證資料。",
+            "{name} 係使用體驗鎖，唔係保安邊界。你可以刻意刪除共用應用程式資料記錄去重設佢；咁做會一齊清除憑證驗證資料。",
+            "{name} 係使用體驗鎖，唔係保安邊界。你可以刻意刪除共用應用程式資料記錄去重設佢；咁做會一齊清除憑證驗證資料。",
+            "{name} 係使用體驗鎖，唔係保安邊界。你可以刻意刪除共用應用程式資料記錄去重設佢；咁做會一齊清除憑證驗證資料。",
+            "{name} 係使用體驗鎖，唔係保安邊界。你可以刻意刪除共用應用程式資料記錄去重設佢；咁做會一齊清除憑證驗證資料。",
+        ],
+    },
     "welcome.heading": {
         en: [
             "Welcome to Worldlens",
@@ -374,11 +469,11 @@ export const VOICED = {
      */
     "welcome.startHere": {
         en: [
-            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.",
-            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.",
-            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. A small world typically renders in a few minutes; a large one can take hours.",
-            "Ready? Open \"Make a map\". It already knows where your worlds live on this computer, so you probably will not type a single path. A small world is done in a few minutes; a big one can take hours, so put the kettle on.",
-            "Ready to fly? Open \"Make a map\". It already knows where your worlds are hiding on this computer, so typing a path is optional at best. A small world wraps up in a few minutes; a sprawling one can run for hours, kettle strongly advised.",
+            'When you are ready, open "Make a map". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.',
+            'When you are ready, open "Make a map". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.',
+            'When you are ready, open "Make a map". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. A small world typically renders in a few minutes; a large one can take hours.',
+            'Ready? Open "Make a map". It already knows where your worlds live on this computer, so you probably will not type a single path. A small world is done in a few minutes; a big one can take hours, so put the kettle on.',
+            'Ready to fly? Open "Make a map". It already knows where your worlds are hiding on this computer, so typing a path is optional at best. A small world wraps up in a few minutes; a sprawling one can run for hours, kettle strongly advised.',
         ],
         yue: [
             "準備好嘅時候，打開「Make a map」。第一步已經會自動搵返呢部電腦入面嘅存檔，通常唔使自己打路徑。細嘅世界通常幾分鐘就算完，大嘅就要耐啲，可能要幾個鐘。",

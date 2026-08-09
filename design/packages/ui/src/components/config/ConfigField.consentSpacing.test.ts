@@ -120,4 +120,17 @@ describe("the consent row's label and sentence", () => {
             expect(renderedText(accepted)).not.toMatch(/:\S/);
         }
     });
+
+    it("labels the real schema control type and documentation provenance on the row", () => {
+        const wrapper = mount(ConfigField, {
+            props: { field: CONSENT_FIELD, file: fileWith(false) },
+            global: { plugins: [vuetify, i18n] },
+        });
+
+        expect(wrapper.get("[data-field-type]").text()).toContain(
+            `Type: ${CONSENT_FIELD.control.kind}`,
+        );
+        expect(wrapper.get("[data-field-provenance]").text()).toMatch(/^Docs: BlueMap /);
+        wrapper.unmount();
+    });
 });

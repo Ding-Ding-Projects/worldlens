@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import SetupText from "./SetupText.vue";
 import SetupLanguagePanel from "./SetupLanguagePanel.vue";
+import SchoolModeSettingsRow from "./SchoolModeSettingsRow.vue";
+import { useSchoolMode } from "./schoolMode.js";
 
 /**
  * The language mode and both funny levels, on the settings surface.
@@ -22,12 +24,16 @@ import SetupLanguagePanel from "./SetupLanguagePanel.vue";
  * compete with it, and a module function is readable before this component has mounted,
  * which a template ref is not.
  */
+const school = useSchoolMode();
 </script>
 
 <template>
     <div class="mb-language-setting">
-        <SetupText text-key="language.settingsLead" class="mb-language-setting__lead" />
-        <SetupLanguagePanel />
+        <SchoolModeSettingsRow />
+        <template v-if="!school.enabled.value">
+            <SetupText text-key="language.settingsLead" class="mb-language-setting__lead" />
+            <SetupLanguagePanel />
+        </template>
     </div>
 </template>
 

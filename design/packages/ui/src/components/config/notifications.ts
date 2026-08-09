@@ -33,6 +33,7 @@ import {
 } from "./noticeDurationLevels.js";
 
 export type NoticeLevel = "info" | "success" | "warning" | "error";
+export type NoticeDelivery = "toast" | "history";
 
 /**
  * One offered follow-up: retry, undo, open the folder that was written.
@@ -82,6 +83,15 @@ export interface NoticeOptions {
      * still occupies the slot.
      */
     readonly cooldownMs?: number;
+    /**
+     * Keeps this entry in the reviewable history without placing it in a fixed toast stack.
+     *
+     * The redesigned desktop shell owns its notification surface at the rail bell: a fresh
+     * event changes that bell's unread count, then waits for an explicit open. Standalone and
+     * browser-shaped consumers keep the default `"toast"` delivery, so this is a per-notice
+     * presentation decision rather than a second queue with subtly different history rules.
+     */
+    readonly delivery?: NoticeDelivery;
 }
 
 export interface Notice {
@@ -104,6 +114,13 @@ export interface Notice {
      * label the user reads.
      */
     readonly category?: string;
+    /**
+     * Present only for an entry deliberately retained in history without a live toast.
+     *
+     * Leaving the ordinary toast spelling implicit preserves the compact persisted shape that
+     * the existing queue and its browser consumers already use.
+     */
+    readonly delivery?: "history";
 }
 
 /**
@@ -169,9 +186,17 @@ export interface NoticeState {
      * this module and its tests.
      */
     cooldowns: Map<string, number>;
+    /**
+     * The state owner's presentation contract. A rail-owned state cannot be promoted back to a
+     * fixed toast by an individual caller, while a standalone/browser state still defaults to
+     * ordinary toast delivery and may opt a particular entry into history-only delivery.
+     */
+    delivery: NoticeDelivery;
 }
 
-export function createNoticeState(): NoticeState {
+export function createNoticeState(
+    options: { readonly delivery?: NoticeDelivery } = {},
+): NoticeState {
     return reactive<NoticeState>({
         live: [],
         history: [],
@@ -179,6 +204,7 @@ export function createNoticeState(): NoticeState {
         reviewedId: 0,
         durationLevel: DEFAULT_NOTICE_DURATION_LEVEL,
         cooldowns: new Map(),
+        delivery: options.delivery ?? "toast",
     });
 }
 
@@ -216,6 +242,8 @@ export function notify(
 ): Notice {
     const resolved: NoticeOptions = typeof options === "string" ? { detail: options } : (options ?? {});
     const { title, detail, actions, category, cooldownMs } = resolved;
+    const delivery: NoticeDelivery =
+        state.delivery === "history" ? "history" : (resolved.delivery ?? state.delivery);
 
     const notice: Notice = {
         id: state.nextId++,
@@ -227,6 +255,7 @@ export function notify(
         ...(detail === undefined ? {} : { detail }),
         ...(actions === undefined || actions.length === 0 ? {} : { actions }),
         ...(category === undefined ? {} : { category }),
+        ...(delivery === "history" ? { delivery } : {}),
     };
 
     // A warning or an error is never throttled: those are the ones the non-blocking
@@ -240,7 +269,7 @@ export function notify(
         (level === "info" || level === "success") &&
         (state.cooldowns.get(category) ?? -Infinity) + cooldownMs > Date.now();
 
-    if (!throttled) {
+    if (!throttled && delivery === "toast") {
         state.live.push(notice);
         if (category !== undefined) state.cooldowns.set(category, Date.now());
     }
@@ -278,6 +307,9 @@ export function restore(state: NoticeState, id: number): boolean {
 
     const notice = state.history.find((entry) => entry.id === id);
     if (notice === undefined) return false;
+    // A rail-history entry has no fixed overlay to return to. Treating this as a success would
+    // paint a "Showing now" label for something the redesigned shell intentionally never shows.
+    if (notice.delivery === "history") return false;
 
     state.live.push(notice);
     return true;

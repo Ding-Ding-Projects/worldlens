@@ -25,7 +25,6 @@ import {
     mdiMapMarker,
     mdiPlus,
     mdiRedo,
-    mdiRestore,
     mdiUndo,
 } from "@mdi/js";
 import {
@@ -36,6 +35,7 @@ import {
     VCardText,
     VChip,
     VIcon,
+    VSwitch,
     VTextField,
     VTooltip,
 } from "vuetify/components";
@@ -44,6 +44,7 @@ import {
     UNKNOWN_WORLD,
     addPolygonPoint,
     aroundSpawnPreset,
+    JAVA_INT_MAX,
     JAVA_INT_MIN,
     canRedo,
     canUndo,
@@ -69,7 +70,7 @@ import {
     snapShape,
     toMaskRecord,
     undo,
-    wholeWorldPreset,
+    unboundedLayerPreset,
     type BoxCorner,
     type BoxEdge,
     type BoxShape,
@@ -142,17 +143,19 @@ watch(
 /**
  * Every emitted record carries `type` derived from the shape's OWN kind, not from
  * `props.shapeKind`. The two agree for every ordinary edit, because every editing
- * function in `maskCanvas.ts` preserves the shape's kind -- but `wholeWorldPreset()` is a
- * deliberate exception (see its own doc comment: "reset" is a genuine start-over and
- * always produces a box), so the record it produces must say `bluemap:box`, never
- * whatever kind the row happened to be a moment before.
+ * function in `maskCanvas.ts` preserves the shape's kind -- but `unboundedLayerPreset()` is
+ * a deliberate exception and always produces a box, so the record it produces must say
+ * `bluemap:box`, never whatever kind the row happened to be a moment before. Build the
+ * replacement from that new shape rather than spreading the previous record: otherwise a
+ * circle's `center-x`/`radius` keys would leak into a box layer and become stale config.
  */
 function emitShape(next: DrawableShape): void {
-    emit("update:modelValue", {
-        ...props.modelValue,
-        ...toMaskRecord(next),
+    const replacement: Record<string, PlainValue> = {
         type: `bluemap:${next.kind}`,
-    });
+        ...toMaskRecord(next),
+    };
+    if (props.modelValue["subtract"] === true) replacement["subtract"] = true;
+    emit("update:modelValue", replacement);
 }
 
 function commit(next: DrawableShape): void {
@@ -185,15 +188,30 @@ function applySnapNow(): void {
 /* -------------------------------------------------------------------------- */
 
 const orientationKnown = computed(() => props.world.extent !== null);
+/** Map guides are visual aids, not hidden data. Each can be toggled independently. */
+const showMeasuredExtent = ref(true);
+const showSpawn = ref(true);
 
 /* -------------------------------------------------------------------------- */
 /* Presets                                                                     */
 /* -------------------------------------------------------------------------- */
 
 const regionsPreset = computed(() => existingRegionsPreset(props.world, props.shapeKind));
+const isFullyUnboundedLayer = computed(() => {
+    const current = shape.value;
+    return (
+        current.kind === "box" &&
+        current.minX === JAVA_INT_MIN &&
+        current.maxX === JAVA_INT_MAX &&
+        current.minZ === JAVA_INT_MIN &&
+        current.maxZ === JAVA_INT_MAX &&
+        current.minY === JAVA_INT_MIN &&
+        current.maxY === JAVA_INT_MAX
+    );
+});
 
-function applyWholeWorld(): void {
-    commit(wholeWorldPreset().shape);
+function applyUnboundedLayer(): void {
+    commit(unboundedLayerPreset().shape);
     fitToShape();
 }
 
@@ -207,10 +225,6 @@ function applyExistingRegions(): void {
 function applyAroundSpawn(): void {
     commit(aroundSpawnPreset(props.world, props.shapeKind).shape);
     fitToShape();
-}
-
-function resetToWholeWorld(): void {
-    applyWholeWorld();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -649,6 +663,19 @@ function setPolygonPointField(index: number, axis: "x" | "z", raw: string): void
 
 const area = computed(() => estimateArea(shape.value));
 
+/**
+ * The shape's region estimate against the real measured region-file inventory. It is bounded
+ * at the inventory count and explicitly labelled approximate because a curved shape can clip
+ * a region and a sparse world can have holes inside its measured rectangle.
+ */
+const estimatedMeasuredRegions = computed(() => {
+    if (props.world.regionCount === null || area.value.regions === null) return null;
+    return {
+        selected: Math.max(0, Math.min(props.world.regionCount, Math.round(area.value.regions))),
+        total: props.world.regionCount,
+    };
+});
+
 const worldFraction = computed(() => {
     const extent = props.world.extent;
     if (extent === null || area.value.blocks === null) return null;
@@ -677,6 +704,41 @@ const worldFraction = computed(() => {
                 )
             }}
         </v-alert>
+
+        <div
+            v-if="world.extent !== null || world.spawn !== null"
+            class="mb-mask-canvas__guides"
+            role="group"
+            :aria-label="t('config.maskCanvas.guides', 'Measured world guides')"
+        >
+            <v-switch
+                v-if="world.extent !== null"
+                v-model="showMeasuredExtent"
+                :label="t('config.maskCanvas.showExtent', 'Show measured region extent')"
+                color="primary"
+                density="compact"
+                hide-details
+                inset
+            />
+            <v-switch
+                v-if="world.spawn !== null"
+                v-model="showSpawn"
+                :label="t('config.maskCanvas.showSpawn', 'Show overworld spawn')"
+                color="primary"
+                density="compact"
+                hide-details
+                inset
+            />
+            <v-chip v-if="world.regionCount !== null" size="small" variant="outlined">
+                {{
+                    t(
+                        "config.maskCanvas.measuredRegionCount",
+                        { count: world.regionCount },
+                        "{count} measured region files",
+                    )
+                }}
+            </v-chip>
+        </div>
 
         <div class="mb-mask-canvas__toolbar">
             <v-btn-toggle
@@ -743,9 +805,9 @@ const worldFraction = computed(() => {
                 :disabled="isDisabled"
                 variant="outlined"
                 size="small"
-                @click="applyWholeWorld"
+                @click="applyUnboundedLayer"
             >
-                {{ t("config.maskCanvas.presetWholeWorld", "Whole world") }}
+                {{ t("config.maskCanvas.presetUnboundedLayer", "Make this layer unbounded") }}
             </v-btn>
             <v-btn
                 :prepend-icon="mdiMapMarker"
@@ -773,16 +835,6 @@ const worldFraction = computed(() => {
                     )
                 }}
             </v-tooltip>
-
-            <v-btn
-                :prepend-icon="mdiRestore"
-                :disabled="isDisabled"
-                variant="text"
-                size="small"
-                @click="resetToWholeWorld"
-            >
-                {{ t("config.maskCanvas.reset", "Reset to whole world") }}
-            </v-btn>
 
             <v-btn
                 :prepend-icon="mdiExport"
@@ -814,9 +866,9 @@ const worldFraction = computed(() => {
 
         <p
             class="mb-mask-canvas__presetNote"
-            v-if="shape.kind === 'box' && shape.minX === JAVA_INT_MIN"
+            v-if="isFullyUnboundedLayer"
         >
-            {{ wholeWorldPreset().description }}
+            {{ unboundedLayerPreset().description }}
         </p>
 
         <v-alert
@@ -874,7 +926,7 @@ const worldFraction = computed(() => {
                 />
 
                 <rect
-                    v-if="world.extent !== null"
+                    v-if="showMeasuredExtent && world.extent !== null"
                     :x="pixelFor({ x: world.extent.minX, z: world.extent.minZ }).x"
                     :y="pixelFor({ x: world.extent.minX, z: world.extent.minZ }).y"
                     :width="
@@ -889,7 +941,7 @@ const worldFraction = computed(() => {
                 />
 
                 <g
-                    v-if="world.spawn !== null"
+                    v-if="showSpawn && world.spawn !== null"
                     :transform="`translate(${pixelFor(world.spawn).x}, ${pixelFor(world.spawn).y})`"
                 >
                     <circle r="5" class="mb-mask-canvas__spawn" />
@@ -1167,6 +1219,23 @@ const worldFraction = computed(() => {
                     )
                 }}
             </v-chip>
+            <v-chip
+                v-if="estimatedMeasuredRegions !== null"
+                size="small"
+                variant="tonal"
+                data-mask-region-estimate
+            >
+                {{
+                    t(
+                        "config.maskCanvas.regionEstimate",
+                        {
+                            selected: estimatedMeasuredRegions.selected.toLocaleString(),
+                            total: estimatedMeasuredRegions.total.toLocaleString(),
+                        },
+                        "About {selected} of {total} measured regions would render.",
+                    )
+                }}
+            </v-chip>
         </div>
 
         <!-- Numeric fields: the always-available equivalent path to the drawing above. -->
@@ -1368,11 +1437,16 @@ const worldFraction = computed(() => {
 
 .mb-mask-canvas__toolbar,
 .mb-mask-canvas__presets,
-.mb-mask-canvas__readouts {
+.mb-mask-canvas__readouts,
+.mb-mask-canvas__guides {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.mb-mask-canvas__guides > .v-input {
+    flex: 0 1 auto;
 }
 
 .mb-mask-canvas__presetNote {

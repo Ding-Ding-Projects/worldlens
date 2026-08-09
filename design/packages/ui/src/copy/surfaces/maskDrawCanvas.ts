@@ -86,11 +86,13 @@ export const MASKDRAWCANVAS_FIXED = {
     "config.maskCanvas.undo": { en: "Undo", yue: "復原" },
     "config.maskCanvas.redo": { en: "Redo", yue: "重做" },
 
-    /* Presets and reset. */
-    "config.maskCanvas.presetWholeWorld": { en: "Whole world", yue: "成個世界" },
+    /* Presets. They change one ordered layer, never the complete render-mask list. */
+    "config.maskCanvas.presetUnboundedLayer": {
+        en: "Make this layer unbounded",
+        yue: "呢一層唔設範圍",
+    },
     "config.maskCanvas.presetAroundSpawn": { en: "Around spawn", yue: "圍住重生點" },
     "config.maskCanvas.presetExistingRegions": { en: "Extent of existing regions", yue: "現有 region 嘅範圍" },
-    "config.maskCanvas.reset": { en: "Reset to whole world", yue: "重設做成個世界" },
 
     /* The surface's own accessible name, and its spawn marker. */
     "config.maskCanvas.surfaceLabel": { en: "A top-down drawing of the render mask shape", yue: "遮罩形狀嘅俯視畫板" },

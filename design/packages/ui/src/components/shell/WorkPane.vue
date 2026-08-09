@@ -220,4 +220,53 @@ defineExpose({
     text-transform: uppercase;
 }
 
+/*
+ * Work's strip is one of the rewrite surfaces that promises literal 21:1 in the contrast theme.
+ * The shared tab component intentionally uses medium-emphasis ink and translucent state layers
+ * elsewhere; retain that Material treatment there, but turn every readable Work-strip state into
+ * an opaque existing role pair here. This is scoped to Work so settings and editor tab strips keep
+ * their independently configurable appearance.
+ */
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip) {
+    --v-hover-opacity: 0;
+    --v-focus-opacity: 0;
+    --v-pressed-opacity: 0;
+    --v-dragged-opacity: 0;
+    --v-activated-opacity: 0;
+}
+
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__tab),
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__group-head),
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__controls .v-btn) {
+    color: rgb(var(--v-theme-on-surface));
+}
+
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__tab:hover),
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__group) {
+    background: rgb(var(--v-theme-surface));
+}
+
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__tab--active) {
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+}
+
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__tab--active .mb-tabs-strip__dot) {
+    background: rgb(var(--v-theme-on-primary-container));
+}
+
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__x),
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__count) {
+    opacity: 1;
+}
+
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__group-head .v-chip) {
+    background: rgb(var(--v-theme-primary-container)) !important;
+    color: rgb(var(--v-theme-on-primary-container)) !important;
+}
+
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__group-head .v-chip__underlay),
+:global(.v-theme--contrast) .wl-work :deep(.mb-tabs-strip__group-head .v-chip__overlay) {
+    opacity: 0 !important;
+}
 </style>

@@ -6,7 +6,7 @@
  * `maskCanvas.test.ts` proves the pure geometry and state; this proves the Vue layer
  * actually wires it up: numeric fields synced both ways with the drawing, keyboard
  * creation and adjustment with no pointer anywhere in the test, snapping on and off,
- * undo/redo, the area readout matching the drawn shape, reset to the whole world, and
+ * undo/redo, the area readout matching the drawn shape, an unbounded-layer action, and
  * every preset setting exactly what it claims -- for the shape kind actually being
  * edited, never silently swapping it for another.
  */
@@ -344,20 +344,20 @@ describe("area readout", () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Reset returns to the whole world                                          */
+/* Unbounded action changes only the current layer                           */
 /* -------------------------------------------------------------------------- */
 
-describe("reset to the whole world", () => {
-    it("sets every axis to BlueMap's own unbounded sentinel, and converts the row's own type to box", async () => {
-        // Starting from a circle row on purpose: reset is a genuine start-over.
+describe("the unbounded-layer action", () => {
+    it("sets every axis to BlueMap's own unbounded sentinel and replaces a non-box record without stale geometry keys", async () => {
+        // Starting from a circle row proves the replacement does not retain circle-only fields.
         const wrapper = mountCanvas({
             modelValue: { type: "bluemap:circle", "center-x": 5, "center-z": 5, radius: 40 },
             shapeKind: "circle",
         });
-        const resetButtons = wrapper
+        const unboundedButtons = wrapper
             .findAll("button")
-            .filter((btn) => btn.text().includes("Reset to whole world"));
-        await resetButtons[0]!.trigger("click");
+            .filter((btn) => btn.text().includes("Make this layer unbounded"));
+        await unboundedButtons[0]!.trigger("click");
 
         const record = lastEmitted(wrapper);
         expect(record?.["type"]).toBe("bluemap:box");
@@ -365,6 +365,20 @@ describe("reset to the whole world", () => {
         expect(record?.["max-x"]).toBe(JAVA_INT_MAX);
         expect(record?.["min-z"]).toBe(JAVA_INT_MIN);
         expect(record?.["max-z"]).toBe(JAVA_INT_MAX);
+        expect(Object.hasOwn(record!, "center-x")).toBe(false);
+        expect(Object.hasOwn(record!, "center-z")).toBe(false);
+        expect(Object.hasOwn(record!, "radius")).toBe(false);
+        expect(wrapper.text()).toContain("This changes only this ordered layer");
+        expect(wrapper.text()).not.toContain("Reset to whole world");
+    });
+
+    it("does not show the unbounded-layer note when only one box bound is unbounded", () => {
+        const wrapper = mountCanvas({
+            modelValue: boxRecord({ "min-x": JAVA_INT_MIN }),
+            shapeKind: "box",
+        });
+
+        expect(wrapper.text()).not.toContain("This changes only this ordered layer");
     });
 });
 
@@ -373,12 +387,12 @@ describe("reset to the whole world", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("presets", () => {
-    it("Whole world sets the unbounded sentinel on every axis", async () => {
+    it("Make this layer unbounded sets the unbounded sentinel on every axis", async () => {
         const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
-        const wholeWorldButtons = wrapper
+        const unboundedButtons = wrapper
             .findAll("button")
-            .filter((btn) => btn.text().includes("Whole world"));
-        await wholeWorldButtons[0]!.trigger("click");
+            .filter((btn) => btn.text().includes("Make this layer unbounded"));
+        await unboundedButtons[0]!.trigger("click");
 
         const record = lastEmitted(wrapper);
         expect(record?.["min-x"]).toBe(JAVA_INT_MIN);
@@ -464,6 +478,34 @@ describe("orientation", () => {
             world: MEASURED_WORLD,
         });
         expect(wrapper.text()).not.toMatch(/extent could not be determined/i);
+    });
+});
+
+describe("measured world guides", () => {
+    it("shows independent extent/spawn toggles and bounds the region estimate by the measured inventory", async () => {
+        const wrapper = mountCanvas({
+            modelValue: boxRecord({ "min-x": 0, "max-x": 511, "min-z": 0, "max-z": 511 }),
+            shapeKind: "box",
+            world: MEASURED_WORLD,
+        });
+
+        expect(wrapper.text()).toContain("Show measured region extent");
+        expect(wrapper.text()).toContain("Show overworld spawn");
+        expect(wrapper.text()).toContain("4 measured region files");
+        expect(wrapper.find("[data-mask-region-estimate]").text()).toContain(
+            "About 1 of 4 measured regions would render.",
+        );
+        expect(wrapper.find(".mb-mask-canvas__extent").exists()).toBe(true);
+        expect(wrapper.find(".mb-mask-canvas__spawn").exists()).toBe(true);
+
+        const toggles = wrapper.find(".mb-mask-canvas__guides").findAll('input[type="checkbox"]');
+        expect(toggles).toHaveLength(2);
+        await toggles[0]!.setValue(false);
+        expect(wrapper.find(".mb-mask-canvas__extent").exists()).toBe(false);
+        expect(wrapper.find(".mb-mask-canvas__spawn").exists()).toBe(true);
+
+        await toggles[1]!.setValue(false);
+        expect(wrapper.find(".mb-mask-canvas__spawn").exists()).toBe(false);
     });
 });
 

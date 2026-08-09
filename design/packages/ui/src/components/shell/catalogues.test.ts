@@ -31,7 +31,7 @@ const APPROVED_COUNTS: Record<string, number> = {
     maps: 6,
     share: 6,
     copy: 7,
-    setup: 38,
+    setup: 37,
 };
 
 describe("the five catalogues", () => {
@@ -45,8 +45,8 @@ describe("the five catalogues", () => {
         }
     });
 
-    it("totals eighty-five features", () => {
-        expect(ALL_CATALOGUE_FEATURES.length).toBe(85);
+    it("totals eighty-four features", () => {
+        expect(ALL_CATALOGUE_FEATURES.length).toBe(84);
     });
 
     it("derives its counts from the arrays rather than from a literal", () => {

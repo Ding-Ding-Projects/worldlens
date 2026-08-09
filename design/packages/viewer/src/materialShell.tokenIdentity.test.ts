@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
     COLOR_ROLES,
+    CONTRAST_SCHEME,
     DARK_SCHEME,
     LIGHT_SCHEME,
     schemeToCustomProperties,
@@ -33,13 +34,15 @@ import {
 const source = readFileSync(fileURLToPath(new URL("./materialShell.ts", import.meta.url)), "utf8");
 
 describe("one canonical token source", () => {
-    it("emits every canonical role as a custom property, in both schemes", () => {
+    it("emits every canonical role as a custom property, in all three schemes", () => {
         const light = schemeToCustomProperties(LIGHT_SCHEME);
         const dark = schemeToCustomProperties(DARK_SCHEME);
+        const contrast = schemeToCustomProperties(CONTRAST_SCHEME);
 
         for (const role of COLOR_ROLES) {
             expect(light, role).toContain(`--bm-${role}:${LIGHT_SCHEME[role]};`);
             expect(dark, role).toContain(`--bm-${role}:${DARK_SCHEME[role]};`);
+            expect(contrast, role).toContain(`--bm-${role}:${CONTRAST_SCHEME[role]};`);
         }
     });
 
@@ -69,7 +72,10 @@ describe("the viewer shell owns no colour vocabulary of its own", () => {
         // The whole failure mode in one assertion. A hex literal here is a second source of truth
         // by definition, and the last time there was one it disagreed with the first about every
         // single value.
-        const style = source.slice(source.indexOf("const SHELL_BASE"), source.indexOf("export class"));
+        const style = source.slice(
+            source.indexOf("const SHELL_BASE"),
+            source.indexOf("export class"),
+        );
         const literals = [...style.matchAll(/#[0-9A-Fa-f]{3,8}\b/g)].map((match) => match[0]);
         expect(literals).toEqual([]);
     });
@@ -80,5 +86,14 @@ describe("the viewer shell owns no colour vocabulary of its own", () => {
         // would drag a UI runtime into a package the CLI serves to ordinary browsers.
         expect(source).not.toContain("vuetify");
         expect(source).not.toContain('from "vue"');
+    });
+
+    it("keeps the served shell self-contained instead of adding a network dependency", () => {
+        // The static map host has no reason to contact a third party for chrome. Fonts, icons
+        // and map data are supplied by the published bundle and the existing local handler;
+        // this shell must not grow a remote URL, stylesheet import, or direct fetch around it.
+        expect(source).not.toMatch(/https?:\/\//);
+        expect(source).not.toContain("@import");
+        expect(source).not.toContain("fetch(");
     });
 });

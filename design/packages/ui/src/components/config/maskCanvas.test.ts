@@ -3,12 +3,11 @@
  *
  * Every behaviour the design brief and the lane spec ask for has an assertion here:
  * drawing and editing each of the four real shapes, snapping on and off, undo/redo,
- * keyboard-style nudging, the area readout matching the drawn shape, reset returning to
- * the whole world, and each preset setting exactly what it claims.
+ * keyboard-style nudging, the area readout matching the drawn shape, an unbounded layer
+ * preset, and each preset setting exactly what it claims.
  */
 
 import { describe, expect, it } from "vitest";
-import type { BoxMask, CircleMask, MaskConfig } from "@worldlens/config";
 import {
     BLOCKS_PER_REGION,
     CHUNK_BLOCKS,
@@ -22,8 +21,6 @@ import {
     aroundSpawnPreset,
     canRedo,
     canUndo,
-    cloudFidelityForMask,
-    cloudFidelityForSingleShape,
     defaultShapeFor,
     estimateArea,
     existingRegionsPreset,
@@ -50,7 +47,7 @@ import {
     snapShape,
     toMaskRecord,
     undo,
-    wholeWorldPreset,
+    unboundedLayerPreset,
     type BoxShape,
     type CircleShape,
     type DrawableShape,
@@ -492,7 +489,7 @@ describe("area readout", () => {
     });
 
     it("gives no invented number at all for a box left unbounded on an axis -- never a 4-billion-block figure", () => {
-        // This is the exact shape `wholeWorldPreset()` and `resetToWholeWorld` produce.
+        // This is the exact shape `unboundedLayerPreset()` produces for one mask row.
         const area = estimateArea(
             box({ minX: JAVA_INT_MIN, maxX: JAVA_INT_MAX, minZ: JAVA_INT_MIN, maxZ: JAVA_INT_MAX }),
         );
@@ -511,12 +508,12 @@ describe("area readout", () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Reset returns to the whole world                                           */
+/* The unbounded-layer preset changes only one row                            */
 /* -------------------------------------------------------------------------- */
 
-describe("reset to the whole world", () => {
+describe("the unbounded-layer preset", () => {
     it("is the same real unbounded box regardless of whether a world has been measured", () => {
-        const withNoWorld = wholeWorldPreset();
+        const withNoWorld = unboundedLayerPreset();
         expect(withNoWorld.shape).toMatchObject({
             kind: "box",
             minX: JAVA_INT_MIN,
@@ -526,8 +523,8 @@ describe("reset to the whole world", () => {
         });
     });
 
-    it("is identical to an empty render-mask list's own real meaning: BlueMap's unbounded sentinels", () => {
-        const record = toMaskRecord(wholeWorldPreset().shape);
+    it("serializes its one layer with BlueMap's unbounded sentinels", () => {
+        const record = toMaskRecord(unboundedLayerPreset().shape);
         expect(record).toEqual({
             "min-x": JAVA_INT_MIN,
             "max-x": JAVA_INT_MAX,
@@ -538,11 +535,11 @@ describe("reset to the whole world", () => {
         });
     });
 
-    it("undoes back to the whole world after edits, via ordinary undo", () => {
-        let history = initHistory<DrawableShape>(wholeWorldPreset().shape);
+    it("undoes back to the unbounded layer after edits, via ordinary undo", () => {
+        let history = initHistory<DrawableShape>(unboundedLayerPreset().shape);
         history = pushHistory(history, moveBoxEdge(history.present as BoxShape, "maxX", -1000));
         history = undo(history);
-        expect(history.present).toEqual(wholeWorldPreset().shape);
+        expect(history.present).toEqual(unboundedLayerPreset().shape);
     });
 });
 
@@ -559,15 +556,15 @@ describe("presets", () => {
         regionCount: 6,
     };
 
-    it("wholeWorldPreset sets every axis to the unbounded sentinel and says so", () => {
-        const preset = wholeWorldPreset();
+    it("unboundedLayerPreset sets every axis to the unbounded sentinel and scopes its description to one layer", () => {
+        const preset = unboundedLayerPreset();
         expect(preset.shape).toMatchObject({
             minX: JAVA_INT_MIN,
             maxX: JAVA_INT_MAX,
             minZ: JAVA_INT_MIN,
             maxZ: JAVA_INT_MAX,
         });
-        expect(preset.description).toMatch(/unlimited|no mask/i);
+        expect(preset.description).toMatch(/only this ordered layer.*later ordered layers/i);
     });
 
     it("existingRegionsPreset sets exactly the measured extent for a box, and names the real numbers", () => {
@@ -677,7 +674,7 @@ describe("presets", () => {
 
     it("every preset's description is non-empty and states real numbers", () => {
         for (const preset of [
-            wholeWorldPreset(),
+            unboundedLayerPreset(),
             existingRegionsPreset(measuredWorld)!,
             aroundSpawnPreset(measuredWorld),
         ]) {
@@ -751,72 +748,5 @@ describe("fromMaskRecord / toMaskRecord round-tripping", () => {
         const edited = moveBoxEdge(shape, "maxX", 5);
         expect(edited.minY).toBe(40);
         expect(edited.maxY).toBe(90);
-    });
-});
-
-/* -------------------------------------------------------------------------- */
-/* Cloud/Actions fidelity, mirroring app/src/main/render/maskFidelity.ts      */
-/* -------------------------------------------------------------------------- */
-
-describe("cloudFidelityForSingleShape", () => {
-    it.each([
-        ["box", false],
-        ["box", true],
-        ["circle", false],
-        ["ellipse", false],
-        ["polygon", false],
-    ] as const)("honors %s with subtract=%s", (kind, subtract) => {
-        expect(cloudFidelityForSingleShape(kind, subtract)).toEqual({
-            honored: true,
-            unsupportedReason: null,
-        });
-    });
-});
-
-/**
- * These are deliberately the same route cases `maskFidelity.test.ts` and the CLI converter
- * exercise, so a package-boundary hand-sync missed on either side is a red test.
- */
-describe("cloudFidelityForMask", () => {
-    const BOX: BoxMask = {
-        type: "bluemap:box",
-        subtract: false,
-        "min-x": -100,
-        "max-x": 100,
-        "min-y": -64,
-        "max-y": 320,
-        "min-z": -100,
-        "max-z": 100,
-    };
-
-    const CIRCLE: CircleMask = {
-        type: "bluemap:circle",
-        subtract: false,
-        "center-x": 0,
-        "center-z": 0,
-        radius: 50,
-        "min-y": -64,
-        "max-y": 320,
-    };
-
-    it.each([
-        ["empty", []],
-        ["one box", [BOX]],
-        ["subtracting box", [{ ...BOX, subtract: true }]],
-        ["circle", [CIRCLE]],
-        ["ordered list", [BOX, { ...BOX, "min-x": 200, "max-x": 300 } satisfies MaskConfig]],
-        [
-            "nested blur",
-            [
-                {
-                    type: "bluemap:blur",
-                    subtract: false,
-                    size: 5,
-                    masks: [BOX, { ...CIRCLE, subtract: true }],
-                } satisfies MaskConfig,
-            ],
-        ],
-    ] as const)("honors %s", (_name, masks) => {
-        expect(cloudFidelityForMask(masks)).toEqual({ honored: true, unsupportedReason: null });
     });
 });

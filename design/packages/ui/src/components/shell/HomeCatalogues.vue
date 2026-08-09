@@ -153,7 +153,9 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                     rather than the shipped one - renaming the application renames this.
                 -->
                 <p class="wl-home__overline">{{ productName }}</p>
-                <h1 class="wl-home__title">{{ t("shell.home.title", "What are you here to do?") }}</h1>
+                <h1 class="wl-home__title">
+                    {{ t("shell.home.title", "What are you here to do?") }}
+                </h1>
                 <p class="wl-home__lede">
                     {{
                         t(
@@ -175,7 +177,9 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                 v-model:flags="flags"
                 class="wl-home__search"
                 :label="t('shell.home.search.label', 'Search everything')"
-                :placeholder="t('shell.home.search.placeholder', 'Try: mask, backup, Cantonese, publish')"
+                :placeholder="
+                    t('shell.home.search.placeholder', 'Try: mask, backup, Cantonese, publish')
+                "
                 :sample="catalogueSampleText(allFeatures)"
                 :summary="summary"
             />
@@ -552,6 +556,22 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 .wl-card__avatar--share {
     background: rgb(var(--v-theme-tertiary-container, var(--v-theme-surface)));
     color: rgb(var(--v-theme-on-tertiary-container, var(--v-theme-on-surface)));
+}
+
+/*
+ * The contrast scheme promises a literal 21:1 reading surface, not only an AA one. Alpha on the
+ * hero copy and chips composites the black foreground into grey; the secondary yellow avatar is
+ * high-contrast but not the claimed maximum. Keep the semantic distinction in the ordinary
+ * themes and promote these contrast-only states to existing black/white container roles.
+ */
+:global(.v-theme--contrast) .wl-hero__blurb,
+:global(.v-theme--contrast) .wl-chip {
+    opacity: 1;
+}
+
+:global(.v-theme--contrast) .wl-card__avatar:not(.wl-card__avatar--share) {
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
 }
 
 .wl-card__title {

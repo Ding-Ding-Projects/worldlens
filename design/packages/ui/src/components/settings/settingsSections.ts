@@ -79,19 +79,10 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * shape today that could honestly point here. It sits beside surface placement because
  * both are "the app already picked something sensible; here is where you'd change it".
  *
- * Notification duration is next: how long an informational or success toast stays on
- * screen before it dismisses itself, per `components/config/notifications.ts`. Also not an
- * anchor, and for a plainer reason than render memory's - no render outcome has anything
- * to do with a toast's own timing at all, so no failure of any shape could honestly point
- * here. A shell-wide preference, not a per-render one, so it sits with the other two
- * "the app already behaves reasonably; here is where you would change that" rows above it.
- *
  * Download concurrency is next: how many release-asset parts a download fetches at once,
- * per `main/files/downloadConcurrency.ts`. Not an anchor either, and for the same reason
- * notification duration is not one - a slow or contended download reports as a download
- * failure or simply as slowness, neither of which is a typed `SettingsTarget` a render or a
- * download could honestly point here from. It sits beside the other two "already sensible,
- * here is where you'd change it" rows for the same reason they sit together.
+ * per `main/files/downloadConcurrency.ts`. Not an anchor either: a slow or contended
+ * download reports as a download failure or simply as slowness, neither of which is a typed
+ * `SettingsTarget` a render or a download could honestly point here from.
  *
  * System dependencies is next: installing git, the GitHub CLI, Docker Desktop and rsync
  * through winget/Chocolatey, per `main/sysdeps/`. Not an anchor for the same reason
@@ -129,7 +120,6 @@ export const SETTINGS_SECTIONS = [
     "display",
     "surface-placement",
     "render-memory",
-    "notification-duration",
     "download-concurrency",
     "system-dependencies",
     "updates",
@@ -160,6 +150,11 @@ export function isSettingsSection(value: unknown): value is SettingsSectionAncho
  */
 export interface SettingsSectionText {
     readonly anchor: SettingsSectionAnchor;
+    /**
+     * The stable anchor is normally searchable as a convenience, but an active policy can
+     * suppress a capability while retaining its host section for unrelated settings.
+     */
+    readonly searchableAnchor?: string | null;
     readonly title: string;
     readonly description: string;
     /** Current values and any other text the section renders. */
@@ -168,8 +163,9 @@ export interface SettingsSectionText {
 
 /** One string per section, which is what a query is tested against. */
 export function sectionHaystack(section: SettingsSectionText): string {
-    return [section.anchor, section.title, section.description, ...section.values]
-        .filter((part) => part.trim().length > 0)
+    const searchableAnchor = section.searchableAnchor === undefined ? section.anchor : section.searchableAnchor;
+    return [searchableAnchor, section.title, section.description, ...section.values]
+        .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
         .join("\n");
 }
 

@@ -124,11 +124,11 @@ provideConfigHost(resolvedHost);
 const host = resolvedHost;
 
 /*
- * Everything this screen reports goes to the shell's one notification corner, which is
- * mounted in `App.vue` and outlives this component. Two things follow from that, and both
- * are the point rather than an accident: a save that closes the editor can still say where
- * it wrote, and there is no `<ConfigNotifications>` in the template below, because a
- * second mounted copy would paint a second fixed stack and show every notice twice.
+ * Everything this screen reports goes to the shell's one rail history, which is mounted in
+ * `App.vue` and outlives this component. Two things follow from that, and both are the point
+ * rather than an accident: a save that closes the editor can still say where it wrote, and
+ * there is no `<ConfigNotifications>` in the template below, because the redesigned shell
+ * records notices at its bell instead of covering the editor with a fixed stack.
  */
 
 const workspace = shallowRef<ConfigWorkspace | null>(null);
@@ -273,7 +273,7 @@ async function openFolderAt(folder: string): Promise<void> {
         // vue-i18n compiles the message itself, so it consumes `{folder}` and the counts as
         // its own named parameters and a later `replace` finds nothing left to substitute.
         // These notifications exist to say which folder was read and how much was in it, so
-        // the broken form leaves a success toast that reports neither.
+        // the broken form leaves a success history entry that reports neither.
         notify(
             notices,
             "success",

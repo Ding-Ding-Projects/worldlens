@@ -2,10 +2,10 @@
  * Turning one autosave attempt into, at most, one non-blocking notice.
  *
  * `main/project/autosave.ts` reports every attempt it makes - automatic or flushed,
- * successful or not - and it is tempting to raise a toast for each one, because that is the
+ * successful or not - and it is tempting to raise an alert for each one, because that is the
  * most direct way to answer "is my work being saved". It is also exactly the noise the
  * project's non-blocking-notification rules warn against: an editor open for ten minutes
- * autosaves several times on its own quiet interval alone, and a toast on every one of them
+ * autosaves several times on its own quiet interval alone, and an alert on every one of them
  * would make the feature hated rather than trusted within the first session anyone used it.
  *
  * So the policy here is deliberately narrow, and it is a pure function precisely so the
@@ -14,7 +14,7 @@
  *   - A **successful, routine** autosave (`reason: "quiet"`, `ok: true`, `historyOk: true`)
  *     raises nothing at all. The project's own History tab is the ambient indicator that
  *     work is being kept; it already lists every revision with what changed and when, which
- *     is a truer "your work is safe" than a toast that says the same four words every
+ *     is a truer "your work is safe" than a repeated alert that says the same four words every
  *     fifteen seconds.
  *   - A **flushed but still routine** save (`reason: "boundary" | "destructive" | "quit"`)
  *     is treated the same as `"quiet"` when it succeeds - it is still an autosave, not
@@ -27,7 +27,7 @@
  * Failures share one notice category with a cooldown, via `stores/notices.ts`'s `notify`, so
  * a repository that starts failing every autosave for the next few minutes interrupts once
  * and then stops interrupting - the failure stays fully reviewable in the notification
- * centre's history the whole time, it just stops elbowing its way onto the toast stack.
+ * centre's history the whole time, it just stops elbowing its way onto the unread badge.
  */
 
 import type { NoticeLevel } from "../components/config/notifications.js";
@@ -70,7 +70,7 @@ export function autosaveNoticeFor(
 /** Bucket every autosave-failure notice shares, so repeats throttle against each other. */
 export const AUTOSAVE_NOTICE_CATEGORY = "project-autosave";
 
-/** How long a repeat autosave failure is kept off the toast stack, once one has been shown. */
+/** How long a repeat autosave failure is kept from creating another unread history entry. */
 export const AUTOSAVE_NOTICE_COOLDOWN_MS = 60_000;
 
 /**

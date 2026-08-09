@@ -10,7 +10,7 @@
  *
  * So nothing here is a literal. A resolver reads either a **registry that is already the
  * product's source of truth** (the config descriptors, the mask shapes, the CLI flags, the speed
- * levels, the notice-duration levels, the language modes, the bundled docs articles) or a **live
+ * levels, the language modes, the bundled docs articles) or a **live
  * store the shell hands in** (running renders, profiles, unread notices, consent, the account).
  * A resolver that has nothing honest to say returns `undefined`, and the row simply has no meta -
  * which reads as an ordinary row rather than as a broken one.
@@ -22,7 +22,6 @@
 
 import { ALL_DESCRIPTORS, CLI_FLAGS, CONFIG_DESCRIPTORS, MASK_SHAPES } from "@worldlens/config";
 import { DOCS_ARTICLES } from "../docs/docsContent.js";
-import { NOTICE_DURATION_LEVELS } from "../config/noticeDurationLevels.js";
 import { SPEED_LEVELS } from "../config/speedLevels.js";
 import { FUNNY_LEVELS, LANGUAGE_MODES } from "../setup/setupI18n.js";
 
@@ -129,12 +128,6 @@ const RESOLVERS: Record<string, Resolver> = {
         t("catalogue.meta.maskShapes", { count: String(MASK_SHAPES.length) }, "{count} shapes"),
     "speed.levelCount": (_sources, t) =>
         t("catalogue.meta.speedLevels", { count: String(SPEED_LEVELS.length) }, "{count} levels"),
-    "notice.durationLevelCount": (_sources, t) =>
-        t(
-            "catalogue.meta.noticeDurationLevels",
-            { count: String(NOTICE_DURATION_LEVELS.length) },
-            "{count} levels",
-        ),
     "language.modesAndLevels": (_sources, t) =>
         t(
             "catalogue.meta.languageModesAndLevels",

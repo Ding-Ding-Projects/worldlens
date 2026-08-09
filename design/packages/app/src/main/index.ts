@@ -50,6 +50,7 @@ import {
     windowsMapStorageDefault,
 } from "./files/index.js";
 import { registerEulaHandlers } from "./eula/index.js";
+import { registerSchoolModeHandlers } from "./schoolMode/index.js";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import {
@@ -430,6 +431,11 @@ function registerIpc(): void {
         if (typeof text === "string") clipboard.writeText(text);
     });
     ipcMain.handle("app:version", () => app.getVersion());
+
+    // This record sits under the OS-wide app-data root rather than Worldlens's own userData
+    // directory.  Register it before a renderer can load, so preload's initial read is the
+    // shared state rather than a renderer-local guess.
+    registerSchoolModeHandlers(ipcMain, { applicationDataDirectory });
 
     // Mojang's licence, fetched and cached so it can be read inside the app rather than
     // taken on trust. A reader only: the acceptance itself stays in `consent.ts`.

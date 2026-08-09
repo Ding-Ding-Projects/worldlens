@@ -28,6 +28,7 @@ import {
     type StringKey,
 } from "./setupStrings.js";
 import { readInt, readOneOf, setupStorage } from "./setupPrefs.js";
+import { effectiveSchoolModeFunnyLevel, effectiveSchoolModeLanguage } from "./schoolMode.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 export const LANGUAGE_MODES = ["en", "yue", "bilingual"] as const;
@@ -75,11 +76,16 @@ export function reloadSetupLanguage(): void {
 }
 
 export function languageMode(): LanguageMode {
-    return state.mode;
+    // School mode is an effective override, never a write over the stored base choice. The
+    // choice somebody made before enabling it has to return when its local record is removed.
+    return effectiveSchoolModeLanguage(state.mode, "en");
 }
 
 export function funnyLevel(language: "en" | "yue"): FunnyLevel {
-    return language === "en" ? state.funnyEn : state.funnyYue;
+    const base = language === "en" ? state.funnyEn : state.funnyYue;
+    // Level 1 is the catalogue's fully serious value. While School mode is active both slider
+    // paths behave as if absent without mutating either stored level.
+    return effectiveSchoolModeFunnyLevel(base, 1 as FunnyLevel);
 }
 
 export function setLanguageMode(mode: LanguageMode): void {
@@ -135,7 +141,7 @@ function interpolate(template: string, vars: TranslationVars): string {
 function raw(key: StringKey, language: "en" | "yue"): string {
     if (isVoicedKey(key)) {
         const entry = VOICED[key];
-        const level = language === "en" ? state.funnyEn : state.funnyYue;
+        const level = funnyLevel(language);
         const strings = language === "en" ? entry.en : entry.yue;
         return strings[level - 1] ?? strings[2];
     }
@@ -161,8 +167,9 @@ export function cantonese(key: StringKey, vars: TranslationVars = {}): string {
  * without the control growing sideways.
  */
 export function pair(key: StringKey, vars: TranslationVars = {}): TextPair {
-    if (state.mode === "en") return { primary: english(key, vars), secondary: null };
-    if (state.mode === "yue") return { primary: cantonese(key, vars), secondary: null };
+    const mode = languageMode();
+    if (mode === "en") return { primary: english(key, vars), secondary: null };
+    if (mode === "yue") return { primary: cantonese(key, vars), secondary: null };
     return { primary: english(key, vars), secondary: cantonese(key, vars) };
 }
 
@@ -193,14 +200,14 @@ export function langAttr(language: "en" | "yue"): string {
  * Bilingual pages lead with English, so the document language is English and the
  * Cantonese fragments carry `lang="zh-HK"` themselves.
  */
-export function documentLanguage(mode: LanguageMode = state.mode): string {
+export function documentLanguage(mode: LanguageMode = languageMode()): string {
     return mode === "yue" ? "zh-HK" : "en";
 }
 
 function applyDocumentLanguage(): void {
     const root = globalThis.document?.documentElement;
     if (!root) return;
-    root.dataset.setupLanguage = state.mode;
+    root.dataset.setupLanguage = languageMode();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -222,9 +229,9 @@ export interface SetupI18n {
 
 export function useSetupI18n(): SetupI18n {
     return {
-        mode: computed(() => state.mode),
-        funnyEn: computed(() => state.funnyEn),
-        funnyYue: computed(() => state.funnyYue),
+        mode: computed(() => languageMode()),
+        funnyEn: computed(() => funnyLevel("en")),
+        funnyYue: computed(() => funnyLevel("yue")),
         // These read `state` inside a render function, so Vue tracks them and the whole
         // dialog re-renders in place when a slider moves. No key needs re-binding.
         pair: (key, vars = {}) => pair(key, vars),

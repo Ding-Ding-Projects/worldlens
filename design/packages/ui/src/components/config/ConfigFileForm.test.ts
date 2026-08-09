@@ -2,6 +2,7 @@
 
 import { beforeAll, describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { generateConfigSet } from "@worldlens/config";
@@ -114,6 +115,31 @@ describe("the raw-source disclosure", () => {
         expect(source.exists()).toBe(true);
         expect(source.element.tagName).toBe("DIV");
         expect(source.text()).toContain("accept-download");
+        view.unmount();
+    });
+});
+
+describe("the first complete descriptor view", () => {
+    it("shows every FieldMeta row, including advanced rows, before a person changes a filter", async () => {
+        const view = mountForm();
+        await nextTick();
+        await nextTick();
+
+        const file = view.props("file");
+        const paths = view
+            .findAll("[data-field-path]")
+            .map((row) => row.attributes("data-field-path"));
+        const advanced = file.descriptor.fields
+            .filter((field) => field.advanced)
+            .map((field) => field.path);
+
+        expect(paths).toHaveLength(file.descriptor.fields.length);
+        expect(advanced.length).toBeGreaterThan(0);
+        expect(paths).toEqual(expect.arrayContaining(advanced));
+        // Each row carries the schema's visible control type and its docs provenance, rather
+        // than making either fact something a reader can only infer from source code.
+        expect(view.findAll("[data-field-type]")).toHaveLength(file.descriptor.fields.length);
+        expect(view.findAll("[data-field-provenance]")).toHaveLength(file.descriptor.fields.length);
         view.unmount();
     });
 });

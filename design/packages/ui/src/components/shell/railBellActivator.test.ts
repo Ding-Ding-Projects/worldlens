@@ -1,66 +1,195 @@
+// @vitest-environment jsdom
+
 /**
- * The rail's bell must not open the notification panel itself.
+ * The rail bell and its anchored notification history, exercised together.
  *
- * `NotificationPanel` anchors its `v-menu` to this button by id, and Vuetify's `activator` prop
- * does two things at once: it positions the menu against the element, and it binds a handler that
- * *toggles* the menu on click. A second handler on the button that also opened the panel therefore
- * produced two state changes from one press - the request opened it, the activator's toggle shut it
- * again - and the bell did nothing whatsoever.
- *
- * That is a defect no unit test caught and no screenshot showed. It was found by driving the real
- * packaged application on a fresh profile: pressing the bell left `aria-expanded="false"` with the
- * panel absent from the document, while the command palette's row for the same panel opened it
- * every time, because the palette rings the doorbell without also pressing the switch.
- *
- * ### Why this reads the source rather than mounting
- *
- * The failure lives in Vuetify's activator binding, which needs real layout and a real overlay
- * root; jsdom has neither, so a mounted test would pass with the defect present and prove nothing.
- * What can be checked exactly, and is the whole of the fix, is that the button carries no click
- * handler and the component declares no emit for one - which is the same technique
- * `tabPanelContainingBlock.test.ts` uses next door, and for the same reason.
+ * The old test inspected `AppRail.vue` for the absence of a click handler. That was a useful
+ * guard against one historical double-toggle, but it also let the opposite failure ship: a real
+ * fresh-profile press could leave the bell at `aria-expanded="false"` with no panel at all. This
+ * test deliberately mounts the same three links as the application -- rail event, shell-owned
+ * state, and the real `v-menu` panel -- then presses the real button. It does not pretend jsdom
+ * proves the menu's final pixel geometry; the app capture does that. It does prove the part the
+ * static test could not: the user event reaches the state, the state reaches the real overlay,
+ * and the palette's existing reveal request reaches that same controlled panel.
  */
 
-import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { defineComponent, h, nextTick, ref } from "vue";
+import { mount, type VueWrapper } from "@vue/test-utils";
+import { createI18n } from "vue-i18n";
+import { createVuetify } from "vuetify";
+import * as components from "vuetify/components";
+import * as directives from "vuetify/directives";
+import { VApp } from "vuetify/components";
+import { createNoticeState } from "../config/notifications.js";
+import AppRail from "./AppRail.vue";
+import NotificationPanel from "./NotificationPanel.vue";
+import { requestReveal, resetRevealRequests } from "./revealRequests.js";
 
-const source = readFileSync(fileURLToPath(new URL("./AppRail.vue", import.meta.url)), "utf8");
+beforeAll(() => {
+    // Vuetify's real overlay is part of this test. jsdom has no layout observers or visual
+    // viewport, so provide only the browser APIs its menu lifecycle reaches.
+    globalThis.ResizeObserver = class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+    } as unknown as typeof ResizeObserver;
 
-/** The bell's `<button>` element, from its id binding to the closing angle of the open tag. */
-function bellOpenTag(): string {
-    const start = source.indexOf("notificationsActivatorId === ''");
-    expect(start, "the bell button is identified by its activator id binding").toBeGreaterThan(-1);
-    const tagStart = source.lastIndexOf("<button", start);
-    const tagEnd = source.indexOf(">", start);
-    expect(tagStart).toBeGreaterThan(-1);
-    expect(tagEnd).toBeGreaterThan(tagStart);
-    return source.slice(tagStart, tagEnd + 1);
+    globalThis.matchMedia = ((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    })) as unknown as typeof globalThis.matchMedia;
+
+    document.elementsFromPoint = (): Element[] => [];
+    Object.defineProperty(window, "visualViewport", {
+        configurable: true,
+        value: {
+            width: 1024,
+            height: 768,
+            offsetLeft: 0,
+            offsetTop: 0,
+            scale: 1,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+        },
+    });
+});
+
+const vuetify = createVuetify({ components, directives });
+const activatorId = "rail-notifications-test-activator";
+
+function i18n() {
+    return createI18n({
+        legacy: false,
+        locale: "en",
+        fallbackLocale: "en",
+        messages: { en: {} },
+        missingWarn: false,
+        fallbackWarn: false,
+    });
 }
 
-describe("the rail's notification bell", () => {
-    it("carries no click handler, because the anchored menu's activator already owns the press", () => {
-        const tag = bellOpenTag();
-        expect(
-            tag,
-            "a click handler here fights the menu's own activator toggle: one press becomes two " +
-                "state changes and the panel opens and immediately shuts.",
-        ).not.toMatch(/@click|v-on:click/);
+/**
+ * A deliberately small version of the real App.vue seam.
+ *
+ * It does not stand in for either child: the real rail emits the press and the real notification
+ * panel renders the anchored Vuetify menu. The only local code is the same single state transition
+ * App.vue owns, so this test stays focused on the wiring that failed in the packaged application.
+ */
+const NotificationRailHost = defineComponent({
+    setup() {
+        const notificationsOpen = ref(false);
+        const notices = createNoticeState();
+
+        return () =>
+            h(VApp, null, {
+                default: () => [
+                    h(AppRail, {
+                        destination: "home",
+                        openJobCount: 0,
+                        unreadCount: 0,
+                        productName: "Worldlens",
+                        notificationsActivatorId: activatorId,
+                        notificationsOpen: notificationsOpen.value,
+                        onToggleNotifications: () => {
+                            notificationsOpen.value = !notificationsOpen.value;
+                        },
+                    }),
+                    h(NotificationPanel, {
+                        state: notices,
+                        activator: `#${activatorId}`,
+                        open: notificationsOpen.value,
+                        "onUpdate:open": (value: boolean) => {
+                            notificationsOpen.value = value;
+                        },
+                    }),
+                ],
+            });
+    },
+});
+
+let wrapper: VueWrapper<InstanceType<typeof NotificationRailHost>> | null = null;
+
+beforeEach(() => {
+    resetRevealRequests();
+});
+
+afterEach(() => {
+    wrapper?.unmount();
+    wrapper = null;
+    resetRevealRequests();
+    // Vuetify teleports overlays into this container, outside the wrapper that test-utils owns.
+    // Removing it prevents a closed menu from one case looking like the opened menu in the next.
+    document.querySelectorAll(".v-overlay-container").forEach((node) => node.remove());
+});
+
+function render(): VueWrapper<InstanceType<typeof NotificationRailHost>> {
+    wrapper = mount(NotificationRailHost, {
+        global: { plugins: [vuetify, i18n()] },
+        attachTo: document.body,
+    }) as VueWrapper<InstanceType<typeof NotificationRailHost>>;
+    return wrapper;
+}
+
+async function settle(): Promise<void> {
+    // The controlled prop, the menu transition and its Teleport each get a tick in the real
+    // component tree. Repeat rather than sleeping so a slow CI worker cannot turn this into a
+    // timing guess.
+    for (let index = 0; index < 6; index++) {
+        await nextTick();
+        await Promise.resolve();
+    }
+}
+
+function bell(view: VueWrapper<InstanceType<typeof NotificationRailHost>>) {
+    return view.find(`#${activatorId}`);
+}
+
+function activePanel(): HTMLElement | null {
+    // Vuetify keeps an overlay's card mounted until its leave transition has finished. The DOM
+    // node alone is therefore not a visibility signal after a close; the overlay's active class
+    // is the state its own transition and assistive-technology handling use.
+    return document.querySelector<HTMLElement>(".v-overlay--active .wl-notifications");
+}
+
+describe("the rail notification bell", () => {
+    it("opens the real anchored panel from one user press and closes through the same state", async () => {
+        const view = render();
+        const control = bell(view);
+
+        expect(control.exists()).toBe(true);
+        expect(control.attributes("aria-expanded")).toBe("false");
+        expect(activePanel()).toBeNull();
+
+        await control.trigger("click");
+        await settle();
+
+        expect(control.attributes("aria-expanded")).toBe("true");
+        expect(activePanel()).not.toBeNull();
+
+        // The menu's automatic activator click is disabled. A second press therefore performs the
+        // one explicit transition back to false instead of racing a hidden second handler.
+        await control.trigger("click");
+        await settle();
+
+        expect(control.attributes("aria-expanded")).toBe("false");
+        expect(activePanel()).toBeNull();
     });
 
-    it("declares no emit for opening the panel, so the shell cannot re-add the second opener", () => {
-        expect(
-            source,
-            "`openNotifications` was removed with the click handler. Restoring the emit is how " +
-                "somebody re-introduces the defect while believing they are wiring up a button.",
-        ).not.toContain("openNotifications");
-    });
+    it("uses the palette reveal request to open that same controlled anchored panel", async () => {
+        const view = render();
+        const control = bell(view);
 
-    it("still reports whether the panel is open, so the button is not silent to assistive technology", () => {
-        const tag = bellOpenTag();
-        // The panel emits `update:open` and the shell hands it back as `notificationsOpen`; losing
-        // this would leave a button that opens something and never says that it did.
-        expect(tag).toContain("aria-expanded");
-        expect(tag).toContain("notificationsOpen");
+        requestReveal("noticeCentre");
+        await settle();
+
+        expect(control.attributes("aria-expanded")).toBe("true");
+        expect(activePanel()).not.toBeNull();
     });
 });

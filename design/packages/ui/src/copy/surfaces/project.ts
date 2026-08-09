@@ -1573,7 +1573,7 @@ export const PROJECT_FIXED = {
     },
     "project.editor.back": { en: "All projects", yue: "所有 project" },
     "project.editor.fromWizard": { en: "made by the guide", yue: "由引導整嘅" },
-    "project.editor.unsaved": { en: "waiting to auto-save", yue: "等緊自動儲存" },
+    "project.editor.unsaved": { en: "Unsaved changes", yue: "未儲存嘅更改" },
     "project.editor.name": { en: "Project name", yue: "Project 名稱" },
     "project.editor.save": { en: "Save now", yue: "立即儲存" },
     "project.editor.revert": { en: "Discard these changes", yue: "捨棄呢啲改動" },

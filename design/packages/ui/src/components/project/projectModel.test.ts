@@ -20,6 +20,7 @@ import {
     PROJECT_PRESETS,
     applyPreset,
     createProject,
+    createProjectFromGeneratedDefaults,
     exportProjects,
     findMap,
     findPreset,
@@ -78,6 +79,34 @@ function seeded(): ProjectFile {
         world: WORLD,
     });
 }
+
+describe("a fresh generated project", () => {
+    it("materializes the real BlueMap defaults instead of representing them as sparse nulls", () => {
+        const project = createProjectFromGeneratedDefaults(
+            "Survival",
+            { world: WORLD, separator: "/", version: "5.22" },
+            STAMP,
+        );
+
+        // The factory does not reconstruct an approximation from hand-written settings: each
+        // of these bodies is the existing config generator's output, ready to inspect and edit
+        // before the project has ever been saved.
+        expect(project.maps.map((map) => map.id)).toEqual(["overworld", "nether", "end"]);
+        expect(project.maps.every((map) => map.config.includes("world:"))).toBe(true);
+        expect(project.storages).toHaveLength(1);
+        expect(project.storages[0]?.id).toBe("file");
+        expect(project.storages[0]?.config).toContain("storage-type:");
+        expect(project.core).toContain("accept-download:");
+        expect(project.webapp).toContain("webroot:");
+        expect(project.webserver).toContain("port:");
+        expect(project.plugin).toContain("live-player-markers:");
+
+        // It is still a valid portable project record rather than a one-off UI-only shape.
+        const roundTrip = parseProjectFile(serializeProjectFile(project));
+        expect(roundTrip.ok).toBe(true);
+        if (roundTrip.ok) expect(roundTrip.project).toEqual(project);
+    });
+});
 
 /** Reads one setting back out of a map's config text, which is what the engine sees. */
 function settingIn(project: ProjectFile, mapId: string, path: string): unknown {

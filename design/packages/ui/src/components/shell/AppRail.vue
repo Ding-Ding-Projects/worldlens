@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiBellOutline, mdiBriefcaseOutline, mdiCogOutline, mdiHomeOutline, mdiMagnify, mdiMapOutline } from "@mdi/js";
+import {
+    mdiBellOutline,
+    mdiBriefcaseOutline,
+    mdiCogOutline,
+    mdiHomeOutline,
+    mdiMagnify,
+    mdiMapOutline,
+} from "@mdi/js";
 import { VIcon, VTooltip } from "vuetify/components";
 import type { RailDestination } from "./featureTargets.js";
 
@@ -65,14 +72,14 @@ const props = withDefaults(
 const emit = defineEmits<{
     select: [destination: RailDestination];
     openPalette: [];
-    /*
-     * There is deliberately no event here for opening the notification history. The bell is the
-     * anchored menu's own activator, so asking the shell to open the panel as well produced two
-     * state changes from one press and the panel opened and shut again. The button's own comment
-     * has the measurements, and `railBellActivator.test.ts` is what stops it coming back - which
-     * is also why this note avoids spelling the old event's name, since that guard reads the
-     * source and a comment naming it would read as the event still being declared.
+    /**
+     * One user press changes this state exactly once. The panel still owns its overlay and its
+     * anchor, but the rail owns the press: relying on an overlay's selector activator left the
+     * real bell inert in the packaged application even though it happened to work in isolated
+     * markup. `NotificationPanel` turns off the overlay's automatic activator click, so this
+     * event cannot race a second toggle.
      */
+    toggleNotifications: [];
     openSettings: [];
 }>();
 
@@ -139,7 +146,10 @@ const unreadLabel = computed(() =>
         straight to it and say what it is. The product name is in the label because a person
         running two of these applications side by side hears which one they are in.
     -->
-    <nav class="wl-rail" :aria-label="t('rail.label', { product: productName }, '{product} navigation')">
+    <nav
+        class="wl-rail"
+        :aria-label="t('rail.label', { product: productName }, '{product} navigation')"
+    >
         <!--
             `data-tutorial-anchor` on each destination button because the interactive tour
             highlights real controls by selector, and two of its steps are about the map - which
@@ -155,7 +165,9 @@ const unreadLabel = computed(() =>
                     class="wl-rail-item mb-interactive"
                     :class="{ 'wl-rail-item--active': destination === item.id }"
                     :aria-current="destination === item.id ? 'page' : undefined"
-                    :aria-label="item.badgeLabel === '' ? undefined : `${item.label}, ${item.badgeLabel}`"
+                    :aria-label="
+                        item.badgeLabel === '' ? undefined : `${item.label}, ${item.badgeLabel}`
+                    "
                     :data-destination="item.id"
                     :data-tutorial-anchor="`rail-${item.id}`"
                     @click="emit('select', item.id)"
@@ -185,33 +197,35 @@ const unreadLabel = computed(() =>
             <button
                 type="button"
                 class="wl-rail-action mb-interactive"
-                :aria-label="t('rail.search', { shortcut: paletteShortcut }, 'Search everything ({shortcut})')"
+                :aria-label="
+                    t(
+                        'rail.search',
+                        { shortcut: paletteShortcut },
+                        'Search everything ({shortcut})',
+                    )
+                "
                 @click="emit('openPalette')"
             >
                 <v-icon :icon="mdiMagnify" size="22" />
                 <v-tooltip
                     activator="parent"
                     location="end"
-                    :text="t('rail.search', { shortcut: paletteShortcut }, 'Search everything ({shortcut})')"
+                    :text="
+                        t(
+                            'rail.search',
+                            { shortcut: paletteShortcut },
+                            'Search everything ({shortcut})',
+                        )
+                    "
                 />
             </button>
 
             <!--
-                No `@click` here, and that absence is the whole fix.
-                -
-                `NotificationPanel` anchors its menu to this button by id, and Vuetify's
-                `activator` prop does two jobs at once: it positions the menu against the element,
-                and it binds its own click handler that *toggles* the menu. So a second handler
-                here that also opened the panel produced two state changes from one press - the
-                request opened it, the activator's toggle immediately closed it again - and the
-                bell did nothing at all. Measured on a fresh profile: pressing it left
-                `aria-expanded="false"` with the panel absent from the document, while the command
-                palette's row for the same panel opened it every time, because the palette rings
-                the doorbell without also pressing the switch.
-                -
-                The panel still opens from here (the activator's own handler), still opens from the
-                palette (`onRevealRequested`), and this button still reports its state - the panel
-                emits `update:open` and the shell hands it back as `notificationsOpen`.
+                This is the one opener for the anchored notification history. The panel keeps the
+                bell as its geometry anchor, but it does not also bind its own automatic click to
+                that anchor: one click reaches this event, the shell flips `notificationsOpen`, and
+                the panel reflects that same value back through `aria-expanded`. The command
+                palette remains a separate, explicit reveal route in `NotificationPanel`.
             -->
             <button
                 :id="notificationsActivatorId === '' ? undefined : notificationsActivatorId"
@@ -219,6 +233,7 @@ const unreadLabel = computed(() =>
                 class="wl-rail-action mb-interactive"
                 :aria-label="unreadLabel"
                 :aria-expanded="notificationsOpen ? 'true' : 'false'"
+                @click="emit('toggleNotifications')"
             >
                 <span class="wl-rail-action__icon">
                     <v-icon :icon="mdiBellOutline" size="22" />
@@ -237,7 +252,11 @@ const unreadLabel = computed(() =>
                 @click="emit('openSettings')"
             >
                 <v-icon :icon="mdiCogOutline" size="22" />
-                <v-tooltip activator="parent" location="end" :text="t('settings.title', 'Settings')" />
+                <v-tooltip
+                    activator="parent"
+                    location="end"
+                    :text="t('settings.title', 'Settings')"
+                />
             </button>
         </div>
     </nav>
@@ -308,8 +327,7 @@ const unreadLabel = computed(() =>
     transition:
         background-color var(--md-sys-motion-duration-short2, 100ms)
             var(--md-sys-motion-easing-standard, ease),
-        color var(--md-sys-motion-duration-short2, 100ms)
-            var(--md-sys-motion-easing-standard, ease);
+        color var(--md-sys-motion-duration-short2, 100ms) var(--md-sys-motion-easing-standard, ease);
 }
 
 .wl-rail-item--active .wl-rail-pill {
@@ -402,6 +420,20 @@ const unreadLabel = computed(() =>
 .wl-rail-action .wl-rail-badge {
     background: rgb(var(--v-theme-error-container, var(--v-theme-error)));
     color: rgb(var(--v-theme-on-error-container, var(--v-theme-on-error)));
+}
+
+/*
+ * Contrast is literal on the rewrite chrome: every readable rail state stays at 21:1.
+ * A normal M3 state layer is deliberately translucent, but white at 8% over the contrast
+ * surface turns the background grey and makes its white icon fall short of that exact promise.
+ * Use the existing inverse container pair for interactive feedback instead; no new colour is
+ * introduced and the state remains visible.
+ */
+:global(.v-theme--contrast) .wl-rail-item:hover .wl-rail-pill,
+:global(.v-theme--contrast) .wl-rail-action:hover,
+:global(.v-theme--contrast) .wl-rail-action .wl-rail-badge {
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
 }
 
 /* Visible focus in all three themes, using the existing focus role rather than a new colour. */

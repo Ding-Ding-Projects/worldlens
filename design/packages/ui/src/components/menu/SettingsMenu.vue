@@ -16,6 +16,7 @@ import { createMatcher } from "./regex";
 import { useBlueMap, useBlueMapTheme } from "./useBlueMap";
 import { changeTheme, currentTheme, themeChoiceFromId } from "../settings/themeSetting.js";
 import { i18nModule, languages, setLanguage } from "../../i18n";
+import { useSchoolMode } from "../setup/index.js";
 
 /**
  * MD3 port of upstream `Menu/SettingsMenu.vue`.
@@ -41,6 +42,7 @@ const app = useBlueMap(() => props.bluemap);
 useBlueMapTheme(app);
 
 const { t, locale } = useI18n();
+const schoolMode = useSchoolMode();
 
 const resetOpen = ref(false);
 
@@ -243,8 +245,13 @@ const languageOptions = computed<MenuChoiceOption[]>(() => {
 });
 
 const languageSelection = computed(() => locale.value);
+const languageControlsAvailable = computed(
+    () => !schoolMode.enabled.value && languageOptions.value.length > 1,
+);
 
 function changeLanguage(id: string): void {
+    // A palette or stale event must not re-open a route the active presentation policy removed.
+    if (!languageControlsAvailable.value) return;
     void setLanguage(i18nModule, id).then(() => {
         const instance = app.value;
         if (!instance) return;
@@ -322,11 +329,15 @@ function show(...candidates: string[]): boolean {
 const searchable = computed(() => {
     const l = labels.value;
     return [
-        ...Object.values(l),
+        ...Object.entries(l)
+            .filter(([key]) => key !== "language" || languageControlsAvailable.value)
+            .map(([, label]) => label),
         ...viewOptions.value.map((option) => option.name),
         ...qualityOptions.value.map((option) => option.name),
         ...themeOptions.value.map((option) => option.name),
-        ...languageOptions.value.map((option) => option.name),
+        ...(languageControlsAvailable.value
+            ? languageOptions.value.map((option) => option.name)
+            : []),
     ];
 });
 
@@ -349,7 +360,9 @@ const searchSummary = computed(() => {
 const viewOptionNames = computed(() => viewOptions.value.map((option) => option.name));
 const qualityOptionNames = computed(() => qualityOptions.value.map((option) => option.name));
 const themeOptionNames = computed(() => themeOptions.value.map((option) => option.name));
-const languageOptionNames = computed(() => languageOptions.value.map((option) => option.name));
+const languageOptionNames = computed(() =>
+    languageControlsAvailable.value ? languageOptions.value.map((option) => option.name) : [],
+);
 
 /*
  * `MenuOptionList` renders whatever `options` array it is handed with no filtering of its
@@ -377,8 +390,25 @@ const visibleThemeOptions = computed(() =>
     themeOptions.value.filter((option) => show(labels.value.theme, option.name)),
 );
 const visibleLanguageOptions = computed(() =>
-    languageOptions.value.filter((option) => show(labels.value.language, option.name)),
+    languageControlsAvailable.value
+        ? languageOptions.value.filter((option) => show(labels.value.language, option.name))
+        : [],
 );
+
+const resetAffected = computed(() => {
+    const l = labels.value;
+    const affected = [
+        l.resolution,
+        l.renderDistance,
+        l.freeFlightControls,
+        l.mapControls,
+        l.theme,
+        l.screenshot,
+        l.debug,
+    ];
+    if (languageControlsAvailable.value) affected.splice(5, 0, l.language);
+    return affected;
+});
 </script>
 
 <template>
@@ -548,7 +578,7 @@ const visibleLanguageOptions = computed(() =>
             </MenuGroup>
 
             <MenuGroup
-                v-if="languageOptions.length > 1 && show(labels.language, ...languageOptionNames)"
+                v-if="languageControlsAvailable && show(labels.language, ...languageOptionNames)"
                 :title="labels.language"
                 scrollable
             >
@@ -587,16 +617,7 @@ const visibleLanguageOptions = computed(() =>
                         'This clears every saved BlueMap setting in this browser and reloads the page. It cannot be undone.',
                     )
                 "
-                :affected="[
-                    labels.resolution,
-                    labels.renderDistance,
-                    labels.freeFlightControls,
-                    labels.mapControls,
-                    labels.theme,
-                    labels.language,
-                    labels.screenshot,
-                    labels.debug,
-                ]"
+                :affected="resetAffected"
                 :confirm-label="labels.resetAll"
                 @confirm="resetSettings"
             />
