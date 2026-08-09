@@ -65,14 +65,14 @@ const props = withDefaults(
 const emit = defineEmits<{
     select: [destination: RailDestination];
     openPalette: [];
-    /*
-     * There is deliberately no event here for opening the notification history. The bell is the
-     * anchored menu's own activator, so asking the shell to open the panel as well produced two
-     * state changes from one press and the panel opened and shut again. The button's own comment
-     * has the measurements, and `railBellActivator.test.ts` is what stops it coming back - which
-     * is also why this note avoids spelling the old event's name, since that guard reads the
-     * source and a comment naming it would read as the event still being declared.
+    /**
+     * One user press changes this state exactly once. The panel still owns its overlay and its
+     * anchor, but the rail owns the press: relying on an overlay's selector activator left the
+     * real bell inert in the packaged application even though it happened to work in isolated
+     * markup. `NotificationPanel` turns off the overlay's automatic activator click, so this
+     * event cannot race a second toggle.
      */
+    toggleNotifications: [];
     openSettings: [];
 }>();
 
@@ -197,21 +197,11 @@ const unreadLabel = computed(() =>
             </button>
 
             <!--
-                No `@click` here, and that absence is the whole fix.
-                -
-                `NotificationPanel` anchors its menu to this button by id, and Vuetify's
-                `activator` prop does two jobs at once: it positions the menu against the element,
-                and it binds its own click handler that *toggles* the menu. So a second handler
-                here that also opened the panel produced two state changes from one press - the
-                request opened it, the activator's toggle immediately closed it again - and the
-                bell did nothing at all. Measured on a fresh profile: pressing it left
-                `aria-expanded="false"` with the panel absent from the document, while the command
-                palette's row for the same panel opened it every time, because the palette rings
-                the doorbell without also pressing the switch.
-                -
-                The panel still opens from here (the activator's own handler), still opens from the
-                palette (`onRevealRequested`), and this button still reports its state - the panel
-                emits `update:open` and the shell hands it back as `notificationsOpen`.
+                This is the one opener for the anchored notification history. The panel keeps the
+                bell as its geometry anchor, but it does not also bind its own automatic click to
+                that anchor: one click reaches this event, the shell flips `notificationsOpen`, and
+                the panel reflects that same value back through `aria-expanded`. The command
+                palette remains a separate, explicit reveal route in `NotificationPanel`.
             -->
             <button
                 :id="notificationsActivatorId === '' ? undefined : notificationsActivatorId"
@@ -219,6 +209,7 @@ const unreadLabel = computed(() =>
                 class="wl-rail-action mb-interactive"
                 :aria-label="unreadLabel"
                 :aria-expanded="notificationsOpen ? 'true' : 'false'"
+                @click="emit('toggleNotifications')"
             >
                 <span class="wl-rail-action__icon">
                     <v-icon :icon="mdiBellOutline" size="22" />

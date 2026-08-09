@@ -1087,6 +1087,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :settings-open="settingsOpen"
                         @select="onRailSelect"
                         @open-palette="paletteOpen = true"
+                        @toggle-notifications="notificationsOpen = !notificationsOpen"
                         @open-settings="openSettings()"
                     />
                 </AppearanceTarget>
@@ -1451,6 +1452,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             <NotificationPanel
                 :state="notices"
                 :activator="`#${notificationsActivatorId}`"
+                :open="notificationsOpen"
                 @update:open="notificationsOpen = $event"
             />
 

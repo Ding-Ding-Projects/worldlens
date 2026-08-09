@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { VCard, VMenu } from "vuetify/components";
 import { NoticeCentrePanel } from "../notifications/index.js";
@@ -33,16 +33,20 @@ const props = defineProps<{
     state: NoticeState;
     /** The rail's bell, so the panel anchors to the control that opened it. */
     activator: string;
+    /** The shell's one source of truth for whether the anchored panel is open. */
+    open: boolean;
 }>();
 
 const emit = defineEmits<{ "update:open": [open: boolean] }>();
 
 const { t } = useI18n();
 
-const open = ref(false);
+const panelOpen = computed({
+    get: () => props.open,
+    set: (value: boolean) => emit("update:open", value),
+});
 
-watch(open, (value) => {
-    emit("update:open", value);
+watch(panelOpen, (value) => {
     // Opening the history is what "I have seen these" means, so the unread mark moves to the
     // newest entry at that moment. An id rather than a count, because the history is bounded and
     // two counts drift apart the moment it starts dropping its oldest entry.
@@ -58,13 +62,13 @@ watch(open, (value) => {
  * answers it with its own focus handling.
  */
 onRevealRequested("noticeCentre", () => {
-    open.value = true;
+    panelOpen.value = true;
 });
 
 const label = computed(() => t("notice.centre.title", "Notifications"));
 
 function close(): void {
-    open.value = false;
+    panelOpen.value = false;
 }
 </script>
 
@@ -77,8 +81,9 @@ function close(): void {
         interface size dial is turned up, or when a translated label makes the rail taller.
     -->
     <v-menu
-        v-model="open"
+        v-model="panelOpen"
         :activator="activator"
+        :open-on-click="false"
         :close-on-content-click="false"
         location="end top"
         offset="8"
