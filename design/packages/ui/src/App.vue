@@ -1603,18 +1603,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * Opaque on purpose. There is no map behind the wizard or the server list once the page is
  * on screen - and where there is one, showing it faintly through a form is worse than not
  * showing it at all - so a translucent panel would read as a rendering fault rather than as
- * a surface. Also the options editor's host, where it covers the whole shell.
+ * a surface. Also the options editor own host, where it covers the whole shell.
  *
- * `padding-inline-start` reserves a permanent gutter the width of `.mb-shell-fabs` (12px
- * inset + 48px button = 60px, plus 16px of breathing room) below. `.mb-shell-fabs` is
- * `position: fixed`, so it always paints over whatever this host has scrolled to; without
- * this, any heading or paragraph that starts flush at the left edge could land in the same
- * fixed viewport band as an opaque button and lose its leading characters underneath it -
- * confirmed across nine screenshots, the worst of them a radio button sitting under the
- * gear icon at higher display scales. The gutter runs the container's whole scrollable
- * height rather than only its top, because scrolling can carry any part of the content
- * into that fixed band, not only whatever is on screen when it first opens. `.mb-shell-fab`
- * below is the 48px this number must never drift under.
+ * The left gutter this used to reserve is gone with the floating buttons that needed it. A
+ * fixed stack in the bottom-left corner painted over whatever the host had scrolled to, so
+ * every opaque page paid 76px of permanent inset to keep its first characters out from
+ * under a gear icon - confirmed across nine captures, the worst a radio button sitting
+ * under the icon at a high display scale. The rail owns that edge now and reserves its own
+ * width in the flex row, so the page starts where the content starts.
  */
 .mb-world-host {
     position: absolute;
@@ -1622,7 +1618,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     overflow-y: auto;
     overscroll-behavior: contain;
     background: rgb(var(--v-theme-background));
-    padding-inline-start: calc(76px + env(safe-area-inset-left, 0px));
 }
 
 /* The maps-and-servers card has its own width, so its page centres it rather than stretching it. */
@@ -1633,55 +1628,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 }
 
 /*
- * Clear of the tab strip, not on top of it.
- *
- * This stack is `position: fixed` in the bottom-left corner, which was the empty corner
- * when the strip ran along the top of the window. The strip's default placement is the left
- * edge, so that corner belongs to the strip now: a real capture of the running application
- * shows the configuration button drawn over the strip's own overflow and search controls,
- * and a tab that reaches that far down is a tab whose click the button intercepts.
- *
- * `--mb-tabs-strip-inline-size` is published by `TabStrip.vue` from its own measured width,
- * and is `0px` for every placement that leaves the left edge alone - so a top, bottom or
- * right strip puts these buttons back exactly where they have always been. The fallback is
- * `0px` for the same reason: a build that somehow renders no strip at all should not push
- * its buttons into the middle of the window.
- *
- * `.mb-world-host`'s own 76px gutter still covers these buttons where they land, because
- * that gutter is measured from the page panel's left edge and the panel begins where the
- * strip ends.
+ * The floating-button stack that used to live here is gone, along with the gutter every
+ * opaque host reserved to keep text out from under it. Both were the cost of chrome that
+ * had nowhere to live; the application rail is where those controls live now.
  */
-.mb-shell-fabs {
-    position: fixed;
-    left: calc(12px + var(--mb-tabs-strip-inline-size, 0px) + env(safe-area-inset-left, 0px));
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-/*
- * The free-flight movement cluster takes the bottom-left corner, so this steps above it.
- * The sizes come from the shared tokens in global.scss so the two cannot drift apart.
- */
-.mb-shell-fabs--lifted {
-    bottom: calc(
-        24px + env(safe-area-inset-bottom, 0px) + 2 * var(--mb-ff-size) + var(--mb-ff-gap)
-    );
-}
-
-.mb-shell-fab {
-    width: 48px;
-    height: 48px;
-    opacity: 0.94;
-}
-
-.mb-shell-fab:hover,
-.mb-shell-fab:focus-visible {
-    opacity: 1;
-}
-
-.mb-shell-fab :deep(.v-icon) {
-    color: rgb(var(--v-theme-primary));
-}
 </style>

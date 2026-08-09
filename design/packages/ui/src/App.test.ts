@@ -182,9 +182,62 @@ const originalBridge = (globalThis as { worldlens?: unknown }).worldlens;
  * With no profile active and no stored tab layout, the shell seeds one tab per page and opens
  * on the first of them. No bridge is installed, so nothing here can touch a disk.
  */
+/**
+ * Every job the Work workspace can hold, so a case that navigates to one has a tab to click.
+ *
+ * A fresh Work workspace seeds exactly one pinned tab - the guide - because Work holds the jobs
+ * somebody actually started, and that is the whole point of the rewrite. A test that wants to
+ * assert what the Backups screen renders would otherwise have to walk Home, the catalogue and the
+ * row first, in every one of twenty-odd cases, which tests the catalogue over and over and the
+ * screen once.
+ *
+ * So {@link shell} opens all of them through the component's own `ensurePage`, which is the exact
+ * call the catalogue makes. The cases that genuinely test *discovery* - that Home offers five
+ * catalogues, that a row opens its job - drive the real path and are marked as doing so.
+ */
+const WORK_JOB_IDS = [
+    "world",
+    "projects",
+    "cirender",
+    "renders",
+    "servers",
+    "pages",
+    "preview",
+    "backups",
+    "worldrepo",
+    "docs",
+] as const;
+
 function shell(): VueWrapper {
     wrapper = mount(App, { global: { plugins: [vuetify, i18n()] }, attachTo: document.body });
     return wrapper;
+}
+
+/** Switches to a rail destination the way a person does: by pressing it. */
+async function goTo(destination: "Home" | "Map" | "Work"): Promise<void> {
+    // Matched on the label element rather than on the button's whole text: the Work item carries
+    // an open-job badge inside it, so the button reads "3Work" and an exact comparison against
+    // "Work" quietly finds nothing.
+    const item = [...document.querySelectorAll<HTMLElement>(".wl-rail-item")].find(
+        (node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === destination,
+    );
+    if (item === undefined) throw new Error(`the rail renders no ${destination} item`);
+    item.click();
+    await settle();
+}
+
+/**
+ * Opens every job in Work and lands there, so the cases below can click a job tab.
+ *
+ * Reaches through the exposed `ensurePage` rather than through the catalogue for the reason in
+ * {@link WORK_JOB_IDS}: this is setup, not the thing under test.
+ */
+async function openAllJobs(): Promise<void> {
+    const pane = wrapper?.findComponent({ name: "WorkPane" });
+    const api = pane?.vm as unknown as { ensurePage: (id: string) => void } | undefined;
+    for (const id of WORK_JOB_IDS) api?.ensurePage(id);
+    await settle();
+    await goTo("Work");
 }
 
 /** Several ticks: opening the surface focuses it on the next one, and it mounts on another. */
@@ -225,11 +278,17 @@ function configHost(): HTMLElement | null {
  * unrelated surface grows a tab strip. What is being asserted here is the shell's pages.
  */
 function shellTabs(): HTMLElement[] {
-    return [...document.querySelectorAll<HTMLElement>('.mb-shell-tabs [role="tab"]')];
+    return [...document.querySelectorAll<HTMLElement>('.wl-work [role="tab"]')];
 }
 
 function tabButton(label: string): HTMLElement {
-    const node = shellTabs().find((tab) => tab.getAttribute("aria-label") === label);
+    // Tolerant of the pinned suffix: the guide is pinned on a fresh Work workspace, so its tab
+    // announces "Make a map, pinned" while every case here names the destination rather than its
+    // pin state - which is the thing they are actually about.
+    const node = shellTabs().find((tab) => {
+        const announced = tab.getAttribute("aria-label") ?? "";
+        return announced === label || announced === `${label}, pinned`;
+    });
     if (node === undefined) throw new Error(`the shell renders no tab labelled ${label}`);
     return node;
 }
@@ -237,7 +296,7 @@ function tabButton(label: string): HTMLElement {
 /** The seeded groups' own headers, in strip order. */
 function shellGroupHeads(): HTMLElement[] {
     return [
-        ...document.querySelectorAll<HTMLElement>(".mb-shell-tabs .mb-tabs-strip__group-head"),
+        ...document.querySelectorAll<HTMLElement>(".wl-work .mb-tabs-strip__group-head"),
     ];
 }
 
@@ -252,6 +311,10 @@ function shellGroupHeads(): HTMLElement[] {
  * than reaching past the strip's own state.
  */
 async function expandShellGroups(): Promise<void> {
+    // Work seeds one pinned tab now, so "open every group" starts by opening every job - see
+    // `WORK_JOB_IDS`. The name is kept because what the cases below are actually saying is
+    // "make every destination clickable", and that is still exactly what this does.
+    await openAllJobs();
     for (const head of shellGroupHeads()) {
         if (head.getAttribute("aria-expanded") === "false") head.click();
     }
@@ -455,7 +518,7 @@ describe("the tab strip", () => {
     it("shows the map-state message once the Map tab is chosen", async () => {
         shell();
 
-        tabButton("Map").click();
+        await goTo("Map");
         await settle();
 
         expect(document.querySelector(".mb-map-page")).not.toBeNull();
@@ -883,7 +946,7 @@ describe("the shell's appearance targets", () => {
     it("opens the anchored editor straight from a Shift+right-click on the tab bar", async () => {
         shell();
 
-        const target = document.querySelector<HTMLElement>(".mb-shell-tabs .mb-appearance-target");
+        const target = document.querySelector<HTMLElement>(".wl-work .mb-appearance-target");
         expect(target).not.toBeNull();
 
         target?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }));
@@ -941,7 +1004,7 @@ describe("the configuration button", () => {
         // behind the editor's opaque surface too and a tab nobody can see is a tab nobody
         // should be able to reach with Tab.
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-shell-tabs")?.hasAttribute("inert")).toBe(true);
+        expect(document.querySelector(".wl-work")?.hasAttribute("inert")).toBe(true);
     });
 
     it("closes on Escape and hands the focus back to itself", async () => {
