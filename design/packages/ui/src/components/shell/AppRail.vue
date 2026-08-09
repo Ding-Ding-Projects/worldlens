@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiBellOutline, mdiBriefcaseOutline, mdiCogOutline, mdiHomeOutline, mdiMagnify, mdiMapOutline } from "@mdi/js";
+import {
+    mdiBellOutline,
+    mdiBriefcaseOutline,
+    mdiCogOutline,
+    mdiHomeOutline,
+    mdiMagnify,
+    mdiMapOutline,
+} from "@mdi/js";
 import { VIcon, VTooltip } from "vuetify/components";
 import type { RailDestination } from "./featureTargets.js";
 
@@ -139,7 +146,10 @@ const unreadLabel = computed(() =>
         straight to it and say what it is. The product name is in the label because a person
         running two of these applications side by side hears which one they are in.
     -->
-    <nav class="wl-rail" :aria-label="t('rail.label', { product: productName }, '{product} navigation')">
+    <nav
+        class="wl-rail"
+        :aria-label="t('rail.label', { product: productName }, '{product} navigation')"
+    >
         <!--
             `data-tutorial-anchor` on each destination button because the interactive tour
             highlights real controls by selector, and two of its steps are about the map - which
@@ -155,7 +165,9 @@ const unreadLabel = computed(() =>
                     class="wl-rail-item mb-interactive"
                     :class="{ 'wl-rail-item--active': destination === item.id }"
                     :aria-current="destination === item.id ? 'page' : undefined"
-                    :aria-label="item.badgeLabel === '' ? undefined : `${item.label}, ${item.badgeLabel}`"
+                    :aria-label="
+                        item.badgeLabel === '' ? undefined : `${item.label}, ${item.badgeLabel}`
+                    "
                     :data-destination="item.id"
                     :data-tutorial-anchor="`rail-${item.id}`"
                     @click="emit('select', item.id)"
@@ -185,14 +197,26 @@ const unreadLabel = computed(() =>
             <button
                 type="button"
                 class="wl-rail-action mb-interactive"
-                :aria-label="t('rail.search', { shortcut: paletteShortcut }, 'Search everything ({shortcut})')"
+                :aria-label="
+                    t(
+                        'rail.search',
+                        { shortcut: paletteShortcut },
+                        'Search everything ({shortcut})',
+                    )
+                "
                 @click="emit('openPalette')"
             >
                 <v-icon :icon="mdiMagnify" size="22" />
                 <v-tooltip
                     activator="parent"
                     location="end"
-                    :text="t('rail.search', { shortcut: paletteShortcut }, 'Search everything ({shortcut})')"
+                    :text="
+                        t(
+                            'rail.search',
+                            { shortcut: paletteShortcut },
+                            'Search everything ({shortcut})',
+                        )
+                    "
                 />
             </button>
 
@@ -228,7 +252,11 @@ const unreadLabel = computed(() =>
                 @click="emit('openSettings')"
             >
                 <v-icon :icon="mdiCogOutline" size="22" />
-                <v-tooltip activator="parent" location="end" :text="t('settings.title', 'Settings')" />
+                <v-tooltip
+                    activator="parent"
+                    location="end"
+                    :text="t('settings.title', 'Settings')"
+                />
             </button>
         </div>
     </nav>
@@ -299,8 +327,7 @@ const unreadLabel = computed(() =>
     transition:
         background-color var(--md-sys-motion-duration-short2, 100ms)
             var(--md-sys-motion-easing-standard, ease),
-        color var(--md-sys-motion-duration-short2, 100ms)
-            var(--md-sys-motion-easing-standard, ease);
+        color var(--md-sys-motion-duration-short2, 100ms) var(--md-sys-motion-easing-standard, ease);
 }
 
 .wl-rail-item--active .wl-rail-pill {
@@ -393,6 +420,20 @@ const unreadLabel = computed(() =>
 .wl-rail-action .wl-rail-badge {
     background: rgb(var(--v-theme-error-container, var(--v-theme-error)));
     color: rgb(var(--v-theme-on-error-container, var(--v-theme-on-error)));
+}
+
+/*
+ * Contrast is literal on the rewrite chrome: every readable rail state stays at 21:1.
+ * A normal M3 state layer is deliberately translucent, but white at 8% over the contrast
+ * surface turns the background grey and makes its white icon fall short of that exact promise.
+ * Use the existing inverse container pair for interactive feedback instead; no new colour is
+ * introduced and the state remains visible.
+ */
+:global(.v-theme--contrast) .wl-rail-item:hover .wl-rail-pill,
+:global(.v-theme--contrast) .wl-rail-action:hover,
+:global(.v-theme--contrast) .wl-rail-action .wl-rail-badge {
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
 }
 
 /* Visible focus in all three themes, using the existing focus role rather than a new colour. */
