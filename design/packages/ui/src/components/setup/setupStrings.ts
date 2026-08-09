@@ -223,6 +223,21 @@ export const FIXED = {
     "language.level.4": { en: "Playful", yue: "貪玩" },
     "language.level.5": { en: "Maximum playfulness", yue: "玩到盡" },
 
+    /* School mode is renderer-local until a privileged shared-record owner exists. */
+    "school.shippedName": { en: "School mode", yue: "校園模式" },
+    "school.renameLabel": { en: "Name for this mode", yue: "呢個模式叫咩名" },
+    "school.renameHint": {
+        en: "After you rename it, this app uses only your name on this control.",
+        yue: "改咗名之後，呢個程式喺呢個控制項度淨係會用你嗰個名。",
+    },
+    "school.status.on": { en: "{name} is on in this app", yue: "{name} 已經喺呢個程式開咗" },
+    "school.status.off": { en: "{name} is off", yue: "{name} 未開" },
+    "school.enable": { en: "Turn on {name} in this app", yue: "喺呢個程式開啟 {name}" },
+    "school.deleteLocalRecord": {
+        en: "Delete this app's local {name} record",
+        yue: "刪除呢個程式本機嘅 {name} 記錄",
+    },
+
     "storage.fieldLabel": { en: "Folder for rendered maps", yue: "存放已算圖地圖嘅資料夾" },
     "storage.defaultLabel": { en: "Default", yue: "預設" },
     "storage.invalid": {
@@ -273,9 +288,15 @@ export const FIXED = {
         yue: "而家仲未有文件可以顯示。",
     },
     "eula.export": { en: "Export or copy", yue: "匯出或者複製" },
-    "eula.exportSectionMarkdown": { en: "This section, as Markdown", yue: "呢個章節，Markdown 格式" },
+    "eula.exportSectionMarkdown": {
+        en: "This section, as Markdown",
+        yue: "呢個章節，Markdown 格式",
+    },
     "eula.exportSectionText": { en: "This section, as plain text", yue: "呢個章節，純文字格式" },
-    "eula.exportAllMarkdown": { en: "The whole document, as Markdown", yue: "成份文件，Markdown 格式" },
+    "eula.exportAllMarkdown": {
+        en: "The whole document, as Markdown",
+        yue: "成份文件，Markdown 格式",
+    },
     "eula.exportAllText": { en: "The whole document, as plain text", yue: "成份文件，純文字格式" },
     "eula.copySection": { en: "Copy this section", yue: "複製呢個章節" },
     "eula.copyAll": { en: "Copy the whole document", yue: "複製成份文件" },
@@ -310,6 +331,54 @@ export const FIXED = {
 /* -------------------------------------------------------------------------- */
 
 export const VOICED = {
+    "school.beforeEnable": {
+        en: [
+            "Turn on {name} to use English, fully serious presentation in this app. Your saved language and tone choices stay stored and return when its local record is deleted.",
+            "Turn on {name} to use English, fully serious presentation in this app. Your saved language and tone choices stay stored and return when its local record is deleted.",
+            "Turn on {name} for English, fully serious presentation in this app. Your saved language and tone choices are preserved underneath and return when its local record is deleted.",
+            "Turn on {name} for English, fully serious presentation in this app. Your saved language and tone choices wait safely underneath and return when its local record is deleted.",
+            "Turn on {name} for English, fully serious presentation in this app. Your saved language and tone choices stay exactly where you left them and return when its local record is deleted.",
+        ],
+        yue: [
+            "開啟 {name} 之後，呢個程式會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會保留，刪除本機記錄之後會返嚟。",
+            "開啟 {name} 之後，呢個程式會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會保留，刪除本機記錄之後會返嚟。",
+            "開啟 {name} 之後，呢個程式會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會喺底層保留，刪除本機記錄之後會返嚟。",
+            "開啟 {name} 之後，呢個程式會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會喺底層好好保存，刪除本機記錄之後會返嚟。",
+            "開啟 {name} 之後，呢個程式會用英文同完全正經嘅語氣。原本儲低嘅語言同語氣選擇會原封不動留喺底層，刪除本機記錄之後會返嚟。",
+        ],
+    },
+    "school.activeLead": {
+        en: [
+            "English-only, fully serious presentation is in force in this app. The suppressed controls are absent; deleting the local record restores your saved choices.",
+            "English-only, fully serious presentation is in force in this app. The suppressed controls are absent; deleting the local record restores your saved choices.",
+            "English-only, fully serious presentation is active in this app. The suppressed controls are absent; deleting the local record restores your saved choices.",
+            "English-only, fully serious presentation is active in this app. The controls it suppresses are gone, not disabled; deleting the local record restores your saved choices.",
+            "English-only, fully serious presentation is active in this app. The controls it suppresses have packed up and left, not gone grey; deleting the local record restores your saved choices.",
+        ],
+        yue: [
+            "呢個程式而家強制用英文同完全正經嘅語氣。被壓制嘅控制項已經移除；刪除本機記錄會還原你儲低嘅選擇。",
+            "呢個程式而家強制用英文同完全正經嘅語氣。被壓制嘅控制項已經移除；刪除本機記錄會還原你儲低嘅選擇。",
+            "呢個程式而家用緊英文同完全正經嘅語氣。被壓制嘅控制項已經移除；刪除本機記錄會還原你儲低嘅選擇。",
+            "呢個程式而家用緊英文同完全正經嘅語氣。佢壓制嘅控制項係移除咗，唔係灰咗；刪除本機記錄會還原你儲低嘅選擇。",
+            "呢個程式而家用緊英文同完全正經嘅語氣。佢壓制嘅控制項收工走人，唔係喺度灰住；刪除本機記錄會還原你儲低嘅選擇。",
+        ],
+    },
+    "school.boundary": {
+        en: [
+            "{name} is a local user-experience policy, not a security boundary. This build has no shared application-data record or privileged credential verifier. Deleting this app's local record removes it without an unlock and does not change another app.",
+            "{name} is a local user-experience policy, not a security boundary. This build has no shared application-data record or privileged credential verifier. Deleting this app's local record removes it without an unlock and does not change another app.",
+            "{name} is a local user-experience policy, not a security boundary. This build has no shared application-data record or privileged credential verifier. Deleting this app's local record removes it without an unlock and does not change another app.",
+            "{name} is a local user-experience policy, not a security boundary. This build has no shared application-data record or privileged credential verifier. Deleting this app's local record removes it without an unlock and does not change another app.",
+            "{name} is a local user-experience policy, not a security boundary. This build has no shared application-data record or privileged credential verifier. Deleting this app's local record removes it without an unlock and does not change another app.",
+        ],
+        yue: [
+            "{name} 係本機使用體驗規則，唔係保安邊界。呢個 build 冇共用應用程式資料記錄，亦冇特權憑證驗證器。刪除呢個程式嘅本機記錄唔使解鎖就會移除佢，亦唔會改到其他程式。",
+            "{name} 係本機使用體驗規則，唔係保安邊界。呢個 build 冇共用應用程式資料記錄，亦冇特權憑證驗證器。刪除呢個程式嘅本機記錄唔使解鎖就會移除佢，亦唔會改到其他程式。",
+            "{name} 係本機使用體驗規則，唔係保安邊界。呢個 build 冇共用應用程式資料記錄，亦冇特權憑證驗證器。刪除呢個程式嘅本機記錄唔使解鎖就會移除佢，亦唔會改到其他程式。",
+            "{name} 係本機使用體驗規則，唔係保安邊界。呢個 build 冇共用應用程式資料記錄，亦冇特權憑證驗證器。刪除呢個程式嘅本機記錄唔使解鎖就會移除佢，亦唔會改到其他程式。",
+            "{name} 係本機使用體驗規則，唔係保安邊界。呢個 build 冇共用應用程式資料記錄，亦冇特權憑證驗證器。刪除呢個程式嘅本機記錄唔使解鎖就會移除佢，亦唔會改到其他程式。",
+        ],
+    },
     "welcome.heading": {
         en: [
             "Welcome to Worldlens",
@@ -374,11 +443,11 @@ export const VOICED = {
      */
     "welcome.startHere": {
         en: [
-            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.",
-            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.",
-            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. A small world typically renders in a few minutes; a large one can take hours.",
-            "Ready? Open \"Make a map\". It already knows where your worlds live on this computer, so you probably will not type a single path. A small world is done in a few minutes; a big one can take hours, so put the kettle on.",
-            "Ready to fly? Open \"Make a map\". It already knows where your worlds are hiding on this computer, so typing a path is optional at best. A small world wraps up in a few minutes; a sprawling one can run for hours, kettle strongly advised.",
+            'When you are ready, open "Make a map". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.',
+            'When you are ready, open "Make a map". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.',
+            'When you are ready, open "Make a map". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. A small world typically renders in a few minutes; a large one can take hours.',
+            'Ready? Open "Make a map". It already knows where your worlds live on this computer, so you probably will not type a single path. A small world is done in a few minutes; a big one can take hours, so put the kettle on.',
+            'Ready to fly? Open "Make a map". It already knows where your worlds are hiding on this computer, so typing a path is optional at best. A small world wraps up in a few minutes; a sprawling one can run for hours, kettle strongly advised.',
         ],
         yue: [
             "準備好嘅時候，打開「Make a map」。第一步已經會自動搵返呢部電腦入面嘅存檔，通常唔使自己打路徑。細嘅世界通常幾分鐘就算完，大嘅就要耐啲，可能要幾個鐘。",

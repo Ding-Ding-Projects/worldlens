@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { i18nModule, setLanguage } from "./i18n.js";
 import {
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
@@ -54,7 +55,7 @@ import {
     tutorialCompleted,
     tutorialOffered,
 } from "./components/tutorial/index.js";
-import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
+import { FirstRunSetup, WelcomeSurface, useSchoolMode } from "./components/setup/index.js";
 import { AppSettings, type SettingsSectionAnchor } from "./components/settings/index.js";
 import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
@@ -83,6 +84,27 @@ import { wireProjectAutosaveNotices } from "./stores/projectAutosaveNotices.js";
 import { productDisplayName } from "./stores/productName.js";
 
 const { t } = useI18n();
+const schoolMode = useSchoolMode();
+
+/**
+ * The viewer's own locale picker is a separate upstream seam from setupI18n. While the
+ * renderer-local School mode is active, keep it on English as well so a prior viewer locale
+ * cannot leak Cantonese back through map controls or configuration copy. This deliberately
+ * remains an effective policy: it does not overwrite the user's saved viewer locale, and a
+ * later shared-record owner can replace the reactive source without changing this safeguard.
+ */
+let applyingSchoolModeEnglish = false;
+watch(
+    [schoolMode.enabled, () => (i18nModule.global.locale as unknown as { value: string }).value],
+    ([active, locale]) => {
+        if (!active || locale === "en" || applyingSchoolModeEnglish) return;
+        applyingSchoolModeEnglish = true;
+        void setLanguage(i18nModule, "en").finally(() => {
+            applyingSchoolModeEnglish = false;
+        });
+    },
+    { immediate: true },
+);
 
 /**
  * The menu components resolve the running app through this injection key (their port of
@@ -1175,12 +1197,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             v-if="shell.catalogueId.value"
                             :catalogue-id="shell.catalogueId.value"
                             :meta-sources="metaSources"
+                            :restricted-mode-active="schoolMode.enabled.value"
                             @back="shell.backToHomeRoot()"
                             @activate-feature="onActivateFeature"
                         />
                         <HomeCatalogues
                             v-else
                             :meta-sources="metaSources"
+                            :restricted-mode-active="schoolMode.enabled.value"
                             @open-catalogue="shell.openCatalogue"
                             @activate-feature="onActivateFeature"
                             @new-map="revealPage(PAGE_PROJECTS)"

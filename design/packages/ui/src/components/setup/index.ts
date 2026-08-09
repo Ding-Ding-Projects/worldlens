@@ -15,6 +15,7 @@ export { default as ConsentQuote } from "./ConsentQuote.vue";
 export { default as SetupEulaStep } from "./SetupEulaStep.vue";
 export { default as SetupLanguagePanel } from "./SetupLanguagePanel.vue";
 export { default as LanguageSettingsRow } from "./LanguageSettingsRow.vue";
+export { default as SchoolModeSettingsRow } from "./SchoolModeSettingsRow.vue";
 export { default as SetupText } from "./SetupText.vue";
 export { default as WelcomeIntro } from "./WelcomeIntro.vue";
 export { default as WelcomeSurface } from "./WelcomeSurface.vue";
@@ -57,7 +58,13 @@ export {
     setLanguageMode,
     useSetupI18n,
 } from "./setupI18n.js";
-export type { FunnyLevel, LanguageMode, SetupI18n, TextPair, TranslationVars } from "./setupI18n.js";
+export type {
+    FunnyLevel,
+    LanguageMode,
+    SetupI18n,
+    TextPair,
+    TranslationVars,
+} from "./setupI18n.js";
 
 export {
     CONSENT_QUOTE,
@@ -92,3 +99,21 @@ export type { SetupStorage } from "./setupPrefs.js";
 
 export { consentSearchLabels } from "./consentSearch.js";
 export { languageSearchLabels } from "./languageSearch.js";
+
+export {
+    SCHOOL_MODE_RECORD_KEY,
+    createSetupStorageSchoolModeAdapter,
+    deleteSchoolModeLocalRecord,
+    effectiveSchoolModeFunnyLevel,
+    effectiveSchoolModeLanguage,
+    enableSchoolMode,
+    reloadSchoolMode,
+    renameSchoolMode,
+    resetSchoolModeRecordAdapter,
+    schoolModeChosenName,
+    schoolModeEnabled,
+    schoolModeName,
+    setSchoolModeRecordAdapter,
+    useSchoolMode,
+} from "./schoolMode.js";
+export type { SchoolModeRecordAdapter, SchoolModeView } from "./schoolMode.js";

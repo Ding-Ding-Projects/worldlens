@@ -19,12 +19,30 @@
  * remembers and a bare "5" matches nothing anybody would type.
  */
 
+import { schoolModeName, useSchoolMode } from "./schoolMode.js";
 import { flat, funnyLevel, languageMode, levelName } from "./setupI18n.js";
 
 export function languageSearchLabels(): string[] {
+    const school = useSchoolMode();
+    const name = schoolModeName(flat("school.shippedName"));
+    // The settings search is a discovery route. Once School mode is active, including the
+    // suppressed language/tone labels in its corpus would make a search result advertise a
+    // control that is intentionally absent. The local policy remains findable by its chosen name.
+    if (school.enabled.value) {
+        return [
+            name,
+            flat("school.status.on", { name }),
+            flat("school.deleteLocalRecord", { name }),
+            flat("school.boundary", { name }),
+        ];
+    }
     const en = funnyLevel("en");
     const yue = funnyLevel("yue");
     return [
+        name,
+        flat("school.status.off", { name }),
+        flat("school.renameLabel"),
+        flat("school.enable", { name }),
         flat("language.settingsTitle"),
         flat("language.title"),
         flat(`language.mode.${languageMode()}` as const),
