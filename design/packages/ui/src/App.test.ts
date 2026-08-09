@@ -24,7 +24,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import App from "./App.vue";
-import { HomeScreen } from "./components/home/index.js";
+import { HomeCatalogues } from "./components/shell/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
@@ -348,15 +348,28 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("opens a fresh install as four loose tabs and three named groups, not twelve flat ones", () => {
+    it("opens a fresh Work workspace as one pinned job, not twelve flat tabs", () => {
         shell();
 
-        // Pinned tabs announce that state in their own accessible name - see
-        // `TabButton.vue`'s `tabs.strip.pinnedTab` - which is also the proof that Home really
-        // did seed pinned rather than merely first in the ordinary region. Then the two
-        // things somebody meeting this application actually does, and the one they reach for
-        // when the rest of it has stopped making sense.
-        expect(tabLabels().slice(0, 4)).toEqual(["Home, pinned", "Map", "Make a map", "Docs"]);
+        // The rewrite in one assertion. Work holds the jobs somebody actually started, and on a
+        // fresh install that is exactly one: the guide, pinned so it cannot be swept up by a bulk
+        // close. The other ten destinations did not disappear - they moved to Home's catalogues,
+        // which is what makes it safe for this strip to be short.
+        expect(tabLabels()).toEqual(["Make a map, pinned"]);
+    });
+
+    /*
+     * Seeded groups still exist, and a group with no member open still renders no heading. Both
+     * halves matter: the group definitions are what file Projects under "Rendering" the moment it
+     * is opened, and a heading standing over nothing is a control that does nothing when pressed.
+     */
+    it("renders no group heading until a group has a member open", async () => {
+        shell();
+        await settle();
+
+        expect(shellGroupHeads()).toHaveLength(0);
+
+        await expandShellGroups();
 
         expect(shellGroupHeads().map((head) => head.getAttribute("aria-label"))).toEqual([
             "Rendering, 3 tabs",
@@ -365,82 +378,43 @@ describe("the tab strip", () => {
         ]);
     });
 
-    /*
-     * Seeded open, which is the half of this that is easy to get backwards. A shorter strip
-     * is not the goal; a legible one is. The names over the groups are what stop twelve
-     * destinations reading as one undifferentiated list, and they do that whether or not the
-     * members are showing - while collapsing on top of it removes destinations rather than
-     * clutter, and makes reaching them depend on a control being pressable. See `App.vue`'s
-     * own note above `initialGroups` for the capture run that made that cost concrete.
-     */
-    it("shows every destination from the first launch, with the groups seeded open", () => {
-        shell();
-
-        expect(shellGroupHeads().map((head) => head.getAttribute("aria-expanded"))).toEqual([
-            "true",
-            "true",
-            "true",
-        ]);
-
-        // All twelve, on screen, with no disclosure to press first.
-        expect(tabLabels()).toEqual([
-            "Home, pinned",
-            "Map",
-            "Make a map",
-            "Docs",
-            "Projects",
-            "GitHub runners",
-            "Renders",
-            "Maps and servers",
-            "Publish to Pages",
-            "Watch it live",
-            "Backups",
-            "World repository",
-        ]);
-    });
-
-    it("still separates the shell into twelve pages, every one of them one disclosure away", async () => {
+    it("still separates the shell into ten jobs, every one of them reachable", async () => {
         shell();
         await expandShellGroups();
 
+        // Ten, not twelve. Home and Map left the strip entirely - they are rail destinations now,
+        // and a Home tab beside a Home rail item would be two navigation models arguing.
         expect(tabLabels()).toEqual([
-            "Home, pinned",
-            "Map",
-            "Make a map",
+            "Make a map, pinned",
             "Docs",
             "Projects",
             "GitHub runners",
             // No count in the label: nothing in this shell's fake bridges reports a render in
-            // flight, so the always-mounted indicator behind this label reads zero, exactly
-            // as it should for a shell with nothing running.
+            // flight, so the always-mounted indicator behind this label reads zero, exactly as it
+            // should for a shell with nothing running.
             "Renders",
             "Maps and servers",
             "Publish to Pages",
-            // The local twin of Pages: no address for a fake bridge-less shell to have
-            // started hosting, so this always mounts as an ordinary, unhosted tab.
             "Watch it live",
             "Backups",
-            // A world synced into a git repository, and a repository this application already
-            // prepared on another computer recognised and adopted - see
-            // WorldRepoScreen.vue's own doc comment.
             "World repository",
         ]);
     });
-
-    it("reaches Home through its own tab, pinned so it cannot be swept up by a bulk close", async () => {
+    it("reaches Home from the rail, where no bulk close can ever touch it", async () => {
         const app = shell();
 
-        const homeTab = tabButton("Home, pinned");
+        await goTo("Home");
         expect(homeTab.closest(".mb-tabs-strip__pinned")).not.toBeNull();
 
         homeTab.click();
         await settle();
 
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
     });
 
-    it("reaches the docs browser through its own tab", async () => {
+    it("reaches the docs browser through its own job", async () => {
         shell();
+        await expandShellGroups();
 
         tabButton("Docs").click();
         await settle();
@@ -456,8 +430,10 @@ describe("the tab strip", () => {
         // the two apart.
         const app = shell();
 
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-map-page")).toBeNull();
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        // The map layer is mounted at all times on purpose: unmounting it would throw away the
+        // WebGL scene every time somebody looked at Home. Not showing means inert.
+        expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
     });
 
     it("opens on Home for a fresh install, the moment first-run setup genuinely completes", async () => {
@@ -470,15 +446,21 @@ describe("the tab strip", () => {
         // "Finish setup" success (proven to fire only on that success by
         // `FirstRunSetup.test.ts`), rather than a workspace pre-seeded in isolation.
         const app = shell();
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
 
         await app.findComponent(FirstRunSetup).vm.$emit("finished");
         await settle();
 
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-map-page")).toBeNull();
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        // The map layer is mounted at all times on purpose: unmounting it would throw away the
+        // WebGL scene every time somebody looked at Home. Not showing means inert.
+        expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
         expect(app.findComponent(WorldScreen).exists()).toBe(false);
-        expect(tabButton("Home, pinned").getAttribute("aria-selected")).toBe("true");
+        expect(
+            [...document.querySelectorAll<HTMLElement>(".wl-rail-item")]
+                .find((node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home")
+                ?.getAttribute("aria-current"),
+        ).toBe("page");
     });
 
     it("returns a user with a saved workspace to their last active tab, not forced back to Home", () => {
@@ -515,7 +497,7 @@ describe("the tab strip", () => {
         const app = shell();
 
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(app.findComponent(HomeScreen).exists()).toBe(false);
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(false);
         expect(tabButton("Make a map").getAttribute("aria-selected")).toBe("true");
     });
 
@@ -539,7 +521,9 @@ describe("the tab strip", () => {
         await settle();
 
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-map-page")).toBeNull();
+        // The map layer is mounted at all times on purpose: unmounting it would throw away the
+        // WebGL scene every time somebody looked at Home. Not showing means inert.
+        expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
     });
 
     it("reaches the maps-and-servers list through its tab, and offers no second door to it", async () => {
@@ -933,8 +917,12 @@ describe("\"what is this?\"", () => {
         await app.findComponent(FirstRunSetup).vm.$emit("finished");
         await settle();
 
-        expect(tabButton("Home, pinned").getAttribute("aria-selected")).toBe("true");
-        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+        expect(
+            [...document.querySelectorAll<HTMLElement>(".wl-rail-item")]
+                .find((node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home")
+                ?.getAttribute("aria-current"),
+        ).toBe("page");
+        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
     });
 });
 
@@ -956,7 +944,7 @@ describe("the shell's appearance targets", () => {
         target?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }));
         await settle();
 
-        expect(document.body.textContent).toContain("Appearance of The tab bar");
+        expect(document.body.textContent).toContain("Appearance of The application rail");
     });
 });
 
@@ -1004,7 +992,7 @@ describe("the options editor", () => {
         // behind the editor's opaque surface too and a tab nobody can see is a tab nobody
         // should be able to reach with Tab.
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(document.querySelector(".wl-work")?.hasAttribute("inert")).toBe(true);
+        expect(document.querySelector(".mb-shell-body")?.hasAttribute("inert")).toBe(true);
     });
 
     it("closes on Escape and hands the focus back to itself", async () => {
