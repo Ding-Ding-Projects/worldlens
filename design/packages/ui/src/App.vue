@@ -1068,8 +1068,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :notifications-open="notificationsOpen"
                         :settings-open="settingsOpen"
                         @select="onRailSelect"
-                        @open-palette="paletteOpen = true"
-                        @open-notifications="requestReveal('noticeCentre')"
+                        @open-palette="paletteOpen = true"
                         @open-settings="openSettings()"
                     />
                 </AppearanceTarget>
@@ -1578,6 +1577,30 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     display: flex;
     flex-direction: column;
     min-block-size: 0;
+    /*
+     * Each layer is its own stacking context, which is what makes "Home and Work are opaque
+     * layers over the top of the map" true of the map's *chrome* and not only of its canvas.
+     *
+     * Without it, a positioned descendant of the map layer with a z-index of its own competes
+     * with the destinations rather than with its siblings, and paint order stops being decided by
+     * which layer is on top. The viewer control bar does exactly that - `ControlBar.vue` gives
+     * `.mb-cb` `z-index: 3` so it sits above the canvas - so it went on painting over Home and
+     * Work, both of which are declared after the map layer and should therefore cover it. It was
+     * plainly visible in the captures that prompted this: a crop of Work's tab strip contained the
+     * viewer's compass and its live x/z position inputs, and Home rendered with the whole control
+     * bar across its top.
+     *
+     * Worse than untidy, because the map layer is `inert` on those destinations: what showed
+     * through was chrome that looked usable and was not, which is the one thing this project's
+     * rules single out as never acceptable.
+     *
+     * `z-index: 0` rather than `isolation: isolate` only because it says the same thing in a
+     * property every reader of this file already has to understand. It costs the control bar
+     * nothing on the map itself: the canvas is `#map-container` at `z-index: 0` and the whole
+     * application layer is `#app` at `z-index: 10` (see `styles/global.scss`), so the chrome is
+     * above the canvas because of that, not because of anything `.mb-cb` asks for here.
+     */
+    z-index: 0;
 }
 
 .mb-shell-layer--map {
@@ -1648,12 +1671,33 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 }
 
 /*
- * The control bar anchors itself under the title bar with `position: fixed`, which was right
- * when it was the topmost thing in the window and would now paint straight over the tab strip.
- * Inside the map page it becomes absolute instead, so it sits at the top of whatever space the
- * strip leaves rather than at a measured offset that would have to be kept in step with it.
+ * The control bar anchors itself under the title bar with `position: fixed`, which was right when
+ * it was the topmost thing in the window and is wrong the moment anything else shares that edge.
+ * Inside the map page it becomes absolute instead, so it fills whatever box the shell leaves for
+ * the map rather than the whole window, and it needs no measured offset that would have to be
+ * kept in step with the chrome around it.
+ *
+ * This rule was written against `.mb-shell-tabs`, which was the shell's own tab strip and no
+ * longer exists: the Material Design 3 rewrite moved the strip inside the Work destination and
+ * renamed it, and this selector was left behind matching nothing. `position: fixed` therefore
+ * came back, and with `left: 0` the bar spanned the whole window again - including the 80px
+ * column the application rail now occupies - so the control bar's own Menu button sat directly on
+ * top of the rail's Home destination and swallowed every click aimed at it. With a map loaded,
+ * Home was unreachable.
+ *
+ * Found by the screenshot harness rather than by a person: a capture of Home timed out clicking
+ * `[data-destination="home"]`, and Playwright named the interceptor outright - "<svg class=
+ * mb-cb-menu__icon> from <div class=mb-shell-content> subtree intercepts pointer events". A
+ * screenshot of Home would have shown the two elements overlapping and told nobody which one
+ * won; driving the application is what turned a layout that looks slightly odd into a
+ * destination that does not work.
+ *
+ * `.mb-map-page` is this component's own element and is `position: absolute; inset: 0` inside the
+ * map layer, which is itself inset within `.mb-shell-content` - the column beside the rail. So
+ * anchoring to it puts the bar in the space the map actually occupies, which is what it was
+ * always meant to mean.
  */
-.mb-shell-tabs :deep(.mb-cb) {
+.mb-map-page :deep(.mb-cb) {
     position: absolute;
     top: 0;
 }

@@ -114,6 +114,13 @@ import { fileURLToPath } from "node:url";
 import { migrationEnvironment, resolveCaptureTarget } from "./captureTarget.js";
 import type { CaptureTarget } from "./captureTarget.js";
 import {
+    appendLedger,
+    coverageVerdict,
+    readLedger,
+    resetLedger,
+    type RequiredSurface,
+} from "./captureLedger.js";
+import {
     describeViolation,
     installNetworkGuard,
     networkGuardInstalled,
@@ -170,17 +177,19 @@ type MapArea =
 
 let mapArea: MapArea = "map";
 
-/** One row per image, for `manifest.json` and `captions.md`. */
-const captures: { name: string; file: string; surface: string; caption: string }[] = [];
-
 /**
- * Surfaces this run did not photograph, and why.
+ * Where every image, every named gap and every completed step is recorded as it happens.
  *
- * Published rather than dropped. A gallery that quietly omits a screen is indistinguishable
- * from one that never had it, and the reason a surface is missing (no account, no network,
- * no running render) is usually the more useful fact.
+ * This used to be two arrays in this module, and swapping them for a file is not a tidying: a
+ * worker that fails is discarded, the fresh worker re-imports this file with both arrays empty,
+ * and the closing tests always run in that *final* worker. So they described only whatever had
+ * happened since the last failure. On the run that prompted the change that meant a
+ * `manifest.json` claiming five captures and zero gaps sitting beside thirty-four diagnostic
+ * images, and a coverage assertion that passed against a list emptied by the very failures it
+ * exists to catch. A file survives the restart; an array does not. `captureLedger.ts` carries
+ * the rest of the argument, including why it is JSON Lines rather than one document.
  */
-const skipped: { surface: string; reason: string }[] = [];
+const LEDGER = join(shotDir, "capture-ledger.jsonl");
 
 /**
  * A PNG of a single flat colour compresses to almost nothing. The map canvas starting out
@@ -302,7 +311,7 @@ async function shoot(name: string, surface: string, options: ShotOptions = {}): 
             : `This image is cropped to ${options.cropped} rather than showing the whole window.`;
     const caption = [`${surface}.`, target.caption, where, options.note].filter(Boolean).join(" ");
     await writeFile(join(shotDir, `${name}.caption.txt`), `${caption}\n`, "utf8");
-    captures.push({ name, file: `${name}.png`, surface, caption });
+    appendLedger(LEDGER, { kind: "capture", name, file: `${name}.png`, surface, caption });
 
     mapArea = previousArea;
 }
@@ -323,7 +332,7 @@ async function attemptQuietly(run: () => Promise<void>): Promise<void> {
 
 /** Records a surface this run deliberately did not photograph. */
 function skip(surface: string, reason: string): void {
-    skipped.push({ surface, reason });
+    appendLedger(LEDGER, { kind: "skip", surface, reason });
     console.log(`[harness] skipped ${surface}: ${reason}`);
 }
 
@@ -337,14 +346,44 @@ function skip(surface: string, reason: string): void {
  * is far more useful than no artifact at all. The gap is loud: it is in `manifest.json`,
  * in `captions.md`, printed by the final test, and a diagnostic capture of whatever was
  * on screen at the time is written beside the rest.
+ *
+ * A step that finishes records that it finished, and that entry is not bookkeeping either. Without
+ * it the ledger can only see failures, so a step that never ran at all - a worker killed between
+ * two tests, or a capture somebody deleted while editing - is indistinguishable from one that ran
+ * perfectly. That is precisely the shape of blind spot this whole mechanism exists to close, so
+ * closing it in one direction and leaving it open in the other would be no use.
  */
 async function attempt(surface: string, run: () => Promise<void>): Promise<void> {
     try {
         await run();
+        appendLedger(LEDGER, { kind: "step", surface });
     } catch (error) {
         const details = error instanceof Error ? error.message : String(error);
-        const reason = details.split("\n")[0];
-        skip(surface, `the harness could not open it in this run: ${reason ?? "unknown error"}`);
+        /*
+         * Stripped of terminal colour before it goes anywhere near the published record.
+         *
+         * A locator timeout is plain text, but a failed `expect` is not: its message arrives
+         * wrapped in ANSI escape sequences, and `manifest.json` and `captions.md` are read in a
+         * browser and a Markdown viewer rather than in a terminal. Left in, a gap's reason renders
+         * as `[2mexpect([22m[31mreceived[39m...`, which tells a reader nothing except that
+         * something went wrong somewhere - and this is the one field whose whole job is to say
+         * what.
+         */
+        const reason = details.split("\n")[0]?.replace(/\[[0-9;]*m/g, "");
+        /*
+         * The first line, plus where the rest of it went.
+         *
+         * One line is the right length for a manifest entry a person skims, and it is enough for
+         * the common case - a locator timeout names the thing that was not found. It is useless
+         * for the other case: a failed assertion's first line is `expect(received).toEqual(...)`,
+         * which says nothing at all about which controls were clipped or undersized. Naming the
+         * file that holds the whole failure costs one clause and turns a dead end into a lookup.
+         */
+        skip(
+            surface,
+            `the harness could not open it in this run: ${reason ?? "unknown error"} ` +
+                `(the whole failure is in diagnostic-${slug(surface)}.txt, beside the images)`,
+        );
         await writeFile(
             join(shotDir, `diagnostic-${slug(surface)}.txt`),
             `${details}\n`,
@@ -354,6 +393,27 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
             .screenshot({ path: join(shotDir, `diagnostic-${slug(surface)}.png`) })
             .catch(() => undefined);
     }
+}
+
+/**
+ * {@link attempt}, for a surface that cannot exist at all until a map is loaded.
+ *
+ * Everything reached through the viewer's side sheet is in this category, because the only door to
+ * that sheet is the control bar's Menu button and the control bar renders behind `v-if="app"`. A
+ * run with no rendered map therefore has no such surface to photograph - not "a surface the
+ * harness struggled with", which is what `attempt` would have written after a fifteen-second wait
+ * on a button that was never in the document.
+ *
+ * The distinction is load-bearing rather than cosmetic. The gap this writes is what the coverage
+ * assertion reads to decide whether a required surface was excused or genuinely missed, and a run
+ * that *does* serve a map is held to the full standard by exactly the same code.
+ */
+async function attemptOnMap(surface: string, run: () => Promise<void>): Promise<void> {
+    if (!hasLoadedMap()) {
+        skip(surface, NO_MAP_REASON);
+        return;
+    }
+    await attempt(surface, run);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -403,48 +463,242 @@ async function pointAppAtNoMap(): Promise<void> {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#app", { timeout: 30_000 });
     /*
-     * The wizard is a tab now, not the thing that appears when no map is loaded.
+     * The wizard is a job in the Work workspace, and this helper has now been wrong about where it
+     * lives twice, in the same direction both times.
      *
-     * It used to be rendered by the shell whenever `profilesStore.activeId` was null, so
-     * clearing the profile list was enough to put it on screen. Since the shell became
-     * tabbed it lives behind "Make a map", which is a real improvement - it is reachable
-     * while a map is open, which it was not - and it means this helper has to open the tab
-     * rather than assume an empty profile list shows it. Waiting for `.mb-world-wizard`
-     * without that is a thirty second timeout describing a wizard that is fine.
+     * First it assumed an empty profile list put the wizard on screen, which was true only while
+     * the shell rendered it whenever `activeId` was null. Then it assumed the wizard's tab was in
+     * a strip that existed from the first frame, which was true only while the strip was the
+     * shell's top-level navigation. It is now two moves in: the application opens on Home, the
+     * strip lives inside the Work destination, and the tab has to be reached through it.
+     *
+     * Both failures read identically - a thirty-second wait on `.mb-world-wizard` - and both were
+     * describing an application that was working perfectly. That is the argument for
+     * {@link openJob}: one place that knows how a job is reached, so the next move costs one edit
+     * rather than one per caller.
      */
-    /*
-     * And now it is a tab inside a destination, which is a second move rather than a harder one.
-     *
-     * The Material Design 3 shell put the tab strip behind Work: the application opens on Home,
-     * a rail of five catalogues, and no tab strip exists on screen until somebody presses Work.
-     * This helper waited straight for the "Make a map" tab and got a thirty second timeout
-     * describing an application that was working perfectly - the same failure mode the comment
-     * above records from the previous shell change, one layer further out.
-     *
-     * `data-destination` is the rail's own stable hook. The visible label is translated and moves
-     * with the language mode, and `aria-current` says which destination is *already* active rather
-     * than naming the one we want, so neither is a selector this can navigate by.
-     */
-    const workDestination = page.locator('[data-destination="work"]');
-    await workDestination.waitFor({ state: "visible", timeout: 30_000 });
-    if ((await workDestination.getAttribute("aria-current")) !== "page") {
-        await workDestination.click({ timeout: ELEMENT_TIMEOUT });
-    }
-
-    const wizardTab = page.locator('[role="tab"]', { hasText: /make a map/i }).first();
-    await wizardTab.waitFor({ state: "visible", timeout: 30_000 });
-    if ((await wizardTab.getAttribute("aria-selected")) !== "true") {
-        // The label, not the tab. A tab carries its own close button, so a click on the
-        // tab's centre is a coin toss between selecting it and closing it - and when the
-        // close button wins, Playwright reports a thirty-second click timeout on a locator
-        // it had already resolved, which reads like a hung application.
-        await wizardTab
-            .locator(".mb-tabs-strip__label")
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-    }
+    await openJob("world", /make a map/i, "Make a map");
     await page.waitForSelector(".mb-world-wizard", { timeout: 30_000 });
     mapArea = "none";
+}
+
+/* -------------------------------------------------------------------------- */
+/* Getting anywhere in the Material Design 3 shell                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Presses one of the rail's three destinations.
+ *
+ * `data-destination` is the rail's own stable hook, and it is chosen over the two obvious
+ * alternatives for reasons that are not stylistic. The visible label is translated and moves with
+ * the language mode, so a text match is a selector that stops working when somebody switches to
+ * bilingual. `aria-current` says which destination is *already* active rather than naming the one
+ * this wants, so it can be read but never searched by.
+ *
+ * A class would work today and is exactly what the last three navigation rewrites broke: a class
+ * is a styling decision, and styling decisions move. `.mb-shell-fabs`, `.mb-shell-tabs` and
+ * `.mb-cb` were each a perfectly good selector on the day it was written.
+ */
+async function selectDestination(id: "home" | "map" | "work"): Promise<void> {
+    /*
+     * The options editor first, because while it is open the rail is not a control at all.
+     *
+     * `App.vue` gives the editor a full-bleed host and marks `.mb-shell-body` - the rail included -
+     * `inert` behind it, which is correct product behaviour: the thing behind an opaque surface
+     * must not still be reachable with Tab. It also means a click on a rail button is delivered to
+     * an inert element and does nothing, silently, while the button remains perfectly visible and
+     * `click()` reports success.
+     *
+     * The failure therefore surfaces several steps later and somewhere else entirely. Two captures
+     * were lost to exactly that: an earlier step left the editor open, this pressed Work to no
+     * effect, and the run then timed out waiting for a new-tab menu that had never been asked to
+     * open - a message about a tab menu, describing a problem with a screen three tests earlier.
+     */
+    await ensureOptionsEditorClosed();
+    const button = page.locator(`[data-destination="${id}"]`);
+    await button.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    if ((await button.getAttribute("aria-current")) === "page") return;
+    await button.click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForTimeout(300);
+}
+
+/**
+ * Work's own tab strip, and nothing else's.
+ *
+ * Three `TabbedNavigation` instances can be in the document at once - Work's, the settings
+ * surface's, and the options editor's - and two of them keep their strip mounted behind `v-show`
+ * while closed, which means an unscoped `[role="tab"]` or `[aria-label="Find a tab"]` resolves to
+ * elements that are in the DOM and can never be clicked. `.wl-work__tabs` is the class `WorkPane`
+ * passes to its own instance, so it names exactly one of the three.
+ */
+function workTabs(): Locator {
+    return page.locator(".wl-work__tabs");
+}
+
+/**
+ * A tab that is on screen no matter what else the strip is holding.
+ *
+ * Every capture that right-clicks a tab needs one, and "the tab for the job I just opened" is not
+ * it. `openJob` guarantees the job's *panel* is in front, which is what almost every caller wants,
+ * but it cannot guarantee the tab itself is visible: `TabStrip.vue` decides what fits by index
+ * (`v-show="index < visibleCount"`), not by which tab is active, so by the time this file has
+ * opened eight jobs the one it wants is legitimately behind the overflow control. Two captures
+ * were lost to exactly that, both reporting a fifteen-second wait for a tab that was working
+ * correctly and simply not on screen.
+ *
+ * The pinned wizard is the answer, and by contract rather than by luck: `TabStrip.vue` measures
+ * the pinned region out of the budget before the ordinary tabs, in its own words "so it never
+ * overflows and a pinned tab is always reachable". It is also the one tab a fresh workspace has,
+ * so this needs nothing opened first.
+ *
+ * It is right-clicked directly rather than through a label, because a pinned tab draws compact:
+ * icon only, no label span, and - the part that matters here - no close button to right-click by
+ * accident.
+ */
+function pinnedWizardTab(): Locator {
+    return workTabs().locator('[data-tutorial-anchor="tab-world"]').first();
+}
+
+/**
+ * Activates a tab, aiming at whatever part of it is safe to press.
+ *
+ * An ordinary tab carries its own close button over part of its area, so a click on the tab's
+ * geometric centre is a coin toss between selecting it and closing it - and when the close button
+ * wins, Playwright reports a click timeout on a locator it had already resolved, which reads like
+ * a hung application rather than like a tab that has just been removed.
+ *
+ * A pinned tab renders compact: `TabButton.vue` draws its icon alone, with no label span and no
+ * close button at all. So the label cannot be aimed at, and does not need to be. Choosing per tab
+ * rather than assuming one shape is what keeps this working for the wizard, which is the one tab
+ * a fresh workspace pins.
+ */
+async function activateTab(tab: Locator): Promise<void> {
+    if ((await tab.getAttribute("aria-selected")) === "true") return;
+    const label = tab.locator(".mb-tabs-strip__label");
+    const aim = (await label.count()) > 0 ? label.first() : tab;
+    await aim.click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForTimeout(300);
+}
+
+/**
+ * Opens a job through the strip's own new-tab menu, which is what that gesture is for.
+ *
+ * A fresh Work workspace seeds exactly one tab - the pinned wizard - because the strip holds the
+ * jobs somebody actually started rather than every destination the application has. Ten of the
+ * eleven jobs therefore have no tab at all on a throwaway profile, and no amount of expanding
+ * groups or opening overflow menus will find one. This is the route a person uses, and the tab it
+ * creates persists in the workspace, so a later capture of the same job finds it already there.
+ *
+ * The sheet is matched with `:visible` rather than `.first()`. The strip has four menus that each
+ * render a `.mb-tabs-strip__sheet` - placement, new tab, overflow and the finder - and while only
+ * one can be open at a time, the finder's `v-menu` carries `eager`, so its sheet is mounted from
+ * the first frame whether or not anybody has opened it.
+ */
+async function openJobThroughNewTabMenu(name: string): Promise<void> {
+    await workTabs()
+        .locator('[aria-label="Open a new tab"]')
+        .first()
+        .click({ timeout: ELEMENT_TIMEOUT });
+    // `hasText` with a plain string, never a regular expression. Playwright normalises whitespace
+    // when the matcher is a string and deliberately does not when it is a regex, and a Vuetify
+    // list item wraps its label in enough markup to leave newlines either side of it - so an
+    // anchored `/^Projects$/` matches a label reading exactly "Projects" not at all, and fails as
+    // a fifteen-second timeout on a menu that is open and correct on screen.
+    const item = page
+        .locator(".mb-tabs-strip__sheet:visible .v-list-item")
+        .filter({ hasText: name })
+        .first();
+    await item.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    await item.click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForTimeout(400);
+}
+
+/**
+ * Puts one job's screen in front, however far from the surface it currently is.
+ *
+ * The one place in this file that knows how a job is reached, so a fourth shell rewrite costs one
+ * edit here rather than one per capture.
+ *
+ * It takes three things because they are matched against three different surfaces and none can do
+ * another's work. `pageId` is what `data-tutorial-anchor` carries, which is how this asks "does a
+ * tab for this exist at all" without depending on a translated string. `name` is matched against
+ * the tab's *accessible name*, which is the only description a pinned tab has - it draws as its
+ * icon alone, with no text for a text matcher to find. `label` is a plain string for the new-tab
+ * menu, which is the one place a job with no tab yet can be found, and which needs a string rather
+ * than a regex for the whitespace reason `openJobThroughNewTabMenu` records.
+ *
+ * The order matters. A tab that exists is revealed rather than opened again, because the new-tab
+ * gesture genuinely means "another one" - `TabbedNavigation.openPage` adds a tab every time it is
+ * called - and a harness that reached for it first would leave a strip of duplicates growing
+ * across the run and photograph it.
+ */
+async function openJob(pageId: string, name: RegExp, label: string): Promise<void> {
+    await selectDestination("work");
+    const strip = workTabs();
+    const tab = strip.locator(`[data-tutorial-anchor="tab-${pageId}"]`).first();
+
+    // `count()`, not visibility. An overflowed segment stays in the DOM under `v-show`, so the
+    // difference between "this job has no tab" and "its tab does not currently fit" is exactly
+    // the difference between opening one and going to find it.
+    if ((await tab.count()) === 0) {
+        await openJobThroughNewTabMenu(label);
+        // `attached`, not `visible`. Opening a job makes its tab the active one but does not
+        // promise it fits: the strip's overflow arithmetic runs on the whole row, so on a narrow
+        // window a brand-new tab can arrive already behind the overflow control. Falling through
+        // to the reveal below handles that rather than asserting a layout this cannot control.
+        await tab.waitFor({ state: "attached", timeout: ELEMENT_TIMEOUT });
+    }
+
+    if (await tab.isVisible().catch(() => false)) {
+        await activateTab(tab);
+        return;
+    }
+
+    // Present but off screen, which on a seeded workspace means one of two things: inside a
+    // collapsed group, or - once opening a group has made the strip taller - behind the overflow
+    // control. Both are the strip working correctly, and both have a route a person would use.
+    if (await revealTabInGroups(name)) {
+        await activateTab(tab);
+        return;
+    }
+
+    await expandShellTabGroups();
+    if (await tab.isVisible().catch(() => false)) {
+        await activateTab(tab);
+        return;
+    }
+
+    const overflowButton = strip.locator('[aria-label*="do not fit"]').first();
+    const hasOverflow = await overflowButton
+        .waitFor({ state: "visible", timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
+    if (!hasOverflow) {
+        // Every route failed. Say what the strip actually held rather than reporting a timeout on
+        // a locator, which names the thing that was not found and nothing about why - and on a run
+        // that mostly happens in CI, that difference is the whole diagnosis.
+        throw new Error(
+            `no route to the "${pageId}" job. ` + (await describeShellStrip()),
+        );
+    }
+
+    await overflowButton.click({ timeout: ELEMENT_TIMEOUT });
+    // The plain string again, for the same whitespace reason `openJobThroughNewTabMenu` gives.
+    const item = page
+        .locator(".mb-tabs-strip__sheet:visible .v-list-item")
+        .filter({ hasText: label })
+        .first();
+    const listed = await item
+        .waitFor({ state: "visible", timeout: 5_000 })
+        .then(() => true)
+        .catch(() => false);
+    if (!listed) {
+        throw new Error(
+            `the overflow menu does not list the "${pageId}" job. ` + (await describeShellStrip()),
+        );
+    }
+    await item.click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForTimeout(400);
 }
 
 /** Presses Escape and lets the closing transition finish. */
@@ -468,126 +722,24 @@ function emergencyExit(): Locator {
 }
 
 /**
- * Selects a page's tab in the shell's own strip, whether or not it currently fits.
- *
- * A fresh profile seeds one tab per declared page - eleven of them - and at this
- * harness's `SURFACE_VIEWPORT` (1280x800) only the first seven ordinary tabs fit before
- * `TabStrip.vue`'s own overflow arithmetic moves the rest behind the "N tabs do not fit"
- * control (see that component's own doc comment: "moved into an overflow menu and the
- * button says how many"). That is real, working behaviour - the exact mechanism the
- * "Tab strip" capture below exists to show - not an absent surface, so a plain
- * `[role="tab"]` lookup for one of the later pages times out waiting for an element that
- * is sitting behind that control rather than missing. `pagesTab.waitFor(...)` did exactly
- * that for "Publish to Pages" and read as a broken screen in the manifest, when the fix a
- * person would use without thinking about it is the same overflow menu `TabStrip.vue`
- * already ships: open it, and choose the tab from the list inside.
- *
- * Tries the direct tab first, with a short budget rather than `ELEMENT_TIMEOUT`, so a tab
- * that is genuinely visible activates immediately and one that is not falls through to
- * the overflow route well inside this step's own timeout instead of spending the whole
- * budget on a lookup that was never going to resolve.
- *
- * The overflow *button* is scoped to `.mb-shell-tabs`, not the bare page. `AppSettings.vue`
- * and `ConfigScreen.vue` mount their own `TabbedNavigation` too - see the "Tab context
- * menu" step further down this file for the exact prior bug an unscoped lookup here would
- * repeat: it can resolve to Settings' or the options editor's own overflow control
- * instead, invisible while that surface is closed and therefore never clickable no matter
- * how long the wait.
- *
- * The overflow menu's *content* is deliberately left unscoped. `v-menu` teleports it out
- * from under `.mb-shell-tabs` into the shared overlay container - the same reason "Tab
- * finder" further down reaches for its panel unscoped rather than through `shellTabs` -
- * and because this menu is not `eager` like the tab finder's, nothing is mounted for it at
- * all until this function's own click opens it, so there is only ever one to find.
- */
-async function openShellTab(label: RegExp): Promise<void> {
-    const shellTabs = page.locator(".mb-shell-tabs");
-    const direct = shellTabs.locator('[role="tab"]', { hasText: label }).first();
-    let directlyVisible = await direct
-        .waitFor({ state: "visible", timeout: 2_000 })
-        .then(() => true)
-        .catch(() => false);
-
-    // Most destinations sit inside a collapsed group on a seeded workspace, so a tab that is
-    // working perfectly is simply not on screen yet. Tried before the overflow fallback
-    // below, because a collapsed group is not an overflow condition and the menu does not
-    // list what is inside one.
-    if (!directlyVisible) directlyVisible = await revealTabInGroups(label);
-
-    if (directlyVisible) {
-        if ((await direct.getAttribute("aria-selected")) !== "true") {
-            await direct
-                .locator(".mb-tabs-strip__label")
-                .first()
-                .click({ timeout: ELEMENT_TIMEOUT });
-        }
-        return;
-    }
-
-    // Last resort before the overflow menu: open every group and look again. Opening one at
-    // a time keeps the strip short, which is what the overflow fallback below was written
-    // against, but a tab can also be in a group whose header itself scrolled out of reach
-    // while the loop was closing groups behind it.
-    if (!directlyVisible) {
-        await expandShellTabGroups();
-        directlyVisible = await direct
-            .waitFor({ state: "visible", timeout: 2_000 })
-            .then(() => true)
-            .catch(() => false);
-        if (directlyVisible) {
-            if ((await direct.getAttribute("aria-selected")) !== "true") {
-                await direct
-                    .locator(".mb-tabs-strip__label")
-                    .first()
-                    .click({ timeout: ELEMENT_TIMEOUT, force: true });
-            }
-            return;
-        }
-    }
-
-    const overflowButton = shellTabs.locator('[aria-label*="do not fit"]').first();
-    const hasOverflow = await overflowButton
-        .waitFor({ state: "visible", timeout: 3_000 })
-        .then(() => true)
-        .catch(() => false);
-
-    if (!hasOverflow) {
-        // Every route failed. Say what the strip actually held rather than reporting a
-        // fifteen-second timeout on a locator, which names the thing that was not found and
-        // nothing about why - and on a run that only happens in CI, that difference is the
-        // whole diagnosis. `attempt()` records this message and the coverage assertion
-        // prints it, so one red run is enough to know what to fix.
-        throw new Error(
-            `no route to the tab matching ${String(label)}. ` + (await describeShellStrip()),
-        );
-    }
-
-    await overflowButton.click({ timeout: ELEMENT_TIMEOUT });
-    const item = page.locator(".mb-tabs-strip__sheet .v-list-item", { hasText: label }).first();
-    const listed = await item
-        .waitFor({ state: "visible", timeout: 5_000 })
-        .then(() => true)
-        .catch(() => false);
-    if (!listed) {
-        throw new Error(
-            `the overflow menu does not list a tab matching ${String(label)}. ` +
-                (await describeShellStrip()),
-        );
-    }
-    await item.click({ timeout: ELEMENT_TIMEOUT });
-}
-
-/**
  * What the shell's tab strip holds right now, as one line for a failure message.
  *
  * Every tab label, every group header with whether it is open, and whether an overflow
  * button exists at all. A capture that cannot reach a destination is either looking at a
  * strip that never had it, a group that would not open, or an overflow menu that is not
  * there - and those are three different bugs that a locator timeout reports identically.
+ *
+ * The labels are read from `aria-label` rather than from text content, because a pinned tab draws
+ * as its icon alone and has no text at all. Listing it as an empty string would make the one tab a
+ * fresh workspace always has look like it was missing, in the message written to explain why
+ * something was missing.
  */
 async function describeShellStrip(): Promise<string> {
-    const shellTabs = page.locator(".mb-shell-tabs");
-    const tabs = await shellTabs.locator('[role="tab"]').allTextContents().catch(() => []);
+    const shellTabs = workTabs();
+    const tabs = await shellTabs
+        .locator('[role="tab"]')
+        .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? node.textContent ?? ""))
+        .catch(() => []);
     const heads = shellTabs.locator(".mb-tabs-strip__group-head");
     const groups: string[] = [];
     const count = await heads.count().catch(() => 0);
@@ -651,33 +803,44 @@ async function drawerOpen(selector: string): Promise<boolean> {
 }
 
 /**
- * Selects the Map tab if some other tab is active.
+ * Whether this run has a rendered map to serve, and therefore whether the viewer exists.
  *
- * `.mb-cb-menu` - the control bar's own Menu button - is part of the map page's content,
- * not the shell chrome, so it does not exist in the DOM at all on any other tab. A test
- * running late enough in the file to follow one that switched tabs (the appearance editor
- * capture right-clicks "Maps and servers"; the tab strip capture visits several tabs by
- * name) would otherwise see `openMenuRoot` wait out its full budget for a button that was
- * never going to appear, which reads exactly like a slow click and is not one: confirmed
- * directly that `.mb-cb-menu` is a zero-match, `count() === 0` locator on every tab but
- * Map, not merely a hidden one.
+ * More than a caption detail. `ControlBar.vue` renders behind `v-if="app"`, where `app` is the
+ * live BlueMap instance, so with no profile there is no control bar - and the control bar's Menu
+ * button is the only door to the side sheet. Everything behind that door (the menu pages, the
+ * marker filters, the reset-settings gate, the changelog fold inside the Info page) is therefore
+ * genuinely not on screen for anybody, not merely hard for a harness to find. `App.vue` says the
+ * same thing from the other end: `openChangelog()` returns early when `blueMapApp` is null, and
+ * its own comment notes the command palette does not even offer the row without a viewer running.
+ *
+ * A run with no map records those surfaces as unreachable, with that reason. It does not pretend
+ * to have photographed them, and it does not report a working application as broken.
  */
-async function ensureMapTabActive(): Promise<void> {
-    const mapTab = page.locator('.mb-shell-tabs [role="tab"]', { hasText: /^Map$/i }).first();
-    if ((await mapTab.count()) === 0) return;
-    if ((await mapTab.getAttribute("aria-selected")) === "true") return;
-    await mapTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
-    await page.waitForTimeout(300);
+function hasLoadedMap(): boolean {
+    return target.profile !== null;
 }
+
+/** The reason a map-dependent surface is out of reach, written once so every gap says it. */
+const NO_MAP_REASON =
+    "this run served no rendered map, so no BlueMap instance exists, so the viewer's control bar " +
+    "is not rendered at all - and its Menu button is the only way into the side sheet this " +
+    "surface lives in. Set WORLDLENS_CAPTURE_MAP to a rendered web root to capture it";
 
 /**
  * Opens the side sheet and walks back to its root page.
  *
  * The menu button re-opens whatever page was last on the stack, not the root, so a second
  * surface captured after the first would otherwise photograph the first one again.
+ *
+ * The map destination is selected first. It used to be the map *tab*, back when the strip was the
+ * shell's top-level navigation; it is a rail destination now, and the three destinations are
+ * stacked layers rather than mounted one at a time - Home and Work are opaque and painted over
+ * the map rather than replacing it. So this is a genuine change of what is on screen and not a
+ * formality, and skipping it leaves `.mb-cb` present in the tree and covered, which is the one
+ * state that reads as "the control bar is missing" while it is working perfectly.
  */
 async function openMenuRoot(): Promise<void> {
-    await ensureMapTabActive();
+    await selectDestination("map");
     if (!(await drawerOpen(".mb-side-sheet"))) {
         await page.locator(".mb-cb-menu").first().click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-side-sheet.v-navigation-drawer--active", {
@@ -796,8 +959,8 @@ async function expandShellTabGroups(): Promise<void> {
     // longer exists. A loop holding a stale handle then waits the full timeout on an element
     // that has been gone since the first click.
     for (let guard = 0; guard < 8; guard += 1) {
-        const collapsed = page
-            .locator('.mb-shell-tabs .mb-tabs-strip__group-head[aria-expanded="false"]')
+        const collapsed = workTabs()
+            .locator('.mb-tabs-strip__group-head[aria-expanded="false"]')
             .first();
         if ((await collapsed.count()) === 0) return;
         // Short timeout and swallowed: a header that scrolls or overflows away mid-click is
@@ -822,8 +985,12 @@ async function expandShellTabGroups(): Promise<void> {
  * Returns true when the tab is on screen and can be clicked.
  */
 async function revealTabInGroups(label: RegExp): Promise<boolean> {
-    const shellTabs = page.locator(".mb-shell-tabs");
-    const tab = shellTabs.locator('[role="tab"]', { hasText: label }).first();
+    const shellTabs = workTabs();
+    // By accessible name, not by text content. A pinned tab renders as its icon alone with no
+    // label span at all, so `hasText` matches nothing for it however plainly the strip shows it -
+    // which is exactly how the wizard tab, the one tab a fresh workspace always has, became
+    // invisible to this harness while being perfectly visible on screen.
+    const tab = shellTabs.getByRole("tab", { name: label }).first();
 
     for (let guard = 0; guard < 8; guard += 1) {
         const collapsed = shellTabs
@@ -1077,6 +1244,20 @@ async function ensureFirstRunClosed(): Promise<void> {
 /* -------------------------------------------------------------------------- */
 
 test.beforeAll(async () => {
+    await mkdir(shotDir, { recursive: true });
+    /*
+     * Emptied by the first worker only, and that condition is the whole mechanism rather than a
+     * detail of it.
+     *
+     * Playwright gives every worker process a unique, increasing `workerIndex`, and a worker
+     * started to replace one that failed gets a *new* index rather than reusing the old one. So
+     * index zero is the one worker that is genuinely the start of the run. A reset that ran in
+     * every `beforeAll` would erase everything recorded before the crash on precisely the runs
+     * this file exists to keep evidence from - reintroducing the lost-record bug through the door
+     * marked "housekeeping".
+     */
+    if (test.info().workerIndex === 0) resetLedger(LEDGER);
+
     target = await resolveCaptureTarget();
     console.log(`[harness] capture mode: ${target.mode}`);
     console.log(`[harness] caption: ${target.caption}`);
@@ -1194,14 +1375,41 @@ test.afterAll(async () => {
 test("captures the render location choice for routing evidence", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
-    // The render-location card belongs to the Make a map wizard and is intentionally
-    // absent while a saved map is active. Reset to the truthful empty-profile state
-    // before selecting the wizard tab; otherwise a fresh CI profile can leave the
-    // screenshot waiting on a card that the current page correctly does not render.
+    /*
+     * The render-location card belongs to the Make a map job and is deliberately absent while a
+     * render is in flight (`WorldScreen.vue` gates it on `wizardOpen`), so the truthful
+     * empty-profile state is restored before the job is opened.
+     *
+     * `pointAppAtNoMap` already opens that job and waits for the wizard, so re-finding the tab
+     * here was redundant even before it was wrong - and it was wrong in a way worth recording,
+     * because the tab it looked for is on screen the whole time. `page.locator('[role="tab"]', {
+     * hasText: /Make a map/i })` matches on DOM text, and this particular tab has none: it is the
+     * one tab a fresh workspace pins, `TabButton.vue` draws a pinned tab compact - icon only, no
+     * label span - and its name lives in `aria-label` and `title` instead. So the wait was for
+     * text that never renders, on an element measuring 36 by 38 pixels in plain sight, and it
+     * failed as a thirty-second timeout that reads like a hung application.
+     *
+     * That is the argument for preferring an accessible name over a text match everywhere in this
+     * file: the accessible name is what the control actually calls itself, and it is the one
+     * string that survives a compact rendering, a translation and an icon-only redesign.
+     */
     await pointAppAtNoMap();
-    const worldTab = page.locator('[role="tab"]', { hasText: /Make a map/i }).first();
-    await worldTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-    if ((await worldTab.getAttribute("aria-selected")) !== "true") await worldTab.click();
+    /*
+     * A taller window for this one crop, the same trick the appearance-editor capture uses.
+     *
+     * The card is roughly 1,100 pixels tall - four render routes, Docker's live daemon state and
+     * the machine list - and `Locator.screenshot()` on an element taller than the window scrolls
+     * and stitches. The stitching is where it goes wrong: the last band comes back blank, because
+     * the wizard's own scroll container has already reached its end, so the picture is the top of
+     * a card and then a third of a page of white. The committed capture this replaces had the same
+     * flaw, which is a good reason to fix it rather than to keep it.
+     *
+     * More vertical room is the whole fix. Nothing about the card changes at this height - the
+     * shell has no breakpoint between them - so this is a bigger window rather than a different
+     * screen.
+     */
+    await page.setViewportSize({ width: SURFACE_VIEWPORT.width, height: 1400 });
+    await page.waitForTimeout(400);
     const card = page.locator(".mb-run-location");
     await card.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
     await card.scrollIntoViewIfNeeded();
@@ -1211,6 +1419,7 @@ test("captures the render location choice for routing evidence", async () => {
         "The render-location choice: local, Docker on this computer, and another machine over SSH, with Docker's real daemon state and the route that will actually be used",
         { crop: card, cropped: "the render-location card", mapArea: "covered" },
     );
+    await page.setViewportSize(SURFACE_VIEWPORT);
 
     // The remaining capture sequence needs the rendered-map shell again. Keep the
     // wizard state truthful for this shot, then restore the target profile before
@@ -1241,7 +1450,11 @@ test("captures the window's own chrome", async () => {
     });
 
     await attempt("Viewer control bar", async () => {
-        await ensureMapTabActive();
+        if (!hasLoadedMap()) {
+            skip("Viewer control bar", NO_MAP_REASON);
+            return;
+        }
+        await selectDestination("map");
         const bar = page.locator(".mb-cb");
         await bar.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
@@ -1251,14 +1464,78 @@ test("captures the window's own chrome", async () => {
         );
     });
 
-    await attempt("Shell buttons", async () => {
-        const fabs = page.locator(".mb-shell-fabs");
-        await fabs.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    /*
+     * The application rail, where the three floating buttons used to be.
+     *
+     * This step used to photograph `.mb-shell-fabs`, and that stack is not merely restyled or
+     * moved - it is deliberately deleted, to the point that `App.shellFabClearance.test.ts`
+     * asserts the string `mb-shell-fab` no longer appears in the shell's source at all. Its
+     * destinations went to the rail's footer, which `AppRail.vue`'s own doc comment argues is the
+     * difference between chrome and litter: chrome has somewhere to live.
+     *
+     * So the capture follows them rather than being deleted with them. A gallery that simply lost
+     * a picture of "how you reach settings" would be a gallery that stopped answering the question
+     * the old image was there to answer.
+     */
+    await attempt("Application rail", async () => {
+        const rail = page.locator(".wl-rail");
+        await rail.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
-            "chrome-shell-buttons",
-            "The three shell buttons in the bottom left corner: settings, maps and servers, and server configuration",
-            { crop: fabs, cropped: "the shell buttons" },
+            "chrome-app-rail",
+            "The application rail: the three destinations - Home, Map and Work - each with its visible label, the Work badge counting open jobs, and a footer holding search, notifications and settings",
+            { crop: rail, cropped: "the application rail" },
         );
+    });
+});
+
+/**
+ * Home, which is where the application now opens and had no capture at all.
+ *
+ * The five catalogues are the shell's answer to a tab strip that used to hold every destination
+ * the application had: the strip is short now because Home is where the eighty-five features are
+ * discovered. A gallery with no picture of it describes an application whose first screen is a
+ * mystery - and, worse, an audit of this file found the same shape of hole in the palette, the
+ * appearance editor and the changelog, where a change deleting any of them outright would have
+ * left the run green.
+ */
+test("captures the Home destination and one of its catalogue pages", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+    await ensureOptionsEditorClosed();
+
+    await attempt("Home catalogues", async () => {
+        await selectDestination("home");
+        const home = page.locator(".wl-home");
+        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "home-catalogues",
+            "Home, the destination the application opens on: five catalogues covering everything it can do, each card saying what that catalogue is for, with its own search across all of them",
+            { mapArea: "covered" },
+        );
+    });
+
+    await attempt("Home catalogue page", async () => {
+        await selectDestination("home");
+        // By its accessible name rather than by a position in the grid, so re-ordering the
+        // catalogues - or adding a sixth - moves this capture rather than breaking it. Each card
+        // is one button whose accessible name is its own text, so the catalogue's title is what
+        // matches; the two nested actions on the hero card are deliberately outside that button,
+        // per `HomeCatalogues.vue`'s own note about a button inside a button.
+        await page
+            .locator(".wl-home")
+            .getByRole("button", { name: /set up & help/i })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        const catalogue = page.locator(".wl-catalogue").first();
+        await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "home-catalogue-page",
+            "One catalogue opened from Home: every feature it holds as its own row with a blurb saying what it does, grouped under headings, and the search that reaches all of them",
+            { mapArea: "covered" },
+        );
+        await page.locator('[data-destination="home"]').click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(300);
     });
 });
 
@@ -1295,7 +1572,7 @@ test("captures the map popup retained at the lower-right viewport edge", async (
         return;
     }
 
-    await ensureMapTabActive();
+    await selectDestination("map");
     await page.setViewportSize({ width: 800, height: 600 });
     await page.waitForTimeout(500);
 
@@ -1367,21 +1644,24 @@ test("captures the map popup retained at the lower-right viewport edge", async (
     await page.setViewportSize(SURFACE_VIEWPORT);
 });
 
-test("captures each navigable page", async () => {
-    const items = page.locator(".v-navigation-drawer .v-list-item");
-    const count = await items.count();
-    for (let i = 0; i < count; i++) {
-        const label = ((await items.nth(i).innerText()) || `item-${i}`)
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "");
-        await items.nth(i).click();
-        await page.waitForTimeout(500);
-        const name = label || `item-${i}`;
-        await shoot(`page-${name}`, `The "${name}" page`);
-    }
-});
+/*
+ * A test named "captures each navigable page" used to sit here, and it is deleted rather than
+ * repaired because it had stopped being a test at all.
+ *
+ * It walked `.v-navigation-drawer .v-list-item` and photographed whatever it found. The shell has
+ * had no `v-navigation-drawer` full of destinations for a long time - navigation is the rail, then
+ * Work's tab strip - so `count()` was zero, the loop ran zero times, and the test passed by doing
+ * nothing. It is not merely stale in this tree either: the *committed* manifest, captured before
+ * the Material Design 3 rewrite, contains no `page-*.png` at all, so it had already been silently
+ * photographing nothing for at least one shell generation.
+ *
+ * That is the failure mode this file keeps meeting from different directions. A rule about
+ * well-formed records is satisfied by a record that does not exist; a loop over a collection is
+ * satisfied by an empty collection. What replaces it is not another enumeration but named steps
+ * that each fail loudly when their surface will not open - the Home captures above, and `openJob`
+ * driving every job screen below - all of them on the required-surface list, where an absence is a
+ * red run rather than a quietly shorter gallery.
+ */
 
 test("captures both themes", async () => {
     for (const theme of ["light", "dark"] as const) {
@@ -1399,7 +1679,7 @@ test("captures both themes", async () => {
 test("captures every page of the menu", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
-    await attempt("Menu, root page", async () => {
+    await attemptOnMap("Menu, root page", async () => {
         await openMenuRoot();
         await shoot(
             "menu-root",
@@ -1407,12 +1687,12 @@ test("captures every page of the menu", async () => {
         );
     });
 
-    await attempt("Maps menu", async () => {
+    await attemptOnMap("Maps menu", async () => {
         await openMenuPage("Maps", ".mb-maps-menu");
         await shoot("menu-maps", "The maps menu, listing the maps the active profile serves");
     });
 
-    await attempt("Settings menu", async () => {
+    await attemptOnMap("Settings menu", async () => {
         await openMenuPage("Settings", ".mb-side-sheet .mb-settings");
         await shoot(
             "menu-settings",
@@ -1420,12 +1700,12 @@ test("captures every page of the menu", async () => {
         );
     });
 
-    await attempt("Info page", async () => {
+    await attemptOnMap("Info page", async () => {
         await openMenuPage("Info", ".mb-info-page, .mb-info-page__empty");
         await shoot("menu-info", "The info page, with the application version at the foot of it");
     });
 
-    await attempt("Marker menu", async () => {
+    await attemptOnMap("Marker menu", async () => {
         await openMenuPage("Markers", ".mb-marker-menu");
         await shoot(
             "menu-markers",
@@ -1439,7 +1719,7 @@ test("captures every page of the menu", async () => {
 test("captures the menu search bar and its regex builder", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
-    await attempt("Menu search bar", async () => {
+    await attemptOnMap("Menu search bar", async () => {
         await openMenuPage("Settings", ".mb-side-sheet .mb-settings");
 
         await page
@@ -1477,7 +1757,7 @@ test("captures the menu search bar and its regex builder", async () => {
 test("captures the reset-settings super confirmation", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
-    await attempt("Reset settings super confirmation", async () => {
+    await attemptOnMap("Reset settings super confirmation", async () => {
         await openMenuPage("Settings", ".mb-side-sheet .mb-settings");
 
         await page
@@ -1526,7 +1806,7 @@ test("captures the reset-settings super confirmation", async () => {
 test("captures the marker menu's filter and sort controls", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
-    await attempt("Marker search and sort controls", async () => {
+    await attemptOnMap("Marker search and sort controls", async () => {
         await openMenuPage("Markers", ".mb-marker-menu");
 
         const toggle = page.locator(".mb-marker-menu__filters-head .v-btn");
@@ -1580,12 +1860,12 @@ test("captures the map and server profile manager", async () => {
         // removed it when it became tabbed - a tab and a FAB reaching one surface are two
         // navigation models arguing on one screen - so this waited fifteen seconds for a
         // control that was deliberately deleted, and the capture quietly left the set.
-        // Through `openShellTab`, which is the one place that knows both ways a tab can be
-        // off screen on a seeded workspace: inside a collapsed group, and - once opening
-        // that group has made the strip taller - inside the overflow menu. Locating the
-        // tab directly here worked on a roomy window and timed out in CI, where the
-        // shorter viewport pushes the later tabs into the menu.
-        await openShellTab(/maps and servers/i);
+        // Through `openJob`, which is the one place that knows every way a job screen can be
+        // out of reach on a fresh workspace: the strip lives inside the Work destination, most
+        // jobs have no tab at all until somebody opens one, and a tab that does exist can be
+        // inside a collapsed group or behind the overflow control. Reaching for the tab here
+        // directly is what left this capture out of the set through two shell rewrites running.
+        await openJob("servers", /maps and servers/i, "Maps and servers");
         await page.waitForSelector('[role="tabpanel"]', {
             state: "visible",
             timeout: ELEMENT_TIMEOUT,
@@ -1601,7 +1881,7 @@ test("captures the map and server profile manager", async () => {
         await page.waitForTimeout(500);
         await shoot(
             "profiles-manager",
-            "The maps and servers manager on its own tab, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
+            "The maps and servers manager on its own tab in the Work destination, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
             { mapArea: "covered" },
         );
     });
@@ -1611,12 +1891,12 @@ test("captures the backup screen", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
     await attempt("Backup screen", async () => {
-        // Through `openShellTab`, which is the one place that knows both ways a tab can be
-        // off screen on a seeded workspace: inside a collapsed group, and - once opening
-        // that group has made the strip taller - inside the overflow menu. Locating the
-        // tab directly here worked on a roomy window and timed out in CI, where the
-        // shorter viewport pushes the later tabs into the menu.
-        await openShellTab(/backups/i);
+        // Through `openJob`, which is the one place that knows every way a job screen can be
+        // out of reach on a fresh workspace: the strip lives inside the Work destination, most
+        // jobs have no tab at all until somebody opens one, and a tab that does exist can be
+        // inside a collapsed group or behind the overflow control. Reaching for the tab here
+        // directly is what left this capture out of the set through two shell rewrites running.
+        await openJob("backups", /backups/i, "Backups");
         await page.waitForSelector(".mb-backup", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
         await shoot(
@@ -1626,6 +1906,39 @@ test("captures the backup screen", async () => {
         );
     });
 });
+
+/**
+ * The application's settings panel, told apart from the viewer's settings *menu*.
+ *
+ * Both render a `.mb-settings` root - `AppSettings.vue` and the side sheet's `SettingsMenu.vue` -
+ * and they are two entirely different surfaces with two different searches inside them. A bare
+ * `.mb-settings` therefore matches whichever the DOM happens to reach first once a map is loaded
+ * and the side sheet has been opened, which is exactly the situation every capture below runs in.
+ * `AppSettings` is the one wrapped in a `DockedSurface`, so `.mb-docked` names it and only it.
+ */
+const APP_SETTINGS = ".mb-settings.mb-docked";
+
+/**
+ * Opens the application's settings panel from the rail footer.
+ *
+ * The three floating buttons this used to press are deleted, not moved - `App.shellFabClearance.test.ts`
+ * asserts the source no longer mentions `mb-shell-fab` at all - and settings is an ordinary button
+ * in the rail's footer now. Selected by its accessible name, which is the name the button gives
+ * itself and the same string a screen-reader user hears, rather than by a class.
+ *
+ * `DockedSurface` keeps its content mounted behind `v-show` while closed, so "is it open" has to
+ * be a visibility question rather than a presence one.
+ */
+async function openSettingsSurface(): Promise<void> {
+    if (await visible(APP_SETTINGS)) return;
+    await page
+        .locator(".wl-rail__footer")
+        .getByRole("button", { name: "Settings", exact: true })
+        .first()
+        .click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForSelector(APP_SETTINGS, { state: "visible", timeout: ELEMENT_TIMEOUT });
+    await page.waitForTimeout(400);
+}
 
 /**
  * Opens Settings if it is not already open, then switches to one section through the
@@ -1649,17 +1962,11 @@ test("captures the backup screen", async () => {
  * that actually holds it.
  */
 async function openSettingsSection(anchor: string, title: string): Promise<void> {
-    if (!(await visible(".mb-settings"))) {
-        await page
-            .locator('.mb-shell-fab[aria-label="Settings"]')
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".mb-settings", { state: "visible", timeout: ELEMENT_TIMEOUT });
-    }
-    const searchInput = page.locator(".mb-settings__search input").first();
+    await openSettingsSurface();
+    const searchInput = page.locator(`${APP_SETTINGS} .mb-settings__search input`).first();
     await searchInput.fill("");
     await searchInput.fill(anchor);
-    const result = page.locator(".mb-settings__result", { hasText: title });
+    const result = page.locator(`${APP_SETTINGS} .mb-settings__result`, { hasText: title });
     await result.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
     await result.first().click();
     await searchInput.fill("");
@@ -1668,23 +1975,21 @@ async function openSettingsSection(anchor: string, title: string): Promise<void>
 test("captures the settings surface and every section in it", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
-    // `.mb-settings` itself, not the Vuetify drawer it used to live inside. The settings
-    // surface can now be floating or docked to any edge, so its chrome is `DockedSurface`
-    // rather than `v-navigation-drawer` - and a selector naming the old chrome cannot match
-    // in any placement, which is how two required captures went missing at once.
-    const drawer = page.locator(".mb-settings");
+    // Not the Vuetify drawer this once lived inside, and not a bare `.mb-settings` either. The
+    // panel can be floating or docked to any edge now, so its chrome is `DockedSurface` rather
+    // than `v-navigation-drawer` - a selector naming the old chrome matched in no placement at
+    // all, which is how two required captures went missing at once - and the viewer's own
+    // settings *menu* uses the same `.mb-settings` class for a completely different surface. See
+    // `APP_SETTINGS`.
+    const drawer = page.locator(APP_SETTINGS);
 
     await attempt("Settings drawer", async () => {
-        await page
-            .locator('.mb-shell-fab[aria-label="Settings"]')
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".mb-settings", {
-            state: "visible",
-            timeout: ELEMENT_TIMEOUT,
-        });
+        await openSettingsSurface();
         await page.waitForTimeout(700);
-        await shoot("settings-drawer", "The application settings, opened over the map");
+        await shoot(
+            "settings-drawer",
+            "The application settings, opened from the rail footer over whichever destination was showing",
+        );
     });
 
     // Every settings section is now its own browser-style tab (`AppSettings.vue`'s own
@@ -1720,19 +2025,20 @@ test("captures the settings surface and every section in it", async () => {
             { anchor: "language-and-tone", title: "Language and tone" },
         ];
 
-        const searchInput = page.locator(".mb-settings__search input").first();
+        await openSettingsSurface();
+        const searchInput = page.locator(`${APP_SETTINGS} .mb-settings__search input`).first();
 
         for (const { anchor, title } of anchors) {
             await searchInput.fill("");
             await searchInput.fill(anchor);
-            const result = page.locator(".mb-settings__result", { hasText: title });
+            const result = page.locator(`${APP_SETTINGS} .mb-settings__result`, { hasText: title });
             await result.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
             await result.first().click();
             await page.waitForTimeout(500);
             await shoot(
                 `settings-section-${slug(anchor)}`,
-                `The "${title}" settings section, scrolled into view in the settings drawer`,
-                { crop: drawer, cropped: "the settings drawer" },
+                `The "${title}" settings section, on its own browser-style tab inside the settings panel`,
+                { crop: drawer, cropped: "the settings panel" },
             );
         }
 
@@ -1740,18 +2046,20 @@ test("captures the settings surface and every section in it", async () => {
     });
 
     await attempt("Settings search", async () => {
-        await page.locator(".mb-settings__search input").first().fill("java");
+        await openSettingsSurface();
+        await page.locator(`${APP_SETTINGS} .mb-settings__search input`).first().fill("java");
         await page.waitForTimeout(600);
         await shoot(
             "settings-search",
-            "The settings search, filtering the drawer to the settings whose name, explanation or current value matches what was typed",
-            { crop: drawer, cropped: "the settings drawer" },
+            "The settings search, filtering the panel to the settings whose name, explanation or current value matches what was typed, and saying which tab each result lives on",
+            { crop: drawer, cropped: "the settings panel" },
         );
     });
 
     await attempt("Settings regex builder", async () => {
+        await openSettingsSurface();
         await page
-            .locator('.mb-settings__search [aria-label="Open the regex builder"]')
+            .locator(`${APP_SETTINGS} .mb-settings__search [aria-label="Open the regex builder"]`)
             .first()
             .click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-config-regex", {
@@ -1766,7 +2074,7 @@ test("captures the settings surface and every section in it", async () => {
             { crop: page.locator(".mb-config-regex"), cropped: "the regex builder" },
         );
         await dismiss();
-        await page.locator(".mb-settings__search input").first().fill("");
+        await page.locator(`${APP_SETTINGS} .mb-settings__search input`).first().fill("");
         await page.waitForTimeout(400);
     });
 
@@ -1814,11 +2122,28 @@ const CONFIG_STATE_NOTE =
  * how an overlay inside the editor is closed and the editor's own host region listens for
  * the same key: closing the regex builder therefore closes the editor out from under the
  * next capture. Re-opening is cheap and makes each capture independent of the last.
+ *
+ * Through the command palette, because the floating button this used to press is gone. The editor
+ * is not a rail destination and not a job with a tab: `App.vue`'s own comment says it became "a
+ * row in Set up & help", and it has a palette row of its own beside that. So the palette is the
+ * route rather than a substitute for one - it is one of the two doors the application actually
+ * ships, and it is the one that works from whatever destination the previous capture left showing.
+ *
+ * Driving the real `Ctrl+Shift+F` chord to get there is deliberate for the reason `openPalette`
+ * gives: a harness that found some other way in would keep passing on the day the documented
+ * shortcut stopped working.
  */
 async function ensureOptionsEditor(): Promise<void> {
     if (await visible(".mb-config-screen")) return;
+    await openPalette();
+    await page.locator(".mb-palette__search input").first().fill("Server configuration");
+    await page.waitForTimeout(400);
+    // The row's accessible name, not a class on it: `PaletteRow.vue` makes a command or
+    // destination row one button whose name is its own text, which is what a keyboard user hears
+    // and therefore the least surprising thing to select it by.
     await page
-        .locator('.mb-shell-fab[aria-label="Server configuration"]')
+        .locator(".mb-palette")
+        .getByRole("button", { name: /^Server configuration/ })
         .first()
         .click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForSelector(".mb-config-screen", {
@@ -1870,9 +2195,9 @@ test("captures the options editor, its tabs and its dialogs", async () => {
              * under Playwright's default centre point. Clicking the parent therefore
              * closed the tab, shortened this live locator from eight entries to seven,
              * and left the next `innerText()` waiting for an eighth tab the harness had
-             * just removed. This is the same interaction rule `openShellTab()` and
-             * `ensureMapTabActive()` use: activate the tab through its label so the
-             * nested close affordance can only close when it is deliberately targeted.
+             * just removed. This is the same interaction rule `activateTab()` follows for
+             * Work's own strip: aim at the label so the nested close affordance can only
+             * close when it is deliberately targeted.
              */
             await tabs
                 .nth(i)
@@ -2028,15 +2353,19 @@ test("captures the remaining first-class screens", async () => {
         );
     });
 
-    await dismiss();
+    // `ensureOptionsEditorClosed`, not a bare Escape. The editor listens for that key on its own
+    // host region, so a press delivered anywhere else leaves it open - and an open editor makes
+    // the whole shell body inert, which is how the three job captures below silently became
+    // unreachable while the failure message talked about a tab menu.
+    await ensureOptionsEditorClosed();
 
     await attempt("Projects", async () => {
-        // Through `openShellTab`, which is the one place that knows both ways a tab can be
-        // off screen on a seeded workspace: inside a collapsed group, and - once opening
-        // that group has made the strip taller - inside the overflow menu. Locating the
-        // tab directly here worked on a roomy window and timed out in CI, where the
-        // shorter viewport pushes the later tabs into the menu.
-        await openShellTab(/^Projects$/i);
+        // Through `openJob`, which is the one place that knows every way a job screen can be
+        // out of reach on a fresh workspace: the strip lives inside the Work destination, most
+        // jobs have no tab at all until somebody opens one, and a tab that does exist can be
+        // inside a collapsed group or behind the overflow control. Reaching for the tab here
+        // directly is what left this capture out of the set through two shell rewrites running.
+        await openJob("projects", /^Projects$/i, "Projects");
         const projects = page.locator(".mb-projects-screen");
         await projects.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
@@ -2048,12 +2377,12 @@ test("captures the remaining first-class screens", async () => {
     });
 
     await attempt("CI-render screen", async () => {
-        // Through `openShellTab`, which is the one place that knows both ways a tab can be
-        // off screen on a seeded workspace: inside a collapsed group, and - once opening
-        // that group has made the strip taller - inside the overflow menu. Locating the
-        // tab directly here worked on a roomy window and timed out in CI, where the
-        // shorter viewport pushes the later tabs into the menu.
-        await openShellTab(/GitHub runners/i);
+        // Through `openJob`, which is the one place that knows every way a job screen can be
+        // out of reach on a fresh workspace: the strip lives inside the Work destination, most
+        // jobs have no tab at all until somebody opens one, and a tab that does exist can be
+        // inside a collapsed group or behind the overflow control. Reaching for the tab here
+        // directly is what left this capture out of the set through two shell rewrites running.
+        await openJob("cirender", /GitHub runners/i, "GitHub runners");
         const ci = page.locator(".ci-render-screen");
         await ci.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
@@ -2068,12 +2397,11 @@ test("captures the remaining first-class screens", async () => {
     // empty on a throwaway profile, and the preflight is never run, so no GitHub account and
     // no network are involved in reaching this screen.
     //
-    // "Publish to Pages" is the ninth of eleven seeded tabs, past the seven that fit this
-    // harness's capture viewport before the strip's own overflow arithmetic takes over - see
-    // `openShellTab`'s own doc comment for the run that first showed a plain `[role="tab"]`
-    // lookup timing out on that, not on a missing screen.
+    // A fresh Work workspace has no tab for this at all - it seeds the pinned wizard and nothing
+    // else - so it is opened through the strip's own new-tab menu, which is the gesture a person
+    // uses and the one that puts a persistent tab in the strip. See `openJob`.
     await attempt("Pages publishing screen", async () => {
-        await openShellTab(/Publish to Pages/i);
+        await openJob("pages", /Publish to Pages/i, "Publish to Pages");
         const publish = page.locator(".mb-pages-screen");
         await publish.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
@@ -2089,7 +2417,7 @@ test("captures the remaining first-class screens", async () => {
         // comment for why a plain reopen cannot be trusted to land on the Mojang consent
         // tab that `.mb-consent-row` actually lives on.
         await openSettingsSection("mojang-download-consent", "Mojang download consent");
-        const settings = page.locator(".mb-settings");
+        const settings = page.locator(APP_SETTINGS);
         await settings.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         const readLicence = settings.locator(".mb-consent-row button").first();
         await readLicence.click({ timeout: ELEMENT_TIMEOUT });
@@ -2111,6 +2439,24 @@ test("captures the remaining first-class screens", async () => {
     // smuggled into a screenshot run merely to make a gallery look complete.
     await attempt("Render console", async () => {
         const consoleSurface = page.locator(".mb-console");
+        /*
+         * Asked, then answered honestly, rather than waited for and left to time out.
+         *
+         * A bare `waitFor` here published the gap as "the harness could not open it in this run:
+         * locator.waitFor: Timeout 3000ms exceeded", which reads as a broken screen and is a
+         * statement about this file rather than about the application. Nothing is wrong with the
+         * console: it does not exist because no render is in flight, which is the fact worth
+         * recording and the fact the comment above this step has always given.
+         */
+        if ((await consoleSurface.count()) === 0) {
+            skip(
+                "Render console",
+                "the console exists only while a render is genuinely in flight, and this run has " +
+                    "none: starting one needs a Java runtime, an accepted Mojang download consent " +
+                    "(declined here, deliberately) and minutes of work. Nothing was substituted",
+            );
+            return;
+        }
         await consoleSurface.waitFor({ state: "visible", timeout: 3_000 });
         await shoot(
             "render-console",
@@ -2136,11 +2482,41 @@ test("captures the notification corner and its history", async () => {
             { crop: corner, cropped: "the notification corner" },
         );
 
-        // The bell is found by its class, not by an accessible name: that name carries the
-        // unread count, so it changes with the notices in the corner. It also stopped being
-        // "Notification history" when the flat list became a real notification centre, and
-        // this selector went on waiting fifteen seconds for it.
-        await page.locator(".mb-notice-bell").first().click({ timeout: ELEMENT_TIMEOUT });
+        /*
+         * The bell is in the rail now, and `.mb-notice-bell` no longer exists anywhere on screen:
+         * `App.vue` passes `rail-owns-bell` to the notification corner and
+         * `ConfigNotifications.vue` honours it by not rendering `NotificationCentre` - the
+         * component that owned that class - at all. So the old selector did not merely move to a
+         * different corner of the window; the element it named is not built by any configuration,
+         * and waiting fifteen seconds for it was waiting for something no build produces.
+         *
+         * The bell that replaced it does not open this panel, which is a defect in the
+         * application rather than in this file, and is recorded as one below. Measured directly
+         * against the built application on a fresh profile: pressing the rail's Notifications
+         * button leaves its own `aria-expanded` at "false" and puts no `.wl-notifications` and no
+         * `.mb-notice-centre` in the document, while the command palette's "Notification centre"
+         * row - which rings the same `requestReveal("noticeCentre")` doorbell - opens it every
+         * time, giving `aria-expanded="true"` and one of each element.
+         *
+         * So the panel is photographed through the route that works. It is a real route the
+         * application ships rather than a way around the product: `CommandPalette` offers the row,
+         * `App.vue` wires it to `requestReveal`, and `NotificationPanel.vue` answers the same
+         * request either control raises. What is not captured is the bell's own behaviour, and
+         * that gap is named rather than glossed over.
+         *
+         * The editor is closed first for the reason `selectDestination` gives at length: while it
+         * is open the rail and everything beside it are inside an `inert` subtree, so a click
+         * there would be delivered, report success, and do nothing.
+         */
+        await ensureOptionsEditorClosed();
+        await openPalette();
+        await page.locator(".mb-palette__search input").first().fill("Notification centre");
+        await page.waitForTimeout(400);
+        await page
+            .locator(".mb-palette")
+            .getByRole("button", { name: /^Notification centre/ })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-notice-centre", {
             state: "visible",
             timeout: ELEMENT_TIMEOUT,
@@ -2156,6 +2532,23 @@ test("captures the notification corner and its history", async () => {
         );
         await dismiss();
     });
+
+    /*
+     * A named gap for the control, distinct from the panel it is supposed to open.
+     *
+     * The panel above is a real capture through a real route, so calling *it* missing would be a
+     * false statement about an image that plainly exists. The bell is a different surface and it
+     * genuinely could not be photographed doing its job, so it gets its own line in the manifest.
+     * A defect that leaves no trace in the published record is a defect nobody reads about.
+     */
+    skip(
+        "Notification centre opened from the rail's bell",
+        "the rail's Notifications button does not open the panel it anchors: pressing it on a " +
+            "fresh profile leaves its own aria-expanded at \"false\" and puts neither " +
+            ".wl-notifications nor .mb-notice-centre in the document, while the command palette's " +
+            "row for the same panel opens it every time. The panel itself is captured above " +
+            "through that working route; what has no honest capture is the bell working",
+    );
 });
 
 /* -------------------------------------------------------------------------- */
@@ -2198,36 +2591,35 @@ test("captures the tab strip, its context menu, the tab finder and the bulk-clos
     test.setTimeout(SURFACE_TIMEOUT);
     await ensureOptionsEditorClosed();
 
-    // `.mb-shell-tabs` scopes every one of these to the shell's own tab bar. Settings
-    // carries its own `TabbedNavigation` too (the settings surface is tabbed per the
-    // project's own rules - see `AppSettings.vue`), and `DockedSurface` keeps it mounted
-    // with `v-show` rather than `v-if` even while closed, so an unscoped `.mb-tabs-strip-row`
-    // or `[aria-label="Find a tab"]` resolves to more than one match - the settings
-    // surface's copy among them, invisible and therefore never clickable - and `.first()`
-    // is not guaranteed to land on the one this suite actually means.
-    const shellTabs = page.locator(".mb-shell-tabs");
+    // `workTabs()` scopes every one of these to Work's own strip. Settings carries its own
+    // `TabbedNavigation` too (the settings surface is tabbed per the project's own rules - see
+    // `AppSettings.vue`), and `DockedSurface` keeps it mounted with `v-show` rather than `v-if`
+    // even while closed, so an unscoped `.mb-tabs-strip-row` or `[aria-label="Find a tab"]`
+    // resolves to more than one match - the settings surface's copy among them, invisible and
+    // therefore never clickable - and `.first()` is not guaranteed to land on the one this suite
+    // actually means. The class it names moved from `.mb-shell-tabs` to `.wl-work__tabs` in the
+    // Material Design 3 rewrite, which is the whole reason it is behind a function now.
+    const shellTabs = workTabs();
 
     await attempt("Tab strip", async () => {
+        await selectDestination("work");
         const strip = shellTabs.locator(".mb-tabs-strip-row").first();
         await strip.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
             "tab-strip",
-            "The browser-style tab strip: the shell's own pages, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier",
+            "The browser-style tab strip inside the Work destination: the jobs that have actually been opened rather than every destination the application has, their seeded groups, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier",
             { crop: strip, cropped: "the tab strip" },
         );
     });
 
     await attempt("Tab context menu", async () => {
-        await expandShellTabGroups();
-        const tab = shellTabs.locator('[role="tab"]', { hasText: /maps and servers/i }).first();
+        // The pinned wizard, which `pinnedWizardTab` explains is the one tab the strip promises
+        // stays on screen. Aimed at the tab itself rather than at a label: a pinned tab is drawn
+        // compact, so it has neither a label span to aim at nor a close button to hit by mistake.
+        await selectDestination("work");
+        const tab = pinnedWizardTab();
         await tab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        // The label, not the tab: a tab carries its own close button over part of its
-        // area, and a right-click aimed at the tab's centre is a coin toss between the
-        // label and that button.
-        await tab
-            .locator(".mb-tabs-strip__label")
-            .first()
-            .click({ button: "right", timeout: ELEMENT_TIMEOUT });
+        await tab.click({ button: "right", timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-tabs-menu", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(400);
         await shoot(
@@ -2314,17 +2706,12 @@ test("captures the appearance editor, its context menu, typography and the infin
         // no matter whether this run has a map or a server profile to show elsewhere.
         // Scoped to the shell's own tab bar for the same reason the tab-strip test is:
         // the settings surface carries a second, normally-invisible `TabbedNavigation`.
-        const tab = page
-            .locator('.mb-shell-tabs [role="tab"]', { hasText: /maps and servers/i })
-            .first();
+        await selectDestination("work");
+        const tab = pinnedWizardTab();
         await tab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        // The label, not the tab: a tab carries its own close button over part of its
-        // area, and a right-click aimed at the tab's centre is a coin toss between the
-        // label and that button.
-        await tab
-            .locator(".mb-tabs-strip__label")
-            .first()
-            .click({ button: "right", timeout: ELEMENT_TIMEOUT });
+        // The tab itself, for the reason `pinnedWizardTab` gives: compact means no label span to
+        // aim at, and no close button to right-click by accident either.
+        await tab.click({ button: "right", timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-tabs-menu", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(400);
         await shoot(
@@ -2430,7 +2817,7 @@ test("captures the changelog viewer", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
     await ensureOptionsEditorClosed();
 
-    await attempt("Changelog viewer", async () => {
+    await attemptOnMap("Changelog viewer", async () => {
         await openMenuPage("Info", ".mb-info-page, .mb-info-page__empty");
         const fold = page.locator(".mb-info-page__changelog");
         await fold.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
@@ -2598,7 +2985,8 @@ test("captures the make-a-map wizard at every step", async () => {
                 `${compactCaption}\n`,
                 "utf8",
             );
-            captures.push({
+            appendLedger(LEDGER, {
+                kind: "capture",
                 name: compactName,
                 file: `${compactName}.png`,
                 surface: compactSurface,
@@ -2725,6 +3113,11 @@ test("reached nothing but the machine it ran on", async () => {
 });
 
 test("records what was captured", async () => {
+    // Read back off disk, not out of two arrays this module has been accumulating. Those arrays
+    // were empty in this worker whenever an earlier one had failed - which is exactly when a
+    // reader most needs the record - and the manifest they produced was a confident, detailed
+    // description of five captures beside a directory holding fifty-three images.
+    const { captures, skipped } = readLedger(LEDGER);
     for (const gap of skipped)
         console.log(`[harness] not captured - ${gap.surface}: ${gap.reason}`);
 
@@ -2814,46 +3207,82 @@ test("records what was captured", async () => {
  * left the job green: the gap was in the manifest, and a green tick is what anybody
  * actually reads.
  *
- * A surface belongs here when it needs nothing but the application itself.
+ * A surface belongs here when it needs nothing but the application itself. `needsLoadedMap`
+ * narrows that to "nothing but the application, once it has a map", which is a real precondition
+ * rather than an excuse: the viewer's side sheet is opened by the control bar's Menu button, and
+ * `ControlBar.vue` renders behind `v-if="app"`, so with no BlueMap instance there is no button,
+ * no sheet, and none of the surfaces inside it. A run that *does* serve a map holds every one of
+ * these to the full standard through the same code.
+ *
+ * Hand-written, and deliberately not derived from the steps below. A list generated from what the
+ * file happens to attempt would be satisfied by a file that attempts nothing - the same shape of
+ * hole as a rule about well-formed records passing a record that was never written.
  */
-const REQUIRED_SURFACES = [
-    "Options editor",
-    "Options editor tabs",
-    "Options editor search",
-    "Options editor regex builder",
-    "History",
-    "Projects",
-    "CI-render screen",
-    "Pages publishing screen",
-    "EULA viewer",
-    "Profile manager",
-    "Notification corner",
-    "Backup screen",
+const REQUIRED_SURFACES: readonly RequiredSurface[] = [
+    { surface: "Options editor" },
+    { surface: "Options editor tabs" },
+    { surface: "Options editor search" },
+    { surface: "Options editor regex builder" },
+    { surface: "History" },
+    { surface: "Projects" },
+    { surface: "CI-render screen" },
+    { surface: "Pages publishing screen" },
+    { surface: "EULA viewer" },
+    { surface: "Profile manager" },
+    { surface: "Notification corner" },
+    { surface: "Backup screen" },
     // Added when an audit found the palette, the appearance editor, the changelog and
     // most of the tab strip's own surfaces had no capture step at all - so a change that
     // deleted any of them outright would still have left this run green. Every one of
     // these opens with nothing but the running application: no account, no network, no
     // render in flight.
-    "Command palette",
-    "Tab strip",
-    "Tab context menu",
-    "Tab finder",
-    "Bulk-close preview",
-    "Appearance editor context menu",
-    "Typography editor",
-    "Appearance editor surface tab",
-    "Infinite colour picker",
-    "Changelog viewer",
-] as const;
+    { surface: "Command palette" },
+    { surface: "Tab strip" },
+    { surface: "Tab context menu" },
+    { surface: "Tab finder" },
+    { surface: "Bulk-close preview" },
+    { surface: "Appearance editor context menu" },
+    { surface: "Typography editor" },
+    { surface: "Appearance editor surface tab" },
+    { surface: "Infinite colour picker" },
+    // Added with the Material Design 3 shell. Home is where the application now opens and had no
+    // capture of any kind, and the rail is where the three deleted floating buttons went - so
+    // between them they are the whole of the shell's own navigation, which is precisely the part
+    // that had been silently rewritten under a harness that could not see it.
+    { surface: "Application rail" },
+    { surface: "Home catalogues" },
+    { surface: "Home catalogue page" },
+    // Every one of these is inside the viewer's side sheet, which does not exist without a map.
+    { surface: "Changelog viewer", needsLoadedMap: true },
+    { surface: "Viewer control bar", needsLoadedMap: true },
+    { surface: "Menu, root page", needsLoadedMap: true },
+    { surface: "Maps menu", needsLoadedMap: true },
+    { surface: "Settings menu", needsLoadedMap: true },
+    { surface: "Info page", needsLoadedMap: true },
+    { surface: "Marker menu", needsLoadedMap: true },
+    { surface: "Menu search bar", needsLoadedMap: true },
+    { surface: "Reset settings super confirmation", needsLoadedMap: true },
+];
 
 test("captured every surface that needs nothing but the application", () => {
-    const missing = skipped
-        .filter((gap) => (REQUIRED_SURFACES as readonly string[]).includes(gap.surface))
-        .map((gap) => `${gap.surface} - ${gap.reason}`);
+    const verdict = coverageVerdict({
+        ledger: readLedger(LEDGER),
+        required: REQUIRED_SURFACES,
+        hasLoadedMap: hasLoadedMap(),
+    });
+
+    // Printed whether this passes or fails. A run that was excused eight surfaces and went green
+    // must not be readable as a run that captured them, and the only way to be sure of that is to
+    // say so where the result is read rather than in a file somebody would have to go and open.
+    for (const excused of verdict.excusedForNoMap) {
+        console.log(`[harness] not required in a run with no map - ${excused}`);
+    }
 
     expect(
-        missing,
+        verdict.missing,
         "These surfaces need no runtime, no account and no render, so a run that could not " +
-            "open them is reporting a broken application rather than an unavailable one.",
+            "open them is reporting a broken application rather than an unavailable one. The " +
+            "record they are judged against is read back from capture-ledger.jsonl rather than " +
+            "from memory, so a worker restart can no longer empty it and turn this green.",
     ).toEqual([]);
 });

@@ -1,7 +1,7 @@
 {
     "version": 1,
     "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-    "expectedTargetCount": 153,
+    "expectedTargetCount": 156,
     "evidenceRoots": [
         "docs/screenshots",
         "design/docs/assets/issues",
@@ -13,15 +13,15 @@
             "authority": "design/packages/app/test/screenshots.spec.ts",
             "command": "cd design && pnpm build && pnpm --filter @worldlens/app screenshots",
             "reproducibility": "current-build-with-local-map-fixture",
-            "expectedCount": 81,
+            "expectedCount": 83,
             "targets": [
                 "docs/screenshots/appearance-context-menu.png",
                 "docs/screenshots/appearance-surface.png",
                 "docs/screenshots/appearance-typography.png",
                 "docs/screenshots/backups.png",
                 "docs/screenshots/changelog-viewer.png",
+                "docs/screenshots/chrome-app-rail.png",
                 "docs/screenshots/chrome-control-bar.png",
-                "docs/screenshots/chrome-shell-buttons.png",
                 "docs/screenshots/chrome-titlebar-window-buttons.png",
                 "docs/screenshots/chrome-titlebar.png",
                 "docs/screenshots/ci-render-screen.png",
@@ -44,6 +44,8 @@
                 "docs/screenshots/firstrun-2-consent.png",
                 "docs/screenshots/firstrun-2-eula.png",
                 "docs/screenshots/firstrun-3-storage.png",
+                "docs/screenshots/home-catalogue-page.png",
+                "docs/screenshots/home-catalogues.png",
                 "docs/screenshots/infinite-colour-picker.png",
                 "docs/screenshots/issue-105-popup-edge.png",
                 "docs/screenshots/menu-info.png",
@@ -56,9 +58,9 @@
                 "docs/screenshots/notifications-corner.png",
                 "docs/screenshots/notifications-history.png",
                 "docs/screenshots/notifications-toast.png",
+                "docs/screenshots/pages-publishing-screen.png",
                 "docs/screenshots/palette-search.png",
                 "docs/screenshots/palette.png",
-                "docs/screenshots/pages-publishing-screen.png",
                 "docs/screenshots/profiles-manager.png",
                 "docs/screenshots/projects-screen.png",
                 "docs/screenshots/run-location.png",
@@ -98,7 +100,7 @@
                 "docs/screenshots/wizard-ssh-world-source.png"
             ],
             "capturedFromInterfaceSource": true,
-            "uiSourceDigest": "d5f71130df03bb0e160098b21f7ba83b694bbf7a001af833e01a1e1f558d2fb0",
+            "uiSourceDigest": "4812a4eb40d27fbf36308f50a59f6c65aabb02146acd28bbcd80fe81033e4761",
             "uiSourceDigestNote": "The interface at commit be70670721f7089e418b4b58ccfee9839a6f8ab4, which docs/screenshots/manifest.json names as the commit that produced these captures. Print the current value with: node scripts/check-screenshot-evidence.mjs --print-interface-digest"
         },
         {
@@ -290,6 +292,18 @@
             ],
             "capturedFromInterfaceSource": false,
             "notGradedBecause": "a packaged-build migration flow captured on an off-screen desktop, which needs a packaged installer rather than a command any change can run"
+        },
+        {
+            "id": "retired-app-surfaces",
+            "authority": "design/packages/app/test/screenshots.spec.ts, at the commit that last produced them",
+            "command": "Not reproducible: the surface itself is gone. Delete the image once nothing references it.",
+            "reproducibility": "historical-source-only",
+            "expectedCount": 1,
+            "targets": [
+                "docs/screenshots/chrome-shell-buttons.png"
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "each of these photographs a surface this application no longer has, so re-taking one is impossible rather than merely overdue. chrome-shell-buttons.png: photographs the three floating shell buttons, which the Material Design 3 rewrite deleted rather than moved - `App.shellFabClearance.test.ts` asserts the string `mb-shell-fab` no longer appears in the shell source at all. Their destinations are in the application rail's footer now, photographed by chrome-app-rail.png. Retained only because design/packages/site/src/content/captures.ts still references this file; that entry needs retiring or relabelling before the image itself can go."
         }
     ]
 }
