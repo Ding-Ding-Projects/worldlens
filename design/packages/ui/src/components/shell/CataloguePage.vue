@@ -115,19 +115,26 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
 
 <template>
     <div class="wl-catalogue">
-        <div class="wl-catalogue__inner">
-            <!--
-                A real Back control with a real label, not a bare chevron. It is the only way out
-                of this page that does not go through the rail, so it says where it goes.
-            -->
-            <button type="button" class="wl-catalogue__back mb-interactive" @click="emit('back')">
+        <!--
+            A pill, not a bare chevron, and it says where it goes. It is the only way out of this
+            page that does not go through the rail, so naming the destination is the whole job.
+        -->
+        <div class="wl-catalogue__backrow">
+            <button type="button" class="wl-back mb-interactive" @click="emit('back')">
                 <v-icon :icon="mdiArrowLeft" size="18" />
-                <span>{{ t("catalogue.back", "All five") }}</span>
+                <span>{{ t("catalogue.back", "All five catalogues") }}</span>
             </button>
+        </div>
 
+        <div class="wl-catalogue__inner">
             <header v-if="catalogue" class="wl-catalogue__header">
-                <h1 class="wl-catalogue__title">{{ catalogue.title }}</h1>
-                <p class="wl-catalogue__blurb">{{ catalogue.blurb }}</p>
+                <span class="wl-catalogue__avatar">
+                    <v-icon :icon="catalogue.definition.icon" size="30" />
+                </span>
+                <div class="wl-catalogue__heading">
+                    <h1 class="wl-catalogue__title">{{ catalogue.title }}</h1>
+                    <p class="wl-catalogue__blurb">{{ catalogue.blurb }}</p>
+                </div>
             </header>
 
             <ConfigSearchField
@@ -141,9 +148,19 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
                 :summary="summary"
             />
 
-            <section v-for="group in groups" :key="group.key" class="wl-catalogue__group">
-                <h2 class="wl-catalogue__heading">{{ group.heading }}</h2>
-                <ul class="wl-catalogue__rows">
+            <section v-for="group in groups" :key="group.key" class="wl-group">
+                <!--
+                    A heading, a rule that fills the gap, and the count on the right. The rule is
+                    what makes a divided list read as sections rather than as one long run of rows
+                    with the occasional bold word in it.
+                -->
+                <div class="wl-group__head">
+                    <h2 class="wl-group__name">{{ group.heading }}</h2>
+                    <span class="wl-group__rule" aria-hidden="true"></span>
+                    <span class="wl-group__count">{{ group.features.length }}</span>
+                </div>
+
+                <ul class="wl-group__rows">
                     <li v-for="feature in group.features" :key="feature.definition.key">
                         <button
                             type="button"
@@ -160,28 +177,31 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
                                         a query somebody typed, and no highlight is worth an
                                         injection surface.
                                     -->
-                                    <template v-for="(part, index) in segments(feature.name)" :key="index">
-                                        <mark v-if="part.hit" class="wl-row__hit">{{ part.text }}</mark>
-                                        <template v-else>{{ part.text }}</template>
-                                    </template>
-                                    <span v-if="feature.meta" class="wl-row__meta">{{ feature.meta }}</span>
+                                    <span class="wl-row__label">
+                                        <template
+                                            v-for="(part, index) in segments(feature.name)"
+                                            :key="index"
+                                        >
+                                            <mark v-if="part.hit" class="wl-row__hit">{{
+                                                part.text
+                                            }}</mark>
+                                            <template v-else>{{ part.text }}</template>
+                                        </template>
+                                    </span>
+                                    <span v-if="feature.meta" class="wl-row__meta">{{
+                                        feature.meta
+                                    }}</span>
                                 </span>
                                 <span class="wl-row__blurb">{{ feature.blurb }}</span>
                             </span>
-                            <v-icon class="wl-row__chevron" :icon="mdiChevronRight" size="18" />
+                            <v-icon class="wl-row__chevron" :icon="mdiChevronRight" size="20" />
                         </button>
                     </li>
                 </ul>
             </section>
 
             <p v-if="catalogue && shownCount === 0" class="wl-catalogue__empty" role="status">
-                {{
-                    t(
-                        "catalogue.search.none",
-                        { query },
-                        "Nothing in this list matches “{query}”.",
-                    )
-                }}
+                {{ t("catalogue.search.none", { query }, "Nothing in this list matches “{query}”.") }}
             </p>
         </div>
     </div>
@@ -194,121 +214,166 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
     background: rgb(var(--v-theme-background));
 }
 
+.wl-catalogue__backrow {
+    padding: 18px 48px 0;
+}
+
 .wl-catalogue__inner {
     max-inline-size: 1010px;
-    margin-inline: auto;
-    padding: 24px 48px 48px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    padding: 16px 48px 48px;
 }
 
 @media (max-width: 900px) {
+    .wl-catalogue__backrow,
     .wl-catalogue__inner {
         padding-inline: 20px;
     }
 }
 
-.wl-catalogue__back {
-    align-self: flex-start;
+.wl-back {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-block-size: 48px;
-    padding-inline: 8px;
-    background: none;
+    /* 32px tall, and the surrounding 18px of page padding is what carries the target: this is a
+       back link in open space rather than a control packed against a neighbour. */
+    block-size: 32px;
+    padding: 0 14px 0 10px;
     border: 0;
-    cursor: pointer;
+    border-radius: 16px;
+    background: none;
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
 }
 
-.wl-catalogue__back:hover {
-    color: rgb(var(--v-theme-on-surface));
+.wl-back:hover {
+    background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
+}
+
+.wl-back:focus-visible,
+.wl-row:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: -2px;
+}
+
+.wl-catalogue__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.wl-catalogue__avatar {
+    inline-size: 56px;
+    block-size: 56px;
+    flex: 0 0 56px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--md-sys-shape-corner-lg, 16px);
+    background: rgb(var(--v-theme-secondary-container, var(--v-theme-surface)));
+    color: rgb(var(--v-theme-on-secondary-container, var(--v-theme-on-surface)));
+}
+
+.wl-catalogue__heading {
+    /* The flex child that can shrink, so a long translated title wraps instead of hard-clipping. */
+    min-inline-size: 0;
 }
 
 .wl-catalogue__title {
     margin: 0;
-    font-size: 2rem;
-    line-height: 1.25;
+    font-size: 1.875rem;
+    line-height: 38px;
     font-weight: 400;
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
 }
 
 .wl-catalogue__blurb {
-    margin: 8px 0 0;
+    margin: 6px 0 0;
     max-inline-size: 68ch;
     font-size: 0.875rem;
-    line-height: 1.5;
+    line-height: 21px;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
 }
 
 .wl-catalogue__search {
-    max-inline-size: 480px;
+    margin-block-start: 22px;
 }
 
-.wl-catalogue__group {
+.wl-group {
+    margin-block-start: 30px;
+}
+
+.wl-group__head {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: baseline;
+    gap: 10px;
+    padding-block-end: 8px;
 }
 
-.wl-catalogue__heading {
-    margin: 12px 0 4px;
+/*
+ * Primary, not on-surface-variant. The heading is the one thing on this page that has to be
+ * findable while scanning past forty rows, and the colour is doing that work rather than
+ * decoration - it is paired with size, weight and tracking, never carrying the distinction alone.
+ */
+.wl-group__name {
+    margin: 0;
     font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    font-weight: 500;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgb(var(--v-theme-on-surface-variant));
+    color: rgb(var(--v-theme-primary));
+    min-inline-size: 0;
 }
 
-.wl-catalogue__rows {
+.wl-group__rule {
+    flex: 1 1 auto;
+    block-size: 1px;
+    background: rgb(var(--v-theme-outline-variant));
+}
+
+.wl-group__count {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
+}
+
+.wl-group__rows {
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
-/* The divider is on the row rather than between rows, so a filtered list never ends on a rule
-   with nothing under it. */
-.wl-catalogue__rows li + li .wl-row {
-    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
-}
-
 .wl-row {
     inline-size: 100%;
     display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    /* 18 px vertical padding: the design's own row metric, and what puts the effective target
-       past 48 px without a fixed height that would clip a wrapped bilingual name. */
-    padding: 18px 8px;
-    background: none;
+    align-items: center;
+    gap: 18px;
+    /* 15px vertical against a 38px icon puts the row at 68px, comfortably past the 48px minimum
+       without a fixed height that would clip a wrapped bilingual name. */
+    padding: 15px 12px;
     border: 0;
+    border-block-end: 1px solid rgb(var(--v-theme-outline-variant));
+    background: none;
     text-align: start;
     cursor: pointer;
     color: inherit;
 }
 
 .wl-row:hover {
-    background: rgba(var(--v-theme-on-surface), 0.05);
-}
-
-.wl-row:focus-visible {
-    outline: 2px solid rgb(var(--v-theme-primary));
-    outline-offset: -2px;
+    background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
 }
 
 .wl-row__icon {
-    flex: 0 0 auto;
+    flex: 0 0 38px;
+    inline-size: 38px;
+    block-size: 38px;
     display: grid;
     place-items: center;
-    inline-size: 32px;
-    block-size: 32px;
-    border-radius: var(--md-sys-shape-corner-sm, 8px);
-    background: rgb(var(--v-theme-secondary-container, var(--v-theme-surface)));
-    color: rgb(var(--v-theme-on-secondary-container, var(--v-theme-on-surface)));
+    border-radius: 11px;
+    background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .wl-row__text {
@@ -316,16 +381,17 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
     /* The flex child that can shrink. Without this the name hard-clips instead of wrapping,
        which is the exact defect this project has fixed in a dozen other flexed titles. */
     min-inline-size: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
 }
 
 .wl-row__name {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
+    min-inline-size: 0;
+}
+
+.wl-row__label {
     font-size: 0.9375rem;
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
@@ -337,21 +403,21 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
 .wl-row__meta {
     font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: 0.75rem;
-    font-weight: 400;
     color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
 }
 
 .wl-row__blurb {
-    max-inline-size: 68ch;
+    display: block;
+    margin-block-start: 3px;
+    max-inline-size: 78ch;
     font-size: 0.8125rem;
-    line-height: 1.55;
+    line-height: 19px;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
 }
 
 .wl-row__chevron {
     flex: 0 0 auto;
-    margin-block-start: 6px;
     color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
 }
 
@@ -363,8 +429,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
 }
 
 .wl-catalogue__empty {
-    margin: 0;
-    padding: 24px 0;
+    margin: 24px 0 0;
     font-size: 0.875rem;
     color: rgb(var(--v-theme-on-surface-variant));
 }
