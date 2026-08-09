@@ -173,7 +173,7 @@ for (const [lineEnding, workflow] of [
   });
 }
 
-test("all 49 release-chain actions are SHA-pinned and checkouts erase credentials", () => {
+test("all 52 release-chain actions are SHA-pinned and checkouts erase credentials", () => {
   for (const file of Object.keys(ACTION_INVENTORIES)) {
     assert.deepEqual(
       actionDependencyProblems(readFileSync(file, "utf8"), file),
@@ -187,9 +187,52 @@ test("all 49 release-chain actions are SHA-pinned and checkouts erase credential
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    49,
+    52,
   );
   assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
+});
+
+// The unsigned-installer warning is the one sentence in a release that a reader acts on
+// before running an executable a stranger built, so it gets its own test rather than
+// riding on the run-block digest. Each mutation below leaves the sentence itself present
+// and untouched, which is exactly the shape an exact count of that line cannot catch.
+test("the unsigned-installer warning cannot lose or detach its alert opener", () => {
+  const workflow = readFileSync(FILE, "utf8");
+  const opener = '            echo "> [!WARNING]"';
+  const sentence =
+    '            echo "> Worldlens for Windows is intentionally and permanently unsigned.';
+  const openerAndSentence = new RegExp(
+    `${opener.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\r?\\n${sentence.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+  );
+  assert.ok(
+    openerAndSentence.test(workflow),
+    "the adjacent warning pair must exist before mutation",
+  );
+
+  for (const [name, mutated] of [
+    [
+      "opener removed",
+      workflow.replace(openerAndSentence, (pair) =>
+        pair.slice(pair.indexOf(sentence)),
+      ),
+    ],
+    [
+      "opener separated from its sentence",
+      workflow.replace(
+        openerAndSentence,
+        (pair) =>
+          `${opener}\n            echo\n${pair.slice(pair.indexOf(sentence))}`,
+      ),
+    ],
+  ]) {
+    assert.notEqual(mutated, workflow, name);
+    assert.ok(
+      actionDependencyProblems(mutated, FILE).some((problem) =>
+        /must run exactly once as consecutive lines/.test(problem.message),
+      ),
+      name,
+    );
+  }
 });
 
 test("mutable action tags, retained checkout credentials and missing root gates fail", () => {

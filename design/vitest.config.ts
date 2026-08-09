@@ -26,6 +26,44 @@ const committedScreenshots = fileURLToPath(new URL("../docs/screenshots", import
  */
 const committedDocs = fileURLToPath(new URL("../docs", import.meta.url));
 
+/**
+ * Node's own Web Storage, turned off so jsdom's can exist.
+ *
+ * Node gained a built-in `localStorage`/`sessionStorage` pair behind
+ * `--experimental-webstorage`, and by Node 26 it is on by default. That global is inert
+ * unless the process was also given `--localstorage-file`: reading it returns `undefined`
+ * and emits `ExperimentalWarning: localStorage is not available because
+ * --localstorage-file was not provided`.
+ *
+ * On its own that would be harmless, because a jsdom test wants jsdom's storage rather
+ * than Node's. The damage is in how vitest builds the jsdom global: `populateGlobal`
+ * copies the jsdom window's keys onto `globalThis` but deliberately skips any key the
+ * Node global already owns, so that a test cannot clobber Node's own builtins. Node now
+ * owns `localStorage`, so jsdom's never gets copied, and every test whose subject or
+ * fixture touches a bare `localStorage` sees Node's `undefined` one instead - failing with
+ * `Cannot read properties of undefined (reading 'clear')` in a file whose
+ * `@vitest-environment jsdom` docblock is being honoured perfectly. Nothing about the
+ * failure points at the Node upgrade that caused it, which is why it reads as a broken
+ * environment directive.
+ *
+ * Removing the global is what restores the intended behaviour: with nothing of Node's in
+ * the way, `populateGlobal` copies jsdom's real `Storage` across, one fresh per-file
+ * instance with the quota, `key()`, `length` and string-coercion semantics the browser has
+ * and the tests were written against. A hand-rolled stand-in installed from a setup file
+ * would satisfy the same assertions while quietly being a different object from
+ * `window.localStorage`, which is the sort of divergence a test suite exists to catch.
+ *
+ * The flag is passed only when Node actually has the global, rather than gated on a
+ * version comparison. The two facts are the same fact: the global exists only on a Node
+ * that implements the feature, and a Node that implements it necessarily accepts the
+ * `--no-` form of its flag. On a Node old enough to lack both, this list stays empty and
+ * an unknown-option crash in every worker is impossible.
+ */
+const disableNodeWebStorage =
+    Object.getOwnPropertyDescriptor(globalThis, "localStorage") === undefined
+        ? []
+        : ["--no-experimental-webstorage"];
+
 export default defineConfig({
     /**
      * Single-file components, so a test can mount one.
@@ -142,6 +180,10 @@ export default defineConfig({
             forks: {
                 maxForks: 2,
                 minForks: 2,
+
+                // Additive to whatever the runner already passes; see the comment on the
+                // constant for why jsdom's storage cannot exist while Node's does.
+                execArgv: disableNodeWebStorage,
             },
         },
         server: {

@@ -164,10 +164,36 @@ const LIVE_VIEWER_IDS = [
     "menu-players",
 ];
 
+/**
+ * The theme half of the viewer contract, which any stand-in installed into `blueMapApp` has
+ * to honour whether or not the test under it cares about themes.
+ *
+ * `themeSetting.ts` keeps a module-level watcher on that store for the life of the page, and
+ * the moment a new app appears it pushes the stored choice into it with `app.setTheme()` -
+ * that is how a map whose `settings.json` never opted into `useCookies` still opens in the
+ * theme the person picked. The push only fires when the app's own loaded theme differs from
+ * the stored one, so a stand-in without `setTheme` went unnoticed for as long as both sides
+ * were `null`. Defaulting a fresh profile to dark rather than to follow-the-system made them
+ * differ on the very first mount, and every test that opened a map started dying inside
+ * `mount()` on a viewer object that was never a complete viewer.
+ *
+ * Writing `appState.theme` rather than recording the call is deliberate: the real
+ * `BlueMapApp.setTheme` (packages/viewer/src/BlueMapApp.ts) assigns that field, and the same
+ * watcher reads it back to mirror in-map changes outwards. A stand-in that accepted the call
+ * and changed nothing would leave the two writers permanently disagreeing.
+ */
+function withViewerTheme<T extends { appState: Record<string, unknown> }>(app: T): T {
+    return Object.assign(app, {
+        setTheme(choice: string | null) {
+            app.appState.theme = choice;
+        },
+    });
+}
+
 /** A viewer with a marker set and a player set, so every conditional card is offered. */
 function openALiveMap(): void {
-    blueMapApp.value = {
-        appState: { menu: { openPage: () => {} } },
+    blueMapApp.value = withViewerTheme({
+        appState: { menu: { openPage: () => {} }, theme: null as string | null },
         mapViewer: {
             markers: {
                 data: {
@@ -179,7 +205,7 @@ function openALiveMap(): void {
         },
         resetCamera: () => {},
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a minimal stand-in for the real viewer object
-    } as any;
+    }) as any;
 }
 
 /** Every capability card actually in the document, by id. */
@@ -536,12 +562,12 @@ describe("every capability from the scout's inventory is represented", () => {
     });
 
     it("adds the viewer's own menu once a map is actually running", async () => {
-        blueMapApp.value = {
-            appState: { menu: { openPage: () => {} } },
+        blueMapApp.value = withViewerTheme({
+            appState: { menu: { openPage: () => {} }, theme: null as string | null },
             mapViewer: { markers: { data: null } },
             resetCamera: () => {},
             // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a minimal stand-in for the real viewer object
-        } as any;
+        }) as any;
         const view = render();
         await settle();
 

@@ -301,6 +301,17 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
+        file: "components/shell/NotificationPanel.vue",
+        surface:
+            "The application rail's notification bell and the history anchored under it. The " +
+            "shell rewrite moved the bell out of the corner and into the rail's footer, so this " +
+            "is the same notification history the corner used to own, hanging from a different " +
+            "activator.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
         file: "components/ProfileManager.vue",
         surface: "Context menu of a map/server profile row (Edit/Reset appearance).",
         ownVMenu: false,

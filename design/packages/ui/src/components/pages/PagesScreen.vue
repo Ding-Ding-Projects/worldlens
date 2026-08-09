@@ -273,27 +273,35 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="mb-pages-screen" data-tutorial-anchor="pages-publish">
-        <VCard variant="tonal" class="mb-4">
-            <VCardTitle>{{ t("pages.title", "Put a map on the internet") }}</VCardTitle>
-            <VCardText>
-                <p>
-                    {{
-                        t(
-                            "pages.pitch",
-                            "A finished render is served from this computer, at an address only this computer can open. This publishes it to GitHub Pages instead: a real address anybody can open, hosted for free, and still only files.",
-                        )
-                    }}
-                </p>
-                <p class="mt-2 text-medium-emphasis">
-                    {{
-                        t(
-                            "pages.caveats",
-                            "The trade-offs, plainly: every tile is pushed, which is gigabytes across tens of thousands of files for a large map; GitHub asks Pages sites to stay under 1 GB and refuses any single file over 100 MB; and Pages on a private repository needs a paid plan. A public repository means anybody who finds the address can download the whole map.",
-                        )
-                    }}
-                </p>
-            </VCardText>
-        </VCard>
+        <!--
+            The page's own header rather than a tonal card carrying the screen's name.
+
+            A card is a surface inside a page. Using one as the page itself is how this screen
+            came to open on a title rendered at card-title size, above two paragraphs of prose
+            boxed in a tint, which reads as a dialog somebody stretched rather than as a page.
+            The prototype opens every job on a heading, a lede saying what the screen is for,
+            and a footnote carrying the caveats worth knowing before starting - which is
+            exactly what these three strings already said, in the wrong shape.
+        -->
+        <header class="mb-pages-screen__header">
+            <h1 class="mb-page-title">{{ t("pages.title", "Put a map on the internet") }}</h1>
+            <p class="mb-lede">
+                {{
+                    t(
+                        "pages.pitch",
+                        "A finished render is served from this computer, at an address only this computer can open. This publishes it to GitHub Pages instead: a real address anybody can open, hosted for free, and still only files.",
+                    )
+                }}
+            </p>
+            <p class="mb-footnote">
+                {{
+                    t(
+                        "pages.caveats",
+                        "The trade-offs, plainly: every tile is pushed, which is gigabytes across tens of thousands of files for a large map; GitHub asks Pages sites to stay under 1 GB and refuses any single file over 100 MB; and Pages on a private repository needs a paid plan. A public repository means anybody who finds the address can download the whole map.",
+                    )
+                }}
+            </p>
+        </header>
 
         <VAlert v-if="!pages.available" type="info" variant="tonal" class="mb-4">
             {{ t("pages.unsupported", "The desktop application is what publishes a map.") }}
@@ -764,6 +772,36 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /*
+ * The prototype's page gutter and measure, exactly as `ProjectsScreen.vue` states them:
+ * 30px top, 40px side, 48px bottom, with the content held to 900px so a paragraph never runs
+ * the full width of a 1440px window. This screen had no rule of its own at all, which is why
+ * it arrived flush against whatever inset the shell happened to give it and ran as wide as
+ * the window allowed. Stated here rather than inherited so the screen is correct wherever it
+ * is hosted.
+ */
+.mb-pages-screen {
+    inline-size: 100%;
+    max-inline-size: 900px;
+    margin-inline: auto;
+    padding: 30px 40px 48px;
+}
+
+@media (max-width: 900px) {
+    .mb-pages-screen {
+        padding: 20px 16px 32px;
+    }
+}
+
+/*
+ * The same 18px `ProjectsScreen.vue` puts under its header, on top of the 26px the shared
+ * sheet already gives a footnote. Stated rather than left to the footnote alone so the gap
+ * survives a header that has no footnote under it.
+ */
+.mb-pages-screen__header {
+    margin-block-end: 18px;
+}
+
+/*
  * Beats Vuetify's bare `.v-card-title` (overflow: hidden; white-space: nowrap;
  * text-overflow: ellipsis) on specificity: a scoped class compiles to
  * `.mb-pages-row__title[data-v-xxxx]`, two selector components against the
@@ -783,16 +821,29 @@ onBeforeUnmount(() => {
     overflow-wrap: anywhere;
 }
 
+/*
+ * The hairline between two sites of one repository. `--v-border-color` with
+ * `--v-border-opacity` is Vuetify's own translucent border, which is a different colour from
+ * every other line this application draws; the prototype has exactly one, and the shared sheet
+ * already gives `.v-divider` that role, so this takes the same one rather than a second
+ * opinion about what a separator looks like.
+ */
 .mb-pages-site + .mb-pages-site {
     margin-block-start: 16px;
     padding-block-start: 16px;
-    border-block-start: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
+/*
+ * A raw report from GitHub rather than prose this application wrote, so it keeps its own
+ * scrolling frame. The size is the prototype's 13px footnote measurement rather than a value
+ * of its own.
+ */
 .mb-pages-detail {
     white-space: pre-wrap;
     overflow-x: auto;
     max-height: 12rem;
-    font-size: 0.8125rem;
+    font-size: 13px;
+    line-height: 19px;
 }
 </style>

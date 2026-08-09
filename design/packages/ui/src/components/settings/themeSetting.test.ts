@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BlueMapApp } from "@worldlens/viewer";
 import { blueMapApp, setBlueMapApp } from "../../stores/bluemap.js";
 import {
+    FRESH_INSTALL_THEME,
     THEME_CHOICES,
     THEME_STORAGE_KEY,
     changeTheme,
@@ -73,10 +74,27 @@ describe("the stored record", () => {
         }
     });
 
-    it("answers follow-the-system for a value that is not a theme", () => {
+    it("answers the fresh-install default for a value that is not a theme", () => {
         localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify("neon"));
-        expect(readStoredTheme()).toBeNull();
+        expect(readStoredTheme()).toBe(FRESH_INSTALL_THEME);
         localStorage.setItem(THEME_STORAGE_KEY, "not json {");
+        expect(readStoredTheme()).toBe(FRESH_INSTALL_THEME);
+    });
+
+    /**
+     * The distinction this pair guards is the one `readStoredTheme` exists to make: an
+     * absent record means nobody has chosen, so the fresh-install default applies, while a
+     * stored `null` is somebody having chosen to follow the system and must survive.
+     * Collapsing the two would silently overwrite a deliberate choice on the next launch,
+     * and the failure would look like the theme setting simply not persisting.
+     */
+    it("answers the fresh-install default when nothing has ever been stored", () => {
+        localStorage.removeItem(THEME_STORAGE_KEY);
+        expect(readStoredTheme()).toBe(FRESH_INSTALL_THEME);
+    });
+
+    it("keeps a stored follow-the-system rather than treating it as never having chosen", () => {
+        localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(null));
         expect(readStoredTheme()).toBeNull();
     });
 });

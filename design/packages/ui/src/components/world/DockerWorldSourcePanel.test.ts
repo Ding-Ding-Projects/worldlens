@@ -274,6 +274,19 @@ describe("DockerWorldSourcePanel", () => {
 
 describe("the source-kind toggle's sizing rule", () => {
     /**
+     * The component source with its line endings normalised, which is the difference between
+     * these tests asserting the stylesheet and asserting the checkout that produced it.
+     *
+     * `?raw` hands back exactly the bytes on disk, and on a Windows checkout those are CRLF. The
+     * padding assertion below skips the combined sizing rule with a `(?<!,\n)` lookbehind - and
+     * `,\r\n` is not `,\n`, so the lookbehind never fired, the regex matched the combined rule
+     * whose second selector is this same selector, and the test failed against a stylesheet that
+     * was entirely correct. Normalising here rather than widening each pattern keeps every regex
+     * below written the way the CSS reads.
+     */
+    const source = dockerWorldSourcePanelSource.replace(/\r\n/g, "\n");
+
+    /**
      * Regression: the rule pinned both the toggle and its buttons to a single 44px
      * `block-size !important` -- one line-height -- so in bilingual mode the second line
      * of `world.docker.container` / `world.docker.volume` was clipped inside the box.
@@ -290,7 +303,7 @@ describe("the source-kind toggle's sizing rule", () => {
     it("keeps 44px as a floor rather than a ceiling, so a second label line can grow the box", () => {
         const rule =
             /\.mb-docker-world \.v-btn-toggle,\s*\.mb-docker-world \.v-btn-toggle \.v-btn\s*\{[^}]*\}/.exec(
-                dockerWorldSourcePanelSource,
+                source,
             )?.[0] ?? "";
         const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, "");
         expect(declarations).not.toBe("");
@@ -304,9 +317,7 @@ describe("the source-kind toggle's sizing rule", () => {
         // The lookbehind skips the combined sizing rule above, whose second selector is
         // this same selector preceded by a comma.
         const rule =
-            /(?<!,\n)\.mb-docker-world \.v-btn-toggle \.v-btn\s*\{[^}]*\}/.exec(
-                dockerWorldSourcePanelSource,
-            )?.[0] ?? "";
+            /(?<!,\n)\.mb-docker-world \.v-btn-toggle \.v-btn\s*\{[^}]*\}/.exec(source)?.[0] ?? "";
         const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, "");
         expect(declarations).not.toBe("");
         expect(declarations).toContain("padding-block: 6px");

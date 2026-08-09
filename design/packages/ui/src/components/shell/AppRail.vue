@@ -133,6 +133,14 @@ const unreadLabel = computed(() =>
         running two of these applications side by side hears which one they are in.
     -->
     <nav class="wl-rail" :aria-label="t('rail.label', { product: productName }, '{product} navigation')">
+        <!--
+            `data-tutorial-anchor` on each destination button because the interactive tour
+            highlights real controls by selector, and two of its steps are about the map - which
+            is one of these buttons now rather than a tab in the strip. `TabStrip.vue` carries the
+            same attribute on a tab button, spelled `tab-<pageId>`; these are `rail-<destination>`
+            so the two namespaces cannot collide, and `tutorialAnchors.test.ts` is what proves
+            every step still resolves the control it names.
+        -->
         <ul class="wl-rail__items">
             <li v-for="item in items" :key="item.id">
                 <button
@@ -142,6 +150,7 @@ const unreadLabel = computed(() =>
                     :aria-current="destination === item.id ? 'page' : undefined"
                     :aria-label="item.badgeLabel === '' ? undefined : `${item.label}, ${item.badgeLabel}`"
                     :data-destination="item.id"
+                    :data-tutorial-anchor="`rail-${item.id}`"
                     @click="emit('select', item.id)"
                 >
                     <span class="wl-rail-pill">

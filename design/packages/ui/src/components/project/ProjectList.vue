@@ -5,6 +5,7 @@ import {
     mdiDeleteOutline,
     mdiDownload,
     mdiFolderMultipleOutline,
+    mdiFolderOpenOutline,
     mdiPencilOutline,
     mdiPlay,
     mdiPlus,
@@ -20,7 +21,6 @@ import {
     VCardText,
     VCardTitle,
     VCheckboxBtn,
-    VChip,
     VDivider,
     VIcon,
     VList,
@@ -486,7 +486,7 @@ function askToForget(world: string): void {
         </v-card-title>
 
         <v-card-text>
-            <p class="mb-projects__blurb">
+            <p class="mb-lede">
                 {{
                     t(
                         "project.list.blurb",
@@ -594,6 +594,20 @@ function askToForget(world: string): void {
                 </ConfigSuperConfirm>
             </div>
 
+            <!--
+                The rule the prototype puts above every list, with its own label rather than a
+                repeat of the card's: the card is named for the collection, and this names the
+                rows underneath it and states how many there are. It is held back when there
+                are none, so an empty screen shows its explanation rather than a heading over
+                nothing.
+            -->
+            <div v-if="visible.length > 0" class="mb-section-rule">
+                <span class="mb-section-label">{{ t("project.list.section", "Projects on this machine") }}</span>
+                <span class="mb-meta mb-projects__section-count">
+                    {{ t("project.list.sectionCount", { n: visible.length }, "{n} projects") }}
+                </span>
+            </div>
+
             <div
                 class="mb-projects__list"
                 role="listbox"
@@ -609,7 +623,11 @@ function askToForget(world: string): void {
                     role="presentation"
                     class="mb-projects__rowhost"
                 >
-                    <div class="mb-projects__row" @contextmenu="noteFocus(row.world)">
+                    <div
+                        class="mb-projects__row"
+                        :class="{ 'mb-projects__row--chosen': isChosen(row.world) }"
+                        @contextmenu="noteFocus(row.world)"
+                    >
                         <!--
                             The tick sits beside the option and never inside it: ARIA forbids
                             an interactive descendant of an option, and a screen reader that
@@ -637,17 +655,27 @@ function askToForget(world: string): void {
                             @focus="noteFocus(row.world)"
                             @keydown="onOptionKeydown($event, row)"
                         >
+                            <!--
+                                Decoration, and hidden from a screen reader for it:
+                                `projectOptionName` already says everything this row means,
+                                and an icon announced beside it would only be one more thing
+                                to skip past. What it earns is scanning speed - a column of
+                                bare text lines is what the old application looked like.
+                            -->
+                            <span class="mb-icon-tile mb-projects__tile" aria-hidden="true">
+                                <v-icon :icon="mdiFolderOpenOutline" size="21" />
+                            </span>
                             <span class="mb-projects__text">
-                                <span class="mb-projects__name">
-                                    {{ row.name }}
-                                    <v-chip v-if="row.fromWizard" size="x-small" variant="tonal" class="ms-2">
+                                <span class="mb-projects__nameline">
+                                    <span class="mb-projects__name">{{ row.name }}</span>
+                                    <span v-if="row.fromWizard" class="mb-badge-pill">
                                         {{ t("project.list.wizardChip", "from the guide") }}
-                                    </v-chip>
-                                    <v-chip v-if="row.problem" size="x-small" color="error" variant="flat" class="ms-2">
+                                    </span>
+                                    <span v-if="row.problem" class="mb-badge-pill mb-projects__pill--problem">
                                         {{ t("project.list.problemChip", "unreadable") }}
-                                    </v-chip>
+                                    </span>
                                 </span>
-                                <span class="mb-projects__subtitle">{{ projectDetailLine(row, t) }}</span>
+                                <span class="mb-meta mb-projects__subtitle">{{ projectDetailLine(row, t) }}</span>
                             </span>
                         </div>
 
@@ -767,7 +795,7 @@ function askToForget(world: string): void {
                 Three different empty states, because they mean three different things and a
                 single "no projects" would be wrong in two of them.
             -->
-            <p v-if="!isBusy && ordered.length === 0 && hostName !== null" class="mb-projects__empty" role="status">
+            <p v-if="!isBusy && ordered.length === 0 && hostName !== null" class="mb-lede mb-projects__empty" role="status">
                 {{
                     t(
                         "project.list.emptyScanned",
@@ -776,7 +804,7 @@ function askToForget(world: string): void {
                     )
                 }}
             </p>
-            <p v-else-if="!isBusy && ordered.length > 0 && visible.length === 0" class="mb-projects__empty" role="status">
+            <p v-else-if="!isBusy && ordered.length > 0 && visible.length === 0" class="mb-lede mb-projects__empty" role="status">
                 {{
                     t(
                         "project.list.noMatch",
@@ -793,9 +821,14 @@ function askToForget(world: string): void {
 </template>
 
 <style scoped>
+/*
+ * No radius here any more. `styles/prototypeSurface.scss` states a card's shape, tint and
+ * outline once for the whole application; a 16px corner repeated here would leave this one
+ * card out of step the next time that sheet moves, and nobody would think to look for the
+ * second opinion in a component file.
+ */
 .mb-projects {
     inline-size: 100%;
-    border-radius: 16px;
 }
 
 .mb-projects__head {
@@ -819,12 +852,22 @@ function askToForget(world: string): void {
     white-space: normal;
 }
 
-.mb-projects__blurb,
-.mb-projects__empty {
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    text-wrap: pretty;
+/*
+ * The blurb and the empty states are `mb-lede` now, so their size, measure and colour come
+ * from the one sheet. The rule that is left is only the space between an empty state and the
+ * rows or alerts around it, which is this screen's business rather than the shared class's.
+ */
+.mb-lede.mb-projects__empty {
+    margin-block: 4px 0;
+}
+
+/*
+ * `mb-section-rule`'s hairline is its own `::after`, and generated content is the last flex
+ * item by definition - so a count written into the markup would otherwise land between the
+ * label and the rule instead of at the far end of it.
+ */
+.mb-projects__section-count {
+    order: 1;
 }
 
 .mb-projects__search {
@@ -854,7 +897,8 @@ function askToForget(world: string): void {
 .mb-projects__list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    /* The prototype's gap between rows. At 2px a list of them reads as one ruled block. */
+    gap: 10px;
 }
 
 /*
@@ -867,60 +911,116 @@ function askToForget(world: string): void {
     display: block;
 }
 
+/*
+ * The row carries the surface now, not the option inside it. Every measurement the prototype
+ * states about a row - 15px/18px of padding, a 14px corner, a container tint behind a 1px
+ * outline - belongs to the whole row rather than to its clickable middle, so the tick and the
+ * two icon buttons sit inside the same card as the name instead of on either side of one.
+ */
 .mb-projects__row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    /* Narrower than the 16px inside the option: the tick and the buttons are chrome. */
+    gap: 12px;
+    padding: 15px 18px;
+    border-radius: 14px;
+    background: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-projects__row:hover {
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
+/*
+ * A bound class rather than `:has([aria-selected="true"])`: nothing in this package relies on
+ * `:has` yet, and a selection highlight that quietly does nothing on an engine without it is
+ * a defect no screenshot would show. `aria-selected` on the option is still what reports the
+ * choice; this only paints it.
+ */
+.mb-projects__row--chosen {
+    background: rgb(var(--v-theme-surface-container-high));
+    border-color: rgb(var(--v-theme-primary));
 }
 
 .mb-projects__option {
     display: flex;
     flex: 1 1 auto;
     align-items: center;
-    gap: 12px;
-    /* A comfortable pointer and touch target at every density, per the sizing rules. */
-    min-block-size: 48px;
+    gap: 16px;
+    /* The tile is 40px on its own; this only guards a row whose icon fails to render. */
+    min-block-size: 40px;
     min-inline-size: 0;
-    padding: 6px 12px;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
 }
 
-.mb-projects__option:hover {
-    background: rgba(var(--v-theme-on-surface), 0.06);
-}
-
-/* `-2px` keeps the ring inside the row's own rounded box so neither edge clips it. */
+/*
+ * Outside the option rather than inset. The option has no padding of its own now, so a ring
+ * at `-2px` would be drawn straight through the project's name; the row's own 15px of padding
+ * is what gives an outset ring somewhere to go.
+ */
 .mb-projects__option:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
-    outline-offset: -2px;
+    outline-offset: 2px;
 }
 
-.mb-projects__option[aria-selected="true"] {
-    background: rgba(var(--v-theme-primary), 0.14);
+/*
+ * A project's tile is primary-container where a discovered world's is secondary-container, so
+ * the two lists are told apart at a glance rather than by reading a badge - the same
+ * distinction the prototype draws between its own two lists. Doubled on `.mb-icon-tile`
+ * because the shared rule is two classes deep: a single scoped class would tie and be settled
+ * by whichever stylesheet the bundler emitted last, which is a coin toss, not a decision.
+ */
+.mb-icon-tile.mb-projects__tile {
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+}
+
+/*
+ * An unreadable project is the one badge on this row that is a warning rather than a label,
+ * and the error-container pair is how the design says so without a second pill shape.
+ */
+.mb-badge-pill.mb-projects__pill--problem {
+    background: rgb(var(--v-theme-error-container));
+    color: rgb(var(--v-theme-on-error-container));
 }
 
 .mb-projects__text {
     display: flex;
+    flex: 1 1 auto;
     min-inline-size: 0;
     flex-direction: column;
+    /* The prototype's 3px between a row's name and the line beneath it. */
+    gap: 3px;
 }
 
 /*
- * Long names and long paths wrap rather than run off the card. `anywhere` rather than
- * `break-word` because a path has no spaces to break at, and a truncated path is a row the
- * user cannot tell apart from the next one.
+ * Baseline rather than centre, so a 15px name and an 11px pill share one line rather than two
+ * centres of two different heights, and wrapping because "from the guide" and "unreadable"
+ * are both longer in bilingual mode - a name line that cannot wrap is a name line that clips.
+ */
+.mb-projects__nameline {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-inline-size: 0;
+}
+
+/*
+ * `anywhere` rather than `break-word` because a project named after a folder has no spaces to
+ * break at, and a name that runs off the card is a row nobody can tell from the next one.
  */
 .mb-projects__name {
-    font-size: 1rem;
-    line-height: 1.35;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 22px;
     overflow-wrap: anywhere;
 }
 
 .mb-projects__subtitle {
-    font-size: 0.8125rem;
-    line-height: 1.3;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    min-inline-size: 0;
     overflow-wrap: anywhere;
 }
 
@@ -941,6 +1041,25 @@ function askToForget(world: string): void {
 @media (max-width: 600px) {
     .mb-projects__bulk {
         gap: 4px;
+    }
+
+    /*
+     * The tile and the row's 18px of side padding cost the text about a hundred pixels it
+     * used to have, which a narrow window spends entirely. Rather than let the name and the
+     * detail line be squeezed into a column two words wide, the render and delete buttons
+     * drop beneath them here. `12rem` is roughly where reading the two side by side stops
+     * being worth the width.
+     */
+    .mb-projects__row {
+        flex-wrap: wrap;
+    }
+
+    .mb-projects__option {
+        flex: 1 1 12rem;
+    }
+
+    .mb-projects__actions {
+        margin-inline-start: auto;
     }
 }
 </style>

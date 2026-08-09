@@ -109,26 +109,14 @@ export const SHELL_VOICED = {
         ],
     },
 
-    /* ---------------------------------------------------------------- */
-    /* Work                                                              */
-    /* ---------------------------------------------------------------- */
-
-    "work.empty.body": {
-        en: [
-            "Work holds the jobs you have started. Pick one from Home and it appears here.",
-            "Work holds the jobs you have started. Pick one from Home and it appears here.",
-            "Work holds the jobs you have started. Pick one from Home and it turns up here.",
-            "Work only holds jobs you actually started. Pick one from Home and it lands here.",
-            "Nothing on the go. Work only ever holds what you started yourself, pick something from Home and it turns up here.",
-        ],
-        yue: [
-            "「工作」只會放你開咗嘅嘢。喺主頁揀一樣，佢就會出現喺呢度。",
-            "「工作」只會放你開咗嘅嘢。喺主頁揀一樣，佢就會出現喺呢度。",
-            "「工作」淨係放你開咗嘅嘢，喺主頁揀一樣，佢就會走出嚟。",
-            "「工作」淨係放你自己開過嘅嘢。去主頁揀一樣，佢就會喺呢度出現。",
-            "而家乜都冇開。「工作」淨係放你自己開過嘅嘢，去主頁揀一樣，佢就會走出嚟。",
-        ],
-    },
+    /*
+     * Work had three voiced keys here - `work.empty.title`, `work.empty.body` and
+     * `work.empty.choose` - for an empty state `WorkPane.vue` drew over its own tab strip.
+     * They are gone with it. `TabbedNavigation` was already drawing an empty state inside
+     * the panel, listing every job as a button, so the overlay was a second one covering a
+     * better one; see that component's `tabs.panel.empty` and the comment where the overlay
+     * used to be. Nothing replaced them, because nothing needed to.
+     */
 
     /* ---------------------------------------------------------------- */
     /* Problems                                                          */
@@ -174,6 +162,149 @@ export const SHELL_VOICED = {
             "冇刪除任何嘢，將來都唔會。個 tab 就咁靜靜哋擺住，等到有個識佢嘅版本嚟到，就會原原本本還返你個排位。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* The Projects page header                                          */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * Projects had no header at all - it opened straight onto a list of worlds, which is the
+     * previous application's habit and one of the clearest reasons the screen still read as it
+     * after the shell around it was rebuilt. `Worldlens.dc.html` opens it on a title, a paragraph
+     * saying what a project actually is, and a smaller line promising nothing has to be typed.
+     *
+     * Voiced rather than fixed because it is prose, not navigation. Every level still says a
+     * project is a file at the root of a world, and still says saving is what writes it - those
+     * are the two things somebody could get wrong, so no level is allowed to drop them.
+     */
+    "projects.page.title": {
+        en: [
+            "Start a project",
+            "Start a project",
+            "Start a project",
+            "Let's start a project",
+            "Right, let's start a project",
+        ],
+        yue: [
+            "開一個 project",
+            "開一個 project",
+            "開一個 project",
+            "嚟啦，開個 project",
+            "好喇，我哋開個 project 先",
+        ],
+    },
+
+    "projects.page.lede": {
+        en: [
+            "A project is one file at the root of a Minecraft world, holding every map, storage and setting that world renders with. Starting one writes nothing until you save.",
+            "A project is one file at the root of a Minecraft world, holding every map, storage and setting that world renders with. Starting one writes nothing until you save.",
+            "A project is a single file at the root of a Minecraft world, holding every map, storage and setting that world renders with. Starting one writes nothing until you save.",
+            "A project is one file sitting at the root of a Minecraft world, holding every map, storage and setting that world renders with. Starting one writes nothing at all until you save.",
+            "A project is one modest little file at the root of a Minecraft world, quietly holding every map, storage and setting that world renders with. Start one and nothing whatsoever is written until you save, so you can poke at it as long as you like.",
+        ],
+        yue: [
+            "一個 project 就係放喺 Minecraft 世界根目錄嘅一個檔案，入面裝住嗰個世界 render 用嘅每個 map、storage 同設定。開咗都唔會寫任何嘢，要你按 save 先會寫。",
+            "一個 project 就係放喺 Minecraft 世界根目錄嘅一個檔案，入面裝住嗰個世界 render 用嘅每個 map、storage 同設定。開咗都唔會寫任何嘢，要你按 save 先會寫。",
+            "一個 project 就係擺喺 Minecraft 世界根目錄嗰個檔案，入面裝住嗰個世界 render 用嘅每個 map、storage 同設定。開咗都唔會寫嘢，要你按 save 先會寫。",
+            "一個 project 就係靜靜哋擺喺 Minecraft 世界根目錄嘅一個檔案，入面裝晒嗰個世界 render 用嘅每個 map、storage 同設定。開咗佢都唔會寫任何嘢落去，要你按 save 先會寫。",
+            "一個 project 咪就係喺 Minecraft 世界根目錄度乖乖哋坐住嘅一個檔案囉，入面裝晒嗰個世界 render 要用嘅每個 map、每個 storage、每個設定。開咗佢都仲係一個字都唔會寫，要你真係按 save 嗰陣先寫，所以想點撩都得。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
+    /* Problems: what a problem actually means                           */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * These are the prose half of the Problems panel, and prose is where the voice lives. Every
+     * level still names the same reassurance, because the whole reason the panel says anything at
+     * all is so somebody who has just seen a red row knows what did and did not happen to their
+     * work.
+     */
+    "problems.config.meaning": {
+        en: [
+            "This value will not be written until it is valid. Nothing else in the file is affected.",
+            "This value will not be written until it is valid. Nothing else in the file is affected.",
+            "This value will not be written until it is valid, and nothing else in the file is affected.",
+            "This value stays unwritten until it is valid. Nothing else in the file is affected, so the rest of your settings are exactly where you left them.",
+            "This one value refuses to be written until it makes sense. Nothing else in the file is affected, so the other settings are sitting there untouched, quietly minding their own business.",
+        ],
+        yue: [
+            "呢個值未夠正確之前都唔會寫入。檔案入面其他嘢完全唔受影響。",
+            "呢個值未夠正確之前都唔會寫入。檔案入面其他嘢完全唔受影響。",
+            "呢個值未夠正確之前唔會寫入，檔案入面其他嘢完全唔受影響。",
+            "呢個值要正確咗先會寫入，喺咁之前都唔會寫。檔案入面其他嘢完全唔受影響，你之前設定嘅嘢原封不動。",
+            "呢個值未搞掂之前係死都唔會寫入嘅。檔案入面其他嘢完全唔受影響，個個都好安分咁坐喺原位等你。",
+        ],
+    },
+
+    "problems.render.meaning": {
+        en: [
+            "The render stopped. Whatever tiles it had already written are still there, and it can be resumed or discarded.",
+            "The render stopped. Whatever tiles it had already written are still there, and it can be resumed or discarded.",
+            "The render stopped. The tiles it had already written are still there, and it can be resumed or discarded.",
+            "The render stopped part way. Every tile it had already written is still on disk, and you can resume it or discard it.",
+            "The render gave up part way through. Every tile it had already finished is still sitting on disk, so you can pick it back up or throw the whole attempt away.",
+        ],
+        yue: [
+            "個 render 停咗。之前寫咗嘅 tiles 全部仲喺度，可以續做或者掉咗佢。",
+            "個 render 停咗。之前寫咗嘅 tiles 全部仲喺度，可以續做或者掉咗佢。",
+            "個 render 停咗。之前寫咗嘅 tiles 仲喺度，可以續做或者掉咗佢。",
+            "個 render 做到一半停咗。之前寫咗嘅 tiles 全部仲好地地喺硬碟度，你可以續做或者掉咗佢。",
+            "個 render 做到一半就唔做喇。不過之前搞掂咗嘅 tiles 全部仲好地地擺喺硬碟度，你想接返落去定係成個掉咗都得。",
+        ],
+    },
+
+    "problems.routing.meaning": {
+        en: [
+            "The feature exists in the catalogue but this build cannot open it, so the row was left where it is rather than doing nothing when pressed.",
+            "The feature exists in the catalogue but this build cannot open it, so the row was left where it is rather than doing nothing when pressed.",
+            "The feature is in the catalogue but this build cannot open it, so the row was left where it is rather than doing nothing when pressed.",
+            "The feature is listed in the catalogue, but this build has no way to open it. The row was left visible rather than quietly doing nothing when pressed.",
+            "The catalogue lists this one, but this build has no way to actually open it. The row was left where it is on purpose, because a row that looks alive and does nothing when pressed is worse than one that says so.",
+        ],
+        yue: [
+            "呢個功能喺目錄入面有，但係呢個版本開唔到，所以個 row 照留住，唔會撳咗之後乜都唔發生。",
+            "呢個功能喺目錄入面有，但係呢個版本開唔到，所以個 row 照留住，唔會撳咗之後乜都唔發生。",
+            "呢個功能喺目錄有，但呢個版本開唔到，所以個 row 照留住，唔會撳咗之後乜都唔發生。",
+            "呢個功能喺目錄入面係有嘅，但係呢個版本冇辦法開到佢。個 row 特登留低咗，唔想你撳咗之後乜都唔發生。",
+            "目錄入面係列咗呢個功能嘅，但呢個版本真係開唔到佢。個 row 特登留喺度，因為一個睇落好似做到嘢、撳落去又乜都唔發生嘅 row，仲衰過老實話你知。",
+        ],
+    },
+
+    "problems.unknownPage.message": {
+        en: [
+            "This workspace has a tab for “{page}”, which this build does not know about.",
+            "This workspace has a tab for “{page}”, which this build does not know about.",
+            "This workspace has a tab for “{page}”, which this build does not know anything about.",
+            "This workspace is carrying a tab for “{page}”, and this build does not know what that is.",
+            "This workspace is still carrying a tab for “{page}”, and this build has never heard of it.",
+        ],
+        yue: [
+            "呢個工作區有個叫「{page}」嘅 tab，但呢個版本唔識佢。",
+            "呢個工作區有個叫「{page}」嘅 tab，但呢個版本唔識佢。",
+            "呢個工作區有個叫「{page}」嘅 tab，但係呢個版本唔識佢。",
+            "呢個工作區仲帶住個叫「{page}」嘅 tab，但呢個版本完全唔知嗰個係乜。",
+            "呢個工作區仲帶住個叫「{page}」嘅 tab，但呢個版本連聽都未聽過佢。",
+        ],
+    },
+
+    "projects.page.footnote": {
+        en: [
+            "Nothing here is a path you have to type. Everything below was found on this machine, or fetches the world for you.",
+            "Nothing here is a path you have to type. Everything below was found on this machine, or fetches the world for you.",
+            "Nothing here is a path you have to type: everything below was found on this machine, or fetches the world for you.",
+            "There is no path here you have to type out. Everything below was already found on this machine, or will fetch the world for you.",
+            "Not one path here needs typing. Everything below either turned up on this machine already, or will go and fetch the world for you.",
+        ],
+        yue: [
+            "呢度冇任何路徑要你自己打。下面全部都係喺呢部機搵到，或者會幫你攞返個世界。",
+            "呢度冇任何路徑要你自己打。下面全部都係喺呢部機搵到，或者會幫你攞返個世界。",
+            "呢度冇路徑要你自己打：下面全部都係喺呢部機搵到，或者會幫你攞返個世界。",
+            "呢度真係冇一條路徑要你自己打出嚟。下面啲嘢全部都係喺呢部機搵返嚟，或者會幫你攞埋個世界。",
+            "呢度連一條路徑都唔使你自己打。下面啲嘢，唔係早就喺呢部機度搵到咗，就係會自動幫你攞返個世界返嚟。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 /**
@@ -185,6 +316,63 @@ export const SHELL_VOICED = {
  * telling, never the facts - was broken.
  */
 export const SHELL_FIXED = {
+    /* ---------------------------------------------------------------- */
+    /* The catalogue rows' live meta                                     */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * The short grey line at the right of a catalogue row: how many, which state, what version.
+     *
+     * Fixed rather than voiced, and not because they are short. Every one of these is read at a
+     * glance while scanning eighty-five rows for one of them, and a count that rephrased itself as
+     * the funny level moved would be a number somebody has to stop and parse. `resolveMeta` fills
+     * the placeholders from the real registries - the config schema's own tab and field counts, the
+     * live render count, the actual update version - so nothing here is a figure anybody typed.
+     */
+    "catalogue.meta.maskShapes": { en: "{count} shapes", yue: "{count} 個形狀" },
+    "catalogue.meta.speedLevels": { en: "{count} levels", yue: "{count} 級" },
+    "catalogue.meta.noticeDurationLevels": { en: "{count} levels", yue: "{count} 級" },
+    "catalogue.meta.docsArticles": { en: "{count} articles", yue: "{count} 篇" },
+    "catalogue.meta.rendersRunning": { en: "{count} running", yue: "{count} 個進行緊" },
+    "catalogue.meta.unreadNotices": { en: "{count} unread", yue: "{count} 個未讀" },
+    "catalogue.meta.backupPartSize": { en: "{size} parts", yue: "每份 {size}" },
+    "catalogue.meta.downloadRange": { en: "{min}–{max} at once", yue: "同時 {min}–{max} 個" },
+    "catalogue.meta.historyRevision": { en: "revision {revision}", yue: "第 {revision} 版" },
+    "catalogue.meta.updateReady": { en: "{version} ready", yue: "{version} 準備好" },
+    "catalogue.meta.configTabsAndFields": {
+        en: "{tabs} tabs · {fields} settings",
+        yue: "{tabs} 個分頁 · {fields} 個設定",
+    },
+    "catalogue.meta.languageModesAndLevels": {
+        en: "{modes} modes · {levels} levels",
+        yue: "{modes} 個模式 · {levels} 級",
+    },
+
+    /*
+     * States, not counts. Same reasoning: "Declined" has to mean declined at every funny level,
+     * because the row it sits on is how somebody finds out why a render will not start.
+     */
+    "catalogue.meta.consentAccepted": { en: "Accepted", yue: "已接受" },
+    "catalogue.meta.consentDeclined": { en: "Declined", yue: "已拒絕" },
+    "catalogue.meta.accountSignedIn": { en: "Signed in", yue: "已登入" },
+    "catalogue.meta.accountSignedOut": { en: "Signed out", yue: "未登入" },
+    "catalogue.meta.eulaAccepted": { en: "Accepted", yue: "已接受" },
+    "catalogue.meta.eulaPending": { en: "Not accepted yet", yue: "仲未接受" },
+    "catalogue.meta.previewRunning": { en: "Serving now", yue: "正在提供服務" },
+    "catalogue.meta.pagesPublished": { en: "Published", yue: "已發佈" },
+
+    /* The notification history's own heading, opened from the rail's bell. */
+    "notice.centre.title": { en: "Notifications", yue: "通知" },
+
+    /*
+     * The Problems panel's severity words, its source labels and its two remedy verbs are further
+     * down this same object and were already there. A second copy of each was added here while
+     * filling the catalogue's gaps, which TypeScript reports as TS1117 and which the bundler
+     * reports as a duplicate-key warning on every run - and the later declaration silently wins,
+     * so the Cantonese somebody actually wrote would have been replaced by a hastier translation
+     * of the same word without anything failing. The originals stayed.
+     */
+
     /* The three destinations, and the footer actions. */
     "rail.home": { en: "Home", yue: "主頁" },
     "rail.map": { en: "Map", yue: "地圖" },
@@ -213,10 +401,6 @@ export const SHELL_FIXED = {
     "shell.catalogue.back": { en: "All five catalogues", yue: "五個目錄" },
     "shell.catalogue.search.label": { en: "Search this list", yue: "搵呢個清單" },
     "shell.catalogue.search.summary": { en: "{shown} of {total}", yue: "{total} 之中嘅 {shown}" },
-
-    /* Work. */
-    "work.empty.title": { en: "No job is open", yue: "冇開任何嘢" },
-    "work.empty.choose": { en: "Choose work", yue: "揀樣嘢做" },
 
     /* The status strip. */
     "status.renders": { en: "{count} rendering", yue: "{count} 個渲染緊" },
@@ -260,13 +444,43 @@ export const SHELL_FACTS = {
         yue: ["冇刪除"],
     },
     /*
-     * The empty state has to keep naming Home, because it is the only route out of an empty Work
-     * and a version that only said "nothing here" would be a dead end with a joke on it.
+     * `work.empty.body` was pinned here on the grounds that it "has to keep naming Home,
+     * because it is the only route out of an empty Work". That was measurably untrue by the
+     * time anyone checked: the panel's own empty state lists every job as a button and the
+     * strip's `+` opens any of them without leaving Work, and the overlay this pinned was
+     * painted over both. The overlay is gone and so is the pin.
      */
-    "work.empty.body": { en: ["Home"], yue: ["主頁"] },
     /*
      * "Nothing" survives every level. A playful rewrite that dropped it would leave a panel saying
      * something cheerful while the reader is still trying to work out whether anything is wrong.
      */
     "problems.empty": { en: ["othing"], yue: ["冇嘢"] },
+    /*
+     * The two things somebody could get wrong about a project, pinned so no level may drop them:
+     * that it is one file at the *root* of a world, and that nothing is written until a save.
+     */
+    "projects.page.lede": { en: ["root", "save"], yue: ["根目錄", "save"] },
+    /*
+     * The word the page is about. A level that stopped saying "project" would leave the heading
+     * naming nothing, on the one screen whose whole job is to explain what a project is.
+     */
+    "projects.page.title": { en: ["project"], yue: ["project"] },
+    /*
+     * The Problems panel's prose. Each pinned literal is the reassurance the sentence exists to
+     * give - what survived, or what was deliberately left alone. A level that dropped one would
+     * leave somebody staring at a red row with no idea whether their work is still there.
+     */
+    /*
+     * "othing else" rather than "Nothing else": at level three the sentence joins into one clause
+     * and the word loses its capital. The reassurance is the word, not its casing.
+     */
+    "problems.config.meaning": { en: ["othing else"], yue: ["其他嘢完全唔受影響"] },
+    "problems.render.meaning": { en: ["still"], yue: ["仲"] },
+    "problems.routing.meaning": { en: ["catalogue"], yue: ["目錄"] },
+    "problems.unknownPage.message": { en: ["{page}"], yue: ["{page}"] },
+    /*
+     * The promise the footnote exists to make. A level that lost it would leave the reader
+     * hunting for a path field that is deliberately not there.
+     */
+    "projects.page.footnote": { en: ["path"], yue: ["路徑"] },
 };

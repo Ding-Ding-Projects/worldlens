@@ -1,7 +1,7 @@
 {
     "version": 1,
     "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-    "expectedTargetCount": 150,
+    "expectedTargetCount": 153,
     "evidenceRoots": [
         "docs/screenshots",
         "design/docs/assets/issues",
@@ -94,9 +94,26 @@
                 "docs/screenshots/wizard-3-options.png",
                 "docs/screenshots/wizard-4-where-it-goes.png",
                 "docs/screenshots/wizard-5-review.png",
-                "docs/screenshots/wizard-release-downloads.png"
-                ,
+                "docs/screenshots/wizard-release-downloads.png",
                 "docs/screenshots/wizard-ssh-world-source.png"
+            ],
+            "capturedFromInterfaceSource": true,
+            "uiSourceDigest": "d5f71130df03bb0e160098b21f7ba83b694bbf7a001af833e01a1e1f558d2fb0",
+            "uiSourceDigestNote": "The interface at commit be70670721f7089e418b4b58ccfee9839a6f8ab4, which docs/screenshots/manifest.json names as the commit that produced these captures. Print the current value with: node scripts/check-screenshot-evidence.mjs --print-interface-digest"
+        },
+        {
+            "id": "built-shell-readme",
+            "authority": "the packaged application driven through the headless harness, per commit 15e60ae561f39733994aad0fb852a1f0ba640336",
+            "command": "build the installer, then capture the built shell through the headless harness as commit 15e60ae did",
+            "reproducibility": "packaged-build-on-a-headless-desktop",
+            "expectedCount": 3,
+            "capturedFromInterfaceSource": true,
+            "uiSourceDigest": "a2a9b4cba25b17e767ce4903933a27293db8f31ab507280c265c63c891ef04f3",
+            "uiSourceDigestNote": "The interface at commit 15e60ae561f39733994aad0fb852a1f0ba640336, the commit that added these three images to the README.",
+            "targets": [
+                "docs/screenshots/shell-home.png",
+                "docs/screenshots/shell-projects.png",
+                "docs/screenshots/shell-work.png"
             ]
         },
         {
@@ -120,7 +137,9 @@
                 "docs/screenshots/pages-parity-search-360x640-english.png",
                 "docs/screenshots/pages-parity-settings-1024x768.png",
                 "docs/screenshots/pages-parity-tabs-390x844-english.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "produced from design/packages/site, which is a different package with its own sources; design/packages/ui/src does not decide what the documentation site looks like"
         },
         {
             "id": "site-walkthrough-media",
@@ -154,7 +173,9 @@
                 "design/packages/site/src/assets/walkthroughs/theme-switch.png",
                 "design/packages/site/src/assets/walkthroughs/verified-download.gif",
                 "design/packages/site/src/assets/walkthroughs/verified-download.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "produced from design/packages/site, which is a different package with its own sources; design/packages/ui/src does not decide what the documentation site looks like"
         },
         {
             "id": "installed-app-cdp",
@@ -171,7 +192,9 @@
                 "docs/screenshots/installed-app-1920x1200.png",
                 "docs/screenshots/shell-titlebar-1920x1080.png",
                 "docs/screenshots/titlebar-zoom-1920.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "refreshing it needs an installed Squirrel build driven over CDP rather than a command any change can run, so it is refreshed alongside the packaged build instead of alongside the interface source; it can therefore fall behind design/packages/ui/src without this check saying so"
         },
         {
             "id": "live-pages",
@@ -183,7 +206,9 @@
             "targets": [
                 "docs/screenshots/map-hosted-on-github-pages.png",
                 "docs/screenshots/pages-published-by-the-app.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "a capture of two published sites as they are actually served, so it records what is live rather than what this tree builds"
         },
         {
             "id": "consent-render",
@@ -199,7 +224,9 @@
                 "docs/screenshots/render-4-start.png",
                 "docs/screenshots/render-5-running.png",
                 "docs/screenshots/render-6-map.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "needs a real render through the installed application and a Java runtime, which no ordinary change can run; refreshed with the render path rather than with the interface source, so it too can fall behind without this check saying so"
         },
         {
             "id": "issue-baselines",
@@ -222,7 +249,9 @@
                 "docs/screenshots/issue-97-in-progress-downloads.png",
                 "docs/screenshots/issue-98-in-progress-discovered-worlds.png",
                 "docs/screenshots/issue-99-in-progress-dependencies.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "point-in-time evidence attached to numbered issues; re-taking it from a later build would destroy the before-state each image exists to record"
         },
         {
             "id": "historical-site-baseline",
@@ -234,7 +263,9 @@
             "expectedCount": 1,
             "targets": [
                 "docs/screenshots/pages-m3-rewrite-before.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "a deliberately preserved picture of the pre-rewrite site, which no longer exists to be re-photographed"
         },
         {
             "id": "site-tabs-compact-proof",
@@ -244,7 +275,9 @@
             "expectedCount": 1,
             "targets": [
                 "docs/screenshots/site-tabs-bottom-414x896-window.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "produced from design/packages/site, which is a different package with its own sources"
         },
         {
             "id": "profile-migration-packaged",
@@ -254,7 +287,9 @@
             "expectedCount": 1,
             "targets": [
                 "docs/screenshots/worldlens-profile-migration-consent.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "a packaged-build migration flow captured on an off-screen desktop, which needs a packaged installer rather than a command any change can run"
         }
     ]
 }

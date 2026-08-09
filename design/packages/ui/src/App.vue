@@ -1179,7 +1179,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <WorkPane
                             ref="tabs"
                             :running-render-count="runningRenderCount"
-                            @go-home="shell.select('home')"
                             @workspace-change="(ids: readonly string[]) => (openJobIds = ids)"
                         >
                         <!--

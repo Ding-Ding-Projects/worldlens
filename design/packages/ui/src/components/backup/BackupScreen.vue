@@ -500,25 +500,40 @@ defineExpose({
 
 <template>
     <section class="mb-backup" :aria-label="t('backup.title', 'Back up a world or a rendered map')">
-        <h4 class="mb-backup__title">
-            {{ t("backup.title", "Back up a world or a rendered map") }}
-        </h4>
-        <p class="mb-backup__blurb">
-            {{
-                t(
-                    "backup.blurb",
-                    "A backup is packed into one archive, cut into 500 MiB parts, and published as the assets of a new GitHub release. Every part carries its own SHA-256 in a small pointer file beside it, so a restore can prove it got back exactly what went up.",
-                )
-            }}
-        </p>
-        <p class="mb-backup__blurb">
-            {{
-                t(
-                    "backup.whyNotLfs",
-                    "This deliberately does not use Git LFS. A free GitHub account gets one gigabyte of LFS storage and one gigabyte of bandwidth a month, and every restore is metered against it, so a single multi-gigabyte world exhausts the free tier and each restore is billed again. Release assets are free on a public repository and capped per file rather than in total. The pointer format matches Desktop Material's published Cheap LFS v1 grammar, checked against it here; a live restore through that application has not been run.",
-                )
-            }}
-        </p>
+        <!--
+            The page's own header. This screen opened on an `<h4>` at 16px, which is a heading
+            for a section inside a page rather than the name of the page itself, and the two
+            paragraphs under it were the same 13px as everything else on the screen - so
+            nothing on it was read first. The prototype opens every job on a 26px title, a lede
+            saying what the screen is for, and a footnote carrying what the reader has to know
+            before starting. All three strings were already here; only their size has changed.
+
+            Grouped in a `<header>` rather than left as three children of the flex column,
+            because that column's 8px gap would otherwise be added to each of the type scale's
+            own margins - the 6px under a title becoming 14px, and so on - which is how one
+            screen ends up with a header that is subtly taller than the same header elsewhere.
+        -->
+        <header class="mb-backup__header">
+            <h1 class="mb-page-title">
+                {{ t("backup.title", "Back up a world or a rendered map") }}
+            </h1>
+            <p class="mb-lede">
+                {{
+                    t(
+                        "backup.blurb",
+                        "A backup is packed into one archive, cut into 500 MiB parts, and published as the assets of a new GitHub release. Every part carries its own SHA-256 in a small pointer file beside it, so a restore can prove it got back exactly what went up.",
+                    )
+                }}
+            </p>
+            <p class="mb-footnote">
+                {{
+                    t(
+                        "backup.whyNotLfs",
+                        "This deliberately does not use Git LFS. A free GitHub account gets one gigabyte of LFS storage and one gigabyte of bandwidth a month, and every restore is metered against it, so a single multi-gigabyte world exhausts the free tier and each restore is billed again. Release assets are free on a public repository and capped per file rather than in total. The pointer format matches Desktop Material's published Cheap LFS v1 grammar, checked against it here; a live restore through that application has not been run.",
+                    )
+                }}
+            </p>
+        </header>
 
         <v-alert
             v-if="!backups.available"
@@ -538,7 +553,7 @@ defineExpose({
         <template v-else>
             <!-- What to back up ------------------------------------------------ -->
             <v-card variant="tonal" class="mb-backup__step">
-                <v-card-title class="mb-backup__stepTitle">
+                <v-card-title>
                     {{ t("backup.what", "What to back up") }}
                 </v-card-title>
                 <v-card-text class="mb-backup__stepBody">
@@ -622,7 +637,7 @@ defineExpose({
                         {{ sourceFailure }}
                     </v-alert>
 
-                    <p v-else-if="source" class="mb-backup__note" role="status">
+                    <p v-else-if="source" class="mb-meta" role="status">
                         {{
                             t(
                                 "backup.sourceSummary",
@@ -652,9 +667,9 @@ defineExpose({
                                 )
                             }}
                         </p>
-                        <ul class="mb-backup__skipped">
+                        <ul class="mb-meta mb-backup__skipped">
                             <li v-for="entry in source.skipped" :key="entry.name">
-                                <strong>{{ entry.name }}</strong> — {{ entry.reason }}
+                                <strong>{{ entry.name }}</strong> - {{ entry.reason }}
                             </li>
                         </ul>
                     </v-alert>
@@ -663,7 +678,7 @@ defineExpose({
 
             <!-- Where it goes -------------------------------------------------- -->
             <v-card variant="tonal" class="mb-backup__step">
-                <v-card-title class="mb-backup__stepTitle">
+                <v-card-title>
                     {{ t("backup.where", "Where to keep it") }}
                 </v-card-title>
                 <v-card-text class="mb-backup__stepBody">
@@ -705,7 +720,7 @@ defineExpose({
                         />
                         <p
                             v-else
-                            class="mb-backup__note"
+                            class="mb-meta"
                             role="status"
                             data-test="repository-no-match"
                         >
@@ -720,7 +735,7 @@ defineExpose({
 
                     <p
                         v-else-if="backups.loadingRepositories.value"
-                        class="mb-backup__note"
+                        class="mb-meta"
                         role="status"
                     >
                         {{ t("backup.loadingRepositories", "Reading your repositories...") }}
@@ -738,7 +753,7 @@ defineExpose({
 
                     <p
                         v-else-if="backups.canListRepositories"
-                        class="mb-backup__note"
+                        class="mb-meta"
                         role="status"
                         data-test="repository-none"
                     >
@@ -1034,17 +1049,27 @@ defineExpose({
 
             <!-- What is already there ------------------------------------------ -->
             <template v-if="backups.report.value && backups.canListBackups">
-                <h5 class="mb-backup__title">
-                    {{
-                        t(
-                            "backup.listings.title",
-                            { name: backups.report.value.fullName },
-                            "Backups already in {name}",
-                        )
-                    }}
-                </h5>
+                <!--
+                    The prototype's section rule: an uppercase label with a hairline running
+                    off to the right of it, drawn by `.mb-section-rule::after` in the shared
+                    sheet. It is the single most recognisable thing about the design, and a
+                    list that simply begins under a bold word is what the previous application
+                    did. The heading stays a real `<h2>` so the page keeps an outline a screen
+                    reader can navigate; only its appearance comes from the label class.
+                -->
+                <div class="mb-section-rule">
+                    <h2 class="mb-section-label">
+                        {{
+                            t(
+                                "backup.listings.title",
+                                { name: backups.report.value.fullName },
+                                "Backups already in {name}",
+                            )
+                        }}
+                    </h2>
+                </div>
 
-                <p v-if="backups.listing.value" class="mb-backup__note" role="status">
+                <p v-if="backups.listing.value" class="mb-meta" role="status">
                     {{ t("backup.listings.reading", "Reading the repository's releases...") }}
                 </p>
 
@@ -1058,7 +1083,7 @@ defineExpose({
                     {{ backups.listingsFailure.value }}
                 </v-alert>
 
-                <p v-else-if="backups.listings.value.length === 0" class="mb-backup__note">
+                <p v-else-if="backups.listings.value.length === 0" class="mb-meta">
                     {{
                         t(
                             "backup.listings.none",
@@ -1080,7 +1105,7 @@ defineExpose({
                         />
                     </div>
 
-                    <p v-if="shownListings.length === 0" class="mb-backup__note" role="status">
+                    <p v-if="shownListings.length === 0" class="mb-meta" role="status">
                         {{
                             t(
                                 "backup.listings.noMatch",
@@ -1108,8 +1133,8 @@ defineExpose({
                             </v-chip>
                         </v-card-title>
                         <v-card-text class="mb-backup__stepBody">
-                            <p class="mb-backup__note">{{ describeListing(listing) }}</p>
-                            <p class="mb-backup__note">
+                            <p class="mb-meta">{{ describeListing(listing) }}</p>
+                            <p class="mb-meta">
                                 {{
                                     t(
                                         "backup.listings.made",
@@ -1129,7 +1154,7 @@ defineExpose({
                                 {{ listing.unsupported }}
                             </v-alert>
 
-                            <p v-else-if="!listing.complete" class="mb-backup__note">
+                            <p v-else-if="!listing.complete" class="mb-meta">
                                 {{
                                     t(
                                         "backup.listings.incompleteDetail",
@@ -1161,7 +1186,7 @@ defineExpose({
                     </v-card>
                 </template>
 
-                <p class="mb-backup__note">
+                <p class="mb-meta">
                     {{
                         t(
                             "backup.listings.appendOnly",
@@ -1175,35 +1200,41 @@ defineExpose({
 </template>
 
 <style>
+/*
+ * The prototype's page gutter and measure, exactly as `ProjectsScreen.vue` states them:
+ * 30px top, 40px side, 48px bottom, with the content held to 900px so a paragraph never runs
+ * the full width of a 1440px window. The 12px top margin this used to carry was the whole of
+ * its page furniture, which is why the screen read as a panel that had been dropped into a
+ * window rather than as a page. Stated here rather than inherited from the shell so the screen
+ * is correct wherever it is hosted.
+ */
 .mb-backup {
-    margin-block-start: 12px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     align-items: stretch;
+    inline-size: 100%;
+    max-inline-size: 900px;
+    margin-inline: auto;
+    padding: 30px 40px 48px;
 }
 
-.mb-backup__title {
-    font-size: 1rem;
-    font-weight: 500;
-    line-height: 1.3;
+@media (max-width: 900px) {
+    .mb-backup {
+        padding: 20px 16px 32px;
+    }
 }
 
-.mb-backup__blurb,
-.mb-backup__note {
-    font-size: 0.75rem;
-    line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    text-wrap: pretty;
-}
-
-.mb-backup__blurb {
-    font-size: 0.8125rem;
-}
-
-.mb-backup__stepTitle {
-    font-size: 0.9375rem;
-    font-weight: 500;
+/*
+ * `.mb-backup__title`, `.mb-backup__blurb`, `.mb-backup__note` and `.mb-backup__stepTitle`
+ * were four separate opinions about the same four measurements the shared sheet already
+ * states once. The heading is now the page's `<h1>`, the two paragraphs under it are the
+ * lede and the footnote, every grey status line carries `.mb-meta`, and the step cards'
+ * titles take `.v-card-title`'s own 15px/500 rather than repeating it at a specificity that
+ * could not have won anyway. Nothing here changed size; the numbers simply have one home now.
+ */
+.mb-backup__header {
+    margin-block-end: 18px;
 }
 
 .mb-backup__stepBody {
@@ -1242,7 +1273,9 @@ defineExpose({
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.75rem;
+    font-size: 12px;
+    line-height: 18px;
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-backup__alert,
@@ -1260,10 +1293,9 @@ defineExpose({
     margin-block-start: 8px;
 }
 
+/* Type and colour come from `.mb-meta` in the template; this only has to indent the list. */
 .mb-backup__skipped {
     padding-inline-start: 18px;
-    font-size: 0.75rem;
-    line-height: 1.6;
     overflow-wrap: anywhere;
 }
 
@@ -1272,8 +1304,6 @@ defineExpose({
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    font-size: 0.9375rem;
-    font-weight: 500;
     /*
      * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
      * white-space: nowrap` for a single-line block title. Flexing it (above) leaves

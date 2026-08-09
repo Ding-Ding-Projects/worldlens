@@ -816,6 +816,34 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
 
         <template v-else>
             <!--
+                The page's own header, which this screen simply did not have.
+                `Worldlens.dc.html` opens Projects on a title, a paragraph saying what a project
+                *is*, and a smaller line promising nothing here has to be typed - and the absence
+                of all three is most of why the screen still read as the previous application even
+                after the shell around it was rebuilt. A list that starts with no explanation is
+                the old app's habit; naming what the reader is looking at is the new one.
+            -->
+            <header class="mb-projects-screen__header">
+                <h1>{{ t("projects.page.title", "Start a project") }}</h1>
+                <p class="mb-lede">
+                    {{
+                        t(
+                            "projects.page.lede",
+                            "A project is one file at the root of a Minecraft world, holding every map, storage and setting that world renders with. Starting one writes nothing until you save.",
+                        )
+                    }}
+                </p>
+                <p class="mb-footnote">
+                    {{
+                        t(
+                            "projects.page.footnote",
+                            "Nothing here is a path you have to type. Everything below was found on this machine, or fetches the world for you.",
+                        )
+                    }}
+                </p>
+            </header>
+
+            <!--
                 Worlds this computer already found, that nobody has started a project for
                 yet - above the established list, so a brand new install shows something
                 ready to work with instead of only "no projects yet". See
@@ -919,14 +947,31 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
 </template>
 
 <style>
+/*
+ * The prototype's page gutter and measure, rather than a 12px pad on a 1100px column.
+ *
+ * 30px top / 40px side / 48px bottom, content held to 900px: prose that runs the full width of a
+ * 1440px window is prose nobody reads, and the old measurement is what made every screen in this
+ * application look like a settings dialog that had been stretched.
+ */
 .mb-projects-screen {
     display: flex;
     flex-direction: column;
     gap: 8px;
     inline-size: 100%;
-    max-inline-size: 1100px;
+    max-inline-size: 900px;
     margin-inline: auto;
-    padding: 12px;
+    padding: 30px 40px 48px;
+}
+
+@media (max-width: 900px) {
+    .mb-projects-screen {
+        padding: 20px 16px 32px;
+    }
+}
+
+.mb-projects-screen__header {
+    margin-block-end: 18px;
 }
 
 .mb-projects-screen__create {

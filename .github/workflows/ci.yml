@@ -477,6 +477,17 @@ jobs:
   test-world:
     name: Generate and render a test world
     needs: [check, jars]
+    # Runs even when `check` failed, for the same reason `package` does.
+    #
+    # `check` is where the unit suite lives, and a red unit suite used to skip this job, which
+    # skipped `screenshots`, which meant a failing test quietly cost the run its entire
+    # photographic record of the application. That is precisely backwards: the moment somebody
+    # most wants to see what the interface actually looks like is the moment a test says
+    # something is wrong with it.
+    #
+    # `jars` stays a hard input rather than a gate: without the engine there is no render to
+    # make, so there is genuinely nothing for this job to do.
+    if: always() && needs.jars.result == 'success'
     runs-on: ubuntu-latest
     concurrency:
       group: ci-test-world-${{ github.ref }}
@@ -597,6 +608,13 @@ jobs:
   screenshots:
     name: Screenshots
     needs: [check, test-world]
+    # Same rule, and this is the job the rule exists for. Captures are evidence, and evidence
+    # is worth most on the runs that went wrong. A red unit suite must never be the reason
+    # nobody can see what the application looked like when it went red.
+    #
+    # `test-world` is a real input: it produces the rendered map this job serves and
+    # photographs. With no map there is nothing to capture, so the job correctly does not run.
+    if: always() && needs.test-world.result == 'success'
     runs-on: ubuntu-latest
     concurrency:
       group: ci-screenshots-${{ github.ref }}

@@ -1117,37 +1117,48 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="ci-render-screen">
-        <VCard variant="tonal" class="mb-4">
-            <VCardTitle>{{ t("cirender.title", "Render on GitHub") }}</VCardTitle>
-            <VCardText>
-                <ActionArtwork
-                    artwork="cloudRenderSetup"
-                    :alt="
-                        t(
-                            'cirender.artwork.alt',
-                            'A local Minecraft world travelling through a cloud render pipeline and returning as a finished map',
-                        )
-                    "
-                    eager
-                />
-                <p>
-                    {{
-                        t(
-                            "cirender.pitch",
-                            "Built for computers that cannot render a big world themselves. Your machine uploads the world and then waits; GitHub's runners do the rendering, split across as many parallel jobs as the world needs, and the finished map comes back and opens exactly like a local one.",
-                        )
-                    }}
-                </p>
-                <p class="mt-2 text-medium-emphasis">
-                    {{
-                        t(
-                            "cirender.caveats",
-                            "The trade-offs, plainly: uploading a multi-gigabyte world takes time and bandwidth; GitHub's free Actions minutes are finite for private repositories, while public ones get unlimited standard-runner minutes; and a very large world can still exceed a job's budget or be too big to send as one release asset.",
-                        )
-                    }}
-                </p>
-            </VCardText>
-        </VCard>
+        <!--
+            The page's own header rather than a tonal card carrying the screen's name.
+
+            A card is a surface inside a page, so using one as the page itself left this screen
+            opening on a title rendered at card-title size with its explanation boxed in a tint
+            underneath - a dialog somebody stretched rather than a page. The prototype opens
+            every job on a heading, a lede saying what the screen is for, and a footnote
+            carrying the trade-offs worth knowing before starting, which is what these three
+            strings already said in the wrong shape. The artwork follows the words rather than
+            leading them: it illustrates a pipeline the reader has just been told about, and
+            leading with it puts a picture where the title belongs.
+        -->
+        <header class="ci-render-screen__header">
+            <h1 class="mb-page-title">{{ t("cirender.title", "Render on GitHub") }}</h1>
+            <p class="mb-lede">
+                {{
+                    t(
+                        "cirender.pitch",
+                        "Built for computers that cannot render a big world themselves. Your machine uploads the world and then waits; GitHub's runners do the rendering, split across as many parallel jobs as the world needs, and the finished map comes back and opens exactly like a local one.",
+                    )
+                }}
+            </p>
+            <p class="mb-footnote">
+                {{
+                    t(
+                        "cirender.caveats",
+                        "The trade-offs, plainly: uploading a multi-gigabyte world takes time and bandwidth; GitHub's free Actions minutes are finite for private repositories, while public ones get unlimited standard-runner minutes; and a very large world can still exceed a job's budget or be too big to send as one release asset.",
+                    )
+                }}
+            </p>
+            <ActionArtwork
+                class="ci-render-screen__artwork"
+                artwork="cloudRenderSetup"
+                :alt="
+                    t(
+                        'cirender.artwork.alt',
+                        'A local Minecraft world travelling through a cloud render pipeline and returning as a finished map',
+                    )
+                "
+                eager
+            />
+        </header>
 
         <VAlert v-if="!renders.available" type="info" variant="tonal" class="mb-4">
             {{ t("cirender.unsupported", "The desktop application is what starts a CI render.") }}
@@ -1923,7 +1934,7 @@ onBeforeUnmount(() => {
                             data-test="transfer-bar"
                         />
                         <p class="text-medium-emphasis" data-test="transfer">
-                            {{ row.transfer.description }} —
+                            {{ row.transfer.description }} -
                             {{
                                 t(
                                     "cirender.transfer.bytes",
@@ -1935,7 +1946,7 @@ onBeforeUnmount(() => {
                                 )
                             }}
                             <template v-if="row.transfer.assetsTotal > 0">
-                                —
+                                -
                                 {{
                                     t(
                                         "cirender.transfer.items",
@@ -2258,6 +2269,39 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/*
+ * The prototype's page gutter and measure, exactly as `ProjectsScreen.vue` states them:
+ * 30px top, 40px side, 48px bottom, with the content held to 900px so a paragraph never runs
+ * the full width of a 1440px window. This screen had no rule of its own at all, so it took
+ * whatever inset the shell happened to give it and ran as wide as the window allowed - which
+ * on this screen in particular is a long way, because it is mostly prose about consents and
+ * runners. Stated here rather than inherited so the screen is correct wherever it is hosted.
+ */
+.ci-render-screen {
+    inline-size: 100%;
+    max-inline-size: 900px;
+    margin-inline: auto;
+    padding: 30px 40px 48px;
+}
+
+@media (max-width: 900px) {
+    .ci-render-screen {
+        padding: 20px 16px 32px;
+    }
+}
+
+.ci-render-screen__header {
+    margin-block-end: 18px;
+}
+
+/*
+ * The footnote above the artwork already carries the shared sheet's 26px bottom margin, so
+ * the picture only needs its own gap underneath it before the first card begins.
+ */
+.ci-render-screen__artwork {
+    margin-block-end: 6px;
+}
+
 .ci-jobs,
 .ci-waves {
     list-style: none;
@@ -2265,16 +2309,24 @@ onBeforeUnmount(() => {
     margin: 0.5rem 0 0;
 }
 
+/*
+ * The wave list and the run log are the prototype's meta measurement: 12px on
+ * on-surface-variant, which is the one colour this application greys text with. Vuetify's
+ * `--v-medium-emphasis-opacity` is a translucency over the foreground rather than a role, so
+ * two greys that were meant to match did not.
+ */
 .ci-waves li {
-    font-size: 0.8125rem;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-size: 12px;
+    line-height: 18px;
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .ci-log {
     white-space: pre-wrap;
     overflow-x: auto;
     max-height: 16rem;
-    font-size: 0.8125rem;
+    font-size: 13px;
+    line-height: 19px;
 }
 
 /*

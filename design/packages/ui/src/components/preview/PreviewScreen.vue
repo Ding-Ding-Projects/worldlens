@@ -10,7 +10,7 @@ import {
     mdiPlay,
     mdiStop,
 } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VCardTitle, VCheckbox, VChip, VIcon, VSelect, VTextField } from "vuetify/components";
+import { VAlert, VBtn, VCheckbox, VChip, VIcon, VSelect, VTextField } from "vuetify/components";
 import { raiseNotice } from "../../stores/notices.js";
 import { createPreviewHost } from "./previewHost.js";
 import { resolvePreviewBridge } from "./previewBridge.js";
@@ -164,34 +164,54 @@ const renderItems = computed(() =>
 </script>
 
 <template>
-    <v-card class="mb-preview" flat>
-        <v-card-title class="mb-preview__title">
-            <v-icon :icon="mdiEye" size="20" />
-            {{ t("preview.title", "Watch it live") }}
-        </v-card-title>
-        <v-card-text class="mb-preview__body">
+    <div class="mb-preview">
+        <!--
+            The page's own header rather than a card wrapping the whole screen.
+
+            This screen used to open as one `<v-card>` whose `<v-card-title>` carried the
+            name of the feature, which is how a job screen ends up looking like a dialog
+            somebody stretched: a card is a surface *inside* a page, and using one as the
+            page itself leaves the reader with no title at the size a title is read at. The
+            prototype opens every job on a heading, a paragraph saying what the screen is
+            for, and a smaller line carrying the one caveat worth knowing before starting.
+            All three strings were already here; only their shape has changed.
+        -->
+        <header class="mb-preview__header">
+            <h1 class="mb-page-title mb-preview__title">
+                <v-icon :icon="mdiEye" size="20" />
+                {{ t("preview.title", "Watch it live") }}
+            </h1>
+            <p class="mb-lede">
+                {{
+                    t(
+                        "preview.explain",
+                        "Serves the render's own folder on this computer, so it can be opened in a browser while it is still running.",
+                    )
+                }}
+            </p>
+            <!--
+                The tile-caching caveat is deliberately not shown to a build that cannot host
+                anything: it describes what a browser does with tiles it has already been
+                served, and a reader who is about to be told this build cannot serve any has
+                no use for it yet. The unsupported notice below is the honest thing to say
+                first.
+            -->
+            <p v-if="host.available" class="mb-footnote" role="note">
+                {{
+                    t(
+                        "preview.tileCache.note",
+                        "The browser remembers a tile once it has been shown, so a spot already looked at will not update on its own until the page is reloaded.",
+                    )
+                }}
+            </p>
+        </header>
+
+        <div class="mb-preview__body">
             <v-alert v-if="!host.available" type="warning" variant="tonal" density="comfortable">
                 {{ t("preview.unsupported", "The desktop application is what hosts a render live.") }}
             </v-alert>
 
             <template v-else>
-                <p class="mb-preview__explain">
-                    {{
-                        t(
-                            "preview.explain",
-                            "Serves the render's own folder on this computer, so it can be opened in a browser while it is still running.",
-                        )
-                    }}
-                </p>
-                <p class="mb-preview__caveat" role="note">
-                    {{
-                        t(
-                            "preview.tileCache.note",
-                            "The browser remembers a tile once it has been shown, so a spot already looked at will not update on its own until the page is reloaded.",
-                        )
-                    }}
-                </p>
-
                 <v-select
                     v-model="host.selectedRenderId.value"
                     :items="renderItems"
@@ -202,7 +222,7 @@ const renderItems = computed(() =>
                     hide-details="auto"
                     @update:model-value="(value: string) => host.selectRender(value)"
                 />
-                <p v-if="host.renders.value.length === 0" class="mb-preview__note">
+                <p v-if="host.renders.value.length === 0" class="mb-meta">
                     {{ t("preview.noRenders", "No renders on this computer yet.") }}
                 </p>
 
@@ -229,7 +249,7 @@ const renderItems = computed(() =>
                     />
                 </div>
                 <div v-if="networkExplainOpen" class="mb-preview__explainBox">
-                    <p class="mb-preview__consequence">
+                    <p class="mb-meta mb-preview__consequence">
                         <v-icon :icon="mdiLan" size="16" />
                         {{
                             t(
@@ -238,8 +258,8 @@ const renderItems = computed(() =>
                             )
                         }}
                     </p>
-                    <p class="mb-preview__provenance">{{ provenanceText }}</p>
-                    <p class="mb-preview__bindAddress">
+                    <p class="mb-meta mb-preview__provenance">{{ provenanceText }}</p>
+                    <p class="mb-meta mb-preview__bindAddress">
                         {{
                             host.allowNetwork.value
                                 ? t("preview.bindAddress.network", "Every device on this network (0.0.0.0)")
@@ -280,7 +300,7 @@ const renderItems = computed(() =>
                     >
                         {{ t("preview.stop", "Stop hosting") }}
                     </v-btn>
-                    <span v-if="disabledReason !== null" class="mb-preview__disabledReason" role="status">
+                    <span v-if="disabledReason !== null" class="mb-meta" role="status">
                         {{ disabledReason }}
                     </span>
                 </div>
@@ -337,24 +357,56 @@ const renderItems = computed(() =>
                     {{ host.rendersFailure.value }}
                 </v-alert>
             </template>
-        </v-card-text>
-    </v-card>
+        </div>
+    </div>
 </template>
 
 <style>
+/*
+ * The prototype's page gutter and measure, exactly as `ProjectsScreen.vue` states them:
+ * 30px top, 40px side, 48px bottom, with the content held to 900px so a paragraph never
+ * runs the full width of a 1440px window. Stated here rather than inherited from the shell
+ * so this screen is correct wherever it is hosted; App.vue's `.mb-shell-centre` adds a page
+ * inset of its own on top, which belongs to the shell rather than to this screen.
+ */
+.mb-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    inline-size: 100%;
+    max-inline-size: 900px;
+    margin-inline: auto;
+    padding: 30px 40px 48px;
+}
+
+@media (max-width: 900px) {
+    .mb-preview {
+        padding: 20px 16px 32px;
+    }
+}
+
+/*
+ * Grouped so the flex column's 8px gap applies once, between the header and the body, rather
+ * than being added to each of the type scale's own margins - which is how one screen ends up
+ * with a header subtly taller than the same header elsewhere.
+ */
+.mb-preview__header {
+    margin-block-end: 18px;
+}
+
+/*
+ * The heading shares its line with the eye icon, which makes it a flex container, and a flex
+ * container is exactly where a long translated heading goes wrong: `text-overflow` stops
+ * applying once the box is flexed, so a heading that clipped would clip mid-character with no
+ * ellipsis and nothing to say anything was missing. How long this line is depends on the
+ * locale rather than on the English in the source, so all three declarations stay whatever
+ * element carries the heading. They were written for the `<v-card-title>` this used to be and
+ * are no less necessary now it is the page's own `<h1>`.
+ */
 .mb-preview__title {
     display: flex;
     align-items: center;
     gap: 8px;
-    /*
-     * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
-     * nowrap`, and `display: flex` above clears none of the three: `text-overflow` stops
-     * applying once the box is a flex container, `overflow: hidden` still clips, and the
-     * inherited `nowrap` leaves the heading no line to break on. The heading is a
-     * translated sentence - "Watch it live" in English - sharing the row with an icon, so
-     * a longer locale was cut off mid-character with no ellipsis. Same fix as
-     * `DockerWorldSourcePanel.vue`'s `.mb-docker-world__card > .v-card-title`.
-     */
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
@@ -366,38 +418,33 @@ const renderItems = computed(() =>
     gap: 12px;
 }
 
-.mb-preview__explain,
-.mb-preview__caveat,
-.mb-preview__note {
-    margin: 0;
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    overflow-wrap: anywhere;
-    text-wrap: pretty;
-}
-
 .mb-preview__network {
     display: flex;
     align-items: center;
     gap: 4px;
 }
 
+/*
+ * The prototype has no shadowed, tinted-with-transparency block anywhere in it: every surface
+ * is a flat container tint with a hairline outline and a 14px corner, which is what the shared
+ * sheet gives a card. This is the same surface drawn by hand because it is a disclosure panel
+ * rather than a card, so it takes the same three values rather than an opacity nobody else uses.
+ */
 .mb-preview__explainBox {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: rgba(var(--v-theme-on-surface), 0.06);
+    padding: 12px 18px;
+    border-radius: 14px;
+    background: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
+/* Type and colour come from `.mb-meta` in the template; these three only have to wrap. */
 .mb-preview__consequence,
 .mb-preview__provenance,
 .mb-preview__bindAddress {
     margin: 0;
-    font-size: 0.75rem;
-    line-height: 1.5;
     overflow-wrap: anywhere;
 }
 
@@ -406,11 +453,6 @@ const renderItems = computed(() =>
     align-items: center;
     flex-wrap: wrap;
     gap: 8px 12px;
-}
-
-.mb-preview__disabledReason {
-    font-size: 0.75rem;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-preview__idleChip {

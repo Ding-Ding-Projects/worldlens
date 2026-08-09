@@ -741,7 +741,34 @@ html[dir="rtl"] .mb-tabs--right > * {
     order: 2;
 }
 
+/*
+ * The panel is the box a page occupies, and `position: relative` is what makes that
+ * literally true rather than merely the intent.
+ *
+ * A page rendered into the slot is entitled to say "fill the space I was given" - every one
+ * of Work's job screens does, through `App.vue`'s `.mb-world-host` wrapper, which is
+ * `position: absolute; inset: 0` because each of those screens wants its own scroll
+ * container rather than scrolling the whole shell. `inset: 0` resolves against the nearest
+ * *positioned* ancestor, and while this panel was static that was never the panel: it was
+ * whichever ancestor above the tab set happened to be positioned. In the shell that is
+ * `WorkPane`'s `.wl-work` (relative, so its empty state can be laid over the tabs), whose
+ * box starts at the top of the strip rather than below it.
+ *
+ * So the page filled the strip's own row as well as the panel, and because those wrappers
+ * paint an opaque `--v-theme-background` they painted straight over it. Measured in the
+ * running application: the strip row occupied y=40..88 with all three of its segments laid
+ * out and nothing overflowing, `.mb-world-host` occupied y=40..1000 with `offsetParent`
+ * `div.wl-work`, and `document.elementsFromPoint` at the centre of the strip returned the
+ * job's card above `.mb-tabs-strip__ordinary`. The strip was drawn, complete and correct,
+ * and buried - which is why nothing about it looked broken from the inside.
+ *
+ * Making the panel a containing block confines that "fill my box" to the box it names, for
+ * every consumer of this component rather than for the one that noticed. Nothing else about
+ * the layout moves: a static element and a relatively positioned one with no offsets occupy
+ * exactly the same place.
+ */
 .mb-tabs__panel {
+    position: relative;
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;

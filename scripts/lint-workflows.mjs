@@ -47,6 +47,30 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
         'if [ "$SPLIT" = "1" ]; then',
       ]),
       SPLIT_NAMES: contract("steps.split.outputs.names", ['"$SPLIT_NAMES"']),
+      // A release now publishes whenever a real installer exists, gates or no gates, so
+      // "it was published" no longer carries "it passed". These four carry each gate's
+      // actual verdict into the notes, where the table names every gate and its result -
+      // the reader is told rather than left to infer. `needs.<job>.result` is a value
+      // Actions itself produces from a closed set (success, failure, cancelled, skipped);
+      // nothing a contributor or a pull request can steer reaches these, which is why they
+      // are safe to bind at all. They still stay inside the env mapping and reach the
+      // script only as quoted data, exactly like every binding above them.
+      GATE_CHECK: contract("needs.check.result", [
+        'for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do',
+        'gate_line "Lint, build, typecheck, tests" "$GATE_CHECK"',
+      ]),
+      GATE_WORKFLOWS: contract("needs.workflows.result", [
+        'for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do',
+        'gate_line "Workflow files" "$GATE_WORKFLOWS"',
+      ]),
+      GATE_TEST_WORLD: contract("needs.test-world.result", [
+        'for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do',
+        'gate_line "Test world render" "$GATE_TEST_WORLD"',
+      ]),
+      GATE_CONFIG_JAVA: contract("needs.config-java-roundtrip.result", [
+        'for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do',
+        'gate_line "Config / real Java CLI round trip" "$GATE_CONFIG_JAVA"',
+      ]),
     }),
     Publish: Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
@@ -72,9 +96,13 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
       env: "ac9ce0136bb0c6611abee76c2b2cc24d3380b23f7dc6d660f03b4977280fc471",
       run: "e8b171b7170173016649dfb65ae654678e711f93fcd0b2b0795226f4036dc3ca",
     }),
+    // Reviewed at the commit that made a release publish whether or not the gates went
+    // green: the env block gained the four GATE_* bindings above, and the run block gained
+    // the warning callout, the gate table and the `gate_line` helper that prints it. Both
+    // digests were recomputed only after reading that diff line by line.
     "Compose release notes": Object.freeze({
-      env: "caed41d074403c32376a58e8f01edc7c6e03a0b181235c85078eaccf819e9ca5",
-      run: "f0ae3ff87b620e873b29d1e0ed81ec97e5cae55f0941092dba895dc493e10d13",
+      env: "ee53f8602049edcbdaf4b6b1a5a2d5479f4a7cce003a3d45788b8c55aa49669e",
+      run: "f8cc63f9c0067811ffb5055e1d9c28393e70a398b75699318a5dcb8d50972b8e",
     }),
     Publish: Object.freeze({
       env: "f951560bc01336f0c08b2b8fc66f8b9bc7745b1593b3560718edb128c9f3b823",
@@ -83,17 +111,31 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
   }),
 });
 
+// Covers the whole `release` job, not only its watched steps, so a new step cannot be
+// slipped in beside the reviewed ones. Its previous value held from the commit that
+// introduced it until the release condition was deliberately relaxed to publish on any
+// run that produced a real installer; the diff between the two is that condition, the
+// four gate bindings, the gate table they feed, and the "what is in this build" sentence
+// that now stops claiming a clean suite when there was not one.
 const RELEASE_JOB_FINGERPRINT =
-  "436b4fb744b42764ce97238e8edc252c771b80e08cd746697518be63bfd39e60";
+  "3d416529075c476e21da2d4499f7be62e2015b26d1cc6dc2c0dac46dfab28070";
 
+// The counts are exact rather than a floor because a new use of an external action is
+// precisely the thing somebody should have to look at: an action that runs in this
+// workflow runs with whatever the job hands it. The three counts that carry an extra use
+// against the original inventory all gained it from one place - the `lint` job that was
+// split out of `check` so a style rule could stop withholding the installer. That job
+// introduces no new action identity; it repeats three that were already reviewed, at the
+// same commit SHAs recorded here, and its checkout erases its credential like every
+// other. Nothing new entered the trust set, so the counts move and the SHAs do not.
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
-    count: 7,
+    count: 8,
   }),
   "actions/setup-node": Object.freeze({
     sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
-    count: 7,
+    count: 8,
   }),
   "actions/setup-java": Object.freeze({
     sha: "cf277c60eb25467037889841efdb72551f06f6c3",
@@ -109,7 +151,7 @@ const PINNED_ACTIONS = Object.freeze({
   }),
   "pnpm/action-setup": Object.freeze({
     sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
-    count: 6,
+    count: 7,
   }),
 });
 
@@ -168,8 +210,28 @@ const REQUIRED_STEP_LINES = Object.freeze({
     "(cd world-out && sha256sum -c test-world.sha256.txt)",
   ]),
   "Compose release notes": Object.freeze([
-    'echo "> [!WARNING]"',
     'echo "> Worldlens for Windows is intentionally and permanently unsigned. Windows SmartScreen may warn that the publisher is unknown; review the exact SHA-256 digest on this release before choosing to run it. The Squirrel package hash detects changed bytes, but an unsigned package does not authenticate who published or authored those bytes."',
+  ]),
+});
+
+// Lines that must appear together, in this order, with nothing between them. A bare
+// `echo "> [!WARNING]"` used to be counted here as a single line, which worked only while
+// the notes contained exactly one alert. They now contain two - the unsigned-installer
+// warning recorded here, and a separate one naming which gates failed on a build that
+// shipped anyway - so the opener alone no longer says which alert it belongs to, and
+// a count of two would be satisfied by two gate warnings and no unsigned warning at all.
+//
+// Requiring the pair to be adjacent says the thing the count was standing in for. The
+// opener is what turns the sentence beneath it into a rendered GitHub alert rather than
+// an ordinary blockquote a reader scrolls past, so the two drifting apart is itself the
+// failure worth catching, and it is one an exact count of either line on its own cannot
+// see. The unsigned sentence keeps its own exactly-once rule above as well.
+const REQUIRED_STEP_SEQUENCES = Object.freeze({
+  "Compose release notes": Object.freeze([
+    Object.freeze([
+      'echo "> [!WARNING]"',
+      'echo "> Worldlens for Windows is intentionally and permanently unsigned. Windows SmartScreen may warn that the publisher is unknown; review the exact SHA-256 digest on this release before choosing to run it. The Squirrel package hash detects changed bytes, but an unsigned package does not authenticate who published or authored those bytes."',
+    ]),
   ]),
 });
 
@@ -602,6 +664,27 @@ function actionDependencyProblems(text, file) {
       }
     }
   }
+
+  for (const [stepName, sequences] of Object.entries(REQUIRED_STEP_SEQUENCES)) {
+    const region = regions.find((candidate) => candidate.stepName === stepName);
+    const commands = region?.lines.map((line) => line.text.trim()) ?? [];
+    for (const sequence of sequences) {
+      let found = 0;
+      for (let start = 0; start + sequence.length <= commands.length; start++) {
+        if (sequence.every((line, offset) => commands[start + offset] === line))
+          found++;
+      }
+      if (found !== 1) {
+        problems.push({
+          file,
+          line: region?.keyLine ?? 1,
+          stepName: region?.stepName ?? stepName,
+          expression: null,
+          message: `security contract must run exactly once as consecutive lines: ${sequence.join(" then ")}`,
+        });
+      }
+    }
+  }
   return problems;
 }
 
@@ -668,7 +751,7 @@ function main() {
     process.exitCode = 1;
   } else {
     process.stdout.write(
-      "lint-workflows: 2 workflows, 49 pinned actions and 3 watched release steps clean\n",
+      "lint-workflows: 2 workflows, 52 pinned actions and 3 watched release steps clean\n",
     );
   }
 }

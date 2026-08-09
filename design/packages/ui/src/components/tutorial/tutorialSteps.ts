@@ -13,18 +13,24 @@
  *
  * `anchor` is a CSS selector for the one real control this step is about. It is never
  * invented: every selector below targets an attribute added to an existing, already-shipped
- * element (`data-tutorial-anchor` on a shell tab button, or a class the owning component
- * already had). `tutorialAnchors.test.ts` mounts the real owning surface for each step and
- * asserts the selector resolves to a real node, so a control renamed or removed under this
- * tour fails a test instead of quietly pointing the highlight at nothing. A step whose anchor
- * cannot be found is worse than no step at all - see the tour's own requirements - which is
- * why every anchor chosen here is unconditionally present once its page is showing, rather
- * than nested inside a wizard sub-step or a bridge-gated disclosure that might not have
- * rendered yet.
+ * element (`data-tutorial-anchor` on a shell tab button or on a rail destination button, or a
+ * class the owning component already had). `tutorialAnchors.test.ts` mounts the real owning
+ * surface for each step and asserts the selector resolves to a real node, so a control renamed
+ * or removed under this tour fails a test instead of quietly pointing the highlight at nothing.
+ * A step whose anchor cannot be found is worse than no step at all - see the tour's own
+ * requirements - which is why every anchor chosen here is unconditionally present once its page
+ * is showing, rather than nested inside a wizard sub-step or a bridge-gated disclosure that
+ * might not have rendered yet.
  *
  * `pageId` is the shell's own page id (`App.vue`'s `PAGE_*` constants, as strings): the value
  * `TutorialOverlay.vue` hands to the shell's `revealPage` so the step's real page is on
  * screen before the anchor is measured.
+ *
+ * Two of those page ids no longer name a tab. The shell rewrite moved Home and Map out of the
+ * strip and onto the application rail, so `revealPage("map")` now selects a rail destination
+ * rather than opening a tab, and the two map steps point at that rail button - `rail-map` -
+ * instead of the `tab-map` that used to exist. Every other step's page is still a job in the
+ * strip, and `revealPage` still opens it there.
  *
  * `signal` names an optional {@link TutorialSignal}: when the app fires it while this step is
  * the active one, the tour advances on its own, in addition to the ever-present Next button.
@@ -74,7 +80,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     {
         id: "welcome",
         pageId: "map",
-        anchor: '[data-tutorial-anchor="tab-map"]',
+        anchor: '[data-tutorial-anchor="rail-map"]',
     },
     {
         id: "makeAMap",
@@ -95,7 +101,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     {
         id: "openMap",
         pageId: "map",
-        anchor: '[data-tutorial-anchor="tab-map"]',
+        anchor: '[data-tutorial-anchor="rail-map"]',
     },
     {
         id: "publish",

@@ -97,6 +97,18 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         reason: "A value editor (a font picker) with its own built-in live filter already; not a command menu.",
     },
     {
+        file: "shell/NotificationPanel.vue",
+        builtVia: "v-menu",
+        menu: "The notification history, anchored under the application rail's bell.",
+        status: "has-search",
+        // Same shape as `notifications/NotificationCentre.vue` below, one level further out: the
+        // shell rewrite moved the bell from the corner into the rail's footer, and the search
+        // field still lives in the panel this file mounts rather than in its own template. The
+        // default marker set looks for a search component in the file itself and would never
+        // find it here.
+        markers: ["NoticeCentrePanel"],
+    },
+    {
         file: "changelog/ChangelogDateFilter.vue",
         builtVia: "v-menu",
         menu: "The advanced calendar popover behind the changelog's date-range filter.",

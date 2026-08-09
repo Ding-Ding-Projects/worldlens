@@ -5,6 +5,7 @@ import {
     mdiCheckboxMultipleMarkedOutline,
     mdiEarth,
     mdiEject,
+    mdiFolderOpenOutline,
     mdiFolderPlusOutline,
     mdiPencilOutline,
     mdiPlusCircleOutline,
@@ -20,7 +21,6 @@ import {
     VCardText,
     VCardTitle,
     VCheckboxBtn,
-    VChip,
     VDivider,
     VIcon,
     VList,
@@ -71,7 +71,8 @@ import {
  * ## Available, not automatic
  *
  * Nothing here writes a project file on its own. A discovered world is offered, visibly
- * marked as not yet a project (a chip, an outline, its own "Use" action rather than the
+ * marked as not yet a project (a "not yet a project" pill, a secondary-container tile where
+ * the projects list wears a primary-container one, and its own "Use" action rather than the
  * established list's "Open"), and a click routes into starting one - opening the editor
  * pre-filled for a single world, or writing a default project immediately for however many
  * are selected in bulk. Silently writing a project into every world folder this computer can
@@ -442,7 +443,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
         </v-card-title>
 
         <v-card-text>
-            <p class="mb-discovered__blurb">
+            <p class="mb-lede">
                 {{
                     t(
                         "project.discovered.blurb",
@@ -451,64 +452,80 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                 }}
             </p>
 
+            <!--
+                The panel holds two lists - where it looked, and what it found - and the
+                prototype separates every list from the one above it with a labelled rule
+                rather than with whitespace and a heavier font. Without it the two run
+                together into one undifferentiated column, which is most of why a card of
+                rows reads as the old application even once the rows themselves are right.
+            -->
+            <div class="mb-section-rule">
+                <span class="mb-section-label">{{ t("project.discovered.foldersSection", "Minecraft folders") }}</span>
+            </div>
+
             <ul class="mb-discovered__mounts">
                 <li v-for="folder in folders" :key="folder.id" class="mb-discovered__mount">
-                    <div class="mb-discovered__mount-line">
-                        <template v-if="renaming === folder.id">
-                            <v-text-field
-                                v-model="renameText"
-                                :label="t('project.discovered.renameLabel', 'Name for this folder')"
-                                variant="outlined"
-                                density="compact"
-                                hide-details="auto"
-                                autofocus
-                                @keydown.enter="commitRename(folder)"
-                                @blur="commitRename(folder)"
-                            />
-                        </template>
-                        <template v-else>
-                            <span class="mb-discovered__mount-name">{{ folder.label }}</span>
-                            <v-chip v-if="folder.builtIn" size="x-small" variant="tonal">
-                                {{ t("project.discovered.detected", "found automatically") }}
-                            </v-chip>
-                            <v-chip size="x-small" variant="outlined">
-                                {{
-                                    isScanning(folder)
-                                        ? t("project.discovered.scanning", "reading...")
-                                        : t("project.discovered.worldCount", { n: worldCountOf(folder) }, "{n} worlds")
-                                }}
-                            </v-chip>
-                            <v-progress-circular v-if="isScanning(folder)" indeterminate size="14" width="2" aria-hidden="true" />
-                            <v-btn
-                                :icon="mdiPencilOutline"
-                                :aria-label="t('project.discovered.rename', { label: folder.label }, 'Rename {label}')"
-                                variant="text"
-                                size="x-small"
-                                density="comfortable"
-                                @click="startRenaming(folder)"
-                            />
-                            <v-btn
-                                v-if="!folder.builtIn"
-                                :prepend-icon="mdiEject"
-                                :aria-label="
-                                    t(
-                                        'project.discovered.unmountOne',
-                                        { label: folder.label },
-                                        'Unmount {label}. This only takes it out of this list and changes nothing on your disk.',
-                                    )
-                                "
-                                variant="text"
-                                size="x-small"
-                                @click="unmount(folder)"
-                            >
-                                {{ t("project.discovered.unmount", "Unmount") }}
-                            </v-btn>
-                        </template>
+                    <span class="mb-icon-tile mb-discovered__mount-tile" aria-hidden="true">
+                        <v-icon :icon="mdiFolderOpenOutline" size="21" />
+                    </span>
+                    <div class="mb-discovered__mount-body">
+                        <div class="mb-discovered__mount-line">
+                            <template v-if="renaming === folder.id">
+                                <v-text-field
+                                    v-model="renameText"
+                                    :label="t('project.discovered.renameLabel', 'Name for this folder')"
+                                    variant="outlined"
+                                    density="compact"
+                                    hide-details="auto"
+                                    autofocus
+                                    @keydown.enter="commitRename(folder)"
+                                    @blur="commitRename(folder)"
+                                />
+                            </template>
+                            <template v-else>
+                                <span class="mb-discovered__mount-name">{{ folder.label }}</span>
+                                <span v-if="folder.builtIn" class="mb-badge-pill">
+                                    {{ t("project.discovered.detected", "found automatically") }}
+                                </span>
+                                <span class="mb-badge-pill mb-discovered__count-pill">
+                                    {{
+                                        isScanning(folder)
+                                            ? t("project.discovered.scanning", "reading...")
+                                            : t("project.discovered.worldCount", { n: worldCountOf(folder) }, "{n} worlds")
+                                    }}
+                                </span>
+                                <v-progress-circular v-if="isScanning(folder)" indeterminate size="14" width="2" aria-hidden="true" />
+                                <v-btn
+                                    :icon="mdiPencilOutline"
+                                    :aria-label="t('project.discovered.rename', { label: folder.label }, 'Rename {label}')"
+                                    variant="text"
+                                    size="x-small"
+                                    density="comfortable"
+                                    @click="startRenaming(folder)"
+                                />
+                                <v-btn
+                                    v-if="!folder.builtIn"
+                                    :prepend-icon="mdiEject"
+                                    :aria-label="
+                                        t(
+                                            'project.discovered.unmountOne',
+                                            { label: folder.label },
+                                            'Unmount {label}. This only takes it out of this list and changes nothing on your disk.',
+                                        )
+                                    "
+                                    variant="text"
+                                    size="x-small"
+                                    @click="unmount(folder)"
+                                >
+                                    {{ t("project.discovered.unmount", "Unmount") }}
+                                </v-btn>
+                            </template>
+                        </div>
+                        <p class="mb-path">{{ folder.savesPath }}</p>
+                        <p v-if="originOf(folder)" class="mb-meta">{{ originOf(folder) }}</p>
+                        <p v-if="stateOf(folder)" class="mb-discovered__mount-state">{{ stateOf(folder) }}</p>
+                        <p v-if="failureOf(folder)" class="mb-discovered__mount-state">{{ failureOf(folder) }}</p>
                     </div>
-                    <p class="mb-discovered__mount-path">{{ folder.savesPath }}</p>
-                    <p v-if="originOf(folder)" class="mb-discovered__hint">{{ originOf(folder) }}</p>
-                    <p v-if="stateOf(folder)" class="mb-discovered__mount-state">{{ stateOf(folder) }}</p>
-                    <p v-if="failureOf(folder)" class="mb-discovered__mount-state">{{ failureOf(folder) }}</p>
                 </li>
             </ul>
 
@@ -522,7 +539,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                 >
                     {{ t("project.discovered.add", "Mount another Minecraft folder") }}
                 </v-btn>
-                <span class="mb-discovered__hint">
+                <span class="mb-meta mb-discovered__hint">
                     {{
                         t(
                             "project.discovered.addHint",
@@ -543,6 +560,20 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
             </v-alert>
 
             <v-progress-linear v-if="busy" indeterminate color="primary" class="mb-2" />
+
+            <!--
+                The second rule heads the whole worlds group - its search, its bulk bar and
+                its rows - rather than only the rows, because the search and the bulk actions
+                act on this list and on nothing else on the panel. The count is held back
+                while a scan is running: "0 worlds" beside a spinner is a number that is only
+                true for as long as nobody has finished looking.
+            -->
+            <div class="mb-section-rule">
+                <span class="mb-section-label">{{ t("project.discovered.worldsSection", "Worlds ready to use") }}</span>
+                <span v-if="!busy" class="mb-meta mb-discovered__section-count">
+                    {{ t("project.discovered.sectionCount", { n: available.length }, "{n} worlds") }}
+                </span>
+            </div>
 
             <div v-if="searchVisible" class="mb-discovered__search">
                 <ConfigSearchField
@@ -591,7 +622,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                 <span>{{ t("project.discovered.scanningStatus", "Reading your Minecraft folders...") }}</span>
             </p>
 
-            <p v-else-if="noFoldersAtAll" class="mb-discovered__empty" role="status">
+            <p v-else-if="noFoldersAtAll" class="mb-lede mb-discovered__empty" role="status">
                 {{
                     t(
                         "project.discovered.noFolders",
@@ -600,7 +631,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                 }}
             </p>
 
-            <p v-else-if="foldersButNoWorlds" class="mb-discovered__empty" role="status">
+            <p v-else-if="foldersButNoWorlds" class="mb-lede mb-discovered__empty" role="status">
                 {{
                     t(
                         "project.discovered.noWorlds",
@@ -610,7 +641,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                 }}
             </p>
 
-            <p v-else-if="worldsButAllHaveProjects" class="mb-discovered__empty" role="status">
+            <p v-else-if="worldsButAllHaveProjects" class="mb-lede mb-discovered__empty" role="status">
                 {{
                     t(
                         "project.discovered.allHaveProjects",
@@ -619,7 +650,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                 }}
             </p>
 
-            <p v-else-if="noSearchMatch" class="mb-discovered__empty" role="status">
+            <p v-else-if="noSearchMatch" class="mb-lede mb-discovered__empty" role="status">
                 {{ t("project.discovered.noMatch", "No world matches that search. Clearing it brings the whole list back.") }}
             </p>
 
@@ -639,7 +670,11 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                     role="presentation"
                     class="mb-discovered__rowhost"
                 >
-                    <div class="mb-discovered__row" @contextmenu="noteFocus(world.path)">
+                    <div
+                        class="mb-discovered__row"
+                        :class="{ 'mb-discovered__row--chosen': isChosen(world.path) }"
+                        @contextmenu="noteFocus(world.path)"
+                    >
                         <v-checkbox-btn
                             :model-value="isChosen(world.path)"
                             :aria-label="t('project.discovered.choose', { name: displayName(world) }, 'Choose {name}')"
@@ -659,14 +694,32 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                             @focus="noteFocus(world.path)"
                             @keydown="onOptionKeydown($event, world)"
                         >
+                            <!--
+                                The tile is decoration and says nothing a screen reader has
+                                not already been told by `optionNameOf`, so it is hidden from
+                                one. It is what gives the list its rhythm: a column of bare
+                                text lines is exactly what the old application looked like.
+                            -->
+                            <span class="mb-icon-tile mb-discovered__tile" aria-hidden="true">
+                                <v-icon :icon="mdiEarth" size="21" />
+                            </span>
                             <span class="mb-discovered__text">
-                                <span class="mb-discovered__name">
-                                    {{ displayName(world) }}
-                                    <v-chip size="x-small" variant="outlined" class="ms-2">
+                                <span class="mb-discovered__nameline">
+                                    <span class="mb-discovered__name">{{ displayName(world) }}</span>
+                                    <span class="mb-badge-pill">
                                         {{ t("project.discovered.notYetChip", "not yet a project") }}
-                                    </v-chip>
+                                    </span>
+                                    <span class="mb-meta mb-discovered__subtitle">{{ detailsOf(world) }}</span>
                                 </span>
-                                <span class="mb-discovered__subtitle">{{ detailsOf(world) }}</span>
+                                <!--
+                                    Two worlds can carry the same name in two different
+                                    installs, and the path is the only thing on the row that
+                                    tells them apart. `optionNameOf` is unchanged and does
+                                    not speak it, so this is a visual disambiguator rather
+                                    than a fact only shown here: `worldSearchText` already
+                                    matches on the path, so a search finds it either way.
+                                -->
+                                <span class="mb-path">{{ world.path }}</span>
                             </span>
                         </div>
                         <span class="mb-discovered__actions">
@@ -727,13 +780,21 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 </template>
 
 <style scoped>
+/*
+ * The card's own shape, tint and outline are deliberately absent: `styles/prototypeSurface.scss`
+ * states them once for every card in the application, and a 16px radius stated a second time
+ * here would leave this one card a corner out of step the next time that sheet moves.
+ *
+ * What was here was a dashed primary border, on the reasoning that a discovered world is
+ * available rather than configured and the border should say so before a word is read. The
+ * prototype draws no dashed border anywhere, and the distinction it does draw is carried
+ * further down this file instead: this panel's rows wear a secondary-container tile against
+ * the projects list's primary-container one, and every row carries the "not yet a project"
+ * pill. That is the same statement in the design's own vocabulary rather than in a border
+ * style it has no other example of.
+ */
 .mb-discovered {
     inline-size: 100%;
-    border-radius: 16px;
-    /* A visibly different treatment from the established projects list below it: a
-       discovered world is available, not yet configured, and the border says so before a
-       single word is read. */
-    border: 1px dashed rgba(var(--v-theme-primary), 0.4);
 }
 
 .mb-discovered__head {
@@ -755,51 +816,118 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
     white-space: normal;
 }
 
-.mb-discovered__blurb,
-.mb-discovered__hint,
-.mb-discovered__empty {
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+/*
+ * The prose is `mb-lede` and `mb-meta` now, so its size and colour come from the one sheet.
+ * The empty states keep a rule of their own only for the space they need above the rule that
+ * follows them - `mb-lede` sets a shared bottom margin and knows nothing about what a
+ * particular screen puts underneath it.
+ */
+.mb-lede.mb-discovered__empty {
+    margin-block: 4px 0;
+}
+
+/*
+ * The mount rows put the path and the origin note in paragraphs, and neither `mb-path` nor
+ * `mb-meta` resets a margin - they are used inside spans elsewhere, where there is none to
+ * reset. Left alone the browser's own `1em` paragraph margin would open a gap the row's 3px
+ * gap was chosen to close.
+ */
+.mb-discovered__mount-body > p {
+    margin: 0;
+}
+
+.mb-discovered__hint {
+    /* Beside the mount button rather than under it, so it takes the leftover width. */
+    flex: 1 1 18rem;
+    min-inline-size: 0;
     text-wrap: pretty;
 }
 
+/*
+ * The count sits to the right of `mb-section-rule`'s hairline. The hairline is that class's
+ * own `::after`, which is the last flex item by definition, so a count written into the
+ * markup lands to the *left* of it and squashes up against the label. `order: 1` is the one
+ * line that puts a real element after a generated one, and it is why the count can be
+ * markup - which the search summary and the funny-level styling can reach - rather than more
+ * generated content that neither can.
+ */
+.mb-discovered__section-count {
+    order: 1;
+}
+
+/*
+ * Both lists on this panel - where it looked, and what it found - are drawn as the same
+ * prototype row, because they are the same kind of thing to look at and giving them two
+ * treatments is how a card ends up reading as two half-finished screens.
+ */
 .mb-discovered__mounts {
-    margin-block: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-block: 0 10px;
     padding: 0;
     list-style: none;
 }
 
 .mb-discovered__mount {
-    padding-block: 6px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 15px 18px;
+    border-radius: 14px;
+    background: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
-.mb-discovered__mount + .mb-discovered__mount {
-    border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+/*
+ * Doubled up on `.mb-icon-tile` rather than written alone. The shared tile rule is
+ * `.v-application .mb-icon-tile`, which is two classes deep on purpose; a single scoped class
+ * here would tie on specificity and be decided by whichever stylesheet the bundler happened
+ * to emit second, which is exactly the silent failure this design's own notes warn about.
+ */
+.mb-icon-tile.mb-discovered__mount-tile {
+    background: rgb(var(--v-theme-secondary-container));
+    color: rgb(var(--v-theme-on-secondary-container));
+}
+
+.mb-discovered__mount-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    /* The prototype's 3px between a row's name line and the line under it. */
+    gap: 3px;
+    /* Without this the monospace path refuses to shrink and pushes the row wider. */
+    min-inline-size: 0;
 }
 
 .mb-discovered__mount-line {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
 .mb-discovered__mount-name {
-    font-size: 0.875rem;
+    font-size: 15px;
     font-weight: 500;
+    line-height: 22px;
+    overflow-wrap: anywhere;
 }
 
-.mb-discovered__mount-path {
-    font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
-    overflow-wrap: anywhere;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+/*
+ * The second pill on a mount row states a count, not a state, and the two were told apart by
+ * a chip variant before this. Re-tinting the shared pill keeps them distinguishable without a
+ * second pill shape, and the same specificity doubling applies as for the tile above.
+ */
+.mb-badge-pill.mb-discovered__count-pill {
+    background: rgb(var(--v-theme-surface-container-highest));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-discovered__mount-state {
-    font-size: 0.75rem;
-    line-height: 1.5;
+    margin: 0;
+    font-size: 12px;
+    line-height: 18px;
     color: rgb(var(--v-theme-warning));
     text-wrap: pretty;
 }
@@ -842,65 +970,104 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 .mb-discovered__list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    margin-block-start: 8px;
+    /* The prototype's own gap between rows. At 2px the rows read as one ruled block. */
+    gap: 10px;
 }
 
 .mb-discovered__rowhost {
     display: block;
 }
 
+/*
+ * The row is the card now, not the option inside it. Everything the prototype states about a
+ * row - its 15px/18px padding, its 14px corner, its container tint and its hairline outline -
+ * belongs to the whole row rather than to the part of it that happens to be clickable, so the
+ * checkbox and the Use button sit inside the same surface as the name instead of floating
+ * either side of a separately-tinted middle.
+ */
 .mb-discovered__row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    /* Narrower than the 16px inside the option: the checkbox and the button are chrome. */
+    gap: 12px;
+    padding: 15px 18px;
+    border-radius: 14px;
+    background: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-discovered__row:hover {
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
+/*
+ * Chosen is a bound class rather than `:has([aria-selected="true"])` because nothing else in
+ * this package relies on `:has` yet, and a selection highlight that silently does nothing on
+ * an engine that does not support it is the kind of failure a screenshot never catches. The
+ * option's own `aria-selected` remains the thing that actually reports the choice.
+ */
+.mb-discovered__row--chosen {
+    background: rgb(var(--v-theme-surface-container-high));
+    border-color: rgb(var(--v-theme-primary));
 }
 
 .mb-discovered__option {
     display: flex;
     flex: 1 1 auto;
     align-items: center;
-    gap: 12px;
-    min-block-size: 48px;
+    gap: 16px;
+    /* The tile alone is 40px, so this only guards a row whose tile fails to load. */
+    min-block-size: 40px;
     min-inline-size: 0;
-    padding: 8px 10px;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
 }
 
-.mb-discovered__option:hover {
-    background: rgba(var(--v-theme-on-surface), 0.06);
-}
-
+/*
+ * Outside the option's own box rather than inside it: the option no longer has padding of its
+ * own, so an inset ring would be drawn through the name. There is 15px of row padding above
+ * and below to hold it.
+ */
 .mb-discovered__option:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
-    outline-offset: -2px;
+    outline-offset: 2px;
 }
 
-.mb-discovered__option[aria-selected="true"] {
-    background: rgba(var(--v-theme-primary), 0.14);
+.mb-icon-tile.mb-discovered__tile {
+    background: rgb(var(--v-theme-secondary-container));
+    color: rgb(var(--v-theme-on-secondary-container));
 }
 
 .mb-discovered__text {
     display: flex;
+    flex: 1 1 auto;
     min-inline-size: 0;
     flex-direction: column;
+    gap: 3px;
+}
+
+/*
+ * Baseline rather than centre, so the 15px name, the 11px pill and the 12px meta sit on one
+ * line rather than three centres of three different heights. It wraps because the meta line
+ * is a sentence in bilingual mode and a row that cannot wrap is a row that clips.
+ */
+.mb-discovered__nameline {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-inline-size: 0;
 }
 
 .mb-discovered__name {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 2px;
-    font-size: 0.9375rem;
-    line-height: 1.3;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 22px;
     overflow-wrap: anywhere;
 }
 
 .mb-discovered__subtitle {
-    font-size: 0.8125rem;
-    line-height: 1.4;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    min-inline-size: 0;
     overflow-wrap: anywhere;
 }
 
@@ -921,6 +1088,26 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 @media (max-width: 600px) {
     .mb-discovered__bulk {
         gap: 4px;
+    }
+
+    /*
+     * The prototype's row is a single line of tile, text and action, and it was drawn at a
+     * comfortable width. The tile and the 18px of side padding it introduced cost about a
+     * hundred pixels of the text's own room, which a narrow window plus a bilingual "Use"
+     * label spends entirely - so at this width the action is allowed to drop beneath the
+     * text rather than squeeze it. `12rem` is the point at which the name and the meta line
+     * stop being worth reading side by side; below it they get the whole row.
+     */
+    .mb-discovered__row {
+        flex-wrap: wrap;
+    }
+
+    .mb-discovered__option {
+        flex: 1 1 12rem;
+    }
+
+    .mb-discovered__actions {
+        margin-inline-start: auto;
     }
 }
 </style>

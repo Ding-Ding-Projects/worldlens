@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useSlots } from "vue";
 import { useI18n } from "vue-i18n";
-import { VBtn } from "vuetify/components";
 import { TabbedNavigation, type TabGroupSeed, type TabPage } from "../tabs/index.js";
 import { capabilityAvailable } from "./capabilities.js";
 import { JOB_DEFINITIONS, JOB_SEED_GROUPS, FRESH_WORKSPACE_JOB_IDS } from "./jobRegistry.js";
@@ -31,8 +30,6 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    /** The strip's `+` and the empty state both mean "take me back to choose something". */
-    goHome: [];
     /** Forwarded from the tab workspace, so the rail badge counts the real thing. */
     workspaceChange: [pageIds: readonly string[]];
 }>();
@@ -83,8 +80,6 @@ const pinnedPageIds = computed(() =>
     JOB_DEFINITIONS.filter((job) => job.pinnedOnFreshWorkspace).map((job) => job.id),
 );
 
-const hasActiveJob = computed(() => tabs.value?.activePage != null);
-
 /** Re-exposed so the shell can drive Work exactly as it drove the old strip. */
 defineExpose({
     ensurePage: (pageId: string) => tabs.value?.ensurePage(pageId),
@@ -121,24 +116,26 @@ defineExpose({
         </TabbedNavigation>
 
         <!--
-            Nothing open. A purposeful empty state with a real route out, not a blank tab: a tab
-            with no job in it is a control that does nothing, and this application does not ship
-            those.
+            There is deliberately no empty state here. `TabbedNavigation` already draws one
+            inside its own panel - "Every tab is closed", with a button per page that opens
+            that job in place - and a second one laid over the top of it was both redundant
+            and actively harmful: it was `position: absolute; inset: 0` against `.wl-work`,
+            whose box starts at the top of the tab strip, so with no job open it painted an
+            opaque background over the strip, the new-tab button and the ten-button empty
+            state underneath, and offered one button that navigated away to Home instead.
+            Measured in the running application: the overlay occupied y=40..1000 while the
+            strip row occupied y=40..84, `elementsFromPoint` at the centre of the strip
+            returned `.wl-work__empty` above `.mb-tabs-strip__ordinary`, and the new-tab
+            button's own centre hit the overlay rather than the button.
+
+            Constraining it to the panel instead of deleting it was the alternative, and it
+            is not available honestly: the strip docks to any of four edges the user chooses,
+            so "below the strip" is a different inset per placement and this component would
+            have to work out the strip's geometry to draw around it - reimplementing what the
+            tab system already owns, which is the one thing this component's own doc comment
+            above promises it does not do. The panel-hosted empty state is placement-correct
+            for free, because it is inside the panel.
         -->
-        <div v-if="!hasActiveJob" class="wl-work__empty">
-            <h2 class="wl-work__empty-title">{{ t("work.empty.title", "No job is open") }}</h2>
-            <p class="wl-work__empty-body">
-                {{
-                    t(
-                        "work.empty.body",
-                        "Work holds the jobs you have started. Pick one from Home and it appears here.",
-                    )
-                }}
-            </p>
-            <v-btn class="mb-interactive" color="primary" variant="flat" @click="emit('goHome')">
-                {{ t("work.empty.choose", "Choose work") }}
-            </v-btn>
-        </div>
     </div>
 </template>
 
@@ -199,32 +196,4 @@ defineExpose({
     text-transform: uppercase;
 }
 
-.wl-work__empty {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 32px;
-    text-align: center;
-    background: rgb(var(--v-theme-background));
-}
-
-.wl-work__empty-title {
-    margin: 0;
-    font-size: 1.625rem;
-    font-weight: 400;
-    color: rgb(var(--v-theme-on-surface));
-}
-
-.wl-work__empty-body {
-    margin: 0;
-    max-inline-size: 68ch;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: rgb(var(--v-theme-on-surface-variant));
-    text-wrap: pretty;
-}
 </style>

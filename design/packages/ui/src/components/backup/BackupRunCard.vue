@@ -180,7 +180,7 @@ const cardLabel = computed(() =>
         </v-card-title>
 
         <v-card-text class="mb-backup-row__body">
-            <p v-if="row.repository" class="mb-backup-row__where">
+            <p v-if="row.repository" class="mb-meta mb-backup-row__where">
                 {{
                     t(
                         "backup.row.where",
@@ -198,7 +198,7 @@ const cardLabel = computed(() =>
                     color="primary"
                     :aria-label="t('backup.row.progressLabel', 'How much of this backup is done')"
                 />
-                <p class="mb-backup-row__numbers" role="status" aria-live="polite">
+                <p class="mb-meta mb-backup-row__numbers" role="status" aria-live="polite">
                     <span>{{ row.task?.description || phase }}</span>
                     <span v-if="transfer"> · {{ transfer }}</span>
                     <span v-if="parts"> · {{ parts }}</span>
@@ -219,7 +219,7 @@ const cardLabel = computed(() =>
                             : t("backup.row.stop", "Stop this backup")
                     }}
                 </v-btn>
-                <p v-else class="mb-backup-row__note">
+                <p v-else class="mb-meta mb-backup-row__note">
                     {{
                         t(
                             "backup.row.cannotStop",
@@ -230,7 +230,7 @@ const cardLabel = computed(() =>
             </template>
 
             <template v-else-if="row.state === 'finished' && row.summary">
-                <p class="mb-backup-row__note">
+                <p class="mb-meta mb-backup-row__note">
                     {{
                         t(
                             "backup.row.finishedDetail",
@@ -269,7 +269,7 @@ const cardLabel = computed(() =>
             <template v-else-if="row.state === 'failed' && row.failure">
                 <v-alert type="error" density="compact" variant="tonal" class="mb-backup-row__alert" role="alert">
                     <p>{{ row.failure.message }}</p>
-                    <p v-if="row.failure.detail" class="mb-backup-row__note">{{ row.failure.detail }}</p>
+                    <p v-if="row.failure.detail" class="mb-meta mb-backup-row__note">{{ row.failure.detail }}</p>
                 </v-alert>
                 <v-btn
                     v-if="row.failure.needsSignIn && canOpenSettings"
@@ -280,7 +280,7 @@ const cardLabel = computed(() =>
                 >
                     {{ t("backup.row.signIn", "Sign in to GitHub again") }}
                 </v-btn>
-                <p v-else-if="row.failure.needsSignIn" class="mb-backup-row__note">
+                <p v-else-if="row.failure.needsSignIn" class="mb-meta mb-backup-row__note">
                     {{
                         t(
                             "backup.row.signInWhere",
@@ -376,13 +376,16 @@ const cardLabel = computed(() =>
     margin-block-start: 8px;
 }
 
+/*
+ * Size and weight are `.v-card-title`'s own, restated once in the shared prototype sheet
+ * rather than a second time here; what this rule is for is the flex row and the three
+ * declarations under it.
+ */
 .mb-backup-row__head {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    font-size: 0.9375rem;
-    line-height: 1.3;
     /*
      * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
      * white-space: nowrap` for a single-line block title. Turning it into a flex row
@@ -410,12 +413,16 @@ const cardLabel = computed(() =>
     align-items: flex-start;
 }
 
+/*
+ * Type and colour come from `.mb-meta` in the template, which is the one grey this
+ * application states text in. Vuetify's `--v-medium-emphasis-opacity` is a translucency laid
+ * over the foreground rather than a role, so a line set that way and a line set from
+ * `on-surface-variant` never quite matched even though both were meant to be "the grey one".
+ * What is left here is only what a paragraph of unpredictable length needs to wrap safely.
+ */
 .mb-backup-row__where,
 .mb-backup-row__numbers,
 .mb-backup-row__note {
-    font-size: 0.75rem;
-    line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
     overflow-wrap: anywhere;
 }
@@ -440,13 +447,18 @@ const cardLabel = computed(() =>
     min-height: unset;
 }
 
+/*
+ * The prototype's monospace measurement, the same one `.mb-path` states: 11px Roboto Mono
+ * with the platform's own monospace behind it. A log wraps rather than ellipsising, which is
+ * the one thing it does not share with a path.
+ */
 .mb-backup-row__log {
     max-block-size: 200px;
     overflow-y: auto;
     padding-inline-start: 18px;
-    font-family: "Roboto Mono", monospace;
-    font-size: 0.6875rem;
-    line-height: 1.6;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 16px;
 }
 
 .mb-backup-row__log:focus-visible {

@@ -6,13 +6,34 @@
  * Every other test in this folder proves the tour's own logic - stepping, persistence,
  * placement arithmetic - against fakes. None of that says whether `TUTORIAL_STEPS` in
  * `tutorialSteps.ts` still points at something real. This file is the one place that mounts
- * the actual application shell, the actual tab strip, and the actual owning surfaces, and for
- * every declared step: switches to its real page the same way a user's click would (through
- * its own `data-tutorial-anchor="tab-<pageId>"`, added to `TabStrip.vue` for exactly this),
- * then asks the real DOM for `document.querySelector(step.anchor)`.
+ * the actual application shell, the actual rail, the actual tab strip and the actual owning
+ * surfaces, and for every declared step: switches to its real page the same way a user's click
+ * would, then asks the real DOM for `document.querySelector(step.anchor)`.
  *
  * A step whose control was renamed, removed, or moved behind a disclosure that is not open by
  * default fails here, by name, rather than shipping a tour that highlights nothing.
+ *
+ * ## "The same way a user's click would" is now two different clicks
+ *
+ * The shell rewrite split the twelve-page strip in two, and this file navigates both halves
+ * rather than pretending they are still one:
+ *
+ *  - **Home and Map are rail destinations**, not tabs. There is no `tab-map` for a step to
+ *    point at any more and there never will be again, so the two map steps are reached by
+ *    pressing the rail button that owns that destination - `data-tutorial-anchor="rail-map"`
+ *    on `AppRail.vue`, the rail's counterpart of the tab attribute below.
+ *  - **Everything else is a job**, and Work now holds the jobs somebody actually opened rather
+ *    than every destination the application has. A fresh workspace opens exactly one - the
+ *    pinned wizard - so a step whose page is Docs or Publish to Pages has no tab until the job
+ *    is opened. It is opened here through the strip's own new-tab picker, which is the real
+ *    control a person uses for this, and only then is the resulting
+ *    `data-tutorial-anchor="tab-<pageId>"` button clicked.
+ *
+ * The tour itself navigates through `App.vue`'s `revealPage`, which does both of those things
+ * for it - selects the rail destination, or opens the job and switches to Work. Driving the
+ * controls instead keeps this file making the stronger claim it has always made: the thing a
+ * step lands on is something a person can actually press, not merely a page id the shell
+ * happens to accept.
  */
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -23,6 +44,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import App from "../../App.vue";
+import { findJob, isRailPageId } from "../shell/jobRegistry.js";
 import { profilesStore, removeProfile } from "../../stores/profiles.js";
 import { TUTORIAL_STEPS } from "./tutorialSteps.js";
 
@@ -99,7 +121,11 @@ beforeAll(() => {
 
 let wrapper: VueWrapper | null = null;
 
-/** With no bridge and no stored layout, the shell seeds one tab per page, opened on the first. */
+/**
+ * With no bridge and no stored layout, the shell seeds a Work workspace holding the one pinned
+ * wizard tab and lands on Home - see `freshWorkStrip` in `tabWorkspaceMigration.ts`. Every other
+ * job is opened from here, by the helpers below, exactly as a person would open it.
+ */
 function shell(): VueWrapper {
     wrapper = mount(App, { global: { plugins: [vuetify, i18n()] }, attachTo: document.body });
     return wrapper;
@@ -114,19 +140,31 @@ async function settle(): Promise<void> {
 }
 
 /**
- * Opens every collapsed group in the shell's strip.
+ * Presses a rail destination button, which is how Home and Map are reached now.
  *
- * A fresh workspace seeds four loose tabs plus three named, collapsed groups rather than
- * twelve flat ones, so most pages have no tab button until their group is opened. The tour
- * itself never trips over this - it navigates through `revealPage`, which reveals the group
- * holding the tab it activates - but these tests navigate by clicking the button, which is a
- * stronger claim and the one worth keeping: the tab a step lands on is a real control, not
- * merely a page id the shell happens to accept. So they open the groups first and then make
- * exactly the assertion they always made.
+ * The rail is outside the strip and outside every page, so it is on screen whatever the person
+ * is looking at - which is exactly why the two map steps can point at it.
+ */
+async function goToRail(destination: string): Promise<void> {
+    const button = document.querySelector<HTMLElement>(
+        `.wl-rail-item[data-destination="${destination}"]`,
+    );
+    expect(button, `no rail destination "${destination}"`).not.toBeNull();
+    button?.click();
+    await settle();
+}
+
+/**
+ * Opens every collapsed group in the strip.
+ *
+ * The seeded groups start expanded, so on a fresh workspace this does nothing at all. It stays
+ * because a group is a control a person can collapse and a job filed into a collapsed one has
+ * no visible tab, and a test that silently depended on the seed being expanded would start
+ * failing for a reason nobody could read off the failure.
  */
 async function expandGroups(): Promise<void> {
     for (const head of document.querySelectorAll<HTMLElement>(
-        '.mb-shell-tabs .mb-tabs-strip__group-head[aria-expanded="false"]',
+        '.mb-tabs-strip__group-head[aria-expanded="false"]',
     )) {
         head.click();
     }
@@ -134,13 +172,52 @@ async function expandGroups(): Promise<void> {
 }
 
 /**
- * Navigates to `pageId` the same way the tour itself does: through the real tab button, found
- * by the same `data-tutorial-anchor` attribute a highlighted step would resolve.
+ * Opens a job through the strip's own new-tab picker, unless its tab is already there.
+ *
+ * Work holds the jobs somebody opened rather than every destination the application has, so
+ * this is the real route from "that job is not open" to "that job has a tab". Rows are matched
+ * on the label out of `jobRegistry.ts` rather than on a hand-written string, because that
+ * registry is the same source the picker itself renders from - a renamed job moves both at
+ * once instead of leaving this file asserting a label nothing draws. The fallback is what the
+ * picker actually renders here because this file's i18n instance carries no messages at all, so
+ * every `t(key, fallback)` resolves to its fallback.
+ */
+async function openJob(jobId: string): Promise<void> {
+    if (document.querySelector(`[data-tutorial-anchor="tab-${jobId}"]`) !== null) return;
+
+    const job = findJob(jobId);
+    expect(job, `"${jobId}" is not a job this build declares`).not.toBeNull();
+
+    const newTab = document.querySelector<HTMLElement>('button[aria-label="Open a new tab"]');
+    expect(newTab, "the strip has no new-tab button").not.toBeNull();
+    newTab?.click();
+    await settle();
+
+    const row = [...document.querySelectorAll<HTMLElement>(".v-list-item")].find(
+        (item) => item.textContent?.trim() === job?.labelFallback,
+    );
+    expect(row, `the new-tab picker does not offer "${jobId}"`).not.toBeUndefined();
+    row?.click();
+    await settle();
+}
+
+/**
+ * Navigates to `pageId` by pressing the control that actually goes there: the rail button for a
+ * rail destination, or - for a job - Work, the job's own tab, opening it first if the workspace
+ * has not got one yet.
  */
 async function goToPage(pageId: string): Promise<void> {
+    if (isRailPageId(pageId)) {
+        await goToRail(pageId);
+        return;
+    }
+
+    await goToRail("work");
+    await openJob(pageId);
     await expandGroups();
+
     const tab = document.querySelector<HTMLElement>(`[data-tutorial-anchor="tab-${pageId}"]`);
-    expect(tab, `no tab button for page "${pageId}"`).not.toBeNull();
+    expect(tab, `no tab button for job "${pageId}"`).not.toBeNull();
     tab?.click();
     await settle();
 }
@@ -175,17 +252,26 @@ describe("every tour step's anchor resolves to a real element", () => {
         },
     );
 
-    it("every step's own page tab is itself a real, clickable control", async () => {
+    it("every step's own destination is itself a real, clickable control", async () => {
         shell();
         await settle();
-        // Every destination is still a tab; three of them start inside a collapsed group,
-        // one disclosure away. See `expandGroups` above for why opening them keeps this
-        // assertion honest rather than weakening it.
+
+        // Two kinds of destination, so two kinds of control - and the point of the assertion is
+        // unchanged either way: whatever the step's page is, there is something on screen a
+        // person could press to get there. A rail destination is there from the first frame; a
+        // job has to be opened, which is itself a click through a real control (see `openJob`).
+        await goToRail("work");
+        for (const step of TUTORIAL_STEPS) {
+            if (isRailPageId(step.pageId)) continue;
+            await openJob(step.pageId);
+        }
         await expandGroups();
 
         for (const step of TUTORIAL_STEPS) {
-            const tab = document.querySelector(`[data-tutorial-anchor="tab-${step.pageId}"]`);
-            expect(tab, step.pageId).not.toBeNull();
+            const selector = isRailPageId(step.pageId)
+                ? `.wl-rail-item[data-destination="${step.pageId}"]`
+                : `[data-tutorial-anchor="tab-${step.pageId}"]`;
+            expect(document.querySelector(selector), step.pageId).not.toBeNull();
         }
     });
 });
