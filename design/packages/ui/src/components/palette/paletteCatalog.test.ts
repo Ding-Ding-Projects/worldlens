@@ -32,6 +32,8 @@ import { withGlobalReset } from "../appearance/appearanceStore.js";
 import { appearanceState, commitAppearance } from "../appearance/useAppearance.js";
 import { SCREENS } from "../config/configSearch.js";
 import { SETTINGS_ANCHORS, SETTINGS_SECTIONS } from "../settings/settingsSections.js";
+import { THEME_STORAGE_KEY, changeTheme } from "../settings/themeSetting.js";
+import { setBlueMapApp } from "../../stores/bluemap.js";
 import {
     buildPaletteCatalog,
     type PaletteCatalogInput,
@@ -145,23 +147,32 @@ function fakeApp(options: { markers?: boolean; players?: boolean; views?: number
         loadedLowresViewDistance: 2000,
     };
 
+    /**
+     * Hoisted out of the object literal so `setTheme` below can assign to it.
+     *
+     * The real `BlueMapApp.setTheme` writes this field, and `changeTheme` skips the push
+     * when the app already shows the value asked for - so a stand-in that recorded the
+     * call and left the field alone would report the second change as never happening.
+     */
+    const appState = {
+        theme: null as string | null,
+        debug: false,
+        screenshot: { clipboard: false },
+        controls: {
+            state: "perspective",
+            pauseTileLoading: false,
+            showZoomButtons: true,
+            mouseSensitivity: 1,
+            invertMouse: false,
+        },
+        menu: {
+            openPage: (...args: unknown[]) => calls.openPage?.push(args),
+        },
+    };
+
     const app = {
         settings: { hiresSliderMin: 50, hiresSliderMax: 500, lowresSliderMin: 500, lowresSliderMax: 10000 },
-        appState: {
-            theme: null as string | null,
-            debug: false,
-            screenshot: { clipboard: false },
-            controls: {
-                state: "perspective",
-                pauseTileLoading: false,
-                showZoomButtons: true,
-                mouseSensitivity: 1,
-                invertMouse: false,
-            },
-            menu: {
-                openPage: (...args: unknown[]) => calls.openPage?.push(args),
-            },
-        },
+        appState,
         mapViewer: {
             data,
             markers: { data: { id: "root", markers: [], markerSets } },
@@ -171,7 +182,10 @@ function fakeApp(options: { markers?: boolean; players?: boolean; views?: number
                 data.superSampling = value;
             },
         },
-        setTheme: (value: string | null) => calls.setTheme?.push(value),
+        setTheme: (value: string | null) => {
+            calls.setTheme?.push(value);
+            appState.theme = value;
+        },
         setDebug: (value: boolean) => calls.setDebug?.push(value),
         setChunkBorders: (value: boolean) => calls.setChunkBorders?.push(value),
         saveUserSettings: () => calls.saveUserSettings?.push(true),
@@ -526,17 +540,37 @@ describe("the settings rows write, and persist what they wrote", () => {
         expect(fake.calls.saveUserSettings).toHaveLength(1);
     });
 
-    it("writes a choice through the app's own method and saves", () => {
+    /**
+     * The theme row is the one row that does not end at a `BlueMapApp` method, and this is
+     * where that shows. `appState.theme` is written by the viewer's own startup as well as
+     * by a person - `settings/themeSetting.ts` documents the chain - so the chosen theme
+     * lives in the stored record and the row writes it with `changeTheme`, which then
+     * pushes into whichever viewer the store holds.
+     *
+     * Both halves are asserted, because either alone would pass while the feature was
+     * broken: the record alone would let the live map keep its old colours, and the push
+     * alone would let the choice die with the viewer.
+     */
+    it("writes a choice to the stored record and into the live viewer, and saves", () => {
         const fake = fakeApp();
-        const row = settingRow(buildPaletteCatalog(input({ app: fake.app })), "viewer.theme");
-        if (row.control.kind !== "choice") throw new Error("expected a choice");
+        setBlueMapApp(fake.app);
+        try {
+            const row = settingRow(buildPaletteCatalog(input({ app: fake.app })), "viewer.theme");
+            if (row.control.kind !== "choice") throw new Error("expected a choice");
 
-        row.control.set("dark");
-        expect(fake.calls.setTheme).toEqual(["dark"]);
+            row.control.set("dark");
+            expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(JSON.stringify("dark"));
+            expect(fake.calls.setTheme).toEqual(["dark"]);
 
-        // "default" means "whatever the system says", which the viewer spells as null.
-        row.control.set("default");
-        expect(fake.calls.setTheme).toEqual(["dark", null]);
+            // "default" means "whatever the system says", which the viewer spells as null.
+            row.control.set("default");
+            expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(JSON.stringify(null));
+            expect(fake.calls.setTheme).toEqual(["dark", null]);
+        } finally {
+            setBlueMapApp(null);
+            localStorage.removeItem(THEME_STORAGE_KEY);
+            changeTheme(null);
+        }
     });
 
     it("goes through the resolution setter that also resizes the render target", () => {

@@ -1150,8 +1150,8 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
  * `.mb-settings__body` wrapping `TabbedNavigation`, `EulaSurface.vue`'s
  * `.mb-eula-surface__body` wrapping `EulaViewer`'s `.mb-eula` - is built on the same
  * "flex: 1 1 auto; min-block-size: 0; overflow: auto" idiom this application uses
- * everywhere a strip of chrome sits above scrolling content (see `.mb-shell-tabs` in
- * `App.vue` and `.mb-tabs__panel` in `TabbedNavigation.vue`). That idiom only works when
+ * everywhere a strip of chrome sits above scrolling content (see `.wl-work__tabs` in
+ * `WorkPane.vue` and `.mb-tabs__panel` in `TabbedNavigation.vue`). That idiom only works when
  * every ancestor up to the nearest bounded box is itself a flex container passing on a
  * real height - a plain block here breaks the chain two levels down: the host's own
  * `flex: 1 1 auto` has nothing to flex against, its height becomes "however tall the
