@@ -16,7 +16,11 @@
  * withheld. That is a leak in the only sense that matters here.
  */
 
-import { createSettingMatcher, type SettingMatcher } from "../config/regexEngine.js";
+import {
+    compileSearchPattern,
+    createSettingMatcher,
+    type SettingMatcher,
+} from "../config/regexEngine.js";
 import { capabilityAvailable } from "./capabilities.js";
 import { CATALOGUES } from "./catalogues.js";
 import { featureCapabilities } from "./featureTargets.js";
@@ -162,6 +166,40 @@ export function createCatalogueMatcher(
     flags: string,
 ): SettingMatcher {
     return createSettingMatcher(query, regexMode, flags);
+}
+
+/**
+ * Where a query matches inside one string, as a `[start, end)` pair, or null.
+ *
+ * Separate from {@link SettingMatcher} because that answers "does this row belong in the list",
+ * which is a different question from "which characters should be emphasised" - and it is a
+ * question only the surfaces that highlight need to ask. Returning a range rather than marked-up
+ * HTML is what lets the caller render text nodes: the corpus is translated copy and a query
+ * somebody typed, and no highlight is worth an injection surface.
+ *
+ * An invalid pattern, a zero-width match and a pattern that matches nothing all answer null, so a
+ * broken regex degrades to an unhighlighted row rather than to a thrown render.
+ */
+export function findMatchRange(
+    text: string,
+    query: string,
+    regexMode: boolean,
+    flags: string,
+): readonly [number, number] | null {
+    if (query.length === 0) return null;
+    if (!regexMode) {
+        const at = text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase());
+        return at < 0 ? null : [at, at + query.length];
+    }
+    const { regexp } = compileSearchPattern(query, flags);
+    if (!regexp) return null;
+    // A fresh lastIndex every call: a sticky or global pattern reused across rows would start
+    // each search wherever the previous row happened to end, and highlight the wrong characters
+    // in a way that looks like a rendering bug rather than a search one.
+    const probe = new RegExp(regexp.source, regexp.flags.replace(/[gy]/gu, ""));
+    const found = probe.exec(text);
+    if (found === null || found[0].length === 0) return null;
+    return [found.index, found.index + found[0].length];
 }
 
 /** Every row the matcher accepts, in the order it was given. */
