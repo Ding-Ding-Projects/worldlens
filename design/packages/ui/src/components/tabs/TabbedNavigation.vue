@@ -20,6 +20,8 @@ import {
     renameTab,
     seedTabOrder,
     setActiveTab,
+    DEFAULT_TAB_PLACEMENT,
+    type TabPlacement,
     setGroupCollapsed,
     setGroupColor,
     setTabPlacement,
@@ -153,6 +155,43 @@ const props = withDefaults(
          * ever coerced in the template, which is why this is the one that trips it.
          */
         publishesInset?: boolean;
+        /**
+         * Which of the declared pages a **genuinely fresh** workspace opens a tab for.
+         *
+         * The default is every page, which is what this component has always done and what every
+         * consumer other than the Work workspace still wants. Work passes one id - the pinned
+         * guide - because a workspace of jobs is meant to hold the jobs somebody actually
+         * started, and seeding it with ten would put the twelve-tab strip back under a new name.
+         *
+         * It restricts seeding only. Every page in {@link pages} stays available to
+         * {@link openPage}, {@link revealPage}, {@link ensurePage}, the tab finder and a restored
+         * workspace, so nothing becomes unreachable by not being seeded - which is the difference
+         * between a short strip and a smaller application.
+         */
+        seedPageIds?: readonly string[];
+        /**
+         * Where a fresh workspace docks its strip.
+         *
+         * Left, unchanged, for every existing consumer. Work passes `top`, because the
+         * application rail owns the outer left edge now and two things stacked against the same
+         * edge is how a shell ends up with sixteen wasted columns. A restored workspace's own
+         * placement always wins over this: it is a default, not a policy.
+         */
+        defaultPlacement?: TabPlacement;
+        /**
+         * Whether a tab created *after* seeding is filed into the seed group that names its page.
+         *
+         * False everywhere else, because a page that arrives after somebody's layout was saved has
+         * no business being filed into a group they may have taken apart months ago - which is
+         * what {@link ensurePage}'s own doc comment says and still means.
+         *
+         * Work is the one consumer where it is true, and the reason is specific rather than
+         * general: Work seeds one tab, so its three groups start with no members at all and
+         * `applyGroupSeeds` correctly creates none of them. Opening Projects from a catalogue must
+         * then put it under "Rendering" the way it always has, or the seeded grouping would be a
+         * feature that only ever existed on installs that never used it.
+         */
+        fileNewTabsIntoSeedGroups?: boolean;
     }>(),
     {
         windowLabel: "",
@@ -162,8 +201,26 @@ const props = withDefaults(
         initialGroups: () => [],
         panelPassThrough: false,
         publishesInset: false,
+        // `seedPageIds` deliberately has no default. Under `exactOptionalPropertyTypes` a default
+        // of `undefined` is not the same as an absent one, and absent is exactly the signal
+        // `seedablePages()` reads as "seed every declared page, as this component always has".
+        defaultPlacement: DEFAULT_TAB_PLACEMENT,
+        fileNewTabsIntoSeedGroups: false,
     },
 );
+
+/**
+ * Told whenever the set of open pages changes, so a host can derive a count without keeping a
+ * second copy of the workspace.
+ *
+ * The rewrite's application rail shows the number of open jobs on its Work item, and the one
+ * thing it must not do to get that number is persist an `openJobIds` array beside this
+ * component's own workspace. Two answers to "which jobs are open" is how a badge ends up
+ * confidently reporting four when the strip is showing three.
+ */
+const emit = defineEmits<{
+    "workspace-change": [pageIds: readonly string[]];
+}>();
 
 const { t } = useI18n();
 
@@ -174,6 +231,20 @@ const panelId = `${idPrefix}-panel`;
 /* State                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The pages a fresh workspace opens a tab for: every declared page, unless the host named a
+ * subset.
+ *
+ * `undefined` rather than an empty array is the "no subset given" signal, because an empty array
+ * is a legitimate thing for a host to pass - a workspace that starts with nothing open - and
+ * conflating the two would make that impossible to express.
+ */
+function seedablePages(): readonly TabPage[] {
+    const allowed = props.seedPageIds;
+    if (allowed === undefined) return props.pages;
+    return props.pages.filter((page) => allowed.includes(page.id));
+}
+
 function seedStrip(): TabStripState {
     const empty: TabStripState = {
         id: "strip-main",
@@ -181,7 +252,7 @@ function seedStrip(): TabStripState {
         windowId: "window-main",
         windowLabel:
             props.windowLabel === "" ? t("tabs.window.main", "This window") : props.windowLabel,
-        placement: "left",
+        placement: props.defaultPlacement,
         tabs: [],
         groups: [],
         pinnedOrder: [],
@@ -190,7 +261,7 @@ function seedStrip(): TabStripState {
     };
     // Ungrouped pages first, then each group's pages: `seedTabOrder`'s own doc comment says
     // why the creation order is what decides where the groups land.
-    const seeded = seedTabOrder(props.pages, props.initialGroups).reduce<TabStripState>(
+    const seeded = seedTabOrder(seedablePages(), props.initialGroups).reduce<TabStripState>(
         (state, page) => addTab(state, { pageId: page.id, label: page.label, icon: page.icon }),
         empty,
     );
@@ -210,7 +281,7 @@ function seedStrip(): TabStripState {
     // strip's own creation order is the seeding order above: the first tab created is the
     // first ungrouped page, which is only the same thing while no seed names page one.
     const landing =
-        grouped.tabs.find((tab) => tab.pageId === props.pages[0]?.id) ?? grouped.tabs[0];
+        grouped.tabs.find((tab) => tab.pageId === seedablePages()[0]?.id) ?? grouped.tabs[0];
     return landing === undefined ? grouped : setActiveTab(grouped, landing.id);
 }
 
@@ -292,10 +363,53 @@ const activePage = computed(() =>
 /* Actions                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Files a freshly created tab into the seed group that names its page, when the host asked for
+ * that - creating the group if seeding never did, because a group whose members were all still
+ * unopened correctly created nothing.
+ *
+ * Pinned tabs are skipped for the same reason `applyGroupSeeds` skips them: `createGroup` unpins
+ * what it takes, and a host asking for a page to be both pinned and grouped means the pin.
+ */
+function fileIntoSeedGroup(state: TabStripState, pageId: string): TabStripState {
+    if (!props.fileNewTabsIntoSeedGroups) return state;
+    const seed = props.initialGroups.find((candidate) => candidate.pageIds.includes(pageId));
+    if (seed === undefined) return state;
+    const tab = state.tabs.find((candidate) => candidate.pageId === pageId);
+    if (tab === undefined || state.pinnedOrder.includes(tab.id)) return state;
+    if (state.groups.some((group) => group.tabIds.includes(tab.id))) return state;
+
+    const existing =
+        seed.id === undefined
+            ? undefined
+            : state.groups.find((group) => group.id === seed.id);
+    if (existing !== undefined) return assignTabToGroup(state, tab.id, existing.id);
+
+    const created = createGroup(
+        state,
+        {
+            ...(seed.id === undefined ? {} : { id: seed.id }),
+            name: seed.name,
+            ...(seed.color === undefined ? {} : { color: seed.color }),
+        },
+        [tab.id],
+    );
+    // A seed that asked to start collapsed still does, even though its first member has only just
+    // arrived: the seed is a statement about how the group should look, not about when it was made.
+    return seed.collapsed === true && seed.id !== undefined
+        ? setGroupCollapsed(created, seed.id, true)
+        : created;
+}
+
 function openPage(pageId: string): void {
     const page = props.pages.find((candidate) => candidate.id === pageId);
     if (page === undefined) return;
-    update(addTab(strip.value, { pageId: page.id, label: page.label, icon: page.icon }));
+    update(
+        fileIntoSeedGroup(
+            addTab(strip.value, { pageId: page.id, label: page.label, icon: page.icon }),
+            pageId,
+        ),
+    );
 }
 
 /**
@@ -363,8 +477,27 @@ function ensurePage(pageId: string): void {
         if (created !== undefined) next = pinTab(next, created.id);
     }
 
-    update(next);
+    update(fileIntoSeedGroup(next, pageId));
 }
+
+/**
+ * The pages this workspace currently has a tab for, deduplicated.
+ *
+ * Deduplicated because a page can legitimately have two tabs - the context menu offers Duplicate -
+ * and "how many jobs are open" is a question about destinations rather than about tabs. A badge
+ * reading 4 over a strip showing three names is worse than no badge.
+ */
+const openPageIds = computed<readonly string[]>(() => [
+    ...new Set(strip.value.tabs.map((tab) => tab.pageId)),
+]);
+
+watch(
+    openPageIds,
+    (value) => {
+        emit("workspace-change", value);
+    },
+    { immediate: true },
+);
 
 /**
  * Renames every open tab that shows one page.
@@ -397,7 +530,7 @@ function renamePage(pageId: string, label: string): void {
  * narrower write: it can only add a tab for a page that has none, never move, close or
  * rename one that already exists.
  */
-defineExpose({ activePage, revealPage, renamePage, ensurePage });
+defineExpose({ activePage, revealPage, renamePage, ensurePage, openPageIds });
 
 function newGroup(tabId: string): void {
     update(createGroup(strip.value, { name: t("tabs.group.newName", "New group") }, [tabId]));
