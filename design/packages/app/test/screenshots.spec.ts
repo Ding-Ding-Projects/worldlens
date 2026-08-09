@@ -149,6 +149,21 @@ const VIEWPORTS = [
     { name: "800x600-narrow", width: 800, height: 600 },
 ];
 
+/**
+ * Phone-sized CSS viewports from the redesign contract.
+ *
+ * The 390px Docker-world-source capture below is deliberately not reused as this proof: that
+ * panel is a wizard detail, while these are the rewritten shell's real Home and catalogue
+ * surfaces. Keeping the values in one named list makes the capture names, ledger steps and
+ * manifest describe the same contract instead of three almost-identical magic numbers drifting
+ * apart.
+ */
+const COMPACT_PHONE_VIEWPORTS = [
+    { name: "360x800", width: 360, height: 800 },
+    { name: "390x844", width: 390, height: 844 },
+    { name: "414x896", width: 414, height: 896 },
+] as const;
+
 /** Display scales the sizing rules call out explicitly. */
 const SCALES = [1, 1.25, 1.5, 2];
 
@@ -257,6 +272,205 @@ function slug(text: string): string {
     );
 }
 
+/** A control whose direct hit area is part of the compact-shell contract. */
+interface CompactTarget {
+    /** Human-readable name written into an assertion failure and metrics sidecar. */
+    readonly name: string;
+    /** Selector for the actual hit target, rather than a text node inside it. */
+    readonly selector: string;
+    /** Material's compact-target floor for this control's direct hit area. */
+    readonly minWidth: number;
+    readonly minHeight: number;
+}
+
+interface CompactSurfaceMetrics {
+    readonly viewport: {
+        readonly width: number;
+        readonly height: number;
+    };
+    readonly documentOverflowX: number;
+    readonly bodyOverflowX: number;
+    readonly surfaceOverflowX: number;
+    /** A missing target is different from a target that happens to be too small. */
+    readonly missingTargets: readonly string[];
+    /** Target names and measured rectangles for the controls that shrink below their floor. */
+    readonly undersizedTargets: readonly string[];
+    /** Any visible interactive control that has left the CSS viewport horizontally. */
+    readonly clippedControls: readonly string[];
+    /** Visible text/content that is still inside a control but cannot be read or reached. */
+    readonly internallyClippedControls: readonly string[];
+    /** Guards the selectors above against becoming an empty, vacuous assertion. */
+    readonly visibleControlCount: number;
+}
+
+/**
+ * Reads the compact layout from the real renderer.
+ *
+ * Screenshot pixels can show that a page looks plausible but cannot prove that a control still
+ * has a usable hit rectangle, and a rule that checks only selectors it happened to find would
+ * pass after a whole row vanished. This reports both directions: every visible interactive
+ * control stays in the viewport and every hand-picked primary target still exists and meets its
+ * minimum direct size.
+ */
+async function inspectCompactSurface(
+    surface: Locator,
+    targets: readonly CompactTarget[],
+): Promise<CompactSurfaceMetrics> {
+    return surface.evaluate((element, requiredTargets) => {
+        const visible = (candidate: HTMLElement): boolean => candidate.getClientRects().length > 0;
+        const label = (candidate: HTMLElement): string =>
+            candidate.getAttribute("data-test") ??
+            candidate.getAttribute("data-destination") ??
+            candidate.getAttribute("aria-label") ??
+            candidate.textContent?.replace(/\s+/g, " ").trim().slice(0, 80) ??
+            candidate.tagName.toLowerCase();
+        const rectangle = (candidate: HTMLElement): string => {
+            const rect = candidate.getBoundingClientRect();
+            return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+        };
+
+        // The rail stays beside every shell destination. It is intentionally included even when
+        // Home or a catalogue is the surface under test: a phone-width content pane is only usable
+        // if its persistent navigation did not become a clipped, unreachable column.
+        const roots = [element, document.querySelector<HTMLElement>(".wl-rail")].filter(
+            (root): root is HTMLElement => root !== null,
+        );
+        const controls = new Set<HTMLElement>();
+        for (const root of roots) {
+            for (const candidate of root.querySelectorAll<HTMLElement>(
+                "button:not([disabled]), input:not([disabled]), [role='button']:not([aria-disabled='true']), [role='combobox']:not([aria-disabled='true'])",
+            )) {
+                if (visible(candidate)) controls.add(candidate);
+            }
+        }
+
+        const clippedControls = [...controls]
+            .filter((candidate) => {
+                const rect = candidate.getBoundingClientRect();
+                return rect.left < 0 || rect.right > window.innerWidth;
+            })
+            .map(label);
+        const internallyClippedControls = [...controls]
+            .filter((candidate) => {
+                const content =
+                    candidate.querySelector<HTMLElement>(".v-btn__content") ?? candidate;
+                return (
+                    content.scrollWidth > content.clientWidth + 1 ||
+                    content.scrollHeight > content.clientHeight + 1
+                );
+            })
+            .map(label);
+
+        const missingTargets: string[] = [];
+        const undersizedTargets: string[] = [];
+        for (const target of requiredTargets) {
+            const matches = [...document.querySelectorAll<HTMLElement>(target.selector)].filter(
+                visible,
+            );
+            if (matches.length === 0) {
+                missingTargets.push(target.name);
+                continue;
+            }
+            for (const candidate of matches) {
+                const rect = candidate.getBoundingClientRect();
+                if (rect.width < target.minWidth || rect.height < target.minHeight) {
+                    undersizedTargets.push(
+                        `${target.name} (${label(candidate)}: ${rectangle(candidate)}; ` +
+                            `minimum ${target.minWidth}x${target.minHeight})`,
+                    );
+                }
+            }
+        }
+
+        return {
+            viewport: { width: window.innerWidth, height: window.innerHeight },
+            documentOverflowX:
+                document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            bodyOverflowX: document.body.scrollWidth - document.body.clientWidth,
+            surfaceOverflowX: element.scrollWidth - element.clientWidth,
+            missingTargets,
+            undersizedTargets,
+            clippedControls,
+            internallyClippedControls,
+            visibleControlCount: controls.size,
+        };
+    }, targets);
+}
+
+function expectCompactSurfaceMetrics(
+    metrics: CompactSurfaceMetrics,
+    viewport: (typeof COMPACT_PHONE_VIEWPORTS)[number],
+): void {
+    expect(metrics.viewport).toEqual({ width: viewport.width, height: viewport.height });
+    expect(metrics.documentOverflowX).toBe(0);
+    expect(metrics.bodyOverflowX).toBe(0);
+    expect(metrics.surfaceOverflowX).toBe(0);
+    expect(metrics.visibleControlCount).toBeGreaterThan(0);
+    expect(metrics.missingTargets).toEqual([]);
+    expect(metrics.undersizedTargets).toEqual([]);
+    expect(metrics.clippedControls).toEqual([]);
+    expect(metrics.internallyClippedControls).toEqual([]);
+}
+
+async function writeCompactMetrics(name: string, metrics: CompactSurfaceMetrics): Promise<void> {
+    await writeFile(
+        join(shotDir, `${name}.metrics.json`),
+        `${JSON.stringify(metrics, null, 2)}\n`,
+        "utf8",
+    );
+}
+
+const COMPACT_HOME_TARGETS: readonly CompactTarget[] = [
+    {
+        name: "application-rail destinations",
+        selector: ".wl-rail-item",
+        minWidth: 44,
+        minHeight: 44,
+    },
+    { name: "application-rail actions", selector: ".wl-rail-action", minWidth: 44, minHeight: 44 },
+    { name: "Home search field", selector: ".wl-home .v-field", minWidth: 44, minHeight: 44 },
+    {
+        name: "Home hero catalogue",
+        selector: ".wl-home .wl-hero__body",
+        minWidth: 44,
+        minHeight: 44,
+    },
+    {
+        name: "Home primary action",
+        selector: ".wl-home .wl-hero__primary",
+        minWidth: 44,
+        minHeight: 44,
+    },
+    {
+        name: "Home catalogue cards",
+        selector: ".wl-home .wl-card__body",
+        minWidth: 44,
+        minHeight: 44,
+    },
+];
+
+const COMPACT_CATALOGUE_TARGETS: readonly CompactTarget[] = [
+    {
+        name: "application-rail destinations",
+        selector: ".wl-rail-item",
+        minWidth: 44,
+        minHeight: 44,
+    },
+    { name: "application-rail actions", selector: ".wl-rail-action", minWidth: 44, minHeight: 44 },
+    {
+        name: "catalogue search field",
+        selector: ".wl-catalogue .v-field",
+        minWidth: 44,
+        minHeight: 44,
+    },
+    {
+        name: "catalogue feature rows",
+        selector: ".wl-catalogue .wl-row",
+        minWidth: 44,
+        minHeight: 44,
+    },
+];
+
 interface ShotOptions {
     /**
      * Crop to this element instead of photographing the whole window. Used where the
@@ -269,6 +483,12 @@ interface ShotOptions {
     readonly mapArea?: MapArea;
     /** Appended to the caption, for anything the picture alone would misrepresent. */
     readonly note?: string;
+    /**
+     * A renderer-backed image source for a CSS viewport the Electron window itself cannot be
+     * resized down to. It still photographs the real page; only Chromium supplies the pixels
+     * instead of Playwright's window-level convenience method.
+     */
+    readonly capture?: () => Promise<Buffer>;
 }
 
 /**
@@ -296,7 +516,11 @@ async function shoot(name: string, surface: string, options: ShotOptions = {}): 
     if (options.mapArea !== undefined) mapArea = options.mapArea;
 
     const buffer =
-        options.crop === undefined ? await page.screenshot() : await options.crop.screenshot();
+        options.capture !== undefined
+            ? await options.capture()
+            : options.crop === undefined
+              ? await page.screenshot()
+              : await options.crop.screenshot();
 
     // A zero-byte or absent capture is a silent failure; assert it landed. The floor is
     // low because a crop can legitimately be tiny: three window buttons on a flat bar
@@ -677,9 +901,7 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
         // Every route failed. Say what the strip actually held rather than reporting a timeout on
         // a locator, which names the thing that was not found and nothing about why - and on a run
         // that mostly happens in CI, that difference is the whole diagnosis.
-        throw new Error(
-            `no route to the "${pageId}" job. ` + (await describeShellStrip()),
-        );
+        throw new Error(`no route to the "${pageId}" job. ` + (await describeShellStrip()));
     }
 
     await overflowButton.click({ timeout: ELEMENT_TIMEOUT });
@@ -738,7 +960,9 @@ async function describeShellStrip(): Promise<string> {
     const shellTabs = workTabs();
     const tabs = await shellTabs
         .locator('[role="tab"]')
-        .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? node.textContent ?? ""))
+        .evaluateAll((nodes) =>
+            nodes.map((node) => node.getAttribute("aria-label") ?? node.textContent ?? ""),
+        )
         .catch(() => []);
     const heads = shellTabs.locator(".mb-tabs-strip__group-head");
     const groups: string[] = [];
@@ -1539,6 +1763,118 @@ test("captures the Home destination and one of its catalogue pages", async () =>
     });
 });
 
+/* -------------------------------------------------------------------------- */
+/* The compact redesign shell                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The redesign contract calls out phone-width browser visits at 360, 390 and 414 CSS pixels.
+ *
+ * The desktop's narrowest supported window is still 800px, so an 800px capture cannot prove
+ * this. Nor can the Docker-world-source step below: it is one wizard panel and would stay green
+ * if the persistent rail, Home cards, catalogue rows or their search fields began clipping.
+ * These routes exercise the actual rewritten shell at every named compact width and write one
+ * capture plus one metrics sidecar per surface, so the ledger says precisely which surface was
+ * proven rather than leaving a reviewer to infer it from an unrelated wizard image.
+ */
+test("captures the redesigned Home shell at compact phone viewports", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+    await ensureOptionsEditorClosed();
+    await page.setViewportSize(SURFACE_VIEWPORT);
+
+    try {
+        for (const viewport of COMPACT_PHONE_VIEWPORTS) {
+            /*
+             * The normal Electron window cannot be smaller than 800px. A `setViewportSize(360)`
+             * call would therefore prove only the operating system's minimum, even when the
+             * capture name says 360. Chromium's DevTools metric override changes the renderer's
+             * CSS viewport without lying about the native-window constraint; the Docker wizard's
+             * compact capture later in this file uses the same path.
+             */
+            const cdp = await page.context().newCDPSession(page);
+            await cdp.send("Emulation.setDeviceMetricsOverride", {
+                width: viewport.width,
+                height: viewport.height,
+                deviceScaleFactor: 1,
+                mobile: false,
+            });
+            const captureCompactViewport = async (): Promise<Buffer> => {
+                const captured = await cdp.send("Page.captureScreenshot", {
+                    format: "png",
+                    fromSurface: true,
+                    captureBeyondViewport: false,
+                });
+                return Buffer.from(captured.data, "base64");
+            };
+
+            try {
+                await attempt(`Compact Home catalogues (${viewport.width} CSS px)`, async () => {
+                    await selectDestination("home");
+                    const home = page.locator(".wl-home");
+                    await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+                    await page.waitForTimeout(400);
+
+                    const name = `redesign-home-catalogues-${viewport.name}`;
+                    const metrics = await inspectCompactSurface(home, COMPACT_HOME_TARGETS);
+                    expectCompactSurfaceMetrics(metrics, viewport);
+                    await writeCompactMetrics(name, metrics);
+                    await shoot(
+                        name,
+                        `The redesigned Home catalogue shell at ${viewport.width} by ${viewport.height} CSS pixels: the persistent application rail, five-catalogue discovery surface, and anchored search field in their compact layout`,
+                        {
+                            mapArea: "covered",
+                            capture: captureCompactViewport,
+                            note: "Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
+                        },
+                    );
+                });
+
+                await attempt(
+                    `Compact Home catalogue page (${viewport.width} CSS px)`,
+                    async () => {
+                        await selectDestination("home");
+                        await page
+                            .locator(".wl-home")
+                            .getByRole("button", { name: /set up & help/i })
+                            .first()
+                            .click({ timeout: ELEMENT_TIMEOUT });
+                        const catalogue = page.locator(".wl-catalogue").first();
+                        await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+                        await page.waitForTimeout(400);
+
+                        const name = `redesign-home-catalogue-page-${viewport.name}`;
+                        const metrics = await inspectCompactSurface(
+                            catalogue,
+                            COMPACT_CATALOGUE_TARGETS,
+                        );
+                        expectCompactSurfaceMetrics(metrics, viewport);
+                        await writeCompactMetrics(name, metrics);
+                        await shoot(
+                            name,
+                            `A redesigned Home catalogue at ${viewport.width} by ${viewport.height} CSS pixels: feature rows, their direct targets, the persistent application rail, and the catalogue's own search field without a horizontal escape route`,
+                            {
+                                mapArea: "covered",
+                                capture: captureCompactViewport,
+                                note: "Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
+                            },
+                        );
+
+                        await page
+                            .locator('[data-destination="home"]')
+                            .click({ timeout: ELEMENT_TIMEOUT });
+                        await page.waitForTimeout(300);
+                    },
+                );
+            } finally {
+                await cdp.send("Emulation.clearDeviceMetricsOverride");
+            }
+        }
+    } finally {
+        await page.setViewportSize(SURFACE_VIEWPORT);
+        await selectDestination("home");
+    }
+});
+
 test("captures the shell at every supported window size", async () => {
     for (const viewport of VIEWPORTS) {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -2153,6 +2489,50 @@ async function ensureOptionsEditor(): Promise<void> {
     await page.waitForTimeout(700);
 }
 
+/**
+ * Dismisses every live toast through the same controls a person uses.
+ *
+ * This does not clear notification history: a dismissed notification remains searchable in the
+ * centre, as it should. It only makes the next editor mount's notice distinguishable from a toast
+ * that another capture happened to leave on screen. Reaching into the store would make a cleaner
+ * image but would no longer prove the shared notification path the image claims to show.
+ */
+async function dismissLiveNotices(): Promise<void> {
+    for (let guard = 0; guard < 16; guard += 1) {
+        const toast = page.locator(".mb-config-notices__toast:visible").first();
+        if (!(await toast.isVisible().catch(() => false))) return;
+
+        await toast.locator(".mb-config-notices__dismiss").click({ timeout: ELEMENT_TIMEOUT });
+        await toast.waitFor({ state: "hidden", timeout: ELEMENT_TIMEOUT });
+    }
+
+    throw new Error("The notification corner kept a live toast after 16 real dismiss actions.");
+}
+
+/**
+ * Remounts the options editor and returns the notice that this mount genuinely raised.
+ *
+ * `ConfigScreen` emits its draft/defaults notice only while mounting. A prior version called
+ * `ensureOptionsEditor()` from a later test, where it correctly returned early for an editor that
+ * was already open; the initial five-second toast had then already dismissed itself. Closing,
+ * clearing the *live* stack through its own controls, and reopening means this locator can only
+ * resolve the new `ConfigScreen -> notices -> ConfigNotifications` event, immediately before the
+ * capture. The notification history deliberately remains intact.
+ */
+async function reopenOptionsEditorForFreshNotice(): Promise<Locator> {
+    await ensureOptionsEditorClosed();
+    await page.waitForSelector(".mb-config-screen", {
+        state: "hidden",
+        timeout: ELEMENT_TIMEOUT,
+    });
+    await dismissLiveNotices();
+    await ensureOptionsEditor();
+
+    const freshToast = page.locator(".mb-config-notices__toast:visible").last();
+    await freshToast.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    return freshToast;
+}
+
 test("captures the options editor, its tabs and its dialogs", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
@@ -2466,89 +2846,115 @@ test("captures the remaining first-class screens", async () => {
     });
 });
 
-test("captures the notification corner and its history", async () => {
+test("captures the notification corner, rail bell and its history", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
     await attempt("Notification corner", async () => {
-        // Opening the options editor raises a real informational notice, which is what
-        // puts a live toast in the corner. Nothing is planted: the message is the one the
-        // editor writes for itself when it loads.
-        await ensureOptionsEditor();
+        // The editor is deliberately remounted here rather than merely ensured open. Its real
+        // informational toast lives for five seconds, and a previous capture sequence could
+        // leave an already-open editor whose original toast had correctly disappeared long before
+        // this step ran. `reopenOptionsEditorForFreshNotice()` drives the real close/dismiss/open
+        // route and returns only the new shared notice, so this image is not a stale survivor.
+        const freshToast = await reopenOptionsEditorForFreshNotice();
         const corner = page.locator(".mb-config-notices");
         await corner.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await freshToast.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
             "notifications-corner",
             "The notification corner in the bottom right: a message that reports without blocking anything, and beside it the button that opens the history of everything the application has said",
             { crop: corner, cropped: "the notification corner" },
         );
+    });
 
-        /*
-         * The bell is in the rail now, and `.mb-notice-bell` no longer exists anywhere on screen:
-         * `App.vue` passes `rail-owns-bell` to the notification corner and
-         * `ConfigNotifications.vue` honours it by not rendering `NotificationCentre` - the
-         * component that owned that class - at all. So the old selector did not merely move to a
-         * different corner of the window; the element it named is not built by any configuration,
-         * and waiting fifteen seconds for it was waiting for something no build produces.
-         *
-         * The bell that replaced it does not open this panel, which is a defect in the
-         * application rather than in this file, and is recorded as one below. Measured directly
-         * against the built application on a fresh profile: pressing the rail's Notifications
-         * button leaves its own `aria-expanded` at "false" and puts no `.wl-notifications` and no
-         * `.mb-notice-centre` in the document, while the command palette's "Notification centre"
-         * row - which rings the same `requestReveal("noticeCentre")` doorbell - opens it every
-         * time, giving `aria-expanded="true"` and one of each element.
-         *
-         * So the panel is photographed through the route that works. It is a real route the
-         * application ships rather than a way around the product: `CommandPalette` offers the row,
-         * `App.vue` wires it to `requestReveal`, and `NotificationPanel.vue` answers the same
-         * request either control raises. What is not captured is the bell's own behaviour, and
-         * that gap is named rather than glossed over.
-         *
-         * The editor is closed first for the reason `selectDestination` gives at length: while it
-         * is open the rail and everything beside it are inside an `inert` subtree, so a click
-         * there would be delivered, report success, and do nothing.
-         */
+    await attempt("Notification centre opened from the rail's bell", async () => {
+        // The options editor makes the rail inert while it is open. Close it before testing the
+        // actual rail control, then assert the close really happened rather than recording a
+        // click on a control that was still visible but intentionally unreachable.
         await ensureOptionsEditorClosed();
-        await openPalette();
-        await page.locator(".mb-palette__search input").first().fill("Notification centre");
-        await page.waitForTimeout(400);
-        await page
-            .locator(".mb-palette")
-            .getByRole("button", { name: /^Notification centre/ })
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".mb-notice-centre", {
-            state: "visible",
+        await page.waitForSelector(".mb-config-screen", {
+            state: "hidden",
             timeout: ELEMENT_TIMEOUT,
         });
+
+        /*
+         * The fresh notice above creates a genuine unread badge. It gives this locator a stable
+         * structural identity without tying the interaction to one translated aria-label: the
+         * target is the button that owns that badge, not an icon glyph or a text string.
+         */
+        const bell = page.locator(".wl-rail button.wl-rail-action:has(.wl-rail-badge)").first();
+        await bell.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+
+        // A previous failed capture could leave the centre open. Close it by pressing the same
+        // bell so the recorded transition below is always closed -> open, not a stale open panel.
+        if ((await bell.getAttribute("aria-expanded")) === "true") {
+            await bell.click({ timeout: ELEMENT_TIMEOUT });
+            await expect(bell).toHaveAttribute("aria-expanded", "false");
+        }
+
+        await expect(bell).toHaveAttribute("aria-expanded", "false");
+        const bellBox = await bell.boundingBox();
+        if (bellBox === null) {
+            throw new Error("The rail notification bell had no measurable bounds.");
+        }
+        expect(
+            bellBox.width,
+            "the rail notification bell is narrower than its 44px hit target",
+        ).toBeGreaterThanOrEqual(44);
+        expect(
+            bellBox.height,
+            "the rail notification bell is shorter than its 44px hit target",
+        ).toBeGreaterThanOrEqual(44);
+        await shoot(
+            "notifications-rail-bell",
+            "The live Notification bell in the application rail, carrying its unread badge before it opens the history anchored beside it",
+            { crop: bell, cropped: "the rail notification bell" },
+        );
+
+        await bell.click({ timeout: ELEMENT_TIMEOUT });
+        await expect(bell).toHaveAttribute("aria-expanded", "true");
+        const panel = page.locator(".wl-notifications").first();
+        await panel.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        const noticeCentre = panel.locator(".mb-notice-centre").first();
+        await noticeCentre.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        const panelBox = await panel.boundingBox();
+        if (panelBox === null) {
+            throw new Error("The notification panel had no measurable bounds.");
+        }
+        await writeFile(
+            join(shotDir, "notifications-rail-bell.metrics.json"),
+            `${JSON.stringify(
+                {
+                    trigger: "real application-rail notification bell",
+                    hitTarget: {
+                        width: bellBox.width,
+                        height: bellBox.height,
+                        minimumWidth: 44,
+                        minimumHeight: 44,
+                    },
+                    ariaExpanded: { before: "false", after: "true" },
+                    anchoredPanel: {
+                        visible: true,
+                        width: panelBox.width,
+                        height: panelBox.height,
+                    },
+                },
+                null,
+                2,
+            )}\n`,
+            "utf8",
+        );
         await page.waitForTimeout(500);
         await shoot(
             "notifications-history",
             "The notification centre, so a message that has already faded away is still readable, searchable and filterable by level",
             {
-                crop: page.locator(".mb-notice-centre"),
+                crop: noticeCentre,
                 cropped: "the notification centre",
             },
         );
         await dismiss();
+        await expect(bell).toHaveAttribute("aria-expanded", "false");
     });
-
-    /*
-     * A named gap for the control, distinct from the panel it is supposed to open.
-     *
-     * The panel above is a real capture through a real route, so calling *it* missing would be a
-     * false statement about an image that plainly exists. The bell is a different surface and it
-     * genuinely could not be photographed doing its job, so it gets its own line in the manifest.
-     * A defect that leaves no trace in the published record is a defect nobody reads about.
-     */
-    skip(
-        "Notification centre opened from the rail's bell",
-        "the rail's Notifications button does not open the panel it anchors: pressing it on a " +
-            "fresh profile leaves its own aria-expanded at \"false\" and puts neither " +
-            ".wl-notifications nor .mb-notice-centre in the document, while the command palette's " +
-            "row for the same panel opens it every time. The panel itself is captured above " +
-            "through that working route; what has no honest capture is the bell working",
-    );
 });
 
 /* -------------------------------------------------------------------------- */
@@ -3145,6 +3551,12 @@ test("records what was captured", async () => {
                 : "loopback only; every other host is refused and recorded",
         networkViolations: await networkViolations(app),
         viewports: VIEWPORTS.map((v) => v.name),
+        compactPhoneViewports: COMPACT_PHONE_VIEWPORTS.map((v) => ({
+            name: v.name,
+            width: v.width,
+            height: v.height,
+            unit: "CSS pixels",
+        })),
         scales: SCALES,
         mapContentPresent: mapDrew,
         caption: target.caption,
@@ -3230,6 +3642,10 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     { surface: "EULA viewer" },
     { surface: "Profile manager" },
     { surface: "Notification corner" },
+    // The corner and its history can both render while their actual rail activator has regressed.
+    // Keep this separate so a future fallback through the palette cannot make the real control's
+    // missing interaction look covered.
+    { surface: "Notification centre opened from the rail's bell" },
     { surface: "Backup screen" },
     // Added when an audit found the palette, the appearance editor, the changelog and
     // most of the tab strip's own surfaces had no capture step at all - so a change that
@@ -3252,6 +3668,14 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     { surface: "Application rail" },
     { surface: "Home catalogues" },
     { surface: "Home catalogue page" },
+    // Hand-written rather than made from COMPACT_PHONE_VIEWPORTS: a loop that accidentally stops
+    // calling either compact route must make coverage red, not shrink the requirement alongside it.
+    { surface: "Compact Home catalogues (360 CSS px)" },
+    { surface: "Compact Home catalogue page (360 CSS px)" },
+    { surface: "Compact Home catalogues (390 CSS px)" },
+    { surface: "Compact Home catalogue page (390 CSS px)" },
+    { surface: "Compact Home catalogues (414 CSS px)" },
+    { surface: "Compact Home catalogue page (414 CSS px)" },
     // Every one of these is inside the viewer's side sheet, which does not exist without a map.
     { surface: "Changelog viewer", needsLoadedMap: true },
     { surface: "Viewer control bar", needsLoadedMap: true },
