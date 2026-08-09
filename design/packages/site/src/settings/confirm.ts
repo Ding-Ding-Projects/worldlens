@@ -11,6 +11,7 @@
  */
 
 import { el } from "../platform/dom.js";
+import { decorateDialogHeading } from "./dialogEmoji.js";
 import { t } from "./i18n.js";
 
 export type DestructiveGate = (message: string) => Promise<boolean>;
@@ -34,6 +35,15 @@ function defaultGate(message: string): Promise<boolean> {
         const heading = el("h2", { class: "mb-confirm-title", text: t("confirm.title"), attrs: { id: "mb-confirm-title" } });
         const body = el("p", { class: "mb-confirm-body", text: message });
         const warning = el("p", { class: "mb-confirm-warning", text: t("confirm.irreversible") });
+        /*
+         * Decoration only, and only on the heading and the warning line — never on the two key
+         * fields, the slider or either button. The gate's whole job is to make a visitor read
+         * before they act, so its controls have to say the same words to everyone regardless of
+         * a display preference, and its accessible names have to be the words a screen reader
+         * user is listening for rather than a glyph in front of them.
+         */
+        decorateDialogHeading(heading, "destructive");
+        decorateDialogHeading(warning, "warning");
 
         const instructions = el("p", { class: "mb-confirm-body", text: t("confirm.super.instructions") });
         const first = el("input", {

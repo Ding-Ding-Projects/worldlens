@@ -1205,6 +1205,12 @@ export const FIXED = {
     "callout.notImplemented": { en: "Not implemented", yue: "未實作" },
     "content.codeSampleAria": { en: "{language} code sample", yue: "{language} 程式碼範例" },
     "content.suggestedArticlesHeading": { en: "Suggested articles", yue: "推薦文章" },
+    /*
+     * The suggestion control's accessible name says what activating it does, because the
+     * visible label is only the article's title and a title read out of context in a list of
+     * controls does not say that pressing it will take you there.
+     */
+    "content.suggestedArticleAria": { en: "Open the article: {title}", yue: "打開文章：{title}" },
     "content.sourcesHeading": { en: "Sources", yue: "資料來源" },
     "content.phaseTableCaption": { en: "Port progress by phase", yue: "各階段嘅移植進度" },
     "content.phaseColumnPhase": { en: "Phase", yue: "階段" },

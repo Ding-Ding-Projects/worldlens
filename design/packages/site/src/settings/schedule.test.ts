@@ -5,16 +5,27 @@ import { Preferences } from "../platform/Preferences.js";
 import {
     ExternalSettingsClient,
     MAX_EXTERNAL_BYTES,
+    MAX_REFRESH_MINUTES,
+    MAX_RULE_ID_LENGTH,
+    MAX_RULE_PRIORITY,
     MAX_SCHEDULE_RULES,
+    MIN_REFRESH_MINUTES,
+    MIN_RULE_ID_LENGTH,
+    MIN_RULE_PRIORITY,
     ScheduleRepository,
     ScheduledSettingsController,
     defaultRule,
+    describeRepositoryProblem,
+    describeRuleProblems,
+    describeStatus,
     ruleMatches,
+    suggestRuleId,
     validateExternalUrl,
     validateRule,
     winningRule,
     type ScheduledSettingsRule,
 } from "./schedule.js";
+import { guidanceText } from "./scheduleHelp.js";
 import { SETTINGS } from "./schema.js";
 import { SettingsStore } from "./store.js";
 
@@ -134,6 +145,186 @@ describe("scheduled settings validation and matching", () => {
             winningRule([rule({ id: "one", priority: 11 }), rule({ id: "two", priority: 10 })], now)
                 ?.id,
         ).toBe("one");
+    });
+});
+
+describe("scheduled settings guidance", () => {
+    /** Every rejected field of a rule, keyed by its machine code, for direct lookup. */
+    function problems(rule: ScheduledSettingsRule, store: SettingsStore): Map<string, string> {
+        return new Map(
+            describeRuleProblems(rule, store).map((problem) => [
+                problem.code,
+                guidanceText(problem),
+            ]),
+        );
+    }
+
+    it("states the real constraint for every field it refuses, never the field's internal name", () => {
+        const { store } = setup();
+        const said = problems(
+            rule({
+                id: "No spaces allowed",
+                label: "",
+                priority: MAX_RULE_PRIORITY + 1,
+                timezone: "Mars/Olympus_Mons",
+                startDate: "2026-02-31",
+                endDate: "2026-08-01",
+                startTime: "25:00",
+                endTime: "9am",
+                everyDay: false,
+                weekdays: [],
+                values: { missing: true, "theme.mode": "chartreuse" },
+                source: {
+                    kind: "api",
+                    url: "http://example.test/settings.json",
+                    refreshMinutes: 1,
+                },
+            }),
+            store,
+        );
+
+        expect(said.get("id")).toContain(`${MIN_RULE_ID_LENGTH} to ${MAX_RULE_ID_LENGTH}`);
+        expect(said.get("id")).toContain("no-spaces-allowed");
+        expect(said.get("priority")).toContain(`${MIN_RULE_PRIORITY} to ${MAX_RULE_PRIORITY}`);
+        expect(said.get("timezone")).toContain("Mars/Olympus_Mons");
+        expect(said.get("start-date")).toContain("YYYY-MM-DD");
+        expect(said.get("start-time")).toContain("23:59");
+        expect(said.get("end-time")).toContain("23:59");
+        expect(said.get("weekdays-empty")?.toLowerCase()).toContain("every day");
+        expect(said.get("refresh")).toContain(`${MIN_REFRESH_MINUTES} to ${MAX_REFRESH_MINUTES}`);
+        // The address was refused for one specific reason, and that reason is what the
+        // sentence explains rather than repeating the name of the field it arrived on.
+        expect(said.get("api-url")).toContain("https://");
+        expect(said.get("api-url")).toContain("127.0.0.1");
+        // A setting this build does not have, and a setting that refused the value, are
+        // different situations; neither one prints the internal id at the visitor.
+        expect(said.get("value:missing")?.toLowerCase()).toContain("does not have");
+        expect(said.get("value:missing")).not.toContain("missing");
+        expect(said.get("value:theme.mode")).toContain("Theme");
+        expect(said.get("value:theme.mode")).toContain("chartreuse");
+        expect(said.get("value:theme.mode")).not.toContain("theme.mode");
+
+        // Nothing is left as a bare code, and no key went unregistered.
+        for (const problem of describeRuleProblems(rule({ id: "!" }), store)) {
+            const text = guidanceText(problem);
+            expect(text).not.toBe(problem.messageKey);
+            expect(text).not.toBe(problem.code);
+            expect(text.length).toBeGreaterThan(20);
+        }
+    });
+
+    it("explains each way an address can be refused, and every Home Assistant field", () => {
+        const { store } = setup();
+        const source = (baseUrl: string): ScheduledSettingsRule =>
+            rule({
+                source: {
+                    kind: "home-assistant",
+                    baseUrl,
+                    entityId: "light.kitchen",
+                    credentialKey: "",
+                    refreshMinutes: 15,
+                },
+            });
+        expect(problems(source("https://a:b@example.test/"), store).get("ha-url")).toContain(
+            "username and password",
+        );
+        expect(problems(source("https://example.test/#secret"), store).get("ha-url")).toContain(
+            "#",
+        );
+        expect(problems(source("not-a-url"), store).get("ha-url")).toContain(
+            "https://example.test/settings.json",
+        );
+        const said = problems(source("http://example.test"), store);
+        expect(said.get("ha-entity")).toContain("input_boolean");
+        expect(said.get("ha-entity")).toContain("light.kitchen");
+        expect(said.get("ha-credential-key")?.length ?? 0).toBeGreaterThan(20);
+        // The advice differs by source even though the constraint does not: a Home
+        // Assistant token has a field to go in, and a plain API endpoint does not.
+        expect(problems(source("https://a:b@example.test/"), store).get("ha-url")).toContain(
+            "session token field",
+        );
+    });
+
+    it("keeps the machine code beside the sentence, and reports every failure at once", () => {
+        const { store } = setup();
+        const broken = rule({
+            id: "Not An Id",
+            label: "",
+            priority: 0.5,
+            startTime: "nope",
+            everyDay: false,
+            weekdays: [],
+        });
+        const described = describeRuleProblems(broken, store);
+        expect(described.map((problem) => problem.code)).toEqual(validateRule(broken, store));
+        expect(described.map((problem) => problem.code)).toEqual(
+            expect.arrayContaining(["id", "label", "priority", "start-time", "weekdays-empty"]),
+        );
+        expect(described.length).toBeGreaterThanOrEqual(5);
+        // Each problem names the control it belongs beside, except the ones that belong
+        // to no single control, so the panel can attach guidance rather than list it.
+        expect(described.find((problem) => problem.code === "priority")?.field).toBe(
+            "schedule.priority",
+        );
+        expect(described.find((problem) => problem.code === "id")?.field).toBe("");
+        expect(validateRule(rule(), store)).toEqual([]);
+        expect(describeRuleProblems(rule(), store)).toEqual([]);
+    });
+
+    it("suggests an id that would actually be accepted", () => {
+        expect(suggestRuleId("Evening Reading")).toBe("evening-reading");
+        expect(suggestRuleId("  ✨ Weekend ✨  ")).toBe("weekend");
+        expect(suggestRuleId("!!!")).toBe(defaultRule().id);
+        expect(suggestRuleId("x".repeat(MAX_RULE_ID_LENGTH + 10))).toHaveLength(MAX_RULE_ID_LENGTH);
+        const { store } = setup();
+        for (const candidate of ["Evening Reading", "  ✨ Weekend ✨  ", "!!!"]) {
+            expect(validateRule(rule({ id: suggestRuleId(candidate) }), store)).toEqual([]);
+        }
+    });
+
+    it("turns a controller status into a sentence naming the rule the visitor named", () => {
+        const named = (id: string): string => (id === "night" ? "Night mode" : "Gone");
+        expect(guidanceText(describeStatus({ kind: "idle", message: "" }, named))).toContain(
+            "No matching rule",
+        );
+        expect(
+            guidanceText(describeStatus({ kind: "applied", ruleId: "night", ids: ["a"] }, named)),
+        ).toContain("Night mode");
+        const failed = describeStatus({ kind: "error", ruleId: "night", code: "http-503" }, named);
+        expect(failed.code).toBe("http-503");
+        expect(guidanceText(failed)).toContain("Night mode");
+        expect(guidanceText(failed)).toContain("503");
+        expect(guidanceText(failed)).not.toContain("http-503");
+        expect(
+            guidanceText(
+                describeStatus({ kind: "error", ruleId: "night", code: "missing-token" }, named),
+            ),
+        ).toContain("token");
+        // An unrecognised code has no sentence. It is named as a technical code rather
+        // than dressed up as an explanation or hidden behind a reassuring guess.
+        const strange = guidanceText(
+            describeStatus({ kind: "error", ruleId: "night", code: "wat" }, named),
+        );
+        expect(strange).toContain("technical code");
+        expect(strange).toContain("wat");
+    });
+
+    it("explains a refused whole-document write, including that nothing was written", () => {
+        const { store, repository } = setup();
+        const refused = repository.save({
+            version: 1,
+            rules: Array.from({ length: MAX_SCHEDULE_RULES + 1 }, (_, index) =>
+                rule({ id: `rule-${index}` }),
+            ),
+        });
+        expect(refused).toEqual(["document"]);
+        const said = guidanceText(describeRepositoryProblem(refused[0] ?? ""));
+        expect(said).toContain(String(MAX_SCHEDULE_RULES));
+        expect(said.toLowerCase()).toContain("nothing was written");
+        expect(guidanceText(describeRepositoryProblem("history")).toLowerCase()).toContain(
+            "no longer",
+        );
+        expect(store.definitions_().length).toBeGreaterThan(0);
     });
 });
 

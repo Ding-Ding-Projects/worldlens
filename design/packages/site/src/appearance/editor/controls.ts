@@ -8,7 +8,7 @@
  * by remembering to add a button each time.
  */
 
-import { clear, el, uniqueId } from "../../platform/dom.js";
+import { clear, el, icon, uniqueId } from "../../platform/dom.js";
 import { announce } from "../../settings/dom.js";
 import { fillPhrase, t } from "../../settings/i18n.js";
 import { AnchoredPanel } from "../../search/anchoredPanel.js";
@@ -62,17 +62,35 @@ function buildRow(
     const head = el("div", { class: "mb-row-head" }, label, reset);
     const row = el("div", { class: "mb-property-row" }, head, control);
 
+    /*
+     * The explanation, behind a disclosure rather than printed under every row.
+     *
+     * A settings surface where every row carries a permanently visible paragraph is a
+     * surface a visitor scrolls rather than scans: the control they came for is three
+     * sentences further down than it looks, and the sentences are ones they read on their
+     * first visit and never again. The explanation still has to be one keystroke away for
+     * the visit where they do need it, so this is a real button with a real accessible name
+     * rather than a hover-only tooltip that a keyboard or a touchscreen can never reach.
+     *
+     * `aria-controls` points at the paragraph and `aria-expanded` tracks it, so assistive
+     * technology reports the same collapsed/expanded state the icon button's own
+     * `[aria-expanded="true"]` styling shows sighted visitors -- one state, described twice,
+     * rather than two states that can disagree.
+     *
+     * A row with no description grows no button at all. An affordance that opens onto
+     * nothing is worse than an absent one, because a visitor who presses it once learns
+     * that pressing these is a waste of time and stops pressing the ones that work.
+     */
+    const explanation = buildExplanationDisclosure(options);
+    if (explanation !== null) row.append(explanation.trigger);
+
     const provenance =
         options.provenance === undefined
             ? null
             : el("p", { class: "md-field__help mb-provenance", attrs: { role: "status" } });
     if (provenance !== null) row.append(provenance);
 
-    if (options.descriptionKey !== undefined && options.descriptionKey !== null) {
-        const description = el("p", { class: "md-field__help mb-help" });
-        fillPhrase(description, options.descriptionKey);
-        row.append(description);
-    }
+    if (explanation !== null) row.append(explanation.region);
     if (options.capabilityNoteKey !== undefined && options.capabilityNoteKey !== null) {
         const note = el("p", { class: "mb-capability-note", attrs: { role: "note" } });
         fillPhrase(note, options.capabilityNoteKey);
@@ -84,12 +102,77 @@ function buildRow(
         const atDefault = options.isDefault();
         reset.disabled = atDefault;
         reset.title = atDefault ? t("settings.atDefault") : t("editor.resetProperty", { name: t(options.labelKey) });
+        // Both the button's name and the paragraph's copy are re-resolved here rather than
+        // only at construction, because `refresh()` is what a language-mode or funny-level
+        // change calls. Filling the paragraph once would leave an explanation in the
+        // previous language sitting behind a button labelled in the new one.
+        explanation?.refresh();
         if (provenance !== null && options.provenance !== undefined) {
             provenance.textContent = options.provenance();
         }
     };
     refreshReset();
     return { row, refreshReset };
+}
+
+interface ExplanationDisclosure {
+    readonly trigger: HTMLButtonElement;
+    readonly region: HTMLParagraphElement;
+    /** Re-resolve both the button's accessible name and the paragraph's copy. */
+    refresh(): void;
+}
+
+/**
+ * The disclosure pair for a row that has an explanation, or `null` for one that has not.
+ *
+ * It is built here rather than inline in `buildRow` so that the "no description, no button"
+ * rule is a single early return that cannot be half-applied: every caller of this function
+ * gets both halves or neither, and there is no arrangement of the arguments that produces a
+ * trigger pointing at a paragraph that was never created.
+ *
+ * The paragraph carries `hidden` rather than a class, and the trigger carries `aria-expanded`
+ * rather than a modifier class, because this module owns no stylesheet. Both are attributes
+ * the base sheet already reacts to - `[hidden]` through the browser's own default rule and
+ * `.md-icon-button[aria-expanded="true"]` through a rule that predates this disclosure - so
+ * the state is expressed once, in the place assistive technology reads it, and the appearance
+ * follows from that rather than from a second parallel signal that could drift out of step.
+ */
+function buildExplanationDisclosure(options: RowOptions): ExplanationDisclosure | null {
+    const descriptionKey = options.descriptionKey;
+    if (descriptionKey === undefined || descriptionKey === null) return null;
+
+    const regionId = uniqueId("mb-explanation");
+    const region = el("p", {
+        class: "md-field__help mb-help",
+        attrs: { id: regionId, hidden: "" },
+    });
+    const trigger = el("button", {
+        class: "md-icon-button mb-explain",
+        attrs: {
+            type: "button",
+            "aria-expanded": "false",
+            "aria-controls": regionId,
+        },
+    });
+    // The glyph is `aria-hidden`, so the button's whole accessible name comes from its
+    // `aria-label`. Word text inside `.md-icon-button` -- a fixed square with no overflow
+    // guard -- is the shape that produced the clipped "Clear search" defect on the search
+    // fields, and there is no reason to reintroduce it here.
+    trigger.append(icon("info"));
+    trigger.addEventListener("click", () => {
+        const expanded = trigger.getAttribute("aria-expanded") === "true";
+        trigger.setAttribute("aria-expanded", expanded ? "false" : "true");
+        region.hidden = expanded;
+    });
+
+    return {
+        trigger,
+        region,
+        refresh(): void {
+            trigger.setAttribute("aria-label", t("settings.explain", { name: t(options.labelKey) }));
+            fillPhrase(region, descriptionKey);
+        },
+    };
 }
 
 /* ------------------------------------------------------------------ *

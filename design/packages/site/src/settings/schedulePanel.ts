@@ -2,16 +2,24 @@ import { clear, el, uniqueId } from "../platform/dom.js";
 import type { SettingValue, StoredSetting } from "./types.js";
 import { fillPhrase, t } from "./i18n.js";
 import {
+    MAX_REFRESH_MINUTES,
+    MAX_RULE_LABEL_LENGTH,
+    MAX_RULE_PRIORITY,
+    MIN_REFRESH_MINUTES,
+    MIN_RULE_PRIORITY,
     ScheduleRepository,
     ScheduledSettingsController,
     SessionSecretProvider,
     defaultRule,
+    describeRepositoryProblem,
+    describeRuleProblems,
+    describeStatus,
     supportedTimezones,
-    validateRule,
     type ScheduleSource,
     type ScheduleStatus,
     type ScheduledSettingsRule,
 } from "./schedule.js";
+import { guidanceText, type GuidanceMessage } from "./scheduleHelp.js";
 import type { SettingsStore } from "./store.js";
 import { downloadFile, pickFile } from "./dom.js";
 
@@ -54,6 +62,12 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
     const disposers: (() => void)[] = [];
     let selectedId = options.repository.load().rules[0]?.id ?? "";
     let draft: MutableRule | null = null;
+    /**
+     * Redraws whatever guidance the open editor is currently showing, in the language
+     * that is current now. Set by the editor while one exists, cleared when it does
+     * not, so a language change never reaches into a form that has been thrown away.
+     */
+    let repaintValidation: (() => void) | null = null;
 
     const intro = phrase("schedule.intro", "p", "md-field__help mb-help");
     const rulePicker = el("select", {
@@ -176,6 +190,7 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
         empty.hidden = draft !== null;
         editor.hidden = draft === null;
         clear(editor);
+        repaintValidation = null;
         if (draft !== null) editor.append(buildEditor(draft));
         renderHistory();
         renderStatus(options.controller.status);
@@ -184,7 +199,27 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
 
     function buildEditor(current: MutableRule): HTMLElement {
         const form = el("form", { class: "mb-schedule-form" });
-        const labelInput = inputField("schedule.label", "text", current.label, { maxlength: "80" });
+        /*
+         * Which control each field key belongs to, so guidance about a field can be
+         * attached to that field rather than merely printed near it. Keys are the
+         * control's own i18n label key, which is what `describeRuleProblems` reports,
+         * so there is no second mapping table here to fall out of step with the one
+         * the validator uses.
+         */
+        const fields = new Map<string, HTMLElement>();
+        const tracked = (
+            key: string,
+            type: string,
+            value: string,
+            attrs: Readonly<Record<string, string>> = {},
+        ): { element: HTMLElement; input: HTMLInputElement } => {
+            const created = inputField(key, type, value, attrs);
+            fields.set(key, created.input);
+            return created;
+        };
+        const labelInput = tracked("schedule.label", "text", current.label, {
+            maxlength: String(MAX_RULE_LABEL_LENGTH),
+        });
         labelInput.input.addEventListener("input", () => {
             current.label = labelInput.input.value;
         });
@@ -192,27 +227,27 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
         enabled.input.addEventListener("change", () => {
             current.enabled = enabled.input.checked;
         });
-        const priority = inputField("schedule.priority", "number", String(current.priority), {
-            min: "-1000",
-            max: "1000",
+        const priority = tracked("schedule.priority", "number", String(current.priority), {
+            min: String(MIN_RULE_PRIORITY),
+            max: String(MAX_RULE_PRIORITY),
             step: "1",
         });
         priority.input.addEventListener("input", () => {
             current.priority = Number(priority.input.value);
         });
-        const startDate = inputField("schedule.startDate", "date", current.startDate);
+        const startDate = tracked("schedule.startDate", "date", current.startDate);
         startDate.input.addEventListener("input", () => {
             current.startDate = startDate.input.value;
         });
-        const endDate = inputField("schedule.endDate", "date", current.endDate);
+        const endDate = tracked("schedule.endDate", "date", current.endDate);
         endDate.input.addEventListener("input", () => {
             current.endDate = endDate.input.value;
         });
-        const startTime = inputField("schedule.startTime", "time", current.startTime);
+        const startTime = tracked("schedule.startTime", "time", current.startTime);
         startTime.input.addEventListener("input", () => {
             current.startTime = startTime.input.value;
         });
-        const endTime = inputField("schedule.endTime", "time", current.endTime);
+        const endTime = tracked("schedule.endTime", "time", current.endTime);
         endTime.input.addEventListener("input", () => {
             current.endTime = endTime.input.value;
         });
@@ -221,6 +256,7 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
             supportedTimezones().map((value) => ({ value, label: value })),
             current.timezone,
         );
+        fields.set("schedule.timezone", timezone.input);
         timezone.input.addEventListener("change", () => {
             current.timezone = timezone.input.value;
         });
@@ -247,6 +283,10 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                     phrase(`schedule.weekday.${day}`, "span"),
                 ),
             );
+            // Guidance about the weekday set is attached to the first day rather than
+            // to the fieldset: the fieldset is not focusable, so a visitor sent there
+            // by keyboard would land nowhere and hear nothing.
+            if (day === 0) fields.set("schedule.weekdays", checkbox);
         }
         everyDay.input.addEventListener("change", () => {
             current.everyDay = everyDay.input.checked;
@@ -282,15 +322,29 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                             };
             }
             clear(sourceFields);
+            // The controls below are rebuilt on every source change, so their entries
+            // are dropped first. A key left pointing at a detached input would send a
+            // later focus call into a node the visitor cannot see.
+            for (const key of [
+                "schedule.apiUrl",
+                "schedule.haUrl",
+                "schedule.haEntity",
+                "schedule.refresh",
+            ])
+                fields.delete(key);
             if (current.source.kind === "api") {
-                const url = inputField("schedule.apiUrl", "url", current.source.url, {
+                const url = tracked("schedule.apiUrl", "url", current.source.url, {
                     placeholder: "https://example.test/settings.json",
                 });
-                const refresh = inputField(
+                const refresh = tracked(
                     "schedule.refresh",
                     "number",
                     String(current.source.refreshMinutes),
-                    { min: "5", max: "1440", step: "1" },
+                    {
+                        min: String(MIN_REFRESH_MINUTES),
+                        max: String(MAX_REFRESH_MINUTES),
+                        step: "1",
+                    },
                 );
                 url.input.addEventListener("input", () => {
                     if (current.source.kind === "api")
@@ -305,10 +359,10 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                 });
                 sourceFields.append(url.element, refresh.element);
             } else if (current.source.kind === "home-assistant") {
-                const baseUrl = inputField("schedule.haUrl", "url", current.source.baseUrl, {
+                const baseUrl = tracked("schedule.haUrl", "url", current.source.baseUrl, {
                     placeholder: "https://home-assistant.example",
                 });
-                const entity = inputField("schedule.haEntity", "text", current.source.entityId, {
+                const entity = tracked("schedule.haEntity", "text", current.source.entityId, {
                     placeholder: "input_boolean.site_theme",
                 });
                 const credentialKey = current.source.credentialKey;
@@ -361,11 +415,15 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                     clearToken.disabled = true;
                     options.notify?.(t("schedule.sessionTokenCleared"), false);
                 });
-                const refresh = inputField(
+                const refresh = tracked(
                     "schedule.refresh",
                     "number",
                     String(current.source.refreshMinutes),
-                    { min: "5", max: "1440", step: "1" },
+                    {
+                        min: String(MIN_REFRESH_MINUTES),
+                        max: String(MAX_REFRESH_MINUTES),
+                        step: "1",
+                    },
                 );
                 baseUrl.input.addEventListener("input", () => {
                     if (current.source.kind === "home-assistant")
@@ -398,10 +456,11 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
 
         const renderValues = (): void => {
             clear(values);
+            for (const key of [...fields.keys()]) if (key.startsWith("value:")) fields.delete(key);
             values.append(phrase("schedule.values", "h3", "mb-section-title"));
             const entries = Object.entries(current.values);
             entries.forEach(([id, value]) =>
-                values.append(buildValueRow(current, id, value, renderValues)),
+                values.append(buildValueRow(current, id, value, renderValues, fields)),
             );
             const addValue = actionButton("schedule.addValue", "md-button md-button--text");
             addValue.addEventListener("click", () => {
@@ -413,20 +472,96 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                 renderValues();
             });
             addValue.disabled = entries.length >= options.store.definitions_().length;
-            if (addValue.disabled)
-                addValue.title = "Every available setting is already in this rule.";
-            values.append(addValue);
+            /*
+             * A disabled control that does not say why reads as broken rather than as
+             * blocked, so the reason is both a tooltip and adjacent text: a `title` is
+             * never announced on a disabled button, and pointerless visitors are the
+             * ones with no other way to find out.
+             */
+            const allUsed = phrase("scheduleHelp.values.allUsed", "p", "md-field__help mb-help");
+            allUsed.id = uniqueId("schedule-values-note");
+            allUsed.hidden = !addValue.disabled;
+            if (addValue.disabled) {
+                addValue.title = t("scheduleHelp.values.allUsed");
+                addValue.setAttribute("aria-describedby", allUsed.id);
+            }
+            // A rule that controls nothing has no row to point at, so its guidance is
+            // attached to the button that would create the first one.
+            fields.set("schedule.values", addValue);
+            values.append(addValue, allUsed);
         };
         renderValues();
         renderSource();
 
-        const validation = el("p", { class: "md-field__help mb-help", attrs: { role: "status" } });
+        /*
+         * The guidance region is a live `alert` rather than a passive paragraph. A
+         * visitor who presses Save and is told nothing has been told the site ignored
+         * them; a screen-reader visitor reading a `status` region that only updates on
+         * the next focus move has been told the same thing more slowly.
+         */
+        const validation = el("div", {
+            class: "mb-schedule-validation",
+            attrs: { role: "alert", tabindex: "-1" },
+        });
+        validation.hidden = true;
+        let shownProblems: readonly GuidanceMessage[] = [];
+        const paintProblems = (moveFocus: boolean): void => {
+            clear(validation);
+            for (const control of fields.values()) {
+                control.removeAttribute("aria-invalid");
+                control.removeAttribute("aria-describedby");
+            }
+            validation.hidden = shownProblems.length === 0;
+            if (shownProblems.length === 0) return;
+            const summaryKey =
+                shownProblems.length === 1
+                    ? "scheduleHelp.summary.one"
+                    : "scheduleHelp.summary.many";
+            const summary = el("p", { class: "md-field__help md-field__help--error" });
+            fillPhrase(summary, summaryKey, { count: shownProblems.length });
+            validation.append(summary);
+            let firstControl: HTMLElement | null = null;
+            for (const problem of shownProblems) {
+                const line = el("p", {
+                    class: "md-field__help md-field__help--error",
+                    attrs: { id: uniqueId("schedule-problem") },
+                    text: guidanceText(problem),
+                });
+                validation.append(line);
+                const control = fields.get(problem.field ?? "");
+                // A control that has been replaced since the map was filled is not the
+                // control the visitor is looking at, so it gets neither the description
+                // nor the focus.
+                if (control === undefined || !form.contains(control)) continue;
+                control.setAttribute("aria-invalid", "true");
+                control.setAttribute("aria-describedby", line.id);
+                firstControl ??= control;
+            }
+            if (!moveFocus) return;
+            // Focus goes to the field that has to change, not to the message about it:
+            // the field already has the site's focus ring and is the place typing has
+            // to happen next. Only a whole-rule problem, which names no field, leaves
+            // the message itself as the best available target.
+            (firstControl ?? validation).focus();
+        };
+        /*
+         * These lines are rendered text rather than `data-i18n-key` nodes, because each
+         * one carries interpolated bounds that the generic copy refresh cannot supply.
+         * Repainting them from the messages they came from is what keeps them in the
+         * visitor's current language after a language change, instead of stranding an
+         * English sentence under a Cantonese form.
+         */
+        repaintValidation = (): void => paintProblems(false);
+        const showProblems = (problems: readonly GuidanceMessage[]): void => {
+            shownProblems = problems;
+            paintProblems(true);
+        };
         const save = actionButton("schedule.save", "md-button md-button--filled");
         const remove = actionButton(
             "schedule.delete",
             "md-button md-button--outlined md-button--danger",
         );
-        save.addEventListener("click", () => void saveRule(current, validation));
+        save.addEventListener("click", () => void saveRule(current, showProblems));
         remove.addEventListener("click", () => void deleteRule(current));
         remove.hidden = !options.repository
             .load()
@@ -462,6 +597,7 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
         id: string,
         value: SettingValue,
         rerender: () => void,
+        fields: Map<string, HTMLElement>,
     ): HTMLElement {
         const row = el("div", { class: "mb-schedule-value" });
         const available = options.store.definitions_();
@@ -475,6 +611,10 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
             );
         }
         target.value = id;
+        // Guidance about this row belongs on the picker: whether the setting is one
+        // this build does not have or one that refused the value, the picker is what
+        // the visitor changes next.
+        fields.set(`value:${id}`, target);
         const valueHost = el("div", { class: "mb-schedule-value-control" });
         valueHost.append(
             valueControl(options.store.definition(id), value, (next) => {
@@ -556,11 +696,13 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
         return input;
     }
 
-    async function saveRule(current: MutableRule, validation: HTMLElement): Promise<void> {
-        const errors = validateRule(current, options.store);
-        if (errors.length > 0) {
-            validation.textContent = t("schedule.invalid", { errors: errors.join(", ") });
-            validation.focus();
+    async function saveRule(
+        current: MutableRule,
+        report: (problems: readonly GuidanceMessage[]) => void,
+    ): Promise<void> {
+        const problems = describeRuleProblems(current, options.store);
+        if (problems.length > 0) {
+            report(problems);
             return;
         }
         const document = options.repository.load();
@@ -570,9 +712,10 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
         else rules[index] = cloneRule(current);
         const saveErrors = options.repository.save({ version: 1, rules });
         if (saveErrors.length > 0) {
-            validation.textContent = t("schedule.invalid", { errors: saveErrors.join(", ") });
+            report(saveErrors.map(describeRepositoryProblem));
             return;
         }
+        report([]);
         selectedId = current.id;
         draft = null;
         await applyNow();
@@ -603,19 +746,22 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
         }
     }
 
+    /**
+     * The name the visitor gave a rule, not the id the schedule file gave it.
+     *
+     * An id is generated (`rule-3`) or imported from someone else's file, so it
+     * identifies the rule for this code and for nobody else. The fallback covers the
+     * one case where no name exists any more — a rule deleted between the refresh and
+     * the report — and says exactly that rather than falling back to the id.
+     */
+    function ruleName(ruleId: string): string {
+        const named = options.repository.load().rules.find((rule) => rule.id === ruleId);
+        return named?.label ?? t("scheduleHelp.status.unknownRule");
+    }
+
     function renderStatus(next: ScheduleStatus): void {
-        if (next.kind === "idle") status.textContent = t("schedule.status.idle");
-        else if (next.kind === "applied")
-            status.textContent = t("schedule.status.applied", {
-                rule: next.ruleId,
-                count: next.ids.length,
-            });
-        else if (next.kind === "off")
-            status.textContent = t("schedule.status.off", { rule: next.ruleId });
-        else {
-            status.textContent = t("schedule.status.error", { rule: next.ruleId, code: next.code });
-            options.notify?.(status.textContent, true);
-        }
+        status.textContent = guidanceText(describeStatus(next, ruleName));
+        if (next.kind === "error") options.notify?.(status.textContent, true);
     }
 
     function renderHistory(): void {
@@ -633,15 +779,22 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                 selectedId = options.repository.load().rules[0]?.id ?? "";
                 void applyNow().then(render);
             });
+            /*
+             * `saved`, `imported` and `reset` are the stored enum values, and a bare
+             * count is a number with no noun. Both were being printed as they are held
+             * rather than as they read, which leaves a visitor to guess that the third
+             * column counts rules and that the second is a past-tense verb.
+             */
+            const count = entry.document.rules.length;
+            const summary = [
+                new Date(entry.at).toLocaleString(),
+                t(`scheduleHelp.history.action.${entry.action}`),
+                count === 1
+                    ? t("scheduleHelp.history.count.one")
+                    : t("scheduleHelp.history.count.many", { count }),
+            ].join(" · ");
             historyList.append(
-                el(
-                    "div",
-                    { class: "mb-history-row" },
-                    el("span", {
-                        text: `${new Date(entry.at).toLocaleString()} · ${entry.action} · ${entry.document.rules.length}`,
-                    }),
-                    restore,
-                ),
+                el("div", { class: "mb-history-row" }, el("span", { text: summary }), restore),
             );
         }
     }
@@ -655,6 +808,11 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
             if (key !== undefined) fillPhrase(node, key);
         }
         rulePicker.setAttribute("aria-label", t("schedule.rule"));
+        // Interpolated copy carries no key to refresh from, so it is redrawn from the
+        // messages and the history entries it was built out of.
+        repaintValidation?.();
+        renderHistory();
+        renderStatus(options.controller.status);
     }
 
     render();

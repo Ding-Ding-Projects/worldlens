@@ -5,7 +5,7 @@ import { AppearanceController } from "../appearance/controller.js";
 import { Preferences } from "../platform/Preferences.js";
 import { ThemeController } from "../theme/ThemeController.js";
 import { createSettingsPage } from "./page.js";
-import { defaultRule } from "./schedule.js";
+import { MAX_RULE_PRIORITY, MIN_RULE_PRIORITY, defaultRule } from "./schedule.js";
 
 class MemoryStorage implements Storage {
     private readonly values = new Map<string, string>();
@@ -93,6 +93,65 @@ describe("scheduled settings page", () => {
         view.destroy();
     });
 
+    it("refuses a rule with guidance a visitor can act on, attached to the field that failed", () => {
+        const { view } = page();
+        // Attached on purpose: focus is part of what this asserts, and a detached tree
+        // cannot take focus, so a passing assertion there would prove nothing.
+        document.body.append(view.element);
+        view.activateTab("automation");
+        view.element
+            .querySelector<HTMLButtonElement>("button[data-i18n-key='schedule.add']")
+            ?.click();
+        const surface = view.element.querySelector("[data-schedule-surface='rules']");
+        const label = surface?.querySelector<HTMLInputElement>("input[type='text']");
+        const priority = surface?.querySelector<HTMLInputElement>("input[type='number']");
+        if (label === undefined || label === null || priority === undefined || priority === null)
+            throw new Error("missing rule editor fields");
+        label.value = "";
+        label.dispatchEvent(new Event("input", { bubbles: true }));
+        priority.value = String(MAX_RULE_PRIORITY + 1);
+        priority.dispatchEvent(new Event("input", { bubbles: true }));
+        view.element
+            .querySelector<HTMLButtonElement>("button[data-i18n-key='schedule.save']")
+            ?.click();
+
+        const validation = surface?.querySelector(".mb-schedule-validation");
+        expect(validation?.getAttribute("role")).toBe("alert");
+        const text = validation?.textContent ?? "";
+        // The bound is stated, so a visitor learns what to type instead.
+        expect(text).toContain(`${MIN_RULE_PRIORITY} to ${MAX_RULE_PRIORITY}`);
+        expect(text.toLowerCase()).toContain("name");
+        // The old copy handed over the internal field names and nothing else.
+        expect(text).not.toContain("label, priority");
+
+        expect(label.getAttribute("aria-invalid")).toBe("true");
+        expect(priority.getAttribute("aria-invalid")).toBe("true");
+        const described = label.getAttribute("aria-describedby") ?? "";
+        expect(surface?.querySelector(`#${described}`)?.textContent ?? "").not.toBe("");
+        expect(document.activeElement).toBe(label);
+        view.destroy();
+        view.element.remove();
+    });
+
+    it("names history entries in words rather than in stored enum values", async () => {
+        const { view } = page();
+        view.activateTab("automation");
+        view.element
+            .querySelector<HTMLButtonElement>("button[data-i18n-key='schedule.add']")
+            ?.click();
+        view.element
+            .querySelector<HTMLButtonElement>("button[data-i18n-key='schedule.save']")
+            ?.click();
+        await vi.waitFor(() => {
+            expect(view.element.querySelectorAll(".mb-history-row")).toHaveLength(1);
+        });
+        const row = view.element.querySelector(".mb-history-row")?.textContent ?? "";
+        expect(row).toContain("Saved");
+        expect(row).toContain("1 rule");
+        expect(row).not.toContain("saved ·");
+        view.destroy();
+    });
+
     it("applies a scheduled theme as the rendered theme while retaining the light base", async () => {
         const storage = new MemoryStorage();
         const prefs = new Preferences(storage);
@@ -132,7 +191,12 @@ describe("scheduled settings page", () => {
         if (source === undefined) throw new Error("missing source picker");
         source.value = "home-assistant";
         source.dispatchEvent(new Event("change", { bubbles: true }));
-        const token = view.element.querySelector<HTMLInputElement>("input[type='password']");
+        // Scoped to the schedule surface on purpose: the settings page has more than one
+        // password field on it, and a page-wide query silently asserts against whichever
+        // one another surface happens to render first.
+        const token = view.element.querySelector<HTMLInputElement>(
+            "[data-schedule-surface='rules'] input[type='password']",
+        );
         expect(token).toBeInstanceOf(HTMLInputElement);
         expect(token?.getAttribute("autocomplete")).toBe("new-password");
         expect(view.element.textContent).toContain("only in memory for the current page session");

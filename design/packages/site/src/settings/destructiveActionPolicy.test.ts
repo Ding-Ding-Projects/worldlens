@@ -263,6 +263,25 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "SessionSecretProvider.clearToken deletes one Map entry. The token was never persisted " +
             "or exported, and the same Home Assistant password control accepts it again immediately.",
     },
+    "settings/settingsHistory.ts": {
+        count: 1,
+        destroys:
+            "settings-history records beyond the retention bound, which are the records a " +
+            "visitor would otherwise have used to put a setting back",
+        standing: "gated",
+        gatedIn: "settings/settingsHistoryPanel.ts",
+        note:
+            "The single hit the net finds here is `store.resetAll()` written inside the module's " +
+            "own documentation of which store method produces which recorded action -- a " +
+            "mention, not a call. Worth keeping the declaration anyway, because the file's " +
+            "genuinely irreversible action is `prune()`, whose name matches none of the " +
+            "delete-shaped patterns above and would therefore have passed this guard unnoticed " +
+            "had the comment not tripped it. It is declared `gated` on the strength of that real " +
+            "action rather than of the false positive: the panel's prune button awaits " +
+            "`confirmDestructive` and only calls `prune()` once that promise resolves true. " +
+            "Everything else the model does is additive -- `restore` appends a new record rather " +
+            "than rewriting one, which is what makes an undo undoable in turn.",
+    },
     "settings/store.ts": {
         count: 1,
         destroys:

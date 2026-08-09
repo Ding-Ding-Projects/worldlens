@@ -16,7 +16,6 @@ import { clear, el, icon, uniqueId } from "../platform/dom.js";
 import { announce, flashAttention } from "./dom.js";
 import { fillPhrase, searchableText, setI18nState, subscribeI18n, t } from "./i18n.js";
 import type { FunnyLevel, LanguageMode } from "./i18n.js";
-import type { I18n } from "../i18n/I18n.js";
 import type { Preferences } from "../platform/Preferences.js";
 import type { ThemeController } from "../theme/ThemeController.js";
 import { TAB_PLACEMENTS, type TabModel, type TabPlacement } from "../tabs/TabModel.js";
@@ -50,9 +49,31 @@ import {
     ScheduleRepository,
     ScheduledSettingsController,
     SessionSecretProvider,
+    describeStatus,
 } from "./schedule.js";
+import { guidanceText } from "./scheduleHelp.js";
+import { describeDependencies } from "./dependsOn.js";
+import {
+    EXPORT_FORMATS,
+    describeExportLoss,
+    exportFormat,
+    isExportFormatId,
+    serialize,
+} from "./exportFormats.js";
 import { createSchedulePanel } from "./schedulePanel.js";
 import { attachPanelGeometry } from "../platform/PanelGeometry.js";
+import { ProductIdentity } from "../identity/productIdentity.js";
+import "../identity/strings.js";
+import { DIALOG_EMOJI_SETTING_ID, setDialogEmojiEnabled } from "./dialogEmoji.js";
+import { PersonalVocabulary } from "./personalVocabulary.js";
+import { SchoolMode } from "./schoolMode.js";
+import { createSchoolModePanel } from "./schoolModePanel.js";
+import { createVocabularyPanel } from "./vocabularyPanel.js";
+import "./uiModeStrings.js";
+import { provenanceLine } from "./provenance.js";
+import { SettingsHistory } from "./settingsHistory.js";
+import { createSettingsHistoryPanel } from "./settingsHistoryPanel.js";
+import { I18n } from "../i18n/I18n.js";
 
 /**
  * What the search module attaches to.
@@ -101,6 +122,19 @@ export interface SettingsPageOptions {
     readonly i18n?: I18n | undefined;
     /** Non-blocking site notification route for schedule success and recoverable failures. */
     readonly notify?: ((message: string, error: boolean) => void) | undefined;
+    /**
+     * The three controllers this surface drives that the shell also reads.
+     *
+     * Each is optional and constructed from `prefs` when absent, which is what keeps the
+     * dozens of existing tests that build this page with nothing but a `Preferences` working
+     * unchanged. The shell passes its own instances so that the wordmark, the dim sum draw and
+     * every rendered string are reading the same objects these rows write to — the exact
+     * failure the language-mode fix above documents, arriving a second time through a
+     * different door.
+     */
+    readonly identity?: ProductIdentity | undefined;
+    readonly school?: SchoolMode | undefined;
+    readonly vocabulary?: PersonalVocabulary | undefined;
 }
 
 export interface SettingsPageView {
@@ -124,8 +158,11 @@ const ELEMENT_ID_PREFIX = "element.";
 
 export function createSettingsPage(options: SettingsPageOptions): SettingsPageView {
     const store = new SettingsStore(options.prefs);
+    const identity = options.identity ?? new ProductIdentity(options.prefs);
+    const school = options.school ?? new SchoolMode(options.prefs);
+    const vocabulary = options.vocabulary ?? new PersonalVocabulary(options.prefs);
     store.register(SETTINGS);
-    installBridges(store, options);
+    installBridges(store, options, identity);
     const scheduleRepository = new ScheduleRepository(options.prefs, store);
     const scheduleSecrets = new SessionSecretProvider();
     const scheduleController = new ScheduledSettingsController(
@@ -141,8 +178,55 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         confirmDelete: confirmDestructive,
         notify: options.notify,
     });
+    const schoolView = createSchoolModePanel({
+        mode: school,
+        confirmDestructive,
+        // Arming or disarming the mode changes which settings exist, which tabs exist and which
+        // language the site speaks, so it is not enough to repaint this panel: the whole surface
+        // has to be reconsidered, and the shell told, in that order.
+        onChange: () => {
+            syncLanguageFromSettings(store, options.i18n, school);
+            refresh();
+        },
+    });
+    /*
+     * The history records what happened to a setting; it does not decide anything, so it is
+     * wired before the surface is built and left running for the life of the page.
+     *
+     * `trackChanges` diffs on every store event, which is why a plain `store.set` needs no
+     * wrapper: the diff is the record. The wrappers below exist only where the *cause* cannot
+     * be inferred from the diff — a reset and a change to the default value look identical
+     * afterwards, and an import and a hundred separate edits do too.
+     *
+     * The translator fallback is for the many existing tests that build this surface with
+     * nothing but a `Preferences`. A history panel that silently failed to render in exactly
+     * the environment its tests run in would be a feature nobody could check.
+     */
+    const history = new SettingsHistory(options.prefs);
+    const stopTrackingHistory = history.trackChanges(store);
+    const historyView = createSettingsHistoryPanel({
+        history,
+        store,
+        i18n: options.i18n ?? new I18n(options.prefs),
+        notify: options.notify,
+    });
+    const vocabularyView = createVocabularyPanel({
+        vocabulary,
+        confirmDestructive,
+        onChange: () => {
+            refresh();
+        },
+    });
 
-    const rows = new Map<string, { row: ControlRow; container: HTMLElement; tabId: string }>();
+    const rows = new Map<
+        string,
+        {
+            row: ControlRow;
+            container: HTMLElement;
+            tabId: string;
+            dependencyNote: HTMLElement;
+        }
+    >();
     /**
      * The Elements list's own rows, keyed by appearance target id (`tab`, `card`, and so on).
      *
@@ -157,6 +241,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         string,
         { container: HTMLElement; editButton: HTMLButtonElement }
     >();
+    const groupHeadings = new Map<string, HTMLElement>();
     const tabButtons = new Map<string, HTMLButtonElement>();
     const tabBadges = new Map<string, HTMLElement>();
     const panels = new Map<string, HTMLElement>();
@@ -472,7 +557,12 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                 data: { mbKind: "card" },
             });
             const groupHeading = el("h2", { class: "mb-section-title" });
-            fillPhrase(groupHeading, group.labelKey);
+            // The mode's group heading is the one heading on this page whose text is not fixed
+            // copy: it is `{name}`, filled from the controller, so that renaming the mode
+            // renames its heading too. A heading still reading the shipped name above a panel
+            // that has been renamed would leak exactly the word the rename exists to retire.
+            groupHeadings.set(group.id, groupHeading);
+            fillPhrase(groupHeading, group.labelKey, { name: schoolView.name() });
             section.append(groupHeading);
 
             for (const definition of SETTINGS) {
@@ -480,8 +570,24 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                 const container = el("div", { class: "mb-setting" });
                 const row = buildRowFor(definition);
                 container.append(row.element);
+                /*
+                 * `dependsOn` was declared on the type, used by exactly one setting, and read by
+                 * nothing at all — so `language.secondaryInline` sat there looking operable in
+                 * every mode while doing nothing outside bilingual, and a visitor who flipped it
+                 * and saw no change had no way to find out why.
+                 *
+                 * The note appears *beside* the control rather than replacing or hiding it,
+                 * which is what the declaration's own comment always asked for: a hidden row is
+                 * a row a search result can land on and find nothing, and this settings page is
+                 * searchable from four different surfaces.
+                 */
+                const dependencyNote = el("p", {
+                    class: "md-field__help mb-help",
+                    attrs: { hidden: "" },
+                });
+                container.append(dependencyNote);
                 section.append(container);
-                rows.set(definition.id, { row, container, tabId: tab.id });
+                rows.set(definition.id, { row, container, tabId: tab.id, dependencyNote });
             }
 
             if (tab.id === "appearance" && group.id === "elements") {
@@ -502,8 +608,19 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             if (tab.id === "automation" && group.id === "sources") {
                 section.append(scheduleView.sourcesElement);
             }
+            if (tab.id === "general" && group.id === "school") {
+                section.append(schoolView.element);
+            }
             if (tab.id === "data" && group.id === "transfer") {
                 section.append(buildTransfer());
+                // Appended unconditionally and hidden by the panel itself, because the panel is
+                // the one thing that knows whether a file has been supplied. Deciding here
+                // would put that knowledge in two places, and the day they disagree a visitor
+                // gets a vocabulary heading over nothing.
+                section.append(vocabularyView.element);
+            }
+            if (tab.id === "data" && group.id === "history") {
+                section.append(historyView.element);
             }
             if (tab.id === "data" && group.id === "resetGroup") {
                 section.append(buildGlobalReset());
@@ -646,11 +763,38 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             labelKey: definition.labelKey,
             descriptionKey: definition.descriptionKey,
             onReset: (): void => {
-                store.reset(definition.id);
+                // A reset and a deliberate edit back to the default value leave the store in
+                // the same state, so the cause cannot be recovered from the diff afterwards.
+                // Naming it here is the only moment it is knowable.
+                history.withAction("reset", () => store.reset(definition.id));
                 announce(t("settings.resetOneDone", { name: t(definition.labelKey) }));
             },
             isDefault: (): boolean => store.isDefault(definition.id),
-            provenance: (): string => t(`settings.provenance.${store.provenance(definition.id)}`),
+            /*
+             * The line names the value that is actually in force rather than the word
+             * "default", which told a visitor nothing they could act on: knowing a setting is
+             * defaulted is only useful alongside knowing what it defaulted *to*.
+             *
+             * A font setting is the one case the declaration cannot answer on its own — it
+             * stores a family id and the visitor reads a family name, and that mapping belongs
+             * to the appearance controller — so the display value is supplied here rather than
+             * letting the line fall back to printing an id at somebody.
+             */
+            provenance: (): string =>
+                provenanceLine({
+                    definition,
+                    kind: store.provenance(definition.id),
+                    value: store.get(definition.id),
+                    ...(definition.kind === "font"
+                        ? {
+                              displayValue: options.appearance
+                                  .families()
+                                  .find(
+                                      (family) => family.id === store.getString(definition.id),
+                                  )?.name,
+                          }
+                        : {}),
+                }),
         };
         switch (definition.kind) {
             case "toggle":
@@ -840,17 +984,83 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         const wrapper = el("div", { class: "mb-transfer" });
         const status = el("p", { class: "md-field__help mb-help", attrs: { role: "status" } });
 
+        /*
+         * The export used to be one button that always wrote JSON. A settings snapshot is
+         * tabular *and* structured *and* readable prose depending on what the visitor means to
+         * do with it — diff it in a repository, paste it into a spreadsheet, read it — and
+         * offering one shape forced everyone through the one that happened to be easiest to
+         * write.
+         *
+         * The picker is a real `<select>` rather than nine buttons because nine buttons is a
+         * wall, and the row below it is the part that actually matters: what the chosen format
+         * would lose *for this snapshot*, stated before the download rather than discovered
+         * afterwards when a round trip comes back with `true` as the string "true". A format
+         * that is genuinely lossless for the data in hand says so instead of manufacturing a
+         * caveat, because a warning that is always present is a warning nobody reads.
+         */
+        const formatId = uniqueId("mb-export-format");
+        const formatLabel = el("label", {
+            class: "md-field__label",
+            attrs: { for: formatId },
+        });
+        fillPhrase(formatLabel, "exportFormats.pickerLabel");
+        const formatSelect = el("select", {
+            class: "md-field__select",
+            attrs: { id: formatId },
+        });
+        for (const descriptor of EXPORT_FORMATS) {
+            formatSelect.append(
+                el("option", { text: t(descriptor.nameKey), attrs: { value: descriptor.id } }),
+            );
+        }
+        formatSelect.value = "json";
+
+        const formatNote = el("p", {
+            class: "md-field__help mb-help",
+            attrs: { role: "status", "aria-live": "polite" },
+        });
+        const lossList = el("ul", { class: "mb-prose-list mb-export-loss" });
+
+        const describeChosenFormat = (): void => {
+            const chosen = isExportFormatId(formatSelect.value) ? formatSelect.value : "json";
+            const snapshot = store.snapshot();
+            const losses = describeExportLoss(chosen, snapshot);
+            clear(lossList);
+            formatNote.textContent = t(exportFormat(chosen).descriptionKey);
+            if (losses.length === 0) {
+                lossList.append(
+                    el("li", { text: t("exportFormats.lossless") }),
+                );
+                return;
+            }
+            for (const loss of losses) {
+                lossList.append(
+                    el("li", { text: t(loss.key, loss.interpolations ?? { count: loss.ids.length }) }),
+                );
+            }
+        };
+        formatSelect.addEventListener("change", describeChosenFormat);
+
         const exportButton = el("button", {
             class: "md-button md-button--tonal",
             text: t("action.exportSettings.button"),
             attrs: { type: "button" },
         });
         exportButton.addEventListener("click", () => {
+            const chosen = isExportFormatId(formatSelect.value) ? formatSelect.value : "json";
+            const descriptor = exportFormat(chosen);
             const stamp = new Date().toISOString().slice(0, 10);
             downloadFile(
-                `worldlens-settings-${stamp}.json`,
-                `${JSON.stringify({ version: 1, values: store.snapshot() }, null, 4)}\n`,
-                "application/json",
+                `worldlens-settings-${stamp}${descriptor.extension}`,
+                serialize(chosen, store.snapshot(), {
+                    version: 1,
+                    generatedAt: new Date().toISOString(),
+                    // Resolved here rather than inside the serialiser, which is deliberately
+                    // pure and reads no global language state of its own.
+                    title: t("settings.title"),
+                    language: document.documentElement.lang,
+                }),
+                descriptor.mimeType,
             );
         });
 
@@ -871,7 +1081,32 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                     announce(status.textContent);
                     return;
                 }
-                const report = store.import(parsed);
+                /*
+                 * The same picker takes the visitor's private wording file.
+                 *
+                 * There is deliberately no separate "load a vocabulary" button, because the
+                 * rule is that with no file supplied the site exposes no vocabulary feature at
+                 * all — and a button offering to load one is a feature. A generic file intake
+                 * that happens to recognise what it was handed is not, which is why the route
+                 * in is this one and why nothing here describes what such a file contains.
+                 *
+                 * A settings export is a JSON object; a wording file is a JSON array. That is
+                 * the whole discriminator, and it cannot misfire on a settings file because an
+                 * array can never carry the `values` record `store.import` reads.
+                 */
+                if (Array.isArray(parsed)) {
+                    const loaded = vocabulary.load(text);
+                    status.textContent = loaded.ok
+                        ? t("vocab.installedCount", { count: loaded.count })
+                        : t(`vocab.refused.${loaded.reason}`);
+                    announce(status.textContent);
+                    refresh();
+                    return;
+                }
+                // Wrapped so the history records one `imported` entry rather than a burst of
+                // indistinguishable `changed` ones: a visitor undoing an import wants the
+                // import back out, not forty separate undos.
+                const report = history.withAction("imported", () => store.import(parsed));
                 status.textContent = t("action.importDone", {
                     applied: report.applied.length,
                     preserved: report.preserved.length,
@@ -891,9 +1126,14 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         const importHelp = el("p", { class: "md-field__help mb-help" });
         fillPhrase(importHelp, "action.importSettings.desc");
 
+        describeChosenFormat();
+
         wrapper.append(
             el("div", { class: "mb-property-row" }, exportLabel, exportButton),
             exportHelp,
+            el("div", { class: "mb-property-row" }, formatLabel, formatSelect),
+            formatNote,
+            lossList,
             el("div", { class: "mb-property-row" }, importLabel, importButton),
             importHelp,
             status,
@@ -918,7 +1158,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             void (async (): Promise<void> => {
                 const confirmed = await confirmDestructive(t("action.resetAll.desc"));
                 if (!confirmed) return;
-                store.resetAll();
+                history.withAction("reset-all", () => store.resetAll());
                 options.appearance.store.resetAllElements();
                 status.textContent = t("action.resetAll.done");
                 announce(status.textContent);
@@ -934,12 +1174,22 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
      * Search behaviour
      * ---------------------------------------------------------- */
 
+    /**
+     * Everything a search, a palette or the discovery view can find.
+     *
+     * The suppression filter is applied *here*, at the single source every one of those
+     * surfaces reads, rather than in each of them. That is what makes "behaves as if it were
+     * never installed" true rather than aspirational: a suppressed setting is not merely hidden
+     * on the settings page, it cannot be found by name in the command palette, cannot appear in
+     * a site-wide search result, and cannot be teleported to. Filtering in three places instead
+     * would have left the third one leaking the feature back into view.
+     */
     function searchableSettings(): readonly SearchableSetting[] {
         return [
             ...storedSettingSearchables(),
             ...appearanceElementSettings(),
             ...scheduleSearchables(),
-        ];
+        ].filter((setting) => !school.suppresses(setting.id) && !school.suppressesTab(setting.tabId));
     }
 
     function scheduleSearchables(): readonly SearchableSetting[] {
@@ -960,7 +1210,21 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                 id: "schedule.externalSources",
                 label: t("settings.group.sources"),
                 description: t("schedule.credentialHelp"),
-                valueText: scheduleController.status.kind,
+                // The raw enum member used to be what a visitor read here. `describeStatus`
+                // turns it into the sentence the panel itself shows, so the search result and
+                // the surface it lands on now say the same thing in the same words.
+                valueText: guidanceText(
+                    describeStatus(
+                        scheduleController.status,
+                        // A rule whose record has since been deleted falls back to its id rather
+                        // than to an empty string: an id is at least something a visitor can
+                        // match against what they remember naming, whereas a blank leaves the
+                        // sentence reading as though the rule had no name at all.
+                        (ruleId) =>
+                            scheduleRepository.load().rules.find((rule) => rule.id === ruleId)
+                                ?.label ?? ruleId,
+                    ),
+                ),
                 tabId: "automation",
                 tabLabel: t("settings.tab.automation"),
                 sectionLabel: t("settings.group.sources"),
@@ -1103,7 +1367,11 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                     (local.matcher !== null
                         ? local.matcher(setting)
                         : defaultMatch(setting, localNeedle)));
-            const visible = (!active || invalidPattern || matched.has(id)) && localVisible;
+            // Suppression wins over every search result. A row the mode has taken away must not
+            // be revealable by typing its name, or the mode would be a filter a visitor can
+            // defeat by knowing what to search for.
+            const suppressed = school.suppresses(id) || school.suppressesTab(entry.tabId);
+            const visible = !suppressed && (!active || invalidPattern || matched.has(id)) && localVisible;
             entry.container.hidden = !visible;
         }
 
@@ -1293,9 +1561,52 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             const button = tabButtons.get(tab.id);
             const label = button?.querySelector(".mb-tab-label");
             if (label instanceof HTMLElement) fillPhrase(label, tab.labelKey);
+            // A tab whose every setting has been suppressed is removed rather than left empty:
+            // a clickable heading that leads to nothing reads as a broken build, which is a
+            // worse outcome than the honest absence the mode is asking for.
+            const suppressed = school.suppressesTab(tab.id);
+            if (button !== undefined) button.hidden = suppressed;
+            if (suppressed) panels.get(tab.id)?.setAttribute("hidden", "");
+        }
+        // Being left standing on a tab that has just vanished would leave the panel host empty
+        // with no indication why, so the surface walks to the first tab that still exists.
+        if (school.suppressesTab(activeTab)) {
+            const survivor = SETTINGS_TABS.find((tab) => !school.suppressesTab(tab.id));
+            if (survivor !== undefined) activateTab(survivor.id);
         }
 
+        for (const [groupId, headingElement] of groupHeadings) {
+            const group = SETTINGS_TABS.flatMap((tab) => tab.groups).find(
+                (candidate) => candidate.id === groupId,
+            );
+            if (group !== undefined) {
+                fillPhrase(headingElement, group.labelKey, { name: schoolView.name() });
+            }
+        }
+
+        // The dialog port is pushed rather than pulled for the same reason the language port is:
+        // `confirmDestructive` is a free function a caller reaches without holding this page, so
+        // there is no store for it to ask when it opens.
+        setDialogEmojiEnabled(store.getBoolean(DIALOG_EMOJI_SETTING_ID));
+        schoolView.refresh();
+        vocabularyView.refresh();
+        historyView.refresh();
+
         for (const entry of rows.values()) entry.row.refresh();
+
+        // Recomputed on every refresh rather than cached, because whether a dependency is met is
+        // a fact about another setting's current value and that value changes underneath this
+        // row without any event of its own reaching it.
+        const dependencies = describeDependencies(SETTINGS, (id) =>
+            store.definition(id) === undefined ? undefined : store.get(id),
+        );
+        for (const [id, entry] of rows) {
+            const note = dependencies.get(id);
+            const unmet = note !== undefined && note.unmet;
+            entry.dependencyNote.hidden = !unmet;
+            entry.dependencyNote.textContent = unmet ? guidanceText(note) : "";
+        }
+
         scheduleView.refresh();
 
         const changed = store.changedIds().length;
@@ -1362,7 +1673,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
 
     disposers.push(
         store.subscribe(() => {
-            syncLanguageFromSettings(store, options.i18n);
+            syncLanguageFromSettings(store, options.i18n, school);
             refresh();
         }),
     );
@@ -1377,7 +1688,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         }) ?? (() => undefined),
     );
 
-    syncLanguageFromSettings(store, options.i18n);
+    syncLanguageFromSettings(store, options.i18n, school);
     activateTab(activeTab);
     refresh();
     scheduleController.start();
@@ -1422,6 +1733,10 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         destroy(): void {
             scheduleController.destroy();
             scheduleView.destroy();
+            schoolView.destroy();
+            vocabularyView.destroy();
+            stopTrackingHistory();
+            historyView.destroy();
             for (const dispose of disposers) dispose();
             root.remove();
         },
@@ -1440,7 +1755,27 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
  * `index.html` already reads, so the page renders in the right language before the
  * first frame instead of flashing English.
  */
-function installBridges(store: SettingsStore, options: SettingsPageOptions): void {
+function installBridges(
+    store: SettingsStore,
+    options: SettingsPageOptions,
+    identity: ProductIdentity,
+): void {
+    /*
+     * The rename is bridged rather than stored as an ordinary setting for the reason every
+     * bridge in this function exists: the controller is what the shell, the document title and
+     * the wordmark read, so a second copy in the settings namespace would be a value that looks
+     * authoritative on this page and is authoritative nowhere else. The empty string is the
+     * declared default and means "no chosen name", which is why writing one is a removal.
+     */
+    store.bridge("identity.displayName", {
+        read: () => (identity.isShippedName ? "" : identity.displayName),
+        write: (value) => identity.setDisplayName(String(value)),
+        reset: () => identity.reset(),
+        subscribe: (listener) => identity.subscribe(listener),
+        isDefault: () => identity.isShippedName,
+        provenance: () => (identity.isShippedName ? "compiled-default" : "stored"),
+    });
+
     const theme = options.theme;
     if (theme !== undefined) {
         store.bridge("theme.mode", {
@@ -1558,10 +1893,28 @@ function installBridges(store: SettingsStore, options: SettingsPageOptions): voi
  * it is absent the port is still updated, which is exactly the old behaviour and still correct
  * for a surface that has no shell to inform.
  */
-function syncLanguageFromSettings(store: SettingsStore, i18n?: I18n | undefined): void {
-    const mode = store.getString("language.mode") as LanguageMode;
-    const funnyEn = store.getNumber("language.funny.en") as FunnyLevel;
-    const funnyYue = store.getNumber("language.funny.yue") as FunnyLevel;
+function syncLanguageFromSettings(
+    store: SettingsStore,
+    i18n?: I18n | undefined,
+    school?: SchoolMode | undefined,
+): void {
+    /*
+     * While the mode is on the site is English at the shipped voice, and — this is the part
+     * that is easy to get wrong — the stored choices underneath are left exactly as the visitor
+     * left them. Writing `en` over a stored `bilingual` would satisfy the "force English" half
+     * of the rule and quietly break the other half, which promises the visitor's site back the
+     * moment the mode is turned off. So the override happens here, at the point of application,
+     * and never reaches storage.
+     *
+     * Level three rather than the stored level for the same reason: a product with no funny
+     * sliders renders the middle, un-styled variant of its copy, and that is what "as if they
+     * are not installed" has to look like. `resolveLevel` treats three as the canonical entry,
+     * so this is the shipped voice rather than an arbitrary pick.
+     */
+    const suppressed = school?.enabled === true;
+    const mode = (suppressed ? "en" : store.getString("language.mode")) as LanguageMode;
+    const funnyEn = (suppressed ? 3 : store.getNumber("language.funny.en")) as FunnyLevel;
+    const funnyYue = (suppressed ? 3 : store.getNumber("language.funny.yue")) as FunnyLevel;
 
     setI18nState({ mode, funnyEn, funnyYue });
 
@@ -1574,7 +1927,6 @@ function syncLanguageFromSettings(store: SettingsStore, i18n?: I18n | undefined)
     const root = document.documentElement;
     root.dataset["language"] = mode;
     root.lang = mode === "yue" ? "zh-HK" : "en";
-    root.dataset["secondaryInline"] = store.getBoolean("language.secondaryInline")
-        ? "true"
-        : "false";
+    root.dataset["secondaryInline"] =
+        !suppressed && store.getBoolean("language.secondaryInline") ? "true" : "false";
 }

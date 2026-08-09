@@ -26,6 +26,7 @@ import type { I18n } from "../i18n/I18n.js";
 import type { Notifications } from "../notifications/Notifications.js";
 import type { RegexBuilderSlot } from "../platform/RegexBuilderSlot.js";
 import type { DestructiveGate } from "../settings/confirm.js";
+import { dialogEmojiNode } from "../settings/dialogEmoji.js";
 
 export interface BulkCloseScope {
     readonly kind: "all" | "group";
@@ -65,6 +66,14 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
     const title = el("h2", { class: "md-title-large md-dialog__title" });
     i18n.bindText(title, titleKey);
     i18n.bindAttr(dialog, "aria-label", titleKey);
+    /*
+     * A sibling of the title rather than a child of it: `bindText` reassigns `textContent`
+     * whenever the language or a funny level changes, so a glyph placed inside would disappear
+     * the first time a visitor touched a slider. The dialog's `aria-label` is bound to the same
+     * key and is deliberately left alone — this decoration must never reach an accessible name.
+     */
+    const decoration = dialogEmojiNode("confirm");
+    if (decoration !== null) body.append(decoration);
     body.append(title);
 
     const scopeLine = el("p", { class: "md-body-small bulk-close__scope" });

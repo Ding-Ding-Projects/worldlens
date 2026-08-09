@@ -40,13 +40,33 @@ describe("settings tab search surfaces", () => {
         const appearance = new AppearanceController(prefs);
         const page = createSettingsPage({ prefs, theme, appearance });
 
-        const panelInputs = [...page.element.querySelectorAll<HTMLInputElement>(".mb-settings-panel input[type=search]")];
+        /*
+         * Narrowed to the per-tab fields by their own id prefix rather than counting every
+         * search input inside a panel.
+         *
+         * The claim under test is "each settings tab owns a search field of its own", and that
+         * is exactly what this now measures. Counting every search input in a panel also
+         * asserted "and nothing else on this page may have one", which was never a rule and is
+         * now false: the settings-history panel carries its own search wired to the same regex
+         * builder, because every search surface in this project has to. Leaving the broader
+         * count in place would have made adding any second search surface look like a
+         * regression in the tab searches, which is precisely the wrong signal.
+         */
+        const panelInputs = [
+            ...page.element.querySelectorAll<HTMLInputElement>(
+                ".mb-settings-panel input[type=search][id^='mb-settings-tab-search-']",
+            ),
+        ];
         const ids = panelInputs.map((input) => input.id);
 
         expect(panelInputs).toHaveLength(SETTINGS_TABS.length);
         expect(new Set(ids).size).toBe(SETTINGS_TABS.length);
         expect(panelInputs.every((input) => input.closest(".mb-search-row") !== null)).toBe(true);
-        expect(page.element.querySelectorAll(".mb-settings-panel .mb-search-builder-slot")).toHaveLength(SETTINGS_TABS.length);
+        expect(
+            panelInputs.every(
+                (input) => input.parentElement?.querySelector(".mb-search-builder-slot") !== null,
+            ),
+        ).toBe(true);
 
         page.destroy();
     });
