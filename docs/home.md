@@ -340,7 +340,7 @@ Home 就係 `App.vue` 嘅 `PAGE_HOME`，喺宣告嘅頁面清單排第一，而�
 - 節標題係一個真嘅 `<button>`，包喺一個真嘅 heading 元素入面，標籤講明呢節裝住乜**同埋有幾多張** —— 例如「Share and back up (2)」、「Settings and tools (9)」。一節如果摺埋咗啲卡但唔講埋帶走咗幾多張，就係喺度收埋而唔係執靚，所以個數字係可見標籤嘅一部分，唔係一個 badge 或者 tooltip。
 - 五節預設摺埋，而且每節嘅選擇會永久記住（`homeState.ts`，key 係 `worldlens.home.expandedSections`）。預設值永遠唔會覆蓋人做過嘅選擇。
 - 空嘅一節會直接唔出，唔會頂住個「(0)」標題 —— 冇地圖打開嗰陣嘅「The open map」就係一個接住乜都冇嘅控制，而 command palette 對同一組嘅規矩都係噉。
-- **搜尋完全繞過 disclosure。** 那個扁平嘅結果格係由完整能力清單砌出嚟，包括摺埋嗰啲節，所以一張卡摺咗埋永遠唔會令佢搵唔到。`HomeScreen.test.ts` 直接守住呢點：喺每一節都係新手預設狀態之下，搜尋 "point of interest"（呢個關鍵字淨係摺埋咗嗰個 viewer 節嘅 Markers 卡先有）一樣會攞返嗰張卡。
+- **搜尋完全繞過 disclosure。** 嗰個扁平嘅結果格係由完整能力清單砌出嚟，包括摺埋嗰啲節，所以一張卡摺咗埋永遠唔會令佢搵唔到。`HomeScreen.test.ts` 直接守住呢點：喺每一節都係新手預設狀態之下，搜尋 "point of interest"（呢個關鍵字淨係摺埋咗嗰個 viewer 節嘅 Markers 卡先有）一樣會攞返嗰張卡。
 
 #### 用 surface 而唔係外框
 
@@ -366,7 +366,7 @@ Backups 同 Publish to Pages 兩樣都要呢部電腦上面已經有一個 rende
 - 每張卡嘅單一動作都係異質嘅，唔係批量規矩所假設嗰種單一操作（刪除、匯出、移動、加標籤、重試、啟用／停用）。「打開指南」、「打開 Settings 並定位到 GitHub 嗰行」同「打開 config editor 嘅歷史畫面」根本冇辦法一齊揀，再當成一個批次動詞去執行，因為佢哋唔係同一個動詞換咗資料。
 - 卡片目的地所通往嘅真正集合，喺佢哋自己嘅界面已經各自有批量操作嘅一套做法，而規矩就係應該喺嗰度生效：maps-and-servers 清單（`ProfileManager.vue`）擁有啲 profile，通知中心擁有啲通知，docs 瀏覽器擁有啲文章。Home 係去每個房間嘅門，唔係房間嘅第二份複製品。
 
-Home 最接近「集合」嘅一處係 Continue 那一行 —— 除咗 seed 嘅 demo server 之外每一個 render 咗嘅 profile，撳落去就將佢設為 active map。佢仍然係一張啟動器清單而唔係記錄集合，原因一樣：「continue」係逐個 profile 嘅單一動作，冇對應嘅批量版本，而管理嗰啲 profile（改名、移除、批量關閉）係 `ProfileManager.vue` 嘅工作，經佢自己嘅分頁去做。
+Home 最接近「集合」嘅一處係 Continue 嗰一行 —— 除咗 seed 嘅 demo server 之外每一個 render 咗嘅 profile，撳落去就將佢設為 active map。佢仍然係一張啟動器清單而唔係記錄集合，原因一樣：「continue」係逐個 profile 嘅單一動作，冇對應嘅批量版本，而管理嗰啲 profile（改名、移除、批量關閉）係 `ProfileManager.vue` 嘅工作，經佢自己嘅分頁去做。
 
 ### 重用而唔重複
 
@@ -391,7 +391,7 @@ Home 除此之外冇任何嘢會自己持久化。個分頁嘅位置、佢過咗
 - **某項能力喺一節摺埋咗嘅內容入面。** 由講明佢名同數量嗰個標題撳一下就到，而且無論如何都搵得返，因為搜尋係行勻成份能力清單，唔係行而家畫咗出嚟嗰啲。呢版冇任何嘢係一定要先打開啱嗰節先去到。
 - **一張卡嘅目的地去唔到。** 呢度每一個動作都係 `App.vue` 本來就會為佢自己某個掣執行嘅 shell 動作；唔會出現 Home 提供一張撳咗靜靜雞乜都唔做嘅卡，因為冇一個真正接好嘅 handler，張卡根本唔會存在。
 - **冇地圖打開。** Viewer 自己嗰組選單（Maps、Settings、Info、Markers、Players、鏡頭重設）會完全唔出現，而唔係出現但 disabled，跟返 command palette 自己嘅規矩：一個接住乜都冇嘅主題選擇或者鏡頭重設列，正正就係本專案拒絕出貨嘅裝飾性控制。
-- **仲未 render 過任何嘢。** Continue 那一節完全唔會渲染（唔係一張空清單），而 Backups／Publish to Pages 兩者都會講明缺咗嘅前置條件，隔籬擺住一個真正可用嘅補救。
+- **仲未 render 過任何嘢。** Continue 嗰一節完全唔會渲染（唔係一張空清單），而 Backups／Publish to Pages 兩者都會講明缺咗嘅前置條件，隔籬擺住一個真正可用嘅補救。
 - **搜尋 pattern 編譯唔到。** 結果清單會顯示乜都冇，而唔係顯示上一次成功嘅結果，同本應用程式其他每一個由 regex builder 支撐嘅搜尋行為一致。
 - **升級上嚟嘅安裝，佢儲低嘅分頁佈局早過 Home。** `ensurePage` 會喺下次啟動幫佢加一個釘住嘅分頁，唔會騷擾嗰個人本來喺緊嘅分頁；全新安裝就唔使咁修，因為 Home 同其他宣告過嘅頁面一樣係 seed（同釘住）出嚟。
 
@@ -401,7 +401,7 @@ Home 除此之外冇任何嘢會自己持久化。個分頁嘅位置、佢過咗
 
 ### 無障礙
 
-Home 係一個有標籤嘅 `<section>`；佢啲區域 —— 簡介、continue 那一行、帶 hero 嘅 "Get started"、同埋 "Everything else" —— 每個都係真嘅標題，所以螢幕閱讀器可以好似讀任何其他文件噉喺佢哋之間移動。個大綱係真正嘅階層，唔係一串同級標題排落去：頁面用 `h2`，每個區域用 `h3`，hero 自己嘅標題同每個可摺疊節用 `h4`，節入面每張卡用 `h5`。
+Home 係一個有標籤嘅 `<section>`；佢啲區域 —— 簡介、continue 嗰一行、帶 hero 嘅 "Get started"、同埋 "Everything else" —— 每個都係真嘅標題，所以螢幕閱讀器可以好似讀任何其他文件噉喺佢哋之間移動。個大綱係真正嘅階層，唔係一串同級標題排落去：頁面用 `h2`，每個區域用 `h3`，hero 自己嘅標題同每個可摺疊節用 `h4`，節入面每張卡用 `h5`。
 
 每個可摺疊節都係一個真嘅 `<button type="button">`，包喺佢個 `h4` 入面，帶住 `aria-expanded` 同一個指住佢真正會打開嗰塊 panel 嘅 `aria-controls`，即係標題負責層級、掣負責狀態。用原生 button 就係令 Enter、Space、tab 同每種輔助科技自己嗰個「啟動」手勢唔使呢個檔案實作都用得。佢唔係 `.v-btn`，所以 `global.scss` 全 app 嘅 `:focus-visible` 外框去唔到佢，佢自己聲明咗一個 —— 通往一節摺埋內容嘅唯一控制，焦點一定要睇得見。展開動畫係 160ms 淡入，而呢個元件入面一個 `prefers-reduced-motion: reduce` 區塊會直接將佢閂晒，疊喺 `global.scss` 已有嘅全 app 規則之上。
 
@@ -413,7 +413,7 @@ Home 係一個有標籤嘅 `<section>`；佢啲區域 —— 簡介、continue �
 
 `homeState.test.ts` 守兩項持久化偏好：簡介預設展開、摺埋同展開都可以來回、儲存值係垃圾就當展開、展開嗰陣係移除記錄而唔係寫多一個 falsy 值；至於各節，預設一個都冇打開、打開一節唔會騷擾隔籬、同一個 id 打開幾多次都只記一次、記錄入面有多餘空白都讀得返啲 id、記錄從未見過嘅節當閂、最後一節閂返之後就移除記錄，而且同簡介嗰個旗標互相獨立。
 
-`HomeScreen.test.ts` 係掛住真元件測：**清單**方面，完整嘅能力 id 集合係人手寫出嚟再逐字斷言，冇地圖打開同有一個帶 marker 同 player 嘅實時地圖兩種情況都測，所以將來有人改到掉咗一張卡會喺呢度爆而唔係靜靜雞過骨；而且每張渲染出嚟嘅卡都會檢查佢帶一個真掣，即係「存在」等於「去到」。**Hero** 方面：只有一個、帶 `primary` 能力、喺所有可摺疊 panel 之外、由自己嘅動作打開指南，而且對回頭用家嚟講排喺 "Continue" 之下。**Disclosure** 方面：每節開始時摺埋、講明裝住乜同幾多（「Share and back up (2)」）、撳一下會展開同摺埋而唔騷擾隔籬、重新 mount 之後仲記得個選擇、mount 之前做嘅選擇會由儲存讀返、以及一個控制一次過開閂五節。**語義**方面：`h4` 入面一個真 `<button type="button">`，佢個 `aria-controls` 指住真係存在嗰塊 panel，全部喺一個 `h2` 之下、各區域係 `h3`。**搜尋**方面：搵到一張仲摺埋緊嗰節入面嘅卡、搜嘅係成份清單而唔係畫面上有嘅嘢（用一個淨係摺埋咗嗰個 viewer 節先有嘅關鍵字）、計數以總數為準、清空之後 hero 同每張卡都返返嚟。除此之外，呢版之前有嘅嘢照守：冇地圖打開嗰陣 viewer 選單組完全唔出、有地圖就出現；Backups 同 Publish to Pages 會講明缺咗嘅前置條件並提供真補救，一 render 咗地圖兩樣就消失；簡介預設顯示而佢嘅摺疊狀態跨 remount 都保住；首次啟動冇 continue 那一行，一有 render 咗嘅地圖就逐個列名；而每一個屬於 shell 嘅動作（定位到某個 anchor 嘅 Settings、定位到某畫面嘅 options editor、EULA 面板、"what is this?"、command palette）都係 emit 出去而唔係自己動手，並且係由一節人真係打開咗嘅內容度觸發。
+`HomeScreen.test.ts` 係掛住真元件測：**清單**方面，完整嘅能力 id 集合係人手寫出嚟再逐字斷言，冇地圖打開同有一個帶 marker 同 player 嘅實時地圖兩種情況都測，所以將來有人改到掉咗一張卡會喺呢度爆而唔係靜靜雞過骨；而且每張渲染出嚟嘅卡都會檢查佢帶一個真掣，即係「存在」等於「去到」。**Hero** 方面：只有一個、帶 `primary` 能力、喺所有可摺疊 panel 之外、由自己嘅動作打開指南，而且對回頭用家嚟講排喺 "Continue" 之下。**Disclosure** 方面：每節開始時摺埋、講明裝住乜同幾多（「Share and back up (2)」）、撳一下會展開同摺埋而唔騷擾隔籬、重新 mount 之後仲記得個選擇、mount 之前做嘅選擇會由儲存讀返、以及一個控制一次過開閂五節。**語義**方面：`h4` 入面一個真 `<button type="button">`，佢個 `aria-controls` 指住真係存在嗰塊 panel，全部喺一個 `h2` 之下、各區域係 `h3`。**搜尋**方面：搵到一張仲摺埋緊嗰節入面嘅卡、搜嘅係成份清單而唔係畫面上有嘅嘢（用一個淨係摺埋咗嗰個 viewer 節先有嘅關鍵字）、計數以總數為準、清空之後 hero 同每張卡都返返嚟。除此之外，呢版之前有嘅嘢照守：冇地圖打開嗰陣 viewer 選單組完全唔出、有地圖就出現；Backups 同 Publish to Pages 會講明缺咗嘅前置條件並提供真補救，一 render 咗地圖兩樣就消失；簡介預設顯示而佢嘅摺疊狀態跨 remount 都保住；首次啟動冇 continue 嗰一行，一有 render 咗嘅地圖就逐個列名；而每一個屬於 shell 嘅動作（定位到某個 anchor 嘅 Settings、定位到某畫面嘅 options editor、EULA 面板、"what is this?"、command palette）都係 emit 出去而唔係自己動手，並且係由一節人真係打開咗嘅內容度觸發。
 
 `appSettingsHistoryManifest.test.ts` 守 `APP_SETTINGS_HISTORY_KEYS` 入面嘅 `home` key 指住 `components/home/homeState.ts`，而嗰個檔案真係有叫 `recordAppSetting("home", ...)`。`App.test.ts` 由 shell 掛住測：條 strip 而家分成九版、Home 排第一，Home 經佢自己嘅釘住分頁去到，而一個啱啱 seed、冇持久化佈局嘅 workspace 會開喺 Home —— Map 分頁自己嗰句狀態訊息要明確揀佢先見到。另外，係行真路徑而唔係預先 seed 好嘅 workspace：全新安裝喺 `FirstRunSetup` 真正 emit `finished` 嗰刻就落喺 Home（唔係一個無論 handler 做乜都會過骨嘅預 seed workspace）、有儲存 workspace 嘅回頭用家會留喺佢上次 active 嗰個分頁而唔會被拉返 Home，而喺獨立「what is this?」面板撳 "Start here" 仍然直入精靈 —— 呢個係呢版落腳修正特登唔郁嗰條與首次執行相鄰嘅路徑。
 
