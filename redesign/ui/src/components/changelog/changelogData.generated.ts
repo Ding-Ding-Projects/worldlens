@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "6ad26921abe7aa5c081929ccbc1a2ab2bab09ba1",
+        shortSha: "6ad26921ab",
+        date: "2026-08-10T10:46:14Z",
+        subject: "feat!: Worldlens 1.0 - the verified public baseline",
+        details: "The release identity base moves to 1.0.0, so every green push to main now\npublishes v1.0.<run>. 1.0 states exactly what is verified: the Material\nDesign 3 shell rewrite closed against its acceptance issues, 10,512 tests\ngreen in CI at the released commit, the 89-capture evidence matrix graded\nagainst the exact shipped tree, automatic hash-verified releases, and\nautosave with the project's git history embedded in its own file. The README\nsays so in English and in Hong Kong Cantonese, and says just as plainly what\n1.0 does not claim: the open feature programs, and permanently unsigned\nWindows executables.",
+        category: "build",
+        areas: ["build", "docs"],
+        files: 4,
+    },
+    {
         sha: "fac7ea510eab33cd6928d919e403749ebf44d2f1",
         shortSha: "fac7ea510e",
         date: "2026-08-10T09:38:13Z",

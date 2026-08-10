@@ -20,6 +20,10 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Build, release and tooling
+
+- feat!: Worldlens 1.0 - the verified public baseline - [`6ad26921ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/6ad26921abe7aa5c081929ccbc1a2ab2bab09ba1)
+
 ### Documentation
 
 - feat(a11y): phase A accessibility - skip path, disclosure contracts, fail-closed shell numbers - [`fac7ea510e`](https://github.com/Ding-Ding-Projects/worldlens/commit/fac7ea510eab33cd6928d919e403749ebf44d2f1)
