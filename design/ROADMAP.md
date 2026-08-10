@@ -1,5 +1,57 @@
 # Roadmap
 
+## Material Design 3 shell completion, genuine recapture, travelling project history, and a deterministic changelog guard (2026-08-10)
+
+**The redesign folder is the shell contract, and `main` now carries it with genuine evidence.**
+The `redesign/ui` tree is a byte-identical mirror of `design/packages/ui`; the shell ships the
+80px rail with Home/Map/Work, five-catalogue discovery with real per-group feature counts on the
+hero chips, the Work workspace re-hosting `TabbedNavigation` unchanged, closeless destination
+tabs on the three fixed destinations (Config, Project editor, Settings), history-only notices
+behind the rail bell, and the 44px hit-target repairs in the config search, Docker note and
+world-mount rows. Screenshot evidence was recaptured for real: 89 PNGs from capture run 5 under
+`xvfb-run` against a freshly built bundle (26/26 harness tests, 7 named skips), including the
+rail-bell interaction proof that replaced the stale "bell is broken" skip, and the retired
+toast/corner captures that pictured a notification system commit `45fa6f4` deliberately removed.
+No digest-only refresh: the recorded `uiSourceDigest` is computed from the exact tree the
+captures picture.
+
+Projects now save themselves and carry their own history. `createProjectAutosave` debounces a
+quiet 15 s / 90 s max-wait write, the editor queues autosaves on edit and flushes at close
+boundaries, and Save still writes immediately. Every save records a revision in the isolated
+per-world git repository (never pruned - unlimited undos), exports the whole repository as a git
+bundle, and embeds it base64 under the project file's `history` key, trailer-last so the JSON
+stays readable. Opening a project file on a machine with no history seeds the repository from the
+embedded bundle; a machine that already holds revisions is never overwritten. The bundle never
+contains itself, proven by real-git tests in `embeddedHistory.test.ts`.
+
+The changelog guard is deterministic again, three defects deep: (1) `isGeneratedOnlyCommit` was
+missing the `redesign/ui` mirror paths, so every refresh commit wrote itself into the next
+regeneration and `--check` could never converge; (2) `changelogData.generated.ts` - whose bytes
+derive from commit history and cannot exist before the commit that ships them - was graded as
+interface source, marking all 89 captures stale on every routine refresh; it is now excluded
+from the digest and from `freshBundle.ts`'s matching rule; (3) git 2.54 renders UTC strict-ISO
+timestamps as `Z` where git 2.43 writes `+00:00`, so UTC-authored commits regenerated
+differently across machines - all generated timestamps are canonicalized to RFC 3339 `Z`, and
+`--check` now prints the first byte difference instead of a bare "out of date". A fourth repair
+kept CI honest: a `gh` child that exits without reading its stdin surfaced an asynchronous EPIPE
+on a listenerless stream and took down a run whose 10,512 tests had all passed;
+`nodeProcessRunner` now listens on both transport paths, with a regression test that overfills
+the pipe buffer against a child that exits without reading.
+
+**Exact-tip verification and the release it published.** CI run
+[31364032707](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31364032707) at
+`cb729355abc18b2b165eee5d4a0a3e832170695d` completed every fatal release input green - workflow
+guard, lint, `test:ci` (723 files, 10,512 tests), seven BlueMap jars, the real Java CLI round
+trip, the rendered test world, and the Windows installer set - and its release job published
+[`v0.1.988`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.988) targeting
+exactly that commit, verifying the draft inventory, all six downloaded assets, and the published
+metadata five times. The job's own verdict then came back red because the completion-stamp check
+demanded the publish PATCH, readback and verification finish inside the same UTC second as the
+stamp - a one-second cycle against a one-second window. That stopwatch is now a fail-closed
+ten-second drift window, with the watched-step and whole-release-job fingerprints re-reviewed
+alongside it. Windows executables remain intentionally and permanently unsigned, disclosed in the
+release notes.
+
 ## ZIP-canonical Material Design 3 Pages integration (2026-08-09)
 
 **The Pages implementation landed at `69eb96863bef7560d3a092c8bfa6888a50243be8`, its final capture

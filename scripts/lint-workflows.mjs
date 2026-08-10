@@ -107,9 +107,15 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
       env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
       run: "3e9ccd4f53a2a9d7818277af3b9285fb80d04e3c73bff33479f3d8d56ecdc9b0",
     }),
+    // Reviewed after the completion-stamp check moved from same-UTC-second equality to a
+    // bounded ten-second drift window. The equality could only pass when the publish PATCH,
+    // metadata readback and verification all landed inside the second the stamp named -
+    // about a second of API latency per attempt - and run 31364032707 published and
+    // verified a correct release five times before being declared failed by its own
+    // stopwatch. The window still fails closed on a genuinely stale stamp.
     Publish: Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
-      run: "f1be5492bc3af1415c7ae31ff7389990b37c8ad56f03ec2498d9a919ccb7dcbd",
+      run: "129f8f84b18f3a184623b1d40e65429f6ff7640af104f95dbdcfbb1dea6f4d13",
     }),
   }),
 });
@@ -117,8 +123,11 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 // Covers the whole `release` job, not only its watched steps, so a new step cannot be
 // slipped in beside the reviewed ones. The fingerprint includes the fail-closed eligibility
 // expression, draft-first publication, manifest readback, token chain and unsigned warning.
+// Re-reviewed with the Publish step's ten-second completion-drift window (see that step's
+// contract above); the eligibility expression, draft-first publication, manifest readback,
+// token chain and unsigned warning are unchanged.
 const RELEASE_JOB_FINGERPRINT =
-  "5f95efeb09ed8a0986622a549504784b755f2cfc253c0cb921ad5e44f5658de5";
+  "598019666479303eb95e4d70d930a6a3947e859ecaec35ffcd6e5dc989ec25b6";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this

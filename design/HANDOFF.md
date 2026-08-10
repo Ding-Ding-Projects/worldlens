@@ -1,6 +1,84 @@
 # Handoff
 
-## 2026-08-09 (final integration follow-up) — concurrent lineages reconciled on `main`
+## 2026-08-10 — release readiness: deterministic guards, a published release, and the stopwatch that failed it
+
+**State: verified through release `v0.1.988`; one workflow defect found by that release and fixed here.**
+
+Executed against live `origin/main`, working tree clean at every gate. Drift from the last
+inspected baseline `838c11a299889e81ebbf6bd67743943e689d300b`: the autosave/travelling-history
+feature, the redesign-fidelity commits, the evidence recapture, and the guard repairs recorded
+below - all already on `main` before this section was written.
+
+### What this stretch fixed, each with the failure that proved it
+
+- **Changelog fixed point** (`b30c3fdf`): `isGeneratedOnlyCommit` was missing the
+  `redesign/ui` mirror copies of the generated changelog data, so every refresh commit wrote
+  itself into the next regeneration and `--check` could never again match any committed
+  output. CI run 31361408174 failed exactly this way; the mirror paths are now excluded.
+- **Digest honesty for generated data** (`b30c3fdf`): `changelogData.generated.ts` derives
+  from commit history, so its final bytes cannot exist before the commit that ships them. It
+  is excluded from the interface-source digest and `freshBundle.ts`'s matching rule; the
+  recorded `uiSourceDigest` was recomputed and the captured tree differs from the graded tree
+  only by that file.
+- **`--check` says what differs** (`1c751821`): on mismatch the guard now prints the first
+  run of differing lines. The very next CI run used it to expose the third defect.
+- **UTC timestamps across git versions** (`5c1990b8`): git 2.54 renders strict-ISO UTC as
+  `Z` where git 2.43 writes `+00:00`, so UTC-authored commits regenerated differently per
+  machine. All generated timestamps are canonicalized to RFC 3339 `Z`.
+- **EPIPE on a listenerless stdin** (`eb2663e1`): a `gh` child that exits without reading
+  its stdin surfaced an asynchronous EPIPE with no listener - an uncaught exception that
+  killed CI run 31362771125 after all 10,512 tests had passed. Both `nodeProcessRunner`
+  transport paths now listen; the regression test overfills the pipe buffer against a child
+  that exits without reading, which reproduces the crash deterministically without the fix.
+- **The release stopwatch** (this section's commit): the Publish step required its own
+  publish PATCH, metadata readback and verification to finish inside the same UTC second as
+  the completion stamp it had just written - roughly a one-second cycle against a one-second
+  window. Run 31364032707 published release `v0.1.988`, verified its metadata and asset
+  inventory five times, and was then declared failed by that equality. The check is now a
+  fail-closed ten-second drift window; the watched-step and whole-job fingerprints were
+  re-reviewed alongside it.
+
+### Exact-tip verification, run 31364032707 at `cb729355abc18b2b165eee5d4a0a3e832170695d`
+
+| Gate | Result |
+|---|---|
+| Lint the workflow files (changelog guard, release metadata, 60 script tests) | success |
+| Lint (eslint, workspace) | success |
+| Lint, build, test (screenshots:check, build, typecheck, test:ci - 723 files, 10,512 tests) | success |
+| BlueMap jars (seven implementations) | success |
+| Config / real Java CLI round trip | success |
+| Generate and render a test world | success |
+| Windows installer (Squirrel set, validator, unsigned-and-branded proof) | success |
+| Publish release | release published and verified; job verdict failed on the stopwatch defect fixed here |
+| Screenshots | advisory, in progress when this was written |
+
+### The release that run published
+
+`v0.1.988`, draft `false`, target `cb729355abc18b2b165eee5d4a0a3e832170695d`, published
+2026-08-10T07:24:31Z: https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.988
+
+| Asset | Bytes |
+|---|---:|
+| `Worldlens-0.1.988-Setup.exe` | 156,432,384 |
+| `Worldlens-0.1.988-full.nupkg` | 155,682,032 |
+| `RELEASES` | 82 |
+| `bluemap-server-plugins-5.22-27.zip` | 39,331,588 |
+| `bluemap-jars.sha256.txt` | 648 |
+| `worldlens-v0.1.988-extras.zip` | 170,578,301 |
+
+Per-asset SHA-256 digests are in the release notes' own "Release asset SHA-256" section; the
+workflow's manifest verifier confirmed the draft inventory, the six downloaded assets, and the
+published metadata five separate times inside the run. Windows executables are intentionally
+and permanently unsigned, disclosed as such in the notes.
+
+### Boundaries, stated plainly
+
+- This machine is Linux: the packaged Windows install/smoke path runs in CI's `package` job
+  (which validates the Squirrel set and proves the executables unsigned and branded), not
+  locally. No local claim is made about installing `Setup.exe`.
+- Screenshot capture remains advisory to publication by the workflow's own design; the
+  committed evidence (89 captures, run 5, digest of the exact captured tree) was produced
+  locally under `xvfb-run` and is graded by `screenshots:check`, which is fatal and green.
 
 The repository is now at `b8174ef0ae766f00cb468f214c35d853023bc48e`. The earlier Pages
 handoff tip `172abca5cfac9985ca387941612edc66bded926a` and the original
