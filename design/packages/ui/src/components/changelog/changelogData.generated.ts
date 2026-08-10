@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "3572208c64f20bc06d99e97d73901962de0e6191",
+        shortSha: "3572208c64",
+        date: "2026-08-10T06:17:01+00:00",
+        subject: "feat(project): autosave with a travelling git history, and redesign fidelity",
+        details: "Projects now save themselves: every edit queues into the existing\nquiet autosave scheduler (debounced, ceiling-bounded, one revision per\nwrite), boundaries flush instead of blocking, and the explicit Save\nstays beside it. Undo depth is unbounded - the history engine never\nauto-prunes - and the whole revision history now travels inside the\none save file: each recorded save embeds the project's git repository\nas a base64 git bundle under the file's 'history' key, snapshots\nrecord the canonical text so the bundle never contains itself, and a\nfile arriving on a machine with no history seeds that machine's\nrepository from its own bundle. Proven end to end on a real git in\nembeddedHistory.test.ts.\n\nRedesign-fidelity round, from a side-by-side against the prototype:\n\n- Home's hero chips carry their per-group feature counts, the lede\n  regains its second sentence, and Your maps / Share a map preview\n  their features in the prototype's order.\n- Close affordances now really are jobs-only: TabbedNavigation gains\n  a closeless mode for destination hosts, and the options editor,\n  project editor and settings sections no longer draw close buttons,\n  answer Delete, or offer close rows in their context menus - while\n  the Work strip keeps every closing power it has.\n\nScreenshot evidence refreshed from a full 26/26 capture run against\nthis exact tree (89 captures, 7 honest skips): the rail bell is now\nphotographed doing its job (the old harness lost the button to its\nown badge-scoped locator and a stale named gap declared it broken),\nthe Docker world-source panel passes its compact-width audit after\nthree hit-target fixes, the toast captures are retired because the\nredesigned shell is history-only by design, and the Windows-only\nbuilt-shell README group is retired in favour of the harness's own\ncaptures of the same surfaces. Changelog regenerated against the\nfull (unshallowed) history.",
+        category: "docs",
+        areas: ["docs", "interface", "other", "shell", "build"],
+        files: 229,
+    },
+    {
         sha: "838c11a299889e81ebbf6bd67743943e689d300b",
         shortSha: "838c11a299",
         date: "2026-08-10T03:15:37+00:00",

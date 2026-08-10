@@ -78,6 +78,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- feat(project): autosave with a travelling git history, and redesign fidelity - [`3572208c64`](https://github.com/Ding-Ding-Projects/worldlens/commit/3572208c64f20bc06d99e97d73901962de0e6191)
 - Merge remote-tracking branch 'origin/main' - [`21f2babd0b`](https://github.com/Ding-Ding-Projects/worldlens/commit/21f2babd0bad778cce2a79507e094bae82000a26) _(summary of 3 commits, also listed here)_
 - Record the reconciled default-branch handoff - [`4b00c14492`](https://github.com/Ding-Ding-Projects/worldlens/commit/4b00c14492f18c2e994bb88ad76b25012a294713)
 - Capture the deployed documentation article - [`90a66a85da`](https://github.com/Ding-Ding-Projects/worldlens/commit/90a66a85dab807d7e14de65d8da6cae295758a78)
