@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "42c58e0e7b4212c30f7e8f6a483fed4f08d9859e",
+        shortSha: "42c58e0e7b",
+        date: "2026-08-10T17:55:09Z",
+        subject: "fix(shell): catalogue rows open the section they name",
+        details: "Three defects on one route. App.vue honoured the reveal for the settings\noverlay and dropped it for config, so 'Local version history' - whose target is\nconfig/history - landed on Core settings instead of the History tab, after the\nreveal had travelled intact all the way from the manifest.\n\nThen the manifest itself: only three of eighteen distinct settings reveals\nnamed a real section. Fifteen named nothing, and a reveal the surface cannot\nresolve silently opens Settings at the top, so fifteen rows quietly went to the\nwrong place while looking deliberate. Twelve are remapped to the section that\nactually renders what the row describes - verified, not guessed: the product\ndisplay name really is rendered inside the language-and-tone block, panel\ngeometry is surface-placement, memory-console is render-memory. The other three\nname features with no section at all, so those rows now open Settings honestly\nrather than asking for a place that does not exist. 'path-field' got the same\ntreatment on the config side.\n\nThe contract test validated rail reveals and not overlay reveals, which is how\nall of this shipped. It now validates both, against isSettingsSection and the\noptions editor's own screen list - and it caught the settings family the moment\nit was switched on.",
+        category: "interface",
+        areas: ["interface"],
+        files: 3,
+    },
+    {
         sha: "d54147c5aba1baa47bcd986e9e7b41e95586f74e",
         shortSha: "d54147c5ab",
         date: "2026-08-10T17:45:06Z",

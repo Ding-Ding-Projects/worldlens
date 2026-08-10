@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- fix(shell): catalogue rows open the section they name - [`42c58e0e7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/42c58e0e7b4212c30f7e8f6a483fed4f08d9859e)
 - fix(shell): give the status strip's progress bar a value, on the scale the app produces - [`5784865610`](https://github.com/Ding-Ding-Projects/worldlens/commit/57848656109af21355a8d9d29b84c9bee7dc0489)
 
 ### Rendering and world data
