@@ -143,6 +143,15 @@ export function nodeProcessRunner(): ProcessRunner {
                 child.on("close", (code) => {
                     resolve({ started, code, stdout, stderr });
                 });
+                // A child that exits before draining its stdin closes the pipe, and the
+                // pending write then surfaces as an asynchronous EPIPE on the stdin stream -
+                // a stream that otherwise has no error listener, which turns that benign
+                // race into an uncaught exception in the whole process. The child's own
+                // exit code already carries the real outcome, so EPIPE is dropped; any
+                // other stdin failure keeps its message beside the child's stderr.
+                child.stdin?.on("error", (error: NodeJS.ErrnoException) => {
+                    if (error.code !== "EPIPE") stderr += error.message;
+                });
                 // Every child launched by this headless transport is non-interactive. Always
                 // close stdin, including when the caller has no payload, so a missing Git
                 // credential can fail promptly instead of waiting on an invisible prompt.
@@ -159,9 +168,15 @@ export function nodeProcessRunner(): ProcessRunner {
                 ...(environment === undefined ? {} : { env: environment }),
                 ...(options?.signal === undefined ? {} : { signal: options.signal }),
             });
-            child.stdin?.end();
             let stderr = "";
             let bytes = 0;
+            // Same clause as `run` above: an EPIPE from a child that never read its stdin
+            // is the child's exit story, not this transport's, and must not become an
+            // uncaught exception on a listenerless stream.
+            child.stdin?.on("error", (error: NodeJS.ErrnoException) => {
+                if (error.code !== "EPIPE") stderr += error.message;
+            });
+            child.stdin?.end();
             child.stderr?.setEncoding("utf8");
             child.stderr?.on("data", (chunk: string) => (stderr += chunk));
 

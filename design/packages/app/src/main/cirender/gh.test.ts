@@ -137,6 +137,20 @@ describe("process environment boundaries", () => {
         expect(result).toMatchObject({ started: true, code: 0, stdout: "stdin-closed" });
     });
 
+    it("survives a child that exits without reading its stdin payload", async () => {
+        // The payload is far larger than a pipe buffer, and the child exits without ever
+        // reading, so the pending write comes back as an asynchronous EPIPE on the stdin
+        // stream. Before the runner listened for it, that event was an uncaught exception
+        // that could take down the whole process - it killed a CI run whose 10,512 tests
+        // had all passed. The child's exit code is the outcome that matters.
+        const result = await nodeProcessRunner().run(process.execPath, ["-e", "process.exit(7)"], {
+            input: "x".repeat(4 * 1024 * 1024),
+            signal: AbortSignal.timeout(5_000),
+        });
+
+        expect(result).toMatchObject({ started: true, code: 7 });
+    });
+
     it("documents every explicit Git diagnostic omission at the boundary", () => {
         expect(GIT_CREDENTIAL_DIAGNOSTIC_ENVIRONMENT).toEqual(
             expect.arrayContaining(["GIT_TRACE", "GIT_TRACE2", "GIT_CURL_VERBOSE", "GIT_TRACE_REDACT"]),
