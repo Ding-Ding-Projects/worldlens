@@ -75,6 +75,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- fix(release): give the completion stamp a window a real publish can meet - [`9b36be9319`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b36be9319066f436c2b6836979cc596481d7ae8)
 - fix(changelog): canonicalize UTC timestamps across git versions - [`5c1990b8d3`](https://github.com/Ding-Ding-Projects/worldlens/commit/5c1990b8d39b8336f9056083b84b44a067c05bac)
 - feat(changelog): show the first difference when --check fails - [`1c751821c0`](https://github.com/Ding-Ding-Projects/worldlens/commit/1c751821c06ed9b65719e1cd340caa870a129ffd)
 - fix(changelog): restore the generated-only fixed point and stop grading generated data as interface source - [`b30c3fdf96`](https://github.com/Ding-Ding-Projects/worldlens/commit/b30c3fdf96aae48841868a5e8ed327c84d4d789c)

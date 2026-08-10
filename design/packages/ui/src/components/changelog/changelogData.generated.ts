@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "9b36be9319066f436c2b6836979cc596481d7ae8",
+        shortSha: "9b36be9319",
+        date: "2026-08-10T07:32:40Z",
+        subject: "fix(release): give the completion stamp a window a real publish can meet",
+        details: "The Publish step required its own publish PATCH, metadata readback and\nverification to finish inside the same UTC second as the completion stamp it\nhad just written - roughly a one-second cycle against a one-second window.\nRun 31364032707 published v0.1.988, verified its metadata and asset inventory\nfive times, and was then declared failed by that equality. The check is now a\nfail-closed ten-second drift window; the watched-step and whole-release-job\nfingerprints are re-reviewed alongside it, and the handoff and roadmap record\nthe exact-tip verification and the release it published.",
+        category: "build",
+        areas: ["build", "docs"],
+        files: 4,
+    },
+    {
         sha: "eb2663e1f32b1be08074c77d96762389ed512c3c",
         shortSha: "eb2663e1f3",
         date: "2026-08-10T06:58:47Z",
