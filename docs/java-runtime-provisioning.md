@@ -205,3 +205,88 @@ MBM_REAL_JDK_DOWNLOAD=1 npx vitest run packages/app/src/main/java/provision.real
   to a working JVM for a machine that would rather not provision one at all.
 - [Automatic repair when a render or the web server fails to start](./automatic-repair.md) — what
   happens when a render still fails after this.
+
+## 廣東話
+
+### 概要
+
+本機渲染係行 BlueMap 自己嘅 Java 引擎（決定 D17），所以個 app 需要一個 JVM。以前「個 app 需要 JVM」即係要有人自己落手裝：下載、驗證、解壓、安裝一條完整嘅 Temurin JDK pipeline 其實一早寫好晒、有齊 unit test，但界面上冇任何嘢撳得到去觸發佢。設定行仲白紙黑字寫住「the app can fetch one for you」，然後就得一個 **Look again** 掣，淨係重跑 discovery。呢份文件講嘅就係點樣填咗呢個窿：一個明確嘅 **Download Java** 掣、佢背後把關嗰個一次性同意，仲有真網絡證明，證實個掣呼叫嗰條 pipeline 對住 Adoptium 真正嘅伺服器都行得通，而唔係淨係對住 test fakes。
+
+### 行為（Behaviour）
+
+Java 設定行（`packages/ui/src/components/settings/JavaRuntimeRow.vue`）永遠顯示 `java:runtime` 真正搵到嘅嘢——先係 `JAVA_HOME`，跟住係 `PATH` 上面嘅 `java`，最後先係 app 自己裝嘅副本，每一個都會**真係行過**先信，唔會齋靠條 path 就假設得到。冇一個啱用嘅時候，個行嘅 `missing` 狀態而家會畀一個真動作，唔再係淨係叫你去搞 `JAVA_HOME`：
+
+1. **解釋行先。**未有任何掣做任何嘢之前，個行已經講明會攞乜（Eclipse Temurin）、由邊度攞（Adoptium 自己嘅伺服器）、大約要傳幾大，仲有三個令佢撳得落手嘅承諾：唔會裝落系統層面、`PATH` 唔會掂、亦唔會問你攞管理員權限。
+2. **Download Java** 開始傳輸。成個過程個掣會停用，換成一條進度條；Adoptium 個 response 未報到真正嘅 byte 數之前，條進度條係 indeterminate，報到之後就變 determinate。下面一行 stage message 跟住條 pipeline 一直以嚟發出嘅 `ProvisionEvent` stream（`resolving`、`downloading`、`verifying`、`extracting`、`installing`、`done`）——呢啲一早起好又測試好，欠嘅只係界面上有嘢去讀佢。
+3. **成功之後個行自己重新行一次 discovery。**冇人需要睇完個下載完成之後再撳多個無關嘅「Look again」；個行直接由 `missing` 行到 `found`。
+4. **失敗嘅話，main process 自己嗰句說話會原封不動咁顯示**，喺個掣旁邊用 alert 出，而個掣隨時準備好重試。
+
+如果一個 build 嘅 preload 未加到嗰三條 provisioning channels（舊版 desktop build，或者根本冇 main process 嘅瀏覽器 tab），就完全唔會見到呢啲嘢：`canProvision` 係 feature-detected，個行會退返去佢一直有嘅 discovery-only 行為，而唔係擺一個一撳就 throw 嘅掣出嚟。呢個同呢個設定介面其他行一直跟開嘅「呢度冇嘢會無中生有一個能力」規則係同一條。
+
+### 同意機制，跟 Mojang 下載嗰套嘅形狀
+
+原則：下載同安裝軟件唔係一件中性嘅事，而個 app 一早有一個啱樣嘅先例——Mojang 下載嗰個同意：第一次啟動問一次，永遠記住，之後唔再問。Java 下載跟返呢個形狀，再按實際做決定嘅位置調整：
+
+- `main/java/consent.ts` 將個決定寫做一個細細嘅 JSON 檔，放喺 `<userData>/java/download-consent.json`，經一個 staging file 再 rename 咁寫，等寫到一半 crash 都唔會留低一個寫咗一半嘅答案——同 `main/consent.ts` 處理 Mojang EULA 嗰個模式一模一樣，但係為呢個檔案重寫一次而唔係同佢共用，因為同意攞一個 JVM 唔等於同意 Mojang 個 licence，兩個紀錄永遠唔應該可以互相代答。
+- 冇獨立嘅 first-run 畫面：解釋同決定就喺*個掣本身*相遇——撳 **Download Java** 就係個行當做嘅同意，因為個行已經喺正上方講咗大小同來源。第一下撳落去會記錄接受（`java:acceptDownloadConsent`）並且同一個動作開始下載；之後每一下都直接跳去下載，因為答案已經記錄在案。
+- **真正把關嘅係 main process，唔係淨係 UI。**`java:provision` 自己讀 `readJavaDownloadConsent()`，冇同意在案就拒絕——用一句誠實嘅說話，永遠唔係 throw error——無論係邊個、點樣呼叫都一樣。一個跳過咗解釋嘅 caller 一樣冇辦法開始一個未宣佈嘅下載；個行自己嘅記帳只係令佢顯示嘅狀態對將會發生嘅事誠實。
+
+### 個掣呼叫嘅 pipeline
+
+下載-驗證-解壓-安裝嗰條 pipeline 本身冇任何新嘢；佢早過呢個任務存在而且一早有 unit test。變咗嘅係佢而家有路可達：
+
+- `main/java/adoptium.ts` 由 Adoptium 自己嘅 API 解析出所需 feature version（`REQUIRED_JAVA_FEATURE`，而家係 25）加當前平台／架構嘅最新 Temurin release。
+- `main/java/download.ts` 嘅 `downloadVerified()` 將個 archive stream 落一個 `.part` 檔，已有一半嘅會續傳而唔係重新開始，完成之後會用 Adoptium 自己個 response 帶嚟嘅 SHA-256 對一次個完成檔——一個 byte 都未解壓之前。
+- `main/java/extract.ts` 解壓落一個 staging directory，要入面真係搵到 `bin/java` 先會 rename 入正位，所以解壓咗一半嘅 archive 永遠唔會被錯當成一個安裝。
+- `main/java/installation.ts` 寫低確實裝咗乜——version、vendor、OS、architecture、archive URL、驗證過嘅 SHA-256 同 timestamp——咁設定行就可以講「Java 25.0.4+7, provisioned by the app」而唔係靠估。
+- `main/java/index.ts` 嘅 `ensureJava()` 將成件事綁埋：discovery 先行，只有 discovery 咩都搵唔到*而且*明確設定咗 `allowProvisioning`，先會落手下載。啱啱裝完嘅 JVM 之後會**當普通候選一樣試行**——行過，唔係信——因為一個 archive 可以解壓出一個開唔到嘅嘢、隻碟可以爆滿，防毒亦可以喺 rename 同第一次啟動之間隔離咗個 binary。
+
+三條 IPC channels 將呢啲嘢放喺個掣後面（`main/java/ipc.ts`）：`java:downloadConsent` 讀已儲存嘅決定；`java:acceptDownloadConsent` 記錄同意，而且係 idempotent——再叫一次會保留原本個 timestamp；`java:provision` 冇同意就拒絕，否則呼叫 `ensureJava({ allowProvisioning: true })`，並將每個 `ProvisionEvent` stream 去每個開緊嘅 window 嘅 `java:provisionEvent`，同 `bedrock:convert` 廣播 Chunker 轉換進度用嘅形狀一樣。
+
+同時嚟多過一個 `java:provision` 呼叫會摺埋做一個 in-flight promise，同 `java:runtime` 一直跟開嗰條規則一樣——一個 mount 完即刻 re-render 嘅畫面，唔可以開一個多餘嘅第二個下載去同第一個鬥快。
+
+### 配置（Configuration）
+
+冇嘢需要配置。個安裝會落喺 `<userData>/java/temurin-25/`（用 feature version 做 key 而唔係確切嘅 patch release，所以更新會取代個安裝而唔係每個 patch 積一個新 folder）；一部本身已經有啱用嘅 `JAVA_HOME` 或者 `PATH` 上有 `java` 嘅機，永遠優先用返嗰啲——discovery 搵到嘢嘅話，個掣根本唔會出現。
+
+### 失敗情況（Failure modes）
+
+- 冇同意在案就撳下載掣：實際上冇可能發生——撳落去*就係*第一次同意，喺傳輸開始之前已經記錄。
+- `java:provision` 喺同意被撤回或者從未畀過嘅情況下被呼叫（stale UI、replay 咗嘅 call）：main process 用解釋性訊息拒絕；乜都唔會下載。
+- Digest 對唔上：`downloadVerified()` 剷咗啲壞 bytes 然後 throw；個行顯示 main process 自己嗰句，個掣隨時可以重試。
+- 網絡中途斷咗：個 `.part` 檔會保留；再撳掣係續傳而唔係重新開始。
+- Archive 解壓到但出嚟個 `java` 行唔起，或者報一個太舊嘅版本：安裝紀錄會被撤回（`clearInstallRecord`），咁之後啟動就唔會拎一個已知壞咗嘅安裝做候選，而個失敗會講明確實係邊個 executable、乜嘢原因。
+- 一個 build 嘅 `java:provision` 根本冇接 `ensure`：`java:provision` 會答「This build cannot download a Java runtime from here」而唔係 throw。
+- 瀏覽器 tab，或者冇 provisioning channels 嘅舊 desktop build：`canProvision` 係 false；個行顯示佢原有嘅 discovery-only 文字，冇死掣。
+
+### 保安考量（Security considerations）
+
+- **只係 user-scoped。**所有嘢落喺 Electron 嘅 `userData` 下面；唔寫 registry、唔加嘢入 `PATH`、唔行 installer、永遠唔會要求提權。移除個 app 會連 provision 咗嘅 JDK 一齊帶走。
+- **每次用之前都驗證過。**個 SHA-256 嚟自帶住下載連結嗰個同一個 Adoptium API response，喺解壓之前對住完成咗嘅檔案檢查——永遠唔會齋信條 URL 或者 response headers。
+- **Crash 冇可能裝一半。**下載寫落 `.part` 檔；解壓 stage 落臨時目錄，確認入面有真嘅 `java` binary 先 rename 入正位。
+- **永遠唔係副作用。**`java:runtime`（設定行每次打開都 load、每次 render 開始前都 check 嗰個 discovery）自己永遠唔會 provision 任何嘢——只有明確嘅 `java:provision` channel，即係得個掣先掂得到嗰條，先會下載。
+
+### 驗證（Verification）
+
+`design/packages/app/src/main/java/` 有一大套 pass 晒嘅測試覆蓋呢份文件講嘅層面，另外有三個真網絡證明，鎖喺 `MBM_REAL_JDK_DOWNLOAD=1` 後面（預設 skip，咁平時 CI 唔會依賴 Adoptium 嘅可用性，亦唔會每次 push 都下載約 140 MB）：
+
+- `consent.test.ts`——下載同意紀錄嘅每個 unhappy path 都解析做「未接受」：檔案唔存在、JSON 壞咗、形狀唔啱、terms version 過期。只有呢個 module 自己寫嘅完好紀錄先讀得出係同意。
+- `ipc.test.ts`——兩條 consent channels，加 `java:provision` 冇同意時拒絕、冇接 `ensure` 時誠實咁拒絕、有同意時 provision 並經 `broadcast` stream 進度、將同時嘅呼叫摺做一次 `ensure()`、同用呢條 channel 其他 rejection 一樣嘅方式清理 throw 出嚟嘅錯誤訊息。
+- `download.test.ts`、`extract.test.ts`、`installation.test.ts`、`adoptium.test.ts`、`jars.test.ts`、`discovery.test.ts`、`version.test.ts`、`packaging.test.ts`、`index.test.ts`——pipeline 本身原有嗰套測試，呢個任務冇改過。
+- **`download.realNetwork.test.ts`、`provision.realNetwork.test.ts`、`ensureJava.realNetwork.test.ts`**——opt-in、對住 Adoptium 真伺服器而唔係 fakes 嘅證明。最近一次 run 解析到一個真 release（`jdk-25.0.4+7`，Windows x64），由 GitHub 真正嘅 release CDN 下載咗 **141,164,204 bytes**，驗證咗真嘅 SHA-256，用真嘅內置 `tar.exe` 解壓，再行個解壓出嚟嘅 `java` 確認佢報 `25.0.4`。設定行解釋入面引嗰個「大約 140 MB」，加埋 copy catalogue 嘅 `FACTS` pin 住嗰個數，就係呢個實測數字四捨五入——唔係靠估。
+
+界面嗰邊：
+
+- `packages/ui/src/components/settings/javaSetting.test.ts`——`canProvision` feature detection、consent 讀失敗當「未知」而唔係「已接受」、第一次撳下載時記錄 consent 而第二次唔會重覆記錄、訂閱同退訂 progress events、有一個下載在飛時拒絕開第二個、將 main process 嘅拒絕同 throw 出嚟嘅錯誤都報做 `provisionFailure` 而唔會吞咗任何一邊。
+- `packages/ui/src/components/settings/JavaRuntimeRow.test.ts`——個掣、佢嘅解釋、進度條，同下載成功之後個行落到嘅「found」狀態。
+- `packages/ui/src/copy/`——catalogue-coverage guard（render 咗嘅 `t(...)` key 冇 catalogue entry 就 fail），加 FACTS guard（voiced entry 喺五個 funny level 任何一個跌咗 pinned fact——個大小、「Adoptium」來源、「system-wide」、「administrator」——就 fail）。
+
+本機執行嘅命令，見上面英文〈Verification〉尾嗰個 code block（`npx vitest run ...`，加 opt-in 嘅 `MBM_REAL_JDK_DOWNLOAD=1` 真網絡版本），兩邊完全一樣。
+
+### 建議文章
+
+- [Automatic dependency provisioning](./dependency-provisioning.md)——呢個 Java 下載跟嘅形狀，套用喺 Chunker 同經 winget/Chocolatey 裝嘅 `git`/`gh`/Docker Desktop/`rsync`，加埋嗰啲真係要手動裝嘅依賴。
+- [Bedrock Edition worlds](./bedrock-worlds.md)——Chunker 跟一模一樣嘅形狀：一個起好晒、digest 驗證嘅下載 handler，本來冇掣叫佢，用同一方式收口。
+- [The Minecraft licence and the consent that refers to it](./eula-and-consent.md)——「問一次、永遠記住」嗰個同意形狀，呢份文件自己個 consent 紀錄就係由佢起出嚟。
+- [Running the engine on this computer, or in a container](./docker-and-local.md)——部機情願完全唔 provision 嘅話，攞到一個行得嘅 JVM 嘅另一條路。
+- [Automatic repair when a render or the web server fails to start](./automatic-repair.md)——經過晒呢啲之後 render 仲係 fail 嘅話會發生嘅事。
