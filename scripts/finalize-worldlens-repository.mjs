@@ -167,16 +167,10 @@ export const FINALIZATION_REPLACEMENTS = Object.freeze([
       ],
     ],
   },
-  {
-    file: "design/packages/site/scripts/compact-proof.mjs",
-    changes: [
-      [
-        'candidate.url.includes("/material-bluemap/")',
-        'candidate.url.includes("/worldlens/")',
-        1,
-      ],
-    ],
-  },
+  // design/packages/site/scripts/compact-proof.mjs used to carry a
+  // "/material-bluemap/" URL-substring check here. The fresh-host release tooling
+  // rework replaced that selection with an exact PAGES_PROOF_TARGET_URL match, so the
+  // file no longer contains anything the rename touches.
   {
     file: "scripts/build-changelog.mjs",
     changes: [
