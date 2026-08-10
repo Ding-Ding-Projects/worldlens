@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "b30c3fdf96aae48841868a5e8ed327c84d4d789c",
+        shortSha: "b30c3fdf96",
+        date: "2026-08-10T06:26:54+00:00",
+        subject: "fix(changelog): restore the generated-only fixed point and stop grading generated data as interface source",
+        details: "The changelog refresh commit legitimately touches the redesign mirror's copy of\nchangelogData.generated.ts, but that path was missing from isGeneratedOnlyCommit's\nlist - so the refresh wrote itself into the next regeneration and --check could\nnever again agree with any committed output. The mirror paths are now excluded.\n\nchangelogData.generated.ts is likewise excluded from the interface source digest\n(and freshBundle's matching rule): its bytes derive from commit history, so the\ncontent that ships is only knowable after the commit that ships it exists. No\ncapture can ever be taken from a tree already containing its final form, and\ngrading it marked all 89 captures stale on every routine changelog refresh.\n\nThe recorded uiSourceDigest is recomputed under the new rule; the captured tree\nand this tree differ only by that generated file, so the captures remain pictures\nof exactly this interface.",
+        category: "build",
+        areas: ["build", "shell", "docs"],
+        files: 4,
+    },
+    {
         sha: "3572208c64f20bc06d99e97d73901962de0e6191",
         shortSha: "3572208c64",
         date: "2026-08-10T06:17:01+00:00",
@@ -44,16 +54,6 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         category: "shell",
         areas: ["shell", "site", "build"],
         files: 3,
-    },
-    {
-        sha: "42550a7538e3fbff223dd6b59712faa93b4d1939",
-        shortSha: "42550a7538",
-        date: "2026-08-10T02:38:57+00:00",
-        subject: "chore(redesign): mirror regenerated changelog into redesign/ui",
-        details: "",
-        category: "other",
-        areas: ["other"],
-        files: 1,
     },
     {
         sha: "21f2babd0bad778cce2a79507e094bae82000a26",

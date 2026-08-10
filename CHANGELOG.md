@@ -74,6 +74,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- fix(changelog): restore the generated-only fixed point and stop grading generated data as interface source - [`b30c3fdf96`](https://github.com/Ding-Ding-Projects/worldlens/commit/b30c3fdf96aae48841868a5e8ed327c84d4d789c)
 - Require green correctness checks before release - [`77f833cb92`](https://github.com/Ding-Ding-Projects/worldlens/commit/77f833cb927996f82f8bfc768f8a66f5c6339ad8)
 
 ### Documentation
@@ -87,7 +88,6 @@ full message for the in-app changelog viewer.
 
 ### Elsewhere in the repository
 
-- chore(redesign): mirror regenerated changelog into redesign/ui - [`42550a7538`](https://github.com/Ding-Ding-Projects/worldlens/commit/42550a7538e3fbff223dd6b59712faa93b4d1939)
 - Merge branch 'main' of https://github.com/Ding-Ding-Projects/worldlens - [`4db20ee446`](https://github.com/Ding-Ding-Projects/worldlens/commit/4db20ee44619941bd61013795461b3126497c29d) _(summary of 94 commits, also listed here)_
 - Harden fresh-host release tooling - [`973bcd120f`](https://github.com/Ding-Ding-Projects/worldlens/commit/973bcd120f52d727b2a6739d624eeaede574ccf4)
 - Merge current main and preserve project editor fixes - [`09c2bfcd1a`](https://github.com/Ding-Ding-Projects/worldlens/commit/09c2bfcd1a5ce040ee8d0d4250e470ff380e5228) _(summary of 3 commits, also listed here)_
