@@ -20,6 +20,14 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Documentation
+
+- feat(a11y): phase A accessibility - skip path, disclosure contracts, fail-closed shell numbers - [`fac7ea510e`](https://github.com/Ding-Ding-Projects/worldlens/commit/fac7ea510eab33cd6928d919e403749ebf44d2f1)
+
+## 0.1.993 - 2026-08-10
+
+Tagged at [`62619660d7`](https://github.com/Ding-Ding-Projects/worldlens/commit/62619660d7977ef912e09dbdddd4e23ac278ebf4).
+
 ### Build, release and tooling
 
 - fix(release): give the completion stamp a window a real publish can meet - [`9b36be9319`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b36be9319066f436c2b6836979cc596481d7ae8)
