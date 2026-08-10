@@ -537,7 +537,17 @@ async function shoot(name: string, surface: string, options: ShotOptions = {}): 
             : `This image is cropped to ${options.cropped} rather than showing the whole window.`;
     const caption = [`${surface}.`, target.caption, where, options.note].filter(Boolean).join(" ");
     await writeFile(join(shotDir, `${name}.caption.txt`), `${caption}\n`, "utf8");
-    appendLedger(LEDGER, { kind: "capture", name, file: `${name}.png`, surface, caption });
+    // The moment this image was taken, recorded per capture rather than per run: a run takes
+    // tens of minutes, so one run-level stamp would misdate everything it did not start with,
+    // and "how old is this picture" is the question a reader of the gallery is really asking.
+    appendLedger(LEDGER, {
+        kind: "capture",
+        name,
+        file: `${name}.png`,
+        surface,
+        caption,
+        capturedAt: new Date().toISOString(),
+    });
 
     mapArea = previousArea;
 }

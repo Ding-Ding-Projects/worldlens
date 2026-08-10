@@ -195,11 +195,17 @@ export function nodeProcessRunner(): ProcessRunner {
             if (stdout === null) return await failure;
             stdout.on("data", (chunk: Buffer) => (bytes += chunk.length));
 
+            // Subscribed before the pipeline is awaited, because `close` fires when the child's
+            // stdio closes and that is normally *before* the destination stream finishes
+            // flushing. Registering the listener afterwards - as this once did - subscribes to an
+            // event that has already been emitted, so the promise never settles: the download
+            // hangs forever, and since the credential broker runs this inside its serialized
+            // lane, every later gh operation queues behind it until the application is restarted.
+            const closed = new Promise<number | null>((resolve) => child.once("close", resolve));
+
             const finished = (async (): Promise<ProcessToFileResult> => {
                 await pipeline(stdout, createWriteStream(destination));
-                const code = await new Promise<number | null>((resolve) =>
-                    child.on("close", resolve),
-                );
+                const code = await closed;
                 return { started: true, code, bytes, stderr };
             })();
 

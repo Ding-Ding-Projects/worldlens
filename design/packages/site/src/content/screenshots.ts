@@ -63,6 +63,44 @@ export function captureCaption(capture: ScreenshotCapture): string {
     return `${capture.title} · ${capture.windowSize} · ${capture.displayScale} display scale · ${scheme}`;
 }
 
+/**
+ * How old a picture is, in the words a person would use.
+ *
+ * Computed when the page is read rather than when it is built, because an age baked into a
+ * committed file is wrong the day after it is written and stays wrong. Whole units only: nobody
+ * says "1.7 months". The caller passes `nowMs` so this is a pure function a test can pin.
+ */
+export function captureAge(capturedAtIso: string, nowMs: number): string {
+    const then = new Date(capturedAtIso).getTime();
+    if (Number.isNaN(then)) return "at an unrecorded time";
+    const seconds = Math.round((nowMs - then) / 1000);
+    if (seconds < 0) return "just now";
+    const units: readonly (readonly [string, number])[] = [
+        ["year", 31_536_000],
+        ["month", 2_592_000],
+        ["week", 604_800],
+        ["day", 86_400],
+        ["hour", 3_600],
+        ["minute", 60],
+    ];
+    for (const [name, size] of units) {
+        const count = Math.floor(seconds / size);
+        if (count >= 1) return `${count} ${name}${count === 1 ? "" : "s"} ago`;
+    }
+    return "just now";
+}
+
+/** The date a reader can check, beside the age they actually asked about. */
+export function captureTakenLine(
+    capturedAtIso: string,
+    source: "captured" | "committed",
+    nowMs: number,
+): string {
+    const day = capturedAtIso.slice(0, 10);
+    const verb = source === "captured" ? "Taken" : "Committed";
+    return `${verb} ${day} · ${captureAge(capturedAtIso, nowMs)}`;
+}
+
 /** Captures grouped by what they were proving, so the gallery reads as sets. */
 export interface CaptureGroup {
     readonly id: string;
