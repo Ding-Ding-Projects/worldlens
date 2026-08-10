@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "1c751821c06ed9b65719e1cd340caa870a129ffd",
+        shortSha: "1c751821c0",
+        date: "2026-08-10T06:34:24+00:00",
+        subject: "feat(changelog): show the first difference when --check fails",
+        details: "\"Out of date\" alone has proven expensive: when committed and regenerated text\ndisagree on an environment-dependent detail, the difference is the entire\ndiagnosis, and a guard that withholds it turns a one-line fix into archaeology\nagainst a machine nobody can log into.",
+        category: "build",
+        areas: ["build"],
+        files: 1,
+    },
+    {
         sha: "b30c3fdf96aae48841868a5e8ed327c84d4d789c",
         shortSha: "b30c3fdf96",
         date: "2026-08-10T06:26:54+00:00",

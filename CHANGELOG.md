@@ -74,6 +74,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- feat(changelog): show the first difference when --check fails - [`1c751821c0`](https://github.com/Ding-Ding-Projects/worldlens/commit/1c751821c06ed9b65719e1cd340caa870a129ffd)
 - fix(changelog): restore the generated-only fixed point and stop grading generated data as interface source - [`b30c3fdf96`](https://github.com/Ding-Ding-Projects/worldlens/commit/b30c3fdf96aae48841868a5e8ed327c84d4d789c)
 - Require green correctness checks before release - [`77f833cb92`](https://github.com/Ding-Ding-Projects/worldlens/commit/77f833cb927996f82f8bfc768f8a66f5c6339ad8)
 
