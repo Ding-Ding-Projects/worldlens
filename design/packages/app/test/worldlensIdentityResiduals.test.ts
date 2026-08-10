@@ -192,9 +192,13 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
     ],
     "docs/pages-hosting.md": [
         {
+            // Two sites, one statement: the article documents the still-readable legacy marker
+            // once in English and once in its Cantonese section. A bilingual document says every
+            // compatibility fact twice by construction, and the count stays exact so a genuinely
+            // new legacy write still fails this guard.
             pattern: /\.material-bluemap-map\.json/g,
-            expectedMatches: 1,
-            reason: "documented legacy filename accepted for import",
+            expectedMatches: 2,
+            reason: "documented legacy filename accepted for import, stated in both languages",
         },
     ],
 };

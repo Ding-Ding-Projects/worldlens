@@ -84,3 +84,23 @@ because two copies of one explanation drift apart and only one of them gets edit
 `screenshots/` holds the images committed to this repository, which the site and several of these
 documents refer to. They are taken from the packaged application by the project's own harness;
 nothing there is a mockup or a hand-edited picture.
+
+## 廣東話
+
+### 功能文檔（Feature documentation）
+
+每個功能一份文檔。每份都按同一個次序講：行為（behaviour）、設定（configuration）、失敗模式（failure modes）、安全考慮（security considerations）同驗證（verification）——咁樣讀過一份嘅人，去到下一份就知道喺邊度搵嘢。
+
+呢啲文檔描述嘅係 default branch 上面嘅現況。如果有樣嘢整咗出嚟但係未同佢聲稱要對齊嘅嘢核對過，文檔會喺本來會被人當成保證嗰一節度直接講明。`design/packages/site/` 下面嘅網站每個功能都有一篇文章，但係啲文章只係做摘要再連結返嚟呢度，唔會重複呢啲檔案嘅內容——因為同一個解釋有兩份就一定會漂移，而且通常只有一份會有人改。
+
+### 應用程式（The application）
+
+呢一節係一個目錄表，逐份文檔列明佢涵蓋嘅範圍。大致包括：由 Material BlueMap 遷移去 Worldlens（worldlens-migration.md）；啟動復原同 Worldlens 標識（startup-recovery.md）；釘選咗嘅 Home 落地分頁；詞彙表（glossary.md）；command palette；通知中心（notification centre）；由 git 歷史生成嘅 changelog 同埋 in-app viewer；瀏覽器式嘅分頁導航（tabbed navigation）；project 編輯器（project-editor.md）；外觀編輯器（appearance editors），包括無限色彩揀色器同排版編輯器；設計系統（Material Design 3 token 詞彙）；super confirmation（破壞性動作前面嘅兩鍵加全程滑桿確認）；語言模式同 funny levels（英文、香港廣東話、雙語，每種語言獨立嘅 funny level）；顯示同易用度（界面大細五檔同主題選擇）；action-specific artwork（五個高影響動作嘅專屬圖片）；搵 worlds（包括 Bedrock 自己嘅 worlds 資料夾同 CurseForge 多 instance 佈局）；Projects 分頁上面現成可用嘅 worlds；world dimension 偵測；每個檔案／資料夾欄位共用嘅 browse 按鈕（path-field.md）；regex builder 同佢接駁嘅 search bars；config 資料夾嘅本地版本歷史（config-history.md）；render mask 繪畫；Minecraft licence 同引用佢嘅 consent；自動依賴供應（Java runtime 同 Chunker）；gh command-line 工具自己嘅帳戶；自動更新（automatic-updates.md）；render console；進行中嘅 renders；render 行緊時較速度嘅 dial；GitHub Pages feature parity；Pages 網站架構同 Material Design 3 Expressive rewrite；action walkthrough 動畫；scheduled settings 同外部來源；panel geometry；同埋 server-hosted Material 3 map UI。
+
+### 渲染（Rendering）
+
+第二個目錄表涵蓋渲染嗰邊嘅文檔：app 自己攞 Java runtime（java-runtime-provisioning.md）；喺本機定 Docker 容器行 engine（docker-and-local.md）；render 或者 web server 起唔到嗰陣嘅自動修復（automatic-repair.md，八種已知失敗由代碼診斷、完全冇 AI，剩低嘅先交本地 coding agent）；喺 GitHub Actions 度 render（render-in-actions.md）；由 app 入面幫 repository 準備 CI render（ci-repository-setup.md）；GitHub-hosted cloud runners（cloud-runners.md）；release workflow 安全邊界（release-workflow-security.md）；定時重新 render（scheduled-render.md）；發佈 rendered map 上 GitHub Pages（pages-hosting.md）；喺真 browser 分頁實時睇 render（live-preview.md）；捱得過中斷嘅 renders（resumable-renders.md）；大 worlds 拆做有 checksum 嘅 parts（large-worlds.md）；備份 world 或者 rendered map（backup.md，用 Cheap LFS v1 pointer 發佈做 release assets，兼講明點解 Git LFS 因為成本被否決）；用人哋 repository 嘅 release 做 world 來源（world-sources.md）；SSH server 上面嘅 worlds（ssh-world-sources.md）；住喺 Docker 入面嘅 world（docker-world-source.md）；放喺 git repository 嘅 world（world-git-repository.md）；認養呢個 app 已經準備過嘅 repository（repository-adoption.md）；喺遠端主機 render（remote-render.md）；喺自己 server 度 host rendered map（remote-hosting.md）；私有 repository 入面嘅 world 加密之後喺 public runners 度 render（private-world-rendering.md）；1.12.2 worlds（legacy-1-12-worlds.md）；同埋 Bedrock Edition worlds（bedrock-worlds.md，認出 Bedrock world 兼講明，用 Chunker 轉做 Java——佢嘅 MIT licence、轉換會失去乜、同點解 exit code 零唔代表成功）。
+
+### 截圖（Captures）
+
+`screenshots/` 放咗 commit 咗入呢個 repository 嘅圖片，網站同好幾份文檔都會引用。啲圖係由 project 自己嘅 harness 喺打包咗嘅應用程式度影嘅；入面冇任何 mockup 或者人手執過嘅圖。
