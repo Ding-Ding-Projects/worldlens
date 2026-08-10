@@ -26,6 +26,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- docs: add Hong Kong Cantonese sections, fourth wave - [`45f0ee2515`](https://github.com/Ding-Ding-Projects/worldlens/commit/45f0ee251599345fd5ccf4d36bccdd3adcb45f34)
 - test(identity): pin the Pages legacy marker to its bilingual site count - [`00fc212a40`](https://github.com/Ding-Ding-Projects/worldlens/commit/00fc212a40606c875718cb95b93a4b459900938b)
 - docs: add Hong Kong Cantonese sections, fourth wave - [`e55ed6dc63`](https://github.com/Ding-Ding-Projects/worldlens/commit/e55ed6dc631e8099bc5164b6588253f72aaab1d4)
 - docs: add Hong Kong Cantonese sections, third wave - [`6466b058a0`](https://github.com/Ding-Ding-Projects/worldlens/commit/6466b058a035b39abe450568d4e7a4762ee5c1f3)
