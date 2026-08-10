@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "c02f6addd64b47397651ab2076170695a1f63cd3",
+        shortSha: "c02f6addd6",
+        date: "2026-08-10T15:54:43Z",
+        subject: "docs: add Hong Kong Cantonese sections, seventh wave",
+        details: "",
+        category: "docs",
+        areas: ["docs"],
+        files: 8,
+    },
+    {
         sha: "65ad7f4be34b36273927c7bbf212c010e16a8a7a",
         shortSha: "65ad7f4be3",
         date: "2026-08-10T15:52:02Z",
