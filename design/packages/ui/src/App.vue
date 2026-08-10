@@ -185,6 +185,27 @@ const runningRenderCount = computed(
         ).length,
 );
 
+/**
+ * One percentage across everything actually running, or null when nothing can report one.
+ *
+ * `StatusStrip` has always drawn a progress bar and this shell never gave it a value, so the bar
+ * could not appear no matter what was rendering - the "built but unreachable" shape this project
+ * audits for. The mean is taken only over rows that report a percent: a render whose size is
+ * genuinely unknown reports `null`, and averaging that in as a zero would drag a nearly finished
+ * bar backwards and invent a denominator the progress model deliberately refuses to invent. When
+ * no running row can report one, the bar stays absent rather than showing a confident nothing.
+ */
+const renderProgressPercent = computed<number | null>(() => {
+    const running = renderIndicator.rows.value.filter(
+        (row) => row.state === "starting" || row.state === "running",
+    );
+    const known = running
+        .map((row) => row.percent)
+        .filter((percent): percent is number => percent !== null && Number.isFinite(percent));
+    if (known.length === 0) return null;
+    return known.reduce((total, percent) => total + percent, 0) / known.length;
+});
+
 const pages = computed<TabPage[]>(() => [
     // First in the strip and pinned on a fresh install (see the `pinned-page-ids` binding
     // below): the one destination that represents every capability this app has, weighted
@@ -1090,6 +1111,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
         -->
         <StatusStrip
             :running-render-count="runningRenderCount"
+            :render-progress="renderProgressPercent"
             :problem-count="problems.length"
             :problems-open="problemsOpen"
             :problems-panel-id="PROBLEMS_PANEL_ID"

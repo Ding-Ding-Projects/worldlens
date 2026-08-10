@@ -15,8 +15,17 @@ describe("shell number boundaries", () => {
         expect(safeProgressPercent(undefined)).toBeNull();
         expect(safeProgressPercent(null)).toBeNull();
         expect(safeProgressPercent(Number.NaN)).toBeNull();
-        expect(safeProgressPercent(-0.2)).toBe(0);
-        expect(safeProgressPercent(0.414)).toBe(41);
-        expect(safeProgressPercent(1.4)).toBe(100);
+        expect(safeProgressPercent(Number.POSITIVE_INFINITY)).toBeNull();
+        expect(safeProgressPercent(-20)).toBe(0);
+        expect(safeProgressPercent(41.4)).toBe(41);
+        expect(safeProgressPercent(140)).toBe(100);
+    });
+
+    it("reads the percentage scale this application actually produces", () => {
+        // `ProgressLevel.percent` is 0-100, so a real mid-render value must stay mid-range.
+        // The previous 0..1 contract turned every one of these into a finished-looking bar.
+        expect(safeProgressPercent(41)).toBe(41);
+        expect(safeProgressPercent(1)).toBe(1);
+        expect(safeProgressPercent(99.6)).toBe(100);
     });
 });

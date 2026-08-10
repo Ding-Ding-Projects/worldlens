@@ -36,7 +36,10 @@ const props = withDefaults(
     defineProps<{
         /** Starting, running or offered - the same rows the Renders chip counts. */
         runningRenderCount?: number;
-        /** 0 to 1 across everything in flight, or null when nothing reports progress. */
+        /**
+         * A percentage, 0 to 100, across the running rows that can report one - the same scale
+         * `ProgressLevel.percent` uses - or null when nothing reports progress.
+         */
         renderProgress?: number | null;
         /** Unresolved problems, from the Problems adapter. */
         problemCount?: number;

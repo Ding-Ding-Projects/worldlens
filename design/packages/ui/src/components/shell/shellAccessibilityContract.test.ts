@@ -65,6 +65,23 @@ describe("Material shell accessibility contract", () => {
         );
     });
 
+    it("gives the status strip's progress bar a value the shell actually supplies", () => {
+        // The bar existed and the shell never bound it, so it could not appear no matter what
+        // was rendering. Binding is the contract; the unit is the other half of it, because the
+        // clamp is a percentage clamp and a 0..1 source would pin the bar at 100 for every
+        // render. `ActiveRenderRow.percent` is the 0-100 value this reads.
+        const app = source("../../App.vue");
+        const status = source("./StatusStrip.vue");
+        const numbers = source("./shellNumbers.ts");
+
+        expect(app).toContain(':render-progress="renderProgressPercent"');
+        expect(app).toMatch(/renderProgressPercent = computed<number \| null>/);
+        expect(app).toContain("row.percent");
+        expect(status).toContain("safeProgressPercent(props.renderProgress)");
+        expect(numbers).toContain("Math.min(100, Math.max(0, value))");
+        expect(numbers).not.toContain("* 100");
+    });
+
     it("uses semantic buttons for Home cards and catalogue rows", () => {
         const home = source("./HomeCatalogues.vue");
         const catalogue = source("./CataloguePage.vue");
