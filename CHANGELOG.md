@@ -26,6 +26,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- docs: complete the bilingual corpus - every article carries its Cantonese section - [`93486bafbe`](https://github.com/Ding-Ding-Projects/worldlens/commit/93486bafbe6194c01148e48e86fee3b45f4e71a6)
 - docs: add Hong Kong Cantonese sections, seventh wave - [`c02f6addd6`](https://github.com/Ding-Ding-Projects/worldlens/commit/c02f6addd64b47397651ab2076170695a1f63cd3)
 - docs: add Hong Kong Cantonese sections, sixth wave - [`65ad7f4be3`](https://github.com/Ding-Ding-Projects/worldlens/commit/65ad7f4be34b36273927c7bbf212c010e16a8a7a)
 - docs: add Hong Kong Cantonese sections, fifth wave - [`5b5f89a5c1`](https://github.com/Ding-Ding-Projects/worldlens/commit/5b5f89a5c12d5b13676fa896a43f8f25184039ff)

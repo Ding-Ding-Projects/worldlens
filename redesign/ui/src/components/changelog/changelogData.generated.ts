@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "93486bafbe6194c01148e48e86fee3b45f4e71a6",
+        shortSha: "93486bafbe",
+        date: "2026-08-10T15:59:19Z",
+        subject: "docs: complete the bilingual corpus - every article carries its Cantonese section",
+        details: "All 58 articles under docs/ now end with a 廣東話 section covering the same\nbehaviour, configuration, failure modes, security notes and verification the\nEnglish states, with commands, paths, config keys and identifiers left in\nEnglish so they stay copy-pasteable. Pinned legacy-identity counts are\nunchanged in every file: the Cantonese names a superseded marker or variable\ndescriptively rather than repeating the literal string.",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
         sha: "c02f6addd64b47397651ab2076170695a1f63cd3",
         shortSha: "c02f6addd6",
         date: "2026-08-10T15:54:43Z",
