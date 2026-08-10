@@ -22,8 +22,10 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
-- fix(ui): repair the botched merge so the redesign is actually the shipped UI - [`b46faee213`](https://github.com/Ding-Ding-Projects/worldlens/commit/b46faee21337f0431b070f21d21501f2d2c94411)
+- Merge branch 'codex/rewrite-electron-from-redesign-final' - [`b8174ef0ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8174ef0ae766f00cb468f214c35d853023bc48e) _(summary of 2 commits, also listed here)_
+- Merge remote-tracking branch 'origin/main' into codex/rewrite-electron-from-redesign-final - [`922a5af92b`](https://github.com/Ding-Ding-Projects/worldlens/commit/922a5af92b4bdc272399482686613bdc451b73e5) _(summary of 11 commits, also listed here)_
 - Repair imported UI source defects - [`ad702c0f59`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad702c0f59c5f0daabf426bfbefc8a643397a47e)
+- fix(ui): repair the botched merge so the redesign is actually the shipped UI - [`b46faee213`](https://github.com/Ding-Ding-Projects/worldlens/commit/b46faee21337f0431b070f21d21501f2d2c94411)
 - Merge remote-tracking branch 'origin/codex/rewrite-electron-from-redesign-final' - [`110e8cc161`](https://github.com/Ding-Ding-Projects/worldlens/commit/110e8cc16111fc265809a958f7017e314a4ddb02) _(summary of 21 commits, also listed here)_
 - feat(project): route map masks through one editor - [`45bb81fde0`](https://github.com/Ding-Ding-Projects/worldlens/commit/45bb81fde0fcc9bab3215529a67ab68eb904bba1)
 - feat(notifications): keep redesigned shells history-only - [`45fa6f42ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/45fa6f42ae9583506c9a42e69de377ed390227a2)
@@ -38,6 +40,7 @@ full message for the in-app changelog viewer.
 - test(notifications): prove the configuration toast reaches the shell - [`2aa7a11adb`](https://github.com/Ding-Ding-Projects/worldlens/commit/2aa7a11adb79144c55e01d8bf4538689e7499b60)
 - fix(shell): make the rail notification bell control its panel - [`545d35b81a`](https://github.com/Ding-Ding-Projects/worldlens/commit/545d35b81ad6aab68079ab06f91003f21db26934)
 - fix(project): require explicit save before world project writes - [`af21df2292`](https://github.com/Ding-Ding-Projects/worldlens/commit/af21df22927bb7b590ee1701d7f4b914bc4afdb6)
+- Add shared render-mask editor card & route proof - [`b90cc57146`](https://github.com/Ding-Ding-Projects/worldlens/commit/b90cc5714659ba69e73ad047d753dec07518790d)
 
 ### Rendering and world data
 
@@ -49,6 +52,7 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- fix: make the whole workspace test suite green (727 files) - [`6e1387ddba`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e1387ddbace4b66743e078ffce4683c09bc9ddd)
 - Repair baseline typecheck, lint, and screenshot evidence - [`b3f556547c`](https://github.com/Ding-Ding-Projects/worldlens/commit/b3f556547c4c6431911d49ffdf7953419bbc7cc1)
 - test(captures): exercise rail notifications and fresh config toasts - [`01db881ca4`](https://github.com/Ding-Ding-Projects/worldlens/commit/01db881ca4edf73e97e8f3f49b7f1d098728f3d8)
 - Merge branch 'codex/credential-boundary-20260808' - [`316e1a1112`](https://github.com/Ding-Ding-Projects/worldlens/commit/316e1a11128faa6421e111d302334c6f6e6d3983) _(summary of 3 commits, also listed here)_
@@ -57,12 +61,13 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- Merge remote-tracking branch 'origin/main' - [`fb80340bfd`](https://github.com/Ding-Ding-Projects/worldlens/commit/fb80340bfd912a6e445e9aa855da3a37c8b99c4f) _(summary of 18 commits, also listed here)_
 - Render article blocks through supported conditions - [`d4f020d84f`](https://github.com/Ding-Ding-Projects/worldlens/commit/d4f020d84faef38a3a2081a0ed619177fe665146)
-- Merge remote-tracking branch 'origin/main' - [`51f08d4c2b`](https://github.com/Ding-Ding-Projects/worldlens/commit/51f08d4c2bc522c104d7c23f33bf070a78b264d3) _(summary of 6 commits, also listed here)_
 - Retarget compact proof to the canonical site runtime - [`cb1ef1ff3b`](https://github.com/Ding-Ding-Projects/worldlens/commit/cb1ef1ff3b20dfbe1e8177ccd335ecd3f908dbfd)
 - Retarget compact proof to the canonical site runtime - [`c60e085f55`](https://github.com/Ding-Ding-Projects/worldlens/commit/c60e085f551883af94e9f8ad03946dad26755375)
 - Complete responsive archive site controls - [`f731dd2615`](https://github.com/Ding-Ding-Projects/worldlens/commit/f731dd26152d4b5ce59556b4ef42c29aa328bc6a)
 - Harden the offline archive runtime - [`1b2e9b1c65`](https://github.com/Ding-Ding-Projects/worldlens/commit/1b2e9b1c6544bd0b54cbb4994819d4dfc2b47840)
+- Merge remote-tracking branch 'origin/main' - [`51f08d4c2b`](https://github.com/Ding-Ding-Projects/worldlens/commit/51f08d4c2bc522c104d7c23f33bf070a78b264d3) _(summary of 6 commits, also listed here)_
 - Replace Pages site with the supplied Material Design 3 experience - [`f641518bbd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f641518bbd0c5beb3f009444495cf3bd4ee6fede)
 
 ### Build, release and tooling
@@ -71,12 +76,14 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Record the reconciled default-branch handoff - [`4b00c14492`](https://github.com/Ding-Ding-Projects/worldlens/commit/4b00c14492f18c2e994bb88ad76b25012a294713)
 - Capture the deployed documentation article - [`90a66a85da`](https://github.com/Ding-Ding-Projects/worldlens/commit/90a66a85dab807d7e14de65d8da6cae295758a78)
 - Document the Pages redesign handoff - [`3f487aa236`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f487aa23674340bde029509f9b15de409b4e7a2)
 - Capture the legacy GitHub credential surface - [`67767606ad`](https://github.com/Ding-Ding-Projects/worldlens/commit/67767606adb555d974d727a91301e113ad43ae88)
 
 ### Elsewhere in the repository
 
+- Merge branch 'main' of https://github.com/Ding-Ding-Projects/worldlens - [`4db20ee446`](https://github.com/Ding-Ding-Projects/worldlens/commit/4db20ee44619941bd61013795461b3126497c29d) _(summary of 94 commits, also listed here)_
 - Harden fresh-host release tooling - [`973bcd120f`](https://github.com/Ding-Ding-Projects/worldlens/commit/973bcd120f52d727b2a6739d624eeaede574ccf4)
 - Merge current main and preserve project editor fixes - [`09c2bfcd1a`](https://github.com/Ding-Ding-Projects/worldlens/commit/09c2bfcd1a5ce040ee8d0d4250e470ff380e5228) _(summary of 3 commits, also listed here)_
 - Merge the compact proof lineage - [`54e796b10e`](https://github.com/Ding-Ding-Projects/worldlens/commit/54e796b10ed3182494b124c424d1d6204dde582c) _(summary of 2 commits, also listed here)_
