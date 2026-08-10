@@ -37,8 +37,8 @@
  */
 
 import { join } from "node:path";
-import { TokenStore } from "../github/storage.js";
-import type { SafeStorageLike } from "../github/storage.js";
+import { TokenStore } from "./credentialStore.js";
+import type { SafeStorageLike } from "./credentialStore.js";
 
 /** Sits directly under the app's data directory, beside `github-credential.json`. */
 export const DOWNLOADER_CREDENTIAL_FILE = "world-downloader-credential.json";

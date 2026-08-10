@@ -190,6 +190,18 @@ export const GHCLIACCOUNTS_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const GHCLIACCOUNTS_FIXED = {
+    "settings.github.ghCli.copyUrl": {
+        en: "Copy address",
+        yue: "複製地址",
+    },
+    "settings.github.ghCli.enterpriseScopeRecovery": {
+        en: "The in-app approval flow supports github.com only. Repair {login} on {host} with GitHub CLI, then choose Check again. Worldlens will not redirect this enterprise account to github.com.",
+        yue: "應用程式內嘅批准流程只支援 github.com。請用 GitHub CLI 修復 {host} 上嘅 {login}，然後撳「再檢查」。Worldlens 唔會將呢個企業帳戶重新導向去 github.com。",
+    },
+    "settings.github.ghCli.urlCopied": {
+        en: "Address copied.",
+        yue: "地址複製咗。",
+    },
     "settings.github.ghCli.title": {
         en: "gh command-line tool accounts",
         yue: "gh command-line 工具帳戶",

@@ -575,22 +575,6 @@ export const APP_VOICED = {
             "{keys} 嘅值會當成憑證，而且係認真對待嗰種：喺呢度遮蔽、搜尋搵唔到、亦唔會寫入記錄檔或者匯出嘅診斷檔。",
         ],
     },
-    "settings.github.tokenScopes": {
-        en: [
-            "The token needs these permissions: {scopes}.",
-            "The token needs these permissions: {scopes}.",
-            "The token needs these permissions: {scopes}.",
-            "The token has to carry these permissions: {scopes}.",
-            "The token has to carry these permissions, all of them: {scopes}.",
-        ],
-        yue: [
-            "個權杖需要以下權限：{scopes}。",
-            "個權杖需要以下權限：{scopes}。",
-            "個權杖需要以下呢啲權限：{scopes}。",
-            "個權杖一定要帶齊以下權限：{scopes}。",
-            "個權杖一定要帶齊以下權限，一個都唔可以少：{scopes}。",
-        ],
-    },
 
     /* ---------------------------------------------------------------- */
     /* Settings section explanations                                     */
@@ -974,22 +958,6 @@ export const APP_VOICED = {
             "地圖上咗去，GitHub Pages 亦都開咗，但個網址仲未有回應。第一次建立通常要一兩分鐘，所以未有回應之前，呢度唔會當佢上線。",
         ],
     },
-    "pages.gh.signIn": {
-        en: [
-            "Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
-            "Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
-            "Run `gh auth login` in a terminal. It asks for a code interactively and cannot be driven from inside this application, so it has to be run there. Then check again.",
-            "Run `gh auth login` in a terminal yourself. It asks for a code interactively and cannot be driven from inside this application, so there is no button here that would do it. Then check again.",
-            "Run `gh auth login` in a terminal yourself. It asks for a code interactively and cannot be driven from inside an application at all, so there is deliberately no button here pretending otherwise. Then check again.",
-        ],
-        yue: [
-            "喺終端機執行 `gh auth login`：佢會互動咁問你要驗證碼，喺呢個程式入面驅動唔到，之後再檢查一次。",
-            "喺終端機執行 `gh auth login`：佢會互動咁問你要驗證碼，喺呢個程式入面驅動唔到，之後再檢查一次。",
-            "請喺終端機執行 `gh auth login`。佢會互動咁問你要驗證碼，喺呢個程式入面驅動唔到，所以一定要喺嗰邊行。跟住再檢查一次。",
-            "自己喺終端機行 `gh auth login`。佢會互動咁問你攞驗證碼，喺呢個程式入面驅動唔到，所以呢度冇一粒掣做得到。之後再檢查一次。",
-            "自己喺終端機行 `gh auth login`。佢會互動咁問你攞驗證碼，喺任何程式入面都驅動唔到，所以呢度特登冇一粒掣扮做得到。之後再檢查一次。",
-        ],
-    },
     "pages.visibility.note": {
         en: [
             "This is only used if the repository has to be created. An existing repository is left exactly as it is.",
@@ -1177,10 +1145,6 @@ export const FACTS = {
         en: ["{keys}", "credentials", "masked", "never written to a log"],
         yue: ["{keys}", "憑證", "遮蔽", "唔會寫入記錄檔"],
     },
-    "settings.github.tokenScopes": {
-        en: ["{scopes}", "permissions"],
-        yue: ["{scopes}", "權限"],
-    },
 
     "settings.consent.description": {
         en: ["Minecraft", "BlueMap", "first launch"],
@@ -1260,7 +1224,6 @@ export const FACTS = {
     },
     "pages.notice.live": { en: ["{url}", "live"], yue: ["{url}", "上線"] },
     "pages.notice.pending": { en: ["not answered yet"], yue: ["未有回應"] },
-    "pages.gh.signIn": { en: ["gh auth login", "terminal"], yue: ["gh auth login", "終端機"] },
     "pages.visibility.note": { en: ["created"], yue: ["repository"] },
 } as const satisfies Record<AppVoicedKey, { en: readonly string[]; yue: readonly string[] }>;
 

@@ -20,6 +20,12 @@ import PathField from "../PathField.vue";
 import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import GhEntityPicker from "../github/GhEntityPicker.vue";
+import {
+    createGhCliAccountsStore,
+    defaultGhCliAccountId,
+} from "../github/ghCliAccountsStore.js";
+import type { GhCliBridge } from "../github/ghCliBridge.js";
 import BackupRunCard from "./BackupRunCard.vue";
 import { createBackups, formatBytes, repositoryNameProblem } from "./backups.js";
 import type { BackupRow } from "./backups.js";
@@ -27,9 +33,9 @@ import {
     resolveBackupBridge,
     type BackupBridge,
     type BackupListing,
+    type BackupOwnerChoice,
     type BackupSourceKind,
     type BackupSourceReport,
-    type RepositoryChoice,
 } from "./backupBridge.js";
 
 /**
@@ -82,6 +88,8 @@ const props = withDefaults(
          * bridge and the unsupported state is what should be shown.
          */
         bridge?: BackupBridge | null | undefined;
+        /** Secret-free gh account metadata behind the account picker. */
+        accountsBridge?: GhCliBridge | null | undefined;
         /** Things this machine could back up, offered instead of a typed path. */
         sources?: readonly { kind: BackupSourceKind; folder: string; label: string }[] | undefined;
         /** True when the shell can open the GitHub sign-in row in settings. */
@@ -103,6 +111,9 @@ const { t } = useI18n();
 
 const bridge = props.bridge === undefined ? resolveBackupBridge() : props.bridge;
 const backups = createBackups(bridge);
+const accountsList = createGhCliAccountsStore(
+    props.accountsBridge === undefined ? {} : { bridge: props.accountsBridge },
+);
 
 /* -- what to back up ------------------------------------------------------- */
 
@@ -151,6 +162,103 @@ watch(kind, () => {
 const owner = ref("");
 const repo = ref("");
 const acknowledged = ref(false);
+const selectedAccountId = ref<string | null>(null);
+const accountsLoaded = ref(false);
+const accountOrdered = computed(() =>
+    [...accountsList.accounts.value].sort((left, right) => left.login.localeCompare(right.login)),
+);
+const brokerDefaultAccountId = computed(() => defaultGhCliAccountId(accountOrdered.value));
+const effectiveAccountId = computed<string | undefined>(
+    () => selectedAccountId.value ?? brokerDefaultAccountId.value ?? undefined,
+);
+const accountReauthenticationLabel = computed(() =>
+    t("backup.account.reauthenticationRequired", "reauthentication required"),
+);
+const accountItems = computed(() =>
+    accountOrdered.value.map((account) => {
+        const accountLabel = `${account.login} — ${account.host}`;
+        const title = account.active
+            ? t("backup.account.active", { login: accountLabel }, "{login} (active)")
+            : accountLabel;
+        const recovery = account.healthy ? null : accountReauthenticationLabel.value;
+        return {
+            title: recovery === null ? title : `${title} — ${recovery}`,
+            value: account.id,
+            searchText: [
+                account.login,
+                account.host,
+                ...account.scopes,
+                ...(recovery === null ? [] : [recovery, account.stateDetail ?? ""]),
+            ].join(" "),
+            props: { disabled: !account.healthy },
+        };
+    }),
+);
+const showAccountPicker = computed(() => accountsList.canList && accountsLoaded.value);
+const ownerChoices = ref<readonly BackupOwnerChoice[]>([]);
+const ownersLoading = ref(false);
+const ownersFailure = ref<string | null>(null);
+let accountRefreshGeneration = 0;
+
+const ownerItems = computed(() =>
+    ownerChoices.value.map((choice) => ({
+        title:
+            choice.kind === "user"
+                ? t("backup.owner.personal", { login: choice.login }, "{login} (personal)")
+                : t("backup.owner.organization", { login: choice.login }, "{login} (organization)"),
+        value: choice.login,
+        searchText: `${choice.login} ${choice.kind}`,
+    })),
+);
+
+async function refreshAccountScope(accountId = effectiveAccountId.value): Promise<void> {
+    const generation = ++accountRefreshGeneration;
+    ownersLoading.value = true;
+    ownersFailure.value = null;
+    ownerChoices.value = [];
+    backups.repositories.value = [];
+    backups.clearAccountState();
+    try {
+        const [owners] = await Promise.all([
+            bridge?.listBackupOwners?.(accountId),
+            backups.canListRepositories ? backups.loadRepositories(accountId) : Promise.resolve(),
+        ]);
+        if (generation !== accountRefreshGeneration) return;
+        if (owners === undefined) return;
+        if (owners.ok) {
+            ownerChoices.value = owners.owners;
+            if (owner.value.trim() === "") owner.value = owners.login;
+            const personal = owners.owners.find((choice) => choice.login === owners.login);
+            if (personal !== undefined) createOwnerKind.value = personal.kind;
+        } else {
+            ownersFailure.value = owners.message;
+        }
+    } catch (error) {
+        if (generation === accountRefreshGeneration) {
+            ownersFailure.value = error instanceof Error ? error.message : String(error);
+        }
+    } finally {
+        if (generation === accountRefreshGeneration) ownersLoading.value = false;
+    }
+}
+
+function chooseAccount(value: unknown): void {
+    if (typeof value !== "string" || value === effectiveAccountId.value) return;
+    selectedAccountId.value = value;
+    owner.value = "";
+    repo.value = "";
+    acknowledged.value = false;
+    backups.clearAccountState();
+    void refreshAccountScope(value);
+}
+
+function chooseOwner(value: unknown): void {
+    if (typeof value !== "string") return;
+    const choice = ownerChoices.value.find((candidate) => candidate.login === value);
+    if (choice === undefined) return;
+    owner.value = choice.login;
+    createOwnerKind.value = choice.kind;
+}
 
 const canCheck = computed(
     () =>
@@ -163,9 +271,13 @@ const canCheck = computed(
 async function check(): Promise<void> {
     if (!canCheck.value) return;
     acknowledged.value = false;
-    const report = await backups.check(owner.value.trim(), repo.value.trim());
+    const report = await backups.check(
+        owner.value.trim(),
+        repo.value.trim(),
+        effectiveAccountId.value,
+    );
     if (report !== null && backups.canListBackups) {
-        void backups.loadListings(report.owner, report.repo);
+        void backups.loadListings(report.owner, report.repo, effectiveAccountId.value);
     }
 }
 
@@ -179,61 +291,15 @@ function choose(fullName: unknown): void {
     void check();
 }
 
-/*
- * Searching the repository picker, separate from the backup-listing search further down
- * this file and bound to its own query, pattern, flags and mode - the anchored builder
- * `ConfigSearchField` carries applies to this field and this field alone.
- *
- * ## The pagination-honesty rule this list has to answer to
- *
- * `listWritableRepositories` in the main process reads up to three pages of
- * `/user/repos` - 300 repositories, most recently active first - and hands the whole,
- * already-bounded set to this screen in one answer; there is no further paging from here.
- * So this search is complete over what was loaded, and "loaded" can still be short of
- * "everything the account owns" for an account past 300 repositories. The summary line
- * says exactly that rather than presenting a filtered 300 as though it were the whole
- * account, and the owner/repository text fields beside the list remain the honest way to
- * reach anything search cannot find.
- */
-const repoQuery = ref("");
-const repoRegex = ref(false);
-const repoFlags = ref("i");
-
-const repoMatcher = computed(() =>
-    createSettingMatcher(repoQuery.value, repoRegex.value, repoFlags.value),
+const repositoryItems = computed(() =>
+    backups.repositories.value.map((repository) => ({
+        title: repository.private
+            ? t("backup.repoPrivate", { name: repository.fullName }, "{name} (private)")
+            : t("backup.repoPublic", { name: repository.fullName }, "{name} (PUBLIC)"),
+        value: repository.fullName,
+        searchText: [repository.fullName, repository.owner, repository.name].join(" "),
+    })),
 );
-
-function repositoryText(repository: RepositoryChoice): string {
-    return [repository.fullName, repository.owner, repository.name].join(" ");
-}
-
-const shownRepositories = computed(() =>
-    backups.repositories.value.filter((repository) =>
-        repoMatcher.value.test(repositoryText(repository)),
-    ),
-);
-
-const repositorySample = computed(() =>
-    backups.repositories.value.map((repository) => repositoryText(repository)).join("\n"),
-);
-
-/** Honest about what was searched: complete over what loaded, never "everything". */
-const repositorySummary = computed(() => {
-    const total = backups.repositories.value.length;
-    if (total === 0) return "";
-    if (repoMatcher.value.active) {
-        return t(
-            "backup.repo.searchSummary",
-            { shown: String(shownRepositories.value.length), total: String(total) },
-            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300). If yours is not among them, type its owner and name below.",
-        );
-    }
-    return t(
-        "backup.repo.loadedSummary",
-        { total: String(total) },
-        "{total} repositories loaded (most recently active first, up to 300).",
-    );
-});
 
 /* -- creating a brand-new repository, beside choosing an existing one ------- */
 
@@ -275,6 +341,20 @@ const createBlockedBecause = computed<string | null>(() => {
         );
     }
     if (createRepoNameProblem.value !== null) return createRepoNameProblem.value;
+    if (
+        !ownerChoices.value.some(
+            (choice) =>
+                choice.kind === createOwnerKind.value &&
+                choice.login.localeCompare(owner.value.trim(), undefined, {
+                    sensitivity: "accent",
+                }) === 0,
+        )
+    ) {
+        return t(
+            "backup.createRepo.blockedConfirmedOwner",
+            "Choose a personal or organization owner confirmed for the selected account before creating a repository.",
+        );
+    }
     if (backups.creatingRepository.value) {
         return t("backup.createRepo.blockedCreating", "Already creating.");
     }
@@ -292,6 +372,9 @@ const canCreateRepo = computed(() => createBlockedBecause.value === null);
 async function createRepo(): Promise<void> {
     if (!canCreateRepo.value) return;
     const created = await backups.createRepository({
+        ...(effectiveAccountId.value === undefined
+            ? {}
+            : { accountId: effectiveAccountId.value }),
         ownerLogin: owner.value.trim(),
         ownerKind: createOwnerKind.value,
         name: repo.value.trim(),
@@ -361,10 +444,17 @@ async function start(): Promise<void> {
         folder: source.value.folder,
         owner: backups.report.value.owner,
         repo: backups.report.value.repo,
+        ...(effectiveAccountId.value === undefined
+            ? {}
+            : { accountId: effectiveAccountId.value }),
         acknowledgePublic: acknowledged.value,
     });
     if (backups.canListBackups && backups.report.value !== null) {
-        void backups.loadListings(backups.report.value.owner, backups.report.value.repo);
+        void backups.loadListings(
+            backups.report.value.owner,
+            backups.report.value.repo,
+            effectiveAccountId.value,
+        );
     }
 }
 
@@ -375,6 +465,9 @@ function resume(row: BackupRow): void {
         folder: source.value.folder,
         owner: backups.report.value.owner,
         repo: backups.report.value.repo,
+        ...(effectiveAccountId.value === undefined
+            ? {}
+            : { accountId: effectiveAccountId.value }),
         acknowledgePublic: acknowledged.value,
         resumeTag: row.tag,
     });
@@ -463,7 +556,14 @@ onMounted(() => {
     // What is already going must be on screen before anybody presses anything: a backup
     // started in another window is otherwise invisible here and gets started a second time.
     void backups.reconcile();
-    if (backups.canListRepositories) void backups.loadRepositories();
+    if (accountsList.canList) {
+        void accountsList.load().then(() => {
+            accountsLoaded.value = true;
+            void refreshAccountScope();
+        });
+    } else {
+        void refreshAccountScope();
+    }
 });
 
 onBeforeUnmount(() => {
@@ -485,6 +585,8 @@ defineExpose({
     folder,
     owner,
     repo,
+    selectedAccountId,
+    ownerChoices,
     source,
     inspect,
     check,
@@ -492,48 +594,31 @@ defineExpose({
     createVisibility,
     createRepo,
     canCreateRepo,
-    repoQuery,
-    repoRegex,
-    shownRepositories,
+    repositoryItems,
 });
 </script>
 
 <template>
     <section class="mb-backup" :aria-label="t('backup.title', 'Back up a world or a rendered map')">
-        <!--
-            The page's own header. This screen opened on an `<h4>` at 16px, which is a heading
-            for a section inside a page rather than the name of the page itself, and the two
-            paragraphs under it were the same 13px as everything else on the screen - so
-            nothing on it was read first. The prototype opens every job on a 26px title, a lede
-            saying what the screen is for, and a footnote carrying what the reader has to know
-            before starting. All three strings were already here; only their size has changed.
-
-            Grouped in a `<header>` rather than left as three children of the flex column,
-            because that column's 8px gap would otherwise be added to each of the type scale's
-            own margins - the 6px under a title becoming 14px, and so on - which is how one
-            screen ends up with a header that is subtly taller than the same header elsewhere.
-        -->
-        <header class="mb-backup__header">
-            <h1 class="mb-page-title">
-                {{ t("backup.title", "Back up a world or a rendered map") }}
-            </h1>
-            <p class="mb-lede">
-                {{
-                    t(
-                        "backup.blurb",
-                        "A backup is packed into one archive, cut into 500 MiB parts, and published as the assets of a new GitHub release. Every part carries its own SHA-256 in a small pointer file beside it, so a restore can prove it got back exactly what went up.",
-                    )
-                }}
-            </p>
-            <p class="mb-footnote">
-                {{
-                    t(
-                        "backup.whyNotLfs",
-                        "This deliberately does not use Git LFS. A free GitHub account gets one gigabyte of LFS storage and one gigabyte of bandwidth a month, and every restore is metered against it, so a single multi-gigabyte world exhausts the free tier and each restore is billed again. Release assets are free on a public repository and capped per file rather than in total. The pointer format matches Desktop Material's published Cheap LFS v1 grammar, checked against it here; a live restore through that application has not been run.",
-                    )
-                }}
-            </p>
-        </header>
+        <h4 class="mb-backup__title">
+            {{ t("backup.title", "Back up a world or a rendered map") }}
+        </h4>
+        <p class="mb-backup__blurb">
+            {{
+                t(
+                    "backup.blurb",
+                    "A backup is packed into one archive, cut into 500 MiB parts, and published as the assets of a new GitHub release. Every part carries its own SHA-256 in a small pointer file beside it, so a restore can prove it got back exactly what went up.",
+                )
+            }}
+        </p>
+        <p class="mb-backup__blurb">
+            {{
+                t(
+                    "backup.whyNotLfs",
+                    "This deliberately does not use Git LFS. A free GitHub account gets one gigabyte of LFS storage and one gigabyte of bandwidth a month, and every restore is metered against it, so a single multi-gigabyte world exhausts the free tier and each restore is billed again. Release assets are free on a public repository and capped per file rather than in total. The pointer format matches Desktop Material's published Cheap LFS v1 grammar, checked against it here; a live restore through that application has not been run.",
+                )
+            }}
+        </p>
 
         <v-alert
             v-if="!backups.available"
@@ -553,7 +638,7 @@ defineExpose({
         <template v-else>
             <!-- What to back up ------------------------------------------------ -->
             <v-card variant="tonal" class="mb-backup__step">
-                <v-card-title>
+                <v-card-title class="mb-backup__stepTitle">
                     {{ t("backup.what", "What to back up") }}
                 </v-card-title>
                 <v-card-text class="mb-backup__stepBody">
@@ -637,7 +722,7 @@ defineExpose({
                         {{ sourceFailure }}
                     </v-alert>
 
-                    <p v-else-if="source" class="mb-meta" role="status">
+                    <p v-else-if="source" class="mb-backup__note" role="status">
                         {{
                             t(
                                 "backup.sourceSummary",
@@ -667,9 +752,9 @@ defineExpose({
                                 )
                             }}
                         </p>
-                        <ul class="mb-meta mb-backup__skipped">
+                        <ul class="mb-backup__skipped">
                             <li v-for="entry in source.skipped" :key="entry.name">
-                                <strong>{{ entry.name }}</strong> - {{ entry.reason }}
+                                <strong>{{ entry.name }}</strong> — {{ entry.reason }}
                             </li>
                         </ul>
                     </v-alert>
@@ -678,64 +763,113 @@ defineExpose({
 
             <!-- Where it goes -------------------------------------------------- -->
             <v-card variant="tonal" class="mb-backup__step">
-                <v-card-title>
+                <v-card-title class="mb-backup__stepTitle">
                     {{ t("backup.where", "Where to keep it") }}
                 </v-card-title>
                 <v-card-text class="mb-backup__stepBody">
+                    <v-alert
+                        v-if="showAccountPicker && accountOrdered.length === 0"
+                        type="warning"
+                        density="compact"
+                        variant="tonal"
+                        class="mb-backup__alert"
+                        role="status"
+                        data-test="backup-account-signed-out"
+                    >
+                        {{
+                            t(
+                                "backup.account.signedOut",
+                                "No GitHub CLI account is signed in. Add or reauthenticate an account from GitHub Settings before backing up.",
+                            )
+                        }}
+                        <v-btn
+                            v-if="canOpenSettings"
+                            size="small"
+                            variant="text"
+                            class="mt-1"
+                            @click="emit('signIn')"
+                        >
+                            {{ t("backup.account.openSettings", "Open GitHub Settings") }}
+                        </v-btn>
+                    </v-alert>
+                    <GhEntityPicker
+                        v-else-if="showAccountPicker"
+                        :items="accountItems"
+                        :model-value="effectiveAccountId"
+                        :search-label="t('backup.account.search', 'Search signed-in accounts')"
+                        :select-label="t('backup.account.pick', 'Back up as')"
+                        :selected-label="t('backup.account.selected', 'Selected account')"
+                        :empty-message="t('backup.account.empty', 'No GitHub CLI accounts are signed in.')"
+                        :no-match-message="t('backup.account.noMatch', 'No signed-in account matches that search.')"
+                        :hint="
+                            t(
+                                'backup.account.help',
+                                'This operation uses only the selected GitHub CLI account. The broker selects it for each command and restores the account gh had active immediately afterwards. Another gh process can still change that machine-wide account between commands, so avoid running gh account changes while this operation is active.',
+                            )
+                        "
+                        data-test-base="backup-account-picker"
+                        @update:model-value="chooseAccount"
+                    />
+
+                    <p v-if="ownersLoading" class="mb-backup__note" role="status">
+                        {{ t("backup.owner.loading", "Reading personal and organization owners...") }}
+                    </p>
+                    <v-alert
+                        v-else-if="ownersFailure"
+                        type="warning"
+                        density="compact"
+                        variant="tonal"
+                        class="mb-backup__alert"
+                        role="alert"
+                    >
+                        {{ ownersFailure }}
+                        <v-btn
+                            size="small"
+                            variant="text"
+                            class="mt-1"
+                            @click="refreshAccountScope()"
+                        >
+                            {{ t("backup.owner.retry", "Try again") }}
+                        </v-btn>
+                    </v-alert>
+                    <GhEntityPicker
+                        v-else-if="ownerItems.length > 0"
+                        :items="ownerItems"
+                        :model-value="owner"
+                        :search-label="t('backup.owner.search', 'Search personal and organization owners')"
+                        :select-label="t('backup.owner.pick', 'Create under')"
+                        :selected-label="t('backup.owner.selected', 'Selected owner')"
+                        :empty-message="t('backup.owner.empty', 'No owners were returned by GitHub CLI.')"
+                        :no-match-message="t('backup.owner.noMatch', 'No real owner matches that search.')"
+                        :hint="
+                            t(
+                                'backup.owner.help',
+                                'Personal and organization owners are read through GitHub CLI for the selected account and revalidated before creation.',
+                            )
+                        "
+                        class="mt-3"
+                        data-test-base="backup-owner-picker"
+                        @update:model-value="chooseOwner"
+                    />
+
                     <template v-if="backups.repositories.value.length > 0">
-                        <ConfigSearchField
-                            v-model="repoQuery"
-                            v-model:regex="repoRegex"
-                            v-model:flags="repoFlags"
-                            :label="t('backup.repo.search', 'Search your repositories')"
-                            :sample="repositorySample"
-                            :summary="repositorySummary"
-                            density="compact"
-                            data-test="repository-search"
-                        />
-                        <v-select
-                            v-if="shownRepositories.length > 0"
-                            :items="
-                                shownRepositories.map((repository) => ({
-                                    title: repository.private
-                                        ? t(
-                                              'backup.repoPrivate',
-                                              { name: repository.fullName },
-                                              '{name} (private)',
-                                          )
-                                        : t(
-                                              'backup.repoPublic',
-                                              { name: repository.fullName },
-                                              '{name} (PUBLIC)',
-                                          ),
-                                    value: repository.fullName,
-                                }))
-                            "
-                            :label="t('backup.pickRepository', 'One of your repositories')"
-                            variant="outlined"
-                            density="compact"
-                            hide-details="auto"
-                            class="mt-2"
+                        <GhEntityPicker
+                            :items="repositoryItems"
+                            :model-value="owner && repo ? `${owner}/${repo}` : null"
+                            :search-label="t('backup.repo.search', 'Search your repositories')"
+                            :select-label="t('backup.pickRepository', 'One of your repositories')"
+                            :selected-label="t('backup.repo.selected', 'Selected repository')"
+                            :empty-message="t('backup.repo.empty', 'No writable repositories were returned by GitHub CLI.')"
+                            :no-match-message="t('backup.repo.noMatch', 'None of the loaded repositories match that search.')"
+                            :hint="t('backup.repo.loadedHint', 'Most recently active first, up to 300 real repositories returned by GitHub CLI.')"
+                            data-test-base="backup-repository-picker"
                             @update:model-value="choose"
                         />
-                        <p
-                            v-else
-                            class="mb-meta"
-                            role="status"
-                            data-test="repository-no-match"
-                        >
-                            {{
-                                t(
-                                    "backup.repo.noMatch",
-                                    "None of the loaded repositories match that search. Type the owner and name below instead, or create a new repository.",
-                                )
-                            }}
-                        </p>
                     </template>
 
                     <p
                         v-else-if="backups.loadingRepositories.value"
-                        class="mb-meta"
+                        class="mb-backup__note"
                         role="status"
                     >
                         {{ t("backup.loadingRepositories", "Reading your repositories...") }}
@@ -753,30 +887,19 @@ defineExpose({
 
                     <p
                         v-else-if="backups.canListRepositories"
-                        class="mb-meta"
+                        class="mb-backup__note"
                         role="status"
                         data-test="repository-none"
                     >
                         {{
                             t(
                                 "backup.repo.none",
-                                "This account has no repositories to write to yet. Create one below, or type an owner and name to check one directly.",
+                                "This account has no repositories to write to yet. Choose a confirmed owner above and create one below.",
                             )
                         }}
                     </p>
 
                     <div class="mb-backup__row">
-                        <v-text-field
-                            v-model="owner"
-                            :label="t('backup.owner', 'Owner')"
-                            variant="outlined"
-                            density="compact"
-                            spellcheck="false"
-                            autocapitalize="off"
-                            autocomplete="off"
-                            hide-details="auto"
-                            @keydown.enter="check"
-                        />
                         <v-text-field
                             v-model="repo"
                             :label="t('backup.repo', 'Repository')"
@@ -818,31 +941,10 @@ defineExpose({
                             {{
                                 t(
                                     "backup.createRepo.lead",
-                                    "Nothing suitable to pick or check? Create a brand-new repository with the owner and name above.",
+                                    "Nothing suitable to pick? Create a brand-new repository with the confirmed owner and name above.",
                                 )
                             }}
                         </p>
-                        <v-radio-group
-                            v-model="createOwnerKind"
-                            inline
-                            density="compact"
-                            hide-details="auto"
-                            :label="t('backup.createRepo.ownerKind', 'The owner above is')"
-                        >
-                            <v-radio
-                                :label="t('backup.createRepo.ownerKind.user', 'my own account')"
-                                value="user"
-                            />
-                            <v-radio
-                                :label="
-                                    t(
-                                        'backup.createRepo.ownerKind.org',
-                                        'an organization I belong to',
-                                    )
-                                "
-                                value="organization"
-                            />
-                        </v-radio-group>
                         <v-radio-group
                             v-model="createVisibility"
                             inline
@@ -903,7 +1005,18 @@ defineExpose({
                             role="alert"
                             data-test="create-repo-failure"
                         >
-                            {{ backups.createRepositoryFailure.value.message }}
+                            <p>{{ backups.createRepositoryFailure.value.message }}</p>
+                            <v-btn
+                                v-if="backups.createRepositoryFailure.value.needsSignIn === true && canOpenSettings"
+                                size="small"
+                                variant="tonal"
+                                color="primary"
+                                class="mt-2"
+                                data-test="create-repo-reauth"
+                                @click="emit('signIn')"
+                            >
+                                {{ t("backup.account.openSettings", "Open GitHub Settings") }}
+                            </v-btn>
                         </v-alert>
                     </v-card>
 
@@ -1049,27 +1162,17 @@ defineExpose({
 
             <!-- What is already there ------------------------------------------ -->
             <template v-if="backups.report.value && backups.canListBackups">
-                <!--
-                    The prototype's section rule: an uppercase label with a hairline running
-                    off to the right of it, drawn by `.mb-section-rule::after` in the shared
-                    sheet. It is the single most recognisable thing about the design, and a
-                    list that simply begins under a bold word is what the previous application
-                    did. The heading stays a real `<h2>` so the page keeps an outline a screen
-                    reader can navigate; only its appearance comes from the label class.
-                -->
-                <div class="mb-section-rule">
-                    <h2 class="mb-section-label">
-                        {{
-                            t(
-                                "backup.listings.title",
-                                { name: backups.report.value.fullName },
-                                "Backups already in {name}",
-                            )
-                        }}
-                    </h2>
-                </div>
+                <h5 class="mb-backup__title">
+                    {{
+                        t(
+                            "backup.listings.title",
+                            { name: backups.report.value.fullName },
+                            "Backups already in {name}",
+                        )
+                    }}
+                </h5>
 
-                <p v-if="backups.listing.value" class="mb-meta" role="status">
+                <p v-if="backups.listing.value" class="mb-backup__note" role="status">
                     {{ t("backup.listings.reading", "Reading the repository's releases...") }}
                 </p>
 
@@ -1083,7 +1186,7 @@ defineExpose({
                     {{ backups.listingsFailure.value }}
                 </v-alert>
 
-                <p v-else-if="backups.listings.value.length === 0" class="mb-meta">
+                <p v-else-if="backups.listings.value.length === 0" class="mb-backup__note">
                     {{
                         t(
                             "backup.listings.none",
@@ -1105,7 +1208,7 @@ defineExpose({
                         />
                     </div>
 
-                    <p v-if="shownListings.length === 0" class="mb-meta" role="status">
+                    <p v-if="shownListings.length === 0" class="mb-backup__note" role="status">
                         {{
                             t(
                                 "backup.listings.noMatch",
@@ -1133,8 +1236,8 @@ defineExpose({
                             </v-chip>
                         </v-card-title>
                         <v-card-text class="mb-backup__stepBody">
-                            <p class="mb-meta">{{ describeListing(listing) }}</p>
-                            <p class="mb-meta">
+                            <p class="mb-backup__note">{{ describeListing(listing) }}</p>
+                            <p class="mb-backup__note">
                                 {{
                                     t(
                                         "backup.listings.made",
@@ -1154,7 +1257,7 @@ defineExpose({
                                 {{ listing.unsupported }}
                             </v-alert>
 
-                            <p v-else-if="!listing.complete" class="mb-meta">
+                            <p v-else-if="!listing.complete" class="mb-backup__note">
                                 {{
                                     t(
                                         "backup.listings.incompleteDetail",
@@ -1186,7 +1289,7 @@ defineExpose({
                     </v-card>
                 </template>
 
-                <p class="mb-meta">
+                <p class="mb-backup__note">
                     {{
                         t(
                             "backup.listings.appendOnly",
@@ -1200,41 +1303,35 @@ defineExpose({
 </template>
 
 <style>
-/*
- * The prototype's page gutter and measure, exactly as `ProjectsScreen.vue` states them:
- * 30px top, 40px side, 48px bottom, with the content held to 900px so a paragraph never runs
- * the full width of a 1440px window. The 12px top margin this used to carry was the whole of
- * its page furniture, which is why the screen read as a panel that had been dropped into a
- * window rather than as a page. Stated here rather than inherited from the shell so the screen
- * is correct wherever it is hosted.
- */
 .mb-backup {
+    margin-block-start: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     align-items: stretch;
-    inline-size: 100%;
-    max-inline-size: 900px;
-    margin-inline: auto;
-    padding: 30px 40px 48px;
 }
 
-@media (max-width: 900px) {
-    .mb-backup {
-        padding: 20px 16px 32px;
-    }
+.mb-backup__title {
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.3;
 }
 
-/*
- * `.mb-backup__title`, `.mb-backup__blurb`, `.mb-backup__note` and `.mb-backup__stepTitle`
- * were four separate opinions about the same four measurements the shared sheet already
- * states once. The heading is now the page's `<h1>`, the two paragraphs under it are the
- * lede and the footnote, every grey status line carries `.mb-meta`, and the step cards'
- * titles take `.v-card-title`'s own 15px/500 rather than repeating it at a specificity that
- * could not have won anyway. Nothing here changed size; the numbers simply have one home now.
- */
-.mb-backup__header {
-    margin-block-end: 18px;
+.mb-backup__blurb,
+.mb-backup__note {
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-wrap: pretty;
+}
+
+.mb-backup__blurb {
+    font-size: 0.8125rem;
+}
+
+.mb-backup__stepTitle {
+    font-size: 0.9375rem;
+    font-weight: 500;
 }
 
 .mb-backup__stepBody {
@@ -1273,9 +1370,7 @@ defineExpose({
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
-    line-height: 18px;
-    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: 0.75rem;
 }
 
 .mb-backup__alert,
@@ -1293,9 +1388,10 @@ defineExpose({
     margin-block-start: 8px;
 }
 
-/* Type and colour come from `.mb-meta` in the template; this only has to indent the list. */
 .mb-backup__skipped {
     padding-inline-start: 18px;
+    font-size: 0.75rem;
+    line-height: 1.6;
     overflow-wrap: anywhere;
 }
 
@@ -1304,6 +1400,8 @@ defineExpose({
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+    font-size: 0.9375rem;
+    font-weight: 500;
     /*
      * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
      * white-space: nowrap` for a single-line block title. Flexing it (above) leaves

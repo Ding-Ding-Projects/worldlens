@@ -185,29 +185,68 @@ watch(
 
 const file = computed(() => (selected.value === undefined ? null : openMapFile(selected.value)));
 
-/**
- * `render-mask` has one map-level editor. The generated FieldMeta row below is a launcher
- * into this card, never a second draft with a second set of ordering rules.
- */
-const renderMaskField = computed<FieldMeta | null>(
-    () => file.value?.descriptor.fields.find((field) => field.path === "render-mask") ?? null,
-);
-const renderMaskValue = computed<PlainValue[]>(() => {
-    const open = file.value;
-    const field = renderMaskField.value;
-    if (open === null || field === null) return [];
-    const value = fieldValue(open, field);
-    return Array.isArray(value) ? value : [];
-});
-const renderMaskExplicit = computed(() => {
-    const open = file.value;
-    const field = renderMaskField.value;
-    return open !== null && field !== null && isExplicit(open, field);
-});
-const renderMaskCard = ref<{ openAndFocus: () => Promise<void> } | null>(null);
+/* -------------------------------------------------------------------------- */
+/* The render mask                                                            */
+/* -------------------------------------------------------------------------- */
 
-// Mirror the summary logic from the prototype: estimate cost from the normalized shapes.
-const maskCost = computed(() => estimateRenderCost(normalizeMaskList(renderMaskValue.value as PlainValue[])));
+/**
+ * The render mask, surfaced above the settings form rather than left to be found inside it.
+ *
+ * `render-mask` is one field among ninety in a map's config, and it is the only one of them
+ * that decides how much of the world gets drawn at all - which makes it simultaneously the
+ * most consequential setting on the map and the one buried deepest in an accordion.
+ * `Worldlens.dc.html` puts it in a card of its own above the groups for exactly that reason,
+ * and this is that card.
+ *
+ * The editor itself is not reimplemented here. `../config/ConfigMaskField.vue` already draws
+ * every shape BlueMap's mask registry knows about, ordered, additive and subtractive, over
+ * the measured region bounds and the world's real spawn - so this states what the mask
+ * currently is and sends somebody to that editor. A second mask editor would be a second set
+ * of rules about what a mask means, and the first one to drift would be the one nobody
+ * noticed had drifted.
+ *
+ * Found by control kind rather than by the path `render-mask`, so this keeps working if the
+ * schema renames the key, and so nothing here names a BlueMap setting - the same rule the
+ * rest of this panel already follows.
+ */
+const maskField = computed(() =>
+    file.value === null
+        ? undefined
+        : file.value.descriptor.fields.find((field) => field.control.kind === "mask-list"),
+);
+
+const maskShapes = computed<readonly Record<string, unknown>[]>(() => {
+    const open = file.value;
+    const field = maskField.value;
+    if (open === null || field === undefined) return [];
+    const value = fieldValue(open, field);
+    return Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
+});
+
+/**
+ * What the mask currently does, in the facts somebody needs before opening the editor.
+ *
+ * An empty mask is not "no setting" - it is BlueMap's documented "render everything that
+ * exists", and saying so is what stops an empty card reading as a broken one. Where the world
+ * has actually been measured, the region count says how much "everything" is; where it has
+ * not, the sentence stays true without inventing a number.
+ *
+ * ## Why "how many shapes" is not the whole answer
+ *
+ * A map written from upstream's own template arrives carrying **one** shape: a box with every
+ * bound commented out, which limits nothing at all. A card that counted shapes and stopped
+ * would announce "1 added" on a mask that renders exactly as much as no mask does, which is
+ * the sort of true-but-misleading line that teaches people to stop reading a summary.
+ *
+ * So the size question is handed to `estimateRenderCost`, the same function
+ * `../config/ConfigMaskField.vue` uses for its own cost line, rather than answered by a second
+ * opinion written here. A shape that leaves an axis with no limit comes back as `unbounded`,
+ * and the card says so in upstream's own words instead of implying the mask is smaller than it
+ * is. Deliberately no cleverer than that: guessing that a particular unbounded shape "really
+ * means everything" would be this panel inventing mask semantics, and the one thing worse than
+ * a count is a count somebody decided to reinterpret.
+ */
+const maskCost = computed(() => estimateRenderCost(normalizeMaskList(maskShapes.value as PlainValue[])));
 
 const maskSummary = computed(() => {
     const regions = maskWorld.value.regionCount;
@@ -228,27 +267,69 @@ const maskSummary = computed(() => {
     const shapes = t(
         "project.maps.maskShapes",
         {
-            added: renderMaskValue.value.filter((shape) => shape["subtract"] !== true).length,
-            cut: renderMaskValue.value.filter((shape) => shape["subtract"] === true).length,
+            added: maskShapes.value.filter((shape) => shape["subtract"] !== true).length,
+            cut: maskShapes.value.filter((shape) => shape["subtract"] === true).length,
         },
         "{added} added and {cut} cut out, combined in the order they are listed.",
     );
 
+    // Upstream's own wording for a mask that cannot be sized, borrowed rather than restated:
+    // two sentences meaning the same thing in two places is two sentences to keep in step.
     return maskCost.value.basis === "unbounded"
         ? `${shapes} ${t("mask.cost.unbounded", "At least one shape has no limit on some axis, so no area number can be given.")}`
         : shapes;
 });
 
+/**
+ * Sends somebody to the mask editor inside the settings form below.
+ *
+ * The form reveals a field by watching the path it was handed, so pressing this a second time
+ * with the same path already set would change nothing at all and read as a dead button.
+ * Clearing it first is what makes every press scroll the mask back into view.
+ */
 async function revealMask(): Promise<void> {
-    // Prefer the concrete editor card's open-and-focus when available (incoming branch provides it).
-    if (renderMaskCard.value && typeof renderMaskCard.value.openAndFocus === "function") {
-        await renderMaskCard.value.openAndFocus();
-        return;
-    }
-
-    // Fallback behaviour: nothing to do when the editor API isn't present.
+    const field = maskField.value;
+    if (field === undefined) return;
+    maskFocus.value = null;
+    await nextTick();
+    maskFocus.value = field.path;
 }
 
+/**
+ * The one map-node mask editor card, and the launcher row the generated form keeps.
+ *
+ * The card owns the drawing surface: `ConfigMaskField` mounts inside it, once, when it is
+ * open. The form's own `render-mask` row stays visible - every FieldMeta row does - but it
+ * is a route into this card rather than a second editor with a second set of ordering
+ * rules. The summary strip above routes the other way, revealing the row in the form.
+ */
+const renderMaskValue = computed<PlainValue[]>(() => {
+    const open = file.value;
+    const field = maskField.value;
+    if (open === null || field === undefined) return [];
+    const value = fieldValue(open, field);
+    return Array.isArray(value) ? value : [];
+});
+const renderMaskExplicit = computed(() => {
+    const open = file.value;
+    const field = maskField.value;
+    return open !== null && field !== undefined && isExplicit(open, field);
+});
+const renderMaskCard = ref<{ openAndFocus: () => Promise<void> } | null>(null);
+
+function setRenderMask(value: PlainValue[]): void {
+    const field = maskField.value;
+    if (field !== undefined) onSet(field, value);
+}
+
+function clearRenderMask(): void {
+    const field = maskField.value;
+    if (field !== undefined) onClear(field);
+}
+
+async function openRenderMaskCard(): Promise<void> {
+    await renderMaskCard.value?.openAndFocus();
+}
 
 const storages = computed(() => storageIds(props.project));
 
@@ -286,20 +367,6 @@ function onRawText(text: string): void {
     const open = file.value;
     if (map === undefined || open === null) return;
     emit("update:project", withMapConfig(props.project, map.id, replaceText(open, text).text));
-}
-
-function setRenderMask(value: PlainValue[]): void {
-    const field = renderMaskField.value;
-    if (field !== null) onSet(field, value);
-}
-
-function clearRenderMask(): void {
-    const field = renderMaskField.value;
-    if (field !== null) onClear(field);
-}
-
-async function openRenderMaskCard(): Promise<void> {
-    await renderMaskCard.value?.openAndFocus();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -898,9 +965,30 @@ function confirmRemoval(): void {
                     </v-card-text>
                 </v-card>
 
+                <!--
+                    The one setting on a map that decides how much of the world is drawn at
+                    all, lifted out of the accordion it would otherwise be the ninetieth row
+                    of. The button is a real route into the real editor below rather than a
+                    second one: see `maskField` in the script for why there is only ever one.
+                -->
+                <div v-if="maskField" class="mb-project-maps__mask">
+                    <span class="mb-icon-tile" aria-hidden="true">
+                        <v-icon :icon="mdiCropFree" size="21" />
+                    </span>
+                    <div class="mb-project-maps__maskText">
+                        <p class="mb-project-maps__maskTitle">
+                            {{ t("project.maps.mask", "Render mask") }}
+                        </p>
+                        <p class="mb-meta">{{ maskSummary }}</p>
+                    </div>
+                    <v-btn color="primary" variant="tonal" size="small" @click="revealMask">
+                        {{ t("project.maps.maskDraw", "Open the mask editor") }}
+                    </v-btn>
+                </div>
+
                 <RenderMaskEditorCard
                     ref="renderMaskCard"
-                    class="mb-project-maps__mask"
+                    class="mb-project-maps__maskCard"
                     :model-value="renderMaskValue"
                     :dimension="selected.dimension"
                     :world="maskWorld"
@@ -1046,6 +1134,8 @@ function confirmRemoval(): void {
     overflow-wrap: anywhere;
 }
 
+.mb-project-maps__maskCard {
+    margin-block-end: 16px;
 }
 
 .mb-project-maps__grid {

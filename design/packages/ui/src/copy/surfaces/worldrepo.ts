@@ -412,6 +412,10 @@ export const WORLDREPO_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const WORLDREPO_FIXED = {
+    "worldrepo.gh.reauthenticate": {
+        en: "Reauthenticate this GitHub CLI account",
+        yue: "重新驗證呢個 GitHub CLI 帳戶",
+    },
     "worldrepo.account.reauthenticationRequired": {
         en: "reauthentication required",
         yue: "需要重新驗證",
@@ -489,7 +493,6 @@ export const WORLDREPO_FIXED = {
     "worldrepo.sync": { en: "Sync this world", yue: "同步呢個世界" },
     "worldrepo.resume": { en: "Continue this sync", yue: "繼續呢個同步" },
     "worldrepo.cancel": { en: "Stop syncing", yue: "停止同步" },
-    "worldrepo.open": { en: "Open on GitHub", yue: "喺 GitHub 打開" },
     "worldrepo.copy": { en: "Copy the repository address", yue: "複製 repository 網址" },
     "worldrepo.stopTracking": { en: "Stop tracking", yue: "停止追蹤" },
     "worldrepo.bulkStopTracking": { en: "Stop tracking {chosen}", yue: "停止追蹤 {chosen} 個" },
@@ -524,10 +527,6 @@ export const WORLDREPO_FIXED = {
     "worldrepo.gh.readyAs": {
         en: "The gh command-line tool is signed in as {account} on {host}.",
         yue: "gh 命令列工具而家喺 {host} 以 {account} 身分登入。",
-    },
-    "worldrepo.gh.signIn": {
-        en: "Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
-        yue: "喺終端機行 `gh auth login`，佢會互動咁問你要個代碼，喺呢個 app 入面控制唔到，之後再檢查一次。",
     },
 
     "worldrepo.phase.starting": { en: "Starting", yue: "開始緊" },

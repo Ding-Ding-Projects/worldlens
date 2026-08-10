@@ -836,22 +836,6 @@ export const SETTINGS_VOICED = {
      * touches those two - a level that dropped it would leave a reader believing they had
      * just made every error on the app auto-dismiss.
      */
-    "settings.noticeDuration.description": {
-        en: [
-            "How long an informational or success toast stays on screen before it dismisses itself. Warnings and errors are never affected: they always stay until you dismiss them.",
-            "How long an informational or success toast stays on screen before it dismisses itself. Warnings and errors are never affected: they always stay until you dismiss them.",
-            "How long an informational or success toast stays on screen before it dismisses itself. Warnings and errors are never affected; they always stay until you dismiss them.",
-            "How long an informational or success toast lingers before it quietly dismisses itself. Warnings and errors are never affected by this dial; they always stay until you dismiss them, no matter what level you pick.",
-            "How long an informational or success toast gets to hang around before it vanishes on its own. Warnings and errors are never affected by this dial in the slightest; they always stay until you personally dismiss them, no matter how fast you set everything else.",
-        ],
-        yue: [
-            "資訊或者成功嘅提示喺畫面度留幾耐先自動收埋。警告同錯誤唔受呢個設定影響：佢哋一定留到你自己收埋為止。",
-            "資訊或者成功嘅提示喺畫面度留幾耐先自動收埋。警告同錯誤唔受呢個設定影響：佢哋一定留到你自己收埋為止。",
-            "資訊或者成功嘅提示喺畫面度留幾耐先自動收埋。警告同錯誤唔受呢個設定影響，佢哋一定留到你自己收埋為止。",
-            "資訊或者成功嘅提示可以喺畫面度賴幾耐先靜靜雞收埋。警告同錯誤完全唔受呢個掣影響，唔理你揀幾快，佢哋照樣留到你親手收埋為止。",
-            "資訊或者成功嘅提示想喺畫面度賴幾耐先消失得返。警告同錯誤完全唔受呢個掣半分影響，唔理你將第二樣嘢調到幾快，佢哋一樣留到你親手收埋為止。",
-        ],
-    },
     /* Every level's own summary of what it sets. `{info}`/`{success}` are the exact seconds, always. */
     "settings.noticeDuration.levelSummary": {
         en: [
@@ -1116,7 +1100,6 @@ export const SETTINGS_FIXED = {
     "settings.renderMemory.saved": { en: "Saved.", yue: "已儲存。" },
 
     /* The Notification duration tab's own heading, above `settings.noticeDuration.description`. */
-    "settings.noticeDuration.title": { en: "Notification duration", yue: "通知留幾耐" },
     "settings.noticeDuration.level.1": { en: "1 · Quick", yue: "1 級 · 快" },
     "settings.noticeDuration.level.2": { en: "2 · Brisk", yue: "2 級 · 爽快" },
     "settings.noticeDuration.level.3": { en: "3 · Balanced", yue: "3 級 · 均衡" },
@@ -1357,10 +1340,6 @@ export const SETTINGS_FACTS = {
     },
 
     // The one fact that matters: this dial never touches warnings or errors, at any level.
-    "settings.noticeDuration.description": {
-        en: ["Warnings and errors", "stay until"],
-        yue: ["警告同錯誤", "留到你"],
-    },
     "settings.noticeDuration.levelSummary": {
         en: ["{info}", "{success}"],
         yue: ["{info}", "{success}"],

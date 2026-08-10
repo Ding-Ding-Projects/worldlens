@@ -310,6 +310,10 @@ export const PAGES_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const PAGES_FIXED = {
+    "pages.gh.reauthenticate": {
+        en: "Reauthenticate this GitHub CLI account",
+        yue: "重新驗證呢個 GitHub CLI 帳戶",
+    },
     "pages.account.reauthenticationRequired": {
         en: "reauthentication required",
         yue: "需要重新驗證",

@@ -545,7 +545,22 @@ async function checkAgain(): Promise<void> {
 </script>
 
 <template>
-    <div class="mb-ghcli">
+    <!--
+        A build whose preload predates gh account listing has `canList === false`, and the
+        honest thing to draw is one sentence rather than an empty list with controls that
+        would throw - exactly what `ghCliAccountsStore.ts`'s own doc promises this surface
+        does. The sentence reuses the settings section's `settings.github.unsupported` key,
+        so both say the same thing in the same words.
+    -->
+    <p v-if="!state.canList" class="mb-ghcli__note">
+        {{
+            t(
+                "settings.github.unsupported",
+                "This build cannot sign in to GitHub. Nothing is wrong with your account, and nothing was stored: the sign-in is held by the desktop app, and this build has no way to reach it.",
+            )
+        }}
+    </p>
+    <div v-else class="mb-ghcli">
         <div class="mb-ghcli__head">
             <h3 class="mb-ghcli__title">
                 {{ t("settings.github.ghCli.title", "gh command-line tool accounts") }}
