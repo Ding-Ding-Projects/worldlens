@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "d4f020d84faef38a3a2081a0ed619177fe665146",
+        shortSha: "d4f020d84f",
+        date: "2026-08-09T21:45:27-04:00",
+        subject: "Render article blocks through supported conditions",
+        details: "The archive renderer reads sc-if's value attribute, so article headings, prose, code, and lists now use that contract instead of disappearing behind an unsupported condition attribute. Navigation boundaries are genuinely disabled, and empty-state text keeps readable contrast rather than fading into the furniture.\n\nArchive renderer 只會讀 sc-if 嘅 value，所以文章標題、段落、程式碼同清單而家終於用啱門匙，唔會再匿埋扮忍者。上一頁／下一頁邊界會真正停用，空白狀態文字亦唔再同背景玩捉迷藏。",
+        category: "site",
+        areas: ["site"],
+        files: 2,
+    },
+    {
         sha: "973bcd120f52d727b2a6739d624eeaede574ccf4",
         shortSha: "973bcd120f",
         date: "2026-08-09T21:38:01-04:00",

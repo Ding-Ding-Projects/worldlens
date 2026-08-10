@@ -57,6 +57,7 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- Render article blocks through supported conditions - [`d4f020d84f`](https://github.com/Ding-Ding-Projects/worldlens/commit/d4f020d84faef38a3a2081a0ed619177fe665146)
 - Merge remote-tracking branch 'origin/main' - [`51f08d4c2b`](https://github.com/Ding-Ding-Projects/worldlens/commit/51f08d4c2bc522c104d7c23f33bf070a78b264d3) _(summary of 6 commits, also listed here)_
 - Retarget compact proof to the canonical site runtime - [`cb1ef1ff3b`](https://github.com/Ding-Ding-Projects/worldlens/commit/cb1ef1ff3b20dfbe1e8177ccd335ecd3f908dbfd)
 - Retarget compact proof to the canonical site runtime - [`c60e085f55`](https://github.com/Ding-Ding-Projects/worldlens/commit/c60e085f551883af94e9f8ad03946dad26755375)
