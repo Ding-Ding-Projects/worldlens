@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "91bf9898e8074c5564ec7e16f65ca6e68275973a",
+        shortSha: "91bf9898e8",
+        date: "2026-08-10T17:33:54Z",
+        subject: "fix(viewer): a malformed size header no longer claims computable progress",
+        details: "parseInt returns NaN for a malformed X-File-Size or Content-Length, and\nNaN !== 0 is true, so the loader announced lengthComputable: true with a NaN\ntotal and every consumer dividing by it reported NaN%. A header is a claim\nfrom a server, not a fact: anything that is not a finite positive integer now\nmeans the size is unknown, which is exactly what lengthComputable: false says.",
+        category: "engine",
+        areas: ["engine"],
+        files: 1,
+    },
+    {
         sha: "57848656109af21355a8d9d29b84c9bee7dc0489",
         shortSha: "5784865610",
         date: "2026-08-10T17:29:08Z",

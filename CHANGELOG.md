@@ -24,6 +24,10 @@ full message for the in-app changelog viewer.
 
 - fix(shell): give the status strip's progress bar a value, on the scale the app produces - [`5784865610`](https://github.com/Ding-Ding-Projects/worldlens/commit/57848656109af21355a8d9d29b84c9bee7dc0489)
 
+### Rendering and world data
+
+- fix(viewer): a malformed size header no longer claims computable progress - [`91bf9898e8`](https://github.com/Ding-Ding-Projects/worldlens/commit/91bf9898e8074c5564ec7e16f65ca6e68275973a)
+
 ## 1.0.1017 - 2026-08-10
 
 Tagged at [`86cdbb3c8b`](https://github.com/Ding-Ding-Projects/worldlens/commit/86cdbb3c8be48687715a2d346a037c83a9f5175f).
