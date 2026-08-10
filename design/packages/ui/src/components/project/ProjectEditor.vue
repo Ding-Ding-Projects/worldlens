@@ -1060,65 +1060,13 @@ const renderButtonLabel = computed(() =>
             had been rebuilt. A card with a back button in it is a dialog; a title with a lede
             under it is a page.
         -->
-        <v-card class="mb-project-editor__head">
-            <v-card-text>
-                <div class="mb-project-editor__headrow">
-                    <v-btn
-                        :prepend-icon="mdiArrowLeft"
-                        variant="text"
-                        size="small"
-                        @click="emit('close')"
-                    >
-                        {{ t("project.editor.back", "All projects") }}
-                    </v-btn>
-                    <v-spacer />
-                    <v-chip v-if="project.fromWizard" size="small" variant="tonal">
-                        {{ t("project.editor.fromWizard", "made by the guide") }}
-                    </v-chip>
-                    <v-chip v-if="isDirty" size="small" color="warning" variant="tonal">
-                        {{ t("project.editor.unsaved", "Unsaved changes") }}
-                    </v-chip>
-                </div>
-
-                <v-text-field
-                    :model-value="project.name"
-                    :label="t('project.editor.name', 'Project name')"
-                    variant="outlined"
-                    density="compact"
-                    hide-details="auto"
-                    class="mt-2"
-                    @update:model-value="
-                        (value: string) => emit('update:project', withName(project, value))
-                    "
-                />
-
-                <p class="mb-project-editor__path">
-                    {{ t("project.editor.world", { world }, "Lives at the root of {world}") }}
-                </p>
-                <p class="mb-project-editor__note">
-                    {{
-                        t(
-                            "project.editor.blurb",
-                            "Everything below is applied when this project renders, so a second render repeats the first without asking anything again. The world is wherever this file was found; moving the folder moves the project with it.",
-                        )
-                    }}
-                </p>
-
-                <v-progress-linear v-if="isSaving" indeterminate color="primary" class="mt-2" />
-
-                <v-alert
-                    v-if="saveFailure"
-                    type="error"
-                    density="compact"
-                    variant="tonal"
-                    class="mt-2"
-                    role="alert"
-                >
-                    {{ saveFailure }}
-                </v-alert>
-            </v-card-text>
-        </v-card>
-
+        <header class="mb-project-editor__header">
+            <div class="mb-project-editor__headrow">
+                <v-btn
+                    :prepend-icon="mdiArrowLeft"
+                    variant="text"
+                    size="small"
+                    @click="emit('close')"
                 >
                     {{ t("project.editor.back", "All projects") }}
                 </v-btn>
@@ -1579,7 +1527,7 @@ const renderButtonLabel = computed(() =>
                                     :label="
                                         t(
                                             'project.render.metrics',
-                                            'Send BlueMap\\'s anonymous usage report',
+                                            'Send BlueMap\'s anonymous usage report',
                                         )
                                     "
                                     :hint="
@@ -1752,12 +1700,6 @@ const renderButtonLabel = computed(() =>
                 <section class="mb-project-editor__context-section">
                     <p class="mb-project-editor__eyebrow">
                         {{ t("project.context.consequences", "Consequences") }}
-                    </p>
-                    <ul class="mb-project-editor__context-list">
-                        <li v-for="row in consequenceRows" :key="row">{{ row }}</li>
-                    </ul>
-                </section>
-
                     </p>
                     <ul class="mb-project-editor__context-list">
                         <li v-for="row in consequenceRows" :key="row">{{ row }}</li>
@@ -2236,9 +2178,6 @@ const renderButtonLabel = computed(() =>
     line-height: 1.45;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
-    overflow-wrap: anywhere;
-}
-
     overflow-wrap: anywhere;
 }
 

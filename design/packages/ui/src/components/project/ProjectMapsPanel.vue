@@ -207,7 +207,8 @@ const renderMaskExplicit = computed(() => {
 const renderMaskCard = ref<{ openAndFocus: () => Promise<void> } | null>(null);
 
 // Mirror the summary logic from the prototype: estimate cost from the normalized shapes.
-const maskCost = computed(() => estimateRenderCost(normalizeMaskList(renderMaskValue.value as PlainValue[])));
+const maskShapes = computed(() => normalizeMaskList(renderMaskValue.value));
+const maskCost = computed(() => estimateRenderCost(maskShapes.value));
 
 const maskSummary = computed(() => {
     const regions = maskWorld.value.regionCount;
@@ -228,8 +229,8 @@ const maskSummary = computed(() => {
     const shapes = t(
         "project.maps.maskShapes",
         {
-            added: renderMaskValue.value.filter((shape) => shape["subtract"] !== true).length,
-            cut: renderMaskValue.value.filter((shape) => shape["subtract"] === true).length,
+            added: maskShapes.value.filter((shape) => shape.subtract !== true).length,
+            cut: maskShapes.value.filter((shape) => shape.subtract === true).length,
         },
         "{added} added and {cut} cut out, combined in the order they are listed.",
     );
@@ -1044,8 +1045,6 @@ function confirmRemoval(): void {
     margin-block-start: 2px;
     text-wrap: pretty;
     overflow-wrap: anywhere;
-}
-
 }
 
 .mb-project-maps__grid {
