@@ -20,6 +20,14 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Interface
+
+- fix(shell): give the status strip's progress bar a value, on the scale the app produces - [`5784865610`](https://github.com/Ding-Ding-Projects/worldlens/commit/57848656109af21355a8d9d29b84c9bee7dc0489)
+
+## 1.0.1017 - 2026-08-10
+
+Tagged at [`86cdbb3c8b`](https://github.com/Ding-Ding-Projects/worldlens/commit/86cdbb3c8be48687715a2d346a037c83a9f5175f).
+
 ### Build, release and tooling
 
 - feat!: Worldlens 1.0 - the verified public baseline - [`6ad26921ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/6ad26921abe7aa5c081929ccbc1a2ab2bab09ba1)
