@@ -1,5 +1,60 @@
 # Handoff
 
+## 2026-08-09 (latest) — ZIP-canonical Pages redesign integrated and pushed
+
+The attached Material Design 3 archive is now the production documentation-site shell on `main`.
+The implementation commit for this handoff is `69eb96863bef7560d3a092c8bfa6888a50243be8`; it includes
+the original `sites-rewrite` lineage, the two commits that arrived on `main` during integration,
+the responsive site/runtime repairs, release-workflow and local-build hardening, and the regenerated
+repository and in-app changelog.
+
+### What changed
+
+- `packages/site/index.html` and `packages/site/src/archive-entry.ts` now ship the archive design
+  with local React assets, 59 embedded archive articles, responsive 320 px sizing, safe-area handling,
+  keyboard/focus management, ten independently stateful adjacent regex builders, and working controls
+  across left/right/top/bottom navigation layouts.
+- `packages/site/scripts/archive-site-plugin.mjs` validates unique article ids and titles, contains
+  malformed request paths with a bounded HTTP 400, and emits the static-host-compatible runtime.
+- `packages/site/scripts/assert-archive-controls.mjs` proves 68 platform bindings, ten builders,
+  14 enhancer bindings, three package-script invocations, and 59 deliberately failing mutations.
+- Article headings, paragraphs, code blocks and lists use the archive renderer's supported `sc-if
+  value` contract. Previous/Next boundaries are native-disabled when absent, and compact helper text
+  uses contrast-safe colour roles.
+- The UI parser/type repairs, release eligibility condition, fresh-host `build.bat` and
+  `build-installer.bat`, and schema-v3 compact proof are integrated on `main`.
+
+### Verified locally
+
+| Check | Result |
+| --- | --- |
+| Site archive-control assertion | 68 bindings, 10 builders, 59 mutation guards |
+| Site TypeScript | Passed |
+| Site production build | Passed; 5 modules, 53 repository docs articles, 12 local dim-sum images |
+| UI TypeScript and dependency-aware build | Passed; 1,634 modules transformed |
+| Workflow security | 31/31 tests; 117 pinned actions and 6 watched release steps |
+| Generated changelog | Current; 136 versions, 897 entries, every SHA resolved |
+| Batch-script parser/static contract | Help and invalid-candidate paths, labels, line lengths, no publication commands |
+
+### Remote verification boundary
+
+- CI run [31347980500](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31347980500)
+  targets the exact implementation commit and was queued when this handoff was written.
+- Pages run [31347980389](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31347980389)
+  targets the same commit and was in progress. The immediately preceding Pages run
+  [31347686922](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31347686922) succeeded at
+  `45a2ffa3`, before the final article-condition correction.
+- A documentation-only handoff commit follows this implementation commit and will start its own runs.
+  Do not call CI, Pages, installer, screenshot evidence, or release verification complete until the
+  newest exact-tip results are read back. In particular, the existing 83-image app manifest and 3-image
+  packaged-shell evidence groups still require genuine recapture rather than a digest-only update.
+
+### Next owner action
+
+Read both exact-tip workflow verdicts. If CI remains red only on screenshot evidence, obtain the new
+workflow capture artifact and perform the documented genuine recapture commands before changing the
+inventory digests. Keep issue #107 open until the exact deployed surface has its own post-fix capture.
+
 ## 2026-08-08 (latest) — shell rewrite: phases 1–4 shipped, App suite green
 
 Read this first. The state below is observed, not planned.

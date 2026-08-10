@@ -1,5 +1,23 @@
 # Roadmap
 
+## ZIP-canonical Material Design 3 Pages integration (2026-08-09)
+
+**Integrated and pushed at `69eb96863bef7560d3a092c8bfa6888a50243be8`; exact-tip remote
+verification is running.** The attached archive now owns the documentation site's visible shell and
+ships without CDN/runtime fetches. Mobile sizing, safe areas, article semantics, overlay focus,
+top/bottom tab-strip search, ten adjacent full regex builders, keyboard command-palette navigation,
+and four-edge navigation layout are wired into the production runtime. The static completeness check
+now proves 68 platform bindings and 59 negative mutations, including the renderer-specific article
+condition contract that would otherwise remove every documentation block while leaving the build
+green.
+
+Local site typecheck/build, UI typecheck/build, workflow-security tests, release-script static checks,
+and generated changelog checks pass. CI run
+[31347980500](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31347980500) and Pages run
+[31347980389](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31347980389) are the final
+remote gates. Genuine screenshot recapture and any installer/release work remain separate follow-up
+gates; no digest-only evidence refresh is acceptable.
+
 ## Automatic updater restart integrity and issue #79 closure gate (2026-08-08)
 
 **Implementation complete on `codex/release-integrity-20260808`; installed acceptance remains
