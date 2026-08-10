@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "3f487aa23674340bde029509f9b15de409b4e7a2",
+        shortSha: "3f487aa236",
+        date: "2026-08-09T21:49:24-04:00",
+        subject: "Document the Pages redesign handoff",
+        details: "Recorded the integrated archive-site scope, exact implementation commit, local verification, current workflow links, and the remaining screenshot/release evidence boundary. The next owner now gets a map instead of an archaeological dig with better branding.\n\n記低 archive 網站整合範圍、準確實作 commit、本地驗證、目前 workflow 連結，同埋尚未完成嘅截圖／發佈證據邊界。下一手而家收到地圖，唔使拎住靚 logo 去考古。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
         sha: "d4f020d84faef38a3a2081a0ed619177fe665146",
         shortSha: "d4f020d84f",
         date: "2026-08-09T21:45:27-04:00",

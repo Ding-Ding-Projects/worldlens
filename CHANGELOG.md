@@ -71,6 +71,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Document the Pages redesign handoff - [`3f487aa236`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f487aa23674340bde029509f9b15de409b4e7a2)
 - Capture the legacy GitHub credential surface - [`67767606ad`](https://github.com/Ding-Ding-Projects/worldlens/commit/67767606adb555d974d727a91301e113ad43ae88)
 
 ### Elsewhere in the repository
