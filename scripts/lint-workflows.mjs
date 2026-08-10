@@ -55,39 +55,15 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
         'printf \'**Code name: %s · %s**\\n\\n\' "$DISH_NAME_EN" "$DISH_NAME_ZH"',
       ]),
       DISH_ALT_EN: contract("steps.dish.outputs.dish_alt_en", [
-        "printf '![%s](%s)\\n\\n' \"$DISH_ALT_EN\" \"$DISH_PHOTO_URL\"",
+        'printf \'![%s](%s)\\n\\n\' "$DISH_ALT_EN" "$DISH_PHOTO_URL"',
       ]),
       DISH_PHOTO_URL: contract("steps.dish.outputs.dish_photo_url", [
-        "printf '![%s](%s)\\n\\n' \"$DISH_ALT_EN\" \"$DISH_PHOTO_URL\"",
+        'printf \'![%s](%s)\\n\\n\' "$DISH_ALT_EN" "$DISH_PHOTO_URL"',
       ]),
       SPLIT: contract("steps.split.outputs.split", [
         'if [ "$SPLIT" = "1" ]; then',
       ]),
       SPLIT_NAMES: contract("steps.split.outputs.names", ['"$SPLIT_NAMES"']),
-      // A release now publishes whenever a real installer exists, gates or no gates, so
-      // "it was published" no longer carries "it passed". These four carry each gate's
-      // actual verdict into the notes, where the table names every gate and its result -
-      // the reader is told rather than left to infer. `needs.<job>.result` is a value
-      // Actions itself produces from a closed set (success, failure, cancelled, skipped);
-      // nothing a contributor or a pull request can steer reaches these, which is why they
-      // are safe to bind at all. They still stay inside the env mapping and reach the
-      // script only as quoted data, exactly like every binding above them.
-      GATE_CHECK: contract("needs.check.result", [
-        'for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do',
-        'gate_line "Lint, build, typecheck, tests" "$GATE_CHECK"',
-      ]),
-      GATE_WORKFLOWS: contract("needs.workflows.result", [
-        'for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do',
-        'gate_line "Workflow files" "$GATE_WORKFLOWS"',
-      ]),
-      GATE_TEST_WORLD: contract("needs.test-world.result", [
-        'for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do',
-        'gate_line "Test world render" "$GATE_TEST_WORLD"',
-      ]),
-      GATE_CONFIG_JAVA: contract("needs.config-java-roundtrip.result", [
-        'for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do',
-        'gate_line "Config / real Java CLI round trip" "$GATE_CONFIG_JAVA"',
-      ]),
     }),
     Publish: Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
@@ -123,19 +99,13 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
       env: "86be77600a8afab48d850356b53c73175c6770b4659857690388ea1d3025cdb9",
       run: "23bf88a53aaf6237b92f1229cdbdc79dab1c79a790badc810dcb5bf54c6884d5",
     }),
-    // Reviewed twice over, at two changes that landed together in one merge.
-    //
-    // The first made a release publish whether or not the gates went green: the env block
-    // gained the four GATE_* bindings above, and the run block gained the warning callout,
-    // the gate table and the `gate_line` helper that prints it. The second replaced the
-    // downloaded dim sum photo with a link to the public catalog's own asset, which retired
-    // DISH_FILE_NAME, DISH_VOLUME and this step's RELEASE_TAG in favour of DISH_PHOTO_URL,
-    // and rewrote the "what is in this build" sentence to name each gate it actually
-    // consulted. Both digests were recomputed only after reading that combined diff line by
-    // line, never regenerated to make the linter stop complaining.
+    // Reviewed after the release boundary returned to fail-closed publication. The obsolete
+    // GATE_* bindings and failed-gate warning path were removed because the release job can
+    // now run only after every correctness result is `success`; retaining an unreachable
+    // failure path would make the release notes claim a looser contract than the workflow.
     "Compose release notes": Object.freeze({
-      env: "e5e6961c708d394b45c860fdfc5c2191cf6269674b25f5dd52ef4b222f145200",
-      run: "d07129e822d1e243d78d4cb98a93d99978bf93e3a2e266149753e6d9cb83685b",
+      env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
+      run: "3e9ccd4f53a2a9d7818277af3b9285fb80d04e3c73bff33479f3d8d56ecdc9b0",
     }),
     Publish: Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
@@ -145,14 +115,10 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 });
 
 // Covers the whole `release` job, not only its watched steps, so a new step cannot be
-// slipped in beside the reviewed ones. This value covers two deliberate changes that
-// arrived together: the release condition relaxed to publish on any run that produced a
-// real installer (with the four gate bindings, the gate table they feed, and a "what is
-// in this build" sentence that no longer claims a clean suite when there was not one),
-// and the draft-first publication path that proves a release against its own asset
-// manifest before it stops being a draft. Neither one removed a check the other added.
+// slipped in beside the reviewed ones. The fingerprint includes the fail-closed eligibility
+// expression, draft-first publication, manifest readback, token chain and unsigned warning.
 const RELEASE_JOB_FINGERPRINT =
-  "f88d501c3bfee10868a770d9eb156e0aaaac60e9f006f7ca346d140513bd68d2";
+  "5f95efeb09ed8a0986622a549504784b755f2cfc253c0cb921ad5e44f5658de5";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this
@@ -415,14 +381,16 @@ const REQUIRED_STEP_LINES = Object.freeze({
     "node scripts/collect-squirrel-release.mjs collect `",
     '--state "$env:RUNNER_TEMP/worldlens-squirrel-build.json" `',
   ]),
-  "Prove generated Windows executables are unsigned and branded": Object.freeze([
-    "$applicationDirectories = @(",
-    "@(",
-    ") | Where-Object { Test-Path -LiteralPath $_ -PathType Container }",
-    "Get-ChildItem -LiteralPath $applicationDirectories[0] -File -Filter '*.exe' -Recurse",
-    "$signature = Get-AuthenticodeSignature -LiteralPath $executable.FullName",
-    "if ($signature.Status -ne 'NotSigned') {",
-  ]),
+  "Prove generated Windows executables are unsigned and branded": Object.freeze(
+    [
+      "$applicationDirectories = @(",
+      "@(",
+      ") | Where-Object { Test-Path -LiteralPath $_ -PathType Container }",
+      "Get-ChildItem -LiteralPath $applicationDirectories[0] -File -Filter '*.exe' -Recurse",
+      "$signature = Get-AuthenticodeSignature -LiteralPath $executable.FullName",
+      "if ($signature.Status -ne 'NotSigned') {",
+    ],
+  ),
   Publish: Object.freeze([
     "node scripts/release-asset-manifest.mjs verify-draft \\",
     "node scripts/release-asset-manifest.mjs verify \\",
@@ -854,7 +822,9 @@ function actionDependencyProblems(text, file) {
   const screenshotTimeouts = screenshots
     ? lines
         .slice(screenshots.start + 1, screenshots.end)
-        .map((line) => /^ {4}timeout-minutes:\s+(\d+)\s*$/.exec(line)?.[1] ?? null)
+        .map(
+          (line) => /^ {4}timeout-minutes:\s+(\d+)\s*$/.exec(line)?.[1] ?? null,
+        )
         .filter((value) => value !== null)
     : [];
   if (screenshotTimeouts.length !== 1 || screenshotTimeouts[0] !== "20") {
@@ -863,7 +833,28 @@ function actionDependencyProblems(text, file) {
       line: (screenshots?.start ?? 0) + 1,
       stepName: null,
       expression: null,
-      message: "advisory screenshot capture must retain the reviewed 20-minute job timeout",
+      message:
+        "advisory screenshot capture must retain the reviewed 20-minute job timeout",
+    });
+  }
+
+  const packageJob = jobBlock(lines, "package");
+  const packageRunners = packageJob
+    ? lines
+        .slice(packageJob.start + 1, packageJob.end)
+        .map(
+          (line) =>
+            /^ {4}runs-on:\s*([^#\s]+)\s*(?:#.*)?$/.exec(line)?.[1] ?? null,
+        )
+        .filter((value) => value !== null)
+    : [];
+  if (packageRunners.length !== 1 || packageRunners[0] !== "windows-2022") {
+    problems.push({
+      file,
+      line: (packageJob?.start ?? 0) + 1,
+      stepName: null,
+      expression: null,
+      message: "release packaging must remain Windows-only on windows-2022",
     });
   }
 
@@ -886,7 +877,72 @@ function actionDependencyProblems(text, file) {
       stepName: null,
       expression: null,
       message:
-        "release must depend on every required build and workflow-security gate",
+        "release must depend on every correctness job and no advisory job",
+    });
+  }
+
+  const expectedReleaseCondition = [
+    "always()",
+    "&& github.event_name != 'pull_request'",
+    "&& github.ref == 'refs/heads/main'",
+    "&& (github.event_name == 'push' || inputs.publish_release == true)",
+    "&& needs.check.result == 'success'",
+    "&& needs.workflows.result == 'success'",
+    "&& needs.package.result == 'success'",
+    "&& needs.jars.result == 'success'",
+    "&& needs.test-world.result == 'success'",
+    "&& needs.config-java-roundtrip.result == 'success'",
+  ];
+  const releaseConditionStarts = [];
+  for (let index = releaseStart + 1; index < releaseEnd; index++) {
+    if (/^ {4}if:\s*>-\s*$/.test(lines[index]))
+      releaseConditionStarts.push(index);
+  }
+  const actualReleaseCondition = [];
+  if (releaseConditionStarts.length === 1) {
+    for (
+      let index = releaseConditionStarts[0] + 1;
+      index < releaseEnd;
+      index++
+    ) {
+      if (lines[index].trim() !== "" && indentOf(lines[index]) <= 4) break;
+      actualReleaseCondition.push(lines[index].trim());
+    }
+  }
+  if (
+    releaseConditionStarts.length !== 1 ||
+    JSON.stringify(actualReleaseCondition) !==
+      JSON.stringify(expectedReleaseCondition)
+  ) {
+    problems.push({
+      file,
+      line: (releaseConditionStarts[0] ?? releaseStart) + 1 || 1,
+      stepName: null,
+      expression: null,
+      message:
+        "release eligibility must require success from every correctness job while leaving lint and screenshots advisory",
+    });
+  }
+
+  const publisherCommand = 'gh release create "$RELEASE_TAG" \\';
+  const publishers = scriptRegions(text).flatMap((region) =>
+    region.lines
+      .filter((line) => line.text.trim() === publisherCommand)
+      .map((line) => ({ line: line.number, stepName: region.stepName })),
+  );
+  if (
+    publishers.length !== 1 ||
+    publishers[0].stepName !== "Publish" ||
+    publishers[0].line <= releaseStart + 1 ||
+    publishers[0].line > releaseEnd
+  ) {
+    problems.push({
+      file,
+      line: publishers[0]?.line ?? (releaseStart + 1 || 1),
+      stepName: publishers[0]?.stepName ?? null,
+      expression: null,
+      message:
+        "workflow must contain exactly one reviewed release publisher inside release/Publish",
     });
   }
 
@@ -976,7 +1032,8 @@ function lintInventory(root = process.cwd()) {
           line: 1,
           stepName: null,
           expression: null,
-          message: "executable workflow is missing from the exact action inventory",
+          message:
+            "executable workflow is missing from the exact action inventory",
         });
       }
     }

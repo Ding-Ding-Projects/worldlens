@@ -38,6 +38,7 @@
   --e3:0 4px 8px 3px rgb(0 0 0/.15),0 1px 3px 0 rgb(0 0 0/.30);
   --rowpad:12px;--secgap:56px;--cardpad:20px;
   --basefs:16px;--lh:1.6;--radius:16px;--radius-lg:20px;--minhit:44px;--codefs:13px;--navw:270px;
+  --safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px);
   --card:var(--s-lowest);
 }
 :root[data-tint="on"]{--card:color-mix(in srgb,var(--p) 5%,var(--s-lowest));}
@@ -51,36 +52,80 @@
   --inv-s:#E1E2E8;--inv-on:#2E3135;--inv-p:#00639B;
 }
 :root[data-density="compact"]{--rowpad:8px;--secgap:40px;--cardpad:16px;}
-html,body{margin:0;padding:0;background:#F8F9FB;}
+html,body{width:100%;max-width:100%;margin:0;padding:0;background:#F8F9FB;}
 :root[data-theme="dark"] body{background:#101418;}
 *{box-sizing:border-box;}
-.wl-skip-link{position:fixed;z-index:2147483647;inset-block-start:8px;inset-inline-start:8px;padding:12px 16px;border-radius:999px;background:var(--p);color:var(--op);font-weight:700;transform:translateY(-150%);transition:transform .15s ease;}
+.wl-skip-link{position:fixed;z-index:2147483647;inset-block-start:max(8px,var(--safe-t));inset-inline-start:max(8px,var(--safe-l));padding:12px 16px;border-radius:999px;background:var(--p);color:var(--op);font-weight:700;transform:translateY(-150%);transition:transform .15s ease;}
 .wl-skip-link:focus{transform:translateY(0);}
 :where(a,button,input,select,textarea,[tabindex]):focus-visible{outline:3px solid var(--p)!important;outline-offset:3px!important;}
 a{color:var(--p);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;}
+a[href]{display:inline-flex;align-items:center;min-block-size:max(44px,var(--minhit));}
 a:hover{color:var(--opc);text-decoration-thickness:2px;}
 :root[data-theme="dark"] a:hover{color:#CEE5FF;}
-button{font:inherit;}
+button{font:inherit;min-block-size:max(44px,var(--minhit));touch-action:manipulation;}
+button[aria-label]{min-inline-size:max(44px,var(--minhit));}
+input,select,textarea{min-block-size:max(44px,var(--minhit));}
+.wl-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}
 ::selection{background:var(--pc);color:var(--opc);}
 @keyframes wl-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes wl-fade{from{opacity:0}to{opacity:1}}
 :root[data-motion="off"] *,:root[data-motion="off"] *::before,:root[data-motion="off"] *::after{animation:none!important;transition:none!important;}
+:root[data-motion="reduced"] *,:root[data-motion="reduced"] *::before,:root[data-motion="reduced"] *::after{animation-duration:.08s!important;animation-iteration-count:1!important;transition-duration:.08s!important;scroll-behavior:auto!important;}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}}
-:root[data-focus="always"] button:focus,:root[data-focus="always"] a:focus,:root[data-focus="always"] input:focus{outline:2px solid var(--p);outline-offset:2px;}
+:root[data-focus="always"] :where(a,button,input,select,textarea,[tabindex]):focus{outline:2px solid var(--p);outline-offset:2px;}
+.wl-teleport-target{outline:4px solid var(--p)!important;outline-offset:6px!important;background:var(--pc);border-radius:8px;}
 :root[data-contrast="high"]{--p:#FFFFFF;--op:#000000;--pc:#FFFFFF;--opc:#000000;--sec:#FFFF00;--secc:#FFFF00;--osecc:#000000;--ter:#FFFFFF;--terc:#FFFFFF;--oterc:#000000;--err:#FF5449;--errc:#FF5449;--oerrc:#000000;--surf:#000000;--on:#FFFFFF;--s-lowest:#000000;--s-low:#000000;--s-cont:#000000;--s-high:#000000;--s-highest:#000000;--sv:#000000;--osv:#FFFFFF;--out:#FFFFFF;--outv:#FFFFFF;--inv-s:#FFFFFF;--inv-on:#000000;--inv-p:#000000;}
+@media (forced-colors:active){
+  .wl-app,.wl-header,.wl-more-sheet,[role="dialog"],[role="tabpanel"]{background:Canvas!important;color:CanvasText!important;box-shadow:none!important;forced-color-adjust:auto;}
+  :where(button,a,input,select,textarea){border-color:ButtonText!important;forced-color-adjust:auto;}
+  :where(a,button,input,select,textarea,[tabindex]):focus{outline:3px solid Highlight!important;outline-offset:3px!important;}
+  .wl-teleport-target{background:Canvas!important;outline-color:Highlight!important;}
+}
+@media (max-width:899px){
+  .wl-builder-body{flex:1!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;}
+  .wl-builder-header{cursor:default!important;}
+  .wl-builder-drag-handle,.wl-builder-reanchor{display:none!important;}
+}
+@media (max-width:640px){
+  .wl-header-utility{display:none!important;}
+  .wl-header-actions{margin-left:auto!important;flex:0 0 auto;}
+  .wl-brand,.wl-header-actions{min-width:0!important;}
+  .wl-brand-badge{display:none!important;}
+  .wl-content{padding-block-start:16px!important;padding-inline:max(16px,var(--safe-l)) max(16px,var(--safe-r))!important;padding-block-end:calc(76px + var(--safe-b))!important;}
+  .wl-hero{padding:clamp(20px,6vw,28px)!important;border-radius:22px!important;}
+  .wl-hero-badge{max-width:100%!important;white-space:normal!important;line-height:1.35!important;overflow-wrap:anywhere!important;margin-bottom:16px!important;}
+  .wl-hero-title{font-size:clamp(calc(var(--basefs) * 1.7),8vw,36px)!important;line-height:1.07!important;letter-spacing:-.8px!important;max-width:18ch!important;margin-bottom:14px!important;}
+  .wl-hero-lede{font-size:15px!important;line-height:1.45!important;margin-bottom:10px!important;}
+  .wl-hero-detail{font-size:14px!important;line-height:1.5!important;margin-bottom:20px!important;}
+  .wl-hero-actions{display:grid!important;grid-template-columns:minmax(0,1fr)!important;width:100%;gap:10px!important;}
+  .wl-hero-action{display:flex!important;width:100%!important;min-width:0!important;height:auto!important;min-height:52px!important;justify-content:center!important;padding:10px 16px!important;white-space:normal!important;text-align:center!important;line-height:1.25!important;}
+  .wl-hero-note{font-size:11.5px!important;line-height:1.45!important;margin-top:14px!important;}
+}
+@media (max-width:359px){
+  .wl-brand{gap:7px!important;padding-inline:4px!important;}
+  .wl-brand-name{display:none!important;}
+  .wl-content{padding-block-start:12px!important;}
+  .wl-hero{padding:16px!important;}
+  .wl-hero-title{font-size:27px!important;line-height:1.05!important;margin-bottom:12px!important;}
+  .wl-hero-lede{font-size:14.5px!important;line-height:1.42!important;margin-bottom:8px!important;}
+  .wl-hero-detail{font-size:13.5px!important;line-height:1.42!important;margin-bottom:16px!important;}
+  .wl-hero-action{min-height:48px!important;padding:8px 12px!important;font-size:14px!important;}
+  .wl-hero-note{font-size:11px!important;line-height:1.4!important;margin-top:12px!important;}
+  .wl-palette-search-icon{display:none!important;}
+}
 </style>
 </helmet>
 
-<div style="height:100dvh;display:flex;flex-direction:column;background:var(--surf);color:var(--on);font-family:var(--plain);overflow:hidden;">
+<div class="wl-app" style="height:100dvh;display:flex;flex-direction:column;background:var(--surf);color:var(--on);font-family:var(--plain);overflow:hidden;">
 
-  <header style="{{ headerStyle }}">
-    <button type="button" onClick="{{ toggleDrawer }}" aria-label="Open navigation" style="{{ menuBtnStyle }}" style-hover="background:var(--s-high)">
+  <header class="wl-header" style="{{ headerStyle }}">
+    <button type="button" data-action="drawer" onClick="{{ toggleDrawer }}" aria-label="Open navigation" aria-controls="wl-doc-navigation" aria-expanded="{{ drawerOpenAttr }}" style="{{ menuBtnStyle }}" style-hover="background:var(--s-high)">
       <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
     </button>
-    <button type="button" onClick="{{ goHome }}" aria-label="worldlens — home" style="display:flex;align-items:center;gap:10px;background:none;border:0;cursor:pointer;padding:6px 10px 6px 8px;border-radius:999px;color:var(--on);" style-hover="background:var(--s-high)">
+    <button class="wl-brand" type="button" onClick="{{ goHome }}" aria-label="worldlens — home" style="display:flex;align-items:center;gap:10px;background:none;border:0;cursor:pointer;padding:6px 10px 6px 8px;border-radius:999px;color:var(--on);" style-hover="background:var(--s-high)">
       <img src="assets/worldlens-logo.png" alt="" aria-hidden="true" width="32" height="32" style="width:32px;height:32px;border-radius:8px;display:block;">
-      <span style="font-family:var(--brand);font-size:20px;font-weight:600;letter-spacing:-0.2px;">worldlens</span>
-      <span style="font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--secc);color:var(--osecc);">docs</span>
+      <span class="wl-brand-name" style="font-family:var(--brand);font-size:20px;font-weight:600;letter-spacing:-0.2px;">worldlens</span>
+      <span class="wl-brand-badge" style="font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--secc);color:var(--osecc);">docs</span>
     </button>
 
     <div style="{{ searchBarStyle }}">
@@ -91,21 +136,21 @@ button{font:inherit;}
       </button>
     </div>
 
-    <div style="margin-left:auto;display:flex;align-items:center;gap:2px;">
+    <div class="wl-header-actions" style="margin-left:auto;display:flex;align-items:center;gap:2px;">
       <button type="button" onClick="{{ goSearch }}" aria-label="Search" title="Search" style="{{ compactSearchBtnStyle }}" style-hover="background:var(--s-high)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
       </button>
-      <button type="button" onClick="{{ cycleLanguage }}" aria-label="Language and tone" title="{{ languageTitle }}" style="width:var(--minhit);height:var(--minhit);display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
+      <button class="wl-header-utility" type="button" onClick="{{ cycleLanguage }}" aria-label="{{ languageControlLabel }}" title="{{ languageTitle }}" style="width:var(--minhit);height:var(--minhit);display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12.87 15.07 10.33 12.5l.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17A15.6 15.6 0 0 1 9 11.35 15.4 15.4 0 0 1 6.69 8h-2a17.3 17.3 0 0 0 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"></path></svg>
       </button>
-      <button type="button" onClick="{{ toggleTheme }}" aria-label="Colour scheme" title="{{ themeTitle }}" style="width:var(--minhit);height:var(--minhit);display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
+      <button class="wl-header-utility" type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeTitle }}" title="{{ themeTitle }}" style="width:var(--minhit);height:var(--minhit);display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="{{ themeIcon }}"></path></svg>
       </button>
-      <button type="button" onClick="{{ goNotifications }}" aria-label="Notification history" title="Notification history" style="{{ bellStyle }}" style-hover="background:var(--s-high)">
+      <button class="wl-header-utility" type="button" onClick="{{ goNotifications }}" aria-label="{{ notificationTitle }}" title="{{ notificationTitle }}" style="{{ bellStyle }}" style-hover="background:var(--s-high)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1z"></path></svg>
         <span style="{{ bellDotStyle }}"></span>
       </button>
-      <button type="button" onClick="{{ goSettings }}" aria-label="Settings" title="Settings" style="width:var(--minhit);height:var(--minhit);display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
+      <button class="wl-header-utility" type="button" onClick="{{ goSettings }}" aria-label="Settings" title="Settings" style="width:var(--minhit);height:var(--minhit);display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M3 17v2h6v-2zm0-12v2h10V5zm10 16v-2h8v-2h-8v-2h-2v6zM7 9v2H3v2h4v2h2V9zm14 4v-2H11v2zm-6-4h2V7h4V5h-4V3h-2z"></path></svg>
       </button>
     </div>
@@ -113,33 +158,40 @@ button{font:inherit;}
 
   <div style="{{ gridStyle }}">
 
-    <aside style="{{ sidebarStyle }}" aria-label="Documentation navigation">
+    <aside id="wl-doc-navigation" style="{{ sidebarStyle }}" aria-label="Documentation navigation" data-mobile-drawer="{{ drawerOpenAttr }}">
+      <div style="{{ drawerHeaderStyle }}">
+        <strong style="font-size:14px;">Navigation</strong>
+        <button type="button" onClick="{{ closeDrawer }}" aria-label="Close navigation" style="width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </div>
       <div style="{{ sbFilterStyle }}">
         <div style="display:flex;gap:6px;align-items:center;">
-          <div style="flex:1;display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:12px;background:var(--s-cont);min-width:0;">
+          <div style="flex:1;display:flex;align-items:center;gap:8px;min-height:var(--minhit);height:auto;padding:0 12px;border-radius:12px;background:var(--s-cont);min-width:0;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-            <input type="text" value="{{ sidebarQuery }}" onChange="{{ onsidebarQuery }}" placeholder="Filter pages and articles" aria-label="Filter navigation" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:13px;">
-            <span style="font-family:var(--mono);font-size:11px;color:var(--out);flex:0 0 auto;">{{ sidebarCount }}</span>
+            <input type="text" value="{{ sidebarQuery }}" onChange="{{ onsidebarQuery }}" placeholder="Filter pages and articles" aria-label="Filter navigation" aria-describedby="wl-sidebar-error" aria-invalid="{{ sidebarInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:13px;">
+            <span style="font-family:var(--mono);font-size:11px;color:var(--osv);flex:0 0 auto;">{{ sidebarCount }}</span>
           </div>
           <button type="button" onClick="{{ togglesidebarBuilder }}" aria-label="Regex builder for navigation" title="Regex builder" style="{{ sidebarBuilderBtnStyle }}">.*</button>
         </div>
+        <div id="wl-sidebar-error" role="alert" style="{{ sidebarErrorStyle }}">{{ sidebarError }}</div>
       </div>
       <div style="{{ sbTabsStyle }}">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:0 8px 8px;">
           <span style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--osv);">Open pages</span>
-          <span style="font-size:11px;font-family:var(--mono);color:var(--out);">{{ tabCount }}</span>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--osv);">{{ tabCount }}</span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:2px;">
+        <div data-wl-tablist="true" style="display:flex;flex-direction:column;gap:2px;">
           <sc-for list="{{ sidebarTabs }}" as="tab" hint-placeholder-count="3">
-            <div style="{{ tab.style }}">
-              <button type="button" onClick="{{ tab.onClick }}" style="flex:1;display:flex;align-items:center;gap:10px;min-width:0;background:none;border:0;cursor:pointer;color:inherit;padding:0;text-align:left;font-size:14px;">
+            <div data-active="{{ tab.activeAttr }}" style="{{ tab.style }}">
+              <button type="button" data-action="activate-tab" data-tab-key="{{ tab.key }}" onClick="{{ tab.onClick }}" style="flex:1;display:flex;align-items:center;gap:10px;min-width:0;background:none;border:0;cursor:pointer;color:inherit;padding:0;text-align:left;font-size:14px;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="flex:0 0 auto;opacity:.75;"><path d="{{ tab.icon }}"></path></svg>
                 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ tab.title }}</span>
               </button>
               <span style="{{ tab.groupDot }}"></span>
-              <button type="button" onClick="{{ tab.onClose }}" aria-label="Close tab" style="width:24px;height:24px;flex:0 0 auto;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:inherit;opacity:.6;cursor:pointer;" style-hover="opacity:1;background:var(--s-highest)">
+              <sc-if value="{{ tab.closable }}"><button type="button" data-action="close-tab" onClick="{{ tab.onClose }}" aria-label="{{ tab.closeLabel }}" style="width:24px;height:24px;flex:0 0 auto;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:inherit;opacity:.6;cursor:pointer;" style-hover="opacity:1;background:var(--s-highest)">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
-              </button>
+              </button></sc-if>
             </div>
           </sc-for>
         </div>
@@ -149,9 +201,9 @@ button{font:inherit;}
 
       <nav style="{{ sbNavStyle }}" aria-label="Site sections">
         <sc-for list="{{ navItems }}" as="nav" hint-placeholder-count="6">
-          <button type="button" onClick="{{ nav.onClick }}" style="{{ nav.style }}" style-hover="background:var(--s-cont)">
+          <button type="button" data-active="{{ nav.activeAttr }}" onClick="{{ nav.onClick }}" style="{{ nav.style }}" style-hover="background:var(--s-cont)">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="{{ nav.icon }}"></path></svg>
-            <span>{{ nav.label }}</span>
+            <span><span lang="en" style="{{ nav.enStyle }}">{{ nav.en }}</span><span aria-hidden="true" style="{{ nav.separatorStyle }}"> · </span><span lang="zh-HK" style="{{ nav.yueStyle }}">{{ nav.yue }}</span></span>
             <span style="{{ nav.badge }}">{{ nav.count }}</span>
           </button>
         </sc-for>
@@ -166,11 +218,11 @@ button{font:inherit;}
             <button type="button" onClick="{{ cat.onToggle }}" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;font-size:13px;font-weight:600;text-align:left;" style-hover="background:var(--s-cont)">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" style="{{ cat.chevronStyle }}"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg>
               <span style="flex:1;">{{ cat.label }}</span>
-              <span style="font-family:var(--mono);font-size:11px;color:var(--out);">{{ cat.count }}</span>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--osv);">{{ cat.count }}</span>
             </button>
             <div style="{{ cat.listStyle }}">
               <sc-for list="{{ cat.articles }}" as="art" hint-placeholder-count="4">
-                <button type="button" onClick="{{ art.onClick }}" style="{{ art.style }}" style-hover="background:var(--s-cont)">{{ art.title }}</button>
+                <button type="button" data-active="{{ art.activeAttr }}" onClick="{{ art.onClick }}" style="{{ art.style }}" style-hover="background:var(--s-cont)">{{ art.title }}</button>
               </sc-for>
             </div>
           </div>
@@ -178,28 +230,57 @@ button{font:inherit;}
       </div>
     </aside>
 
+    <div style="{{ horizontalTabsStyle }}" aria-label="Open pages">
+      <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 12px;border-radius:14px;background:var(--s-cont);min-width:0;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
+            <input type="text" value="{{ tabstripQuery }}" onChange="{{ ontabstripQuery }}" placeholder="Filter open pages" aria-label="Filter current tab strip" aria-describedby="wl-tabstrip-error" aria-invalid="{{ tabstripInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:13px;">
+            <span style="font-family:var(--mono);font-size:11px;color:var(--osv);flex:0 0 auto;">{{ tabstripCount }}</span>
+          </div>
+          <div id="wl-tabstrip-error" role="alert" style="{{ tabstripErrorStyle }}">{{ tabstripError }}</div>
+        </div>
+        <button type="button" onClick="{{ toggletabstripBuilder }}" aria-label="Regex builder for current tab strip" title="Regex builder" style="{{ tabstripBuilderBtnStyle }}">.*</button>
+      </div>
+      <div data-wl-tablist="true" style="display:flex;align-items:center;gap:6px;width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;">
+        <sc-for list="{{ horizontalTabItems }}" as="tab" hint-placeholder-count="3">
+          <div data-active="{{ tab.activeAttr }}" style="{{ tab.horizontalStyle }}">
+            <button type="button" data-action="activate-tab" data-tab-key="{{ tab.key }}" onClick="{{ tab.onClick }}" style="flex:1;display:flex;align-items:center;gap:10px;min-width:0;background:none;border:0;cursor:pointer;color:inherit;padding:0;text-align:left;font-size:14px;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="flex:0 0 auto;opacity:.75;"><path d="{{ tab.icon }}"></path></svg>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ tab.title }}</span>
+            </button>
+            <span style="{{ tab.groupDot }}"></span>
+            <sc-if value="{{ tab.closable }}"><button type="button" data-action="close-tab" onClick="{{ tab.onClose }}" aria-label="{{ tab.closeLabel }}" style="width:44px;height:44px;flex:0 0 auto;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:inherit;opacity:.7;cursor:pointer;" style-hover="opacity:1;background:var(--s-highest)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+            </button></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="{{ contentGridStyle }}">
     <main style="{{ mainStyle }}" id="wl-main">
-      <div style="{{ contentPadStyle }}">
+      <div id="wl-tabpanel" class="wl-content" role="tabpanel" aria-label="Active documentation page" style="{{ contentPadStyle }}">
 
         <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
           <div style="animation:wl-fade .3s ease;">
-            <section style="border-radius:28px;background:var(--pc);color:var(--opc);padding:clamp(28px,5vw,56px);position:relative;overflow:hidden;">
-              <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:var(--s-lowest);color:var(--osv);font-size:12px;font-weight:600;margin-bottom:24px;">
+            <section class="wl-hero" style="border-radius:28px;background:var(--pc);color:var(--opc);padding:clamp(28px,5vw,56px);position:relative;overflow:hidden;">
+              <div class="wl-hero-badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:var(--s-lowest);color:var(--osv);font-size:12px;font-weight:600;margin-bottom:24px;">
                 <span style="width:8px;height:8px;border-radius:999px;background:var(--err);display:inline-block;"></span>
                 <span>{{ heroBadge }}</span>
               </div>
-              <h1 style="font-family:var(--brand);font-size:clamp(34px,6vw,57px);line-height:1.06;letter-spacing:-1.5px;font-weight:600;margin:0 0 20px;max-width:16ch;text-wrap:balance;">Your Minecraft world, rendered into a 3D map.</h1>
+              <h1 id="wl-home-title" tabindex="-1" class="wl-hero-title" style="font-family:var(--brand);font-size:clamp(34px,6vw,57px);line-height:1.06;letter-spacing:-1.5px;font-weight:600;margin:0 0 20px;max-width:16ch;text-wrap:balance;">Your Minecraft world, rendered into a 3D map.</h1>
               <p style="{{ heroYueStyle }}">{{ heroYue }}</p>
-              <p style="font-size:clamp(16px,2vw,20px);line-height:1.5;margin:0 0 12px;max-width:58ch;text-wrap:pretty;">A from-scratch TypeScript port of BlueMap, the Minecraft world renderer and 3D web map.</p>
-              <p style="font-size:15px;line-height:1.6;margin:0 0 32px;max-width:62ch;opacity:.85;text-wrap:pretty;">Render from a desktop application, or from a GitHub Actions run with nothing installed at all, and browse it in an interface rebuilt from the ground up in Material Design 3.</p>
-              <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-                <a href="https://github.com/Ding-Ding-Projects/worldlens/releases/download/v0.1.943/Worldlens-0.1.943-Setup.exe" style="display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 28px;border-radius:999px;background:var(--p);color:var(--op);text-decoration:none;font-size:16px;font-weight:600;box-shadow:var(--e1);" style-hover="box-shadow:var(--e2);color:var(--op)">
+              <p class="wl-hero-lede" style="font-size:clamp(16px,2vw,20px);line-height:1.5;margin:0 0 12px;max-width:58ch;text-wrap:pretty;">A from-scratch TypeScript port of BlueMap, the Minecraft world renderer and 3D web map.</p>
+              <p class="wl-hero-detail" style="font-size:15px;line-height:1.6;margin:0 0 32px;max-width:62ch;opacity:.85;text-wrap:pretty;">Render from a desktop application, or from a GitHub Actions run with nothing installed at all, and browse it in an interface rebuilt from the ground up in Material Design 3.</p>
+              <div class="wl-hero-actions" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+                <a class="wl-hero-action" href="https://github.com/Ding-Ding-Projects/worldlens/releases/download/v0.1.943/Worldlens-0.1.943-Setup.exe" style="display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 28px;border-radius:999px;background:var(--p);color:var(--op);text-decoration:none;font-size:16px;font-weight:600;box-shadow:var(--e1);" style-hover="box-shadow:var(--e2);color:var(--op)">
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M5 20h14v-2H5zm7-16-5.5 5.5L8 11l3-3v9h2V8l3 3 1.5-1.5z"></path></svg>
                   Download for Windows
                 </a>
-                <button type="button" onClick="{{ goDocs }}" style="display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 26px;border-radius:999px;background:transparent;color:var(--opc);border:1px solid var(--out);font-size:16px;font-weight:600;cursor:pointer;" style-hover="background:var(--s-lowest)">Read the documentation</button>
+                <button class="wl-hero-action" type="button" onClick="{{ goDocs }}" style="display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 26px;border-radius:999px;background:transparent;color:var(--opc);border:1px solid var(--out);font-size:16px;font-weight:600;cursor:pointer;" style-hover="background:var(--s-lowest)">Read the documentation</button>
               </div>
-              <p style="font-size:12px;line-height:1.5;margin:20px 0 0;max-width:56ch;opacity:.75;">Windows only, and permanently unsigned by choice — SmartScreen will warn. Rendering needs Java, which the app fetches into its own folder.</p>
+              <p class="wl-hero-note" style="font-size:12px;line-height:1.5;margin:20px 0 0;max-width:56ch;opacity:.75;">Windows only, and permanently unsigned by choice — SmartScreen will warn. Rendering needs Java, which the app fetches into its own folder.</p>
             </section>
 
             <section style="margin-top:var(--secgap);border-radius:20px;border:1px solid var(--outv);background:var(--s-low);padding:var(--cardpad);display:flex;gap:16px;align-items:flex-start;">
@@ -213,7 +294,7 @@ button{font:inherit;}
             <section style="margin-top:var(--secgap);">
               <h2 id="project-size" style="font-family:var(--brand);font-size:clamp(24px,3.2vw,32px);font-weight:600;margin:0 0 8px;letter-spacing:-0.5px;">The size of it</h2>
               <p style="font-size:15px;line-height:1.6;color:var(--osv);margin:0 0 24px;max-width:70ch;text-wrap:pretty;">A port of a renderer is not one file, and none of these numbers are marketing. Each one is countable from the repository, and the line beneath it says where.</p>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px;">
                 <sc-for list="{{ stats }}" as="stat" hint-placeholder-count="4">
                   <div style="border-radius:var(--radius);border:1px solid var(--outv);background:var(--card);padding:var(--cardpad);">
                     <div style="font-family:var(--brand);font-size:32px;font-weight:600;letter-spacing:-1px;line-height:1.1;margin-bottom:6px;">{{ stat.value }}</div>
@@ -227,7 +308,7 @@ button{font:inherit;}
             <section style="margin-top:var(--secgap);">
               <h2 id="features" style="font-family:var(--brand);font-size:clamp(24px,3.2vw,32px);font-weight:600;margin:0 0 8px;letter-spacing:-0.5px;">What it does</h2>
               <p style="font-size:15px;line-height:1.6;color:var(--osv);margin:0 0 24px;max-width:70ch;">Every row is built, unit tested and reachable by clicking. Each links the article that states its behaviour, configuration, failure modes and verification.</p>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;">
                 <sc-for list="{{ features }}" as="f" hint-placeholder-count="6">
                   <button type="button" onClick="{{ f.onClick }}" style="text-align:left;border-radius:var(--radius);border:1px solid var(--outv);background:var(--card);padding:var(--cardpad);cursor:pointer;color:var(--on);display:flex;flex-direction:column;gap:8px;" style-hover="border-color:var(--p);background:var(--s-low)">
                     <span style="display:flex;align-items:center;gap:10px;">
@@ -257,7 +338,7 @@ button{font:inherit;}
             <section style="margin-top:var(--secgap);">
               <h2 id="rendering-engines" style="font-family:var(--brand);font-size:clamp(24px,3.2vw,32px);font-weight:600;margin:0 0 8px;letter-spacing:-0.5px;">Two engines, one of them running</h2>
               <p style="font-size:15px;line-height:1.6;color:var(--osv);margin:0 0 24px;max-width:70ch;">Laid out side by side so nobody has to infer which is which.</p>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;">
                 <div style="border-radius:20px;border:2px solid var(--p);background:var(--s-lowest);padding:var(--cardpad);">
                   <div style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--op);background:var(--p);padding:4px 10px;border-radius:999px;margin-bottom:14px;">Renders today</div>
                   <h3 style="font-family:var(--brand);font-size:20px;font-weight:600;margin:0 0 8px;">Upstream BlueMap's Java engine</h3>
@@ -287,7 +368,7 @@ button{font:inherit;}
             <section style="margin-top:var(--secgap);">
               <h2 style="font-family:var(--brand);font-size:clamp(24px,3.2vw,32px);font-weight:600;margin:0 0 8px;letter-spacing:-0.5px;">The application, actually running</h2>
               <p style="font-size:15px;line-height:1.6;color:var(--osv);margin:0 0 24px;max-width:70ch;">Captures taken by the project's own harness in continuous integration, not mockups.</p>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;">
                 <sc-for list="{{ homeShots }}" as="s" hint-placeholder-count="3">
                   <figure style="margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--outv);background:var(--s-lowest);">
                     <img src="{{ s.src }}" alt="{{ s.alt }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--s-cont);">
@@ -301,7 +382,7 @@ button{font:inherit;}
             <section style="margin-top:var(--secgap);">
               <h2 style="font-family:var(--brand);font-size:clamp(24px,3.2vw,32px);font-weight:600;margin:0 0 8px;letter-spacing:-0.5px;">Six actions, shown</h2>
               <p style="font-size:15px;line-height:1.6;color:var(--osv);margin:0 0 24px;max-width:70ch;">Finite walkthrough animations with static reduced-motion fallbacks. They are explanatory media, not deployment proof.</p>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;">
                 <sc-for list="{{ walkthroughs }}" as="w" hint-placeholder-count="3">
                   <button type="button" onClick="{{ w.onClick }}" style="text-align:left;padding:0;border-radius:var(--radius);border:1px solid var(--outv);background:var(--card);overflow:hidden;cursor:pointer;color:var(--on);" style-hover="border-color:var(--p)">
                     <span style="display:block;position:relative;">
@@ -313,7 +394,7 @@ button{font:inherit;}
                     <span style="display:block;padding:14px 16px;">
                       <span style="display:block;font-size:14px;font-weight:600;margin-bottom:6px;">{{ w.title }}</span>
                       <span style="display:block;font-size:12.5px;line-height:1.5;color:var(--osv);text-wrap:pretty;">{{ w.body }}</span>
-                      <span style="display:block;font-size:11.5px;color:var(--out);margin-top:8px;">{{ w.hint }}</span>
+                      <span style="display:block;font-size:11.5px;color:var(--osv);margin-top:8px;">{{ w.hint }}</span>
                     </span>
                   </button>
                 </sc-for>
@@ -339,7 +420,7 @@ button{font:inherit;}
               </div>
             </section>
 
-            <section style="margin-top:var(--secgap);display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+            <section style="margin-top:var(--secgap);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;">
               <sc-for list="{{ repoLinks }}" as="l" hint-placeholder-count="4">
                 <a href="{{ l.href }}" style="border-radius:var(--radius);border:1px solid var(--outv);background:var(--card);padding:18px;text-decoration:none;color:var(--on);display:flex;flex-direction:column;gap:6px;" style-hover="border-color:var(--p);color:var(--on)">
                   <span style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;">
@@ -355,24 +436,25 @@ button{font:inherit;}
 
         <sc-if value="{{ isDocs }}">
           <div style="animation:wl-fade .3s ease;">
-            <h1 style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0 0 12px;">Documentation</h1>
+            <h1 id="wl-docs-title" tabindex="-1" style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0 0 12px;">Documentation</h1>
             <p style="font-size:16px;line-height:1.6;color:var(--osv);margin:0 0 24px;max-width:70ch;text-wrap:pretty;">An article for every feature, covering behaviour, configuration, failure modes, security considerations and verification. {{ articleTotal }} articles, straight from the repository's own <span style="font-family:var(--mono);font-size:14px;">docs/</span> folder.</p>
             <div style="display:flex;gap:8px;align-items:center;max-width:560px;margin-bottom:20px;">
               <div style="flex:1;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:14px;background:var(--s-lowest);border:1px solid var(--outv);min-width:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                <input type="text" value="{{ docsQuery }}" onChange="{{ ondocsQuery }}" placeholder="Filter every article by title or summary" aria-label="Filter articles" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
-                <span style="font-family:var(--mono);font-size:12px;color:var(--out);flex:0 0 auto;">{{ docsCount }}</span>
+                <input type="text" value="{{ docsQuery }}" onChange="{{ ondocsQuery }}" placeholder="Filter every article by title or summary" aria-label="Filter articles" aria-describedby="wl-docs-error" aria-invalid="{{ docsInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;">{{ docsCount }}</span>
               </div>
               <button type="button" onClick="{{ toggledocsBuilder }}" aria-label="Regex builder for articles" title="Regex builder" style="{{ docsBuilderBtnStyle }}">.*</button>
             </div>
+            <div id="wl-docs-error" role="alert" style="{{ docsErrorStyle }}">{{ docsError }}</div>
             <sc-for list="{{ docsCats }}" as="cat" hint-placeholder-count="4">
               <section style="margin-bottom:36px;">
                 <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;">
                   <h2 style="font-family:var(--brand);font-size:22px;font-weight:600;margin:0;">{{ cat.label }}</h2>
-                  <span style="font-family:var(--mono);font-size:12px;color:var(--out);">{{ cat.count }} articles</span>
+                  <span style="font-family:var(--mono);font-size:12px;color:var(--osv);">{{ cat.count }} articles</span>
                 </div>
                 <p style="font-size:14px;line-height:1.6;color:var(--osv);margin:0 0 16px;max-width:68ch;">{{ cat.lede }}</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;">
                   <sc-for list="{{ cat.articles }}" as="art" hint-placeholder-count="4">
                     <button type="button" onClick="{{ art.onClick }}" style="text-align:left;border-radius:var(--radius);border:1px solid var(--outv);background:var(--card);padding:16px;cursor:pointer;color:var(--on);display:flex;flex-direction:column;gap:6px;" style-hover="border-color:var(--p);background:var(--s-low)">
                       <span style="font-size:15px;font-weight:600;">{{ art.title }}</span>
@@ -401,21 +483,25 @@ button{font:inherit;}
             </div>
 
             <div style="{{ mobileIndexStyle }}">
-              <button type="button" onClick="{{ toggleIndex }}" style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;background:var(--s-cont);border:0;border-radius:14px;color:var(--on);font-size:14px;font-weight:600;cursor:pointer;">
+              <button type="button" onClick="{{ toggleIndex }}" aria-expanded="{{ indexOpenAttr }}" aria-controls="wl-mobile-outline" style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;background:var(--s-cont);border:0;border-radius:14px;color:var(--on);font-size:14px;font-weight:600;cursor:pointer;">
                 <span>On this page</span>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="{{ indexChevronStyle }}"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"></path></svg>
               </button>
-              <div style="{{ mobileOutlineStyle }}">
+              <div id="wl-mobile-outline" role="region" aria-label="On this page" style="{{ mobileOutlineStyle }}">
                 <sc-for list="{{ outline }}" as="o" hint-placeholder-count="5">
                   <a href="{{ o.href }}" style="display:block;padding:8px 16px;font-size:14px;color:var(--osv);text-decoration:none;">{{ o.label }}</a>
                 </sc-for>
               </div>
             </div>
 
-            <div style="{{ articleLedeStyle }}">{{ articleLede }}</div>
+            <p style="{{ articleLedeStyle }}">{{ articleLede }}</p>
 
             <sc-for list="{{ articleBlocks }}" as="b" hint-placeholder-count="8">
-              <div id="{{ b.anchor }}" role="{{ b.role }}" aria-level="{{ b.level }}" style="{{ b.style }}">{{ b.text }}</div>
+              <sc-if value="{{ b.isHeading }}"><div id="{{ b.anchor }}" role="heading" aria-level="{{ b.level }}" style="{{ b.style }}">{{ b.text }}</div></sc-if>
+              <sc-if value="{{ b.isParagraph }}"><p style="{{ b.style }}">{{ b.text }}</p></sc-if>
+              <sc-if value="{{ b.isCode }}"><pre style="{{ b.style }}"><code>{{ b.text }}</code></pre></sc-if>
+              <sc-if value="{{ b.isUnordered }}"><ul style="{{ b.style }}"><sc-for list="{{ b.items }}" as="item" hint-placeholder-count="3"><li>{{ item.text }}</li></sc-for></ul></sc-if>
+              <sc-if value="{{ b.isOrdered }}"><ol style="{{ b.style }}"><sc-for list="{{ b.items }}" as="item" hint-placeholder-count="3"><li>{{ item.text }}</li></sc-for></ol></sc-if>
             </sc-for>
 
             <div style="{{ articleEmptyStyle }}">
@@ -423,12 +509,12 @@ button{font:inherit;}
             </div>
 
             <nav style="display:flex;flex-wrap:wrap;gap:10px;margin:40px 0 16px;padding-top:24px;border-top:1px solid var(--outv);">
-              <button type="button" onClick="{{ prevArticle }}" style="{{ prevStyle }}">
-                <span style="display:block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--out);margin-bottom:4px;">Previous</span>
+              <button type="button" onClick="{{ prevArticle }}" disabled="{{ prevDisabled }}" aria-disabled="{{ prevDisabledAttr }}" style="{{ prevStyle }}">
+                <span style="display:block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--osv);margin-bottom:4px;">Previous</span>
                 <span style="display:block;font-size:14px;font-weight:600;">{{ prevTitle }}</span>
               </button>
-              <button type="button" onClick="{{ nextArticle }}" style="{{ nextStyle }}">
-                <span style="display:block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--out);margin-bottom:4px;">Next</span>
+              <button type="button" onClick="{{ nextArticle }}" disabled="{{ nextDisabled }}" aria-disabled="{{ nextDisabledAttr }}" style="{{ nextStyle }}">
+                <span style="display:block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--osv);margin-bottom:4px;">Next</span>
                 <span style="display:block;font-size:14px;font-weight:600;">{{ nextTitle }}</span>
               </button>
             </nav>
@@ -437,22 +523,23 @@ button{font:inherit;}
 
         <sc-if value="{{ isScreenshots }}">
           <div style="animation:wl-fade .3s ease;">
-            <h1 style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0 0 12px;">Screenshots</h1>
+            <h1 id="wl-screenshots-title" tabindex="-1" style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0 0 12px;">Screenshots</h1>
             <p style="font-size:16px;line-height:1.6;color:var(--osv);margin:0 0 24px;max-width:70ch;">Captures of the real running application, taken by the project's harness in continuous integration. Nothing here is a mockup or a redraw.</p>
             <div style="display:flex;gap:8px;align-items:center;max-width:560px;margin-bottom:16px;">
               <div style="flex:1;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:14px;background:var(--s-lowest);border:1px solid var(--outv);min-width:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                <input type="text" value="{{ shotsQuery }}" onChange="{{ onshotsQuery }}" placeholder="Filter captures by caption" aria-label="Filter screenshots" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
-                <span style="font-family:var(--mono);font-size:12px;color:var(--out);flex:0 0 auto;">{{ shotsCount }}</span>
+                <input type="text" value="{{ shotsQuery }}" onChange="{{ onshotsQuery }}" placeholder="Filter captures by caption" aria-label="Filter screenshots" aria-describedby="wl-shots-error" aria-invalid="{{ shotsInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;">{{ shotsCount }}</span>
               </div>
               <button type="button" onClick="{{ toggleshotsBuilder }}" aria-label="Regex builder for screenshots" title="Regex builder" style="{{ shotsBuilderBtnStyle }}">.*</button>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px;">
+            <div id="wl-shots-error" role="alert" style="{{ shotsErrorStyle }}">{{ shotsError }}</div>
+            <div role="group" aria-label="Screenshot category" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px;">
               <sc-for list="{{ shotFilters }}" as="c" hint-placeholder-count="5">
-                <button type="button" onClick="{{ c.onClick }}" style="{{ c.style }}" style-hover="background:var(--s-high)">{{ c.label }}</button>
+                <button type="button" onClick="{{ c.onClick }}" aria-pressed="{{ c.pressed }}" style="{{ c.style }}" style-hover="background:var(--s-high)">{{ c.label }}</button>
               </sc-for>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;">
               <sc-for list="{{ shots }}" as="s" hint-placeholder-count="6">
                 <figure style="margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--outv);background:var(--s-lowest);">
                   <img src="{{ s.src }}" alt="{{ s.alt }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--s-cont);">
@@ -473,13 +560,14 @@ button{font:inherit;}
             <div style="display:flex;gap:8px;align-items:center;max-width:560px;margin-bottom:16px;">
               <div style="flex:1;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:14px;background:var(--s-lowest);border:1px solid var(--outv);min-width:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                <input type="text" value="{{ settingsQuery }}" onChange="{{ onsettingsQuery }}" placeholder="Search every setting" aria-label="Search settings" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
-                <span style="font-family:var(--mono);font-size:12px;color:var(--out);flex:0 0 auto;">{{ settingsCount }}</span>
+                <input type="text" value="{{ settingsQuery }}" onChange="{{ onsettingsQuery }}" placeholder="Search every setting" aria-label="Search settings" aria-describedby="wl-settings-error" aria-invalid="{{ settingsInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;">{{ settingsCount }}</span>
               </div>
               <button type="button" onClick="{{ togglesettingsBuilder }}" aria-label="Regex builder for settings" title="Regex builder" style="{{ settingsBuilderBtnStyle }}">.*</button>
             </div>
+            <div id="wl-settings-error" role="alert" style="{{ settingsErrorStyle }}">{{ settingsError }}</div>
             <div style="height:16px;"></div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;">
               <sc-for list="{{ settingsGroups }}" as="g" hint-placeholder-count="6">
                 <button type="button" onClick="{{ g.onClick }}" style="text-align:left;border-radius:var(--radius-lg);border:1px solid var(--outv);background:var(--card);padding:var(--cardpad);cursor:pointer;color:var(--on);display:flex;flex-direction:column;gap:10px;" style-hover="border-color:var(--p);background:var(--s-low)">
                   <span style="width:44px;height:44px;border-radius:14px;background:var(--secc);color:var(--osecc);display:grid;place-items:center;">
@@ -487,7 +575,7 @@ button{font:inherit;}
                   </span>
                   <span style="font-size:17px;font-weight:600;">{{ g.label }}</span>
                   <span style="font-size:13px;line-height:1.55;color:var(--osv);text-wrap:pretty;">{{ g.desc }}</span>
-                  <span style="font-family:var(--mono);font-size:11.5px;color:var(--out);">{{ g.meta }}</span>
+                  <span style="font-family:var(--mono);font-size:11.5px;color:var(--osv);">{{ g.meta }}</span>
                 </button>
               </sc-for>
             </div>
@@ -496,14 +584,14 @@ button{font:inherit;}
 
         <sc-if value="{{ isSettingsDetail }}">
           <div style="animation:wl-fade .3s ease;max-width:78ch;">
-            <nav style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--osv);margin-bottom:20px;">
+            <nav style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;overflow-wrap:anywhere;font-size:13px;color:var(--osv);margin-bottom:20px;">
               <button type="button" onClick="{{ goSettings }}" style="background:none;border:0;padding:0;color:var(--p);cursor:pointer;font-size:13px;text-decoration:underline;text-underline-offset:3px;">Settings</button>
               <span>/</span>
               <button type="button" onClick="{{ goAppearance }}" style="{{ crumbParentStyle }}">Appearance</button>
               <span style="{{ crumbParentStyle }}">/</span>
               <span>{{ groupTitle }}</span>
             </nav>
-            <h1 style="font-family:var(--brand);font-size:clamp(26px,4vw,36px);font-weight:600;letter-spacing:-0.8px;margin:0 0 10px;">{{ groupTitle }}</h1>
+            <h1 id="wl-settings-group-title" tabindex="-1" style="font-family:var(--brand);font-size:clamp(26px,4vw,36px);font-weight:600;letter-spacing:-0.8px;margin:0 0 10px;">{{ groupTitle }}</h1>
             <p style="font-size:15px;line-height:1.6;color:var(--osv);margin:0 0 28px;max-width:66ch;text-wrap:pretty;">{{ groupDesc }}</p>
 
             <sc-for list="{{ groupSections }}" as="sec" hint-placeholder-count="2">
@@ -512,26 +600,26 @@ button{font:inherit;}
                 <div style="padding:8px 20px 16px;display:flex;flex-direction:column;">
                   <sc-for list="{{ sec.rows }}" as="row" hint-placeholder-count="3">
                     <div style="{{ row.rowStyle }}">
-                      <div style="flex:1;min-width:200px;">
+                      <div style="flex:1;min-width:min(100%,200px);">
                         <div style="font-size:15px;font-weight:600;margin-bottom:4px;">{{ row.label }}</div>
                         <div style="font-size:13px;line-height:1.5;color:var(--osv);text-wrap:pretty;">{{ row.desc }}</div>
                       </div>
                       <div style="{{ row.segStyle }}">
                         <sc-for list="{{ row.options }}" as="o" hint-placeholder-count="3">
-                          <button type="button" onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button>
+                          <button type="button" onClick="{{ o.onClick }}" aria-pressed="{{ o.pressed }}" style="{{ o.style }}">{{ o.label }}</button>
                         </sc-for>
                       </div>
                       <div style="{{ row.sliderStyle }}">
-                        <input type="range" min="{{ row.min }}" max="{{ row.max }}" step="{{ row.step }}" value="{{ row.value }}" onChange="{{ row.onInput }}" aria-label="{{ row.label }}" style="flex:1;min-width:140px;accent-color:var(--p);height:24px;">
+                        <input type="range" min="{{ row.min }}" max="{{ row.max }}" step="{{ row.step }}" value="{{ row.value }}" onChange="{{ row.onInput }}" aria-label="{{ row.label }}" style="flex:1;min-width:0;accent-color:var(--p);height:24px;">
                         <span style="font-family:var(--mono);font-size:13px;color:var(--p);min-width:64px;text-align:right;">{{ row.valueLabel }}</span>
                       </div>
-                      <button type="button" onClick="{{ row.onToggle }}" style="{{ row.toggleStyle }}">{{ row.toggleLabel }}</button>
+                      <button type="button" onClick="{{ row.onToggle }}" aria-label="{{ row.toggleAriaLabel }}" aria-pressed="{{ row.togglePressed }}" style="{{ row.toggleStyle }}">{{ row.toggleLabel }}</button>
                       <div style="{{ row.swatchStyle }}">
                         <sc-for list="{{ row.swatches }}" as="sw" hint-placeholder-count="5">
-                          <button type="button" onClick="{{ sw.onClick }}" aria-label="{{ sw.name }}" title="{{ sw.name }}" style="{{ sw.style }}"></button>
+                          <button type="button" onClick="{{ sw.onClick }}" aria-label="{{ sw.name }}" aria-pressed="{{ sw.pressed }}" title="{{ sw.name }}" style="{{ sw.style }}"></button>
                         </sc-for>
                       </div>
-                      <button type="button" onClick="{{ row.onAction }}" style="{{ row.actionStyle }}">{{ row.actionLabel }}</button>
+                      <button type="button" onClick="{{ row.onAction }}" aria-label="{{ row.actionAriaLabel }}" style="{{ row.actionStyle }}">{{ row.actionLabel }}</button>
                     </div>
                   </sc-for>
                 </div>
@@ -543,11 +631,12 @@ button{font:inherit;}
             <div style="display:flex;gap:8px;align-items:center;max-width:560px;margin:20px 0 16px;">
               <div style="flex:1;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:14px;background:var(--s-lowest);border:1px solid var(--outv);min-width:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                <input type="text" value="{{ appearanceQuery }}" onChange="{{ onappearanceQuery }}" placeholder="Find an element to edit" aria-label="Search per-element editors" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
-                <span style="font-family:var(--mono);font-size:12px;color:var(--out);flex:0 0 auto;">{{ appearanceCount }}</span>
+                <input type="text" value="{{ appearanceQuery }}" onChange="{{ onappearanceQuery }}" placeholder="Find an element to edit" aria-label="Search per-element editors" aria-describedby="wl-appearance-error" aria-invalid="{{ appearanceInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;">{{ appearanceCount }}</span>
               </div>
               <button type="button" onClick="{{ toggleappearanceBuilder }}" aria-label="Regex builder for elements" title="Regex builder" style="{{ appearanceBuilderBtnStyle }}">.*</button>
             </div>
+            <div id="wl-appearance-error" role="alert" style="{{ appearanceErrorStyle }}">{{ appearanceError }}</div>
             <section style="border-radius:var(--radius-lg);border:1px solid var(--outv);background:var(--card);overflow:hidden;">
               <h2 style="font-family:var(--brand);font-size:16px;font-weight:600;margin:0;padding:16px 20px;background:var(--s-low);border-bottom:1px solid var(--outv);">Per-element editors</h2>
               <div style="padding:8px 0;">
@@ -572,19 +661,20 @@ button{font:inherit;}
         <sc-if value="{{ isSearch }}">
           <div style="animation:wl-fade .3s ease;">
             <h1 style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0 0 20px;">Search</h1>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+            <div role="group" aria-label="Search scope" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
               <sc-for list="{{ searchScopes }}" as="sc" hint-placeholder-count="4">
-                <button type="button" onClick="{{ sc.onClick }}" style="{{ sc.style }}" style-hover="background:var(--s-high)">{{ sc.label }}</button>
+                <button type="button" onClick="{{ sc.onClick }}" aria-pressed="{{ sc.pressed }}" style="{{ sc.style }}" style-hover="background:var(--s-high)">{{ sc.label }}</button>
               </sc-for>
             </div>
             <div style="display:flex;gap:8px;align-items:center;max-width:760px;">
               <div style="flex:1;display:flex;align-items:center;gap:12px;height:56px;padding:0 18px;border-radius:16px;background:var(--s-lowest);border:1px solid var(--out);min-width:0;">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                <input type="text" value="{{ searchQuery }}" onChange="{{ onsearchQuery }}" placeholder="Search 59 articles" aria-label="Search documentation" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:16px;font-family:var(--mono);">
-                <span style="font-family:var(--mono);font-size:12px;color:var(--out);flex:0 0 auto;">{{ searchCount }}</span>
+                <input id="wl-search-query" type="text" value="{{ searchQuery }}" onChange="{{ onsearchQuery }}" placeholder="Search 59 articles" aria-label="Search documentation" aria-describedby="wl-search-error" aria-invalid="{{ searchInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:16px;font-family:var(--mono);">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;">{{ searchCount }}</span>
               </div>
               <button type="button" onClick="{{ togglesearchBuilder }}" aria-label="Regex builder" title="Regex builder" style="{{ searchBuilderBtnStyle }}">.*</button>
             </div>
+            <div id="wl-search-error" role="alert" style="{{ searchErrorStyle }}">{{ searchError }}</div>
 
             <div style="margin-top:28px;display:flex;flex-direction:column;gap:10px;">
               <sc-for list="{{ searchResults }}" as="r" hint-placeholder-count="5">
@@ -602,19 +692,20 @@ button{font:inherit;}
 
         <sc-if value="{{ isChangelog }}">
           <div style="animation:wl-fade .3s ease;">
-            <h1 style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0 0 12px;">Changelog</h1>
+            <h1 id="wl-changelog-title" tabindex="-1" style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0 0 12px;">Changelog</h1>
             <p style="font-size:16px;line-height:1.6;color:var(--osv);margin:0 0 24px;max-width:70ch;text-wrap:pretty;">Every entry is one commit, carrying the full SHA so the claim can be checked. Entries are grouped by the area of the repository they changed — never inferred as feature or fix.</p>
             <div style="display:flex;gap:8px;align-items:center;max-width:560px;margin-bottom:16px;">
               <div style="flex:1;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:14px;background:var(--s-lowest);border:1px solid var(--outv);min-width:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                <input type="text" value="{{ changelogQuery }}" onChange="{{ onchangelogQuery }}" placeholder="Search subjects, areas or a commit SHA" aria-label="Search the changelog" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:14px;font-family:var(--mono);">
-                <span style="font-family:var(--mono);font-size:12px;color:var(--out);flex:0 0 auto;">{{ changelogCount }}</span>
+                <input type="text" value="{{ changelogQuery }}" onChange="{{ onchangelogQuery }}" placeholder="Search subjects, areas or a commit SHA" aria-label="Search the changelog" aria-describedby="wl-changelog-error" aria-invalid="{{ changelogInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:14px;font-family:var(--mono);">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;">{{ changelogCount }}</span>
               </div>
               <button type="button" onClick="{{ togglechangelogBuilder }}" aria-label="Regex builder for the changelog" title="Regex builder" style="{{ changelogBuilderBtnStyle }}">.*</button>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:28px;">
+            <div id="wl-changelog-error" role="alert" style="{{ changelogErrorStyle }}">{{ changelogError }}</div>
+            <div role="group" aria-label="Changelog date range" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:28px;">
               <sc-for list="{{ dateFilters }}" as="d" hint-placeholder-count="4">
-                <button type="button" onClick="{{ d.onClick }}" style="{{ d.style }}" style-hover="background:var(--s-high)">{{ d.label }}</button>
+                <button type="button" onClick="{{ d.onClick }}" aria-pressed="{{ d.pressed }}" style="{{ d.style }}" style-hover="background:var(--s-high)">{{ d.label }}</button>
               </sc-for>
               <button type="button" onClick="{{ exportChangelog }}" style="display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--out);background:transparent;color:var(--p);font-size:13px;font-weight:600;cursor:pointer;margin-left:auto;" style-hover="background:var(--s-cont)">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M5 20h14v-2H5zm7-16-5.5 5.5L8 11l3-3v9h2V8l3 3 1.5-1.5z"></path></svg>
@@ -649,18 +740,19 @@ button{font:inherit;}
         <sc-if value="{{ isNotifications }}">
           <div style="animation:wl-fade .3s ease;max-width:78ch;">
             <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between;margin-bottom:12px;">
-              <h1 style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0;">Notifications</h1>
+              <h1 id="wl-notifications-title" tabindex="-1" style="font-family:var(--brand);font-size:clamp(30px,4.5vw,40px);font-weight:600;letter-spacing:-1px;margin:0;">Notifications</h1>
               <button type="button" onClick="{{ markAllRead }}" style="height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--out);background:transparent;color:var(--p);font-size:14px;font-weight:600;cursor:pointer;" style-hover="background:var(--s-cont)">{{ markAllLabel }}</button>
             </div>
             <p style="font-size:16px;line-height:1.6;color:var(--osv);margin:0 0 20px;max-width:68ch;">History only — this surface never interrupts. Toasts appear at the corner of the running application; what they said is kept here.</p>
             <div style="display:flex;gap:8px;align-items:center;max-width:560px;margin-bottom:24px;">
               <div style="flex:1;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:14px;background:var(--s-lowest);border:1px solid var(--outv);min-width:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                <input type="text" value="{{ notifQuery }}" onChange="{{ onnotifQuery }}" placeholder="Search notification history" aria-label="Search notifications" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
-                <span style="font-family:var(--mono);font-size:12px;color:var(--out);flex:0 0 auto;">{{ notifCount }}</span>
+                <input type="text" value="{{ notifQuery }}" onChange="{{ onnotifQuery }}" placeholder="Search notification history" aria-label="Search notifications" aria-describedby="wl-notif-error" aria-invalid="{{ notifInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
+                <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;">{{ notifCount }}</span>
               </div>
               <button type="button" onClick="{{ togglenotifBuilder }}" aria-label="Regex builder for notifications" title="Regex builder" style="{{ notifBuilderBtnStyle }}">.*</button>
             </div>
+            <div id="wl-notif-error" role="alert" style="{{ notifErrorStyle }}">{{ notifError }}</div>
             <div style="display:flex;flex-direction:column;gap:10px;">
               <sc-for list="{{ notifications }}" as="n" hint-placeholder-count="5">
                 <div style="{{ n.cardStyle }}">
@@ -670,7 +762,7 @@ button{font:inherit;}
                   <div style="flex:1;min-width:0;">
                     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-bottom:4px;">
                       <span style="font-size:15px;font-weight:600;">{{ n.title }}</span>
-                      <span style="font-family:var(--mono);font-size:12px;color:var(--out);">{{ n.time }}</span>
+                      <span style="font-family:var(--mono);font-size:12px;color:var(--osv);">{{ n.time }}</span>
                     </div>
                     <div style="font-size:13.5px;line-height:1.55;color:var(--osv);text-wrap:pretty;">{{ n.body }}</div>
                   </div>
@@ -687,7 +779,7 @@ button{font:inherit;}
             <p style="font-size:16px;line-height:1.7;color:var(--osv);margin:0 0 28px;text-wrap:pretty;">The site ships every article it links, so a missing page means the address was typed, guessed or came from an older deployment. Nothing was fetched from anywhere else to find it.</p>
             <div style="display:flex;flex-wrap:wrap;gap:12px;">
               <button type="button" onClick="{{ goHome }}" style="height:48px;padding:0 24px;border-radius:999px;background:var(--p);color:var(--op);border:0;font-size:15px;font-weight:600;cursor:pointer;">Back to Home</button>
-              <button type="button" onClick="{{ openPalette }}" style="height:48px;padding:0 22px;border-radius:999px;border:1px solid var(--out);background:transparent;color:var(--p);font-size:15px;font-weight:600;cursor:pointer;" style-hover="background:var(--s-cont)">Open the command palette</button>
+              <button type="button" data-action="open-palette" onClick="{{ openPalette }}" style="height:48px;padding:0 22px;border-radius:999px;border:1px solid var(--out);background:transparent;color:var(--p);font-size:15px;font-weight:600;cursor:pointer;" style-hover="background:var(--s-cont)">Open the command palette</button>
             </div>
           </div>
         </sc-if>
@@ -740,45 +832,52 @@ button{font:inherit;}
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"></path></svg>
             Edit this page on GitHub
           </a>
-          <div style="font-family:var(--mono);font-size:11.5px;color:var(--out);margin-top:16px;line-height:1.6;">Updated 2026-08-06<br>45fa6f42ae</div>
+          <div style="font-family:var(--mono);font-size:11.5px;color:var(--osv);margin-top:16px;line-height:1.6;">Updated 2026-08-06<br>45fa6f42ae</div>
         </div>
       </div>
     </aside>
+    </div>
   </div>
 
   <nav style="{{ bottomNavStyle }}" aria-label="Primary">
     <sc-for list="{{ bottomNav }}" as="b" hint-placeholder-count="4">
-      <button type="button" onClick="{{ b.onClick }}" style="{{ b.style }}">
+      <button type="button" data-action="{{ b.actionId }}" data-active="{{ b.activeAttr }}" onClick="{{ b.onClick }}" style="{{ b.style }}">
         <span style="{{ b.pillStyle }}">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="{{ b.icon }}"></path></svg>
         </span>
-        <span style="font-size:12px;font-weight:600;">{{ b.label }}</span>
+        <span style="font-size:12px;font-weight:600;">
+          <span lang="en" style="{{ b.enStyle }}">{{ b.en }}</span><span aria-hidden="true" style="{{ b.separatorStyle }}"> · </span><span lang="zh-HK" style="{{ b.yueStyle }}">{{ b.yue }}</span>
+        </span>
       </button>
     </sc-for>
   </nav>
 
-  <div style="{{ scrimStyle }}" onClick="{{ closeDrawer }}"></div>
-  <div style="{{ sheetStyle }}">
-    <div style="width:32px;height:4px;border-radius:999px;background:var(--outv);margin:12px auto 8px;"></div>
+  <div class="wl-overlay-scrim" style="{{ scrimStyle }}" onClick="{{ closeDrawer }}"></div>
+  <div id="wl-more-sheet" class="wl-more-sheet" style="{{ sheetStyle }}" role="dialog" aria-modal="true" aria-labelledby="wl-more-title">
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 12px 0 20px;">
+      <div id="wl-more-title" style="flex:1;min-width:0;font-size:17px;font-weight:650;"><span lang="en" style="{{ moreEnStyle }}">More actions</span><span aria-hidden="true" style="{{ moreSeparatorStyle }}"> · </span><span lang="zh-HK" style="{{ moreYueStyle }}">更多操作</span></div>
+      <button type="button" data-action="close-overlay" onClick="{{ closeMore }}" style="min-width:44px;min-height:44px;padding:0 14px;border:0;border-radius:999px;background:none;color:var(--p);font-weight:650;cursor:pointer;"><span lang="en" style="{{ moreEnStyle }}">Close</span><span aria-hidden="true" style="{{ moreSeparatorStyle }}"> · </span><span lang="zh-HK" style="{{ moreYueStyle }}">關閉</span></button>
+    </div>
     <div style="padding:8px 12px 24px;">
       <sc-for list="{{ moreItems }}" as="m" hint-placeholder-count="4">
-        <button type="button" onClick="{{ m.onClick }}" style="display:flex;align-items:center;gap:16px;width:100%;min-height:56px;padding:0 16px;border:0;border-radius:16px;background:none;color:var(--on);font-size:16px;cursor:pointer;text-align:left;" style-hover="background:var(--s-high)">
+        <button type="button" onClick="{{ m.onClick }}" aria-labelledby="{{ m.labelId }}" style="display:flex;align-items:center;gap:16px;width:100%;min-height:56px;padding:0 16px;border:0;border-radius:16px;background:none;color:var(--on);font-size:16px;cursor:pointer;text-align:left;" style-hover="background:var(--s-high)">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true" style="color:var(--osv);"><path d="{{ m.icon }}"></path></svg>
-          {{ m.label }}
+          <span aria-hidden="true"><span lang="en" style="{{ m.enStyle }}">{{ m.en }}</span><span style="{{ m.separatorStyle }}"> · </span><span lang="zh-HK" style="{{ m.yueStyle }}">{{ m.yue }}</span></span>
+          <span id="{{ m.labelId }}" class="wl-sr-only"><span lang="en" style="{{ m.enStyle }}">{{ m.ariaEn }}</span> <span aria-hidden="true" style="{{ m.separatorStyle }}">·</span> <span lang="zh-HK" style="{{ m.yueStyle }}">{{ m.ariaYue }}</span></span>
         </button>
       </sc-for>
     </div>
   </div>
 
-  <div style="{{ builderScrimStyle }}" onClick="{{ closeBuilder }}"></div>
+  <div class="wl-overlay-scrim" style="{{ builderScrimStyle }}" onClick="{{ closeBuilder }}"></div>
   <section style="{{ builderPanelStyle }}" role="dialog" aria-label="Regular expression builder">
-    <header onMouseDown="{{ builderDragStart }}" style="display:flex;align-items:center;gap:10px;padding:12px 12px 12px 16px;background:var(--s-cont);border-bottom:1px solid var(--outv);cursor:grab;user-select:none;">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" style="color:var(--out);flex:0 0 auto;"><path d="M9 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path></svg>
+    <header class="wl-builder-header" onMouseDown="{{ builderDragStart }}" style="display:flex;align-items:center;gap:10px;padding:12px 12px 12px 16px;background:var(--s-cont);border-bottom:1px solid var(--outv);cursor:grab;user-select:none;">
+      <svg class="wl-builder-drag-handle" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" style="color:var(--out);flex:0 0 auto;"><path d="M9 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path></svg>
       <div style="flex:1;min-width:0;">
         <div style="font-size:14px;font-weight:600;line-height:1.2;">Regular expression builder</div>
         <div style="font-size:11.5px;color:var(--osv);margin-top:2px;">{{ builderScopeLabel }}</div>
       </div>
-      <button type="button" onClick="{{ resetBuilderPos }}" aria-label="Re-anchor to the field" title="Re-anchor to the field" style="width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
+      <button class="wl-builder-reanchor" type="button" onClick="{{ resetBuilderPos }}" aria-label="Re-anchor to the field" title="Re-anchor to the field" style="width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"></path></svg>
       </button>
       <button type="button" onClick="{{ closeBuilder }}" aria-label="Close the builder" style="width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
@@ -786,16 +885,15 @@ button{font:inherit;}
       </button>
     </header>
 
-    <div style="overflow-y:auto;max-height:min(66vh,560px);padding:16px;display:flex;flex-direction:column;gap:18px;">
+    <div class="wl-builder-body" style="overflow-y:auto;max-height:min(66vh,560px);padding:16px;display:flex;flex-direction:column;gap:18px;">
 
       <div>
         <div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:15px;padding:10px 12px;border-radius:12px;background:var(--s-lowest);border:1px solid {{ builderBorder }};">
           <span style="color:var(--out);flex:0 0 auto;">/</span>
-          <input type="text" value="{{ builderPattern }}" onChange="{{ onBuilderPattern }}" onSelect="{{ onBuilderCaret }}" onKeyUp="{{ onBuilderCaret }}" onClick="{{ onBuilderCaret }}" ref="{{ builderInputRef }}" aria-label="Regular expression pattern" spellcheck="false" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-family:var(--mono);font-size:15px;">
+          <input type="text" value="{{ builderPattern }}" onChange="{{ onBuilderPattern }}" onSelect="{{ onBuilderCaret }}" onKeyUp="{{ onBuilderCaret }}" onClick="{{ onBuilderCaret }}" ref="{{ builderInputRef }}" aria-label="Regular expression pattern" aria-describedby="wl-builder-feedback wl-builder-live-results" aria-invalid="{{ builderInvalid }}" spellcheck="false" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-family:var(--mono);font-size:15px;">
           <span style="color:var(--out);flex:0 0 auto;">/{{ builderFlagString }}</span>
         </div>
-        <div style="{{ builderErrorStyle }}">{{ builderError }}</div>
-        <div style="{{ builderOkStyle }}">{{ builderSummary }}</div>
+        <div id="wl-builder-feedback" role="status" aria-live="polite" style="{{ builderFeedbackStyle }}">{{ builderFeedback }}</div>
       </div>
 
       <div style="{{ primerStyle }}">
@@ -816,7 +914,7 @@ button{font:inherit;}
         <div style="font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--osv);margin-bottom:8px;">Flags — how the whole pattern is applied</div>
         <div style="display:flex;flex-direction:column;gap:6px;">
           <sc-for list="{{ builderFlags }}" as="fl" hint-placeholder-count="6">
-            <button type="button" onClick="{{ fl.onClick }}" style="{{ fl.rowStyle }}">
+            <button type="button" onClick="{{ fl.onClick }}" aria-pressed="{{ fl.pressed }}" style="{{ fl.rowStyle }}">
               <span style="{{ fl.chipStyle }}">{{ fl.label }}</span>
               <span style="flex:1;min-width:0;text-align:left;">
                 <span style="display:block;font-size:12.5px;font-weight:600;">{{ fl.name }}</span>
@@ -830,12 +928,12 @@ button{font:inherit;}
 
       <div>
         <div style="font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--osv);margin-bottom:4px;">Insert a piece — each one says what it means</div>
-        <div style="font-size:11.5px;line-height:1.5;color:var(--out);margin-bottom:10px;">Clicking one drops it where your cursor is. Select some text first and a group will wrap it.</div>
+        <div style="font-size:11.5px;line-height:1.5;color:var(--osv);margin-bottom:10px;">Clicking one drops it where your cursor is. Select some text first and a group will wrap it.</div>
         <div style="display:flex;flex-direction:column;gap:14px;">
           <sc-for list="{{ tokenGroups }}" as="tg" hint-placeholder-count="4">
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--on);margin-bottom:2px;">{{ tg.label }}</div>
-              <div style="font-size:11.5px;line-height:1.5;color:var(--out);margin-bottom:8px;">{{ tg.lede }}</div>
+              <div style="font-size:11.5px;line-height:1.5;color:var(--osv);margin-bottom:8px;">{{ tg.lede }}</div>
               <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;">
                 <sc-for list="{{ tg.tokens }}" as="tk" hint-placeholder-count="6">
                   <button type="button" onClick="{{ tk.onClick }}" style="display:flex;align-items:center;gap:8px;text-align:left;padding:7px 10px;border-radius:10px;border:1px solid var(--outv);background:var(--s-lowest);color:var(--on);cursor:pointer;min-height:44px;" style-hover="border-color:var(--p);background:var(--s-cont)">
@@ -851,7 +949,7 @@ button{font:inherit;}
 
       <div>
         <div style="font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--osv);margin-bottom:4px;">Transform what you have already typed</div>
-        <div style="font-size:11.5px;line-height:1.5;color:var(--out);margin-bottom:10px;">These rewrite the whole pattern rather than inserting into it.</div>
+        <div style="font-size:11.5px;line-height:1.5;color:var(--osv);margin-bottom:10px;">These rewrite the whole pattern rather than inserting into it.</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;">
           <sc-for list="{{ transforms }}" as="tr" hint-placeholder-count="5">
             <button type="button" onClick="{{ tr.onClick }}" style="display:flex;flex-direction:column;gap:2px;text-align:left;padding:9px 12px;border-radius:10px;border:1px solid var(--outv);background:transparent;color:var(--on);cursor:pointer;min-height:44px;" style-hover="border-color:var(--p);background:var(--s-cont)">
@@ -866,7 +964,7 @@ button{font:inherit;}
         <div style="font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--osv);margin-bottom:8px;">Fields this builder searches</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;">
           <sc-for list="{{ builderFields }}" as="bf" hint-placeholder-count="3">
-            <button type="button" onClick="{{ bf.onClick }}" style="{{ bf.style }}">{{ bf.label }}</button>
+            <button type="button" onClick="{{ bf.onClick }}" aria-pressed="{{ bf.pressed }}" style="{{ bf.style }}">{{ bf.label }}</button>
           </sc-for>
         </div>
       </div>
@@ -896,7 +994,7 @@ button{font:inherit;}
           </div>
           <sc-for list="{{ builderMatches }}" as="m" hint-placeholder-count="3">
             <div style="{{ m.rowStyle }}">
-              <span style="font-family:var(--mono);font-size:11.5px;color:var(--out);flex:0 0 auto;min-width:56px;">@{{ m.index }}</span>
+              <span style="font-family:var(--mono);font-size:11.5px;color:var(--osv);flex:0 0 auto;min-width:56px;">@{{ m.index }}</span>
               <span style="flex:1;min-width:0;">
                 <span style="display:inline-block;font-family:var(--mono);font-size:12.5px;background:var(--pc);color:var(--opc);padding:1px 6px;border-radius:4px;overflow-wrap:anywhere;">{{ m.text }}</span>
                 <span style="{{ m.groupStyle }}">{{ m.groups }}</span>
@@ -909,6 +1007,7 @@ button{font:inherit;}
 
       <div>
         <div style="font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--osv);margin-bottom:8px;">Live result on this page · {{ builderLiveCount }}</div>
+        <div id="wl-builder-live-results" class="wl-sr-only" role="status" aria-live="polite">{{ builderLiveAnnouncement }}</div>
         <div style="border-radius:12px;border:1px solid var(--outv);background:var(--s-lowest);overflow:hidden;">
           <sc-for list="{{ builderHits }}" as="h" hint-placeholder-count="4">
             <div style="{{ h.rowStyle }}">{{ h.label }}</div>
@@ -951,29 +1050,34 @@ button{font:inherit;}
     <footer style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid var(--outv);background:var(--s-low);">
       <button type="button" onClick="{{ toggleRegexMode }}" style="{{ regexModeStyle }}">{{ regexModeLabel }}</button>
       <button type="button" onClick="{{ clearBuilder }}" style="height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--outv);background:transparent;color:var(--osv);font-size:13px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--p);color:var(--on)">Clear</button>
+      <button type="button" onClick="{{ copyBuilder }}" style="height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--outv);background:transparent;color:var(--p);font-size:13px;font-weight:600;cursor:pointer;">Copy</button>
+      <button type="button" onClick="{{ exportBuilder }}" style="height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--outv);background:transparent;color:var(--p);font-size:13px;font-weight:600;cursor:pointer;">Export</button>
+      <span role="status" aria-live="polite" style="font-size:12px;color:var(--osv);">{{ builderStatus }}</span>
       <button type="button" onClick="{{ closeBuilder }}" style="margin-left:auto;height:40px;padding:0 22px;border-radius:999px;border:0;background:var(--p);color:var(--op);font-size:13px;font-weight:600;cursor:pointer;">Done</button>
     </footer>
   </section>
 
-  <div style="{{ paletteScrimStyle }}" onClick="{{ closePalette }}"></div>
+  <div class="wl-overlay-scrim" style="{{ paletteScrimStyle }}" onClick="{{ closePalette }}"></div>
   <div style="{{ paletteStyle }}" role="dialog" aria-label="Command palette">
     <div style="display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--outv);">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" style="color:var(--osv);"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-      <input type="text" value="{{ paletteQuery }}" onChange="{{ onPaletteQuery }}" placeholder="Type a command or a destination" aria-label="Command palette query" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:17px;">
-      <kbd style="font-family:var(--mono);font-size:11px;border:1px solid var(--outv);border-radius:6px;padding:3px 7px;color:var(--osv);">Esc</kbd>
+      <svg class="wl-palette-search-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" style="color:var(--osv);"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
+      <input type="text" value="{{ paletteQuery }}" onChange="{{ onpaletteQuery }}" onKeyDown="{{ onPaletteKey }}" placeholder="Search commands" aria-label="Command palette query" aria-controls="wl-palette-results" aria-activedescendant="{{ paletteActiveId }}" aria-describedby="wl-palette-error" aria-invalid="{{ paletteInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:17px;">
+      <button type="button" onClick="{{ togglepaletteBuilder }}" aria-label="Regex builder for the command palette" title="Regex builder" style="{{ paletteBuilderBtnStyle }}">.*</button>
+      <button class="wl-palette-close" type="button" data-action="close-overlay" onClick="{{ closePalette }}" aria-label="Close command palette" title="Close command palette" style="width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;">×</button>
     </div>
-    <div style="max-height:min(52vh,420px);overflow-y:auto;padding:8px;">
+    <div id="wl-palette-error" role="alert" style="{{ paletteErrorStyle }}">{{ paletteError }}</div>
+    <div id="wl-palette-results" role="listbox" aria-label="Command results" style="max-height:min(52vh,420px);overflow-y:auto;padding:8px;">
       <sc-for list="{{ paletteItems }}" as="c" hint-placeholder-count="6">
-        <button type="button" onClick="{{ c.onClick }}" style="{{ c.style }}" style-hover="background:var(--s-cont)">
+        <button type="button" id="{{ c.id }}" role="option" aria-selected="{{ c.selected }}" data-palette-navigation="{{ c.navigationAttr }}" onClick="{{ c.onClick }}" style="{{ c.style }}" style-hover="background:var(--s-cont)">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="{{ c.icon }}"></path></svg>
           <span style="flex:1;min-width:0;text-align:left;">
             <span style="display:block;font-size:14.5px;">{{ c.label }}</span>
-            <span style="display:block;font-size:12px;color:var(--out);margin-top:1px;">{{ c.group }}</span>
+            <span style="display:block;font-size:12px;color:var(--osv);margin-top:1px;">{{ c.group }}</span>
           </span>
-          <kbd style="font-family:var(--mono);font-size:11px;color:var(--out);flex:0 0 auto;">{{ c.hint }}</kbd>
+          <kbd style="font-family:var(--mono);font-size:11px;color:var(--osv);flex:0 0 auto;">{{ c.hint }}</kbd>
         </button>
       </sc-for>
-      <div style="{{ paletteEmptyStyle }}">Nothing matches “{{ paletteQuery }}”. The palette matches command names and their keywords, never a regular expression.</div>
+      <div style="{{ paletteEmptyStyle }}">Nothing matches “{{ paletteQuery }}”. Change the query or open the adjacent regular expression builder.</div>
     </div>
   </div>
 </div>
@@ -1059,23 +1163,38 @@ const ELEMENT_PAGES = {
 };
 
 const PAGES = { home:"home", docs:"docs", article:"article", screenshots:"screenshots", settings:"settings", settingsDetail:"settings-detail", search:"search", changelog:"changelog", notifications:"notifications", notFound:"404" };
+const SEARCH_FIELDS = {
+  sidebar:[["title","Tab and article titles"],["blurb","Article summaries"]],
+  tabstrip:[["title","Open tab titles"]],
+  docs:[["title","Titles"],["blurb","Summaries"],["cat","Category names"]],
+  shots:[["title","Capture titles"],["caption","Captions"],["cat","Category"]],
+  changelog:[["subject","Commit subjects"],["sha","Commit SHAs"],["area","Areas"]],
+  notif:[["title","Titles"],["body","Message bodies"]],
+  settings:[["label","Group names"],["desc","Descriptions"]],
+  appearance:[["label","Element names"],["detail","What each editor changes"]],
+  search:[["title","Result titles"],["snippet","Snippets"],["scope","Scope"]],
+  palette:[["label","Command and destination names"],["group","Command groups"],["kw","Search aliases"]]
+};
+const DEFAULT_REGEX_FLAGS = { g:true, i:true, m:true, s:false, u:true, y:false };
 
 class Component extends DCLogic {
   state = {
     articles:[], loaded:false, articleId:"site-material-design-3-pages",
     page:"home", theme:"light", density:"comfortable", language:"en",
     width: typeof window !== "undefined" ? window.innerWidth : 1440,
-    drawer:false, sheet:false, palette:false, indexOpen:false,
-    paletteQuery:"", scope:"Documentation", shotFilter:"All",
-    queries:{ sidebar:"", docs:"", shots:"", changelog:"", notif:"", settings:"", appearance:"", search:"regex" },
-    builderFor:null, builderAnchor:null, builderPos:null, regexOn:{}, fieldSel:{}, testText:{}, savedPats:[], primerDismissed:false,
+    height: typeof window !== "undefined" ? window.innerHeight : 900,
+    drawer:false, sheet:false, palette:false, paletteIndex:0, indexOpen:false,
+    scope:"Documentation", shotFilter:"All",
+    queries:{ sidebar:"", tabstrip:"", docs:"", shots:"", changelog:"", notif:"", settings:"", appearance:"", search:"regex", palette:"" },
+    builderFor:null, builderAnchor:null, builderPos:null, builderStatus:"", regexOn:{}, flagsByKey:{}, fieldSel:{}, testText:{}, savedPats:[], primerDismissed:false,
     settings:Object.assign({}, DEFAULT_SETTINGS), settingsGroup:"appearance", unread:3, playing:null,
+    reducedMotion: typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : false,
     tabs:[
       { key:"home", page:"home", pinned:true, dot:"p" },
       { key:"docs", page:"docs", dot:"" },
       { key:"settings-detail:appearance", page:"settings-detail", group:"appearance", dot:"ter" }
     ],
-    dateFilter:"All time", flags:{g:true,i:true,m:true,s:false,u:true,y:false},
+    dateFilter:"All time",
     openCats:{app:true,engine:false,delivery:false,contracts:true}, progress:0
   };
 
@@ -1115,10 +1234,12 @@ class Component extends DCLogic {
     const stored = {
       theme: this.read("theme", null), density: this.read("density", null), language: this.read("language", null),
       primerDismissed: this.read("primer", false), savedPats: this.read("saved", []), openCats: this.read("cats", null),
-      settings: this.read("settings", null), tabs: this.read("tabs", null)
+      settings: this.read("settings", null), tabs: this.read("tabs", null),
+      flagsByKey: this.read("regex-flags", null), fieldSel: this.read("regex-fields", null)
     };
     const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const route = this.routeFromHash();
+    const restoredTabs = Array.isArray(stored.tabs) && stored.tabs.length ? stored.tabs : this.state.tabs;
     this.setState(Object.assign({
       theme: stored.theme || (prefersDark ? "dark" : "light"),
       density: stored.density || "comfortable",
@@ -1127,7 +1248,9 @@ class Component extends DCLogic {
       savedPats: Array.isArray(stored.savedPats) ? stored.savedPats : [],
       openCats: stored.openCats || this.state.openCats,
       settings: Object.assign({}, DEFAULT_SETTINGS, stored.settings || {}),
-      tabs: Array.isArray(stored.tabs) && stored.tabs.length ? stored.tabs : this.state.tabs
+      tabs: this.ensureRouteTab(route, restoredTabs),
+      flagsByKey: stored.flagsByKey && typeof stored.flagsByKey === "object" ? stored.flagsByKey : {},
+      fieldSel: stored.fieldSel && typeof stored.fieldSel === "object" ? stored.fieldSel : {}
     }, route));
 
     fetch("content/articles.json")
@@ -1135,14 +1258,30 @@ class Component extends DCLogic {
       .then((d) => this.setState({ articles: d.articles || [], loaded:true }))
       .catch(() => this.setState({ loaded:true }));
 
-    this._onHash = () => this.setState(this.routeFromHash());
+    this._onHash = () => {
+      const nextRoute = this.routeFromHash();
+      this.setState((previous) => Object.assign({}, nextRoute, {
+        tabs:this.ensureRouteTab(nextRoute, previous.tabs)
+      }), () => this.focusRouteHeading());
+    };
     window.addEventListener("hashchange", this._onHash);
 
     this.applyRoot();
-    this._onResize = () => this.setState({ width: window.innerWidth });
+    this._onResize = () => {
+      const width = window.innerWidth;
+      const crossedCompactBoundary = (this.state.width < 900) !== (width < 900);
+      this.setState(Object.assign(
+        { width, height:window.innerHeight },
+        crossedCompactBoundary ? { drawer:false, sheet:false } : {}
+      ));
+    };
     window.addEventListener("resize", this._onResize);
+    this._motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    this._onMotionChange = (event) => this.setState({ reducedMotion:event.matches, playing:event.matches ? null : this.state.playing });
+    this._motionQuery.addEventListener("change", this._onMotionChange);
     this._onKey = (e) => {
-      if (e.key === "F" && e.shiftKey && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.setState({ palette:true }); }
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === "F" && e.shiftKey && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.openCommandPalette(); }
       if (e.key === "Escape") this.setState({ palette:false, sheet:false, drawer:false });
     };
     window.addEventListener("keydown", this._onKey);
@@ -1167,12 +1306,16 @@ class Component extends DCLogic {
       if (prev.openCats !== this.state.openCats) this.write("cats", this.state.openCats);
       if (prev.settings !== this.state.settings) this.write("settings", this.state.settings);
       if (prev.tabs !== this.state.tabs) this.write("tabs", this.state.tabs);
+      if (prev.flagsByKey !== this.state.flagsByKey) this.write("regex-flags", this.state.flagsByKey);
+      if (prev.fieldSel !== this.state.fieldSel) this.write("regex-fields", this.state.fieldSel);
+      if (prev.queries.palette !== this.state.queries.palette && this.state.paletteIndex !== 0) this.setState({ paletteIndex:0 });
     }
   }
   componentWillUnmount() {
     window.removeEventListener("resize", this._onResize);
     window.removeEventListener("keydown", this._onKey);
     window.removeEventListener("hashchange", this._onHash);
+    this._motionQuery.removeEventListener("change", this._onMotionChange);
   }
   applyRoot() {
     const r = document.documentElement;
@@ -1216,32 +1359,66 @@ class Component extends DCLogic {
     return page;
   }
 
-  go(page, articleId, group) {
+  ensureRouteTab(route, tabs) {
+    const candidate = Array.isArray(tabs) ? tabs : [];
+    const normalized = candidate.map((tab) => tab.key === "home" ? Object.assign({}, tab, { pinned:true }) : tab);
+    const base = normalized.some((tab) => tab.key === "home")
+      ? normalized
+      : [{ key:"home", page:"home", pinned:true, dot:"p" }].concat(normalized);
+    const page = route.page || "home";
+    if (page === "404") return base;
+    const articleId = route.articleId || this.state.articleId;
+    const group = route.settingsGroup || this.state.settingsGroup;
+    const key = this.tabKey(page, articleId, group);
+    if (base.some((tab) => tab.key === key)) return base;
+    return base.concat([{ key, page, articleId, group, dot:page === "article" ? "ter" : "" }]);
+  }
+
+  focusRouteHeading() {
+    window.requestAnimationFrame(() => {
+      const main = document.getElementById("wl-main");
+      const heading = main && main.querySelector("h1");
+      if (!(heading instanceof HTMLElement)) return;
+      if (!heading.hasAttribute("tabindex")) heading.tabIndex = -1;
+      heading.focus({ preventScroll:true });
+    });
+  }
+
+  go(page, articleId, group, focusRoute) {
     const aid = articleId || this.state.articleId;
     const grp = group || this.state.settingsGroup;
     const next = { page, drawer:false, sheet:false, palette:false, builderFor:null };
     if (articleId) next.articleId = articleId;
     if (group) next.settingsGroup = group;
-    const key = this.tabKey(page, aid, grp);
-    if (page !== "404" && !this.state.tabs.some((t) => t.key === key)) {
-      next.tabs = this.state.tabs.concat([{ key, page, articleId:aid, group:grp, dot: page === "article" ? "ter" : "" }]);
-    }
-    this.setState(next);
-    const main = document.getElementById("wl-main");
-    if (main) main.scrollTop = 0;
+    next.tabs = this.ensureRouteTab({ page, articleId:aid, settingsGroup:grp }, this.state.tabs);
+    this.setState(next, () => {
+      const main = document.getElementById("wl-main");
+      if (main) main.scrollTop = 0;
+      if (focusRoute !== false) this.focusRouteHeading();
+    });
   }
 
   closeTab(key) {
-    const tabs = this.state.tabs.filter((t) => t.key !== key);
+    const currentTabs = this.state.tabs;
+    const closingIndex = currentTabs.findIndex((tab) => tab.key === key);
+    const closing = currentTabs[closingIndex];
+    if (!closing || closing.pinned) return;
+    const tabs = currentTabs.filter((t) => t.key !== key);
     const wasActive = this.tabKey(this.state.page, this.state.articleId, this.state.settingsGroup) === key;
     const next = { tabs };
+    let focusKey = tabs[Math.min(Math.max(0, closingIndex), tabs.length - 1)]?.key || "home";
     if (wasActive) {
       const last = tabs[tabs.length - 1];
-      next.page = last ? last.page : "home";
+      next.page = last.page;
+      focusKey = last.key;
       if (last && last.articleId) next.articleId = last.articleId;
       if (last && last.group) next.settingsGroup = last.group;
     }
-    this.setState(next);
+    this.setState(next, () => window.requestAnimationFrame(() => {
+      const target = [...document.querySelectorAll("[data-action='activate-tab']")]
+        .find((element) => element instanceof HTMLElement && element.dataset["tabKey"] === focusKey && element.getClientRects().length > 0);
+      if (target instanceof HTMLElement) target.focus();
+    }));
   }
 
   get compact() { return this.state.width < 900; }
@@ -1254,37 +1431,91 @@ class Component extends DCLogic {
       ";font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;";
   }
   seg(active) {
-    return "height:40px;padding:0 18px;border:0;background:" + (active ? "var(--secc)" : "transparent") +
-      ";color:" + (active ? "var(--osecc)" : "var(--osv)") + ";font-size:14px;font-weight:600;cursor:pointer;";
+    return "height:auto;min-height:max(44px,var(--minhit));min-width:0;padding:6px 8px;border:0;background:" + (active ? "var(--secc)" : "transparent") +
+      ";color:" + (active ? "var(--osecc)" : "var(--osv)") + ";font-size:14px;font-weight:600;line-height:1.2;white-space:normal;cursor:pointer;";
   }
 
-  flagString(includeG) {
-    const f = this.state.flags;
+  flagsFor(key) {
+    return Object.assign({}, DEFAULT_REGEX_FLAGS, (key && this.state.flagsByKey[key]) || {});
+  }
+
+  flagsFromString(value, key) {
+    if (typeof value !== "string" || !/^[gimsuy]*$/u.test(value)) return this.flagsFor(key);
+    const text = value;
+    const next = {};
+    ["g","i","m","s","u","y"].forEach((flag) => { next[flag] = text.indexOf(flag) >= 0; });
+    return next;
+  }
+
+  flagString(key, includeG) {
+    const f = this.flagsFor(key);
     return ["g","i","m","s","u","y"].filter((k) => f[k] && (includeG || k !== "g")).join("");
   }
 
   compile(key) {
     const pattern = this.state.queries[key] || "";
     if (!pattern || !this.state.regexOn[key]) return { re:null, error:"" };
-    try { return { re:new RegExp(pattern, this.flagString(false)), error:"" }; }
+    try { return { re:new RegExp(pattern, this.flagString(key, false)), error:"" }; }
     catch (e) { return { re:null, error:String((e && e.message) || e) }; }
   }
 
-  matchesK(key, hay) {
-    const q = String(this.state.queries[key] || "").trim();
-    if (!q) return true;
-    const text = String(hay);
+  searchText(key, record) {
+    if (!record || typeof record !== "object" || Array.isArray(record)) return String(record || "");
+    const selected = this.selectedFieldsFor(key);
+    return selected.map((field) => record[field]).filter((value) => value !== undefined && value !== null).join(" ");
+  }
+
+  selectedFieldsFor(key, candidate) {
+    const allowed = (SEARCH_FIELDS[key] || []).map((field) => field[0]);
+    const raw = candidate === undefined ? this.state.fieldSel[key] : candidate;
+    if (!Array.isArray(raw)) return allowed;
+    const bounded = raw.filter((field, index) => allowed.indexOf(field) >= 0 && raw.indexOf(field) === index);
+    return bounded.length ? bounded : allowed;
+  }
+
+  matchesK(key, record) {
+    const raw = String(this.state.queries[key] || "");
+    const text = this.searchText(key, record);
     if (this.state.regexOn[key]) {
+      if (!raw.length) return true;
       const c = this.compile(key);
-      if (!c.re) return true;
+      if (!c.re) return false;
       c.re.lastIndex = 0;
       return c.re.test(text);
     }
+    const q = raw.trim();
+    if (!q) return true;
     return text.toLowerCase().includes(q.toLowerCase());
   }
 
   setQ(key, value) {
-    this.setState({ queries: Object.assign({}, this.state.queries, { [key]: value }) });
+    this.setState(Object.assign(
+      { queries: Object.assign({}, this.state.queries, { [key]: value }) },
+      key === "palette" ? { paletteIndex:0 } : {}
+    ), () => { if (key === "palette") this.scrollPaletteOption(0); });
+  }
+
+  scrollPaletteOption(index) {
+    window.requestAnimationFrame(() => {
+      const results = document.getElementById("wl-palette-results");
+      if (index === 0 && results) results.scrollTop = 0;
+      document.getElementById("wl-palette-option-" + index)?.scrollIntoView({ block:"nearest" });
+    });
+  }
+
+  openCommandPalette(extra) {
+    this.setState(Object.assign({ palette:true, paletteIndex:0 }, extra || {}), () => this.scrollPaletteOption(0));
+  }
+
+  focusPaletteTarget(id) {
+    window.requestAnimationFrame(() => {
+      const target = id ? document.getElementById(id) : null;
+      if (!(target instanceof HTMLElement)) return;
+      target.scrollIntoView({ block:"center", behavior:(this.state.reducedMotion || this.state.settings.motion !== "full") ? "auto" : "smooth" });
+      target.focus({ preventScroll:true });
+      target.classList.add("wl-teleport-target");
+      window.setTimeout(() => target.classList.remove("wl-teleport-target"), 1200);
+    });
   }
 
   insert(text) {
@@ -1385,7 +1616,12 @@ class Component extends DCLogic {
     const field = (k, count) => {
       const open = s.builderFor === k;
       const armed = !!s.regexOn[k];
+      const compiled = armed && Q[k] ? this.compile(k) : { re:null, error:"" };
+      const fieldError = compiled.error ? "Invalid regular expression — " + compiled.error : "";
       F[k + "Query"] = Q[k];
+      F[k + "Invalid"] = String(!!fieldError);
+      F[k + "Error"] = fieldError;
+      F[k + "ErrorStyle"] = fieldError ? "margin-top:6px;font-size:12px;line-height:1.45;color:var(--err);" : "display:none;";
       F["on" + k + "Query"] = (e) => this.setQ(k, e.target.value);
       F["toggle" + k + "Builder"] = (e) => {
         const r = e && e.currentTarget ? e.currentTarget.getBoundingClientRect() : null;
@@ -1402,24 +1638,30 @@ class Component extends DCLogic {
     };
 
     const tr = (en, yue) => s.language === "yue" ? yue : (s.language === "bilingual" ? en + " · " + yue : en);
+    const localized = (en, yue) => ({
+      en, yue,
+      enStyle:s.language === "yue" ? "display:none;" : "",
+      yueStyle:s.language === "en" ? "display:none;" : "",
+      separatorStyle:s.language === "bilingual" ? "" : "display:none;"
+    });
     const navDefs = [
-      { id:PAGES.home, label:tr("Home","主頁"), icon:P.home },
-      { id:PAGES.docs, label:tr("Documentation","說明文件"), icon:P.docs, count:String(srcArticles.length) },
-      { id:PAGES.screenshots, label:tr("Screenshots","截圖"), icon:P.shots, count:"12" },
-      { id:PAGES.changelog, label:tr("Changelog","更新紀錄"), icon:P.changelog },
-      { id:PAGES.search, label:tr("Search","搜尋"), icon:P.search },
-      { id:PAGES.notifications, label:tr("Notifications","通知"), icon:P.bell, count: s.unread ? String(s.unread) : "" },
-      { id:PAGES.settings, label:tr("Settings","設定"), icon:P.tune }
+      { id:PAGES.home, en:"Home", yue:"主頁", icon:P.home },
+      { id:PAGES.docs, en:"Documentation", yue:"說明文件", icon:P.docs, count:String(srcArticles.length) },
+      { id:PAGES.screenshots, en:"Screenshots", yue:"截圖", icon:P.shots, count:"12" },
+      { id:PAGES.changelog, en:"Changelog", yue:"更新紀錄", icon:P.changelog },
+      { id:PAGES.search, en:"Search", yue:"搜尋", icon:P.search },
+      { id:PAGES.notifications, en:"Notifications", yue:"通知", icon:P.bell, count: s.unread ? String(s.unread) : "" },
+      { id:PAGES.settings, en:"Settings", yue:"設定", icon:P.tune }
     ];
     const navActive = (id) => id === page || (id === PAGES.docs && isArticle) || (id === PAGES.settings && page === PAGES.settingsDetail);
 
-    const navItems = navDefs.map((n) => ({
-      label:n.label, icon:n.icon, count:n.count || "",
+    const navItems = navDefs.map((n) => Object.assign({}, localized(n.en, n.yue), {
+      icon:n.icon, count:n.count || "", activeAttr:navActive(n.id) ? "true" : "false",
       onClick:() => this.go(n.id),
       style:"display:flex;align-items:center;gap:14px;" + (horizontal ? "width:auto;flex:0 0 auto;white-space:nowrap;padding:0 16px;" : "width:100%;padding:0 20px;") + "min-height:var(--minhit);border:0;border-radius:999px;cursor:pointer;font-size:14px;font-weight:" +
         (navActive(n.id) ? "600" : "500") + ";text-align:left;background:" + (navActive(n.id) ? "var(--secc)" : "transparent") +
         ";color:" + (navActive(n.id) ? "var(--osecc)" : "var(--osv)") + ";",
-      badge: n.count ? "margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--out);" : "display:none;"
+      badge: n.count ? "margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--osv);" : "display:none;"
     }));
 
     const tabTitle = (t) => {
@@ -1431,16 +1673,18 @@ class Component extends DCLogic {
       return map[t.page] || t.page;
     };
     const tabIcon = (t) => t.pinned ? P.pin : (t.page === PAGES.article ? P.doc : (P[t.page] || P.doc));
-    const tabDefs = s.tabs.map((t) => ({ title:tabTitle(t), icon:tabIcon(t), page:t.page, key:t.key, dot:t.dot, pinned:t.pinned, articleId:t.articleId }));
+    const tabDefs = s.tabs.map((t) => ({ title:tabTitle(t), icon:tabIcon(t), page:t.page, key:t.key, dot:t.dot, pinned:t.pinned, articleId:t.articleId, group:t.group }));
     const activeKey = page === PAGES.article ? "a:" + s.articleId : (page === PAGES.settingsDetail ? "settings-detail:" + s.settingsGroup : page);
     const tabItems = tabDefs.map((t) => ({
-      title:t.title, icon:t.icon,
-      onClick:() => this.go(t.page, t.articleId, t.group),
+      title:t.title, icon:t.icon, closeLabel:"Close tab " + t.title, activeAttr:t.key === activeKey ? "true" : "false", key:t.key, closable:!t.pinned,
+      onClick:() => this.go(t.page, t.articleId, t.group, false),
       onClose:(e) => { if (e && e.stopPropagation) e.stopPropagation(); this.closeTab(t.key); },
       style:"display:flex;align-items:center;gap:8px;min-height:36px;padding:0 6px 0 12px;border-radius:10px;cursor:pointer;background:" +
         (t.key === activeKey ? "var(--s-high)" : "transparent") + ";color:" + (t.key === activeKey ? "var(--on)" : "var(--osv)") +
         ";font-weight:" + (t.key === activeKey ? "600" : "500") + ";",
-      groupDot: t.dot ? "width:6px;height:6px;border-radius:999px;flex:0 0 auto;background:var(--" + t.dot + ");" : "display:none;"
+      groupDot: t.dot ? "width:6px;height:6px;border-radius:999px;flex:0 0 auto;background:var(--" + t.dot + ");" : "display:none;",
+      horizontalStyle:"display:flex;align-items:center;gap:8px;min-height:48px;padding:0 4px 0 12px;border-radius:12px;cursor:pointer;flex:0 0 auto;min-width:160px;max-width:280px;background:" +
+        (t.key === activeKey ? "var(--s-high)" : "transparent") + ";color:" + (t.key === activeKey ? "var(--on)" : "var(--osv)") + ";font-weight:" + (t.key === activeKey ? "600" : "500") + ";"
     }));
 
     const treeCats = CAT_META.map(([id, label, lede]) => {
@@ -1453,7 +1697,7 @@ class Component extends DCLogic {
         articles:list.map((a) => {
           const on = isArticle && a.id === s.articleId;
           return {
-            id:a.id, title:a.title, blurb:a.lede,
+            id:a.id, title:a.title, blurb:a.lede, cat:label, activeAttr:on ? "true" : "false",
             onClick:() => this.go(PAGES.article, a.id),
             style:"text-align:left;padding:8px 12px 8px 38px;border:0;border-radius:999px;cursor:pointer;font-size:13px;line-height:1.35;background:" +
               (on ? "var(--secc)" : "transparent") + ";color:" + (on ? "var(--osecc)" : "var(--osv)") + ";font-weight:" + (on ? "600" : "400") + ";"
@@ -1464,16 +1708,16 @@ class Component extends DCLogic {
 
     const openList = "display:flex;flex-direction:column;gap:1px;padding:2px 0 6px;";
     const filterCats = (cats, key) => {
-      if (!String(Q[key]).trim()) return cats;
       return cats
-        .map((c) => Object.assign({}, c, { listStyle: openList, articles: c.articles.filter((a) => this.matchesK(key, a.title + " " + a.blurb)) }))
+        .map((c) => Object.assign({}, c, { listStyle: openList, articles: c.articles.filter((a) => this.matchesK(key, a)) }))
         .filter((c) => c.articles.length);
     };
     const sidebarCats = filterCats(treeCats, "sidebar");
     const docsCats = filterCats(treeCats, "docs");
-    const sidebarTabs = tabItems.filter((t) => this.matchesK("sidebar", t.title));
+    const sidebarTabs = tabItems.filter((t) => this.matchesK("sidebar", { title:t.title, blurb:"" }));
+    const horizontalTabItems = tabItems.filter((t) => this.matchesK("tabstrip", { title:t.title }));
     const countIn = (cats) => cats.reduce((n, c) => n + c.articles.length, 0);
-    const allArticles = srcArticles.map((a) => ({ title:a.title, blurb:a.lede || "" }));
+    const allArticles = srcArticles.map((a) => ({ title:a.title, blurb:a.lede || "", cat:CAT_LABEL[a.cat] || a.cat || "" }));
 
     const article = srcArticles.filter((a) => a.id === s.articleId)[0] || srcArticles[0] || null;
     const slug = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
@@ -1484,7 +1728,7 @@ class Component extends DCLogic {
       article.sections.forEach((sec) => {
         if (sec.heading) {
           articleBlocks.push({
-            anchor:"a-" + slug(sec.heading), role:"heading", level:String(Math.min(sec.level || 2, 4)), text:sec.heading,
+            isHeading:true, anchor:"a-" + slug(sec.heading), level:String(Math.min(sec.level || 2, 4)), text:sec.heading,
             style:"font-family:var(--brand);font-size:" + (sec.level >= 3 ? "calc(var(--basefs) * 1.25)" : "calc(var(--basefs) * 1.6)") + ";font-weight:600;margin:" +
               (sec.level >= 3 ? "28px 0 10px" : "36px 0 14px") + ";scroll-margin-top:24px;letter-spacing:-0.3px;"
           });
@@ -1492,15 +1736,14 @@ class Component extends DCLogic {
         (sec.blocks || []).forEach((b) => {
           if (b.t === "p") {
             if (!ledeTaken && !sec.heading) { ledeText = b.v; ledeTaken = true; return; }
-            articleBlocks.push({ anchor:"", role:"", level:"", text:b.v, style:"font-size:var(--basefs);line-height:var(--lh);margin:0 0 16px;text-wrap:pretty;" });
+            articleBlocks.push({ isParagraph:true, text:b.v, style:"font-size:var(--basefs);line-height:var(--lh);margin:0 0 16px;text-wrap:pretty;overflow-wrap:anywhere;word-break:break-word;" });
           }
-          else if (b.t === "code") articleBlocks.push({ anchor:"", role:"", level:"", text:b.v, style:"font-family:var(--mono);font-size:var(--codefs);line-height:1.6;white-space:pre;overflow-x:auto;padding:14px 16px;border-radius:var(--radius);background:var(--s-cont);margin:0 0 16px;" });
+          else if (b.t === "code") articleBlocks.push({ isCode:true, text:b.v, style:"font-family:var(--mono);font-size:var(--codefs);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;padding:14px 16px;border-radius:var(--radius);background:var(--s-cont);margin:0 0 16px;" });
           else if (b.t === "ul" || b.t === "ol") {
-            (b.items || []).forEach((it, i) => articleBlocks.push({
-              anchor:"", role:"", level:"",
-              text:(b.t === "ol" ? (i + 1) + ". " : "• ") + it,
-              style:"font-size:var(--basefs);line-height:var(--lh);margin:0 0 8px;padding-left:22px;text-indent:-22px;text-wrap:pretty;"
-            }));
+            articleBlocks.push({
+              isUnordered:b.t === "ul", isOrdered:b.t === "ol", items:(b.items || []).map((text) => ({ text })),
+              style:"font-size:var(--basefs);line-height:var(--lh);margin:0 0 16px;padding-left:24px;text-wrap:pretty;overflow-wrap:anywhere;word-break:break-word;"
+            });
           }
         });
       });
@@ -1522,52 +1765,89 @@ class Component extends DCLogic {
     }));
 
     const bottomDefs = [
-      { id:PAGES.home, label:tr("Home","主頁"), icon:P.home },
-      { id:PAGES.docs, label:tr("Docs","文件"), icon:P.docs },
-      { id:PAGES.search, label:tr("Search","搜尋"), icon:P.search },
-      { id:"more", label:tr("More","更多"), icon:P.more }
+      { id:PAGES.home, en:"Home", yue:"主頁", icon:P.home },
+      { id:PAGES.docs, en:"Docs", yue:"文件", icon:P.docs },
+      { id:PAGES.search, en:"Search", yue:"搜尋", icon:P.search },
+      { id:"more", en:"More", yue:"更多", icon:P.more }
     ];
     const bottomNav = bottomDefs.map((b) => {
       const active = b.id === "more" ? s.sheet : navActive(b.id);
-      return {
-        label:b.label, icon:b.icon,
+      return Object.assign({}, localized(b.en, b.yue), {
+        actionId:b.id, activeAttr:active ? "true" : "false", icon:b.icon,
         onClick: b.id === "more" ? () => this.setState({ sheet:!s.sheet }) : () => this.go(b.id),
-        style:"flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;border:0;background:none;cursor:pointer;min-height:calc(var(--minhit) + 20px);color:" +
+        style:"flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0 7px;border:0;background:none;cursor:pointer;min-height:calc(var(--minhit) + 12px);color:" +
           (active ? "var(--on)" : "var(--osv)") + ";",
         pillStyle:"display:grid;place-items:center;width:64px;height:32px;border-radius:999px;background:" + (active ? "var(--secc)" : "transparent") + ";color:" + (active ? "var(--osecc)" : "inherit") + ";"
-      };
+      });
     });
 
+    const nextLanguage = s.language === "en" ? "yue" : s.language === "yue" ? "bilingual" : "en";
+    const languageNamesEn = { en:"English", yue:"Hong Kong Cantonese", bilingual:"Bilingual" };
+    const languageNamesYue = { en:"英文", yue:"香港廣東話", bilingual:"雙語" };
     const moreItems = [
-      { label:tr("Screenshots","截圖"), icon:P.shots, page:PAGES.screenshots },
-      { label:tr("Changelog","更新紀錄"), icon:P.changelog, page:PAGES.changelog },
-      { label:tr("Notifications","通知"), icon:P.bell, page:PAGES.notifications },
-      { label:tr("Settings","設定"), icon:P.tune, page:PAGES.settings },
-      { label:tr("Command palette","指令面板"), icon:P.palette, page:"palette" }
-    ].map((m) => ({ label:m.label, icon:m.icon, onClick: m.page === "palette" ? () => this.setState({ sheet:false, palette:true }) : () => this.go(m.page) }));
+      { en:"Language and tone", yue:"語言同語氣", icon:P.globe, action:"language" },
+      { en:"Colour scheme", yue:"顏色主題", icon:s.theme === "light" ? P.dark : P.light, action:"theme" },
+      { en:"Screenshots", yue:"截圖", icon:P.shots, page:PAGES.screenshots },
+      { en:"Changelog", yue:"更新紀錄", icon:P.changelog, page:PAGES.changelog },
+      { en:"Notifications", yue:"通知", icon:P.bell, page:PAGES.notifications },
+      { en:"Settings", yue:"設定", icon:P.tune, page:PAGES.settings },
+      { en:"Command palette", yue:"指令面板", icon:P.palette, page:"palette" }
+    ].map((m) => {
+      let ariaEn = m.en, ariaYue = m.yue;
+      if (m.action === "language") {
+        ariaEn = "Language and tone. Current: " + languageNamesEn[s.language] + ". Switch to " + languageNamesEn[nextLanguage] + ".";
+        ariaYue = "語言同語氣。目前：" + languageNamesYue[s.language] + "。切換到" + languageNamesYue[nextLanguage] + "。";
+      } else if (m.action === "theme") {
+        ariaEn = "Colour scheme. Current: " + (s.theme === "light" ? "Light" : "Dark") + ". Switch to " + (s.theme === "light" ? "dark" : "light") + ".";
+        ariaYue = "顏色主題。目前：" + (s.theme === "light" ? "淺色" : "深色") + "。切換到" + (s.theme === "light" ? "深色" : "淺色") + "。";
+      } else if (m.page === PAGES.notifications) {
+        ariaEn = s.unread ? "Notifications, " + s.unread + " unread" : "Notifications, all read";
+        ariaYue = s.unread ? "通知，" + s.unread + " 個未讀" : "通知，全部已讀";
+      }
+      return Object.assign({}, localized(m.en, m.yue), {
+        icon:m.icon, labelId:"wl-more-action-" + (m.action || m.page), ariaEn, ariaYue,
+        onClick: m.action === "language"
+          ? () => this.setState({ language:nextLanguage, sheet:false })
+          : m.action === "theme"
+            ? () => this.setState({ theme:s.theme === "light" ? "dark" : "light", sheet:false })
+            : m.page === "palette"
+              ? () => this.openCommandPalette({ sheet:false })
+              : () => this.go(m.page)
+      });
+    });
 
     const paletteAll = [
-      { label:"Go to Home", group:"Navigate", icon:P.home, page:PAGES.home, hint:"↵", kw:"start landing 主頁" },
-      { label:"Go to Documentation", group:"Navigate", icon:P.docs, page:PAGES.docs, hint:"", kw:"docs articles 說明" },
-      { label:"Go to Screenshots", group:"Navigate", icon:P.shots, page:PAGES.screenshots, hint:"", kw:"captures gallery 截圖" },
-      { label:"Go to Changelog", group:"Navigate", icon:P.changelog, page:PAGES.changelog, hint:"", kw:"releases commits 更新" },
-      { label:"Toggle colour scheme", group:"Appearance", icon:P.dark, page:"theme", hint:"", kw:"theme dark light mode 主題" },
-      { label:"Open Appearance settings", group:"Settings", icon:P.tune, page:PAGES.settingsDetail, hint:"", kw:"type shape per-element 外觀" },
-      { label:"Open Language and tone", group:"Settings", icon:P.globe, page:"group:language", hint:"", kw:"cantonese bilingual funny 語言" },
-      { label:"Open Data and reset", group:"Settings", icon:P.db, page:"group:data", hint:"", kw:"export import history reset" },
-      { label:"Search every page", group:"Discovery", icon:P.search, page:PAGES.search, hint:"", kw:"find regex pattern 搜尋" },
-      { label:"Notification history", group:"Discovery", icon:P.bell, page:PAGES.notifications, hint:"", kw:"alerts toasts 通知" }
+      { label:"Go to Home", group:"Navigate", icon:P.home, page:PAGES.home, target:"wl-home-title", kw:"start landing 主頁" },
+      { label:"Go to Documentation", group:"Navigate", icon:P.docs, page:PAGES.docs, target:"wl-docs-title", kw:"docs articles 說明" },
+      { label:"Go to Screenshots", group:"Navigate", icon:P.shots, page:PAGES.screenshots, target:"wl-screenshots-title", kw:"captures gallery 截圖" },
+      { label:"Go to Changelog", group:"Navigate", icon:P.changelog, page:PAGES.changelog, target:"wl-changelog-title", kw:"releases commits 更新" },
+      { label:"Toggle colour scheme", group:"Appearance", icon:P.dark, action:"theme", target:"", kw:"theme dark light mode 主題" },
+      { label:"Open Appearance settings", group:"Settings", icon:P.tune, page:PAGES.settingsDetail, settingsGroup:"appearance", target:"wl-settings-group-title", kw:"type shape per-element 外觀" },
+      { label:"Open Language and tone", group:"Settings", icon:P.globe, page:PAGES.settingsDetail, settingsGroup:"language", target:"wl-settings-group-title", kw:"cantonese bilingual funny 語言" },
+      { label:"Open Data and reset", group:"Settings", icon:P.db, page:PAGES.settingsDetail, settingsGroup:"data", target:"wl-settings-group-title", kw:"export import history reset" },
+      { label:"Search every page", group:"Discovery", icon:P.search, page:PAGES.search, target:"wl-search-query", kw:"find regex pattern 搜尋" },
+      { label:"Notification history", group:"Discovery", icon:P.bell, page:PAGES.notifications, target:"wl-notifications-title", kw:"alerts toasts 通知" }
     ];
-    const pq = s.paletteQuery.trim().toLowerCase();
-    const paletteItems = paletteAll.filter((c) => !pq || (c.label + " " + c.group + " " + c.kw).toLowerCase().includes(pq)).map((c,i) => ({
-      label:c.label, group:c.group, icon:c.icon, hint:c.hint,
-      onClick: c.page === "theme"
-        ? () => this.setState({ theme: s.theme === "light" ? "dark" : "light", palette:false })
-        : (c.page.indexOf("group:") === 0
-            ? () => this.go(PAGES.settingsDetail, null, c.page.slice(6))
-            : () => this.go(c.page)),
-      style:"display:flex;align-items:center;gap:14px;width:100%;min-height:48px;padding:0 14px;border:0;border-radius:12px;cursor:pointer;color:var(--on);background:" + (i === 0 ? "var(--s-cont)" : "transparent") + ";"
-    }));
+    const paletteMatches = paletteAll.filter((c) => this.matchesK("palette", c));
+    const paletteIndex = paletteMatches.length ? Math.min(Math.max(0, s.paletteIndex || 0), paletteMatches.length - 1) : -1;
+    const activatePalette = (command) => {
+      if (!command) return;
+      if (command.action === "theme") {
+        this.setState({ theme:s.theme === "light" ? "dark" : "light", palette:false });
+        return;
+      }
+      this.go(command.page, null, command.settingsGroup, false);
+      window.setTimeout(() => this.focusPaletteTarget(command.target), 0);
+    };
+    const paletteItems = paletteMatches.map((c,i) => {
+      const active = i === paletteIndex;
+      return {
+        id:"wl-palette-option-" + i, label:c.label, group:c.group, icon:c.icon,
+        hint:active ? "↵" : "", selected:String(active), navigationAttr:c.target ? "true" : "false",
+        onClick:() => activatePalette(c),
+        style:"display:flex;align-items:center;gap:14px;width:100%;min-height:48px;padding:0 14px;border:0;border-radius:12px;cursor:pointer;color:var(--on);background:" + (active ? "var(--s-cont)" : "transparent") + ";"
+      };
+    });
 
     const shotsAll = [
       { cat:"Shell", src:"assets/shot-shell.png", title:"Desktop shell", caption:"1920×1080. Rail, tab strip and content pane at their default widths.", alt:"Worldlens desktop shell" },
@@ -1584,9 +1864,9 @@ class Component extends DCLogic {
       { cat:"Appearance", src:"assets/shot-regex.png", title:"Regex builder", caption:"Anchored to the field it filters, previewing matches live.", alt:"Regex builder" }
     ];
     const shotFilters = ["All","Shell","Rendering","Interface","Appearance"].map((f) => ({
-      label:f, onClick:() => this.setState({ shotFilter:f }), style:this.chip(s.shotFilter === f)
+      label:f, pressed:String(s.shotFilter === f), onClick:() => this.setState({ shotFilter:f }), style:this.chip(s.shotFilter === f)
     }));
-    const shots = shotsAll.filter((x) => (s.shotFilter === "All" || x.cat === s.shotFilter) && this.matchesK("shots", x.title + " " + x.caption + " " + x.cat));
+    const shots = shotsAll.filter((x) => (s.shotFilter === "All" || x.cat === s.shotFilter) && this.matchesK("shots", x));
 
     const settingsGroupsAll = [
       { gid:"general", label:"General", icon:P.tune, desc:"Theme, navigation placement, motion, how the site names itself, dialog tone.", meta:"14 settings · 6 groups", page:PAGES.settingsDetail },
@@ -1597,11 +1877,11 @@ class Component extends DCLogic {
       { gid:"data", label:"Data", icon:P.db, desc:"Export, import, the settings history you can undo from, and reset.", meta:"7 settings · 3 groups", page:PAGES.settingsDetail }
     ];
     const settingsGroups = settingsGroupsAll
-      .filter((g) => this.matchesK("settings", g.label + " " + g.desc))
+      .filter((g) => this.matchesK("settings", g))
       .map((g) => ({ label:g.label, icon:g.icon, desc:g.desc, meta:g.meta, gid:g.gid, onClick:() => this.go(PAGES.settingsDetail, null, g.gid) }));
 
     const setV = (k, v) => this.setState({ settings: Object.assign({}, this.state.settings, { [k]: v }) });
-    const ROW_BASE = "display:flex;flex-wrap:wrap;gap:16px 20px;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--outv);";
+    const ROW_BASE = "display:flex;flex-wrap:wrap;gap:16px 20px;align-items:center;justify-content:space-between;min-width:0;padding:16px 0;border-bottom:1px solid var(--outv);";
     const HIDDEN = "display:none;";
     const mkRow = (cfg) => Object.assign({
       label:"", desc:"", options:[], swatches:[],
@@ -1611,13 +1891,13 @@ class Component extends DCLogic {
     }, cfg);
     const segRow = (label, desc, opts, current, apply) => mkRow({
       label, desc,
-      segStyle:"display:flex;border:1px solid var(--out);border-radius:999px;overflow:hidden;flex:0 0 auto;",
-      options:opts.map(([val, text]) => ({ label:text, onClick:() => apply(val), style:this.seg(current === val) }))
+      segStyle:"display:grid;grid-template-columns:repeat(" + opts.length + ",minmax(0,1fr));width:100%;max-width:420px;border:1px solid var(--out);border-radius:18px;overflow:hidden;flex:1 1 260px;",
+      options:opts.map(([val, text]) => ({ label:text, pressed:String(current === val), onClick:() => apply(val), style:this.seg(current === val) }))
     });
     const sliderRow = (label, desc, min, max, step, value, unit, apply) => mkRow({
       label, desc, min:String(min), max:String(max), step:String(step), value:String(value),
       valueLabel:String(value) + unit,
-      sliderStyle:"display:flex;align-items:center;gap:12px;flex:0 0 auto;min-width:220px;",
+      sliderStyle:"display:flex;align-items:center;gap:12px;width:100%;max-width:420px;min-width:0;flex:1 1 260px;",
       onInput:(e) => apply(parseFloat(e.target.value))
     });
     const toggleRow = (label, desc, on, apply) => mkRow({
@@ -1625,10 +1905,12 @@ class Component extends DCLogic {
       toggleStyle:"height:36px;padding:0 18px;border-radius:999px;border:1px solid " + (on ? "transparent" : "var(--out)") +
         ";background:" + (on ? "var(--p)" : "transparent") + ";color:" + (on ? "var(--op)" : "var(--osv)") + ";font-size:13px;font-weight:600;cursor:pointer;flex:0 0 auto;",
       toggleLabel:on ? "On" : "Off",
+      togglePressed:String(on),
+      toggleAriaLabel:label + ": " + (on ? "On" : "Off"),
       onToggle:() => apply(!on)
     });
     const actionRow = (label, desc, actionLabel, run) => mkRow({
-      label, desc, actionLabel,
+      label, desc, actionLabel, actionAriaLabel:label + ": " + actionLabel,
       actionStyle:"height:40px;padding:0 20px;border-radius:999px;border:1px solid var(--out);background:transparent;color:var(--p);font-size:13px;font-weight:600;cursor:pointer;flex:0 0 auto;",
       onAction:run
     });
@@ -1637,7 +1919,7 @@ class Component extends DCLogic {
       label, desc,
       swatchStyle:"display:flex;gap:10px;flex-wrap:wrap;flex:0 0 auto;",
       swatches:ACCENTS.map(([c, name]) => ({
-        name, onClick:() => setV("accent", c),
+        name, pressed:String(V.accent === c), onClick:() => setV("accent", c),
         style:"width:44px;height:44px;border-radius:999px;background:" + c + ";cursor:pointer;border:" + (V.accent === c ? "3px solid var(--on)" : "1px solid var(--outv)") + ";"
       }))
     });
@@ -1753,7 +2035,7 @@ class Component extends DCLogic {
       { gid:"el:code", label:"Code and monospace", detail:"Size of code runs inside an article", icon:P.type }
     ];
     const perElement = perElementAll
-      .filter((e) => this.matchesK("appearance", e.label + " " + e.detail))
+      .filter((e) => this.matchesK("appearance", e))
       .map((e,i,arr) => ({
         label:e.label, detail:e.detail, icon:e.icon,
         onClick:() => this.go(PAGES.settingsDetail, null, e.gid),
@@ -1762,13 +2044,13 @@ class Component extends DCLogic {
       }));
 
     const searchScopes = ["Documentation","Settings","Tabs","Groups"].map((sc) => ({
-      label:sc, onClick:() => this.setState({ scope:sc }), style:this.chip(s.scope === sc)
+      label:sc, pressed:String(s.scope === sc), onClick:() => this.setState({ scope:sc }), style:this.chip(s.scope === sc)
     }));
     const resultsAll = [
       { title:"Regex builder contract", scope:"Documentation", snippet:"Every search field that accepts a pattern carries an anchored builder; the builder previews matches, flags and captures without leaving the field." },
       { title:"Regex builder surfaces", scope:"Documentation", snippet:"Where a builder is attached today: documentation search, settings search, both tab searches and the bulk-close preview." },
       { title:"Search · use regular expressions", scope:"Settings", snippet:"General › Discovery. Off by default; the builder button appears beside every field once armed." },
-      { title:"Command palette", scope:"Documentation", snippet:"Ctrl+Shift+F. The palette's own field is plain text by design — a pattern there would filter commands nobody named." },
+      { title:"Command palette", scope:"Documentation", snippet:"Ctrl+Shift+F. Its adjacent regular expression builder filters command names, groups and search aliases while plain text remains the default." },
       { title:"Tab search", scope:"Tabs", snippet:"Matches tab titles, group names and pinned state, with the same builder anchored to the strip." },
       { title:"Open pages", scope:"Tabs", snippet:"Four tabs open: Home, the M3 Expressive Pages rewrite, Appearance settings and the Changelog." },
       { title:"Reading group", scope:"Groups", snippet:"A named coloured group whose collapsed state survives a reload. Two tabs are in it." },
@@ -1777,11 +2059,11 @@ class Component extends DCLogic {
     ];
     const searchAll = resultsAll.concat(srcArticles.map((a) => ({ title:a.title, scope:"Documentation", snippet:a.lede || "", id:a.id })));
     const searchResults = searchAll
-      .filter((r) => r.scope === s.scope && this.matchesK("search", r.title + " " + r.snippet + " " + r.scope))
+      .filter((r) => r.scope === s.scope && this.matchesK("search", r))
       .map((r) => ({ title:r.title, scope:r.scope, snippet:r.snippet, onClick:() => this.go(PAGES.article, r.id) }));
 
     const dateFilters = ["All time","This week","This month","Custom range"].map((d) => ({
-      label:d, onClick:() => this.setState({ dateFilter:d }), style:this.chip(s.dateFilter === d)
+      label:d, pressed:String(s.dateFilter === d), onClick:() => this.setState({ dateFilter:d }), style:this.chip(s.dateFilter === d)
     }));
 
     const changelogSrc = [
@@ -1828,7 +2110,7 @@ class Component extends DCLogic {
     const changelog = changelogSrc.filter((r) => withinFilter(r.date)).map((r) => Object.assign({}, r, {
       groups: r.groups
         .map((g) => Object.assign({}, g, { commits: g.commits
-          .filter((c) => this.matchesK("changelog", c.subject + " " + c.sha + " " + g.area))
+          .filter((c) => this.matchesK("changelog", { subject:c.subject, sha:c.sha, area:g.area }))
           .map((c) => Object.assign({}, c, { href:"https://github.com/Ding-Ding-Projects/worldlens/commit/" + c.sha })) }))
         .filter((g) => g.commits.length)
     })).filter((r) => r.groups.length).map((r) => ({
@@ -1844,7 +2126,7 @@ class Component extends DCLogic {
       { tone:"ok", title:"Settings exported", time:"Yesterday", body:"38 values written to worldlens-settings.json. Home Assistant credentials were deliberately excluded." },
       { tone:"info", title:"Parity oracle passed", time:"2026-08-04", body:"961 of 961 hires tiles equal byte for byte. The mesher still does not render in the product." }
     ];
-    const notifications = notifSrc.filter((n) => this.matchesK("notif", n.title + " " + n.body)).map((n) => ({
+    const notifications = notifSrc.filter((n) => this.matchesK("notif", n)).map((n) => ({
       title:n.title, time:n.time, body:n.body,
       icon: n.tone === "ok" ? P.check : n.tone === "warn" ? P.warn : P.info,
       cardStyle:"display:flex;gap:14px;align-items:flex-start;border-radius:var(--radius);border:1px solid var(--outv);background:var(--card);padding:16px 18px;",
@@ -1901,13 +2183,14 @@ class Component extends DCLogic {
       { id:"regex-builder", title:"Build and apply a regular expression", body:"The anchored builder previews matches, flags and captures without leaving the field.", alt:"Anchored regex builder previewing matches" },
       { id:"language-tone", title:"Change language and both tone levels", body:"English, Cantonese and bilingual modes stay independent from the two funny-level controls.", alt:"Language settings switching to bilingual mode" }
     ].map((w) => {
-      const playing = s.playing === w.id && V.motion !== "off";
+      const motionReduced = V.motion !== "full" || s.reducedMotion;
+      const playing = s.playing === w.id && !motionReduced;
       return {
         title:w.title, body:w.body, alt:w.alt,
         src:"assets/wt-" + w.id + (playing ? ".gif" : ".png"),
-        hint: V.motion === "off" ? "Motion is off — still image only" : (playing ? "Playing · click to stop" : "Click to play the animation"),
-        onClick:() => this.setState({ playing: s.playing === w.id ? null : w.id }),
-        playStyle: playing || V.motion === "off"
+        hint: motionReduced ? (s.reducedMotion ? "Operating-system reduced motion is on — still image only" : (V.motion === "off" ? "Motion is off — still image only" : "Reduced motion is on — still image only")) : (playing ? "Playing · click to stop" : "Click to play the animation"),
+        onClick:() => { if (!motionReduced) this.setState({ playing: s.playing === w.id ? null : w.id }); },
+        playStyle: playing || motionReduced
           ? "display:none;"
           : "position:absolute;left:12px;bottom:12px;width:36px;height:36px;border-radius:999px;display:grid;place-items:center;background:var(--p);color:var(--op);box-shadow:var(--e1);"
       };
@@ -1950,58 +2233,61 @@ class Component extends DCLogic {
       { label:"Tabbed navigation" }, { label:"Appearance editors" }, { label:"Regex builder" }
     ].map((r) => ({ label:r.label, onClick:() => this.go(PAGES.article) }));
 
-    const CORPUS = {
-      sidebar: tabDefs.map((t) => t.title).concat(allArticles.map((a) => a.title)),
-      docs: allArticles.map((a) => a.title + " — " + a.blurb),
-      shots: shotsAll.map((x) => x.title + " — " + x.caption),
-      changelog: changelogSrc.reduce((acc, r) => acc.concat(r.groups.reduce((g2, g) => g2.concat(g.commits.map((c) => c.sha + " " + c.subject)), [])), []),
-      notif: notifSrc.map((n) => n.title + " — " + n.body),
-      settings: settingsGroupsAll.map((g) => g.label + " — " + g.desc),
-      appearance: perElementAll.map((e) => e.label + " — " + e.detail),
-      search: searchAll.map((r) => r.title + " — " + r.snippet)
+    const CORPUS_RECORDS = {
+      sidebar: tabDefs.map((t) => ({ title:t.title, blurb:"" })).concat(allArticles),
+      tabstrip: tabDefs.map((t) => ({ title:t.title })),
+      docs: allArticles,
+      shots: shotsAll,
+      changelog: changelogSrc.reduce((acc, r) => acc.concat(r.groups.reduce((g2, g) => g2.concat(g.commits.map((c) => ({ subject:c.subject, sha:c.sha, area:g.area }))), [])), []),
+      notif: notifSrc,
+      settings: settingsGroupsAll,
+      appearance: perElementAll,
+      search: searchAll,
+      palette: paletteAll
     };
+    const CORPUS = {};
+    Object.keys(CORPUS_RECORDS).forEach((key) => {
+      CORPUS[key] = CORPUS_RECORDS[key].map((record) => this.searchText(key, record));
+    });
     const HITS = {
       sidebar: sidebarTabs.map((t) => t.title).concat(sidebarCats.reduce((a, c) => a.concat(c.articles.map((x) => x.title)), [])),
+      tabstrip: horizontalTabItems.map((t) => t.title),
       docs: docsCats.reduce((a, c) => a.concat(c.articles.map((x) => x.title)), []),
       shots: shots.map((x) => x.title),
       changelog: changelog.reduce((a, r) => a.concat(r.groups.reduce((g2, g) => g2.concat(g.commits.map((c) => c.subject)), [])), []),
       notif: notifications.map((n) => n.title),
       settings: settingsGroups.map((g) => g.label),
       appearance: perElement.map((e) => e.label),
-      search: searchResults.map((r) => r.title)
-    };
-    const FIELDS = {
-      sidebar:[["title","Tab and article titles"],["blurb","Article summaries"]],
-      docs:[["title","Titles"],["blurb","Summaries"],["cat","Category names"]],
-      shots:[["title","Capture titles"],["caption","Captions"],["cat","Category"]],
-      changelog:[["subject","Commit subjects"],["sha","Commit SHAs"],["area","Areas"]],
-      notif:[["title","Titles"],["body","Message bodies"]],
-      settings:[["label","Group names"],["desc","Descriptions"]],
-      appearance:[["label","Element names"],["detail","What each editor changes"]],
-      search:[["title","Result titles"],["snippet","Snippets"],["scope","Scope"]]
+      search: searchResults.map((r) => r.title),
+      palette: paletteItems.map((c) => c.label)
     };
     const PRESETS = {
       sidebar:[["^Render","titles that start with Render"],["(world|render)","either word, anywhere"],["\\bcontract\\b","the whole word contract"]],
+      tabstrip:[["^(Home|Documentation)$","primary open pages"],["Settings|Search","configuration and discovery tabs"],["\\bpage\\b","titles containing the whole word page"]],
       docs:[["^(?!.*contract).*$","every article that is not a contract"],["render|mesh|tile","any rendering article"],["\\b(SSH|Docker|Actions)\\b","remote execution articles"]],
       shots:[["^(Command|Tab)","interface captures"],["dark|scheme|theme","appearance captures"],["render|map","rendering captures"]],
       changelog:[["^feat\\(","features only"],["^fix\\(","fixes only"],["\\b[0-9a-f]{10}\\b","anything with a full short SHA"],["\\((viewer|shell|settings)\\)","by scope"]],
       notif:[["^Render","render notifications"],["skipped|failed|advisory","anything that went wrong"],["\\d+ tiles?","messages carrying a tile count"]],
       settings:[["language|tone","language and tone"],["^(Access|Automation)$","the two least-used groups"]],
       appearance:[["bar|surface","chrome elements"],["^Code","the monospace editor"]],
-      search:[["regex|pattern|builder","everything about patterns"],["^Command","command palette results"],["\\bbuilder\\b","the whole word builder"]]
+      search:[["regex|pattern|builder","everything about patterns"],["^Command","command palette results"],["\\bbuilder\\b","the whole word builder"]],
+      palette:[["^(Go to|Open)","navigation commands"],["settings|search|theme","common destinations"],["\\bpalette\\b","the whole word palette"]]
     };
     const SCOPE_LABEL = {
       sidebar:"Navigation filter — open pages and the article tree",
-      docs:"Documentation index — 54 articles",
+      tabstrip:"Current tab strip — open page titles",
+      docs:"Documentation index — 59 articles",
       shots:"Screenshot gallery — 12 captures in this build",
       changelog:"Changelog — commit subjects, areas and SHAs",
       notif:"Notification history — 5 records",
       settings:"Settings — 6 groups, 63 declared settings",
       appearance:"Appearance — 5 per-element editors",
-      search:"Site search — " + s.scope.toLowerCase() + " scope"
+      search:"Site search — " + s.scope.toLowerCase() + " scope",
+      palette:"Command palette — commands, destinations and settings"
     };
 
     field("sidebar", countIn(sidebarCats) + sidebarTabs.length);
+    field("tabstrip", horizontalTabItems.length);
     field("docs", countIn(docsCats));
     field("shots", shots.length);
     field("settings", settingsGroups.length);
@@ -2009,6 +2295,7 @@ class Component extends DCLogic {
     field("changelog", HITS.changelog.length);
     field("notif", notifications.length);
     field("search", searchResults.length);
+    field("palette", paletteItems.length);
 
     const bk = s.builderFor;
     const bOpen = !!bk;
@@ -2016,17 +2303,26 @@ class Component extends DCLogic {
     const bCompiled = bk ? this.compile(bk) : { re:null, error:"" };
     const bArmed = bk ? !!s.regexOn[bk] : false;
     const bTest = bk ? (s.testText[bk] !== undefined ? s.testText[bk] : (CORPUS[bk] || []).join("\n")) : "";
+    const activeFlags = bk ? this.flagsFor(bk) : DEFAULT_REGEX_FLAGS;
 
     let bMatches = [], bError = bCompiled.error;
     if (bk && bArmed && bPattern && !bError) {
       try {
-        const re = new RegExp(bPattern, this.flagString(true).indexOf("g") >= 0 ? this.flagString(true) : this.flagString(true) + "g");
-        let m, guard = 0;
-        while ((m = re.exec(bTest)) !== null && guard < 200) {
-          guard++;
+        const re = new RegExp(bPattern, this.flagString(bk, true));
+        const collect = (m) => {
           const groups = m.slice(1).filter((x) => x !== undefined);
           bMatches.push({ index:m.index, text:m[0] || "(empty)", groups: groups.length ? "captures: " + groups.join(" · ") : "" });
-          if (m.index === re.lastIndex) re.lastIndex++;
+        };
+        if (activeFlags.g) {
+          let m, guard = 0;
+          while ((m = re.exec(bTest)) !== null && guard < 200) {
+            guard++;
+            collect(m);
+            if (m.index === re.lastIndex) re.lastIndex++;
+          }
+        } else {
+          const m = re.exec(bTest);
+          if (m) collect(m);
         }
       } catch (e) { bError = String((e && e.message) || e); }
     } else if (bk && !bArmed && bPattern) {
@@ -2043,7 +2339,7 @@ class Component extends DCLogic {
 
     const builderMatches = bMatches.slice(0, 40).map((m, i, arr) => ({
       index:String(m.index), text:m.text, groups:m.groups,
-      groupStyle: m.groups ? "display:block;font-size:11.5px;color:var(--out);margin-top:3px;" : "display:none;",
+      groupStyle: m.groups ? "display:block;font-size:11.5px;color:var(--osv);margin-top:3px;" : "display:none;",
       rowStyle:"display:flex;gap:10px;align-items:flex-start;padding:9px 12px;" + (i < arr.length - 1 ? "border-bottom:1px solid var(--outv);" : "")
     }));
 
@@ -2056,13 +2352,17 @@ class Component extends DCLogic {
       ["y","Sticky","Only matches starting exactly where the last match ended."]
     ].map(([k, name, title]) => ({
       label:k, name, title,
-      state: s.flags[k] ? "on" : "off",
-      onClick:() => this.setState({ flags: Object.assign({}, this.state.flags, { [k]: !this.state.flags[k] }) }),
+      state: activeFlags[k] ? "on" : "off", pressed:String(activeFlags[k]),
+      onClick:() => bk && this.setState({
+        flagsByKey:Object.assign({}, this.state.flagsByKey, {
+          [bk]:Object.assign({}, this.flagsFor(bk), { [k]:!this.flagsFor(bk)[k] })
+        })
+      }),
       rowStyle:"display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:10px;cursor:pointer;text-align:left;min-height:44px;border:1px solid " +
-        (s.flags[k] ? "transparent" : "var(--outv)") + ";background:" + (s.flags[k] ? "var(--s-cont)" : "transparent") + ";color:var(--on);",
+        (activeFlags[k] ? "transparent" : "var(--outv)") + ";background:" + (activeFlags[k] ? "var(--s-cont)" : "transparent") + ";color:var(--on);",
       chipStyle:"width:28px;height:28px;flex:0 0 auto;display:grid;place-items:center;border-radius:8px;font-family:var(--mono);font-size:13px;font-weight:700;background:" +
-        (s.flags[k] ? "var(--p)" : "var(--s-cont)") + ";color:" + (s.flags[k] ? "var(--op)" : "var(--out)") + ";",
-      stateStyle:"flex:0 0 auto;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:" + (s.flags[k] ? "var(--p)" : "var(--out)") + ";"
+        (activeFlags[k] ? "var(--p)" : "var(--s-cont)") + ";color:" + (activeFlags[k] ? "var(--op)" : "var(--osv)") + ";",
+      stateStyle:"flex:0 0 auto;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:" + (activeFlags[k] ? "var(--p)" : "var(--osv)") + ";"
     }));
 
     const tokenGroups = [
@@ -2088,11 +2388,11 @@ class Component extends DCLogic {
       ["group","Remember all of it","Wraps everything in one capturing group."]
     ].map(([kind, label, title]) => ({ label, title, onClick:() => this.transform(kind) }));
 
-    const selFields = bk ? (s.fieldSel[bk] || (FIELDS[bk] || []).map((f) => f[0])) : [];
-    const builderFields = bk ? (FIELDS[bk] || []).map(([id, label]) => {
+    const selFields = bk ? this.selectedFieldsFor(bk) : [];
+    const builderFields = bk ? (SEARCH_FIELDS[bk] || []).map(([id, label]) => {
       const on = selFields.indexOf(id) >= 0;
       return {
-        label, onClick:() => {
+        label, pressed:String(on), onClick:() => {
           const next = on ? selFields.filter((x) => x !== id) : selFields.concat([id]);
           this.setState({ fieldSel: Object.assign({}, this.state.fieldSel, { [bk]: next.length ? next : selFields }) });
         },
@@ -2109,11 +2409,13 @@ class Component extends DCLogic {
       })
     })) : [];
 
-    const savedPatterns = s.savedPats.map((p, i) => ({
-      label:"/" + p.pattern + "/" + p.flags + "  ·  " + p.scope,
-      onApply:() => this.setState({
-        queries: Object.assign({}, this.state.queries, { [p.key]: p.pattern }),
-        regexOn: Object.assign({}, this.state.regexOn, { [p.key]: true })
+    const savedPatterns = s.savedPats.map((p, i) => ({ p, i })).filter((entry) => entry.p && entry.p.key === bk).map(({ p, i }) => ({
+      label:"/" + p.pattern + "/" + (typeof p.flags === "string" ? p.flags : this.flagString(bk, true)) + "  ·  " + p.scope,
+      onApply:() => bk && this.setState({
+        queries: Object.assign({}, this.state.queries, { [bk]: p.pattern }),
+        regexOn: Object.assign({}, this.state.regexOn, { [bk]: true }),
+        flagsByKey:Object.assign({}, this.state.flagsByKey, { [bk]:this.flagsFromString(p.flags, bk) }),
+        fieldSel:Object.assign({}, this.state.fieldSel, { [bk]:this.selectedFieldsFor(bk, p.fields) })
       }),
       onDelete:() => this.setState({ savedPats: this.state.savedPats.filter((_, j) => j !== i) })
     }));
@@ -2131,15 +2433,22 @@ class Component extends DCLogic {
 
     const anchorTop = s.builderPos ? s.builderPos.y : (s.builderAnchor ? s.builderAnchor.top : 96);
     const anchorLeft = s.builderPos ? s.builderPos.x : (s.builderAnchor ? s.builderAnchor.left : 24);
-    const panelW = compact ? Math.min(s.width - 16, 420) : 460;
+    const panelW = compact ? Math.max(240, Math.min(s.width - 16, 420)) : 460;
+    const panelH = Math.max(160, Math.min(560, s.height - 16));
     const boundedLeft = Math.max(8, Math.min(anchorLeft, s.width - panelW - 8));
-    const boundedTop = Math.max(8, anchorTop);
+    const boundedTop = Math.max(8, Math.min(anchorTop, Math.max(8, s.height - panelH - 8)));
 
     const sidebarVisible = !compact;
     const drawerOpen = compact && s.drawer;
 
+    const builderExportRecord = bk ? {
+      schema:"worldlens.regex-builder/v1", engine:"JavaScript RegExp", key:bk, scope:SCOPE_LABEL[bk],
+      regexEnabled:bArmed, pattern:bPattern, flags:this.flagString(bk, true), fields:selFields.slice()
+    } : null;
+    const builderExportText = builderExportRecord ? JSON.stringify(builderExportRecord, null, 2) + "\n" : "";
+
     const out = {
-      sidebarCats, docsCats, sidebarTabs,
+      sidebarCats, docsCats, sidebarTabs, horizontalTabItems,
       isHome: page === PAGES.home, isDocs: page === PAGES.docs, isArticle,
       isScreenshots: page === PAGES.screenshots, isSettings: page === PAGES.settings,
       isSettingsDetail: page === PAGES.settingsDetail, isSearch: page === PAGES.search,
@@ -2151,18 +2460,41 @@ class Component extends DCLogic {
       goSearch:() => this.go(PAGES.search), goChangelog:() => this.go(PAGES.changelog),
       goNotifications:() => this.go(PAGES.notifications),
       toggleDrawer:() => this.setState({ drawer:!s.drawer }), closeDrawer:() => this.setState({ drawer:false, sheet:false }),
-      openPalette:() => this.setState({ palette:true }), closePalette:() => this.setState({ palette:false }),
+      openPalette:() => this.openCommandPalette(), closePalette:() => this.setState({ palette:false }),
+      closeMore:() => this.setState({ sheet:false }),
+      moreEnStyle:s.language === "yue" ? "display:none;" : "",
+      moreYueStyle:s.language === "en" ? "display:none;" : "",
+      moreSeparatorStyle:s.language === "bilingual" ? "" : "display:none;",
       toggleTheme:() => this.setState({ theme: s.theme === "light" ? "dark" : "light" }),
       cycleLanguage:() => this.setState({ language: s.language === "en" ? "yue" : s.language === "yue" ? "bilingual" : "en" }),
       toggleIndex:() => this.setState({ indexOpen:!s.indexOpen }),
-      onPaletteQuery:(e) => this.setState({ paletteQuery:e.target.value }),
 
       themeIcon: s.theme === "light" ? P.dark : P.light,
       themeTitle: s.theme === "light" ? "Switch to dark" : "Switch to light",
       languageTitle: s.language === "en" ? "English" : s.language === "yue" ? "香港廣東話" : "Bilingual",
+      languageControlLabel:"Language and tone. Current: " + (s.language === "en" ? "English" : s.language === "yue" ? "Hong Kong Cantonese" : "Bilingual") + ". Switch to " + (s.language === "en" ? "Hong Kong Cantonese" : s.language === "yue" ? "Bilingual" : "English") + ".",
+      notificationTitle:s.unread ? "Notification history, " + s.unread + " unread" : "Notification history, all read",
 
       navItems, tabItems, treeCats, outline, bottomNav, moreItems, paletteItems,
-      paletteEmptyStyle: paletteItems.length ? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1.6;color:var(--out);",
+      paletteActiveId:paletteIndex >= 0 ? "wl-palette-option-" + paletteIndex : "",
+      onPaletteKey:(event) => {
+        if (event.isComposing || event.keyCode === 229) return;
+        if (!paletteMatches.length) return;
+        let next = paletteIndex;
+        if (event.key === "ArrowDown") next = (paletteIndex + 1) % paletteMatches.length;
+        else if (event.key === "ArrowUp") next = (paletteIndex - 1 + paletteMatches.length) % paletteMatches.length;
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = paletteMatches.length - 1;
+        else if (event.key === "Enter") {
+          event.preventDefault();
+          const activeOption = document.getElementById("wl-palette-option-" + paletteIndex);
+          if (activeOption instanceof HTMLButtonElement) activeOption.click();
+          return;
+        } else return;
+        event.preventDefault();
+        this.setState({ paletteIndex:next }, () => this.scrollPaletteOption(next));
+      },
+      paletteEmptyStyle: paletteItems.length ? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1.6;color:var(--osv);",
       stats, features, steps, phases, homeShots, walkthroughs, releaseNotes, repoLinks,
       shots, shotFilters, settingsGroups, perElement,
       groupTitle:group.title, groupDesc:group.desc, groupSections,
@@ -2171,7 +2503,7 @@ class Component extends DCLogic {
         ? "background:none;border:0;padding:0;color:var(--p);cursor:pointer;font-size:13px;text-decoration:underline;text-underline-offset:3px;"
         : "display:none;",
       perElementWrapStyle: s.settingsGroup === "appearance" ? "display:block;" : "display:none;",
-      headerStyle:"flex:0 0 auto;display:flex;align-items:center;gap:8px;height:64px;padding:0 8px 0 4px;background:var(--" +
+      headerStyle:"flex:0 0 auto;display:flex;align-items:center;gap:8px;min-height:calc(64px + var(--safe-t));height:auto;padding:var(--safe-t) max(8px,var(--safe-r)) 0 max(4px,var(--safe-l));background:var(--" +
         (V.barSurface === "cont" ? "s-cont" : V.barSurface === "lowest" ? "s-lowest" : "s-low") +
         ");border-bottom:1px solid var(--outv);position:relative;z-index:30;" +
         (V.barElevation && s.progress > 0.5 ? "box-shadow:var(--e2);" : ""),
@@ -2196,15 +2528,19 @@ class Component extends DCLogic {
       articleEmptyStyle: articleBlocks.length ? "display:none;" : "padding:24px;border-radius:16px;border:1px dashed var(--outv);",
       prevTitle: prevArt ? prevArt.title : "—",
       nextTitle: nextArt ? nextArt.title : "—",
+      prevDisabled:!prevArt,
+      nextDisabled:!nextArt,
+      prevDisabledAttr:String(!prevArt),
+      nextDisabledAttr:String(!nextArt),
       prevArticle: () => prevArt && this.go(PAGES.article, prevArt.id),
       nextArticle: () => nextArt && this.go(PAGES.article, nextArt.id),
-      prevStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--on);cursor:" + (prevArt ? "pointer" : "default") + ";opacity:" + (prevArt ? "1" : ".45") + ";",
-      nextStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--on);cursor:" + (nextArt ? "pointer" : "default") + ";opacity:" + (nextArt ? "1" : ".45") + ";",
+      prevStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--osv);cursor:" + (prevArt ? "pointer" : "default") + ";",
+      nextStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--osv);cursor:" + (nextArt ? "pointer" : "default") + ";",
       tabCount:String(sidebarTabs.length), paletteQuery:s.paletteQuery, resultCount:String(searchResults.length),
 
       builderScopeLabel: bk ? SCOPE_LABEL[bk] : "",
       builderPattern: bPattern,
-      builderFlagString: this.flagString(true),
+      builderFlagString: this.flagString(bk, true),
       builderInputRef: (el) => { this._builderInput = el; },
       onBuilderPattern: (e) => bk && this.setState({
         queries: Object.assign({}, this.state.queries, { [bk]: e.target.value }),
@@ -2220,17 +2556,23 @@ class Component extends DCLogic {
         ? (bPattern ? "Valid pattern. " + bMatches.length + " match" + (bMatches.length === 1 ? "" : "es") + " in the test string." : "Empty pattern — everything matches.")
         : "Plain-text mode: the field matches on substring. Insert a token or pick a preset to arm the pattern.",
       builderOkStyle: bError ? "display:none;" : "margin-top:8px;font-size:12px;line-height:1.5;color:var(--osv);",
+      builderInvalid:String(!!bError),
+      builderFeedback:bError ? "Invalid pattern — " + bError : (bArmed
+        ? (bPattern ? "Valid pattern. " + bMatches.length + " match" + (bMatches.length === 1 ? "" : "es") + " in the test string." : "Empty pattern — everything matches.")
+        : "Plain-text mode: the field matches on substring. Insert a token or pick a preset to arm the pattern."),
+      builderFeedbackStyle:"margin-top:8px;font-size:12px;line-height:1.5;color:" + (bError ? "var(--err)" : "var(--osv)") + ";",
       builderBorder: bError ? "var(--err)" : (bArmed ? "var(--p)" : "var(--outv)"),
       builderMatchCount: String(bMatches.length),
       builderMatchChipStyle:"font-family:var(--mono);font-size:11.5px;padding:3px 9px;border-radius:999px;background:" +
-        (bMatches.length ? "var(--secc)" : "var(--s-cont)") + ";color:" + (bMatches.length ? "var(--osecc)" : "var(--out)") + ";",
+        (bMatches.length ? "var(--secc)" : "var(--s-cont)") + ";color:" + (bMatches.length ? "var(--osecc)" : "var(--osv)") + ";",
       builderMatches,
-      builderEmptyStyle: bMatches.length ? "display:none;" : "padding:12px;font-size:12.5px;color:var(--out);",
+      builderEmptyStyle: bMatches.length ? "display:none;" : "padding:12px;font-size:12.5px;color:var(--osv);",
       builderLiveCount: bk ? String((HITS[bk] || []).length) + " of " + String((CORPUS[bk] || []).length) : "",
+      builderLiveAnnouncement:bk ? String((HITS[bk] || []).length) + " of " + String((CORPUS[bk] || []).length) + " records match on this page." : "",
       builderHits: bk ? (HITS[bk] || []).slice(0, 8).map((label, i, arr) => ({
         label, rowStyle:"padding:9px 12px;font-size:12.5px;line-height:1.4;color:var(--osv);" + (i < arr.length - 1 ? "border-bottom:1px solid var(--outv);" : "")
       })) : [],
-      builderNoHitStyle: bk && (HITS[bk] || []).length ? "display:none;" : "padding:12px;font-size:12.5px;color:var(--out);",
+      builderNoHitStyle: bk && (HITS[bk] || []).length ? "display:none;" : "padding:12px;font-size:12.5px;color:var(--osv);",
       builderFlags, tokenGroups, transforms, builderFields, builderPresets, savedPatterns, explanation,
       primerStyle: s.primerDismissed ? "display:none;" : "border-radius:var(--radius);border:1px solid var(--outv);background:var(--card);padding:14px;",
       dismissPrimer: () => this.setState({ primerDismissed:true }),
@@ -2238,14 +2580,31 @@ class Component extends DCLogic {
         queries: Object.assign({}, this.state.queries, { [bk]: "^(?:render|world)\\w*" }),
         regexOn: Object.assign({}, this.state.regexOn, { [bk]: true })
       }),
-      noSavedStyle: s.savedPats.length ? "display:none;" : "font-size:12px;line-height:1.5;color:var(--out);",
+      noSavedStyle: savedPatterns.length ? "display:none;" : "font-size:12px;line-height:1.5;color:var(--osv);",
       savePattern: () => bk && bPattern && this.setState({
-        savedPats: this.state.savedPats.concat([{ key:bk, pattern:bPattern, flags:this.flagString(true), scope:bk }])
+        savedPats: this.state.savedPats.concat([{ key:bk, pattern:bPattern, flags:this.flagString(bk, true), fields:selFields.slice(), scope:bk }])
       }),
       clearBuilder: () => bk && this.setState({
         queries: Object.assign({}, this.state.queries, { [bk]: "" }),
-        regexOn: Object.assign({}, this.state.regexOn, { [bk]: false })
+        regexOn: Object.assign({}, this.state.regexOn, { [bk]: false }),
+        builderStatus:"Pattern cleared."
       }),
+      builderStatus:s.builderStatus,
+      copyBuilder: () => {
+        if (!builderExportRecord) return;
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          this.setState({ builderStatus:"Clipboard access is unavailable. Use Export instead." });
+          return;
+        }
+        navigator.clipboard.writeText(builderExportText)
+          .then(() => this.setState({ builderStatus:"Pattern copied." }))
+          .catch(() => this.setState({ builderStatus:"Copy failed. Use Export instead." }));
+      },
+      exportBuilder: () => {
+        if (!builderExportRecord) return;
+        download("worldlens-regex-" + bk + ".json", builderExportText);
+        this.setState({ builderStatus:"Pattern exported." });
+      },
       toggleRegexMode: () => bk && this.setState({ regexOn: Object.assign({}, this.state.regexOn, { [bk]: !bArmed }) }),
       regexModeLabel: bArmed ? "Regular expression · on" : "Plain text · on",
       regexModeStyle:"height:40px;padding:0 18px;border-radius:999px;border:0;font-size:13px;font-weight:600;cursor:pointer;background:" +
@@ -2253,6 +2612,7 @@ class Component extends DCLogic {
       closeBuilder: () => this.setState({ builderFor:null }),
       resetBuilderPos: () => this.setState({ builderPos:null }),
       builderDragStart: (e) => {
+        if (compact) return;
         if (e.button !== undefined && e.button !== 0) return;
         const startX = e.clientX, startY = e.clientY;
         const baseX = boundedLeft, baseY = boundedTop;
@@ -2263,33 +2623,42 @@ class Component extends DCLogic {
       },
       builderScrimStyle: bOpen ? "position:fixed;inset:0;z-index:95;background:transparent;" : "display:none;",
       builderPanelStyle: bOpen
-        ? "position:fixed;top:" + boundedTop + "px;left:" + boundedLeft + "px;width:" + panelW + "px;max-height:calc(100dvh - " + (boundedTop + 16) + "px);z-index:96;display:flex;flex-direction:column;background:var(--s-low);border:1px solid var(--outv);border-radius:20px;box-shadow:var(--e3);overflow:hidden;animation:wl-rise .18s cubic-bezier(.05,.7,.1,1);"
+        ? compact
+          ? "position:fixed;top:max(8px,var(--safe-t));right:max(8px,var(--safe-r));bottom:max(8px,var(--safe-b));left:max(8px,var(--safe-l));width:auto;max-height:none;z-index:96;display:flex;flex-direction:column;background:var(--s-low);border:1px solid var(--outv);border-radius:20px;box-shadow:var(--e3);overflow:hidden;animation:wl-rise .18s cubic-bezier(.05,.7,.1,1);"
+          : "position:fixed;top:" + boundedTop + "px;left:" + boundedLeft + "px;width:" + panelW + "px;max-height:" + panelH + "px;z-index:96;display:flex;flex-direction:column;background:var(--s-low);border:1px solid var(--outv);border-radius:20px;box-shadow:var(--e3);overflow:hidden;animation:wl-rise .18s cubic-bezier(.05,.7,.1,1);"
         : "display:none;",
 
       gridStyle: horizontal && sidebarVisible
         ? "flex:1;min-height:0;display:flex;flex-direction:" + (V.navPlacement === "bottom" ? "column-reverse" : "column") + ";position:relative;"
         : "flex:1;min-height:0;display:grid;grid-template-columns:" +
-          (sidebarVisible ? (V.navPlacement === "right" ? "minmax(0,1fr) var(--navw)" : "var(--navw) minmax(0,1fr)") : "minmax(0,1fr)") +
-          (this.showIndex ? " 280px" : "") + ";position:relative;",
-      mainStyle: (horizontal && sidebarVisible)
-        ? "min-width:0;flex:1;overflow-y:auto;overflow-x:hidden;background:var(--surf);"
-        : "min-width:0;overflow-y:auto;overflow-x:hidden;background:var(--surf);" + (sidebarVisible && V.navPlacement === "right" ? "grid-column:1;grid-row:1;" : ""),
+          (sidebarVisible ? (V.navPlacement === "right" ? "minmax(0,1fr) var(--navw)" : "var(--navw) minmax(0,1fr)") : "minmax(0,1fr)") + ";position:relative;",
+      contentGridStyle:"flex:1;min-width:0;min-height:0;display:grid;grid-template-columns:" +
+        (this.showIndex ? "minmax(0,1fr) 280px" : "minmax(0,1fr)") + ";overflow:hidden;" +
+        (!horizontal && sidebarVisible && V.navPlacement === "right" ? "grid-column:1;grid-row:1;" : ""),
+      mainStyle:"min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;background:var(--surf);",
       sidebarStyle: !sidebarVisible
-        ? "position:fixed;top:0;left:0;bottom:0;width:min(320px,86vw);z-index:60;background:var(--s-low);overflow-y:auto;box-shadow:var(--e3);transition:transform .3s cubic-bezier(.2,0,0,1);transform:translateX(" + (drawerOpen ? "0" : "-102%") + ");"
+        ? "position:fixed;top:0;left:0;bottom:0;width:min(320px,86vw);z-index:60;padding-top:var(--safe-t);padding-left:var(--safe-l);padding-bottom:var(--safe-b);background:var(--s-low);overflow-y:auto;box-shadow:var(--e3);transition:transform .3s cubic-bezier(.2,0,0,1);transform:translateX(" + (drawerOpen ? "0" : "-102%") + ");"
         : horizontal
           ? "flex:0 0 auto;display:flex;align-items:center;gap:8px;overflow-x:auto;background:var(--s-low);border-" + (V.navPlacement === "bottom" ? "top" : "bottom") + ":1px solid var(--outv);padding:8px 12px;"
           : "overflow-y:auto;border-" + (V.navPlacement === "right" ? "left" : "right") + ":1px solid var(--outv);background:var(--surf);min-width:0;" + (V.navPlacement === "right" ? "grid-column:2;grid-row:1;" : ""),
       sbFilterStyle: horizontal && sidebarVisible ? "display:none;" : "padding:16px 16px 4px;",
+      horizontalTabsStyle:horizontal && sidebarVisible
+        ? "flex:0 0 auto;display:flex;flex-direction:column;gap:6px;overflow:hidden;padding:8px 12px;border-bottom:1px solid var(--outv);background:var(--s-lowest);"
+        : "display:none;",
+      drawerOpenAttr: drawerOpen ? "true" : "false",
+      drawerHeaderStyle: compact ? "display:flex;align-items:center;justify-content:space-between;min-height:56px;padding:6px 12px 0 16px;" : "display:none;",
       sbTabsStyle: horizontal && sidebarVisible ? "display:none;" : "padding:12px 12px 8px;",
       sbDividerStyle: horizontal && sidebarVisible ? "display:none;" : "height:1px;background:var(--outv);margin:8px 20px;",
       sbNavStyle: horizontal && sidebarVisible
         ? "display:flex;flex-direction:row;gap:4px;padding:0;flex:0 0 auto;"
         : "padding:0 12px;display:flex;flex-direction:column;gap:2px;",
       sbTreeStyle: horizontal && sidebarVisible ? "display:none;" : "padding:0 12px 24px;",
-      indexStyle: this.showIndex ? "overflow-y:auto;border-left:1px solid var(--outv);background:var(--surf);" : "display:none;",
+      indexStyle: this.showIndex ? "min-width:0;min-height:0;overflow-y:auto;border-left:1px solid var(--outv);background:var(--surf);" : "display:none;",
       articleAsideStyle: isArticle ? "display:block;" : "display:none;",
       progressStyle:"height:100%;border-radius:999px;background:var(--p);width:" + Math.round(s.progress) + "%;",
-      contentPadStyle:"padding:" + (compact ? "20px 16px 88px" : "36px clamp(24px,4vw,56px) 56px") + ";max-width:" + (this.showIndex ? "980px" : "1180px") + ";margin:0 auto;",
+      contentPadStyle:"padding:" + (compact
+        ? "20px max(16px,var(--safe-r)) calc(76px + var(--safe-b)) max(16px,var(--safe-l))"
+        : "36px max(clamp(24px,4vw,56px),var(--safe-r)) 56px max(clamp(24px,4vw,56px),var(--safe-l))") + ";max-width:" + (this.showIndex ? "980px" : "1180px") + ";margin:0 auto;",
       menuBtnStyle: compact
         ? "width:48px;height:48px;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;flex:0 0 auto;"
         : "display:none;",
@@ -2311,21 +2680,22 @@ class Component extends DCLogic {
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       },
       bottomNavStyle: compact
-        ? "flex:0 0 auto;display:flex;align-items:stretch;background:var(--s-cont);border-top:1px solid var(--outv);padding-bottom:env(safe-area-inset-bottom);z-index:40;"
+        ? "flex:0 0 auto;display:flex;align-items:stretch;background:var(--s-cont);border-top:1px solid var(--outv);padding:0 var(--safe-r) var(--safe-b) var(--safe-l);z-index:40;"
         : "display:none;",
       scrimStyle: (drawerOpen || s.sheet)
         ? "position:fixed;inset:0;background:rgb(0 0 0/.4);z-index:50;animation:wl-fade .2s ease;"
         : "display:none;",
       sheetStyle: s.sheet
-        ? "position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--s-cont);border-radius:28px 28px 0 0;box-shadow:var(--e3);animation:wl-rise .25s cubic-bezier(.05,.7,.1,1);"
+        ? "position:fixed;left:0;right:0;bottom:0;z-index:70;max-height:min(80dvh,560px);overflow-y:auto;padding:0 var(--safe-r) var(--safe-b) var(--safe-l);background:var(--s-cont);border-radius:28px 28px 0 0;box-shadow:var(--e3);animation:wl-rise .25s cubic-bezier(.05,.7,.1,1);"
         : "display:none;",
       mobileIndexStyle: (!this.showIndex && isArticle) ? "display:block;margin-bottom:8px;" : "display:none;",
+      indexOpenAttr:String(!!s.indexOpen),
       mobileOutlineStyle: s.indexOpen ? "display:flex;flex-direction:column;padding:8px 0;" : "display:none;",
       indexChevronStyle:"transition:transform .2s;transform:rotate(" + (s.indexOpen ? "180deg" : "0deg") + ");",
 
       paletteScrimStyle: s.palette ? "position:fixed;inset:0;background:rgb(0 0 0/.45);z-index:80;animation:wl-fade .15s ease;" : "display:none;",
       paletteStyle: s.palette
-        ? "position:fixed;top:" + (compact ? "12px" : "12vh") + ";left:50%;transform:translateX(-50%);width:min(620px,94vw);z-index:90;background:var(--s-low);border:1px solid var(--outv);border-radius:24px;box-shadow:var(--e3);overflow:hidden;animation:wl-rise .2s cubic-bezier(.05,.7,.1,1);"
+        ? "position:fixed;top:" + (compact ? "max(12px,var(--safe-t))" : "max(12vh,var(--safe-t))") + ";left:50%;transform:translateX(-50%);width:calc(100vw - var(--safe-l) - var(--safe-r) - 16px);max-width:620px;max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 24px);z-index:90;background:var(--s-low);border:1px solid var(--outv);border-radius:24px;box-shadow:var(--e3);overflow:hidden;animation:wl-rise .2s cubic-bezier(.05,.7,.1,1);"
         : "display:none;"
     };
     return Object.assign(out, F);

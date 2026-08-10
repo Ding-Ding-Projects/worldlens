@@ -223,6 +223,9 @@ const maskShapes = computed<readonly Record<string, unknown>[]>(() => {
     return Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
 });
 
+// Normalize once so the cost estimate and summary counts use the same safe shape model.
+const normalizedMaskShapes = computed(() => normalizeMaskList(maskShapes.value as PlainValue[]));
+
 /**
  * What the mask currently does, in the facts somebody needs before opening the editor.
  *
@@ -246,7 +249,7 @@ const maskShapes = computed<readonly Record<string, unknown>[]>(() => {
  * means everything" would be this panel inventing mask semantics, and the one thing worse than
  * a count is a count somebody decided to reinterpret.
  */
-const maskCost = computed(() => estimateRenderCost(normalizeMaskList(maskShapes.value as PlainValue[])));
+const maskCost = computed(() => estimateRenderCost(normalizedMaskShapes.value));
 
 const maskSummary = computed(() => {
     const regions = maskWorld.value.regionCount;
@@ -267,8 +270,8 @@ const maskSummary = computed(() => {
     const shapes = t(
         "project.maps.maskShapes",
         {
-            added: maskShapes.value.filter((shape) => shape["subtract"] !== true).length,
-            cut: maskShapes.value.filter((shape) => shape["subtract"] === true).length,
+            added: normalizedMaskShapes.value.filter((shape) => shape.subtract !== true).length,
+            cut: normalizedMaskShapes.value.filter((shape) => shape.subtract === true).length,
         },
         "{added} added and {cut} cut out, combined in the order they are listed.",
     );

@@ -257,7 +257,7 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     2,
     "packaging and publication must both use the committed version resolver",
   );
-  assert.equal(workflow.includes('-build.${GITHUB_RUN_NUMBER}'), false);
+  assert.equal(workflow.includes("-build.${GITHUB_RUN_NUMBER}"), false);
 
   const splitVersionIdentity = workflow.replace(
     'if [ "$tag" != "v$version" ]; then',
@@ -321,6 +321,60 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
+  const lintGate = workflow.replace(
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, lint]",
+  );
+  assert.notEqual(lintGate, workflow);
+  assert.ok(
+    actionDependencyProblems(lintGate, FILE).some((problem) =>
+      /every correctness job and no advisory job/.test(problem.message),
+    ),
+  );
+
+  for (const job of [
+    "check",
+    "workflows",
+    "package",
+    "jars",
+    "test-world",
+    "config-java-roundtrip",
+  ]) {
+    const requiredLine = `      && needs.${job}.result == 'success'`;
+    const relaxedEligibility = workflow.replace(requiredLine, "");
+    assert.notEqual(relaxedEligibility, workflow, job);
+    assert.ok(
+      actionDependencyProblems(relaxedEligibility, FILE).some((problem) =>
+        /release eligibility must require success from every correctness job/.test(
+          problem.message,
+        ),
+      ),
+      job,
+    );
+  }
+
+  const nonWindowsPackage = workflow.replace(
+    "    runs-on: windows-2022",
+    "    runs-on: ubuntu-24.04",
+  );
+  assert.notEqual(nonWindowsPackage, workflow);
+  assert.ok(
+    actionDependencyProblems(nonWindowsPackage, FILE).some((problem) =>
+      /release packaging must remain Windows-only/.test(problem.message),
+    ),
+  );
+
+  const secondPublisher = workflow.replace(
+    `  release:${eol}`,
+    `  shadow-publisher:\n    runs-on: ubuntu-24.04\n    steps:\n      - name: Shadow publisher\n        run: |\n          gh release create "$RELEASE_TAG" \\\n\n  release:\n`,
+  );
+  assert.notEqual(secondPublisher, workflow);
+  assert.ok(
+    actionDependencyProblems(secondPublisher, FILE).some((problem) =>
+      /exactly one reviewed release publisher/.test(problem.message),
+    ),
+  );
+
   const screenshotGate = workflow.replace(
     "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
     "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]",
@@ -343,8 +397,9 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
   assert.notEqual(collapsedApplicationDirectory, workflow);
   assert.ok(
-    actionDependencyProblems(collapsedApplicationDirectory, FILE).some((problem) =>
-      /security contract must run exactly once/.test(problem.message),
+    actionDependencyProblems(collapsedApplicationDirectory, FILE).some(
+      (problem) =>
+        /security contract must run exactly once/.test(problem.message),
     ),
   );
   assert.notEqual(fatalScreenshots, workflow);
@@ -354,7 +409,10 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const unboundedScreenshots = workflow.replace(`    timeout-minutes: 20${eol}`, "");
+  const unboundedScreenshots = workflow.replace(
+    `    timeout-minutes: 20${eol}`,
+    "",
+  );
   assert.notEqual(unboundedScreenshots, workflow);
   assert.ok(
     actionDependencyProblems(unboundedScreenshots, FILE).some((problem) =>
