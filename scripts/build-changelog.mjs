@@ -179,6 +179,19 @@ function gitLines(args) {
 }
 
 /**
+ * One spelling for a UTC timestamp, whatever git wrote.
+ *
+ * Git 2.54 renders a +0000 offset in strict ISO output as `Z`; older versions write
+ * `+00:00`. Both are the same instant, but this generator's outputs are compared byte for
+ * byte by `--check`, so a commit authored in UTC regenerated cleanly on one git version
+ * and read as stale on the other - an environment-dependent flake in a guard whose whole
+ * point is determinism. `Z` is the canonical RFC 3339 form, so it wins.
+ */
+function canonicalDate(date) {
+    return date.replace(/\+00:00$/, "Z");
+}
+
+/**
  * Trailing git trailers, removed from a body.
  *
  * `Co-Authored-By:` and friends are metadata about who wrote the commit, not a description of
@@ -239,7 +252,7 @@ function readCommits() {
 
         commits.set(sha, {
             sha,
-            date,
+            date: canonicalDate(date),
             parents: parents.length > 0 ? parents.split(" ") : [],
             subject,
             details: stripTrailers(body ?? ""),
@@ -283,7 +296,12 @@ function readVersions() {
         // when there is one. Both forms appear in repositories that changed CI along the way.
         const commit = type === "tag" ? (dereferenced ?? "") : (objectName ?? "");
         if (commit.length === 0) throw new Error(`tag ${tag} does not resolve to a commit`);
-        versions.push({ tag, version: (tag ?? "").replace(/^v/, ""), date, commit });
+        versions.push({
+            tag,
+            version: (tag ?? "").replace(/^v/, ""),
+            date: canonicalDate(date ?? ""),
+            commit,
+        });
     }
     return versions;
 }
