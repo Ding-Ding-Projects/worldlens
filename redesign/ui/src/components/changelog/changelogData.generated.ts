@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "8c9a69fbfb87a266a4edb4c223ace90f0456ca9d",
+        shortSha: "8c9a69fbfb",
+        date: "2026-08-10T17:39:02Z",
+        subject: "fix(site): the landing page no longer contradicts what shipped",
+        details: "Two stale claims were live on the public site. It said a headless server\nserving the map to an ordinary browser 'is planned and is not built' - that\nserver renders, serves, ships a Docker image and re-renders on a watch, and\nwhat remains open in it is narrower than the server itself. It also said the\nTypeScript mesher 'does not render anything yet' - it passes its parity gate\nbyte for byte, which is a different and more interesting fact than either\n'not built' or 'shipped', and the page now states the distinction the README\nalready draws: passing the gate is not switching the product over.\n\nThe landing page also now says 1.0 is out and exactly what that claims,\nincluding what it does not.",
+        category: "site",
+        areas: ["site"],
+        files: 1,
+    },
+    {
         sha: "91bf9898e8074c5564ec7e16f65ca6e68275973a",
         shortSha: "91bf9898e8",
         date: "2026-08-10T17:33:54Z",
