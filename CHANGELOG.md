@@ -24,6 +24,10 @@ full message for the in-app changelog viewer.
 
 - feat!: Worldlens 1.0 - the verified public baseline - [`6ad26921ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/6ad26921abe7aa5c081929ccbc1a2ab2bab09ba1)
 
+### Documentation
+
+- docs: add Hong Kong Cantonese sections to the first ten articles - [`13848c1a62`](https://github.com/Ding-Ding-Projects/worldlens/commit/13848c1a62e8fc1a1289a041b06ddb5640bde4fc)
+
 ## 0.1.996 - 2026-08-10
 
 Tagged at [`3785004fae`](https://github.com/Ding-Ding-Projects/worldlens/commit/3785004faed122ef302d45d280fb6ca6bc714c9f).

@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "13848c1a62e8fc1a1289a041b06ddb5640bde4fc",
+        shortSha: "13848c1a62",
+        date: "2026-08-10T10:48:11Z",
+        subject: "docs: add Hong Kong Cantonese sections to the first ten articles",
+        details: "Each article now ends with a 廣東話 section covering the document's full\nsubstance - behaviour, configuration, failure modes, security notes and\nverification - so a Cantonese reader misses nothing. Code, paths, commands\nand identifiers stay in English. The remaining articles follow in waves.",
+        category: "docs",
+        areas: ["docs"],
+        files: 10,
+    },
+    {
         sha: "6ad26921abe7aa5c081929ccbc1a2ab2bab09ba1",
         shortSha: "6ad26921ab",
         date: "2026-08-10T10:46:14Z",
