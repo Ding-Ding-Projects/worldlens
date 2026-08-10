@@ -34,21 +34,29 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         category: "build",
         areas: ["build", "docs"],
         files: 4,
-    },
-    {
-        sha: "fac7ea510eab33cd6928d919e403749ebf44d2f1",
-        shortSha: "fac7ea510e",
-        date: "2026-08-10T09:38:13Z",
-        subject: "feat(a11y): phase A accessibility - skip path, disclosure contracts, fail-closed shell numbers",
-        details: "Rebased from the Phase A bundle reconstructed at artifact SHA 01db881: ten\nfiles verified byte-identical took the overlay directly; App.vue, AppRail.vue\nand DockedSurface.vue were rebased hunk by hunk per the bundle's own drift\ninstructions.\n\n- Keyboard skip path from the frameless title bar to a focusable main\n  landmark, with the label registered in English and Cantonese.\n- Stable aria-controls disclosure relationships: bell to notification panel,\n  rail settings (now a true toggle) to the docked surface that names itself,\n  status strip to Problems, render rows to details, preview network note,\n  and glossary terms.\n- Non-modal dialog semantics on the notification history: Escape close,\n  focus on open, focus return to the bell.\n- shellNumbers.nonNegativeInteger keeps negative, infinite or NaN counts and\n  progress out of visible and ARIA output.\n- Reduced-motion coverage for the rail pill.\n- Evidence recaptured for real: 89 captures, 7 named skips, from the patched\n  tree with map, world and provenance fixtures; digest recorded from those\n  exact sources. A first fixtureless attempt produced 76 captures and was\n  discarded rather than committed - a partial artifact is diagnostic only.",
-        category: "docs",
-        areas: ["docs", "interface", "other"],
-        files: 43,
     }
 ];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "0.1.996",
+        tag: "v0.1.996",
+        date: "2026-08-10T09:38:26Z",
+        commit: "3785004faed122ef302d45d280fb6ca6bc714c9f",
+        entries: [
+            {
+                sha: "fac7ea510eab33cd6928d919e403749ebf44d2f1",
+                shortSha: "fac7ea510e",
+                date: "2026-08-10T09:38:13Z",
+                subject: "feat(a11y): phase A accessibility - skip path, disclosure contracts, fail-closed shell numbers",
+                details: "Rebased from the Phase A bundle reconstructed at artifact SHA 01db881: ten\nfiles verified byte-identical took the overlay directly; App.vue, AppRail.vue\nand DockedSurface.vue were rebased hunk by hunk per the bundle's own drift\ninstructions.\n\n- Keyboard skip path from the frameless title bar to a focusable main\n  landmark, with the label registered in English and Cantonese.\n- Stable aria-controls disclosure relationships: bell to notification panel,\n  rail settings (now a true toggle) to the docked surface that names itself,\n  status strip to Problems, render rows to details, preview network note,\n  and glossary terms.\n- Non-modal dialog semantics on the notification history: Escape close,\n  focus on open, focus return to the bell.\n- shellNumbers.nonNegativeInteger keeps negative, infinite or NaN counts and\n  progress out of visible and ARIA output.\n- Reduced-motion coverage for the rail pill.\n- Evidence recaptured for real: 89 captures, 7 named skips, from the patched\n  tree with map, world and provenance fixtures; digest recorded from those\n  exact sources. A first fixtureless attempt produced 76 captures and was\n  discarded rather than committed - a partial artifact is diagnostic only.",
+                category: "docs",
+                areas: ["docs", "interface", "other"],
+                files: 43,
+            }
+        ],
+    },
     {
         version: "0.1.993",
         tag: "v0.1.993",

@@ -24,6 +24,10 @@ full message for the in-app changelog viewer.
 
 - feat!: Worldlens 1.0 - the verified public baseline - [`6ad26921ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/6ad26921abe7aa5c081929ccbc1a2ab2bab09ba1)
 
+## 0.1.996 - 2026-08-10
+
+Tagged at [`3785004fae`](https://github.com/Ding-Ding-Projects/worldlens/commit/3785004faed122ef302d45d280fb6ca6bc714c9f).
+
 ### Documentation
 
 - feat(a11y): phase A accessibility - skip path, disclosure contracts, fail-closed shell numbers - [`fac7ea510e`](https://github.com/Ding-Ding-Projects/worldlens/commit/fac7ea510eab33cd6928d919e403749ebf44d2f1)
