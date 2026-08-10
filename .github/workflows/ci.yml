@@ -819,31 +819,25 @@ jobs:
     # Screenshots run independently as advisory evidence. Tests, workflow security,
     # packaging, jars, the rendered world and the real Java round trip remain fatal.
     needs: [check, workflows, package, jars, test-world, config-java-roundtrip]
-    # Publishes whenever there is a real installer to publish, whether or not the gates above
-    # went green - a deliberate, recorded change from "a failed test creates no release".
+    # Publication is fail-closed: every correctness job named in `needs` must report success.
+    # `always()` lets this expression inspect every verdict after a failure; it does not relax
+    # any verdict because each required result is compared with `success` below. Application
+    # lint and screenshot capture remain advisory evidence and are deliberately absent here.
     #
-    # What it does *not* do is pretend, and that is the half that has to survive every future
-    # edit to this condition. When a gate failed, the notes say so at the top, name every gate
-    # and its result, and link the run; and the steps below still prove the release against its
-    # own manifest before it stops being a draft. The release is still real, still uniquely
-    # tagged, still carries the installer that run genuinely built, and is still verified to
-    # carry exactly what it claims; what a reader loses is the inference "this shipped,
-    # therefore it passed", and they lose it by being told rather than by not being told.
-    #
-    # `package` and `jars` are inputs rather than gates: with either missing there is no
-    # installer and no engine, so there is nothing to publish and the job correctly does not run.
-    #
-    # The `publish_release` clause is a separate question from any of that. It is about *which
-    # run* is nominated to publish a given commit rather than about whether the commit deserves
-    # publishing, so a dispatch that only wants the artifacts can decline the nomination and a
-    # push always keeps it.
+    # The `publish_release` clause is a separate question. It nominates one run to publish a
+    # commit after the correctness jobs pass; a dispatch that only wants artifacts can decline
+    # nomination, while a push to `main` remains nominated automatically.
     if: >-
       always()
       && github.event_name != 'pull_request'
       && github.ref == 'refs/heads/main'
       && (github.event_name == 'push' || inputs.publish_release == true)
+      && needs.check.result == 'success'
+      && needs.workflows.result == 'success'
       && needs.package.result == 'success'
       && needs.jars.result == 'success'
+      && needs.test-world.result == 'success'
+      && needs.config-java-roundtrip.result == 'success'
     runs-on: ubuntu-24.04
     # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like
     # the other jobs in this file now do (see the top-of-file comment): that pattern
@@ -1170,44 +1164,9 @@ jobs:
           DISH_PHOTO_URL: ${{ steps.dish.outputs.dish_photo_url }}
           SPLIT: ${{ steps.split.outputs.split }}
           SPLIT_NAMES: ${{ steps.split.outputs.names }}
-          GATE_CHECK: ${{ needs.check.result }}
-          GATE_WORKFLOWS: ${{ needs.workflows.result }}
-          GATE_TEST_WORLD: ${{ needs.test-world.result }}
-          GATE_CONFIG_JAVA: ${{ needs.config-java-roundtrip.result }}
         run: |
           set -euo pipefail
-          # Every gate's real result, so the notes can state it rather than imply it. A release
-          # now ships whenever there is an installer to ship, which makes "it was published"
-          # stop meaning "it passed" - and the only honest response to that is to say which
-          # gates passed, in the release itself, where a reader already is.
-          gates_failed=0
-          for result in "$GATE_CHECK" "$GATE_WORKFLOWS" "$GATE_TEST_WORLD" "$GATE_CONFIG_JAVA"; do
-            if [ "$result" != "success" ]; then gates_failed=1; fi
-          done
-          gate_line() {
-            case "$2" in
-              success) printf '| %s | ✅ passed |\n' "$1" ;;
-              skipped) printf '| %s | ⏭️ skipped |\n' "$1" ;;
-              cancelled) printf '| %s | 🚫 cancelled |\n' "$1" ;;
-              *) printf '| %s | ❌ failed |\n' "$1" ;;
-            esac
-          }
           {
-            if [ "$gates_failed" = "1" ]; then
-              echo "> [!WARNING]"
-              echo "> **Not every gate passed for this build.** The installer below is real and was built by this run from this commit, but it did not clear the full suite. Install it to try the build; do not read this release as evidence that it is correct."
-              echo
-              echo "| Gate | Result |"
-              echo "| --- | --- |"
-              gate_line "Lint, build, typecheck, tests" "$GATE_CHECK"
-              gate_line "Workflow files" "$GATE_WORKFLOWS"
-              gate_line "Test world render" "$GATE_TEST_WORLD"
-              gate_line "Config / real Java CLI round trip" "$GATE_CONFIG_JAVA"
-              echo
-              printf 'Full output: [run %s](https://github.com/%s/actions/runs/%s).\n' \
-                "$GITHUB_RUN_ID" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
-              echo
-            fi
             if [ -n "$DISH_NAME_EN" ]; then
               printf '**Code name: %s · %s**\n\n' "$DISH_NAME_EN" "$DISH_NAME_ZH"
               printf '![%s](%s)\n\n' "$DISH_ALT_EN" "$DISH_PHOTO_URL"
@@ -1250,16 +1209,10 @@ jobs:
             fi
             echo "## What is in this build"
             echo
-            # Two sentences rather than one, because the release no longer implies its own
-            # correctness and the notes are the only place a reader can find out which it is.
-            # The green branch deliberately no longer claims application lint: `lint` is its
-            # own non-gating job now, its result is never read here, and a release that asserts
-            # a check it did not consult is worse than one that stays quiet about it.
-            if [ "$gates_failed" = "1" ]; then
-              echo "Commit \`${GITHUB_SHA}\` on \`main\`, built by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). At least one gate failed in that run - see the table at the top of these notes for which. The installer below is still the one this run built from this commit, and it was still verified against its own asset manifest before publication."
-            else
-              echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Workflow lint, build, typecheck, the full test suite, the Java round trip, the real world render and Windows packaging all passed first. Application lint and screenshot capture run independently as advisory evidence and do not block publication."
-            fi
+            # Application lint and screenshot capture are advisory jobs. They are deliberately
+            # absent from the release condition, so these notes name only the correctness jobs
+            # that the workflow actually required before publication.
+            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Workflow security, build, typecheck, the full test suite, the Java round trip, the real world render and Windows packaging all passed first. Application lint and screenshot capture run independently as advisory evidence and do not block publication."
             echo
             node scripts/count-lines.mjs --format=markdown
             echo
