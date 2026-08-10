@@ -255,3 +255,106 @@ uses to land on the Projects page.
   `"world-folder"` attention item leads into.
 - [Rendering a world in GitHub Actions](./render-in-actions.md) - what a CI-bootstrap marker
   actually enables once a repository carries one.
+
+## 廣東話
+
+### 領養一個呢個 app 已經準備好嘅 repository（Adopting a repository this app already prepared）
+
+換咗第二部電腦、登入返 GitHub，個帳戶一樣寫得到佢一直都寫得到嘅嗰啲 repository —— 但新裝嘅 app 一個都唔記得。冇咗呢樣嘢，repository 揀選器就係一條乾巴巴嘅清單，而揀錯一項（或者揀啱咗，然後又要將 wizard 問過一次嘅問題再答一次）就係最普通嘅結果。`worldrepo/adopt.ts` 認得出呢個 application 已經準備過嘅 repository，並且讀返啲可以誠實還原返嚟嘅嘢 —— 入口喺 **World repository** 分頁自己嗰個 "Adopt a repository from another computer" 區塊，同「一開始將一個世界同步入 repository」（見 [A world kept in a git repository](./world-git-repository.md)）並排。
+
+### 喺 application 入面點去到呢度
+
+`WorldRepoScreen.vue`（`design/packages/ui/src/components/worldrepo/`）由 **World repository** 分頁驅動晒呢一切。佢自己嗰條候選清單，嚟自 `BackupScreen.vue` 已經曝露緊嘅同一個「呢個 GitHub 登入寫得到嘅 repository」呼叫（`listBackupRepositories`），而唔係第二份實作 —— 搜尋得，亦揀得多項，所以「檢查呢 12 個」係一次批次動作而唔係撳 12 下。檢查會逐字返返每個候選嘅 `AdoptionSignal`：狀態變成一個 chip（"Looks like yours"、"Not one of yours"、"Not checked" 等等），而嗰句有保留餘地嘅句子就原原本本按 `adopt.ts` 砌出嚟嘅樣顯示，永遠唔會改寫成更肯定嘅講法。`"prepared"` 或者 `"prepared-newer-version"` 嗰行會提供 **View what could be restored**，佢會讀個 plan 然後顯示：
+
+- project 嘅名、佢啲 map、佢啲 storage，同埋非預設嘅 render 設定，全部直接由 `AdoptionPlan.restoring` 讀出；
+- **`needsAttention` 入面每一項**，各有自己嘅 icon，而喺有具體目的地嗰啲仲有自己嘅按鈕：dependencies 嗰項會開 Settings 並停喺 Java runtime 嗰行，remote-host 嗰項就淨係開 Settings。World-folder 嗰項唔會喺其他項旁邊有自己嘅按鈕 —— 佢*本身*就係下一步，由緊接住清單下面嗰個原生資料夾瀏覽欄位嚟回答；
+- `alreadyLocal`：當呢部電腦已經有一個由同一個 repository 同步過嚟嘅本機 project 嗰陣，咁樣「領養第二次」呢個決定就係喺見到呢個事實之下先做，唔係做完先發現。
+
+**領養** 只會寫本機嘅 project 檔案 —— 經 `ProjectHost.writeProject`，即係 `ProjectsScreen.vue` 儲存任何 project 已經用緊嗰個呼叫 —— 寫入啱啱揀嗰個世界資料夾。Repository 完全冇被郁過：由頭到呢粒掣為止成個流程都係 `GET` 請求，而最終發生嗰次寫入係落喺呢部電腦自己嘅磁碟，永遠唔會落 GitHub。寫完之後個 shell 會直接去到 Projects 頁、停喺嗰個世界度，同一次完成嘅導引流程一樣嘅落腳點。
+
+### 兩個 marker，各自承諾啲乜
+
+有兩樣唔同嘅嘢會被準備好，而呢個模組兩樣都會檢查。
+
+**World-repo marker** 係 `world` 分支根目錄嘅 `.worldlens-world.json`（舊嘅 marker 檔名仍然讀得到）（見 [A world kept in a git repository](./world-git-repository.md)）。佢證明呢條分支載住一份用增量方式同步嘅世界副本 —— 而且因為 project 檔案就住喺同一個世界資料夾嘅根目錄，所以一個 project 嘅 map、storage 同 render 設定都一齊過咗嚟。
+
+**CI-bootstrap marker** 係 repository 預設分支根目錄嘅 `.worldlens-ci.json`（舊嘅 marker 檔名仍然讀得到）。佢證明呢個 application commit 咗 `.github/workflows/render-world.yml`（同埋佢個 template set 需要嘅其他嘢），令普通嘅「Render on GitHub」archive 上傳流程可以對住佢派發。呢度冇儲存任何 project 設定 —— render 流程從來唔會將設定持久化去 repository。
+
+一個 repository 可以帶其中一個 marker、兩個都帶、或者一個都冇。`probeAdoptionCandidates` 同 `buildAdoptionPlan` 兩個都會檢查，而兩者嘅分別決定咗領養可以誠實承諾啲乜：只有帶住 world-repo marker 嘅 repository 先至有 project 檔案還原得返。一個淨係為咗 CI render 而 bootstrap 嘅 repository，確實認得出係呢個 application 自己嘅，但除咗呢份「認得出」之外，入面冇任何嘢帶得返 —— 見下面「砌一個 plan」。
+
+### 檢查一條清單：係一種保留講法，永遠唔係確定
+
+`probeAdoptionCandidates(host, runner, candidates, options)` 檢查一條有界嘅 `{ owner, repo }` 清單（`DEFAULT_MAX_ADOPTION_PROBES`，預設 24），每個候選答一個 `AdoptionSignal`：
+
+- `"prepared"` —— 搵到 marker，而呢個 build 識佢個版本。
+- `"prepared-newer-version"` —— 搵到 marker，但係由一個新過呢個 app 嘅版本寫嘅（見下面「反向相容」）。
+- `"not-prepared"` —— 檢查過，兩個 marker 都冇。
+- `"unknown"` —— 網絡或者權限失敗，令個檢查兩邊都講唔到。
+- `"not-checked"` —— 超出咗上限；長啲嘅清單永遠唔會唔出聲就被截短。
+
+每一句 `message` 都係用「looks like」而唔係斷言確定，跟返 `remote/browse.ts` 對 SSH host 上一個資料夾嘅 Minecraft-world 訊號所守嘅同一套紀律：一個符合呢個 application 自己 tool 字串嘅檔案係真實證據，但佢始終只係由某個檔案嘅 byte 度讀出嚟嘅一個聲稱，唔係「呢個就係坐喺呢部電腦前面嗰個人所指嘅 repository」嘅證明。
+
+超出上限嘅候選會答 `"not-checked"`，永遠唔會靜靜雞掉咗，亦永遠唔會摺埋入 `"not-prepared"` —— 一個有幾百個 repository 嘅人，應該分得清「我哋冇睇過」同「我哋睇過，冇」。
+
+### 砌一個 plan
+
+`buildAdoptionPlan(host, runner, { owner, repo, branch? })` 讀一個 repository 嘅 marker 同佢嘅 project 檔案，返一個 `AdoptionPlan`，畀人喺任何本機嘢改變*之前*就睇得到：
+
+- **`ok: true`** —— world-repo marker 同一份讀得到嘅 project 檔案兩樣都搵到。`restoring` 會講出 project 個標題、佢有冇曾經行過 wizard 之後被打開過、每幅 map 嘅 id/名/dimension、每個 storage 嘅 id，以及同 BlueMap 預設值唔同嘅 render 選項。`needsAttention` 會講出邊啲嘢過唔到嚟（見下）。當呢部電腦已經同步過同一個 repository 嗰陣就會填 `alreadyLocal`，所以領養永遠唔會被當成「對一樣已經喺本機嘅嘢再綁多次」咁提出。
+- **`ok: false`**，連一個 `reason`：`"repository-unreadable"`（個 repository 本身讀唔到）；`"not-prepared"`（兩個 marker 都冇搵到）；`"ci-bootstrap-only"`（搵到 CI-bootstrap marker 但冇 world-repo marker：個 repository 認得出係呢個 application 嘅，但入面冇 project 設定可以還原，`bootstrapMarker` 會被填好，令 caller 仍然可以講「呢個睇落係你嘅」，就算冇嘢自動還原到）；`"project-absent"`（world-repo marker 存在，但嗰條分支上從來冇寫過 project 檔案）；`"project-unreadable"`（project 檔案存在但 parse 唔到）；`"project-too-new"`（見下面「反向相容」）。
+
+呢個 function 入面冇任何嘢會寫嘢。佢做嘅每一個網絡呼叫都係 `GET` —— `repos/{owner}/{repo}`、一次分支查詢，同一次 Contents API 讀取；如果 project 檔案超過 Contents API 嘅 1 MB inline 限制，就會透明咁退返用 Git Blob API（`project/file.ts` 自己嘅 `MAX_PROJECT_BYTES` 容許到 4 MB，所以呢條路係真實嘅，唔係理論上嘅）。
+
+### 咩過得嚟，咩係講明而唔係靠估
+
+`project.ts` 自己嗰個 schema 係刻意永遠唔會載住 Minecraft 世界嘅路徑 —— 「連佢都儲埋就會製造第二個 source of truth，一有人搬咗或者複製咗個資料夾就即刻錯」。領養係靠實呢個設計，而唔係繞過佢。所以每一個成功嘅 plan 都會無條件講出三個缺口，因為呢三樣本來就唔會出現喺 project 檔案入面：
+
+1. **世界資料夾本身。** 喺新電腦上面唔會喺同一條路徑，甚至可能根本唔存在。介面嘅職責係喺領養報告咗呢點之後帶去嗰個導引式世界資料夾步驟，而唔係估一條路徑出嚟。
+2. **本機依賴。** Java runtime、Docker 有冇裝，以及呢個 build 會配置或者偵測嘅任何嘢，都屬於佢行緊嗰部電腦，永遠唔屬於一個 repository。
+3. **遠端主機或者 SSH 設定。** 綁咗喺屬於舊電腦嘅金鑰上面，而嗰啲金鑰永遠唔會寫入呢個模組讀得到嘅任何地方。
+
+仲有兩個缺口，只喺一個 project 自己嘅設定會靜靜雞當成舊電腦嘅無效路徑咁過嚟嗰陣先報：
+
+- **`output-folder`** —— `render.outputFolder` 係 schema 入面真係容許用絕對路徑嘅嗰個欄位（畀寫喺世界以外嘅 render 地圖用）。舊電腦嚟嘅絕對路徑會被講明，而唔會靜靜雞保留，因為佢喺呢度唔係解析唔到，就係更衰 —— 解析到一個啱啱共用同一個 drive letter 嘅無關資料夾。
+- **`linked-world`** —— 一幅 map 嘅 `world` 欄位可以合法咁係一條指向*另一個*世界資料夾（唔係呢個 project 所在嗰個）嘅絕對路徑。同一個舊電腦路徑問題適用，會逐幅受影響嘅 map 按 id 講明。
+
+### 反向相容：來自未來嘅 marker 或者 project
+
+Marker 自己嗰個 `version` 欄位會同呢個 build 編譯嗰陣嘅常數（`WORLD_REPO_MARKER_VERSION`、`CI_BOOTSTRAP_MARKER_VERSION`）比較。來自新版本嘅 marker 一樣認得 —— 用 `repo.ts` 自己嗰句註解嚟講，「一個未知版本仍然係*我哋嘅*」 —— 並且會報做 `"prepared-newer-version"`，附一句話講明佢載住嘅部分內容呢個 build 可能唔明。
+
+Project 檔案就守更嚴嘅規則，因為佢先係呢個模組真正承諾還原嘅嘢：當佢嘅 `version` 超過 `PROJECT_FORMAT_VERSION` 嗰陣，`parseProjectFile` 會直接拒絕，而 `buildAdoptionPlan` 會將呢個拒絕變成 `reason: "project-too-new"`，並附上搵到嘅格式版本。呢個 build 冇建模嘅欄位，一律唔會靠估；誠實嘅答案係「更新個 app」，而唔係一個會靜靜雞掉咗新格式新增嘢嘅局部還原。
+
+### 永遠唔會整重複，永遠唔會寫
+
+`alreadyLocal` 會按 owner 同 repository 名（唔理分支）交叉核對 `WorldRepoHost.records()` —— 即係呢部電腦自己記低嘅每一個已同步 repository。一有相符，個 plan 就會報返現有嘅本機 `worldPath`、`branch` 同 `syncedAt`，而唔係提議對同一個遠端目標再綁多次。呢度冇任何嘢會自己刪除、合併或者以其他方式解決嗰個衝突；佢淨係將事實擺出嚟，等介面去問。
+
+`buildAdoptionPlan` 同 `probeAdoptionCandidates` 做嘅每一個呼叫都係 `GET`。用呢個方法領養一個 repository 唔會改變佢任何嘢 —— 值得白紙黑字講清楚，因為 `WorldRepoHost` 同一個 class 上面仲有其他方法（`sync`、`remove`）係真係會寫嘢嘅。
+
+### 失敗模式
+
+- **檢查途中嘅網絡或者權限失敗** 會報做 `"unknown"`，永遠唔會摺埋入 `"not-prepared"` —— 同 `browse.ts` 嘅 owner 同 repository 名可用性檢查喺呢個 application 其他地方所守嘅紀律一樣。
+- **一個唔存在、或者呢個帳戶睇唔到嘅 repository**，喺 plan 度報做 `"repository-unreadable"`，喺清單訊號度報做 `"not-prepared"` —— GitHub 兩種情況都一樣答 404，而呢個模組亦唔會扮分得出。
+- **超過 Contents API 1 MB inline 限制嘅 project 檔案** 會自動退返用 Git Blob API；喺嗰個階段失敗會報做 `"project-unreadable"`，連 GitHub 自己嘅訊息一齊。
+
+### 保安注意事項
+
+兩個 marker 都永遠唔會載住路徑、用戶名、主機名或者憑證 —— world-repo marker 係 `{ tool, version, branch, updatedAt }`，CI-bootstrap 嗰個係 `{ tool, version, templateVersion, files, preparedAt }`。兩者都係設計成可以放喺一個 **公開** repository 而唔會洩漏任何關於寫佢嗰部機嘅嘢，同 `pages/hosting.ts` 嗰個一模一樣嘅 marker 所守嘅紀律一致。
+
+同 world-repo marker 一齊走嘅 project 檔案唔係僥倖先免疫呢個顧慮：`project.ts` 個 schema 刻意排除咗世界自己嘅路徑，亦拒絕載住 `connection-properties` 嘅 storage 區塊。Schema 仍然容許絕對路徑嘅嗰兩個欄位（`render.outputFolder`、一幅 map 嘅 `world` 欄位），正正就係上面「咩過得嚟，咩係講明而唔係靠估」入面被列作需要注意、而唔會靜靜雞還原嗰兩個 —— 一條記錄喺一部之後已經重灌咗嘅機上面嘅絕對路徑唔算秘密，但佢始終係關於嗰部機自身佈局嘅細節，而呢個模組唔會當佢屬於呢度咁照講返一次。
+
+`fetchRepositoryFileText` 永遠唔會處理、印出或者記錄 token；每一個呼叫都經 `gh api`，用參數陣列 spawn，永遠唔經 shell，同呢個 package 其餘部分一樣。
+
+### 驗證
+
+`worldrepo/adopt.test.ts` 用一個假 `gh`（永遠唔會真係出網）證明：帶住任何一個 marker 嘅 repository 分得出同兩個都冇嘅唔同；每個訊號嘅措辭都用「looks like」保留餘地，永遠唔斷言確定；probe 上限有遵守而且會報出嚟，唔會靜靜雞截短；一個 plan 會還原一個 project 所載嘅準確 map、storage 同 render 註記；每個無條件嘅注意事項喺每個成功嘅 plan 都出現；一個絕對 output folder 同一條絕對 linked-world 路徑兩者都會被具名標示；來自更新版本 app 嘅 marker 同 project 格式都降級成一句普通句子；一個已經綁咗本機 `worldPath` 嘅 repository 會被偵測到而唔會重複；呢個模組做嘅每個呼叫都確認冇帶寫入 flag；仲有一個專門測試會真係 sync 入一個喺本 OS 自己 profile 形狀路徑底下嘅暫存世界資料夾，再由磁碟讀返個 marker，確認佢冇載住嗰條路徑嘅任何部分、冇 drive letter、冇路徑分隔符，亦冇任何似 token 或者憑證嘅嘢。
+
+`worldrepo/ipc.test.ts` 證明佢曝露嘅兩條 IPC channel —— `worldrepo:adoptionProbe` 同 `worldrepo:adoptionPlan` —— 會拒絕格式錯嘅請求，並且誠實咁報告一個接觸唔到嘅 repository，而唔會為佢作一個 plan 出嚟。
+
+`WorldRepoScreen.test.ts`（`design/packages/ui/src/components/worldrepo/`，屬於嗰個畫面嗰 37 個測試嘅一部分 —— 完整拆解見 [A world kept in a git repository](./world-git-repository.md) 自己嘅 Verification 一節）證明介面嗰邊守同一套紀律：render 出嚟嗰段保留餘地嘅文字永遠唔會被升級到超出 `adopt.ts` 實際講嘅程度；檢查同睇 plan 永遠唔會叫 `sync` 或者 `remove`，呢點對住一個會記錄佢收到嘅每個呼叫嘅假 bridge 核實過；每一項 `needsAttention` 都 render 得出，而 dependencies 同 remote-host 兩項會路由去 Settings 佢哋講明嗰個錨點；領養只會經 `ProjectHost.writeProject` 寫嘢、冇其他，並發出 shell 用嚟落腳去 Projects 頁嗰條世界路徑。
+
+### 相關閱讀
+
+- [A world kept in a git repository](./world-git-repository.md) —— world-repo marker 同佢住嗰條分支。
+- [The project file](./config-history.md) —— 一個還原返嚟嘅 project 儲入世界資料夾之後就會加入嘅本機版本歷史。
+- [Finding worlds](./finding-worlds.md) —— 領養嘅 `"world-folder"` 注意事項會帶去嘅導引式世界資料夾步驟。
+- [Rendering a world in GitHub Actions](./render-in-actions.md) —— 一個 repository 帶咗 CI-bootstrap marker 之後實際上開通咗啲乜。

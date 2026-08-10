@@ -190,3 +190,160 @@ Run them with `npx vitest run packages/ui/src/components/confirm` from `design/`
 - [Language modes and funny levels](./language-and-tone.md), for why a level 5 gate still names
   the file.
 - [Notification centre](./notification-centre.md), for the opposite rule: what must never block.
+
+## 廣東話
+
+### 破壞性動作嘅 super confirmation
+
+要兩把獨立操作嘅鎖匙，跟住仲要有個 slider 行足全程，先至會發生任何不可逆嘅嘢。呢道閘（gate）住喺應用
+程式自己嘅介面入面，會講明佢即將毀滅緊嘅究竟係咩，而且永遠都留一條後路畀你走。
+
+規則嘅程式碼喺 `design/packages/ui/src/components/confirm/`，佢有兩個呈現方式：
+`components/config/ConfigSuperConfirm.vue`（貼住佢守住嗰個控制項嚟擺）同
+`components/menu/MenuSuperConfirm.vue`（modal，畀啲窄嘅 sheet 用，因為嗰度冇位錨第二個面）。
+
+### 一部狀態機，兩張卡
+
+份合約其實係一張清單，列出破壞性動作觸發嗰一刻必須成立嘅嘢，而嗰啲係一部細狀態機嘅屬性，唔係卡片版面
+嘅屬性。所以規則淨係住喺 `createSuperConfirmGate` 一次，兩個 component 係佢上面兩層皮。一條規則兩個
+呈現方式，正正係最容易出事嗰種形狀：如果規則寫喺每個 component 入面，第一次修正淨係落咗其中一個，另一
+個繼續帶住個 bug，而你亦冇任何嘢可以睇得出邊個先啱。
+
+個 factory 負責嘅嘢，每一樣隔籬都有對應嘅測試：
+
+- **完全冇掂過嗰陣，道閘係鎖住嘅**，個 slider 郁都郁唔到。
+- **一把鎖匙唔會 arm 到佢。** 同一把鎖匙開兩次都唔得，因為佢哋係兩個分開嘅 boolean，唔係一個計數器。
+- **未行到尾就放手，個 slider 會彈返去起點**，所以撳滑咗手毀滅唔到嘢，做咗一半嘅拖曳亦唔可以靠第二次
+  細細力嘅拖曳續落去。
+- **行到一半將鎖匙扳返落去會即刻 disarm 同 reset**，而唔係留低一道視覺上鎖住、內部其實差少少就發射嘅
+  閘。呢樣係喺 setter 入面做，唔係喺 watcher 度做：watcher 要等下一次 flush 先行，喺嗰個空窗期就會有
+  一道睇落鎖住、但係推多一下就完成嘅閘。
+- **授權淨係發生一次。** 一個行到尾之後仲繼續回報數值嘅 slider，唔可以觸發第二次刪除；Vuetify 喺拖曳
+  同鍵盤兩種情況都會 emit，所以呢個情況真係去到。
+
+`travel` 由外面睇係唯讀，所有令佢郁嘅嘢都要行過 `travelTo`，而 arming 就係喺嗰度檢查，所以冇第二條路
+可以令個 slider 唔經兩把鎖匙就到終點。
+
+四個階段係 `locked`、`armed`、`moving` 同 `authorized`，刻意用四個狀態而唔係一對 boolean：「armed 但
+未郁」同「armed 而且郁緊」需要唔同文案，一個講下一步要做乜、一個報告進度；而一個喺三個地方問
+`armed && travel > 0` 嘅 component，就係一個三個答案終有一日會唔一致嘅 component。
+
+### 發射之後
+
+完成咗嘅閘會維持 `GATE_COMPLETION_HOLD_MS` 咁耐，然後自己閂。份合約要求有一個明顯嘅完成動畫，*同時*
+要求焦點返返去打開道閘嗰個控制項度，而呢兩樣係拉緊反方向嘅：slider 一到位就即刻閂嘅介面，根本見唔到
+完成；而要等人撳一下先閂嘅，就會令用鍵盤嘅人被困喺一張卡度，卡入面淨返嘅控制項係一個已經冇嘢好退嘅
+退出掣。
+
+`returnFocusTo` 會將焦點擺返去原本嗰個控制項，無論道閘係完成咗定係被中途走甩。呢部分好易漏，因為冇咗
+佢都睇唔出有咩問題：用滑鼠又睇得見嘅人永遠唔會為意，但係用鍵盤嗰個人，一取消就會發現焦點跌咗落
+document body，之後撳 Tab 又由成版嘢嘅最頂開始，離佢原本企嗰個掣幾個畫面咁遠。
+
+### 清單制度，令新加嘅刪除溜唔甩
+
+「每個破壞性動作都喺道閘後面」呢句聲稱，講緊嘅唔淨止係現有嘅刪除掣，仲有下一個先加嘅，所以呢樣係用
+一份清單（inventory）去強制執行，唔係靠記性。`superConfirmPolicy.test.ts` 會行勻個 package 每一個
+source 檔，搵破壞性嘅呼叫點：任何 `deleteSomething(`、`removeSomething(`、`purgeSomething(` 等等形狀
+嘅嘢，係靠命名慣例捉，唔係靠一張已知原始操作嘅清單，再加埋嗰幾個名唔跟慣例嘅（登出、重設所有設定、
+忘記一個儲存咗嘅目錄、做批量關閉、停低做緊嘅工作、清空 web storage）。
+
+每個含有呼叫點嘅檔案都要申報：佢有幾多個、佢用用戶認得出嘅講法毀滅緊乜、同埋佢處於咩身分（standing）。
+啲 standing 係一個封閉集合，所以個理由係可以核對，唔係求其寫句嘢畀測試過。原文嗰個表列出七種身分：
+`gated` 表示道閘企喺佢前面，而申報要指名住住住嗰道閘嘅檔案（未必係做呼叫嗰個檔）；`type-only` 表示
+淨係宿主方法嘅宣告，唔係去 call 佢；`buffer` 表示佢改嘅係未儲存、喺記憶體入面嘅 workspace，未有任何
+嘢離開過磁碟，而 apply 對話框喺郁手之前會列晒真係會刪嘅每個檔；`reversible` 表示用戶用返同一個控制項
+就可以將狀態擺返；`resumable` 表示佢係捱得住而唔係破壞性 —— 已經產出嘅嘢會保留，工作由嗰度續落去；
+`unwired` 表示係 model 程式碼，仲未有面向用戶嘅呼叫者，接線嗰個人欠住道閘；`gap` 表示已經出咗街、去到
+到、而且冇喺道閘後面 —— 呢個係缺陷，並且直接叫佢做缺陷。
+
+想發明第六個藉口，就要改個 union type，噉喺 diff 度就會見到。數量都係逐個檔申報，所以第二個刪除唔可以
+匿埋喺一個已申報嘅隔籬。啲 gap 仲會喺一張短清單度再列一次，畀 reviewer 由頭睇到尾：一個冇人寫落去嘅
+gap 會令測試失敗，而一個已經修好但仲留喺度嘅 gap 一樣會令測試失敗。
+
+### 今日有咩喺道閘後面
+
+原文嗰個表列出七個已加閘嘅破壞性動作同對應嘅閘：移除已儲存嘅地圖或者 server profile，用
+`components/ProfileManager.vue`；刪除用戶自己儲存嘅 appearance preset，用
+`components/appearance/AppearanceEditor.vue`；刪除一個 map config，用
+`components/config/MapsScreen.vue`；刪除一個 storage config，用
+`components/config/StoragesScreen.vue`；一次計劃會由磁碟拎走 config 檔嘅儲存，用
+`components/config/ConfigApplyDialog.vue`；清走所有已儲存嘅 viewer 設定，用
+`components/menu/SettingsMenu.vue`；一次過閂好多個 tab，用 `components/tabs/TabClosePanel.vue`。
+
+### 啲 gap，講出嚟而唔係收埋
+
+由 GitHub 登出會撤銷儲存咗嘅 token，而當 GitHub 認嗰個撤銷嗰陣，連帳戶上面嗰個 grant 都撤埋。佢係
+inline 分兩步確認、亦有焦點返回，但佢**唔係**喺兩把鎖匙嘅閘後面。嗰一行同埋佢後面嗰個原始操作，兩樣都
+申報咗做 `gap`，並且喺專案為呢份合約開嘅 issue 度追蹤緊。呢份文件講明呢件事，係因為一份見唔到自己缺陷
+嘅清單，已經係一份冇用嘅清單。
+
+### 設定（Configuration）
+
+三個常數：`GATE_TRAVEL_START` 係 0，即係 slider 嘅起點，亦係佢彈返去嗰個位；`GATE_TRAVEL_END` 係 100，
+因為一道去到 90% 就發射嘅閘，即係最後嗰一成係裝飾；`GATE_COMPLETION_HOLD_MS` 係 900，長到夠顯示完成，
+又短到唔會困死用鍵盤嘅人。
+
+呢啲全部都唔畀用戶調。道閘展示嘅事實亦唔係可設定嘅文案：確切嘅動作、確切受影響嘅資料、同埋佢邊度不可
+逆，正正就係道閘存在嘅理由。語氣就同其他嘢一樣跟語言模式同兩個 funny level 走，而
+[voice-not-facts 規則](./language-and-tone.md) 就係喺每一個 level 都保住啲名稱唔走樣嗰樣嘢。
+
+每道閘喺 source 層面都被要求仍然含住合約列出嘅每一件部件：第一把鎖匙、第二把獨立鎖匙、一個全程 slider、
+兩把鎖匙未扳之前個 slider 要 disabled、行緊嗰陣嘅進度動畫、一個明顯嘅完成動畫、一個 Emergency exit、
+一條 Escape 路、閂嗰陣焦點返回、一個 live status region、介面本身要有 accessible name、slider 亦要有
+名同埋讀得出嘅位置、一個 reduced-motion 區塊，同埋一個 40 pixel 嘅 Emergency exit 觸控目標。呢啲每一
+樣都係就算刪咗都唔會有嘢*睇落*壞咗，所以先要逐個名咁 assert。
+
+### 失敗情況（Failure modes）
+
+- **slider 淨係行咗一半，或者淨係一把鎖匙。** 乜都唔會發生。未 arm 嗰陣個 slider 係 disabled，而
+  `travelTo` 無論點都拒絕，所以 disabled 呢個屬性係睇得見嗰重守衛，唔係真正嗰重。
+- **行到一半扳返一把鎖匙落去。** travel 會同步、喺同一句 statement 入面 reset，所以冇呼叫者可以觀察到
+  一道鎖住但差少少就完成嘅閘。
+- **slider 過咗終點仲繼續回報。** 第二次回報會被拒絕；個動作淨係行一次。
+- **重新打開嘅閘。** 打開嗰陣會 call `reset()`，所以永遠唔會撞到一道做咗一半嘅閘。
+- **Escape，或者 emergency exit。** 冇任何嘢改變，焦點返返去用戶原本嗰個控制項。
+- **已授權嘅閘之後有人扳返啲鎖匙。** 唔理佢：成條 bar 係完成狀態，之後扳個掣唔應該倒帶已經發生咗嘅嘢
+  嘅紀錄。
+- **冇人申報過嘅破壞性呼叫點。** policy 測試會失敗，並且列出檔案、數量，同埋要點處理。
+
+### 保安考慮（Security considerations）
+
+道閘係防撳錯，唔係防一個已經控制咗個 process 嘅攻擊者。佢係一個可用性上嘅安全控制，唔係授權邊界；
+唔應該將佢任何部分當成存取控制。
+
+兩個獨立控制項加一個全程 slider 存在嘅原因，就係要令任何單一次意外輸入都完成唔到佢 —— 而單一粒
+confirm 掣正正就係會噉樣衰。啲鎖匙、slider、進度狀態、完成狀態同 emergency exit 全部有 accessible
+name 同睇得見嘅焦點，所以對用鍵盤或者 screen reader 嘅人嚟講，道閘唔會弱啲。
+
+道閘永遠唔會為咗預覽而先做咗破壞性動作嘅一部分。預覽係描述會發生咩事；佢唔會做入面任何一件。唯一一個
+預覽好大嘅地方，即批量關閉，係一個唔掂任何 tab 就計出嚟嘅 plan，而真正執行嘅就係同一個 plan 物件。
+
+佢住喺應用程式自己嘅 framework 同 renderer 入面。冇涉及任何外部 CAPTCHA、寄存嘅輔助頁面、獨立嘅確認
+應用程式或者新視窗，因為一個要用戶離開應用程式先完成到嘅確認，就係一個教識佢哋去信第二個視窗嘅確認。
+
+### 無障礙（Accessibility）
+
+兩張卡淨用鍵盤都操作到：啲鎖匙係 switch、slider 食方向鍵，而 Emergency exit 同 Escape 都可以取消。個
+介面帶住 accessible name，slider 有自己嘅名同埋經 `aria-valuetext` 讀出位置，仲有一個 live status
+region 報告階段。動態效果係裝飾性：reduced-motion 偏好會停咗動畫，但唔會停佢裝飾緊嗰個控制項。
+Emergency exit 有 40 pixel 最細觸控目標。每一條退出路徑焦點都會返返去原本嗰個控制項。
+
+### 驗證（Verification）
+
+原文嗰個表講三個測試檔守住乜。`superConfirmGate.test.ts` 守住部狀態機：冇掂過、一把鎖匙、兩把鎖匙、
+slider 行咗一半、扳返一把鎖匙落去、reset、畀 screen reader 嘅數值、完成保持時間，同埋焦點返返去原本
+嗰度。`superConfirm.test.ts` 將兩張卡 mount 起身行勻每個狀態：冇掂過、淨係一把鎖匙、兩把鎖匙、slider
+一半、slider 全程、取消、Escape、reduced motion、淨用鍵盤，同埋輔助科技收到啲乜；跟住係真嘅操作 ——
+顯示嘅事實係呼叫者嘅而唔係道閘嘅、移除一個已儲存嘅地圖或者 server 真係會移除到而且到嗰刻先移除、刪
+map config 真係刪到，同埋一次會由磁碟拎走檔案嘅儲存確實有加閘。`superConfirmPolicy.test.ts` 守住份
+清單：冇未申報嘅破壞性呼叫點、逐檔數量唔會飄移、每個申報都講明佢毀滅緊乜、每個 `gated` 條目都指住一個
+真係住住道閘嘅檔、每個未加閘嘅條目都詳細講清楚佢個 standing、已知 gap 清單嘅長度同 gap 本身一樣、
+剛好兩個閘 component、兩個都行緊共用嗰部狀態機，同埋每張卡都仲有齊合約嘅每一件部件。
+
+喺 `design/` 度用 `npx vitest run packages/ui/src/components/confirm` 行呢啲測試。
+
+### 建議閱讀（Suggested reading）
+
+- [Tabbed navigation](./tabbed-navigation.md)，佢嘅批量關閉係呢道閘後面最大件嗰樣嘢。
+- [Language modes and funny levels](./language-and-tone.md)，講點解 level 5 嘅閘一樣要講出個檔名。
+- [Notification centre](./notification-centre.md)，講相反嘅規則：咩嘢永遠都唔可以阻住人。

@@ -171,3 +171,135 @@ there is one, the exact fix.
   this reuses, and the other place this project force-replaces a branch on purpose.
 - [Scheduled re-rendering](./scheduled-render.md) — configuring the repository once a render
   has run at least once.
+
+## 廣東話
+
+### 點解要有呢樣嘢
+
+**呢個就係令一個冇 render workflow 嘅 repository 唔再變死胡同嘅嗰一塊。**
+[喺 GitHub Actions 度 render 一個 world](./render-in-actions.md) 要求 `render-world.yml`
+已經 commit 咗上 repository 嘅預設分支先行得，而喺呢樣嘢出現之前，呢個應用程式從來冇任何地方會幫你放上去。
+一個啱啱建立嘅 repository，或者一個從來未加過 render workflow 嘅現有專案，就會撞到一粒永遠停用嘅 render 掣，
+配一段睇落好似權限問題嘅訊息——但其實真正原因只不過係乜都未設定過。呢個功能就係 app 自己做埋呢個設定。
+
+### 「設定好」即係點
+
+三個檔，一齊 commit 上 repository 嘅預設分支：
+
+- `.github/workflows/render-world.yml` — sync 會 dispatch 嘅嗰個 workflow。
+- `.github/workflows/render-shard-wave.yml` — 每個 sharded wave 都用本機路徑呼叫嘅可重用 workflow
+  （`uses: ./.github/workflows/render-shard-wave.yml`），所以佢一定要喺個 repository 度，
+  唔可以淨係喺呢個專案自己嗰份副本度被引用。
+- `.github/workflows/scheduled-render.yml` — 排程檢查，決定一個記錄咗嘅 world 有冇變過、
+  應唔應該再 render 一次。
+
+三個檔都係一字不改咁寫入。一個打包好嘅安裝程式必須喺自己嘅 resources 入面帶齊成套；
+就算淨係少一個檔，setup 都會 fail closed，永遠唔會由開發者嘅 checkout 度借個檔嚟用。
+開發時執行就容許讀 checkout 嘅 `.github/workflows/` 目錄。詳見 `cirender/workflowTemplates.ts`。
+
+### 佢處理嘅四種狀態
+
+1. **真係空——一個 commit 都冇。** GitHub 嘅 Git Data API 喺一個空 repository 度建立唔到第一個分支 ref。
+   所以 setup 會喺建立任何候選 object 之前就 fail closed，並要求你先做一個起始 commit。
+   喺呢個應用程式入面建立嘅 repository 已經會自動收到嗰個起始 commit；
+   喺外面建立嘅空 repository 就要先有一個，然後再重試。
+2. **有內容，但冇 workflow。** 會以當前預設分支嘅 tree 為基礎整一個新 tree，喺旁邊加入整套 workflow。
+   Repository 上面其他嘢乜都唔會改——點解呢個係保證而唔係口頭承諾，
+   見[佢永遠唔會做嘅嘢](#佢永遠唔會做嘅嘢)。
+3. **呢個應用程式之前準備過，而隨程式發佈嘅 workflow 已經更新咗。** 只有喺當前 UTF-8 位元組
+   仍然係當初安裝嗰陣記錄嘅嗰個 SHA-256 嘅時候，先容許更新。人手改過（包括刪咗）就會變成一個有型別嘅衝突，
+   永遠唔會被覆寫。比呢個 build 更新嘅 marker 或者 template 版本，永遠唔會被降級。
+4. **睇落準備好，但行唔到。** Workflow 檔可以齊全兼最新，但 GitHub Actions 喺嗰個 repository 度仍然可以係關咗，
+   或者被組織政策限制住。呢樣會老實咁報出嚟，唔會磨平做「已就緒」——
+   見[Actions 有冇開，同 workflow 存唔存在係兩回事](#actions-有冇開同-workflow-存唔存在係兩回事)。
+
+### 佢永遠唔會做嘅嘢
+
+每一個候選 blob、成棵 tree、同埋個 commit，全部都經 Git Data API 喺睇唔到嘅地方整好。
+唯一一個喺 repository 度睇得見嘅變動，就係最後嗰下預設分支 ref 更新，
+用 `force: false` 做，並且由規劃之前讀到嘅確實 head SHA 把關。Marker 同 workflow 嘅擁有權讀取，
+都係釘死喺同一個 SHA，而唔係釘喺一個會郁嘅分支名。如果另一個寫入者推進咗個分支，
+呢次更新就會變成一個有型別嘅 concurrent-update 衝突，而所有候選位元組一個都唔會現形。
+冇 force-push、冇換分支、冇逐個檔順序 commit、亦冇要靠估另一個寫入者做過乜嘅回滾。
+
+### Marker，同點解外來檔係被拒絕而唔係被取代
+
+佢寫嘅每一個檔都記錄喺 repository 根目錄嘅 `.worldlens-ci.json` 入面。Schema 2 記錄 marker schema 版本、
+一個單調遞增嘅數字 template-set 版本、每一條受管路徑，以及每條路徑上安裝嗰陣 UTF-8 位元組嘅確實 SHA-256
+——同 [發佈上 GitHub Pages](./pages-hosting.md) 為佢自己嘅 marker 用緊嗰套模式一樣。
+喺郁一個已經存在嘅檔之前，會將佢嘅內容同 template 比較：
+
+- **一模一樣而且 marker 有記錄** → 唔郁佢，乜都唔寫。
+- **唔同、marker 有記錄、而且仍然等於 marker 記低嘅安裝 hash** → 咁即係一個未被改過嘅舊 template，
+  可以安全更新。
+- **同安裝 hash 唔同，或者安裝之後被刪咗** → 當受管檔衝突拒絕。
+  呢個應用程式永遠唔會將自己嘅 marker 當成係抹走用戶之後嘅改動嘅許可證。
+- **marker 冇記錄** → 直接拒絕。即係有人自己嘅檔啱啱佔咗呢條路徑，而呢度冇經同意唔會覆寫佢。
+  就算幾個受管檔入面淨係一個有衝突，成個 run 都會拒絕——一個準備到一半嘅 repository 差過一個未準備嘅，
+  因為佢睇落好似做完咗。
+
+### Token scope，喺寫任何嘢之前就檢查
+
+喺 `.github/workflows/` 底下寫嘢要 `workflow` 呢個 OAuth scope；普通 repository 寫入淨係要 `repo`。
+一個有 `repo` 但冇 `workflow` 嘅 token，如果唔檢查，就會將其他嘢全部整晒，然後專登喺 workflow 檔嗰度失敗，
+留低一個設定咗一半嘅 repository，配一個解釋唔到原因嘅錯誤。所以兩個 scope 都會檢查——
+喺個憑證報得到嘅前提下——而且係**喺寫第一個位元組之前**，令嗰種失敗模式根本冇得發生：
+要麼兩個 scope 都有、成個 run 行落去，要麼有 scope 檢查唔過、乜都冇郁過。
+至於一啲完全報唔到自己 scope 嘅憑證（大部分 fine-grained token，以及每一個 OAuth App
+或者 GitHub App installation token），唔會當佢缺咗嘢——個 run 照行，
+只係附一句：如果真係被 scope 拒絕，佢會以「workflow 檔特定地失敗」嘅形式出現。
+
+### Actions 有冇開，同 workflow 存唔存在係兩回事
+
+啲檔就位之後會讀一次 `GET .../actions/permissions`，答案照直報：
+
+- `enabled: true` → 就緒。
+- `enabled: false` → **唔會**畀綠剔，啲檔幾新都好。即係個 repository 或者組織政策熄咗 Actions，
+  而段訊息會照直咁講，並指出要改邊個設定（Settings → Actions → General）。
+- **完全讀唔到** → 呢個 endpoint 要 repository 嘅管理員權限，而一個淨係有普通寫入權嘅 token 可能冇。
+  會報做「無法判定」，唔會偏向任何一邊——呢個唔算係問題嘅證據，
+  當佢係問題嘅話，就會叫人去修一條其實冇壞嘅政策。
+
+### Runner 分鐘數：公開免費，私有唔免費
+
+公開 repository 有無限嘅標準 runner 分鐘數。私有嘅就會用緊個帳戶自己每月嘅額度，
+而一次 sharded render 每個 runner 每分鐘就用一個 runner-minute——分三十路就係燒三十倍嘅實際時間。
+準備一個私有 repository 嗰陣，會喺嗰度開始第一次 render 之前，白紙黑字咁附上呢一段說明。
+
+### 行兩次會點
+
+按構造就係冪等 (idempotent)：第二次執行會驗證三個 workflow 嘅 hash 同個 marker，
+然後完全唔做任何 Git 變動。CI-render 畫面喺每次 dispatch 之前都即刻行呢個檢查，
+所以一個安全嘅受管更新會先落地，而用戶改動、降級或者 concurrent-update 衝突就會喺 workflow run
+開始之前停低。詳細衝突會喺發起 render 嗰個控制項嗰度顯示。
+
+### 失敗模式
+
+每一次拒絕都會指名確實原因，唔會淨係報一個籠統失敗：
+
+- **完全冇憑證可以驅動佢** — 冇人喺應用程式度登入過，而 `gh` 又冇裝或者冇登入。
+- **缺咗某個 scope** — 會指名確實嘅 scope（`repo`、`workflow`，或者兩個都係），
+  並講明重新登入就係解決方法。
+- **Repository 唔存在，或者呢個憑證睇唔到佢** — GitHub 對「一個冇權限入嘅私有 repository」
+  同「一個真係唔存在嘅」係同一個答覆，段訊息會照直講明，唔會靠估。
+- **憑證睇到個 repository，但寫唔到入去。**
+- **Repository 冇第一個 commit** — 會要求做一個起始 commit，同時乜都唔改；
+  app 入面嗰個 repository 建立工具本身已經會提供。
+- **有外來檔擋住** — 見上面 [marker 嗰節](#marker同點解外來檔係被拒絕而唔係被取代)。
+- **有受管檔被改咗或者刪咗** — 會指名衝突嗰條路徑；三個 workflow 同個 marker 一個都唔會改。
+- **出現咗更新嘅 marker schema 或者 template 版本** — 舊嘅應用程式會拒絕降級佢。
+- **預設分支同時被人推進咗** — expected-head 檢查會拒絕唔用 force 就做最後嗰下 ref 更新。
+- **建立 object 途中出現網絡或者 GitHub 側嘅失敗** — 個分支仍然指住佢原本嘅 tree。
+  可能會有一啲到唔到嘅候選 Git object，但唔會有半套 workflow 或者 marker 現形，
+  而之後重試會由真正嘅分支 head 開始。
+- **打包資源缺失** — 唔會退回去試 checkout，亦唔會為咗寫入而聯絡個 repository。
+
+呢啲全部都唔係一個遮住真相嘅轉圈動畫。每一個都會指名原因，有解決方法嘅就講埋確實嘅解決方法。
+
+### 建議閱讀
+
+- [Rendering a world in GitHub Actions](./render-in-actions.md) — 呢度準備嘅 workflow，
+  行得到之後實際上做啲乜。
+- [Publishing a rendered map to GitHub Pages](./pages-hosting.md) — 呢度重用嗰個 marker 檔模式，
+  以及呢個專案另一個刻意 force-replace 分支嘅地方。
+- [Scheduled re-rendering](./scheduled-render.md) — render 至少行過一次之後點樣設定個 repository。
