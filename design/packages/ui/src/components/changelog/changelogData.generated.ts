@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "90a66a85dab807d7e14de65d8da6cae295758a78",
+        shortSha: "90a66a85da",
+        date: "2026-08-09T21:57:05-04:00",
+        subject: "Capture the deployed documentation article",
+        details: "Record a genuine cheap-headless capture of the live Pages article at b426c641 and add it to the screenshot evidence inventory. The old renderer once ate every article block; this frame proves the paragraphs finally made it to dinner.\n\n記錄 b426c641 live Pages 文章嘅真實離屏截圖，並加入截圖證據清單。舊 renderer 之前食晒所有文章 block，今次影到段落終於有位坐低食飯。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
         sha: "3f487aa23674340bde029509f9b15de409b4e7a2",
         shortSha: "3f487aa236",
         date: "2026-08-09T21:49:24-04:00",
