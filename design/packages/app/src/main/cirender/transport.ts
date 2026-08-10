@@ -3,7 +3,6 @@ import {
     createBackupRelease,
     findExistingAssets,
     findReleaseByTag,
-    parseRepositoryRecord,
     readRepository as readRepositoryOverRest,
 } from "../backup/index.js";
 import type { BackupRelease } from "../backup/index.js";

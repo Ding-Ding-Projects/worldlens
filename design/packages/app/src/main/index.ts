@@ -1533,12 +1533,11 @@ async function createWindow(): Promise<void> {
                   () => startDownloads(render, github),
               )
             : null;
-    const backups =
-        render !== null && github !== null
-            ? await attempt("network", "backups", "Backups are unavailable in this launch", () =>
-                  startBackups(render, github),
-              )
-            : null;
+    if (render !== null && github !== null) {
+        await attempt("network", "backups", "Backups are unavailable in this launch", () =>
+            startBackups(render, github),
+        );
+    }
     const ciRender =
         render !== null && github !== null
             ? await attempt(

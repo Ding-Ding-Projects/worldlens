@@ -1,6 +1,9 @@
 import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vite";
+import { canonicalArchiveSitePlugin } from "./scripts/archive-site-plugin.mjs";
+
+const packageRoot = fileURLToPath(new URL(".", import.meta.url));
 
 /** The pnpm workspace root, `design/`, which is what Vite would allow on its own. */
 const workspaceRoot = fileURLToPath(new URL("../../", import.meta.url));
@@ -38,6 +41,8 @@ const base = process.env["SITE_BASE"] ?? (repositoryName ? `/${repositoryName}/`
 
 export default defineConfig({
     base,
+    publicDir: false,
+    plugins: [canonicalArchiveSitePlugin(packageRoot, base)],
     server: {
         fs: {
             // Setting `allow` replaces the default rather than adding to it, so the

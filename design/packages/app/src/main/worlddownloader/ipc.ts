@@ -615,7 +615,7 @@ export function registerDownloaderHandlers(
             }
             try {
                 return secrets.save(token);
-            } catch (error) {
+            } catch {
                 // Deliberately not the underlying error text: this is the one call in this module
                 // whose failure happened with the plaintext in scope.
                 return {
