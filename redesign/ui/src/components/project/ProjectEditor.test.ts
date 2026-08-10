@@ -36,7 +36,6 @@ import {
     withStorageAdded,
 } from "./projectModel.js";
 
-
 beforeAll(() => {
     globalThis.ResizeObserver = class {
         observe(): void {}

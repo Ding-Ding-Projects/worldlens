@@ -335,9 +335,7 @@ async function copyText(): Promise<void> {
                         <span class="mb-config-form__count">{{ group.fields.length }}</span>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
-                        <p v-if="group.description" class="mb-config-form__blurb">
-                            {{ group.description }}
-                        </p>
+                        <p v-if="group.description" class="mb-config-form__blurb">{{ group.description }}</p>
                         <template v-for="field in group.fields" :key="field.path">
                             <!--
                                 Map nodes can place the one render-mask editor above their generated
