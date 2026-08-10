@@ -2,21 +2,25 @@
 
 ## ZIP-canonical Material Design 3 Pages integration (2026-08-09)
 
-**Integrated and pushed at `69eb96863bef7560d3a092c8bfa6888a50243be8`; exact-tip remote
-verification is running.** The attached archive now owns the documentation site's visible shell and
-ships without CDN/runtime fetches. Mobile sizing, safe areas, article semantics, overlay focus,
-top/bottom tab-strip search, ten adjacent full regex builders, keyboard command-palette navigation,
-and four-edge navigation layout are wired into the production runtime. The static completeness check
-now proves 68 platform bindings and 59 negative mutations, including the renderer-specific article
-condition contract that would otherwise remove every documentation block while leaving the build
-green.
+**The Pages implementation landed at `69eb96863bef7560d3a092c8bfa6888a50243be8`, its final capture
+handoff landed at `172abca5cfac9985ca387941612edc66bded926a`, and both are ancestors of
+current `main` at `b8174ef0ae766f00cb468f214c35d853023bc48e`.** The attached archive owns
+the documentation site's visible shell and ships without CDN/runtime fetches. Mobile sizing, safe
+areas, article semantics, overlay focus, top/bottom tab-strip search, ten adjacent full regex builders,
+keyboard command-palette navigation, and four-edge navigation layout are wired into the production
+runtime. The static completeness check proves 68 platform bindings and 59 negative mutations,
+including the renderer-specific article condition contract that would otherwise remove every
+documentation block while leaving the build green.
 
-Local site typecheck/build, UI typecheck/build, workflow-security tests, release-script static checks,
-and generated changelog checks pass. CI run
-[31347980500](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31347980500) and Pages run
-[31347980389](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31347980389) are the final
-remote gates. Genuine screenshot recapture and any installer/release work remain separate follow-up
-gates; no digest-only evidence refresh is acceptable.
+Pages run [31349753684](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31349753684)
+successfully deployed exact current integration tip `b8174ef0`; CI run
+[31349753768](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31349753768) was still running
+when this record was written. The completed `172abca5` CI run passed every build, installer, jar,
+Java and test-world job and failed only the intentional stale-capture check. Its diagnostic screenshot
+artifact contains only 65 PNGs because a newer run cancelled the capture through the workflow's
+per-ref screenshot concurrency group; it is not a complete manifest and must not be promoted. Genuine
+full application recapture and the three packaged-shell captures remain follow-up gates; no
+digest-only evidence refresh is acceptable.
 
 ## Automatic updater restart integrity and issue #79 closure gate (2026-08-08)
 
