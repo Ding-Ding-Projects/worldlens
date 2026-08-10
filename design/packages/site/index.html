@@ -497,11 +497,11 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
             <p style="{{ articleLedeStyle }}">{{ articleLede }}</p>
 
             <sc-for list="{{ articleBlocks }}" as="b" hint-placeholder-count="8">
-              <sc-if condition="{{ b.isHeading }}"><div id="{{ b.anchor }}" role="heading" aria-level="{{ b.level }}" style="{{ b.style }}">{{ b.text }}</div></sc-if>
-              <sc-if condition="{{ b.isParagraph }}"><p style="{{ b.style }}">{{ b.text }}</p></sc-if>
-              <sc-if condition="{{ b.isCode }}"><pre style="{{ b.style }}"><code>{{ b.text }}</code></pre></sc-if>
-              <sc-if condition="{{ b.isUnordered }}"><ul style="{{ b.style }}"><sc-for list="{{ b.items }}" as="item" hint-placeholder-count="3"><li>{{ item.text }}</li></sc-for></ul></sc-if>
-              <sc-if condition="{{ b.isOrdered }}"><ol style="{{ b.style }}"><sc-for list="{{ b.items }}" as="item" hint-placeholder-count="3"><li>{{ item.text }}</li></sc-for></ol></sc-if>
+              <sc-if value="{{ b.isHeading }}"><div id="{{ b.anchor }}" role="heading" aria-level="{{ b.level }}" style="{{ b.style }}">{{ b.text }}</div></sc-if>
+              <sc-if value="{{ b.isParagraph }}"><p style="{{ b.style }}">{{ b.text }}</p></sc-if>
+              <sc-if value="{{ b.isCode }}"><pre style="{{ b.style }}"><code>{{ b.text }}</code></pre></sc-if>
+              <sc-if value="{{ b.isUnordered }}"><ul style="{{ b.style }}"><sc-for list="{{ b.items }}" as="item" hint-placeholder-count="3"><li>{{ item.text }}</li></sc-for></ul></sc-if>
+              <sc-if value="{{ b.isOrdered }}"><ol style="{{ b.style }}"><sc-for list="{{ b.items }}" as="item" hint-placeholder-count="3"><li>{{ item.text }}</li></sc-for></ol></sc-if>
             </sc-for>
 
             <div style="{{ articleEmptyStyle }}">
@@ -509,11 +509,11 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
             </div>
 
             <nav style="display:flex;flex-wrap:wrap;gap:10px;margin:40px 0 16px;padding-top:24px;border-top:1px solid var(--outv);">
-              <button type="button" onClick="{{ prevArticle }}" style="{{ prevStyle }}">
+              <button type="button" onClick="{{ prevArticle }}" disabled="{{ prevDisabled }}" aria-disabled="{{ prevDisabledAttr }}" style="{{ prevStyle }}">
                 <span style="display:block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--osv);margin-bottom:4px;">Previous</span>
                 <span style="display:block;font-size:14px;font-weight:600;">{{ prevTitle }}</span>
               </button>
-              <button type="button" onClick="{{ nextArticle }}" style="{{ nextStyle }}">
+              <button type="button" onClick="{{ nextArticle }}" disabled="{{ nextDisabled }}" aria-disabled="{{ nextDisabledAttr }}" style="{{ nextStyle }}">
                 <span style="display:block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--osv);margin-bottom:4px;">Next</span>
                 <span style="display:block;font-size:14px;font-weight:600;">{{ nextTitle }}</span>
               </button>
@@ -2494,7 +2494,7 @@ class Component extends DCLogic {
         event.preventDefault();
         this.setState({ paletteIndex:next }, () => this.scrollPaletteOption(next));
       },
-      paletteEmptyStyle: paletteItems.length ? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1.6;color:var(--out);",
+      paletteEmptyStyle: paletteItems.length ? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1.6;color:var(--osv);",
       stats, features, steps, phases, homeShots, walkthroughs, releaseNotes, repoLinks,
       shots, shotFilters, settingsGroups, perElement,
       groupTitle:group.title, groupDesc:group.desc, groupSections,
@@ -2528,10 +2528,14 @@ class Component extends DCLogic {
       articleEmptyStyle: articleBlocks.length ? "display:none;" : "padding:24px;border-radius:16px;border:1px dashed var(--outv);",
       prevTitle: prevArt ? prevArt.title : "—",
       nextTitle: nextArt ? nextArt.title : "—",
+      prevDisabled:!prevArt,
+      nextDisabled:!nextArt,
+      prevDisabledAttr:String(!prevArt),
+      nextDisabledAttr:String(!nextArt),
       prevArticle: () => prevArt && this.go(PAGES.article, prevArt.id),
       nextArticle: () => nextArt && this.go(PAGES.article, nextArt.id),
-      prevStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--on);cursor:" + (prevArt ? "pointer" : "default") + ";opacity:" + (prevArt ? "1" : ".45") + ";",
-      nextStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--on);cursor:" + (nextArt ? "pointer" : "default") + ";opacity:" + (nextArt ? "1" : ".45") + ";",
+      prevStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--osv);cursor:" + (prevArt ? "pointer" : "default") + ";",
+      nextStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--osv);cursor:" + (nextArt ? "pointer" : "default") + ";",
       tabCount:String(sidebarTabs.length), paletteQuery:s.paletteQuery, resultCount:String(searchResults.length),
 
       builderScopeLabel: bk ? SCOPE_LABEL[bk] : "",

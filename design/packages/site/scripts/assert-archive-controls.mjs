@@ -101,6 +101,9 @@ const requiredControls = [
     ["article paragraph narrow wrapping", /articleBlocks\.push\(\{ isParagraph:true, text:b\.v, style:"[^"]*overflow-wrap:anywhere;word-break:break-word;" \}\);/u],
     ["article code narrow wrapping", /articleBlocks\.push\(\{ isCode:true, text:b\.v, style:"[^"]*white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;[^"]*" \}\);/u],
     ["article list narrow wrapping", /isUnordered:b\.t === "ul"[\s\S]*?style:"[^"]*overflow-wrap:anywhere;word-break:break-word;"\s*\}\);/u],
+    ["article block supported conditions", /<sc-if value="\{\{ b\.isHeading \}\}">[\s\S]*?<sc-if value="\{\{ b\.isParagraph \}\}">[\s\S]*?<sc-if value="\{\{ b\.isCode \}\}">[\s\S]*?<sc-if value="\{\{ b\.isUnordered \}\}">[\s\S]*?<sc-if value="\{\{ b\.isOrdered \}\}">/u],
+    ["article boundary disabled model", /prevDisabled:!prevArt,\s*nextDisabled:!nextArt,\s*prevDisabledAttr:String\(!prevArt\),\s*nextDisabledAttr:String\(!nextArt\),/u],
+    ["palette empty-state contrast", /paletteEmptyStyle: paletteItems\.length \? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1\.6;color:var\(--osv\);"/u],
     ["contrast-safe compact helper text", /font-size:11px;font-weight:700;letter-spacing:\.6px;text-transform:uppercase;color:var\(--osv\);margin-bottom:4px;"[^>]*>Previous/u],
     ["installer download", /<a\b(?=[^>]*class="wl-hero-action")(?=[^>]*href="https:\/\/github\.com\/Ding-Ding-Projects\/worldlens\/releases\/download\/v0\.1\.943\/Worldlens-0\.1\.943-Setup\.exe")[^>]*>/u],
     ["documentation action", /<button\b(?=[^>]*class="wl-hero-action")(?=[^>]*onClick="\{\{ goDocs \}\}")[^>]*>/u],
@@ -232,6 +235,10 @@ function validate(indexValue, enhancerValue, packageValue = packageSource) {
         ["horizontal tab-strip builder binding count", /<button\b(?=[^>]*onClick="\{\{ toggletabstripBuilder \}\}")[^>]*>/gu, 1],
         ["wide content grid wrapper count", /<div style="\{\{ contentGridStyle \}\}">/gu, 1],
         ["mobile More stateful label association count", /aria-labelledby="\{\{ m\.labelId \}\}"/gu, 1],
+        ["article block supported condition count", /<sc-if value="\{\{ b\.is(?:Heading|Paragraph|Code|Unordered|Ordered) \}\}">/gu, 5],
+        ["article boundary disabled binding count", /\sdisabled="\{\{ (?:prev|next)Disabled \}\}"/gu, 2],
+        ["article boundary aria-disabled binding count", /aria-disabled="\{\{ (?:prev|next)DisabledAttr \}\}"/gu, 2],
+        ["article boundary contrast count", /\b(?:prev|next)Style:"[^"]*color:var\(--osv\);cursor:/gu, 2],
     ];
     for (const [label, marker, expectedCount] of exactIndexCounts) {
         const actualCount = executableIndex.match(marker)?.length ?? 0;
@@ -623,6 +630,30 @@ assertMutationCaught(
     "article list narrow wrapping",
 );
 assertMutationCaught(
+    "restored unsupported article-block conditions",
+    source.replace('<sc-if value="{{ b.isHeading }}">', '<sc-if condition="{{ b.isHeading }}">'),
+    enhancerSource,
+    "article block supported conditions",
+);
+assertMutationCaught(
+    "removed article boundary disabled semantics",
+    source.replace(' disabled="{{ prevDisabled }}" aria-disabled="{{ prevDisabledAttr }}"', ""),
+    enhancerSource,
+    "article boundary disabled binding count",
+);
+assertMutationCaught(
+    "restored low-contrast article boundaries",
+    source.replace('prevStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--osv);cursor:', 'prevStyle:"flex:1;min-width:200px;text-align:left;padding:14px 18px;border-radius:16px;border:1px solid var(--outv);background:transparent;color:var(--out);cursor:'),
+    enhancerSource,
+    "article boundary contrast count",
+);
+assertMutationCaught(
+    "restored low-contrast palette empty state",
+    source.replace('paletteEmptyStyle: paletteItems.length ? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1.6;color:var(--osv);"', 'paletteEmptyStyle: paletteItems.length ? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1.6;color:var(--out);"'),
+    enhancerSource,
+    "palette empty-state contrast",
+);
+assertMutationCaught(
     "restored low-contrast compact helper text",
     source.replace('text-transform:uppercase;color:var(--osv);margin-bottom:4px;">Previous', 'text-transform:uppercase;color:var(--out);margin-bottom:4px;">Previous'),
     enhancerSource,
@@ -635,7 +666,7 @@ assertMutationCaught(
     "overlay enhancer: rendered palette history guard",
 );
 
-const expectedMutationGuardCount = 55;
+const expectedMutationGuardCount = 59;
 if (mutationGuardCount !== expectedMutationGuardCount) {
     throw new Error(
         `Archive control mutation inventory is incomplete: expected ${expectedMutationGuardCount}; found ${mutationGuardCount}`,
