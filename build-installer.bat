@@ -63,16 +63,29 @@ set "PACKAGE_MANIFEST=%APPDIR%\package.json"
 set "VERSION_BACKUP=%APPDIR%\.version-backup"
 set "OUTPUT=%ROOT%installer"
 set "PNPM_VERSION=10.33.0"
+set "NPM_CONFIG_REGISTRY=https://registry.npmjs.org/"
 set "STARTED=%TIME%"
 set "RUN_KEY=%RANDOM%-%RANDOM%"
 set "STATE_FILE=%TEMP%\worldlens-squirrel-%RUN_KEY%.json"
 set "IDENTITY_FILE=%TEMP%\worldlens-identity-%RUN_KEY%.txt"
 set "VERIFY_REPORT=%TEMP%\worldlens-installer-%RUN_KEY%.txt"
+set "COMMIT_FILE=%TEMP%\worldlens-commit-%RUN_KEY%.txt"
+set "STATUS_FILE=%TEMP%\worldlens-status-%RUN_KEY%.txt"
+set "REPOSITORY_FILE=%TEMP%\worldlens-repository-%RUN_KEY%.txt"
+set "LIVE_TAGS_FILE=%TEMP%\worldlens-tags-%RUN_KEY%.txt"
+set "LIVE_RELEASES_FILE=%TEMP%\worldlens-releases-%RUN_KEY%.json"
+set "LIVE_RUNS_FILE=%TEMP%\worldlens-runs-%RUN_KEY%.json"
 set "VERSION_STAMPED=0"
 
 if exist "%STATE_FILE%" goto :temporary_collision
 if exist "%IDENTITY_FILE%" goto :temporary_collision
 if exist "%VERIFY_REPORT%" goto :temporary_collision
+if exist "%COMMIT_FILE%" goto :temporary_collision
+if exist "%STATUS_FILE%" goto :temporary_collision
+if exist "%REPOSITORY_FILE%" goto :temporary_collision
+if exist "%LIVE_TAGS_FILE%" goto :temporary_collision
+if exist "%LIVE_RELEASES_FILE%" goto :temporary_collision
+if exist "%LIVE_RUNS_FILE%" goto :temporary_collision
 
 echo == Worldlens installer build ==
 echo    repository: %ROOT%
@@ -81,17 +94,32 @@ if "%SILENT_MODE%"=="1" echo    mode: silent
 echo.
 
 rem --- Fresh-checkout bootstrap and workspace build --------------------------
-echo [1/8] Bootstrap dependencies and build the workspace
+echo [1/9] Bootstrap dependencies and build the workspace
 call "%ROOT%build.bat" /s
 if errorlevel 1 goto :workspace_failed
 
 rem build.bat keeps its toolchain changes local. Rediscover the two user-scoped
 rem Node locations it may have populated so this parent wrapper can run the same
 rem committed release helpers after a genuinely cold start.
-if exist "%LOCALAPPDATA%\worldlens-toolchain\node\node.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\node;%PATH%"
-if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" set "PATH=%LOCALAPPDATA%\Programs\nodejs;%PATH%"
 if exist "%ProgramFiles%\nodejs\node.exe" set "PATH=%ProgramFiles%\nodejs;%PATH%"
+if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" set "PATH=%LOCALAPPDATA%\Programs\nodejs;%PATH%"
+if exist "%ProgramFiles%\Git\cmd\git.exe" set "PATH=%ProgramFiles%\Git\cmd;%PATH%"
+if exist "%LOCALAPPDATA%\Programs\Git\cmd\git.exe" set "PATH=%LOCALAPPDATA%\Programs\Git\cmd;%PATH%"
+if exist "%ProgramFiles%\GitHub CLI\gh.exe" set "PATH=%ProgramFiles%\GitHub CLI;%PATH%"
+if exist "%LOCALAPPDATA%\Programs\GitHub CLI\gh.exe" set "PATH=%LOCALAPPDATA%\Programs\GitHub CLI;%PATH%"
+if exist "%LOCALAPPDATA%\Microsoft\WinGet\Links\gh.exe" set "PATH=%LOCALAPPDATA%\Microsoft\WinGet\Links;%PATH%"
+if exist "%LOCALAPPDATA%\worldlens-toolchain\node\node.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\node;%PATH%"
+if exist "%LOCALAPPDATA%\worldlens-toolchain\git\cmd\git.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\git\cmd;%PATH%"
+if exist "%LOCALAPPDATA%\worldlens-toolchain\gh\bin\gh.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\gh\bin;%PATH%"
 where node >nul 2>&1
+if errorlevel 1 goto :runtime_handoff_failed
+where git >nul 2>&1
+if errorlevel 1 goto :runtime_handoff_failed
+git --version >nul 2>&1
+if errorlevel 1 goto :runtime_handoff_failed
+where gh >nul 2>&1
+if errorlevel 1 goto :runtime_handoff_failed
+gh --version >nul 2>&1
 if errorlevel 1 goto :runtime_handoff_failed
 
 set "NPM_CLI="
@@ -100,11 +128,15 @@ if not defined NPM_CLI goto :runtime_handoff_failed
 
 rem --- Exact source identity -------------------------------------------------
 echo.
-echo [2/8] Verify source identity
-for /f "tokens=* usebackq" %%s in (`git -C "%ROOT%." rev-parse HEAD 2^>nul`) do set "COMMIT=%%s"
+echo [2/9] Verify source identity
+git -C "%ROOT%." rev-parse --verify HEAD > "%COMMIT_FILE%"
+if errorlevel 1 goto :not_a_checkout
+set /p "COMMIT=" < "%COMMIT_FILE%"
 if not defined COMMIT goto :not_a_checkout
 set "DIRTY="
-for /f "tokens=* usebackq" %%s in (`git -C "%ROOT%." status --porcelain --untracked-files^=all 2^>nul`) do set "DIRTY=1"
+git -C "%ROOT%." status --porcelain --untracked-files=all > "%STATUS_FILE%"
+if errorlevel 1 goto :source_status_failed
+for /f "usebackq delims=" %%s in ("%STATUS_FILE%") do set "DIRTY=1"
 if defined DIRTY goto :dirty_source
 echo       commit %COMMIT%
 echo       working tree is clean
@@ -113,7 +145,7 @@ rem --- Stage the actual renderer jar -----------------------------------------
 rem bootstrap.mjs builds the CLI shadow jar; this committed helper validates and
 rem copies exactly that jar into the directory electron-builder bundles.
 echo.
-echo [3/8] Stage the BlueMap CLI jar
+echo [3/9] Stage the BlueMap CLI jar
 pushd "%ROOT%." >nul || goto :no_root
 node tools\build-jars.mjs --only cli --no-build --clean
 set "JAR_RESULT=%ERRORLEVEL%"
@@ -122,7 +154,7 @@ if not "%JAR_RESULT%"=="0" goto :jar_failed
 
 rem --- Resolve and prove the monotonic version -------------------------------
 echo.
-echo [4/8] Resolve monotonic package identity
+echo [4/9] Resolve monotonic package identity
 node "%ROOT%scripts\release-version.mjs" --package "%PACKAGE_MANIFEST%" --run-number "%RELEASE_CANDIDATE%" --format lines > "%IDENTITY_FILE%"
 if errorlevel 1 goto :identity_failed
 set /p "PACKAGE_VERSION=" < "%IDENTITY_FILE%"
@@ -134,20 +166,41 @@ if not "%RELEASE_TAG%"=="v%PACKAGE_VERSION%" goto :identity_mismatch
 
 set "WORLDLENS_PACKAGE_VERSION=%PACKAGE_VERSION%"
 set "WORLDLENS_REPOSITORY_ROOT=%ROOT%."
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $candidate=[version]$env:WORLDLENS_PACKAGE_VERSION; $known=@(); $tags=@(& git -C $env:WORLDLENS_REPOSITORY_ROOT tag --list 'v*'); if($LASTEXITCODE -ne 0){throw 'git tag inventory failed'}; foreach($tag in $tags){if($tag -match '^v(?<v>\d+\.\d+\.\d+)$'){$known+=([version]$Matches.v)}elseif($tag -match '^v(?<base>\d+\.\d+)\.0-build\.(?<n>\d+)$'){$known+=([version]($Matches.base+'.'+$Matches.n))}}; $localAppData=$env:LOCALAPPDATA; if($null -eq $localAppData){$localAppData=''}; $installed=Join-Path $localAppData 'Worldlens'; if(Test-Path -LiteralPath $installed){foreach($directory in Get-ChildItem -LiteralPath $installed -Directory){if($directory.Name -match '^app-(?<v>\d+\.\d+\.\d+)$'){$known+=([version]$Matches.v)}}}; $blocking=@($known | Where-Object {$_ -ge $candidate}); if($blocking.Count -gt 0){$highest=($blocking | Sort-Object -Descending | Select-Object -First 1); throw ('candidate '+$candidate+' is not newer than known '+$highest)}; Write-Host ('      '+$candidate+' is newer than '+$known.Count+' known local tag/install version(s)')"
+set "GH_PROMPT_DISABLED=1"
+set "GIT_TERMINAL_PROMPT=0"
+set "GCM_INTERACTIVE=Never"
+pushd "%ROOT%." >nul || goto :no_root
+gh repo view --json nameWithOwner --jq .nameWithOwner > "%REPOSITORY_FILE%"
+set "REPOSITORY_RESULT=%ERRORLEVEL%"
+popd >nul
+if not "%REPOSITORY_RESULT%"=="0" goto :live_inventory_failed
+set /p "REPOSITORY_SLUG=" < "%REPOSITORY_FILE%"
+if not defined REPOSITORY_SLUG goto :live_inventory_failed
+
+git -C "%ROOT%." -c credential.interactive=never -c http.lowSpeedLimit=1 -c http.lowSpeedTime=20 ls-remote --tags --refs origin "refs/tags/v0.1.*" > "%LIVE_TAGS_FILE%"
+if errorlevel 1 goto :live_inventory_failed
+gh release list --repo "%REPOSITORY_SLUG%" --limit 1000 --json tagName,isDraft,isPrerelease > "%LIVE_RELEASES_FILE%"
+if errorlevel 1 goto :live_inventory_failed
+gh run list --repo "%REPOSITORY_SLUG%" --workflow ci.yml --limit 250 --json number,databaseId,status,conclusion > "%LIVE_RUNS_FILE%"
+if errorlevel 1 goto :live_inventory_failed
+
+set "WORLDLENS_RELEASES_FILE=%LIVE_RELEASES_FILE%"
+set "WORLDLENS_RUNS_FILE=%LIVE_RUNS_FILE%"
+set "WORLDLENS_TAGS_FILE=%LIVE_TAGS_FILE%"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $candidate=[version]$env:WORLDLENS_PACKAGE_VERSION; $ordinal=[long]$env:WORLDLENS_RELEASE_CANDIDATE; $known=[Collections.Generic.List[version]]::new(); function Add-Tag([string]$tag){if($tag -match '^v(?<v>\d+\.\d+\.\d+)$'){[void]$known.Add([version]$Matches.v)}elseif($tag -match '^v(?<base>\d+\.\d+)\.0-build\.(?<n>\d+)$'){[void]$known.Add([version]($Matches.base+'.'+$Matches.n))}}; foreach($line in Get-Content -LiteralPath $env:WORLDLENS_TAGS_FILE){if($line -match 'refs/tags/(?<tag>[^\s]+)$'){Add-Tag $Matches.tag}}; $releases=@(Get-Content -Raw -LiteralPath $env:WORLDLENS_RELEASES_FILE | ConvertFrom-Json); foreach($release in $releases){Add-Tag ([string]$release.tagName)}; $runs=@(Get-Content -Raw -LiteralPath $env:WORLDLENS_RUNS_FILE | ConvertFrom-Json); $runNumbers=@($runs | ForEach-Object {[long]$_.number}); if($runNumbers.Count -eq 0){throw 'live CI workflow inventory returned no run numbers'}; $maxRun=($runNumbers | Measure-Object -Maximum).Maximum; if($ordinal -le $maxRun){throw ('candidate ordinal '+$ordinal+' is not newer than live CI run '+$maxRun)}; $localAppData=$env:LOCALAPPDATA; if($null -eq $localAppData){$localAppData=''}; $installed=Join-Path $localAppData 'Worldlens'; if(Test-Path -LiteralPath $installed){foreach($directory in Get-ChildItem -LiteralPath $installed -Directory){if($directory.Name -match '^app-(?<v>\d+\.\d+\.\d+)$'){[void]$known.Add([version]$Matches.v)}}}; $blocking=@($known | Where-Object {$_ -ge $candidate}); if($blocking.Count -gt 0){$highest=($blocking | Sort-Object -Descending | Select-Object -First 1); throw ('candidate '+$candidate+' is not newer than live/local release '+$highest)}; Write-Host ('      '+$candidate+' is newer than '+$known.Count+' live/local version(s) and CI run '+$maxRun)"
 if errorlevel 1 goto :candidate_not_monotonic
 echo       package %PACKAGE_VERSION%
 echo       release %RELEASE_TAG%
 
 rem --- Clear only validated Squirrel candidates and record start time --------
 echo.
-echo [5/8] Prepare one fresh Squirrel release set
+echo [5/9] Prepare one fresh Squirrel release set
 node "%ROOT%scripts\collect-squirrel-release.mjs" prepare --package-dir "%APPDIR%" --output "%OUTPUT%" --state "%STATE_FILE%" --version "%PACKAGE_VERSION%"
 if errorlevel 1 goto :prepare_failed
 
 rem --- Stamp, package and restore exact manifest bytes -----------------------
 echo.
-echo [6/8] Stamp and package Squirrel.Windows
+echo [6/9] Stamp and package Squirrel.Windows
 if exist "%VERSION_BACKUP%" goto :backup_exists
 copy /b /y "%PACKAGE_MANIFEST%" "%VERSION_BACKUP%" >nul
 if errorlevel 1 goto :backup_failed
@@ -158,7 +211,7 @@ set "STAMP_RESULT=%ERRORLEVEL%"
 if not "%STAMP_RESULT%"=="0" goto :stamp_failed_restore
 
 pushd "%APPDIR%" >nul || goto :package_directory_failed_restore
-node "%NPM_CLI%" exec --yes --package=pnpm@%PNPM_VERSION% -- pnpm run make
+node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm run make
 set "MAKE_RESULT=%ERRORLEVEL%"
 popd >nul
 
@@ -169,18 +222,33 @@ if not "%MAKE_RESULT%"=="0" goto :make_failed
 
 rem --- Contract collection ---------------------------------------------------
 echo.
-echo [7/8] Collect exactly one fresh matching artifact set
+echo [7/9] Collect exactly one fresh matching artifact set
 node "%ROOT%scripts\collect-squirrel-release.mjs" collect --package-dir "%APPDIR%" --output "%OUTPUT%" --state "%STATE_FILE%" --version "%PACKAGE_VERSION%"
 if errorlevel 1 goto :collect_failed
 
 rem --- Authenticode, branding and final cardinality --------------------------
 echo.
-echo [8/8] Verify unsigned executable and release contracts
+echo [8/9] Verify unsigned executable and release contracts
 set "WORLDLENS_INSTALLER_OUTPUT=%OUTPUT%"
 set "WORLDLENS_APP_PACKAGE=%APPDIR%"
 set "WORLDLENS_VERIFY_REPORT=%VERIFY_REPORT%"
 powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $version=$env:WORLDLENS_PACKAGE_VERSION; $output=$env:WORLDLENS_INSTALLER_OUTPUT; $app=$env:WORLDLENS_APP_PACKAGE; $setup=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -match 'Setup\.exe$'}); $full=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -match '-full\.nupkg$'}); $releases=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -ceq 'RELEASES'}); if($setup.Count -ne 1 -or $full.Count -ne 1 -or $releases.Count -ne 1){throw ('expected one Setup/full nupkg/RELEASES set, found '+$setup.Count+'/'+$full.Count+'/'+$releases.Count)}; foreach($file in @($setup[0],$full[0])){if($file.Name -notmatch [regex]::Escape($version)){throw ($file.Name+' does not match '+$version)}}; $appDirs=@(@('release/win-unpacked','dist/win-unpacked') | ForEach-Object {Join-Path $app $_} | Where-Object {Test-Path -LiteralPath $_ -PathType Container}); if($appDirs.Count -ne 1){throw ('expected one packaged application directory, found '+$appDirs.Count)}; $packaged=@(Get-ChildItem -LiteralPath $appDirs[0] -File -Filter '*.exe' -Recurse); $releaseExe=@(Get-ChildItem -LiteralPath $output -File -Filter '*.exe'); $executables=@($packaged+$releaseExe | Sort-Object FullName -Unique); if($executables.Count -lt 2){throw 'packaged application and setup executables were not both found'}; foreach($exe in $executables){$signature=Get-AuthenticodeSignature -LiteralPath $exe.FullName; if($signature.Status -ne 'NotSigned'){throw ($exe.Name+' has Authenticode status '+$signature.Status+'; signing is prohibited')}}; $worldlens=@($packaged | Where-Object {$_.Name -ceq 'Worldlens.exe'}); if($worldlens.Count -ne 1){throw ('expected one packaged Worldlens.exe, found '+$worldlens.Count)}; $info=$worldlens[0].VersionInfo; if($info.ProductName -ne 'Worldlens' -or $info.FileDescription -ne 'Worldlens' -or -not $info.ProductVersion.StartsWith($version)){throw 'packaged executable branding or version does not match the release identity'}; $digest=(Get-FileHash -LiteralPath $setup[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant(); @($setup[0].FullName,[string]$setup[0].Length,$digest) | Set-Content -LiteralPath $env:WORLDLENS_VERIFY_REPORT -Encoding ascii; Write-Host ('      verified '+$executables.Count+' executable(s): branded and NotSigned')"
 if errorlevel 1 goto :verification_failed
+
+rem --- Re-prove exact source provenance after every build-side mutation -------
+echo.
+echo [9/9] Re-prove exact source commit and clean tree
+git -C "%ROOT%." rev-parse --verify HEAD > "%COMMIT_FILE%"
+if errorlevel 1 goto :final_commit_failed
+set "FINAL_COMMIT="
+set /p "FINAL_COMMIT=" < "%COMMIT_FILE%"
+if not "%FINAL_COMMIT%"=="%COMMIT%" goto :final_commit_changed
+git -C "%ROOT%." status --porcelain --untracked-files=all > "%STATUS_FILE%"
+if errorlevel 1 goto :final_status_failed
+set "FINAL_DIRTY="
+for /f "usebackq delims=" %%s in ("%STATUS_FILE%") do set "FINAL_DIRTY=1"
+if defined FINAL_DIRTY goto :final_dirty_source
+echo       commit %FINAL_COMMIT% is unchanged and the working tree is clean
 
 set /p "SETUP_PATH=" < "%VERIFY_REPORT%"
 set "SETUP_SIZE="
@@ -230,6 +298,12 @@ exit /b 0
 if exist "%STATE_FILE%" del /q "%STATE_FILE%" >nul 2>&1
 if exist "%IDENTITY_FILE%" del /q "%IDENTITY_FILE%" >nul 2>&1
 if exist "%VERIFY_REPORT%" del /q "%VERIFY_REPORT%" >nul 2>&1
+if exist "%COMMIT_FILE%" del /q "%COMMIT_FILE%" >nul 2>&1
+if exist "%STATUS_FILE%" del /q "%STATUS_FILE%" >nul 2>&1
+if exist "%REPOSITORY_FILE%" del /q "%REPOSITORY_FILE%" >nul 2>&1
+if exist "%LIVE_TAGS_FILE%" del /q "%LIVE_TAGS_FILE%" >nul 2>&1
+if exist "%LIVE_RELEASES_FILE%" del /q "%LIVE_RELEASES_FILE%" >nul 2>&1
+if exist "%LIVE_RUNS_FILE%" del /q "%LIVE_RUNS_FILE%" >nul 2>&1
 exit /b 0
 
 :stamp_failed_restore
@@ -274,13 +348,18 @@ call :cleanup_temporary
 exit /b 1
 
 :runtime_handoff_failed
-echo ERROR: build.bat completed, but its verified Node/npm runtime could not be 1>&2
-echo        rediscovered by the installer wrapper. Packaging is rejected. 1>&2
+echo ERROR: build.bat completed, but its verified Node/npm/Git/gh toolchain 1>&2
+echo        could not be rediscovered by the installer wrapper. Packaging is rejected. 1>&2
 call :cleanup_temporary
 exit /b 1
 
 :not_a_checkout
 echo ERROR: the repository commit cannot be resolved; release provenance is absent. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:source_status_failed
+echo ERROR: git status failed, so the source tree cannot be proven clean. 1>&2
 call :cleanup_temporary
 exit /b 1
 
@@ -311,7 +390,15 @@ call :cleanup_temporary
 exit /b 1
 
 :candidate_not_monotonic
-echo ERROR: candidate %PACKAGE_VERSION% is not newer than the known local release set. 1>&2
+echo ERROR: candidate %PACKAGE_VERSION% is not newer than the proven live/local 1>&2
+echo        release, tag, installed-version and CI-workflow ordinal inventory. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:live_inventory_failed
+echo ERROR: bounded git/gh live release, tag or CI workflow inventory failed. 1>&2
+echo        No raw API or interactive credential prompt was attempted; the CLI 1>&2
+echo        error was printed directly above and packaging has not started. 1>&2
 call :cleanup_temporary
 exit /b 1
 
@@ -362,5 +449,27 @@ exit /b 1
 :verification_failed
 echo ERROR: Authenticode, branding or final artifact cardinality verification failed. 1>&2
 echo        No artifact from this run is eligible for publication. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:final_commit_failed
+echo ERROR: final HEAD could not be resolved after packaging. Provenance failed. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:final_commit_changed
+echo ERROR: HEAD changed from %COMMIT% to %FINAL_COMMIT% during packaging. 1>&2
+echo        The artifacts are rejected because they do not have one source identity. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:final_status_failed
+echo ERROR: final git status failed after packaging. Source cleanliness is unknown. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:final_dirty_source
+echo ERROR: packaging left tracked or untracked source changes after restoration. 1>&2
+echo        The artifact is rejected even though its binary checks passed. 1>&2
 call :cleanup_temporary
 exit /b 1
