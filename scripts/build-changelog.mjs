@@ -348,7 +348,14 @@ function isGeneratedOnlyCommit(commit) {
     return commit.files.length > 0 && commit.files.every((path) =>
         path === "CHANGELOG.md" ||
         path === "design/packages/ui/src/components/changelog/changelogData.ts" ||
-        path === "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+        path === "design/packages/ui/src/components/changelog/changelogData.generated.ts" ||
+        // The `redesign/ui` tree is a byte-identical mirror of `design/packages/ui`, so a
+        // changelog refresh legitimately touches the mirror's copy of the generated data
+        // too. Leaving the mirror path out of this list once broke the fixed point: the
+        // refresh commit stopped counting as generated-only, wrote itself into the next
+        // regeneration, and `--check` could never again agree with any committed output.
+        path === "redesign/ui/src/components/changelog/changelogData.ts" ||
+        path === "redesign/ui/src/components/changelog/changelogData.generated.ts",
     );
 }
 

@@ -112,12 +112,21 @@ function dimensions(file, bytes) {
  * treating it as if it did would make this cry wolf on every unit-test edit until somebody
  * deleted it. Keeping the two rules identical also means a file can never be shipping
  * source to one guard and test scaffolding to the other.
+ *
+ * `changelogData.generated.ts` is excluded for a different reason: its bytes are built
+ * from the repository's own commit history, so the content that finally ships is only
+ * knowable *after* the commit that ships it exists. No capture can ever be taken from a
+ * tree that already contains that file's final form - demanding it would mark every
+ * capture stale the moment the routine changelog refresh lands, forever. The pictures
+ * are of the interface; the changelog data is the one source file the interface derives
+ * from history rather than from anything a person drew.
  */
 export function shipsInInterface(name) {
   return (
     !name.endsWith(".test.ts") &&
     !name.endsWith(".test.tsx") &&
-    !name.endsWith(".spec.ts")
+    !name.endsWith(".spec.ts") &&
+    name !== "changelogData.generated.ts"
   );
 }
 
