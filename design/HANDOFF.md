@@ -1,5 +1,51 @@
 # Handoff
 
+## 2026-08-09 (final integration follow-up) — concurrent lineages reconciled on `main`
+
+The repository is now at `b8174ef0ae766f00cb468f214c35d853023bc48e`. The earlier Pages
+handoff tip `172abca5cfac9985ca387941612edc66bded926a` and the original
+`sites-rewrite` tip `cb1ef1ff3b20dfbe1e8177ccd335ecd3f908dbfd` are both proven ancestors
+of that commit; the reconciliation was a clean fast-forward after fetching the live default branch,
+with no rewritten or dropped commits.
+
+The six integrated commits add the full-workspace test repairs and shared render-mask editor lineage.
+In particular, they align startup-recovery and repository-bridge tests with the current runtime,
+track the generated site seed imported on fresh checkouts, extend the notification-policy inventory,
+and replace duplicated mask-editing drafts with one shared editor card plus an end-to-end route proof.
+
+### Exact remote state at this handoff
+
+- Pages run [31349753684](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31349753684)
+  succeeded and deployed exact commit `b8174ef0`.
+- CI run [31349753768](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31349753768)
+  is still running for that exact commit; no final CI conclusion is claimed here.
+- The completed CI run for `172abca5`,
+  [31348500640](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31348500640),
+  passed lint, workflow validation, all seven BlueMap builds, the real Java round trip, the Windows
+  installer, and the test-world render. Its only failed check was the intentional stale-capture
+  refusal for the 83-image application group and 3-image packaged-shell group; all 11 checker unit
+  tests passed first.
+- That run's later screenshot job was cancelled when a newer default-branch run entered the
+  `ci-screenshots-${{ github.ref }}` concurrency group. The preserved artifact contains 65 PNGs,
+  not the complete expected matrix, so it is diagnostic partial evidence and must not replace the
+  committed manifest or advance either recorded UI digest.
+- The genuine deployed documentation article capture remains committed at `90a66a85` as
+  `docs/screenshots/issue-107-after-pages-replacement.png` (1424×992, 202,482 bytes,
+  SHA-256 `EC4051E7CCC3F48099E731BBFD7EC64EB9CC92C0F0F0701DC7F68D1BE9757A47`).
+
+### Public handoff records
+
+- Issue #107: <https://github.com/Ding-Ding-Projects/worldlens/issues/107#issuecomment-5235085795>
+- Discussion #137: <https://github.com/Ding-Ding-Projects/worldlens/discussions/137#discussioncomment-17957615>
+
+### Remaining evidence work
+
+Use a completed screenshot artifact whose capture manifest contains the full current target set,
+then update the `app-playwright-manifest` targets/count and digest from those real files. Build the
+packaged application and recapture the three `built-shell-readme` destinations separately through
+the documented off-screen route. Do not copy the partial 65-image artifact into the ledger and do
+not change either digest without its genuine recapture.
+
 ## 2026-08-09 (latest) — ZIP-canonical Pages redesign integrated and pushed
 
 The attached Material Design 3 archive is now the production documentation-site shell on `main`.
