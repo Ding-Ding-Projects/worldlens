@@ -5,9 +5,9 @@
     "type": "module",
     "description": "Material Design 3 landing page and documentation site published to GitHub Pages",
     "scripts": {
-        "dev": "node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs --tolerant && vite",
-        "build": "node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs --tolerant && vite build",
-        "build:strict": "node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs && vite build",
+        "dev": "node scripts/assert-archive-controls.mjs && node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs --tolerant && vite",
+        "build": "node scripts/assert-archive-controls.mjs && node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs --tolerant && vite build",
+        "build:strict": "node scripts/assert-archive-controls.mjs && node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs && vite build",
         "preview": "vite preview",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "fetch-dim-sum": "node scripts/fetch-dim-sum-pool.mjs"

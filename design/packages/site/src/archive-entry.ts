@@ -9,12 +9,29 @@ const focusableSelector = [
     "[tabindex]:not([tabindex='-1'])",
 ].join(",");
 
-let lastOverlayTrigger: HTMLElement | null = null;
+const overlayTriggerStack: HTMLElement[] = [];
+let lastBuilderTrigger: HTMLElement | null = null;
 let lastVisibleDialog: HTMLElement | null = null;
 
+function rendered(element: HTMLElement): boolean {
+    if (!element.isConnected || element.getClientRects().length === 0) return false;
+    let current: HTMLElement | null = element;
+    while (current) {
+        const style = getComputedStyle(current);
+        if (current.hidden || style.display === "none" || style.visibility === "hidden") return false;
+        current = current.parentElement;
+    }
+    return true;
+}
+
 function visible(element: HTMLElement): boolean {
-    const style = getComputedStyle(element);
-    return !element.hidden && style.display !== "none" && style.visibility !== "hidden";
+    if (!rendered(element)) return false;
+    let current: HTMLElement | null = element;
+    while (current) {
+        if (current.inert) return false;
+        current = current.parentElement;
+    }
+    return true;
 }
 
 function useStaticWalkthroughs(root: ParentNode): void {
@@ -26,24 +43,49 @@ function useStaticWalkthroughs(root: ParentNode): void {
 }
 
 function labelTabControls(root: ParentNode): void {
-    const closeButtons = [...root.querySelectorAll<HTMLButtonElement>('button[aria-label="Close tab"]')];
-    if (!closeButtons.length) return;
-    const rows = closeButtons
-        .map((button) => button.parentElement)
-        .filter((row): row is HTMLElement => row instanceof HTMLElement);
-    const list = rows[0]?.parentElement;
-    if (list) {
-        list.setAttribute("role", "tablist");
-        list.setAttribute("aria-label", "Open documentation pages");
-        list.setAttribute("aria-orientation", "vertical");
+    const panel = root.querySelector<HTMLElement>("#wl-tabpanel");
+    let selectedTabId: string | null = null;
+    const lists = [...root.querySelectorAll<HTMLElement>('[data-wl-tablist="true"]')];
+    for (const [listIndex, list] of lists.entries()) {
+        const shown = visible(list);
+        if (shown) {
+            list.setAttribute("role", "tablist");
+            list.setAttribute("aria-label", "Open documentation pages");
+            const direction = getComputedStyle(list).flexDirection;
+            list.setAttribute("aria-orientation", direction.startsWith("row") ? "horizontal" : "vertical");
+        } else {
+            list.removeAttribute("role");
+            list.removeAttribute("aria-label");
+            list.removeAttribute("aria-orientation");
+        }
+        const rows = [...list.querySelectorAll<HTMLButtonElement>('button[data-action="close-tab"]')]
+            .map((button) => button.parentElement)
+            .filter((row): row is HTMLElement => row instanceof HTMLElement);
+        for (const [rowIndex, row] of rows.entries()) {
+            const tab = row.querySelector<HTMLButtonElement>('button[data-action="activate-tab"]');
+            if (!tab) continue;
+            tab.id = `wl-tab-${listIndex}-${rowIndex}`;
+            if (!shown) {
+                tab.removeAttribute("role");
+                tab.removeAttribute("aria-selected");
+                tab.removeAttribute("aria-controls");
+                tab.tabIndex = 0;
+                continue;
+            }
+            const selected = row.dataset["active"] === "true";
+            tab.setAttribute("role", "tab");
+            tab.setAttribute("aria-selected", String(selected));
+            tab.setAttribute("aria-controls", "wl-tabpanel");
+            tab.tabIndex = selected ? 0 : -1;
+            if (selected) selectedTabId = tab.id;
+        }
     }
-    for (const row of rows) {
-        const tab = row.querySelector<HTMLButtonElement>("button:not([aria-label])");
-        if (!tab) continue;
-        const selected = row.style.background.includes("--s-high");
-        tab.setAttribute("role", "tab");
-        tab.setAttribute("aria-selected", String(selected));
-        tab.tabIndex = selected ? 0 : -1;
+    if (panel && selectedTabId) {
+        panel.setAttribute("aria-labelledby", selectedTabId);
+        panel.removeAttribute("aria-label");
+    } else if (panel) {
+        panel.removeAttribute("aria-labelledby");
+        panel.setAttribute("aria-label", "Active documentation page");
     }
 }
 
@@ -68,6 +110,39 @@ function labelDialogs(root: ParentNode): void {
         palette.setAttribute("aria-modal", "true");
         palette.setAttribute("aria-label", "Command palette");
     }
+
+    const drawer = root.querySelector<HTMLElement>('aside[aria-label="Documentation navigation"]');
+    if (drawer) {
+        const compact = window.matchMedia("(max-width: 899px)").matches;
+        const open = drawer.dataset["mobileDrawer"] === "true";
+        drawer.inert = compact && !open;
+        if (compact) drawer.setAttribute("aria-hidden", String(!open));
+        else drawer.removeAttribute("aria-hidden");
+        if (compact && open) {
+            drawer.setAttribute("role", "dialog");
+            drawer.setAttribute("aria-modal", "true");
+        } else {
+            drawer.removeAttribute("role");
+            drawer.removeAttribute("aria-modal");
+        }
+    }
+
+    const moreSheet = root.querySelector<HTMLElement>("#wl-more-sheet");
+    const moreTrigger = root.querySelector<HTMLButtonElement>('button[data-action="more"]');
+    if (moreTrigger) {
+        moreTrigger.setAttribute("aria-controls", "wl-more-sheet");
+        moreTrigger.setAttribute("aria-expanded", String(Boolean(moreSheet && visible(moreSheet))));
+    }
+    const drawerTrigger = root.querySelector<HTMLButtonElement>('button[data-action="drawer"]');
+    if (drawerTrigger && drawer) {
+        drawerTrigger.setAttribute("aria-controls", "wl-doc-navigation");
+        drawerTrigger.setAttribute("aria-expanded", String(drawer.dataset["mobileDrawer"] === "true"));
+    }
+    for (const button of root.querySelectorAll<HTMLButtonElement>("button[data-active]")) {
+        if (button.dataset["action"] === "more") continue;
+        if (button.dataset["active"] === "true") button.setAttribute("aria-current", "page");
+        else button.removeAttribute("aria-current");
+    }
 }
 
 function enhance(root: ParentNode = document): void {
@@ -84,31 +159,106 @@ function enhance(root: ParentNode = document): void {
 
 function visibleModal(): HTMLElement | null {
     const dialogs = [...document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]')];
-    return dialogs.find(visible) ?? null;
+    return (
+        dialogs
+            .filter(visible)
+            .sort((left, right) => {
+                const leftZ = Number.parseInt(getComputedStyle(left).zIndex, 10) || 0;
+                const rightZ = Number.parseInt(getComputedStyle(right).zIndex, 10) || 0;
+                return leftZ - rightZ;
+            })
+            .at(-1) ?? null
+    );
+}
+
+function syncBackgroundInert(modal: HTMLElement | null): void {
+    for (const element of document.querySelectorAll<HTMLElement>('[data-wl-overlay-inert="true"]')) {
+        element.inert = false;
+        delete element.dataset["wlOverlayInert"];
+    }
+    if (!modal) return;
+
+    let current: HTMLElement = modal;
+    while (current.parentElement) {
+        const parent = current.parentElement;
+        for (const sibling of parent.children) {
+            if (!(sibling instanceof HTMLElement) || sibling === current || sibling.contains(modal)) continue;
+            if (sibling.classList.contains("wl-overlay-scrim") || sibling.inert) continue;
+            sibling.inert = true;
+            sibling.dataset["wlOverlayInert"] = "true";
+        }
+        if (parent === document.body) break;
+        current = parent;
+    }
 }
 
 document.addEventListener(
     "click",
     (event) => {
-        const trigger = (event.target as Element | null)?.closest<HTMLElement>(
-            'button[aria-label*="Regex builder"],button[aria-label="Search"],button[aria-label="Open navigation"]',
+        const target = event.target as Element | null;
+        const builderTrigger = target?.closest<HTMLElement>('button[aria-label*="Regex builder"]');
+        if (builderTrigger) {
+            lastBuilderTrigger = builderTrigger;
+            return;
+        }
+        if (target?.closest<HTMLElement>('[data-palette-navigation="true"]')) {
+            overlayTriggerStack.length = 0;
+            return;
+        }
+        const trigger = target?.closest<HTMLElement>(
+            'button[aria-label="Open navigation"],button[data-action="more"],button[data-action="open-palette"]',
         );
-        if (trigger) lastOverlayTrigger = trigger;
+        if (trigger && trigger.getAttribute("aria-expanded") !== "true" && overlayTriggerStack.at(-1) !== trigger) {
+            overlayTriggerStack.push(trigger);
+        }
     },
     true,
 );
 
 document.addEventListener("keydown", (event) => {
+    if (event.key === "F" && event.shiftKey && (event.ctrlKey || event.metaKey)) {
+        const palette = document.querySelector<HTMLElement>('[role="dialog"][aria-label="Command palette"]');
+        const paletteAlreadyOpen = Boolean(palette && rendered(palette));
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        if (!paletteAlreadyOpen && active && overlayTriggerStack.at(-1) !== active) overlayTriggerStack.push(active);
+    }
+    const tab = (event.target as Element | null)?.closest<HTMLElement>('[role="tab"]');
+    if (tab) {
+        const tablist = tab.closest<HTMLElement>('[role="tablist"]');
+        const tabs = tablist ? [...tablist.querySelectorAll<HTMLElement>('[role="tab"]')].filter(visible) : [];
+        const current = tabs.indexOf(tab);
+        const vertical = tablist?.getAttribute("aria-orientation") === "vertical";
+        let next = current;
+        let handled = true;
+        if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = tabs.length - 1;
+        else if (tabs.length && ((vertical && event.key === "ArrowDown") || (!vertical && event.key === "ArrowRight"))) {
+            next = (current + 1) % tabs.length;
+        } else if (tabs.length && ((vertical && event.key === "ArrowUp") || (!vertical && event.key === "ArrowLeft"))) {
+            next = (current - 1 + tabs.length) % tabs.length;
+        } else handled = false;
+        if (handled) {
+            event.preventDefault();
+            const nextTab = tabs[next];
+            if (next !== current && nextTab) {
+                nextTab.focus();
+                nextTab.click();
+            }
+            return;
+        }
+    }
+
     const modal = visibleModal();
     if (!modal) return;
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key === "Escape") {
         const close = modal.querySelector<HTMLButtonElement>(
-            'button[aria-label*="Close"],button[aria-label*="close"]',
+            'button[aria-label*="Close"],button[aria-label*="close"],button[data-action="close-overlay"]',
         );
         if (close) {
             event.preventDefault();
+            event.stopImmediatePropagation();
             close.click();
-            lastOverlayTrigger?.focus();
         }
         return;
     }
@@ -128,15 +278,41 @@ document.addEventListener("keydown", (event) => {
 });
 
 const observer = new MutationObserver(() => {
+    syncBackgroundInert(null);
     enhance();
     const modal = visibleModal();
+    syncBackgroundInert(modal);
     if (modal && modal !== lastVisibleDialog) {
+        const previousDialog = lastVisibleDialog;
         lastVisibleDialog = modal;
-        modal.querySelector<HTMLElement>(focusableSelector)?.focus();
+        const returningFromBuilder = previousDialog?.getAttribute("aria-label")?.includes("Regular expression");
+        const previousZ = previousDialog ? Number.parseInt(getComputedStyle(previousDialog).zIndex, 10) || 0 : 0;
+        const modalZ = Number.parseInt(getComputedStyle(modal).zIndex, 10) || 0;
+        const returningToParent = Boolean(previousDialog && previousZ > modalZ);
+        if (returningFromBuilder && lastBuilderTrigger && modal.contains(lastBuilderTrigger) && visible(lastBuilderTrigger)) {
+            lastBuilderTrigger.focus();
+        } else if (returningToParent) {
+            const returnTarget = overlayTriggerStack.pop();
+            if (returnTarget && modal.contains(returnTarget) && visible(returnTarget)) returnTarget.focus();
+            else [...modal.querySelectorAll<HTMLElement>(focusableSelector)].find(visible)?.focus();
+        } else {
+            [...modal.querySelectorAll<HTMLElement>(focusableSelector)].find(visible)?.focus();
+        }
     } else if (!modal && lastVisibleDialog) {
+        const closedDialog = lastVisibleDialog;
         lastVisibleDialog = null;
-        lastOverlayTrigger?.focus();
+        const returnTarget = closedDialog.getAttribute("aria-label")?.includes("Regular expression")
+            ? lastBuilderTrigger
+            : overlayTriggerStack.pop();
+        if (returnTarget && visible(returnTarget)) returnTarget.focus();
     }
 });
-observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["data-mobile-drawer", "style"],
+});
+syncBackgroundInert(null);
 enhance();
+syncBackgroundInert(visibleModal());
