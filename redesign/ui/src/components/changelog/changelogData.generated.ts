@@ -26,9 +26,19 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "5c1990b8d39b8336f9056083b84b44a067c05bac",
+        shortSha: "5c1990b8d3",
+        date: "2026-08-10T06:38:47Z",
+        subject: "fix(changelog): canonicalize UTC timestamps across git versions",
+        details: "Git 2.54 renders a +0000 offset in strict ISO output as Z; older versions\nwrite +00:00. Both are the same instant, but --check compares bytes, so a\ncommit authored in UTC regenerated cleanly on one git version and read as\nstale on the other. Z, the canonical RFC 3339 form, wins.",
+        category: "build",
+        areas: ["build"],
+        files: 1,
+    },
+    {
         sha: "1c751821c06ed9b65719e1cd340caa870a129ffd",
         shortSha: "1c751821c0",
-        date: "2026-08-10T06:34:24+00:00",
+        date: "2026-08-10T06:34:24Z",
         subject: "feat(changelog): show the first difference when --check fails",
         details: "\"Out of date\" alone has proven expensive: when committed and regenerated text\ndisagree on an environment-dependent detail, the difference is the entire\ndiagnosis, and a guard that withholds it turns a one-line fix into archaeology\nagainst a machine nobody can log into.",
         category: "build",
@@ -38,7 +48,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "b30c3fdf96aae48841868a5e8ed327c84d4d789c",
         shortSha: "b30c3fdf96",
-        date: "2026-08-10T06:26:54+00:00",
+        date: "2026-08-10T06:26:54Z",
         subject: "fix(changelog): restore the generated-only fixed point and stop grading generated data as interface source",
         details: "The changelog refresh commit legitimately touches the redesign mirror's copy of\nchangelogData.generated.ts, but that path was missing from isGeneratedOnlyCommit's\nlist - so the refresh wrote itself into the next regeneration and --check could\nnever again agree with any committed output. The mirror paths are now excluded.\n\nchangelogData.generated.ts is likewise excluded from the interface source digest\n(and freshBundle's matching rule): its bytes derive from commit history, so the\ncontent that ships is only knowable after the commit that ships it exists. No\ncapture can ever be taken from a tree already containing its final form, and\ngrading it marked all 89 captures stale on every routine changelog refresh.\n\nThe recorded uiSourceDigest is recomputed under the new rule; the captured tree\nand this tree differ only by that generated file, so the captures remain pictures\nof exactly this interface.",
         category: "build",
@@ -48,7 +58,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "3572208c64f20bc06d99e97d73901962de0e6191",
         shortSha: "3572208c64",
-        date: "2026-08-10T06:17:01+00:00",
+        date: "2026-08-10T06:17:01Z",
         subject: "feat(project): autosave with a travelling git history, and redesign fidelity",
         details: "Projects now save themselves: every edit queues into the existing\nquiet autosave scheduler (debounced, ceiling-bounded, one revision per\nwrite), boundaries flush instead of blocking, and the explicit Save\nstays beside it. Undo depth is unbounded - the history engine never\nauto-prunes - and the whole revision history now travels inside the\none save file: each recorded save embeds the project's git repository\nas a base64 git bundle under the file's 'history' key, snapshots\nrecord the canonical text so the bundle never contains itself, and a\nfile arriving on a machine with no history seeds that machine's\nrepository from its own bundle. Proven end to end on a real git in\nembeddedHistory.test.ts.\n\nRedesign-fidelity round, from a side-by-side against the prototype:\n\n- Home's hero chips carry their per-group feature counts, the lede\n  regains its second sentence, and Your maps / Share a map preview\n  their features in the prototype's order.\n- Close affordances now really are jobs-only: TabbedNavigation gains\n  a closeless mode for destination hosts, and the options editor,\n  project editor and settings sections no longer draw close buttons,\n  answer Delete, or offer close rows in their context menus - while\n  the Work strip keeps every closing power it has.\n\nScreenshot evidence refreshed from a full 26/26 capture run against\nthis exact tree (89 captures, 7 honest skips): the rail bell is now\nphotographed doing its job (the old harness lost the button to its\nown badge-scoped locator and a stale named gap declared it broken),\nthe Docker world-source panel passes its compact-width audit after\nthree hit-target fixes, the toast captures are retired because the\nredesigned shell is history-only by design, and the Windows-only\nbuilt-shell README group is retired in favour of the harness's own\ncaptures of the same surfaces. Changelog regenerated against the\nfull (unshallowed) history.",
         category: "docs",
@@ -58,7 +68,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "838c11a299889e81ebbf6bd67743943e689d300b",
         shortSha: "838c11a299",
-        date: "2026-08-10T03:15:37+00:00",
+        date: "2026-08-10T03:15:37Z",
         subject: "fix: reconcile rename finalizer and modal inventory with the site rework",
         details: "The fresh-host release tooling rewrote compact-proof.mjs to select its\nCDP page by exact PAGES_PROOF_TARGET_URL match, removing the\n'/material-bluemap/' URL-substring check the atomic rename finalizer\nwas still promising to replace - which left every finalizer-state test\nunable to classify the repository as ready or finalized. Drop that\nfile from the finalizer inventory and its allowance pin, with the\nreasoning recorded in both places.\n\nThe archived documentation page also grew a fourth application-modal\nmarker (the compact-width documentation drawer while open); the\nnotification-policy declaration now counts and names it.\n\nFull suite after: 727 test files, 0 failures.",
         category: "shell",
@@ -68,7 +78,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "21f2babd0bad778cce2a79507e094bae82000a26",
         shortSha: "21f2babd0b",
-        date: "2026-08-10T02:38:57+00:00",
+        date: "2026-08-10T02:38:57Z",
         subject: "Merge remote-tracking branch 'origin/main'",
         details: "",
         category: "docs",
@@ -89,7 +99,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "e7307afff3da656f0a973da93dd9ee6acca621cc",
         shortSha: "e7307afff3",
-        date: "2026-08-10T02:34:20+00:00",
+        date: "2026-08-10T02:34:20Z",
         subject: "fix(ui): revert the second corrupted splice of the project editor",
         details: "The re-merge of codex/rewrite-electron-from-redesign-final mangled the\nsame files again: ProjectEditor.vue lost its Storages tab, History tab,\nrun-tab wrapper, CLI-flags editor and the whole consequences/save-plan\naside (leaving an unclosed template that failed to compile), and\nRenderMaskFieldLauncher.vue gained a duplicate closing tag.\nProjectMapsPanel.vue lost the mask summary strip its tests still\nassert.\n\nRestore the verified components (which already carry that branch's\nnormalizedMaskShapes refactor), drop the stray tag, and keep the\nharmless ConfigFileForm formatting change. UI build, typecheck, and\nall 173 project/config tests green again.",
         category: "interface",
@@ -132,7 +142,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "fb80340bfd912a6e445e9aa855da3a37c8b99c4f",
         shortSha: "fb80340bfd",
-        date: "2026-08-10T02:13:34+00:00",
+        date: "2026-08-10T02:13:34Z",
         subject: "Merge remote-tracking branch 'origin/main'",
         details: "",
         category: "site",
@@ -275,7 +285,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "6e1387ddbace4b66743e078ffce4683c09bc9ddd",
         shortSha: "6e1387ddba",
-        date: "2026-08-10T02:11:06+00:00",
+        date: "2026-08-10T02:11:06Z",
         subject: "fix: make the whole workspace test suite green (727 files)",
         details: "The full-workspace run surfaced six failing files beyond the UI suite,\nall stale halves of the same divergent-lineage merges plus one gap in\nthe concurrent Pages replacement:\n\n- index.ts: name the gh CLI startup phase 'gh-cli', the name the\n  startup-recovery guard and recovery surface contract expect; drop\n  the retired 'github-sign-in' phase from the guard with the boundary\n  rationale written in place.\n- worldsource/ipc.test.ts: assert the typed DownloadFailure answers\n  the discover channel really returns (and the preload consumes),\n  not the retired {ok, message} shape.\n- worldRepoBridge.test.ts: owners() carries the gh account choice and\n  remoteTip() takes the one request object, matching the preload,\n  the ipc reader, and the UI bridge.\n- worldlensIdentityResiduals: allowlist the two 'Material BlueMap'\n  mentions in docs/eula-and-consent.md that describe a pre-rewrite\n  screenshot as exactly that.\n- site: track theme/generated/seed.ts (a committed file imports it,\n  so a fresh checkout must carry it) and declare archive-entry.ts's\n  three aria-modal markers in the notification policy inventory.\n\nFull run after: 727 test files, 0 failures; workspace typecheck and\nbuild both green.",
         category: "shell",
@@ -285,7 +295,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "51f08d4c2bc522c104d7c23f33bf070a78b264d3",
         shortSha: "51f08d4c2b",
-        date: "2026-08-10T00:45:47+00:00",
+        date: "2026-08-10T00:45:47Z",
         subject: "Merge remote-tracking branch 'origin/main'",
         details: "# Conflicts:\n#\tdesign/packages/shared/src/downloaderOptions.ts",
         category: "site",
@@ -327,7 +337,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "b46faee21337f0431b070f21d21501f2d2c94411",
         shortSha: "b46faee213",
-        date: "2026-08-10T00:44:24+00:00",
+        date: "2026-08-10T00:44:24Z",
         subject: "fix(ui): repair the botched merge so the redesign is actually the shipped UI",
         details: "The rewrite-from-redesign merges (110e8cc, 3e89b4a) resolved several\nconflicts by splicing both sides together or keeping the older file,\nwhich left main unable to build and visibly showing pre-redesign\nsurfaces. This restores the intended state and turns the UI test\nsuite green (289 files, 4454 tests, 0 failures; was 18 failures):\n\n- shared: fix the noUncheckedIndexedAccess type error in\n  downloaderOptions.effectiveValue that failed every build.\n- ProjectEditor.vue: remove the duplicated pre-redesign header card,\n  restore the intact MD3 page header, repair sixteen mustaches\n  corrupted from {{ }} to { }, a broken string escape, a duplicated\n  consequences fragment and a stray brace; render the How-it-renders\n  tab through ProjectRenderOption (already shipped, never mounted)\n  so state lines and value-naming revert buttons work.\n- ProjectMapsPanel.vue: composite mask contract - the summary strip\n  with 'Open the mask editor' revealing the real field, plus the one\n  shared RenderMaskEditorCard behind the form's launcher row.\n- BackupScreen.vue: restore the gh-CLI account picker version the\n  merge reverted; its tests and catalogue always expected it.\n- GhCliAccountsList.vue: add the documented canList=false fallback\n  sentence instead of controls that would throw.\n- worlddownloader: give the downloader its own safe-storage\n  credentialStore (the retired github/storage envelope) so the main\n  process compiles without reintroducing the retired module; widen\n  SettingsAnchor with github-account for download failures.\n- copy catalogue: prune 153 orphaned entries (retired in-app token\n  and device flows, retired accounts panel, removed notification\n  duration section, the not-yet-built downloader screen) and voice\n  all 64 keys the shipped surfaces render, in English and Cantonese.\n- drop the stray HomeCatalogues.vue.head merge artifact.\n\nredesign/ui mirrors design/packages/ui exactly, per the contract.",
         category: "interface",
@@ -337,7 +347,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "ca11561438dbadc09000e5345df5fe370f03bb31",
         shortSha: "ca11561438",
-        date: "2026-08-09T23:20:33+00:00",
+        date: "2026-08-09T23:20:33Z",
         subject: "fix(redesign): keep App.vue byte-identical to design/packages/ui",
         details: "Pin the original blob so the redesign/ui copy matches the source\npackage exactly, without CRLF normalization.",
         category: "other",
@@ -347,7 +357,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
         sha: "2bcaed7fc9e6bbd30864934d8a3c0542ead14100",
         shortSha: "2bcaed7fc9",
-        date: "2026-08-09T23:19:45+00:00",
+        date: "2026-08-09T23:19:45Z",
         subject: "feat(redesign): write the full UI into the redesign folder",
         details: "Copy the complete design/packages/ui package (785 files, verified\nbyte-identical) into redesign/ui so the redesign folder carries the\nfinished UI alongside the prototype and handoff spec.",
         category: "other",
@@ -1366,7 +1376,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "a9f9cb11334c0215db305df9b77ee2001a39d5c2",
                 shortSha: "a9f9cb1133",
-                date: "2026-08-08T20:08:50+00:00",
+                date: "2026-08-08T20:08:50Z",
                 subject: "feat(ui): seed the navigation groups open, and let the names do the de-cluttering",
                 details: "Reverses a decision from earlier on this branch, for a reason the capture\nharness made concrete.\n\nTwelve flat tabs are hard to read because nothing says which of them belong\ntogether. A name over a group fixes that by itself: the reader gets three\nlabelled regions instead of one undifferentiated list, and that is true\nwhether or not the members are showing. Seeding them collapsed on top of it\ndoes not remove clutter so much as remove destinations - every page under a\nheader becomes something you must already know is there to go looking for,\nand the strip stops being able to answer \"what can this application do\" by\nbeing looked at.\n\nThe cost is not only theoretical. A disclosure is a control, and a control is\nsomething that can fail to be pressed: by automation, by an assistive\ntechnology driving the strip, or by anyone on a window short enough that the\nheader itself has scrolled away. Reachability that depends on a click is\nstrictly weaker than reachability that does not, and CI measured it - five\ndestinations unreachable to the capture harness on a strip whose own\ndiagnostics reported every group present, named and correct.\n\nSo the groups are seeded open. All twelve destinations are on screen from the\nfirst launch, under three headings, and collapsing is left as what it always\nshould have been: something the reader does to the sections they have decided\nthey do not need. Every other guarantee is untouched - the groups are still\nordinary groups that can be renamed, recoloured, reordered, emptied or\nungrouped, a saved workspace is still never re-shaped, and Home is still\npinned and first.\n\n推翻咗自己早前喺呢條 branch 落嘅決定，原因係截圖工具實測出嚟嘅代價。十二個平\n排嘅分頁難讀，係因為冇嘢話你知邊幾個係一夥；净係加返組名就已經解決咗——讀者見\n到三個有名嘅區域而唔係一條大雜燴，而且членов 開唔開都一樣。再收埋佢哋唔係減少\n凌亂，係減少目的地：每個匿喺標題下面嘅頁，都變成你要事先知道佢存在先識去搵。\n而且「要撳一下先到得」本身就比「唔使撳」弱：自動化、輔助技術、或者窗口矮到連\n標題都捲走嗰陣，都可能撳唔到——CI 就實測到五個目的地變成撳唔到。所以而家一開機\n十二個目的地全部見到，分三個有名嘅區域，收埋就留返畀讀者自己決定。",
                 category: "interface",
@@ -1376,7 +1386,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "2350a0cada82118b7e7e932d74211c32795c9599",
                 shortSha: "2350a0cada",
-                date: "2026-08-08T19:44:24+00:00",
+                date: "2026-08-08T19:44:24Z",
                 subject: "Merge origin/main into PR branch",
                 details: "Main 話：『我又改咗一堆』，我哋就做和事佬，三個 conflict 收檔：App tabs、screenshots harness、handoff。",
                 category: "docs",
@@ -1387,7 +1397,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "ad990455288ac49f60f83681eb42a7eab6453ad4",
                 shortSha: "ad99045528",
-                date: "2026-08-08T19:12:59+00:00",
+                date: "2026-08-08T19:12:59Z",
                 subject: "test(app): press a collapsed group at DOM level when the click cannot land",
                 details: "The instrumentation from the last commit answered the question outright. CI\nreported: strip had tabs [Home | Map | Make a map | Docs], groups\n[Rendering=false | Finished maps=false | Keeping a copy=false], overflow\nbuttons: 0.\n\nThat is the strip working exactly as designed - every group present, named,\ncollapsed, nothing overflowing, nothing missing. The tabs the harness wanted\nwere one disclosure away the whole time. What failed was pressing the\ndisclosure: Playwright's `click()` runs actionability checks first, they do\nnot pass in CI on a header that is by every other measure an ordinary\nbutton, and both helpers swallowed the failure and returned - which surfaced\nas \"the harness could not open Projects\", a sentence about a screen that\nworks.\n\nThose checks are the right default when a test is asserting a control is\nusable. They are the wrong default for a harness whose only goal is to get\nsomewhere in order to photograph it. So the real click is still tried first,\nand when it will not land the header is pressed through `evaluate` instead,\nwhich dispatches straight at the element and cannot be blocked by a hit-test\nor a stability wait. `TabStrip.vue` binds an ordinary `@click`, so the\nhandler runs identically either way.\n\n上一個 commit 加嘅診斷一 run 就答晒：CI report 話分頁列有 [Home | Map |\nMake a map | Docs]，三個組全部喺度、有名有姓、收埋咗，冇溢出、冇缺失——即係\n完全照設計行緊，想要嘅分頁一直都只係差撳一下。真正撳唔到嘅係嗰下展開：\nPlaywright 撳掣前要過 actionability 檢查，喺 CI 度過唔到，而兩個 helper 又靜\n靜雞吞咗個失敗，結果變成「開唔到 Projects」——講緊一個其實好地地嘅畫面。而家\n照舊先試真撳，撳唔到就用 evaluate 喺 DOM 層面直接撳，冇得畀 hit-test 擋。",
                 category: "shell",
@@ -1397,7 +1407,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "6546f7287e743c901d5150700a128df53dee0ec3",
                 shortSha: "6546f7287e",
-                date: "2026-08-08T18:16:25+00:00",
+                date: "2026-08-08T18:16:25Z",
                 subject: "test(app): one more route to a tab, and say what the strip held when none worked",
                 details: "Two CI-only failures in a row reported the same thing - \"the harness could\nnot open Projects\", \"locator.waitFor: Timeout 15000ms exceeded\" - which names\nwhat was not found and nothing about why, on a run that cannot be reproduced\nlocally. That is not enough to fix anything from, so this makes the harness\nsay what it was actually looking at.\n\n`openShellTab` now tries, in order: the tab as it stands, opening one group at\na time, opening every group, and the overflow menu. When all four fail it\nthrows with the strip's real contents - every tab label, every group header\nand whether it is open, and whether an overflow button exists at all. Those\nare three different bugs (a strip that never had the tab, a group that would\nnot open, a menu that is not there) which a locator timeout reports\nidentically.\n\nThe waits on the overflow route are shortened and made conditional for the\nsame reason: fifteen seconds spent proving an absent button is still absent is\nfifteen seconds not spent reporting it.\n\n連續兩次 CI 都只係報「開唔到某個畫面／locator 逾時」，講咗搵唔到乜，冇講點解，\n而呢個情況本機重現唔到，淨係咁樣係修唔到嘢嘅。所以而家叫個 harness 講返佢究竟\n望住啲乜：四條路（原地、逐個組開、全部組開、溢出選單）全部行唔通嘅時候，直接\n掟出分頁列嘅真實內容——有邊啲分頁、每個組開咗未、有冇溢出掣。呢三樣係三個唔同\n嘅 bug，但 locator 逾時報出嚟一模一樣。",
                 category: "shell",
@@ -1407,7 +1417,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "3dcab132ca3d097929efef7f5eeab9db461388ff",
                 shortSha: "3dcab132ca",
-                date: "2026-08-08T18:09:11+00:00",
+                date: "2026-08-08T18:09:11Z",
                 subject: "test(app): capture with reduced motion, so a click is not racing an animation",
                 details: "CI's Screenshots job kept reporting ten surfaces it \"could not open\", and the\ntimeout was on the overflow button - meaning the group reveal before it had\nalready given up, because clicking the group's own header timed out.\n\nThe cause is this branch's own motion pass. Playwright's `click()` waits for\nan element to be stable before pressing it, and the strip now animates: tabs\ninside an expanding group fade in, pages arrive, disclosures open. On a\nloaded CI runner that stability wait outlasts the timeout, and the failure\nreads as a sentence about a screen that is working perfectly.\n\nThe harness now launches with `--force-prefers-reduced-motion`. That is the\napplication's own supported path rather than a mode invented for the test -\nit removes every transition and animation through the media query the app\nalready honours - and it also stops a capture catching a half-played frame,\nwhich is a photograph of a state no real build ever rests in.\n\nCI 嗰個 Screenshots job 一直話有十個畫面「開唔到」，但真正卡住嘅係撳唔到組標題。\n原因就係今次自己加嘅動效：Playwright 撳掣之前要等元素靜止，而 CI 機器慢，等到\n逾時，錯誤訊息就變成「開唔到某個畫面」——但嗰個畫面其實好地地。而家截圖改用\n`--force-prefers-reduced-motion` 啟動，即係行返 app 本身支援嘅減少動態路徑，順\n便令截圖唔會影到動畫做到一半嗰格。",
                 category: "shell",
@@ -1417,7 +1427,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "82f51bc085b9daf689b121a87b29a5f2b35288a8",
                 shortSha: "82f51bc085",
-                date: "2026-08-08T17:33:20+00:00",
+                date: "2026-08-08T17:33:20Z",
                 subject: "test(app): the capture harness opens one tab group at a time, not all three",
                 details: "CI's Screenshots job failed on ten surfaces the local run captured fine, and\nthe difference is the window. The seeded strip is vertical; a short viewport\nfits only so many rows; and expanding all three groups at once pushes the\nlater tabs - and then the group headers themselves - into the overflow menu,\nso the very control the fallback depends on goes out of reach. Ten surfaces\nthen report \"could not open\", which the harness correctly calls a broken\napplication rather than an unavailable one.\n\n`revealTabInGroups` opens one group, looks for the tab it wants, and closes\nthat group again when it is not the one holding it. The strip stays about as\ntall as it started, which is the state the overflow fallback was written\nagainst, and a capture that follows photographs the strip in its seeded shape\nrather than one the harness quietly unfolded. `openShellTab` now tries the\ntab directly, then this, then the overflow menu - three ways a tab can be off\nscreen, in the order they are cheap to check.\n\nThe four capture sites that located their tab by hand now go through\n`openShellTab` too, so none of them can miss a case the shared opener knows\nabout.\n\nCI 嗰個 Screenshots job 有十個畫面開唔到，但本機跑就冇事——分別在個窗。分頁列\n係直排，CI 個窗矮，一次過展開三個組就會將後面嘅分頁、跟住連組標題本身都逼入\n溢出選單，連後備方案要用嗰粒掣都冇埋。而家改成一次只開一個組，唔啱就即刻收\n返，令成條分頁列維持返原本高度。",
                 category: "shell",
@@ -1427,7 +1437,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "85ef858a6fa8e46226cec818c5967387afccae5b",
                 shortSha: "85ef858a6f",
-                date: "2026-08-08T16:52:26+00:00",
+                date: "2026-08-08T16:52:26Z",
                 subject: "fix(ui): forward publishesInset narrowed, so the workspace typecheck passes",
                 details: "CI has been red on this branch since the strip-inset fix landed, and the\nper-package typechecks run during the work never saw it: `pnpm typecheck` at\nthe workspace root covers all thirteen packages, and only `ui` and `app` were\nbeing checked by hand.\n\nThe failure is one prop. `publishesInset?: boolean` was forwarded bare from\n`TabbedNavigation` to `TabStrip`; `vue-tsc` types a template reference to an\noptional prop from its declared type rather than from its `withDefaults`\nvalue, so the binding is `boolean | undefined`, and this workspace's\n`exactOptionalPropertyTypes` refuses that against a receiving `?: boolean`.\nThe component's other optional booleans are only ever coerced in the template\n- `panelPassThrough` in a class object and a ternary - which is why this was\nthe one that tripped.\n\nForwarded as `publishesInset === true`, with the reason recorded where the\nprop is declared so the next person does not \"tidy\" it back. All thirteen\npackages typecheck clean.\n\nHANDOFF corrected too: it claimed CI had not run against these commits. It\nhad, on every one of them, and it was failing.\n\nCI 由 strip-inset 嗰個修正開始就一直紅，而工作期間淨係人手 check 咗 ui 同 app\n兩個 package，所以本機一路睇唔到——`pnpm typecheck` 係跑晒十三個 package 嘅。\n問題係一個 prop：`publishesInset?: boolean` 直接傳落 `TabStrip`，而 vue-tsc 對\ntemplate 入面嘅 optional prop 係用宣告型別而唔係 withDefaults 之後嘅型別，所以\n變咗 `boolean | undefined`，撞正呢個 workspace 開咗 exactOptionalPropertyTypes。\n順手改正咗 HANDOFF 入面「CI 未跑過」嗰句——佢跑過，而且每次都紅。",
                 category: "interface",
@@ -1437,7 +1447,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "b08fa1575db9c23bea831b2963606f6ebc7d20e3",
                 shortSha: "b08fa1575d",
-                date: "2026-08-08T15:48:05+00:00",
+                date: "2026-08-08T15:48:05Z",
                 subject: "test(ui): read the group header's size and flex from the one rule that owns them",
                 details: "Follow-up to folding the header's flex declarations back into its own rule:\nthis file still asserted against the separate descendant rule that briefly\nexisted. Both suites now read the same block, and this one additionally\nasserts the 44px touch target the sizing suite guards - so the two\ndeclarations cannot be split into separate rules again without both files\nobjecting, which is the failure that started this: a second rule ending in\nthe same class name is the one a by-name lookup finds.\n\n承上一個修正：呢個檔案仲對住嗰條已經合併咗嘅獨立規則做斷言。而家兩套測試都\n睇同一個 block，呢邊仲順手釘埋 44px 觸控尺寸——咁樣就冇人可以再將兩句聲明拆\n返開兩條規則而唔驚動任何一套測試。",
                 category: "interface",
@@ -1447,7 +1457,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "860607abf927fe034e05c7851e92d23cb5322457",
                 shortSha: "860607abf9",
-                date: "2026-08-08T15:38:19+00:00",
+                date: "2026-08-08T15:38:19Z",
                 subject: "fix(ui): two regressions the full suite caught, one of them a shadowed rule",
                 details: "`projectSurfaceSizing.test.ts` reads a rule out of the strip's stylesheet by\nclass name to check that tabs, close buttons, group headers and the overflow\ncontrols all keep the same 44px touch target. The group-header fix added a\nsecond rule ending in `.mb-tabs-strip__group-head` - the descendant rule\ngiving it the room the commands menu does not take - and that second rule is\nthe one the test found, so the check silently started reading a rule with no\ntouch size in it at all. The two declarations are folded into the real rule\ninstead, with a comment saying why they cannot live in a rule of their own.\n\n`tutorialAnchors.test.ts` navigated by clicking each step's tab button, on the\nassumption that every page has one from the first frame. Three destinations\nnow start inside a collapsed group, so three of those buttons do not exist\nyet. The tour itself was never affected - it navigates through `revealPage`,\nwhich reveals the group holding the tab it activates, and that was verified in\nthe source rather than assumed - so this is the test's model of navigation\nbeing stale, not the product being broken. The tests open the groups first and\nthen make exactly the assertion they always made: that the tab a step lands on\nis a real, clickable control and not merely a page id the shell accepts.\n\nNeither was visible in the per-wave runs; both took the whole suite.\n\n跑完整套測試先捉到嘅兩個回歸。一：分頁列有條測試靠 class 名喺 stylesheet 度撈\n規則出嚟，檢查 44px 觸控尺寸，但我新加嘅規則同樣以 `.mb-tabs-strip__group-head`\n結尾，於是佢撈錯咗條冇尺寸嘅規則——而家將兩句聲明併返入原本嗰條。二：導覽測試\n靠撳分頁掣嚟導航，但而家有三個目的地一開始收埋咗喺組入面。導覽本身冇事，佢行\n`revealPage`，會自動展開個組（我睇過源碼確認，唔係靠估），所以係測試嘅導航模型\n過時咗，唔係功能壞咗。",
                 category: "interface",
@@ -1457,7 +1467,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "7a38fdabd76927e58bd7191cd05361597fc886bc",
                 shortSha: "7a38fdabd7",
-                date: "2026-08-08T15:16:19+00:00",
+                date: "2026-08-08T15:16:19Z",
                 subject: "docs: record what the screenshot harness found, including what is left unfixed",
                 details: "Four rounds of the real Electron harness under xvfb, and what each one\nexposed - all of it invisible to the unit suite because it lives in flex\nlayout, which jsdom does not do.\n\nAlso records, deliberately unfixed, the one genuine finding that is not a\nlayout defect: opening the Pages tab makes live calls to api.github.com even\nwhen nobody is signed in, because the screen gates its owner lookup on\nwhether this build *can* list owners rather than on whether anybody is signed\nin. The harness's own offline guard fails on it. It predates this work and\nwas invisible only because that surface could never be opened in a capture\nrun before, and deciding when the application talks to a third party is not a\nlook-and-feel change. Written down rather than quietly worked around, because\na guard that gets silenced is a guard that stops guarding.\n\n四轉真機截圖跑落嚟捉到嘅嘢全部記低咗，包括一單特登唔郁嘅：一開 Pages 個分頁\n就算冇人登入都會實牙實齒去 api.github.com 攞資料，因為個畫面只係問「呢個版本\n有冇能力列出 owner」而唔係問「有冇人登入咗」。呢個問題喺我哋之前就已經存在，\n只不過嗰個畫面以前喺截圖工具入面根本開唔到，所以冇人見過。幾時同第三方通訊\n係行為決定，唔屬於改外觀嘅範圍，所以寫低而唔係靜靜雞閂咗個守衛。",
                 category: "docs",
@@ -1467,7 +1477,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "7eee7d046bbc9033b8f4a768f207e8678906f01e",
                 shortSha: "7eee7d046b",
-                date: "2026-08-08T15:07:22+00:00",
+                date: "2026-08-08T15:07:22Z",
                 subject: "fix(ui): only the shell's strip publishes its inset, and it measures the right edge",
                 details: "A follow-up to the overlap fix, found by looking at the capture it produced:\nthe buttons had cleared the strip but landed further right than the strip is\nwide. This application draws four tab strips - the shell's, the settings\nsheet's, the config editor's and the project editor's - all from one\ncomponent, and the document has exactly one custom property. Every one of\nthem was publishing, so whichever mounted last won, and the shell's buttons\nwere offset by the width of a panel they have nothing to do with.\n\nPublishing is now an explicit opt-in, false everywhere but the shell, which\nis the only strip whose edge those buttons need. The measurement is also\n`getBoundingClientRect().right` rather than `offsetWidth`: what a floating\nbutton needs is the viewport x the strip ends at, and asking for that\ndirectly is cheaper than assuming the strip both starts at zero and carries\nno transform.\n\nVerified the way the defect was found - in a real capture, not only in a\ntest: the four surfaces that could not be reached at all before this pair of\nfixes (the profile manager, backups, projects and the CI-render screen) now\nopen and photograph correctly.\n\n上一個修正影出嚟先發現：粒掣避得開分頁列，但避多咗。成個 app 有四條分頁列\n（外殼、設定、設定編輯器、專案編輯器）全部由同一個元件畫出嚟，而個 document\n得一個變數，於是四條都喺度寫，邊條夠遲上場邊條贏——外殼嗰兩粒掣就跟住一塊\n同佢完全無關嘅面板闊度避讓。而家改成要明確開啟，只有外殼嗰條會發佈，量度亦\n改用 getBoundingClientRect().right，直接攞浮動掣真正需要嗰個數。",
                 category: "interface",
@@ -1477,7 +1487,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "4a77ce9d207a82849f28363c8c43114249813094",
                 shortSha: "4a77ce9d20",
-                date: "2026-08-08T14:54:10+00:00",
+                date: "2026-08-08T14:54:10Z",
                 subject: "fix(ui): the shell's buttons sat on top of the tab strip, and a group's menu below it",
                 details: "Two layout defects a real capture of the running application caught, neither\nof which any unit test could see - both live entirely in how a flex box lays\nits children out, and jsdom does no layout at all.\n\nThe floating Settings and Server configuration buttons are fixed to the\nbottom-left corner, which was empty while the tab strip ran along the top of\nthe window. The strip's default placement is the left edge, so that corner is\nthe strip's own: diagnostic-pages-publishing-screen.png shows the\nconfiguration button drawn over the strip's overflow and search controls, and\nthe harness run failed on a click the button had intercepted rather than on\nanything wrong with the tab it was aiming at. TabStrip.vue now measures its\nown width and publishes it, exactly as AppTitleBar.vue publishes\n--mb-titlebar-height, and the stack offsets by it - re-published on resize\nand on any change to the strip, and 0px for the three placements that leave\nthe left edge alone, so a top, bottom or right strip keeps its buttons\nexactly where they have always been.\n\nThe second: a group in a vertical strip renders its disclosure button, its\ncommands menu and then its tabs, and the column that stacks those tabs made\nno distinction between the menu and a tab. The menu dropped onto a\nfull-width row of its own directly beneath the group name - three seeded\ngroups meant three orphaned rows reading as bare ellipses, each spending 44px\nof strip height on nothing, in the placement the application actually ships.\nThe header and its menu now share a row that stays horizontal in every\nplacement.\n\nThe screenshot harness is updated for the navigation it now has to drive:\ntabs that live inside a collapsed group are genuinely not on screen until the\ngroup is opened, so it expands them first. That is the same class of failure\nthis file already documents for the profile manager, whose capture went on\nclicking a floating button the shell had deliberately deleted - a harness\nthat navigates by clicking has to be told when navigation changes, and it\nfails slowly and quietly when nobody does.\n\n兩個要真係開個 app 影相先睇得到嘅版面問題——兩個都係 flex 排版嘅事，jsdom 根本\n唔做排版，所以幾多單元測試都捉唔到。一：設定同伺服器設定嗰兩粒浮動掣釘死喺左\n下角，但分頁列預設就係擺左邊，於是粒掣直接壓住分頁列自己嘅溢出同搜尋掣，連點\n擊都畀佢截咗。而家分頁列自己量度闊度再發佈出嚟，粒掣按住讓開，其他三個邊位就\n一切照舊。二：直排分頁列入面，每組嘅「...」選單掉咗落自己一行，三個組就白白\n食咗三行。截圖工具亦都更新咗：收埋咗嘅組要先展開先撳得到入面嘅分頁。",
                 category: "interface",
@@ -1487,7 +1497,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "75d69084a7dc599fafb0b8b6ce55507c163d67cf",
                 shortSha: "75d69084a7",
-                date: "2026-08-08T14:35:18+00:00",
+                date: "2026-08-08T14:35:18Z",
                 subject: "docs: record the interface rewrite in HANDOFF",
                 details: "",
                 category: "docs",
@@ -1497,7 +1507,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "a8350329b6915e4bdbad3902c13ef68564a76080",
                 shortSha: "a8350329b6",
-                date: "2026-08-08T14:34:20+00:00",
+                date: "2026-08-08T14:34:20Z",
                 subject: "feat(ui): Material Design 3 Expressive motion, and two reduced-motion holes it exposed",
                 details: "The interface was shaped like MD3 but still appeared instantly. styles/motion.scss\nnow spends the Expressive easing and duration tokens on the moments that carry\nmeaning: tab panels arrive with a fade and an 8px rise, tabs inside an expanding\ngroup animate on creation, Home's disclosures drop their magic 160ms for a token,\nthe renders and notification-centre lists cascade in a step per row capped at four,\ndownloads fade in per card, and the notification stack rises on enter and sinks on\nexit. Vuetify's stock scrim timing is re-pointed too. Not one hard-coded millisecond\nor cubic-bezier: a test fails the build if either appears, and the longest possible\nsequence - a 200ms stagger delay plus 250ms - is computed from the token table\nrather than trusted from a comment.\n\nTwo reduced-motion holes turned up while proving the additions were covered, and\nboth predate this change:\n\nThe kill switch in global.scss zeroes durations but not delays. A 0.01ms animation\nwith a 200ms delay and a backwards fill is content held invisible for a fifth of a\nsecond - motion removed, a new defect installed in its place. motion.scss therefore\nends with its own reduce block written with the shorthands, which reset the delay\ntoo, plus explicit from-state resets so nothing paints at opacity 0 for a frame.\n\nThe kill switch also cannot reach overlays at all: Vuetify teleports\n.v-overlay-container to <body>, a sibling of #app, so no `#app *` rule applies. The\nscrim rule is therefore declared inside `prefers-reduced-motion: no-preference`, so\nunder reduce it does not exist rather than being overridden.\n\nBoth <Transition>s are CSS-class-driven with no JS hooks, which is what makes the\nmedia query decisive, and a test asserts the absence of every hook by name.\n\nThree surfaces were deliberately left alone, each for a reason recorded in the\nsheet: Vuetify's dialog transition is a JS Web-Animations component with its\ntimings baked in and already calls PREFERS_REDUCED_MOTION itself; docked panels\ndocument having no transitions on purpose, because a pointer drag must track the\ncursor rather than ease toward it; and the notification stack's reflow would need\nthe leaving toast out of flow, which makes TransitionGroup class it as moved and\nfly a dismissed toast up the corner.\n\n介面有咗 MD3 個樣，但係一啲動效都冇。而家啲動效全部由 token 出：分頁淡入上升、\n組展開時逐個 tab 出、Home 摺疊區唔再用死數 160ms、清單逐行遞延、通知升起同沉\n低。冇一個寫死嘅毫秒或者 cubic-bezier，有測試睇實。順帶捉到兩個本來就存在嘅\nreduced-motion 窿：kill switch 只清時長唔清延遲，變成內容被隱形二百毫秒；而且\n佢根本掂唔到被 teleport 去 body 嘅 overlay。兩個都補咗。",
                 category: "interface",
@@ -1507,7 +1517,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "f5ba0ed6a67f1e2931ac68bc88a8283cb5bf024d",
                 shortSha: "f5ba0ed6a6",
-                date: "2026-08-08T14:20:15+00:00",
+                date: "2026-08-08T14:20:15Z",
                 subject: "wip(ui): checkpoint the motion pass, verified green mid-flight",
                 details: "The interface is shaped like MD3 but still mostly appears instantly. This\ncheckpoints the motion pass while its agent is still working, per this\nrepository's wave discipline: verified rather than assumed, then committed so\npartial work cannot be lost.\n\nState at this commit: styles/motion.scss is new and spends the Expressive\neasing and duration tokens md3.scss publishes; tab panel switching, the tab\nstrip, Home's section disclosures, the renders and downloads lists, the\nnotification corner and the notification centre all now animate through it.\n35 tests across three new motion suites pass, and the surfaces it touched are\ngreen at 346 tests across 17 files.\n\nStill to confirm before this is finished: that reduced-motion genuinely\nremoves every one of these, including the Vue <Transition>-driven ones that a\nCSS kill switch cannot reach on its own.\n\n呢個 commit 係動效嗰浪做到一半嘅存檔，存之前照跑測試：三個新動效測試檔 35 個\n測試全綠，被改動嘅介面 17 個檔案 346 個測試亦全綠。仲未確認嘅係：\nprefers-reduced-motion 係咪真係關得晒，特別係啲由 Vue <Transition> 驅動、\n淨靠 CSS kill switch 掂唔到嗰啲。",
                 category: "interface",
@@ -1517,7 +1527,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "576cb3bf3ccbce134170bea3b29d994137d1b3c7",
                 shortSha: "576cb3bf3c",
-                date: "2026-08-08T14:16:47+00:00",
+                date: "2026-08-08T14:16:47Z",
                 subject: "docs: the design system, and why Vuetify's own scale had to be re-pointed",
                 details: "Every visual decision in the application now resolves to a token, so the\ntoken vocabulary needs an article the way each feature does. It records the\ncolour roles and how dark and light are generated from the blue seed's tonal\npalettes while contrast is deliberately not tonal; the shape scale and what\nspends each step; the fifteen type ramps, the rem-only rule that keeps the\ninterface-size dial authoritative, and the 68ch prose measure; elevation,\nstate layers and the Expressive motion set.\n\nIt also records the two findings a reader would otherwise rediscover the hard\nway. Vuetify's `rounded` scale is Material 2 arithmetic wearing Material 3\nnames - `lg` is 8px against M3's 16px, `xl` is 24px against 28px, and there\nis no `md` at all - and the blueprint already asked cards for `lg`, so\ncomponent defaults alone were a no-op and the utilities themselves had to be\nre-pointed at the tokens. And the elevation tokens are deliberately not named\n`--md-sys-elevation-levelN`, because the marker sheet owns that name for a\nfilter chain and is imported later, so a box-shadow under it would be\nsilently clobbered and every elevated surface would go flat.\n\nThe override order is written down explicitly, weakest to strongest, because\nthe rule that matters most is the one at the top: the appearance editor must\nalways win, since a theming feature that cannot theme its own application is\nincomplete.\n\nIndexed in docs/README.md and APPLICATION_ORDER; the docs browser's own\nindex-coverage guard passes.\n\n而家每個視覺決定都落返一個 token，所以呢套 token 詞彙同其他功能一樣要有自己\n一篇文。入面亦寫低兩個唔記低就會有人再撞多次嘅發現：Vuetify 個 `rounded` 級\n距其實係 Material 2 嘅數字掛住 M3 個名，而 blueprint 本身已經將卡設做 `lg`，\n所以淨改 defaults 等於冇改；仲有 elevation token 特登唔叫\n`--md-sys-elevation-levelN`，因為 marker 嗰張表已經用咗呢個名做 filter，遲啲\n先 import，撞名就會靜靜雞令所有陰影消失。覆蓋次序由弱到強逐項寫明，最緊要嗰\n條係：外觀編輯器一定要贏。",
                 category: "docs",
@@ -1527,7 +1537,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "135c6a4dd151a9ddce7adb34963872f946f6ade2",
                 shortSha: "135c6a4dd1",
-                date: "2026-08-08T14:13:34+00:00",
+                date: "2026-08-08T14:13:34Z",
                 subject: "fix(ui): the wizard's run-options row was level only by coincidence",
                 details: "A screenshot of the running application shows the \"How to run it\" row's third\ncheckbox out of line: \"Let the engine report anonymous usage\" wraps to two\nlines while its two siblings stay on one, and its tick floats half a line\nabove theirs. Measured off the capture: 12px, exactly half the 24px label\nline box.\n\nThe wrap is not the bug. The row is a grid that never set `align-items`, so\nthe default `stretch` made every `.v-input` as tall as the tallest cell;\nVuetify's `.v-input--horizontal` is `grid-template-rows: 1fr auto`, so all of\nthat surplus lands in the control row rather than the hint row; and\n`.v-selection-control` centres its tick and label block inside it. Centring a\none-line label and a two-line label in the same inflated row cannot put their\nfirst lines on one baseline - the two-line block's centre is the gap between\nits lines.\n\nWorth naming because it is what hid the defect: below the labels that\nscreenshot is level by accident. All three hints happened to run to three\nlines, so the three stretched control rows came out equal. The moment hint\nline counts diverge - a narrower window, another locale, bilingual mode where\nevery label and every hint gains a line, 125-200% scale re-wrapping\neverything - each column divides its surplus differently and the ticks\nthemselves separate.\n\nSo the fix removes the stretch rather than the wrap: `align-items: start`\nwith the gap spelled out as explicit row and column values, `min-width: 0` on\nthe items so one unbreakable path in a hint cannot widen a track,\n`align-items: flex-start` on the selection control, and a token-based\n`padding-block-start` that puts the first line back on the tick's centre -\nso the labels that never wrapped do not move at all, and the wrapped one\njoins them.\n\nThe other rows in the component were checked rather than assumed: the facts\n`<dl>` is safe because block boxes flow from the top under stretch, the card\nheads wrap whole items and centre is the right relationship for an icon\nbeside a heading, and Vuetify already ships `align-self: flex-start` on the\nalert append slot. Each verdict is recorded in the tests.\n\n一張執行中程式嘅截圖影到「點樣行」嗰行第三個剔格走位：得佢個 label 斷成兩行，\n粒剔就浮高咗半行。斷行唔係病根——成行係 grid 但冇寫 `align-items`，預設 stretch\n將每個 input 撐到同最高嗰個一樣高，而 Vuetify 將多出嚟嘅高度全部塞落控制列，\n再由 `.v-selection-control` 置中，於是一行同兩行嘅 label 點都對唔到同一條基線。\n最值得講嘅係：嗰張截圖下半部睇落係齊嘅，純屬巧合——三個提示啱啱都係三行。所以\n今次係拆走 stretch，唔係遷就斷行；本來冇斷行嘅 label 一毫米都冇郁。",
                 category: "interface",
@@ -1537,7 +1547,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "b518db6f1898a30ff2a70de78cd18e5b97498c9c",
                 shortSha: "b518db6f18",
-                date: "2026-08-08T13:53:27+00:00",
+                date: "2026-08-08T13:53:27Z",
                 subject: "feat(ui): the whole Material Design 3 token system, not only its colour half",
                 details: "Colour was already complete; every other M3 axis was Vuetify's Material 2\ndefaults wearing M3 names. styles/md3.scss now publishes the rest: the shape\nscale at the spec's own steps, all fifteen type ramps with size, line height,\nweight and tracking, elevation 0-5 as real two-shadow key+ambient pairs, the\nfour state-layer opacities, and the Expressive motion set - seven easings and\nthe twelve-step duration ladder.\n\nThe finding that made this more than a token dump: Vuetify's `rounded` scale\nis M2 arithmetic with M3 names. Its `lg` is 8px, its `xl` is 24px, and it has\nno `md` at all - and the md3 blueprint already set cards to `rounded=\"lg\"`,\nso component defaults alone would have changed nothing visible. global.scss\ntherefore re-points the utilities themselves at the tokens, so `.rounded-lg`\nbecomes the real 16px, `.rounded-xl` the real 28px, and `.rounded-md` exists\nat all. The same treatment gives `.elevation-0..5` M3's shadow ladder instead\nof M2's umbra/penumbra/ambient triple, and re-tunes Vuetify's own state-layer\nvariables from M2's 0.04/0.12/0.12/0.08 to M3's 0.08/0.1/0.1/0.16. That is\nwhat actually changes how the application looks, on every screen, at once.\n\nCOMPONENT_DEFAULTS then spends the corrected scale deliberately: pressable\nthings fully rounded, containers at the large corner, overlays at the\nextra-large one through the surfaces they contain, fields one step tighter.\nHeadings map onto the type scale at zero specificity via `:where()`, and\nprose gets a 68ch measure - the wizard was running about 150 characters a\nline - released explicitly inside tables, code and path readouts, where a\nparagraph is a cell rather than prose.\n\nNothing is removed and nothing is locked. Every value is a radius, a shadow,\na size, an opacity or a duration; the appearance editor still wins, because\nits overrides land as inline styles and no rule added here is !important\noutside the two Vuetify utilities that already were; every type value is rem\nand no root font size is set, so the interface-size dial still scales all of\nit; and the reduced-motion kill switch is still last and still absolute over\nevery motion token.\n\nOne regression this introduced, caught and fixed in the same commit: the\nwindow's caption buttons. `.mb-titlebar-button.v-btn`'s `border-radius: 0`\nnever decided their corner - Vuetify's radius is a !important utility, so\nthey were already rendering at the blueprint's 24px unnoticed, and the pill\ndefault would have made three floating pills of minimise, maximise and close.\nEach now sets `rounded=\"0\"`, spending the same corner-none token, with a test\nthat fails if any of them ever carries another value.\n\n色彩早就做齊，其餘全部 M3 軸線一直都係 Vuetify 嘅 Material 2 數值掛住 M3 個\n名。今次補晒：形狀級距、十五條字級、真正嘅 elevation 陰影階梯、狀態層透明度、\nExpressive 動效曲線同時長。關鍵發現係 Vuetify 個 `rounded` 根本係 M2 算術：\n`lg` 得 8px、`xl` 得 24px、連 `md` 都冇，而 blueprint 本身已經將卡設做 `lg`，\n即係淨改 defaults 係一啲都唔會變。所以直接將啲 utility class 指返去 token，\n成個介面先真係換咗個樣。順手捉到一個自己引入嘅問題：視窗嘅最小化／最大化／\n關閉三粒掣會變成藥丸形，已即場修好並加測試釘死。",
                 category: "interface",
@@ -1547,7 +1557,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "34dd4756927daca306ad93a09f61f0a96a6a5295",
                 shortSha: "34dd475692",
-                date: "2026-08-08T13:50:42+00:00",
+                date: "2026-08-08T13:50:42Z",
                 subject: "feat(ui): Home becomes a landing a newcomer can read, not a wall of 25 cards",
                 details: "Home greeted a first-time user with roughly twenty-five equal-weight cards\nacross six sections, all expanded, all at once - the page built to answer\n\"where do I start\" was itself the most cluttered screen in the application.\n\nIt now opens with one hero: \"Make a map\" on a primary-container surface with\na \"Start here\" eyebrow, a 32px icon and the page's only large button, with\n\"What is this?\" and \"Take the tour\" as two supporting cards beneath it.\nEverything else moves under \"Everything else\" as five collapsed disclosures\nwhose headings state their own contents and count - \"Share and back up (2)\",\n\"Settings and tools (9)\" - so a folded section is honest about what it holds\nrather than hiding it. A \"Show every section\" toggle opens the lot, and each\nsection remembers whether its owner opened it, stored as the set of opened\nids so an untouched install stores nothing and a section added later starts\ncollapsed like the rest.\n\nNot one capability was removed: the id set is identical before and after, all\ntwenty-eight of them, verified mechanically against the previous revision and\nthen pinned as an exact set in the tests - with no map open and with a live\nmap carrying markers and players. Search still bypasses the whole layout and\nfinds cards inside collapsed sections. The disclosures are real buttons with\naria-expanded and aria-controls, keyboard-operable, visibly focused, and\ntheir 160ms reveal is disabled under prefers-reduced-motion. Hierarchy comes\nfrom the MD3 surface roles the themes now carry rather than from outlines\neverywhere; no hex colour appears in the file.\n\nHome 以前一開就掟二十五張同等份量嘅卡出嚟，六個區全部攤開——本來要答「我由邊\n度開始」嘅版面，自己就係成個程式最亂嗰版。而家淨係一個主角：「Make a map」\n坐喺 primary-container 上面，配「由呢度開始」小標題同全版唯一嘅大掣，下面兩\n張輔助卡。其餘全部收埋落「其餘功能」五個摺疊區，每個標題都寫明自己入面有幾\n多項，所以摺埋唔等於匿埋。功能一個都冇少：二十八個 id 前後一模一樣，對住舊\n版本機械式核對過，再喺測試度釘死成個集合。搜尋照舊搵得到摺埋咗嘅卡。",
                 category: "interface",
@@ -1557,7 +1567,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "0821ab09b2efcc99d72c4f12d114497b0ed24626",
                 shortSha: "0821ab09b2",
-                date: "2026-08-08T13:36:34+00:00",
+                date: "2026-08-08T13:36:34Z",
                 subject: "fix(ui): the consent row lost the space after its colon, in every language",
                 details: "A screenshot of the running application caught what no test in this package\ncould: docs/screenshots/config-screen.png shows the consent row reading\n\"Accept the Minecraft client download:not accepted yet, so a render stops\nbefore it even starts.\" The label, a colon, and the sentence jammed straight\nagainst it.\n\nNothing was misspelled and no string was wrong. The template put `</strong>`\non one line and the `<template v-if>` carrying the sentence on the next, and\nVue's default whitespace handling is `condense`, which deletes a\nwhitespace-only text node containing a newline when it sits between two\nelements. The space was that node. Because the defect lived entirely in the\nwhitespace between two elements, it applied to both consent states, in all\nthree language modes, at all five funny levels at once, while the copy\ncatalogue, the funny-level facts, both `t()` calls and the mounted component\nwere all exactly right.\n\nThe sentence is resolved in a computed and interpolated on the same line as\nthe label instead. Both keys and both fallbacks are untouched; this only\nmoves where they are read.\n\nThe regression test asserts on rendered text rather than on source, so a\nlater refactor back into a branch, a slot, or anything else still fails it.\nIt was confirmed to actually guard rather than merely pass: restored against\nthe original two-`<template>` shape, all three cases go red and reproduce the\nscreenshot's string verbatim. A first attempt at the test passed both ways -\na newline before an interpolation is preserved, only element-to-element\nwhitespace is condensed - which is why the guard is written against the real\noriginal shape rather than the one that looked equivalent.\n\n一張執行中程式嘅截圖捉到一個所有測試都睇唔到嘅問題：同意權嗰行顯示成\n「Accept the Minecraft client download:not accepted yet…」，個冒號同句子黐\n埋一齊。冇串錯字，亦冇邊句文案有錯——問題喺 `</strong>` 同下一行嘅\n`<template v-if>` 之間：Vue 預設 `condense` 會將兩個元素之間、含有換行嘅純\n空白節點直接刪走，而嗰格空格就係嗰個節點。所以三種語言、五個搞笑等級、兩種\n同意狀態一齊中招。而家改成喺 computed 度計好句子，同 label 同一行插值，兩條\nkey 同兩句 fallback 一個字都冇改。回歸測試睇 render 出嚟嘅文字而唔係源碼，\n仲特登還原返舊寫法試過：三個 case 全部變紅，一字不差咁重現截圖嗰句。",
                 category: "interface",
@@ -1567,7 +1577,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "4f04fe39eb8ad2d548fa23b987e4ab3480669dd9",
                 shortSha: "4f04fe39eb",
-                date: "2026-08-08T13:28:09+00:00",
+                date: "2026-08-08T13:28:09Z",
                 subject: "wip(ui): checkpoint the Home and navigation de-clutter waves mid-flight",
                 details: "Two concurrent waves of the interface rewrite, checkpointed while a third\n(the MD3 shape/type/motion token layer) is still being written, per this\nrepository's own wave discipline: salvage partial work with a commit that\nsays exactly what state it is in rather than risk losing it.\n\nState at this commit, verified rather than assumed: 14 test files and 268\ntests pass across packages/ui/src/components/home and components/tabs. The\nHome page is being reshaped from a wall of ~25 equal cards into a landing\nwith a weighted primary action and per-section progressive disclosure whose\nchoice persists (its new \"home\" key is registered in the app-settings\nhistory manifest); the navigation strip is being reshaped so a fresh\nworkspace seeds the twelve destinations into named groups instead of twelve\nflat tabs, leaving a saved workspace exactly as its owner arranged it. No\ncapability is removed by either: both waves carry tests that assert the full\nset is still present and reachable.\n\nNot yet in this commit: the global shape, typography, elevation, state-layer\nand motion token layer, and the motion pass that will consume it.\n\n呢個 commit 係兩條並行嘅改造做到一半嘅存檔，另一條（MD3 形狀／字級／動效\ntoken）仲寫緊。存檔前跑過測試先：home 同 tabs 兩邊 14 個檔案、268 個測試全\n綠。Home 由二十幾張同等份量嘅卡，變成有主次、次要區可以摺埋（選擇會記住）；\n導覽列一個全新 workspace 會將十二個目的地分做幾組，唔再一字排開，而用家自己\n排好嘅 workspace 就原封不動。兩邊都有測試釘住：功能一個都冇少。",
                 category: "interface",
@@ -2048,7 +2058,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "ccc1dbfdca2dfa3719f856b2b4007013f2c9a37b",
                 shortSha: "ccc1dbfdca",
-                date: "2026-08-08T01:57:05+00:00",
+                date: "2026-08-08T01:57:05Z",
                 subject: "docs: record the clipping sweep, de-clutter wave and full-gate results in HANDOFF",
                 details: "",
                 category: "docs",
@@ -2058,7 +2068,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "7f286b0c2604510a3165e1badb205a590548ab21",
                 shortSha: "7f286b0c26",
-                date: "2026-08-08T01:48:57+00:00",
+                date: "2026-08-08T01:48:57Z",
                 subject: "refactor(ui): the corner stack holds the two workbench controls, not four",
                 details: "The shell floated four fixed 48px buttons over every screen: Settings, the\nserver-configuration editor, the licence viewer and \"what is this?\". The\nfirst two are workbench chrome with no other home; the last two were\nreference panels that already had a card each on Home and now have a command\npalette row each - so the permanent stack is those two workbench controls,\nand the two panels lost no route: Home's cards (unchanged), the new\npalette.chrome.eula and palette.chrome.welcome rows reachable from anywhere\nwith Ctrl+Shift+F, and both surfaces still mounted in the shell exactly as\nbefore. The 76px content gutter and the clearance contract stay, sized to the\nstack's width rather than its count.\n\nThe palette rows follow the notice-centre/tab-finder/tutorial chrome-command\npattern, titled under the palette's own keys (setup's string store is not\nvue-i18n) with the same words the panels title themselves, voiced at all five\nlevels in both languages with facts pinned, and covered by mounted emit tests.\nDoc comments that called the FAB \"the anywhere\" now name the real routes, and\ndocs/eula-and-consent.md plus docs/command-palette.md say where the panels\nlive. App.test.ts asserts the stack is exactly two buttons and opens both\npanels through the palette instead.\n\nVerified: 28 test files, 397 tests green across the shell, palette and copy\nsuites.\n\n以前個角落柱住四粒掣：設定、伺服器設定編輯器、授權條款、「呢個係咩嚟㗎？」。\n頭兩粒係工作枱本體，後兩粒係參考面板——Home 本身有卡，而家 command palette\n都加埋（Ctrl+Shift+F 隨時撳到），面板照舊掛喺 shell 度，一條路都冇少。個柱\n淨返兩粒工作枱掣，76px 留白同清位合約照舊。新 palette row 跟足現有 chrome\ncommand 嘅款，文案兩種語言五級寫齊，事實釘死，有 mounted 測試睇住 emit。啲\n註解以前話「粒 FAB 就係任何地方」，而家改返做真話。",
                 category: "interface",
@@ -2068,7 +2078,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "db358c1c3b98d830700dca29e1534d6fc929c6dd",
                 shortSha: "db358c1c3b",
-                date: "2026-08-08T01:48:29+00:00",
+                date: "2026-08-08T01:48:29Z",
                 subject: "fix(ui): five sizing rules that clipped translated or bilingual text",
                 details: "The rest of this branch's interface-wide clipping audit, each with a\n?raw-source regression test in the established idiom:\n\n- MenuChoice pinned its segmented buttons to height: 32px while the rule\n  directly above deliberately says height: auto - and at (0,3,0) specificity\n  it also beat bilingual.css's (0,2,1) growth rule, so bilingual mode's\n  Cantonese second line on the marker sort labels was clipped invisibly.\n  Height is a floor again, with padding for the grown box.\n\n- DockerWorldSourcePanel's source-kind toggle carried block-size: 44px\n  !important, an unconditional ceiling nothing could out-rank; Container and\n  Named volume lost their bilingual second line inside it. The !important\n  stays (it exists to out-rank Vuetify's toggle sizing) but as a floor:\n  min-block-size 44px, block-size auto.\n\n- TabResultList's result label declared the full ellipsis triple on a flex\n  item without min-width: 0, so the item never shrank, the ellipsis never\n  fired, and the button's own overflow hard-clipped tab titles mid-glyph.\n\n- TabFinder's section headings had the same never-firing ellipsis inside the\n  460px panel; three full translated sentences now shrink and wrap instead,\n  with the small-size button height turned into a floor for the second line.\n\n- TabGroupPicker put max-width and text-overflow on the v-chip itself, which\n  is inline-flex - a formatting context text-overflow ignores - so a long\n  user-typed group name hard-clipped at 220px with no cue. The cap stays on\n  the chip; the ellipsis moved into the chip's real text box.\n\nVerified: 21 test files, 295 tests, eslint clean on every touched test.\n\n執埋審計賸低嗰五單：MenuChoice 啲掣被自己個 child rule 揿死喺 32px，仲夠\nspecificity 贏埋 bilingual.css，粵文嗰行靜靜雞被鋤咗——而家高度係地板唔係天\n花。Docker 面板個 toggle 用 !important 鎖死 44px，Container／Named volume\n嘅第二行冇得企——!important 留低但改做地板。TabResultList 同 TabFinder 兩個\nlabel 齊件 ellipsis 三寶但係 flex item 冇 min-width: 0，個省略號一世都唔會\n出，靠 overflow 硬鋤——補返 min-width: 0，TabFinder 直接改行換行。\nTabGroupPicker 將 ellipsis 落咗喺 inline-flex 嘅 v-chip 本體（text-overflow\n根本唔理 flex），改為喺 chip 入面真正嘅文字盒做。全部有 ?raw 回歸測試。",
                 category: "interface",
@@ -2078,7 +2088,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "a9025c31909bb4d37d89f3bd624009fa03794be4",
                 shortSha: "a9025c3190",
-                date: "2026-08-08T01:47:06+00:00",
+                date: "2026-08-08T01:47:06Z",
                 subject: "fix(site): the two corner cards never overlap, and compact tabs truncate honestly",
                 details: "Three clipping/overlap defects on the documentation site, found by this\nbranch's interface-wide audit:\n\nThe dim sum card (bottom-left, 22rem, z-index 80) and the toast region\n(bottom-right, 24rem, z-index 90) need 784px to sit side by side - 352 + 384\nplus three 16px gutters - but only started stacking at 600px, so between 601\nand 783px a toast painted straight over the card. The stacking breakpoint is\nnow 784px, with the arithmetic in the comment and a test that derives the\nnumber from both stylesheets' own min() widths so the three values cannot\ndrift apart silently.\n\nStacked, the card cleared the toast region by a hard-coded 5.5rem guess while\nthe region grows unbounded - wrapping text, wrapped action rows, bilingual\nsecond lines - so one tall toast covered the card the comment promised it\nwould not. Notifications now publishes the region's measured height as\n--mbm-toast-stack-height (ResizeObserver where the engine has one, re-published\non every add, remove and clearAll everywhere else - the same runtime-published\nmeasurement pattern as the ui shell's --mb-titlebar-height), and the card\nclears by measurement with the 5.5rem fallback kept for a failed observer.\n\nThe compact horizontal tab strip forced white-space: nowrap on labels whose\ntab is capped at 18rem with no overflow, so a longer label spilled across the\nclose button and the neighbouring tab - while the comment claimed nothing was\ntruncated. The compact block now clips with a visible ellipsis; the full name\nstays on the tab's own aria-label, which the tests and comments now cite. The\nwide strip still wraps and never truncates.\n\nVerified: 67/67 across the three touched areas, 460/460 for the whole site\npackage, site typecheck and eslint clean.\n\n文件網站三單走位：點心卡（左下 22rem）同 toast 區（右下 24rem）要 784px 先\n擺得埋一齊，但係 600px 先開始上下疊，中間嗰段 toast 直接冚住張卡——而家斷點\n改做 784px，仲有測試由兩份 CSS 自己嘅 min() 闊度推返個數出嚟，唔俾三個數靜\n靜雞行散。疊起上嚟嗰陣，張卡本來靠死數 5.5rem 避 toast，但 toast 區係會愈\n長愈高嘅——而家 Notifications 用量度值發佈 --mbm-toast-stack-height（有\nResizeObserver 用 ResizeObserver，冇就每次加減 toast 都再發佈），張卡按實測\n避讓，5.5rem 留做後備。窄屏 tab 條硬性 nowrap 但個 tab 又封頂 18rem 又冇\noverflow，長 label 瀉出去冚住隔籬——而家老老實實出省略號，全名一直喺\naria-label 度。",
                 category: "site",
@@ -2296,7 +2306,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "418559f1b120b7999c3041d3b8144601450926f5",
                 shortSha: "418559f1b1",
-                date: "2026-08-08T01:36:23+00:00",
+                date: "2026-08-08T01:36:23Z",
                 subject: "fix(ui): finish the flexed v-card-title sweep for real - the CI-render row was the last one",
                 details: "A systematic scan of every .vue in the workspace - kebab AND PascalCase tags,\nauthored flex rules AND Vuetify's d-flex utility class, which is the pass the\ntwo hand-made sweeps before it lacked - found exactly one remaining instance\nof the clipping class this branch exists to close out: CiRenderScreen's\nper-render row title, a PascalCase `<VCardTitle class=\"d-flex ...\">` holding\nan owner/repo name, a state chip and a spinner. GitHub alone allows a\n39-character owner plus a 100-character repo name, and the flexed title kept\nVuetify's overflow: hidden / nowrap while ellipsis (block-container-only)\npainted nothing, so a long repository name was cut at the card edge with no\ncue. Same three-line fix as the fifteen before it, plus min-width: 0 and\noverflow-wrap: anywhere on the name span because owner/repo has no spaces to\nbreak on, and the same ?raw regression test idiom.\n\nEvery other candidate in the scan was already fixed or provably safe (no\ndisplay set on the title's class); the scan table is recorded in the session\nlog. 124/124 cirender tests green, 3 of them new.\n\n今次用程式掃勻成個 workspace 每個 .vue：kebab 同 PascalCase 兩種寫法、自己寫\n嘅 flex rule 同 Vuetify 嘅 d-flex utility 全部計埋——之前兩輪人手掃漏嘅正正\n係呢瓣。結果賸返一個：CiRenderScreen 每行 render 嘅標題，owner/repo 名可以\n長到 139 字，flex 咗嘅 VCardTitle 照舊 hidden + nowrap，ellipsis 又唔出（flex\ncontainer 佢唔理），長名靜靜雞喺卡邊被鋤咗。照方執藥三行修好，個名 span 加\n埋 min-width: 0 同 overflow-wrap: anywhere（owner/repo 冇空位可以斷行），\nregression test 照舊 ?raw 讀源碼。",
                 category: "interface",
@@ -2306,7 +2316,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "2df5d01e4e4c06d8c01aac3b9356cc21168b6268",
                 shortSha: "2df5d01e4e",
-                date: "2026-08-08T01:30:01+00:00",
+                date: "2026-08-08T01:30:01Z",
                 subject: "docs: record the display/ease-of-use and MD3 token waves in HANDOFF",
                 details: "",
                 category: "docs",
@@ -2316,7 +2326,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "dfcc4923bef8f8501d11c70b8181bb4aa986420d",
                 shortSha: "dfcc4923be",
-                date: "2026-08-08T01:27:34+00:00",
+                date: "2026-08-08T01:27:34Z",
                 subject: "feat(ui): complete the Material Design 3 colour system across all three themes",
                 details: "Each theme named five colours and let Vuetify's grey reference palette answer\nfor every other role, so outline, surface-variant and the whole container\nladder were nobody's palette, and the marker layer approximated its own M3\nroles from surface/on-surface with color-mix arithmetic.\n\nThe three themes now carry the full M3 role set - primary/secondary/tertiary\nwith their containers, the five-step surface container ladder, dim/bright,\nvariant, outlines, the inverse roles, tint, scrim and shadow - generated from\nthe tonal palettes of the blue seed the app has always used: #00639B is that\nfamily's tone 40 and #8FCDFF its tone 80, the two values that were already\nshipping, and both are pinned by test so the scheme cannot be quietly\nregenerated from a different seed. The contrast theme answers the same role\nnames with deliberate maximal-contrast values (black surfaces at every tier,\nwhite text and outlines, yellow secondary) rather than a tonal derivation,\nbecause deriving it from a seed would defeat the one thing it exists for.\n\nmarkers.scss now reads each role straight off the theme instead of deriving\napproximations - a derived token that shadows a real one is a second answer\nthat drifts. vuetify.test.ts holds all of it: every role present as a real hex\ncolour in all three themes, every on-X/X reading pair at WCAG AA 4.5:1 or\nbetter by real contrast arithmetic, and the contrast theme black-on-white at\n21:1.\n\n三個主題以前得五隻色，其他 role 全部由 Vuetify 嘅灰色預設頂上，即係 outline、\nsurface-variant 同成條 container 梯級都唔係呢個 app 自己嘅色板。而家用返一直\n沿用嗰粒藍色種子嘅 tonal palette 補齊全套 M3 role（#00639B 係 tone 40、\n#8FCDFF 係 tone 80，本身已經喺度），高對比主題就刻意用最高對比嘅黑白黃，唔係\n由種子推導。markers.scss 唔再用 color-mix 估色，直接讀主題嘅真 token。新增\nvuetify.test.ts 睇實：三個主題每個 role 齊晒、每對 on-X/X 用真 WCAG 算式計到\n4.5:1 以上、高對比主題保持 21:1。",
                 category: "interface",
@@ -2532,7 +2542,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "98269161ff2e871d707a21547db98fd1021d5779",
                 shortSha: "98269161ff",
-                date: "2026-08-08T01:12:24+00:00",
+                date: "2026-08-08T01:12:24Z",
                 subject: "feat(ui): Display and ease of use - interface-size dial and a theme reachable without a map",
                 details: "The two choices a person makes with their eyes rather than their workflow now\nhave a settings tab of their own, one tab into Settings and a card on Home:\n\n- An interface-size dial with five labelled stops - 100/125/150/175/200%, the\n  same scale points every layout is already required to hold at. Applied in the\n  desktop shell through the preload's new setUiZoom (Chromium's own\n  webFrame.setZoomFactor, the mechanism behind Ctrl+plus, so the map canvas\n  re-renders crisp), and through standard CSS zoom on the document root in a\n  browser tab. Applied live, applied again before the first frame of every\n  launch (installUiSize in main.ts), persisted under worldlens.display.uiSize\n  and mirrored into the settings history as uiSize. Nothing below 100%: a dial\n  that can shrink the interface can only be escaped through the now-tiny\n  control that changes it back.\n\n- The theme - follow the system, dark, light, contrast - reachable without a\n  map. The in-map settings menu was the only control, and it exists only while\n  a map is open, so the person setting the app up to their eyes had none. The\n  new row is the same choice against the viewer's own stored bluemap-theme\n  record, byte-compatible with saveUserSetting's encoding. themeSetting.ts\n  keeps the two writers convergent in both directions: a new viewer app gets\n  the stored choice pushed in (a map whose settings.json never opts into\n  useCookies loads no stored settings of its own, and would otherwise snap the\n  window back to the system scheme), and an in-map change is mirrored out so it\n  survives the viewer being torn down. useBlueMapTheme reads the live app\n  first and the stored choice when there is no app.\n\nThe section is declared in SETTINGS_SECTIONS, so the settings search (stop\nlabels, theme names and live values included), the command palette and the\nsettings tab strip all pick it up with no further wiring. Home carries the\ncard directly after Settings itself, because it is the tile for the person\nleast equipped to go looking. Copy is voiced at all five funny levels in both\nlanguages, with the ceiling (\"double\"), the persistence promise and \"low\nvision\" pinned as facts at every level. Both rows let their button groups wrap\nand grow rather than clipping five translated labels into v-btn-toggle's fixed\nsingle row - the control built to fix sizing failures must not ship one, and a\nregression test reads that rule back out of the source.\n\nDocs: docs/display-and-ease-of-use.md, indexed in docs/README.md and\nAPPLICATION_ORDER. Verified: ui and app typechecks, eslint, and the focused\nsettings/copy/home/palette/menu/docs suites - 373 tests across the touched\nareas, all green.\n\n介面大細五級掣（100/125/150/175/200%），桌面版行 webFrame.setZoomFactor（即係\n瀏覽器 Ctrl+加號嗰套，地圖 canvas 會重新算圖，唔會拉到矇），瀏覽器版就用標準\nCSS zoom 兜底；即時生效，開 app 第一幀之前已經套返，仲會記住。主題（跟系統、\n暗色、淺色、高對比）而家唔使開地圖都揀到：同地圖選單入面嗰個掣讀寫同一份\nbluemap-theme 記錄，兩邊有 watcher 睇實，邊個寫完另一邊都會跟上，拆咗個\nviewer 都唔會走樣。新分區入咗 SETTINGS_SECTIONS，搜尋、command palette、分頁\n一條龍自動有齊；Home 喺「設定同工具」加咗張卡，擺喺 Settings 隔籬，留返俾最\n唔識搵嘅嗰位。文案兩種語言五級搞笑度寫齊，「兩倍」「記住」「低視力」呢啲事實\n逐級釘死。兩個掣組會自己換行，唔會俾 v-btn-toggle 個固定單行鋤斷五個翻譯label\n——專門醫大細問題嘅控制項自己唔可以有大細問題，有測試睇住。",
                 category: "interface",
@@ -2561,7 +2571,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "eb5b25a3299dbbbaf6594142a4eb72b87f090e1f",
                 shortSha: "eb5b25a329",
-                date: "2026-08-07T19:46:01+00:00",
+                date: "2026-08-07T19:46:01Z",
                 subject: "fix(ui): finish the flexed v-card-title sweep, six titles it missed",
                 details: "The previous pass fixed nine `<v-card-title>` rows that had been turned into\nflex containers and left the clipping behind. It found those nine by hand, and\nby hand it stopped there: six more rules in this workspace do exactly the same\nthing and were never touched.\n\nThe bug is the one already described: `<v-card-title>` is built for a\nsingle-line block title and ships `overflow: hidden; text-overflow: ellipsis;\nwhite-space: nowrap`. Adding `display: flex` so a chip or a button can sit\nbeside the heading clears none of the three - it only stops `text-overflow`\nfrom doing anything, because ellipsis applies to block containers and not to\nflex ones. What is left is a box that still clips at its edge and still refuses\nto wrap, so an overrunning heading is cut off mid-character with no \"...\" and\nnothing to say that anything is missing. Four of the six already carried\n`flex-wrap: wrap`, which is why they looked fine: wrapping moves whole items\nonto a second row and can never make one item shorter, and in every one of\nthese six the item that overruns is a single one.\n\nEvery heading involved is a translated string, so its length is a property of\nthe locale rather than of the English in the source, and none of the six is a\nfixed-width surface: `RunLocationCard` and `WizardReviewStep` are rendered in\nthe wizard's narrow column, and `ProjectList`'s head carries two buttons whose\nlabels inherit the title's `nowrap` because `v-btn` declares no `white-space`\nof its own.\n\nSame three-line fix as the nine before them - `overflow: visible; text-overflow:\nclip; white-space: normal` - plus `row-gap: 4px` where a second row is now\nreachable, and `flex-wrap: wrap` on `RunScreen`'s heads, which carry an\nargument-count chip and had no wrap at all.\n\nFixed: config/RunScreen (both summary cards), preview/PreviewScreen,\nproject/ProjectList, remote/RunLocationCard, world/RenderRunPanel,\nworld/WizardReviewStep.\n\nChecked rather than assumed: the built stylesheet puts Vuetify's `.v-card-title`\nat byte 129515 and every one of these six rules well past byte 354000, so the\nequal-specificity ones win on source order and the scoped one wins outright.\nA regression test per component reads the shipped rule back out of the source\nwith a `?raw` import, the way `PagesScreen.test.ts` does - `test.css` is off in\nthis workspace's `vitest.config.ts`, so no cascade is observable from a mounted\ncomponent. `RunScreen` and `PreviewScreen` had no test file at all; they have\none now.\n\n上一轉執咗九個扮 flex row 嘅 `<v-card-title>`，係一個一個捉出嚟嘅，所以\n亦都一個一個咁漏低咗六個。同一單嘢：`<v-card-title>` 原裝已經上咗\n`overflow: hidden`、`text-overflow: ellipsis`、`white-space: nowrap` 三味\n藥，加句 `display: flex` 一味都解唔到，只係令 `text-overflow` 白做（佢\n唔管 flex container），個盒照鋤照唔肯換行，個標題長少少就靜雞雞畀人斬\n一截，連粒「...」都欠奉。\n\n六個之中四個本身有 `flex-wrap: wrap`，所以睇落冇事：換行淨係搬得成件\nitem 落第二行，搬極都唔會令一件 item 縮短，而呢六個爆界嘅偏偏都係得一\n件。標題全部係翻譯字串，長短睇 locale 唔係睇源碼嗰句英文；`RunLocationCard`\n同 `WizardReviewStep` 仲要係精靈嗰條窄柱裏面畫，`ProjectList` 個頭嗰兩粒\n掣連 `white-space` 都冇自己嘅，硬食阿爺個 `nowrap`。\n\n照舊三行走天下：`overflow: visible; text-overflow: clip; white-space: normal`，\n有需要開多行嘅補返 `row-gap: 4px`，`RunScreen` 嗰兩個頭本身冇 wrap，順手\n補埋。冇靠估：睇實 build 出嚟嗰份 CSS，Vuetify 嘅 `.v-card-title` 喺 129515\n位，呢六條全部三十五萬幾之後，同分嘅贏排位，scoped 嗰條直情贏硬。每個\ncomponent 補返一個 `?raw` 讀源碼嘅回歸測試，`RunScreen` 同 `PreviewScreen`\n本身連測試檔都冇，今次開返。",
                 category: "interface",
@@ -10144,7 +10154,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "ee9a7ab80f13b8e78e8bfc9bd6ca3833e83f3ae6",
                 shortSha: "ee9a7ab80f",
-                date: "2026-08-03T01:23:48+00:00",
+                date: "2026-08-03T01:23:48Z",
                 subject: "WIP: Wave C1 ZipFileSystem (workflow still writing)",
                 details: "",
                 category: "engine",
@@ -10154,7 +10164,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "b293d4825dba2233ff467f416b28733977fdf767",
                 shortSha: "b293d4825d",
-                date: "2026-08-03T01:23:12+00:00",
+                date: "2026-08-03T01:23:12Z",
                 subject: "Handoff: Phase C Wave 1 WIP salvage + full handoff doc",
                 details: "Phases 0/A/B complete and verified on this branch (501 tests at Phase B\nexit). Commits here include in-progress Wave C1 files (resources root,\nadapters, shared vectors, util) — engine build may be red on these WIP\nfiles by design. HANDOFF.md carries the full continuation guide: wave\nstructure, contracts, process learnings (small waves + commit per wave),\nremaining phases, and the verify-from-clean checklist.",
                 category: "engine",
@@ -10164,7 +10174,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "a66d879960db51ffb691c5daa1339270f6c10b67",
                 shortSha: "a66d879960",
-                date: "2026-08-03T01:06:51+00:00",
+                date: "2026-08-03T01:06:51Z",
                 subject: "Prep Phase C: pngjs + yauzl-promise deps, bundle resourceExtensions assets",
                 details: "363 MIT resource-extension JSONs copied verbatim from vendor/BlueMap;\nroadmap updated (Phase B done).",
                 category: "engine",
@@ -10174,7 +10184,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "5704048830d495f43e145660dd7cf63f720f6739",
                 shortSha: "5704048830",
-                date: "2026-08-03T01:06:15+00:00",
+                date: "2026-08-03T01:06:15Z",
                 subject: "Complete Phase B: engine world layer green with 1.18 + 1.12.2 e2e proofs",
                 details: "Tristate ported; typed Phase C/D placeholder contracts (DataPack,\nResourcePack, RenderSettings, Mask); anvil WorldLoaderType wiring\nverified; world-e2e test builds synthetic 1.18 (padded paletted block\nstates) and 1.12.2 (nibble arrays) worlds byte-by-byte and asserts exact\nBlockState/biome/light decoding through MCAWorld, including legacy\nextension reconstruction (fence connections, snowy grass). Monorepo:\n501 tests across 50 files, build+lint clean.",
                 category: "engine",
@@ -10184,7 +10194,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "8b652f4538fcb98c5a4456b15d068635169fa235",
                 shortSha: "8b652f4538",
-                date: "2026-08-03T00:48:03+00:00",
+                date: "2026-08-03T00:48:03Z",
                 subject: "Phase B Wave 2: world model + MCA decoders 1.12.2-26.x (WIP: integration pending)",
                 details: "world/: BlockState (exact Java parse/hash semantics), Chunk/Region/World/\nDimensionType/LightData/BlockEntity/Entity, block cursors + neighborhood,\nbiomes with grass color modifiers. world/mca/: region reader (.mca +\nlinear, .mcc oversized, lz4 chunks), PackedIntArrayAccess (both packed\nlayouts via 32-bit halves), chunk decoders Chunk_1_13/1_15/1_16/1_18 +\nlegacy Chunk_1_12 with BlockIdMapper + 15 neighbor extensions, data\nschemas, MCAWorld/ChunkGrid/watch. Engine build pending Wave 3 stubs for\nPhase C/D contracts (Tristate/WatchService/DataPack/ResourcePack/\nRenderSettings/Mask).",
                 category: "engine",
@@ -10194,7 +10204,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "c8d4f0bf5947d5405bcd9509e9466093e262916d",
                 shortSha: "c8d4f0bf59",
-                date: "2026-08-02T23:27:25+00:00",
+                date: "2026-08-02T23:27:25Z",
                 subject: "Phase B Wave 1: complete shared foundations, NBT package, compression layer",
                 details: "shared: mutable vector math, tile path codec (both directions, upstream\nbug-for-bug), full barrel, 99 tests. nbt: BlueNBT-subset port — streaming\nbig-endian reader/writer (all 12 tag types, modified-UTF-8, zero-copy long\narrays), schema-mapped decode with adapters (paletted arrays, lenient\nlists, registry), gzip/zlib autodetect, 56 tests incl. real level.dat\nfixtures. engine: compression registry (none/gzip/deflate/zstd/lz4) with\nlz4-java block framing port. Monorepo: 299 tests green.",
                 category: "engine",
@@ -10204,7 +10214,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "8ae9eee5cda0392cdf297e20eaa7f006b2e82b1a",
                 shortSha: "8ae9eee5cd",
-                date: "2026-08-02T22:52:37+00:00",
+                date: "2026-08-02T22:52:37Z",
                 subject: "Fix unused-param lint in salvaged Grid.ts",
                 details: "",
                 category: "services",
@@ -10214,7 +10224,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "a9e93964760f6d5ff432363d9ce09f3cab15e285",
                 shortSha: "a9e9396476",
-                date: "2026-08-02T22:51:44+00:00",
+                date: "2026-08-02T22:51:44Z",
                 subject: "Salvage partial Phase B foundations (shared Key/Registry/Grid/math, nbt TagType)",
                 details: "Recovered from the interrupted engine-foundations run; builds and lints\nclean. Barrels and remaining foundation files land with Wave 1.",
                 category: "services",
@@ -10224,7 +10234,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "100b008e9ae84187106e5feaa231702a393ee4d0",
                 shortSha: "100b008e9a",
-                date: "2026-08-02T21:23:32+00:00",
+                date: "2026-08-02T21:23:32Z",
                 subject: "Add engine package dependencies for Phase B",
                 details: "lru-cache, chokidar, zstd-wasm, lz4js, xxhash-wasm, and the workspace\nlinks to shared and nbt.",
                 category: "build",
@@ -10234,7 +10244,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "b7680d01e36bdadd22267ff2db011ccd5eba9dae",
                 shortSha: "b7680d01e3",
-                date: "2026-08-02T21:23:02+00:00",
+                date: "2026-08-02T21:23:02Z",
                 subject: "Add ROADMAP/HANDOFF docs and legacy 1.12 mapping data",
                 details: "blockIds/biomes/blockProperties JSON extracted verbatim from upstream tag\nv0.10.3-mc1.12 into engine assets for the Chunk_1_12 decoder; roadmap and\nhandoff docs record phase status and verification evidence.",
                 category: "engine",
@@ -10244,7 +10254,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "c4832c84dda428d8c8cdb496e579db49e897e9df",
                 shortSha: "c4832c84dd",
-                date: "2026-08-02T21:16:29+00:00",
+                date: "2026-08-02T21:16:29Z",
                 subject: "Complete Phase A: full viewer port integrated, remote mode end-to-end",
                 details: "All 65 BlueMap viewer files ported to strict TypeScript (52 viewer tests,\nmakeReactive at all 9 upstream reactive() sites, DOMPurify'd marker HTML,\nCSP-safe popups, gated remote script/style injection); BlueMapApp gains\ndataRoot resolution and dispose() for profile switching; barrel exports\ni18n/sanitize seams; proxy no longer forwards encoding headers undici\nalready consumed; StaticHandler root resolved absolutely. Monorepo\nbuild+lint+57 tests green; UI + live-demo proxy smoke-tested end to end.",
                 category: "engine",
@@ -10254,7 +10264,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "0933934d543ed2b99baa4e853400daa8bc60a10e",
                 shortSha: "0933934d54",
-                date: "2026-08-02T20:31:25+00:00",
+                date: "2026-08-02T20:31:25Z",
                 subject: "WIP: viewer port in progress (util, map loaders, PRBM parser)",
                 details: "Snapshot of the in-flight TypeScript port of the BlueMap viewer library;\nthe port workflow is still running and the completed, integrated viewer\npackage lands in a follow-up commit.",
                 category: "engine",
@@ -10264,7 +10274,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "71fd14e788a38ac167cc96fb1dc2b8c976c2353c",
                 shortSha: "71fd14e788",
-                date: "2026-08-02T20:30:36+00:00",
+                date: "2026-08-02T20:30:36Z",
                 subject: "Adopt global product contracts: regex builder, tabs, appearance, i18n, super-confirm",
                 details: "Vendors the user's product contract docs into design/docs/contracts and the\nworker-isolated reference regex builder into design/tools; plan.md maps the\nfive contracts (every-search-bar regex builder, full browser-style tab\ncontract, per-element appearance editors with infinite color translation,\nEN/HK-Cantonese/bilingual modes with funny-level, super confirmation for\ndestructive actions) into the build phases.",
                 category: "docs",
@@ -10274,7 +10284,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "47e37d90f4ebb93df09a24d024fcc00fa4c5b443",
                 shortSha: "47e37d90f4",
-                date: "2026-08-02T20:24:33+00:00",
+                date: "2026-08-02T20:24:33Z",
                 subject: "Add MD3 UI shell and hardened Electron app shell (Phase A)",
                 details: "ui: Vue 3 + Vuetify (md3 blueprint) app bar/nav drawer, server profile\nmanager, MapView wiring, vue-i18n with the 30 upstream HOCON locales,\nMD3 theme bridge for the viewer's raw-DOM marker styles.\napp: Electron main with embedded token-gated localhost server (static UI\n+ remote proxy), strict CSP, sandboxed renderer, typed preload bridge\n(profile sync, clipboard), esbuild build for ESM main + CJS preload.",
                 category: "interface",
@@ -10284,7 +10294,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "095bd69adb5d59c9c08209efc2aff6a926375ecc",
                 shortSha: "095bd69adb",
-                date: "2026-08-02T20:19:29+00:00",
+                date: "2026-08-02T20:19:29Z",
                 subject: "Add Phase A embedded server: localhost HTTP server + remote reverse proxy",
                 details: "HttpServer (token-gated 127.0.0.1 binding), StaticHandler for the UI\nbundle, and RemoteProxyHandler mounting remote BlueMap instances at\n/remote/{profile} with conditional-header forwarding, 204 passthrough,\nand SSE streaming. Verified against the public BlueMap demo server.",
                 category: "services",
@@ -10294,7 +10304,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "70f58523b9243623d3991ef6fc1224cf09e0eed2",
                 shortSha: "70f58523b9",
-                date: "2026-08-02T20:14:57+00:00",
+                date: "2026-08-02T20:14:57Z",
                 subject: "Scaffold design/ TypeScript monorepo (Phase 0)",
                 details: "pnpm workspace with eight packages (shared, nbt, engine, server, cli,\nviewer, ui, app), strict TS base config, eslint/prettier/vitest, CI\nworkflow, MIT license and BlueMap attribution NOTICE.",
                 category: "build",
@@ -10304,7 +10314,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "307d798460f986336b51e59b15285df56b082e14",
                 shortSha: "307d798460",
-                date: "2026-08-02T20:11:48+00:00",
+                date: "2026-08-02T20:11:48Z",
                 subject: "Add plan.md: full BlueMap port plan (design/ monorepo, Electron + server, MD3)",
                 details: "Plan for porting all of BlueMap (engine, server, webapp) to TypeScript under\ndesign/, shipped as a hardened Electron app and a standalone server, with\nMaterial Design 3 UI, Minecraft 1.12.2-26.x world support (legacy decoder\ncombined back from upstream tag v0.10.3-mc1.12), a full options GUI, and a\nDocker hosting GUI.",
                 category: "docs",
