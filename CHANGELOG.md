@@ -28,6 +28,10 @@ full message for the in-app changelog viewer.
 
 - fix(viewer): a malformed size header no longer claims computable progress - [`91bf9898e8`](https://github.com/Ding-Ding-Projects/worldlens/commit/91bf9898e8074c5564ec7e16f65ca6e68275973a)
 
+### Desktop shell
+
+- fix(cirender): subscribe to the child's close before awaiting the pipeline - [`4d511d6c90`](https://github.com/Ding-Ding-Projects/worldlens/commit/4d511d6c9024db215b6de4db7c027332ffca3509)
+
 ### Landing page and documentation site
 
 - fix(site): the landing page no longer contradicts what shipped - [`8c9a69fbfb`](https://github.com/Ding-Ding-Projects/worldlens/commit/8c9a69fbfb87a266a4edb4c223ace90f0456ca9d)

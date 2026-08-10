@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "4d511d6c9024db215b6de4db7c027332ffca3509",
+        shortSha: "4d511d6c90",
+        date: "2026-08-10T17:44:07Z",
+        subject: "fix(cirender): subscribe to the child's close before awaiting the pipeline",
+        details: "runToFile attached its close listener only after `await pipeline(...)`, which\nsubscribes to an event that may already have been emitted - the child's stdio\ncan close before the destination stream finishes flushing. When that ordering\nwins, the promise never settles: the download hangs, and because the credential\nbroker serializes its work, every later gh operation queues behind it until the\napplication restarts. Subscribing first removes the race by construction.\n\nStated plainly: this ordering did not reproduce on this machine, and the new\ntests pass with and without the fix, so they do not prove the race. What they\ndo add is the first real coverage runToFile has ever had - gh.test.ts fakes it\nwholesale - over a small payload, a 5 MB payload, a failing exit code and a\nmissing executable, each with its own timeout so a future regression fails as a\nfailure instead of as a suite that never finishes.\n\nAlso dates the screenshot gallery: the harness now stamps capturedAt on each\ncapture, scripts/screenshot-dates.mjs records a date for every committed image\n(from the harness where it exists, from git where it does not, labelled so the\ntwo are never confused), and the site computes 'how long ago' when the page is\nread rather than storing an age that is wrong the day after it is written.",
+        category: "shell",
+        areas: ["shell", "site", "build", "docs"],
+        files: 7,
+    },
+    {
         sha: "8c9a69fbfb87a266a4edb4c223ace90f0456ca9d",
         shortSha: "8c9a69fbfb",
         date: "2026-08-10T17:39:02Z",
