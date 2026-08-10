@@ -1520,7 +1520,7 @@ async function createWindow(): Promise<void> {
     );
     const github = await attempt(
         "network",
-        "github-cli",
+        "gh-cli",
         "GitHub features are unavailable in this launch",
         startGhCliAccounts,
     );

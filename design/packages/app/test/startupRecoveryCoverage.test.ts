@@ -17,7 +17,9 @@ describe("startup recovery completeness guard", () => {
         "session-security",
         "core-ipc",
         "rendering",
-        "github-sign-in",
+        // "github-sign-in" is gone on purpose: the in-app GitHub sign-in was retired by the
+        // gh-only credential boundary (see main/ghcli/credentialBoundary.test.ts), and the
+        // gh-cli phase below is what now stands where it stood.
         "downloads",
         "backups",
         "ci-render",

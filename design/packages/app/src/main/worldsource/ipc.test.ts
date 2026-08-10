@@ -112,10 +112,11 @@ describe("the world-source channels", () => {
         const ipcMain = register(stubFetcher());
         const discovered = (await ipcMain.handlers.get("worldsource:discover")?.(noEvent, null)) as {
             ok: boolean;
-            message: string;
+            failure: { code: string; message: string };
         };
         expect(discovered.ok).toBe(false);
-        expect(discovered.message).toContain("owner and name");
+        expect(discovered.failure.code).toBe("invalid-request");
+        expect(discovered.failure.message).toContain("owner and name");
 
         const fetched = (await ipcMain.handlers.get("worldsource:fetch")?.(noEvent, {
             owner: 7,
@@ -151,9 +152,10 @@ describe("the world-source channels", () => {
         const discovered = (await ipcMain.handlers.get("worldsource:discover")?.(noEvent, {
             owner: "o",
             repo: "r",
-        })) as { ok: boolean; message: string };
+        })) as { ok: boolean; failure: { code: string; detail: string | null } };
         expect(discovered.ok).toBe(false);
-        expect(discovered.message).toContain("the release reader fell over");
+        expect(discovered.failure.code).toBe("network-failed");
+        expect(discovered.failure.detail).toContain("the release reader fell over");
 
         const fetched = (await ipcMain.handlers.get("worldsource:fetch")?.(noEvent, {
             owner: "o",

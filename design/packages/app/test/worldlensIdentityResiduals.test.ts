@@ -49,6 +49,15 @@ interface LegacyAllowance {
 }
 
 const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
+    "docs/eula-and-consent.md": [
+        {
+            pattern: /Material BlueMap/g,
+            expectedMatches: 2,
+            reason:
+                "historical description of a pre-rewrite screenshot whose window title really " +
+                "was the old name; the prose says so explicitly rather than passing it off as current",
+        },
+    ],
     "scripts/build-changelog.mjs": [
         {
             pattern: /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap/g,
