@@ -1,213 +1,366 @@
 @echo off
-setlocal EnableDelayedExpansion
+setlocal DisableDelayedExpansion
 rem ===========================================================================
-rem  Worldlens - build the installer
-rem
-rem  build.bat gets you a program you can run out of the checkout. This produces
-rem  the artifact a person downloads and installs, through the same supported
-rem  packaging path CI uses, so a locally built installer and a released one are
-rem  the same thing rather than two things that resemble each other.
+rem  Worldlens - release-equivalent local installer build
 rem
 rem  Usage:
-rem    build-installer.bat        build the installer, then report it
-rem    build-installer.bat /s     silent: no prompt, no pause
+rem    build-installer.bat --candidate 912
+rem    build-installer.bat --candidate 912 /s
+rem    set WORLDLENS_RELEASE_CANDIDATE=912 && build-installer.bat --silent
 rem
-rem  Agents ship every manual release through this script rather than around it.
-rem  That is not tidiness: a script only ever run on a warm developer machine is
-rem  a script nobody has proven works, and the first time it is genuinely needed
-rem  is the worst possible moment to discover that. Using it as the only path
-rem  makes every hand-cut release an end-to-end test of what a new machine does.
-rem  If it fails during a release, fix the script in a commit - do not work
-rem  around it once and leave it broken for whoever comes next.
+rem  The candidate is the positive monotonic release ordinal used by
+rem  scripts/release-version.mjs. It is mandatory: guessing from one machine's
+rem  installed folders produced older Squirrel packages that could not update.
 rem
-rem  It does not publish, tag, push or create a release. Building an installer
-rem  and shipping it are different actions with different authority.
-rem
-rem  The installer is permanently unsigned, by policy, and this says so rather
-rem  than letting you find out from a SmartScreen warning.
+rem  This script builds but never publishes, tags, pushes or signs. Every emitted
+rem  executable must have Authenticode status NotSigned.
 rem ===========================================================================
 
 set "SILENT_MODE=0"
-if /i "%~1"=="/s" set "SILENT_MODE=1"
-if /i "%~1"=="-s" set "SILENT_MODE=1"
-if /i "%~1"=="--silent" set "SILENT_MODE=1"
-if /i "%~1"=="/silent" set "SILENT_MODE=1"
+set "RELEASE_CANDIDATE=%WORLDLENS_RELEASE_CANDIDATE%"
+
+:parse_arguments
+if "%~1"=="" goto :arguments_ready
+if /i "%~1"=="/s" goto :silent_argument
+if /i "%~1"=="-s" goto :silent_argument
+if /i "%~1"=="--silent" goto :silent_argument
+if /i "%~1"=="/silent" goto :silent_argument
+if /i "%~1"=="--help" goto :usage_success
+if /i "%~1"=="-h" goto :usage_success
+if "%~1"=="/?" goto :usage_success
+if /i "%~1"=="--candidate" goto :candidate_argument
+if not defined RELEASE_CANDIDATE goto :positional_candidate
+goto :unknown_argument
+
+:silent_argument
+set "SILENT_MODE=1"
+shift
+goto :parse_arguments
+
+:candidate_argument
+if "%~2"=="" goto :candidate_missing
+set "RELEASE_CANDIDATE=%~2"
+shift
+shift
+goto :parse_arguments
+
+:positional_candidate
+set "RELEASE_CANDIDATE=%~1"
+shift
+goto :parse_arguments
+
+:arguments_ready
 if defined SILENT if not "%SILENT%"=="0" set "SILENT_MODE=1"
+if not defined RELEASE_CANDIDATE goto :candidate_missing
+set "WORLDLENS_RELEASE_CANDIDATE=%RELEASE_CANDIDATE%"
+powershell -NoProfile -Command "if($env:WORLDLENS_RELEASE_CANDIDATE -notmatch '^[1-9][0-9]*$'){exit 1}"
+if errorlevel 1 goto :candidate_invalid
 
 set "ROOT=%~dp0"
 set "DESIGN=%ROOT%design"
 set "APPDIR=%DESIGN%\packages\app"
+set "PACKAGE_MANIFEST=%APPDIR%\package.json"
+set "VERSION_BACKUP=%APPDIR%\.version-backup"
+set "OUTPUT=%ROOT%installer"
+set "PNPM_VERSION=10.33.0"
 set "STARTED=%TIME%"
+set "RUN_KEY=%RANDOM%-%RANDOM%"
+set "STATE_FILE=%TEMP%\worldlens-squirrel-%RUN_KEY%.json"
+set "IDENTITY_FILE=%TEMP%\worldlens-identity-%RUN_KEY%.txt"
+set "VERIFY_REPORT=%TEMP%\worldlens-installer-%RUN_KEY%.txt"
+set "VERSION_STAMPED=0"
+
+if exist "%STATE_FILE%" goto :temporary_collision
+if exist "%IDENTITY_FILE%" goto :temporary_collision
+if exist "%VERIFY_REPORT%" goto :temporary_collision
 
 echo == Worldlens installer build ==
 echo    repository: %ROOT%
+echo    release candidate: %RELEASE_CANDIDATE%
 if "%SILENT_MODE%"=="1" echo    mode: silent
-
-rem --- Everything build.bat does ---------------------------------------------
-rem Delegated rather than duplicated. Two copies of the dependency logic is two
-rem places for it to drift, and the installer path must not be the one that
-rem quietly stops matching.
 echo.
-echo [1/4] Dependencies and workspace build
+
+rem --- Fresh-checkout bootstrap and workspace build --------------------------
+echo [1/8] Bootstrap dependencies and build the workspace
 call "%ROOT%build.bat" /s
-if errorlevel 1 (
-    echo.
-    echo ERROR: build.bat failed. The installer needs a built workspace. 1>&2
-    exit /b 1
-)
+if errorlevel 1 goto :workspace_failed
 
-rem --- The commit this is built from ------------------------------------------
-rem Recorded before packaging, so the report names the commit the artifact
-rem actually came from rather than whatever HEAD is by the time it finishes.
+rem build.bat keeps its toolchain changes local. Rediscover the two user-scoped
+rem Node locations it may have populated so this parent wrapper can run the same
+rem committed release helpers after a genuinely cold start.
+if exist "%LOCALAPPDATA%\worldlens-toolchain\node\node.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\node;%PATH%"
+if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" set "PATH=%LOCALAPPDATA%\Programs\nodejs;%PATH%"
+if exist "%ProgramFiles%\nodejs\node.exe" set "PATH=%ProgramFiles%\nodejs;%PATH%"
+where node >nul 2>&1
+if errorlevel 1 goto :runtime_handoff_failed
+
+set "NPM_CLI="
+for /f "tokens=* usebackq" %%p in (`node -e "const fs=require('node:fs'),path=require('node:path'),d=path.dirname(process.execPath);const p=[path.join(d,'node_modules','npm','bin','npm-cli.js'),path.join(d,'..','lib','node_modules','npm','bin','npm-cli.js'),path.join(d,'..','share','node_modules','npm','bin','npm-cli.js')].find(fs.existsSync);if(p)process.stdout.write(p)" 2^>nul`) do set "NPM_CLI=%%p"
+if not defined NPM_CLI goto :runtime_handoff_failed
+
+rem --- Exact source identity -------------------------------------------------
+echo.
+echo [2/8] Verify source identity
 for /f "tokens=* usebackq" %%s in (`git -C "%ROOT%." rev-parse HEAD 2^>nul`) do set "COMMIT=%%s"
-if not defined COMMIT set "COMMIT=(not a git checkout)"
-for /f "tokens=* usebackq" %%s in (`git -C "%ROOT%." status --porcelain 2^>nul`) do set "DIRTY=1"
-
-echo.
-echo [2/4] Source state
+if not defined COMMIT goto :not_a_checkout
+set "DIRTY="
+for /f "tokens=* usebackq" %%s in (`git -C "%ROOT%." status --porcelain --untracked-files^=all 2^>nul`) do set "DIRTY=1"
+if defined DIRTY goto :dirty_source
 echo       commit %COMMIT%
-if defined DIRTY (
-    echo       working tree has uncommitted changes - this installer will not
-    echo       match a release built from %COMMIT% alone
-) else (
-    echo       working tree clean
-)
+echo       working tree is clean
 
-rem --- Version ----------------------------------------------------------------
-rem A hand-built installer has to be *newer* than whatever is already installed, or it cannot
-rem replace it.
-rem
-rem This is not hypothetical. CI stamps `0.1.<run number>` into package.json before packaging, so a
-rem machine that installed a CI build is sitting on something like 0.1.855. This script used the raw
-rem `0.1.0` the repository carries, Squirrel compared 0.1.0 against 0.1.855, concluded the installer
-rem was older, and every hand-built installer silently failed to take - the application kept
-rem launching the old build while its author kept wondering why the interface had not changed.
-rem
-rem So the patch number is one past the highest version this machine can see: the installed app
-rem folders, and whatever the repository manifest says. Restored immediately after packaging, on
-rem both the success and the failure path, so the checkout is never left carrying a version nobody
-rem chose. That restore is a real step below; this comment previously claimed it while nothing
-rem performed it.
+rem --- Stage the actual renderer jar -----------------------------------------
+rem bootstrap.mjs builds the CLI shadow jar; this committed helper validates and
+rem copies exactly that jar into the directory electron-builder bundles.
 echo.
-echo [2b/4] Version
-pushd "%APPDIR%"
-call node -e "const fs=require('fs'),path=require('path'),os=require('os');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));fs.writeFileSync('.version-backup',j.version);const base=j.version.split('.').slice(0,2).join('.');let hi=Number(j.version.split('.')[2]||0);for(const dir of [path.join(process.env.LOCALAPPDATA||'','Worldlens')]){try{for(const n of fs.readdirSync(dir)){const m=/^app-\d+\.\d+\.(\d+)$/.exec(n);if(m)hi=Math.max(hi,Number(m[1]));}}catch{}}j.version=base+'.'+(hi+1);fs.writeFileSync(p,JSON.stringify(j,null,4)+'\n');console.log('      packaging as '+j.version+' (highest seen was '+hi+')');"
-if errorlevel 1 (
-    popd
-    echo ERROR: could not stamp a version. 1>&2
-    exit /b 1
-)
-popd
+echo [3/8] Stage the BlueMap CLI jar
+pushd "%ROOT%." >nul || goto :no_root
+node tools\build-jars.mjs --only cli --no-build --clean
+set "JAR_RESULT=%ERRORLEVEL%"
+popd >nul
+if not "%JAR_RESULT%"=="0" goto :jar_failed
 
-rem --- Package ---------------------------------------------------------------
-rem `make`, which is the app package's own Squirrel.Windows path, with
-rem `--publish never` already inside it. Signing is not requested and not
-rem configured: Worldlens installers are permanently unsigned by policy.
+rem --- Resolve and prove the monotonic version -------------------------------
 echo.
-echo [3/4] Packaging the Windows installer
-pushd "%APPDIR%" || (echo ERROR: no app package at %APPDIR% 1>&2 & exit /b 1)
-call pnpm run make
+echo [4/8] Resolve monotonic package identity
+node "%ROOT%scripts\release-version.mjs" --package "%PACKAGE_MANIFEST%" --run-number "%RELEASE_CANDIDATE%" --format lines > "%IDENTITY_FILE%"
+if errorlevel 1 goto :identity_failed
+set /p "PACKAGE_VERSION=" < "%IDENTITY_FILE%"
+set "RELEASE_TAG="
+for /f "usebackq skip=1 delims=" %%v in ("%IDENTITY_FILE%") do if not defined RELEASE_TAG set "RELEASE_TAG=%%v"
+if not defined PACKAGE_VERSION goto :identity_failed
+if not defined RELEASE_TAG goto :identity_failed
+if not "%RELEASE_TAG%"=="v%PACKAGE_VERSION%" goto :identity_mismatch
+
+set "WORLDLENS_PACKAGE_VERSION=%PACKAGE_VERSION%"
+set "WORLDLENS_REPOSITORY_ROOT=%ROOT%."
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $candidate=[version]$env:WORLDLENS_PACKAGE_VERSION; $known=@(); $tags=@(& git -C $env:WORLDLENS_REPOSITORY_ROOT tag --list 'v*'); if($LASTEXITCODE -ne 0){throw 'git tag inventory failed'}; foreach($tag in $tags){if($tag -match '^v(?<v>\d+\.\d+\.\d+)$'){$known+=([version]$Matches.v)}elseif($tag -match '^v(?<base>\d+\.\d+)\.0-build\.(?<n>\d+)$'){$known+=([version]($Matches.base+'.'+$Matches.n))}}; $localAppData=$env:LOCALAPPDATA; if($null -eq $localAppData){$localAppData=''}; $installed=Join-Path $localAppData 'Worldlens'; if(Test-Path -LiteralPath $installed){foreach($directory in Get-ChildItem -LiteralPath $installed -Directory){if($directory.Name -match '^app-(?<v>\d+\.\d+\.\d+)$'){$known+=([version]$Matches.v)}}}; $blocking=@($known | Where-Object {$_ -ge $candidate}); if($blocking.Count -gt 0){$highest=($blocking | Sort-Object -Descending | Select-Object -First 1); throw ('candidate '+$candidate+' is not newer than known '+$highest)}; Write-Host ('      '+$candidate+' is newer than '+$known.Count+' known local tag/install version(s)')"
+if errorlevel 1 goto :candidate_not_monotonic
+echo       package %PACKAGE_VERSION%
+echo       release %RELEASE_TAG%
+
+rem --- Clear only validated Squirrel candidates and record start time --------
+echo.
+echo [5/8] Prepare one fresh Squirrel release set
+node "%ROOT%scripts\collect-squirrel-release.mjs" prepare --package-dir "%APPDIR%" --output "%OUTPUT%" --state "%STATE_FILE%" --version "%PACKAGE_VERSION%"
+if errorlevel 1 goto :prepare_failed
+
+rem --- Stamp, package and restore exact manifest bytes -----------------------
+echo.
+echo [6/8] Stamp and package Squirrel.Windows
+if exist "%VERSION_BACKUP%" goto :backup_exists
+copy /b /y "%PACKAGE_MANIFEST%" "%VERSION_BACKUP%" >nul
+if errorlevel 1 goto :backup_failed
+set "VERSION_STAMPED=1"
+
+node "%ROOT%scripts\release-version.mjs" --package "%PACKAGE_MANIFEST%" --run-number "%RELEASE_CANDIDATE%" --write-package --format lines > "%IDENTITY_FILE%"
+set "STAMP_RESULT=%ERRORLEVEL%"
+if not "%STAMP_RESULT%"=="0" goto :stamp_failed_restore
+
+pushd "%APPDIR%" >nul || goto :package_directory_failed_restore
+node "%NPM_CLI%" exec --yes --package=pnpm@%PNPM_VERSION% -- pnpm run make
 set "MAKE_RESULT=%ERRORLEVEL%"
+popd >nul
 
-rem --- Put the version back ---------------------------------------------------
-rem The stamping step above said it restored this afterwards. It did not: it wrote
-rem `.version-backup` and nothing ever read it, so every run of this script left the checkout
-rem carrying a version nobody chose - one past whatever happened to be installed on that
-rem machine. A screenshot sweep found `package.json` sitting at 0.1.858 hours after the build
-rem that stamped it, which is the kind of change that gets committed by accident and then
-rem reads as a deliberate release decision to whoever finds it.
-rem
-rem Restored here rather than at the end, and before the exit code is acted on, so a failed
-rem packaging run leaves the tree exactly as clean as a successful one. A cleanup step that
-rem only runs on the happy path is a cleanup step that will not run on the day it matters.
-if exist ".version-backup" (
-    call node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=fs.readFileSync('.version-backup','utf8').trim();fs.writeFileSync(p,JSON.stringify(j,null,4)+'\n');fs.unlinkSync('.version-backup');console.log('      restored package.json to '+j.version);"
-)
+call :restore_manifest
+set "RESTORE_RESULT=%ERRORLEVEL%"
+if not "%RESTORE_RESULT%"=="0" goto :restore_failed
+if not "%MAKE_RESULT%"=="0" goto :make_failed
 
-if not "%MAKE_RESULT%"=="0" (
-    popd
-    echo.
-    echo ERROR: electron-builder failed. The output above names the step. 1>&2
-    exit /b 1
-)
-popd
-
-rem --- Verify what was actually built ----------------------------------------
-rem A green packaging step is not evidence that an installer exists: the search
-rem below is what turns "it exited 0" into "here is the file, this is its size,
-rem this is its digest". A build that produced nothing fails here rather than
-rem being reported as a success with nothing to show.
+rem --- Contract collection ---------------------------------------------------
 echo.
-echo [4/4] Verifying the artifact
-rem electron-builder writes Squirrel output to `release\squirrel-windows\`, not to
-rem `dist\`. Searching only `dist` is exactly the trap this project has hit
-rem before - a collector reports a missing setup right after packaging succeeded -
-rem so both roots are searched, `release` first because that is where this
-rem configuration actually puts it.
-set "SETUP="
-for /f "delims=" %%f in ('dir /b /s "%APPDIR%\release\*Setup*.exe" 2^>nul') do set "SETUP=%%f"
-if not defined SETUP (
-    for /f "delims=" %%f in ('dir /b /s "%APPDIR%\dist\*Setup*.exe" 2^>nul') do set "SETUP=%%f"
-)
-if not defined SETUP (
-    echo.
-    echo ERROR: packaging reported success but no installer was found under 1>&2
-    echo        %APPDIR%\release or %APPDIR%\dist 1>&2
-    echo        A green exit code is not an artifact. Nothing was produced. 1>&2
-    exit /b 1
-)
+echo [7/8] Collect exactly one fresh matching artifact set
+node "%ROOT%scripts\collect-squirrel-release.mjs" collect --package-dir "%APPDIR%" --output "%OUTPUT%" --state "%STATE_FILE%" --version "%PACKAGE_VERSION%"
+if errorlevel 1 goto :collect_failed
 
-rem The rest of the Squirrel set, named so a manual release knows what to attach.
-rem An update feed with a setup and no RELEASES is an installer that can never
-rem update itself, which is a defect nobody notices until the second release.
-if exist "%APPDIR%\release\squirrel-windows\RELEASES" (
-    echo       RELEASES present
-) else (
-    echo       WARNING: no RELEASES file beside the installer - automatic updates
-    echo       will not work for a release built from this run
-)
+rem --- Authenticode, branding and final cardinality --------------------------
+echo.
+echo [8/8] Verify unsigned executable and release contracts
+set "WORLDLENS_INSTALLER_OUTPUT=%OUTPUT%"
+set "WORLDLENS_APP_PACKAGE=%APPDIR%"
+set "WORLDLENS_VERIFY_REPORT=%VERIFY_REPORT%"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $version=$env:WORLDLENS_PACKAGE_VERSION; $output=$env:WORLDLENS_INSTALLER_OUTPUT; $app=$env:WORLDLENS_APP_PACKAGE; $setup=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -match 'Setup\.exe$'}); $full=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -match '-full\.nupkg$'}); $releases=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -ceq 'RELEASES'}); if($setup.Count -ne 1 -or $full.Count -ne 1 -or $releases.Count -ne 1){throw ('expected one Setup/full nupkg/RELEASES set, found '+$setup.Count+'/'+$full.Count+'/'+$releases.Count)}; foreach($file in @($setup[0],$full[0])){if($file.Name -notmatch [regex]::Escape($version)){throw ($file.Name+' does not match '+$version)}}; $appDirs=@(@('release/win-unpacked','dist/win-unpacked') | ForEach-Object {Join-Path $app $_} | Where-Object {Test-Path -LiteralPath $_ -PathType Container}); if($appDirs.Count -ne 1){throw ('expected one packaged application directory, found '+$appDirs.Count)}; $packaged=@(Get-ChildItem -LiteralPath $appDirs[0] -File -Filter '*.exe' -Recurse); $releaseExe=@(Get-ChildItem -LiteralPath $output -File -Filter '*.exe'); $executables=@($packaged+$releaseExe | Sort-Object FullName -Unique); if($executables.Count -lt 2){throw 'packaged application and setup executables were not both found'}; foreach($exe in $executables){$signature=Get-AuthenticodeSignature -LiteralPath $exe.FullName; if($signature.Status -ne 'NotSigned'){throw ($exe.Name+' has Authenticode status '+$signature.Status+'; signing is prohibited')}}; $worldlens=@($packaged | Where-Object {$_.Name -ceq 'Worldlens.exe'}); if($worldlens.Count -ne 1){throw ('expected one packaged Worldlens.exe, found '+$worldlens.Count)}; $info=$worldlens[0].VersionInfo; if($info.ProductName -ne 'Worldlens' -or $info.FileDescription -ne 'Worldlens' -or -not $info.ProductVersion.StartsWith($version)){throw 'packaged executable branding or version does not match the release identity'}; $digest=(Get-FileHash -LiteralPath $setup[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant(); @($setup[0].FullName,[string]$setup[0].Length,$digest) | Set-Content -LiteralPath $env:WORLDLENS_VERIFY_REPORT -Encoding ascii; Write-Host ('      verified '+$executables.Count+' executable(s): branded and NotSigned')"
+if errorlevel 1 goto :verification_failed
 
-for %%f in ("%SETUP%") do set "SETUP_SIZE=%%~zf"
+set /p "SETUP_PATH=" < "%VERIFY_REPORT%"
+set "SETUP_SIZE="
+for /f "usebackq skip=1 delims=" %%v in ("%VERIFY_REPORT%") do if not defined SETUP_SIZE set "SETUP_SIZE=%%v"
 set "SETUP_SHA="
-for /f "skip=1 tokens=* usebackq" %%h in (`certutil -hashfile "%SETUP%" SHA256 2^>nul`) do (
-    if not defined SETUP_SHA set "SETUP_SHA=%%h"
-)
-
-rem --- Collect into one predictable place ------------------------------------
-rem electron-builder writes wherever its config says, which is three directories deep and
-rem different per target. Everything shippable is copied to `installer\` at the repository root
-rem so a person, a release script and another agent all look in the same place - and it is
-rem gitignored, because a 157 MB setup in Git history is a repository nobody can clone.
-echo.
-echo Collecting into %ROOT%installer
-if not exist "%ROOT%installer" mkdir "%ROOT%installer" >nul 2>&1
-copy /y "%SETUP%" "%ROOT%installer\" >nul 2>&1
-if exist "%APPDIR%\release\squirrel-windows\RELEASES" copy /y "%APPDIR%\release\squirrel-windows\RELEASES" "%ROOT%installer\" >nul 2>&1
-for %%f in ("%APPDIR%\release\squirrel-windows\*.nupkg") do copy /y "%%f" "%ROOT%installer\" >nul 2>&1
-for %%f in ("%SETUP%") do set "SETUP_NAME=%%~nxf"
-if exist "%ROOT%installer\%SETUP_NAME%" set "SETUP=%ROOT%installer\%SETUP_NAME%"
+for /f "usebackq skip=2 delims=" %%v in ("%VERIFY_REPORT%") do if not defined SETUP_SHA set "SETUP_SHA=%%v"
+call :cleanup_temporary
 
 echo.
-echo == Installer built ==
-echo    path    %SETUP%
-echo    size    %SETUP_SIZE% bytes
-echo    sha256  %SETUP_SHA%
-echo    commit  %COMMIT%
-echo    started %STARTED%
-echo    finished %TIME%
+echo == Installer built and verified ==
+echo    path      %SETUP_PATH%
+echo    size      %SETUP_SIZE% bytes
+echo    sha256    %SETUP_SHA%
+echo    version   %PACKAGE_VERSION%
+echo    candidate %RELEASE_CANDIDATE%
+echo    commit    %COMMIT%
+echo    started   %STARTED%
+echo    finished  %TIME%
 echo.
 echo    This installer is UNSIGNED, permanently and on purpose. Windows
-echo    SmartScreen will say the publisher is unknown. Compare the SHA-256
-echo    above against the one in the release notes before running it - the
-echo    digest detects changed bytes, it does not authenticate who wrote them.
+echo    SmartScreen may identify an unknown publisher. The SHA-256 digest detects
+echo    changed bytes; it does not authenticate the publisher or author.
 echo.
-echo    Nothing has been published, tagged or pushed. Shipping this is a
-echo    separate, deliberate action.
+echo    Nothing has been published, tagged or pushed.
 
 if "%SILENT_MODE%"=="1" exit /b 0
-
 echo.
 choice /c YN /n /m "Open the folder containing the installer? [Y/N] "
 if errorlevel 2 exit /b 0
-for %%f in ("%SETUP%") do start "" explorer "%%~dpf"
+start "" explorer "%OUTPUT%"
 exit /b 0
+
+:restore_manifest
+if not "%VERSION_STAMPED%"=="1" exit /b 0
+if not exist "%VERSION_BACKUP%" exit /b 1
+copy /b /y "%VERSION_BACKUP%" "%PACKAGE_MANIFEST%" >nul
+if errorlevel 1 exit /b 1
+fc /b "%VERSION_BACKUP%" "%PACKAGE_MANIFEST%" >nul
+if errorlevel 1 exit /b 1
+del /q "%VERSION_BACKUP%" >nul 2>&1
+if exist "%VERSION_BACKUP%" exit /b 1
+set "VERSION_STAMPED=0"
+echo       restored package.json byte for byte
+exit /b 0
+
+:cleanup_temporary
+if exist "%STATE_FILE%" del /q "%STATE_FILE%" >nul 2>&1
+if exist "%IDENTITY_FILE%" del /q "%IDENTITY_FILE%" >nul 2>&1
+if exist "%VERIFY_REPORT%" del /q "%VERIFY_REPORT%" >nul 2>&1
+exit /b 0
+
+:stamp_failed_restore
+set "STAMP_FAILURE=1"
+call :restore_manifest
+if errorlevel 1 goto :restore_failed
+goto :stamp_failed
+
+:package_directory_failed_restore
+call :restore_manifest
+if errorlevel 1 goto :restore_failed
+goto :package_directory_failed
+
+:usage_success
+echo Usage: build-installer.bat --candidate ^<positive release ordinal^> [/s]
+echo        WORLDLENS_RELEASE_CANDIDATE may supply the same explicit value.
+exit /b 0
+
+:candidate_missing
+echo ERROR: --candidate ^<positive release ordinal^> is required. 1>&2
+goto :usage_failure
+
+:candidate_invalid
+echo ERROR: release candidate must be a positive integer with no leading zero. 1>&2
+goto :usage_failure
+
+:unknown_argument
+echo ERROR: unknown argument %~1. 1>&2
+goto :usage_failure
+
+:usage_failure
+echo Usage: build-installer.bat --candidate ^<positive release ordinal^> [/s] 1>&2
+exit /b 2
+
+:temporary_collision
+echo ERROR: temporary release-state filename collision; no build started. 1>&2
+exit /b 1
+
+:workspace_failed
+echo ERROR: build.bat failed, so installer packaging did not start. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:runtime_handoff_failed
+echo ERROR: build.bat completed, but its verified Node/npm runtime could not be 1>&2
+echo        rediscovered by the installer wrapper. Packaging is rejected. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:not_a_checkout
+echo ERROR: the repository commit cannot be resolved; release provenance is absent. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:dirty_source
+echo ERROR: the working tree has uncommitted files. A release-equivalent installer 1>&2
+echo        must be attributable to exactly commit %COMMIT%. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:no_root
+echo ERROR: repository root %ROOT% is unavailable. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:jar_failed
+echo ERROR: the built BlueMap CLI jar could not be validated and staged. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:identity_failed
+echo ERROR: scripts\release-version.mjs rejected candidate %RELEASE_CANDIDATE%. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:identity_mismatch
+echo ERROR: package version %PACKAGE_VERSION% and tag %RELEASE_TAG% are not one identity. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:candidate_not_monotonic
+echo ERROR: candidate %PACKAGE_VERSION% is not newer than the known local release set. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:prepare_failed
+echo ERROR: the committed Squirrel collector could not prepare fresh outputs. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:backup_exists
+echo ERROR: %VERSION_BACKUP% already exists. It may preserve an interrupted build; 1>&2
+echo        refusing to overwrite the recovery copy. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:backup_failed
+echo ERROR: package.json could not be backed up before version stamping. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:stamp_failed
+echo ERROR: release-version.mjs could not stamp package.json. Original bytes restored. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:package_directory_failed
+echo ERROR: app package directory %APPDIR% is unavailable. Original bytes restored. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:restore_failed
+echo ERROR: package.json could not be restored byte for byte. 1>&2
+echo        Recovery copy retained at %VERSION_BACKUP%; packaging is rejected. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:make_failed
+echo ERROR: the pinned pnpm Squirrel.Windows package command failed. 1>&2
+echo        package.json was restored; partial output remains only as failure evidence. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:collect_failed
+echo ERROR: the committed collector rejected the Squirrel output as partial, 1>&2
+echo        duplicate, stale, wrong-version or internally inconsistent. 1>&2
+call :cleanup_temporary
+exit /b 1
+
+:verification_failed
+echo ERROR: Authenticode, branding or final artifact cardinality verification failed. 1>&2
+echo        No artifact from this run is eligible for publication. 1>&2
+call :cleanup_temporary
+exit /b 1
