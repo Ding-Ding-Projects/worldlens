@@ -33,6 +33,11 @@ export const ICONS = {
         "M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 1 1 2.06 4.94l-1.42 1.42A9 9 0 1 0 13 3zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8z",
     check: "M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z",
     add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z",
+    // The bar of `add` without its upright, so a stepper's two ends are one shape drawn twice
+    // rather than a glyph beside a hyphen character borrowed from the text run. A hyphen is a
+    // punctuation mark: it inherits the font's own weight and cap height instead of the 24px
+    // grid every other glyph here is drawn on, so the two ends of a stepper never line up.
+    remove: "M19 13H5v-2h14z",
     dragIndicator:
         "M9 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
     info: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z",
@@ -41,6 +46,9 @@ export const ICONS = {
     errorCircle: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2zm0-4h-2V7h2z",
     openInNew: "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3z",
     restore: "M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z",
+    contentCopy: "M16 1H4a2 2 0 0 0-2 2v14h2V3h12zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11z",
+    edit: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z",
+    trash: "M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM19 4h-3.5l-1-1h-5l-1 1H5v2h14z",
     dish: "M12 5a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7zm-9 9h18v2H3zm2 4h14v2H5z",
 } as const;
 

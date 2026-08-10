@@ -179,8 +179,8 @@ const LIVE_VIEWER_IDS = [
  *
  * Writing `appState.theme` rather than recording the call is deliberate: the real
  * `BlueMapApp.setTheme` (packages/viewer/src/BlueMapApp.ts) assigns that field, and the same
- * watcher reads it back to mirror in-map changes outwards. A stand-in that accepted the call
- * and changed nothing would leave the two writers permanently disagreeing.
+ * watcher reads it back to decide whether the app still needs correcting. A stand-in that
+ * accepted the call and changed nothing would be pushed at on every tick forever.
  */
 function withViewerTheme<T extends { appState: Record<string, unknown> }>(app: T): T {
     return Object.assign(app, {

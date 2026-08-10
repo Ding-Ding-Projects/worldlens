@@ -31,6 +31,7 @@
  */
 
 import type { BlueMapApp } from "@worldlens/viewer";
+import { changeTheme, currentTheme, themeChoiceFromId } from "../settings/themeSetting.js";
 import { i18nModule, languages, setLanguage } from "../../i18n.js";
 import { schoolModeEnabled } from "../setup/schoolMode.js";
 import type { PaletteChoice, PaletteItem, PaletteSetting, Translate } from "./paletteItems.js";
@@ -321,15 +322,22 @@ export function viewerSettingItems(app: BlueMapApp | null, t: Translate, locale:
             t("theme.title", "Theme"),
             t("palette.theme.description", "Light, dark, high contrast, or whatever the operating system is set to."),
             ["dark", "light", "contrast", "colour", "color", "appearance"],
-            app.appState.theme ?? "default",
+            currentTheme.value ?? "default",
             [
                 { id: "default", label: t("theme.default", "Default (System/Browser)") },
                 { id: "dark", label: t("theme.dark", "Dark") },
                 { id: "light", label: t("theme.light", "Light") },
                 { id: "contrast", label: t("theme.contrast", "Contrast") },
             ],
+            // The one row in this file that does not end at a `BlueMapApp` method, and the
+            // exception is deliberate rather than an oversight in the doc comment above.
+            // `appState.theme` is written by the viewer's own startup as well as by a
+            // person - see `settings/themeSetting.ts` - so the chosen theme is held in the
+            // stored record instead, and `changeTheme` is the only thing allowed to write
+            // it. It pushes into this same live app on the way through, so the map's own
+            // marker chrome still repaints exactly as `app.setTheme` made it.
             (id) => {
-                app.setTheme(id === "default" ? null : id);
+                changeTheme(themeChoiceFromId(id));
                 app.saveUserSettings();
             },
         ),

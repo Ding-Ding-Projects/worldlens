@@ -186,6 +186,30 @@ defineExpose({
     min-block-size: 38px;
 }
 
+/*
+ * The strip is chrome, and chrome is not where a tall page takes its space from.
+ *
+ * A flex item defaults to `flex-shrink: 1`, so a top-docked strip row is shrinkable by the panel
+ * below it, and `TabStrip`'s own `min-block-size: 44px` floors that at exactly one row's worth -
+ * which is no protection at all for the strip this component actually draws, because a row
+ * carrying a group heading above its chips is taller than 44px and has nothing holding it there.
+ * `0 0 auto` says the row is sized by its content and gives up none of it. The panel is already
+ * `flex: 1 1 auto; min-height: 0; overflow: auto`, so it is the thing that should absorb a short
+ * window, and unlike the strip it is built to.
+ *
+ * Deliberately not applied to a left or right strip. On those placements `TabStrip` sets its own
+ * `flex: 0 0 clamp(13rem, 22vw, 20rem)`, and replacing that bounded width with the labels'
+ * intrinsic width is how one long tab name starves the active panel.
+ *
+ * Inherited from a rule `App.vue` carried against the pre-rewrite shell strip, which stopped
+ * matching anything when that strip moved in here and was renamed. It lives in this file now
+ * because this is the component that owns Work's strip and the one that docks it top.
+ */
+.wl-work :deep(.mb-tabs-strip-row[data-placement="top"]),
+.wl-work :deep(.mb-tabs-strip-row[data-placement="bottom"]) {
+    flex: 0 0 auto;
+}
+
 /* The group label above its first member: a small rounded chip, not a full pill. */
 .wl-work :deep(.mb-tabs-strip__group-head) {
     min-block-size: 24px;

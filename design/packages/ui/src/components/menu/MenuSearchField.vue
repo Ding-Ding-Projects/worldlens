@@ -153,12 +153,67 @@ watch(builderOpen, (open) => {
 </template>
 
 <style>
+/*
+ * The prototype's own search box, which it draws directly above this menu's rows: 44px tall,
+ * a 12px corner, filled in the container tint with a hairline around it, a leading glyph in
+ * the variant colour and the regex affordance at the trailing end. Nothing about the field's
+ * *behaviour* is touched - the anchored builder, the error message, the invalid state and the
+ * focus ring are Vuetify's and are what make a field usable rather than pretty, and
+ * `prototypeSurface.scss` says at length why those must stay Vuetify's.
+ */
 .mb-menu-search {
     padding: 8px 12px;
 }
 
-.mb-menu-search .mb-menu-search__toggle,
-.mb-menu-search .mb-menu-search__builder {
+/*
+ * 12px is `corner-md`, which is the prototype's search-box corner exactly and the same corner
+ * every row below it takes - a field and the list it filters reading as one control is most of
+ * what makes this panel look designed rather than assembled.
+ *
+ * Three classes deep for the reason that recurs through this directory: `prototypeSurface.scss`
+ * reaches `.mb-shell-layer .v-field` at two, and it is imported after every component's style
+ * block, so a two-class rule here would tie and lose. The corner happens to be the same 12px
+ * in both, but the fill and the height below it are not stated there at all and would simply
+ * have gone missing had the whole rule been outranked.
+ */
+.v-application .mb-menu-search .v-field {
+    border-radius: var(--md-sys-shape-corner-md);
+    /*
+     * The prototype's box is filled `surface-container` with a hairline, not the transparent
+     * well Vuetify's outlined variant leaves. Filled rather than transparent matters here for
+     * the same reason the drawer itself is opaque: this field can sit a few pixels above a
+     * terrain render, and a transparent input with a 1px outline over trees is not an input.
+     * The outlined variant is kept rather than swapped for `filled`, because its notched
+     * outline is what carries the error ring this field puts a bad pattern in.
+     */
+    background: rgb(var(--v-theme-surface-container));
+
+    /*
+     * The prototype's box is 44px. 48 is the next step up on the 4dp rhythm and is also the
+     * drawer's own row height, so the field and the first row beneath it are the same size
+     * rather than four pixels apart - and it is what actually contains the two 40x40 trailing
+     * targets below without them touching the outline.
+     */
+    min-block-size: 48px;
+}
+
+/*
+ * Both trailing affordances are real 40x40 targets rather than the 34px `size="small"` alone
+ * would leave them at. They are the only controls in the drawer a person reaches for while
+ * already typing, so they are the last place to save four pixels.
+ *
+ * The `.v-application` prefix is what carries the size into bilingual mode. `copy/bilingual.css`
+ * releases every button's fixed height so a second language can push the box down -
+ * `html[data-language-mode="bilingual"] .v-btn { height: auto; min-height: 36px }` at (0,2,1),
+ * which out-ranks a two-class rule here and would leave these two at 36px. Neither of them
+ * carries a label at all, so there is no second line to grow them back: they would simply have
+ * been four pixels short in one language mode, on the two controls that open the search and
+ * the regex builder.
+ */
+.v-application .mb-menu-search .mb-menu-search__toggle,
+.v-application .mb-menu-search .mb-menu-search__builder {
     margin-inline-start: 2px;
+    inline-size: 40px;
+    block-size: 40px;
 }
 </style>

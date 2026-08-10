@@ -15,7 +15,6 @@ import {
     VCardActions,
     VCardText,
     VCardTitle,
-    VChip,
     VDialog,
     VDivider,
     VList,
@@ -108,10 +107,18 @@ const createNameId = `${uid}-new-map-name`;
 const selectedNameId = `${uid}-selected-map-name`;
 
 /**
- * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`, so the
- * optional pass-through is normalised once here rather than coalesced at the binding.
+ * The field the settings form should reveal and mark.
+ *
+ * Two sources, one prop: whatever the caller asked for (a search result, the palette landing
+ * on a setting), and this panel's own request to reveal the render mask. The local one wins
+ * because it is always the more recent of the two - somebody who has just pressed "Open the
+ * mask editor" is not still looking for the setting a search sent them to ten minutes ago.
+ *
+ * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`, which is why
+ * the caller's optional prop is normalised here rather than coalesced at the binding.
  */
-const highlight = computed(() => props.highlightPath ?? null);
+const maskFocus = ref<string | null>(null);
+const highlight = computed(() => maskFocus.value ?? props.highlightPath ?? null);
 
 /* -------------------------------------------------------------------------- */
 /* The list                                                                   */
@@ -265,6 +272,9 @@ watch(
     (map) => {
         draftId.value = map?.id ?? "";
         draftIdTouched.value = false;
+        // A reveal belongs to the map it was asked for. Left set, it would mark the mask field
+        // of whichever map is opened next, which reads as that map's mask having been touched.
+        maskFocus.value = null;
     },
     { immediate: true },
 );
@@ -527,6 +537,11 @@ function confirmRemoval(): void {
 <template>
     <div class="mb-project-maps">
         <aside class="mb-project-maps__list" :aria-label="t('project.maps.listLabel', 'Maps in this project')">
+            <div class="mb-section-rule">
+                <span class="mb-section-label">{{
+                    t("project.maps.listLabel", "Maps in this project")
+                }}</span>
+            </div>
             <p class="mb-project-maps__glossaryLine">
                 <GlossaryTerm term="map" />
                 <GlossaryTerm term="render" />
@@ -552,9 +567,9 @@ function confirmRemoval(): void {
                     @click="emit('update:selectedId', map.id)"
                 >
                     <template #append>
-                        <v-chip v-if="!map.enabled" size="x-small" variant="tonal">
+                        <span v-if="!map.enabled" class="mb-badge-pill">
                             {{ t("project.maps.offChip", "off") }}
-                        </v-chip>
+                        </span>
                     </template>
                 </v-list-item>
             </v-list>
@@ -683,6 +698,12 @@ function confirmRemoval(): void {
 
         <section class="mb-project-maps__editor">
             <template v-if="selected && file">
+                <div class="mb-section-rule">
+                    <span class="mb-section-label">{{
+                        t("project.maps.identity", "Identity")
+                    }}</span>
+                </div>
+
                 <v-card variant="tonal" class="mb-project-maps__identity">
                     <v-card-text>
                         <div class="mb-project-maps__grid">

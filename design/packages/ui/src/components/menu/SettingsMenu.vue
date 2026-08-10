@@ -14,6 +14,7 @@ import MenuSwitch from "./MenuSwitch.vue";
 import { useMenuSearch } from "./menuPrefs";
 import { createMatcher } from "./regex";
 import { useBlueMap, useBlueMapTheme } from "./useBlueMap";
+import { changeTheme, currentTheme, themeChoiceFromId } from "../settings/themeSetting.js";
 import { i18nModule, languages, setLanguage } from "../../i18n";
 import { useSchoolMode } from "../setup/index.js";
 
@@ -204,13 +205,24 @@ const themeOptions = computed<MenuChoiceOption[]>(() => [
     { id: "contrast", name: t("theme.contrast", "Contrast") },
 ]);
 
-const themeSelection = computed(() => app.value?.appState.theme ?? "default");
+const themeSelection = computed(() => currentTheme.value ?? "default");
 
+/**
+ * Routed through `changeTheme` rather than `instance.setTheme`, and this is the one place
+ * in this file where that distinction matters.
+ *
+ * `appState.theme` is written by the viewer's own startup as well as by this menu - see
+ * `settings/themeSetting.ts` for the chain that ends in an unencoded "light" - so a shell
+ * that learned the chosen theme by watching that field could not tell the two apart and
+ * persisted both. Calling `changeTheme` states the intent instead of leaving it to be
+ * inferred: it writes the stored record, pushes the value into this same live viewer, and
+ * records it in the settings history, so this control and the one in Settings cannot
+ * disagree about what was chosen. `saveUserSettings()` still runs afterwards for the
+ * viewer's own bag, exactly as every other handler here does.
+ */
 function setTheme(id: string): void {
-    const instance = app.value;
-    if (!instance) return;
-    instance.setTheme(id === "default" ? null : id);
-    instance.saveUserSettings();
+    changeTheme(themeChoiceFromId(id));
+    app.value?.saveUserSettings();
 }
 
 // ---------------------------------------------------------------- screenshot
@@ -614,13 +626,40 @@ const resetAffected = computed(() => {
 </template>
 
 <style>
+/*
+ * Every row on this page - switch, slider, option list, the reset command at the foot - takes
+ * its shape, tint, height, type ramps and selection treatment from the one place they are
+ * stated for the whole drawer, at the foot of `MenuSideSheet.vue`. This page used to be the
+ * clearest evidence that they were not stated anywhere: a 48px switch, a 44px option, a 48px
+ * slider and a 32px segmented control, four different ideas of a corner between them, all
+ * stacked in a 340px column.
+ */
 .mb-settings {
     padding-block-end: 8px;
 }
 
+/*
+ * "No map loaded" and "Nothing matches that search" are sentences about the absence of the
+ * rows they replace, so they take the supporting ramp and the variant colour rather than a
+ * body size within an eighth of a rem of the settings labels they stand in for. The inline
+ * padding is the drawer's row inset, so the sentence starts where those labels would have.
+ */
 .mb-settings__empty {
-    padding: 12px 16px;
-    font-size: 0.875rem;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    margin: 0;
+    padding: 12px 12px 16px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/*
+ * The three loose rows at the foot - chunk borders, debug, and the reset gate - belong to no
+ * group and get no heading, so the only thing separating them from the last titled group
+ * above is this gap. Same 16px a group ends with, so the page keeps one rhythm all the way
+ * down rather than closing tighter than it opened.
+ */
+.mb-settings .mb-settings__tail {
+    margin-block-start: 16px;
 }
 </style>

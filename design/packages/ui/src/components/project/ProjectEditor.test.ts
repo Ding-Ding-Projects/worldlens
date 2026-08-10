@@ -26,10 +26,12 @@ import ConfigMaskField from "../config/ConfigMaskField.vue";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
 import TabbedNavigation from "../tabs/TabbedNavigation.vue";
+import { editorSettingCount } from "./projectFacts.js";
 import {
     createProject,
     mapDescriptor,
     withMapAdded,
+    withMapFieldSet,
     withRender,
     withStorageAdded,
 } from "./projectModel.js";
@@ -502,7 +504,7 @@ describe("the guided empty state", () => {
 });
 
 describe("a render option's own default indicator", () => {
-    it("says a value already matches BlueMap's default, with no reset button, until something changes it", async () => {
+    it("says a value already matches BlueMap's default, with no revert button, until something changes it", async () => {
         const wrapper = await editor();
 
         await wrapper
@@ -512,11 +514,18 @@ describe("a render option's own default indicator", () => {
         await flushPromises();
 
         expect(wrapper.text()).toContain("This already matches BlueMap's own default.");
-        expect(buttonNamed(wrapper, "Reset to BlueMap's default")).toBeUndefined();
+        expect(buttonNamed(wrapper, "Revert to")).toBeUndefined();
         wrapper.unmount();
     });
 
-    it("shows what it was set to, and a working reset back to BlueMap's default, once changed", async () => {
+    /**
+     * The label names the value, which is the whole of what makes this button answerable
+     * rather than merely pressable. "Revert to default" tells somebody a default exists,
+     * which the line beside it already told them; "Revert to off" tells them what pressing
+     * it will do, before they press it. So the assertion is on the value in the label, not
+     * on the presence of a button that happens to say "revert" somewhere.
+     */
+    it("shows what it was set to, and a working revert that names the value it restores", async () => {
         const wrapper = await editor(withRender(seeded(), { force: true }));
 
         await wrapper
@@ -526,7 +535,7 @@ describe("a render option's own default indicator", () => {
         await flushPromises();
 
         expect(wrapper.text()).toContain("Set to on. BlueMap's default is off.");
-        const reset = buttonNamed(wrapper, "Reset to BlueMap's default");
+        const reset = buttonNamed(wrapper, "Revert to off");
         expect(reset).toBeDefined();
 
         reset!.click();
@@ -534,7 +543,142 @@ describe("a render option's own default indicator", () => {
 
         const { project } = wrapper.props() as { project: ProjectFile };
         expect(project.render.force).toBe(false);
-        expect(wrapper.text()).not.toContain("Reset to BlueMap's default");
+        expect(wrapper.text()).not.toContain("Revert to off");
+        wrapper.unmount();
+    });
+
+    /**
+     * The route is the one option whose stored value and its own control disagree about what
+     * it is called - the file says `local`, the select says "This computer" - so it is the
+     * one that would quietly ship a button promising a value nothing on screen ever shows.
+     */
+    it("names the route by the label its control uses, not by the value the file stores", async () => {
+        const wrapper = await editor(withRender(seeded(), { route: "github-actions" }));
+
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
+        await flushPromises();
+
+        expect(buttonNamed(wrapper, "Revert to This computer")).toBeDefined();
+        expect(buttonNamed(wrapper, "Revert to local")).toBeUndefined();
+        wrapper.unmount();
+    });
+});
+
+/**
+ * The two claims the prototype puts on this screen that no styling could carry: that a
+ * project opens on BlueMap's own generated defaults with every setting already present, and
+ * that nothing reaches the disk until somebody saves. Both are checked here against real
+ * values rather than against a sentence, because both are the kind of sentence that stays on
+ * screen long after it stopped being true.
+ */
+describe("what the editor says about itself", () => {
+    it("states the generated defaults with a count that follows the schema", async () => {
+        const wrapper = await editor();
+
+        // Not the literal number: this asserts the sentence carries the count the schema
+        // actually has, so a setting added upstream cannot leave a stale figure behind.
+        const settings = editorSettingCount();
+        expect(settings).toBeGreaterThan(50);
+        expect(wrapper.text()).toContain(`All ${settings} settings`);
+        expect(wrapper.text()).toContain("BlueMap's own generated defaults");
+        wrapper.unmount();
+    });
+
+    it("names the one file a save writes, and says the world and its tiles are untouched", async () => {
+        const wrapper = await editor();
+
+        expect(wrapper.text()).toContain("Save plan");
+        expect(wrapper.text()).toContain(`${WORLD}/worldlens.project.json`);
+        expect(wrapper.text()).toContain("the world folder itself");
+        wrapper.unmount();
+    });
+
+    it("says a save would write nothing while the file on disk already matches", async () => {
+        const clean = await editor(seeded(), { dirty: false });
+        expect(clean.text()).toContain("The file on disk already says what this screen says");
+        clean.unmount();
+
+        const dirty = await editor(seeded(), { dirty: true });
+        expect(dirty.text()).not.toContain("The file on disk already says what this screen says");
+        expect(dirty.text()).toContain("holding 1 maps");
+        dirty.unmount();
+    });
+});
+
+/**
+ * The difference between a cheap edit and an hour of rendering, said beside the control that
+ * costs it. Only the two options that really do cost carry it: a warning on every row is a
+ * warning nobody reads, and one on a row that does not deserve it is simply wrong.
+ */
+describe("what changing a render option costs", () => {
+    it("marks only the options that make an already-rendered map be drawn again", async () => {
+        const wrapper = await editor();
+
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
+        await flushPromises();
+
+        const text = wrapper.text();
+        expect(text).toContain("the next render draws every tile again");
+        expect(text).toContain("leaves every tile already rendered behind in the old folder");
+
+        // Two badges, for the two rows that earned one.
+        const pills = wrapper.findAll(".mb-render-option__pill");
+        expect(pills).toHaveLength(2);
+        expect(pills.every((pill) => pill.text() === "re-renders tiles")).toBe(true);
+        wrapper.unmount();
+    });
+});
+
+/**
+ * The mask is the one setting on a map that decides how much of the world gets drawn at all,
+ * and it is the ninetieth row of an accordion. Lifting it out is only worth anything if the
+ * card goes to the real editor: a second mask editor beside the first one would be a second
+ * set of rules about what a mask means, so what is asserted here is the route, not a drawing
+ * surface of this component's own.
+ */
+describe("the render mask, above the ninety settings rather than inside them", () => {
+    it("says an empty mask renders everything, which is BlueMap's default rather than an omission", async () => {
+        // Genuinely empty, which a template-written map is not: upstream's own template
+        // arrives carrying one box with every bound commented out.
+        const wrapper = await editor(withMapFieldSet(seeded(), "overworld", "render-mask", []));
+
+        expect(wrapper.text()).toContain("Render mask");
+        expect(wrapper.text()).toContain("No mask");
+        expect(wrapper.text()).toContain("BlueMap's own default");
+        wrapper.unmount();
+    });
+
+    /**
+     * The template's own box limits nothing at all, and a card that counted shapes and stopped
+     * would announce "1 added" on a mask that renders exactly as much as no mask does. This is
+     * the assertion that stops the summary being true and misleading at the same time.
+     */
+    it("does not let the template's unbounded box read as a mask that limits something", async () => {
+        const wrapper = await editor();
+
+        expect(wrapper.text()).toContain("1 added and 0 cut out");
+        expect(wrapper.text()).toContain("no limit on some axis");
+        wrapper.unmount();
+    });
+
+    it("sends the settings form to the real mask field rather than drawing a second editor", async () => {
+        const wrapper = await editor();
+
+        const form = wrapper.findComponent(ConfigFileForm);
+        expect(form.props("highlightPath")).toBe(null);
+
+        const open = buttonNamed(wrapper, "Open the mask editor");
+        expect(open).toBeDefined();
+        open!.click();
+        await flushPromises();
+
+        expect(wrapper.findComponent(ConfigFileForm).props("highlightPath")).toBe("render-mask");
         wrapper.unmount();
     });
 });

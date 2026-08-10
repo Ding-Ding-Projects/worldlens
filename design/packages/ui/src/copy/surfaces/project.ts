@@ -1389,6 +1389,155 @@ export const PROJECT_VOICED = {
             "由引導整嘅，仲未喺編輯器度打開過，連一次都未",
         ],
     },
+    /* ---------------------------------------------------------------- */
+    /* The two claims the editor makes about itself                       */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * "It opens on BlueMap's own generated defaults." The count comes from the schema at
+     * render time, so every level has to carry `{settings}` or the sentence claims a total
+     * and then omits it. The last clause is the one that must survive every level intact:
+     * this application leaves an untouched setting out of the project rather than writing it,
+     * which renders identically and is a different promise from the one the prototype made.
+     */
+    "project.editor.defaults": {
+        en: [
+            "This project opens on BlueMap's own generated defaults. All {settings} settings a map, a storage and the four whole-file configs carry are on screen and editable from the first second, each showing the value BlueMap itself would use. A setting you never touch is left out of the project, so BlueMap's own default is what renders.",
+            "This project opens on BlueMap's own generated defaults. All {settings} settings a map, a storage and the four whole-file configs carry are on screen and editable from the first second, each showing the value BlueMap itself would use. Anything you never touch is left out of the project, so BlueMap's own default is what renders.",
+            "This project opens on BlueMap's own generated defaults, so there is nothing to go hunting for. All {settings} settings a map, a storage and the four whole-file configs carry are on screen and editable from the first second, each showing the value BlueMap itself would use, and anything you never touch is left out of the project, so BlueMap's own default is what renders.",
+            "Nothing is hiding behind a wizard here. This project opens on BlueMap's own generated defaults, and all {settings} settings a map, a storage and the four whole-file configs carry are on screen and editable from the first second, each showing the value BlueMap itself would use. Anything you never touch is left out of the project, so BlueMap's own default is what renders.",
+            "Every knob in the building, unlocked from the first second. This project opens on BlueMap's own generated defaults, and all {settings} settings a map, a storage and the four whole-file configs carry are sitting right here, editable, each showing the value BlueMap itself would use. Anything you never touch is quietly left out of the project, so BlueMap's own default is what renders.",
+        ],
+        yue: [
+            "呢個 project 由 BlueMap 自己生成嘅預設值開始。地圖、儲存空間同四個整檔設定合共 {settings} 項設定，第一秒就已經全部喺畫面度，隨時可以改，每項都顯示 BlueMap 自己會用嘅值。你冇郁過嘅設定唔會寫入 project，所以算圖用嘅就係 BlueMap 自己嘅預設值。",
+            "呢個 project 由 BlueMap 自己生成嘅預設值開始。地圖、儲存空間同四個整檔設定合共 {settings} 項設定，第一秒就全部喺畫面度，隨時可以改，每項都顯示 BlueMap 自己會用嘅值。你冇郁過嘅設定唔會寫入 project，所以算圖用嘅就係 BlueMap 自己嘅預設值。",
+            "呢個 project 由 BlueMap 自己生成嘅預設值開始，唔使周圍搵。地圖、儲存空間同四個整檔設定合共 {settings} 項設定，第一秒就全部喺畫面度，隨時可以改，每項都顯示 BlueMap 自己會用嘅值；你冇郁過嘅設定唔會寫入 project，所以算圖用嘅就係 BlueMap 自己嘅預設值。",
+            "呢度冇嘢收埋喺引導後面。呢個 project 由 BlueMap 自己生成嘅預設值開始，地圖、儲存空間同四個整檔設定合共 {settings} 項設定，第一秒就全部攤晒喺畫面度，隨時可以改，每項都顯示 BlueMap 自己會用嘅值。你冇郁過嘅設定唔會寫入 project，所以算圖用嘅就係 BlueMap 自己嘅預設值。",
+            "成間屋嘅掣，第一秒就已經幫你開晒。呢個 project 由 BlueMap 自己生成嘅預設值開始，地圖、儲存空間同四個整檔設定合共 {settings} 項設定全部喺呢度攤開晒，想點改就點改，每項都顯示 BlueMap 自己會用嘅值。你冇郁過嘅設定會靜靜雞唔會寫入 project，所以算圖用嘅就係 BlueMap 自己嘅預設值。",
+        ],
+    },
+
+    /* The save plan's own lede. Its whole job is the word "until". */
+    "project.editor.nothingWritten": {
+        en: [
+            "Nothing reaches the disk until you save. When you do, exactly this happens and nothing else.",
+            "Nothing reaches the disk until you save. When you do, exactly this happens and nothing else.",
+            "Nothing reaches the disk until you save it. When you do, exactly this happens and nothing else.",
+            "The disk hears nothing about any of this until you save. When you do, exactly this happens and nothing else.",
+            "Your disk stays blissfully unaware until you save. The moment you do, exactly this happens and nothing else.",
+        ],
+        yue: [
+            "喺你儲存之前，硬碟乜都唔會寫。一儲存，就係做以下呢啲，冇其他。",
+            "喺你儲存之前，硬碟乜都唔會寫。一儲存，就係做以下呢啲，冇其他。",
+            "喺你儲存之前，硬碟一個字都唔會寫。一儲存，就係做以下呢啲，冇其他。",
+            "喺你撳儲存之前，硬碟完全唔知發生緊咩事。一儲存，就係做以下呢啲，冇其他。",
+            "你部機嘅硬碟喺你撳儲存之前，完全蒙查查。一儲存，就係做以下呢啲，冇其他。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
+    /* What a render option costs                                         */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * Two of the six render options really do throw away work that is already done, and these
+     * are the sentences that say so. The hour is not decoration: it is the difference between
+     * a switch somebody flicks idly and a switch somebody flicks on purpose.
+     */
+    "project.render.forceCost": {
+        en: [
+            "With this on, the next render draws every tile again rather than only the ones that changed, so a world that took an hour takes that hour again.",
+            "With this on, the next render draws every tile again rather than only the ones that changed, so a world that took an hour takes that hour again.",
+            "With this on, the next render draws every tile again rather than only the ones that changed, so a world that took an hour will take that hour again.",
+            "Switch this on and the next render draws every tile again rather than only the ones that changed, so a world that took an hour is going to take that hour again.",
+            "Switch this on and the next render cheerfully draws every tile again rather than only the ones that changed, so a world that took an hour will happily take that hour all over again.",
+        ],
+        yue: [
+            "開咗之後，下一次算圖會重新畫每一塊圖磚，唔係淨係畫改咗嗰啲，所以本來要一個鐘嘅世界，會再用多一個鐘。",
+            "開咗之後，下一次算圖會重新畫每一塊圖磚，唔係淨係畫改咗嗰啲，所以本來要一個鐘嘅世界，會再用多一個鐘。",
+            "開咗之後，下一次算圖會由頭畫過每一塊圖磚，唔係淨係畫改咗嗰啲，所以本來要一個鐘嘅世界，會再用多一個鐘。",
+            "撳開佢，下一次算圖就會乖乖咁重新畫每一塊圖磚，唔係淨係畫改咗嗰啲，所以本來要一個鐘嘅世界，準備再等多一個鐘。",
+            "撳開佢，下一次算圖就會好落力咁重新畫每一塊圖磚，唔係淨係畫改咗嗰啲；本來要一個鐘嘅世界，會開開心心再用多一個鐘。",
+        ],
+    },
+
+    "project.render.outputFolderCost": {
+        en: [
+            "Pointing this somewhere else leaves every tile already rendered behind in the old folder, so the next render draws the whole map from nothing into the new one.",
+            "Pointing this somewhere else leaves every tile already rendered behind in the old folder, so the next render draws the whole map from nothing into the new one.",
+            "Pointing this somewhere else leaves every tile already rendered behind in the old folder, so the next render has to draw the whole map from nothing into the new one.",
+            "Point this somewhere else and every tile already rendered stays behind in the old folder, so the next render draws the whole map from nothing into the new one.",
+            "Point this somewhere else and every tile already rendered stays put in the old folder, quite happily, while the next render draws the whole map from nothing into the new one.",
+        ],
+        yue: [
+            "改咗去第二個位，之前已經算好嘅圖磚會留喺舊資料夾度，所以下一次算圖要由零開始，將成張地圖畫入新資料夾。",
+            "改咗去第二個位，之前已經算好嘅圖磚會留喺舊資料夾度，所以下一次算圖要由零開始，將成張地圖畫入新資料夾。",
+            "改咗去第二個位，之前已經算好嘅圖磚仍然會留喺舊資料夾度，所以下一次算圖要由零開始，將成張地圖畫入新資料夾。",
+            "改咗去第二個位，之前已經算好嘅圖磚就會留低喺舊資料夾度唔郁，下一次算圖要由零開始，將成張地圖畫入新資料夾。",
+            "改咗去第二個位，之前已經算好嘅圖磚會好安樂咁留喺舊資料夾度，而下一次算圖就要由零開始，將成張地圖重新畫入新資料夾。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
+    /* The render mask summary                                            */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * An empty mask is not an unset setting: it is BlueMap's documented "render everything
+     * that exists", and every level has to say so or the card reads as broken rather than as
+     * correct. The measured variant carries a real count from the region files on disk, which
+     * is why it is a second key rather than a sentence with an optional number in it.
+     */
+    "project.maps.maskNone": {
+        en: [
+            "No mask, so every region this world has is rendered. That is BlueMap's own default.",
+            "No mask, so every region this world has is rendered. That is BlueMap's own default.",
+            "No mask here, so every region this world has is rendered. That is BlueMap's own default.",
+            "No mask at all, so every region this world has is rendered. That is BlueMap's own default, not an omission.",
+            "No mask whatsoever, so every last region this world has is rendered. That is BlueMap's own default, not something anybody forgot.",
+        ],
+        yue: [
+            "冇遮罩，所以呢個世界所有區域都會算圖。呢個就係 BlueMap 自己嘅預設。",
+            "冇遮罩，所以呢個世界所有區域都會算圖。呢個就係 BlueMap 自己嘅預設。",
+            "呢度冇遮罩，所以呢個世界所有區域都會算圖。呢個就係 BlueMap 自己嘅預設。",
+            "完全冇遮罩，所以呢個世界所有區域都會算圖。呢個係 BlueMap 自己嘅預設，唔係漏咗。",
+            "完全冇遮罩，一個都冇，所以呢個世界每一個區域都會算圖。呢個係 BlueMap 自己嘅預設，唔係邊個唔記得整。",
+        ],
+    },
+
+    "project.maps.maskNoneMeasured": {
+        en: [
+            "No mask, so all {regions} region files measured in this world are rendered. That is BlueMap's own default.",
+            "No mask, so all {regions} region files measured in this world are rendered. That is BlueMap's own default.",
+            "No mask here, so all {regions} region files measured in this world are rendered. That is BlueMap's own default.",
+            "No mask at all, so all {regions} region files measured in this world are rendered. That is BlueMap's own default, not an omission.",
+            "No mask whatsoever, so all {regions} region files measured in this world are rendered, every single one. That is BlueMap's own default, not something anybody forgot.",
+        ],
+        yue: [
+            "冇遮罩，所以喺呢個世界度量到嘅 {regions} 個區域檔案全部都會算圖。呢個就係 BlueMap 自己嘅預設。",
+            "冇遮罩，所以喺呢個世界度量到嘅 {regions} 個區域檔案全部都會算圖。呢個就係 BlueMap 自己嘅預設。",
+            "呢度冇遮罩，所以喺呢個世界度量到嘅 {regions} 個區域檔案全部都會算圖。呢個就係 BlueMap 自己嘅預設。",
+            "完全冇遮罩，所以喺呢個世界度量到嘅 {regions} 個區域檔案全部都會算圖。呢個係 BlueMap 自己嘅預設，唔係漏咗。",
+            "完全冇遮罩，一個都冇，所以喺呢個世界度量到嘅 {regions} 個區域檔案，一個不漏全部都會算圖。呢個係 BlueMap 自己嘅預設，唔係邊個唔記得整。",
+        ],
+    },
+
+    "project.maps.maskShapes": {
+        en: [
+            "{added} shapes added and {cut} cut out, combined in the order they are listed.",
+            "{added} shapes added and {cut} cut out, combined in the order they are listed.",
+            "{added} shapes added and {cut} cut out, combined in the order they are listed below.",
+            "{added} shapes added and {cut} cut out again, combined in the order they are listed below.",
+            "{added} shapes added and {cut} cut back out again, stacked up in the order they are listed below.",
+        ],
+        yue: [
+            "加咗 {added} 個形狀，減走 {cut} 個，按住列出嘅順序疊埋一齊。",
+            "加咗 {added} 個形狀，減走 {cut} 個，按住列出嘅順序疊埋一齊。",
+            "加咗 {added} 個形狀，又減走 {cut} 個，按住下面列出嘅順序疊埋一齊。",
+            "加咗 {added} 個形狀，又減走返 {cut} 個，按住下面列出嘅順序一層層疊埋一齊。",
+            "加咗 {added} 個形狀，跟住又剪走返 {cut} 個，就照住下面列出嘅順序一層層疊埋一齊。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const PROJECT_FIXED = {
@@ -1603,6 +1752,54 @@ export const PROJECT_FIXED = {
     "project.create.browse": { en: "Browse", yue: "瀏覽" },
     "project.create.cancel": { en: "Cancel", yue: "取消" },
     "project.create.confirm": { en: "Start the project", yue: "開始呢個 project" },
+
+    /* ---------------------------------------------------------------- */
+    /* The rewritten editor: header, save plan, render options, mask      */
+    /* ---------------------------------------------------------------- */
+
+    "project.editor.headMeta": {
+        en: "{maps} maps and {storages} storages, in the world {world}",
+        yue: "{maps} 張地圖、{storages} 個儲存空間，喺世界 {world} 入面",
+    },
+
+    /*
+     * The save plan's three rows are a list of operations rather than prose: one verb in a
+     * monospace column and its operand beside it, read at a glance and checked against what
+     * the person expected. That is why they are fixed strings even though two of them are
+     * full sentences. A funny level that reworded the operand column would be styling a
+     * manifest, and the whole value of a manifest is that it reads the same every time.
+     */
+    "project.editor.plan": { en: "Save plan", yue: "儲存計劃" },
+    "project.editor.planVerbWrite": { en: "write", yue: "寫入" },
+    "project.editor.planVerbRecord": { en: "record", yue: "記錄" },
+    "project.editor.planVerbUntouched": { en: "untouched", yue: "唔郁" },
+    "project.editor.planFileDetail": {
+        en: "{path}, holding {maps} maps, {storages} storages and {singletons} whole-file configs",
+        yue: "{path}，入面有 {maps} 張地圖、{storages} 個儲存空間同 {singletons} 個整檔設定",
+    },
+    "project.editor.planNothing": {
+        en: "nothing. The file on disk already says what this screen says.",
+        yue: "乜都唔寫。硬碟上面嗰個檔案，已經同呢個畫面講緊同一件事。",
+    },
+    "project.editor.planHistory": {
+        en: "one revision in this project's own local history, which the History tab reads back",
+        yue: "喺呢個 project 自己嘅本機版本記錄入面加一個版本，版本記錄分頁讀返出嚟嗰個",
+    },
+    "project.editor.planUntouched": {
+        en: "the world folder itself, and every tile a previous render already wrote",
+        yue: "世界資料夾本身，同埋之前算圖已經寫低嘅每一塊圖磚",
+    },
+
+    "project.render.options": { en: "Render options", yue: "算圖選項" },
+    "project.render.reRender": { en: "re-renders tiles", yue: "要重新算圖磚" },
+    "project.render.revert": { en: "Revert to {value}", yue: "還原做 {value}" },
+    "project.render.revertEmpty": { en: "Revert to empty", yue: "還原做空白" },
+
+    "project.maps.identity": { en: "Identity", yue: "身分" },
+    "project.maps.mask": { en: "Render mask", yue: "算圖遮罩" },
+    "project.maps.maskDraw": { en: "Open the mask editor", yue: "打開遮罩編輯器" },
+
+    "project.storages.whereTiles": { en: "Where the tiles go", yue: "圖磚寫去邊" },
 } as const satisfies Record<string, FixedString>;
 
 export const PROJECT_FACTS = {
@@ -1887,6 +2084,39 @@ export const PROJECT_FACTS = {
     "project.row.fromWizard": {
         en: ["made by the guide", "never opened in the editor"],
         yue: ["由引導整嘅", "仲未喺編輯器度打開過"],
+    },
+
+    /* ---------------------------------------------------------------- */
+    /* The rewritten editor                                               */
+    /* ---------------------------------------------------------------- */
+
+    "project.editor.defaults": {
+        en: ["{settings}", "generated defaults", "editable", "left out"],
+        yue: ["{settings}", "預設值", "改", "唔會寫入"],
+    },
+    "project.editor.nothingWritten": {
+        en: ["until you save", "nothing else"],
+        yue: ["儲存", "冇其他"],
+    },
+    "project.render.forceCost": {
+        en: ["every tile again", "only the ones that changed", "hour"],
+        yue: ["每一塊圖磚", "改咗嗰啲", "一個鐘"],
+    },
+    "project.render.outputFolderCost": {
+        en: ["already rendered", "old folder", "whole map"],
+        yue: ["已經算好", "舊資料夾", "成張地圖"],
+    },
+    "project.maps.maskNone": {
+        en: ["No mask", "rendered", "default"],
+        yue: ["冇遮罩", "算圖", "預設"],
+    },
+    "project.maps.maskNoneMeasured": {
+        en: ["{regions}", "No mask", "default"],
+        yue: ["{regions}", "冇遮罩", "預設"],
+    },
+    "project.maps.maskShapes": {
+        en: ["{added}", "{cut}", "order"],
+        yue: ["{added}", "{cut}", "順序"],
     },
 } as const satisfies Record<
     keyof typeof PROJECT_VOICED,

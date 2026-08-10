@@ -58,14 +58,24 @@ the app up to their eyes, had no theme control at all. The settings row is the s
 against the same stored record: it writes the viewer's own `bluemap-theme` localStorage entry in
 the viewer's own JSON encoding, so the two controls can never disagree about what was chosen.
 
-Three rules keep the two writers convergent (`themeSetting.ts`'s module watcher):
+**The stored record is the only authority, and it changes only when somebody chooses.** Every
+control that offers a theme - the settings row, the in-map settings menu, the command palette's
+viewer settings - calls `changeTheme()`, which writes the record. `themeSetting.ts`'s module watcher
+then pushes that record into whatever viewer is live.
 
-- While a viewer app is live, its `appState.theme` is authoritative; the settings row routes
-  through `app.setTheme()`.
-- A new viewer app gets the stored choice pushed into it. The viewer only loads its persisted
-  settings when the map's `settings.json` opts into `useCookies`, and the fallback when a map
-  ships no such file is `false` - so without the push, opening a local map could snap the whole
-  window back to the system scheme.
+It used to be the other way around: while a viewer was live its `appState.theme` was authoritative,
+and any change to it was mirrored back out into the record. That could not tell a person choosing a
+theme from the viewer resolving one of its own, and the viewer does resolve one - a decorative shell
+inside it falls back to `light` when no record exists, and writes it unencoded, so reading it back
+throws and yields the bare string. A profile on which nobody had ever chosen anything therefore
+ended up holding an explicit `light`, honoured forever after, with `null` - meaning *follow the
+system* - destroyed silently.
+
+- A viewer that has wandered off the record is pushed back onto it, every time rather than once when
+  it first appears. That matters because the viewer loads its own persisted settings *after* it is
+  in the store, so its startup arrives looking exactly like a change made inside the running app.
+- A choice made in the in-map menu survives the app being torn down on a profile switch, because the
+  record was written the moment the button was pressed rather than mirrored out afterwards.
 - A change made inside the in-map menu is mirrored back out to the stored record, so it survives
   the viewer being torn down on a profile switch.
 

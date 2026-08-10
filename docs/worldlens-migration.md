@@ -4,7 +4,7 @@ Worldlens is the new product and package identity. It remains a from-scratch Typ
 [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap); BlueMap is the upstream renderer and
 viewer project, and this project does not claim that name or erase that credit.
 
-![The packaged Worldlens profile-migration consent dialog](./screenshots/worldlens-profile-migration-consent.png)
+![The packaged Worldlens profile-migration dialog, headed Bring your existing profile to Worldlens? It says Worldlens found data from Material BlueMap, lists what would be copied and verified - consent record, settings, GitHub credential references, projects, histories, cache and maps - states that the old profile stays in place so the copy can be retried or rolled back, names both folders, and offers Copy and verify or Not now](./screenshots/worldlens-profile-migration-consent.png)
 
 ## Behaviour
 

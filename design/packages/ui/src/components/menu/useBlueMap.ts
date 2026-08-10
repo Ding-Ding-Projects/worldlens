@@ -46,15 +46,19 @@ const THEME_NAMES = new Set(["dark", "light", "contrast"]);
  * the marker colours and nothing else, which is exactly the "looks finished, does nothing"
  * failure. `null` means "follow the system", so we also track `prefers-color-scheme`.
  *
- * With no viewer running at all, the settings surface's own stored choice
- * (`themeSetting.ts`'s `currentTheme`) is what applies: the theme control lives in
- * Settings as well as in the in-map menu now, and a choice made before the first map is
- * ever rendered has to reach the chrome it was made for. While an app *is* running the
- * two sources agree by construction - `themeSetting.ts`'s own module watcher keeps them
- * convergent in both directions - so reading `appState.theme` first preserves exactly
- * the behaviour this bridge always had.
+ * The chosen theme is `themeSetting.ts`'s `currentTheme`, whether or not a viewer is
+ * running. This used to read `appState.theme` first while an app was live, on the stated
+ * grounds that the two agreed by construction. They do not: the viewer writes that field
+ * during its own startup with a value nobody chose, which is precisely the defect
+ * `themeSetting.ts` documents at length. Reading the record means a viewer's startup can
+ * no longer repaint the whole window on its way past, and a choice made before the first
+ * map is ever rendered still reaches the chrome it was made for.
+ *
+ * The `_app` parameter is kept so the three callers do not have to change and so the
+ * bridge still reads as belonging to a particular viewer; nothing about the theme is
+ * read from it any more, which is the point.
  */
-export function useBlueMapTheme(app: ComputedRef<BlueMapApp | null>): void {
+export function useBlueMapTheme(_app: ComputedRef<BlueMapApp | null>): void {
     const theme = useTheme();
     const media =
         typeof window !== "undefined" && typeof window.matchMedia === "function"
@@ -62,8 +66,7 @@ export function useBlueMapTheme(app: ComputedRef<BlueMapApp | null>): void {
             : null;
 
     const apply = (): void => {
-        const selected =
-            app.value !== null ? (app.value.appState.theme ?? null) : currentTheme.value;
+        const selected = currentTheme.value;
         if (selected && THEME_NAMES.has(selected)) {
             theme.change(selected);
             return;
@@ -71,7 +74,7 @@ export function useBlueMapTheme(app: ComputedRef<BlueMapApp | null>): void {
         theme.change(media?.matches ? "light" : "dark");
     };
 
-    watch([() => app.value?.appState.theme ?? null, currentTheme], apply, { immediate: true });
+    watch(currentTheme, apply, { immediate: true });
     media?.addEventListener("change", apply);
     onBeforeUnmount(() => media?.removeEventListener("change", apply));
 }

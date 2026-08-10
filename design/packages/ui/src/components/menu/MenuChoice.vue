@@ -71,19 +71,46 @@ function pick(choices: MenuChoiceItem[], id: unknown): void {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    padding: 4px 16px 8px;
+    /* The drawer insets its rows 12px; this is a row too, even though it is not a list item. */
+    padding: 4px 12px 8px;
 }
 
+/*
+ * The same label-medium the section headings use, minus the uppercasing: this is a name for
+ * the control beside it rather than a heading over a group of them, and two uppercase labels
+ * a few pixels apart would read as two sections.
+ */
 .mb-menu-choice__title {
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-size: var(--md-sys-typescale-label-medium-size);
+    line-height: var(--md-sys-typescale-label-medium-line-height);
+    font-weight: var(--md-sys-typescale-label-medium-weight);
+    letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
+/*
+ * M3's segmented button: one fully-rounded outlined container with hairline separators
+ * inside it, 40dp tall. Vuetify's toggle is Material 2 - a 4px-cornered strip at whatever
+ * height it is told - and the 32px this used to ask for was below this project's own 40px
+ * floor for a hit target before its padding was counted.
+ *
+ * The radius is set here rather than through `rounded="pill"` for the reason that keeps
+ * recurring in this directory: Vuetify's radius utilities are `!important`, so a shape
+ * chosen by a prop is a shape no stylesheet can correct afterwards.
+ */
 .mb-menu-choice__group.v-btn-toggle {
     flex: 1 1 auto;
     height: auto;
-    min-height: 32px;
+    min-height: 40px;
+    /*
+     * The end buttons pick this up on their own: Vuetify gives `.v-btn-group .v-btn:first-child`
+     * and `:last-child` a `border-*-radius: inherit`, so the pill propagates without the
+     * `overflow: hidden` that would otherwise seem to be needed to clip them. That matters -
+     * an ancestor with `overflow: hidden` clips a descendant's `outline`, and `global.scss`
+     * draws every focus ring in this application as a 2px outline at a 2px offset, so hiding
+     * the overflow here would have quietly taken the focus ring off all three choices.
+     */
+    border-radius: var(--md-sys-shape-corner-full);
 }
 
 .mb-menu-choice__group.v-btn-toggle .v-btn {
@@ -94,7 +121,30 @@ function pick(choices: MenuChoiceItem[], id: unknown): void {
        `html[data-language-mode="bilingual"] .v-btn` sizing at (0,2,1), so in bilingual
        mode the Cantonese half of each choice label was clipped inside a one-line box. */
     height: auto;
-    min-height: 32px;
+    min-height: 40px;
     padding-block: 4px;
+    /*
+     * The label ramp M3 gives a segmented button. `prototypeSurface.scss` already strips
+     * Vuetify's Material 2 upper-casing and letter-spacing from every `.v-btn` in the shell
+     * layer; this only settles the size, which its `size="small"` was leaving at 13px -
+     * a step below the row titles these choices sit among.
+     */
+    font-size: var(--md-sys-typescale-label-large-size);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+}
+
+/*
+ * Selection, the same way the drawer's list rows mark it: a filled secondary container and
+ * the control's own shape. Vuetify marks a chosen toggle button with `--v-activated-opacity`
+ * of the button's own colour, which on an outlined variant is a tint faint enough that the
+ * segmented control looks like it has nothing chosen at all.
+ */
+.mb-menu-choice__group.v-btn-toggle .v-btn--active {
+    background: rgb(var(--v-theme-secondary-container));
+    color: rgb(var(--v-theme-on-secondary-container));
+}
+
+.mb-menu-choice__group.v-btn-toggle .v-btn--active > .v-btn__overlay {
+    opacity: 0;
 }
 </style>

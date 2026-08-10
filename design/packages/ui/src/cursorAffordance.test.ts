@@ -56,6 +56,17 @@ function styleContent(source: string): string {
  * Selectors that legitimately cover a large region of the window, and therefore must never be
  * the target of a `cursor: pointer` rule - if the whole window needs a pointer cursor,
  * something under it forgot to opt out, not the other way around.
+ *
+ * The four `.mb-shell-*` and `.mb-map-page` entries replace a single `.mb-shell-tabs`, which was
+ * the pre-rewrite shell's full-bleed tab container. That class was deleted by the Material
+ * Design 3 rewrite and the token went on sitting in this list naming nothing - a guard that
+ * still passed, still read as covering the shell, and could no longer catch anything, which is
+ * strictly worse than an absent entry because it looks like coverage. The surface it used to
+ * stand for is now four: `.mb-shell-body` is the whole window below the title bar, and
+ * `.mb-shell-content` the column beside the rail; `.mb-shell-layer` is each of the three stacked
+ * destinations, every one of them `inset: 0`; and `.mb-map-page` fills whichever box the shell
+ * leaves for the map. A `cursor: pointer` on any of them inherits into everything a person
+ * looks at, which is precisely the filed bug this file exists to keep out.
  */
 const BROAD_TOKENS = [
     "html",
@@ -66,7 +77,10 @@ const BROAD_TOKENS = [
     "#map-container",
     ".mb-app",
     ".mb-main",
-    ".mb-shell-tabs",
+    ".mb-shell-body",
+    ".mb-shell-content",
+    ".mb-shell-layer",
+    ".mb-map-page",
     ".mb-world-host",
     ".v-application",
     ".v-application__wrap",

@@ -261,6 +261,21 @@ export const APPEARANCE_STRINGS: StringTable = {
     },
     "editor.section": { en: "Section", yue: "分區" },
     "editor.resetProperty": { en: "Reset {name}", yue: "還原「{name}」" },
+    /*
+     * The two ends of a numeric stepper, named as sentences rather than as the property
+     * followed by a signed number.
+     *
+     * The buttons used to call themselves "Size -0.5" and "Size +0.5", which reads as a
+     * value a screen reader is announcing rather than as an action a button performs, and
+     * leans entirely on the minus and plus signs to carry the verb. It also never went
+     * through the catalogue at all: the property name was localised and the rest of the
+     * name was punctuation assembled in TypeScript, so a visitor reading in Cantonese got a
+     * Cantonese property with an English sentence structure around it. The step is
+     * interpolated because it is the one thing pressing the button will not tell you --
+     * the glyph says which direction, and only the name can say by how much.
+     */
+    "editor.decreaseProperty": { en: "Decrease {name} by {step}", yue: "將「{name}」減 {step}" },
+    "editor.increaseProperty": { en: "Increase {name} by {step}", yue: "將「{name}」加 {step}" },
     "editor.resetElement": { en: "Reset this element", yue: "還原呢個元素" },
     "editor.resetElementDone": {
         en: "{name} is back to the theme default.",

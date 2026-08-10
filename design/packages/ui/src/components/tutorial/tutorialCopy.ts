@@ -47,7 +47,7 @@ export function tutorialStepBody(id: TutorialStepId, t: Translate): string {
         case "welcome":
             return t(
                 "tutorial.step.welcome.body",
-                "BlueMap turns a Minecraft world into a map you can pan, zoom and explore, right here on the Map tab.",
+                "BlueMap turns a Minecraft world into a map you can pan, zoom and explore, and the Map button on the navigation rail is what opens it.",
             );
         case "makeAMap":
             return t(
@@ -67,7 +67,7 @@ export function tutorialStepBody(id: TutorialStepId, t: Translate): string {
         case "openMap":
             return t(
                 "tutorial.step.openMap.body",
-                "When a render finishes, its tiles are written straight into your maps folder, and an Open the map button appears. Come back to this tab any time to open what BlueMap made.",
+                "When a render finishes, its tiles are written straight into your maps folder, and an Open the map button appears. The Map button on the navigation rail opens what BlueMap made, any time you want it.",
             );
         case "publish":
             return t(

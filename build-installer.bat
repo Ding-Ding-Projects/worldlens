@@ -84,8 +84,10 @@ rem was older, and every hand-built installer silently failed to take - the appl
 rem launching the old build while its author kept wondering why the interface had not changed.
 rem
 rem So the patch number is one past the highest version this machine can see: the installed app
-rem folders, and whatever the repository manifest says. Restored afterwards, so the checkout is
-rem never left carrying a version nobody chose.
+rem folders, and whatever the repository manifest says. Restored immediately after packaging, on
+rem both the success and the failure path, so the checkout is never left carrying a version nobody
+rem chose. That restore is a real step below; this comment previously claimed it while nothing
+rem performed it.
 echo.
 echo [2b/4] Version
 pushd "%APPDIR%"
@@ -105,7 +107,24 @@ echo.
 echo [3/4] Packaging the Windows installer
 pushd "%APPDIR%" || (echo ERROR: no app package at %APPDIR% 1>&2 & exit /b 1)
 call pnpm run make
-if errorlevel 1 (
+set "MAKE_RESULT=%ERRORLEVEL%"
+
+rem --- Put the version back ---------------------------------------------------
+rem The stamping step above said it restored this afterwards. It did not: it wrote
+rem `.version-backup` and nothing ever read it, so every run of this script left the checkout
+rem carrying a version nobody chose - one past whatever happened to be installed on that
+rem machine. A screenshot sweep found `package.json` sitting at 0.1.858 hours after the build
+rem that stamped it, which is the kind of change that gets committed by accident and then
+rem reads as a deliberate release decision to whoever finds it.
+rem
+rem Restored here rather than at the end, and before the exit code is acted on, so a failed
+rem packaging run leaves the tree exactly as clean as a successful one. A cleanup step that
+rem only runs on the happy path is a cleanup step that will not run on the day it matters.
+if exist ".version-backup" (
+    call node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=fs.readFileSync('.version-backup','utf8').trim();fs.writeFileSync(p,JSON.stringify(j,null,4)+'\n');fs.unlinkSync('.version-backup');console.log('      restored package.json to '+j.version);"
+)
+
+if not "%MAKE_RESULT%"=="0" (
     popd
     echo.
     echo ERROR: electron-builder failed. The output above names the step. 1>&2

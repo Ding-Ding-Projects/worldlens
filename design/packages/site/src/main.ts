@@ -66,6 +66,7 @@ import { createRangeSelection } from "./platform/rangeSelection.js";
 import type { FixedKey } from "./i18n/strings.js";
 import { Notifications } from "./notifications/Notifications.js";
 import { Preferences } from "./platform/Preferences.js";
+import { applyLayoutRescue } from "./platform/layoutRescue.js";
 import { RegexBuilderSlot } from "./platform/RegexBuilderSlot.js";
 import { ShortcutRegistry } from "./platform/shortcuts.js";
 import { confirmDestructive, createSettingsPage } from "./settings/index.js";
@@ -910,6 +911,12 @@ function boot(): void {
     root.replaceChildren();
 
     const prefs = new Preferences();
+    // Before anything reads a preference, so a rescued visitor gets a shell built from the
+    // rescued state rather than one built from the state that stranded them and corrected after.
+    const rescued = applyLayoutRescue(prefs, {
+        href: window.location.href,
+        replace: (url) => window.history.replaceState(null, "", url),
+    });
     const identity = new ProductIdentity(prefs);
     const school = new SchoolMode(prefs);
     const vocabulary = new PersonalVocabulary(prefs);
@@ -974,6 +981,17 @@ function boot(): void {
     const notificationHost = el("div", "mb-notification-host");
     document.body.appendChild(notificationHost);
     const notifications = new Notifications(i18n, notificationHost);
+    // Said out loud, because a rescue that happens silently is indistinguishable from the
+    // preference having never been saved - and the visitor needs to know their choice is gone
+    // rather than wondering whether the site forgot it on its own.
+    if (rescued !== "none") {
+        notifications.notify({
+            severity: "info",
+            title: {
+                key: rescued === "all" ? "shell.layoutResetAll" : "shell.layoutReset",
+            },
+        });
+    }
 
     const model = new TabModel(prefs, i18n);
     const sidebar = new SidebarNavigation(

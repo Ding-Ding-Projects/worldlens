@@ -267,29 +267,61 @@ onMounted(() => {
 </template>
 
 <style>
+/*
+ * This page renders markup that came out of a locale file, so almost none of it can be given
+ * a class - the rules below reach `h2`, `table`, `kbd`, `hr` and `a` by element, which is the
+ * only handle there is on content a translator wrote. That makes the type scale the whole
+ * job here: the fragment arrives with three heading levels, three tables and a footer, and
+ * left alone it renders at whatever the browser and Vuetify between them decide.
+ *
+ * The heading rule carries a `.v-application` prefix it does not otherwise need.
+ * `prototypeSurface.scss` styles `.mb-shell-layer h2` - one class and one type, exactly the
+ * weight `.mb-info-page h2` has - and it is imported after every component's style block, so
+ * the two tie and that sheet wins. The first version of this rule was outranked into a 20px
+ * body heading that kept only the letter-spacing and the upper-casing it had been given,
+ * which is a worse result than never having written it.
+ */
 .mb-info-page {
-    padding: 8px 16px 16px;
-    font-size: 0.8125rem;
-    line-height: 1.5;
+    /* The drawer's 12px row inset, so the logo and the tables line up with the rows on
+       every other page of the menu rather than sitting four pixels further in. */
+    padding: 8px 12px 16px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+    letter-spacing: var(--md-sys-typescale-body-medium-tracking);
 }
 
-.mb-info-page__rule {
-    margin: 1rem 0;
+.v-application .mb-info-page__rule.v-divider {
+    margin: 16px 0;
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
 }
 
-.mb-info-page__docs-button {
-    margin-block-end: 12px;
-}
-
+/*
+ * The two buttons are `variant="tonal"`, which is M3's own answer for a secondary action, and
+ * `prototypeSurface.scss` already gives every `.v-btn` in the shell layer the pill shape and
+ * the un-upper-cased label. Only the gutter is set here: they sit outside `.mb-info-page`, so
+ * they would otherwise start at the sheet's 8px edge while everything above them starts at
+ * the row inset.
+ */
+.mb-info-page__docs-button,
 .mb-info-page__tour-button {
-    margin-inline-start: 8px;
+    margin-inline-start: 12px;
     margin-block-end: 12px;
 }
 
+/*
+ * The changelog fold's summary is a real control - it is what opens 35 versions of history -
+ * so it takes a row title's ramp and a row's own inset rather than reading as a bold line of
+ * body copy.
+ */
 .mb-info-page__changelog > summary {
     cursor: pointer;
-    padding: 0.25rem 0;
-    font-weight: 500;
+    padding: 8px 12px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    border-radius: var(--md-sys-shape-corner-md);
 }
 
 .mb-info-page__changelog > summary:focus-visible {
@@ -304,10 +336,20 @@ onMounted(() => {
     border-radius: 50%;
 }
 
-.mb-info-page h2 {
-    font-size: 0.9375rem;
-    font-weight: 500;
-    margin-block: 12px 4px;
+/*
+ * The locale content's own headings, given the same uppercase section label in the primary
+ * role that `mb-section-label` gives every other heading in the design. The three tables of
+ * controls this page is actually here for are what those headings introduce, and this is what
+ * makes them read as sections of one page rather than as bold lines inside it.
+ */
+.v-application .mb-info-page h2 {
+    margin-block: 16px 6px;
+    font-size: var(--md-sys-typescale-label-medium-size);
+    line-height: var(--md-sys-typescale-label-medium-line-height);
+    font-weight: var(--md-sys-typescale-label-medium-weight);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-primary));
 }
 
 .mb-info-page p {
@@ -321,29 +363,42 @@ onMounted(() => {
     overflow-x: auto;
 }
 
+/*
+ * Hairlines in the one role the whole application separates surfaces with, rather than an
+ * eighth of the text colour. `outline-variant` is what `prototypeSurface.scss` gives every
+ * divider and every card edge; an ad-hoc `rgba(on-surface, 0.12)` happens to look similar in
+ * the dark theme, is heavier than it should be in the light one, and is exactly the second
+ * authority on a colour that `colorRoles.ts` exists to be the only one of.
+ */
 .mb-info-page th,
 .mb-info-page td {
-    padding: 4px 8px;
-    border: solid 1px rgba(var(--v-theme-on-surface), 0.12);
+    padding: 6px 8px;
+    border: solid 1px rgb(var(--v-theme-outline-variant));
     font-weight: inherit;
     text-align: start;
     vertical-align: top;
 }
 
+/*
+ * A key cap. `surface-container-highest` is the tint M3 puts on the topmost thing in a
+ * stack, which is what a key drawn on top of a table cell is, and it holds up in the contrast
+ * theme where a translucent wash of the text colour would have collapsed into the background.
+ */
 .mb-info-page kbd {
     display: inline-block;
     padding: 1px 5px;
-    border-radius: 4px;
-    border: solid 1px rgba(var(--v-theme-on-surface), 0.24);
-    background: rgba(var(--v-theme-on-surface), 0.08);
+    border-radius: var(--md-sys-shape-corner-xs);
+    border: solid 1px rgb(var(--v-theme-outline-variant));
+    background: rgb(var(--v-theme-surface-container-highest));
+    color: rgb(var(--v-theme-on-surface));
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-label-medium-size);
 }
 
 .mb-info-page hr {
     border: none;
-    border-block-start: solid 1px rgba(var(--v-theme-on-surface), 0.12);
-    margin-block: 12px;
+    border-block-start: solid 1px rgb(var(--v-theme-outline-variant));
+    margin-block: 16px;
 }
 
 .mb-info-page a {
@@ -355,21 +410,31 @@ onMounted(() => {
 }
 
 .mb-info-page__empty {
-    padding: 12px 16px;
-    font-size: 0.875rem;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    margin: 0;
+    padding: 12px 12px 16px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 /*
  * A sibling of the rendered content rather than a child of it, so the empty state keeps
  * its own padding instead of nesting inside the page's. The inline padding matches both.
+ *
+ * This is the line the prototype's own drawer footer draws - "Worldlens 0.14.2 - BlueMap 5.11
+ * engine" - and it takes the footnote treatment that line has there: the supporting ramp in
+ * the variant colour, quiet enough to be furniture and legible enough to be quoted into a bug
+ * report, which is the only reason anybody ever reads it.
  */
 .mb-info-page__version {
     margin: 0;
-    padding: 0 16px 16px;
+    padding: 0 12px 16px;
     text-align: center;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
     overflow-wrap: anywhere;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 </style>

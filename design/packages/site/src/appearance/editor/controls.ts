@@ -9,6 +9,7 @@
  */
 
 import { clear, el, icon, uniqueId } from "../../platform/dom.js";
+import type { IconName } from "../../platform/icons.js";
 import { announce } from "../../settings/dom.js";
 import { fillPhrase, t } from "../../settings/i18n.js";
 import { AnchoredPanel } from "../../search/anchoredPanel.js";
@@ -48,12 +49,29 @@ function buildRow(
 
     const reset = el("button", {
         class: "md-icon-button mb-reset",
-        text: "Reset",
         attrs: {
             type: "button",
             "aria-label": t("editor.resetProperty", { name: t(options.labelKey) }),
         },
     });
+    /*
+     * The glyph, for the same two reasons the explanation trigger below carries one.
+     *
+     * `.md-icon-button` is a fixed `--md-sys-min-touch-target` square with no overflow guard,
+     * so a word placed inside it wraps past its own edges and collides with whatever sits
+     * underneath -- the exact defect that reached a 400px verification pass as a clipped
+     * "Clear search" on the settings search fields, and that `searchControls.test.ts` now
+     * pins so it cannot come back there. Every row of every appearance editor grows one of
+     * these buttons, so the same word repeated down a whole column was the worst possible
+     * place to reintroduce it.
+     *
+     * The word was also redundant, and wrong in two of the three language modes: the
+     * `aria-label` above already resolves through `t()` and already names the property being
+     * reset, while the visible "Reset" was an English literal that stayed English for a
+     * visitor reading the site in Cantonese. Deleting it removes a second, unlocalised
+     * authority on what this button is called rather than merely hiding it.
+     */
+    reset.append(icon("restore"));
     reset.addEventListener("click", () => {
         options.onReset();
         announce(t("editor.resetProperty", { name: t(options.labelKey) }));
@@ -272,14 +290,36 @@ export function numberRow(
     };
     input.addEventListener("change", commit);
 
-    const down = stepButton("-", () => {
+    /*
+     * Named through the catalogue, and drawn with the same glyph pair every stepper on the
+     * site uses.
+     *
+     * These two were the last `.md-icon-button` in the editor still holding text, and the
+     * only reason they escaped the first sweep is that their text was a single character:
+     * a lone "-" or "+" does not visibly wrap out of a 48px square the way "Reset" did, so
+     * nothing looked broken. What is wrong with them is the other half of the same defect.
+     * A hyphen-minus is a text character, so it renders at the font's own size and weight
+     * beside a real glyph elsewhere in the row and never quite matches it, and it is a
+     * different shape from the minus a stepper is meant to show. The names were assembled
+     * in TypeScript rather than looked up, which is exactly what left "Reset" English in
+     * Cantonese, and here it left the whole sentence structure English.
+     */
+    const down = stepButton("remove", () => {
         options.write(Math.max(options.min, round(options.read() - options.step)));
     });
-    const up = stepButton("+", () => {
+    const up = stepButton("add", () => {
         options.write(Math.min(options.max, round(options.read() + options.step)));
     });
-    down.setAttribute("aria-label", `${t(options.labelKey)} -${options.step}`);
-    up.setAttribute("aria-label", `${t(options.labelKey)} +${options.step}`);
+    const nameStep = { name: t(options.labelKey), step: options.step };
+    for (const [button, key] of [
+        [down, "editor.decreaseProperty"],
+        [up, "editor.increaseProperty"],
+    ] as const) {
+        button.setAttribute("aria-label", t(key, nameStep));
+        // The same phrase as a tooltip, because the glyph alone says which direction but
+        // not by how much, and the step is rarely one.
+        button.title = t(key, nameStep);
+    }
 
     const unit =
         options.unit === undefined || options.unit === ""
@@ -300,8 +340,11 @@ function round(value: number): number {
     return Number(value.toFixed(6));
 }
 
-function stepButton(label: string, onClick: () => void): HTMLButtonElement {
-    const button = el("button", { class: "md-icon-button", text: label, attrs: { type: "button" } });
+// Takes an `IconName` rather than a string so that a caller cannot reach for a character
+// again: there is no argument to this function that produces word text.
+function stepButton(glyph: IconName, onClick: () => void): HTMLButtonElement {
+    const button = el("button", { class: "md-icon-button", attrs: { type: "button" } });
+    button.append(icon(glyph));
     button.addEventListener("click", onClick);
     return button;
 }
@@ -438,9 +481,20 @@ export function colorRow(
     if (options.allowInherit === true) {
         const clearButton = el("button", {
             class: "md-icon-button",
-            text: t("color.clear"),
-            attrs: { type: "button", "aria-label": `${t("color.inherit")}: ${t(options.labelKey)}` },
+            attrs: {
+                type: "button",
+                // The short word survives as the hover tooltip, where a fixed square imposes
+                // no width at all, while the accessible name stays the longer phrase that
+                // says which property is being returned to its inherited value.
+                title: t("color.clear"),
+                "aria-label": `${t("color.inherit")}: ${t(options.labelKey)}`,
+            },
         });
+        // A colour row sits beside a reset button that is now a glyph, so leaving this one as
+        // the word "Clear" would have left two icon buttons of the same size in the same row
+        // disagreeing about what an icon button contains -- on top of the clipping every
+        // `.md-icon-button` carrying word text suffers.
+        clearButton.append(icon("close"));
         clearButton.addEventListener("click", () => {
             options.write("");
         });

@@ -1615,9 +1615,16 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * has to be rebuilt, and navigation must never cost a scene, a camera or a marker selection.
  */
 .mb-shell-layer {
-    /* All three stacked in the same box.  against the growing area above the
-     * Problems panel rather than against the whole content, so opening the panel shortens the
-     * destination instead of being drawn on top of it. */
+    /*
+     * All three destinations stacked in the same box, so switching between them is a change of
+     * which one is on top rather than a change of layout.
+     *
+     * `inset: 0` resolves against `.mb-shell-content`, which is the area above the Problems panel
+     * rather than the whole window. That is what makes opening the panel *shorten* each
+     * destination instead of having the panel drawn over the bottom of it - a distinction worth
+     * stating because both arrangements look identical until somebody opens the panel while a map
+     * is loaded and finds the map's own controls underneath it.
+     */
     position: absolute;
     inset: 0;
     display: flex;
@@ -1655,65 +1662,37 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 }
 
 /*
- * The appearance wrapper is `display: contents` until somebody gives it a background, a border
- * or a padding to paint, at which point it becomes a real box - and a box between the flex
- * container and the tab shell would leave the panel with no height to fill. This gives it the
- * same shape the element it replaced had, so styling the tab bar cannot collapse the pages
- * underneath it.
+ * The appearance wrapper around the rail is `display: contents` until somebody gives the rail a
+ * background, a border or a padding to paint, at which point `--box` turns it into a real
+ * inline-block - which a flex container blockifies to a plain block. A block child does not
+ * stretch to its flex parent's cross size the way a flex item does, so the rail inside it falls
+ * back to its own content height and stops being a full-height column.
+ *
+ * Measured in the running application at 1440x900: with the wrapper painting nothing, the rail
+ * is 860px tall and its footer sits at y=888, one pill clear of the window's bottom edge. Adding
+ * `--box` alone leaves the wrapper at 860px but collapses the rail to 366px and drags the footer
+ * up to y=394. What that looks like on screen is the rail's surface and its right-hand divider
+ * stopping two-thirds of the way down the window, with Settings and the notification bell
+ * stranded in the middle of it - so customising the rail's colour would break the rail's shape,
+ * which is the one thing the appearance contract must never do to the element it is decorating.
+ *
+ * A row rather than a column, and that is not arbitrary. `AppRail`'s own `flex: 0 0 80px` is
+ * written for the row-direction parent it normally has, so a column wrapper would reinterpret
+ * that 80px basis as a block-size and hand the window an 80px-tall rail instead of an 80px-wide
+ * one. `flex: 0 0 auto` on the wrapper keeps the fixed column fixed for the same reason the rail
+ * is not flexible itself: a wrapper allowed to grow or shrink would take width from, or give it
+ * to, `.mb-shell-content` beside it.
+ *
+ * This is the successor to a rule written against `.mb-shell-tabs`, from when the appearance
+ * target carrying this id wrapped the shell's own twelve-tab strip rather than the rail. The
+ * Material Design 3 rewrite moved the target and deleted that class, and the rule was left
+ * matching nothing at all until the collapse above was measured.
  */
-.mb-shell-tabs > .mb-appearance-target--box {
+.mb-shell-body > .mb-appearance-target--box {
     display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-block-size: 0;
-}
-
-.mb-shell-tabs :deep(.mb-shell-primary-tabs) {
-    flex: 1 1 auto;
-    min-block-size: 0;
-}
-
-/*
- * Real chrome, so it takes pointer events. Only a horizontal strip gets the old
- * `flex: 0 0 auto`: on a left/right strip that shorthand replaces TabStrip's bounded
- * width with the labels' intrinsic width, which can starve the active panel.
- */
-.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row) {
-    pointer-events: auto;
-}
-
-.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="top"]),
-.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="bottom"]) {
     flex: 0 0 auto;
-}
-
-/*
- * The two bottom-left workbench buttons are fixed over the shell. A left-docked tab
- * strip therefore reserves their complete 12 + 48 + 8 + 48 footprint at its bottom;
- * the tab overflow machinery uses the reduced height and no tab or strip control can
- * scroll underneath an opaque button. Other placements do not occupy that corner.
- */
-.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="left"]) {
-    padding-block-end: calc(12px + 48px + 8px + 48px);
-}
-
-/*
- * Positioned so a page can fill it with `inset: 0` and own its own scrolling, and left
- * click-through so the map page can hand a drag straight to the canvas. A page that wants
- * events asks for them with `.mb-interactive`, which is the same bargain every floating
- * control in this shell already makes.
- */
-.mb-shell-tabs :deep(.mb-tabs__panel--pointer-passthrough) {
-    position: relative;
-}
-
-/*
- * Every tab closed. The tab system's empty state offers a button per page, and a button in a
- * click-through layer is a button nobody can press; it also needs a surface of its own,
- * because centred text floating over a map render is text nobody can read.
- */
-.mb-shell-tabs :deep(.mb-tabs__empty--pointer-interactive) {
-    background: rgb(var(--v-theme-background));
+    min-inline-size: 0;
+    min-block-size: 0;
 }
 
 /*

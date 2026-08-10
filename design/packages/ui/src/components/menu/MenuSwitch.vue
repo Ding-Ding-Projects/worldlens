@@ -54,17 +54,29 @@ const checked = computed<boolean>({
 </template>
 
 <style>
-.mb-menu-switch {
-    min-height: 48px;
-}
+/*
+ * The row's shape, tint, height and state layers are the drawer's, stated once in
+ * `MenuSideSheet.vue`. What is left here is the label, which is not a `v-list-item-title`
+ * (it is a `<label for>`, so that a click anywhere on the text reaches the input) and
+ * therefore misses the ramp the sheet gives that element.
+ */
 
 .mb-menu-switch__label {
     display: block;
     flex: 1 1 auto;
-    padding-block: 12px;
+    padding-block: 8px;
     cursor: pointer;
-    font-size: 0.875rem;
-    line-height: 1.4;
+    /*
+     * The same label-large ramp a row title takes, spelled out rather than inherited: a
+     * settings switch and a menu command are the same kind of row and a person reading down
+     * the page must not be able to tell which component drew which. The old 0.875rem/1.4 was
+     * the right size by accident and the wrong line height, which is what made a wrapped
+     * bilingual label sit tighter here than two lines away.
+     */
+    font-size: var(--md-sys-typescale-label-large-size);
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
     overflow-wrap: anywhere;
 }
 
@@ -72,6 +84,12 @@ const checked = computed<boolean>({
     flex: 0 0 auto;
 }
 
+/*
+ * Vuetify's selection control reserves a 48px block for its own ripple even at compact
+ * density, which inside a row that is already 48px makes the switch decide the row's height
+ * and leaves the label off-centre against it. Releasing it lets the row's own min-height and
+ * the label's padding agree on where the middle is.
+ */
 .mb-menu-switch__control .v-selection-control {
     min-height: 0;
 }

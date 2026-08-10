@@ -221,6 +221,15 @@ onBeforeUnmount(() => {
  */
 const openWorld = ref<string | null>(null);
 const openProject = ref<ProjectFile | null>(null);
+
+/**
+ * Whether the editor is the thing on screen, rather than the two lists.
+ *
+ * Named here rather than repeated in the template because the class it drives decides the page
+ * measure, and a measure derived from an inline expression is one nobody finds when they later
+ * wonder why the editor is wider than everything else.
+ */
+const editorOpen = computed(() => openProject.value !== null && openWorld.value !== null);
 const savedProject = ref<ProjectFile | null>(null);
 const openFailure = ref<string | null>(null);
 const saving = ref(false);
@@ -709,7 +718,21 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
 </script>
 
 <template>
-    <div class="mb-projects-screen">
+    <!--
+        The 900px measure is for the *lists*, and only for them.
+
+        A line of prose that runs the full width of a 1440px window is a line nobody reads, which
+        is why the gutter and the measure exist at all. An editor is not prose: the prototype lays
+        it out as three columns - a navigation tree, the fields, and a rail carrying the save plan
+        and the render mask - and 900px cannot hold that. Applied indiscriminately, the measure
+        silently decided the editor's layout, and the only visible symptom was an editor that had
+        to put its rail's content in a stack down the page.
+
+        So the class comes off while the editor is open. This is one boolean rather than a second
+        component because the alternative - the editor mounting itself somewhere else in the tree -
+        would put the project's dirty state, its save path and its render in two places.
+    -->
+    <div class="mb-projects-screen" :class="{ 'mb-projects-screen--editing': editorOpen }">
         <!--
             The render outlives the editor being closed, so it sits above both rather than
             inside either. It renders nothing at all while no render has been started.
@@ -912,6 +935,18 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
     max-inline-size: 900px;
     margin-inline: auto;
     padding: 30px 40px 48px;
+}
+
+/*
+ * The editor gets the room the prototype lays it out in.
+ *
+ * 1400px rather than no cap at all, because an unbounded editor on a 3840px display is the
+ * opposite failure: a field label at one end of the screen and its control at the other. This is
+ * the width the prototype's own three columns add up to, so it is a measurement rather than a
+ * guess.
+ */
+.mb-projects-screen--editing {
+    max-inline-size: 1400px;
 }
 
 @media (max-width: 900px) {
