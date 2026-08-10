@@ -678,6 +678,43 @@ function generatedTextMatches(actual, expected) {
     return actual !== null && normalizeLineEndings(actual) === normalizeLineEndings(expected);
 }
 
+/**
+ * The first run of differing lines, rendered for the `--check` failure message.
+ *
+ * "Out of date" alone has proven to be an expensive thing to say: when the committed and
+ * regenerated text disagree only on an environment-dependent detail, the difference itself
+ * is the entire diagnosis, and a guard that withholds it turns a one-line fix into an
+ * archaeology session against a machine nobody can log into.
+ */
+function firstDifference(actual, expected, context = 3, span = 20) {
+    if (actual === null) return "  the committed file is missing entirely";
+    const actualLines = normalizeLineEndings(actual).split("\n");
+    const expectedLines = normalizeLineEndings(expected).split("\n");
+    const total = Math.max(actualLines.length, expectedLines.length);
+    let first = -1;
+    for (let index = 0; index < total; index += 1) {
+        if (actualLines[index] !== expectedLines[index]) {
+            first = index;
+            break;
+        }
+    }
+    if (first === -1) return "  the texts differ only in length"; // unreachable in practice
+    const from = Math.max(0, first - context);
+    const to = Math.min(total, first + span);
+    const lines = [`  first difference at line ${first + 1} (committed vs regenerated):`];
+    for (let index = from; index < to; index += 1) {
+        const committed = actualLines[index];
+        const regenerated = expectedLines[index];
+        if (committed === regenerated) {
+            lines.push(`      ${committed}`);
+        } else {
+            if (committed !== undefined) lines.push(`    - ${committed}`);
+            if (regenerated !== undefined) lines.push(`    + ${regenerated}`);
+        }
+    }
+    return lines.join("\n");
+}
+
 function main(argv) {
     const check = argv.includes("--check");
     const quiet = argv.includes("--quiet");
@@ -705,8 +742,15 @@ function main(argv) {
         );
         if (stale.length > 0) {
             const names = stale.map((output) => output.path.replace(REPO_ROOT, "")).join(", ");
+            const differences = stale
+                .map(
+                    (output) =>
+                        `${output.path.replace(REPO_ROOT, "")}:\n` +
+                        firstDifference(readIfPresent(output.path), output.text),
+                )
+                .join("\n");
             throw new Error(
-                `${names} is out of date. Run \`node scripts/build-changelog.mjs\` and commit the result.`,
+                `${names} is out of date. Run \`node scripts/build-changelog.mjs\` and commit the result.\n${differences}`,
             );
         }
         if (!quiet) {
