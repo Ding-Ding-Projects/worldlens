@@ -62,7 +62,7 @@ describe("ExpressiveSiteShell", () => {
         expect(shell.navigation.tagName).toBe("NAV");
         expect(shell.main.id).toBe("mb-main-content");
         expect(shell.skipLink.getAttribute("href")).toBe("#mb-main-content");
-        const palette = root.querySelector<HTMLButtonElement>(".mb-app-bar__palette-action");
+        const palette = root.querySelector<HTMLButtonElement>(".mb-rail__palette-action");
         palette?.click();
         expect(actions.palette).toHaveBeenCalledOnce();
     });

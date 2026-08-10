@@ -68,7 +68,13 @@ const regexMode = ref(false);
 // `m` because a field's searchable text is several lines (label, key, Java field,
 // upstream's explanation), so `^` and `$` are only useful per line.
 const flags = ref("im");
-const showAdvanced = ref(false);
+/*
+ * The project editor opens generated defaults as a complete, reviewable proposal. Hiding
+ * `FieldMeta.advanced` on first paint would make a descriptor look smaller than it is and
+ * leave a person unable to inspect every value BlueMap will receive before the first save.
+ * The switch remains for people who deliberately want a shorter form after that first view.
+ */
+const showAdvanced = ref(true);
 const rawOpen = ref(false);
 /**
  * The raw-source disclosure needs a real, stable target for its `aria-controls`.
@@ -85,7 +91,9 @@ const copyState = ref("");
 
 const descriptor = computed(() => props.file.descriptor);
 const heading = computed(() => (props.title === "" ? descriptor.value.title : props.title));
-const blurb = computed(() => (props.subtitle === "" ? descriptor.value.description : props.subtitle));
+const blurb = computed(() =>
+    props.subtitle === "" ? descriptor.value.description : props.subtitle,
+);
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
 
@@ -107,17 +115,22 @@ const groups = computed<RenderedGroup[]>(() =>
                 label: group.label,
                 description: group.description,
                 fields: shown,
-                hiddenByAdvanced: matcher.value.active ? 0 : all.filter((field) => field.advanced).length,
+                hiddenByAdvanced: matcher.value.active
+                    ? 0
+                    : all.filter((field) => field.advanced).length,
             };
         })
         .filter((group) => group.fields.length > 0),
 );
 
 const totalFields = computed(() => descriptor.value.fields.length);
-const shownFields = computed(() => groups.value.reduce((total, group) => total + group.fields.length, 0));
+const shownFields = computed(() =>
+    groups.value.reduce((total, group) => total + group.fields.length, 0),
+);
 
 const summary = computed(() => {
-    if (matcher.value.error !== null) return t("config.form.badPattern", "The pattern is not valid, so nothing is shown.");
+    if (matcher.value.error !== null)
+        return t("config.form.badPattern", "The pattern is not valid, so nothing is shown.");
     if (!matcher.value.active && showAdvanced.value) return "";
     if (!matcher.value.active) {
         const advanced = totalFields.value - shownFields.value;
@@ -144,7 +157,9 @@ const sample = computed(() => sampleTextFor(descriptor.value.fields));
 
 const errors = computed(() => props.file.issues.filter((issue) => issue.severity === "error"));
 const fileWideErrors = computed(() => errors.value.filter((issue) => issue.path === ""));
-const unknownKeys = computed(() => props.file.issues.filter((issue) => issue.kind === "unknown-key"));
+const unknownKeys = computed(() =>
+    props.file.issues.filter((issue) => issue.kind === "unknown-key"),
+);
 const legacyKeys = computed(() => props.file.issues.filter((issue) => issue.kind === "legacy-key"));
 
 /**
@@ -175,12 +190,20 @@ watch(
     async (path) => {
         if (path === null || path === "") return;
 
-        const index = groups.value.findIndex((group) => group.fields.some((field) => field.path === path));
-        if (index >= 0 && !openPanels.value.includes(index)) chosenPanels.value = [...openPanels.value, index];
+        const index = groups.value.findIndex((group) =>
+            group.fields.some((field) => field.path === path),
+        );
+        if (index >= 0 && !openPanels.value.includes(index))
+            chosenPanels.value = [...openPanels.value, index];
 
         await nextTick();
         const element = document.querySelector(`[data-field-path="${CSS.escape(path)}"]`);
-        element?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        element?.scrollIntoView({
+            block: "center",
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                ? "auto"
+                : "smooth",
+        });
     },
     { immediate: true },
 );
@@ -209,15 +232,38 @@ async function copyText(): Promise<void> {
             {{ file.readOnlyReason }}
         </v-alert>
 
-        <v-alert v-for="issue in fileWideErrors" :key="issue.message" type="error" density="compact" variant="tonal" class="mb-3" role="alert">
+        <v-alert
+            v-for="issue in fileWideErrors"
+            :key="issue.message"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mb-3"
+            role="alert"
+        >
             {{ issue.message }}
         </v-alert>
 
-        <v-alert v-for="issue in legacyKeys" :key="issue.path" type="error" density="compact" variant="tonal" class="mb-3" role="alert">
+        <v-alert
+            v-for="issue in legacyKeys"
+            :key="issue.path"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mb-3"
+            role="alert"
+        >
             <strong>{{ issue.path }}</strong> {{ issue.message }}
         </v-alert>
 
-        <v-alert v-for="issue in unknownKeys" :key="issue.path" type="warning" density="compact" variant="tonal" class="mb-3">
+        <v-alert
+            v-for="issue in unknownKeys"
+            :key="issue.path"
+            type="warning"
+            density="compact"
+            variant="tonal"
+            class="mb-3"
+        >
             {{ issue.message }}
         </v-alert>
 
@@ -251,7 +297,9 @@ async function copyText(): Promise<void> {
                     v-model:regex="regexMode"
                     v-model:flags="flags"
                     :label="t('config.form.search', 'Search these settings')"
-                    :placeholder="t('config.form.searchHint', 'name, key or anything in the explanation')"
+                    :placeholder="
+                        t('config.form.searchHint', 'name, key or anything in the explanation')
+                    "
                     :sample="sample"
                     :summary="summary"
                 />
@@ -267,10 +315,20 @@ async function copyText(): Promise<void> {
             </div>
 
             <p v-if="groups.length === 0" class="mb-config-form__empty">
-                {{ t("config.form.noMatches", "Nothing on this screen matches. The search across every screen may still have results.") }}
+                {{
+                    t(
+                        "config.form.noMatches",
+                        "Nothing on this screen matches. The search across every screen may still have results.",
+                    )
+                }}
             </p>
 
-            <v-expansion-panels v-model="openPanels" multiple variant="accordion" class="mb-config-form__panels">
+            <v-expansion-panels
+                v-model="openPanels"
+                multiple
+                variant="accordion"
+                class="mb-config-form__panels"
+            >
                 <v-expansion-panel v-for="group in groups" :key="group.id">
                     <v-expansion-panel-title>
                         <span class="mb-config-form__group">{{ group.label }}</span>
@@ -332,9 +390,20 @@ async function copyText(): Promise<void> {
                         density="comfortable"
                         @click="rawOpen = !rawOpen"
                     >
-                        {{ rawOpen ? t("config.form.hideSource", "Hide the file") : t("config.form.showSource", "Show the file as it will be written") }}
+                        {{
+                            rawOpen
+                                ? t("config.form.hideSource", "Hide the file")
+                                : t("config.form.showSource", "Show the file as it will be written")
+                        }}
                     </v-btn>
-                    <v-btn class="mb-responsive-card-title__action" :prepend-icon="mdiContentCopy" variant="text" size="small" density="comfortable" @click="copyText">
+                    <v-btn
+                        class="mb-responsive-card-title__action"
+                        :prepend-icon="mdiContentCopy"
+                        variant="text"
+                        size="small"
+                        density="comfortable"
+                        @click="copyText"
+                    >
                         {{ t("config.form.copy", "Copy") }}
                     </v-btn>
                 </v-card-title>
@@ -346,7 +415,13 @@ async function copyText(): Promise<void> {
         </template>
 
         <p v-if="errors.length > 0" class="mb-config-form__errorline" role="status">
-            <v-btn :prepend-icon="mdiAlertCircleOutline" variant="text" size="x-small" density="comfortable" disabled>
+            <v-btn
+                :prepend-icon="mdiAlertCircleOutline"
+                variant="text"
+                size="x-small"
+                density="comfortable"
+                disabled
+            >
                 {{ t("config.form.errorCount", { n: errors.length }, "{n} problems") }}
             </v-btn>
         </p>

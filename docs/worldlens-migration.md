@@ -4,7 +4,7 @@ Worldlens is the new product and package identity. It remains a from-scratch Typ
 [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap); BlueMap is the upstream renderer and
 viewer project, and this project does not claim that name or erase that credit.
 
-![The packaged Worldlens profile-migration consent dialog](./screenshots/worldlens-profile-migration-consent.png)
+![The packaged Worldlens profile-migration dialog, headed Bring your existing profile to Worldlens? It says Worldlens found data from Material BlueMap, lists what would be copied and verified - consent record, settings, GitHub credential references, projects, histories, cache and maps - states that the old profile stays in place so the copy can be retried or rolled back, names both folders, and offers Copy and verify or Not now](./screenshots/worldlens-profile-migration-consent.png)
 
 ## Behaviour
 
@@ -131,7 +131,11 @@ profile root. Credentials remain encrypted or referenced exactly as stored; migr
 prints or returns their values. Receipt and consent writes are staged, flushed, and renamed.
 
 Worldlens Windows artifacts are intentionally unsigned. Packaging fixes `forceCodeSigning`,
-`signExecutable`, and `signAndEditExecutable` to `false` and clears inherited signing inputs.
+`signExecutable`, and `signAndEditExecutable` to `false`, clears inherited signing inputs, and
+sets `CSC_IDENTITY_AUTO_DISCOVERY=false`. A resource-only `rcedit` hook preserves the tracked icon
+and Windows version metadata without entering electron-builder's signer/editor path. CI recursively
+requires `Get-AuthenticodeSignature` to report `NotSigned` for every emitted executable, including
+the Squirrel installer; any signer invocation or signed output blocks publication.
 HTTPS authenticates the contacted host and protects transport; feed metadata and package hashes
 detect bytes that differ from what that host advertised. Because packages are intentionally
 unsigned, neither mechanism authenticates the publisher or author. See

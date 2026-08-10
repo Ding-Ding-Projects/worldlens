@@ -43,7 +43,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { joinParts, sha256File } from "@worldlens/parts";
 import type { PartRecord, PartsManifest } from "@worldlens/parts";
-import { downloadToFile, isAbort } from "../download/http.js";
+import { isAbort } from "../download/http.js";
 import { extractZip } from "../download/extract.js";
 import { MAX_SIDECAR_BYTES, SIDECAR_ASSET_NAME, parseSidecar } from "./sidecar.js";
 import type { BackupSidecar } from "./sidecar.js";
@@ -55,9 +55,11 @@ import {
 } from "./pointer.js";
 import type { CheapLfsPointer } from "./pointer.js";
 import { findReleaseByTag, readTextAsset } from "./github.js";
-import type { FetchLike, GitHubCallOptions, ReleaseAssetInfo } from "./github.js";
+import type { GitHubCallOptions, ReleaseAssetInfo } from "./github.js";
 import { restoreArchivePath, restoreIdFor, restoreWorkspace } from "./workspace.js";
 import type { BackupSourceKind } from "./source.js";
+import { ghApiBaseForHost } from "../ghcli/credentialBroker.js";
+import type { GhCliAccountLease, GhCliAccountProvider } from "../ghcli/credentialBroker.js";
 
 export type RestorePhase = "reading" | "downloading" | "joining" | "extracting" | "finished";
 
@@ -123,6 +125,8 @@ export interface RestoreRequest {
     readonly owner: string;
     readonly repo: string;
     readonly tag: string;
+    /** Secret-free id of the gh account selected for this restore. */
+    readonly accountId?: string | undefined;
 }
 
 export type RestoreResult =
@@ -132,11 +136,10 @@ export type RestoreResult =
 export interface BackupRestoreRunnerOptions {
     /** Where a restore is staged and unpacked. A function, for the same reason a backup's is. */
     readonly storageDir: () => string;
-    readonly token: () => Promise<string | null> | string | null;
-    readonly fetch?: FetchLike | undefined;
+    /** Main-process-only gh account broker. One stable lease is acquired per restore. */
+    readonly account: GhCliAccountProvider;
     readonly onEvent?: ((event: RestoreEvent) => void) | undefined;
     readonly now?: (() => number) | undefined;
-    readonly apiBase?: string | undefined;
 }
 
 export class BackupRestoreRunner {
@@ -172,8 +175,19 @@ export class BackupRestoreRunner {
             });
         }
 
-        const token = await this.#token();
-        if (token === null) {
+        let lease: GhCliAccountLease | null = null;
+        try {
+            lease = await this.#options.account(request.accountId, "read");
+        } catch (error) {
+            return this.#failed(restoreId, {
+                code: "signed-out",
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "The selected GitHub CLI account could not be used for this restore.",
+            });
+        }
+        if (lease === null) {
             return this.#failed(restoreId, {
                 code: "signed-out",
                 message:
@@ -193,7 +207,7 @@ export class BackupRestoreRunner {
         });
 
         try {
-            const summary = await this.#run({ owner, repo, tag, restoreId, token, signal: controller.signal });
+            const summary = await this.#run({ owner, repo, tag, restoreId, lease, signal: controller.signal });
             const durationMs = this.#clock() - startedAt;
             this.emit({ type: "finished", restoreId, summary, durationMs, at: this.#timestamp() });
             return { ok: true, restoreId, summary, durationMs };
@@ -225,17 +239,16 @@ export class BackupRestoreRunner {
         repo: string;
         tag: string;
         restoreId: string;
-        token: string;
+        lease: GhCliAccountLease;
         signal: AbortSignal;
     }): Promise<RestoreSummary> {
         const { owner, repo, tag, restoreId, signal } = context;
         this.#phase(restoreId, "reading");
 
         const callOptions: GitHubCallOptions = {
-            fetch: this.#options.fetch ?? ((url, init) => fetch(url, init)),
-            token: context.token,
+            fetch: (url, init) => context.lease.api(url, init),
+            apiBase: ghApiBaseForHost(context.lease.host),
             signal,
-            ...(this.#options.apiBase === undefined ? {} : { apiBase: this.#options.apiBase }),
         };
 
         const release = await findReleaseByTag(owner, repo, tag, callOptions);
@@ -254,7 +267,11 @@ export class BackupRestoreRunner {
                     " this application made.",
             );
         }
-        const sidecarText = await readTextAsset(sidecarAsset, MAX_SIDECAR_BYTES, callOptions);
+        const sidecarText = await readTextAsset(
+            apiAsset(sidecarAsset, owner, repo, context.lease.host),
+            MAX_SIDECAR_BYTES,
+            callOptions,
+        );
         const sidecar: BackupSidecar | null = sidecarText === null ? null : parseSidecar(sidecarText);
         if (sidecar === null) {
             throw new RestoreRefusal(
@@ -275,7 +292,7 @@ export class BackupRestoreRunner {
             );
         }
         const pointerText = await readTextAsset(
-            pointerAsset,
+            apiAsset(pointerAsset, owner, repo, context.lease.host),
             CHEAP_LFS_MAXIMUM_POINTER_TEXT_BYTES,
             callOptions,
         );
@@ -298,10 +315,28 @@ export class BackupRestoreRunner {
         this.#phase(restoreId, "downloading");
         let joinedArchivePath: string;
         if (pointer.parts === undefined) {
-            await this.#downloadWhole(release.assets, pointer, archivePath, callOptions, restoreId, signal);
+            await this.#downloadWhole(
+                context.lease,
+                owner,
+                repo,
+                release.assets,
+                pointer,
+                archivePath,
+                restoreId,
+                signal,
+            );
             joinedArchivePath = archivePath;
         } else {
-            await this.#downloadParts(release.assets, pointer, workspace, callOptions, restoreId, signal);
+            await this.#downloadParts(
+                context.lease,
+                owner,
+                repo,
+                release.assets,
+                pointer,
+                workspace,
+                restoreId,
+                signal,
+            );
             this.#phase(restoreId, "joining");
             joinedArchivePath = await this.#join(pointer, workspace, restoreId, signal);
         }
@@ -335,10 +370,12 @@ export class BackupRestoreRunner {
     }
 
     async #downloadWhole(
+        lease: GhCliAccountLease,
+        owner: string,
+        repo: string,
         assets: readonly ReleaseAssetInfo[],
         pointer: CheapLfsPointer,
         archivePath: string,
-        callOptions: GitHubCallOptions,
         restoreId: string,
         signal: AbortSignal,
     ): Promise<void> {
@@ -349,31 +386,29 @@ export class BackupRestoreRunner {
                 `The release names ${pointer.assetName} but has no asset by that name.`,
             );
         }
-        let done = 0;
-        await downloadToFile(asset.downloadUrl, archivePath, {
-            fetch: callOptions.fetch,
-            headers: assetHeaders(callOptions.token),
-            signal,
-            expectedBytes: asset.size,
-            onBytes: (_delta, total) => {
-                done = total;
-                this.#progress(restoreId, "downloading", {
-                    description: `Downloading ${pointer.assetName}`,
-                    bytesDone: done,
-                    bytesTotal: asset.size,
-                    partsDone: 0,
-                    partsTotal: 1,
-                    currentPart: pointer.assetName,
-                });
-            },
+        const result = await lease.downloadApi(
+            apiAssetUrl(owner, repo, asset.id, lease.host),
+            archivePath,
+            { signal },
+        );
+        this.#assertDownload(result, pointer.assetName);
+        this.#progress(restoreId, "downloading", {
+            description: `Downloading ${pointer.assetName}`,
+            bytesDone: result.bytes,
+            bytesTotal: asset.size,
+            partsDone: 1,
+            partsTotal: 1,
+            currentPart: pointer.assetName,
         });
     }
 
     async #downloadParts(
+        lease: GhCliAccountLease,
+        owner: string,
+        repo: string,
         assets: readonly ReleaseAssetInfo[],
         pointer: CheapLfsPointer,
         workspace: ReturnType<typeof restoreWorkspace>,
-        callOptions: GitHubCallOptions,
         restoreId: string,
         signal: AbortSignal,
     ): Promise<void> {
@@ -406,19 +441,26 @@ export class BackupRestoreRunner {
                     `The pointer names part ${part.name} but the release has no asset by that name.`,
                 );
             }
-            await downloadToFile(asset.downloadUrl, join(workspace.partsDir, part.name), {
-                fetch: callOptions.fetch,
-                headers: assetHeaders(callOptions.token),
-                signal,
-                expectedBytes: part.sizeInBytes,
-                onBytes: (_delta, total) => {
-                    doneByPart.set(index, total);
-                    publish(index, part.name);
-                },
-            });
+            const result = await lease.downloadApi(
+                apiAssetUrl(owner, repo, asset.id, lease.host),
+                join(workspace.partsDir, part.name),
+                { signal },
+            );
+            this.#assertDownload(result, part.name);
             doneByPart.set(index, part.sizeInBytes);
             publish(index, part.name);
         }
+    }
+
+    #assertDownload(
+        result: { readonly started: boolean; readonly code: number | null },
+        assetName: string,
+    ): void {
+        if (result.started && result.code === 0) return;
+        throw new RestoreRefusal(
+            "download-failed",
+            `GitHub CLI could not download ${assetName}. Reauthenticate the selected account and try again.`,
+        );
     }
 
     /**
@@ -516,11 +558,6 @@ export class BackupRestoreRunner {
         return { ok: false, restoreId, failure };
     }
 
-    async #token(): Promise<string | null> {
-        const value = await this.#options.token();
-        return typeof value === "string" && value.length > 0 ? value : null;
-    }
-
     protected emit(event: RestoreEvent): void {
         this.#options.onEvent?.(event);
     }
@@ -534,13 +571,13 @@ export class BackupRestoreRunner {
     }
 }
 
-/** The headers a release asset's `browser_download_url` is fetched with. */
-function assetHeaders(token: string): Record<string, string> {
-    return {
-        accept: "application/octet-stream",
-        "user-agent": "worldlens",
-        authorization: `Bearer ${token}`,
-    };
+function apiAssetUrl(owner: string, repo: string, id: number, host: string): string {
+    const base = host.toLowerCase() === "github.com" ? "https://api.github.com" : `https://${host}`;
+    return `${base}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases/assets/${String(id)}`;
+}
+
+function apiAsset(asset: ReleaseAssetInfo, owner: string, repo: string, host: string): ReleaseAssetInfo {
+    return { ...asset, downloadUrl: apiAssetUrl(owner, repo, asset.id, host) };
 }
 
 /** A restore that stopped because what it found could not honestly be restored. */

@@ -106,6 +106,14 @@ const BLOCKING_SURFACES: Record<string, BlockingSurface> = {
             "click outside. It takes the keyboard on purpose because typing a command is the whole " +
             "point of it, the same reasoning the UI package's own CommandPalette.vue entry gives.",
     },
+    "archive-entry.ts": {
+        count: 3,
+        decision:
+            "No modal of its own: this file retrofits ARIA onto the archived static page's " +
+            "existing dialogs. Two markers stamp aria-modal on the regex builder and the command " +
+            "palette (surfaces whose decisions are declared above for the live site), and the " +
+            "third is the querySelector that finds an already-modal dialog to manage focus for.",
+    },
     "tabs/BulkCloseDialog.ts": {
         count: 2,
         decision:

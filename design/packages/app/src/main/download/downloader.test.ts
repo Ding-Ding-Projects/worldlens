@@ -14,6 +14,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { splitFile } from "@worldlens/parts";
+import { fakeGhAccountLease } from "../ghcli/testLease.js";
 import { ReleaseDownloader, estimateEta, formatEta } from "./downloader.js";
 import type { DownloadEvent } from "./downloader.js";
 import type { FetchLike } from "./release.js";
@@ -155,7 +156,7 @@ function serve(published: Published): Server {
 
 function downloader(
     server: Server,
-    extra: { token?: () => string | null; concurrency?: number; partRetries?: number } = {},
+    extra: { signedIn?: boolean; concurrency?: number; partRetries?: number } = {},
 ): { downloader: ReleaseDownloader; events: DownloadEvent[] } {
     const events: DownloadEvent[] = [];
     return {
@@ -165,7 +166,30 @@ function downloader(
             onEvent: (event) => events.push(event),
             fetch: server.fetch,
             apiBase: "https://api.example",
-            token: extra.token ?? (() => null),
+            account:
+                extra.signedIn === true
+                    ? async (accountId) =>
+                          fakeGhAccountLease({
+                              accountId: accountId ?? "github.com:test",
+                              api: server.fetch,
+                              downloadApi: async (url, destination, options) => {
+                                  const response = await server.fetch(url, {
+                                      ...(options?.signal === undefined ? {} : { signal: options.signal }),
+                                  });
+                                  if (!response.ok) {
+                                      return {
+                                          started: true,
+                                          code: 1,
+                                          bytes: 0,
+                                          stderr: `download failed (HTTP ${String(response.status)})`,
+                                      };
+                                  }
+                                  const bytes = Buffer.from(await response.arrayBuffer());
+                                  await writeFile(destination, bytes);
+                                  return { started: true, code: 0, bytes: bytes.length, stderr: "" };
+                              },
+                          })
+                    : async () => null,
             concurrency: extra.concurrency ?? 3,
             ...(extra.partRetries === undefined ? {} : { partRetries: extra.partRetries }),
         }),
@@ -379,7 +403,7 @@ describe("ReleaseDownloader", () => {
 
         await rm(storageDir, { recursive: true, force: true });
         const authenticated = serve(published);
-        await downloader(authenticated, { token: () => "abc" }).downloader.download({
+        await downloader(authenticated, { signedIn: true }).downloader.download({
             owner: "o",
             repo: "r",
         });
@@ -499,7 +523,7 @@ describe("the configured part-fetch concurrency", () => {
             onEvent: () => undefined,
             fetch: (url, init) => tracker.fetch(url, init),
             apiBase: "https://api.example",
-            token: () => null,
+            account: async () => null,
             concurrency: () => configured,
         });
 

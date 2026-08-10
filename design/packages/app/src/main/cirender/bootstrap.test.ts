@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { fakeGhAccountLease } from "../ghcli/testLease.js";
 import {
     CI_BOOTSTRAP_MARKER_FILE,
     CI_BOOTSTRAP_MARKER_TOOL,
@@ -7,7 +8,6 @@ import {
     bootstrapCiRepository,
 } from "./bootstrap.js";
 import type { CiWorkflowTemplate } from "./bootstrap.js";
-import type { ProcessResult, ProcessRunner, ProcessToFileResult } from "./gh.js";
 
 const OWNER = "octocat";
 const REPO = "a-map";
@@ -202,23 +202,16 @@ class FakeRepo {
     };
 }
 
-const NEVER_RUN: ProcessRunner = {
-    run(): Promise<ProcessResult> {
-        return Promise.reject(new Error("gh should not run while the in-app session is usable"));
-    },
-    runToFile(): Promise<ProcessToFileResult> {
-        return Promise.reject(new Error("gh should not run while the in-app session is usable"));
-    },
-};
-
 function run(repo: FakeRepo, templateVersion = TEMPLATE_VERSION) {
     return bootstrapCiRepository(
         { owner: OWNER, repo: REPO },
         {
-            token: "token-never-logged",
-            fetch: repo.fetch,
-            runner: NEVER_RUN,
-            apiBase: API,
+            lease: fakeGhAccountLease({
+                login: OWNER,
+                scopes: repo.scopes ?? [],
+                scopesReported: repo.scopes !== null,
+                api: (url, init) => repo.fetch(url.replace("https://api.github.com", API), init),
+            }),
             templates: TEMPLATES,
             templateVersion,
             now: () => new Date("2026-08-07T12:00:00.000Z"),

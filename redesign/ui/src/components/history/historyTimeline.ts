@@ -1,0 +1,149 @@
+/**
+ * The history as a timeline: a long list of rows turned into a short list of days.
+ *
+ * A history that is doing its job gets long, and a long flat list is where a version history
+ * stops being used. Forty rows all reading "12 March 2026, 14:0x" put the reader in the
+ * position of scrolling and reading timestamps to work out roughly when something happened,
+ * which is the one question a timeline answers for free.
+ *
+ * So the rows are grouped by the day they fall on, in the reader's own timezone, and each
+ * day carries what it amounts to: how many revisions, how many distinct files they touched,
+ * and how those files split between added, changed and taken away. That is enough to scan a
+ * year of history and land on the right afternoon without opening anything.
+ *
+ * ## The current state is marked, not inferred
+ *
+ * Exactly one revision is what is on disk right now, and the reader has to be able to see
+ * which. Working it out from "the first row" is wrong the moment a filter is on, because the
+ * first row of a filtered view is merely the newest thing that matched. So the current
+ * revision's id is passed in and marked wherever it appears - and when it does not appear,
+ * {@link groupRevisionsByDay} says that too, through `holdsCurrent` being false on every
+ * group, which the panel turns into a plain sentence rather than into silence.
+ *
+ * ## A revision with an unreadable date is kept
+ *
+ * It goes into a final group with a null day rather than being dropped. A revision that
+ * exists and cannot be placed on a calendar is still a revision somebody may need to
+ * restore, and a timeline that hid it would make it findable only by turning the timeline
+ * off, which nobody would think to do.
+ */
+
+import type { DayKey } from "../changelog/changelogDates.js";
+
+import type { HistoryRevision } from "./historyHost.js";
+import { revisionDay } from "./historyModel.js";
+
+/**
+ * The bucket key for revisions whose date cannot be read.
+ *
+ * A null day cannot be a Map key beside real ones, and an ordinary word could collide with
+ * a real key. A NUL is the one character a `YYYY-MM-DD` string can never contain, so the
+ * undated bucket cannot be reached by a day that exists.
+ */
+const UNDATED = "\u0000undated";
+
+/** How the files of a day, or of one revision, split between the three things that happen. */
+export interface ChangeCounts {
+    readonly added: number;
+    readonly modified: number;
+    readonly deleted: number;
+}
+
+export interface TimelineDay {
+    /** The local day, or null for the group holding revisions whose date cannot be read. */
+    readonly day: DayKey | null;
+    /** Newest first, matching the order the list itself is in. */
+    readonly revisions: readonly HistoryRevision[];
+    /** Distinct files touched that day, so two edits to one file count once. */
+    readonly files: number;
+    readonly counts: ChangeCounts;
+    /** True when the revision that is on disk right now falls in this group. */
+    readonly holdsCurrent: boolean;
+}
+
+/** The added/changed/deleted split of one revision's own files. */
+export function revisionCounts(revision: HistoryRevision): ChangeCounts {
+    let added = 0;
+    let modified = 0;
+    let deleted = 0;
+    for (const change of revision.changes) {
+        if (change.status === "added") added += 1;
+        else if (change.status === "deleted") deleted += 1;
+        else modified += 1;
+    }
+    return { added, modified, deleted };
+}
+
+/**
+ * Groups revisions by their local day, in the order those days first appear.
+ *
+ * Grouping does not sort, in either dimension. A panel that lists newest first gets its
+ * days newest first and its rows newest first within each day; a caller that hands over an
+ * ascending list gets an ascending timeline. That is deliberate rather than lazy: a
+ * timeline that imposed its own order would disagree with the list it is drawn from, and
+ * the reader would have no way to tell which of the two was lying about what happened when.
+ *
+ * The one exception is the undated group, which always goes last. It is a footnote rather
+ * than a moment in the story, and it has no position on a calendar to be sorted into.
+ */
+export function groupRevisionsByDay(
+    revisions: readonly HistoryRevision[],
+    currentId: string | null = null,
+): TimelineDay[] {
+    const order: (DayKey | null)[] = [];
+    const buckets = new Map<string, HistoryRevision[]>();
+
+    for (const revision of revisions) {
+        const day = revisionDay(revision.at);
+        // A null day cannot be a Map key beside real ones without colliding with a folder
+        // literally called "null", so it gets a key no day string can produce.
+        const key = day ?? UNDATED;
+        const bucket = buckets.get(key);
+        if (bucket === undefined) {
+            buckets.set(key, [revision]);
+            order.push(day);
+        } else {
+            bucket.push(revision);
+        }
+    }
+
+    const days = order.filter((day): day is DayKey => day !== null);
+    const sequence: (DayKey | null)[] = order.includes(null) ? [...days, null] : days;
+
+    return sequence.map((day) => {
+        const inDay = buckets.get(day ?? UNDATED) ?? [];
+        const touched = new Set<string>();
+        let added = 0;
+        let modified = 0;
+        let deleted = 0;
+
+        for (const revision of inDay) {
+            for (const change of revision.changes) {
+                touched.add(change.path);
+                if (change.status === "added") added += 1;
+                else if (change.status === "deleted") deleted += 1;
+                else modified += 1;
+            }
+        }
+
+        return {
+            day,
+            revisions: inDay,
+            files: touched.size,
+            counts: { added, modified, deleted },
+            holdsCurrent: currentId !== null && inDay.some((revision) => revision.id === currentId),
+        };
+    });
+}
+
+/**
+ * The revision that is on disk right now: the newest one in the *whole* history.
+ *
+ * Taken from the unfiltered list on purpose. The newest row of a filtered view is only the
+ * newest thing that matched the filter, and marking it "on disk now" would be a confident
+ * lie in exactly the situation - somebody hunting through a filtered history - where being
+ * wrong about which state is live matters most.
+ */
+export function currentRevisionId(all: readonly HistoryRevision[]): string | null {
+    return all[0]?.id ?? null;
+}

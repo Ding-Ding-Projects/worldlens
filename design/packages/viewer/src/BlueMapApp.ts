@@ -19,6 +19,11 @@ import { NormalMarkerManager } from "./markers/NormalMarkerManager";
 import { makeReactive } from "./util/reactivity";
 import type { ControlsLike } from "./controls/ControlsManager";
 import { MaterialShell } from "./materialShell";
+import { ViewerPresentationPolicy } from "./presentationPolicy";
+import type {
+    ViewerPresentationAdapter,
+    ViewerPresentationRestriction,
+} from "./presentationPolicy";
 
 export interface BlueMapAppSettings {
     version: string;
@@ -74,6 +79,16 @@ export interface BlueMapAppOptions {
      * behavior.
      */
     dataRoot?: string;
+    /**
+     * Optional host-owned policy for a presentation mode that temporarily restricts locale and
+     * tone controls.  This is plain viewer data, not an import of any desktop UI state.
+     */
+    presentationRestriction?: ViewerPresentationRestriction;
+    /**
+     * Optional host copy bridge for the served material shell.  It is viewer-owned data only:
+     * no UI package or framework type reaches this public map runtime.
+     */
+    presentationAdapter?: ViewerPresentationAdapter;
 }
 
 interface PlayerLike {
@@ -126,6 +141,7 @@ export class BlueMapApp {
     hashUpdateTimeout: ReturnType<typeof setTimeout> | null;
     viewAnimation: Animation | null;
     materialShell: MaterialShell;
+    presentationPolicy: ViewerPresentationPolicy;
 
     allowRemoteInjection: (kind: "script" | "style", url: string) => boolean;
     dataRoot: string;
@@ -135,9 +151,13 @@ export class BlueMapApp {
 
         this.allowRemoteInjection = options.allowRemoteInjection ?? (() => false);
         this.dataRoot = (options.dataRoot ?? "").replace(/\/+$/, "");
+        this.presentationPolicy = new ViewerPresentationPolicy(
+            options.presentationRestriction,
+            options.presentationAdapter,
+        );
 
         this.mapViewer = new MapViewer(rootElement, this.events);
-        this.materialShell = new MaterialShell(rootElement);
+        this.materialShell = new MaterialShell(rootElement, this.presentationPolicy);
 
         this.mapControls = new MapControls(this.mapViewer.renderer.domElement, rootElement);
         this.freeFlightControls = new FreeFlightControls(this.mapViewer.renderer.domElement);
@@ -194,6 +214,20 @@ export class BlueMapApp {
 
         this.hashUpdateTimeout = null;
         this.viewAnimation = null;
+    }
+
+    /**
+     * Applies a host-owned presentation restriction without making the viewer know which host
+     * setting produced it.  The raw locale is retained by {@link presentationPolicy}, so a
+     * temporary English presentation never overwrites the person's saved map locale.
+     */
+    setPresentationRestriction(restriction: ViewerPresentationRestriction): void {
+        const locale = this.presentationPolicy.setRestriction(restriction, i18n.locale.value);
+        this.materialShell.refreshPresentation();
+        if (locale === null) return;
+        void setLanguage(locale).then(() => {
+            if (this.settings !== null) this.updatePageAddress();
+        });
     }
 
     async load(): Promise<void> {
@@ -470,6 +504,7 @@ export class BlueMapApp {
         this.mapEventSource = null;
         this.playerMarkerManager?.dispose();
         this.markerFileManager?.dispose();
+        this.materialShell.dispose();
     }
 
     loadSettings(): Promise<Partial<BlueMapAppSettings>> {
@@ -867,7 +902,8 @@ export class BlueMapApp {
         this.setScreenshotClipboard(
             this.loadUserSetting("screenshotClipboard", this.appState.screenshot.clipboard),
         );
-        await setLanguage(this.loadUserSetting("lang", i18n.locale.value));
+        const savedLocale = this.loadUserSetting("lang", i18n.locale.value);
+        await setLanguage(this.presentationPolicy.resolveLoadedLocale(savedLocale));
         this.setChunkBorders(
             this.loadUserSetting("chunkBorders", this.mapViewer.data.uniforms.chunkBorders.value),
         );
@@ -890,7 +926,7 @@ export class BlueMapApp {
         this.saveUserSetting("showZoomButtons", this.appState.controls.showZoomButtons);
         this.saveUserSetting("theme", this.appState.theme);
         this.saveUserSetting("screenshotClipboard", this.appState.screenshot.clipboard);
-        this.saveUserSetting("lang", i18n.locale.value);
+        this.saveUserSetting("lang", this.presentationPolicy.resolveSavedLocale(i18n.locale.value));
         this.saveUserSetting("chunkBorders", this.mapViewer.data.uniforms.chunkBorders.value);
         this.saveUserSetting("debug", this.appState.debug);
 
@@ -1020,7 +1056,13 @@ export class BlueMapApp {
     mapInteraction = (event: Event): void => {
         const detail = (
             event as CustomEvent<{
-                data: { doubleTap?: boolean; contextMenu?: boolean; screenX?: number; screenY?: number };
+                data: {
+                    doubleTap?: boolean;
+                    contextMenu?: boolean;
+                    screenX?: number;
+                    screenY?: number;
+                    contextMenuInvoker?: HTMLElement | null;
+                };
                 hit?: Intersection | null;
                 object?: Object3D;
             }>
@@ -1032,6 +1074,7 @@ export class BlueMapApp {
                 detail as unknown as import("./MapViewer").MapInteractionEventDetail,
                 context.screenX ?? 0,
                 context.screenY ?? 0,
+                context.contextMenuInvoker ?? null,
             );
             return;
         }

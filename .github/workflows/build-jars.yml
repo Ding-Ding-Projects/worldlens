@@ -38,7 +38,7 @@ jobs:
     # group that keeps a burst of pushes from piling up here; no separate group is
     # added in this file for a job that is only ever reached through that call, since a
     # direct `workflow_dispatch` of this file is rare enough on its own not to need one.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # A cold cache has to fetch Minecraft, Forge, NeoForge, Fabric and Paper artefacts
     # and decompile against them. A warm one does none of that. The ceiling is generous
     # so a first run on a new cache key is not killed halfway through populating it.

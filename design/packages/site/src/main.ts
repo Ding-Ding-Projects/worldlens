@@ -58,10 +58,15 @@ import type {
 import { maybeShowDimSum } from "./dimsum/index.js";
 import { createChangelogView } from "./content/changelogView.js";
 import { createDiscoveryView } from "./content/discoveryView.js";
-import { I18n } from "./i18n/I18n.js";
+import { I18n, setTextTransform } from "./i18n/I18n.js";
+import { applyProductName, ProductIdentity, SHIPPED_PRODUCT_NAME } from "./identity/productIdentity.js";
+import { PersonalVocabulary } from "./settings/personalVocabulary.js";
+import { SchoolMode } from "./settings/schoolMode.js";
+import { createRangeSelection } from "./platform/rangeSelection.js";
 import type { FixedKey } from "./i18n/strings.js";
 import { Notifications } from "./notifications/Notifications.js";
 import { Preferences } from "./platform/Preferences.js";
+import { applyLayoutRescue } from "./platform/layoutRescue.js";
 import { RegexBuilderSlot } from "./platform/RegexBuilderSlot.js";
 import { ShortcutRegistry } from "./platform/shortcuts.js";
 import { confirmDestructive, createSettingsPage } from "./settings/index.js";
@@ -628,7 +633,7 @@ function articleElementId(articleId: string): string {
     return `article-${articleId}`;
 }
 
-function renderDocs(host: HTMLElement, i18n: I18n): void {
+function renderDocs(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
     const root = page(host);
     const title = el("h1", "mb-page-title");
     // Reuses the tab's own already-voiced label rather than a second, hardcoded copy of
@@ -690,7 +695,43 @@ function renderDocs(host: HTMLElement, i18n: I18n): void {
                 for (const suggestion of article.suggested) {
                     const target = findArticle(suggestion.articleId);
                     const li = el("li");
-                    li.appendChild(el("strong", undefined, target?.title ?? suggestion.articleId));
+                    /*
+                     * These were bold text, which is the shape of a link with none of its
+                     * behaviour: the one place every article points somewhere else was a dead
+                     * end, and a reader who reached the end of an article was left to go back
+                     * and hunt the suggestion out of a list of seventeen collapsed disclosures.
+                     *
+                     * A button rather than an anchor because there is nowhere for an `href` to
+                     * point — the articles are panels inside a tabbed shell, not documents at
+                     * URLs — and a link whose href goes nowhere real is worse than a control
+                     * that plainly is one. `openArticle` is the same navigation the landing
+                     * page's cards and the command palette use, so arriving here lands on the
+                     * article opened, focused and flashed exactly as arriving from anywhere
+                     * else does.
+                     *
+                     * A suggestion whose target no longer exists renders as plain text rather
+                     * than as a control that would do nothing when pressed. The bundle guard
+                     * in `content.test.ts` is what stops that state from reaching a build, but
+                     * the renderer still has to behave if it ever did.
+                     */
+                    if (target === undefined) {
+                        li.appendChild(el("strong", undefined, suggestion.articleId));
+                    } else {
+                        // `mb-card-link` rather than a new class: the landing page's own
+                        // "read this article" control already carries exactly the right
+                        // affordance, hit target and focus treatment, and inventing a second
+                        // one would mean a second place for colour to come from.
+                        const jump = el("button", "mb-card-link", target.title);
+                        jump.type = "button";
+                        jump.setAttribute(
+                            "aria-label",
+                            i18n.t("content.suggestedArticleAria", { title: target.title }),
+                        );
+                        jump.addEventListener("click", () =>
+                            navigation.openArticle(suggestion.articleId),
+                        );
+                        li.appendChild(jump);
+                    }
                     li.appendChild(document.createTextNode(`: ${suggestion.reason}`));
                     list.appendChild(li);
                 }
@@ -850,7 +891,10 @@ function showBootFailure(error: unknown): void {
 
     const link = document.createElement("a");
     link.href = "https://github.com/Ding-Ding-Projects/worldlens/issues";
-    link.textContent = reportText;
+    // The shipped name, never the visitor's chosen one. Whoever reads the issue this link opens
+    // has no idea what "My Map Thing" is, and a report nobody can route is a report nobody
+    // fixes. The rename surface says so in words rather than leaving it to be discovered.
+    link.textContent = `${reportText} — ${SHIPPED_PRODUCT_NAME}`;
     link.rel = "noopener noreferrer";
     notice.appendChild(link);
 
@@ -867,6 +911,26 @@ function boot(): void {
     root.replaceChildren();
 
     const prefs = new Preferences();
+    // Before anything reads a preference, so a rescued visitor gets a shell built from the
+    // rescued state rather than one built from the state that stranded them and corrected after.
+    const rescued = applyLayoutRescue(prefs, {
+        href: window.location.href,
+        replace: (url) => window.history.replaceState(null, "", url),
+    });
+    const identity = new ProductIdentity(prefs);
+    const school = new SchoolMode(prefs);
+    const vocabulary = new PersonalVocabulary(prefs);
+    /*
+     * The transform is installed before the translator is built, so the very first paint is
+     * already in the visitor's own wording rather than flashing the shipped words and
+     * correcting itself a frame later.
+     *
+     * The mode's suppression is checked on every call rather than at install time because it
+     * can be armed mid-session: while it is on, the vocabulary has to behave as though it were
+     * never supplied, and returning the text unchanged is exactly that. The stored file is left
+     * alone, so turning the mode off gives the visitor their wording back.
+     */
+    setTextTransform((text) => (school.enabled ? text : vocabulary.apply(text)));
     const i18n = new I18n(prefs);
     // The search package owns its own builder copy, but the shell owns the persisted
     // language/tone settings. Keep the two in lock-step from the first paint onward.
@@ -917,6 +981,17 @@ function boot(): void {
     const notificationHost = el("div", "mb-notification-host");
     document.body.appendChild(notificationHost);
     const notifications = new Notifications(i18n, notificationHost);
+    // Said out loud, because a rescue that happens silently is indistinguishable from the
+    // preference having never been saved - and the visitor needs to know their choice is gone
+    // rather than wondering whether the site forgot it on its own.
+    if (rescued !== "none") {
+        notifications.notify({
+            severity: "info",
+            title: {
+                key: rescued === "all" ? "shell.layoutResetAll" : "shell.layoutReset",
+            },
+        });
+    }
 
     const model = new TabModel(prefs, i18n);
     const sidebar = new SidebarNavigation(
@@ -938,6 +1013,10 @@ function boot(): void {
         theme,
         tabs: model,
         sidebar,
+        i18n,
+        identity,
+        school,
+        vocabulary,
         notify: (message, error) => {
             notifications.notify({
                 severity: error ? "error" : "success",
@@ -1000,7 +1079,7 @@ function boot(): void {
     for (const contentPage of contentPages) {
         const render = (host: HTMLElement): void => {
             if (contentPage.id === "home") renderHome(host, navigation, i18n);
-            else if (contentPage.id === "docs") renderDocs(host, i18n);
+            else if (contentPage.id === "docs") renderDocs(host, navigation, i18n);
             else renderScreenshots(host, i18n);
             decoratePage(host, contentPage.id, appearance);
         };
@@ -1089,8 +1168,16 @@ function boot(): void {
              * filter currently shows -- `selectAll` picks up exactly `search.currentResults()`,
              * never a record the filter is hiding, so "select all shown" never silently
              * selects something the visitor cannot see on screen.
+             *
+             * The plain `Set` this replaced had no anchor, which meant no shift-range: selecting
+             * forty notifications was forty clicks, and the keyboard had no equivalent at all.
+             * The model owns the anchor and the range arithmetic; everything below is the wiring
+             * that hands it the order the list is currently *showing*, which is the only order a
+             * range can honestly be measured in while a filter is active.
              */
-            const selected = new Set<string>();
+            const selection = createRangeSelection<string>();
+            const shownIds = (): readonly string[] =>
+                search.currentResults().map((result) => result.item.id);
 
             const search = createSearchSurface({
                 fieldId: "notifications.history",
@@ -1108,15 +1195,52 @@ function boot(): void {
                     const checkbox = document.createElement("input");
                     checkbox.type = "checkbox";
                     checkbox.className = "mb-select-checkbox";
-                    checkbox.checked = selected.has(item.id);
+                    checkbox.checked = selection.isSelected(item.id);
                     i18n.bindAttr(checkbox, "aria-label", "site.selectNotification", {
                         title: i18n.text(item.title),
                     });
-                    checkbox.addEventListener("change", () => {
-                        if (checkbox.checked) selected.add(item.id);
-                        else selected.delete(item.id);
+                    /*
+                     * `click` rather than `change`, because the modifier keys are only on the
+                     * pointer event: a `change` handler is told the box is now ticked and never
+                     * told that Shift was held while it happened. The checkbox's own toggle is
+                     * then undone and re-decided by the model, so the two cannot disagree about
+                     * what a shift-click means.
+                     *
+                     * The keyboard path goes through the same model with the same anchor, which
+                     * is what makes it a genuine equivalent rather than a second, subtly
+                     * different selection scheme that happens to share a checkbox.
+                     */
+                    checkbox.addEventListener("click", (event) => {
+                        selection.activate({
+                            id: item.id,
+                            order: shownIds(),
+                            shiftKey: event.shiftKey,
+                            ctrlKey: event.ctrlKey,
+                            metaKey: event.metaKey,
+                        });
+                        search.refresh();
                         updateSelectionToolbar();
                     });
+                    checkbox.addEventListener("keydown", (event) => {
+                        const outcome = selection.handleKey(event, {
+                            order: shownIds(),
+                            focused: item.id,
+                        });
+                        if (outcome === null) return;
+                        event.preventDefault();
+                        search.refresh();
+                        updateSelectionToolbar();
+                        // Roving focus follows the model's own idea of where the range now ends,
+                        // so a Shift+Arrow leaves the visitor standing on the row they just
+                        // extended to rather than on the one they started from.
+                        if (outcome.focused !== null) {
+                            const next = view.querySelector<HTMLElement>(
+                                `[data-record-id="${CSS.escape(outcome.focused)}"] .mb-select-checkbox`,
+                            );
+                            next?.focus();
+                        }
+                    });
+                    row.dataset["recordId"] = item.id;
                     row.append(checkbox);
 
                     const heading = el("h2", "notification-centre__title", i18n.text(item.title));
@@ -1162,37 +1286,37 @@ function boot(): void {
                 // "select all shown", so the count below counts only the shown subset that
                 // is actually selected, matching what a bulk action against "selected" would
                 // really cover.
-                const shownSelected = shown.filter((result) => selected.has(result.item.id)).length;
+                const counts = selection.counts(shown.map((result) => result.item.id));
                 i18n.bindText(selectionCount, "site.notificationSelectionCount", {
-                    selected: shownSelected,
-                    shown: shown.length,
+                    selected: counts.selectedShown,
+                    shown: counts.shown,
                 });
-                const hasSelection = selected.size > 0;
+                const hasSelection = counts.selected > 0;
                 deleteSelectedButton.disabled = !hasSelection;
                 exportSelectedButton.disabled = !hasSelection;
                 clearSelectionButton.disabled = !hasSelection;
                 selectAllButton.disabled = shown.length === 0;
                 invertButton.disabled = shown.length === 0;
-                // Each row's own checkbox already reads `selected.has(item.id)` at build time
+                // Each row's own checkbox already reads `selection.isSelected(item.id)` at build time
                 // (see `renderResult` above), so a `search.refresh()` after a bulk selection
                 // change is what keeps the DOM in step -- there is nothing left to sync here.
             }
 
             selectAllButton.addEventListener("click", () => {
-                for (const result of search.currentResults()) selected.add(result.item.id);
+                // The scope is stated rather than defaulted: the model refuses to guess between
+                // "everything on screen" and "every record that exists", which is the
+                // distinction a select-all has to be honest about while a filter is active.
+                selection.selectAll({ scope: "shown", shown: shownIds() });
                 search.refresh();
                 updateSelectionToolbar();
             });
             invertButton.addEventListener("click", () => {
-                for (const result of search.currentResults()) {
-                    if (selected.has(result.item.id)) selected.delete(result.item.id);
-                    else selected.add(result.item.id);
-                }
+                selection.invert(shownIds());
                 search.refresh();
                 updateSelectionToolbar();
             });
             clearSelectionButton.addEventListener("click", () => {
-                selected.clear();
+                selection.clear();
                 search.refresh();
                 updateSelectionToolbar();
             });
@@ -1202,20 +1326,23 @@ function boot(): void {
             status.setAttribute("aria-live", "polite");
 
             deleteSelectedButton.addEventListener("click", async () => {
-                const ids = [...selected];
+                const ids = selection.selected();
                 if (ids.length === 0) return;
                 const confirmed = await confirmDestructive(
                     i18n.t("site.deleteSelectedConfirm", { count: ids.length }),
                 );
                 if (!confirmed) return;
                 notifications.removeMany(ids);
-                selected.clear();
+                selection.clear();
                 i18n.bindText(status, "site.selectionDeleted");
                 updateSelectionToolbar();
             });
             exportSelectedButton.addEventListener("click", () => {
                 const byId = new Map(notifications.list().map((record) => [record.id, record]));
-                const lines = [...selected]
+                // Display order rather than the order the visitor happened to click in, so an
+                // exported file reads the same way the screen it came from did.
+                const lines = selection
+                    .selectedIn(notifications.list().map((record) => record.id))
                     .map((id) => byId.get(id))
                     .filter((record): record is NotificationRecord => record !== undefined)
                     .map(notificationLine);
@@ -1250,7 +1377,7 @@ function boot(): void {
                 );
                 if (!confirmed) return;
                 notifications.clearAll();
-                selected.clear();
+                selection.clear();
                 i18n.bindText(status, "site.notificationsCleared");
                 updateSelectionToolbar();
             });
@@ -1312,9 +1439,30 @@ function boot(): void {
     decorateShell(shell.element, appearance);
     tabs.activate("home");
 
-    // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
-    // setting to switch it off.
-    maybeShowDimSum({ i18n, host: document.body });
+    /*
+     * The chosen name is pushed after the shell has built its wordmark, and again whenever
+     * either the name or the language changes — the shell rebuilds its own chrome on a
+     * language change, which would otherwise put the shipped name back in the rail the first
+     * time a visitor switched to Cantonese.
+     */
+    applyProductName(identity);
+    identity.subscribe(() => applyProductName(identity));
+    i18n.subscribe(() => applyProductName(identity));
+    // Re-rendering everything the vocabulary reaches is the translator's own refresh, which the
+    // bindings already follow; the wordmark is the one string outside that system.
+    vocabulary.subscribe(() => {
+        i18n.refresh();
+        applyProductName(identity);
+    });
+    school.subscribe(() => {
+        i18n.refresh();
+    });
+
+    // 10% per load, non-blocking, never focus-stealing, and there is deliberately no setting to
+    // switch it off — the one thing that suppresses it is the mode below, under which the dim
+    // sum surprise has to behave as though it were never built rather than as a disabled
+    // feature somebody could go looking for.
+    if (!school.enabled) maybeShowDimSum({ i18n, host: document.body });
 }
 
 /**

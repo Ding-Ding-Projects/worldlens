@@ -56,8 +56,10 @@ The viewer also exists as a standalone docked panel (`EulaSurface.vue`), mounted
 for reading the document outside either of those flows. Its two routes are the licence card on the
 Home screen and the command palette's own row (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>, then
 "licence"), which is what keeps it reachable from any screen; it deliberately has no permanent
-button of its own in the shell's floating corner stack, which holds only the two workbench
-controls (Settings and the options editor).
+button of its own in the application rail, whose footer holds only search, notifications and
+settings. (This used to say the shell's floating corner stack, which held Settings and the options
+editor. That stack no longer exists: the Material Design 3 rewrite deleted it rather than moving
+it, and its destinations went into the rail's footer.)
 
 ## A real render, from the wizard's consent gate to a finished map
 
@@ -71,17 +73,25 @@ Settings row this document describes, not through any shortcut; and BlueMap's ow
 then downloaded the Minecraft client file from Mojang and rendered the world into tiles that
 opened in the viewer. Nothing here is staged, mocked or hand-edited.
 
-![The make-a-map wizard's World step, with a real Minecraft world folder typed in, validated, and reporting one dimension and one region file](screenshots/render-1-wizard-world.png)
+That commit is older than the Material Design 3 rewrite and older than the rename, and the six
+images say so plainly once you look at them: the window is titled **Material BlueMap**, a strip of
+eight tabs runs across the top where the application rail now goes, and three floating buttons
+stack in the bottom left corner where nothing floats any more. They are kept because what they are
+evidence for is the consent gate and a real Java render, and neither of those changed - but they
+are a record of a run that happened, not a picture of today's shell, and a reader deserves to be
+told which before they start matching them against the application in front of them.
 
-![The wizard's Review step before consent: the same download-has-not-been-accepted warning and "Open the setting" link described above](screenshots/render-2-review.png)
+![A pre-rewrite build, titled Material BlueMap: the make-a-map wizard's World step, with a real Minecraft world folder typed in, validated, and reporting one dimension and one region file](screenshots/render-1-wizard-world.png)
 
-![The Mojang download consent settings row, reached from that warning, with consent just accepted](screenshots/render-3-consent.png)
+![A pre-rewrite build: the wizard's Review step before consent, showing the same download-has-not-been-accepted warning and "Open the setting" link described above](screenshots/render-2-review.png)
 
-![The render starting: BlueMap's own Java engine (5.22-27, on this run's Java 25.0.3) beginning against the world from the step above](screenshots/render-4-start.png)
+![A pre-rewrite build: the Mojang download consent settings row, reached from that warning, with consent just accepted](screenshots/render-3-consent.png)
 
-![The render in progress](screenshots/render-5-running.png)
+![A pre-rewrite build: the render starting, with BlueMap's own Java engine (5.22-27, on this run's Java 25.0.3) beginning against the world from the step above](screenshots/render-4-start.png)
 
-![The finished map, opened in the viewer directly from the render panel's "Open the map" button](screenshots/render-6-map.png)
+![A pre-rewrite build: the render panel with the render under way. It is headed Rendering and tagged with the world (test-world-seed-1) and the engine (BlueMap engine (Java) 5.22-27 on Java 25.0.3), reports Starting the engine at 0 of 1 maps done, carries a Stop the render button that says stopping keeps every tile already drawn, offers to show the two console lines so far, and notes underneath that the answers given are now a project at the root of that world so the render can be repeated without setting anything up again](screenshots/render-5-running.png)
+
+![A pre-rewrite build: the viewer, opened directly from the render panel's "Open the map" button. Almost the whole frame is the empty background beyond the rendered area, with the finished tiles a small patch at the centre - the world this run rendered is a tiny test world, and the camera opens zoomed out from it](screenshots/render-6-map.png)
 
 ## Fetching and caching the document
 

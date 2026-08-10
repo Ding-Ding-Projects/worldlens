@@ -2,3 +2,15 @@
 # Ding-Ding-Projects/dim-sum-photos release volumes. Those images belong to that
 # repository and are never committed here.
 src/dimsum/generated/
+
+# The Material colour roles are generated at build time from
+# packages/shared/src/colorRoles.ts, which is the one place this project decides a
+# colour. Committing the emitted copy would create a second one that could drift.
+src/theme/generated/
+
+# Except the brand seed: settings/schema.ts (a committed file) imports it, so a fresh
+# checkout must carry it. The generator still owns its content and overwrites it in place;
+# a drift shows up as an ordinary git diff instead of a broken clone.
+!src/theme/generated/
+src/theme/generated/*
+!src/theme/generated/seed.ts

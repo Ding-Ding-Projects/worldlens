@@ -68,6 +68,19 @@ export class MapControls {
     minDistance: number;
     maxDistance: number;
 
+    /**
+     * The renderer canvas did not used to be in the tab order. That left the terrain
+     * menu behind a mouse-only right click even though its actions are ordinary
+     * buttons. Keep the host's attributes so swapping to another control scheme does
+     * not silently rewrite an embedding application's accessibility contract.
+     */
+    private keyboardTerrainActionAttributes: {
+        tabindex: string | null;
+        ariaLabel: string | null;
+        ariaKeyShortcuts: string | null;
+        keyboardActions: string | null;
+    } | null = null;
+
     constructor(rootElement: Element, scrollCaptureElement: Element) {
         this.rootElement = rootElement;
         this.scrollCaptureElement = scrollCaptureElement;
@@ -109,7 +122,9 @@ export class MapControls {
     start(manager: ControlsManager): void {
         this.manager = manager;
 
+        this.enableKeyboardTerrainActions();
         this.rootElement.addEventListener("contextmenu", this.onContextMenu);
+        this.rootElement.addEventListener("keydown", this.onKeyboardContextMenu);
         this.hammer.on("tap", this.onTap);
 
         this.mouseMove.start(manager);
@@ -134,6 +149,8 @@ export class MapControls {
         this.stopFollowingPlayerMarker();
 
         this.rootElement.removeEventListener("contextmenu", this.onContextMenu);
+        this.rootElement.removeEventListener("keydown", this.onKeyboardContextMenu);
+        this.disableKeyboardTerrainActions();
         this.hammer.off("tap", this.onTap);
 
         this.mouseMove.stop();
@@ -286,14 +303,89 @@ export class MapControls {
         this.data.followingPlayer = null;
     }
 
+    /**
+     * Makes the actual WebGL surface reachable, then names the route that opens the
+     * already-existing terrain actions. The browser supplies its ordinary visible
+     * focus indicator for a focused canvas; no new visual-only imitation is needed.
+     */
+    private enableKeyboardTerrainActions(): void {
+        if (this.keyboardTerrainActionAttributes) return;
+
+        this.keyboardTerrainActionAttributes = {
+            tabindex: this.rootElement.getAttribute("tabindex"),
+            ariaLabel: this.rootElement.getAttribute("aria-label"),
+            ariaKeyShortcuts: this.rootElement.getAttribute("aria-keyshortcuts"),
+            keyboardActions: this.rootElement.getAttribute("data-terrain-actions-keyboard"),
+        };
+
+        this.rootElement.setAttribute("tabindex", "0");
+        this.rootElement.setAttribute(
+            "aria-label",
+            "Interactive map. Press Shift+F10 or the Context Menu key to open terrain actions at the map centre.",
+        );
+        this.rootElement.setAttribute("aria-keyshortcuts", "Shift+F10 ContextMenu");
+        this.rootElement.setAttribute(
+            "data-terrain-actions-keyboard",
+            "Shift+F10 ContextMenu",
+        );
+    }
+
+    private disableKeyboardTerrainActions(): void {
+        const saved = this.keyboardTerrainActionAttributes;
+        if (!saved) return;
+
+        const restore = (name: string, value: string | null): void => {
+            if (value === null) this.rootElement.removeAttribute(name);
+            else this.rootElement.setAttribute(name, value);
+        };
+
+        restore("tabindex", saved.tabindex);
+        restore("aria-label", saved.ariaLabel);
+        restore("aria-keyshortcuts", saved.ariaKeyShortcuts);
+        restore("data-terrain-actions-keyboard", saved.keyboardActions);
+        this.keyboardTerrainActionAttributes = null;
+    }
+
+    private openTerrainContextMenu(
+        screenX: number,
+        screenY: number,
+        contextMenuInvoker: HTMLElement | null = null,
+    ): void {
+        this.manager?.handleMapInteraction(new Vector2(screenX, screenY), {
+            contextMenu: true,
+            screenX: screenX,
+            screenY: screenY,
+            contextMenuInvoker: contextMenuInvoker,
+        });
+    }
+
     onContextMenu = (evt: Event) => {
         evt.preventDefault();
         const mouse = evt as MouseEvent;
-        this.manager?.handleMapInteraction(new Vector2(mouse.clientX, mouse.clientY), {
-            contextMenu: true,
-            screenX: mouse.clientX,
-            screenY: mouse.clientY,
-        });
+        this.openTerrainContextMenu(mouse.clientX, mouse.clientY);
+    };
+
+    /**
+     * Keyboard context menus have no pointer position. Hit-test the centre of the
+     * focused map instead, so this is the same loaded-terrain interaction and the
+     * same menu actions as a pointer right-click, not a static shortcut or a duplicate
+     * command implementation.
+     */
+    onKeyboardContextMenu = (event: Event) => {
+        const evt = event as KeyboardEvent;
+        const isMenuKey = evt.key === "ContextMenu" || evt.code === "ContextMenu";
+        const isShiftF10 = evt.shiftKey && evt.key === "F10";
+        if (!isMenuKey && !isShiftF10) return;
+
+        evt.preventDefault();
+        evt.stopPropagation();
+
+        const bounds = this.rootElement.getBoundingClientRect();
+        this.openTerrainContextMenu(
+            bounds.left + bounds.width * 0.5,
+            bounds.top + bounds.height * 0.5,
+            this.rootElement instanceof HTMLElement ? this.rootElement : null,
+        );
     };
 
     onTap = (evt: HammerInput) => {

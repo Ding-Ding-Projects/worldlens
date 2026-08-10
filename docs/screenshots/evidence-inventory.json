@@ -1,7 +1,7 @@
 {
     "version": 1,
     "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-    "expectedTargetCount": 150,
+    "expectedTargetCount": 160,
     "evidenceRoots": [
         "docs/screenshots",
         "design/docs/assets/issues",
@@ -13,15 +13,15 @@
             "authority": "design/packages/app/test/screenshots.spec.ts",
             "command": "cd design && pnpm build && pnpm --filter @worldlens/app screenshots",
             "reproducibility": "current-build-with-local-map-fixture",
-            "expectedCount": 81,
+            "expectedCount": 83,
             "targets": [
                 "docs/screenshots/appearance-context-menu.png",
                 "docs/screenshots/appearance-surface.png",
                 "docs/screenshots/appearance-typography.png",
                 "docs/screenshots/backups.png",
                 "docs/screenshots/changelog-viewer.png",
+                "docs/screenshots/chrome-app-rail.png",
                 "docs/screenshots/chrome-control-bar.png",
-                "docs/screenshots/chrome-shell-buttons.png",
                 "docs/screenshots/chrome-titlebar-window-buttons.png",
                 "docs/screenshots/chrome-titlebar.png",
                 "docs/screenshots/ci-render-screen.png",
@@ -44,6 +44,8 @@
                 "docs/screenshots/firstrun-2-consent.png",
                 "docs/screenshots/firstrun-2-eula.png",
                 "docs/screenshots/firstrun-3-storage.png",
+                "docs/screenshots/home-catalogue-page.png",
+                "docs/screenshots/home-catalogues.png",
                 "docs/screenshots/infinite-colour-picker.png",
                 "docs/screenshots/issue-105-popup-edge.png",
                 "docs/screenshots/menu-info.png",
@@ -56,9 +58,9 @@
                 "docs/screenshots/notifications-corner.png",
                 "docs/screenshots/notifications-history.png",
                 "docs/screenshots/notifications-toast.png",
+                "docs/screenshots/pages-publishing-screen.png",
                 "docs/screenshots/palette-search.png",
                 "docs/screenshots/palette.png",
-                "docs/screenshots/pages-publishing-screen.png",
                 "docs/screenshots/profiles-manager.png",
                 "docs/screenshots/projects-screen.png",
                 "docs/screenshots/run-location.png",
@@ -94,9 +96,26 @@
                 "docs/screenshots/wizard-3-options.png",
                 "docs/screenshots/wizard-4-where-it-goes.png",
                 "docs/screenshots/wizard-5-review.png",
-                "docs/screenshots/wizard-release-downloads.png"
-                ,
+                "docs/screenshots/wizard-release-downloads.png",
                 "docs/screenshots/wizard-ssh-world-source.png"
+            ],
+            "capturedFromInterfaceSource": true,
+            "uiSourceDigest": "4812a4eb40d27fbf36308f50a59f6c65aabb02146acd28bbcd80fe81033e4761",
+            "uiSourceDigestNote": "This value names no commit in this repository, and the note that used to sit here was wrong to say it was be70670721f7089e418b4b58ccfee9839a6f8ab4: that commit's interface digests to d5f71130df03bb0e160098b21f7ba83b694bbf7a001af833e01a1e1f558d2fb0, which is the value this field held before commit 1930a6c changed it. What 4812a4eb actually fingerprints is an uncommitted working tree during 1930a6c, whose message records that driving the application found and fixed three control defects: the captures were taken, the digest was printed, and then the interface changed again before anything was committed. So these 83 images are pictures of an interface that is very nearly, but not exactly, the one this tree builds, and the guard is right to say so. Only a fresh harness run can clear it, because writing a digest here without re-taking the pictures is precisely the falsification this field exists to prevent. Refresh with: cd design && pnpm build && pnpm --filter @worldlens/app screenshots, then record the value printed by: node scripts/check-screenshot-evidence.mjs --print-interface-digest"
+        },
+        {
+            "id": "built-shell-readme",
+            "authority": "the packaged application itself, driven on an off-screen Windows desktop",
+            "command": "build-installer.bat /s at the repository root, then launch design/packages/app/release/win-unpacked/Worldlens.exe on a named off-screen desktop with --user-data-dir pointed at a copy of the profile, resolve its window handle from that desktop, click the rail and the tab strip to reach each destination, and capture each one with PrintWindow against that handle.",
+            "reproducibility": "packaged-build-on-a-headless-desktop",
+            "expectedCount": 3,
+            "capturedFromInterfaceSource": true,
+            "uiSourceDigest": "5f2a3b1d9b3d53b3820def50374c8fe2c93b209ec6b04369e7a3bd27d4e67417",
+            "uiSourceDigestNote": "Re-taken on 2026-08-09 from Worldlens-0.1.858-Setup.exe (sha256 341cfe9333267e1b37c177f968bad0e20fa752067985c45df5c89642cb120166), which build-installer.bat reported as built from commit 16325aa1352642087882671c9d7cfce4e4491e47. These are pictures of the packaged application, not of the Playwright harness's Electron entry point: that is a different pipeline and must never be substituted for this one. The profile was copied to a scratch directory before launching, so a capture run cannot write to the profile on this machine. READ THIS BEFORE TRUSTING THE VALUE ABOVE: it is the interface source as it stood at the moment the three images were taken, and it is NOT a byte-exact fingerprint of what the bundle inside that installer was compiled from, because design/packages/ui/src was being edited continuously while this ran. Three consecutive installer builds each saw the digest move underneath them (245e1fc -> 722c1ac -> b13a84d, while HEAD went 1930a6c -> 5d9cf99 -> 16325aa), and sampling twenty seconds apart returned three different values, so there was no quiet window in which to certify one. What can be said honestly is that the images are genuine captures of the packaged application from that installer, and that the interface has moved on since. Clearing this properly means one more packaged capture taken while the tree is still, not an edit to this field.",
+            "targets": [
+                "docs/screenshots/shell-home.png",
+                "docs/screenshots/shell-projects.png",
+                "docs/screenshots/shell-work.png"
             ]
         },
         {
@@ -120,7 +139,9 @@
                 "docs/screenshots/pages-parity-search-360x640-english.png",
                 "docs/screenshots/pages-parity-settings-1024x768.png",
                 "docs/screenshots/pages-parity-tabs-390x844-english.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "produced from design/packages/site, which is a different package with its own sources; design/packages/ui/src does not decide what the documentation site looks like"
         },
         {
             "id": "site-walkthrough-media",
@@ -154,7 +175,9 @@
                 "design/packages/site/src/assets/walkthroughs/theme-switch.png",
                 "design/packages/site/src/assets/walkthroughs/verified-download.gif",
                 "design/packages/site/src/assets/walkthroughs/verified-download.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "produced from design/packages/site, which is a different package with its own sources; design/packages/ui/src does not decide what the documentation site looks like"
         },
         {
             "id": "installed-app-cdp",
@@ -171,7 +194,9 @@
                 "docs/screenshots/installed-app-1920x1200.png",
                 "docs/screenshots/shell-titlebar-1920x1080.png",
                 "docs/screenshots/titlebar-zoom-1920.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "refreshing it needs an installed Squirrel build driven over CDP rather than a command any change can run, so it is refreshed alongside the packaged build instead of alongside the interface source; it can therefore fall behind design/packages/ui/src without this check saying so"
         },
         {
             "id": "live-pages",
@@ -183,7 +208,9 @@
             "targets": [
                 "docs/screenshots/map-hosted-on-github-pages.png",
                 "docs/screenshots/pages-published-by-the-app.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "a capture of two published sites as they are actually served, so it records what is live rather than what this tree builds"
         },
         {
             "id": "consent-render",
@@ -199,7 +226,9 @@
                 "docs/screenshots/render-4-start.png",
                 "docs/screenshots/render-5-running.png",
                 "docs/screenshots/render-6-map.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "needs a real render through the installed application and a Java runtime, which no ordinary change can run; refreshed with the render path rather than with the interface source, so it too can fall behind without this check saying so"
         },
         {
             "id": "issue-baselines",
@@ -208,13 +237,17 @@
             "reproducibility": "historical-or-data-dependent",
             "blocker": "These files record pre-fix or in-progress states. A current-build image must not be relabelled as an historical before-state; data-dependent rows require their real owning operation and long-value fixture.",
             "replacementPolicy": "Create a separately named current after-capture and update references; retain truthful historical semantics until the public record no longer depends on them.",
-            "expectedCount": 12,
+            "expectedCount": 16,
             "targets": [
                 "design/docs/assets/issues/106-before-startup-blocked.png",
                 "docs/screenshots/issue-100-in-progress-container-offers.png",
                 "docs/screenshots/issue-101-in-progress-interrupted-renders.png",
                 "docs/screenshots/issue-103-in-progress-pages.png",
                 "docs/screenshots/issue-103-in-progress-world-repo.png",
+                "docs/screenshots/issue-107-after-pages-replacement.png",
+                "docs/screenshots/issue-107-before-pages-replacement.png",
+                "docs/screenshots/issue-123-before-account-overview.png",
+                "docs/screenshots/issue-123-before-credential-surface.png",
                 "docs/screenshots/issue-93-in-progress-backup-run.png",
                 "docs/screenshots/issue-94-in-progress-backup-listing.png",
                 "docs/screenshots/issue-95-in-progress-config-save.png",
@@ -222,7 +255,9 @@
                 "docs/screenshots/issue-97-in-progress-downloads.png",
                 "docs/screenshots/issue-98-in-progress-discovered-worlds.png",
                 "docs/screenshots/issue-99-in-progress-dependencies.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "point-in-time evidence attached to numbered issues; re-taking it from a later build would destroy the before-state each image exists to record"
         },
         {
             "id": "historical-site-baseline",
@@ -234,7 +269,9 @@
             "expectedCount": 1,
             "targets": [
                 "docs/screenshots/pages-m3-rewrite-before.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "a deliberately preserved picture of the pre-rewrite site, which no longer exists to be re-photographed"
         },
         {
             "id": "site-tabs-compact-proof",
@@ -244,7 +281,9 @@
             "expectedCount": 1,
             "targets": [
                 "docs/screenshots/site-tabs-bottom-414x896-window.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "produced from design/packages/site, which is a different package with its own sources"
         },
         {
             "id": "profile-migration-packaged",
@@ -254,7 +293,21 @@
             "expectedCount": 1,
             "targets": [
                 "docs/screenshots/worldlens-profile-migration-consent.png"
-            ]
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "a packaged-build migration flow captured on an off-screen desktop, which needs a packaged installer rather than a command any change can run"
+        },
+        {
+            "id": "retired-app-surfaces",
+            "authority": "design/packages/app/test/screenshots.spec.ts, at the commit that last produced them",
+            "command": "Not reproducible: the surface itself is gone. Keep as the historical record of what the application rail's footer replaced; never render it as a current surface.",
+            "reproducibility": "historical-source-only",
+            "expectedCount": 1,
+            "targets": [
+                "docs/screenshots/chrome-shell-buttons.png"
+            ],
+            "capturedFromInterfaceSource": false,
+            "notGradedBecause": "each of these photographs a surface this application no longer has, so re-taking one is impossible rather than merely overdue. chrome-shell-buttons.png: photographs the three floating shell buttons, which the Material Design 3 rewrite deleted rather than moved - `App.shellFabClearance.test.ts` asserts the string `mb-shell-fab` no longer appears in the shell source at all. Their destinations are in the application rail's footer now, photographed by chrome-app-rail.png. Nothing renders this image any more: design/packages/site/src/content/captures.ts used to show it in the site's gallery of committed captures, titled `The shell buttons` as though a reader could still go and press them, and that entry has been retired in favour of chrome-app-rail.png. The file itself is kept rather than deleted, and this group is where it is accounted for: it is the only picture of the control stack the rewrite removed, which makes it evidence for a claim the README and the site both make, and a photograph does not stop being true when its subject stops existing. What it must never be again is a tile in a gallery of what this application looks like."
         }
     ]
 }

@@ -66,6 +66,31 @@ function interpolate(template: string, vars: TranslationVars): string {
     });
 }
 
+/**
+ * The visitor's own wording, applied to every string this translator hands out.
+ *
+ * A module-level hook rather than a constructor argument because the thing that supplies it —
+ * a private file the visitor may load at any point during a session — is not available when
+ * the translator is built, and because `settings/i18n.ts` has to apply exactly the same
+ * transform to the settings surface. One function, set once, means the two cannot disagree
+ * about what a word is called, which is what would happen if each held its own copy.
+ *
+ * It is applied at the point a string leaves the catalogue, which is deliberately *after*
+ * interpolation and therefore reaches accessible names as well as visible labels. A vocabulary
+ * that renamed the label and left the screen-reader name saying something else would make the
+ * page say two different things at once, and the person who could least afford the confusion
+ * would be the one hearing it.
+ */
+let textTransform: ((text: string) => string) | null = null;
+
+export function setTextTransform(next: ((text: string) => string) | null): void {
+    textTransform = next;
+}
+
+function transform(text: string): string {
+    return textTransform === null ? text : textTransform(text);
+}
+
 export class I18n {
     private readonly prefs: Preferences;
     private readonly listeners = new Set<() => void>();
@@ -129,12 +154,12 @@ export class I18n {
 
     /** The English string at the current English level, whatever the mode is. */
     english(key: StringKey, vars: TranslationVars = {}): string {
-        return interpolate(this.raw(key, "en"), vars);
+        return transform(interpolate(this.raw(key, "en"), vars));
     }
 
     /** The Cantonese string at the current Cantonese level, whatever the mode is. */
     cantonese(key: StringKey, vars: TranslationVars = {}): string {
-        return interpolate(this.raw(key, "yue"), vars);
+        return transform(interpolate(this.raw(key, "yue"), vars));
     }
 
     /**

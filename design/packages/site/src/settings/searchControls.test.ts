@@ -248,8 +248,18 @@ describe("every search field's clear button carries an icon, not word text", () 
         document.body.append(page.element);
 
         const buttons = clearButtons(page);
-        // One page-level search row plus one per settings tab.
-        expect(buttons.length).toBe(1 + SETTINGS_TABS.length);
+        /*
+         * At least one page-level row plus one per settings tab, rather than exactly that many.
+         *
+         * The property this test actually protects is the one its name states: every clear
+         * button on the page is an icon and never word text, which is checked for all of them
+         * in the loop below. The exact count was a proxy for "the tab searches exist", and it
+         * quietly also asserted that no other search surface may live inside this page — never
+         * a rule, and now false, since the settings-history panel carries its own search like
+         * every other search surface in this project. `tabSearch.test.ts` proves the per-tab
+         * fields exist by identity rather than by arithmetic, which is the stronger check.
+         */
+        expect(buttons.length).toBeGreaterThanOrEqual(1 + SETTINGS_TABS.length);
 
         for (const button of buttons) {
             expect(button.querySelector("svg")).not.toBeNull();

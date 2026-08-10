@@ -967,11 +967,16 @@
 
 /*
  * The rest are crops, and a crop is a real shape rather than an odd one: a title bar is
- * genuinely 1280 by 40, a column of three round buttons genuinely 48 by 160. Each needs
- * its own rule, because the ratio is applied through an attribute selector and a value
- * with no rule silently loses its reserved box and shoves the gallery around as it loads.
- * A test refuses to publish a capture whose ratio is not listed here.
+ * genuinely 1280 by 40, the application rail genuinely 80 by 760. Each needs its own rule,
+ * because the ratio is applied through an attribute selector and a value with no rule
+ * silently loses its reserved box and shoves the gallery around as it loads. A test
+ * refuses to publish a capture whose ratio is not listed here.
  */
+
+.mb-shot-image[data-ratio="2 / 19"] {
+    aspect-ratio: 2 / 19;
+}
+
 .mb-shot-image[data-ratio="480 / 11"] {
     aspect-ratio: 480 / 11;
 }
@@ -1010,10 +1015,6 @@
 
 .mb-shot-image[data-ratio="13 / 20"] {
     aspect-ratio: 13 / 20;
-}
-
-.mb-shot-image[data-ratio="3 / 10"] {
-    aspect-ratio: 3 / 10;
 }
 
 .mb-shot-image[data-ratio="45 / 47"] {

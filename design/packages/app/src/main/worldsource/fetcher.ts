@@ -4,7 +4,7 @@
  * This is the release downloader's cross-repository twin, and it is deliberately thin:
  * everything that was already solved is reused rather than restated.
  *
- * - the release lookup, the token decision and the CDN-versus-API URL choice come from
+ * - the release lookup, the account lease and the CDN-versus-API URL choice come from
  *   `download/release.ts`;
  * - the resumable ranged transfer comes from `download/http.ts`;
  * - the safe unpack comes from `download/extract.ts`;
@@ -55,7 +55,7 @@ import type {
 } from "../download/downloader.js";
 import { ExtractError, asExtractError, extractZip } from "../download/extract.js";
 import { HttpDownloadError, downloadToFile, isAbort } from "../download/http.js";
-import { ReleaseRequestError, apiHeaders, fetchRelease } from "../download/release.js";
+import { ReleaseRequestError, fetchRelease } from "../download/release.js";
 import type { FetchLike, ReleaseAsset, ReleaseInfo } from "../download/release.js";
 import { archivePath, downloadIdFor, downloadWorkspace } from "../download/workspace.js";
 import type { DownloadWorkspace } from "../download/workspace.js";
@@ -65,6 +65,11 @@ import type { ChecksumWorldSource, WorldSource } from "./layout.js";
 import { serialiseManifest, synthesiseManifest, synthesisedManifestName } from "./manifest.js";
 import { isValidReference } from "./repository.js";
 import { compareDigests, digestParts } from "./verify.js";
+import { ghApiBaseForHost } from "../ghcli/credentialBroker.js";
+import {
+    GhCredentialError,
+    type GhCliAccountLease,
+} from "../ghcli/credentialBroker.js";
 
 /** What one row in the "download a world from a release" list shows. */
 export interface WorldSourceSummary {
@@ -94,6 +99,8 @@ export interface WorldSourceReleaseSummary {
 export interface WorldSourceRequest {
     readonly owner: string;
     readonly repo: string;
+    /** Secret-free id of the gh account selected for this operation. */
+    readonly accountId?: string | undefined;
     /** A tag, or omitted for GitHub's own definition of `latest`. */
     readonly tag?: string;
     /**
@@ -169,6 +176,7 @@ export class WorldSourceFetcher {
         owner: string,
         repo: string,
         tag?: string,
+        accountId?: string,
     ): Promise<
         | { readonly ok: true; readonly release: WorldSourceReleaseSummary }
         | { readonly ok: false; readonly failure: DownloadFailure }
@@ -182,7 +190,8 @@ export class WorldSourceFetcher {
             };
         }
         try {
-            const release = await this.readRelease(owner, repo, tag);
+            const lease = await this.account(accountId);
+            const release = await this.readRelease(owner, repo, tag, lease);
             return {
                 ok: true,
                 release: {
@@ -218,9 +227,11 @@ export class WorldSourceFetcher {
         }
 
         let release: ReleaseInfo;
+        let lease: GhCliAccountLease | null;
         let sources: WorldSource[];
         try {
-            release = await this.readRelease(request.owner, request.repo, request.tag);
+            lease = await this.account(request.accountId);
+            release = await this.readRelease(request.owner, request.repo, request.tag, lease);
             sources = worldSourcesIn(release);
         } catch (error) {
             return this.reportFailure(
@@ -255,6 +266,8 @@ export class WorldSourceFetcher {
                 repo: request.repo,
                 ...(request.tag === undefined ? {} : { tag: request.tag }),
                 asset: chosen.name,
+                accountId: lease?.accountId ?? request.accountId,
+                accountLease: lease,
                 ...(request.extract === undefined ? {} : { extract: request.extract }),
             });
         }
@@ -267,7 +280,7 @@ export class WorldSourceFetcher {
         const controller = new AbortController();
         this.active.set(downloadId, { controller });
         try {
-            return await this.runChecksums(downloadId, request, release, chosen, controller);
+            return await this.runChecksums(downloadId, request, release, chosen, controller, lease);
         } finally {
             this.active.delete(downloadId);
         }
@@ -281,6 +294,7 @@ export class WorldSourceFetcher {
         release: ReleaseInfo,
         source: ChecksumWorldSource,
         controller: AbortController,
+        lease: GhCliAccountLease | null,
     ): Promise<DownloadResult> {
         const workspace = downloadWorkspace(this.storageDir(), downloadId);
         const archive = archivePath(workspace, source.name);
@@ -305,13 +319,11 @@ export class WorldSourceFetcher {
         });
 
         try {
-            const token = (await this.options.token?.()) ?? null;
-
             this.emit({ type: "phase", downloadId, phase: "resolving", at: this.timestamp() });
-            const published = await this.readChecksums(downloadId, workspace, source, controller, token);
+            const published = await this.readChecksums(downloadId, workspace, source, controller, lease);
 
             this.emit({ type: "phase", downloadId, phase: "downloading", at: this.timestamp() });
-            await this.transfer(downloadId, workspace, source, controller, token);
+            await this.transfer(downloadId, workspace, source, controller, lease);
 
             this.emit({ type: "phase", downloadId, phase: "joining", at: this.timestamp() });
             const manifestPath = await this.verifyAndDescribe(
@@ -320,7 +332,7 @@ export class WorldSourceFetcher {
                 source,
                 published,
                 controller,
-                token,
+                lease,
             );
             const joined = await joinParts(manifestPath, {
                 outDir: workspace.root,
@@ -348,6 +360,7 @@ export class WorldSourceFetcher {
             const record: DownloadRecord = {
                 version: 1,
                 downloadId,
+                accountId: lease?.accountId ?? request.accountId ?? null,
                 owner: request.owner,
                 repo: request.repo,
                 tag: release.tag,
@@ -405,12 +418,10 @@ export class WorldSourceFetcher {
         workspace: DownloadWorkspace,
         source: ChecksumWorldSource,
         controller: AbortController,
-        token: string | null,
+        lease: GhCliAccountLease | null,
     ): Promise<Map<string, string>> {
         const path = join(workspace.partsDir, source.checksums.name);
-        await downloadToFile(this.assetUrl(source.checksums, token), path, {
-            fetch: this.http(),
-            headers: this.headers(token),
+        await this.downloadAsset(lease, source.checksums, path, {
             signal: controller.signal,
         });
         const text = await readFile(path, "utf8");
@@ -433,7 +444,7 @@ export class WorldSourceFetcher {
         workspace: DownloadWorkspace,
         source: ChecksumWorldSource,
         controller: AbortController,
-        token: string | null,
+        lease: GhCliAccountLease | null,
     ): Promise<void> {
         const bytesTotal = source.bytes;
         const progressByPart = new Map<string, number>();
@@ -464,12 +475,11 @@ export class WorldSourceFetcher {
                 if (part === undefined) return;
                 if (controller.signal.aborted) return;
                 try {
-                    await downloadToFile(
-                        this.assetUrl(part.asset, token),
+                    await this.downloadAsset(
+                        lease,
+                        part.asset,
                         join(workspace.partsDir, part.name),
                         {
-                            fetch: this.http(),
-                            headers: this.headers(token),
                             signal: controller.signal,
                             expectedBytes: part.asset.size,
                             onBytes: (_delta, total) => {
@@ -510,7 +520,7 @@ export class WorldSourceFetcher {
         source: ChecksumWorldSource,
         published: ReadonlyMap<string, string>,
         controller: AbortController,
-        token: string | null,
+        lease: GhCliAccountLease | null,
     ): Promise<string> {
         const files = source.parts.map((part) => ({
             name: part.name,
@@ -586,9 +596,7 @@ export class WorldSourceFetcher {
                 if (part === undefined) continue;
                 const path = join(workspace.partsDir, part.name);
                 await rm(path, { force: true });
-                await downloadToFile(this.assetUrl(part.asset, token), path, {
-                    fetch: this.http(),
-                    headers: this.headers(token),
+                await this.downloadAsset(lease, part.asset, path, {
                     signal: controller.signal,
                     expectedBytes: part.asset.size,
                 });
@@ -634,28 +642,85 @@ export class WorldSourceFetcher {
 
     /* ------------------------------------------------------------------ */
 
-    private async readRelease(owner: string, repo: string, tag: string | undefined): Promise<ReleaseInfo> {
-        const token = (await this.options.token?.()) ?? null;
+    private async readRelease(
+        owner: string,
+        repo: string,
+        tag: string | undefined,
+        lease: GhCliAccountLease | null,
+    ): Promise<ReleaseInfo> {
         return await fetchRelease(owner, repo, tag, {
-            fetch: this.http(),
-            token,
-            ...(this.options.apiBase === undefined ? {} : { apiBase: this.options.apiBase }),
+            fetch: lease === null ? this.http() : (url, init) => lease.api(url, init),
+            ...(this.options.apiBase !== undefined
+                ? { apiBase: this.options.apiBase }
+                : lease === null
+                  ? {}
+                  : { apiBase: ghApiBaseForHost(lease.host) }),
         });
     }
 
-    /**
-     * With a token, the API URL - the only route that works for a private release, and the
-     * one undici strips the `Authorization` header from on the redirect to storage, so the
-     * token never reaches the CDN. Without one, the browser URL, which needs no
-     * authentication and is not subject to the unauthenticated API's hourly limit.
-     */
-    private assetUrl(asset: ReleaseAsset, token: string | null): string {
-        return token === null ? asset.downloadUrl : asset.apiUrl;
+    private async account(accountId?: string): Promise<GhCliAccountLease | null> {
+        if (this.options.account === undefined) {
+            if (accountId !== undefined) {
+                throw failures.accountUnavailable(
+                    "The selected GitHub CLI account cannot be used by this build. Open GitHub Settings and choose an available account.",
+                );
+            }
+            return null;
+        }
+        try {
+            const lease = (await this.options.account(accountId, "read")) ?? null;
+            if (lease === null && accountId !== undefined) {
+                throw failures.accountUnavailable(
+                    "The selected GitHub CLI account is no longer available. Choose another account or reauthenticate it in GitHub Settings.",
+                );
+            }
+            return lease;
+        } catch (error) {
+            if (isDownloadFailure(error)) throw error;
+            throw failures.accountUnavailable(accountFailureMessage(error));
+        }
     }
 
-    private headers(token: string | null): Record<string, string> {
-        if (token === null) return { "user-agent": "worldlens" };
-        return { ...apiHeaders(token), accept: "application/octet-stream" };
+    private async downloadAsset(
+        lease: GhCliAccountLease | null,
+        asset: ReleaseAsset,
+        destination: string,
+        options: {
+            readonly signal?: AbortSignal | undefined;
+            readonly expectedBytes?: number | undefined;
+            readonly onBytes?: ((delta: number, total: number) => void) | undefined;
+        },
+    ): Promise<{ readonly bytes: number }> {
+        if (lease === null) {
+            return await downloadToFile(asset.downloadUrl, destination, {
+                fetch: this.http(),
+                headers: { "user-agent": "worldlens" },
+                ...(options.signal === undefined ? {} : { signal: options.signal }),
+                ...(options.expectedBytes === undefined ? {} : { expectedBytes: options.expectedBytes }),
+                ...(options.onBytes === undefined ? {} : { onBytes: options.onBytes }),
+            });
+        }
+        const result = await lease.downloadApi(
+            asset.apiUrl,
+            destination,
+            options.signal === undefined ? {} : { signal: options.signal },
+        );
+        if (!result.started || result.code !== 0) {
+            throw new HttpDownloadError(
+                "GitHub CLI could not download the selected world asset.",
+                0,
+                asset.apiUrl,
+            );
+        }
+        if (options.expectedBytes !== undefined && result.bytes !== options.expectedBytes) {
+            throw new HttpDownloadError(
+                `GitHub CLI downloaded ${String(result.bytes)} bytes, not the expected ${String(options.expectedBytes)}.`,
+                0,
+                asset.apiUrl,
+            );
+        }
+        options.onBytes?.(result.bytes, result.bytes);
+        return { bytes: result.bytes };
     }
 
     private storageDir(): string {
@@ -740,7 +805,15 @@ export class WorldSourceFetcher {
 
     /** Turns whatever was thrown into the one typed reason the interface acts on. */
     private describe(error: unknown, subject: string): DownloadFailure {
+        if (error instanceof GhCredentialError) {
+            return failures.accountUnavailable(error.message);
+        }
         if (error instanceof ReleaseRequestError) {
+            if (error.status === 401 || error.status === 403) {
+                return failures.accountUnavailable(
+                    "The selected GitHub CLI account could not read this release. Reauthenticate it or choose an account with access.",
+                );
+            }
             return error.status === 404
                 ? failures.releaseNotFound(subject, error.status, error.url)
                 : failures.networkFailed(error.url, error.message, error.status);
@@ -752,6 +825,11 @@ export class WorldSourceFetcher {
         if (error instanceof ExtractError) return failures.extractFailed(error.message);
         if (isAbort(error)) return failures.cancelled();
         if (error instanceof HttpDownloadError) {
+            if (error.status === 401 || error.status === 403) {
+                return failures.accountUnavailable(
+                    "The selected GitHub CLI account could not download this release asset. Reauthenticate it or choose an account with access.",
+                );
+            }
             return error.status === null
                 ? failures.networkFailed(error.url, error.message)
                 : failures.networkFailed(error.url, error.message, error.status);
@@ -759,6 +837,21 @@ export class WorldSourceFetcher {
         const message = error instanceof Error ? error.message : String(error);
         return failures.networkFailed(subject, message);
     }
+}
+
+function accountFailureMessage(error: unknown): string {
+    if (error instanceof GhCredentialError) return error.message;
+    return "The GitHub CLI account could not be selected. Open GitHub Settings, choose an available account, and try again.";
+}
+
+function isDownloadFailure(value: unknown): value is DownloadFailure {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        typeof (value as { code?: unknown }).code === "string" &&
+        typeof (value as { message?: unknown }).message === "string" &&
+        "settings" in value
+    );
 }
 
 function summarise(source: WorldSource): WorldSourceSummary {

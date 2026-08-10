@@ -30,18 +30,33 @@ const layerCount = computed(() => {
     return Array.isArray(value) ? value.length : 0;
 });
 const isDisabled = computed(() => props.disabled === true);
+const controlType = computed(() =>
+    t("config.field.type", { type: props.field.control.kind }, "Type: {type}"),
+);
+const documentationProvenance = computed(() =>
+    props.field.docSource === "authored"
+        ? t("config.field.sourceAuthored", "Docs: BlueMap source-derived explanation")
+        : t("config.field.sourceUpstream", "Docs: BlueMap generated template"),
+);
 </script>
 
 <template>
     <section
         class="mb-render-mask-launcher"
-        :class="{ 'mb-render-mask-launcher--highlight': highlighted }"
+        :class="{
+            'mb-render-mask-launcher--highlight': highlighted,
+            'mb-render-mask-launcher--changed': explicit,
+        }"
         :data-field-path="field.path"
         :aria-label="field.label"
     >
         <div class="mb-render-mask-launcher__badges">
-            <v-chip size="x-small" variant="outlined">
-                {{ t("config.field.type", { type: field.control.kind }, "Type: {type}") }}
+            <v-chip size="x-small" variant="outlined" data-field-type>
+                {{ controlType }}
+            </v-chip>
+            <v-chip size="x-small" variant="outlined" data-field-provenance>
+                {{ documentationProvenance }}
+            </v-chip>
             </v-chip>
             <span class="mb-render-mask-launcher__path">{{ field.path }}</span>
         </div>
@@ -107,6 +122,10 @@ const isDisabled = computed(() => props.disabled === true);
 .mb-render-mask-launcher--highlight {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
+}
+
+.mb-render-mask-launcher--changed {
+    border-color: rgb(var(--v-theme-primary));
 }
 
 .mb-render-mask-launcher__badges,

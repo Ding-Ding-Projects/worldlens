@@ -81,78 +81,32 @@ interface CaptureRecord {
 /**
  * The captures, in the order a reader should meet them.
  *
- * The installed application comes first because it is the only one that shows the whole
- * interface at once, and because "somebody installed this and it opened" is the single
- * most useful thing a landing page can prove. After it come the surfaces: the window's own
- * chrome, first run, the menu, settings, the options editor, the wizard, and the dialogs.
+ * A whole window comes first, because "somebody opened this and here is what they saw" is
+ * the single most useful thing a landing page can prove. After it come the surfaces: the
+ * window's own chrome, first run, the menu, settings, the options editor, the wizard, and
+ * the dialogs.
  *
  * The harness opens each of those by driving the real application, and records in its
  * manifest every surface it could not reach and why. Nothing here stands in for one of
  * those: a screen that has no capture has no entry.
+ *
+ * Three records at the end of the first block are pictures of an application this project
+ * no longer builds. They were taken through a different route - an installed build driven
+ * over the Chrome DevTools protocol - which has not been re-run since the Material Design 3
+ * rewrite replaced a strip of tabs and a stack of floating buttons with the application
+ * rail, and since the product was renamed. They are kept because a genuine old photograph is
+ * worth having and because deleting evidence is not the same as correcting it, but every one
+ * of them says in its own title and configuration that it is a historical record, and none is
+ * featured. A picture of a shell that no longer exists must never be the first thing a reader
+ * meets, captioned as though it were the product.
  */
 const RECORDS: readonly CaptureRecord[] = [
-    {
-        file: "installed-app-1920x1200.png",
-        aspectRatio: "8 / 5",
-        title: "The installed application",
-        configuration: "installed from the Windows installer, 1920 by 1200",
-        alt: "The worldlens desktop application running after a Windows install, showing a three-dimensional rendered Minecraft-style terrain (forest, snow and open water) with the ported interface over it: the menu button and a position marker at the top left, the view-mode, day-night, flight and fullscreen controls with live x and z position inputs and a compass at the top right, and the settings, maps-and-servers and configuration buttons at the bottom left.",
-        featured: true,
-    },
-    {
-        file: "titlebar-zoom-1920.png",
-        aspectRatio: "480 / 11",
-        title: "The Material title bar, full width",
-        configuration: "cropped from a 1920 by 1080 capture of the packaged application on Windows",
-        alt: "The worldlens application's own title bar, cropped to the full width of a 1920 pixel window: the circular application logo and the title Worldlens on the left, and minimize, maximize and close buttons drawn by the application on the right. No operating system caption bar is present, because the window is frameless.",
-        featured: false,
-    },
-    {
-        file: "shell-titlebar-1920x1080.png",
-        aspectRatio: "16 / 9",
-        title: "The frameless window, whole",
-        configuration: "1920 by 1080, the packaged application on Windows, at first run",
-        alt: "The worldlens application window at 1920 by 1080 pixels with its own Material title bar across the top edge and no operating system chrome. In front is the first-run setup dialog, offering English, Cantonese and bilingual language modes and two separate funny-level sliders; behind it is the map wizard. Three round buttons for settings, servers and server configuration sit in the bottom left corner, and the notification history button, reading zero, sits in the bottom right.",
-        featured: false,
-    },
-    {
-        file: "theme-dark.png",
-        aspectRatio: "8 / 5",
-        title: "Dark colour scheme",
-        configuration: "1280 by 800, dark colour scheme",
-        alt: "The worldlens application window rendered with the dark colour scheme, at 1280 by 800 pixels.",
-        featured: false,
-    },
-    {
-        file: "theme-light.png",
-        aspectRatio: "8 / 5",
-        title: "Light colour scheme",
-        configuration: "1280 by 800, light colour scheme",
-        alt: "The worldlens application window rendered with the light colour scheme, at 1280 by 800 pixels.",
-        featured: false,
-    },
-    {
-        file: "shell-800x600-narrow.png",
-        aspectRatio: "4 / 3",
-        title: "The narrowest supported window",
-        configuration: "800 by 600, 100% display scale",
-        alt: "The worldlens application window at 800 by 600 pixels, the narrowest window size the interface is checked against.",
-        featured: true,
-    },
-    {
-        file: "shell-scale-2x.png",
-        aspectRatio: "8 / 5",
-        title: "200 percent display scale",
-        configuration: "1280 by 800, 200% display scale",
-        alt: "The worldlens application window at 200 percent display scale, where element sizing defects appear first.",
-        featured: true,
-    },
     {
         file: "shell-1920x1080.png",
         aspectRatio: "16 / 9",
         title: "A full-size window",
         configuration: "1920 by 1080, 100% display scale",
-        alt: "The worldlens application window at 1920 by 1080 pixels.",
+        alt: "The Worldlens window at 1920 by 1080 pixels: an application rail down the left holding Home, Map and Work, Work carrying a badge reading one, and search, notifications and settings in its footer. Beside it the Home page asks what are you here to do, over a search field, a wide Make a map card with five group chips and New map and Or walk me through it buttons, and four outlined catalogue cards for Your maps, Share a map, Keep a copy and Set up and help, each listing four of the features it holds.",
         featured: true,
     },
     {
@@ -160,7 +114,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "The harness default window",
         configuration: "1280 by 800, 100% display scale",
-        alt: "The worldlens application window at 1280 by 800 pixels, the size the capture harness resets to.",
+        alt: "The same Home page and application rail at 1280 by 800 pixels, the size the capture harness resets to between surfaces. The narrower window puts the catalogue cards in two columns and cuts the last row off at the bottom edge, which is where a reader scrolls.",
         featured: false,
     },
     {
@@ -168,15 +122,23 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "4 / 3",
         title: "A small window",
         configuration: "1024 by 768, 100% display scale",
-        alt: "The worldlens application window at 1024 by 768 pixels.",
+        alt: "The Home page and the application rail at 1024 by 768 pixels, a window small enough to show how the catalogue cards reflow before anything is clipped.",
         featured: false,
+    },
+    {
+        file: "shell-800x600-narrow.png",
+        aspectRatio: "4 / 3",
+        title: "The narrowest supported window",
+        configuration: "800 by 600, 100% display scale",
+        alt: "The Home page at 800 by 600 pixels, the narrowest window size the interface is checked against: the application rail keeps its full width and its labels, and the Make a map card stacks its two buttons rather than letting either one shrink out of reach.",
+        featured: true,
     },
     {
         file: "shell-scale-1x.png",
         aspectRatio: "8 / 5",
         title: "100 percent display scale",
         configuration: "1280 by 800, 100% display scale",
-        alt: "The worldlens application window at 100 percent display scale.",
+        alt: "The Home page and the application rail at 100 percent display scale, the baseline the three scaled captures below are compared against.",
         featured: false,
     },
     {
@@ -184,7 +146,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "125 percent display scale",
         configuration: "1280 by 800, 125% display scale",
-        alt: "The worldlens application window at 125 percent display scale.",
+        alt: "The Home page and the application rail at 125 percent display scale, where every label, icon and card is drawn a quarter larger in the same window.",
         featured: false,
     },
     {
@@ -192,7 +154,61 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "150 percent display scale",
         configuration: "1280 by 800, 150% display scale",
-        alt: "The worldlens application window at 150 percent display scale.",
+        alt: "The Home page and the application rail at 150 percent display scale, with correspondingly less of the catalogue list inside the same window.",
+        featured: false,
+    },
+    {
+        file: "shell-scale-2x.png",
+        aspectRatio: "8 / 5",
+        title: "200 percent display scale",
+        configuration: "1280 by 800, 200% display scale",
+        alt: "The Home page and the application rail at 200 percent display scale, where element sizing defects appear first: the rail, the search field and the Make a map card are all twice the size they are at 100 percent, in a window that has not grown.",
+        featured: true,
+    },
+    {
+        file: "theme-light.png",
+        aspectRatio: "8 / 5",
+        title: "The map, light colour scheme",
+        configuration: "1280 by 800, light colour scheme",
+        alt: "The Map destination with the light colour scheme selected: the application rail down the left with Map active, the viewer control bar across the top holding the menu button, a controls search field, the day and night switch, the perspective, flat and free-flight view modes and live x and z position readouts, and below them a rendered world of forest, bare ground and snow over open water.",
+        featured: false,
+    },
+    {
+        file: "theme-dark.png",
+        aspectRatio: "8 / 5",
+        title: "The map, dark colour scheme",
+        configuration: "1280 by 800, dark colour scheme",
+        alt: "The Map destination with the dark colour scheme selected, at the same camera position as the light capture above it. Nothing in frame changes between the two: the title bar, the application rail and the viewer control bar are drawn in the same light surfaces either way, so what this pair records is that the colour scheme setting does not reach the map view's own chrome in this build.",
+        featured: false,
+    },
+
+    /* ---- Before the rewrite, kept as the record of what changed ------------- */
+
+    {
+        file: "installed-app-1920x1200.png",
+        aspectRatio: "8 / 5",
+        title: "The installed application, before the rewrite",
+        configuration:
+            "a historical record: installed from the Windows installer at 1920 by 1200, under the application's former name and before the Material Design 3 rewrite",
+        alt: "An older build of this application, running after a Windows install and titled Material BlueMap. A three-dimensional rendered terrain of forest, snow and open water fills the window; across the top is a strip of eight tabs (Map, Make a map, Projects, GitHub runners, Maps and servers, Backups, Publish to Pages and Docs), the viewer's menu button and position marker sit at the top left, its view-mode, day-night, flight and fullscreen controls with live x and z inputs and a compass at the top right, and three round floating buttons for settings, maps and servers, and configuration stack in the bottom left corner. The rewrite replaced the tab strip with an application rail of three destinations and deleted the floating buttons, moving what they opened into that rail's footer.",
+        featured: false,
+    },
+    {
+        file: "shell-titlebar-1920x1080.png",
+        aspectRatio: "16 / 9",
+        title: "The frameless window, before the rewrite",
+        configuration:
+            "a historical record: 1920 by 1080, the packaged application at first run, under its former name",
+        alt: "An older build of the application window at 1920 by 1080 pixels, with its own Material title bar across the top edge and no operating system chrome. In front is the first-run setup dialog, headed Welcome to Material BlueMap, offering English, Cantonese and bilingual language modes and two separate funny-level sliders; behind it is the tab strip that the application rail replaced. Three round floating buttons sit in the bottom left corner and a notification button reading zero sits in the bottom right.",
+        featured: false,
+    },
+    {
+        file: "titlebar-zoom-1920.png",
+        aspectRatio: "480 / 11",
+        title: "The Material title bar, before the rename",
+        configuration:
+            "a historical record: cropped from a 1920 by 1080 capture of the packaged application, under its former name",
+        alt: "The application's own title bar, cropped to the full width of a 1920 pixel window: the circular application logo and the title Material BlueMap on the left, and minimize, maximize and close buttons drawn by the application on the right. The shipped title is Worldlens now; what this crop still records is that no operating system caption bar sits above it, because the window is frameless.",
         featured: false,
     },
 
@@ -219,15 +235,27 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "20 / 1",
         title: "The viewer control bar",
         configuration: "cropped to the control bar over the map, 1280 by 800 window",
-        alt: "The viewer control bar over the map: the round menu button on the left, and on the right a day and night switch, the perspective, flat and free-flight view modes, a reset camera button, live x and z position inputs reading 500 and 500, and a compass.",
+        alt: "The viewer control bar over the map: the round menu button on the left, then a search field over the viewer's own controls and buttons for the viewer settings and the command palette; and on the right a day and night switch, the perspective, flat and free-flight view modes, a reset camera button, live x and z position inputs both reading 256, and a compass.",
         featured: false,
     },
     {
-        file: "chrome-shell-buttons.png",
-        aspectRatio: "3 / 10",
-        title: "The shell buttons",
-        configuration: "cropped to the buttons in the bottom left corner of the window",
-        alt: "Three round buttons stacked in the bottom left corner of the window: settings, maps and servers, and server configuration.",
+        /*
+         * The rail, rather than the three floating buttons it replaced.
+         *
+         * `chrome-shell-buttons.png` photographed a stack of round buttons in the bottom left
+         * corner that opened settings, maps and servers, and the options editor. The Material
+         * Design 3 rewrite did not move that stack, it deleted it - `App.shellFabClearance.test.ts`
+         * asserts the string `mb-shell-fab` no longer appears anywhere in the shell's source - and
+         * the destinations went into this rail's footer. The image is still committed, and the
+         * evidence inventory records it as a retired surface, but it is no longer shown here:
+         * a gallery of what the application looks like is exactly the wrong place for a picture
+         * of a control nobody can press any more.
+         */
+        file: "chrome-app-rail.png",
+        aspectRatio: "2 / 19",
+        title: "The application rail",
+        configuration: "cropped to the full-height rail at the left edge of a 1280 by 800 window",
+        alt: "The application rail down the left edge of the window: Home, Map and Work, each an icon with its own visible label beneath it, Map currently selected and Work carrying a badge reading one for the single job that is open. At the foot of the rail, separated from the destinations, sit search, notifications and settings.",
         featured: false,
     },
 
@@ -330,16 +358,16 @@ const RECORDS: readonly CaptureRecord[] = [
     {
         file: "settings-drawer.png",
         aspectRatio: "8 / 5",
-        title: "The settings drawer",
-        configuration: "1280 by 800, opened over a locally rendered map",
-        alt: "The application settings drawer open down the right of the window over the map, with a search field at the top, a count of five settings, and the Mojang download consent section below it showing that the answer given during setup was to decline.",
+        title: "The settings panel",
+        configuration: "1280 by 800, opened from the rail footer over the Work destination",
+        alt: "The application settings panel, opened from the settings button in the rail footer and docked down the right of the window over whichever destination was showing, here the Work tab that was backing up a world. The panel carries its own search field, a line reading fifteen settings on this screen, its sections as a column of browser-style tabs (Mojang download consent, Java runtime, Where rendered maps go, World folder, GitHub account, Language and tone, and Display and ease of use), and beside them the Mojang download consent section, which reports that the answer given during setup was to decline.",
         featured: true,
     },
     {
         file: "settings-section-mojang-download-consent.png",
         aspectRatio: "13 / 20",
         title: "Settings: Mojang download consent",
-        configuration: "cropped to the settings drawer, that section scrolled into view",
+        configuration: "cropped to the settings panel, that section's own tab selected",
         alt: "The Mojang download consent settings section, showing the answer given during setup, a link to the Minecraft end user licence agreement, and the text being agreed to quoted from BlueMap without changes.",
         featured: false,
     },
@@ -347,7 +375,7 @@ const RECORDS: readonly CaptureRecord[] = [
         file: "settings-section-java-runtime.png",
         aspectRatio: "13 / 20",
         title: "Settings: Java runtime",
-        configuration: "cropped to the settings drawer, that section scrolled into view",
+        configuration: "cropped to the settings panel, that section's own tab selected",
         alt: "The Java runtime settings section, which reports which Java the application would use to run upstream BlueMap's renderer.",
         featured: false,
     },
@@ -355,7 +383,7 @@ const RECORDS: readonly CaptureRecord[] = [
         file: "settings-section-map-storage-directory.png",
         aspectRatio: "13 / 20",
         title: "Settings: where rendered maps go",
-        configuration: "cropped to the settings drawer, that section scrolled into view",
+        configuration: "cropped to the settings panel, that section's own tab selected",
         alt: "The settings section that sets the folder rendered maps are written into, showing the current path.",
         featured: false,
     },
@@ -363,7 +391,7 @@ const RECORDS: readonly CaptureRecord[] = [
         file: "settings-section-world-folder.png",
         aspectRatio: "13 / 20",
         title: "Settings: world folder",
-        configuration: "cropped to the settings drawer, that section scrolled into view",
+        configuration: "cropped to the settings panel, that section's own tab selected",
         alt: "The world folder settings section, which records the Minecraft save the application reads from.",
         featured: false,
     },
@@ -371,7 +399,7 @@ const RECORDS: readonly CaptureRecord[] = [
         file: "settings-section-github-account.png",
         aspectRatio: "13 / 20",
         title: "Settings: GitHub account, signed out",
-        configuration: "cropped to the settings drawer, that section scrolled into view",
+        configuration: "cropped to the settings panel, that section's own tab selected",
         alt: "The GitHub account settings section in its signed-out state, saying that nothing is stored on this computer and that public repositories still work, and offering both a browser sign-in and a token instead.",
         featured: false,
     },
@@ -379,8 +407,8 @@ const RECORDS: readonly CaptureRecord[] = [
         file: "settings-search.png",
         aspectRatio: "13 / 20",
         title: "The settings search",
-        configuration: "cropped to the settings drawer with a query typed in",
-        alt: "The settings drawer filtered by its search field, showing only the settings whose name, explanation or current value matches what was typed, with a count of how many of the five matched.",
+        configuration: "cropped to the settings panel with a query typed in",
+        alt: "The settings panel filtered by its search field, showing only the settings whose name, explanation or current value matches what was typed, and saying for each result which of the panel's tabs it lives on, so a match on a tab that is not open is still findable.",
         featured: false,
     },
     {
@@ -399,7 +427,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "The options editor",
         configuration: "1280 by 800, with no configuration folder attached",
-        alt: "The options editor filling the window: a toolbar for opening, generating, re-reading and saving a config folder, a notice saying this build cannot reach a file system so nothing can be opened or saved, a search across every setting on every tab, and seven tabs with the core settings shown below them.",
+        alt: "The options editor filling the window: a toolbar for opening, importing, generating, re-reading and saving a config folder, with an unsaved-changes marker and a Save button; a search field reading 154 settings across every screen; and a column of eight tabs (Core, Maps, Storages, Web app, Web server, Server plugin, Run and History) beside the Core tab's own settings, which open on the render-speed dial. A message in the corner says that BlueMap's own defaults are being shown because nothing has been opened from disk yet.",
         featured: true,
     },
     {
@@ -463,7 +491,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "The options search, across every tab",
         configuration: "1280 by 800, with a query typed in",
-        alt: "The options editor's search with a query typed in, listing the matching settings from every one of the seven tabs at once and naming which tab each result lives on.",
+        alt: "The options editor's search with a query typed in, listing the matching settings from every one of its eight tabs at once and naming which tab each result lives on, so a match on a tab that is not open is still reachable.",
         featured: false,
     },
     {
@@ -548,8 +576,8 @@ const RECORDS: readonly CaptureRecord[] = [
         file: "profiles-manager.png",
         aspectRatio: "8 / 5",
         title: "Maps and servers",
-        configuration: "1280 by 800, opened over a locally rendered map",
-        alt: "The maps and servers manager, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, each with a delete button, and fields for adding another by name and URL.",
+        configuration: "1280 by 800, on its own tab in the Work destination",
+        alt: "The maps and servers manager, opened as a tab inside the Work destination rather than as a dialog over the map: it lists the maps rendered on this computer and the remote BlueMap servers the application knows about, each with a delete button, and fields for adding another by name and URL.",
         featured: false,
     },
     {
@@ -563,18 +591,17 @@ const RECORDS: readonly CaptureRecord[] = [
     {
         file: "notifications-corner.png",
         aspectRatio: "13 / 7",
-        title: "The notification history button",
-        configuration:
-            "cropped to the bottom right corner after the message above it had dismissed itself",
-        alt: "The small button in the bottom right corner that opens the notification history, a bell with the number three beside it for the three messages recorded so far. The message that was in the corner had already dismissed itself when this crop was taken, which is why nothing sits above the button.",
+        title: "The notification corner",
+        configuration: "cropped to the bottom right corner while a message was still showing",
+        alt: "The bottom right corner of the window while the application is saying something: one message, explaining that BlueMap's own defaults are being shown because nothing has been opened from disk yet, with a dismiss button beside it. It sits over the corner rather than in a dialog, so whatever is underneath stays usable and the message goes away on its own.",
         featured: false,
     },
     {
         file: "notifications-history.png",
         aspectRatio: "35 / 16",
-        title: "The notification history",
-        configuration: "cropped to the history panel",
-        alt: "The notification history panel, listing three messages the application has already shown, each with its level and the time it was raised, so a message that has faded away is still readable.",
+        title: "The notification centre",
+        configuration: "cropped to the notification centre panel",
+        alt: "The notification centre, so a message that has already faded away is still readable. It has its own search field and filters, a line reading that it is showing 4 of the 4 notifications recorded, and the bulk actions any other list here has: select all shown, select all in history, invert the selection, and copy what is shown. Each entry carries its level, the exact time it was raised, its full text, and a Show again action.",
         featured: false,
     },
     {

@@ -8,54 +8,111 @@ const shellCss = readFileSync(resolve(here, "shell.css"), "utf8");
 const shellTs = readFileSync(resolve(here, "ExpressiveSiteShell.ts"), "utf8");
 const mainTs = readFileSync(resolve(here, "..", "main.ts"), "utf8");
 
-describe("ground-up M3 Expressive shell", () => {
-    it("owns four explicit application regions rather than relying on append order", () => {
-        expect(shellTs).toContain('this.appBar.className = "mb-app-bar"');
+/*
+ * These are source-text guards over the shell's structural decisions, not behaviour tests -
+ * `ExpressiveSiteShell.test.ts` beside this file exercises the built DOM. They exist because
+ * the decisions below are the kind that a later edit undoes by accident while every rendered
+ * pixel still looks plausible: a top app bar creeping back in, the canvas quietly gaining an
+ * `overflow-x: hidden` that hides a real overflow bug rather than fixing it, or a hex literal
+ * appearing in a file whose whole contract is that it decides no colour.
+ */
+describe("rail-led M3 Expressive shell", () => {
+    it("has no top app bar, and puts the chrome in one full-height rail instead", () => {
+        // The absence is the design decision, so it is what gets asserted. A shell that grew a
+        // banner back would still render fine, and would still be the layout this replaced.
+        expect(shellTs).not.toContain("mb-app-bar");
+        expect(shellCss).not.toContain(".mb-app-bar");
+
         expect(shellTs).toContain('this.navigation.className = "mb-shell-topbar"');
         expect(shellTs).toContain('this.main.className = "mb-main"');
-        expect(shellTs).toContain(
-            "this.element.append(this.appBar, frame, this.navigationScrim, options.footer)",
-        );
+        expect(shellTs).toContain("this.element.append(frame, this.navigationScrim)");
         expect(mainTs).toContain("new ExpressiveSiteShell({");
     });
 
-    it("gives the top app bar scroll-linked elevation with token motion", () => {
-        expect(shellCss).toMatch(/\.mb-app-bar\s*{[^}]*box-shadow:\s*none;/);
-        expect(shellCss).toMatch(
-            /\.mb-app-bar\[data-scrolled="true"\]\s*{[^}]*box-shadow:\s*var\(--md-sys-elevation-level2\);/,
+    it("carries the brand and the quick actions inside the rail", () => {
+        expect(shellTs).toContain("this.createRailHead()");
+        expect(shellTs).toContain("this.createRailActions()");
+        // The tab strip sits between them, which is what makes the rail the navigation rather
+        // than a frame around a second copy of it.
+        expect(shellTs).toMatch(
+            /this\.createRailHead\(\),\s*options\.tabBar,\s*this\.createRailActions\(\)/,
         );
-        const rule = /\.mb-app-bar\s*{[^}]*}/.exec(shellCss)?.[0] ?? "";
-        expect(rule).toContain("var(--md-sys-motion-duration-short4)");
-        expect(rule).toContain("var(--md-sys-motion-easing-standard)");
-        expect(shellTs).toContain('this.appBar.dataset["scrolled"] = next ? "true" : "false"');
-        expect(shellTs).toContain("window.requestAnimationFrame(apply)");
-        expect(shellTs).toContain("{ passive: true }");
     });
 
-    it("draws the site signature only from M3 system roles", () => {
-        const footer = /\.mb-shell-footer::before\s*{[\s\S]*?\n}/.exec(shellCss)?.[0] ?? "";
-        expect(footer).toContain("var(--md-sys-color-primary)");
-        expect(footer).toContain("var(--md-sys-color-secondary)");
-        expect(footer).toContain("var(--md-sys-color-tertiary)");
-        expect(footer).not.toMatch(/#[0-9a-f]{3,8}/i);
+    it("runs the rail the full height of the viewport and rounds only its inner edge", () => {
+        /*
+         * Anchored to the start of a line, and every base-rule probe below is too.
+         *
+         * Without the anchor this pattern also matches the tail of a descendant selector -
+         * `.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar { order: 2; }` -
+         * so the guard silently reads a one-line dock override instead of the rule it means
+         * to check, and reports the base rule missing every property it actually has.
+         */
+        const rail = /^\.mb-shell-topbar\s*{[^}]*}/m.exec(shellCss)?.[0] ?? "";
+        expect(rail).toContain("min-height: 100dvh");
+        expect(rail).toContain("position: sticky");
+        // Square against the viewport, round against the canvas - the detail that makes the
+        // frame read as an inset panel rather than a tall card.
+        expect(rail).toContain(
+            "border-radius: 0 var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large)",
+        );
+        expect(rail).toContain("var(--md-sys-motion-duration-medium2)");
+        expect(rail).toContain("var(--md-sys-motion-easing-standard-decelerate)");
+    });
+
+    it("builds the frame from three surface-container tones rather than one background", () => {
+        expect(shellCss).toMatch(
+            /^\.mb-app-shell\s*{[^}]*background:\s*var\(--md-sys-color-surface-container-lowest\);/m,
+        );
+        expect(shellCss).toMatch(
+            /^\.mb-shell-topbar\s*{[^}]*background:\s*var\(--md-sys-color-surface-container-high\);/m,
+        );
+        expect(shellCss).toMatch(/^\.mb-main\s*{[^}]*background:\s*var\(--md-sys-color-surface\);/m);
+    });
+
+    it("decides no colour of its own", () => {
+        // The one place colour is decided in this project is packages/shared/src/colorRoles.ts,
+        // reaching this package as a generated sheet. A hex literal here would be a second.
+        expect(shellCss).not.toMatch(/#[0-9a-f]{3,8}/i);
     });
 
     it("ships an adaptive mobile drawer, persistent reachable toggle and scrim", () => {
         expect(shellCss).toContain("@media (width <= 720px)");
         expect(shellCss).toContain("--mb-navigation-width: min(19rem, calc(100vw - 3rem))");
         expect(shellCss).toContain("--mb-navigation-collapsed-width: 4rem");
-        expect(shellCss).toContain('.mb-app-shell[data-navigation-open="true"]');
+        /*
+         * The drawer is selected by placement and collapsed state, not by a
+         * `data-navigation-open` flag on the shell root, and that rename is the fix rather than
+         * a casualty of it.
+         *
+         * A single "is the navigation open" boolean was what took the site down: a top-docked
+         * rail is permanently not-collapsed, so the flag said the drawer was open about a rail
+         * that is not a drawer, and the scrim covered the viewport with a translucent button
+         * wired to collapse a sidebar a horizontal dock has no concept of. Every tap was
+         * swallowed and nothing dismissed it.
+         *
+         * So the assertion now pins the two conditions that actually decide it - a vertical
+         * placement, and not collapsed - because a test that accepted either one alone would
+         * pass on the broken state it exists to catch.
+         */
+        expect(shellCss).toContain('.mb-shell-workspace[data-tab-placement="left"]');
+        expect(shellCss).toContain('[data-sidebar-collapsed="true"]');
         expect(shellTs).toContain('this.navigationScrim.className = "mb-navigation-scrim"');
         expect(shellTs).toContain("options.sidebar.setCollapsed(true)");
     });
 
-    it("uses a responsive bounded content canvas without hiding horizontal overflow", () => {
-        expect(shellCss).toContain("--mb-content-max-width: 92rem");
-        expect(shellCss).toMatch(/\.mb-main\s*{[^}]*min-width:\s*0;/);
+    it("uses a bounded, left-anchored content canvas without hiding horizontal overflow", () => {
+        expect(shellCss).toContain("--mb-content-max-width: 76rem");
+        expect(shellCss).toMatch(/^\.mb-main\s*{[^}]*min-width:\s*0;/m);
         expect(shellCss).toMatch(
-            /\.mb-main > \.tab-panels\s*{[^}]*width:\s*min\(100%, var\(--mb-content-max-width\)\);/,
+            /^\.mb-main > \.tab-panels\s*{[^}]*width:\s*min\(100%, var\(--mb-content-max-width\)\);/m,
         );
-        expect(shellCss).not.toMatch(/\.mb-main\s*{[^}]*overflow-x:\s*hidden/);
+        // Anchored to the rail with the slack on the right, rather than centred between two
+        // gutters. `margin-inline: 0 auto` is the whole of that decision.
+        expect(shellCss).toMatch(/^\.mb-main > \.tab-panels\s*{[^}]*margin-inline:\s*0 auto;/m);
+        // Hiding overflow here would silently swallow the horizontal-scroll defects the
+        // viewport audit exists to catch, which is worse than the overflow itself.
+        expect(shellCss).not.toMatch(/^\.mb-main\s*{[^}]*overflow-x:\s*hidden/m);
     });
 
     it("keeps every quick action real and the palette shortcut-labelled", () => {

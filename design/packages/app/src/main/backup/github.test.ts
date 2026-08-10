@@ -92,7 +92,7 @@ function fakeFetch(
     return Object.assign(impl, { seen });
 }
 
-const base = { apiBase: "https://api.test", uploadsBase: "https://uploads.test", token: "t0k3n" };
+const base = { apiBase: "https://api.test", uploadsBase: "https://uploads.test" };
 
 const releaseJson = {
     id: 77,
@@ -145,11 +145,10 @@ describe("listing repositories somebody can actually write to", () => {
         expect(found.map((repository) => repository.fullName)).toEqual(["me/mine"]);
     });
 
-    it("sends the token as a bearer and never in the URL", async () => {
+    it("does not accept or synthesize authorization from app-owned state", async () => {
         const fetch = fakeFetch(() => ({ status: 200, body: [] }));
         await listWritableRepositories({ fetch, ...base });
-        expect(fetch.seen[0]?.headers["authorization"]).toBe("Bearer t0k3n");
-        expect(fetch.seen[0]?.url).not.toContain("t0k3n");
+        expect(fetch.seen[0]?.headers["authorization"]).toBeUndefined();
     });
 });
 

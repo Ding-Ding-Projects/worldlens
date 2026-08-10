@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { UpdateController, type UpdateEngine, type UpdateTimers } from "./controller.js";
 import { resolveFeed, type FeedResolution } from "./feed.js";
 import type { UpdateFeedHandoff } from "./feedHandoff.js";
+import type {
+    UpdateInstallAttempt,
+    UpdateInstallJournal,
+    UpdateInstallOutcome,
+} from "./installJournal.js";
 import type { UpdateState } from "./state.js";
 
 /**
@@ -134,6 +139,39 @@ class MemoryHandoff implements UpdateFeedHandoff {
     }
 }
 
+class MemoryInstallJournal implements UpdateInstallJournal {
+    readonly attempts: { readonly fromVersion: string; readonly targetVersion: string }[] = [];
+    outcome: UpdateInstallOutcome = { status: "none" };
+    beginError: Error | null = null;
+    reconcileError: Error | null = null;
+    clearError: Error | null = null;
+    clears = 0;
+
+    begin(fromVersion: string, targetVersion: string): void {
+        if (this.beginError !== null) throw this.beginError;
+        this.attempts.push({ fromVersion, targetVersion });
+    }
+
+    reconcile(): UpdateInstallOutcome {
+        if (this.reconcileError !== null) throw this.reconcileError;
+        return this.outcome;
+    }
+
+    clear(): void {
+        if (this.clearError !== null) throw this.clearError;
+        this.clears += 1;
+    }
+}
+
+function updateAttempt(fromVersion = "0.1.0", targetVersion = "0.2.0"): UpdateInstallAttempt {
+    return {
+        schema: 1,
+        fromVersion,
+        targetVersion,
+        requestedAt: "2026-08-04T09:59:00.000Z",
+    };
+}
+
 interface Harness {
     readonly controller: UpdateController;
     readonly engine: FakeEngine;
@@ -147,6 +185,8 @@ function harness(
         readonly feed?: FeedResolution;
         readonly engine?: FakeEngine | null;
         readonly feedHandoff?: UpdateFeedHandoff;
+        readonly installJournal?: UpdateInstallJournal;
+        readonly currentVersion?: string;
     } = {},
 ): Harness {
     const engine = options.engine === undefined ? new FakeEngine() : options.engine;
@@ -155,12 +195,13 @@ function harness(
     const state = { rendering: false };
 
     const controller = new UpdateController({
-        currentVersion: "0.1.0",
+        currentVersion: options.currentVersion ?? "0.1.0",
         feed: options.feed ?? workingFeed,
         engine,
         renderInProgress: () => state.rendering,
         onChange: (next) => published.push(next),
         ...(options.feedHandoff === undefined ? {} : { feedHandoff: options.feedHandoff }),
+        ...(options.installJournal === undefined ? {} : { installJournal: options.installJournal }),
         timers,
         now: () => new Date("2026-08-04T10:00:00Z"),
     });
@@ -324,6 +365,22 @@ describe("UpdateController", () => {
         expect(test.timers.pending.size).toBe(0);
     });
 
+    it("normalises a leading v but refuses missing or ambiguous feed versions", () => {
+        const valid = harness();
+        valid.controller.start();
+        valid.engine.emit("update-downloaded", {}, null, "v0.2.0", new Date(), null);
+        expect(valid.controller.current().readyVersion).toBe("0.2.0");
+
+        for (const releaseName of [null, "", "Worldlens 0.2.0", "0.2"]) {
+            const invalid = harness();
+            invalid.controller.start();
+            invalid.engine.emit("update-downloaded", {}, null, releaseName, new Date(), null);
+            expect(invalid.controller.current().status).toBe("failed");
+            expect(invalid.controller.current().failure?.code).toBe("feed-mismatch");
+            expect(invalid.engine.installs).toBe(0);
+        }
+    });
+
     it("refuses a non-https notes link rather than handing one to the shell", () => {
         const test = harness();
         test.controller.start();
@@ -331,14 +388,114 @@ describe("UpdateController", () => {
         expect(test.controller.current().releaseNotesUrl).toBeNull();
     });
 
-    it("installs only when asked, and reports the version it installed", () => {
-        const test = harness();
+    it("records the exact transition before installing only when asked", () => {
+        const journal = new MemoryInstallJournal();
+        const test = harness({ installJournal: journal });
         test.controller.start();
         test.engine.emit("update-downloaded", {}, null, "0.2.0", new Date(), null);
 
         const result = test.controller.restart();
         expect(result).toEqual({ ok: true, version: "0.2.0" });
+        expect(journal.attempts).toEqual([{ fromVersion: "0.1.0", targetVersion: "0.2.0" }]);
         expect(test.engine.installs).toBe(1);
+    });
+
+    it("fails closed when it cannot record the transition", () => {
+        const journal = new MemoryInstallJournal();
+        journal.beginError = new Error("journal is read-only");
+        const test = harness({ installJournal: journal });
+        test.controller.start();
+        test.engine.emit("update-downloaded", {}, null, "0.2.0", new Date(), null);
+
+        const result = test.controller.restart();
+        expect(result.ok).toBe(false);
+        expect(test.engine.installs).toBe(0);
+        expect(test.controller.current().readyVersion).toBe("0.2.0");
+        expect(test.controller.current().failure).toMatchObject({
+            code: "staging-failed",
+            detail: "journal is read-only",
+        });
+    });
+
+    it.each([
+        [
+            "rolled-back",
+            { status: "rolled-back", attempt: updateAttempt() } satisfies UpdateInstallOutcome,
+            "rollback",
+        ],
+        [
+            "version-mismatch",
+            {
+                status: "version-mismatch",
+                attempt: updateAttempt(),
+                actualVersion: "0.3.0",
+            } satisfies UpdateInstallOutcome,
+            "feed-mismatch",
+        ],
+        ["corrupt", { status: "corrupt" } satisfies UpdateInstallOutcome, "feed-mismatch"],
+    ] as const)(
+        "reports a prior %s transition while still scheduling the next check",
+        (_label, outcome, code) => {
+            const journal = new MemoryInstallJournal();
+            journal.outcome = outcome;
+            const test = harness({ installJournal: journal });
+            test.controller.start();
+
+            expect(test.controller.current().status).toBe("failed");
+            expect(test.controller.current().failure?.code).toBe(code);
+            expect(test.timers.pending.size).toBe(1);
+        },
+    );
+
+    it("keeps rollback evidence through an early automatic result until the renderer acknowledges it", () => {
+        const journal = new MemoryInstallJournal();
+        journal.outcome = { status: "rolled-back", attempt: updateAttempt() };
+        const test = harness({ installJournal: journal });
+        test.controller.start();
+
+        // Reproduce the startup race: the 30-second timer wins before a renderer asks for
+        // state. The successful check must not erase the durable rollback finding.
+        test.timers.fire();
+        test.engine.emit("update-not-available");
+        expect(test.controller.current().status).toBe("up-to-date");
+        expect(test.controller.current().failure?.code).toBe("rollback");
+        expect(journal.clears).toBe(0);
+
+        // This call is reached by a distinct IPC acknowledgement only after the renderer
+        // has applied its first state. Later real updater events can then supersede it.
+        test.controller.acknowledgeInstallOutcome();
+        expect(journal.clears).toBe(1);
+        test.controller.check({ manual: true });
+        test.engine.emit("update-not-available");
+        expect(test.controller.current().failure).toBeNull();
+    });
+
+    it("retains prior install evidence when acknowledgement cannot clear the receipt", () => {
+        const journal = new MemoryInstallJournal();
+        journal.outcome = {
+            status: "version-mismatch",
+            attempt: updateAttempt(),
+            actualVersion: "0.3.0",
+        };
+        journal.clearError = new Error("receipt is read-only");
+        const test = harness({ installJournal: journal });
+        test.controller.start();
+
+        test.controller.acknowledgeInstallOutcome();
+        test.timers.fire();
+        test.engine.emit("update-not-available");
+        expect(test.controller.current().failure?.code).toBe("feed-mismatch");
+        expect(journal.clears).toBe(0);
+    });
+
+    it("treats a journal read failure as an unproven transition", () => {
+        const journal = new MemoryInstallJournal();
+        journal.reconcileError = new Error("journal unreadable");
+        const test = harness({ installJournal: journal });
+        test.controller.start();
+
+        expect(test.controller.current().failure?.code).toBe("feed-mismatch");
+        expect(test.controller.current().failure?.message).toContain("cannot prove");
     });
 
     it("declining a restart leaves the update staged and installs nothing", () => {
@@ -366,6 +523,21 @@ describe("UpdateController", () => {
         expect(result.message).toContain("throw that render away");
         expect(test.engine.installs).toBe(0);
         // And the update is still there afterwards, so the person loses nothing by trying.
+        expect(test.controller.current().readyVersion).toBe("0.2.0");
+    });
+
+    it("refuses renderer-reported unsaved work before recording or installing", () => {
+        const journal = new MemoryInstallJournal();
+        const test = harness({ installJournal: journal });
+        test.controller.start();
+        test.engine.emit("update-downloaded", {}, null, "0.2.0", new Date(), null);
+
+        const result = test.controller.restart({ unsavedWork: true });
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.code).toBe("unsaved-work");
+        expect(journal.attempts).toHaveLength(0);
+        expect(test.engine.installs).toBe(0);
         expect(test.controller.current().readyVersion).toBe("0.2.0");
     });
 
@@ -523,7 +695,8 @@ describe("UpdateController", () => {
     it("turns a refusal from quitAndInstall into a value rather than an exception", () => {
         const engine = new FakeEngine();
         engine.installThrows = new Error("ENOSPC: no space left on device");
-        const test = harness({ engine });
+        const journal = new MemoryInstallJournal();
+        const test = harness({ engine, installJournal: journal });
         test.controller.start();
         engine.emit("update-downloaded", {}, null, "0.2.0", new Date(), null);
 
@@ -532,6 +705,8 @@ describe("UpdateController", () => {
         if (result.ok) return;
         expect(result.code).toBe("failed");
         expect(result.message).toContain("could not be written to disk");
+        expect(journal.attempts).toHaveLength(1);
+        expect(journal.clears).toBe(1);
     });
 
     it("never asks the engine twice for one check", () => {

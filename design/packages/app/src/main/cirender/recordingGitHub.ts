@@ -24,6 +24,10 @@
  * it pipes `.body` rather than reading it whole.
  */
 
+import { readFile, writeFile } from "node:fs/promises";
+import type { GhCliAccountProvider } from "../ghcli/credentialBroker.js";
+import { fakeGhAccountLease } from "../ghcli/testLease.js";
+
 export interface RecordedCall {
     readonly method: string;
     readonly url: string;
@@ -103,6 +107,57 @@ export class RecordingGitHub {
             return Promise.resolve(new Response(null, { status: 500 }));
         }
         return Promise.resolve(toResponse(reply));
+    };
+}
+
+/** A complete secret-free gh account provider backed by the recording API fake. */
+export function recordingGhAccountProvider(
+    github: RecordingGitHub,
+    options: { readonly signedIn?: boolean; readonly calls?: (string | undefined)[] } = {},
+): GhCliAccountProvider {
+    return async (accountId) => {
+        options.calls?.push(accountId);
+        if (options.signedIn === false) return null;
+        const login = accountId === "acct-2" ? "monalisa" : "octocat";
+        return fakeGhAccountLease({
+            accountId: accountId ?? "active-account",
+            login,
+            api: github.fetch,
+            downloadApi: async (url, destination, processOptions) => {
+                const response = await github.fetch(url, {
+                    headers: { accept: "application/octet-stream" },
+                    ...(processOptions?.signal === undefined ? {} : { signal: processOptions.signal }),
+                });
+                if (!response.ok) {
+                    return {
+                        started: true,
+                        code: 1,
+                        bytes: 0,
+                        stderr: `GitHub request failed (HTTP ${String(response.status)})`,
+                    };
+                }
+                const bytes = Buffer.from(await response.arrayBuffer());
+                await writeFile(destination, bytes);
+                return { started: true, code: 0, bytes: bytes.length, stderr: "" };
+            },
+            uploadReleaseAsset: async (_owner, _repo, _tag, assetName, filePath, processOptions) => {
+                const bytes = await readFile(filePath);
+                const response = await github.fetch(
+                    `https://uploads.test/assets?name=${encodeURIComponent(assetName)}`,
+                    {
+                        method: "POST",
+                        body: bytes as unknown as NonNullable<RequestInit["body"]>,
+                        ...(processOptions?.signal === undefined ? {} : { signal: processOptions.signal }),
+                    },
+                );
+                return {
+                    started: true,
+                    code: response.ok ? 0 : 1,
+                    stdout: "",
+                    stderr: response.ok ? "" : `GitHub request failed (HTTP ${String(response.status)})`,
+                };
+            },
+        });
     };
 }
 

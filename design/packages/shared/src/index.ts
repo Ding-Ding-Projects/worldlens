@@ -39,3 +39,18 @@ export { Vector4f } from "./math/Vector4f.js";
 export { VectorM2f } from "./math/VectorM2f.js";
 export { VectorM2i } from "./math/VectorM2i.js";
 export { VectorM3f } from "./math/VectorM3f.js";
+
+/*
+ * The Material colour roles, as plain data with no framework import at all. Exported from
+ * `shared` rather than from `ui` precisely so the framework-neutral viewer can read the same
+ * values the desktop theme does without pulling a UI runtime in behind them.
+ */
+export {
+    COLOR_ROLES,
+    COLOR_SCHEMES,
+    CONTRAST_SCHEME,
+    DARK_SCHEME,
+    LIGHT_SCHEME,
+    schemeToCustomProperties,
+} from "./colorRoles.js";
+export type { ColorRole, ColorScheme, SchemeName } from "./colorRoles.js";

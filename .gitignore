@@ -37,3 +37,8 @@ tools/oracle/prbm/out/
 # history is a repository nobody can clone.
 /installer/
 
+# The version build-installer.bat stamps aside while it packages, so it can put the real one
+# back afterwards. It is deleted by that restore step; a copy surviving means a run was
+# interrupted, and it must never be committed - a stray file naming a version nobody chose
+# reads to the next person as a deliberate release decision.
+design/packages/app/.version-backup

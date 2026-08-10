@@ -7,14 +7,12 @@
  * `world.zip` that happens to arrive in twenty pieces. Everything downstream works with
  * that single name, which is why the split is invisible in the interface.
  *
- * ## Tokens
+ * ## Authentication
  *
- * A public release needs no token and must never demand one: the whole point of
- * publishing a world is that anybody can fetch it. `GH_TOKEN` is used when it is there,
- * because a private repository and a rate-limited runner both need it, and because the
- * asset API URL it enables is the only route that works for a private release.
+ * A public release needs no sign-in and must never demand one. Private repository requests
+ * are performed by the main-process gh account lease; authorization stays inside gh.
  *
- * When there is no token the `browser_download_url` is used instead, which redirects to
+ * When there is no gh lease the `browser_download_url` is used instead, which redirects to
  * a CDN and is not subject to the unauthenticated API's sixty-requests-an-hour limit. A
  * twenty-part world would spend a third of that limit on one download.
  */
@@ -26,7 +24,7 @@ export interface ReleaseAsset {
     readonly size: number;
     /** Redirects to a CDN. Works unauthenticated for a public release. */
     readonly downloadUrl: string;
-    /** The API URL. Needs `Accept: application/octet-stream`, and a token to be useful. */
+    /** The API URL. Used by the main-process gh account lease. */
     readonly apiUrl: string;
 }
 
@@ -78,8 +76,6 @@ export class ReleaseRequestError extends Error {
 
 export interface ReleaseLookupOptions {
     readonly fetch: FetchLike;
-    /** `GH_TOKEN` when it is set. Never required for a public release. */
-    readonly token?: string | null;
     readonly signal?: AbortSignal;
     /** Overridable so a test does not have to intercept a real hostname. */
     readonly apiBase?: string;
@@ -87,15 +83,13 @@ export interface ReleaseLookupOptions {
 
 export const GITHUB_API_BASE = "https://api.github.com";
 
-/** The headers every GitHub API call carries, plus the token when there is one. */
-export function apiHeaders(token: string | null | undefined): Record<string, string> {
-    const headers: Record<string, string> = {
+/** The non-secret headers every GitHub API call carries. */
+export function apiHeaders(): Record<string, string> {
+    return {
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
         "user-agent": "worldlens",
     };
-    if (typeof token === "string" && token.length > 0) headers["authorization"] = `Bearer ${token}`;
-    return headers;
 }
 
 /**
@@ -119,7 +113,7 @@ export async function fetchRelease(
             : `${base}/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(wanted)}`;
 
     const response = await options.fetch(url, {
-        headers: apiHeaders(options.token),
+        headers: apiHeaders(),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
     if (!response.ok) {

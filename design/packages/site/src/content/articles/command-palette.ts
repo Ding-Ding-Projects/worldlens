@@ -20,10 +20,11 @@ export const commandPalette: Article = {
                     kind: "paragraph",
                     content: [
                         "The problem this solves is not that features are missing. They are all there, behind a ",
-                        "settings sheet, a seven-tab options editor, a viewer menu with its own pages and three ",
-                        "floating buttons, which is four separate mental models somebody has to hold before they ",
-                        "can find a setting whose name they already know. The palette is one surface where ",
-                        "everything is one list and typing the name of a thing is enough.",
+                        "settings panel with its own tabs, an eight-tab options editor, a viewer menu with its ",
+                        "own pages, and a rail whose footer holds three more things, which is four separate ",
+                        "mental models somebody has to hold before they can find a setting whose name they ",
+                        "already know. The palette is one surface where everything is one list and typing the ",
+                        "name of a thing is enough.",
                     ],
                 },
                 {

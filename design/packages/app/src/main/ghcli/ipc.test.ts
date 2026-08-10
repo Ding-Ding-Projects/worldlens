@@ -1,253 +1,160 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import { registerGhCliHandlers, GH_CLI_CHANNELS, GH_CLI_LOGIN_STATE_CHANNEL } from "./ipc.js";
-import type { GhCliLoginState } from "./login.js";
-import type { ProcessResult, ProcessRunner, ProcessToFileResult } from "../cirender/gh.js";
+import type { ProcessRunner } from "../cirender/gh.js";
+import type { GhCredentialBroker } from "./credentialBroker.js";
+import { GH_CLI_CHANNELS, registerGhCliHandlers } from "./ipc.js";
+import type { GhCliLoginOptions } from "./login.js";
 
-type Handler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
+const roots: string[] = [];
+afterEach(async () => {
+    await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
 
-function fakeIpcMain(): IpcMain & { readonly handlers: Map<string, Handler> } {
-    const handlers = new Map<string, Handler>();
-    return {
-        handlers,
-        handle(channel: string, handler: Handler): void {
-            if (handlers.has(channel)) throw new Error(`second handler for '${channel}'`);
-            handlers.set(channel, handler);
-        },
-        removeHandler(channel: string): void {
-            handlers.delete(channel);
-        },
-    } as unknown as IpcMain & { readonly handlers: Map<string, Handler> };
-}
-
-const noEvent = {} as IpcMainInvokeEvent;
-
-function fakeEvent(id = 7): IpcMainInvokeEvent & {
-    readonly sent: { channel: string; payload: unknown }[];
-    destroy(): void;
-} {
-    const sent: { channel: string; payload: unknown }[] = [];
-    const destroyedListeners = new Set<() => void>();
-    let destroyed = false;
-    return {
-        sent,
-        destroy(): void {
-            destroyed = true;
-            for (const listener of destroyedListeners) listener();
-            destroyedListeners.clear();
-        },
-        sender: {
-            id,
-            isDestroyed: () => destroyed,
-            send: (channel: string, payload: unknown) => sent.push({ channel, payload }),
-            once: (event: string, listener: () => void) => {
-                if (event === "destroyed") destroyedListeners.add(listener);
-            },
-            removeListener: (event: string, listener: () => void) => {
-                if (event === "destroyed") destroyedListeners.delete(listener);
-            },
-        },
-    } as unknown as IpcMainInvokeEvent & {
-        readonly sent: { channel: string; payload: unknown }[];
-        destroy(): void;
+function harness() {
+    const handlers = new Map<string, (...args: unknown[]) => unknown>();
+    const ipcMain = {
+        handle: (channel: string, handler: (...args: unknown[]) => unknown) => handlers.set(channel, handler),
+        removeHandler: (channel: string) => handlers.delete(channel),
+    } as unknown as IpcMain;
+    const sender = {
+        id: 7,
+        once: vi.fn(),
+        removeListener: vi.fn(),
+        isDestroyed: () => false,
+        send: vi.fn(),
     };
+    const event = { sender } as unknown as IpcMainInvokeEvent;
+    return { ipcMain, handlers, event, sender };
 }
 
-function loginState(overrides: Partial<GhCliLoginState> = {}): GhCliLoginState {
+const status = {
+    availability: "ready" as const,
+    version: "gh version 2.97.0",
+    accounts: [],
+    source: "json" as const,
+    capabilities: { structuredStatus: true },
+    message: "ready",
+};
+
+function broker(): GhCredentialBroker {
     return {
-        stage: "waiting-for-approval",
-        host: "github.com",
-        expectedLogin: null,
-        userCode: "ABCD-EFGH",
-        verificationUri: "https://github.com/login/device",
-        verificationUriComplete: null,
-        expiresAt: 1_000_000,
-        secondsRemaining: 900,
-        attempt: 0,
-        browserOpened: false,
-        account: null,
-        failureCode: null,
-        message: "Waiting for approval on GitHub.",
-        ...overrides,
-    };
+        listAccounts: () => Promise.resolve(status),
+        switchAccount: () => Promise.resolve({ ok: false, account: null, message: "not switched" }),
+        logoutAccount: () => Promise.resolve({ ok: true, message: "signed out" }),
+        withCredentialStoreMutation: <T>(work: () => Promise<T>) => work(),
+        executable: () => Promise.resolve("C:\\Program Files\\GitHub CLI\\gh.exe"),
+    } as unknown as GhCredentialBroker;
 }
 
-function fakeRunner(answers: Readonly<Record<string, Partial<ProcessResult>>>): ProcessRunner {
-    return {
-        run(_command, args): Promise<ProcessResult> {
-            const found = answers[args.join(" ")];
-            return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "", ...found });
-        },
-        runToFile(): Promise<ProcessToFileResult> {
-            return Promise.resolve({ started: true, code: 0, bytes: 0, stderr: "" });
-        },
-    };
-}
+const runner: ProcessRunner = {
+    run: () => Promise.resolve({ started: true, code: 0, stdout: "", stderr: "" }),
+    runToFile: () => Promise.resolve({ started: true, code: 0, bytes: 0, stderr: "" }),
+};
 
-describe("registerGhCliHandlers", () => {
-    it("registers exactly its invoke channels, and takes them off again", () => {
-        const ipcMain = fakeIpcMain();
-        const handlers = registerGhCliHandlers(ipcMain, { runner: fakeRunner({}) });
-        expect([...ipcMain.handlers.keys()]).toEqual([...GH_CLI_CHANNELS]);
-
-        handlers.dispose();
-        expect(ipcMain.handlers.size).toBe(0);
-        expect(() => registerGhCliHandlers(ipcMain, { runner: fakeRunner({}) })).not.toThrow();
+describe("gh CLI IPC boundary", () => {
+    it("registers only secret-free gh and legacy-cleanup channels, then disposes all of them", async () => {
+        const root = await mkdtemp(join(tmpdir(), "worldlens-gh-ipc-"));
+        roots.push(root);
+        const h = harness();
+        const installed = registerGhCliHandlers(h.ipcMain, {
+            broker: broker(),
+            runner,
+            userDataDirectory: root,
+        });
+        expect([...h.handlers.keys()].sort()).toEqual([...GH_CLI_CHANNELS].sort());
+        expect(await h.handlers.get("ghCli:listAccounts")!(h.event)).toEqual(status);
+        installed.dispose();
+        expect(h.handlers.size).toBe(0);
     });
 
-    it("answers ghCli:listAccounts from the real accounts module", async () => {
-        const runner = fakeRunner({
-            "--version": { stdout: "gh version 2.96.0 (2026-07-02)\n" },
-            "auth status --json hosts": {
-                stdout: '{"hosts":{"github.com":[{"state":"success","active":true,"host":"github.com","login":"octocat","tokenSource":"keyring","scopes":"repo, workflow","gitProtocol":"https"}]}}',
-            },
+    it("never reads a retired credential and removes it only through the dedicated call", async () => {
+        const root = await mkdtemp(join(tmpdir(), "worldlens-gh-ipc-"));
+        roots.push(root);
+        await writeFile(join(root, "github-credential.json"), "opaque legacy bytes", "utf8");
+        const h = harness();
+        registerGhCliHandlers(h.ipcMain, {
+            broker: broker(),
+            runner,
+            userDataDirectory: root,
         });
-        const ipcMain = fakeIpcMain();
-        registerGhCliHandlers(ipcMain, { runner });
-
-        const status = await ipcMain.handlers.get("ghCli:listAccounts")!(noEvent);
-        expect(status).toMatchObject({
-            availability: "ready",
-            accounts: [{ login: "octocat", active: true }],
-        });
+        const before = await h.handlers.get("ghCli:legacyCredentialStatus")!(h.event);
+        expect(before).toMatchObject({ present: true, locations: 1 });
+        expect(JSON.stringify(before)).not.toContain("opaque legacy bytes");
+        const removed = await h.handlers.get("ghCli:removeLegacyCredentials")!(h.event);
+        expect(removed).toMatchObject({ removed: true, locations: 1 });
+        expect(JSON.stringify(removed)).not.toContain("opaque legacy bytes");
     });
 
-    it("answers ghCli:switchAccount, re-reading to confirm the switch took", async () => {
-        const runner = fakeRunner({
-            "auth switch --hostname github.com --user octocat": { code: 0 },
-            "--version": { stdout: "gh version 2.96.0\n" },
-            "auth status --json hosts": {
-                stdout: '{"hosts":{"github.com":[{"state":"success","active":true,"host":"github.com","login":"octocat","tokenSource":"keyring","scopes":"repo","gitProtocol":"https"}]}}',
-            },
-        });
-        const ipcMain = fakeIpcMain();
-        registerGhCliHandlers(ipcMain, { runner });
-
-        const result = await ipcMain.handlers.get("ghCli:switchAccount")!(noEvent, {
-            host: "github.com",
-            login: "octocat",
-        });
-        expect(result).toMatchObject({ ok: true });
-    });
-
-    it("refuses ghCli:switchAccount with no host or login without spawning gh", async () => {
-        const runner = fakeRunner({});
-        const ipcMain = fakeIpcMain();
-        registerGhCliHandlers(ipcMain, { runner });
-
-        const result = (await ipcMain.handlers.get("ghCli:switchAccount")!(noEvent, {})) as {
-            ok: boolean;
-        };
-        expect(result.ok).toBe(false);
-    });
-
-    it("streams only the public login state and returns the verified result", async () => {
-        const ipcMain = fakeIpcMain();
-        const event = fakeEvent();
-        registerGhCliHandlers(ipcMain, {
-            runner: fakeRunner({}),
-            login: async (options) => {
-                const waiting = loginState({ expectedLogin: options.expectedLogin ?? null });
-                options.onState?.(waiting);
-                return {
-                    ok: true,
-                    state: loginState({
-                        stage: "succeeded",
-                        userCode: null,
-                        expectedLogin: options.expectedLogin ?? null,
-                    }),
-                };
-            },
-        });
-
-        const result = await ipcMain.handlers.get("ghCli:startLogin")!(event, {
-            expectedLogin: "octocat",
-        });
-        expect(result).toMatchObject({ ok: true, state: { stage: "succeeded" } });
-        expect(event.sent).toEqual([
-            {
-                channel: GH_CLI_LOGIN_STATE_CHANNEL,
-                payload: expect.objectContaining({
-                    stage: "waiting-for-approval",
-                    userCode: "ABCD-EFGH",
+    it("cancels a sender-owned login and exposes only secret-free progress", async () => {
+        const root = await mkdtemp(join(tmpdir(), "worldlens-gh-ipc-"));
+        roots.push(root);
+        const h = harness();
+        let finish: ((value: ReturnType<typeof failedLogin>) => void) | null = null;
+        const login = vi.fn(
+            (options: GhCliLoginOptions) =>
+                new Promise<ReturnType<typeof failedLogin>>((resolve) => {
+                    finish = resolve;
+                    options.onState?.(failedLogin().state);
                 }),
-            },
-        ]);
-        expect(JSON.stringify(event.sent)).not.toMatch(/gh[pousr]_|github_pat_/i);
+        );
+        registerGhCliHandlers(h.ipcMain, {
+            broker: broker(),
+            runner,
+            userDataDirectory: root,
+            login,
+        });
+        const pending = h.handlers.get("ghCli:startLogin")!(h.event, {});
+        await Promise.resolve();
+        expect(h.sender.send).toHaveBeenCalledWith("ghCli:loginState", failedLogin().state);
+        expect(await h.handlers.get("ghCli:cancelLogin")!(h.event)).toMatchObject({ cancelled: true });
+        const complete = finish as ((value: ReturnType<typeof failedLogin>) => void) | null;
+        if (complete !== null) complete(failedLogin());
+        expect(await pending).toEqual(failedLogin());
+        expect(JSON.stringify(h.sender.send.mock.calls)).not.toMatch(/gh[pousr]_|github_pat_/);
     });
 
-    it("cancels the process-wide login from the window that started it", async () => {
-        const ipcMain = fakeIpcMain();
-        const event = fakeEvent();
-        registerGhCliHandlers(ipcMain, {
-            runner: fakeRunner({}),
-            login: async (options) => {
-                await new Promise<void>((resolve) =>
-                    options.signal?.addEventListener("abort", () => resolve(), { once: true }),
-                );
-                return {
-                    ok: false,
-                    state: loginState({
-                        stage: "cancelled",
-                        userCode: null,
-                        failureCode: "cancelled",
-                        message: "Sign-in was cancelled.",
-                    }),
-                };
-            },
+    it("hands login's post-approval store phase to the broker serialization lane", async () => {
+        const root = await mkdtemp(join(tmpdir(), "worldlens-gh-ipc-"));
+        roots.push(root);
+        const h = harness();
+        const selectedBroker = broker();
+        const lock = vi.spyOn(selectedBroker, "withCredentialStoreMutation");
+        const login = vi.fn(async (options: GhCliLoginOptions) => {
+            expect(options.withCredentialStoreLock).toBeTypeOf("function");
+            await options.withCredentialStoreLock!(async () => Promise.resolve());
+            return failedLogin();
+        });
+        registerGhCliHandlers(h.ipcMain, {
+            broker: selectedBroker,
+            runner,
+            userDataDirectory: root,
+            login,
         });
 
-        const pending = ipcMain.handlers.get("ghCli:startLogin")!(event, {});
-        const cancelled = await ipcMain.handlers.get("ghCli:cancelLogin")!(event);
-        expect(cancelled).toEqual({ cancelled: true, message: "Cancelling gh sign-in." });
-        await expect(pending).resolves.toMatchObject({ ok: false, state: { stage: "cancelled" } });
-    });
-
-    it("cancels an orphaned login when its renderer window closes", async () => {
-        const ipcMain = fakeIpcMain();
-        const event = fakeEvent();
-        registerGhCliHandlers(ipcMain, {
-            runner: fakeRunner({}),
-            login: async (options) => {
-                await new Promise<void>((resolve) =>
-                    options.signal?.addEventListener("abort", () => resolve(), { once: true }),
-                );
-                return {
-                    ok: false,
-                    state: loginState({ stage: "cancelled", failureCode: "cancelled" }),
-                };
-            },
-        });
-
-        const pending = ipcMain.handlers.get("ghCli:startLogin")!(event, {});
-        event.destroy();
-        await expect(pending).resolves.toMatchObject({ ok: false, state: { stage: "cancelled" } });
-    });
-
-    it("refuses a second concurrent login without starting it", async () => {
-        const ipcMain = fakeIpcMain();
-        const first = fakeEvent(1);
-        const second = fakeEvent(2);
-        let starts = 0;
-        registerGhCliHandlers(ipcMain, {
-            runner: fakeRunner({}),
-            login: async (options) => {
-                starts += 1;
-                await new Promise<void>((resolve) =>
-                    options.signal?.addEventListener("abort", () => resolve(), { once: true }),
-                );
-                return { ok: false, state: loginState({ stage: "cancelled" }) };
-            },
-        });
-
-        const pending = ipcMain.handlers.get("ghCli:startLogin")!(first, {});
-        const blocked = await ipcMain.handlers.get("ghCli:startLogin")!(second, {});
-        expect(blocked).toMatchObject({
-            ok: false,
-            state: { failureCode: "login-already-running" },
-        });
-        expect(starts).toBe(1);
-        await ipcMain.handlers.get("ghCli:cancelLogin")!(first);
-        await pending;
+        await expect(h.handlers.get("ghCli:startLogin")!(h.event, {})).resolves.toEqual(failedLogin());
+        expect(lock).toHaveBeenCalledTimes(1);
     });
 });
+
+function failedLogin() {
+    return {
+        ok: false as const,
+        state: {
+            stage: "cancelled" as const,
+            host: "github.com" as const,
+            expectedLogin: null,
+            userCode: null,
+            verificationUri: null,
+            verificationUriComplete: null,
+            expiresAt: null,
+            secondsRemaining: null,
+            attempt: 0,
+            account: null,
+            failureCode: "cancelled",
+            message: "Sign-in was cancelled.",
+        },
+    };
+}

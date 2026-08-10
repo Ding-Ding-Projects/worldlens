@@ -148,6 +148,27 @@ interface DestructiveFile {
  * Ordered by path so the diff of adding one reads as an addition rather than a reshuffle.
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
+    "platform/layoutRescue.ts": {
+        count: 1,
+        destroys:
+            "the stored tab dock and sidebar layout preferences, and nothing else -- no content, " +
+            "no appearance, no saved preset, no history",
+        standing: "reversible",
+        note:
+            "This is the escape hatch from a layout that made the site unusable, so gating it " +
+            "behind a confirmation would put the confirmation behind the same wall the visitor is " +
+            "trying to get out from. A top-docked rail once hung a scrim over the whole page: " +
+            "every tap was swallowed, the choice persisted, and the control that would undo it was " +
+            "under the thing blocking it. A rescue that asks permission is no rescue at all.\n\n" +
+            "`reversible` rather than `gated` because what it clears is a layout preference " +
+            "somebody can set again in two clicks, and it only runs when the visitor asked for it " +
+            "by the reset parameter.\n\n" +
+            "One call, not two. The file also calls `searchParams.delete` to take that parameter " +
+            "back out of the address, so a reload does not silently re-run the rescue and discard " +
+            "a layout the visitor has since chosen on purpose. That is housekeeping on a URL " +
+            "rather than a deletion of anything the visitor owns, and the scanner correctly does " +
+            "not count it.",
+    },
     "appearance/presetsPanel.ts": {
         count: 3,
         destroys:
@@ -262,6 +283,25 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         note:
             "SessionSecretProvider.clearToken deletes one Map entry. The token was never persisted " +
             "or exported, and the same Home Assistant password control accepts it again immediately.",
+    },
+    "settings/settingsHistory.ts": {
+        count: 1,
+        destroys:
+            "settings-history records beyond the retention bound, which are the records a " +
+            "visitor would otherwise have used to put a setting back",
+        standing: "gated",
+        gatedIn: "settings/settingsHistoryPanel.ts",
+        note:
+            "The single hit the net finds here is `store.resetAll()` written inside the module's " +
+            "own documentation of which store method produces which recorded action -- a " +
+            "mention, not a call. Worth keeping the declaration anyway, because the file's " +
+            "genuinely irreversible action is `prune()`, whose name matches none of the " +
+            "delete-shaped patterns above and would therefore have passed this guard unnoticed " +
+            "had the comment not tripped it. It is declared `gated` on the strength of that real " +
+            "action rather than of the false positive: the panel's prune button awaits " +
+            "`confirmDestructive` and only calls `prune()` once that promise resolves true. " +
+            "Everything else the model does is additive -- `restore` appends a new record rather " +
+            "than rewriting one, which is what makes an undo undoable in turn.",
     },
     "settings/store.ts": {
         count: 1,

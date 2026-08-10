@@ -101,22 +101,65 @@ export const SETTINGS_STRINGS: StringTable = {
     },
     "settings.atDefault": { en: "Already at its default", yue: "已經係預設值" },
     "settings.changed": { en: "Changed", yue: "已改" },
+    /*
+     * The four provenance lines, each of which names the value actually in force.
+     *
+     * They used to read "Source: the application's compiled default." and nothing more,
+     * which is a sentence a visitor can read twice and still not know what the setting is
+     * currently doing: "default" is the name of a category, not of a value. Naming the value
+     * is also what makes the four lines comparable with each other, so a visitor scanning a
+     * column of settings sees the same shape of statement every time rather than one row
+     * quoting a value and the next row quoting a category.
+     *
+     * `{value}` arrives pre-rendered from `provenance.ts` in the form the visitor sees on
+     * screen -- a select's option label rather than its stored id, a toggle's on/off word, a
+     * number with its unit -- because a line that named the raw stored token would be exactly
+     * as unhelpful as the word "default" it replaced.
+     *
+     * All four are plain strings rather than funny-level variants: every one of them is a
+     * statement of fact about where a value came from, and the house rule is that the funny
+     * level moves framing and never facts. There is no framing here left to move.
+     */
     "settings.provenance.stored": {
-        en: "Source: an explicit value stored in this browser.",
-        yue: "來源：呢個瀏覽器明確儲低嘅值。",
+        en: "Source: your own choice, “{value}”, stored in this browser.",
+        yue: "來源：你自己揀嘅「{value}」，存喺呢個瀏覽器。",
     },
     "settings.provenance.compiled-default": {
-        en: "Source: the application's compiled default.",
-        yue: "來源：應用程式編譯時嘅預設值。",
+        en: "Source: no stored choice, so the built-in value “{value}” is in force.",
+        yue: "來源：冇儲低過選擇，所以用緊內建值「{value}」。",
     },
     "settings.provenance.responsive-default": {
-        en: "Source: responsive default — collapsed at 720 CSS pixels or narrower, expanded above it.",
-        yue: "來源：響應式預設——720 CSS 像素或以下收合，再闊就展開。",
+        en: "Source: no stored choice, so the width-based default “{value}” is in force — {width} CSS pixels or narrower takes one value and anything wider takes the other.",
+        yue: "來源：冇儲低過選擇，所以用緊按闊度嘅預設「{value}」——{width} CSS 像素或以下用一個值，闊過就用另一個。",
+    },
+    /*
+     * The same line for a setting whose responsive default lives in a controller rather than
+     * in the schema, so no breakpoint is available to quote. Inventing a width here would be
+     * worse than omitting one: a stated breakpoint that no code enforces is a fact the
+     * visitor cannot check and the next agent would have to disprove.
+     */
+    "settings.provenance.responsive-default.unbounded": {
+        en: "Source: no stored choice, so the width-based default “{value}” is in force.",
+        yue: "來源：冇儲低過選擇，所以用緊按闊度嘅預設「{value}」。",
     },
     "settings.provenance.scheduled-override": {
-        en: "Source: a temporary scheduled override; the stored base value is unchanged.",
-        yue: "來源：暫時排程覆寫；原本儲低嘅基礎值冇被改。",
+        en: "Source: a scheduled rule is temporarily forcing “{value}”; your stored base value is unchanged.",
+        yue: "來源：排程規則暫時迫住用「{value}」；你儲低嘅基礎值冇被改。",
     },
+    "settings.value.on": { en: "On", yue: "開" },
+    "settings.value.off": { en: "Off", yue: "關" },
+    /*
+     * What an empty string means where a control accepts one: a colour or font row left blank
+     * inherits from its surrounding element rather than holding nothing at all. Rendering the
+     * empty string itself would produce `Source: your own choice, “”, stored in this browser.`
+     */
+    "settings.value.empty": { en: "inherit", yue: "跟上層" },
+    /*
+     * The accessible name of the per-row disclosure button. It names the setting rather than
+     * saying "More information", because a screen-reader user tabbing a column of settings
+     * hears one of these per row and needs to know which row they are on.
+     */
+    "settings.explain": { en: "Explain {name}", yue: "解釋「{name}」" },
     "settings.changedCount": {
         en: "{count} settings differ from their defaults",
         yue: "有 {count} 項設定同預設唔同",

@@ -12,8 +12,9 @@
  *
  * ### Where the versions come from
  *
- * The release workflow tags every successful build as `v<version>-build.<run>` and publishes
- * a GitHub Release for that tag. The tags are therefore the release record, and they are
+ * The release workflow tags every successful build with the exact packaged SemVer plus a
+ * leading `v` (`v<major>.<minor>.<run>`) and publishes a GitHub Release for that tag. The
+ * tags are therefore the release record, and they are
  * lightweight tags on the commit that was built, so the date recorded for a version is that
  * commit's own committer date. The GitHub Release itself is published a few minutes later by
  * the same run; that publication timestamp is not recorded here, because taking it would

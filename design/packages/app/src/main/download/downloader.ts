@@ -53,7 +53,6 @@ import { HttpDownloadError, downloadToFile, isAbort } from "./http.js";
 import { asExtractError, extractZip, ExtractError } from "./extract.js";
 import {
     ReleaseRequestError,
-    apiHeaders,
     availableDownloads,
     fetchRelease,
     findDownload,
@@ -61,6 +60,12 @@ import {
 import type { AvailableDownload, FetchLike, ReleaseAsset, ReleaseInfo } from "./release.js";
 import { archivePath, downloadIdFor, downloadWorkspace } from "./workspace.js";
 import type { DownloadWorkspace } from "./workspace.js";
+import { ghApiBaseForHost } from "../ghcli/credentialBroker.js";
+import {
+    GhCredentialError,
+    type GhCliAccountLease,
+    type GhCliAccountProvider,
+} from "../ghcli/credentialBroker.js";
 
 export type DownloadPhase = "resolving" | "downloading" | "joining" | "extracting" | "finished";
 
@@ -167,6 +172,8 @@ export type DownloadEvent =
 export interface DownloadRecord {
     readonly version: 1;
     readonly downloadId: string;
+    /** Secret-free gh account identity used for this transfer; null for anonymous legacy records. */
+    readonly accountId: string | null;
     readonly owner: string;
     readonly repo: string;
     readonly tag: string;
@@ -186,6 +193,10 @@ export interface DownloadRecord {
 export interface DownloadRequest {
     readonly owner: string;
     readonly repo: string;
+    /** Secret-free id of the gh account selected for this operation. */
+    readonly accountId?: string | undefined;
+    /** Main-process-only stable lease for an internal caller that already acquired one. */
+    readonly accountLease?: GhCliAccountLease | null | undefined;
     /** A tag, or `latest` (the default). */
     readonly tag?: string;
     /**
@@ -240,20 +251,8 @@ export interface ReleaseDownloaderOptions {
     readonly onEvent: (event: DownloadEvent) => void;
     /** Overridable so a test never touches the network. Defaults to global `fetch`. */
     readonly fetch?: FetchLike;
-    /**
-     * The token to run under, asked for again at the start of every operation.
-     *
-     * A function, and one that may answer asynchronously, because the honest source of a
-     * token is the signed-in session and the session renews a token that is close to
-     * expiring - which is a network call. A synchronous provider that returned a snapshot
-     * would dodge exactly that renewal, and would be wrong for the case this exists for:
-     * somebody who signs in a minute after the window opened.
-     *
-     * See `token.ts` for the source the application actually passes: the sign-in first,
-     * `GH_TOKEN` second, nothing third. A public release never needs one and must never be
-     * made to require one.
-     */
-    readonly token?: () => string | null | Promise<string | null>;
+    /** The main-process gh account broker. Public releases remain available without one. */
+    readonly account?: GhCliAccountProvider | undefined;
     /**
      * How many parts are fetched at once. Four by default.
      *
@@ -284,11 +283,11 @@ interface ActiveDownload {
 }
 
 /**
- * The token one operation runs under, and the two decisions that follow from it.
+ * The selected main-process account lease and the two decisions that follow from it.
  *
- * This exists so that a token is resolved **once** per public operation and then read many
- * times, rather than being asked for again inside every helper. Resolving it is asynchronous
- * - it can renew a credential against GitHub - while choosing a URL and building headers
+ * This exists so that a lease is resolved **once** per public operation and then reused,
+ * rather than being asked for again inside every helper. Resolving it is asynchronous,
+ * while choosing a URL and building headers
  * happen deep inside a loop over twenty parts, where they have to be immediate.
  *
  * Passed down the call chain rather than kept on the downloader, because several downloads
@@ -299,31 +298,22 @@ interface ActiveDownload {
  * against the CDN because a sign-in expired in the middle of it.
  */
 interface AssetAccess {
-    readonly token: string | null;
-    /** Where a part is actually fetched from. */
-    url(asset: ReleaseAsset): string;
-    headers(): Record<string, string>;
+    readonly lease: GhCliAccountLease | null;
+    readonly fetch: FetchLike;
 }
 
 /**
- * With a token, the API URL, because it is the only one that works for a private release
- * and because undici drops the `Authorization` header on the cross-origin redirect to
- * storage, so the token never reaches the CDN.
+ * With a lease, the API URL is downloaded by `gh`, which is the route that works for a
+ * private release without handing authorization to the renderer or this downloader.
  *
  * Without one, the browser download URL, which needs no authentication and is not subject
  * to the unauthenticated API's sixty-requests-an-hour limit. A twenty-part world would
  * otherwise spend a third of that limit on a single download.
  */
-function assetAccess(token: string | null): AssetAccess {
+function assetAccess(lease: GhCliAccountLease | null, fallback: FetchLike): AssetAccess {
     return {
-        token,
-        url(asset: ReleaseAsset): string {
-            return token === null ? asset.downloadUrl : asset.apiUrl;
-        },
-        headers(): Record<string, string> {
-            if (token === null) return { "user-agent": "worldlens" };
-            return { ...apiHeaders(token), accept: "application/octet-stream" };
-        },
+        lease,
+        fetch: lease === null ? fallback : (url, init) => lease.api(url, init),
     };
 }
 
@@ -352,15 +342,16 @@ export class ReleaseDownloader {
         owner: string,
         repo: string,
         tag?: string,
+        accountId?: string,
     ): Promise<
         | { readonly ok: true; readonly release: ReleaseInfo; readonly downloads: AvailableDownload[] }
         | { readonly ok: false; readonly failure: DownloadFailure }
     > {
         try {
-            // Inside the try with the lookup: a token source that throws is reported as a
+            // Inside the try with the lookup: an account broker that throws is reported as a
             // typed failure the interface can show, rather than as a rejection escaping a
             // method whose whole contract is that it answers.
-            const access = await this.access();
+            const access = await this.access(accountId);
             const release = await fetchRelease(owner, repo, tag, this.lookupOptions(access));
             return { ok: true, release, downloads: availableDownloads(release) };
         } catch (error) {
@@ -379,7 +370,7 @@ export class ReleaseDownloader {
         try {
             // One resolution for the whole download, taken before anything is fetched, so
             // the release lookup and every part that follows it run under the same account.
-            access = await this.access();
+            access = await this.access(request.accountId, request.accountLease);
             release = await fetchRelease(
                 request.owner,
                 request.repo,
@@ -497,6 +488,7 @@ export class ReleaseDownloader {
             const record: DownloadRecord = {
                 version: 1,
                 downloadId,
+                accountId: access.lease?.accountId ?? request.accountId ?? null,
                 owner: request.owner,
                 repo: request.repo,
                 tag: release.tag,
@@ -549,9 +541,7 @@ export class ReleaseDownloader {
         access: AssetAccess,
     ): Promise<PartsManifest> {
         const path = join(workspace.partsDir, asset.name);
-        await downloadToFile(access.url(asset), path, {
-            fetch: this.fetch(),
-            headers: access.headers(),
+        await this.downloadAsset(access, asset, path, {
             signal: controller.signal,
         });
         const manifest = await readManifest(path);
@@ -662,9 +652,7 @@ export class ReleaseDownloader {
 
         for (let attempt = 0; attempt < attempts; attempt++) {
             controller.signal.throwIfAborted();
-            await downloadToFile(access.url(asset), path, {
-                fetch: this.fetch(),
-                headers: access.headers(),
+            await this.downloadAsset(access, asset, path, {
                 signal: controller.signal,
                 expectedBytes: record.bytes,
                 onBytes: (_delta, total) => onBytes(total),
@@ -717,9 +705,7 @@ export class ReleaseDownloader {
     ): Promise<{ bytes: number; sha256: string }> {
         this.emit({ type: "phase", downloadId, phase: "downloading", at: this.timestamp() });
         const startedAt = Date.now();
-        const result = await downloadToFile(access.url(asset), destination, {
-            fetch: this.fetch(),
-            headers: access.headers(),
+        const result = await this.downloadAsset(access, asset, destination, {
             signal: controller.signal,
             expectedBytes: asset.size,
             onBytes: (_delta, total) => {
@@ -794,27 +780,89 @@ export class ReleaseDownloader {
         return this.options.fetch ?? ((url, init) => globalThis.fetch(url, init));
     }
 
-    /**
-     * Asks the token source, once, for the operation that is about to run.
-     *
-     * The `await` is the reason this is here at all rather than beside the other one-line
-     * accessors: the source is allowed to renew a credential, which takes a round trip,
-     * and a download that resolved its token twenty times would make twenty of them.
-     */
-    private async access(): Promise<AssetAccess> {
-        return assetAccess((await this.options.token?.()) ?? null);
+    /** Acquires one stable gh account lease for the complete operation. */
+    private async access(
+        accountId?: string,
+        existing?: GhCliAccountLease | null,
+    ): Promise<AssetAccess> {
+        let lease: GhCliAccountLease | null = existing ?? null;
+        if (existing === undefined) {
+            if (this.options.account === undefined) {
+                if (accountId !== undefined) {
+                    throw failures.accountUnavailable(
+                        "The selected GitHub CLI account cannot be used by this build. Open GitHub Settings and choose an available account.",
+                    );
+                }
+            } else {
+                try {
+                    lease = (await this.options.account(accountId, "read")) ?? null;
+                } catch (error) {
+                    throw failures.accountUnavailable(accountFailureMessage(error));
+                }
+                if (lease === null && accountId !== undefined) {
+                    throw failures.accountUnavailable(
+                        "The selected GitHub CLI account is no longer available. Choose another account or reauthenticate it in GitHub Settings.",
+                    );
+                }
+            }
+        }
+        return assetAccess(lease, this.fetch());
     }
 
     private lookupOptions(access: AssetAccess): {
         fetch: FetchLike;
-        token: string | null;
         apiBase?: string;
     } {
         return {
-            fetch: this.fetch(),
-            token: access.token,
-            ...(this.options.apiBase === undefined ? {} : { apiBase: this.options.apiBase }),
+            fetch: access.fetch,
+            ...(this.options.apiBase !== undefined
+                ? { apiBase: this.options.apiBase }
+                : access.lease === null
+                  ? {}
+                  : { apiBase: ghApiBaseForHost(access.lease.host) }),
         };
+    }
+
+    private async downloadAsset(
+        access: AssetAccess,
+        asset: ReleaseAsset,
+        destination: string,
+        options: {
+            readonly signal?: AbortSignal | undefined;
+            readonly expectedBytes?: number | undefined;
+            readonly onBytes?: ((delta: number, total: number) => void) | undefined;
+        },
+    ): Promise<{ readonly bytes: number }> {
+        if (access.lease === null) {
+            return await downloadToFile(asset.downloadUrl, destination, {
+                fetch: access.fetch,
+                headers: { "user-agent": "worldlens" },
+                ...(options.signal === undefined ? {} : { signal: options.signal }),
+                ...(options.expectedBytes === undefined ? {} : { expectedBytes: options.expectedBytes }),
+                ...(options.onBytes === undefined ? {} : { onBytes: options.onBytes }),
+            });
+        }
+        const result = await access.lease.downloadApi(
+            asset.apiUrl,
+            destination,
+            options.signal === undefined ? {} : { signal: options.signal },
+        );
+        if (!result.started || result.code !== 0) {
+            throw new HttpDownloadError(
+                "GitHub CLI could not download the selected release asset.",
+                0,
+                asset.apiUrl,
+            );
+        }
+        if (options.expectedBytes !== undefined && result.bytes !== options.expectedBytes) {
+            throw new HttpDownloadError(
+                `GitHub CLI downloaded ${String(result.bytes)} bytes, not the expected ${String(options.expectedBytes)}.`,
+                0,
+                asset.apiUrl,
+            );
+        }
+        options.onBytes?.(result.bytes, result.bytes);
+        return { bytes: result.bytes };
     }
 
     private timestamp(): string {
@@ -867,7 +915,15 @@ export class ReleaseDownloader {
 
     /** Turns whatever was thrown into the one typed reason the interface acts on. */
     private describe(error: unknown, subject: string): DownloadFailure {
+        if (error instanceof GhCredentialError) {
+            return failures.accountUnavailable(error.message);
+        }
         if (error instanceof ReleaseRequestError) {
+            if (error.status === 401 || error.status === 403) {
+                return failures.accountUnavailable(
+                    "The selected GitHub CLI account could not read this release. Reauthenticate it or choose an account with access.",
+                );
+            }
             return error.status === 404
                 ? failures.releaseNotFound(subject, error.status, error.url)
                 : failures.networkFailed(error.url, error.message, error.status);
@@ -877,6 +933,11 @@ export class ReleaseDownloader {
         if (error instanceof ExtractError) return failures.extractFailed(error.message);
         if (isAbort(error)) return failures.cancelled();
         if (error instanceof HttpDownloadError) {
+            if (error.status === 401 || error.status === 403) {
+                return failures.accountUnavailable(
+                    "The selected GitHub CLI account could not download this release asset. Reauthenticate it or choose an account with access.",
+                );
+            }
             return error.status === null
                 ? failures.networkFailed(error.url, error.message)
                 : failures.networkFailed(error.url, error.message, error.status);
@@ -885,6 +946,11 @@ export class ReleaseDownloader {
         const message = error instanceof Error ? error.message : String(error);
         return failures.networkFailed(subject, message);
     }
+}
+
+function accountFailureMessage(error: unknown): string {
+    if (error instanceof GhCredentialError) return error.message;
+    return "The GitHub CLI account could not be selected. Open GitHub Settings, choose an available account, and try again.";
 }
 
 function isDownloadFailure(value: unknown): value is DownloadFailure {

@@ -70,8 +70,12 @@ describe("electron-builder bundles the CLI jar into resources/jars", () => {
 
             expect(config.forceCodeSigning).toBe(false);
             expect(config.win?.signExecutable).toBe(false);
-            expect(config.win?.signAndEditExecutable).toBe(true);
-            for (const key of signingKeys) expect(process.env[key], key).toBeUndefined();
+            expect(config.win?.signAndEditExecutable).toBe(false);
+            expect(typeof config.afterPack).toBe("function");
+            for (const key of signingKeys.slice(0, -1)) {
+                expect(process.env[key], key).toBeUndefined();
+            }
+            expect(process.env.CSC_IDENTITY_AUTO_DISCOVERY).toBe("false");
         } finally {
             for (const [key, value] of previous) {
                 if (value === undefined) delete process.env[key];

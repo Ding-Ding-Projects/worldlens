@@ -29,7 +29,7 @@ import "./index.js";
 /** Only the `worldRepo` namespace this test drives, cast off the exposed bridge object. */
 interface WorldRepoBridgeUnderTest {
     worldRepo: {
-        owners(): Promise<unknown>;
+        owners(accountId?: string): Promise<unknown>;
         preflight(target: unknown): Promise<unknown>;
         sync(request: unknown): Promise<unknown>;
         remove(target: unknown): Promise<unknown>;
@@ -37,7 +37,7 @@ interface WorldRepoBridgeUnderTest {
         active(): Promise<readonly string[]>;
         records(): Promise<unknown>;
         resume(target: unknown): Promise<unknown>;
-        remoteTip(owner: string, repo: string, branch?: string): Promise<unknown>;
+        remoteTip(request: { owner: string; repo: string; branch: string }): Promise<unknown>;
         adoptionProbe(request: unknown): Promise<unknown>;
         adoptionPlan(request: unknown): Promise<unknown>;
         onWorldRepoEvent(listener: (event: unknown) => void): () => void;
@@ -61,10 +61,18 @@ beforeEach(() => {
 });
 
 describe("window.worldlens.worldRepo routes to worldrepo:*", () => {
-    it("owners() asks worldrepo:owners with no argument", async () => {
+    it("owners() asks worldrepo:owners, carrying the account choice even when there is none", async () => {
         await bridge.worldRepo.owners();
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
-        expect(ipcRenderer.invoke).toHaveBeenCalledWith("worldrepo:owners");
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith("worldrepo:owners", {
+            accountId: undefined,
+        });
+
+        vi.mocked(ipcRenderer.invoke).mockClear();
+        await bridge.worldRepo.owners("github.com:alice");
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith("worldrepo:owners", {
+            accountId: "github.com:alice",
+        });
     });
 
     it("preflight(target) sends the target object as-is, matching readTarget's expectations", async () => {
@@ -118,14 +126,11 @@ describe("window.worldlens.worldRepo routes to worldrepo:*", () => {
         expect(ipcRenderer.invoke).toHaveBeenCalledWith("worldrepo:resume", target);
     });
 
-    it("remoteTip bundles owner/repo/branch into the one object worldrepo:remoteTip reads", async () => {
-        await bridge.worldRepo.remoteTip("cafepromenade", "Andyville-World", "world");
+    it("remoteTip(request) sends the one object worldrepo:remoteTip reads, as-is", async () => {
+        const request = { owner: "cafepromenade", repo: "Andyville-World", branch: "world" };
+        await bridge.worldRepo.remoteTip(request);
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
-        expect(ipcRenderer.invoke).toHaveBeenCalledWith("worldrepo:remoteTip", {
-            owner: "cafepromenade",
-            repo: "Andyville-World",
-            branch: "world",
-        });
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith("worldrepo:remoteTip", request);
     });
 
     it("adoptionProbe(request) sends the candidates/branch/maxProbes object as-is", async () => {

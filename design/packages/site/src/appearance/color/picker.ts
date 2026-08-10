@@ -12,7 +12,7 @@
  * reinterpreted by a stylesheet.
  */
 
-import { clear, el, uniqueId } from "../../platform/dom.js";
+import { clear, el, icon, uniqueId } from "../../platform/dom.js";
 import { announce, copyText } from "../../settings/dom.js";
 import { fillPhrase, t } from "../../settings/i18n.js";
 import type { Preferences } from "../../platform/Preferences.js";
@@ -288,9 +288,14 @@ export function createColorPicker(options: ColorPickerOptions): ColorPickerView 
         const note = el("p", { class: "mb-color-note", attrs: { hidden: "" } });
         const copyButton = el("button", {
             class: "md-icon-button",
-            text: "Copy",
             attrs: { type: "button", "aria-label": t("color.copy", { name: info.label }) },
         });
+        // One of these sits beside every representation the picker lists -- hex, RGB, HSL,
+        // OKLCH and the rest -- so the literal "Copy" that stood here was an English word
+        // repeated down a whole column of fixed squares that have no overflow guard, wrapping
+        // past its own edges in each of them. The `aria-label` already names the exact
+        // representation being copied, which is more than the visible word ever said.
+        copyButton.append(icon("contentCopy"));
         copyButton.addEventListener("click", () => {
             void handleCopy(input, info.label);
         });

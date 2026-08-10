@@ -4,9 +4,8 @@
  * Six things happen here: the repository's default branch is read (a dispatch is refused
  * without a ref), the **Render world** workflow is dispatched, the run it produced is
  * found, the run and its jobs are read, one failing job's log tail is fetched, and the
- * run's artifacts are listed. Nothing here uploads, downloads a world, or holds a token
- * of its own - the token arrives as an argument on every call, resolved per operation by
- * the caller from `github/session.ts`, exactly as `backup/github.ts` takes it.
+ * run's artifacts are listed. Nothing here owns authentication: every request is made by
+ * the main-process `gh` account lease selected once for the operation.
  *
  * ## Why the run has to be *found* rather than returned
  *
@@ -44,7 +43,6 @@ export const RENDERED_MAP_ARTIFACT = "rendered-map";
 
 export interface ActionsCallOptions {
     readonly fetch: FetchLike;
-    readonly token: string;
     readonly signal?: AbortSignal | undefined;
     /** Overridable so a test never touches a real hostname. */
     readonly apiBase?: string | undefined;
@@ -126,12 +124,11 @@ export class ActionsCallError extends Error {
     }
 }
 
-function headers(token: string): Record<string, string> {
+function headers(): Record<string, string> {
     return {
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
         "user-agent": "worldlens",
-        authorization: `Bearer ${token}`,
     };
 }
 
@@ -143,7 +140,7 @@ function init(options: ActionsCallOptions, extra: RequestInit = {}): RequestInit
     return {
         ...extra,
         headers: {
-            ...headers(options.token),
+            ...headers(),
             ...(extra.headers as Record<string, string> | undefined),
         },
         ...(options.signal === undefined ? {} : { signal: options.signal }),
@@ -155,7 +152,7 @@ function init(options: ActionsCallOptions, extra: RequestInit = {}): RequestInit
  *
  * The endpoint is always assembled from fixed path segments by the main process. Keeping
  * this beside the ordinary Actions requests means authentication, abort handling and API
- * version headers remain identical; no token ever crosses into the renderer.
+ * version headers remain identical; no authorization value ever crosses into the renderer.
  */
 export async function githubApiJson(
     endpoint: string,
@@ -193,9 +190,9 @@ export async function githubApiSendJson(
  * A refusal turned into a sentence somebody can act on.
  *
  * The four statuses that actually happen each mean something specific and none of them is
- * obvious from the number. 403 on a dispatch is nearly always a token without write access
+ * obvious from the number. 403 on a dispatch is nearly always an account without write access
  * to Actions rather than a broken workflow; 404 is GitHub declining to confirm that a
- * private repository - or a workflow file - exists to a token that cannot see it; and 422
+ * private repository - or a workflow file - exists to an account that cannot see it; and 422
  * on a dispatch means the workflow is there but has no `workflow_dispatch` trigger, or the
  * ref does not exist. Reporting the number alone sends people to the wrong place.
  */
@@ -227,6 +224,7 @@ async function refuse(response: Response, url: string, what: string): Promise<Ac
         `${what} failed: GitHub answered ${String(response.status)}.${explanation}${detail}`,
         response.status,
         url,
+        response.status === 401 || response.status === 403,
     );
 }
 
@@ -368,7 +366,7 @@ export async function dispatchWorkflow(
  * `.github/workflows/scheduled-render.yml` last found - `CIRENDER_SCHEDULE_LAST_CHECK_AT`
  * and friends - and how it reads the config it wrote itself. Never a secret: a repository
  * variable is plain text anyone who can see the repository's settings can already read, so
- * nothing here is treated as sensitive the way a token is.
+ * nothing here carries authentication data.
  */
 export async function readRepositoryVariable(
     owner: string,
@@ -551,7 +549,7 @@ export const LOG_TAIL_LINES = 40;
  * The tail of one job's log, or null when it could not be read.
  *
  * **Null is not an error.** A log can be expired, still being written, or refused to a
- * token that may read the run but not its logs, and none of those are what went wrong -
+ * account that may read the run but not its logs, and none of those are what went wrong -
  * the render did. Turning a missing log into a thrown error would replace the real
  * failure with a failure to describe it, which is the more confusing of the two.
  *
@@ -640,11 +638,6 @@ export function parseArtifacts(
     return artifacts;
 }
 
-/** The headers an artifact download carries. Exported so the collector cannot drift. */
-export function artifactDownloadHeaders(token: string): Record<string, string> {
-    return { ...headers(token), accept: "application/vnd.github+json" };
-}
-
 /* -------------------------------------------------------------------------- */
 /* Repository readiness: empty, Actions policy, scopes, and raw file content   */
 /* -------------------------------------------------------------------------- */
@@ -681,7 +674,7 @@ export type ActionsPolicy =
     | { readonly state: "disabled"; readonly allowedActions: string | null }
     /**
      * GitHub would not say. Reading this endpoint needs admin access to the repository, so
-     * a token that can push but is not an admin gets refused here even though it can start
+     * an account that can push but is not an admin gets refused here even though it can start
      * a workflow perfectly well - a 403 on this one call is not evidence of anything.
      */
     | { readonly state: "unknown"; readonly reason: string };
@@ -729,15 +722,8 @@ export async function readActionsPolicy(
 }
 
 /**
- * The OAuth scopes a **classic** personal access token carries, read from the response
- * headers of an ordinary call rather than from a dedicated endpoint - GitHub has none.
- *
- * `null` is not "no scopes"; it is "could not be read", and that happens for the tokens
- * this application increasingly issues by default: a fine-grained personal access token or
- * an OAuth App/GitHub App installation token carries no `x-oauth-scopes` header at all,
- * because scopes are not how those authorize. A `null` here is reported as "could not be
- * checked in advance" rather than as a missing scope - claiming a scope is absent from a
- * header that was never going to be sent would send somebody to re-authorize for no reason.
+ * Reads scope metadata when a transport reports it. The gh-only transport uses the structured
+ * `gh auth status` account record instead and does not call this REST-era compatibility helper.
  */
 export async function readTokenScopes(
     options: ActionsCallOptions,

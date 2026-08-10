@@ -21,6 +21,7 @@
  */
 
 import { clear, el, icon, uniqueId } from "../platform/dom.js";
+import { dialogEmojiNode, type DialogEmojiKind } from "../settings/dialogEmoji.js";
 import type { I18n, TextSource } from "../i18n/I18n.js";
 import type { IconName } from "../platform/icons.js";
 import type { StringKey } from "../i18n/strings.js";
@@ -70,6 +71,22 @@ const SEVERITY_ICON: Record<Severity, IconName> = {
     success: "checkCircle",
     warning: "warning",
     error: "errorCircle",
+};
+
+/**
+ * The decorative glyph each severity may carry, distinct from `SEVERITY_ICON` above.
+ *
+ * The SVG icon is part of the component and never goes away; this is the optional emoji the
+ * visitor's own preference governs. Keeping them as two separate maps is what makes it
+ * impossible for the preference to accidentally take the icon with it — a toast that lost its
+ * severity indicator because somebody wanted a quieter interface would be a real regression in
+ * how quickly an error reads.
+ */
+const SEVERITY_EMOJI: Record<Severity, DialogEmojiKind> = {
+    info: "info",
+    success: "success",
+    warning: "warning",
+    error: "error",
 };
 
 const SEVERITY_LABEL: Record<Severity, StringKey> = {
@@ -261,6 +278,16 @@ export class Notifications {
         const severityLabel = el("span", { class: "md-visually-hidden" });
         this.i18n.bindText(severityLabel, SEVERITY_LABEL[record.severity]);
         content.append(severityLabel);
+
+        /*
+         * The decoration is a sibling of the title rather than a child of it, and that is not a
+         * styling preference. `applyText` binds the title through the translator, and a binding
+         * assigns `textContent` wholesale on every language or funny-level change — so a glyph
+         * prepended inside the title would survive exactly until the visitor moved a slider and
+         * then vanish, which is the sort of intermittent defect nobody can reproduce on demand.
+         */
+        const decoration = dialogEmojiNode(SEVERITY_EMOJI[record.severity]);
+        if (decoration !== null) content.append(decoration);
 
         const title = el("p", { class: "md-title-small notification__title" });
         this.applyText(title, record.title);

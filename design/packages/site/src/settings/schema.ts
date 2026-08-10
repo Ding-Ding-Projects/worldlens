@@ -7,6 +7,7 @@
  * place a visitor looks.
  */
 
+import { BRAND_ACCENT_SEED } from "../theme/generated/seed.js";
 import type { SettingDefinition, SettingsTab } from "./types.js";
 
 export const SETTINGS_TABS: readonly SettingsTab[] = [
@@ -18,6 +19,15 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
             { id: "theme", labelKey: "settings.group.theme" },
             { id: "navigation", labelKey: "settings.group.navigation" },
             { id: "motion", labelKey: "settings.group.motion" },
+            // `identity` and `dialogs` hold one row each and could have been folded into an
+            // existing group, but both are about how the site presents *itself* rather than
+            // about theme, navigation or motion, and a row filed under a heading it does not
+            // belong to is a row nobody finds by scanning. `school` holds no schema row at all
+            // — its panel is appended in `page.ts` because arming it needs a credential field
+            // that no declared setting kind can express.
+            { id: "identity", labelKey: "identity.displayNameLabel" },
+            { id: "dialogs", labelKey: "ui.dialogEmojiLabel" },
+            { id: "school", labelKey: "school.groupLabel" },
         ],
     },
     {
@@ -64,6 +74,10 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
         descriptionKey: "settings.tab.data.desc",
         groups: [
             { id: "transfer", labelKey: "settings.group.transfer" },
+            // History belongs beside transfer and reset rather than on a tab of its own: the
+            // three are one subject — what has happened to your settings and how to move or
+            // undo it — and a visitor who has just reset something is looking at this tab.
+            { id: "history", labelKey: "history.title" },
             { id: "resetGroup", labelKey: "settings.group.resetGroup" },
         ],
     },
@@ -131,12 +145,14 @@ export const SETTINGS: readonly SettingDefinition[] = [
         labelKey: "set.accentSeed",
         descriptionKey: "set.accentSeed.desc",
         keywords: ["primary", "seed", "brand", "主色", "品牌色"],
-        // Beacon Amber, the shipped brand seed (see theme/tokens.css). This is what "reset
-        // to default" restores to, and what every visitor who has never touched this control
-        // is actually seeing - applyRootAppearance() overrides --md-sys-color-primary from
-        // this value unconditionally on every page load, so a stale seed here would silently
-        // repaint the whole site back to the old brand regardless of what tokens.css says.
-        defaultValue: "#7e4e00",
+        // Generated from the project's one colour authority rather than written here, because
+        // applyRootAppearance() overrides --md-sys-color-primary from this value unconditionally
+        // on every page load. A literal that drifted from the stylesheet would win silently and
+        // repaint the whole site to a brand no file claims - which is not hypothetical: this
+        // constant held the previous amber seed and went on painting the site amber for a full
+        // build after the role sheet had been switched to the shared blue, with nothing
+        // anywhere reporting a problem.
+        defaultValue: BRAND_ACCENT_SEED,
     },
     {
         id: "theme.surfaceTint",
@@ -177,6 +193,34 @@ export const SETTINGS: readonly SettingDefinition[] = [
             compactValue: true,
             wideValue: false,
         },
+    },
+    {
+        // The site's own name is a label like every other label this site renders, and it was
+        // the one string a visitor could not change. The id is `identity.displayName` rather
+        // than `brand.name` to keep the storage key saying what it holds: a *display* name,
+        // never the identity the storage namespace and the published base path are derived
+        // from. Those two stay constants in `identity/productIdentity.ts` precisely so a
+        // rename cannot orphan a single stored preference.
+        id: "identity.displayName",
+        kind: "text",
+        tab: "general",
+        group: "identity",
+        labelKey: "identity.displayNameLabel",
+        descriptionKey: "identity.displayNameDesc",
+        keywords: ["name", "title", "rename", "brand", "改名", "名稱", "標題"],
+        defaultValue: "",
+        maxLength: 48,
+        placeholderKey: "identity.displayNamePlaceholder",
+    },
+    {
+        id: "ui.dialogEmoji",
+        kind: "toggle",
+        tab: "general",
+        group: "dialogs",
+        labelKey: "ui.dialogEmojiLabel",
+        descriptionKey: "ui.dialogEmojiDesc",
+        keywords: ["emoji", "dialog", "message box", "decoration", "表情", "對話框", "訊息框"],
+        defaultValue: true,
     },
     {
         id: "motion.reduce",
