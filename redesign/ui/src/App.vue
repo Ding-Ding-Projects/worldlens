@@ -402,6 +402,12 @@ const destination = shell.destination;
 const routingFailures = ref<{ id: string; message: string }[]>([]);
 const problemsOpen = ref(false);
 
+/** Stable landmark/disclosure ids shared by the controls and the surfaces they own. */
+const MAIN_CONTENT_ID = "worldlens-main-content";
+const NOTIFICATIONS_PANEL_ID = "worldlens-notifications-panel";
+const PROBLEMS_PANEL_ID = "worldlens-problems-panel";
+const SETTINGS_PANEL_ID = "docked.app-settings.panel";
+
 /**
  * The rail bell the notification history anchors to.
  *
@@ -409,6 +415,7 @@ const problemsOpen = ref(false);
  * handed to both the rail and the panel so the panel anchors to the exact control that opens it.
  */
 const notificationsActivatorId = useId();
+const settingsActivatorId = useId();
 const notificationsOpen = ref(false);
 
 const problems = computed(() =>
@@ -758,6 +765,15 @@ function openSettings(anchor: SettingsSectionAnchor | null = null, missing = fal
     settingsOpen.value = true;
 }
 
+/** The rail settings control is a disclosure: pressing it again closes the surface it names. */
+function toggleSettingsFromRail(): void {
+    if (settingsOpen.value) {
+        settingsOpen.value = false;
+        return;
+    }
+    openSettings();
+}
+
 /**
  * A render that failed for a fixable reason says which setting would fix it. This is the
  * other end of that: it opens the surface *and* reveals the exact control, because
@@ -1041,7 +1057,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             :label="t('appearance.target.app.titleBar', 'The window title bar')"
             as="div"
         >
-            <AppTitleBar :title="productDisplayName" />
+            <AppTitleBar :title="productDisplayName" :main-content-id="MAIN_CONTENT_ID" />
         </AppearanceTarget>
 
         <!--
@@ -1076,11 +1092,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             :running-render-count="runningRenderCount"
             :problem-count="problems.length"
             :problems-open="problemsOpen"
+            :problems-panel-id="PROBLEMS_PANEL_ID"
             @open-renders="revealPage(PAGE_RENDERS)"
             @toggle-problems="problemsOpen = !problemsOpen"
         />
 
-        <v-main class="mb-main">
+        <v-main :id="MAIN_CONTENT_ID" class="mb-main" tabindex="-1">
             <!--
                 The viewer, which renders into #map-container rather than into this tree, so
                 it stays mounted at shell level and keyed on the profile exactly as before.
@@ -1114,12 +1131,15 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :unread-count="unreadNoticeCount"
                         :product-name="productDisplayName"
                         :notifications-activator-id="notificationsActivatorId"
+                        :notifications-panel-id="NOTIFICATIONS_PANEL_ID"
                         :notifications-open="notificationsOpen"
+                        :settings-activator-id="settingsActivatorId"
+                        :settings-panel-id="SETTINGS_PANEL_ID"
                         :settings-open="settingsOpen"
                         @select="onRailSelect"
                         @open-palette="paletteOpen = true"
                         @toggle-notifications="notificationsOpen = !notificationsOpen"
-                        @open-settings="openSettings()"
+                        @open-settings="toggleSettingsFromRail"
                     />
                 </AppearanceTarget>
 
@@ -1418,6 +1438,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         the problem is about.
                     -->
                     <ProblemsPanel
+                        :panel-id="PROBLEMS_PANEL_ID"
                         :problems="problems"
                         :open="problemsOpen"
                         @update:open="problemsOpen = $event"
@@ -1486,6 +1507,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 :state="notices"
                 :activator="`#${notificationsActivatorId}`"
                 :open="notificationsOpen"
+                :panel-id="NOTIFICATIONS_PANEL_ID"
                 @update:open="notificationsOpen = $event"
             />
 

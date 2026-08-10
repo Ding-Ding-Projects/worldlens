@@ -106,7 +106,7 @@
                 "docs/screenshots/wizard-ssh-world-source.png"
             ],
             "capturedFromInterfaceSource": true,
-            "uiSourceDigest": "9d70f0e3e19cdc6914c93ccb1d8e4ae0afbc12783f33170937ddfa746953045c",
+            "uiSourceDigest": "857784734fcab86fcae4fd41cf8b6e018165d34b762466da55f60d0bcaa680a0",
             "uiSourceDigestNote": "Re-taken 2026-08-10 by running the full Playwright harness against the freshly built workspace under xvfb, with the rendered-map and test-world fixtures from CI run 31352105128; this digest is scripts/check-screenshot-evidence.mjs --print-interface-digest at the same commit."
         },
         {

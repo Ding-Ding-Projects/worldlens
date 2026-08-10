@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiAlertCircleOutline,
@@ -125,6 +125,7 @@ const searchSample = computed(() =>
 
 const selected = ref<Set<string>>(new Set());
 const expanded = ref<Set<string>>(new Set());
+const renderDetailIdPrefix = useId();
 
 function toggleSelected(key: string): void {
     const next = new Set(selected.value);
@@ -460,7 +461,7 @@ function percentLabel(row: ActiveRenderRow): string {
             animating an update.
         -->
         <ul v-else class="mb-renders__list mb-motion-stagger">
-            <li v-for="row in filteredRows" :key="row.key" class="mb-renders__item">
+            <li v-for="(row, rowIndex) in filteredRows" :key="row.key" class="mb-renders__item">
                 <AppearanceTarget
                     :id="`renders.row.${row.key}`"
                     :label="`${row.worldLabel} — ${row.projectLabel}`"
@@ -489,6 +490,7 @@ function percentLabel(row: ActiveRenderRow): string {
                                     type="button"
                                     class="mb-renders__disclosure"
                                     :aria-expanded="expanded.has(row.key)"
+                                    :aria-controls="`${renderDetailIdPrefix}-${rowIndex}`"
                                     @click="toggleExpanded(row.key)"
                                 >
                                     <strong>{{ row.worldLabel }}</strong>
@@ -575,7 +577,11 @@ function percentLabel(row: ActiveRenderRow): string {
                         </v-alert>
 
                         <v-expand-transition>
-                            <div v-if="expanded.has(row.key)" class="mb-renders__detail">
+                            <div
+                                v-if="expanded.has(row.key)"
+                                :id="`${renderDetailIdPrefix}-${rowIndex}`"
+                                class="mb-renders__detail"
+                            >
                                 <v-divider />
                                 <RenderProgressDetail :facts="row.facts" />
                             </div>

@@ -1,5 +1,40 @@
 # Handoff
 
+## 2026-08-10 (later) — Phase A accessibility: skip path, disclosure contracts, and fail-closed shell numbers
+
+**State: verified locally; pushed with a fresh capture run.**
+
+An external Phase A bundle arrived containing accessibility fixes reconstructed from the packaged
+UI source map at artifact SHA `01db881` (branch `codex/rewrite-electron-from-redesign`). Its own
+applier verified ten of the thirteen touched files byte-identical on current `main` and refused
+the other three as drifted, so the ten took the overlay content directly and the three -
+`App.vue`, `AppRail.vue`, `DockedSurface.vue` - were rebased hunk by hunk from the bundle's
+patch, exactly as its README instructs. Whitespace-ignored diffs match the patch shape file for
+file; no other content moved.
+
+What shipped:
+
+- A keyboard skip path from the frameless title bar to a focusable `v-main` landmark
+  (`worldlens-main-content`), with the skip-link label registered in English and Cantonese in
+  `copy/surfaces/chrome.ts`.
+- Stable disclosure-to-surface `aria-controls` relationships: the rail bell to the notification
+  panel, the rail settings button to the docked settings surface (which now names itself
+  `docked.<surfaceId>.panel`), the status strip to the Problems panel, render rows to their
+  detail regions, the preview network explanation, and glossary terms to their definitions.
+  The rail settings control is now a true disclosure - pressing it again closes the surface.
+- Non-modal dialog semantics on the notification history: named surface, Escape close, focus on
+  open, focus return to the bell on close.
+- `shellNumbers.nonNegativeInteger` normalises badge counts and render progress at the rendering
+  boundary, so a negative, infinite or `NaN` value can never reach visible or ARIA output.
+- Reduced-motion coverage for the rail pill transition.
+- Two regression suites: `shellAccessibilityContract.test.ts` (source relationships, validated
+  against the rebased tree, not the bundle's baseline) and `shellNumbers.test.ts`.
+
+Verification: UI build and typecheck clean; eslint clean on every covered file; affected
+component suites 59 files / 656 tests green plus the 3 App-mounting suites (82 tests); the two
+new suites 8/8; full workspace rebuilt and the complete screenshot matrix recaptured from the
+patched tree with the digest recorded from those exact sources.
+
 ## 2026-08-10 — release readiness: deterministic guards, a published release, and the stopwatch that failed it
 
 **State: verified through release `v0.1.988`; one workflow defect found by that release and fixed here.**

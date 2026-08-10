@@ -4,11 +4,11 @@
   "commit": "(local run)",
   "run": "(local run)",
   "captureMode": "local",
-  "mapSource": "served over loopback from http://127.0.0.1:44305/local/capture",
+  "mapSource": "served over loopback from http://127.0.0.1:39157/local/capture",
   "renderedBy": null,
   "world": null,
   "renderedAt": null,
-  "fixtureRequestsServed": 418,
+  "fixtureRequestsServed": 390,
   "offlineGuard": "loopback only; every other host is refused and recorded",
   "networkViolations": [],
   "viewports": [

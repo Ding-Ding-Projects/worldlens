@@ -29,8 +29,10 @@ const props = withDefaults(
         bridge?: WindowBridge | null;
         /** Shown beside the icon. The window title is set by the document, not here. */
         title?: string;
+        /** The shell landmark the keyboard skip link moves focus to. */
+        mainContentId?: string;
     }>(),
-    { title: "Worldlens" },
+    { title: "Worldlens", mainContentId: "worldlens-main-content" },
 );
 
 const { t } = useI18n();
@@ -76,6 +78,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+    <!--
+        First in the focus order and visually hidden until it is needed. The app uses a
+        frameless window, so this is the title-bar-to-main shortcut a keyboard or switch user
+        would otherwise lose when the operating system caption is replaced.
+    -->
+    <a class="mb-titlebar-skip" :href="`#${props.mainContentId}`">
+        {{ t("window.skipToMain", "Skip to main content") }}
+    </a>
+
     <header v-if="controls.available" class="mb-titlebar" role="banner">
         <!--
             The drag region carries the identity and the empty space. It is not a button and
@@ -139,6 +150,32 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.mb-titlebar-skip {
+    position: fixed;
+    inset-block-start: 4px;
+    inset-inline-start: 8px;
+    z-index: 10000;
+    max-inline-size: calc(100vw - 16px);
+    padding: 8px 12px;
+    border-radius: var(--md-sys-shape-corner-sm, 8px);
+    background: rgb(var(--v-theme-inverse-surface, var(--v-theme-on-surface)));
+    color: rgb(var(--v-theme-inverse-on-surface, var(--v-theme-surface)));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    transform: translateY(calc(-100% - 8px));
+    transition: transform var(--md-sys-motion-duration-short2, 100ms)
+        var(--md-sys-motion-easing-standard, ease);
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+}
+
+.mb-titlebar-skip:focus-visible {
+    transform: translateY(0);
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
 /*
  * Height is published as a custom property on :root by the shell, because #map-container
  * lives outside the Vue tree and has to start below this bar rather than behind it.
@@ -241,5 +278,12 @@ onBeforeUnmount(() => {
 .mb-titlebar-button.v-btn:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: -3px;
+}
+
+/* This must stay last: the skip link is the only new transition in this component. */
+@media (prefers-reduced-motion: reduce) {
+    .mb-titlebar-skip {
+        transition: none;
+    }
 }
 </style>
