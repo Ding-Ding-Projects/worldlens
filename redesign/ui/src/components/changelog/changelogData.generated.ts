@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "eb2663e1f32b1be08074c77d96762389ed512c3c",
+        shortSha: "eb2663e1f3",
+        date: "2026-08-10T06:58:47Z",
+        subject: "fix(cirender): survive a child that exits without reading its stdin",
+        details: "A child that exits before draining stdin closes the pipe, and the pending\nwrite surfaces as an asynchronous EPIPE on a stream with no error listener -\nan uncaught exception that killed a CI run whose 10,512 tests had all passed.\nBoth transport paths now listen: EPIPE is dropped because the child's exit\ncode already carries the outcome; any other stdin failure keeps its message.\n\nThe regression test overfills the pipe buffer against a child that exits\nwithout reading, which reproduces the crash deterministically without the fix.",
+        category: "shell",
+        areas: ["shell"],
+        files: 2,
+    },
+    {
         sha: "5c1990b8d39b8336f9056083b84b44a067c05bac",
         shortSha: "5c1990b8d3",
         date: "2026-08-10T06:38:47Z",

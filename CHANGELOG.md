@@ -53,6 +53,7 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- fix(cirender): survive a child that exits without reading its stdin - [`eb2663e1f3`](https://github.com/Ding-Ding-Projects/worldlens/commit/eb2663e1f32b1be08074c77d96762389ed512c3c)
 - fix: reconcile rename finalizer and modal inventory with the site rework - [`838c11a299`](https://github.com/Ding-Ding-Projects/worldlens/commit/838c11a299889e81ebbf6bd67743943e689d300b)
 - fix: make the whole workspace test suite green (727 files) - [`6e1387ddba`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e1387ddbace4b66743e078ffce4683c09bc9ddd)
 - Repair baseline typecheck, lint, and screenshot evidence - [`b3f556547c`](https://github.com/Ding-Ding-Projects/worldlens/commit/b3f556547c4c6431911d49ffdf7953419bbc7cc1)
