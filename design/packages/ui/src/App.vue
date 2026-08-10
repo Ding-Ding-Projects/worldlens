@@ -381,7 +381,11 @@ const shell = createShellNavigation({
                 openSettings((reveal ?? null) as SettingsSectionAnchor | null);
                 return;
             case "config":
-                openConfig();
+                // The reveal is the whole point of the row that sent it. Dropped here, the
+                // catalogue's "Local version history" landed on Core settings instead of the
+                // History tab it names - the reveal travelled all the way from the manifest
+                // through `shellNavigation.ts` and was discarded at the last step.
+                openConfig((reveal ?? null) as PaletteConfigTarget);
                 return;
             case "palette":
                 paletteOpen.value = true;

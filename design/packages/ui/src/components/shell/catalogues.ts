@@ -293,7 +293,11 @@ const MAKE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.make.pathField.blurb",
         blurbFallback:
             "Every folder field checks what you gave it as you type, says what it found, and never silently accepts a path that is not there.",
-        target: { kind: "overlay", overlay: "config", reveal: "path-field" },
+        // "path-field" named nothing routable: the options editor's screens are the `ScreenId`
+        // union plus "history", and a reveal outside it silently resolves to Core anyway. Core
+        // is where the folder fields this row describes actually live, so the row now asks for
+        // the screen it means instead of relying on the fallback that hid the mistake.
+        target: { kind: "overlay", overlay: "config", reveal: "core" },
     }),
     feature("settingUpARender", {
         key: "make.setting-up-a-render.scheduled-render",
@@ -468,7 +472,7 @@ const MAKE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.make.dependencies.blurb",
         blurbFallback:
             "Fetches and verifies the engine jar and every other dependency a render needs, with digests checked before use.",
-        target: { kind: "overlay", overlay: "settings", reveal: "dependencies" },
+        target: { kind: "overlay", overlay: "settings", reveal: "system-dependencies" },
     }),
     feature("whatItNeeds", {
         key: "make.what-it-needs.mojang-download-consent",
@@ -478,7 +482,7 @@ const MAKE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.make.downloadConsent.blurb",
         blurbFallback:
             "One remembered answer about whether the app may download Minecraft's own client files, which the engine needs for textures and models.",
-        target: { kind: "overlay", overlay: "settings", reveal: "download-consent" },
+        target: { kind: "overlay", overlay: "settings", reveal: "mojang-download-consent" },
         metaResolver: "consent.mojang",
     }),
 ];
@@ -758,7 +762,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.panelGeometry.blurb",
         blurbFallback:
             "Every settings, tab, anchored, dialog and menu panel is viewport-bounded, persistent, resettable and keyboard movable or resizable.",
-        target: { kind: "overlay", overlay: "settings", reveal: "panel-geometry" },
+        target: { kind: "overlay", overlay: "settings", reveal: "surface-placement" },
     }),
     feature("howTheInterfaceBehaves", {
         key: "setup.how-the-interface-behaves.appearance-editors",
@@ -768,7 +772,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.appearance.blurb",
         blurbFallback:
             "Per-element Edit appearance, with a continuous colour picker and Word-depth typography whose overrides always win over the theme underneath.",
-        target: { kind: "overlay", overlay: "settings", reveal: "appearance" },
+        target: { kind: "overlay", overlay: "settings", reveal: "display" },
     }),
     feature("howTheInterfaceBehaves", {
         key: "setup.how-the-interface-behaves.the-regex-builder",
@@ -830,7 +834,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.displayEase.blurb",
         blurbFallback:
             "The interface-size dial, which works through page zoom rather than a root font size, plus reduced motion and the contrast theme.",
-        target: { kind: "overlay", overlay: "settings", reveal: "display-ease" },
+        target: { kind: "overlay", overlay: "settings", reveal: "display" },
     }),
     feature("howTheInterfaceBehaves", {
         key: "setup.how-the-interface-behaves.theme",
@@ -840,7 +844,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.theme.blurb",
         blurbFallback:
             "Dark, light and contrast, the contrast theme deliberately not tonal because deriving it from a seed would defeat the one thing it exists for.",
-        target: { kind: "overlay", overlay: "settings", reveal: "theme" },
+        target: { kind: "overlay", overlay: "settings", reveal: "display" },
         metaResolver: "theme.schemeCount",
     }),
     feature("howTheInterfaceBehaves", {
@@ -862,7 +866,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.productName.blurb",
         blurbFallback:
             "The name in the title bar and in every sentence the app writes about itself, which renames nothing on disk when you change it.",
-        target: { kind: "overlay", overlay: "settings", reveal: "product-display-name" },
+        target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
     }),
 
     feature("language", {
@@ -873,7 +877,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.languageTone.blurb",
         blurbFallback:
             "English, Hong Kong Cantonese and bilingual, each with its own independent funny-level slider from fully professional to maximum playfulness.",
-        target: { kind: "overlay", overlay: "settings", reveal: "language-tone" },
+        target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
         metaResolver: "language.modesAndLevels",
         hideInRestrictedMode: true,
     }),
@@ -888,7 +892,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         target: {
             kind: "conditional",
             capability: "restricted-mode",
-            target: { kind: "overlay", overlay: "settings", reveal: "restricted-mode" },
+            target: { kind: "overlay", overlay: "settings" },
         },
         metaResolver: "restrictedMode.name",
     }),
@@ -903,7 +907,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         target: {
             kind: "conditional",
             capability: "personal-vocabulary",
-            target: { kind: "overlay", overlay: "settings", reveal: "personal-vocabulary" },
+            target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
         },
         hideInRestrictedMode: true,
     }),
@@ -915,7 +919,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.narrator.blurb",
         blurbFallback:
             "Speaks app events one utterance at a time, superseded lines replaced rather than stacked, yielding to a screen reader and to quiet hours.",
-        target: { kind: "overlay", overlay: "settings", reveal: "narrator" },
+        target: { kind: "overlay", overlay: "settings" },
         metaResolver: "narrator.state",
         hideInRestrictedMode: true,
     }),
@@ -927,7 +931,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.schedule.blurb",
         blurbFallback:
             "Applies versioned rules by date, time, weekday and timezone, optionally gated by a bounded API or a boolean entity, with tokens kept in session memory.",
-        target: { kind: "overlay", overlay: "settings", reveal: "language-appearance-schedule" },
+        target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
     }),
 
     feature("sharedAcrossTheseApps", {
@@ -1049,7 +1053,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.startupRecovery.blurb",
         blurbFallback:
             "Keeps a usable shell open through recoverable startup failures; a hard boundary opens an isolated window with copyable diagnostics.",
-        target: { kind: "overlay", overlay: "settings", reveal: "startup-recovery" },
+        target: { kind: "overlay", overlay: "settings", reveal: "diagnostics" },
     }),
     feature("keepingTheAppHealthy", {
         key: "setup.keeping-the-app-healthy.worldlens-migration",
@@ -1059,7 +1063,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.migration.blurb",
         blurbFallback:
             "Moves profiles and preferences without deleting the old copy, reading legacy names and writing current identifiers.",
-        target: { kind: "overlay", overlay: "settings", reveal: "migration" },
+        target: { kind: "overlay", overlay: "settings" },
     }),
     feature("keepingTheAppHealthy", {
         key: "setup.keeping-the-app-healthy.memory-console",
@@ -1072,7 +1076,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         target: {
             kind: "conditional",
             capability: "memory-console",
-            target: { kind: "overlay", overlay: "settings", reveal: "memory-console" },
+            target: { kind: "overlay", overlay: "settings", reveal: "render-memory" },
         },
     }),
 
