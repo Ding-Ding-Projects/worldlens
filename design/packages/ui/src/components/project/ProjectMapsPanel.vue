@@ -29,9 +29,11 @@ import { DIMENSION_OPTIONS, type FieldMeta, type PlainValue, type ProjectFile } 
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import RenderMaskEditorCard from "../config/RenderMaskEditorCard.vue";
+import RenderMaskFieldLauncher from "../config/RenderMaskFieldLauncher.vue";
 import { GlossaryTerm } from "../glossary/index.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import { clearFieldValue, replaceText, setFieldValue } from "../config/configModel.js";
+import { clearFieldValue, fieldValue, isExplicit, replaceText, setFieldValue } from "../config/configModel.js";
 import { UNKNOWN_WORLD, type WorldOrientation } from "../config/maskCanvas.js";
 import { inspectMaskWorld } from "../config/maskWorld.js";
 import {
@@ -171,6 +173,27 @@ watch(
 
 const file = computed(() => (selected.value === undefined ? null : openMapFile(selected.value)));
 
+/**
+ * `render-mask` has one map-level editor. The generated FieldMeta row below is a launcher
+ * into this card, never a second draft with a second set of ordering rules.
+ */
+const renderMaskField = computed<FieldMeta | null>(
+    () => file.value?.descriptor.fields.find((field) => field.path === "render-mask") ?? null,
+);
+const renderMaskValue = computed<PlainValue[]>(() => {
+    const open = file.value;
+    const field = renderMaskField.value;
+    if (open === null || field === null) return [];
+    const value = fieldValue(open, field);
+    return Array.isArray(value) ? value : [];
+});
+const renderMaskExplicit = computed(() => {
+    const open = file.value;
+    const field = renderMaskField.value;
+    return open !== null && field !== null && isExplicit(open, field);
+});
+const renderMaskCard = ref<{ openAndFocus: () => Promise<void> } | null>(null);
+
 const storages = computed(() => storageIds(props.project));
 
 const dimensionItems = computed(() => {
@@ -207,6 +230,20 @@ function onRawText(text: string): void {
     const open = file.value;
     if (map === undefined || open === null) return;
     emit("update:project", withMapConfig(props.project, map.id, replaceText(open, text).text));
+}
+
+function setRenderMask(value: PlainValue[]): void {
+    const field = renderMaskField.value;
+    if (field !== null) onSet(field, value);
+}
+
+function clearRenderMask(): void {
+    const field = renderMaskField.value;
+    if (field !== null) onClear(field);
+}
+
+async function openRenderMaskCard(): Promise<void> {
+    await renderMaskCard.value?.openAndFocus();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -791,6 +828,18 @@ function confirmRemoval(): void {
                     </v-card-text>
                 </v-card>
 
+                <RenderMaskEditorCard
+                    ref="renderMaskCard"
+                    class="mb-project-maps__mask"
+                    :model-value="renderMaskValue"
+                    :dimension="selected.dimension"
+                    :world="maskWorld"
+                    :disabled="file.readOnly"
+                    :explicit="renderMaskExplicit"
+                    @update:model-value="setRenderMask"
+                    @clear="clearRenderMask"
+                />
+
                 <ConfigFileForm
                     :file="file"
                     :title="selected.name"
@@ -807,14 +856,24 @@ function confirmRemoval(): void {
                     @clear="onClear"
                     @consent="emit('consent')"
                     @update:text="onRawText"
-                />
+                >
+                    <template #mask-field="{ field, file: maskFile, disabled, highlighted }">
+                        <RenderMaskFieldLauncher
+                            :field="field"
+                            :file="maskFile"
+                            :disabled="disabled"
+                            :highlighted="highlighted"
+                            @open="openRenderMaskCard"
+                            @clear="onClear(field)"
+                        />
+                    </template>
+                </ConfigFileForm>
             </template>
 
             <p v-else class="mb-project-maps__note">
                 {{ t("project.maps.pick", "Pick a map on the left, or add one.") }}
             </p>
         </section>
-
     </div>
 </template>
 
@@ -877,6 +936,10 @@ function confirmRemoval(): void {
 .mb-project-maps__identity {
     margin-block-end: 16px;
     border-radius: 12px;
+}
+
+.mb-project-maps__mask {
+    margin-block-end: 16px;
 }
 
 .mb-project-maps__grid {

@@ -278,18 +278,44 @@ async function copyText(): Promise<void> {
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
                         <p v-if="group.description" class="mb-config-form__blurb">{{ group.description }}</p>
-                        <ConfigField
-                            v-for="field in group.fields"
-                            :key="field.path"
-                            :field="field"
-                            :file="file"
-                            :disabled="disabled || file.readOnly"
-                            :highlighted="highlightPath === field.path"
-                            :world="worldOrientation"
-                            @set="(target, value) => emit('set', target, value)"
-                            @clear="(target) => emit('clear', target)"
-                            @consent="emit('consent')"
-                        />
+                        <template v-for="field in group.fields" :key="field.path">
+                            <!--
+                                Map nodes can place the one render-mask editor above their generated
+                                settings. A named slot keeps the FieldMeta row as a route into that
+                                editor, while every other caller retains the ordinary in-place field.
+                            -->
+                            <slot
+                                v-if="field.control.kind === 'mask-list'"
+                                name="mask-field"
+                                :field="field"
+                                :file="file"
+                                :disabled="disabled || file.readOnly"
+                                :highlighted="highlightPath === field.path"
+                                :world="worldOrientation"
+                            >
+                                <ConfigField
+                                    :field="field"
+                                    :file="file"
+                                    :disabled="disabled || file.readOnly"
+                                    :highlighted="highlightPath === field.path"
+                                    :world="worldOrientation"
+                                    @set="(target, value) => emit('set', target, value)"
+                                    @clear="(target) => emit('clear', target)"
+                                    @consent="emit('consent')"
+                                />
+                            </slot>
+                            <ConfigField
+                                v-else
+                                :field="field"
+                                :file="file"
+                                :disabled="disabled || file.readOnly"
+                                :highlighted="highlightPath === field.path"
+                                :world="worldOrientation"
+                                @set="(target, value) => emit('set', target, value)"
+                                @clear="(target) => emit('clear', target)"
+                                @consent="emit('consent')"
+                            />
+                        </template>
                     </v-expansion-panel-text>
                 </v-expansion-panel>
             </v-expansion-panels>

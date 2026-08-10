@@ -14,12 +14,12 @@ import {
 import {
     VAlert,
     VBtn,
+    VBtnToggle,
     VCard,
     VCardText,
     VChip,
     VDivider,
     VSelect,
-    VSwitch,
     VTooltip,
 } from "vuetify/components";
 import {
@@ -34,14 +34,16 @@ import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
 import MaskDrawingCanvas from "./MaskDrawingCanvas.vue";
 import {
     UNKNOWN_WORLD,
-    cloudFidelityForMask,
+    defaultShapeFor,
+    existingRegionsPreset,
+    toMaskRecord,
     type ShapeKind,
     type WorldOrientation,
 } from "./maskCanvas.js";
 import { estimateRenderCost } from "./maskGeometry.js";
 import { normalizeMaskList } from "./maskRecordNormalize.js";
 
-/** The four shapes the drawing canvas can actually draw. A blur has no footprint of its own. */
+/** The four literal BlueMap shapes the canvas can draw. A blur has no footprint of its own. */
 const DRAWABLE_KINDS: readonly ShapeKind[] = ["box", "circle", "ellipse", "polygon"];
 
 /**
@@ -101,14 +103,6 @@ const wholeMaskCost = computed(() =>
     depthValue.value === 0 ? estimateRenderCost(normalizeMaskList(props.modelValue)) : null,
 );
 
-/**
- * Route parity is stated once at the top level. A blur's nested list is part of its parent
- * mask, so it does not repeat the same status inside every recursive editor.
- */
-const maskFidelity = computed(() =>
-    depthValue.value === 0 ? cloudFidelityForMask(normalizeMaskList(props.modelValue)) : null,
-);
-
 interface ShapeRow {
     readonly index: number;
     readonly record: Record<string, PlainValue>;
@@ -158,7 +152,40 @@ function replaceAt(index: number, record: Record<string, PlainValue>): void {
 }
 
 function addShape(): void {
-    commit([...props.modelValue, { type: "bluemap:box" }]);
+    addDrawableShape("box");
+}
+
+/**
+ * Adds one of the four real BlueMap footprint shapes. The card calls this a "tool" rather
+ * than a synthetic mask kind: `region-aligned` below is a box preset, not a sixth thing the
+ * config parser would have to understand.
+ */
+function addDrawableShape(kind: ShapeKind): void {
+    const shape = defaultShapeFor(kind, worldOrientation.value);
+    commit([
+        ...props.modelValue,
+        {
+            type: `bluemap:${kind}`,
+            ...toMaskRecord(shape),
+        },
+    ]);
+}
+
+/**
+ * The fifth drawing tool is deliberately a box aligned to the *measured* region-file
+ * extent. It is not a new BlueMap type: persisting a made-up `region` shape would make a
+ * perfectly good mask file unloadable outside this app.
+ */
+function addRegionAlignedShape(): void {
+    const preset = existingRegionsPreset(worldOrientation.value, "box");
+    if (preset === null) return;
+    commit([
+        ...props.modelValue,
+        {
+            type: "bluemap:box",
+            ...toMaskRecord(preset.shape),
+        },
+    ]);
 }
 
 function removeShape(index: number): void {
@@ -208,6 +235,10 @@ function setSubtract(index: number, value: boolean): void {
     replaceAt(index, { ...row.record, subtract: value });
 }
 
+function setLayerMode(index: number, value: unknown): void {
+    setSubtract(index, value === "cut");
+}
+
 function fieldValueOf(row: ShapeRow, field: FieldMeta): PlainValue {
     const existing = row.record[field.path];
     return existing === undefined ? (field.default as PlainValue) : existing;
@@ -217,6 +248,14 @@ function setField(index: number, field: FieldMeta, value: PlainValue): void {
     const row = rows.value[index];
     if (row === undefined) return;
     replaceAt(index, { ...row.record, [field.path]: value });
+}
+
+/** Removes one explicit shape property so its own schema default is inherited again. */
+function clearField(index: number, field: FieldMeta): void {
+    const row = rows.value[index];
+    if (row === undefined || !(field.path in row.record)) return;
+    const { [field.path]: _removed, ...next } = row.record;
+    replaceAt(index, next);
 }
 
 function nestedMasks(row: ShapeRow): PlainValue[] {
@@ -346,21 +385,76 @@ function shapeSummary(row: ShapeRow): string {
             </span>
         </v-alert>
 
-        <!-- Route parity is a top-level fact, never repeated inside a blur's nested list. -->
+        <!--
+          The exact cross-route claim belongs to the route-equivalence integration test, not
+          to a renderer-local boolean that can only ever return true. This surface states the
+          data boundary it actually owns: one ordered map-config value goes to both routes.
+        -->
         <v-alert
-            v-if="maskFidelity !== null && maskFidelity.honored"
-            type="success"
+            v-if="depthValue === 0"
+            type="info"
             density="compact"
             variant="tonal"
             class="mb-config-mask__fidelity"
         >
             {{
                 t(
-                    "mask.fidelity.routesExact",
-                    "Cloud/Actions and local desktop renders both apply every configured mask shape, subtract flag, nested blur, and layer order exactly.",
+                    "config.mask.routeContract",
+                    "This ordered render-mask value is written into this map's config for both local and GitHub Actions renders. The route-equivalence test exercises the real UI serializer, CLI converter, and Actions config writer together.",
                 )
             }}
         </v-alert>
+
+        <!--
+          These are tools over the one authoritative `render-mask` list. Region-aligned is a
+          measured box preset, never a made-up sixth config type. The generic Add control below
+          remains available for a blur modifier, which BlueMap supports but a top-down canvas
+          cannot draw as a footprint.
+        -->
+        <div
+            v-if="depthValue === 0"
+            class="mb-config-mask__tools"
+            role="group"
+            :aria-label="t('config.mask.tools', 'Render mask shape tools')"
+        >
+            <v-btn
+                v-for="tool in [
+                    { kind: 'box', label: t('config.mask.tool.rectangle', 'Rectangle') },
+                    { kind: 'circle', label: t('config.mask.tool.circle', 'Circle') },
+                    { kind: 'ellipse', label: t('config.mask.tool.ellipse', 'Ellipse') },
+                    { kind: 'polygon', label: t('config.mask.tool.polygon', 'Polygon') },
+                ] as const"
+                :key="tool.kind"
+                :disabled="isDisabled"
+                variant="tonal"
+                size="small"
+                density="comfortable"
+                @click="addDrawableShape(tool.kind)"
+            >
+                {{ tool.label }}
+            </v-btn>
+            <v-btn
+                :disabled="isDisabled || existingRegionsPreset(worldOrientation, 'box') === null"
+                variant="tonal"
+                size="small"
+                density="comfortable"
+                @click="addRegionAlignedShape"
+            >
+                {{ t("config.mask.tool.regionAligned", "Region-aligned") }}
+            </v-btn>
+            <v-tooltip
+                v-if="existingRegionsPreset(worldOrientation, 'box') === null"
+                activator="parent"
+                location="bottom"
+            >
+                {{
+                    t(
+                        "config.mask.tool.regionAlignedUnavailable",
+                        "Region-aligned needs measured region bounds from this world.",
+                    )
+                }}
+            </v-tooltip>
+        </div>
 
         <p v-if="rows.length === 0" class="mb-config-mask__empty">
             {{
@@ -465,18 +559,47 @@ function shapeSummary(row: ShapeRow): string {
                             @update:model-value="(value) => replaceAt(row.index, value)"
                         />
 
-                        <v-switch
-                            :model-value="row.record['subtract'] === true"
-                            :label="t('config.mask.subtract', 'Subtract instead of add')"
-                            :disabled="isDisabled"
-                            color="primary"
-                            density="compact"
-                            hide-details="auto"
-                            inset
-                            @update:model-value="
-                                (value: boolean | null) => setSubtract(row.index, value === true)
+                        <div
+                            class="mb-config-mask__layerMode"
+                            role="group"
+                            :aria-label="
+                                t(
+                                    'config.mask.layerMode',
+                                    'Whether this shape adds to or cuts out of the rendered area',
+                                )
                             "
-                        />
+                        >
+                            <v-btn-toggle
+                                :model-value="row.record['subtract'] === true ? 'cut' : 'render'"
+                                :disabled="isDisabled"
+                                mandatory
+                                density="comfortable"
+                                variant="outlined"
+                                @update:model-value="
+                                    (value: unknown) => setLayerMode(row.index, value)
+                                "
+                            >
+                                <v-btn value="render">
+                                    {{ t("config.mask.renderIt", "Render it") }}
+                                </v-btn>
+                                <v-btn value="cut">
+                                    {{ t("config.mask.cutItOut", "Cut it out") }}
+                                </v-btn>
+                            </v-btn-toggle>
+                            <p class="mb-config-mask__layerNote">
+                                {{
+                                    row.record["subtract"] === true
+                                        ? t(
+                                              "config.mask.cutItOutNote",
+                                              "This layer removes from whatever the earlier layers rendered.",
+                                          )
+                                        : t(
+                                              "config.mask.renderItNote",
+                                              "This layer adds to the rendered area in this list order.",
+                                          )
+                                }}
+                            </p>
+                        </div>
 
                         <template v-if="row.shape">
                             <template v-for="field in row.shape.fields" :key="field.path">
@@ -608,6 +731,25 @@ function shapeSummary(row: ShapeRow): string {
                                         }}
                                     </span>
                                 </p>
+                                <v-btn
+                                    v-if="maskProvenance(row, field).explicit"
+                                    variant="text"
+                                    size="x-small"
+                                    density="comfortable"
+                                    :disabled="isDisabled"
+                                    :aria-label="
+                                        t(
+                                            'config.mask.revertFieldLabel',
+                                            { field: field.label },
+                                            'Revert {field} to its inherited default',
+                                        )
+                                    "
+                                    @click="clearField(row.index, field)"
+                                >
+                                    {{
+                                        t("config.mask.revertField", "Revert to inherited default")
+                                    }}
+                                </v-btn>
                             </template>
                         </template>
                         <p v-else class="mb-config-mask__doc" role="alert">
@@ -653,6 +795,13 @@ function shapeSummary(row: ShapeRow): string {
     margin-block-end: 8px;
 }
 
+.mb-config-mask__tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-block: 8px;
+}
+
 .mb-config-mask__extentLine {
     display: block;
     font-size: 0.75rem;
@@ -695,6 +844,23 @@ function shapeSummary(row: ShapeRow): string {
     margin-inline-start: auto;
     display: flex;
     align-items: center;
+}
+
+.mb-config-mask__layerMode {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-block: 8px;
+}
+
+.mb-config-mask__layerNote {
+    flex: 1 1 15rem;
+    min-inline-size: 0;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    margin: 2px 0;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-config-mask__doc,

@@ -8,7 +8,6 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { BoxMask, CircleMask, MaskConfig } from "@worldlens/config";
 import {
     BLOCKS_PER_REGION,
     CHUNK_BLOCKS,
@@ -22,8 +21,6 @@ import {
     aroundSpawnPreset,
     canRedo,
     canUndo,
-    cloudFidelityForMask,
-    cloudFidelityForSingleShape,
     defaultShapeFor,
     estimateArea,
     existingRegionsPreset,
@@ -751,72 +748,5 @@ describe("fromMaskRecord / toMaskRecord round-tripping", () => {
         const edited = moveBoxEdge(shape, "maxX", 5);
         expect(edited.minY).toBe(40);
         expect(edited.maxY).toBe(90);
-    });
-});
-
-/* -------------------------------------------------------------------------- */
-/* Cloud/Actions fidelity, mirroring app/src/main/render/maskFidelity.ts      */
-/* -------------------------------------------------------------------------- */
-
-describe("cloudFidelityForSingleShape", () => {
-    it.each([
-        ["box", false],
-        ["box", true],
-        ["circle", false],
-        ["ellipse", false],
-        ["polygon", false],
-    ] as const)("honors %s with subtract=%s", (kind, subtract) => {
-        expect(cloudFidelityForSingleShape(kind, subtract)).toEqual({
-            honored: true,
-            unsupportedReason: null,
-        });
-    });
-});
-
-/**
- * These are deliberately the same route cases `maskFidelity.test.ts` and the CLI converter
- * exercise, so a package-boundary hand-sync missed on either side is a red test.
- */
-describe("cloudFidelityForMask", () => {
-    const BOX: BoxMask = {
-        type: "bluemap:box",
-        subtract: false,
-        "min-x": -100,
-        "max-x": 100,
-        "min-y": -64,
-        "max-y": 320,
-        "min-z": -100,
-        "max-z": 100,
-    };
-
-    const CIRCLE: CircleMask = {
-        type: "bluemap:circle",
-        subtract: false,
-        "center-x": 0,
-        "center-z": 0,
-        radius: 50,
-        "min-y": -64,
-        "max-y": 320,
-    };
-
-    it.each([
-        ["empty", []],
-        ["one box", [BOX]],
-        ["subtracting box", [{ ...BOX, subtract: true }]],
-        ["circle", [CIRCLE]],
-        ["ordered list", [BOX, { ...BOX, "min-x": 200, "max-x": 300 } satisfies MaskConfig]],
-        [
-            "nested blur",
-            [
-                {
-                    type: "bluemap:blur",
-                    subtract: false,
-                    size: 5,
-                    masks: [BOX, { ...CIRCLE, subtract: true }],
-                } satisfies MaskConfig,
-            ],
-        ],
-    ] as const)("honors %s", (_name, masks) => {
-        expect(cloudFidelityForMask(masks)).toEqual({ honored: true, unsupportedReason: null });
     });
 });

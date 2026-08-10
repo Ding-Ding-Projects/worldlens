@@ -467,6 +467,34 @@ describe("orientation", () => {
     });
 });
 
+describe("measured world guides", () => {
+    it("shows independent extent/spawn toggles and bounds the region estimate by the measured inventory", async () => {
+        const wrapper = mountCanvas({
+            modelValue: boxRecord({ "min-x": 0, "max-x": 511, "min-z": 0, "max-z": 511 }),
+            shapeKind: "box",
+            world: MEASURED_WORLD,
+        });
+
+        expect(wrapper.text()).toContain("Show measured region extent");
+        expect(wrapper.text()).toContain("Show overworld spawn");
+        expect(wrapper.text()).toContain("4 measured region files");
+        expect(wrapper.find("[data-mask-region-estimate]").text()).toContain(
+            "About 1 of 4 measured regions would render.",
+        );
+        expect(wrapper.find(".mb-mask-canvas__extent").exists()).toBe(true);
+        expect(wrapper.find(".mb-mask-canvas__spawn").exists()).toBe(true);
+
+        const toggles = wrapper.find(".mb-mask-canvas__guides").findAll('input[type="checkbox"]');
+        expect(toggles).toHaveLength(2);
+        await toggles[0]!.setValue(false);
+        expect(wrapper.find(".mb-mask-canvas__extent").exists()).toBe(false);
+        expect(wrapper.find(".mb-mask-canvas__spawn").exists()).toBe(true);
+
+        await toggles[1]!.setValue(false);
+        expect(wrapper.find(".mb-mask-canvas__spawn").exists()).toBe(false);
+    });
+});
+
 /* -------------------------------------------------------------------------- */
 /* Cloud/Actions render parity: obsolete limitation warning stays gone       */
 /* -------------------------------------------------------------------------- */

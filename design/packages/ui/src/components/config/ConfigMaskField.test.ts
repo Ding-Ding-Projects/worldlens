@@ -18,6 +18,7 @@ import { createVuetify } from "vuetify";
 import { VApp, VBtn } from "vuetify/components";
 import { MASK_SHAPES, type PlainValue } from "@worldlens/config";
 import ConfigMaskField from "./ConfigMaskField.vue";
+import { UNKNOWN_WORLD, type WorldOrientation } from "./maskCanvas.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -52,18 +53,37 @@ function emptyI18n() {
     });
 }
 
-function mountMask(modelValue: PlainValue[]) {
+const MEASURED_WORLD: WorldOrientation = {
+    extent: { minX: -256, maxX: 767, minZ: -512, maxZ: 511 },
+    extentUnavailableReason: null,
+    spawn: { x: 8, z: -16 },
+    spawnUnavailableReason: null,
+    regionCount: 4,
+};
+
+function mountMask(modelValue: PlainValue[], world: WorldOrientation = UNKNOWN_WORLD) {
     const host = defineComponent({
         setup: () => () =>
             h(VApp, () => [
                 h(ConfigMaskField, {
                     modelValue,
                     label: "Render mask",
+                    world,
                     "onUpdate:modelValue": () => {},
                 }),
             ]),
     });
     return mount(host, { global: { plugins: [vuetify, emptyI18n()] } });
+}
+
+function lastMaskEmission(wrapper: ReturnType<typeof mountMask>): PlainValue[] | undefined {
+    const field = wrapper.findComponent(ConfigMaskField);
+    const events = field.emitted<PlainValue[][]>("update:modelValue");
+    return events?.[events.length - 1]?.[0];
+}
+
+function buttonWithText(wrapper: ReturnType<typeof mountMask>, text: string) {
+    return wrapper.findAllComponents(VBtn).find((button) => button.text().includes(text));
 }
 
 describe("the doc disclosure, on a real shape field", () => {
@@ -148,33 +168,53 @@ describe("a spot check against the real schema behaviour", () => {
     });
 });
 
-describe("the list-level render-route parity status", () => {
-    const ROUTE_STATUS = "Cloud/Actions and local desktop renders";
+describe("render-mask interactions", () => {
+    it("offers the four footprint tools plus a measured region-aligned box", async () => {
+        const wrapper = mountMask([], MEASURED_WORLD);
+        for (const tool of ["Rectangle", "Circle", "Ellipse", "Polygon", "Region-aligned"]) {
+            expect(buttonWithText(wrapper, tool)).toBeDefined();
+        }
 
-    it.each([
-        ["empty", []],
-        ["box", [{ type: "bluemap:box" }]],
-        ["subtract", [{ type: "bluemap:box", subtract: true }]],
-        ["circle", [{ type: "bluemap:circle" }]],
-        ["two boxes", [{ type: "bluemap:box" }, { type: "bluemap:box", "min-x": 200 }]],
-    ])("confirms exact semantics for %s", (_name, masks) => {
-        const text = mountMask(masks).text();
-        expect(text).toContain(ROUTE_STATUS);
-        expect(text).toContain("subtract flag");
-        expect(text).toContain("nested blur");
-        expect(text).toContain("layer order exactly");
-        expect(text).not.toContain("single, non-subtracting box");
-        expect(text).not.toContain("completely unmasked");
+        await buttonWithText(wrapper, "Region-aligned")!.trigger("click");
+
+        expect(lastMaskEmission(wrapper)).toEqual([
+            expect.objectContaining({
+                type: "bluemap:box",
+                "min-x": -256,
+                "max-x": 767,
+                "min-z": -512,
+                "max-z": 511,
+            }),
+        ]);
     });
 
-    it("renders exactly once for a blur that nests two boxes", () => {
-        const wrapper = mountMask([
-            {
-                type: "bluemap:blur",
-                masks: [{ type: "bluemap:box" }, { type: "bluemap:box", "min-x": 200 }],
-            },
-        ]);
-        const occurrences = wrapper.text().split(ROUTE_STATUS).length - 1;
-        expect(occurrences).toBe(1);
+    it("writes explicit Render it / Cut it out semantics into the existing shape row", async () => {
+        const wrapper = mountMask([{ type: "bluemap:box" }]);
+        expect(wrapper.text()).toContain("Render it");
+        expect(wrapper.text()).toContain("Cut it out");
+
+        await buttonWithText(wrapper, "Cut it out")!.trigger("click");
+
+        expect(lastMaskEmission(wrapper)?.[0]).toEqual(
+            expect.objectContaining({ type: "bluemap:box", subtract: true }),
+        );
+    });
+
+    it("removes one explicit shape property to restore that field's inherited default", async () => {
+        const wrapper = mountMask([{ type: "bluemap:box", "min-x": 42 }]);
+        const reset = wrapper.find('[aria-label="Revert Minimum X to its inherited default"]');
+        expect(reset.exists()).toBe(true);
+
+        await reset.trigger("click");
+
+        const record = lastMaskEmission(wrapper)?.[0] as Record<string, PlainValue> | undefined;
+        expect(record).toBeDefined();
+        expect(Object.hasOwn(record!, "min-x")).toBe(false);
+    });
+
+    it("describes the cross-route boundary without presenting a local exactness verdict", () => {
+        const text = mountMask([]).text();
+        expect(text).toContain("route-equivalence test");
+        expect(text).not.toContain("Cloud/Actions and local desktop renders");
     });
 });

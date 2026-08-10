@@ -36,6 +36,7 @@ import {
     VCardText,
     VChip,
     VIcon,
+    VSwitch,
     VTextField,
     VTooltip,
 } from "vuetify/components";
@@ -185,6 +186,9 @@ function applySnapNow(): void {
 /* -------------------------------------------------------------------------- */
 
 const orientationKnown = computed(() => props.world.extent !== null);
+/** Map guides are visual aids, not hidden data. Each can be toggled independently. */
+const showMeasuredExtent = ref(true);
+const showSpawn = ref(true);
 
 /* -------------------------------------------------------------------------- */
 /* Presets                                                                     */
@@ -649,6 +653,19 @@ function setPolygonPointField(index: number, axis: "x" | "z", raw: string): void
 
 const area = computed(() => estimateArea(shape.value));
 
+/**
+ * The shape's region estimate against the real measured region-file inventory. It is bounded
+ * at the inventory count and explicitly labelled approximate because a curved shape can clip
+ * a region and a sparse world can have holes inside its measured rectangle.
+ */
+const estimatedMeasuredRegions = computed(() => {
+    if (props.world.regionCount === null || area.value.regions === null) return null;
+    return {
+        selected: Math.max(0, Math.min(props.world.regionCount, Math.round(area.value.regions))),
+        total: props.world.regionCount,
+    };
+});
+
 const worldFraction = computed(() => {
     const extent = props.world.extent;
     if (extent === null || area.value.blocks === null) return null;
@@ -677,6 +694,41 @@ const worldFraction = computed(() => {
                 )
             }}
         </v-alert>
+
+        <div
+            v-if="world.extent !== null || world.spawn !== null"
+            class="mb-mask-canvas__guides"
+            role="group"
+            :aria-label="t('config.maskCanvas.guides', 'Measured world guides')"
+        >
+            <v-switch
+                v-if="world.extent !== null"
+                v-model="showMeasuredExtent"
+                :label="t('config.maskCanvas.showExtent', 'Show measured region extent')"
+                color="primary"
+                density="compact"
+                hide-details
+                inset
+            />
+            <v-switch
+                v-if="world.spawn !== null"
+                v-model="showSpawn"
+                :label="t('config.maskCanvas.showSpawn', 'Show overworld spawn')"
+                color="primary"
+                density="compact"
+                hide-details
+                inset
+            />
+            <v-chip v-if="world.regionCount !== null" size="small" variant="outlined">
+                {{
+                    t(
+                        "config.maskCanvas.measuredRegionCount",
+                        { count: world.regionCount },
+                        "{count} measured region files",
+                    )
+                }}
+            </v-chip>
+        </div>
 
         <div class="mb-mask-canvas__toolbar">
             <v-btn-toggle
@@ -874,7 +926,7 @@ const worldFraction = computed(() => {
                 />
 
                 <rect
-                    v-if="world.extent !== null"
+                    v-if="showMeasuredExtent && world.extent !== null"
                     :x="pixelFor({ x: world.extent.minX, z: world.extent.minZ }).x"
                     :y="pixelFor({ x: world.extent.minX, z: world.extent.minZ }).y"
                     :width="
@@ -889,7 +941,7 @@ const worldFraction = computed(() => {
                 />
 
                 <g
-                    v-if="world.spawn !== null"
+                    v-if="showSpawn && world.spawn !== null"
                     :transform="`translate(${pixelFor(world.spawn).x}, ${pixelFor(world.spawn).y})`"
                 >
                     <circle r="5" class="mb-mask-canvas__spawn" />
@@ -1167,6 +1219,23 @@ const worldFraction = computed(() => {
                     )
                 }}
             </v-chip>
+            <v-chip
+                v-if="estimatedMeasuredRegions !== null"
+                size="small"
+                variant="tonal"
+                data-mask-region-estimate
+            >
+                {{
+                    t(
+                        "config.maskCanvas.regionEstimate",
+                        {
+                            selected: estimatedMeasuredRegions.selected.toLocaleString(),
+                            total: estimatedMeasuredRegions.total.toLocaleString(),
+                        },
+                        "About {selected} of {total} measured regions would render.",
+                    )
+                }}
+            </v-chip>
         </div>
 
         <!-- Numeric fields: the always-available equivalent path to the drawing above. -->
@@ -1368,11 +1437,16 @@ const worldFraction = computed(() => {
 
 .mb-mask-canvas__toolbar,
 .mb-mask-canvas__presets,
-.mb-mask-canvas__readouts {
+.mb-mask-canvas__readouts,
+.mb-mask-canvas__guides {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.mb-mask-canvas__guides > .v-input {
+    flex: 0 1 auto;
 }
 
 .mb-mask-canvas__presetNote {

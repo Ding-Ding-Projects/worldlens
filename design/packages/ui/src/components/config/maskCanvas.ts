@@ -44,7 +44,7 @@
  * "unlimited" -- typing `-2147483648` by hand remains the way to leave an axis unbounded.
  */
 
-import type { MaskConfig, PlainValue } from "@worldlens/config";
+import type { PlainValue } from "@worldlens/config";
 import { JAVA_DOUBLE_MAX, JAVA_INT_MAX, JAVA_INT_MIN, isUnboundedSentinel } from "./fieldValue.js";
 
 /* -------------------------------------------------------------------------- */
@@ -882,43 +882,4 @@ export function toMaskRecord(shape: DrawableShape): Record<string, PlainValue> {
         case "polygon":
             return { shape: shape.points.map((point) => ({ x: point.x, z: point.z })), ...height };
     }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Cloud/Actions render parity                                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The name is retained for the drawing surface's existing contract. Every schema-valid
- * shape now survives the cloud/Actions path exactly, including subtractive layers; the CLI
- * ports BlueMap's concrete MaskConfig constructors rather than special-casing a box.
- */
-export interface SingleShapeCloudFidelity {
-    /** Always true for a schema-valid shape. */
-    readonly honored: boolean;
-    /** Named, not guessed. `null` exactly when `honored` is `true`. */
-    readonly unsupportedReason: string | null;
-}
-
-export function cloudFidelityForSingleShape(
-    _kind: ShapeKind,
-    _subtract: boolean,
-): SingleShapeCloudFidelity {
-    return { honored: true, unsupportedReason: null };
-}
-
-/**
- * Whether the **whole** render-mask list reaches the cloud/Actions path exactly. The UI cannot
- * import the Electron main-process fidelity service or the CLI, so this small boundary contract
- * is tested against the same empty, multi-layer, subtractive, and recursive-shape cases.
- */
-export interface MaskListCloudFidelity {
-    /** Always true for a schema-valid render-mask list. */
-    readonly honored: boolean;
-    /** Named, not guessed. `null` exactly when `honored` is `true`. */
-    readonly unsupportedReason: string | null;
-}
-
-export function cloudFidelityForMask(_masks: readonly MaskConfig[]): MaskListCloudFidelity {
-    return { honored: true, unsupportedReason: null };
 }

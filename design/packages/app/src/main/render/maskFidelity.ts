@@ -1,58 +1,46 @@
 /**
- * Whether the render mask a person just drew reaches each engine intact.
+ * Input validation for a render-mask that is about to cross a render boundary.
  *
- * This project renders a map through two genuinely different routes, and both now honour
- * `render-mask` equally:
- *
- *  - **the local desktop render** (`orchestrator.ts`) runs the real upstream BlueMap jar in a
- *    real JVM, which deserialises `render-mask` through the real `CombinedMaskSerializer` —
- *    every shape, `subtract`, any number of them, in full;
- *  - **the cloud/Actions render** (`packages/cli/src/maps.ts`, `maskFor`) ports that same
- *    serializer: every box, circle, ellipse, polygon, recursive blur, subtract flag, and
- *    ordered layer reaches the TypeScript engine with BlueMap's validation semantics.
- *
- * `checkCloudFidelity` remains an independent package-boundary contract rather than importing
- * the CLI. Its tests exercise all shape and layer cases the CLI converter covers, so a future
- * regression cannot quietly resurrect the old whole-world substitution warning.
+ * This module intentionally does not report that a cloud or local renderer applied a mask
+ * exactly. That statement needs both real routes and belongs to the cross-route integration
+ * test. The only fact available at this package boundary is whether the ordered value is a
+ * BlueMap `CombinedMask` value that either route can accept.
  */
+import { combinedMaskSchema } from "@worldlens/config";
 
-import type { MaskConfig } from "@worldlens/config";
-
-export type CloudMaskEffect =
-    /** No shapes at all — every path renders the whole world, and that is correct. */
+export type MaskRouteInputEffect =
+    /** No shapes intentionally asks either renderer for the whole world. */
     | "whole-world-no-mask"
-    /** Every configured layer is applied in full and in order. */
-    | "exact-full";
+    /** The schema accepts the value; route equivalence is tested elsewhere. */
+    | "schema-valid"
+    /** The schema rejected the value before a renderer could receive it. */
+    | "invalid-mask";
 
-export interface CloudMaskFidelity {
-    /** True when the render applies exactly the mask that was drawn. */
-    readonly honored: boolean;
-    readonly effect: CloudMaskEffect;
-    /**
-     * Retained for callers that used to render a limitation reason. Full parity makes it null
-     * for every schema-valid mask.
-     */
-    readonly unsupportedReason: string | null;
+export interface MaskRouteInputValidation {
+    readonly valid: boolean;
+    readonly effect: MaskRouteInputEffect;
+    /** A concrete schema reason only when the value cannot be sent to a renderer. */
+    readonly reason: string | null;
 }
 
 /**
- * Mirrors `maskFor`'s route semantics: an empty list intentionally means the whole world, and
- * every non-empty schema-valid list is translated exactly.
+ * Validates the exact ordered list that local and Actions routes receive. This is deliberately
+ * a validation result, not an exact-render assertion; see the CLI route-equivalence test for
+ * that end-to-end proof.
  */
-export function checkCloudFidelity(masks: readonly MaskConfig[]): CloudMaskFidelity {
+export function validateMaskRouteInput(value: unknown): MaskRouteInputValidation {
+    const result = combinedMaskSchema.safeParse(value);
+    if (!result.success) {
+        return {
+            valid: false,
+            effect: "invalid-mask",
+            reason: result.error.issues[0]?.message ?? "The render-mask value is invalid.",
+        };
+    }
+
     return {
-        honored: true,
-        effect: masks.length === 0 ? "whole-world-no-mask" : "exact-full",
-        unsupportedReason: null,
+        valid: true,
+        effect: result.data.length === 0 ? "whole-world-no-mask" : "schema-valid",
+        reason: null,
     };
-}
-
-/**
- * What the local desktop render does with the same mask: always the real thing, because the
- * local path runs the genuine upstream jar and deserialises `render-mask` in full. Exists
- * mainly so a caller can render "local: exact / cloud: whole world" side by side without
- * special-casing the local half, and it always agrees with what was drawn.
- */
-export function localFidelity(masks: readonly MaskConfig[]): CloudMaskFidelity {
-    return checkCloudFidelity(masks);
 }
