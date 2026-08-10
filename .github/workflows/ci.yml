@@ -317,8 +317,8 @@ jobs:
 
       # Every build must carry a version Squirrel can order, or installing a newer
       # release over an older one silently does nothing: same version, nothing to do,
-      # no error and no upgrade. `0.1.<run number>` is monotonic, is valid semver, and
-      # is valid NuGet, which Squirrel requires.
+      # no error and no upgrade. `<major>.<minor>.<run number>` is monotonic, is valid
+      # semver, and is valid NuGet, which Squirrel requires.
       - name: Stamp this build's version
         id: version
         shell: pwsh
