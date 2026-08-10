@@ -212,8 +212,14 @@ export class RevalidatingFileLoader extends Loader {
                     const contentLength =
                         response.headers.get("X-File-Size") ||
                         response.headers.get("Content-Length");
-                    const total = contentLength ? parseInt(contentLength) : 0;
-                    const lengthComputable = total !== 0;
+                    // A header is a claim from a server, not a fact. `parseInt` returns NaN for a
+                    // malformed value, and `NaN !== 0` is true, so the unguarded form announced
+                    // `lengthComputable: true` with a NaN total - every consumer dividing by it
+                    // then reported NaN%. Anything not a finite, positive integer means the size
+                    // is unknown, which is what `lengthComputable: false` exists to say.
+                    const declared = contentLength === null ? Number.NaN : Number.parseInt(contentLength, 10);
+                    const total = Number.isFinite(declared) && declared > 0 ? declared : 0;
+                    const lengthComputable = total > 0;
                     let loaded = 0;
 
                     // periodically read data into the new stream tracking while download progress
