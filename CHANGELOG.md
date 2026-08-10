@@ -22,6 +22,8 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- fix(ui): repair the botched merge so the redesign is actually the shipped UI - [`b46faee213`](https://github.com/Ding-Ding-Projects/worldlens/commit/b46faee21337f0431b070f21d21501f2d2c94411)
+- Repair imported UI source defects - [`ad702c0f59`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad702c0f59c5f0daabf426bfbefc8a643397a47e)
 - Merge remote-tracking branch 'origin/codex/rewrite-electron-from-redesign-final' - [`110e8cc161`](https://github.com/Ding-Ding-Projects/worldlens/commit/110e8cc16111fc265809a958f7017e314a4ddb02) _(summary of 21 commits, also listed here)_
 - feat(project): route map masks through one editor - [`45bb81fde0`](https://github.com/Ding-Ding-Projects/worldlens/commit/45bb81fde0fcc9bab3215529a67ab68eb904bba1)
 - feat(notifications): keep redesigned shells history-only - [`45fa6f42ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/45fa6f42ae9583506c9a42e69de377ed390227a2)
@@ -55,7 +57,16 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- Merge remote-tracking branch 'origin/main' - [`51f08d4c2b`](https://github.com/Ding-Ding-Projects/worldlens/commit/51f08d4c2bc522c104d7c23f33bf070a78b264d3) _(summary of 6 commits, also listed here)_
+- Retarget compact proof to the canonical site runtime - [`cb1ef1ff3b`](https://github.com/Ding-Ding-Projects/worldlens/commit/cb1ef1ff3b20dfbe1e8177ccd335ecd3f908dbfd)
+- Retarget compact proof to the canonical site runtime - [`c60e085f55`](https://github.com/Ding-Ding-Projects/worldlens/commit/c60e085f551883af94e9f8ad03946dad26755375)
+- Complete responsive archive site controls - [`f731dd2615`](https://github.com/Ding-Ding-Projects/worldlens/commit/f731dd26152d4b5ce59556b4ef42c29aa328bc6a)
+- Harden the offline archive runtime - [`1b2e9b1c65`](https://github.com/Ding-Ding-Projects/worldlens/commit/1b2e9b1c6544bd0b54cbb4994819d4dfc2b47840)
 - Replace Pages site with the supplied Material Design 3 experience - [`f641518bbd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f641518bbd0c5beb3f009444495cf3bd4ee6fede)
+
+### Build, release and tooling
+
+- Require green correctness checks before release - [`77f833cb92`](https://github.com/Ding-Ding-Projects/worldlens/commit/77f833cb927996f82f8bfc768f8a66f5c6339ad8)
 
 ### Documentation
 
@@ -63,6 +74,10 @@ full message for the in-app changelog viewer.
 
 ### Elsewhere in the repository
 
+- Harden fresh-host release tooling - [`973bcd120f`](https://github.com/Ding-Ding-Projects/worldlens/commit/973bcd120f52d727b2a6739d624eeaede574ccf4)
+- Merge current main and preserve project editor fixes - [`09c2bfcd1a`](https://github.com/Ding-Ding-Projects/worldlens/commit/09c2bfcd1a5ce040ee8d0d4250e470ff380e5228) _(summary of 3 commits, also listed here)_
+- Merge the compact proof lineage - [`54e796b10e`](https://github.com/Ding-Ding-Projects/worldlens/commit/54e796b10ed3182494b124c424d1d6204dde582c) _(summary of 2 commits, also listed here)_
+- Make local release builds fail closed - [`40ab4a6ca7`](https://github.com/Ding-Ding-Projects/worldlens/commit/40ab4a6ca7afe66979f3e6fa442d75d9e12f318a)
 - Merge concurrent redesign-folder work with the Pages replacement - [`f79df8fea2`](https://github.com/Ding-Ding-Projects/worldlens/commit/f79df8fea24f9d9e4a8a1a9985c35f7277c938b5) _(summary of 3 commits, also listed here)_
 - fix(redesign): keep App.vue byte-identical to design/packages/ui - [`ca11561438`](https://github.com/Ding-Ding-Projects/worldlens/commit/ca11561438dbadc09000e5345df5fe370f03bb31)
 - feat(redesign): write the full UI into the redesign folder - [`2bcaed7fc9`](https://github.com/Ding-Ding-Projects/worldlens/commit/2bcaed7fc9e6bbd30864934d8a3c0542ead14100)
