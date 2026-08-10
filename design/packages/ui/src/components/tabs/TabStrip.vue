@@ -164,6 +164,13 @@ const props = defineProps<{
      * shell's own buttons have nothing to do with.
      */
     publishesInset?: boolean;
+    /**
+     * True where this strip's tabs are destinations rather than jobs. The redesign scopes
+     * close affordances to open jobs alone, so a destination strip draws no close button,
+     * answers no Delete key, and offers no close rows in its context menu - while keeping
+     * every other power: pinning, groups, reordering, overflow, and all four searches.
+     */
+    closeless?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -489,7 +496,7 @@ function onTabKeydown(event: KeyboardEvent, tab: TabRecord): void {
         if (last !== undefined) goTo(last.id);
     } else if (event.key === "Delete") {
         event.preventDefault();
-        emit("close", tab.id, props.strip.id);
+        if (props.closeless !== true) emit("close", tab.id, props.strip.id);
     } else if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         goTo(tab.id);
@@ -781,7 +788,10 @@ const tabMenuItems = computed<readonly TabMenuItem[]>(() => {
         });
     }
 
-    return items;
+    // A destination strip closes nothing, so it offers nothing that closes.
+    return props.closeless === true
+        ? items.filter((item) => !["close", "others", "toStart", "toEnd"].includes(item.id))
+        : items;
 });
 
 function onTabMenuChoose(id: string): void {
@@ -1152,6 +1162,7 @@ const tabCountLabel = computed(() =>
                     :panel-id="panelId"
                     :style="tabStyles[tab.id]"
                     :data-tutorial-anchor="`tab-${tab.pageId}`"
+                    :closeless="closeless === true"
                     compact
                     pinned
                     @activate="goTo(tab.id)"
@@ -1184,6 +1195,7 @@ const tabCountLabel = computed(() =>
                             :panel-id="panelId"
                             :style="tabStyles[segment.tab.id]"
                             :data-tutorial-anchor="`tab-${segment.tab.pageId}`"
+                            :closeless="closeless === true"
                             @activate="goTo(segment.tab.id)"
                             @close="emit('close', segment.tab.id, strip.id)"
                             @keydown="onTabKeydown($event, segment.tab)"

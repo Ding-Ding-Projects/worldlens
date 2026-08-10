@@ -1217,7 +1217,7 @@ const renderButtonLabel = computed(() =>
                 {{
                     t(
                         "project.editor.nothingWritten",
-                        "Nothing reaches the disk until you save. When you do, exactly this happens and nothing else.",
+                        "Your edits save themselves after a quiet pause, and Save now writes immediately. Every write does exactly this and nothing else, and every one becomes a revision the History tab can bring back.",
                     )
                 }}
             </p>
@@ -1298,6 +1298,7 @@ const renderButtonLabel = computed(() =>
                 @keydown="queueWorkspaceNodeSync"
             >
                 <TabbedNavigation
+                    closeless
                     ref="tabsNav"
                     :pages="pages"
                     storage-key="worldlens-project-editor-tabs"

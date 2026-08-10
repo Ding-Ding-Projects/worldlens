@@ -229,13 +229,13 @@ and neither may ever stand in for the other. Not mockups, and not the prototype.
 and carries the Make a map catalogue's own group headings as chips; the count in the lede is the
 live number of features this build actually exposes, not a number typed into a sentence.
 
-![Worldlens Home: an 80 px application rail on the left showing Home, Map and Work with a badge on Work, and a dark Home page headed What are you here to do? with a search field, a wide Make a map hero card carrying five group chips and New map and Or walk me through it buttons, and outlined cards for Your maps and Share a map each listing four features](docs/screenshots/shell-home.png)
+![Worldlens Home, the destination the application opens on: an 80 px application rail on the left showing Home, Map and Work, and five catalogue cards covering everything the application can do, each card saying what that catalogue is for, with a search across all of them](docs/screenshots/home-catalogues.png)
 
 **Work** — the existing tabbed workspace, re-hosted. It holds only the jobs actually opened; on a
 fresh install that is the pinned guide alone, and the other ten destinations are reached from Home's
 catalogues rather than crowding the strip.
 
-![Worldlens Work: the same rail with Work active, showing the render guide's Where this render runs step with three run-location choices and a Docker status panel](docs/screenshots/shell-work.png)
+![Worldlens Work: the browser-style tab strip inside the Work destination, holding the jobs that have actually been opened rather than every destination the application has, with their seeded groups, the new-tab menu and the overflow control](docs/screenshots/tab-strip.png)
 
 </details>
 ## Screenshots

@@ -155,6 +155,8 @@ const props = withDefaults(
          * ever coerced in the template, which is why this is the one that trips it.
          */
         publishesInset?: boolean;
+        /** True where these tabs are destinations rather than jobs: no close affordances. */
+        closeless?: boolean;
         /**
          * Which of the declared pages a **genuinely fresh** workspace opens a tab for.
          *
@@ -610,6 +612,7 @@ function applyPlan(
             :id-prefix="idPrefix"
             :pages="pages"
             :publishes-inset="publishesInset === true"
+            :closeless="closeless === true"
             @set-placement="update(setTabPlacement(strip, $event))"
             @activate="(tabId, stripId) => updateIn(stripId, (state) => setActiveTab(state, tabId))"
             @close="(tabId, stripId) => updateIn(stripId, (state) => closeTabs(state, [tabId]))"

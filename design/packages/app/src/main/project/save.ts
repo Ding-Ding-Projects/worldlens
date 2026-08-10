@@ -16,11 +16,12 @@
  * failed when it did not, and hiding a broken history until they need it.
  */
 
-import type { ProjectFile } from "@worldlens/config";
+import { serializeProjectFile, type ProjectFile } from "@worldlens/config";
 
 import type { HistoryRevision } from "../history/index.js";
 
-import { checkWorldFolder, writeProject, type ProjectWriteOptions } from "./file.js";
+import { checkWorldFolder, writeProject, writeProjectText, type ProjectWriteOptions } from "./file.js";
+import { bundleProjectHistory, withEmbeddedHistory } from "./embeddedHistory.js";
 import { recordProjectRevision, type ProjectHistoryOptions } from "./history.js";
 
 export type ProjectSaveResult =
@@ -45,6 +46,13 @@ export type ProjectSaveResult =
 export interface ProjectSaveOptions extends ProjectHistoryOptions {
     /** Passed through to the write guard. See {@link ProjectWriteOptions}. */
     readonly write?: ProjectWriteOptions;
+    /**
+     * After a recorded save, re-write the file with its own history embedded as a git
+     * bundle under the `history` key, so the one file carries every revision with it.
+     * Opt-in because it needs a real git; the IPC layer turns it on, unit seams leave
+     * it off. See `embeddedHistory.ts` for why the bundle never contains itself.
+     */
+    readonly embedHistory?: boolean;
 }
 
 /**
@@ -69,6 +77,23 @@ export async function saveProject(
 
     // Past this line the save has happened. Nothing below may turn it back into a failure.
     const recorded = await recordProjectRevision(options, checked.folder, project);
+
+    if (options.embedHistory === true && recorded.ok) {
+        // Bookkeeping wrapped around a save that already happened: the canonical text is
+        // on disk and its revision is recorded, and this re-write only appends the file's
+        // travelling copy of that record. A failure here is logged and swallowed for the
+        // same reason a failed history write is - nothing after the write may veto it.
+        const bundled = await bundleProjectHistory(options, checked.folder);
+        if (bundled.ok) {
+            const trailed = await writeProjectText(
+                checked.folder,
+                withEmbeddedHistory(serializeProjectFile(written.project), bundled.history),
+            );
+            if (!trailed.ok) console.warn(`[project] history trailer not written: ${trailed.reason}`);
+        } else {
+            console.warn(`[project] history trailer not embedded: ${bundled.message}`);
+        }
+    }
 
     return {
         ok: true,

@@ -70,6 +70,15 @@ const detailId = useId();
     font-weight: 500;
 }
 
+/* The detail toggle is size="small", which the shell layer floors at 34px through
+   `.mb-shell-layer .v-btn--size-small` - a rule this one has to out-specify, not merely
+   follow, to raise the pressable area to the 44px hit-target floor without changing the
+   compact type. */
+.mb-remote-docker .v-btn,
+.mb-shell-layer .mb-remote-docker .v-btn.v-btn--size-small {
+    min-block-size: 44px;
+}
+
 .mb-remote-docker__line {
     margin-block-start: 4px;
     font-size: 0.8125rem;

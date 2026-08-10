@@ -1401,21 +1401,21 @@ export const PROJECT_VOICED = {
         ],
     },
 
-    /* The save plan's own lede. Its whole job is the word "until". */
+    /* The save plan's own lede. Its whole job is now the phrase "saves itself". */
     "project.editor.nothingWritten": {
         en: [
-            "Nothing reaches the disk until you save. When you do, exactly this happens and nothing else.",
-            "Nothing reaches the disk until you save. When you do, exactly this happens and nothing else.",
-            "Nothing reaches the disk until you save it. When you do, exactly this happens and nothing else.",
-            "The disk hears nothing about any of this until you save. When you do, exactly this happens and nothing else.",
-            "Your disk stays blissfully unaware until you save. The moment you do, exactly this happens and nothing else.",
+            "Your work saves itself after a quiet pause, and Save now writes immediately. Every write does exactly this and nothing else, and every one becomes a revision the History tab can bring back.",
+            "Your work saves itself after a quiet pause, and Save now writes immediately. Every write does exactly this and nothing else, and every one becomes a revision the History tab can bring back.",
+            "Your work saves itself once you pause, and Save now does it immediately. Every write does exactly this and nothing else, and every one is a revision History can bring back.",
+            "Relax: this saves itself whenever you pause for breath, and Save now skips the pause. Every write does exactly this and nothing else, and every one lands in History for bringing back.",
+            "This project saves itself the moment you stop to admire your work, and Save now flatters the impatient. Every write does exactly this and nothing else, and History hoards every single one.",
         ],
         yue: [
-            "喺你儲存之前，硬碟乜都唔會寫。一儲存，就係做以下呢啲，冇其他。",
-            "喺你儲存之前，硬碟乜都唔會寫。一儲存，就係做以下呢啲，冇其他。",
-            "喺你儲存之前，硬碟一個字都唔會寫。一儲存，就係做以下呢啲，冇其他。",
-            "喺你撳儲存之前，硬碟完全唔知發生緊咩事。一儲存，就係做以下呢啲，冇其他。",
-            "你部機嘅硬碟喺你撳儲存之前，完全蒙查查。一儲存，就係做以下呢啲，冇其他。",
+            "你嘅改動停一停就會自動儲存，撳「立即儲存」就即刻寫。每次寫入就係做以下呢啲，冇其他，而且每次都會變成一個 History 可以還原返嘅版本。",
+            "你嘅改動停一停就會自動儲存，撳「立即儲存」就即刻寫。每次寫入就係做以下呢啲，冇其他，而且每次都會變成一個 History 可以還原返嘅版本。",
+            "改動停一停就自動儲存，「立即儲存」就唔使等。每次寫入就係做以下呢啲，冇其他，每次都入埋 History，隨時攞得返。",
+            "唞啖氣佢就自動儲存咗喇，心急嘅就撳「立即儲存」。每次寫入就係做以下呢啲，冇其他，History 仲會全部記低晒。",
+            "你停低欣賞吓自己嘅傑作，佢就自動儲存咗；等唔切就撳「立即儲存」。每次寫入就係做以下呢啲，冇其他，History 一個版本都唔會放過。",
         ],
     },
 
@@ -2135,8 +2135,8 @@ export const PROJECT_FACTS = {
         yue: ["{settings}", "預設值", "改", "唔會寫入"],
     },
     "project.editor.nothingWritten": {
-        en: ["until you save", "nothing else"],
-        yue: ["儲存", "冇其他"],
+        en: ["saves itself", "nothing else"],
+        yue: ["自動儲存", "冇其他"],
     },
     "project.render.forceCost": {
         en: ["every tile again", "only the ones that changed", "hour"],

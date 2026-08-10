@@ -46,8 +46,14 @@ const props = withDefaults(
         /** Icon only, full name in the accessible name. Pinned tabs, mostly. */
         compact?: boolean;
         pinned?: boolean;
+        /**
+         * True where the host's tabs are destinations rather than jobs - the options
+         * editor's sections, a project's nodes. The redesign scopes close affordances to
+         * open jobs alone, so a destination draws no close control at all.
+         */
+        closeless?: boolean;
     }>(),
-    { compact: false, pinned: false },
+    { compact: false, pinned: false, closeless: false },
 );
 
 const emit = defineEmits<{
@@ -104,7 +110,7 @@ const label = computed(() => {
         <span v-if="!compact" class="mb-tabs-strip__label">{{ tab.label }}</span>
         <span v-if="tab.dirty" class="mb-tabs-strip__dot" aria-hidden="true" />
         <v-btn
-            v-if="!compact"
+            v-if="!compact && !closeless"
             class="mb-tabs-strip__x"
             :icon="mdiClose"
             :aria-label="t('tabs.action.close', { label: tab.label }, 'Close {label}')"

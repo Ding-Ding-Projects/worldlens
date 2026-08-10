@@ -40,11 +40,12 @@ and replace duplicated mask-editing drafts with one shared editor card plus an e
 
 ### Remaining evidence work
 
-Use a completed screenshot artifact whose capture manifest contains the full current target set,
-then update the `app-playwright-manifest` targets/count and digest from those real files. Build the
-packaged application and recapture the three `built-shell-readme` destinations separately through
-the documented off-screen route. Do not copy the partial 65-image artifact into the ledger and do
-not change either digest without its genuine recapture.
+Done on 2026-08-10: the `app-playwright-manifest` gallery was re-captured in full by running the
+harness against a freshly built workspace under xvfb with the CI-rendered map and world fixtures,
+and its targets, count and digest were updated from those real files. The `built-shell-readme`
+group was retired rather than recaptured: its Windows-only PrintWindow route rotted on every
+interface change with no runner able to refresh it, so the README now shows the harness's own
+captures of the same surfaces, which the digest check can keep honest forever.
 
 ## 2026-08-09 (latest) — ZIP-canonical Pages redesign integrated and pushed
 

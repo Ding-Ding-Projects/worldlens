@@ -694,6 +694,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
             </v-card>
 
             <TabbedNavigation
+                closeless
                 ref="tabsNav"
                 :pages="pages"
                 storage-key="worldlens-config-editor-tabs"

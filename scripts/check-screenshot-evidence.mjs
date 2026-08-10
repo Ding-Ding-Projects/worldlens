@@ -392,7 +392,11 @@ function main() {
    * bulk of the gallery is named here and required to be graded, and a group that genuinely
    * cannot be has to argue its way onto the exempt side one entry at a time.
    */
-  const MUST_BE_GRADED = ["app-playwright-manifest", "built-shell-readme"];
+  // "built-shell-readme" left this list when the README switched to the Playwright
+  // harness's own captures of the same surfaces: a Windows-only PrintWindow route meant
+  // those three images went stale on every interface change with no runner able to
+  // refresh them, which is exactly the rot this check exists to catch.
+  const MUST_BE_GRADED = ["app-playwright-manifest"];
   const graded = inventory.groups.filter(
     (group) => group.capturedFromInterfaceSource,
   );

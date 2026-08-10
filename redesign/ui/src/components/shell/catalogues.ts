@@ -499,16 +499,6 @@ const MAPS_FEATURES: readonly CatalogueFeatureDefinition[] = [
         target: { kind: "job", jobId: "servers", reveal: "server-list" },
         metaResolver: "profile.count",
     }),
-    feature("theList", {
-        key: "maps.the-list.remote-bluemap-servers",
-        icon: mdiLockOutline,
-        nameKey: "catalogue.maps.remoteServers.name",
-        nameFallback: "Remote BlueMap servers",
-        blurbKey: "catalogue.maps.remoteServers.blurb",
-        blurbFallback:
-            "Browses a map somebody else's server already rendered, through a token-gated embedded proxy that never exposes the token to the page.",
-        target: { kind: "job", jobId: "servers", reveal: "add-remote-server" },
-    }),
     feature("theViewer", {
         key: "maps.the-viewer.the-viewer-and-its-controls",
         icon: mdiMapOutline,
@@ -529,6 +519,16 @@ const MAPS_FEATURES: readonly CatalogueFeatureDefinition[] = [
             "The marker sets of the map that is loaded, and the live players set, in the map's own menu.",
         target: { kind: "rail", destination: "map", reveal: "markers" },
         metaResolver: "marker.setCount",
+    }),
+    feature("theList", {
+        key: "maps.the-list.remote-bluemap-servers",
+        icon: mdiLockOutline,
+        nameKey: "catalogue.maps.remoteServers.name",
+        nameFallback: "Remote BlueMap servers",
+        blurbKey: "catalogue.maps.remoteServers.blurb",
+        blurbFallback:
+            "Browses a map somebody else's server already rendered, through a token-gated embedded proxy that never exposes the token to the page.",
+        target: { kind: "job", jobId: "servers", reveal: "add-remote-server" },
     }),
     feature("theViewer", {
         key: "maps.the-viewer.viewer-settings",
@@ -568,6 +568,27 @@ const SHARE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         target: { kind: "job", jobId: "pages", reveal: "publish" },
         metaResolver: "pages.publishState",
     }),
+    feature("withoutPublishing", {
+        key: "share.without-publishing.watch-it-live",
+        icon: mdiEye,
+        nameKey: "catalogue.share.watchLive.name",
+        nameFallback: "Watch it live",
+        blurbKey: "catalogue.share.watchLive.blurb",
+        blurbFallback:
+            "Serves the render straight off this computer's own disk so it can be watched in a browser while it is still being rendered.",
+        target: { kind: "job", jobId: "preview", reveal: "live-preview" },
+        metaResolver: "preview.state",
+    }),
+    feature("withoutPublishing", {
+        key: "share.without-publishing.private-worlds",
+        icon: mdiLockOutline,
+        nameKey: "catalogue.share.privateWorlds.name",
+        nameFallback: "Private worlds",
+        blurbKey: "catalogue.share.privateWorlds.blurb",
+        blurbFallback:
+            "Sealed before they leave the machine, rendered on public runners, published only privately.",
+        target: { kind: "job", jobId: "pages", reveal: "private-worlds" },
+    }),
     feature("publishing", {
         key: "share.publishing.remote-hosting",
         icon: mdiCloudUploadOutline,
@@ -598,27 +619,6 @@ const SHARE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbFallback:
             "What a publish workflow is allowed to touch, which secrets it sees, and why the release feed is unsigned but hash-checked.",
         target: { kind: "job", jobId: "pages", reveal: "workflow-security" },
-    }),
-    feature("withoutPublishing", {
-        key: "share.without-publishing.watch-it-live",
-        icon: mdiEye,
-        nameKey: "catalogue.share.watchLive.name",
-        nameFallback: "Watch it live",
-        blurbKey: "catalogue.share.watchLive.blurb",
-        blurbFallback:
-            "Serves the render straight off this computer's own disk so it can be watched in a browser while it is still being rendered.",
-        target: { kind: "job", jobId: "preview", reveal: "live-preview" },
-        metaResolver: "preview.state",
-    }),
-    feature("withoutPublishing", {
-        key: "share.without-publishing.private-worlds",
-        icon: mdiLockOutline,
-        nameKey: "catalogue.share.privateWorlds.name",
-        nameFallback: "Private worlds",
-        blurbKey: "catalogue.share.privateWorlds.blurb",
-        blurbFallback:
-            "Sealed before they leave the machine, rendered on public runners, published only privately.",
-        target: { kind: "job", jobId: "pages", reveal: "private-worlds" },
     }),
 ];
 

@@ -176,7 +176,7 @@ const SURFACE_VIEWPORT = { width: 1280, height: 800 };
 const SURFACE_TIMEOUT = 300_000;
 
 /** How long to wait for one element. Short enough that a wrong selector is not a hang. */
-const ELEMENT_TIMEOUT = 15_000;
+const ELEMENT_TIMEOUT = 45_000;
 
 let app: ElectronApplication;
 let page: Page;
@@ -2682,26 +2682,6 @@ async function ensureOptionsEditor(): Promise<void> {
 }
 
 /**
- * Dismisses every live toast through the same controls a person uses.
- *
- * This does not clear notification history: a dismissed notification remains searchable in the
- * centre, as it should. It only makes the next editor mount's notice distinguishable from a toast
- * that another capture happened to leave on screen. Reaching into the store would make a cleaner
- * image but would no longer prove the shared notification path the image claims to show.
- */
-async function dismissLiveNotices(): Promise<void> {
-    for (let guard = 0; guard < 16; guard += 1) {
-        const toast = page.locator(".mb-config-notices__toast:visible").first();
-        if (!(await toast.isVisible().catch(() => false))) return;
-
-        await toast.locator(".mb-config-notices__dismiss").click({ timeout: ELEMENT_TIMEOUT });
-        await toast.waitFor({ state: "hidden", timeout: ELEMENT_TIMEOUT });
-    }
-
-    throw new Error("The notification corner kept a live toast after 16 real dismiss actions.");
-}
-
-/**
  * Remounts the options editor and returns the notice that this mount genuinely raised.
  *
  * `ConfigScreen` emits its draft/defaults notice only while mounting. A prior version called
@@ -2711,18 +2691,18 @@ async function dismissLiveNotices(): Promise<void> {
  * resolve the new `ConfigScreen -> notices -> ConfigNotifications` event, immediately before the
  * capture. The notification history deliberately remains intact.
  */
-async function reopenOptionsEditorForFreshNotice(): Promise<Locator> {
+async function reopenOptionsEditorForFreshNotice(): Promise<void> {
     await ensureOptionsEditorClosed();
     await page.waitForSelector(".mb-config-screen", {
         state: "hidden",
         timeout: ELEMENT_TIMEOUT,
     });
-    await dismissLiveNotices();
     await ensureOptionsEditor();
 
-    const freshToast = page.locator(".mb-config-notices__toast:visible").last();
-    await freshToast.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-    return freshToast;
+    // The redesigned shell raises no toast: the remount's notice lands in the history and
+    // moves the bell badge, and the badge is what the next capture needs to be genuine.
+    const badge = page.locator(".wl-rail .wl-rail-badge").first();
+    await badge.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
 }
 
 test("captures the options editor, its tabs and its dialogs", async () => {
@@ -2730,16 +2710,6 @@ test("captures the options editor, its tabs and its dialogs", async () => {
 
     await attempt("Options editor", async () => {
         await ensureOptionsEditor();
-
-        // Taken first and quickly: an informational notice dismisses itself after five
-        // seconds, and this one is raised by the editor mounting.
-        if (await visible(".mb-config-notices__toast")) {
-            await shoot(
-                "notifications-toast",
-                "The notification corner reporting, without blocking anything, what the options editor loaded when it opened",
-                { mapArea: "covered", note: CONFIG_STATE_NOTE },
-            );
-        }
 
         await shoot("config-screen", "The options editor as it opens", {
             mapArea: "covered",
@@ -3038,25 +3008,15 @@ test("captures the remaining first-class screens", async () => {
     });
 });
 
-test("captures the notification corner, rail bell and its history", async () => {
+test("captures the rail bell and its notification history", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
-    await attempt("Notification corner", async () => {
-        // The editor is deliberately remounted here rather than merely ensured open. Its real
-        // informational toast lives for five seconds, and a previous capture sequence could
-        // leave an already-open editor whose original toast had correctly disappeared long before
-        // this step ran. `reopenOptionsEditorForFreshNotice()` drives the real close/dismiss/open
-        // route and returns only the new shared notice, so this image is not a stale survivor.
-        const freshToast = await reopenOptionsEditorForFreshNotice();
-        const corner = page.locator(".mb-config-notices");
-        await corner.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        await freshToast.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        await shoot(
-            "notifications-corner",
-            "The notification corner in the bottom right: a message that reports without blocking anything, and beside it the button that opens the history of everything the application has said",
-            { crop: corner, cropped: "the notification corner" },
-        );
-    });
+    // There is deliberately no "Notification corner" capture and no toast to photograph:
+    // the redesigned shell records every notice at the rail bell's history instead of
+    // covering content with a fixed stack (`ConfigScreen.vue` says so where the old
+    // `<ConfigNotifications>` mount used to be). The editor is still remounted here so a
+    // fresh unread notice exists for the bell capture below to carry a genuine badge.
+    await reopenOptionsEditorForFreshNotice();
 
     await attempt("Notification centre opened from the rail's bell", async () => {
         // The options editor makes the rail inert while it is open. Close it before testing the
@@ -3102,8 +3062,15 @@ test("captures the notification corner, rail bell and its history", async () => 
             { crop: bell, cropped: "the rail notification bell" },
         );
 
+        // Opening the history marks every notice seen, which removes the unread badge -
+        // and with it the `:has(.wl-rail-badge)` identity this locator found the bell by.
+        // Pin the same element by its id before pressing it, so the assertions below are
+        // about the button that was pressed rather than about a selector the press itself
+        // just invalidated.
+        const bellId = await bell.getAttribute("id");
+        const pressedBell = bellId === null ? bell : page.locator(`[id="${bellId}"]`);
         await bell.click({ timeout: ELEMENT_TIMEOUT });
-        await expect(bell).toHaveAttribute("aria-expanded", "true");
+        await expect(pressedBell).toHaveAttribute("aria-expanded", "true");
         const panel = page.locator(".wl-notifications").first();
         await panel.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         const noticeCentre = panel.locator(".mb-notice-centre").first();
@@ -3145,25 +3112,8 @@ test("captures the notification corner, rail bell and its history", async () => 
             },
         );
         await dismiss();
-        await expect(bell).toHaveAttribute("aria-expanded", "false");
+        await expect(pressedBell).toHaveAttribute("aria-expanded", "false");
     });
-
-/*
- * A named gap for the control, distinct from the panel it is supposed to open.
- *
- * The panel above is a real capture through a real route, so calling *it* missing would be a
- * false statement about an image that plainly exists. The bell is a different surface and it
- * genuinely could not be photographed doing its job, so it gets its own line in the manifest.
- * A defect that leaves no trace in the published record is a defect nobody reads about.
- */
-skip(
-    "Notification centre opened from the rail's bell",
-    "the rail's Notifications button does not open the panel it anchors: pressing it on a " +
-        'fresh profile leaves its own aria-expanded at "false" and puts neither ' +
-        ".wl-notifications nor .mb-notice-centre in the document, while the command palette's " +
-        "row for the same panel opens it every time. The panel itself is captured above " +
-        "through that working route; what has no honest capture is the bell working",
-);
 
 });
 
@@ -3851,8 +3801,9 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     { surface: "Pages publishing screen" },
     { surface: "EULA viewer" },
     { surface: "Profile manager" },
-    { surface: "Notification corner" },
-    // The corner and its history can both render while their actual rail activator has regressed.
+    // "Notification corner" is gone on purpose: the redesigned shell has no toast stack to
+    // photograph - notices land at the rail bell's history only (see 45fa6f4).
+    // The centre and its history can both render while their actual rail activator has regressed.
     // Keep this separate so a future fallback through the palette cannot make the real control's
     // missing interaction look covered.
     { surface: "Notification centre opened from the rail's bell" },

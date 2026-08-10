@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- fix(ui): revert the second corrupted splice of the project editor - [`e7307afff3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7307afff3da656f0a973da93dd9ee6acca621cc)
 - Merge branch 'codex/rewrite-electron-from-redesign-final' - [`b8174ef0ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8174ef0ae766f00cb468f214c35d853023bc48e) _(summary of 2 commits, also listed here)_
 - Merge remote-tracking branch 'origin/main' into codex/rewrite-electron-from-redesign-final - [`922a5af92b`](https://github.com/Ding-Ding-Projects/worldlens/commit/922a5af92b4bdc272399482686613bdc451b73e5) _(summary of 11 commits, also listed here)_
 - Repair imported UI source defects - [`ad702c0f59`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad702c0f59c5f0daabf426bfbefc8a643397a47e)
@@ -52,6 +53,7 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- fix: reconcile rename finalizer and modal inventory with the site rework - [`838c11a299`](https://github.com/Ding-Ding-Projects/worldlens/commit/838c11a299889e81ebbf6bd67743943e689d300b)
 - fix: make the whole workspace test suite green (727 files) - [`6e1387ddba`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e1387ddbace4b66743e078ffce4683c09bc9ddd)
 - Repair baseline typecheck, lint, and screenshot evidence - [`b3f556547c`](https://github.com/Ding-Ding-Projects/worldlens/commit/b3f556547c4c6431911d49ffdf7953419bbc7cc1)
 - test(captures): exercise rail notifications and fresh config toasts - [`01db881ca4`](https://github.com/Ding-Ding-Projects/worldlens/commit/01db881ca4edf73e97e8f3f49b7f1d098728f3d8)
@@ -76,6 +78,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Merge remote-tracking branch 'origin/main' - [`21f2babd0b`](https://github.com/Ding-Ding-Projects/worldlens/commit/21f2babd0bad778cce2a79507e094bae82000a26) _(summary of 3 commits, also listed here)_
 - Record the reconciled default-branch handoff - [`4b00c14492`](https://github.com/Ding-Ding-Projects/worldlens/commit/4b00c14492f18c2e994bb88ad76b25012a294713)
 - Capture the deployed documentation article - [`90a66a85da`](https://github.com/Ding-Ding-Projects/worldlens/commit/90a66a85dab807d7e14de65d8da6cae295758a78)
 - Document the Pages redesign handoff - [`3f487aa236`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f487aa23674340bde029509f9b15de409b4e7a2)
@@ -83,6 +86,7 @@ full message for the in-app changelog viewer.
 
 ### Elsewhere in the repository
 
+- chore(redesign): mirror regenerated changelog into redesign/ui - [`42550a7538`](https://github.com/Ding-Ding-Projects/worldlens/commit/42550a7538e3fbff223dd6b59712faa93b4d1939)
 - Merge branch 'main' of https://github.com/Ding-Ding-Projects/worldlens - [`4db20ee446`](https://github.com/Ding-Ding-Projects/worldlens/commit/4db20ee44619941bd61013795461b3126497c29d) _(summary of 94 commits, also listed here)_
 - Harden fresh-host release tooling - [`973bcd120f`](https://github.com/Ding-Ding-Projects/worldlens/commit/973bcd120f52d727b2a6739d624eeaede574ccf4)
 - Merge current main and preserve project editor fixes - [`09c2bfcd1a`](https://github.com/Ding-Ding-Projects/worldlens/commit/09c2bfcd1a5ce040ee8d0d4250e470ff380e5228) _(summary of 3 commits, also listed here)_
