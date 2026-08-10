@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "d54147c5aba1baa47bcd986e9e7b41e95586f74e",
+        shortSha: "d54147c5ab",
+        date: "2026-08-10T17:45:06Z",
+        subject: "docs(agents): make updating GitHub Pages and refusing stale content a repository rule",
+        details: "The site deploys from main on every push, so it is never behind by accident -\nit goes stale because somebody changed what is true and did not change what the\nsite says. Two site sentences described a headless server as 'planned and not\nbuilt' and the mesher as rendering nothing, months after both claims stopped\nbeing true. The rule now names the duty, the files that carry it, the\nverification commands, and the traps: both languages or neither, dates beside\nclaims that age, grep before claiming a capability is missing, and never\nadvance a digest from a partial run to make a page look current.",
+        category: "docs",
+        areas: ["docs"],
+        files: 1,
+    },
+    {
         sha: "4d511d6c9024db215b6de4db7c027332ffca3509",
         shortSha: "4d511d6c90",
         date: "2026-08-10T17:44:07Z",

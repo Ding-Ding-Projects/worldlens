@@ -36,6 +36,10 @@ full message for the in-app changelog viewer.
 
 - fix(site): the landing page no longer contradicts what shipped - [`8c9a69fbfb`](https://github.com/Ding-Ding-Projects/worldlens/commit/8c9a69fbfb87a266a4edb4c223ace90f0456ca9d)
 
+### Documentation
+
+- docs(agents): make updating GitHub Pages and refusing stale content a repository rule - [`d54147c5ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/d54147c5aba1baa47bcd986e9e7b41e95586f74e)
+
 ## 1.0.1017 - 2026-08-10
 
 Tagged at [`86cdbb3c8b`](https://github.com/Ding-Ding-Projects/worldlens/commit/86cdbb3c8be48687715a2d346a037c83a9f5175f).
