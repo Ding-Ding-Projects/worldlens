@@ -17,7 +17,6 @@
  * voiced keys so a new entry cannot be added without a fact to guard it.
  */
 
-import { ACCOUNTS_FACTS, ACCOUNTS_FIXED, ACCOUNTS_VOICED } from "./accounts.js";
 import { APPEARANCE_FACTS, APPEARANCE_FIXED, APPEARANCE_VOICED } from "./appearance.js";
 import { BACKUP_FACTS, BACKUP_FIXED, BACKUP_VOICED } from "./backup.js";
 import { CHANGELOG_FACTS, CHANGELOG_FIXED, CHANGELOG_VOICED } from "./changelog.js";
@@ -30,7 +29,6 @@ import { CONFIGFILES_FACTS, CONFIGFILES_FIXED, CONFIGFILES_VOICED } from "./conf
 import { CONSOLE_FACTS, CONSOLE_FIXED, CONSOLE_VOICED } from "./console.js";
 import { DEPENDENCIES_FACTS, DEPENDENCIES_FIXED, DEPENDENCIES_VOICED } from "./dependencies.js";
 import { DOCSVIEWER_FACTS, DOCSVIEWER_FIXED, DOCSVIEWER_VOICED } from "./docsViewer.js";
-import { DOWNLOADER_FACTS, DOWNLOADER_FIXED, DOWNLOADER_VOICED } from "./downloader.js";
 import { DOWNLOADS_FACTS, DOWNLOADS_FIXED, DOWNLOADS_VOICED } from "./downloads.js";
 import { GHCLIACCOUNTS_FACTS, GHCLIACCOUNTS_FIXED, GHCLIACCOUNTS_VOICED } from "./ghCliAccounts.js";
 import { GITHUB_FACTS, GITHUB_FIXED, GITHUB_VOICED } from "./github.js";
@@ -71,7 +69,6 @@ import { WORLDREPO_FACTS, WORLDREPO_FIXED, WORLDREPO_VOICED } from "./worldrepo.
 export const SURFACE_VOICED = {
     ...CHROME_VOICED,
     ...SHELL_VOICED,
-    ...ACCOUNTS_VOICED,
     ...APPEARANCE_VOICED,
     ...BACKUP_VOICED,
     ...CHANGELOG_VOICED,
@@ -82,7 +79,6 @@ export const SURFACE_VOICED = {
     ...CONSOLE_VOICED,
     ...DEPENDENCIES_VOICED,
     ...DOCSVIEWER_VOICED,
-    ...DOWNLOADER_VOICED,
     ...DOWNLOADS_VOICED,
     ...GHCLIACCOUNTS_VOICED,
     ...GITHUB_VOICED,
@@ -120,7 +116,6 @@ export const SURFACE_VOICED = {
 export const SURFACE_FIXED = {
     ...CHROME_FIXED,
     ...SHELL_FIXED,
-    ...ACCOUNTS_FIXED,
     ...APPEARANCE_FIXED,
     ...BACKUP_FIXED,
     ...CHANGELOG_FIXED,
@@ -131,7 +126,6 @@ export const SURFACE_FIXED = {
     ...CONSOLE_FIXED,
     ...DEPENDENCIES_FIXED,
     ...DOCSVIEWER_FIXED,
-    ...DOWNLOADER_FIXED,
     ...DOWNLOADS_FIXED,
     ...GHCLIACCOUNTS_FIXED,
     ...GITHUB_FIXED,
@@ -169,7 +163,6 @@ export const SURFACE_FIXED = {
 export const SURFACE_FACTS = {
     ...CHROME_FACTS,
     ...SHELL_FACTS,
-    ...ACCOUNTS_FACTS,
     ...APPEARANCE_FACTS,
     ...BACKUP_FACTS,
     ...CHANGELOG_FACTS,
@@ -180,7 +173,6 @@ export const SURFACE_FACTS = {
     ...CONSOLE_FACTS,
     ...DEPENDENCIES_FACTS,
     ...DOCSVIEWER_FACTS,
-    ...DOWNLOADER_FACTS,
     ...DOWNLOADS_FACTS,
     ...GHCLIACCOUNTS_FACTS,
     ...GITHUB_FACTS,

@@ -89,22 +89,6 @@ export const MASKDRAW_VOICED = {
         ],
     },
     /* One route-parity statement, shown once for the complete top-level mask. */
-    "mask.fidelity.routesExact": {
-        en: [
-            "Cloud/Actions and local desktop renders both apply every configured mask shape, subtract flag, nested blur, and layer order exactly.",
-            "Cloud/Actions and local desktop renders both apply every configured mask shape, subtract flag, nested blur, and layer order exactly.",
-            "Cloud/Actions and local desktop renders now apply every mask shape, subtract flag, nested blur, and layer order exactly alike.",
-            "Cloud/Actions and local desktop renders apply every shape, subtract flag, nested blur, and layer order exactly, so the route changes and the mask does not.",
-            "Cloud/Actions and local desktop renders apply every shape, subtract flag, nested blur, and layer order exactly. The two engines finally read the same mask instead of one wearing a cardboard box costume.",
-        ],
-        yue: [
-            "雲端／Actions 同本機桌面算圖都會準確套用每個遮罩形狀、相減旗標、巢狀 blur 同圖層次序。",
-            "雲端／Actions 同本機桌面算圖都會準確套用每個遮罩形狀、相減旗標、巢狀 blur 同圖層次序。",
-            "雲端／Actions 同本機桌面算圖而家都會準確跟足每個遮罩形狀、相減旗標、巢狀 blur 同圖層次序。",
-            "雲端／Actions 同本機桌面算圖會準確跟足每個形狀、相減旗標、巢狀 blur 同圖層次序，轉路線都唔會變遮罩。",
-            "雲端／Actions 同本機桌面算圖會準確跟足每個形狀、相減旗標、巢狀 blur 同圖層次序。兩個引擎終於睇緊同一份遮罩，唔再得個紙皮箱扮全能。",
-        ],
-    },
     /* Confirms a mask file was written. */
     "mask.export.done": {
         en: [
@@ -180,18 +164,6 @@ export const MASKDRAW_FACTS = {
     },
     "mask.cost.wholeWorld": { en: ["whole world"], yue: ["成個世界"] },
     "mask.cost.unbounded": { en: ["no area number"], yue: ["冇數畀"] },
-    "mask.fidelity.routesExact": {
-        en: [
-            "Cloud/Actions",
-            "local desktop",
-            "every",
-            "subtract",
-            "blur",
-            "layer order",
-            "exactly",
-        ],
-        yue: ["雲端／Actions", "本機桌面", "每", "相減", "blur", "圖層次序", "準確"],
-    },
     "mask.export.done": {
         en: ["{shapes}", "{path}", "blocks", "Minecraft world coordinates"],
         yue: ["{shapes}", "{path}", "方塊", "Minecraft 世界座標"],

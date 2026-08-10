@@ -78,7 +78,9 @@ export type SettingsAnchor =
     | "mojang-download-consent"
     | "java-runtime"
     | "map-storage-directory"
-    | "world-folder";
+    | "world-folder"
+    /** The gh CLI account section; a download that needs a signed-in account points here. */
+    | "github-account";
 
 export interface RenderFailure {
     readonly code: RenderFailureCode;

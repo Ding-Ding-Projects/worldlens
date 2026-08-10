@@ -52,7 +52,7 @@ import {
     readDownloaderSettings,
     writeDownloaderSettings,
 } from "./settingsStore.js";
-import type { SafeStorageLike } from "../github/storage.js";
+import type { SafeStorageLike } from "./credentialStore.js";
 
 /** Renderer broadcast carrying a running session's real events. */
 export const DOWNLOADER_EVENT_CHANNEL = "worlddownloader:event" as const;

@@ -331,7 +331,6 @@ export const SHELL_FIXED = {
      */
     "catalogue.meta.maskShapes": { en: "{count} shapes", yue: "{count} 個形狀" },
     "catalogue.meta.speedLevels": { en: "{count} levels", yue: "{count} 級" },
-    "catalogue.meta.noticeDurationLevels": { en: "{count} levels", yue: "{count} 級" },
     "catalogue.meta.docsArticles": { en: "{count} articles", yue: "{count} 篇" },
     "catalogue.meta.rendersRunning": { en: "{count} running", yue: "{count} 個進行緊" },
     "catalogue.meta.unreadNotices": { en: "{count} unread", yue: "{count} 個未讀" },

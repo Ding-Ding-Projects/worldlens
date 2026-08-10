@@ -902,6 +902,98 @@ export const CONFIGEDITOR_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const CONFIGEDITOR_FIXED = {
+    "config.field.sourceAuthored": {
+        en: "Docs: BlueMap source-derived explanation",
+        yue: "文件：由 BlueMap 原始碼推導嘅解釋",
+    },
+    "config.field.sourceUpstream": {
+        en: "Docs: BlueMap generated template",
+        yue: "文件：BlueMap 生成範本",
+    },
+    "config.field.type": {
+        en: "Type: {type}",
+        yue: "類型：{type}",
+    },
+    "config.mask.cutItOut": {
+        en: "Cut it out",
+        yue: "剪走佢",
+    },
+    "config.mask.cutItOutNote": {
+        en: "This layer removes from whatever the earlier layers rendered.",
+        yue: "呢一層會由較早嘅層所算嘅範圍度剪走。",
+    },
+    "config.mask.layerMode": {
+        en: "Whether this shape adds to or cuts out of the rendered area",
+        yue: "呢個形狀係加入定係剪走算圖範圍",
+    },
+    "config.mask.renderIt": {
+        en: "Render it",
+        yue: "算佢",
+    },
+    "config.mask.renderItNote": {
+        en: "This layer adds to the rendered area in this list order.",
+        yue: "呢一層按列表次序加入算圖範圍。",
+    },
+    "config.mask.revertField": {
+        en: "Revert to inherited default",
+        yue: "還原返繼承嘅預設值",
+    },
+    "config.mask.revertFieldLabel": {
+        en: "Revert {field} to its inherited default",
+        yue: "將 {field} 還原返繼承嘅預設值",
+    },
+    "config.mask.routeContract": {
+        en: "This ordered render-mask value is written into this map's config for both local and GitHub Actions renders. The route-equivalence test exercises the real UI serializer, CLI converter, and Actions config writer together.",
+        yue: "呢個有序 render-mask 值會寫入呢張地圖嘅 config，本機同 GitHub Actions 算圖都用佢。路線等價測試會一齊行真正嘅 UI 序列化器、CLI 轉換器同 Actions config 寫入器。",
+    },
+    "config.mask.tool.circle": {
+        en: "Circle",
+        yue: "圓形",
+    },
+    "config.mask.tool.ellipse": {
+        en: "Ellipse",
+        yue: "橢圓",
+    },
+    "config.mask.tool.polygon": {
+        en: "Polygon",
+        yue: "多邊形",
+    },
+    "config.mask.tool.rectangle": {
+        en: "Rectangle",
+        yue: "長方形",
+    },
+    "config.mask.tool.regionAligned": {
+        en: "Region-aligned",
+        yue: "貼齊 region",
+    },
+    "config.mask.tool.regionAlignedUnavailable": {
+        en: "Region-aligned needs measured region bounds from this world.",
+        yue: "貼齊 region 需要呢個世界量度咗嘅 region 邊界。",
+    },
+    "config.mask.tools": {
+        en: "Render mask shape tools",
+        yue: "Render mask 形狀工具",
+    },
+    "config.maskCanvas.guides": {
+        en: "Measured world guides",
+        yue: "量度咗嘅世界輔助線",
+    },
+    "config.maskCanvas.measuredRegionCount": {
+        en: "{count} measured region files",
+        yue: "{count} 個量度咗嘅 region 檔案",
+    },
+    "config.maskCanvas.regionEstimate": {
+        en: "About {selected} of {total} measured regions would render.",
+        yue: "大約 {selected} / {total} 個量度咗嘅 region 會算。",
+    },
+    "config.maskCanvas.showExtent": {
+        en: "Show measured region extent",
+        yue: "顯示量度咗嘅 region 範圍",
+    },
+    "config.maskCanvas.showSpawn": {
+        en: "Show overworld spawn",
+        yue: "顯示主世界出生點",
+    },
     /* One control's own affordances. */
     "config.control.noLimit": { en: "No limit", yue: "冇限制" },
     "config.control.removeLimit": { en: "Remove this limit", yue: "拎走呢個限制" },
@@ -965,7 +1057,6 @@ export const CONFIGEDITOR_FIXED = {
     "config.mask.moveDown": { en: "Move this shape later", yue: "將呢個形狀移後" },
     "config.mask.remove": { en: "Remove this shape", yue: "刪走呢個形狀" },
     "config.mask.shape": { en: "Shape", yue: "形狀" },
-    "config.mask.subtract": { en: "Subtract instead of add", yue: "減走，唔係加上" },
     "config.mask.add": { en: "Add a shape", yue: "加個形狀" },
     "config.mask.draw": { en: "Draw…", yue: "畫圖…" },
     "config.mask.hideDraw": { en: "Hide drawing", yue: "收埋幅畫" },

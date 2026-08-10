@@ -64,7 +64,12 @@ export interface RenderRequest {
 /** Where the interface should send somebody to fix a failure. */
 export interface SettingsTarget {
     readonly surface: "settings";
-    readonly anchor: "mojang-download-consent" | "java-runtime" | "map-storage-directory" | "world-folder";
+    readonly anchor:
+        | "mojang-download-consent"
+        | "java-runtime"
+        | "map-storage-directory"
+        | "world-folder"
+        | "github-account";
     readonly missing: boolean;
 }
 

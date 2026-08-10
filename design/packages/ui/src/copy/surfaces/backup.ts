@@ -387,38 +387,6 @@ export const BACKUP_VOICED = {
      * the "up to 300" clause and the counts; a level that rounds "300 of possibly more"
      * up to "everything" would be lying about how complete this list is.
      */
-    "backup.repo.loadedSummary": {
-        en: [
-            "{total} repositories loaded (most recently active first, up to 300).",
-            "{total} repositories loaded (most recently active first, up to 300).",
-            "{total} repositories loaded so far (most recently active first, up to 300).",
-            "{total} repositories loaded and counted (most recently active first, up to 300). That is what is here to search, not necessarily every repository the account owns.",
-            "{total} repositories loaded and counted (most recently active first, up to 300), and that cap is real. That is what is here to search, not a promise that it is everything the account owns.",
-        ],
-        yue: [
-            "已經讀咗 {total} 個儲存庫（跟最近有活動排先，最多 300 個）。",
-            "已經讀咗 {total} 個儲存庫（跟最近有活動排先，最多 300 個）。",
-            "而家已經讀咗 {total} 個儲存庫（跟最近有活動排先，最多 300 個）。",
-            "已經讀咗同數埋 {total} 個儲存庫（跟最近有活動排先，最多 300 個）。呢度就係搵嘢嘅範圍，唔一定係個帳戶擁有嘅全部。",
-            "已經讀咗同數埋 {total} 個儲存庫（跟最近有活動排先，最多 300 個），呢個上限係真㗎。呢度就係搵嘢嘅範圍，唔係話呢個帳戶淨係得咁多。",
-        ],
-    },
-    "backup.repo.searchSummary": {
-        en: [
-            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300). Type its owner and name below if yours is not among them.",
-            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300). Type its owner and name below if yours is not among them.",
-            "Showing {shown} of {total} loaded repositories so far (most recently active first, up to 300). Type its owner and name below if yours is not among them.",
-            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300) - a filtered view, never the whole account. Type its owner and name below if yours is not among them.",
-            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300) - a filtered view, and nothing here claims to be the whole account. Type its owner and name below if yours is not among them, and skip the search entirely.",
-        ],
-        yue: [
-            "而家顯示緊 {total} 個入面嘅 {shown} 個已讀儲存庫（跟最近有活動排先，最多 300 個）。如果搵唔到你嗰個，喺下面打佢嘅擁有者同名。",
-            "而家顯示緊 {total} 個入面嘅 {shown} 個已讀儲存庫（跟最近有活動排先，最多 300 個）。如果搵唔到你嗰個，喺下面打佢嘅擁有者同名。",
-            "而家顯示緊 {total} 個已讀儲存庫入面嘅 {shown} 個（跟最近有活動排先，最多 300 個）。如果搵唔到你嗰個，喺下面打佢嘅擁有者同名。",
-            "顯示緊 {total} 個已讀儲存庫入面嘅 {shown} 個（跟最近有活動排先，最多 300 個）－呢個係篩選過嘅畫面，唔係成個帳戶。搵唔到你嗰個？喺下面打佢嘅擁有者同名。",
-            "顯示緊 {total} 個已讀儲存庫入面嘅 {shown} 個（跟最近有活動排先，最多 300 個）－呢個淨係篩選過嘅畫面，冇話呢度就係成個帳戶。搵唔到你嗰個？喺下面打佢嘅擁有者同名，搜尋都唔使搜咁多次。",
-        ],
-    },
     /*
      * Two different empty states, on purpose. `repo.none` is the account itself having
      * nothing yet; `repo.noMatch` is the account having plenty and this search finding
@@ -904,6 +872,10 @@ export const BACKUP_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const BACKUP_FIXED = {
+    "backup.createRepo.blockedConfirmedOwner": {
+        en: "Choose a personal or organization owner confirmed for the selected account before creating a repository.",
+        yue: "喺建立 repository 之前，先揀一個已為所選帳戶確認咗嘅個人或組織擁有者。",
+    },
     /* ---------------------------------------------------------------- */
     /* The screen, its two steps, and the button                        */
     /* ---------------------------------------------------------------- */
@@ -1013,7 +985,6 @@ export const BACKUP_FIXED = {
     "backup.repoPrivate": { en: "{name} (private)", yue: "{name}（私人）" },
     "backup.repoPublic": { en: "{name} (PUBLIC)", yue: "{name}（PUBLIC）" },
     "backup.pickRepository": { en: "One of your repositories", yue: "你其中一個儲存庫" },
-    "backup.owner": { en: "Owner", yue: "擁有者" },
     "backup.repo": { en: "Repository", yue: "儲存庫" },
     "backup.check": { en: "Check this repository", yue: "檢查呢個儲存庫" },
 
@@ -1033,12 +1004,6 @@ export const BACKUP_FIXED = {
     "backup.repo.loadedHint": {
         en: "Most recently active first, up to 300 real repositories returned by GitHub CLI.",
         yue: "最近有活動嘅排先，最多顯示 GitHub CLI 交返嘅 300 個真實儲存庫。",
-    },
-    "backup.createRepo.ownerKind": { en: "The owner above is", yue: "上面個擁有者係" },
-    "backup.createRepo.ownerKind.user": { en: "my own account", yue: "我自己嘅帳戶" },
-    "backup.createRepo.ownerKind.org": {
-        en: "an organization I belong to",
-        yue: "我所屬嘅一個機構",
     },
     "backup.createRepo.visibility": { en: "Visibility", yue: "可見度" },
     "backup.createRepo.visibility.private": { en: "Private", yue: "私人" },
@@ -1187,14 +1152,6 @@ export const BACKUP_FACTS = {
     "backup.starting": { en: ["Starting"], yue: ["開始緊"] },
 
     // Honest pagination: the cap and the counts survive every level, in both places.
-    "backup.repo.loadedSummary": {
-        en: ["{total}", "up to 300"],
-        yue: ["{total}", "最多 300"],
-    },
-    "backup.repo.searchSummary": {
-        en: ["{shown}", "{total}", "up to 300", "Type its owner and name below"],
-        yue: ["{shown}", "{total}", "最多 300", "喺下面打佢嘅擁有者同名"],
-    },
     // Two different empty states; the fact pinned for each is the one that tells them apart.
     "backup.repo.noMatch": {
         en: ["match that search", "create a new repository"],

@@ -633,22 +633,6 @@ export const CIRENDER_VOICED = {
      * not scoped to this render card. Every level keeps both the scope and the lasting
      * consequence so choosing a playful voice can never make the warning less actionable.
      */
-    "cirender.account.ghSwitchWarning": {
-        en: [
-            "If this render uses gh, checking or uploading may switch gh's active account for the whole computer. The selected account remains active afterward.",
-            "If this render uses gh, a check or upload may switch gh's active account for the whole computer. The selected account remains active afterward.",
-            "If this render uses gh, checking or uploading may switch gh's active account across the whole computer. The selected account remains active afterward, not only for this render.",
-            "If this render uses gh, a check or upload may switch gh's active account for the whole computer. The selected account remains active afterward, because gh makes that choice machine-wide rather than card-sized.",
-            "If this render uses gh, checking or uploading may switch gh's active account for the whole computer. The selected account remains active afterward; gh changes the machine-wide name badge and does not put the old one back when this card is done.",
-        ],
-        yue: [
-            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中。",
-            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中。",
-            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中，唔係淨係今次算圖先用。",
-            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中，因為 gh 改嘅係全機選擇，唔係呢張卡自己收埋玩。",
-            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中；gh 幫成部機換咗名牌，做完呢張卡都唔會自動掛返舊嗰塊。",
-        ],
-    },
 
     /*
      * Signed out is not a dead end: it says so, and it points at the sign-in row that
@@ -1012,6 +996,86 @@ export const CIRENDER_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const CIRENDER_FIXED = {
+    "cirender.account.empty": {
+        en: "No GitHub CLI accounts are signed in.",
+        yue: "冇 GitHub CLI 帳戶登入咗。",
+    },
+    "cirender.account.noMatch": {
+        en: "No signed-in account matches that search.",
+        yue: "冇已登入帳戶符合嗰個搜尋。",
+    },
+    "cirender.account.reauthenticationRequired": {
+        en: "reauthentication required",
+        yue: "需要重新驗證",
+    },
+    "cirender.account.search": {
+        en: "Search signed-in accounts",
+        yue: "搜尋已登入帳戶",
+    },
+    "cirender.account.selected": {
+        en: "Selected account",
+        yue: "已選帳戶",
+    },
+    "cirender.bootstrap.createAction": {
+        en: "Create and set this repository up",
+        yue: "建立並設定好呢個 repository",
+    },
+    "cirender.bootstrap.creatingRepository": {
+        en: "Creating the repository through GitHub CLI...",
+        yue: "緊透過 GitHub CLI 建立 repository...",
+    },
+    "cirender.bootstrap.private": {
+        en: "Create as a private repository",
+        yue: "以私人 repository 建立",
+    },
+    "cirender.bootstrap.repositoryCreated": {
+        en: "GitHub CLI created and verified {name}. Preparing its render workflow now.",
+        yue: "GitHub CLI 建立並核實咗 {name}。而家準備緊佢嘅算圖 workflow。",
+    },
+    "cirender.owner.empty": {
+        en: "No owners were returned by GitHub CLI.",
+        yue: "GitHub CLI 冇回傳任何擁有者。",
+    },
+    "cirender.owner.help": {
+        en: "Owners are read through GitHub CLI for the selected account and revalidated before a repository is created.",
+        yue: "擁有者係透過 GitHub CLI 用所選帳戶讀取，並會喺建立 repository 之前再核實一次。",
+    },
+    "cirender.owner.noMatch": {
+        en: "No real owner matches that search.",
+        yue: "冇真實擁有者符合嗰個搜尋。",
+    },
+    "cirender.owner.search": {
+        en: "Search personal and organization owners",
+        yue: "搜尋個人同組織擁有者",
+    },
+    "cirender.owner.selected": {
+        en: "Selected owner",
+        yue: "已選擁有者",
+    },
+    "cirender.readiness.cliUnavailable": {
+        en: "This build cannot complete repository setup through GitHub CLI. No browser page was opened; update or repair the desktop application, then try again.",
+        yue: "呢個版本無法透過 GitHub CLI 完成 repository 設定。冇打開過任何瀏覽器頁面；請更新或修復桌面應用程式，然後再試。",
+    },
+    "cirender.repo.empty": {
+        en: "No writable repositories were returned by GitHub CLI.",
+        yue: "GitHub CLI 冇回傳任何可寫入嘅 repository。",
+    },
+    "cirender.repo.loadedHint": {
+        en: "Most recently active first, up to 300 real repositories returned by GitHub CLI.",
+        yue: "最近活躍嘅排先，最多顯示 GitHub CLI 回傳嘅 300 個真實 repository。",
+    },
+    "cirender.repo.noMatch": {
+        en: "No real repository matches that search.",
+        yue: "冇真實 repository 符合嗰個搜尋。",
+    },
+    "cirender.repo.search": {
+        en: "Search your repositories",
+        yue: "搜尋你嘅 repository",
+    },
+    "cirender.repo.selectedLabel": {
+        en: "Selected repository",
+        yue: "已選 repository",
+    },
     "cirender.artwork.alt": {
         en: "A local Minecraft world travelling through a cloud render pipeline and returning as a finished map",
         yue: "本機 Minecraft 世界經過雲端算圖流程，再以完成地圖返嚟",
@@ -1053,7 +1117,6 @@ export const CIRENDER_FIXED = {
     "cirender.title": { en: "Render on GitHub", yue: "喺 GitHub 度算圖" },
     "cirender.where.title": { en: "What, and where", yue: "算咩，同埋去邊" },
     "cirender.field.world": { en: "World folder", yue: "世界資料夾" },
-    "cirender.field.owner": { en: "Repository owner", yue: "倉庫擁有者" },
     "cirender.field.repo": { en: "Repository name", yue: "倉庫名" },
     "cirender.check": { en: "Check before anything is sent", yue: "送任何嘢上去之前先檢查" },
     "cirender.report.title": { en: "What this would do", yue: "呢個會做啲咩" },
@@ -1099,10 +1162,6 @@ export const CIRENDER_FIXED = {
         en: "Using the gh command-line tool",
         yue: "用緊 gh 命令列工具",
     },
-    "cirender.row.route.session": {
-        en: "Using this application's GitHub sign-in",
-        yue: "用緊呢個程式自己嘅 GitHub 登入",
-    },
 
     /* Helper text under each field of the guided "What, and where" card. */
     "cirender.field.world.help": {
@@ -1121,10 +1180,6 @@ export const CIRENDER_FIXED = {
     "cirender.field.world.browseUnavailableLabel": {
         en: "Browse: {reason}",
         yue: "瀏覽：{reason}",
-    },
-    "cirender.field.owner.help": {
-        en: "Pick an account above, or type any owner you have write access to.",
-        yue: "喺上面揀個帳戶，或者打任何一個你有寫入權限嘅擁有者。",
     },
     "cirender.field.repo.help": {
         en: "A name is suggested once you choose a world. It stays yours to change before checking.",
@@ -1152,7 +1207,6 @@ export const CIRENDER_FIXED = {
     },
     /** Which one every other legacy channel already resolves to, named on the item itself. */
     "cirender.account.itemActive": { en: "{login} (active)", yue: "{login}（用緊）" },
-    "cirender.account.disabledLabel": { en: "Render as: {reason}", yue: "算圖帳戶：{reason}" },
     "cirender.gh.openAccounts": { en: "Open GitHub accounts", yue: "開啟 GitHub 帳戶" },
 
     /* The owner picker: its two item shapes, and the two ways it can come up short. */
@@ -1179,14 +1233,6 @@ export const CIRENDER_FIXED = {
      * repository on GitHub, or GitHub's own prefilled "create a repository" page when there
      * is not one yet, so setting it up by hand is never more than one click away.
      */
-    "cirender.readiness.open": {
-        en: "Open {owner}/{repo} on GitHub to set it up",
-        yue: "喺 GitHub 開 {owner}/{repo} 去設定",
-    },
-    "cirender.readiness.create": {
-        en: "Create {owner}/{repo} on GitHub",
-        yue: "喺 GitHub 開返 {owner}/{repo}",
-    },
 
     /* Scheduled re-rendering: the section title, its toggle, the cadence choices, and the
      * status readout. Short factual labels, like every other field name on this screen. */
@@ -1406,10 +1452,6 @@ export const CIRENDER_FACTS = {
     "cirender.account.signedOut": {
         en: ["Nobody is signed in", "Sign in from Settings"],
         yue: ["冇人登入", "設定入面登入"],
-    },
-    "cirender.account.ghSwitchWarning": {
-        en: ["uses gh", "active account", "whole computer", "remains active afterward"],
-        yue: ["用 gh", "目前使用中嘅帳戶", "成部電腦", "之後會繼續保持使用中"],
     },
 
     // The remedy - Settings, or free text - is the point, not merely "nobody signed in".

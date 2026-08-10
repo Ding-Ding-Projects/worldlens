@@ -167,22 +167,6 @@ export const PROJECT_VOICED = {
             "之後隨時可以改。GitHub Actions workflow 會孭住成套 BlueMap 工具箱同依賴入場，呢部電腦唔使先扮成算圖農場。",
         ],
     },
-    "project.autosave.queueFailed": {
-        en: [
-            "This edit is still on screen, but it could not be queued for automatic saving: {message}",
-            "This edit is still on screen, but it could not be queued for automatic saving: {message}",
-            "This edit is still safely on screen, but automatic saving could not queue it: {message}",
-            "The edit is still on screen, but the automatic-save queue dropped the baton: {message}",
-            "The edit is still on screen, but the automatic-save queue tripped over its own shoelaces: {message}",
-        ],
-        yue: [
-            "呢次改動仲喺畫面，但未能排入自動儲存：{message}",
-            "呢次改動仲喺畫面，但未能排入自動儲存：{message}",
-            "呢次改動仲安全留喺畫面，但自動儲存未能排隊：{message}",
-            "改動仲喺畫面，不過自動儲存條隊接棒失手：{message}",
-            "改動仲喺畫面，不過自動儲存條隊俾自己鞋帶跣親：{message}",
-        ],
-    },
 
     "project.render.threadsHint": {
         en: [
@@ -1541,6 +1525,66 @@ export const PROJECT_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const PROJECT_FIXED = {
+    "project.mask.cardLabel": {
+        en: "Render mask for this map",
+        yue: "呢張地圖嘅 render mask",
+    },
+    "project.mask.clear": {
+        en: "Revert entire mask to inherited default",
+        yue: "將成個 mask 還原返繼承嘅預設值",
+    },
+    "project.mask.editorLabel": {
+        en: "Render mask editor",
+        yue: "Render mask 編輯器",
+    },
+    "project.mask.hide": {
+        en: "Hide editor",
+        yue: "收埋編輯器",
+    },
+    "project.mask.launcherClear": {
+        en: "Revert to inherited default",
+        yue: "還原返繼承嘅預設值",
+    },
+    "project.mask.launcherInherited": {
+        en: "This map inherits no mask, so BlueMap renders the whole world.",
+        yue: "呢張地圖冇繼承任何 mask，所以 BlueMap 會算成個世界。",
+    },
+    "project.mask.launcherNote": {
+        en: "This field opens the map node's one editor; it does not create a second mask draft.",
+        yue: "呢個欄位打開地圖節點嗰一個編輯器；唔會另外開多份 mask 草稿。",
+    },
+    "project.mask.launcherOpen": {
+        en: "Open the shared Render mask card",
+        yue: "打開共用嘅 Render mask 卡",
+    },
+    "project.mask.launcherSet": {
+        en: "This map sets {count} ordered layer(s).",
+        yue: "呢張地圖設定咗 {count} 個有序圖層。",
+    },
+    "project.mask.layerCount": {
+        en: "{count} ordered layer(s)",
+        yue: "{count} 個有序圖層",
+    },
+    "project.mask.measurementUnavailable": {
+        en: "Measured region bounds are unavailable ({reason}). You can still draw with real block coordinates.",
+        yue: "攞唔到量度咗嘅 region 邊界（{reason}）。你仍然可以用真實方塊座標嚟畫。",
+    },
+    "project.mask.open": {
+        en: "Edit mask",
+        yue: "編輯 mask",
+    },
+    "project.mask.regionCount": {
+        en: "{count} measured region files",
+        yue: "{count} 個量度咗嘅 region 檔案",
+    },
+    "project.mask.summary": {
+        en: "Each ordered layer either renders an area or cuts it out. This is the same map-config value used by local and GitHub Actions renders.",
+        yue: "每個有序圖層要麼算一個範圍，要麼剪走佢。本機同 GitHub Actions 算圖用嘅係同一個地圖 config 值。",
+    },
+    "project.mask.title": {
+        en: "Render mask",
+        yue: "Render mask",
+    },
     /* ---------------------------------------------------------------- */
     /* ProjectEditor.vue                                                  */
     /* ---------------------------------------------------------------- */
@@ -1836,10 +1880,6 @@ export const PROJECT_FACTS = {
     "project.create.routeHint": {
         en: ["change", "GitHub Actions", "BlueMap", "dependencies"],
         yue: ["改", "GitHub Actions", "BlueMap", "依賴"],
-    },
-    "project.autosave.queueFailed": {
-        en: ["edit", "screen", "automatic", "{message}"],
-        yue: ["改動", "畫面", "自動儲存", "{message}"],
     },
     "project.render.forceHint": { en: ["every chunk", "Slow"], yue: ["每一個區塊", "慢"] },
     "project.render.fixEdgesHint": {

@@ -1075,7 +1075,7 @@ const renderButtonLabel = computed(() =>
                     {{ t("project.editor.fromWizard", "made by the guide") }}
                 </span>
                 <span v-if="isDirty" class="mb-badge-pill mb-project-editor__dirtyBadge">
-                    {{ t("project.editor.unsaved", "waiting to auto-save") }}
+                    {{ t("project.editor.unsaved", "Unsaved changes") }}
                 </span>
             </div>
 
@@ -1350,285 +1350,213 @@ const renderButtonLabel = computed(() =>
                                     :summary="runSummary"
                                 />
 
-                                <v-select
+                                <div class="mb-section-rule">
+                                    <span class="mb-section-label">{{
+                                        t("project.render.options", "Render options")
+                                    }}</span>
+                                </div>
+
+                                <ProjectRenderOption
                                     v-if="showsRun('route')"
-                                    :model-value="selectedRenderRoute"
-                                    :items="renderRouteItems"
-                                    :label="t('project.render.route', 'Where this project renders')"
-                                    :hint="
-                                        t(
-                                            'project.render.routeHint',
-                                            'Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps going after this computer is off.',
-                                        )
-                                    "
-                                    persistent-hint
-                                    variant="outlined"
-                                    density="compact"
-                                    class="mt-3"
-                                    @update:model-value="setRenderRoute"
-                                />
-                                <div
-                                    v-if="showsRun('route')"
-                                    class="mb-project-editor__fieldDefault"
+                                    path="render.route"
+                                    :cost="costOf('route')"
+                                    :cost-badge="costBadge"
+                                    :state="fieldDefaultText('route', selectedRenderRoute)"
+                                    :at-default="isRenderFieldDefault(project, 'route')"
+                                    :revert-label="revertLabel('route')"
+                                    @revert="resetRenderField('route')"
                                 >
-                                    <span>{
-                                        fieldDefaultText("route", selectedRenderRoute)
-                                    }</span>
-                                    <v-btn
-                                        v-if="!isRenderFieldDefault(project, 'route')"
-                                        variant="text"
-                                        size="x-small"
-                                        density="comfortable"
-                                        @click="resetRenderField('route')"
-                                    >
-                                        {
+                                    <v-select
+                                        :model-value="selectedRenderRoute"
+                                        :items="renderRouteItems"
+                                        :label="t('project.render.route', 'Where this project renders')"
+                                        :hint="
                                             t(
-                                                "project.fieldDefault.reset",
-                                                "Reset to BlueMap's default",
+                                                'project.render.routeHint',
+                                                'Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps going after this computer is off.',
                                             )
-                                        }
-                                    </v-btn>
-                                </div>
+                                        "
+                                        persistent-hint
+                                        variant="outlined"
+                                        density="compact"
+                                        @update:model-value="setRenderRoute"
+                                    />
+                                </ProjectRenderOption>
 
-                                <v-text-field
+                                <ProjectRenderOption
                                     v-if="showsRun('threads')"
-                                    :model-value="project.render.threads ?? ''"
-                                    :label="t('project.render.threads', 'Render threads')"
-                                    :hint="
-                                        t(
-                                            'project.render.threadsHint',
-                                            'How many chunks are drawn at once. Left empty, BlueMap decides from the machine it is on, which is usually the right answer.',
-                                        )
-                                    "
-                                    persistent-hint
-                                    type="number"
-                                    min="1"
-                                    variant="outlined"
-                                    density="compact"
-                                    class="mt-3"
-                                    @update:model-value="setThreads"
-                                />
-                                <div
-                                    v-if="showsRun('threads')"
-                                    class="mb-project-editor__fieldDefault"
+                                    path="render.threads"
+                                    :cost="costOf('threads')"
+                                    :cost-badge="costBadge"
+                                    :state="fieldDefaultText('threads', project.render.threads)"
+                                    :at-default="isRenderFieldDefault(project, 'threads')"
+                                    :revert-label="revertLabel('threads')"
+                                    @revert="resetRenderField('threads')"
                                 >
-                                    <span>{
-                                        fieldDefaultText("threads", project.render.threads)
-                                    }</span>
-                                    <v-btn
-                                        v-if="!isRenderFieldDefault(project, 'threads')"
-                                        variant="text"
-                                        size="x-small"
-                                        density="comfortable"
-                                        @click="resetRenderField('threads')"
-                                    >
-                                        {
+                                    <v-text-field
+                                        :model-value="project.render.threads ?? ''"
+                                        :label="t('project.render.threads', 'Render threads')"
+                                        :hint="
                                             t(
-                                                "project.fieldDefault.reset",
-                                                "Reset to BlueMap's default",
+                                                'project.render.threadsHint',
+                                                'How many chunks are drawn at once. Left empty, BlueMap decides from the machine it is on, which is usually the right answer.',
                                             )
-                                        }
-                                    </v-btn>
-                                </div>
+                                        "
+                                        persistent-hint
+                                        type="number"
+                                        min="1"
+                                        variant="outlined"
+                                        density="compact"
+                                        @update:model-value="setThreads"
+                                    />
+                                </ProjectRenderOption>
 
-                                <v-switch
+                                <ProjectRenderOption
                                     v-if="showsRun('force')"
-                                    :model-value="project.render.force"
-                                    :label="t('project.render.force', 'Draw everything again')"
-                                    :hint="
-                                        t(
-                                            'project.render.forceHint',
-                                            'Redraws every chunk rather than only the ones that changed. Slow, and what you want after changing how the map looks.',
-                                        )
-                                    "
-                                    persistent-hint
-                                    color="primary"
-                                    density="compact"
-                                    inset
-                                    @update:model-value="
-                                        (value: boolean | null) =>
-                                            emit(
-                                                'update:project',
-                                                withRender(project, { force: value === true }),
-                                            )
-                                    "
-                                />
-                                <div
-                                    v-if="showsRun('force')"
-                                    class="mb-project-editor__fieldDefault"
+                                    path="render.force"
+                                    :cost="costOf('force')"
+                                    :cost-badge="costBadge"
+                                    :state="fieldDefaultText('force', project.render.force)"
+                                    :at-default="isRenderFieldDefault(project, 'force')"
+                                    :revert-label="revertLabel('force')"
+                                    @revert="resetRenderField('force')"
                                 >
-                                    <span>{
-                                        fieldDefaultText("force", project.render.force)
-                                    }</span>
-                                    <v-btn
-                                        v-if="!isRenderFieldDefault(project, 'force')"
-                                        variant="text"
-                                        size="x-small"
-                                        density="comfortable"
-                                        @click="resetRenderField('force')"
-                                    >
-                                        {
+                                    <v-switch
+                                        :model-value="project.render.force"
+                                        :label="t('project.render.force', 'Draw everything again')"
+                                        :hint="
                                             t(
-                                                "project.fieldDefault.reset",
-                                                "Reset to BlueMap's default",
+                                                'project.render.forceHint',
+                                                'Redraws every chunk rather than only the ones that changed. Slow, and what you want after changing how the map looks.',
                                             )
-                                        }
-                                    </v-btn>
-                                </div>
+                                        "
+                                        persistent-hint
+                                        color="primary"
+                                        density="compact"
+                                        inset
+                                        @update:model-value="
+                                            (value: boolean | null) =>
+                                                emit(
+                                                    'update:project',
+                                                    withRender(project, { force: value === true }),
+                                                )
+                                        "
+                                    />
+                                </ProjectRenderOption>
 
-                                <v-switch
+                                <ProjectRenderOption
                                     v-if="showsRun('fixEdges')"
-                                    :model-value="project.render.fixEdges"
-                                    :label="t('project.render.fixEdges', 'Redraw the edges too')"
-                                    :hint="
-                                        t(
-                                            'project.render.fixEdgesHint',
-                                            'Redraws the boundary between chunks as well as the chunks themselves, which is what fixes seams left by an interrupted render.',
-                                        )
-                                    "
-                                    persistent-hint
-                                    color="primary"
-                                    density="compact"
-                                    inset
-                                    @update:model-value="
-                                        (value: boolean | null) =>
-                                            emit(
-                                                'update:project',
-                                                withRender(project, { fixEdges: value === true }),
-                                            )
-                                    "
-                                />
-                                <div
-                                    v-if="showsRun('fixEdges')"
-                                    class="mb-project-editor__fieldDefault"
+                                    path="render.fixEdges"
+                                    :cost="costOf('fixEdges')"
+                                    :cost-badge="costBadge"
+                                    :state="fieldDefaultText('fixEdges', project.render.fixEdges)"
+                                    :at-default="isRenderFieldDefault(project, 'fixEdges')"
+                                    :revert-label="revertLabel('fixEdges')"
+                                    @revert="resetRenderField('fixEdges')"
                                 >
-                                    <span>{
-                                        fieldDefaultText("fixEdges", project.render.fixEdges)
-                                    }</span>
-                                    <v-btn
-                                        v-if="!isRenderFieldDefault(project, 'fixEdges')"
-                                        variant="text"
-                                        size="x-small"
-                                        density="comfortable"
-                                        @click="resetRenderField('fixEdges')"
-                                    >
-                                        {
+                                    <v-switch
+                                        :model-value="project.render.fixEdges"
+                                        :label="t('project.render.fixEdges', 'Redraw the edges too')"
+                                        :hint="
                                             t(
-                                                "project.fieldDefault.reset",
-                                                "Reset to BlueMap's default",
+                                                'project.render.fixEdgesHint',
+                                                'Redraws the boundary between chunks as well as the chunks themselves, which is what fixes seams left by an interrupted render.',
                                             )
-                                        }
-                                    </v-btn>
-                                </div>
+                                        "
+                                        persistent-hint
+                                        color="primary"
+                                        density="compact"
+                                        inset
+                                        @update:model-value="
+                                            (value: boolean | null) =>
+                                                emit(
+                                                    'update:project',
+                                                    withRender(project, { fixEdges: value === true }),
+                                                )
+                                        "
+                                    />
+                                </ProjectRenderOption>
 
-                                <v-switch
+                                <ProjectRenderOption
                                     v-if="showsRun('metrics')"
-                                    :model-value="project.render.metrics"
-                                    :label="
-                                        t(
-                                            'project.render.metrics',
-                                            'Send BlueMap\'s anonymous usage report',
-                                        )
-                                    "
-                                    :hint="
-                                        t(
-                                            'project.render.metricsHint',
-                                            'Off unless deliberately turned on. Nothing about your world is in it.',
-                                        )
-                                    "
-                                    persistent-hint
-                                    color="primary"
-                                    density="compact"
-                                    inset
-                                    @update:model-value="
-                                        (value: boolean | null) =>
-                                            emit(
-                                                'update:project',
-                                                withRender(project, { metrics: value === true }),
-                                            )
-                                    "
-                                />
-                                <div
-                                    v-if="showsRun('metrics')"
-                                    class="mb-project-editor__fieldDefault"
+                                    path="render.metrics"
+                                    :cost="costOf('metrics')"
+                                    :cost-badge="costBadge"
+                                    :state="fieldDefaultText('metrics', project.render.metrics)"
+                                    :at-default="isRenderFieldDefault(project, 'metrics')"
+                                    :revert-label="revertLabel('metrics')"
+                                    @revert="resetRenderField('metrics')"
                                 >
-                                    <span>{
-                                        fieldDefaultText("metrics", project.render.metrics)
-                                    }</span>
-                                    <v-btn
-                                        v-if="!isRenderFieldDefault(project, 'metrics')"
-                                        variant="text"
-                                        size="x-small"
-                                        density="comfortable"
-                                        @click="resetRenderField('metrics')"
-                                    >
-                                        {
+                                    <v-switch
+                                        :model-value="project.render.metrics"
+                                        :label="
                                             t(
-                                                "project.fieldDefault.reset",
-                                                "Reset to BlueMap's default",
+                                                'project.render.metrics',
+                                                'Send BlueMap\'s anonymous usage report',
                                             )
-                                        }
-                                    </v-btn>
-                                </div>
+                                        "
+                                        :hint="
+                                            t(
+                                                'project.render.metricsHint',
+                                                'Off unless deliberately turned on. Nothing about your world is in it.',
+                                            )
+                                        "
+                                        persistent-hint
+                                        color="primary"
+                                        density="compact"
+                                        inset
+                                        @update:model-value="
+                                            (value: boolean | null) =>
+                                                emit(
+                                                    'update:project',
+                                                    withRender(project, { metrics: value === true }),
+                                                )
+                                        "
+                                    />
+                                </ProjectRenderOption>
 
-                                <PathField
+                                <ProjectRenderOption
                                     v-if="showsRun('outputFolder')"
-                                    :model-value="project.render.outputFolder ?? ''"
-                                    field="the render output folder"
-                                    semantic="folder"
-                                    :label="
-                                        t(
-                                            'project.render.outputFolder',
-                                            'Where the rendered map is written',
-                                        )
-                                    "
-                                    class="mt-3"
-                                    @update:model-value="setOutputFolder"
-                                />
-                                <p v-if="showsRun('outputFolder')" class="mb-project-editor__note">
-                                    {
-                                        t(
-                                            "project.render.outputFolderHint",
-                                            "Left empty, the app writes into the folder chosen during setup. This is the one absolute path a project carries, because the output belongs outside the world the file lives in.",
-                                        )
-                                    }
-                                </p>
-                                <div
-                                    v-if="showsRun('outputFolder')"
-                                    class="mb-project-editor__fieldDefault"
+                                    path="render.outputFolder"
+                                    :cost="costOf('outputFolder')"
+                                    :cost-badge="costBadge"
+                                    :state="fieldDefaultText('outputFolder', project.render.outputFolder)"
+                                    :at-default="isRenderFieldDefault(project, 'outputFolder')"
+                                    :revert-label="revertLabel('outputFolder')"
+                                    @revert="resetRenderField('outputFolder')"
                                 >
-                                    <span>{
-                                        fieldDefaultText(
-                                            "outputFolder",
-                                            project.render.outputFolder,
-                                        )
-                                    }</span>
-                                    <v-btn
-                                        v-if="!isRenderFieldDefault(project, 'outputFolder')"
-                                        variant="text"
-                                        size="x-small"
-                                        density="comfortable"
-                                        @click="resetRenderField('outputFolder')"
-                                    >
-                                        {
+                                    <PathField
+                                        :model-value="project.render.outputFolder ?? ''"
+                                        field="the render output folder"
+                                        semantic="folder"
+                                        :label="
                                             t(
-                                                "project.fieldDefault.reset",
-                                                "Reset to BlueMap's default",
+                                                'project.render.outputFolder',
+                                                'Where the rendered map is written',
                                             )
-                                        }
-                                    </v-btn>
-                                </div>
+                                        "
+                                        @update:model-value="setOutputFolder"
+                                    />
+                                    <p class="mb-project-editor__hint">
+                                        {{
+                                            t(
+                                                "project.render.outputFolderHint",
+                                                "Left empty, the app writes into the folder chosen during setup. This is the one absolute path a project carries, because the output belongs outside the world the file lives in.",
+                                            )
+                                        }}
+                                    </p>
+                                </ProjectRenderOption>
 
                                 <p
                                     v-if="visibleRunRows.length === 0"
                                     class="mb-project-editor__note"
                                 >
-                                    {
+                                    {{
                                         t(
                                             "project.render.noMatches",
                                             "Nothing on this tab matches. The other tabs may still have results.",
                                         )
-                                    }
+                                    }}
                                 </p>
                             </div>
 
@@ -1640,13 +1568,13 @@ const renderButtonLabel = computed(() =>
                                     {{ t("project.render.allFlags", "All command-line flags") }}
                                 </p>
                                 <p class="mb-project-editor__note">
-                                    {
+                                    {{
                                         t(
                                             "project.render.allFlagsNote",
                                             { flags: CLI_FLAGS.length },
                                             "Every one of BlueMap's {flags} documented CLI flags is editable below and its preview is resolved by the shared CLI model. Force and edge repair are saved with this project; one-shot flags remain an explicit preview and are never silently written into a project file.",
                                         )
-                                    }
+                                    }}
                                 </p>
                                 <RunScreen
                                     :invocation="standaloneCliInvocation"
@@ -1668,7 +1596,7 @@ const renderButtonLabel = computed(() =>
 
                     <template v-for="tab in singletonTabs" :key="tab.id" #[tab.id]>
                         <p class="mb-project-editor__note">
-                            {
+                            {{
                                 tab.touched
                                     ? t(
                                           "project.editor.singletonTouched",
@@ -1680,7 +1608,7 @@ const renderButtonLabel = computed(() =>
                                           { file: `${tab.id}.conf` },
                                           "This project carries no {file} of its own, so BlueMap's own defaults apply. Change anything below and the project starts carrying one, holding only what you set.",
                                       )
-                            }
+                            }}
                         </p>
                         <ConfigFileForm
                             :file="singletonFile(tab.id)"
@@ -1840,14 +1768,16 @@ const renderButtonLabel = computed(() =>
 }
 
 .mb-project-editor__headrow .v-btn,
-.mb-project-editor__actions .v-btn {
+.mb-project-editor__actions .v-btn,
+.mb-project-editor__fieldDefault .v-btn {
     min-block-size: 44px;
     block-size: auto;
     max-inline-size: 100%;
 }
 
 .mb-project-editor__headrow .v-btn .v-btn__content,
-.mb-project-editor__actions .v-btn .v-btn__content {
+.mb-project-editor__actions .v-btn .v-btn__content,
+.mb-project-editor__fieldDefault .v-btn .v-btn__content {
     white-space: normal;
     overflow-wrap: anywhere;
     text-align: start;
