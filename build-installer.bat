@@ -34,19 +34,19 @@ goto :unknown_argument
 
 :silent_argument
 set "SILENT_MODE=1"
-shift
+shift /1
 goto :parse_arguments
 
 :candidate_argument
 if "%~2"=="" goto :candidate_missing
 set "RELEASE_CANDIDATE=%~2"
-shift
-shift
+shift /1
+shift /1
 goto :parse_arguments
 
 :positional_candidate
 set "RELEASE_CANDIDATE=%~1"
-shift
+shift /1
 goto :parse_arguments
 
 :arguments_ready

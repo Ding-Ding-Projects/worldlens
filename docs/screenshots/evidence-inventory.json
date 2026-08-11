@@ -106,8 +106,8 @@
                 "docs/screenshots/wizard-ssh-world-source.png"
             ],
             "capturedFromInterfaceSource": true,
-            "uiSourceDigest": "719e301f25801d9bdb69640ce68941d3dbf31a7d395e376bacd59f04df631507",
-            "uiSourceDigestNote": "Re-taken 2026-08-10 by running the full Playwright harness against the freshly built workspace under xvfb, with the rendered-map and test-world fixtures from CI run 31352105128; this digest is scripts/check-screenshot-evidence.mjs --print-interface-digest at the same commit."
+            "uiSourceDigest": "988b131eb2e6efeb5870df7866af0783e258cdebc6c5c6c1cdb2cfe59d91952a",
+            "uiSourceDigestNote": "Re-verified 2026-08-11 by running the full 26-test Playwright harness against the freshly built workspace on the cheap Lowlevel hidden desktop. The no-map run refreshed every application-only surface and recorded honest skips for map-, account-, and render-dependent states; this digest is scripts/check-screenshot-evidence.mjs --print-interface-digest from the same tree."
         },
         {
             "id": "site-compact-proof",

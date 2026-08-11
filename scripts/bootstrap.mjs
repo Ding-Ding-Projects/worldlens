@@ -108,7 +108,10 @@ function step(name, fn) {
 
 function nodeDependencies() {
   if (!checkOnly) {
-    const install = runPinnedPnpm(["install"], { cwd: designRoot });
+    const install = runPinnedPnpm(["install"], {
+      cwd: designRoot,
+      env: { ...process.env, CI: process.env.CI ?? "true" },
+    });
     if (install.status !== 0) {
       return {
         ok: false,
