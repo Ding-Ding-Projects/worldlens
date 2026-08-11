@@ -22,6 +22,10 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- fix(settings): the reset buttons name the panel, so let the name wrap - [`b8f8903cb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8f8903cb6d067da24e0e4219ec5547e24116e0f)
+- fix(tabs): a side strip that measured the window instead of the room it was in - [`46df0c0b9c`](https://github.com/Ding-Ding-Projects/worldlens/commit/46df0c0b9c7cb1f5fd16247dfd6a2585ac6b3392)
+- fix(shell): a column that was a row, and three labels the strip was eating - [`93b5cfcf8d`](https://github.com/Ding-Ding-Projects/worldlens/commit/93b5cfcf8d06350566b93f7eeae57e5658bba6b2)
+- fix(shell): stop the editor eating the rail, and five surfaces that clipped - [`20aeb2d5cc`](https://github.com/Ding-Ding-Projects/worldlens/commit/20aeb2d5cc94534a6663add3fe4a3c9a2480fa7a)
 - fix(shell): catalogue rows open the section they name - [`42c58e0e7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/42c58e0e7b4212c30f7e8f6a483fed4f08d9859e)
 - fix(shell): give the status strip's progress bar a value, on the scale the app produces - [`5784865610`](https://github.com/Ding-Ding-Projects/worldlens/commit/57848656109af21355a8d9d29b84c9bee7dc0489)
 
@@ -39,6 +43,8 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- docs: record the eleven defects, and the four shapes that keep producing them - [`038f991b39`](https://github.com/Ding-Ding-Projects/worldlens/commit/038f991b39ab9edbbadb44c21f234e8618ad27d6)
+- ci(workflows): assert the release condition and the changelog step in the linter - [`057e8e5389`](https://github.com/Ding-Ding-Projects/worldlens/commit/057e8e5389b5d9673f8573dbf4965be3043797b4)
 - docs(agents): make updating GitHub Pages and refusing stale content a repository rule - [`d54147c5ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/d54147c5aba1baa47bcd986e9e7b41e95586f74e)
 
 ## 1.0.1017 - 2026-08-10
