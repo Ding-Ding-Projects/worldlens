@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "701e4f6af2312e9d3d9c91e4255674ee7aa49db8",
+        shortSha: "701e4f6af2",
+        date: "2026-08-11T19:20:52-04:00",
+        subject: "Repair silent installer bootstrap",
+        details: "The installer parser shifted its own script name away, then the supposedly silent bootstrap stopped for a prompt. It was a two-act comedy where the installer forgot both its address and the meaning of quiet.\n\nKeep %0 stable with shift /1, make dependency installation non-interactive by default, and record the freshly verified capture digest from the hidden-desktop harness.\n\n修好靜默安裝程式啟動：個 parser 之前 shift 到連自己住邊都唔記得，跟住 silent mode 仲彈問題，成個 build 好似扮瞓但係不停問嘢。依家保住 %0、安裝依賴唔再互動，亦記低 hidden desktop 真實 capture digest。",
+        category: "build",
+        areas: ["build", "docs", "other"],
+        files: 3,
+    },
+    {
         sha: "cc8fbb9caec4f4bfaa9a87a9b1c0ccfa4d7b16b6",
         shortSha: "cc8fbb9cae",
         date: "2026-08-11T19:00:05-04:00",

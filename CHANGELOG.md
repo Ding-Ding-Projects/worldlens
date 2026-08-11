@@ -30,6 +30,10 @@ full message for the in-app changelog viewer.
 - Add mobile tab context-menu buttons - [`cc8fbb9cae`](https://github.com/Ding-Ding-Projects/worldlens/commit/cc8fbb9caec4f4bfaa9a87a9b1c0ccfa4d7b16b6)
 - docs(site): name the three unbuilt contract features instead of omitting them - [`223d8fe385`](https://github.com/Ding-Ding-Projects/worldlens/commit/223d8fe385f33f7456387a7df5d4fcae57018c5e)
 
+### Build, release and tooling
+
+- Repair silent installer bootstrap - [`701e4f6af2`](https://github.com/Ding-Ding-Projects/worldlens/commit/701e4f6af2312e9d3d9c91e4255674ee7aa49db8)
+
 ## 1.0.1044 - 2026-08-11
 
 Tagged at [`97b591ef45`](https://github.com/Ding-Ding-Projects/worldlens/commit/97b591ef45e11d5eba657f26c8bfd0a4eabd53e3).
