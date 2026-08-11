@@ -200,10 +200,24 @@ async function browseFile(): Promise<void> {
     gap: 4px;
 }
 
+/*
+    The browse controls drop below the field rather than off the side of the window.
+
+    Every path box in the application carries a browse control beside it, and this row never
+    wrapped: the field can shrink (`min-width: 0` below) but a button cannot, so once the
+    surface is narrow enough the buttons simply continue past the right edge. The capture
+    harness measures exactly that at a 390px viewport and named the Docker world-source
+    destination's browse button.
+
+    Wrapping changes nothing where the row already fits, which is every desktop width - it
+    only decides what happens when it does not.
+*/
 .mb-path-field__row {
     display: flex;
     align-items: flex-start;
     gap: 8px;
+    flex-wrap: wrap;
+    max-inline-size: 100%;
 }
 
 .mb-path-field__row .v-text-field {

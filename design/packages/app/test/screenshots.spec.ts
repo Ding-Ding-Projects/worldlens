@@ -3486,18 +3486,38 @@ test("captures the make-a-map wizard at every step", async () => {
                         ? (candidate.closest<HTMLElement>(".v-field, .v-selection-control") ??
                           candidate)
                         : candidate;
+                /*
+                 * The geometry travels with the name, because the name on its own is a dead end.
+                 *
+                 * When this check fails the harness writes a diagnostic instead of the capture,
+                 * and the whole of what a reader gets is the array in that file. A bare
+                 * `["Named volume"]` says which control, never by how much or in which
+                 * direction - so diagnosing it means guessing which of three checks fired and
+                 * rebuilding the surface locally to measure it. On a Docker-gated surface, which
+                 * only renders where a daemon is running, that guess costs a full CI round trip
+                 * each time. The numbers cost one clause and are only ever emitted on failure.
+                 */
+                const withGeometry = (candidate: HTMLElement): string => {
+                    const rect = hitTarget(candidate).getBoundingClientRect();
+                    return (
+                        `${label(candidate)} ` +
+                        `[left ${Math.round(rect.left)}, right ${Math.round(rect.right)}, ` +
+                        `${Math.round(rect.width)}x${Math.round(rect.height)}, ` +
+                        `viewport ${window.innerWidth}x${window.innerHeight}]`
+                    );
+                };
                 const clippedControls = controls
                     .filter((candidate) => {
                         const rect = hitTarget(candidate).getBoundingClientRect();
                         return rect.left < 0 || rect.right > window.innerWidth;
                     })
-                    .map(label);
+                    .map(withGeometry);
                 const undersized = controls
                     .filter((candidate) => {
                         const rect = hitTarget(candidate).getBoundingClientRect();
                         return rect.width < 44 || rect.height < 44;
                     })
-                    .map(label);
+                    .map(withGeometry);
                 const internallyClippedControls = controls
                     .filter((candidate) => {
                         const content =
@@ -3507,7 +3527,15 @@ test("captures the make-a-map wizard at every step", async () => {
                             content.scrollHeight > content.clientHeight + 1
                         );
                     })
-                    .map(label);
+                    .map((candidate) => {
+                        const content =
+                            candidate.querySelector<HTMLElement>(".v-btn__content") ?? candidate;
+                        return (
+                            `${label(candidate)} ` +
+                            `[content ${content.scrollWidth}x${content.scrollHeight} ` +
+                            `in ${content.clientWidth}x${content.clientHeight}]`
+                        );
+                    });
 
                 return {
                     viewport: {
