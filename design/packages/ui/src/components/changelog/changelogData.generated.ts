@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "89049295a0ee25aa31245c27b4ead71f9ba3037b",
+        shortSha: "89049295a0",
+        date: "2026-08-11T19:51:32-04:00",
+        subject: "Flatten live CI run inventory",
+        details: "PowerShell 5.1 wrapped the run array like a parcel inside a parcel. Flatten each batch before converting ordinals so the monotonic release check reads every live run.\n\n攤平 live CI run inventory：PowerShell 5.1 將 array 包到好似盒中盒，依家逐批拆平先轉 ordinal，monotonic check 終於睇到每個 run。",
+        category: "other",
+        areas: ["other"],
+        files: 1,
+    },
+    {
         sha: "0f8984a13549cfabd3160cf14f4c493c6eee4335",
         shortSha: "0f8984a135",
         date: "2026-08-11T19:48:52-04:00",

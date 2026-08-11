@@ -26,6 +26,7 @@ full message for the in-app changelog viewer.
 
 ### Elsewhere in the repository
 
+- Flatten live CI run inventory - [`89049295a0`](https://github.com/Ding-Ding-Projects/worldlens/commit/89049295a0ee25aa31245c27b4ead71f9ba3037b)
 - Harden installer identity comparison - [`0f8984a135`](https://github.com/Ding-Ding-Projects/worldlens/commit/0f8984a13549cfabd3160cf14f4c493c6eee4335)
 - Carry Java into installer packaging - [`92cf4d99e7`](https://github.com/Ding-Ding-Projects/worldlens/commit/92cf4d99e74a0524d59d72909cea99cb6d2844e1)
 
