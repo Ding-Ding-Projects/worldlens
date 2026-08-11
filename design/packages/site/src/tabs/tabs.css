@@ -272,6 +272,21 @@
     height: 16px;
 }
 
+/* Touch devices get an explicit route to the tab's context menu. The compact media query
+   below reveals it; wide layouts retain right-click and keyboard context-menu access without
+   spending tab-strip space on a duplicate control. */
+.tab__menu {
+    display: none;
+    flex: none;
+    width: var(--md-sys-min-touch-target);
+    height: var(--md-sys-min-touch-target);
+}
+
+.tab__menu svg {
+    width: 16px;
+    height: 16px;
+}
+
 .tab--pinned {
     max-width: 12rem;
     padding-right: var(--md-sys-spacing-3);
@@ -352,6 +367,13 @@
        that menu never renders either. */
     .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab-bar__overflow {
         display: none !important;
+    }
+
+    /* A phone cannot right-click a tab. Give every compact horizontal tab its own 44px
+       three-dot trigger for the same searchable context menu; the button's full accessible
+       name includes the tab label and its click does not activate the tab. */
+    .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab__menu {
+        display: inline-flex;
     }
 }
 

@@ -42,7 +42,10 @@ import { TabModel, type TabPlacement } from "./TabModel.js";
 import { COMPACT_TAB_STRIP_MAX_WIDTH, TabStrip } from "./TabStrip.js";
 
 const tabsCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "tabs.css"), "utf8");
-const tokensCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../theme/tokens.css"), "utf8");
+const tokensCss = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), "../theme/tokens.css"),
+    "utf8",
+);
 
 /** The exact seven-page shape the real site registers: one pinned Home plus six ordinary
  *  pages. This is not an arbitrary sample - it is the scenario the bug report described,
@@ -186,7 +189,9 @@ describe("tabs.css compact media query", () => {
         // span clips under the same ellipsis instead of spilling on its own.
         const block = compactBlock();
         expect(block).toMatch(/\.tab__label,[^{]*\.tab-group__name\s*\{[^}]*overflow:\s*hidden/);
-        expect(block).toMatch(/\.tab__label,[^{]*\.tab-group__name\s*\{[^}]*text-overflow:\s*ellipsis/);
+        expect(block).toMatch(
+            /\.tab__label,[^{]*\.tab-group__name\s*\{[^}]*text-overflow:\s*ellipsis/,
+        );
     });
 
     it("keeps ellipsis truncation scoped to the compact block - wide-strip labels still wrap", () => {
@@ -199,6 +204,16 @@ describe("tabs.css compact media query", () => {
         expect(closeRule).toContain("width: var(--md-sys-min-touch-target);");
         expect(closeRule).toContain("height: var(--md-sys-min-touch-target);");
         expect(tokensCss).toMatch(/--md-sys-min-touch-target:\s*44px/);
+    });
+
+    it("reveals a minimum-size three-dot menu trigger on every compact horizontal tab", () => {
+        const baseRule = /\.tab__menu\s*\{[^}]*\}/.exec(tabsCss)?.[0] ?? "";
+        expect(baseRule).toContain("display: none;");
+        expect(baseRule).toContain("width: var(--md-sys-min-touch-target);");
+        expect(baseRule).toContain("height: var(--md-sys-min-touch-target);");
+        expect(compactBlock()).toMatch(
+            /\.tab-bar:not\(\[data-placement="left"\]\):not\(\[data-placement="right"\]\)\s+\.tab__menu\s*\{[^}]*display:\s*inline-flex/,
+        );
     });
 
     it("no longer hides a pinned tab's label to survive a narrow width (superseded by scrolling)", () => {
@@ -248,9 +263,10 @@ describe("tabs.css compact media query", () => {
         for (const selector of [".tab-strip__pinned", ".tab-strip__main", ".tab-bar__overflow"]) {
             const escaped = selector.replace(".", "\\.");
             const barePattern = new RegExp(`(^|[{}])\\s*${escaped}\\s*\\{`);
-            expect(block, `${selector} must not also appear unscoped in ${guardText}'s block`).not.toMatch(
-                barePattern,
-            );
+            expect(
+                block,
+                `${selector} must not also appear unscoped in ${guardText}'s block`,
+            ).not.toMatch(barePattern);
         }
     });
 });
@@ -587,5 +603,31 @@ describe("TabStrip contracts that must survive the compact redesign", () => {
             (node) => node.textContent,
         );
         expect(shortcuts).toContain("Shift + right-click");
+    });
+
+    it("gives every phone-width tab a named three-dot button that opens its own menu", () => {
+        const { strip, model } = buildStrip(390, null, "top");
+        model.activate("docs");
+
+        const tabs = [...strip.bar.querySelectorAll<HTMLElement>("[data-tab-id]")];
+        expect(tabs).toHaveLength(OTHER_PAGES.length + 1);
+        for (const tab of tabs) {
+            const menu = tab.querySelector<HTMLButtonElement>(".tab__menu");
+            expect(menu, `missing menu trigger for ${tab.dataset.tabId}`).not.toBeNull();
+            expect(menu!.getAttribute("aria-label")).toBe(
+                `Page actions: ${tab.getAttribute("aria-label")}`,
+            );
+            expect(menu!.getAttribute("tabindex")).toBe("-1");
+        }
+
+        const homeMenu = strip.bar.querySelector<HTMLButtonElement>(
+            '[data-tab-id="home"] .tab__menu',
+        );
+        expect(homeMenu).not.toBeNull();
+        homeMenu!.click();
+
+        expect(model.active, "opening Home's menu must not activate Home").toBe("docs");
+        expect(document.querySelector(".md-menu")).not.toBeNull();
+        expect(document.querySelector(".md-menu__search input")).not.toBeNull();
     });
 });
