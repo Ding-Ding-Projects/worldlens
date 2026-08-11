@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "8bbc2db146df85c61d35ac2bef6ae50955ba3c95",
+        shortSha: "8bbc2db146",
+        date: "2026-08-11T19:54:57-04:00",
+        subject: "Verify installers with PowerShell 7",
+        details: "Windows PowerShell's security module refused to load after a valid package was built. Bootstrap user-scoped PowerShell 7 when needed and run the unsigned-artifact proof there instead.\n\n用 PowerShell 7 驗 installer：舊 Windows PowerShell 個 security module 喺成功 build 後先罷工。依家需要時自動裝 user-scoped PowerShell 7，再喺嗰度證明 artifact 真係 NotSigned。",
+        category: "other",
+        areas: ["other"],
+        files: 1,
+    },
+    {
         sha: "89049295a0ee25aa31245c27b4ead71f9ba3037b",
         shortSha: "89049295a0",
         date: "2026-08-11T19:51:32-04:00",
