@@ -22,6 +22,11 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- fix(path-field): pin the browse controls to 44px through the component, not the sheet - [`1dee292518`](https://github.com/Ding-Ding-Projects/worldlens/commit/1dee2925189cee7202e3e4822cfeea56b2ba8b1e)
+- fix(path-field): give the browse controls a 44px touch target - [`0ba36bf32f`](https://github.com/Ding-Ding-Projects/worldlens/commit/0ba36bf32f1227060755e5744d19b442de80a30f)
+- fix(path-field): wrap the browse controls, and make the harness say by how much - [`5f780d7490`](https://github.com/Ding-Ding-Projects/worldlens/commit/5f780d749036ad8d9d134d9e479d06c80e315f8e)
+- fix(docker): wrap the source-kind toggle instead of running it off the screen - [`78a6b57196`](https://github.com/Ding-Ding-Projects/worldlens/commit/78a6b571961459867137c6c211d36a0661f8f8e9)
+- fix(docker): let the world-source toggle wrap its label instead of clipping it - [`d0d579d389`](https://github.com/Ding-Ding-Projects/worldlens/commit/d0d579d389b55c9aee6b1e53aba994555399b9e0)
 - fix(settings): the reset buttons name the panel, so let the name wrap - [`b8f8903cb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8f8903cb6d067da24e0e4219ec5547e24116e0f)
 - fix(tabs): a side strip that measured the window instead of the room it was in - [`46df0c0b9c`](https://github.com/Ding-Ding-Projects/worldlens/commit/46df0c0b9c7cb1f5fd16247dfd6a2585ac6b3392)
 - fix(shell): a column that was a row, and three labels the strip was eating - [`93b5cfcf8d`](https://github.com/Ding-Ding-Projects/worldlens/commit/93b5cfcf8d06350566b93f7eeae57e5658bba6b2)
@@ -43,6 +48,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- docs(screenshots): replace every capture from the current build - [`7ea5730671`](https://github.com/Ding-Ding-Projects/worldlens/commit/7ea573067177f41c66e413ef8926dac5ee0e69f0)
 - docs: record the eleven defects, and the four shapes that keep producing them - [`038f991b39`](https://github.com/Ding-Ding-Projects/worldlens/commit/038f991b39ab9edbbadb44c21f234e8618ad27d6)
 - ci(workflows): assert the release condition and the changelog step in the linter - [`057e8e5389`](https://github.com/Ding-Ding-Projects/worldlens/commit/057e8e5389b5d9673f8573dbf4965be3043797b4)
 - docs(agents): make updating GitHub Pages and refusing stale content a repository rule - [`d54147c5ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/d54147c5aba1baa47bcd986e9e7b41e95586f74e)
