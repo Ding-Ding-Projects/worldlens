@@ -156,6 +156,12 @@ onBeforeUnmount(() => {
     inset-inline-start: 8px;
     z-index: 10000;
     max-inline-size: calc(100vw - 16px);
+    /* The one control that appears on Tab measured 36px tall - under the 44px target the rest
+       of the product holds. It is keyboard-first, but a touch user who reveals it by focusing
+       a hardware keyboard deserves the same target, and it costs nothing hidden. */
+    min-block-size: 44px;
+    display: inline-flex;
+    align-items: center;
     padding: 8px 12px;
     border-radius: var(--md-sys-shape-corner-sm, 8px);
     background: rgb(var(--v-theme-inverse-surface, var(--v-theme-on-surface)));

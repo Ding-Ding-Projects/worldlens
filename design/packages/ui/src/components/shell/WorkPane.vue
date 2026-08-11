@@ -210,14 +210,64 @@ defineExpose({
     flex: 0 0 auto;
 }
 
-/* The group label above its first member: a small rounded chip, not a full pill. */
+/*
+ * The group label above its first member: chip-shaped type, real-sized target.
+ *
+ * This rule used to shrink the head to 24px for the look, and the look is carried by the
+ * small uppercase type and the radius, not by the height - while the 24px took the one
+ * control that collapses and expands a whole group under half the touch-target minimum.
+ * The pseudo-element expansion that works for the tabs measured as unreliable on this
+ * element (it sits inside the group bar's own stacking arrangement), so the head keeps the
+ * honest 44px box TabStrip gives it everywhere else; the strip row is content-sized and
+ * simply grows to hold it.
+ */
 .wl-work :deep(.mb-tabs-strip__group-head) {
-    min-block-size: 24px;
     border-radius: 6px;
     font-size: 0.6875rem;
     font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+}
+
+/*
+ * The drawn chip keeps its size; what a finger can hit does not.
+ *
+ * The restyle above deliberately draws Work's chips smaller than `TabStrip`'s own 44px floor
+ * - a 38px tab so the strip reads as sheets, a 24px group chip so the label reads as a label
+ * - and that is a statement about how the strip *looks*, which the file comment above stakes
+ * out as this component's whole business here. It said nothing about what it costs to press,
+ * and the touch-target sweep answered: every tab, group head, close affordance and strip
+ * control in Work measured under the 44px minimum the rest of the product holds.
+ *
+ * A centered pseudo-element expands the target back to 44px without moving a pixel of the
+ * drawing. Clicks on it land on the control; the strip's own layout, which packs these
+ * controls closer than 44px vertically, is unaffected because the pseudo-element takes no
+ * space.
+ *
+ * `::before`, not `::after`, and `pointer-events` stated explicitly: Vuetify's `.v-btn::after`
+ * is the button's focus ring and carries `pointer-events: none`, so an expansion written
+ * there inherits the none - it computes a 44px box that catches nothing - while also
+ * overwriting the focus indicator. `GlossaryTerm.vue` records the same trap; it measured as
+ * exactly zero expansion until the pseudo moved.
+ */
+.wl-work :deep(.mb-tabs-strip__tab),
+.wl-work :deep(.mb-tab-button),
+.wl-work :deep(.mb-tabs-strip__x),
+.wl-work :deep(.mb-tabs-strip-row .v-btn) {
+    position: relative;
+}
+
+.wl-work :deep(.mb-tabs-strip__tab)::before,
+.wl-work :deep(.mb-tab-button)::before,
+.wl-work :deep(.mb-tabs-strip__x)::before,
+.wl-work :deep(.mb-tabs-strip-row .v-btn)::before {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    translate: -50% -50%;
+    inline-size: max(100%, 44px);
+    block-size: max(100%, 44px);
+    pointer-events: auto;
 }
 
 /*

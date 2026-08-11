@@ -140,6 +140,35 @@ function openGlossary(): void {
 
 .mb-glossary-term__trigger.v-btn {
     opacity: 0.75;
+    position: relative;
+}
+
+/*
+    A 44px hit area on a 20px glyph, without the 44px of layout.
+
+    This trigger sits inline beside a term - in field labels, in prose, in row names - so
+    sizing the element itself to the touch-target minimum would put 44px of button into
+    every line that mentions a glossary word. The pseudo-element expands what a finger can
+    hit while the glyph keeps its size and the line keeps its height. A click on the
+    pseudo-element is a click on the button; this is the standard MD3 target-expansion
+    shape, and the capture sweep that found these measured the drawn box, all 390 of them,
+    at 20x20.
+
+    `::before`, deliberately, and with `pointer-events` said out loud. Vuetify's `.v-btn::after`
+    is not free - it is the button's focus ring, carrying `pointer-events: none` - so an
+    expansion written there both inherits the none (and catches no clicks at all) and
+    overwrites the focus indicator. That exact combination shipped briefly and measured as
+    zero expansion; the minimal reproduction that found it is worth keeping in mind whenever
+    a pseudo-element "mysteriously" refuses hits: check what the framework already put there.
+*/
+.mb-glossary-term__trigger.v-btn::before {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    translate: -50% -50%;
+    inline-size: max(100%, 44px);
+    block-size: max(100%, 44px);
+    pointer-events: auto;
 }
 
 .mb-glossary-term__trigger.v-btn:hover,
