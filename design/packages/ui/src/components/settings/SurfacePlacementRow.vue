@@ -189,6 +189,26 @@ defineExpose({ searchValues });
     min-height: 36px;
 }
 
+/*
+    These two labels name the panel they reset, so they are as long as the longest surface
+    title - "Put Worldlens · What is this? back where it started". A Vuetify button keeps its
+    content on one line, so the label ran 16px past the right edge of the window rather than
+    wrapping inside the panel. Two classes deep to out-rank `.v-btn`'s own height, and the
+    44px minimum is kept explicitly so wrapping cannot shrink the touch target.
+*/
+.mb-placement-row .mb-placement-row__reset-one,
+.mb-placement-row .mb-placement-row__reset-all {
+    max-inline-size: 100%;
+    height: auto;
+    min-block-size: 44px;
+}
+
+.mb-placement-row .mb-placement-row__reset-one .v-btn__content,
+.mb-placement-row .mb-placement-row__reset-all .v-btn__content {
+    white-space: normal;
+    text-align: start;
+}
+
 .mb-placement-row__global {
     display: flex;
     flex-direction: column;
