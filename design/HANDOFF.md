@@ -1,5 +1,74 @@
 # Handoff
 
+## 2026-08-11 — eleven clipping and navigation defects, found by measuring the running interface
+
+**Plain version, first:** the options editor was covering the navigation rail and switching it
+off, so once you opened it there was no visible way back to Home, Map or Work. Several places cut
+their own text off — one setting showed the single letter "U", a map id field showed "ove" instead
+of "overworld", and two of the five speed levels were not merely ugly but impossible to click.
+The download-consent row kept saying "not accepted yet" after you had accepted. All eleven are
+fixed, each one measured before and after in a real browser.
+
+**State: verified locally against a running build; four commits dewed to `main`.**
+
+Nothing here was found by reading source. A harness drove the built interface in headless
+Chromium and walked every element comparing `scrollWidth` against `clientWidth`, at 800x600,
+1280x800 and a narrow window, then re-measured after each fix. Surfaces with findings went from
+**10 to 1 at 800x600** and the five systemic offenders at 1280x800 to none.
+
+### The navigation defect, which was the largest
+
+`.mb-world-host` for the options editor is a sibling of `.mb-shell-body` with `inset: 0`, so it
+painted over the 80px rail the redesign keeps on screen at every width - and `:inert` on that same
+row then disabled the rail as well. The only navigation in the application was invisible and dead
+at once, with Escape as the undocumented way out. The host now starts at the content edge
+(`--beside-rail`), the inert moved to `.mb-shell-content`, and `onRailSelect` closes the editor so
+the pill cannot move against a screen that stays covered.
+
+### The rest, each with the thing that made it invisible to tests
+
+- **Speed dial**: five levels wrapped to three rows in a 40px box with hidden overflow; levels 4
+  and 5 unclickable. `height: auto` at one class tied with Vuetify's `.v-btn-group` and lost on
+  source order.
+- **Config toolbar**: `flex-wrap` sat on the toolbar root, not the inner `.v-toolbar__content`
+  that both lays out and clips. "Unsaved changes" rendered as "U". That inner element also carries
+  an inline `height` from Vuetify's own measurement, which no selector can outrank - the one
+  honest use of `!important` here.
+- **Map id field / backup folder picker**: `align-items: flex-start` on a flex *column* sizes
+  children to content, and an input's intrinsic width is nothing; "overworld" showed as "ove".
+- **World repo screen**: `.mb-shell-centre` was a flex *row*, and `AppearanceTarget` wraps screens
+  in `display: contents`, so a screen with two roots laid them side by side - the info alert got
+  93px and rendered one word per line. It is a column now.
+- **Notification centre**: a fixed 440px width inside the shell's 420px card, which hides
+  overflow. A cap now, so both of its hosts get what they ask for.
+- **Tab strip**: `overflow-wrap: anywhere` counts toward min-content width, so a crowded strip
+  broke labels inside words - "Projects" as "Proje / cts". `break-word` keeps the minimum at one
+  readable word and the strip overflows into the surface it already has.
+- **Nested side strip**: sized against the viewport, so it took 208px of a 385px pane and left
+  170px for the settings. `clamp(8.5rem, min(22vw, 30%), 20rem)` measures the pane it is in;
+  verified at three widths, with 1180px unchanged at 277px.
+- **Project editor**: three columns rendering four, its centre strip docked left beside a tree
+  already listing the same four config files. It docks top, as the redesign describes.
+- **Download consent**: read once in `onMounted`, so accepting in Settings never reached the
+  editor. It watches `settingsEpoch`, the same event `consentState.ts` documents for the world
+  surfaces after the identical defect there.
+
+### Guards, and which one was thrown away
+
+Three guards, each broken on purpose and confirmed red before being kept: the inert scope, the
+rail outside the inert subtree, and `ConfigScreen.consentEpoch.test.ts` (fails with `expected 1 to
+be greater than 1`). A fourth candidate - clicking the rail and asserting the editor closed -
+passed both ways under jsdom, which does not enforce `inert`, so it was **removed** rather than
+kept as decoration. `projectSurfaceSizing.test.ts` asserted the literal `anywhere` token; its
+stated intent is unchanged and still asserted, with the reason for `break-word` beside it.
+
+### What is still open
+
+A button label sits 4px past the viewport in one docked-surface menu at 800x600 - real, minor,
+unfixed. And the nested side-strip clamp is verified by measurement in a real engine at three pane
+widths but not by rendering a left-docked strip end to end, because no shipped surface defaults to
+left any more; only a saved workspace reaches that path.
+
 ## 2026-08-10 (later) — Phase A accessibility: skip path, disclosure contracts, and fail-closed shell numbers
 
 **State: verified locally; pushed with a fresh capture run.**

@@ -1,5 +1,34 @@
 # Roadmap
 
+## The shell stops covering its own navigation, and ten surfaces stop cutting their own text (2026-08-11)
+
+The redesign keeps an 80px rail on screen at every supported width. It was not: the options
+editor's host is a sibling of the shell row with `inset: 0`, so it painted over the rail and the
+row's `:inert` disabled it, leaving Escape as the only way back to Home, Map or Work. The host now
+begins at the content edge, the inert scopes to the content, and a rail destination closes the
+editor. This was the defect behind two of the three reports that opened this work.
+
+Ten clipping defects went with it, all found by driving the built interface in headless Chromium
+and comparing `scrollWidth` to `clientWidth` element by element rather than by reading CSS that
+looked correct. Surfaces with findings fell from **10 to 1 at 800x600**, and the five systemic
+offenders at 1280x800 to none. Two of them hid function rather than decoration: the speed dial's
+levels 4 and 5 were unclickable behind a 40px box with hidden overflow, and the map id field
+collapsed to an input's intrinsic width, showing "ove" for "overworld". The download-consent row
+also stopped insisting the Mojang download had never been accepted after it had been - the same
+sample-once defect `consentState.ts` already documents for the world surfaces, in a screen that
+was never wired to the epoch.
+
+Three of the four recurring causes are worth carrying forward, because each one produces code that
+reads as correct: a rule that ties with a framework rule and loses on source order; a rule applied
+to the wrapper rather than to the element that actually lays out and clips; and `align-items:
+flex-start` on a flex column, which sizes fields to an intrinsic width of nothing. The fourth is
+an inline style written by the framework from its own measurement, which no selector can outrank.
+
+**Next**: a left-docked strip still measures the viewport rather than its own pane in the one path
+a saved workspace can reach, and one docked-surface button label sits 4px past the viewport at
+800x600. Neither is reachable from a shipped default any more, and both are recorded in
+`HANDOFF.md` rather than closed.
+
 ## Material Design 3 shell completion, genuine recapture, travelling project history, and a deterministic changelog guard (2026-08-10)
 
 **The redesign folder is the shell contract, and `main` now carries it with genuine evidence.**
