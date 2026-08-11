@@ -433,8 +433,16 @@ async function copyVisible(): Promise<void> {
 </template>
 
 <style>
+/*
+    A cap, not a fixed width. This panel has two hosts: the browser-shaped corner, where
+    nothing constrains it and 440px is the intended size, and the shell's rail-anchored
+    notification card, which the contract fixes at 420px. As a fixed `width` it stayed 440
+    inside that 420 card and the card - which hides its overflow - cut 20px off every row,
+    the search field and the filter controls with it.
+*/
 .mb-notice-centre {
-    width: min(440px, calc(100vw - 32px));
+    inline-size: 100%;
+    max-inline-size: min(440px, calc(100vw - 32px));
     max-height: min(70vh, 640px);
     display: flex;
     flex-direction: column;

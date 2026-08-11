@@ -1297,11 +1297,22 @@ const renderButtonLabel = computed(() =>
                 @click="queueWorkspaceNodeSync"
                 @keydown="queueWorkspaceNodeSync"
             >
+                <!--
+                    Docked top, for the reason Work already passes `top`: the project tree in
+                    the column to the left owns this editor's left edge, and a strip docked
+                    left put a second vertical list of Core, Web app, Web server and Plugin
+                    directly beside a tree that already lists all four. Two navigations against
+                    the same edge, naming the same nodes, in a three-column editor that then
+                    had four columns and no room left for the settings it exists to show.
+                    A restored workspace's own placement still wins - this is a default, not a
+                    policy, so anyone who preferred it on the left keeps it there.
+                -->
                 <TabbedNavigation
                     closeless
                     ref="tabsNav"
                     :pages="pages"
                     storage-key="worldlens-project-editor-tabs"
+                    default-placement="top"
                     :window-label="t('project.editor.windowLabel', 'This project')"
                     :strip-label="t('project.editor.tabsLabel', 'Project sections')"
                     class="mb-project-editor__tabs"

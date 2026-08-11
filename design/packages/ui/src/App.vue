@@ -1857,9 +1857,19 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 }
 
 /* The maps-and-servers card has its own width, so its page centres it rather than stretching it. */
+/*
+    A column, not a row. This exists to centre a page horizontally, and as a row it did that
+    correctly for exactly as long as every screen had one root element. `AppearanceTarget`
+    wraps each screen in `display: contents`, so a screen with two root children hands both
+    of them to this flex container as siblings - and a row lays them out beside each other.
+    `WorldRepoScreen`'s card and its info alert did precisely that: the alert was allotted
+    93px and rendered one word per line, unreadable, at every window size.
+    Centring on the cross axis keeps the single-child screens looking exactly as they did.
+*/
 .mb-shell-centre {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     padding: 16px;
 }
 
