@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "c25c6036e5e74ab4bcccde5eb2f4a07c71914fea",
+        shortSha: "c25c6036e5",
+        date: "2026-08-11T19:37:20-04:00",
+        subject: "Provision Java for cold-start builds",
+        details: "A one-click build that asks for a hand-installed JDK is a one-click build with a very long second click. Resolve Temurin 25 from Adoptium, verify its SHA-256, install it under the user profile, and reuse it on warm runs.\n\n冷機 build 自動備置 Java：以前話 one-click，實際暗藏一粒『你自己裝 JDK 啦』掣。依家由 Adoptium 解析 Temurin 25、驗 SHA-256、裝入 user profile，暖機再跑即刻重用。",
+        category: "build",
+        areas: ["build", "other"],
+        files: 2,
+    },
+    {
         sha: "701e4f6af2312e9d3d9c91e4255674ee7aa49db8",
         shortSha: "701e4f6af2",
         date: "2026-08-11T19:20:52-04:00",

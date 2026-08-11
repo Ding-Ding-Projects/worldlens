@@ -32,6 +32,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Provision Java for cold-start builds - [`c25c6036e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c25c6036e5e74ab4bcccde5eb2f4a07c71914fea)
 - Repair silent installer bootstrap - [`701e4f6af2`](https://github.com/Ding-Ding-Projects/worldlens/commit/701e4f6af2312e9d3d9c91e4255674ee7aa49db8)
 
 ## 1.0.1044 - 2026-08-11
