@@ -168,9 +168,10 @@ set "RELEASE_TAG="
 for /f "usebackq skip=1 delims=" %%v in ("%IDENTITY_FILE%") do if not defined RELEASE_TAG set "RELEASE_TAG=%%v"
 if not defined PACKAGE_VERSION goto :identity_failed
 if not defined RELEASE_TAG goto :identity_failed
-if not "%RELEASE_TAG%"=="v%PACKAGE_VERSION%" goto :identity_mismatch
-
 set "WORLDLENS_PACKAGE_VERSION=%PACKAGE_VERSION%"
+set "WORLDLENS_RELEASE_TAG=%RELEASE_TAG%"
+node -e "if(process.env.WORLDLENS_RELEASE_TAG!==('v'+process.env.WORLDLENS_PACKAGE_VERSION))process.exit(1)"
+if errorlevel 1 goto :identity_mismatch
 set "WORLDLENS_REPOSITORY_ROOT=%ROOT%."
 set "GH_PROMPT_DISABLED=1"
 set "GIT_TERMINAL_PROMPT=0"
