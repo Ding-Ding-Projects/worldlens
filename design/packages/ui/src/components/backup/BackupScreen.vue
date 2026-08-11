@@ -1342,6 +1342,17 @@ defineExpose({
 }
 
 /*
+    `align-items: flex-start` sizes every child to its own content across the inline axis, and a
+    Vuetify field's intrinsic width is an unstyled `<input>`'s - so the "One this application
+    already knows about" picker rendered as a stub too narrow to read a folder name in. Text and
+    choice inputs stretch; buttons and chips keep the content width the flex-start is here for.
+*/
+.mb-backup__stepBody > .v-input,
+.mb-backup__stepBody > .mb-path-field {
+    align-self: stretch;
+}
+
+/*
  * Wraps rather than scrolls. At a narrow width, or at 200% display scale, a row of two
  * fields and a button does not fit on one line in any language, and in bilingual mode the
  * button's own label is the longest thing on the screen.
