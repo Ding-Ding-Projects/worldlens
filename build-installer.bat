@@ -111,6 +111,8 @@ if exist "%LOCALAPPDATA%\Microsoft\WinGet\Links\gh.exe" set "PATH=%LOCALAPPDATA%
 if exist "%LOCALAPPDATA%\worldlens-toolchain\node\node.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\node;%PATH%"
 if exist "%LOCALAPPDATA%\worldlens-toolchain\git\cmd\git.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\git\cmd;%PATH%"
 if exist "%LOCALAPPDATA%\worldlens-toolchain\gh\bin\gh.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\gh\bin;%PATH%"
+if exist "%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25\bin\java.exe" set "JAVA_HOME=%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25"
+if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
 where node >nul 2>&1
 if errorlevel 1 goto :runtime_handoff_failed
 where git >nul 2>&1
@@ -120,6 +122,10 @@ if errorlevel 1 goto :runtime_handoff_failed
 where gh >nul 2>&1
 if errorlevel 1 goto :runtime_handoff_failed
 gh --version >nul 2>&1
+if errorlevel 1 goto :runtime_handoff_failed
+where java >nul 2>&1
+if errorlevel 1 goto :runtime_handoff_failed
+java -version >nul 2>&1
 if errorlevel 1 goto :runtime_handoff_failed
 
 set "NPM_CLI="
