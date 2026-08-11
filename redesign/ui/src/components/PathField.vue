@@ -225,6 +225,20 @@ async function browseFile(): Promise<void> {
     min-width: 0;
 }
 
+/*
+    The browse controls are a 44px touch target, not Vuetify's 40px `size="small"` icon.
+
+    Every path box in the application carries these, and at `size="small"` they render 40x40 -
+    under the minimum this project holds itself to everywhere else, and under what the capture
+    harness asserts at a 390x844 viewport, where it named the Docker world-source destination's
+    browse button as undersized. `size="small"` is kept for its typography and padding; only
+    the hit area is raised, so nothing about the visual weight of these buttons changes.
+*/
+.mb-path-field__row .v-btn {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+}
+
 .mb-path-field__mono input {
     font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: 0.8125rem;
