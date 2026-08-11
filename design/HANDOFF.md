@@ -4570,7 +4570,7 @@ The dim-sum consumer now reads the public catalog's authoritative English and Tr
 names and resolves only an existing `catalog-v1*` asset URL. It does not download, copy, cache or
 attach photo bytes. Every executable workflow runner is pinned to `ubuntu-24.04` or
 `windows-2022`, with exact job inventory tests that reject `*-latest`, self-hosted, expressions and
-unknown labels. All **114** external action uses across the seven executable workflows are pinned
+unknown labels. All **117** external action uses across the seven executable workflows are pinned
 to reviewed full SHAs, every checkout erases its credential, and the guard fails if a workflow is
 missing from that exact inventory. Screenshot capture remains visible diagnostic evidence with
 job-level `continue-on-error: true`; available images and traces still upload, but capture is not a
@@ -4580,3 +4580,19 @@ packaging and Windows CSS set passes **19/19**; the full retrying suite passed *
 tests with **33 skipped** after one known Vitest worker-heartbeat retry. The remaining external
 proof is a terminal CI run at the integrated `main` commit and its main-only publisher; no release
 was created manually during this lane.
+
+## 2026-08-10 — tag CI no longer fails an impossible changelog assertion
+
+The CI workflow still runs for tag pushes, but its generated-changelog freshness step now runs
+only when `github.ref_type != 'tag'`. A release tag is created after the commit it points at, so a
+tag-triggered checkout can never contain generated output discovered from that future tag. The old
+shape made every successful publication immediately start a predictably failing second run.
+
+The release-security inventory now names the separated changelog step, and a focused regression
+test requires the exact tag exclusion. The test was deliberately run once with the condition
+inverted and failed, then passed after restoration. Branch and pull-request CI still require
+`node scripts/build-changelog.mjs --check`; tag runs retain every other pre-publication workflow,
+build, test, rendering, packaging and release-security check, while the main-only publisher remains
+intentionally ineligible. The condition contract also rejects relocation, duplication, alternate
+tag predicates, extra skipped commands and fail-open step metadata. Remote verification remains
+pending until the integrated commit reaches the default branch.

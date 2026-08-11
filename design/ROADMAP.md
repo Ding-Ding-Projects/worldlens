@@ -1185,9 +1185,20 @@ remembers to run the harness. Tracked as
       exact target, notes and non-draft release metadata.
 - [x] Pin all hosted workflow labels to `ubuntu-24.04` or `windows-2022` and reject mutable,
       self-hosted, expression-derived and unknown alternatives through an exact job inventory.
-- [x] Pin all 114 external action uses across all seven executable workflows to immutable SHAs,
+- [x] Pin all 117 external action uses across all seven executable workflows to immutable SHAs,
       erase checkout credentials and fail when a workflow is missing from the exact inventory.
 - [x] Make changelog freshness a satisfiable pre-release gate by excluding generated-only commits
       and running `node scripts/build-changelog.mjs --check` over full history.
 - [ ] Record the final remote CI verdict and resulting release evidence after this candidate lands
       on `main`; branch-only runs cannot prove the main-only publisher.
+
+## Release tag CI follow-up (2026-08-10)
+
+- [x] Keep CI triggered by tag pushes while skipping only the self-referential generated-changelog
+      freshness assertion on tag events.
+- [x] Keep branch and pull-request changelog checks strict over full history.
+- [x] Add a regression contract for the exact `github.ref_type != 'tag'` condition, its owning
+      step and body, unrestricted triggers and the complete condition inventory; prove inverted,
+      relocated, duplicated, alternate-predicate, extra-command and fail-open forms fail.
+- [ ] Record a terminal green main run, the published release, and the resulting terminal green
+      tag-triggered run at the same commit.

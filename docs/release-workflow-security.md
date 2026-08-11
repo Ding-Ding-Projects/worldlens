@@ -62,7 +62,7 @@ with `stepFingerprint()` and `jobFingerprint()` values. A fingerprint update is 
 decision, not a mechanical response to a red test. New dynamic values still need an exact `env:`
 binding, a quoted data-only use, and negative fixtures for their context.
 
-All 114 external action invocations across the repository's seven executable workflows are pinned
+All 117 external action invocations across the repository's seven executable workflows are pinned
 to full commit SHAs. The hand-written inventory must name every workflow, every external action and
 its exact per-file use count; a new workflow missing from that inventory fails the guard. To update
 one, resolve the intended major tag from the action's official
@@ -79,15 +79,26 @@ checkout in every executable workflow sets `persist-credentials: false`, includi
 checkout. The catalog
 API may use the configured token for rate limits, but the public asset download never receives it.
 The release job explicitly depends on the workflow-security job, so a failing root guard,
-actionlint run or `build-changelog.mjs --check` blocks publication. It also depends on application
-lint, build, typecheck, the full test suite, the real Java round trip, jar build, real test-world
-render and Windows packaging. A failure or skipped fatal dependency means no publish. Screenshot
-capture runs as advisory diagnostic evidence with job-level `continue-on-error: true`, uploads
-available images and failure traces, and is deliberately absent from the publisher's dependencies.
+actionlint run or `build-changelog.mjs --check` blocks publication. It also depends on build,
+typecheck, the full test suite, the real Java round trip, jar build, real test-world render and
+Windows packaging. A failure or skipped fatal dependency means no publish. Application lint runs
+independently as advisory evidence and is deliberately absent from the publisher's dependencies.
+Screenshot capture is also advisory diagnostic evidence with job-level `continue-on-error: true`,
+uploads available images and failure traces, and is deliberately absent from those dependencies.
 Pushes on `main` nominate publication automatically; manual dispatch must explicitly retain its
 publish input. The serialized publisher checks existing published releases by exact commit SHA, so
 one intended commit is nominated at most once and an existing exact target is verified rather than
 published again.
+
+Tag-triggered runs keep the same pre-publication workflow, build, test, Java, packaging and security
+coverage, but
+the **Verify generated changelog is current** step runs only when `github.ref_type != 'tag'`. A
+release tag is created after the commit it points at, so that commit cannot already contain a
+changelog entry discovered from its own future tag. The hand-written workflow contract pins the
+step's job, condition and exact body, rejects fail-open metadata, inventories every job and step
+condition, and has negative fixtures for inverted, relaxed, duplicated and relocated tag guards.
+Branch and pull-request runs still require both generated outputs to match the full available
+history before publication. The main-only publisher remains intentionally ineligible on tag refs.
 
 ## Failure modes
 
@@ -139,7 +150,7 @@ fail at its original 11 direct-expression sites. The assigned baseline
 `e13777927876a3d7898778f18193e9465bc97cc2` must fail at its exact 19 sites. The checked-in fixed
 workflow must have zero findings, exact provenance and reviewed block fingerprints. Focused fixtures
 also cover multiline expressions, YAML aliases, altered provenance, indirect `printenv`/parameter
-execution, harmless block drift, an adjacent differently named shell step, all 114 immutable action
+execution, harmless block drift, an adjacent differently named shell step, all 117 immutable action
 pins across every executable workflow, exact workflow-inventory completeness, advisory screenshot
 status, fatal release-gate dependency, real
 235-character alternative text, malformed schema, control characters, unsafe Markdown contexts,
@@ -179,11 +190,19 @@ collection 之前,`scripts/release-version.mjs` 為 packaged app、Squirrel `REL
 
 被睇實嘅 inventory 係刻意人手寫喺 `scripts/lint-workflows.mjs` 度嘅。加、改名或者拆開六個 release step 其中一個,要 review 成個改咗嘅 block、更新佢哋預期嘅 bindings,再用 `stepFingerprint()` 同 `jobFingerprint()` 嘅值換走儲低嘅 step 同 complete-job fingerprints。更新 fingerprint 係一個 security review 決定,唔係對一個紅咗嘅 test 嘅機械反應。新嘅動態值照樣要一個確切嘅 `env:` binding、一個有引號、只當數據嘅用法,同佢個 context 嘅 negative fixtures。
 
-repository 七條可執行 workflow 入面全部 114 個 external action invocation 都 pin 咗完整 commit SHA。人手寫嘅 inventory 要點齊每條 workflow、每個 external action 同佢每個檔案嘅確切使用次數;inventory 漏咗嘅新 workflow 會 fail 個 guard。要更新一個:用 `git ls-remote <official-repository> refs/tags/v4` 由 action 官方 repository 解出想要嘅 major tag,review 嗰個 commit 同佢個 release,換 SHA 再更新 `ACTION_INVENTORIES` 入面確切嘅每檔案次數。新 SHA 被接受之前,啲 test 一定要先喺 mutable tag 上 fail 過。
+repository 七條可執行 workflow 入面全部 117 個 external action invocation 都 pin 咗完整 commit SHA。人手寫嘅 inventory 要點齊每條 workflow、每個 external action 同佢每個檔案嘅確切使用次數;inventory 漏咗嘅新 workflow 會 fail 個 guard。要更新一個:用 `git ls-remote <official-repository> refs/tags/v4` 由 action 官方 repository 解出想要嘅 major tag,review 嗰個 commit 同佢個 release,換 SHA 再更新 `ACTION_INVENTORIES` 入面確切嘅每檔案次數。新 SHA 被接受之前,啲 test 一定要先喺 mutable tag 上 fail 過。
 
 所有可執行 workflow 都用明確、受支援嘅 hosted-runner label(`ubuntu-24.04` 或者 `windows-2022`);mutable 嘅 `*-latest`、self-hosted、由 expression derive 嘅同不明嘅 label,由 `cloudRunnerPolicy.test.ts` 入面人手寫嘅 job inventory 拒絕。
 
-workflow 預設 `contents: read`;只有 release job 攞到 `contents: write`。每條可執行 workflow 入面每個 checkout 都設 `persist-credentials: false`,包括 release checkout。catalog API 可以用設定咗嘅 token 換 rate limit,但公開 asset 下載永遠唔會收到 token。release job 明確依賴 workflow-security job,所以 root guard、actionlint run 或者 `build-changelog.mjs --check` fail 咗就 block 發佈。佢亦依賴 application lint、build、typecheck、完整 test suite、真嘅 Java round trip、jar build、真 test-world render 同 Windows packaging——任何一個 fail 或者 fatal dependency 被 skip 就冇得 publish。screenshot capture 係 advisory 嘅診斷證據,job 級 `continue-on-error: true`,上載有嘅圖同失敗 trace,而且刻意唔喺 publisher 嘅 dependencies 入面。push 上 `main` 會自動提名發佈;manual dispatch 就要明確保留佢個 publish input。serialized 嘅 publisher 用確切 commit SHA 檢查已發佈嘅 release,所以一個目標 commit 最多被提名一次,已存在嘅確切 target 係被驗證而唔係再發佈一次。
+workflow 預設 `contents: read`;只有 release job 攞到 `contents: write`。每條可執行 workflow 入面每個 checkout 都設 `persist-credentials: false`,包括 release checkout。catalog API 可以用設定咗嘅 token 換 rate limit,但公開 asset 下載永遠唔會收到 token。release job 明確依賴 workflow-security job,所以 root guard、actionlint run 或者 `build-changelog.mjs --check` fail 咗就 block 發佈。佢亦依賴 build、typecheck、完整 test suite、真嘅 Java round trip、jar build、真 test-world render 同 Windows packaging——任何一個 fail 或者 fatal dependency 被 skip 就冇得 publish。application lint 獨立行，只係 advisory 證據，而且刻意唔喺 publisher 嘅 dependencies 入面。screenshot capture 都係 advisory 嘅診斷證據,job 級 `continue-on-error: true`,上載有嘅圖同失敗 trace,而且刻意唔喺嗰啲 dependencies 入面。push 上 `main` 會自動提名發佈;manual dispatch 就要明確保留佢個 publish input。serialized 嘅 publisher 用確切 commit SHA 檢查已發佈嘅 release,所以一個目標 commit 最多被提名一次,已存在嘅確切 target 係被驗證而唔係再發佈一次。
+
+tag 觸發嘅 run 照樣行所有發佈前 workflow、build、test、Java、packaging 同 security proof，淨係
+**Verify generated changelog is current** 呢一步只會喺 `github.ref_type != 'tag'` 嗰陣行。
+release tag 係指住嗰粒 commit 之後先建立，所以要求粒 commit 預知自己未來個 tag 再寫返入
+changelog，時間線會打晒結。人手 workflow contract 會 pin 呢個 step 所屬嘅 job、condition 同
+確切 body，拒絕 fail-open metadata，仲會點齊所有 job 同 step condition；negative fixtures 會捉
+倒轉、放鬆、重複同搬位嘅 tag guard。branch 同 pull request run 仍然要兩份 generated output
+同完整歷史完全一致先可以發佈；本身只准 `main` 嘅 publisher 刻意唔會喺 tag ref 上面行。
 
 ### 失敗情況
 
@@ -210,7 +229,7 @@ node scripts/build-changelog.mjs --check
 actionlint -no-color -oneline -shellcheck=
 ```
 
-regression test 直接由 Git 讀歷史 workflow 檔案。commit `98988e3` 必須喺佢原本嗰 11 個 direct-expression 位置 fail;指定 baseline `e13777927876a3d7898778f18193e9465bc97cc2` 必須喺佢確切嗰 19 個位置 fail;check 咗入去嘅 fixed workflow 必須零 findings、provenance 確切、reviewed block fingerprints 啱。focused fixtures 仲cover:跨行 expression、YAML aliases、改咗嘅 provenance、間接嘅 `printenv`/parameter 執行、無害嘅 block drift、相鄰但改咗名嘅 shell step、每條可執行 workflow 全部 114 個 immutable action pin、確切嘅 workflow-inventory 完整性、advisory 嘅 screenshot 狀態、fatal 嘅 release-gate dependency、真實嘅 235 字符 alternative text、畸形 schema、control characters、唔安全嘅 Markdown context、asset 來源錯、no-photo-download 執行、path containment、零/舊/重複/version 錯嘅 Squirrel fixtures、`RELEASES` hash/size 唔 match、重複/空嘅 release-manifest assets、package/tag version 分裂、release target 或者 notes 錯,同下載 asset set 唔 match。喺 Windows 上,開咗 shellcheck integration 嘅 `actionlint` 可能 deadlock;文件寫低嗰條本地 command 用閂咗 shellcheck 嚟證明 workflow 結構,權威嘅 shellcheck pass 由 pin 咗嘅 Linux hosted job 提供。
+regression test 直接由 Git 讀歷史 workflow 檔案。commit `98988e3` 必須喺佢原本嗰 11 個 direct-expression 位置 fail;指定 baseline `e13777927876a3d7898778f18193e9465bc97cc2` 必須喺佢確切嗰 19 個位置 fail;check 咗入去嘅 fixed workflow 必須零 findings、provenance 確切、reviewed block fingerprints 啱。focused fixtures 仲cover:跨行 expression、YAML aliases、改咗嘅 provenance、間接嘅 `printenv`/parameter 執行、無害嘅 block drift、相鄰但改咗名嘅 shell step、每條可執行 workflow 全部 117 個 immutable action pin、確切嘅 workflow-inventory 完整性、advisory 嘅 screenshot 狀態、fatal 嘅 release-gate dependency、真實嘅 235 字符 alternative text、畸形 schema、control characters、唔安全嘅 Markdown context、asset 來源錯、no-photo-download 執行、path containment、零/舊/重複/version 錯嘅 Squirrel fixtures、`RELEASES` hash/size 唔 match、重複/空嘅 release-manifest assets、package/tag version 分裂、release target 或者 notes 錯,同下載 asset set 唔 match。喺 Windows 上,開咗 shellcheck integration 嘅 `actionlint` 可能 deadlock;文件寫低嗰條本地 command 用閂咗 shellcheck 嚟證明 workflow 結構,權威嘅 shellcheck pass 由 pin 咗嘅 Linux hosted job 提供。
 
 ### 建議文章
 

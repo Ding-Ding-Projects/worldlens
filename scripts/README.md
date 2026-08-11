@@ -133,14 +133,16 @@ and pins the complete normalized `env` and `run` blocks with SHA-256. Any added 
 fails, including a line that recovers data indirectly through `printenv` or shell parameter
 indirection. It additionally scans every executable region in the release job and fingerprints the
 complete job, so a differently named adjacent shell step is not outside the inventory. The same
-guard inventories all 114 external action uses across all seven executable workflows, requires
+guard inventories all 117 external action uses across all seven executable workflows, requires
 immutable full SHAs and explicit supported hosted images, disables persisted checkout credentials,
 and proves the release depends on every fatal workflow-security, test, render and packaging job.
 Screenshot capture is separately required to remain advisory through job-level
 `continue-on-error: true` and must stay outside the publisher's `needs` list. The same early job
-proves the committed
-changelog outputs are current; generated-only commits are excluded by the generator so this gate
-is satisfiable. The tests read the exact historical workflows
+proves the committed changelog outputs are current on branch and pull-request runs. Tag-triggered
+runs skip only that self-referential assertion because a release tag is created after its target
+commit; every other pre-publication validation and packaging check still runs. Generated-only
+commits are excluded by the generator so the branch gate remains satisfiable. The tests read the
+exact historical workflows
 from Git: 11 findings at recovered revision `98988e3`, 19 at the assigned
 `e13777927876a3d7898778f18193e9465bc97cc2` baseline, and zero in the fixed workflow.
 

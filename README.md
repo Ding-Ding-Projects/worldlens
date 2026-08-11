@@ -54,6 +54,12 @@ code name to its existing public photo in
 [`Ding-Ding-Projects/dim-sum-photos`](https://github.com/Ding-Ding-Projects/dim-sum-photos).
 Worldlens never downloads, copies or attaches that catalog photo to its own release.
 
+Release-tag pushes still run CI, but skip only the generated-changelog freshness assertion. A tag
+is created after the commit it names, so requiring that commit to contain an entry derived from its
+own future tag is impossible. Branch and pull-request runs remain strict, and tag runs retain every
+other pre-publication build, test, workflow-security, rendering and packaging check. The main-only
+publisher remains intentionally ineligible on tags.
+
 The documentation site is a full Material Design 3 Expressive application shell rather than a
 long static page. It has adaptive collapsible navigation, real browser-style tabs, all four tab
 searches with anchored regex builders, persisted appearance/language/tone settings, the
@@ -162,6 +168,12 @@ fixture 世界上面已經同 Java 引擎輸出逐 byte 一樣,但佢仲未係�
 Squirrel.Windows,每個 release 都有逐項資產嘅 SHA-256 表。發佈只會喺所有必需嘅測試、保安、
 渲染同打包關卡通過之後先會發生;截圖捕捉係公開嘅診斷證據,但佢失敗只係諮詢性,唔會擋住
 一個其他方面有效嘅 release。
+
+release tag 嘅 push 仍然會行 CI，不過會淨係 skip generated-changelog freshness assertion。
+個 tag 係指住粒 commit 之後先建立，所以粒 commit 冇可能預先包含由自己未來個 tag 衍生嘅
+entry。branch 同 pull request run 仍然嚴格，而 tag run 其餘發佈前 build、test、workflow-
+security、render 同 packaging check 一步都唔少；只係本身就限 `main` 嘅 publisher 唔會喺
+tag 上面行。
 
 <details id="features">
 <summary><b>Everything the application does</b> - the full feature list, with its article for each</summary>

@@ -70,6 +70,15 @@ jobs:
           set -euo pipefail
           node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
           node scripts/lint-workflows.mjs
+
+      # A release tag is created after the commit it names, so that commit cannot already
+      # contain a changelog generated from its own future tag. Branch and pull-request runs
+      # remain strict; tag runs still execute every other pre-publication validation and
+      # packaging check. The main-only release job remains intentionally ineligible on tags.
+      - name: Verify generated changelog is current
+        if: github.ref_type != 'tag'
+        run: |
+          set -euo pipefail
           # Generated-only commits are deliberately excluded by the generator, so a commit
           # containing only its two outputs does not make itself stale. Full history above
           # keeps both released versions and the Unreleased section reproducible.
