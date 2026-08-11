@@ -20,6 +20,19 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Build, release and tooling
+
+- Provision Java for cold-start builds - [`c25c6036e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c25c6036e5e74ab4bcccde5eb2f4a07c71914fea)
+
+### Elsewhere in the repository
+
+- Harden installer identity comparison - [`0f8984a135`](https://github.com/Ding-Ding-Projects/worldlens/commit/0f8984a13549cfabd3160cf14f4c493c6eee4335)
+- Carry Java into installer packaging - [`92cf4d99e7`](https://github.com/Ding-Ding-Projects/worldlens/commit/92cf4d99e74a0524d59d72909cea99cb6d2844e1)
+
+## 1.0.1050 - 2026-08-11
+
+Tagged at [`d27f29eb69`](https://github.com/Ding-Ding-Projects/worldlens/commit/d27f29eb694ef30af92ad58ba5d2ed137ad89689).
+
 ### Interface
 
 - fix(a11y): 44px touch targets for the four biggest undersized clusters - [`9826f20ba4`](https://github.com/Ding-Ding-Projects/worldlens/commit/9826f20ba45cee10804aac3788a21e30119df373)
@@ -32,12 +45,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
-- Provision Java for cold-start builds - [`c25c6036e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c25c6036e5e74ab4bcccde5eb2f4a07c71914fea)
 - Repair silent installer bootstrap - [`701e4f6af2`](https://github.com/Ding-Ding-Projects/worldlens/commit/701e4f6af2312e9d3d9c91e4255674ee7aa49db8)
-
-### Elsewhere in the repository
-
-- Carry Java into installer packaging - [`92cf4d99e7`](https://github.com/Ding-Ding-Projects/worldlens/commit/92cf4d99e74a0524d59d72909cea99cb6d2844e1)
 
 ## 1.0.1044 - 2026-08-11
 
