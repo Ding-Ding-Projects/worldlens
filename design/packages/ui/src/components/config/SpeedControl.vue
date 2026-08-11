@@ -350,6 +350,19 @@ function levelSummary(level: SpeedLevel): string {
     height: auto;
     min-height: 40px;
     padding-block: 8px;
+    /*
+        The widest level carries a label and the "BlueMap's default" chip on one line, which
+        is wider than the whole control at 390px - the card clipped 59px of it and the chip
+        sat off the right edge. The button may be narrower than its content and wrap it.
+    */
+    max-inline-size: 100%;
+    min-inline-size: 0;
+}
+
+.mb-speed .mb-speed__toggle .v-btn .v-btn__content {
+    flex-wrap: wrap;
+    white-space: normal;
+    row-gap: 4px;
 }
 
 .mb-speed__state {

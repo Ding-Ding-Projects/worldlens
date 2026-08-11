@@ -718,10 +718,19 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 </v-card-text>
             </v-card>
 
+            <!--
+                Docked top. The redesign describes this surface as eight tabs across the top
+                with per-tab counts, and a strip docked left spends the width that is scarce:
+                at 512px the strip kept its full column and left 170px for the settings, so
+                the speed dial's card overflowed by 59px and "Show exactly what each level
+                sets" was cut in half. A restored workspace's own placement still wins - this
+                is a default, not a policy.
+            -->
             <TabbedNavigation
                 closeless
                 ref="tabsNav"
                 :pages="pages"
+                default-placement="top"
                 storage-key="worldlens-config-editor-tabs"
                 :window-label="t('config.shell.windowLabel', 'The options editor')"
                 :strip-label="t('config.shell.tabsLabel', 'Config screens')"

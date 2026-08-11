@@ -1794,7 +1794,17 @@ const tabCountLabel = computed(() =>
 
 .mb-tabs-strip-row[data-placement="left"],
 .mb-tabs-strip-row[data-placement="right"] {
-    flex: 0 0 clamp(13rem, 22vw, 20rem);
+    /*
+        The `min(22vw, 30%)` is the point. A side strip sized only against the viewport is
+        right when the strip spans the window and wrong the moment it is nested: the options
+        editor's strip sat inside a 385px pane and still claimed its 13rem floor, leaving
+        170px for the settings, which overflowed the speed card by 59px and cut a disclosure
+        label in half. A percentage flex-basis resolves against this strip's own pane, so the
+        30% keeps a nested strip proportionate to what it is actually inside while the 22vw
+        keeps a full-width strip exactly the size it already was. The floor drops to the
+        8.5rem the narrow-viewport rule below already uses, rather than 13rem.
+    */
+    flex: 0 0 clamp(8.5rem, min(22vw, 30%), 20rem);
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
