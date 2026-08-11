@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "92cf4d99e74a0524d59d72909cea99cb6d2844e1",
+        shortSha: "92cf4d99e7",
+        date: "2026-08-11T19:46:08-04:00",
+        subject: "Carry Java into installer packaging",
+        details: "The build child found Java, then the installer parent immediately forgot it. Rehydrate JAVA_HOME and PATH alongside the other user-scoped tools, and probe Java before packaging.\n\n將 Java 帶返入 installer packaging：build 個仔搵到 JDK，parent wrapper 下一秒失憶。依家同其他 user-scoped 工具一齊重建 JAVA_HOME/PATH，再包裝前真跑一次 probe。",
+        category: "other",
+        areas: ["other"],
+        files: 1,
+    },
+    {
         sha: "c25c6036e5e74ab4bcccde5eb2f4a07c71914fea",
         shortSha: "c25c6036e5",
         date: "2026-08-11T19:37:20-04:00",

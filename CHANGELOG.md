@@ -35,6 +35,10 @@ full message for the in-app changelog viewer.
 - Provision Java for cold-start builds - [`c25c6036e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c25c6036e5e74ab4bcccde5eb2f4a07c71914fea)
 - Repair silent installer bootstrap - [`701e4f6af2`](https://github.com/Ding-Ding-Projects/worldlens/commit/701e4f6af2312e9d3d9c91e4255674ee7aa49db8)
 
+### Elsewhere in the repository
+
+- Carry Java into installer packaging - [`92cf4d99e7`](https://github.com/Ding-Ding-Projects/worldlens/commit/92cf4d99e74a0524d59d72909cea99cb6d2844e1)
+
 ## 1.0.1044 - 2026-08-11
 
 Tagged at [`97b591ef45`](https://github.com/Ding-Ding-Projects/worldlens/commit/97b591ef45e11d5eba657f26c8bfd0a4eabd53e3).
