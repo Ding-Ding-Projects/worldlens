@@ -1617,6 +1617,18 @@ export const PROJECT_FIXED = {
     },
     "project.editor.back": { en: "All projects", yue: "所有 project" },
     "project.editor.fromWizard": { en: "made by the guide", yue: "由引導整嘅" },
+    "project.workspace.label": { en: "Project structure", yue: "專案結構" },
+    "project.workspace.heading": { en: "Project structure", yue: "專案結構" },
+    "project.workspace.note": {
+        en: "Choose a record to bring its real settings into view.",
+        yue: "揀一項，就會將佢真正嘅設定帶出嚟。",
+    },
+    "project.workspace.editorLabel": { en: "Project settings editor", yue: "專案設定編輯器" },
+    "project.workspace.collapse": {
+        en: "Hide the project structure, and widen the settings",
+        yue: "收埋專案結構，畀設定闊啲",
+    },
+    "project.workspace.expand": { en: "Show the project structure", yue: "顯示返專案結構" },
     "project.editor.unsaved": { en: "Unsaved changes", yue: "未儲存嘅更改" },
     "project.editor.name": { en: "Project name", yue: "Project 名稱" },
     "project.editor.save": { en: "Save now", yue: "立即儲存" },

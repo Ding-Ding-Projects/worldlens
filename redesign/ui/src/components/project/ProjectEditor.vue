@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiArrowLeft,
+    mdiChevronLeft,
+    mdiChevronRight,
     mdiContentSaveOutline,
     mdiFolderOpenOutline,
     mdiPlay,
@@ -43,6 +45,7 @@ import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectRenderOption from "./ProjectRenderOption.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
 import { resolveProjectHistoryHost } from "./projectHost.js";
+import { readNavigatorCollapsed, writeNavigatorCollapsed } from "./navigatorCollapse.js";
 import { editorSettingCount, savePlanFacts } from "./projectFacts.js";
 import {
     EMPTY_RENDER,
@@ -127,6 +130,13 @@ const props = withDefaults(
         separator?: string;
         /** Where the app writes renders, used as the root of a new file storage. */
         defaultRoot?: string;
+        /**
+         * Where the collapsed state of the structure column is remembered.
+         *
+         * Left out, `localStorage`. `null` keeps nothing, which is what a test asserting the
+         * default wants - and what a host with no storage at all gets, without throwing.
+         */
+        navigatorStorage?: Storage | null;
     }>(),
     {
         dirty: false,
@@ -372,6 +382,30 @@ const mapSettingsCount = computed(() => mapDescriptor().fields.length);
 function singletonSettingsCount(kind: SingletonKind): number {
     return openSingletonFile(props.project, kind).descriptor.fields.length;
 }
+
+/**
+ * The structure column collapses, and the settings take the width back.
+ *
+ * The tree earns its place while somebody is moving between maps and storages, and stops
+ * earning it the moment they settle into a screen of settings - which is most of the time
+ * spent in here. Collapsing leaves a narrow strip with the reopen control on it rather than
+ * removing the column outright, so the way back is on screen rather than remembered.
+ *
+ * `navigatorStorage` is a prop so a test can hand in its own store; `null` keeps nothing.
+ */
+const navigatorCollapsed = ref(readNavigatorCollapsed(props.navigatorStorage));
+const navigatorListId = useId();
+
+function toggleNavigator(): void {
+    navigatorCollapsed.value = !navigatorCollapsed.value;
+    writeNavigatorCollapsed(navigatorCollapsed.value, props.navigatorStorage);
+}
+
+const navigatorToggleLabel = computed(() =>
+    navigatorCollapsed.value
+        ? t("project.workspace.expand", "Show the project structure")
+        : t("project.workspace.collapse", "Hide the project structure, and widen the settings"),
+);
 
 const workspaceNodes = computed<readonly WorkspaceNode[]>(() => [
     {
@@ -1229,16 +1263,45 @@ const renderButtonLabel = computed(() =>
             </ul>
         </section>
 
-        <div class="mb-project-editor__workspace">
+        <div
+            class="mb-project-editor__workspace"
+            :class="{
+                'mb-project-editor__workspace--collapsed': navigatorCollapsed,
+            }"
+        >
             <nav
                 class="mb-project-editor__navigator"
+                :class="{ 'mb-project-editor__navigator--collapsed': navigatorCollapsed }"
                 :aria-label="t('project.workspace.label', 'Project structure')"
             >
                 <div class="mb-project-editor__navigator-head">
-                    <p class="mb-project-editor__eyebrow">
+                    <!--
+                        The control stays on screen when the column is collapsed, and it is the
+                        only thing that does. A collapse whose reopen lives somewhere else is a
+                        disappearance, and the person who did it by accident has no way back
+                        that does not involve guessing.
+                    -->
+                    <button
+                        type="button"
+                        class="mb-project-editor__navigator-toggle mb-interactive"
+                        :aria-expanded="navigatorCollapsed ? 'false' : 'true'"
+                        :aria-controls="navigatorListId"
+                        :title="navigatorToggleLabel"
+                        :aria-label="navigatorToggleLabel"
+                        @click="toggleNavigator"
+                    >
+                        <v-icon
+                            :icon="navigatorCollapsed ? mdiChevronRight : mdiChevronLeft"
+                            size="20"
+                        />
+                    </button>
+                    <p v-show="!navigatorCollapsed" class="mb-project-editor__eyebrow">
                         {{ t("project.workspace.heading", "Project structure") }}
                     </p>
-                    <p class="mb-project-editor__navigator-note">
+                    <p
+                        v-show="!navigatorCollapsed"
+                        class="mb-project-editor__navigator-note"
+                    >
                         {{
                             t(
                                 "project.workspace.note",
@@ -1247,7 +1310,18 @@ const renderButtonLabel = computed(() =>
                         }}
                     </p>
                 </div>
-                <div class="mb-project-editor__navigator-list">
+                <!--
+                    `v-show`, never `v-if`: the list is what `aria-controls` above points at, and
+                    a control that names an element the document does not contain is a broken
+                    relationship rather than a collapsed one. It also keeps the scroll position
+                    and the selection across a collapse, which is what somebody toggling it
+                    twice expects to find.
+                -->
+                <div
+                    v-show="!navigatorCollapsed"
+                    :id="navigatorListId"
+                    class="mb-project-editor__navigator-list"
+                >
                     <button
                         v-for="node in workspaceNodes"
                         :key="node.id"
@@ -1869,10 +1943,63 @@ const renderButtonLabel = computed(() =>
  */
 .mb-project-editor__workspace {
     display: grid;
-    grid-template-columns: minmax(12rem, 0.72fr) minmax(0, 2fr) minmax(17rem, 0.9fr);
+    /*
+        The middle column is the one being read, so it gets the larger share: the tree is a
+        list of eight short names and the consequences panel is a summary, while the settings
+        are the reason the editor exists. Both side columns keep a floor wide enough to stay
+        legible rather than being squeezed into ellipsis.
+    */
+    grid-template-columns: minmax(11rem, 0.55fr) minmax(0, 2.7fr) minmax(16rem, 0.8fr);
     align-items: start;
     gap: 12px;
     min-inline-size: 0;
+}
+
+/*
+    Collapsed, the tree is a strip just wide enough for its own reopen control, and every
+    pixel it gives up goes to the settings rather than being shared out.
+*/
+.mb-project-editor__workspace--collapsed {
+    grid-template-columns: auto minmax(0, 3.4fr) minmax(16rem, 0.8fr);
+}
+
+.mb-project-editor__navigator--collapsed {
+    inline-size: auto;
+    min-inline-size: 0;
+    padding: 6px;
+}
+
+.mb-project-editor__navigator--collapsed .mb-project-editor__navigator-head {
+    margin: 0;
+    padding: 0;
+}
+
+/*
+    A 44px target, and it keeps that size in both states - the collapsed strip is built
+    around this control, so shrinking it would make the way back the smallest thing on
+    screen.
+*/
+.mb-project-editor__navigator-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 44px;
+    min-block-size: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.mb-project-editor__navigator-toggle:hover {
+    background: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.mb-project-editor__navigator-toggle:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
 }
 
 .mb-project-editor__navigator,
@@ -2136,7 +2263,12 @@ const renderButtonLabel = computed(() =>
 
 @container project-editor (max-width: 72rem) {
     .mb-project-editor__workspace {
-        grid-template-columns: minmax(12rem, 0.72fr) minmax(0, 1fr);
+        grid-template-columns: minmax(11rem, 0.55fr) minmax(0, 1fr);
+    }
+
+    /* The collapse is worth most exactly here, where the width is already short. */
+    .mb-project-editor__workspace--collapsed {
+        grid-template-columns: auto minmax(0, 1fr);
     }
 
     .mb-project-editor__context {
@@ -2145,7 +2277,9 @@ const renderButtonLabel = computed(() =>
 }
 
 @container project-editor (max-width: 52rem) {
-    .mb-project-editor__workspace {
+    .mb-project-editor__workspace,
+    .mb-project-editor__workspace--collapsed {
+        /* One column already: there is no width for the collapse to hand over. */
         grid-template-columns: minmax(0, 1fr);
     }
 

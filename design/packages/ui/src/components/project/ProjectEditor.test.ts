@@ -1003,8 +1003,10 @@ describe("the project-shaped workspace", () => {
     });
 
     it("has a three-pane desktop grid that collapses by container width before narrow layouts can overflow", () => {
+        // The middle column carries the larger share: the tree is eight short names and the
+        // consequences panel is a summary, while the settings are what the editor is for.
         expect(projectEditorSource).toMatch(
-            /grid-template-columns:\s*minmax\(12rem, 0\.72fr\) minmax\(0, 2fr\) minmax\(17rem, 0\.9fr\)/,
+            /grid-template-columns:\s*minmax\(11rem, 0\.55fr\) minmax\(0, 2\.7fr\) minmax\(16rem, 0\.8fr\)/,
         );
         expect(projectEditorSource).toContain("@container project-editor (max-width: 72rem)");
         expect(projectEditorSource).toContain("@container project-editor (max-width: 52rem)");
@@ -1012,5 +1014,73 @@ describe("the project-shaped workspace", () => {
             /\.mb-project-editor__workspace\s*\{[^}]*min-inline-size:\s*0/s,
         );
         expect(projectEditorSource).toContain("grid-template-columns: minmax(0, 1fr)");
+    });
+
+    describe("collapsing the structure column", () => {
+        it("starts showing, and the toggle says so", async () => {
+            const wrapper = await editor(seeded(), { navigatorStorage: null });
+            const toggle = wrapper.find(".mb-project-editor__navigator-toggle");
+            expect(toggle.exists()).toBe(true);
+            expect(toggle.attributes("aria-expanded")).toBe("true");
+            expect(wrapper.find(".mb-project-editor__workspace--collapsed").exists()).toBe(false);
+            wrapper.unmount();
+        });
+
+        it("collapses on the toggle, widens the settings, and keeps the way back on screen", async () => {
+            const wrapper = await editor(seeded(), { navigatorStorage: null });
+            const toggle = wrapper.find(".mb-project-editor__navigator-toggle");
+            await toggle.trigger("click");
+
+            expect(toggle.attributes("aria-expanded")).toBe("false");
+            expect(wrapper.find(".mb-project-editor__workspace--collapsed").exists()).toBe(true);
+            // The control that undoes it is the one thing that must not disappear with the
+            // column, or an accidental collapse has no visible way back.
+            expect(wrapper.find(".mb-project-editor__navigator-toggle").isVisible()).toBe(true);
+
+            await toggle.trigger("click");
+            expect(toggle.attributes("aria-expanded")).toBe("true");
+            expect(wrapper.find(".mb-project-editor__workspace--collapsed").exists()).toBe(false);
+            wrapper.unmount();
+        });
+
+        it("names the list it controls, and keeps that element in the document while collapsed", async () => {
+            const wrapper = await editor(seeded(), { navigatorStorage: null });
+            const toggle = wrapper.find(".mb-project-editor__navigator-toggle");
+            const controls = toggle.attributes("aria-controls");
+            expect(controls).toBeTruthy();
+            expect(document.getElementById(controls ?? "")).not.toBeNull();
+
+            await toggle.trigger("click");
+            // `v-show`, not `v-if`: a control naming an element the document no longer holds
+            // is a broken relationship rather than a collapsed one.
+            expect(document.getElementById(controls ?? "")).not.toBeNull();
+            wrapper.unmount();
+        });
+
+        it("remembers the collapse for the next time the editor opens", async () => {
+            const store = new Map<string, string>();
+            const storage = {
+                getItem: (key: string) => store.get(key) ?? null,
+                setItem: (key: string, value: string) => void store.set(key, value),
+                removeItem: (key: string) => void store.delete(key),
+                clear: () => store.clear(),
+                key: () => null,
+                get length() {
+                    return store.size;
+                },
+            } as unknown as Storage;
+
+            const first = await editor(seeded(), { navigatorStorage: storage });
+            await first.find(".mb-project-editor__navigator-toggle").trigger("click");
+            expect(first.find(".mb-project-editor__workspace--collapsed").exists()).toBe(true);
+            first.unmount();
+
+            const second = await editor(seeded(), { navigatorStorage: storage });
+            expect(second.find(".mb-project-editor__workspace--collapsed").exists()).toBe(true);
+            expect(
+                second.find(".mb-project-editor__navigator-toggle").attributes("aria-expanded"),
+            ).toBe("false");
+            second.unmount();
+        });
     });
 });
