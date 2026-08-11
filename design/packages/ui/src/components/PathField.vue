@@ -154,6 +154,14 @@ async function browseFile(): Promise<void> {
                 autocomplete="off"
                 hide-details="auto"
             />
+            <!--
+                `height`/`width` as props rather than only in CSS. Vuetify renders these as an
+                inline style, which no stylesheet ordering can lose to - and a stylesheet rule
+                here did lose somewhere between this source and the packaged application, while
+                measuring 44 in the built bundle served directly. The touch target is not worth
+                leaving to that: 40x40 is under the minimum this project holds everywhere else.
+                `size="small"` stays for its typography and padding.
+            -->
             <v-btn
                 v-if="showFolderButton"
                 :icon="mdiFolderOpenOutline"
@@ -162,6 +170,8 @@ async function browseFile(): Promise<void> {
                 :disabled="isDisabled || resolvedBridge === null"
                 variant="tonal"
                 size="small"
+                height="44"
+                width="44"
                 @click="browseFolder"
             >
                 <v-tooltip v-if="resolvedBridge !== null" activator="parent" location="top" :text="folderAria" />
@@ -174,6 +184,8 @@ async function browseFile(): Promise<void> {
                 :disabled="isDisabled || resolvedBridge === null"
                 variant="tonal"
                 size="small"
+                height="44"
+                width="44"
                 @click="browseFile"
             >
                 <v-tooltip v-if="resolvedBridge !== null" activator="parent" location="top" :text="fileAria" />
@@ -234,7 +246,8 @@ async function browseFile(): Promise<void> {
     browse button as undersized. `size="small"` is kept for its typography and padding; only
     the hit area is raised, so nothing about the visual weight of these buttons changes.
 */
-.mb-path-field__row .v-btn {
+.mb-path-field .mb-path-field__row .v-btn,
+.mb-path-field .mb-path-field__row .v-btn.v-btn--size-small {
     min-inline-size: 44px;
     min-block-size: 44px;
 }
