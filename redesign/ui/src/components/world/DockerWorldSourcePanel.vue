@@ -884,8 +884,39 @@ defineExpose({
     block-size: auto !important;
 }
 
+/*
+    The two options wrap onto a second row rather than running off the side.
+
+    "Container" and "Named volume" each carry an icon, and side by side they are wider than
+    this panel at a 390px viewport - so "Named volume" extended past the right edge of the
+    window entirely. The capture harness measures exactly that (`rect.right >
+    window.innerWidth`) at 390x844 and 200% scale, named that control, and wrote a diagnostic
+    image in place of the evidence capture, leaving one documented surface with no picture
+    while the run stayed green.
+
+    `overflow: visible` is required with the wrap, not decoration: Vuetify's `.v-btn-group`
+    hides its overflow, so a wrapped second row would be cut off exactly as the speed dial's
+    levels 4 and 5 were. Same fix, same reason.
+
+    It reproduces only where a Docker daemon is actually running, because without one this
+    toggle is never rendered - which is why every local run passes this check and CI does not.
+*/
+.mb-docker-world .v-btn-toggle {
+    flex-wrap: wrap;
+    max-inline-size: 100%;
+    overflow: visible;
+    row-gap: 8px;
+}
+
+
 .mb-docker-world .v-btn-toggle .v-btn {
     padding-block: 6px;
+    /* Kept in this rule rather than a second one with the same selector: the sizing test
+       finds this selector's rule by name, and a later duplicate is the one it would find
+       instead - which is how a passing padding assertion could start reading a rule with no
+       padding in it at all. */
+    min-inline-size: 0;
+    max-inline-size: 100%;
 }
 
 /*
