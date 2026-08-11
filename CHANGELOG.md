@@ -22,6 +22,20 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- fix(a11y): 44px touch targets for the four biggest undersized clusters - [`9826f20ba4`](https://github.com/Ding-Ding-Projects/worldlens/commit/9826f20ba45cee10804aac3788a21e30119df373)
+- feat(project editor): collapse the structure column, and give the settings the room - [`63d195d701`](https://github.com/Ding-Ding-Projects/worldlens/commit/63d195d701cb1a26e2ab440888a2b0b72a71bf2d)
+
+### Landing page and documentation site
+
+- Add mobile tab context-menu buttons - [`cc8fbb9cae`](https://github.com/Ding-Ding-Projects/worldlens/commit/cc8fbb9caec4f4bfaa9a87a9b1c0ccfa4d7b16b6)
+- docs(site): name the three unbuilt contract features instead of omitting them - [`223d8fe385`](https://github.com/Ding-Ding-Projects/worldlens/commit/223d8fe385f33f7456387a7df5d4fcae57018c5e)
+
+## 1.0.1044 - 2026-08-11
+
+Tagged at [`97b591ef45`](https://github.com/Ding-Ding-Projects/worldlens/commit/97b591ef45e11d5eba657f26c8bfd0a4eabd53e3).
+
+### Interface
+
 - fix(path-field): pin the browse controls to 44px through the component, not the sheet - [`1dee292518`](https://github.com/Ding-Ding-Projects/worldlens/commit/1dee2925189cee7202e3e4822cfeea56b2ba8b1e)
 - fix(path-field): give the browse controls a 44px touch target - [`0ba36bf32f`](https://github.com/Ding-Ding-Projects/worldlens/commit/0ba36bf32f1227060755e5744d19b442de80a30f)
 - fix(path-field): wrap the browse controls, and make the harness say by how much - [`5f780d7490`](https://github.com/Ding-Ding-Projects/worldlens/commit/5f780d749036ad8d9d134d9e479d06c80e315f8e)
