@@ -140,6 +140,18 @@ if not "%GH_OK%"=="1" goto :no_gh
 echo       using %GH_VERSION%
 echo.
 
+rem --- User-scoped Java toolchain -------------------------------------------
+echo [4/8] Eclipse Temurin 25
+set "BUILD_JAVA_HOME=%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\ensure-build-java.ps1"
+if errorlevel 1 goto :java_failed
+set "JAVA_HOME=%BUILD_JAVA_HOME%"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+java -version >nul 2>&1
+if errorlevel 1 goto :java_failed
+echo       using %JAVA_HOME%
+echo.
+
 rem --- Self-healing bootstrap ------------------------------------------------
 rem This is the repository's authority for workspace dependencies, the Electron
 rem archive recovery path, Java/Gradle/BlueMap prerequisites and Playwright.
@@ -270,6 +282,12 @@ exit /b 1
 echo.
 echo ERROR: scripts\bootstrap.mjs could not install and verify every dependency. 1>&2
 echo        The bootstrap output above names the exact failed component. 1>&2
+exit /b 1
+
+:java_failed
+echo.
+echo ERROR: Eclipse Temurin 25 could not be provisioned in the user-scoped toolchain. 1>&2
+echo        The Adoptium resolver, verified download, extraction or runtime probe failed. 1>&2
 exit /b 1
 
 :no_pnpm
