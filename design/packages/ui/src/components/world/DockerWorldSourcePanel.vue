@@ -888,6 +888,24 @@ defineExpose({
     padding-block: 6px;
 }
 
+/*
+    Freeing the button's height is only half of it: Vuetify's `.v-btn__content` is
+    `white-space: nowrap`, so the label still laid out on one line and simply overflowed the
+    button it had been given room to grow inside. The capture harness measures exactly that -
+    `content.scrollWidth > content.clientWidth` - at a 390x844 viewport and 200% device scale,
+    and reported "Named volume" as internally clipped, which is why that surface has no
+    evidence capture.
+
+    It only reproduces where Docker is actually present: without a daemon the toggle carries
+    no volume label to overflow, so a machine with no Docker passes this check while CI, which
+    has one, does not.
+*/
+.mb-docker-world .v-btn-toggle .v-btn .v-btn__content {
+    white-space: normal;
+    flex-wrap: wrap;
+    row-gap: 2px;
+}
+
 .mb-docker-world__progress {
     display: grid;
     gap: 6px;
