@@ -188,6 +188,13 @@ export const MENU_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const MENU_FIXED = {
+    /* The Maps page's own list of renders this computer has made. Kept apart from the map
+     * list above it, so the two headings have to say which is which. */
+    "maps.rendered": { en: "Rendered on this computer", yue: "喺呢部電腦 render 過" },
+    "maps.noneLoadedButRendered": {
+        en: "No map is open. The renders this computer has made are below.",
+        yue: "而家冇開住地圖。呢部電腦 render 過嘅喺下面。",
+    },
     /* The About page. */
     "info.logoAlt": { en: "The BlueMap logo", yue: "BlueMap 標誌" },
     /* Product name and version number, both identifiers, so the string is the same either

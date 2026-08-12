@@ -183,6 +183,9 @@ export const RENDERSINPROGRESS_FIXED = {
 
     "tabs.page.renders": { en: "Renders", yue: "Render" },
     "tabs.page.rendersCounted": { en: "Renders ({count})", yue: "Render（{count}）" },
+    // The structures page's own tab. Lives here beside the other render-page labels rather
+    // than in a surface of its own, because a one-key module is a module nobody finds.
+    "tabs.page.structures": { en: "Structures", yue: "結構" },
 } as const satisfies Record<string, FixedString>;
 
 export const RENDERSINPROGRESS_FACTS = {
