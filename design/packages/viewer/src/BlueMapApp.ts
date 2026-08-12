@@ -80,6 +80,22 @@ export interface BlueMapAppOptions {
      */
     dataRoot?: string;
     /**
+     * Who draws the chrome around the map: this viewer, or the page embedding it.
+     *
+     * `"served"` is the default and is what a plain BlueMap deployment needs - the viewer
+     * builds its own app bar, search, coordinate readout, settings and command button,
+     * because in a browser tab there is nothing else to provide them.
+     *
+     * `"embedded"` is for a host that already draws all of that. The desktop application
+     * does: it has its own control bar, its own search with the regex builder, its own
+     * coordinate inputs, its own settings and its own command palette. Left on `"served"`
+     * inside that host, both bars render at once - two search fields, two coordinate
+     * readouts, two settings buttons, one stacked on the other - which is exactly what a
+     * real build showed. So the host says which it is rather than the viewer guessing from
+     * the presence of a global that a browser tab could also have.
+     */
+    chrome?: "served" | "embedded";
+    /**
      * Optional host-owned policy for a presentation mode that temporarily restricts locale and
      * tone controls.  This is plain viewer data, not an import of any desktop UI state.
      */
@@ -157,7 +173,9 @@ export class BlueMapApp {
         );
 
         this.mapViewer = new MapViewer(rootElement, this.events);
-        this.materialShell = new MaterialShell(rootElement, this.presentationPolicy);
+        this.materialShell = new MaterialShell(rootElement, this.presentationPolicy, {
+            chrome: options.chrome ?? "served",
+        });
 
         this.mapControls = new MapControls(this.mapViewer.renderer.domElement, rootElement);
         this.freeFlightControls = new FreeFlightControls(this.mapViewer.renderer.domElement);

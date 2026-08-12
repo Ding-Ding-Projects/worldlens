@@ -226,10 +226,27 @@ export class MaterialShell {
     /** The exact settings opener, restored after close or Escape. */
     private settingsInvoker: HTMLElement | null = null;
 
-    constructor(root: Element, presentationPolicy = new ViewerPresentationPolicy()) {
+    /**
+     * True when the page around this viewer draws its own chrome.
+     *
+     * Everything the shell builds is still built - the map menu, the settings panel, the
+     * notification history, the search scopes and the command palette are all real surfaces
+     * a host may open through the viewer's own API - but the *app bar* is not appended,
+     * because the host has one. Building it anyway is what put two search fields, two
+     * coordinate readouts and two settings buttons on top of each other in the desktop app.
+     */
+    private readonly embedded: boolean;
+
+    constructor(
+        root: Element,
+        presentationPolicy = new ViewerPresentationPolicy(),
+        options: { chrome?: "served" | "embedded" } = {},
+    ) {
         this.root = root as HTMLElement;
         this.presentationPolicy = presentationPolicy;
+        this.embedded = options.chrome === "embedded";
         this.root.classList.add("bm-m3-shell");
+        if (options.chrome === "embedded") this.root.classList.add("bm-m3-shell--embedded");
         if (!document.getElementById("bm-m3-style")) {
             const style = document.createElement("style");
             style.id = "bm-m3-style";
@@ -240,7 +257,9 @@ export class MaterialShell {
         const bar = document.createElement("header");
         bar.className = "bm-m3-appbar bm-m3-control-bar";
         bar.innerHTML = `<nav class="bm-m3-map-rail" data-copy-aria-label="mapNavigation"><button class="bm-m3-rail-menu" type="button" data-action="map-menu" data-copy-aria-label="openMapMenu" data-copy-title="openMapMenu" aria-controls="bm-m3-map-menu" aria-expanded="false" title="Open map menu">☰</button></nav><div class="bm-m3-brand-group"><div class="bm-m3-brand">BlueMap</div><div class="bm-m3-subtitle" data-copy="materialMapServer">Material map server</div></div><div class="bm-m3-search-wrap" role="search" data-search-scope="map-controls"><input class="bm-m3-search" type="search" data-copy-aria-label="searchMapControls" data-copy-placeholder="searchControlsPlaceholder" autocomplete="off" spellcheck="false"><button class="bm-m3-regex-button" type="button" data-search-action="toggle-regex" data-copy-aria-label="regexSearch" aria-pressed="false">Regex</button><button class="bm-m3-regex-button" type="button" data-search-action="builder" data-copy-aria-label="openMapRegexBuilder" aria-expanded="false">.*</button></div><div class="bm-m3-coordinates" role="status" data-copy-aria-label="currentMapCoordinates"><output class="bm-m3-coordinate" data-coordinate="x">x —</output><output class="bm-m3-coordinate" data-coordinate="z">z —</output></div><button class="bm-m3-icon bm-m3-notification-control" type="button" data-action="notifications" aria-controls="bm-m3-notification-history" aria-expanded="false">🔔</button><button class="bm-m3-icon bm-m3-settings-control" type="button" data-action="settings" data-copy-aria-label="openSettings" aria-controls="bm-m3-settings" aria-expanded="false">⚙</button><button class="bm-m3-icon bm-m3-command" type="button" data-action="command" data-copy-aria-label="openCommandPalette" title="Ctrl+Shift+F">⌘</button>`;
-        this.root.appendChild(bar);
+        // Built either way, so every querySelector below finds what it expects and the
+        // shell's own API keeps working; appended only when nothing else draws a bar.
+        if (!this.embedded) this.root.appendChild(bar);
         this.mapMenuButton = bar.querySelector<HTMLButtonElement>('[data-action="map-menu"]')!;
         this.commandPaletteButton =
             bar.querySelector<HTMLButtonElement>('[data-action="command"]')!;

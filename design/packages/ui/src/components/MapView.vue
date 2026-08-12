@@ -40,6 +40,9 @@ onMounted(async () => {
             dataRoot: profileDataRoot(profile),
             allowRemoteInjection: () => profile.trustCustomizations,
             presentationRestriction: viewerPresentationRestriction(),
+            // This application draws its own control bar, search, coordinates, settings
+            // and command palette, so the viewer must not draw a second set on top.
+            chrome: "embedded",
         });
         setBlueMapApp(app);
         await app.load();
