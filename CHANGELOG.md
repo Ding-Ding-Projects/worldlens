@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Put the structures list on a page somebody can actually open - [`f340ee71c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/f340ee71c4d00adc63d5c7f58e2ff2b668ec9271)
 - Accept a structure or schematic dropped onto the window - [`1fec4a2ba8`](https://github.com/Ding-Ding-Projects/worldlens/commit/1fec4a2ba809cfaee8103e540929929223f6b72c)
 - Find the structures a world already holds, and render them one at a time - [`534cc594c6`](https://github.com/Ding-Ding-Projects/worldlens/commit/534cc594c6deef1e786364459093768baeb97a54)
 - Draw studio markers on the map, and offer the studio where the dead end was - [`d3b212d914`](https://github.com/Ding-Ding-Projects/worldlens/commit/d3b212d914695cf23a7877e97a9bf3e92e2f097c)

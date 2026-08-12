@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "f340ee71c4d00adc63d5c7f58e2ff2b668ec9271",
+        shortSha: "f340ee71c4",
+        date: "2026-08-12T19:25:35-04:00",
+        subject: "Put the structures list on a page somebody can actually open",
+        details: "It was built, tested and committed with nothing rendering it. Every test in\nStructureList.test.ts passed against a component the application never mounted,\nwhich is the exact shape of a feature that is finished in a diff and absent from\nthe product.\n\nSo: a Structures page in the tab registry, the list rendered in its panel with\nthe store's real discovered files, and its open event routed through the same\nopenRenderedMap every other render already opens through, rather than a second\nway of doing the one thing.\n\n`canScan` is the shell's own answer rather than a hardcoded true. A build with no\npreload bridge cannot look inside a world, and an empty list from a build that\nnever looked reads as \"this world has no structures\", which is a different and\nuntrue sentence.\n\nOne thing worth writing down, because nothing in this repository would have\ncaught it. An unresolved component in a Vue template is NOT a type error: the\ntemplate said <StructureList> with no import anywhere in the file and `vue-tsc`\nreported a clean pass. It surfaced only when a required prop was added and the\nerror changed shape. The new test asserts the import line itself for that\nreason, and turns red when the import is removed, which was confirmed rather\nthan assumed.\n\n呢個 list 之前寫好、測好、commit 咗，但係冇任何嘢 render 佢——StructureList\n啲 test 全部對住一個從來冇掛上去嘅 component 跑到綠，即係喺 diff 度做完咗，\n喺產品度根本唔存在。順帶記低：Vue template 入面認唔到嘅 component 唔算\ntype error，冇 import 都照過 vue-tsc，所以新嗰個 test 直接驗嗰行 import。",
+        category: "interface",
+        areas: ["interface"],
+        files: 2,
+    },
+    {
         sha: "1fec4a2ba809cfaee8103e540929929223f6b72c",
         shortSha: "1fec4a2ba8",
         date: "2026-08-12T19:14:53-04:00",
