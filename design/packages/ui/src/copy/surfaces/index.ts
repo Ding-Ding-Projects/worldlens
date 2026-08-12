@@ -34,6 +34,7 @@ import { GHCLIACCOUNTS_FACTS, GHCLIACCOUNTS_FIXED, GHCLIACCOUNTS_VOICED } from "
 import { GITHUB_FACTS, GITHUB_FIXED, GITHUB_VOICED } from "./github.js";
 import { GLOSSARY_FACTS, GLOSSARY_FIXED, GLOSSARY_VOICED } from "./glossary.js";
 import { HISTORY_FACTS, HISTORY_FIXED, HISTORY_VOICED } from "./history.js";
+import { LOCKS_FACTS, LOCKS_FIXED, LOCKS_VOICED } from "./locks.js";
 import { HOME_FACTS, HOME_FIXED, HOME_VOICED } from "./home.js";
 import { HOSTING_FACTS, HOSTING_FIXED, HOSTING_VOICED } from "./hosting.js";
 import { LIVESPEED_FACTS, LIVESPEED_FIXED, LIVESPEED_VOICED } from "./liveSpeed.js";
@@ -84,6 +85,7 @@ export const SURFACE_VOICED = {
     ...GITHUB_VOICED,
     ...GLOSSARY_VOICED,
     ...HISTORY_VOICED,
+    ...LOCKS_VOICED,
     ...HOME_VOICED,
     ...HOSTING_VOICED,
     ...LIVESPEED_VOICED,
@@ -131,6 +133,7 @@ export const SURFACE_FIXED = {
     ...GITHUB_FIXED,
     ...GLOSSARY_FIXED,
     ...HISTORY_FIXED,
+    ...LOCKS_FIXED,
     ...HOME_FIXED,
     ...HOSTING_FIXED,
     ...LIVESPEED_FIXED,
@@ -178,6 +181,7 @@ export const SURFACE_FACTS = {
     ...GITHUB_FACTS,
     ...GLOSSARY_FACTS,
     ...HISTORY_FACTS,
+    ...LOCKS_FACTS,
     ...HOME_FACTS,
     ...HOSTING_FACTS,
     ...LIVESPEED_FACTS,

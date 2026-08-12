@@ -94,6 +94,7 @@ const COVERED_SURFACES = [
     "components/backup",
     "components/changelog",
     "components/cirender",
+    "components/locks",
     "components/config",
     "components/console",
     "components/controlbar",
