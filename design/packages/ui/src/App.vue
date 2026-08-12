@@ -77,6 +77,7 @@ import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { DocsPage } from "./components/docs/index.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
+import DropRenderZone from "./components/dropRender/DropRenderZone.vue";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
 import { notices, raiseNotice } from "./stores/notices.js";
@@ -739,6 +740,27 @@ function openCiRender(world: string | null = null): void {
 }
 
 /**
+ * A structure or schematic dropped onto the app, waiting for the render page to pick it up.
+ *
+ * `DropRenderZone` only classifies and hands off files - it has no renderer of its own, and
+ * neither does this file. What it can honestly do is name what was dropped and take the person
+ * straight to the screen that actually starts a render, rather than pretending the drop itself
+ * finished anything. Once that render completes, the existing `profilesStore.activeId` watch
+ * above is what carries the app to the map page - the same path every other render, local or
+ * CI, already takes.
+ */
+const droppedRenderFiles = ref<{ name: string; kind: string }[] | null>(null);
+
+function onDropRender(files: { name: string; kind: string }[]): void {
+    droppedRenderFiles.value = files;
+    openCiRender();
+}
+
+function onDropRenderBrowse(): void {
+    openCiRender();
+}
+
+/**
  * Choosing a map takes you to the map.
  *
  * The two places that set an active profile - the wizard finishing a render, and a row in the
@@ -1077,6 +1099,13 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
 <template>
     <v-app class="mb-app">
+        <!--
+            Covers the whole app shell so a structure or schematic can be dropped from
+            anywhere, not only from whichever page happens to be open. It does not render
+            anything by itself; it classifies what was dropped and hands the accepted files
+            to `onDropRender`, which takes the person to the screen that actually renders.
+        -->
+        <DropRenderZone @render="onDropRender" @browse="onDropRenderBrowse">
         <!--
             The window's own chrome. Frameless means the operating system draws no caption
             bar, so this is it; in a browser build the component renders nothing at all.
@@ -1623,6 +1652,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             `revealPage` as its steps advance.
         -->
         <TutorialOverlay :reveal-page="revealPage" />
+        </DropRenderZone>
 
     </v-app>
 </template>
