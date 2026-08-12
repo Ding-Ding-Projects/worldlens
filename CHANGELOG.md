@@ -22,6 +22,14 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Give the update banner a surface, and the Maps page a way back to a render - [`fafb946383`](https://github.com/Ding-Ding-Projects/worldlens/commit/fafb9463834e2b0f28367cc63d0aa63a5b368f8d)
+
+## 1.0.1068 - 2026-08-12
+
+Tagged at [`47547f485a`](https://github.com/Ding-Ding-Projects/worldlens/commit/47547f485a6ce6c2cd5a45e7770861195d8c61dc).
+
+### Interface
+
 - Stub elementsFromPoint, which was failing CI under a table of 735 passes - [`ae12dd672a`](https://github.com/Ding-Ding-Projects/worldlens/commit/ae12dd672a55bba5d2280819ac2202587deff817)
 - Fix the three things the red remote was actually complaining about - [`57a32d6437`](https://github.com/Ding-Ding-Projects/worldlens/commit/57a32d6437861d62105722f369d19b2b961c84a5)
 - Voice every lock and Support Tickets string, in both languages - [`62dcd754e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/62dcd754e293798e9d92baae3349ccae8a1ff265)
