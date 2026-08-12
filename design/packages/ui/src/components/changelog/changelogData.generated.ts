@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "1a8f700caaea42db7843ea4189e4206abb774c80",
+        shortSha: "1a8f700caa",
+        date: "2026-08-12T19:29:47-04:00",
+        subject: "Voice the three keys the new pages added",
+        details: "The catalogue coverage guard caught all three, which is its whole job: a missing\nentry renders the English fallback perfectly, in English, to somebody who chose\n廣東話, with nothing malformed and nothing empty to notice.\n\n'Structures' joins the other render-page tab labels rather than getting a module\nof its own, because a one-key module is a module nobody finds. The two Maps\nheadings are fixed rather than voiced: they name which of the two lists you are\nlooking at, and a heading that reworded itself at level 5 would stop doing that.\n\n三條 key 都係個 catalogue coverage guard 捉到，呢個就係佢份工：漏咗嘅 key 會\n好完美咁用英文 fallback render 畀一個揀咗廣東話嘅人睇，冇壞冇空，冇得靠肉眼發現。",
+        category: "interface",
+        areas: ["interface"],
+        files: 2,
+    },
+    {
         sha: "f340ee71c4d00adc63d5c7f58e2ff2b668ec9271",
         shortSha: "f340ee71c4",
         date: "2026-08-12T19:25:35-04:00",
