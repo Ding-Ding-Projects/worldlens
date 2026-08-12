@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "2b9c3be848a646705670e40b434cd513bbd6e709",
+        shortSha: "2b9c3be848",
+        date: "2026-08-12T18:40:49-04:00",
+        subject: "Let the host say who draws the chrome, so only one bar renders",
+        details: "The viewer builds its own app bar - search, regex toggle, coordinate readout,\nnotifications, settings, command palette - because a served map in a browser tab\nhas nothing else to provide them. The desktop application draws every one of\nthose itself, and nobody had ever told the viewer to stop, so inside the app both\nbars rendered at once: two search fields, two coordinate readouts, two settings\nbuttons, one stacked on the other. A real build showed exactly that.\n\nSo `BlueMapAppOptions` grows a `chrome` option and the host states which\narrangement it is in. `\"served\"` stays the default, so a plain BlueMap\ndeployment needs no option and behaves exactly as it always did; the desktop app\npasses `\"embedded\"` and the bar is simply not appended.\n\nDeliberately not sniffed from the presence of a global. A browser tab can carry\nwhatever globals somebody put there, and a viewer guessing at its own context\nwould get it wrong in exactly the deployment nobody tests. The host knows; the\nhost says.\n\nEverything else the shell owns is still built and still reachable through the\nviewer's API - the map menu, the settings panel, the notification history, the\nsearch scopes, the command palette - so an embedding host that opens one of\nthose surfaces does not find half a shell. The palette keeps its own hidden\nsearch field, and the test says so in those words rather than asserting no input\nexists anywhere, which is a claim this shell should not have to satisfy and one\nthat would quietly stop meaning anything the day somebody adds a hidden field.\n\n個 viewer 自己起一條 bar：搜尋、regex、座標、通知、設定、command palette，\n因為喺瀏覽器度開嘅 served map 冇第二個地方攞到呢啲。但係桌面 app 每一樣都自己有，\n又冇人叫過個 viewer 唔好起，所以喺 app 入面兩條 bar 一齊出：兩個搜尋框、\n兩組座標、兩粒設定掣，一條疊住另一條。真 build 就係咁。而家由 host 講明自己\n係邊種安排，唔靠嗅有冇某個 global——瀏覽器入面咩 global 都可以有，\nviewer 靠估就一定會喺最冇人測試嗰個部署度估錯。",
+        category: "engine",
+        areas: ["engine", "interface"],
+        files: 4,
+    },
+    {
         sha: "fafb9463834e2b0f28367cc63d0aa63a5b368f8d",
         shortSha: "fafb946383",
         date: "2026-08-12T18:33:03-04:00",

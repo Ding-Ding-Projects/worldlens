@@ -24,6 +24,10 @@ full message for the in-app changelog viewer.
 
 - Give the update banner a surface, and the Maps page a way back to a render - [`fafb946383`](https://github.com/Ding-Ding-Projects/worldlens/commit/fafb9463834e2b0f28367cc63d0aa63a5b368f8d)
 
+### Rendering and world data
+
+- Let the host say who draws the chrome, so only one bar renders - [`2b9c3be848`](https://github.com/Ding-Ding-Projects/worldlens/commit/2b9c3be848a646705670e40b434cd513bbd6e709)
+
 ## 1.0.1068 - 2026-08-12
 
 Tagged at [`47547f485a`](https://github.com/Ding-Ding-Projects/worldlens/commit/47547f485a6ce6c2cd5a45e7770861195d8c61dc).
