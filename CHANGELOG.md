@@ -20,6 +20,24 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Interface
+
+- Lay the toy locks' foundation: RFC 6238, and a lock that holds no secret - [`fe8a208bb1`](https://github.com/Ding-Ding-Projects/worldlens/commit/fe8a208bb14421f8167d4402707dda3fdab6388c)
+- Drop the duplicate maskField the merge left behind - [`ab70d39a91`](https://github.com/Ding-Ding-Projects/worldlens/commit/ab70d39a91c46efc604c0afd203f64ae86c6207f)
+- Offer the defaults when a world has no project file at all - [`4dcdbeb18a`](https://github.com/Ding-Ding-Projects/worldlens/commit/4dcdbeb18ad60df242bb50e7f8740e558349a799)
+
+### Build, release and tooling
+
+- Preserve in-flight workflow-lint, CI and project-editor work - [`e378236687`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3782366879bc380462a6ce9b99e2aeebb443dc1)
+
+### Documentation
+
+- Merge branch 'main' of https://github.com/Ding-Ding-Projects/worldlens - [`a688c72aeb`](https://github.com/Ding-Ding-Projects/worldlens/commit/a688c72aeb55c9cd15a55ab89aa3251ed9ba6fce) _(summary of 83 commits, also listed here)_
+
+## 1.0.1056 - 2026-08-11
+
+Tagged at [`1faab0b9be`](https://github.com/Ding-Ding-Projects/worldlens/commit/1faab0b9be564e349d7bd1d7128466ea9ecd0d0b).
+
 ### Build, release and tooling
 
 - Provision Java for cold-start builds - [`c25c6036e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c25c6036e5e74ab4bcccde5eb2f4a07c71914fea)
