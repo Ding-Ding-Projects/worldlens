@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Fix the three things the red remote was actually complaining about - [`57a32d6437`](https://github.com/Ding-Ding-Projects/worldlens/commit/57a32d6437861d62105722f369d19b2b961c84a5)
 - Voice every lock and Support Tickets string, in both languages - [`62dcd754e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/62dcd754e293798e9d92baae3349ccae8a1ff265)
 - Add the lock list, the recovery desk, and the article for both - [`ceff013df8`](https://github.com/Ding-Ding-Projects/worldlens/commit/ceff013df84b352e8c6cea83638c57f046e8783e)
 - Put the locks on the wrapper every element already wears - [`57a3c4f8b0`](https://github.com/Ding-Ding-Projects/worldlens/commit/57a3c4f8b07b6e37938a187e6baa001061d00613)

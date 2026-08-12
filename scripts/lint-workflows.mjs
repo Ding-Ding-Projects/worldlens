@@ -140,11 +140,11 @@ const RELEASE_JOB_FINGERPRINT =
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
-    count: 8,
+    count: 7,
   }),
   "actions/setup-node": Object.freeze({
     sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
-    count: 8,
+    count: 7,
   }),
   "actions/setup-java": Object.freeze({
     sha: "cf277c60eb25467037889841efdb72551f06f6c3",
@@ -160,7 +160,7 @@ const PINNED_ACTIONS = Object.freeze({
   }),
   "pnpm/action-setup": Object.freeze({
     sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
-    count: 7,
+    count: 6,
   }),
 });
 

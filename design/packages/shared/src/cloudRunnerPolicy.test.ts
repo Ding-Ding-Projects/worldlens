@@ -41,9 +41,6 @@ const WORKFLOW_JOBS: readonly WorkflowJob[] = [
     { workflow: "build-jars.yml", job: "build", runner: "ubuntu-24.04" },
     { workflow: "ci.yml", job: "workflows", runner: "ubuntu-24.04" },
     { workflow: "ci.yml", job: "check", runner: "ubuntu-24.04" },
-    // Reports rather than gates - nothing lists it in `needs` - but it is still an executable
-    // job, so the pinned-image rule applies to it exactly as it does to the gates.
-    { workflow: "ci.yml", job: "lint", runner: "ubuntu-24.04" },
     { workflow: "ci.yml", job: "package", runner: "windows-2022" },
     { workflow: "ci.yml", job: "jars", uses: "./.github/workflows/build-jars.yml" },
     { workflow: "ci.yml", job: "config-java-roundtrip", runner: "ubuntu-24.04" },

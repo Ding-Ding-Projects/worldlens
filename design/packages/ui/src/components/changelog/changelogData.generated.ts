@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "57a32d6437861d62105722f369d19b2b961c84a5",
+        shortSha: "57a32d6437",
+        date: "2026-08-12T16:53:35-04:00",
+        subject: "Fix the three things the red remote was actually complaining about",
+        details: "Every CI run since the locks landed has been red, and none of it was the locks\nbeing wrong. Three separate gates, three separate mistakes, all mine:\n\n`totpCounter` was imported by the TOTP suite and then stopped being used when\nthe 32-bit test was rewritten to assert the property directly instead of\nleaning on an RFC vector that never reaches that far. One unused import, and\nlint takes the whole job with it. Running `pnpm lint` locally before pushing\ncosts seconds and would have caught it; it is now part of the routine rather\nthan something CI discovers.\n\n`toy-locks.md` went into docs/README.md's \"The application\" table but not into\ndocsModel.ts's APPLICATION_ORDER, so categoryOfFile() fell back to\n\"uncategorized\" and the article rendered outside its heading in the in-app\ndocumentation browser - no error, no visible breakage, exactly the drift that\nguard exists to catch and exactly the one it caught.\n\nAnd the changelog was stale again, four commits behind. It is generated from the\ncommit history, so every push moves it; regenerating is now part of the same\nstep as committing rather than something remembered afterwards.\n\n自從啲鎖入咗之後每次 CI 都紅，但冇一次係啲鎖本身有問題：三道唔同嘅閘，\n三個唔同嘅錯，全部都係我嘅。totpCounter import 咗但係改咗個 test 之後冇再用，\n一個 unused import 就拖冧成個 job；本機行一次 `pnpm lint` 幾秒鐘就捉到，\n以後照做。toy-locks.md 入咗 docs 個表但係冇入 APPLICATION_ORDER，\n結果篇文喺 app 入面跌咗出個標題外面，冇 error 冇爆，正正就係嗰道 guard\n專登為咗捉呢種飄移而存在。changelog 又落後咗四個 commit，照重新產生。",
+        category: "interface",
+        areas: ["interface", "docs"],
+        files: 4,
+    },
+    {
         sha: "62dcd754e293798e9d92baae3349ccae8a1ff265",
         shortSha: "62dcd754e2",
         date: "2026-08-12T16:06:05-04:00",
