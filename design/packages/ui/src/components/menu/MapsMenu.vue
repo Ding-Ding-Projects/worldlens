@@ -2,12 +2,13 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { VIcon, VList, VListItem, VTooltip } from "vuetify/components";
-import { mdiCircleMedium } from "@mdi/js";
+import { mdiCircleMedium, mdiMapOutline } from "@mdi/js";
 import type { BlueMapApp } from "@worldlens/viewer";
 import MenuSearchBar from "./MenuSearchBar.vue";
 import { useMenuSearch } from "./menuPrefs";
 import { createMatcher } from "./regex";
 import { useBlueMap } from "./useBlueMap";
+import { isLocalProfile, profilesStore } from "../../stores/profiles.js";
 
 /**
  * The Maps page. Replaces upstream `Menu/MapButton.vue` (one row per map) and the `v-for`
@@ -25,6 +26,52 @@ const search = useMenuSearch("maps");
 const matcher = computed(() => createMatcher(search.query, search.regex, search.flags));
 
 const maps = computed(() => app.value?.appState.maps ?? []);
+
+/* -------------------------------------------------------------------------- */
+/* Maps this machine has rendered, which are openable whether or not one is    */
+/* currently loaded                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every map this computer has already rendered, listed here so it can always be opened.
+ *
+ * Before this, a finished render was reachable from exactly one place: the "Open the map"
+ * button on the render-result card, which is a transient surface that goes away. After it
+ * had gone, the tiles were still on the disk and the profile was still in the store - and
+ * the Maps page said "No map loaded." with nothing to press. A person who had rendered a
+ * world yesterday had no route back to it short of rendering it again.
+ *
+ * These are the same `dataRoot`-carrying profiles `addLocalMap` writes when a render
+ * finishes, so nothing new is stored and nothing is inferred: if it is in this list, this
+ * machine really did render it and the tiles really are where the entry says.
+ */
+const renderedMaps = computed(() =>
+    profilesStore.profiles.filter(isLocalProfile).map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        dataRoot: profile.dataRoot ?? "",
+        active: profilesStore.activeId === profile.id,
+    })),
+);
+
+const visibleRendered = computed(() =>
+    renderedMaps.value.filter(
+        (rendered) => matcher.value.test(rendered.name) || matcher.value.test(rendered.id),
+    ),
+);
+
+/**
+ * Opens one, which means making its profile active rather than switching map inside the
+ * profile already loaded.
+ *
+ * The distinction matters: `switchMap` moves between the dimensions of the map currently
+ * open, and this moves between renders. Calling the first for the second is how a click
+ * appears to do nothing at all.
+ */
+function openRendered(id: string): void {
+    if (profilesStore.activeId === id) return;
+    profilesStore.activeId = id;
+}
 
 const visibleMaps = computed(() =>
     maps.value.filter((map) => matcher.value.test(map.name) || matcher.value.test(map.id)),
@@ -71,7 +118,7 @@ function switchMap(mapId: string): void {
 <template>
     <div class="mb-maps-menu">
         <MenuSearchBar
-            v-if="maps.length"
+            v-if="maps.length || renderedMaps.length"
             :state="search"
             :label="t('search.button', 'Search')"
             :placeholder="t('markers.searchPlaceholder', 'Search...')"
@@ -79,8 +126,20 @@ function switchMap(mapId: string): void {
             :summary="summary"
         />
 
-        <p v-if="!maps.length" class="mb-maps-menu__empty">
+        <!--
+            The search bar is shown whenever there is anything at all to search, which now
+            includes renders sitting on the disk with no map loaded in the viewer.
+        -->
+        <p v-if="!maps.length && !renderedMaps.length" class="mb-maps-menu__empty">
             {{ t("map.unloaded", "No map loaded.") }}
+        </p>
+        <p v-else-if="!maps.length" class="mb-maps-menu__empty">
+            {{
+                t(
+                    "maps.noneLoadedButRendered",
+                    "No map is open. The renders this computer has made are below.",
+                )
+            }}
         </p>
 
         <p v-else-if="!visibleMaps.length" class="mb-maps-menu__empty">
@@ -88,7 +147,7 @@ function switchMap(mapId: string): void {
         </p>
 
         <v-list
-            v-else
+            v-else-if="maps.length"
             v-model:selected="selection"
             class="mb-maps-menu__list"
             density="compact"
@@ -114,10 +173,59 @@ function switchMap(mapId: string): void {
                 <v-tooltip activator="parent" location="end" :text="map.id" />
             </v-list-item>
         </v-list>
+
+        <!--
+            Renders this computer has made, always openable.
+
+            Kept as its own list under its own heading rather than merged into the one above,
+            because the two answer different questions: that list is the dimensions inside the
+            map currently open, and this one is which render to open. Merging them would put
+            "the nether" and "a world you rendered last Tuesday" in one list where selecting
+            either does something different, which is the sort of list nobody trusts twice.
+        -->
+        <template v-if="renderedMaps.length">
+            <p class="mb-maps-menu__heading">
+                {{ t("maps.rendered", "Rendered on this computer") }}
+            </p>
+            <v-list
+                class="mb-maps-menu__list"
+                density="compact"
+                :aria-label="t('maps.rendered', 'Rendered on this computer')"
+            >
+                <v-list-item
+                    v-for="rendered in visibleRendered"
+                    :key="rendered.id"
+                    :title="rendered.name"
+                    :subtitle="rendered.dataRoot"
+                    :active="rendered.active"
+                    @click="openRendered(rendered.id)"
+                >
+                    <template #prepend>
+                        <v-icon :icon="mdiMapOutline" aria-hidden="true" />
+                    </template>
+                    <v-tooltip activator="parent" location="end" :text="rendered.dataRoot" />
+                </v-list-item>
+            </v-list>
+            <p
+                v-if="!visibleRendered.length"
+                class="mb-maps-menu__empty"
+            >
+                {{ t("search.noMatch", "Nothing matches that search.") }}
+            </p>
+        </template>
     </div>
 </template>
 
 <style>
+.mb-maps-menu__heading {
+    margin: 12px 0 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
 /*
  * A map row's shape, tint, height, type ramps and - the whole point of this page - what the
  * *current* map looks like are the drawer's, stated once in `MenuSideSheet.vue`. Choosing a

@@ -123,6 +123,29 @@ function onNotes(): void {
 
 <style>
 .mb-update-banner {
+    /*
+     * An opaque surface of its own, which a tonal alert does not have.
+     *
+     * This banner is the one alert in the application that renders *over the map*. Vuetify's
+     * `tonal` variant is a tinted wash at low alpha, which is fine on a page background and
+     * is illegible on top of a rendered world: the map's own colour reads straight through
+     * the copy, so "Version x is downloaded and ready to install" sits on top of roads and
+     * rooftops and cannot be read at all. Reported from a real build with exactly that
+     * screenshot.
+     *
+     * So it paints its own background, border and elevation rather than borrowing the map's.
+     * The tonal tint is kept as a colour-mix over the opaque surface, so the success and
+     * warning tones still read as themselves instead of the alert becoming a plain grey box.
+     */
+    background: color-mix(
+        in srgb,
+        rgb(var(--v-theme-surface)) 92%,
+        currentColor
+    );
+    box-shadow: var(--v-shadow-key-umbra-opacity, 0 0 0 rgba(0, 0, 0, 0.2)),
+        0 4px 12px rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+
     display: flex;
     /* Grows downward at a narrow width rather than clipping the buttons off the end,
        which is what a single row does at 800px in bilingual mode. */
