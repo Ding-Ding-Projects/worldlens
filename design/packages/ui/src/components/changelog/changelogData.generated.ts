@@ -26,6 +26,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "ae12dd672a55bba5d2280819ac2202587deff817",
+        shortSha: "ae12dd672a",
+        date: "2026-08-12T17:52:40-04:00",
+        subject: "Stub elementsFromPoint, which was failing CI under a table of 735 passes",
+        details: "The test job reported 735 test files passed, 5 skipped, none failed, and then\nexited 1. Vitest exits non-zero on unhandled errors even when every assertion\nholds, so the run was red with a perfectly clean test table above it and nothing\nin that table to blame.\n\nThey were mine. Vuetify's overlay scroll strategy calls\n`document.elementsFromPoint` when it repositions, jsdom has no layout engine to\nanswer it, and the lock tests are the first in this package to open a real\nanchored menu. It rejects asynchronously, after the test that opened the menu\nhas already passed, which is why the failure detaches itself from its cause so\ncompletely.\n\nStubbed in the three lock suites that mount an overlay. Locally the six files\nare 102 passing with no unhandled errors and exit 0, where before they were 102\npassing and exit 1.\n\n個 test job 話 735 個 test file 全過、5 個 skip、一個都冇死，跟住 exit 1。\nVitest 就算所有 assertion 都啱，一有 unhandled error 都會非零離開，\n所以個 run 紅住，上面張表乾乾淨淨，張表入面又冇嘢好怪。係我整嘅：\nVuetify 個 overlay 重新定位嗰陣會叫 `document.elementsFromPoint`，\njsdom 冇 layout engine 答佢，而啲鎖嘅 test 係呢個 package 入面第一批\n真係開 anchored menu 嘅。佢係開完之後先 async reject，\n所以個 failure 同佢個成因完全甩開，睇落好似不知所謂。",
+        category: "interface",
+        areas: ["interface"],
+        files: 3,
+    },
+    {
+        sha: "2f154daec58fda852bc2d2bea35c647ca7c759d7",
+        shortSha: "2f154daec5",
+        date: "2026-08-12T17:09:02-04:00",
+        subject: "Take the lint job out of CI entirely",
+        details: "It was already documented as reporting rather than gating - nothing listed it in\n`needs` - but that distinction does not survive contact with reality: a failed\njob turns the whole run red, so a style rule was still the thing standing\nbetween a commit and a green tick, and still the thing an agent spent\nforty-three minutes discovering.\n\nThe workflow's job is to build, package and publish. It is not to hold an\nopinion about an unused import. Code quality is checked where a person asked for\nit, locally, in the task that changes the code - and a failing check there is a\nreal problem to fix in that task, not a gate that withholds an installer.\n\nThree hand-written inventories had to move with it, which is the point of having\nthem: the runner-image policy list in cloudRunnerPolicy.test.ts, the pinned\nexternal-action counts in lint-workflows.mjs, and the total in its test. Every\none of them failed loudly the moment the job disappeared rather than quietly\ndescribing a workflow that no longer exists.\n\n呢個 job 本身寫住係「報告，唔攔路」，冇人喺 `needs` 度提佢——但係現實唔係咁：\n一個 job 紅咗成個 run 就紅，所以一條格式規則照樣攔住個綠剔，\n照樣有人花咗四十三分鐘先知。Workflow 嘅工作係 build、package、publish，\n唔係對住一個冇用嘅 import 發表意見。三份人手寫嘅清單要跟住改，\n而呢個正正就係佢哋存在嘅價值：job 一消失佢哋即刻大聲失敗，\n而唔係靜靜雞繼續描述一個已經唔存在嘅 workflow。",
+        category: "build",
+        areas: ["build", "interface", "services", "docs"],
+        files: 6,
+    },
+    {
         sha: "57a32d6437861d62105722f369d19b2b961c84a5",
         shortSha: "57a32d6437",
         date: "2026-08-12T16:53:35-04:00",

@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Stub elementsFromPoint, which was failing CI under a table of 735 passes - [`ae12dd672a`](https://github.com/Ding-Ding-Projects/worldlens/commit/ae12dd672a55bba5d2280819ac2202587deff817)
 - Fix the three things the red remote was actually complaining about - [`57a32d6437`](https://github.com/Ding-Ding-Projects/worldlens/commit/57a32d6437861d62105722f369d19b2b961c84a5)
 - Voice every lock and Support Tickets string, in both languages - [`62dcd754e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/62dcd754e293798e9d92baae3349ccae8a1ff265)
 - Add the lock list, the recovery desk, and the article for both - [`ceff013df8`](https://github.com/Ding-Ding-Projects/worldlens/commit/ceff013df84b352e8c6cea83638c57f046e8783e)
@@ -33,6 +34,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Take the lint job out of CI entirely - [`2f154daec5`](https://github.com/Ding-Ding-Projects/worldlens/commit/2f154daec58fda852bc2d2bea35c647ca7c759d7)
 - Preserve in-flight workflow-lint, CI and project-editor work - [`e378236687`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3782366879bc380462a6ce9b99e2aeebb443dc1)
 
 ### Documentation
