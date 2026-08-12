@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiPalette, mdiRestore } from "@mdi/js";
+import { mdiLockOpenVariantOutline, mdiLockOutline, mdiPalette, mdiRestore } from "@mdi/js";
 import { VList, VListItem, VMenu } from "vuetify/components";
 
 import AppearanceEditor from "./AppearanceEditor.vue";
+import LockWizard from "../locks/LockWizard.vue";
+import UnlockPrompt from "../locks/UnlockPrompt.vue";
+import { useLockStore } from "../locks/useLocks.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
@@ -206,6 +209,62 @@ const searchFlags = ref("i");
 /** The shortcut, in the notation Windows itself uses, from the handler that implements it. */
 const EDITOR_SHORTCUT = "Ctrl+Shift+F10";
 
+/* -------------------------------------------------------------------------- */
+/* Toy locks, on this same wrapper rather than a second one around it          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Why the locks live here and not in a `LockTarget` wrapper of their own.
+ *
+ * The contract asks that **every** rendered element expose "Lock this element..." from its
+ * own context menu, with a keyboard equivalent, an anchored non-modal surface beside the
+ * element, and focus returned on close. That is, to the word, what this wrapper already
+ * does for appearance - so a second wrapper would be a second copy of the anchor tracking,
+ * the viewport-edge flipping, the outside-click handling and the focus return, and the
+ * first of the two to drift would be the one nobody noticed had drifted.
+ *
+ * Putting them here also means every element already wrapped for appearance gains locking
+ * with no change at its call site, which is the difference between a feature that is
+ * genuinely universal and one that is universal wherever somebody remembered.
+ */
+/**
+ * Which surface a lock made here belongs to.
+ *
+ * One name for every element reached through this wrapper, because an element's id is
+ * already unique across the application - `app.tab`, `settings.fontSize`. A per-host
+ * surface name would make the same element's lock unfindable from a second host that
+ * wrapped it, which is precisely the near-miss the model's surface/path pairing exists to
+ * avoid.
+ */
+const LOCK_SURFACE = "element";
+
+const locks = useLockStore();
+
+/** This element's lock, when it has one. */
+const lock = computed(() => locks.at(LOCK_SURFACE, props.id));
+
+/** True when it has a lock AND that lock is not currently open. */
+const locked = computed(() => locks.isLocked(LOCK_SURFACE, props.id));
+
+const wizardOpen = ref(false);
+const unlockOpen = ref(false);
+
+function openWizard(): void {
+    closeMenu();
+    wizardOpen.value = true;
+}
+
+function openUnlock(): void {
+    closeMenu();
+    unlockOpen.value = true;
+}
+
+function closeLockPopups(): void {
+    wizardOpen.value = false;
+    unlockOpen.value = false;
+    returnFocus();
+}
+
 interface Command {
     key: string;
     label: string;
@@ -224,6 +283,46 @@ const commands = computed<Command[]>(() => {
             run: openEditor,
         },
     ];
+
+    // Locking is offered only where locks can actually be kept. A menu item that opens a
+    // wizard which then says "this build cannot keep locks" is a worse answer than an
+    // absent item, because it costs two clicks to learn the same thing.
+    if (locks.canList) {
+        if (lock.value === undefined) {
+            list.push({
+                key: "lock",
+                label: t("locks.menu.lock", "Lock this element..."),
+                shortcut: "",
+                icon: mdiLockOutline,
+                run: openWizard,
+            });
+        } else {
+            list.push({
+                key: "unlock",
+                label: locked.value
+                    ? t("locks.menu.unlock", "Unlock this element...")
+                    : t("locks.menu.relock", "Lock it again now"),
+                shortcut: "",
+                icon: locked.value ? mdiLockOutline : mdiLockOpenVariantOutline,
+                run: locked.value
+                    ? openUnlock
+                    : () => {
+                          locks.relock(lock.value!.id);
+                          closeMenu();
+                      },
+            });
+            list.push({
+                key: "remove-lock",
+                label: t("locks.menu.remove", "Remove this lock"),
+                shortcut: "",
+                icon: mdiLockOpenVariantOutline,
+                run: () => {
+                    void locks.remove(lock.value!.id);
+                    closeMenu();
+                },
+            });
+        }
+    }
 
     if (target.customised.value) {
         list.push({
@@ -460,6 +559,48 @@ function onKeydown(event: KeyboardEvent): void {
             <div ref="editorContent">
                 <AppearanceEditor :target-id="id" :target-label="label" />
             </div>
+        </v-menu>
+
+        <!--
+            The lock wizard and the unlock prompt, anchored to this element exactly as the
+            editor above is, non-modal and with no scrim so the thing being locked stays
+            visible while its lock is being made.
+        -->
+        <v-menu
+            v-model="wizardOpen"
+            :target="root ?? undefined"
+            :open-on-click="false"
+            :close-on-content-click="false"
+            :scrim="false"
+            location="end top"
+            offset="12"
+            @update:model-value="(value: boolean) => !value && closeLockPopups()"
+        >
+            <LockWizard
+                :target="{ surface: LOCK_SURFACE, path: id, label }"
+                @created="closeLockPopups"
+                @cancel="closeLockPopups"
+            />
+        </v-menu>
+
+        <v-menu
+            v-model="unlockOpen"
+            :target="root ?? undefined"
+            :open-on-click="false"
+            :close-on-content-click="false"
+            :scrim="false"
+            location="end top"
+            offset="12"
+            @update:model-value="(value: boolean) => !value && closeLockPopups()"
+        >
+            <UnlockPrompt
+                v-if="lock !== undefined"
+                :lock="lock"
+                :data-folder="locks.dataFolder"
+                @unlocked="closeLockPopups"
+                @cancel="closeLockPopups"
+                @support="closeLockPopups"
+            />
         </v-menu>
     </component>
 </template>
