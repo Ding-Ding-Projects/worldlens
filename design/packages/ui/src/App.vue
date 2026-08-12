@@ -7,6 +7,7 @@ import {
     mdiCloudUploadOutline,
     mdiEye,
     mdiFileDocumentOutline,
+    mdiCubeOutline,
     mdiFolderMultipleOutline,
     mdiMapPlus,
     mdiProgressClock,
@@ -64,6 +65,8 @@ import { CiRenderScreen } from "./components/cirender/index.js";
 import { createCiRenders } from "./components/cirender/ciRenders.js";
 import { resolveCiRenderBridge } from "./components/cirender/ciRenderBridge.js";
 import RendersScreen from "./components/renders/RendersScreen.vue";
+import StructureList from "./components/structures/StructureList.vue";
+import { structureStore } from "./components/structures/structureStore.js";
 import { createActiveRenders } from "./components/renders/activeRenders.js";
 import type { ConsoleTarget } from "./components/renders/activeRenders.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
@@ -151,6 +154,7 @@ const PAGE_WORLD = "world";
 const PAGE_PROJECTS = "projects";
 const PAGE_CIRENDER = "cirender";
 const PAGE_RENDERS = "renders";
+const PAGE_STRUCTURES = "structures";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
 const PAGE_PAGES = "pages";
@@ -242,6 +246,15 @@ const pages = computed<TabPage[]>(() => [
     // unobtrusive indicator the contract asks for: it says something is going wherever the
     // tab strip is drawn, without a toast, a badge dot with no number, or a second surface
     // fighting for attention. Zero renders in progress reads as a perfectly ordinary tab.
+    // Structures a world already holds, which nothing in this application had ever looked
+    // at. Its own page rather than a section inside the world guide, because a world can
+    // carry dozens of them and each one is its own small render: a list that long inside
+    // another screen is a list nobody scrolls to the bottom of.
+    {
+        id: PAGE_STRUCTURES,
+        label: t("tabs.page.structures", "Structures"),
+        icon: mdiCubeOutline,
+    },
     {
         id: PAGE_RENDERS,
         label:
@@ -713,6 +726,28 @@ function openRenderedMap(dataRoot: string, mapIds: readonly string[]): void {
  * machine, so there is no second case to handle: the profile carries a data root and the
  * viewer neither knows nor needs to know which of the four places drew the tiles.
  */
+/**
+ * A finished structure render, opened exactly as any other render is.
+ *
+ * Routed through `openRenderedMap` rather than given its own path: a structure render
+ * produces the same tiles in the same shape as a world render, and a second way of opening
+ * one would be a second thing to keep in step with the first.
+ */
+/**
+ * Whether this build can look inside a world at all.
+ *
+ * The same probe every other filesystem-backed surface here uses: with no preload bridge
+ * there is nothing to scan, and saying so is different from reporting an empty world.
+ */
+const canScanStructures = computed(
+    () => typeof (globalThis as { worldlens?: unknown }).worldlens === "object",
+);
+
+function onOpenRenderedStructure(rendered: { name: string; dataRoot: string }): void {
+    openRenderedMap(rendered.dataRoot, [rendered.name]);
+    revealPage(PAGE_MAP);
+}
+
 function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: string }): void {
     openRenderedMap(where.dataRoot, [where.mapId]);
 }
@@ -1403,6 +1438,28 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             it: this page, and the tab label's own live count above, are both
                             reachable regardless of which screen a render was watched from.
                         -->
+                        <!--
+                            The structure list, and the drop zone's own home. Both were
+                            built before there was a page to put them on, which is a thing
+                            that looks finished in a diff and is unreachable in the
+                            application, so this is the half that makes them real.
+                        -->
+                        <template #structures>
+                            <div class="mb-world-host mb-interactive">
+                                <!--
+                                    `canScan` is the shell's own honest answer rather than a
+                                    constant: a build with no filesystem bridge cannot look
+                                    inside a world, and the list says that instead of showing
+                                    an empty result that reads as "this world has none".
+                                -->
+                                <StructureList
+                                    :files="structureStore.discovered"
+                                    :can-scan="canScanStructures"
+                                    @open="onOpenRenderedStructure"
+                                />
+                            </div>
+                        </template>
+
                         <template #renders>
                             <div class="mb-world-host mb-interactive">
                                 <RendersScreen @open-console="onOpenConsole" />
