@@ -803,6 +803,172 @@ function actionDependencyProblems(text, file) {
 
   if (file !== ".github/workflows/ci.yml") return problems;
 
+  const workflowScriptRegions = scriptRegions(text);
+  const renderProvenanceStepName = "Record what rendered it";
+  const renderProvenanceWriter =
+    'cat > "$GITHUB_WORKSPACE/render-out/provenance.json" <<JSON';
+  const expectedRenderProvenanceScript = [
+    "set -euo pipefail",
+    renderProvenanceWriter,
+    "{",
+    '  "renderer": "upstream BlueMap Java engine, built from the vendored source",',
+    '  "world": {',
+    '    "seed": ${{ steps.world.outputs.seed }},',
+    '    "size": 1000',
+    "  },",
+    '  "hiresTiles": ${{ steps.render.outputs.tiles }},',
+    '  "commit": "${{ github.sha }}",',
+    '  "run": "${{ github.run_id }}"',
+    "}",
+    "JSON",
+    'cat "$GITHUB_WORKSPACE/render-out/provenance.json"',
+  ].join("\n");
+  const renderProvenanceRegions = workflowScriptRegions.filter(
+    (region) => region.stepName === renderProvenanceStepName,
+  );
+  const renderProvenanceWriters = workflowScriptRegions.flatMap((region) =>
+    region.lines.filter((line) => line.text.trim() === renderProvenanceWriter),
+  );
+  const renderProvenanceScriptLineNumbers = new Set(
+    renderProvenanceRegions[0]?.lines.map((line) => line.number) ?? [],
+  );
+  const renderProvenanceStepConfiguration =
+    renderProvenanceRegions.length === 1 &&
+    renderProvenanceRegions[0].stepStart !== null &&
+    renderProvenanceRegions[0].stepEnd !== null
+      ? lines
+          .slice(
+            renderProvenanceRegions[0].stepStart,
+            renderProvenanceRegions[0].stepEnd,
+          )
+          .filter((line, offset) => {
+            const number = renderProvenanceRegions[0].stepStart + offset + 1;
+            return (
+              !renderProvenanceScriptLineNumbers.has(number) &&
+              line.trim() !== "" &&
+              !line.trimStart().startsWith("#")
+            );
+          })
+      : [];
+  const expectedRenderProvenanceStepConfiguration = [
+    `      - name: ${renderProvenanceStepName}`,
+    "        run: |",
+  ];
+  const renderProvenanceContractHolds =
+    renderProvenanceRegions.length === 1 &&
+    renderProvenanceWriters.length === 1 &&
+    renderProvenanceStepConfiguration.length ===
+      expectedRenderProvenanceStepConfiguration.length &&
+    renderProvenanceStepConfiguration.every(
+      (line, index) =>
+        line === expectedRenderProvenanceStepConfiguration[index],
+    ) &&
+    normalizeBlock(renderProvenanceRegions[0].lines) ===
+      expectedRenderProvenanceScript;
+  if (!renderProvenanceContractHolds) {
+    problems.push({
+      file,
+      line: renderProvenanceRegions[0]?.keyLine ?? 1,
+      stepName: renderProvenanceStepName,
+      expression: null,
+      message:
+        "render provenance must have exactly one named writer with the normalized renderer, nested world, hiresTiles, commit and run schema",
+    });
+  }
+
+  const check = jobBlock(lines, "check");
+  const screenshotEvidenceStepName = "Check committed screenshot evidence";
+  const screenshotEvidenceStarts = [];
+  for (let index = check?.start ?? 0; index < (check?.end ?? 0); index++) {
+    if (lines[index] === `      - name: ${screenshotEvidenceStepName}`) {
+      screenshotEvidenceStarts.push(index);
+    }
+  }
+
+  const screenshotEvidenceStart = screenshotEvidenceStarts[0] ?? -1;
+  let screenshotEvidenceEnd = -1;
+  if (screenshotEvidenceStart >= 0 && check) {
+    screenshotEvidenceEnd = check.end;
+    for (let index = screenshotEvidenceStart + 1; index < check.end; index++) {
+      if (/^ {6}-\s+/.test(lines[index])) {
+        screenshotEvidenceEnd = index;
+        break;
+      }
+    }
+  }
+
+  const screenshotEvidenceLines =
+    screenshotEvidenceEnd > screenshotEvidenceStart
+      ? lines.slice(screenshotEvidenceStart, screenshotEvidenceEnd)
+      : [];
+  const screenshotEvidenceConfiguration = screenshotEvidenceLines.filter(
+    (line) => line.trim() !== "" && !line.trimStart().startsWith("#"),
+  );
+  const expectedScreenshotEvidenceConfiguration = [
+    `      - name: ${screenshotEvidenceStepName}`,
+    "        continue-on-error: true",
+    "        run: pnpm screenshots:check",
+  ];
+  let checkWorkingDirectoryContractCount = 0;
+  if (check) {
+    for (let index = check.start + 1; index + 2 < check.end; index++) {
+      if (
+        lines[index] === "    defaults:" &&
+        lines[index + 1] === "      run:" &&
+        lines[index + 2] === "        working-directory: design"
+      ) {
+        checkWorkingDirectoryContractCount++;
+      }
+    }
+  }
+  const screenshotEvidenceCommands = workflowScriptRegions.flatMap((region) =>
+    region.lines.filter(
+      (line) => line.text.trim() === "pnpm screenshots:check",
+    ),
+  );
+  const checkStepStarts = check
+    ? lines
+        .slice(check.start + 1, check.end)
+        .flatMap((line, offset) =>
+          /^ {6}-\s+/.test(line) ? [check.start + 1 + offset] : [],
+        )
+    : [];
+  const previousCheckStep = checkStepStarts
+    .filter((index) => index < screenshotEvidenceStart)
+    .at(-1);
+  const nextCheckStep = checkStepStarts.find(
+    (index) => index > screenshotEvidenceStart,
+  );
+  const screenshotEvidenceContractHolds =
+    check !== null &&
+    screenshotEvidenceStarts.length === 1 &&
+    screenshotEvidenceCommands.length === 1 &&
+    screenshotEvidenceConfiguration.length ===
+      expectedScreenshotEvidenceConfiguration.length &&
+    screenshotEvidenceConfiguration.every(
+      (line, index) => line === expectedScreenshotEvidenceConfiguration[index],
+    ) &&
+    checkWorkingDirectoryContractCount === 1 &&
+    previousCheckStep !== undefined &&
+    /^ {6}- run:\s+pnpm install --frozen-lockfile\s*$/.test(
+      lines[previousCheckStep],
+    ) &&
+    nextCheckStep !== undefined &&
+    /^ {6}- run:\s+pnpm build\s*$/.test(lines[nextCheckStep]);
+  if (!screenshotEvidenceContractHolds) {
+    problems.push({
+      file,
+      line:
+        (screenshotEvidenceStart >= 0
+          ? screenshotEvidenceStart
+          : (check?.start ?? 0)) + 1,
+      stepName: screenshotEvidenceStepName,
+      expression: null,
+      message:
+        "committed screenshot evidence must run exactly once and unconditionally from check's design working directory, immediately after install and before build, as a named step-level advisory",
+    });
+  }
+
   const screenshots = jobBlock(lines, "screenshots");
   const advisoryScreenshotLines = screenshots
     ? lines

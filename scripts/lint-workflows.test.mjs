@@ -199,6 +199,151 @@ test("all 117 actions in every executable workflow are SHA-pinned and checkouts 
   assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
 });
 
+test("render provenance keeps its exact nested schema and fails closed on drift", () => {
+  const workflow = readFileSync(FILE, "utf8");
+  const eol = workflow.includes("\r\n") ? "\r\n" : "\n";
+  const rendererLine =
+    '            "renderer": "upstream BlueMap Java engine, built from the vendored source",';
+  const seedLine = '              "seed": ${{ steps.world.outputs.seed }},';
+  const sizeLine = '              "size": 1000';
+  const hiresTilesLine =
+    '            "hiresTiles": ${{ steps.render.outputs.tiles }},';
+  const commitLine = '            "commit": "${{ github.sha }}",';
+  const runLine = '            "run": "${{ github.run_id }}"';
+  const worldBlock = [
+    '            "world": {',
+    seedLine,
+    sizeLine,
+    "            },",
+  ].join(eol);
+  const provenanceStepHeader = [
+    "      - name: Record what rendered it",
+    "        run: |",
+  ].join(eol);
+  const provenanceStep = [
+    provenanceStepHeader,
+    "          set -euo pipefail",
+    '          cat > "$GITHUB_WORKSPACE/render-out/provenance.json" <<JSON',
+    "          {",
+    rendererLine,
+    '            "world": {',
+    seedLine,
+    sizeLine,
+    "            },",
+    hiresTilesLine,
+    commitLine,
+    runLine,
+    "          }",
+    "          JSON",
+    '          cat "$GITHUB_WORKSPACE/render-out/provenance.json"',
+  ].join(eol);
+  assert.ok(workflow.includes(provenanceStep));
+
+  const duplicateWriterStep = provenanceStep.replace(
+    "      - name: Record what rendered it",
+    "      - name: Shadow render provenance writer",
+  );
+  const provenanceMutations = [
+    [
+      "forbidden engine key",
+      workflow.replace(
+        rendererLine,
+        [rendererLine, '            "engine": "legacy",'].join(eol),
+      ),
+    ],
+    [
+      "flattened seed",
+      workflow.replace(
+        worldBlock,
+        [
+          '            "seed": ${{ steps.world.outputs.seed }},',
+          '            "world": {',
+          sizeLine,
+          "            },",
+        ].join(eol),
+      ),
+    ],
+    [
+      "forbidden sizeBlocks key",
+      workflow.replace(
+        worldBlock,
+        [worldBlock, '            "sizeBlocks": 1000,'].join(eol),
+      ),
+    ],
+    ["commit removed", workflow.replace(`${commitLine}${eol}`, "")],
+    [
+      "run removed",
+      workflow.replace(
+        `${commitLine}${eol}${runLine}`,
+        '            "commit": "${{ github.sha }}"',
+      ),
+    ],
+    [
+      "seed quoted",
+      workflow.replace(
+        seedLine,
+        '              "seed": "${{ steps.world.outputs.seed }}",',
+      ),
+    ],
+    ["size quoted", workflow.replace(sizeLine, '              "size": "1000"')],
+    [
+      "hiresTiles quoted",
+      workflow.replace(
+        hiresTilesLine,
+        '            "hiresTiles": "${{ steps.render.outputs.tiles }}",',
+      ),
+    ],
+    [
+      "duplicate writer",
+      workflow.replace(
+        `${provenanceStep}${eol}`,
+        `${provenanceStep}${eol}${eol}${duplicateWriterStep}${eol}`,
+      ),
+    ],
+    [
+      "conditional writer",
+      workflow.replace(
+        provenanceStepHeader,
+        [
+          "      - name: Record what rendered it",
+          "        if: false",
+          "        run: |",
+        ].join(eol),
+      ),
+    ],
+    [
+      "advisory writer",
+      workflow.replace(
+        provenanceStepHeader,
+        [
+          "      - name: Record what rendered it",
+          "        continue-on-error: true",
+          "        run: |",
+        ].join(eol),
+      ),
+    ],
+    [
+      "renamed step",
+      workflow.replace(
+        "      - name: Record what rendered it",
+        "      - name: Record render provenance",
+      ),
+    ],
+    ["missing step", workflow.replace(provenanceStep, "")],
+  ];
+  for (const [name, mutated] of provenanceMutations) {
+    assert.notEqual(mutated, workflow, name);
+    assert.ok(
+      actionDependencyProblems(mutated, FILE).some((problem) =>
+        /render provenance must have exactly one named writer/.test(
+          problem.message,
+        ),
+      ),
+      name,
+    );
+  }
+});
+
 // The unsigned-installer warning is the one sentence in a release that a reader acts on
 // before running an executable a stranger built, so it gets its own test rather than
 // riding on the run-block digest. Each mutation below leaves the sentence itself present
@@ -386,9 +531,151 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const fatalScreenshots = workflow.replace(
-    "continue-on-error: true",
-    "continue-on-error: false",
+  const screenshotsStart = workflow.indexOf(`  screenshots:${eol}`);
+  const screenshotsEnd = workflow.indexOf(
+    `${eol}  release:${eol}`,
+    screenshotsStart,
+  );
+  assert.ok(screenshotsStart >= 0);
+  assert.ok(screenshotsEnd > screenshotsStart);
+  const screenshotsBlock = workflow.slice(screenshotsStart, screenshotsEnd);
+  const fatalScreenshotsBlock = screenshotsBlock.replace(
+    `${eol}    continue-on-error: true${eol}`,
+    `${eol}    continue-on-error: false${eol}`,
+  );
+  assert.notEqual(fatalScreenshotsBlock, screenshotsBlock);
+  const fatalScreenshots =
+    workflow.slice(0, screenshotsStart) +
+    fatalScreenshotsBlock +
+    workflow.slice(screenshotsEnd);
+
+  const screenshotEvidenceWith = (...extraLines) =>
+    [
+      "      - name: Check committed screenshot evidence",
+      "        continue-on-error: true",
+      ...extraLines,
+      "        run: pnpm screenshots:check",
+    ].join(eol);
+  const screenshotEvidenceStep = screenshotEvidenceWith();
+  assert.ok(workflow.includes(screenshotEvidenceStep));
+
+  const screenshotEvidenceMutations = [
+    [
+      "renamed",
+      workflow.replace(
+        "      - name: Check committed screenshot evidence",
+        "      - name: Audit committed screenshot evidence",
+      ),
+    ],
+    [
+      "fatal",
+      workflow.replace(
+        screenshotEvidenceStep,
+        [
+          "      - name: Check committed screenshot evidence",
+          "        continue-on-error: false",
+          "        run: pnpm screenshots:check",
+        ].join(eol),
+      ),
+    ],
+    [
+      "conditional",
+      workflow.replace(
+        screenshotEvidenceStep,
+        screenshotEvidenceWith("        if: false"),
+      ),
+    ],
+    [
+      "wrong step working directory",
+      workflow.replace(
+        screenshotEvidenceStep,
+        screenshotEvidenceWith("        working-directory: ."),
+      ),
+    ],
+    [
+      "spaced conditional key",
+      workflow.replace(
+        screenshotEvidenceStep,
+        screenshotEvidenceWith("        if : false"),
+      ),
+    ],
+    [
+      "quoted conditional key",
+      workflow.replace(
+        screenshotEvidenceStep,
+        screenshotEvidenceWith('        "if": false'),
+      ),
+    ],
+    [
+      "spaced working-directory key",
+      workflow.replace(
+        screenshotEvidenceStep,
+        screenshotEvidenceWith("        working-directory : ."),
+      ),
+    ],
+    [
+      "quoted working-directory key",
+      workflow.replace(
+        screenshotEvidenceStep,
+        screenshotEvidenceWith('        "working-directory": .'),
+      ),
+    ],
+    [
+      "wrong check working directory",
+      workflow.replace(
+        [
+          "    defaults:",
+          "      run:",
+          "        working-directory: design",
+        ].join(eol),
+        ["    defaults:", "      run:", "        working-directory: ."].join(
+          eol,
+        ),
+      ),
+    ],
+    ["missing", workflow.replace(screenshotEvidenceStep, "")],
+    [
+      "moved after build",
+      workflow
+        .replace(`${screenshotEvidenceStep}${eol}`, "")
+        .replace(
+          "      - run: pnpm build",
+          `      - run: pnpm build${eol}${screenshotEvidenceStep}`,
+        ),
+    ],
+    [
+      "duplicated",
+      workflow.replace(
+        screenshotEvidenceStep,
+        `${screenshotEvidenceStep}${eol}${screenshotEvidenceStep}`,
+      ),
+    ],
+  ];
+  for (const [name, mutated] of screenshotEvidenceMutations) {
+    assert.notEqual(mutated, workflow, name);
+    assert.ok(
+      actionDependencyProblems(mutated, FILE).some((problem) =>
+        /committed screenshot evidence must run exactly once/.test(
+          problem.message,
+        ),
+      ),
+      name,
+    );
+  }
+
+  const explicitUnrelatedWorkingDirectory = workflow.replace(
+    "      - run: pnpm build",
+    `      - run: pnpm build${eol}        working-directory: design`,
+  );
+  assert.notEqual(explicitUnrelatedWorkingDirectory, workflow);
+  assert.equal(
+    actionDependencyProblems(explicitUnrelatedWorkingDirectory, FILE).some(
+      (problem) =>
+        /committed screenshot evidence must run exactly once/.test(
+          problem.message,
+        ),
+    ),
+    false,
   );
 
   const collapsedApplicationDirectory = workflow.replace(
