@@ -21,7 +21,6 @@ import {
     otpauthUri,
     parseOtpauthUri,
     totp,
-    totpCounter,
     totpSecondsRemaining,
     verifyTotp,
     type TotpAlgorithm,

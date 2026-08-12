@@ -22,6 +22,10 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Voice every lock and Support Tickets string, in both languages - [`62dcd754e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/62dcd754e293798e9d92baae3349ccae8a1ff265)
+- Add the lock list, the recovery desk, and the article for both - [`ceff013df8`](https://github.com/Ding-Ding-Projects/worldlens/commit/ceff013df84b352e8c6cea83638c57f046e8783e)
+- Put the locks on the wrapper every element already wears - [`57a3c4f8b0`](https://github.com/Ding-Ding-Projects/worldlens/commit/57a3c4f8b07b6e37938a187e6baa001061d00613)
+- Give the toy locks a store and the two surfaces a person meets - [`c0d5d37453`](https://github.com/Ding-Ding-Projects/worldlens/commit/c0d5d374534436903d94240dd95d665db04faf8c)
 - Lay the toy locks' foundation: RFC 6238, and a lock that holds no secret - [`fe8a208bb1`](https://github.com/Ding-Ding-Projects/worldlens/commit/fe8a208bb14421f8167d4402707dda3fdab6388c)
 - Drop the duplicate maskField the merge left behind - [`ab70d39a91`](https://github.com/Ding-Ding-Projects/worldlens/commit/ab70d39a91c46efc604c0afd203f64ae86c6207f)
 - Offer the defaults when a world has no project file at all - [`4dcdbeb18a`](https://github.com/Ding-Ding-Projects/worldlens/commit/4dcdbeb18ad60df242bb50e7f8740e558349a799)
