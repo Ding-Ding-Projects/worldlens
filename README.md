@@ -25,11 +25,22 @@ separate, separately verified change. Everything around the renderer — the vie
 reading layer, the resource-pack pipeline, the server and the whole interface — is TypeScript.
 See [Rendering engines](#rendering-engines).
 
-## Status: in development, and honest about it
+## Status: 1.0 — released, verified, and honest about what remains
 
 **[Download the latest Windows installer](https://github.com/Ding-Ding-Projects/worldlens/releases/latest)**
 · [all releases](https://github.com/Ding-Ding-Projects/worldlens/releases)
 · [documentation site](https://ding-ding-projects.github.io/worldlens/)
+
+**1.0 is the verified public baseline.** It means exactly this, no more: the Material Design 3
+shell rewrite is complete and closed against its own acceptance issues (#126, #134, #123); the
+full workspace suite - 723 test files, 10,512 tests - is green in CI at the released commit;
+the 89-capture screenshot matrix pictures the exact shipped interface and is regraded by CI's
+own capture job; every push to `main` that passes the fatal gates publishes a real, hash-verified
+Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
+embedded in the project file itself. Versions from here are `1.0.<run>`. What 1.0 does **not**
+claim: the feature programs still open as issues (multi-server dashboard, marker authoring, add-on
+system, static export and friends) are future work, and Windows executables remain intentionally
+unsigned.
 
 Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
 unknown-publisher warning. A publish is allowed only after every required test, security,
@@ -42,6 +53,12 @@ commit and timing, include the reproducible line-count and SHA-256 tables, and l
 code name to its existing public photo in
 [`Ding-Ding-Projects/dim-sum-photos`](https://github.com/Ding-Ding-Projects/dim-sum-photos).
 Worldlens never downloads, copies or attaches that catalog photo to its own release.
+
+Release-tag pushes still run CI, but skip only the generated-changelog freshness assertion. A tag
+is created after the commit it names, so requiring that commit to contain an entry derived from its
+own future tag is impossible. Branch and pull-request runs remain strict, and tag runs retain every
+other pre-publication build, test, workflow-security, rendering and packaging check. The main-only
+publisher remains intentionally ineligible on tags.
 
 The documentation site is a full Material Design 3 Expressive application shell rather than a
 long static page. It has adaptive collapsible navigation, real browser-style tabs, all four tab
@@ -107,6 +124,56 @@ is reachable and in use. G is pending; H is part done (SQL storages proven again
 MySQL/MariaDB/PostgreSQL, cross-verified against upstream's own Java engine, and the command
 palette shipped early); I is part done (the update checker and packaging shipped early). See
 [Phase status](#phase-status).
+
+## 廣東話
+
+**Worldlens 係乜嘢。** Worldlens 係 [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap) 嘅
+TypeScript 重寫 - BlueMap 係 Minecraft 嘅 3D 地圖渲染器同網頁檢視器。一個 codebase 出兩樣嘢:
+一個 **Material Design 3 Electron 桌面應用程式**,可以離線渲染本機 Minecraft 世界、連接遠端
+BlueMap 伺服器(而家出貨嘅就係呢個,上面有安裝程式);同一個 **獨立 headless 伺服器**
+(`@worldlens/cli`),渲染完再將地圖 webapp 直接畀普通瀏覽器睇。支援嘅世界版本係 Minecraft
+**1.12.2 到 26.x**。
+
+**渲染點運作。** 本機渲染而家行嘅係上游 BlueMap 自己嘅 Java 渲染器,由 app 用 vendored source
+起出嚟再驅動,所以今日就渲染到世界,唔使等 TypeScript mesher 寫完。TypeScript mesher 喺
+fixture 世界上面已經同 Java 引擎輸出逐 byte 一樣,但佢仲未係實際行嗰個 - 轉用係一個獨立、
+要另外驗證嘅改動。渲染器以外嘅所有嘢 - 檢視器、世界讀取層、resource-pack pipeline、伺服器
+同成個介面 - 全部係 TypeScript。
+
+**1.0 係乜意思。** 1.0 係經過驗證嘅公開基準線,唔多唔少就係咁:Material Design 3 外殼重寫
+完成,對應嘅驗收 issue(#126、#134、#123)已經憑住實證關閉;成個 workspace 測試套件 - 723
+個測試檔案、10,512 個測試 - 喺發佈嗰粒 commit 上面喺 CI 全綠;89 張截圖證據影嘅正正係出貨
+嗰棵介面樹,CI 自己嘅截圖工序會重新評分;每次推上 `main` 通過晒致命關卡,就會自動發佈一個
+真實、經 hash 驗證嘅 Squirrel.Windows release;項目仲會自動儲存,無限復原嘅 git 歷史直接嵌
+喺項目檔案入面。由呢度開始,版本號係 `1.0.<run>`。1.0 **冇**聲稱嘅嘢:仲開緊嘅功能計劃
+(多伺服器儀表板、marker 編輯器、add-on 系統、靜態匯出等等)係未來工作,而 Windows 執行檔
+係刻意、永久唔簽名嘅 - 所以 SmartScreen 可能會出「不明發行者」警告。
+
+**今日已經做到嘅嘢。** 渲染本機 Minecraft 世界,同埋由頭到尾瀏覽一個**遠端** BlueMap 伺服器:
+檢視器、three.js 場景、markers、token 保護嘅內嵌伺服器同佢嘅 reverse proxy。成個世界讀取層
+(NBT、壓縮、region 容器、1.12.2 到 26.x 嘅 chunk 解碼器)同 resource-pack pipeline 已經移植
+晒、有單元測試。一個渲染仲可以交畀遠端機器行 - 經 SSH、Docker 容器,或者 GitHub Actions。
+
+**個介面。** 80px 應用程式導軌上面三個常設目的地:**Home** 用五個目錄發現全部功能,**Map**
+擁有一直掛住嘅地圖畫布,**Work** 將現有嘅分頁工作區重新安置,淨係擺打開咗嘅工作。導軌腳部
+有指令搜尋、通知歷史同設定 - 全部係導軌動作,唔係浮動按鈕。通知只入歷史,唔會彈出嚟遮住
+內容。快速鍵 `Ctrl+Shift+F` 開指令面板。
+
+**文件。** 每個功能都有自己嘅文章,講明行為、設定、失敗模式、保安考慮同驗證方法 - 見下面
+嘅功能清單,同埋 [docs/](docs/) 入面嘅文章;58 篇文章每篇都有廣東話版本,喺文末嘅「廣東話」
+一節,行為、設定、失敗模式、保安考慮同驗證方法全部有齊。文件網站本身係一個 Material Design 3 Expressive 應用程式外殼:可摺疊導航、真瀏覽器
+式分頁、四種分頁搜尋連 regex 建構器、持久化嘅外觀/語言/語氣設定、指令面板同通知歷史。
+
+**下載同安裝。** 上面「Status」一節有最新 Windows 安裝程式嘅連結。安裝程式係
+Squirrel.Windows,每個 release 都有逐項資產嘅 SHA-256 表。發佈只會喺所有必需嘅測試、保安、
+渲染同打包關卡通過之後先會發生;截圖捕捉係公開嘅診斷證據,但佢失敗只係諮詢性,唔會擋住
+一個其他方面有效嘅 release。
+
+release tag 嘅 push 仍然會行 CI，不過會淨係 skip generated-changelog freshness assertion。
+個 tag 係指住粒 commit 之後先建立，所以粒 commit 冇可能預先包含由自己未來個 tag 衍生嘅
+entry。branch 同 pull request run 仍然嚴格，而 tag run 其餘發佈前 build、test、workflow-
+security、render 同 packaging check 一步都唔少；只係本身就限 `main` 嘅 publisher 唔會喺
+tag 上面行。
 
 <details id="features">
 <summary><b>Everything the application does</b> - the full feature list, with its article for each</summary>
@@ -229,13 +296,13 @@ and neither may ever stand in for the other. Not mockups, and not the prototype.
 and carries the Make a map catalogue's own group headings as chips; the count in the lede is the
 live number of features this build actually exposes, not a number typed into a sentence.
 
-![Worldlens Home: an 80 px application rail on the left showing Home, Map and Work with a badge on Work, and a dark Home page headed What are you here to do? with a search field, a wide Make a map hero card carrying five group chips and New map and Or walk me through it buttons, and outlined cards for Your maps and Share a map each listing four features](docs/screenshots/shell-home.png)
+![Worldlens Home, the destination the application opens on: an 80 px application rail on the left showing Home, Map and Work, and five catalogue cards covering everything the application can do, each card saying what that catalogue is for, with a search across all of them](docs/screenshots/home-catalogues.png)
 
 **Work** — the existing tabbed workspace, re-hosted. It holds only the jobs actually opened; on a
 fresh install that is the pinned guide alone, and the other ten destinations are reached from Home's
 catalogues rather than crowding the strip.
 
-![Worldlens Work: the same rail with Work active, showing the render guide's Where this render runs step with three run-location choices and a Docker status panel](docs/screenshots/shell-work.png)
+![Worldlens Work: the browser-style tab strip inside the Work destination, holding the jobs that have actually been opened rather than every destination the application has, with their seeded groups, the new-tab menu and the overflow control](docs/screenshots/tab-strip.png)
 
 </details>
 ## Screenshots

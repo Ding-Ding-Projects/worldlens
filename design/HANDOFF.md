@@ -1,6 +1,188 @@
 # Handoff
 
-## 2026-08-09 (final integration follow-up) — concurrent lineages reconciled on `main`
+## 2026-08-11 — eleven clipping and navigation defects, found by measuring the running interface
+
+**Plain version, first:** the options editor was covering the navigation rail and switching it
+off, so once you opened it there was no visible way back to Home, Map or Work. Several places cut
+their own text off — one setting showed the single letter "U", a map id field showed "ove" instead
+of "overworld", and two of the five speed levels were not merely ugly but impossible to click.
+The download-consent row kept saying "not accepted yet" after you had accepted. All eleven are
+fixed, each one measured before and after in a real browser.
+
+**State: verified locally against a running build; four commits dewed to `main`.**
+
+Nothing here was found by reading source. A harness drove the built interface in headless
+Chromium and walked every element comparing `scrollWidth` against `clientWidth`, at 800x600,
+1280x800 and a narrow window, then re-measured after each fix. Surfaces with findings went from
+**10 to 1 at 800x600** and the five systemic offenders at 1280x800 to none.
+
+### The navigation defect, which was the largest
+
+`.mb-world-host` for the options editor is a sibling of `.mb-shell-body` with `inset: 0`, so it
+painted over the 80px rail the redesign keeps on screen at every width - and `:inert` on that same
+row then disabled the rail as well. The only navigation in the application was invisible and dead
+at once, with Escape as the undocumented way out. The host now starts at the content edge
+(`--beside-rail`), the inert moved to `.mb-shell-content`, and `onRailSelect` closes the editor so
+the pill cannot move against a screen that stays covered.
+
+### The rest, each with the thing that made it invisible to tests
+
+- **Speed dial**: five levels wrapped to three rows in a 40px box with hidden overflow; levels 4
+  and 5 unclickable. `height: auto` at one class tied with Vuetify's `.v-btn-group` and lost on
+  source order.
+- **Config toolbar**: `flex-wrap` sat on the toolbar root, not the inner `.v-toolbar__content`
+  that both lays out and clips. "Unsaved changes" rendered as "U". That inner element also carries
+  an inline `height` from Vuetify's own measurement, which no selector can outrank - the one
+  honest use of `!important` here.
+- **Map id field / backup folder picker**: `align-items: flex-start` on a flex *column* sizes
+  children to content, and an input's intrinsic width is nothing; "overworld" showed as "ove".
+- **World repo screen**: `.mb-shell-centre` was a flex *row*, and `AppearanceTarget` wraps screens
+  in `display: contents`, so a screen with two roots laid them side by side - the info alert got
+  93px and rendered one word per line. It is a column now.
+- **Notification centre**: a fixed 440px width inside the shell's 420px card, which hides
+  overflow. A cap now, so both of its hosts get what they ask for.
+- **Tab strip**: `overflow-wrap: anywhere` counts toward min-content width, so a crowded strip
+  broke labels inside words - "Projects" as "Proje / cts". `break-word` keeps the minimum at one
+  readable word and the strip overflows into the surface it already has.
+- **Nested side strip**: sized against the viewport, so it took 208px of a 385px pane and left
+  170px for the settings. `clamp(8.5rem, min(22vw, 30%), 20rem)` measures the pane it is in;
+  verified at three widths, with 1180px unchanged at 277px.
+- **Project editor**: three columns rendering four, its centre strip docked left beside a tree
+  already listing the same four config files. It docks top, as the redesign describes.
+- **Download consent**: read once in `onMounted`, so accepting in Settings never reached the
+  editor. It watches `settingsEpoch`, the same event `consentState.ts` documents for the world
+  surfaces after the identical defect there.
+
+### Guards, and which one was thrown away
+
+Three guards, each broken on purpose and confirmed red before being kept: the inert scope, the
+rail outside the inert subtree, and `ConfigScreen.consentEpoch.test.ts` (fails with `expected 1 to
+be greater than 1`). A fourth candidate - clicking the rail and asserting the editor closed -
+passed both ways under jsdom, which does not enforce `inert`, so it was **removed** rather than
+kept as decoration. `projectSurfaceSizing.test.ts` asserted the literal `anywhere` token; its
+stated intent is unchanged and still asserted, with the reason for `break-word` beside it.
+
+### What is still open
+
+A button label sits 4px past the viewport in one docked-surface menu at 800x600 - real, minor,
+unfixed. And the nested side-strip clamp is verified by measurement in a real engine at three pane
+widths but not by rendering a left-docked strip end to end, because no shipped surface defaults to
+left any more; only a saved workspace reaches that path.
+
+## 2026-08-10 (later) — Phase A accessibility: skip path, disclosure contracts, and fail-closed shell numbers
+
+**State: verified locally; pushed with a fresh capture run.**
+
+An external Phase A bundle arrived containing accessibility fixes reconstructed from the packaged
+UI source map at artifact SHA `01db881` (branch `codex/rewrite-electron-from-redesign`). Its own
+applier verified ten of the thirteen touched files byte-identical on current `main` and refused
+the other three as drifted, so the ten took the overlay content directly and the three -
+`App.vue`, `AppRail.vue`, `DockedSurface.vue` - were rebased hunk by hunk from the bundle's
+patch, exactly as its README instructs. Whitespace-ignored diffs match the patch shape file for
+file; no other content moved.
+
+What shipped:
+
+- A keyboard skip path from the frameless title bar to a focusable `v-main` landmark
+  (`worldlens-main-content`), with the skip-link label registered in English and Cantonese in
+  `copy/surfaces/chrome.ts`.
+- Stable disclosure-to-surface `aria-controls` relationships: the rail bell to the notification
+  panel, the rail settings button to the docked settings surface (which now names itself
+  `docked.<surfaceId>.panel`), the status strip to the Problems panel, render rows to their
+  detail regions, the preview network explanation, and glossary terms to their definitions.
+  The rail settings control is now a true disclosure - pressing it again closes the surface.
+- Non-modal dialog semantics on the notification history: named surface, Escape close, focus on
+  open, focus return to the bell on close.
+- `shellNumbers.nonNegativeInteger` normalises badge counts and render progress at the rendering
+  boundary, so a negative, infinite or `NaN` value can never reach visible or ARIA output.
+- Reduced-motion coverage for the rail pill transition.
+- Two regression suites: `shellAccessibilityContract.test.ts` (source relationships, validated
+  against the rebased tree, not the bundle's baseline) and `shellNumbers.test.ts`.
+
+Verification: UI build and typecheck clean; eslint clean on every covered file; affected
+component suites 59 files / 656 tests green plus the 3 App-mounting suites (82 tests); the two
+new suites 8/8; full workspace rebuilt and the complete screenshot matrix recaptured from the
+patched tree with the digest recorded from those exact sources.
+
+## 2026-08-10 — release readiness: deterministic guards, a published release, and the stopwatch that failed it
+
+**State: verified through release `v0.1.988`; one workflow defect found by that release and fixed here.**
+
+Executed against live `origin/main`, working tree clean at every gate. Drift from the last
+inspected baseline `838c11a299889e81ebbf6bd67743943e689d300b`: the autosave/travelling-history
+feature, the redesign-fidelity commits, the evidence recapture, and the guard repairs recorded
+below - all already on `main` before this section was written.
+
+### What this stretch fixed, each with the failure that proved it
+
+- **Changelog fixed point** (`b30c3fdf`): `isGeneratedOnlyCommit` was missing the
+  `redesign/ui` mirror copies of the generated changelog data, so every refresh commit wrote
+  itself into the next regeneration and `--check` could never again match any committed
+  output. CI run 31361408174 failed exactly this way; the mirror paths are now excluded.
+- **Digest honesty for generated data** (`b30c3fdf`): `changelogData.generated.ts` derives
+  from commit history, so its final bytes cannot exist before the commit that ships them. It
+  is excluded from the interface-source digest and `freshBundle.ts`'s matching rule; the
+  recorded `uiSourceDigest` was recomputed and the captured tree differs from the graded tree
+  only by that file.
+- **`--check` says what differs** (`1c751821`): on mismatch the guard now prints the first
+  run of differing lines. The very next CI run used it to expose the third defect.
+- **UTC timestamps across git versions** (`5c1990b8`): git 2.54 renders strict-ISO UTC as
+  `Z` where git 2.43 writes `+00:00`, so UTC-authored commits regenerated differently per
+  machine. All generated timestamps are canonicalized to RFC 3339 `Z`.
+- **EPIPE on a listenerless stdin** (`eb2663e1`): a `gh` child that exits without reading
+  its stdin surfaced an asynchronous EPIPE with no listener - an uncaught exception that
+  killed CI run 31362771125 after all 10,512 tests had passed. Both `nodeProcessRunner`
+  transport paths now listen; the regression test overfills the pipe buffer against a child
+  that exits without reading, which reproduces the crash deterministically without the fix.
+- **The release stopwatch** (this section's commit): the Publish step required its own
+  publish PATCH, metadata readback and verification to finish inside the same UTC second as
+  the completion stamp it had just written - roughly a one-second cycle against a one-second
+  window. Run 31364032707 published release `v0.1.988`, verified its metadata and asset
+  inventory five times, and was then declared failed by that equality. The check is now a
+  fail-closed ten-second drift window; the watched-step and whole-job fingerprints were
+  re-reviewed alongside it.
+
+### Exact-tip verification, run 31364032707 at `cb729355abc18b2b165eee5d4a0a3e832170695d`
+
+| Gate | Result |
+|---|---|
+| Lint the workflow files (changelog guard, release metadata, 60 script tests) | success |
+| Lint (eslint, workspace) | success |
+| Lint, build, test (screenshots:check, build, typecheck, test:ci - 723 files, 10,512 tests) | success |
+| BlueMap jars (seven implementations) | success |
+| Config / real Java CLI round trip | success |
+| Generate and render a test world | success |
+| Windows installer (Squirrel set, validator, unsigned-and-branded proof) | success |
+| Publish release | release published and verified; job verdict failed on the stopwatch defect fixed here |
+| Screenshots | advisory, in progress when this was written |
+
+### The release that run published
+
+`v0.1.988`, draft `false`, target `cb729355abc18b2b165eee5d4a0a3e832170695d`, published
+2026-08-10T07:24:31Z: https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.988
+
+| Asset | Bytes |
+|---|---:|
+| `Worldlens-0.1.988-Setup.exe` | 156,432,384 |
+| `Worldlens-0.1.988-full.nupkg` | 155,682,032 |
+| `RELEASES` | 82 |
+| `bluemap-server-plugins-5.22-27.zip` | 39,331,588 |
+| `bluemap-jars.sha256.txt` | 648 |
+| `worldlens-v0.1.988-extras.zip` | 170,578,301 |
+
+Per-asset SHA-256 digests are in the release notes' own "Release asset SHA-256" section; the
+workflow's manifest verifier confirmed the draft inventory, the six downloaded assets, and the
+published metadata five separate times inside the run. Windows executables are intentionally
+and permanently unsigned, disclosed as such in the notes.
+
+### Boundaries, stated plainly
+
+- This machine is Linux: the packaged Windows install/smoke path runs in CI's `package` job
+  (which validates the Squirrel set and proves the executables unsigned and branded), not
+  locally. No local claim is made about installing `Setup.exe`.
+- Screenshot capture remains advisory to publication by the workflow's own design; the
+  committed evidence (89 captures, run 5, digest of the exact captured tree) was produced
+  locally under `xvfb-run` and is graded by `screenshots:check`, which is fatal and green.
 
 The repository is now at `b8174ef0ae766f00cb468f214c35d853023bc48e`. The earlier Pages
 handoff tip `172abca5cfac9985ca387941612edc66bded926a` and the original
@@ -40,11 +222,12 @@ and replace duplicated mask-editing drafts with one shared editor card plus an e
 
 ### Remaining evidence work
 
-Use a completed screenshot artifact whose capture manifest contains the full current target set,
-then update the `app-playwright-manifest` targets/count and digest from those real files. Build the
-packaged application and recapture the three `built-shell-readme` destinations separately through
-the documented off-screen route. Do not copy the partial 65-image artifact into the ledger and do
-not change either digest without its genuine recapture.
+Done on 2026-08-10: the `app-playwright-manifest` gallery was re-captured in full by running the
+harness against a freshly built workspace under xvfb with the CI-rendered map and world fixtures,
+and its targets, count and digest were updated from those real files. The `built-shell-readme`
+group was retired rather than recaptured: its Windows-only PrintWindow route rotted on every
+interface change with no runner able to refresh it, so the README now shows the harness's own
+captures of the same surfaces, which the digest check can keep honest forever.
 
 ## 2026-08-09 (latest) — ZIP-canonical Pages redesign integrated and pushed
 
@@ -4456,7 +4639,7 @@ The dim-sum consumer now reads the public catalog's authoritative English and Tr
 names and resolves only an existing `catalog-v1*` asset URL. It does not download, copy, cache or
 attach photo bytes. Every executable workflow runner is pinned to `ubuntu-24.04` or
 `windows-2022`, with exact job inventory tests that reject `*-latest`, self-hosted, expressions and
-unknown labels. All **114** external action uses across the seven executable workflows are pinned
+unknown labels. All **117** external action uses across the seven executable workflows are pinned
 to reviewed full SHAs, every checkout erases its credential, and the guard fails if a workflow is
 missing from that exact inventory. Screenshot capture remains visible diagnostic evidence with
 job-level `continue-on-error: true`; available images and traces still upload, but capture is not a
@@ -4466,3 +4649,19 @@ packaging and Windows CSS set passes **19/19**; the full retrying suite passed *
 tests with **33 skipped** after one known Vitest worker-heartbeat retry. The remaining external
 proof is a terminal CI run at the integrated `main` commit and its main-only publisher; no release
 was created manually during this lane.
+
+## 2026-08-10 — tag CI no longer fails an impossible changelog assertion
+
+The CI workflow still runs for tag pushes, but its generated-changelog freshness step now runs
+only when `github.ref_type != 'tag'`. A release tag is created after the commit it points at, so a
+tag-triggered checkout can never contain generated output discovered from that future tag. The old
+shape made every successful publication immediately start a predictably failing second run.
+
+The release-security inventory now names the separated changelog step, and a focused regression
+test requires the exact tag exclusion. The test was deliberately run once with the condition
+inverted and failed, then passed after restoration. Branch and pull-request CI still require
+`node scripts/build-changelog.mjs --check`; tag runs retain every other pre-publication workflow,
+build, test, rendering, packaging and release-security check, while the main-only publisher remains
+intentionally ineligible. The condition contract also rejects relocation, duplication, alternate
+tag predicates, extra skipped commands and fail-open step metadata. Remote verification remains
+pending until the integrated commit reaches the default branch.

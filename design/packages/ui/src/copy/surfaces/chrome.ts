@@ -370,6 +370,7 @@ export const CHROME_FIXED = {
     "window.restore": { en: "Restore", yue: "還原" },
     "window.maximize": { en: "Maximize", yue: "放到最大" },
     "window.close": { en: "Close", yue: "閂咗佢" },
+    "window.skipToMain": { en: "Skip to main content", yue: "跳去主要內容" },
 
     /* Movement labels this app added beside upstream's free-flight settings. */
     "freeFlightControls.moveForward": { en: "Move forward", yue: "向前飛" },

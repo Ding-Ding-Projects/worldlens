@@ -53,7 +53,13 @@ describe("project surface sizing inventory", () => {
     it("wraps tab labels and long bilingual/status copy instead of ellipsizing it", () => {
         const label = rule(tabs, ".mb-tabs-strip__label");
         expect(label).toContain("white-space: normal");
-        expect(label).toContain("overflow-wrap: anywhere");
+        // `break-word`, not `anywhere`. Both wrap a long unbroken string rather than letting
+        // it widen the strip, which is what this test is protecting. They differ in whether
+        // the break may happen to satisfy shrinking: `anywhere` counts toward min-content
+        // width, so a crowded strip shrank a tab to a few characters and broke inside the
+        // word - "Projects" as "Proje / cts". `break-word` keeps min-content at the longest
+        // word, so the strip overflows into its own overflow surface instead.
+        expect(label).toContain("overflow-wrap: break-word");
         expect(label).not.toContain("text-overflow: ellipsis");
         expect(editor).toContain("overflow-wrap: anywhere");
         expect(maps).toContain("overflow-wrap: anywhere");

@@ -20,8 +20,116 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Build, release and tooling
+
+- Provision Java for cold-start builds - [`c25c6036e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c25c6036e5e74ab4bcccde5eb2f4a07c71914fea)
+
+### Elsewhere in the repository
+
+- Verify installers with PowerShell 7 - [`8bbc2db146`](https://github.com/Ding-Ding-Projects/worldlens/commit/8bbc2db146df85c61d35ac2bef6ae50955ba3c95)
+- Flatten live CI run inventory - [`89049295a0`](https://github.com/Ding-Ding-Projects/worldlens/commit/89049295a0ee25aa31245c27b4ead71f9ba3037b)
+- Harden installer identity comparison - [`0f8984a135`](https://github.com/Ding-Ding-Projects/worldlens/commit/0f8984a13549cfabd3160cf14f4c493c6eee4335)
+- Carry Java into installer packaging - [`92cf4d99e7`](https://github.com/Ding-Ding-Projects/worldlens/commit/92cf4d99e74a0524d59d72909cea99cb6d2844e1)
+
+## 1.0.1050 - 2026-08-11
+
+Tagged at [`d27f29eb69`](https://github.com/Ding-Ding-Projects/worldlens/commit/d27f29eb694ef30af92ad58ba5d2ed137ad89689).
+
 ### Interface
 
+- fix(a11y): 44px touch targets for the four biggest undersized clusters - [`9826f20ba4`](https://github.com/Ding-Ding-Projects/worldlens/commit/9826f20ba45cee10804aac3788a21e30119df373)
+- feat(project editor): collapse the structure column, and give the settings the room - [`63d195d701`](https://github.com/Ding-Ding-Projects/worldlens/commit/63d195d701cb1a26e2ab440888a2b0b72a71bf2d)
+
+### Landing page and documentation site
+
+- Add mobile tab context-menu buttons - [`cc8fbb9cae`](https://github.com/Ding-Ding-Projects/worldlens/commit/cc8fbb9caec4f4bfaa9a87a9b1c0ccfa4d7b16b6)
+- docs(site): name the three unbuilt contract features instead of omitting them - [`223d8fe385`](https://github.com/Ding-Ding-Projects/worldlens/commit/223d8fe385f33f7456387a7df5d4fcae57018c5e)
+
+### Build, release and tooling
+
+- Repair silent installer bootstrap - [`701e4f6af2`](https://github.com/Ding-Ding-Projects/worldlens/commit/701e4f6af2312e9d3d9c91e4255674ee7aa49db8)
+
+## 1.0.1044 - 2026-08-11
+
+Tagged at [`97b591ef45`](https://github.com/Ding-Ding-Projects/worldlens/commit/97b591ef45e11d5eba657f26c8bfd0a4eabd53e3).
+
+### Interface
+
+- fix(path-field): pin the browse controls to 44px through the component, not the sheet - [`1dee292518`](https://github.com/Ding-Ding-Projects/worldlens/commit/1dee2925189cee7202e3e4822cfeea56b2ba8b1e)
+- fix(path-field): give the browse controls a 44px touch target - [`0ba36bf32f`](https://github.com/Ding-Ding-Projects/worldlens/commit/0ba36bf32f1227060755e5744d19b442de80a30f)
+- fix(path-field): wrap the browse controls, and make the harness say by how much - [`5f780d7490`](https://github.com/Ding-Ding-Projects/worldlens/commit/5f780d749036ad8d9d134d9e479d06c80e315f8e)
+- fix(docker): wrap the source-kind toggle instead of running it off the screen - [`78a6b57196`](https://github.com/Ding-Ding-Projects/worldlens/commit/78a6b571961459867137c6c211d36a0661f8f8e9)
+- fix(docker): let the world-source toggle wrap its label instead of clipping it - [`d0d579d389`](https://github.com/Ding-Ding-Projects/worldlens/commit/d0d579d389b55c9aee6b1e53aba994555399b9e0)
+- fix(settings): the reset buttons name the panel, so let the name wrap - [`b8f8903cb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8f8903cb6d067da24e0e4219ec5547e24116e0f)
+- fix(tabs): a side strip that measured the window instead of the room it was in - [`46df0c0b9c`](https://github.com/Ding-Ding-Projects/worldlens/commit/46df0c0b9c7cb1f5fd16247dfd6a2585ac6b3392)
+- fix(shell): a column that was a row, and three labels the strip was eating - [`93b5cfcf8d`](https://github.com/Ding-Ding-Projects/worldlens/commit/93b5cfcf8d06350566b93f7eeae57e5658bba6b2)
+- fix(shell): stop the editor eating the rail, and five surfaces that clipped - [`20aeb2d5cc`](https://github.com/Ding-Ding-Projects/worldlens/commit/20aeb2d5cc94534a6663add3fe4a3c9a2480fa7a)
+- fix(shell): catalogue rows open the section they name - [`42c58e0e7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/42c58e0e7b4212c30f7e8f6a483fed4f08d9859e)
+- fix(shell): give the status strip's progress bar a value, on the scale the app produces - [`5784865610`](https://github.com/Ding-Ding-Projects/worldlens/commit/57848656109af21355a8d9d29b84c9bee7dc0489)
+
+### Rendering and world data
+
+- fix(viewer): a malformed size header no longer claims computable progress - [`91bf9898e8`](https://github.com/Ding-Ding-Projects/worldlens/commit/91bf9898e8074c5564ec7e16f65ca6e68275973a)
+
+### Desktop shell
+
+- fix(cirender): subscribe to the child's close before awaiting the pipeline - [`4d511d6c90`](https://github.com/Ding-Ding-Projects/worldlens/commit/4d511d6c9024db215b6de4db7c027332ffca3509)
+
+### Landing page and documentation site
+
+- fix(site): the landing page no longer contradicts what shipped - [`8c9a69fbfb`](https://github.com/Ding-Ding-Projects/worldlens/commit/8c9a69fbfb87a266a4edb4c223ace90f0456ca9d)
+
+### Documentation
+
+- docs(screenshots): replace every capture from the current build - [`7ea5730671`](https://github.com/Ding-Ding-Projects/worldlens/commit/7ea573067177f41c66e413ef8926dac5ee0e69f0)
+- docs: record the eleven defects, and the four shapes that keep producing them - [`038f991b39`](https://github.com/Ding-Ding-Projects/worldlens/commit/038f991b39ab9edbbadb44c21f234e8618ad27d6)
+- ci(workflows): assert the release condition and the changelog step in the linter - [`057e8e5389`](https://github.com/Ding-Ding-Projects/worldlens/commit/057e8e5389b5d9673f8573dbf4965be3043797b4)
+- docs(agents): make updating GitHub Pages and refusing stale content a repository rule - [`d54147c5ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/d54147c5aba1baa47bcd986e9e7b41e95586f74e)
+
+## 1.0.1017 - 2026-08-10
+
+Tagged at [`86cdbb3c8b`](https://github.com/Ding-Ding-Projects/worldlens/commit/86cdbb3c8be48687715a2d346a037c83a9f5175f).
+
+### Build, release and tooling
+
+- feat!: Worldlens 1.0 - the verified public baseline - [`6ad26921ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/6ad26921abe7aa5c081929ccbc1a2ab2bab09ba1)
+
+### Documentation
+
+- docs: complete the bilingual corpus - every article carries its Cantonese section - [`93486bafbe`](https://github.com/Ding-Ding-Projects/worldlens/commit/93486bafbe6194c01148e48e86fee3b45f4e71a6)
+- docs: add Hong Kong Cantonese sections, seventh wave - [`c02f6addd6`](https://github.com/Ding-Ding-Projects/worldlens/commit/c02f6addd64b47397651ab2076170695a1f63cd3)
+- docs: add Hong Kong Cantonese sections, sixth wave - [`65ad7f4be3`](https://github.com/Ding-Ding-Projects/worldlens/commit/65ad7f4be34b36273927c7bbf212c010e16a8a7a)
+- docs: add Hong Kong Cantonese sections, fifth wave - [`5b5f89a5c1`](https://github.com/Ding-Ding-Projects/worldlens/commit/5b5f89a5c12d5b13676fa896a43f8f25184039ff)
+- docs: add Hong Kong Cantonese sections, fourth wave - [`45f0ee2515`](https://github.com/Ding-Ding-Projects/worldlens/commit/45f0ee251599345fd5ccf4d36bccdd3adcb45f34)
+- test(identity): pin the Pages legacy marker to its bilingual site count - [`00fc212a40`](https://github.com/Ding-Ding-Projects/worldlens/commit/00fc212a40606c875718cb95b93a4b459900938b)
+- docs: add Hong Kong Cantonese sections, fourth wave - [`e55ed6dc63`](https://github.com/Ding-Ding-Projects/worldlens/commit/e55ed6dc631e8099bc5164b6588253f72aaab1d4)
+- docs: add Hong Kong Cantonese sections, third wave - [`6466b058a0`](https://github.com/Ding-Ding-Projects/worldlens/commit/6466b058a035b39abe450568d4e7a4762ee5c1f3)
+- docs: add Hong Kong Cantonese sections, second wave - [`6834e53b7f`](https://github.com/Ding-Ding-Projects/worldlens/commit/6834e53b7f12752ab31fd49e35b0c7b5cb2999d3)
+- docs: add Hong Kong Cantonese sections to the first ten articles - [`13848c1a62`](https://github.com/Ding-Ding-Projects/worldlens/commit/13848c1a62e8fc1a1289a041b06ddb5640bde4fc)
+
+## 0.1.996 - 2026-08-10
+
+Tagged at [`3785004fae`](https://github.com/Ding-Ding-Projects/worldlens/commit/3785004faed122ef302d45d280fb6ca6bc714c9f).
+
+### Documentation
+
+- feat(a11y): phase A accessibility - skip path, disclosure contracts, fail-closed shell numbers - [`fac7ea510e`](https://github.com/Ding-Ding-Projects/worldlens/commit/fac7ea510eab33cd6928d919e403749ebf44d2f1)
+
+## 0.1.993 - 2026-08-10
+
+Tagged at [`62619660d7`](https://github.com/Ding-Ding-Projects/worldlens/commit/62619660d7977ef912e09dbdddd4e23ac278ebf4).
+
+### Build, release and tooling
+
+- fix(release): give the completion stamp a window a real publish can meet - [`9b36be9319`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b36be9319066f436c2b6836979cc596481d7ae8)
+
+## 0.1.988 - 2026-08-10
+
+Tagged at [`cb729355ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/cb729355abc18b2b165eee5d4a0a3e832170695d).
+
+### Interface
+
+- fix(ui): revert the second corrupted splice of the project editor - [`e7307afff3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7307afff3da656f0a973da93dd9ee6acca621cc)
 - Merge branch 'codex/rewrite-electron-from-redesign-final' - [`b8174ef0ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8174ef0ae766f00cb468f214c35d853023bc48e) _(summary of 2 commits, also listed here)_
 - Merge remote-tracking branch 'origin/main' into codex/rewrite-electron-from-redesign-final - [`922a5af92b`](https://github.com/Ding-Ding-Projects/worldlens/commit/922a5af92b4bdc272399482686613bdc451b73e5) _(summary of 11 commits, also listed here)_
 - Repair imported UI source defects - [`ad702c0f59`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad702c0f59c5f0daabf426bfbefc8a643397a47e)
@@ -52,6 +160,8 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- fix(cirender): survive a child that exits without reading its stdin - [`eb2663e1f3`](https://github.com/Ding-Ding-Projects/worldlens/commit/eb2663e1f32b1be08074c77d96762389ed512c3c)
+- fix: reconcile rename finalizer and modal inventory with the site rework - [`838c11a299`](https://github.com/Ding-Ding-Projects/worldlens/commit/838c11a299889e81ebbf6bd67743943e689d300b)
 - fix: make the whole workspace test suite green (727 files) - [`6e1387ddba`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e1387ddbace4b66743e078ffce4683c09bc9ddd)
 - Repair baseline typecheck, lint, and screenshot evidence - [`b3f556547c`](https://github.com/Ding-Ding-Projects/worldlens/commit/b3f556547c4c6431911d49ffdf7953419bbc7cc1)
 - test(captures): exercise rail notifications and fresh config toasts - [`01db881ca4`](https://github.com/Ding-Ding-Projects/worldlens/commit/01db881ca4edf73e97e8f3f49b7f1d098728f3d8)
@@ -72,10 +182,15 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- fix(changelog): canonicalize UTC timestamps across git versions - [`5c1990b8d3`](https://github.com/Ding-Ding-Projects/worldlens/commit/5c1990b8d39b8336f9056083b84b44a067c05bac)
+- feat(changelog): show the first difference when --check fails - [`1c751821c0`](https://github.com/Ding-Ding-Projects/worldlens/commit/1c751821c06ed9b65719e1cd340caa870a129ffd)
+- fix(changelog): restore the generated-only fixed point and stop grading generated data as interface source - [`b30c3fdf96`](https://github.com/Ding-Ding-Projects/worldlens/commit/b30c3fdf96aae48841868a5e8ed327c84d4d789c)
 - Require green correctness checks before release - [`77f833cb92`](https://github.com/Ding-Ding-Projects/worldlens/commit/77f833cb927996f82f8bfc768f8a66f5c6339ad8)
 
 ### Documentation
 
+- feat(project): autosave with a travelling git history, and redesign fidelity - [`3572208c64`](https://github.com/Ding-Ding-Projects/worldlens/commit/3572208c64f20bc06d99e97d73901962de0e6191)
+- Merge remote-tracking branch 'origin/main' - [`21f2babd0b`](https://github.com/Ding-Ding-Projects/worldlens/commit/21f2babd0bad778cce2a79507e094bae82000a26) _(summary of 3 commits, also listed here)_
 - Record the reconciled default-branch handoff - [`4b00c14492`](https://github.com/Ding-Ding-Projects/worldlens/commit/4b00c14492f18c2e994bb88ad76b25012a294713)
 - Capture the deployed documentation article - [`90a66a85da`](https://github.com/Ding-Ding-Projects/worldlens/commit/90a66a85dab807d7e14de65d8da6cae295758a78)
 - Document the Pages redesign handoff - [`3f487aa236`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f487aa23674340bde029509f9b15de409b4e7a2)

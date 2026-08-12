@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiInformationOutline } from "@mdi/js";
 import { VBtn, VCard, VCardText, VMenu, VTooltip } from "vuetify/components";
@@ -40,6 +40,7 @@ const props = withDefaults(
 
 const { t } = useI18n();
 const open = ref(false);
+const definitionId = useId();
 
 const entry = computed(() => GLOSSARY_TERMS[props.term]);
 const displayLabel = computed(() => props.label ?? entry.value.label);
@@ -110,13 +111,14 @@ function openGlossary(): void {
             :icon="mdiInformationOutline"
             :aria-label="ariaLabel"
             :aria-expanded="open ? 'true' : 'false'"
+            :aria-controls="definitionId"
             variant="text"
             size="x-small"
             density="comfortable"
         >
             <v-tooltip activator="parent" location="top" :text="ariaLabel" />
             <v-menu v-model="open" activator="parent" :close-on-content-click="false" location="bottom start" offset="6">
-                <v-card class="mb-glossary-term__card" variant="elevated" max-width="300">
+                <v-card :id="definitionId" class="mb-glossary-term__card" variant="elevated" max-width="300">
                     <v-card-text>
                         <p class="mb-glossary-term__definition">{{ definitionText }}</p>
                         <v-btn variant="text" size="small" class="mb-glossary-term__more" @click="openGlossary">
@@ -138,6 +140,35 @@ function openGlossary(): void {
 
 .mb-glossary-term__trigger.v-btn {
     opacity: 0.75;
+    position: relative;
+}
+
+/*
+    A 44px hit area on a 20px glyph, without the 44px of layout.
+
+    This trigger sits inline beside a term - in field labels, in prose, in row names - so
+    sizing the element itself to the touch-target minimum would put 44px of button into
+    every line that mentions a glossary word. The pseudo-element expands what a finger can
+    hit while the glyph keeps its size and the line keeps its height. A click on the
+    pseudo-element is a click on the button; this is the standard MD3 target-expansion
+    shape, and the capture sweep that found these measured the drawn box, all 390 of them,
+    at 20x20.
+
+    `::before`, deliberately, and with `pointer-events` said out loud. Vuetify's `.v-btn::after`
+    is not free - it is the button's focus ring, carrying `pointer-events: none` - so an
+    expansion written there both inherits the none (and catches no clicks at all) and
+    overwrites the focus indicator. That exact combination shipped briefly and measured as
+    zero expansion; the minimal reproduction that found it is worth keeping in mind whenever
+    a pseudo-element "mysteriously" refuses hits: check what the framework already put there.
+*/
+.mb-glossary-term__trigger.v-btn::before {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    translate: -50% -50%;
+    inline-size: max(100%, 44px);
+    block-size: max(100%, 44px);
+    pointer-events: auto;
 }
 
 .mb-glossary-term__trigger.v-btn:hover,

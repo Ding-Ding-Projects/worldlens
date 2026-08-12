@@ -262,7 +262,7 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         view.unmount();
     });
 
-    it("keeps edits in renderer memory and blocks dirty close, switch, and render boundaries", async () => {
+    it("queues every edit for autosave and flushes it at close, switch, and render boundaries", async () => {
         const folder = "/home/ada/.minecraft/saves/Bastion";
         const initial = withRender(createProject("Bastion"), { route: "github-actions" });
         const notifyAutosaveChange = vi.fn(
@@ -291,28 +291,22 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         editor.vm.$emit("update:project", withRender(initial, { force: true }));
         await flushPromises();
 
-        expect(notifyAutosaveChange).not.toHaveBeenCalled();
-        expect(flushAutosave).not.toHaveBeenCalled();
+        // The edit is queued for the main process's quiet scheduler the moment it exists,
+        // and nothing is written from the renderer's side of the bridge.
+        expect(notifyAutosaveChange).toHaveBeenCalledWith(folder, withRender(initial, { force: true }));
         expect(host.written).toHaveLength(0);
         expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
 
+        // A boundary flushes the pending autosave through the same path Save uses, and the
+        // transition proceeds - an autosaving editor has no unsaved work to defend with a wall.
         editor.vm.$emit("close");
-        editor.vm.$emit("render");
         await flushPromises();
-
-        await view.setProps({ openWorld: "/home/ada/.minecraft/saves/Creative" });
-        await flushPromises();
-
-        expect(view.findComponent(ProjectEditor).exists()).toBe(true);
-        expect(readProject).toHaveBeenCalledTimes(1);
-        expect(notifyAutosaveChange).not.toHaveBeenCalled();
-        expect(flushAutosave).not.toHaveBeenCalled();
+        expect(flushAutosave).toHaveBeenCalledWith(folder, "boundary");
         expect(host.written).toHaveLength(0);
-        expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
         view.unmount();
     });
 
-    it("writes an edited project only after the explicit Save event", async () => {
+    it("still writes through the explicit Save event, beside the autosave queue", async () => {
         const folder = "/home/ada/.minecraft/saves/Bastion";
         const initial = withRender(createProject("Bastion"), { route: "github-actions" });
         const notifyAutosaveChange = vi.fn(
@@ -340,8 +334,7 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         await flushPromises();
 
         expect(host.written).toHaveLength(0);
-        expect(notifyAutosaveChange).not.toHaveBeenCalled();
-        expect(flushAutosave).not.toHaveBeenCalled();
+        expect(notifyAutosaveChange).toHaveBeenCalledTimes(1);
 
         editor.vm.$emit("save");
         await flushPromises();
@@ -349,8 +342,6 @@ describe("the discovered-worlds panel, wired into the tab", () => {
 
         expect(host.written).toHaveLength(1);
         expect(host.written[0]?.[0]).toBe(folder);
-        expect(notifyAutosaveChange).not.toHaveBeenCalled();
-        expect(flushAutosave).not.toHaveBeenCalled();
         expect(view.emitted("dirty-change")?.at(-1)).toEqual([false]);
         view.unmount();
     });

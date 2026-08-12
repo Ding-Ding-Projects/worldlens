@@ -70,6 +70,15 @@ jobs:
           set -euo pipefail
           node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
           node scripts/lint-workflows.mjs
+
+      # A release tag is created after the commit it names, so that commit cannot already
+      # contain a changelog generated from its own future tag. Branch and pull-request runs
+      # remain strict; tag runs still execute every other pre-publication validation and
+      # packaging check. The main-only release job remains intentionally ineligible on tags.
+      - name: Verify generated changelog is current
+        if: github.ref_type != 'tag'
+        run: |
+          set -euo pipefail
           # Generated-only commits are deliberately excluded by the generator, so a commit
           # containing only its two outputs does not make itself stale. Full history above
           # keeps both released versions and the Unreleased section reproducible.
@@ -322,8 +331,8 @@ jobs:
 
       # Every build must carry a version Squirrel can order, or installing a newer
       # release over an older one silently does nothing: same version, nothing to do,
-      # no error and no upgrade. `0.1.<run number>` is monotonic, is valid semver, and
-      # is valid NuGet, which Squirrel requires.
+      # no error and no upgrade. `<major>.<minor>.<run number>` is monotonic, is valid
+      # semver, and is valid NuGet, which Squirrel requires.
       - name: Stamp this build's version
         id: version
         shell: pwsh
@@ -1303,8 +1312,14 @@ jobs:
             --directory release-readback
 
           # The first job's startedAt is read from the run itself rather than inferred
-          # from this job's clock. The completion value is accepted only when release
-          # note publication and exact metadata readback finish in that same UTC second.
+          # from this job's clock. The stamped completion is accepted when release-note
+          # publication and its exact metadata readback confirm within ten seconds of
+          # the stamp. The publish PATCH plus readback plus verification costs about a
+          # second of API latency, so the previous same-UTC-second equality could only
+          # pass when that whole cycle happened not to cross a second boundary - run
+          # 31364032707 published and verified a correct release five times and was then
+          # declared failed by its own stopwatch. Ten seconds still fails closed on a
+          # genuinely stale stamp while no longer requiring sub-second luck.
           workflow_started=$(gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.startedAt != null and .startedAt != "0001-01-01T00:00:00Z") | .startedAt] | sort | .[0]')
           if [ -z "$workflow_started" ] || [ "$workflow_started" = "null" ]; then
             echo "::error::could not resolve the first job start time for end-to-end release timing"
@@ -1348,11 +1363,13 @@ jobs:
               --tag "$RELEASE_TAG" \
               --notes release-notes.md
             observed_completion=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            if [ "$observed_completion" = "$workflow_completed" ]; then
+            observed_completion_epoch=$(date -u -d "$observed_completion" +%s)
+            completion_drift_seconds=$((observed_completion_epoch - workflow_completed_epoch))
+            if [ "$completion_drift_seconds" -ge 0 ] && [ "$completion_drift_seconds" -le 10 ]; then
               exit 0
             fi
             if [ "$attempt" = "5" ]; then
-              echo "::error::release-note publication crossed a UTC second boundary five times"
+              echo "::error::release-note publication drifted more than ten seconds from its stamped completion five times"
               exit 1
             fi
           done

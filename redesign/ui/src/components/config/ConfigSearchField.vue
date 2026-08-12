@@ -192,6 +192,15 @@ function clear(): void {
     min-block-size: 44px;
 }
 
+/*
+ * Vuetify's own `.v-btn--icon.v-btn--size-x-small` min-width ties the two-class rule above
+ * on specificity and wins on source order, leaving the regex and clear toggles 40px wide -
+ * just under the 44px hit target every other control here honours. Three classes settle it.
+ */
+.mb-config-search .v-btn.v-btn--icon {
+    min-inline-size: 44px;
+}
+
 .mb-config-search__summary {
     margin-block-start: 4px;
     font-size: 0.75rem;

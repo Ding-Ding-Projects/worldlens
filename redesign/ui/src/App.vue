@@ -185,6 +185,27 @@ const runningRenderCount = computed(
         ).length,
 );
 
+/**
+ * One percentage across everything actually running, or null when nothing can report one.
+ *
+ * `StatusStrip` has always drawn a progress bar and this shell never gave it a value, so the bar
+ * could not appear no matter what was rendering - the "built but unreachable" shape this project
+ * audits for. The mean is taken only over rows that report a percent: a render whose size is
+ * genuinely unknown reports `null`, and averaging that in as a zero would drag a nearly finished
+ * bar backwards and invent a denominator the progress model deliberately refuses to invent. When
+ * no running row can report one, the bar stays absent rather than showing a confident nothing.
+ */
+const renderProgressPercent = computed<number | null>(() => {
+    const running = renderIndicator.rows.value.filter(
+        (row) => row.state === "starting" || row.state === "running",
+    );
+    const known = running
+        .map((row) => row.percent)
+        .filter((percent): percent is number => percent !== null && Number.isFinite(percent));
+    if (known.length === 0) return null;
+    return known.reduce((total, percent) => total + percent, 0) / known.length;
+});
+
 const pages = computed<TabPage[]>(() => [
     // First in the strip and pinned on a fresh install (see the `pinned-page-ids` binding
     // below): the one destination that represents every capability this app has, weighted
@@ -360,7 +381,11 @@ const shell = createShellNavigation({
                 openSettings((reveal ?? null) as SettingsSectionAnchor | null);
                 return;
             case "config":
-                openConfig();
+                // The reveal is the whole point of the row that sent it. Dropped here, the
+                // catalogue's "Local version history" landed on Core settings instead of the
+                // History tab it names - the reveal travelled all the way from the manifest
+                // through `shellNavigation.ts` and was discarded at the last step.
+                openConfig((reveal ?? null) as PaletteConfigTarget);
                 return;
             case "palette":
                 paletteOpen.value = true;
@@ -402,6 +427,12 @@ const destination = shell.destination;
 const routingFailures = ref<{ id: string; message: string }[]>([]);
 const problemsOpen = ref(false);
 
+/** Stable landmark/disclosure ids shared by the controls and the surfaces they own. */
+const MAIN_CONTENT_ID = "worldlens-main-content";
+const NOTIFICATIONS_PANEL_ID = "worldlens-notifications-panel";
+const PROBLEMS_PANEL_ID = "worldlens-problems-panel";
+const SETTINGS_PANEL_ID = "docked.app-settings.panel";
+
 /**
  * The rail bell the notification history anchors to.
  *
@@ -409,6 +440,7 @@ const problemsOpen = ref(false);
  * handed to both the rail and the panel so the panel anchors to the exact control that opens it.
  */
 const notificationsActivatorId = useId();
+const settingsActivatorId = useId();
 const notificationsOpen = ref(false);
 
 const problems = computed(() =>
@@ -470,6 +502,13 @@ const metaSources = computed<CatalogueMetaSources>(() => ({
 }));
 
 function onRailSelect(next: RailDestination): void {
+    // Picking a destination closes the options editor. The editor is an opaque surface over
+    // the content area, so leaving it open would show the rail moving its pill to Home while
+    // Home stayed hidden behind the editor - the rail would look broken rather than the
+    // navigation it is. `closeConfig` keeps its own unsaved-changes handling.
+    if (configOpen.value) {
+        closeConfig();
+    }
     shell.select(next);
 }
 
@@ -758,6 +797,15 @@ function openSettings(anchor: SettingsSectionAnchor | null = null, missing = fal
     settingsOpen.value = true;
 }
 
+/** The rail settings control is a disclosure: pressing it again closes the surface it names. */
+function toggleSettingsFromRail(): void {
+    if (settingsOpen.value) {
+        settingsOpen.value = false;
+        return;
+    }
+    openSettings();
+}
+
 /**
  * A render that failed for a fixable reason says which setting would fix it. This is the
  * other end of that: it opens the surface *and* reveals the exact control, because
@@ -1041,7 +1089,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             :label="t('appearance.target.app.titleBar', 'The window title bar')"
             as="div"
         >
-            <AppTitleBar :title="productDisplayName" />
+            <AppTitleBar :title="productDisplayName" :main-content-id="MAIN_CONTENT_ID" />
         </AppearanceTarget>
 
         <!--
@@ -1074,13 +1122,15 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
         -->
         <StatusStrip
             :running-render-count="runningRenderCount"
+            :render-progress="renderProgressPercent"
             :problem-count="problems.length"
             :problems-open="problemsOpen"
+            :problems-panel-id="PROBLEMS_PANEL_ID"
             @open-renders="revealPage(PAGE_RENDERS)"
             @toggle-problems="problemsOpen = !problemsOpen"
         />
 
-        <v-main class="mb-main">
+        <v-main :id="MAIN_CONTENT_ID" class="mb-main" tabindex="-1">
             <!--
                 The viewer, which renders into #map-container rather than into this tree, so
                 it stays mounted at shell level and keyed on the profile exactly as before.
@@ -1094,8 +1144,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 editor is open, for the same reason the editor's own comment gives: the page
                 behind an opaque surface must not still be reachable with Tab, and tearing it
                 down would lose whatever step of the wizard somebody was on.
+
+                The inert goes on the content, never on this row, because the rail lives in
+                this row too. Marking the whole body inert took the rail's three destinations
+                out with the page - the editor painted over the only navigation in the
+                application and then disabled it, so the way out of the options editor was to
+                already know about Escape.
             -->
-            <div class="mb-shell-body" :inert="configOpen">
+            <div class="mb-shell-body">
                 <!--
                     The application rail: 80 px, always, at every supported width. It emits and
                     owns nothing - every action below is a call into the code this component
@@ -1114,16 +1170,19 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :unread-count="unreadNoticeCount"
                         :product-name="productDisplayName"
                         :notifications-activator-id="notificationsActivatorId"
+                        :notifications-panel-id="NOTIFICATIONS_PANEL_ID"
                         :notifications-open="notificationsOpen"
+                        :settings-activator-id="settingsActivatorId"
+                        :settings-panel-id="SETTINGS_PANEL_ID"
                         :settings-open="settingsOpen"
                         @select="onRailSelect"
                         @open-palette="paletteOpen = true"
                         @toggle-notifications="notificationsOpen = !notificationsOpen"
-                        @open-settings="openSettings()"
+                        @open-settings="toggleSettingsFromRail"
                     />
                 </AppearanceTarget>
 
-                <div class="mb-shell-content">
+                <div class="mb-shell-content" :inert="configOpen">
                     <!--
                         Map. The canvas itself is mounted at shell level above and stays there:
                         this layer is the chrome that only makes sense over one, and it is
@@ -1418,6 +1477,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         the problem is about.
                     -->
                     <ProblemsPanel
+                        :panel-id="PROBLEMS_PANEL_ID"
                         :problems="problems"
                         :open="problemsOpen"
                         @update:open="problemsOpen = $event"
@@ -1427,14 +1487,19 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             </div>
 
             <!--
-                The options editor gets a full-bleed host of its own, painted over the tab
-                strip and everything under it. `tabindex="-1"` is what lets the region hold
-                focus, so Escape reaches it before anything inside has been clicked.
+                The options editor gets a host of its own, painted over the page behind it -
+                but beside the rail, never over it. That sentence used to read "and everything
+                under it", and it was written when the navigation was a tab strip inside the
+                content area. The rail is not: it is the 80px the contract keeps on screen at
+                every width, and covering it left somebody in the editor with no visible way
+                back to Home, Map or Work.
+                `tabindex="-1"` is what lets the region hold focus, so Escape reaches it
+                before anything inside has been clicked.
             -->
             <div
                 v-if="configOpen"
                 ref="configHost"
-                class="mb-world-host mb-interactive"
+                class="mb-world-host mb-world-host--beside-rail mb-interactive"
                 tabindex="-1"
                 role="region"
                 :aria-label="t('config.title', 'Server configuration')"
@@ -1451,6 +1516,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             ? pendingConfigScreen.fieldPath
                             : null
                     "
+                    :settings-epoch="settingsEpoch"
                     @consent="openSettings('mojang-download-consent')"
                     @saved="configSaved"
                     @dirty-change="unsavedConfigChanges = $event"
@@ -1486,6 +1552,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 :state="notices"
                 :activator="`#${notificationsActivatorId}`"
                 :open="notificationsOpen"
+                :panel-id="NOTIFICATIONS_PANEL_ID"
                 @update:open="notificationsOpen = $event"
             />
 
@@ -1779,10 +1846,30 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     background: rgb(var(--v-theme-background));
 }
 
+/*
+    The one host that is a sibling of `.mb-shell-body` rather than a job pane inside it, so
+    `inset: 0` reaches the window edge and swallows the rail. It starts where the content
+    starts instead. The width is the rail's own `flex: 0 0 80px` from `AppRail.vue`; if that
+    ever moves, `railWidthContract.test.ts` fails rather than this silently misaligning.
+*/
+.mb-world-host--beside-rail {
+    inset-inline-start: 80px;
+}
+
 /* The maps-and-servers card has its own width, so its page centres it rather than stretching it. */
+/*
+    A column, not a row. This exists to centre a page horizontally, and as a row it did that
+    correctly for exactly as long as every screen had one root element. `AppearanceTarget`
+    wraps each screen in `display: contents`, so a screen with two root children hands both
+    of them to this flex container as siblings - and a row lays them out beside each other.
+    `WorldRepoScreen`'s card and its info alert did precisely that: the alert was allotted
+    93px and rendered one word per line, unreadable, at every window size.
+    Centring on the cross axis keeps the single-child screens looking exactly as they did.
+*/
 .mb-shell-centre {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     padding: 16px;
 }
 

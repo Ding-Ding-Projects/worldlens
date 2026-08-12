@@ -1,5 +1,86 @@
 # Roadmap
 
+## The shell stops covering its own navigation, and ten surfaces stop cutting their own text (2026-08-11)
+
+The redesign keeps an 80px rail on screen at every supported width. It was not: the options
+editor's host is a sibling of the shell row with `inset: 0`, so it painted over the rail and the
+row's `:inert` disabled it, leaving Escape as the only way back to Home, Map or Work. The host now
+begins at the content edge, the inert scopes to the content, and a rail destination closes the
+editor. This was the defect behind two of the three reports that opened this work.
+
+Ten clipping defects went with it, all found by driving the built interface in headless Chromium
+and comparing `scrollWidth` to `clientWidth` element by element rather than by reading CSS that
+looked correct. Surfaces with findings fell from **10 to 1 at 800x600**, and the five systemic
+offenders at 1280x800 to none. Two of them hid function rather than decoration: the speed dial's
+levels 4 and 5 were unclickable behind a 40px box with hidden overflow, and the map id field
+collapsed to an input's intrinsic width, showing "ove" for "overworld". The download-consent row
+also stopped insisting the Mojang download had never been accepted after it had been - the same
+sample-once defect `consentState.ts` already documents for the world surfaces, in a screen that
+was never wired to the epoch.
+
+Three of the four recurring causes are worth carrying forward, because each one produces code that
+reads as correct: a rule that ties with a framework rule and loses on source order; a rule applied
+to the wrapper rather than to the element that actually lays out and clips; and `align-items:
+flex-start` on a flex column, which sizes fields to an intrinsic width of nothing. The fourth is
+an inline style written by the framework from its own measurement, which no selector can outrank.
+
+**Next**: a left-docked strip still measures the viewport rather than its own pane in the one path
+a saved workspace can reach, and one docked-surface button label sits 4px past the viewport at
+800x600. Neither is reachable from a shipped default any more, and both are recorded in
+`HANDOFF.md` rather than closed.
+
+## Material Design 3 shell completion, genuine recapture, travelling project history, and a deterministic changelog guard (2026-08-10)
+
+**The redesign folder is the shell contract, and `main` now carries it with genuine evidence.**
+The `redesign/ui` tree is a byte-identical mirror of `design/packages/ui`; the shell ships the
+80px rail with Home/Map/Work, five-catalogue discovery with real per-group feature counts on the
+hero chips, the Work workspace re-hosting `TabbedNavigation` unchanged, closeless destination
+tabs on the three fixed destinations (Config, Project editor, Settings), history-only notices
+behind the rail bell, and the 44px hit-target repairs in the config search, Docker note and
+world-mount rows. Screenshot evidence was recaptured for real: 89 PNGs from capture run 5 under
+`xvfb-run` against a freshly built bundle (26/26 harness tests, 7 named skips), including the
+rail-bell interaction proof that replaced the stale "bell is broken" skip, and the retired
+toast/corner captures that pictured a notification system commit `45fa6f4` deliberately removed.
+No digest-only refresh: the recorded `uiSourceDigest` is computed from the exact tree the
+captures picture.
+
+Projects now save themselves and carry their own history. `createProjectAutosave` debounces a
+quiet 15 s / 90 s max-wait write, the editor queues autosaves on edit and flushes at close
+boundaries, and Save still writes immediately. Every save records a revision in the isolated
+per-world git repository (never pruned - unlimited undos), exports the whole repository as a git
+bundle, and embeds it base64 under the project file's `history` key, trailer-last so the JSON
+stays readable. Opening a project file on a machine with no history seeds the repository from the
+embedded bundle; a machine that already holds revisions is never overwritten. The bundle never
+contains itself, proven by real-git tests in `embeddedHistory.test.ts`.
+
+The changelog guard is deterministic again, three defects deep: (1) `isGeneratedOnlyCommit` was
+missing the `redesign/ui` mirror paths, so every refresh commit wrote itself into the next
+regeneration and `--check` could never converge; (2) `changelogData.generated.ts` - whose bytes
+derive from commit history and cannot exist before the commit that ships them - was graded as
+interface source, marking all 89 captures stale on every routine refresh; it is now excluded
+from the digest and from `freshBundle.ts`'s matching rule; (3) git 2.54 renders UTC strict-ISO
+timestamps as `Z` where git 2.43 writes `+00:00`, so UTC-authored commits regenerated
+differently across machines - all generated timestamps are canonicalized to RFC 3339 `Z`, and
+`--check` now prints the first byte difference instead of a bare "out of date". A fourth repair
+kept CI honest: a `gh` child that exits without reading its stdin surfaced an asynchronous EPIPE
+on a listenerless stream and took down a run whose 10,512 tests had all passed;
+`nodeProcessRunner` now listens on both transport paths, with a regression test that overfills
+the pipe buffer against a child that exits without reading.
+
+**Exact-tip verification and the release it published.** CI run
+[31364032707](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31364032707) at
+`cb729355abc18b2b165eee5d4a0a3e832170695d` completed every fatal release input green - workflow
+guard, lint, `test:ci` (723 files, 10,512 tests), seven BlueMap jars, the real Java CLI round
+trip, the rendered test world, and the Windows installer set - and its release job published
+[`v0.1.988`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.988) targeting
+exactly that commit, verifying the draft inventory, all six downloaded assets, and the published
+metadata five times. The job's own verdict then came back red because the completion-stamp check
+demanded the publish PATCH, readback and verification finish inside the same UTC second as the
+stamp - a one-second cycle against a one-second window. That stopwatch is now a fail-closed
+ten-second drift window, with the watched-step and whole-release-job fingerprints re-reviewed
+alongside it. Windows executables remain intentionally and permanently unsigned, disclosed in the
+release notes.
+
 ## ZIP-canonical Material Design 3 Pages integration (2026-08-09)
 
 **The Pages implementation landed at `69eb96863bef7560d3a092c8bfa6888a50243be8`, its final capture
@@ -1133,9 +1214,20 @@ remembers to run the harness. Tracked as
       exact target, notes and non-draft release metadata.
 - [x] Pin all hosted workflow labels to `ubuntu-24.04` or `windows-2022` and reject mutable,
       self-hosted, expression-derived and unknown alternatives through an exact job inventory.
-- [x] Pin all 114 external action uses across all seven executable workflows to immutable SHAs,
+- [x] Pin all 117 external action uses across all seven executable workflows to immutable SHAs,
       erase checkout credentials and fail when a workflow is missing from the exact inventory.
 - [x] Make changelog freshness a satisfiable pre-release gate by excluding generated-only commits
       and running `node scripts/build-changelog.mjs --check` over full history.
 - [ ] Record the final remote CI verdict and resulting release evidence after this candidate lands
       on `main`; branch-only runs cannot prove the main-only publisher.
+
+## Release tag CI follow-up (2026-08-10)
+
+- [x] Keep CI triggered by tag pushes while skipping only the self-referential generated-changelog
+      freshness assertion on tag events.
+- [x] Keep branch and pull-request changelog checks strict over full history.
+- [x] Add a regression contract for the exact `github.ref_type != 'tag'` condition, its owning
+      step and body, unrestricted triggers and the complete condition inventory; prove inverted,
+      relocated, duplicated, alternate-predicate, extra-command and fail-open forms fail.
+- [ ] Record a terminal green main run, the published release, and the resulting terminal green
+      tag-triggered run at the same commit.

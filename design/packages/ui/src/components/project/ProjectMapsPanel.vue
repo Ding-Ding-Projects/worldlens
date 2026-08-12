@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import {
     mdiArrowDown,
     mdiArrowUp,
+    mdiCropFree,
     mdiDeleteOutline,
     mdiMap,
     mdiMapPlus,
@@ -17,6 +18,7 @@ import {
     VCardTitle,
     VDialog,
     VDivider,
+    VIcon,
     VList,
     VListItem,
     VSelect,
@@ -183,6 +185,119 @@ watch(
 
 const file = computed(() => (selected.value === undefined ? null : openMapFile(selected.value)));
 
+/* -------------------------------------------------------------------------- */
+/* The render mask                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The render mask, surfaced above the settings form rather than left to be found inside it.
+ *
+ * `render-mask` is one field among ninety in a map's config, and it is the only one of them
+ * that decides how much of the world gets drawn at all - which makes it simultaneously the
+ * most consequential setting on the map and the one buried deepest in an accordion.
+ * `Worldlens.dc.html` puts it in a card of its own above the groups for exactly that reason,
+ * and this is that card.
+ *
+ * The editor itself is not reimplemented here. `../config/ConfigMaskField.vue` already draws
+ * every shape BlueMap's mask registry knows about, ordered, additive and subtractive, over
+ * the measured region bounds and the world's real spawn - so this states what the mask
+ * currently is and sends somebody to that editor. A second mask editor would be a second set
+ * of rules about what a mask means, and the first one to drift would be the one nobody
+ * noticed had drifted.
+ *
+ * Found by control kind rather than by the path `render-mask`, so this keeps working if the
+ * schema renames the key, and so nothing here names a BlueMap setting - the same rule the
+ * rest of this panel already follows.
+ */
+const maskField = computed(() =>
+    file.value === null
+        ? undefined
+        : file.value.descriptor.fields.find((field) => field.control.kind === "mask-list"),
+);
+
+const maskShapes = computed<readonly Record<string, unknown>[]>(() => {
+    const open = file.value;
+    const field = maskField.value;
+    if (open === null || field === undefined) return [];
+    const value = fieldValue(open, field);
+    return Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
+});
+
+// Normalize once so the cost estimate and summary counts use the same safe shape model.
+const normalizedMaskShapes = computed(() => normalizeMaskList(maskShapes.value as PlainValue[]));
+
+/**
+ * What the mask currently does, in the facts somebody needs before opening the editor.
+ *
+ * An empty mask is not "no setting" - it is BlueMap's documented "render everything that
+ * exists", and saying so is what stops an empty card reading as a broken one. Where the world
+ * has actually been measured, the region count says how much "everything" is; where it has
+ * not, the sentence stays true without inventing a number.
+ *
+ * ## Why "how many shapes" is not the whole answer
+ *
+ * A map written from upstream's own template arrives carrying **one** shape: a box with every
+ * bound commented out, which limits nothing at all. A card that counted shapes and stopped
+ * would announce "1 added" on a mask that renders exactly as much as no mask does, which is
+ * the sort of true-but-misleading line that teaches people to stop reading a summary.
+ *
+ * So the size question is handed to `estimateRenderCost`, the same function
+ * `../config/ConfigMaskField.vue` uses for its own cost line, rather than answered by a second
+ * opinion written here. A shape that leaves an axis with no limit comes back as `unbounded`,
+ * and the card says so in upstream's own words instead of implying the mask is smaller than it
+ * is. Deliberately no cleverer than that: guessing that a particular unbounded shape "really
+ * means everything" would be this panel inventing mask semantics, and the one thing worse than
+ * a count is a count somebody decided to reinterpret.
+ */
+const maskCost = computed(() => estimateRenderCost(normalizedMaskShapes.value));
+
+const maskSummary = computed(() => {
+    const regions = maskWorld.value.regionCount;
+
+    if (maskCost.value.basis === "whole-world") {
+        return regions === null
+            ? t(
+                  "project.maps.maskNone",
+                  "No mask, so every region this world has is rendered. That is BlueMap's own default.",
+              )
+            : t(
+                  "project.maps.maskNoneMeasured",
+                  { regions },
+                  "No mask, so all {regions} region files measured in this world are rendered. That is BlueMap's own default.",
+              );
+    }
+
+    const shapes = t(
+        "project.maps.maskShapes",
+        {
+            added: normalizedMaskShapes.value.filter((shape) => shape.subtract !== true).length,
+            cut: normalizedMaskShapes.value.filter((shape) => shape.subtract === true).length,
+        },
+        "{added} added and {cut} cut out, combined in the order they are listed.",
+    );
+
+    // Upstream's own wording for a mask that cannot be sized, borrowed rather than restated:
+    // two sentences meaning the same thing in two places is two sentences to keep in step.
+    return maskCost.value.basis === "unbounded"
+        ? `${shapes} ${t("mask.cost.unbounded", "At least one shape has no limit on some axis, so no area number can be given.")}`
+        : shapes;
+});
+
+/**
+ * Sends somebody to the mask editor inside the settings form below.
+ *
+ * The form reveals a field by watching the path it was handed, so pressing this a second time
+ * with the same path already set would change nothing at all and read as a dead button.
+ * Clearing it first is what makes every press scroll the mask back into view.
+ */
+async function revealMask(): Promise<void> {
+    const field = maskField.value;
+    if (field === undefined) return;
+    maskFocus.value = null;
+    await nextTick();
+    maskFocus.value = field.path;
+}
+
 /**
  * The one map-node mask editor card, and the launcher row the generated form keeps.
  *
@@ -216,6 +331,7 @@ const renderMaskExplicit = computed(() => {
     return open !== null && field !== undefined && isExplicit(open, field);
 });
 const renderMaskCard = ref<{ openAndFocus: () => Promise<void> } | null>(null);
+
 function setRenderMask(value: PlainValue[]): void {
     const field = maskField.value;
     if (field !== undefined) onSet(field, value);
@@ -864,6 +980,27 @@ function confirmRemoval(): void {
                     </v-card-text>
                 </v-card>
 
+                <!--
+                    The one setting on a map that decides how much of the world is drawn at
+                    all, lifted out of the accordion it would otherwise be the ninetieth row
+                    of. The button is a real route into the real editor below rather than a
+                    second one: see `maskField` in the script for why there is only ever one.
+                -->
+                <div v-if="maskField" class="mb-project-maps__mask">
+                    <span class="mb-icon-tile" aria-hidden="true">
+                        <v-icon :icon="mdiCropFree" size="21" />
+                    </span>
+                    <div class="mb-project-maps__maskText">
+                        <p class="mb-project-maps__maskTitle">
+                            {{ t("project.maps.mask", "Render mask") }}
+                        </p>
+                        <p class="mb-meta">{{ maskSummary }}</p>
+                    </div>
+                    <v-btn color="primary" variant="tonal" size="small" @click="revealMask">
+                        {{ t("project.maps.maskDraw", "Open the mask editor") }}
+                    </v-btn>
+                </div>
+
                 <RenderMaskEditorCard
                     ref="renderMaskCard"
                     class="mb-project-maps__maskCard"
@@ -875,6 +1012,7 @@ function confirmRemoval(): void {
                     @update:model-value="setRenderMask"
                     @clear="clearRenderMask"
                 />
+
 
                 <ConfigFileForm
                     :file="file"
@@ -910,6 +1048,7 @@ function confirmRemoval(): void {
                 {{ t("project.maps.pick", "Pick a map on the left, or add one.") }}
             </p>
         </section>
+
     </div>
 </template>
 
@@ -1036,11 +1175,23 @@ function confirmRemoval(): void {
     }
 }
 
+/*
+    `align-items: flex-start` on a flex *column* sizes children to their content across the
+    inline axis rather than stretching them, and a bare `<input>`'s intrinsic width is about
+    twenty characters of nothing - so the map id field collapsed to a ~65px box rendering
+    "ove" out of "overworld", with its "Map id" label clipped to a single letter. The column
+    stretches its children now; only the rename button, which should stay its own width, opts
+    back out.
+*/
 .mb-project-maps__id {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    align-items: flex-start;
+    align-items: stretch;
+}
+
+.mb-project-maps__id > .v-btn {
+    align-self: flex-start;
 }
 
 .mb-project-maps__preview {

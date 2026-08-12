@@ -79,6 +79,17 @@ const props = withDefaults(
         /** Exact field requested by the command palette after the workspace is ready. */
         initialFieldPath?: string | null;
         /**
+         * Bumped by the shell every time the settings surface closes.
+         *
+         * Consent is read once at mount, and the settings surface is where it is answered -
+         * so without this the remedy this screen offers is a dead end: the consent row says
+         * "not accepted yet", its **Open the download setting** button opens settings,
+         * accepting there works and persists, and this screen goes on saying it was never
+         * accepted for the life of the window. `../world/consentState.ts` documents the same
+         * defect and why an epoch is an event rather than a poll.
+         */
+        settingsEpoch?: number;
+        /**
          * Injected in tests. Left out, the Electron bridge is probed instead,
          * which is why this one has no default: `undefined` means "probe" and
          * `null` means "there is deliberately no host".
@@ -91,6 +102,7 @@ const props = withDefaults(
         jarPath: "bluemap-cli.jar",
         initialScreen: "core",
         initialFieldPath: null,
+        settingsEpoch: 0,
     },
 );
 
@@ -450,6 +462,19 @@ onMounted(async () => {
 
 watch(consentAccepted, () => syncConsentIntoCore());
 
+/**
+ * Re-read the consent record whenever the settings surface closes.
+ *
+ * This is the one moment the answer can have changed while this screen is on show, because
+ * this screen's own remedy button is what sent the user there. Re-reading also lets
+ * `syncConsentIntoCore()` fire, so `accept-download` reaches the save plan instead of the
+ * user accepting and the file quietly staying false.
+ */
+watch(
+    () => props.settingsEpoch,
+    () => void readConsent(),
+);
+
 // ---- editing the singleton screens ----------------------------------------
 
 function singleton(kind: EntryKind) {
@@ -693,9 +718,19 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 </v-card-text>
             </v-card>
 
+            <!--
+                Docked top. The redesign describes this surface as eight tabs across the top
+                with per-tab counts, and a strip docked left spends the width that is scarce:
+                at 512px the strip kept its full column and left 170px for the settings, so
+                the speed dial's card overflowed by 59px and "Show exactly what each level
+                sets" was cut in half. A restored workspace's own placement still wins - this
+                is a default, not a policy.
+            -->
             <TabbedNavigation
+                closeless
                 ref="tabsNav"
                 :pages="pages"
+                default-placement="top"
                 storage-key="worldlens-config-editor-tabs"
                 :window-label="t('config.shell.windowLabel', 'The options editor')"
                 :strip-label="t('config.shell.tabsLabel', 'Config screens')"
@@ -872,9 +907,31 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
     margin-inline: auto;
 }
 
-.mb-config-screen__bar {
+/*
+    `flex-wrap` on the toolbar root does nothing: the flex container that lays these buttons out
+    is Vuetify's inner `.v-toolbar__content`, and that is also the element with `overflow: hidden`
+    and a fixed height. So the rule read as correct, changed nothing, and at 800px wide the row
+    overflowed its 731px of space and the "Unsaved changes" chip rendered as a single clipped "U".
+    Wrapping has to be set on the inner element, and the height freed so a second row can show.
+*/
+.mb-config-screen .mb-config-screen__bar,
+.mb-config-screen .mb-config-screen__bar .v-toolbar__content {
     flex-wrap: wrap;
     gap: 8px;
+    height: auto;
+    min-height: 56px;
+}
+
+/*
+    `!important` because Vuetify writes `height: 56px` as an *inline style* on
+    `.v-toolbar__content` from its own measurement, and an inline style outranks every selector
+    however specific - which is why the same declaration above lands on the root but not here.
+    Without it the wrapped second row renders outside the 56px box and overlaps the alert below.
+*/
+.mb-config-screen .mb-config-screen__bar .v-toolbar__content {
+    overflow: visible;
+    padding-block: 4px;
+    height: auto !important;
 }
 
 .mb-config-screen__search {

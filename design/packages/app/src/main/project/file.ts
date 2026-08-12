@@ -264,7 +264,15 @@ export async function readProject(worldFolder: string): Promise<ProjectReadOutco
     if (!parsed.ok) {
         return { ok: false, worldFolder, path: bytes.path, failure: parsed.failure };
     }
-    return { ok: true, worldFolder, path: bytes.path, project: parsed.project, text: bytes.text };
+    // The embedded history trailer stays on disk and out of memory. The parser's lossless
+    // passthrough would otherwise carry the whole base64 bundle into the renderer, and -
+    // because the serializer is just as lossless - back into the next snapshot, which is
+    // how a file starts containing its own history's history. `save.ts` re-attaches a
+    // fresh trailer at write time; nothing in between ever needs the old one.
+    const parsedWithTrailer = parsed.project as ProjectFile & { history?: unknown };
+    const project: ProjectFile = { ...parsedWithTrailer };
+    delete (project as { history?: unknown }).history;
+    return { ok: true, worldFolder, path: bytes.path, project, text: bytes.text };
 }
 
 /* -------------------------------------------------------------------------- */

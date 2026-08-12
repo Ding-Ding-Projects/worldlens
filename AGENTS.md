@@ -1027,6 +1027,43 @@ project-changing task, not at release time, worked out from the real commit hist
 These are not mirrored from anywhere. They are how material-bluemap is built, and they win over
 general habits when the two disagree.
 
+### The published site is part of the product: update it, and never leave stale content
+
+The GitHub Pages site is the face of this project. It deploys from `main` on every push, so it is
+never behind the code by accident — it goes stale because somebody changed what is true and did
+not change what the site says. Two separate obligations follow, and both are yours whenever you
+change shipped behaviour:
+
+1. **Update GitHub Pages in the same change.** The site's articles under
+   `design/packages/site/src/content/` are hand-written; they do not read `docs/*.md` and nothing
+   regenerates them for you. If your change alters what the product does, what is built, what is
+   planned, or what a version claims, edit the affected article and `home.ts` in the same commit
+   that changes the behaviour. Then verify: `pnpm --filter @worldlens/site run typecheck`,
+   `npx vitest run packages/site`, `pnpm --filter @worldlens/site run build`.
+2. **No stale content, anywhere it is published.** A page that says a thing "is planned and is not
+   built" about a thing that shipped is worse than an empty page: an empty page tells the reader
+   nothing, and a stale one tells them something false with the project's own authority behind it.
+   The same rule binds `README.md`, `design/ROADMAP.md`, `design/HANDOFF.md`, the feature articles
+   under `docs/` and their `## 廣東話` sections, release notes, and every status badge, phase table
+   and "what works today" list.
+
+Concrete duties, learned from defects that reached the public site:
+
+- **Both languages, or neither.** Every article under `docs/` carries a `## 廣東話` section that
+  states the same facts as its English. Change the English and you change the Cantonese in the
+  same commit; a bilingual document half-updated is a document that contradicts itself.
+- **Say what is true, including when it is awkward.** "The mesher passes its parity gate byte for
+  byte and is still not what runs" is the honest sentence. "Not built" and "shipped" are both
+  lies about that state. Prefer the longer accurate sentence over the shorter comfortable one.
+- **Dates beside claims that age.** Evidence that can rot — screenshots, run links, counts — is
+  published with the date it was produced. Relative ages ("3 days ago") are computed where they
+  are displayed, never committed, because a stored age is wrong the day after it is written.
+- **Grep before you claim.** Before saying a capability is missing, planned, or unreachable,
+  search for it. Several site sentences described features that had shipped months earlier.
+- **A red guard is not stale content's excuse.** If `screenshots:check`, the changelog guard or
+  the README/ROADMAP consistency test fails, fix the content or the evidence. Never silence the
+  guard, and never advance a digest from a partial capture run to make a page look current.
+
 ### This is a port, not a rewrite
 
 The upstream Java and JavaScript sources in `vendor/BlueMap` are the specification. Read the

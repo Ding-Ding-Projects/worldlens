@@ -60,17 +60,17 @@ export const SHELL_VOICED = {
      */
     "shell.home.lede": {
         en: [
-            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to.",
-            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to.",
-            "Everything this application does, all {count} of them, lives in one of the five catalogues below, grouped by the job it belongs to.",
-            "All {count} things this application can do are in the five catalogues below. Nothing is hidden in a menu you have to know about first.",
-            "Every last one of the {count} things this thing can do is in the five boxes below, sorted by job. No secret menus, no folklore.",
+            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to. Nothing is hidden behind a menu you have to already know about, and every catalogue opens a page that names everything in it, one line each.",
+            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to. Nothing is hidden behind a menu you have to already know about, and every catalogue opens a page that names everything in it, one line each.",
+            "Everything this application does, all {count} of them, lives in one of the five catalogues below, grouped by the job it belongs to. Nothing hides behind a menu you would have to already know about, and every catalogue opens a page naming everything in it, one line each.",
+            "All {count} things this application can do are in the five catalogues below. Nothing is hidden in a menu you have to know about first, and every catalogue opens a page that lists the lot, one line each.",
+            "Every last one of the {count} things this thing can do is in the five boxes below, sorted by job. No secret menus, no folklore, and each box opens a page that names everything inside, one line apiece.",
         ],
         yue: [
-            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄入面，按用途分好。",
-            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄入面，按用途分好。",
-            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄度，按用途分好咗。",
-            "佢做到嘅 {count} 樣嘢全部喺下面五個目錄，冇一樣要你事先知道先搵到。",
+            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄入面，按用途分好。冇嘢收埋喺你要預先知道嘅選單後面，每個目錄打開都係一版清單，逐行寫晒入面有咩。",
+            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄入面，按用途分好。冇嘢收埋喺你要預先知道嘅選單後面，每個目錄打開都係一版清單，逐行寫晒入面有咩。",
+            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄度，按用途分好咗。冇嘢匿埋喺要預先知先搵到嘅選單度，每個目錄一開就係一版清單，逐行列晒。",
+            "佢做到嘅 {count} 樣嘢全部喺下面五個目錄，冇一樣要你事先知道先搵到，每個目錄一開仲有成版清單逐行話你知有咩。",
             "呢舊嘢識做嘅 {count} 樣，全部擺晒喺下面五個櫃桶度，分好類。冇隱藏選單，唔使靠人教。",
         ],
     },

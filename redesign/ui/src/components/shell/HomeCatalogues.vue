@@ -105,18 +105,19 @@ const rest = computed(() => shown.value.filter((catalogue) => catalogue.id !== "
  * are declared in is the order somebody reads them on the catalogue page - and a chip row that
  * disagreed with the page behind it would be worse than no chips.
  */
-const heroGroups = computed<readonly string[]>(() => {
+const heroGroups = computed<readonly { heading: string; count: number }[]>(() => {
     const current = hero.value;
     if (current === null) return [];
-    const seen = new Set<string>();
+    const counts = new Map<string, number>();
     const order: string[] = [];
     for (const feature of current.definition.features) {
         const heading = t(feature.groupKey, feature.groupFallback);
-        if (seen.has(heading)) continue;
-        seen.add(heading);
-        order.push(heading);
+        if (!counts.has(heading)) order.push(heading);
+        counts.set(heading, (counts.get(heading) ?? 0) + 1);
     }
-    return order;
+    // The count beside each heading is the prototype's own affordance: "Finding a world · 6"
+    // says how much of the catalogue sits behind the chip before anyone opens it.
+    return order.map((heading) => ({ heading, count: counts.get(heading) ?? 0 }));
 });
 
 const summary = computed(() =>
@@ -161,7 +162,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                         t(
                             "shell.home.lede",
                             { count: String(allFeatures.length) },
-                            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to.",
+                            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to. Nothing is hidden behind a menu you have to already know about, and every catalogue opens a page that names everything in it, one line each.",
                         )
                     }}
                 </p>
@@ -211,8 +212,12 @@ function countLabel(catalogue: ResolvedCatalogue): string {
                                 is opened, which is the question a card exists to answer.
                             -->
                             <span class="wl-hero__chips">
-                                <span v-for="group in heroGroups" :key="group" class="wl-chip">
-                                    {{ group }}
+                                <span
+                                    v-for="group in heroGroups"
+                                    :key="group.heading"
+                                    class="wl-chip"
+                                >
+                                    {{ group.heading }} · {{ group.count }}
                                 </span>
                             </span>
                         </span>

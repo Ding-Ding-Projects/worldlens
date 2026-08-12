@@ -269,3 +269,96 @@ real built panel and the daemon-down guidance, not a successful source copy.
   the identical, structural gap with the GitHub Actions lane.
 - [Backing up a world or a rendered map](./backup.md) — why this project never reaches for Git
   LFS, including for a world's own storage.
+
+## 廣東話
+
+### 一個住喺 Docker 入面嘅世界 (Docker world source)
+
+一個世界唔一定要係呢部電腦已經睇得到嘅資料夾。佢可以係坐喺一部已經行緊 container 嘅 Minecraft server 入面 — 可能係一個 bind-mount 咗嘅 host 資料夾、一個 named volume，又或者根本冇任何嘢係呢部機直接讀得到，得 Docker 自己嗰個 view。呢份文件講嘅係輸入嗰邊：無論最後係嗰三種形狀入面邊一種，都掂得到個世界，而且唔使任何人喺開始之前就知自己屬於邊種。
+
+### 三條入路
+
+`main/dockerworld/resolve.ts` 決定一個世界經三條路線入面邊條嚟讀，而且從來唔估：每一項聲稱喺被信之前都會驗證。
+
+第一條係 `bind-direct`：當一個 bind mount 嘅 host 路徑喺負責問嗰部機上面通過咗目錄檢查，就直接由嗰個檔案系統讀 — 完全冇任何 Docker 指令掂過啲 bytes。第二條係 `container-copy`：當某個特定 container 有 mount 住個世界，但佢個 host 路徑通唔過嗰個檢查，就用 `docker cp <container>:<path> <staging>`，呢招無論個 container 行緊定停咗、無論用邊個 storage driver 都得，因為佢係經 container 嘅檔案系統 view 嚟讀，唔理底層係乜。第三條係 `volume-copy`：一個淨係得個名、唔關任何 container 事嘅 volume，就開一個用完即棄嘅 helper container，將個 volume 唯讀 bind 埋、將 staging 目錄可讀寫 bind 埋，喺入面行一句普通 `cp -a` 做複製 — 一次 `docker run`，冇 pipe。
+
+Bind mount 係去*試*而唔係當佢一定得，呢點比表面重要：Docker Desktop 喺 Windows 上面係喺一個 Linux VM 入面行 container，而一個 bind mount 報返嘅 host 路徑好多時係嗰個 VM 入面嘅路徑，唔係呢個 process 開得到嘅 Windows 路徑。原生 Linux daemon 就冇呢個問題。與其估係邊種主機報返嚟，倒不如每個 bind-mount source 都檢查一次 — 本機用 `fs.stat`，SSH 主機就經 remote runner 行 `test -d` — 檢查真係答 yes 咗先信。其餘一律 fallback 去 `docker cp`，兩種情況都讀得啱，因為讀嘅人係 Docker 自己。
+
+一個 named volume 自己嘅 `Mountpoint` 永遠唔會被當成直接讀得到，就算喺原生 Linux 主機、root 真係讀得到都唔會：呢個 application 唔係用 root 行，而為咗遷就一種機型就假設佢係，正正就係呢個 module 其餘部分拒絕做嘅嗰種估估下。
+
+### 一個行緊嘅 container 值得被拒絕
+
+一部行緊嘅 server 可能正正喺度寫緊你讀緊嗰啲 region 檔。照讀落去可能整出一個撕裂咗嘅 `.mca` 檔 — 佢開得到而且唔會報錯，因為 region 格式自己嗰套壓縮唔會察覺有隻 chunk 係複製中途寫入嘅，然後喺三層之外整衰次 render，而嗰度冇任何嘢會指返嚟呢度。
+
+所以攞一個**行緊**嘅 container 嘅世界會直接被拒絕，除非 caller 明確講 `acknowledgeLiveRisk: true`。呢個 flag **確實係**一個覆寫，而且真係有效：睇完警告之後傳佢，次 fetch 就照行。呢個拒絕冇嘅係*靜靜雞*或者*長期*嘅覆寫 — 冇任何嘢預設「永遠允許」，冇任何嘢會將之前接受過嘅嘢保存落一個設定度、令第一個之後嘅世界全部適用，亦冇任何嘢畀 caller 跳過嗰句明確點名咗個 container 同風險嘅說話。每次攞一個 live 世界都要重新確認一次，逐次呼叫計。每次都會列出三個老實選擇：先熄咗個 server、改為指去一份備份、或者明確接受風險照住 live 攞。
+
+**呢個 project 而家仲未有**第四條、*自動*嘅安全路線 — 即係喺複製之前經 RCON 向 server 送 `save-off`/`save-all`、之後送 `save-on`，一個謹慎嘅備份 script 就係噉樣喺唔熄 server、又唔使任何人接受任何風險嘅情況下保護自己。要整呢個就要有 RCON client，同埋一個位擺 server 個 RCON 密碼，而嗰樣嘢正正就係呢個 project 自己啲規則講明永遠唔會打入一個設定欄嘅秘密 — 佢要行返 project 對其他秘密用嗰套即用即棄、一次性 token 嘅收集流程，而嗰個仲未整。整好之前，上面三個選擇就係 fetcher 對一個 live 世界唯一老實嘅做法。
+
+### 本機 daemon，定係經 SSH 掂到嗰個
+
+`dockerworld/` 入面每個 function 都好似 `runtime/docker.ts` 同 `remote/ssh.ts` 已經做開噉，收一個 `CommandRunner`，而唔係假設 `docker` 喺呢部機嘅 `PATH` 上面。就係噉樣，同一套邏輯先答得到兩種情況：**本機 daemon**（預設，唔使配置）；同埋**經 SSH 掂到嘅 Docker host** — 將 remote-render 那條 lane 自己個 module 嘅 `sshCommandRunner(...)` 當 runner 傳入，再傳一個 `FileTransfer`（兩邊都有就用 rsync，冇就用 `scp` — 同 `remote/rsync.ts` 嘅 `chooseTransfer` 已經做緊嘅選擇一模一樣）將 bytes 攞返嚟，畀 `bind-direct` 同 staging 擺位嗰兩步用。
+
+呢度冇任何嘢自己 spawn `ssh`，亦唔知 `RemoteTarget` 係乜；嗰啲留返畀 SSH lane 自己管，而呢個 module 係重用佢個結果，唔係寫多份平行實作。呢部分喺 module 層面已經完全整好兼有測試 — 見驗證一節 — 用嘅係假 runner 同假 `FileTransfer`，所以全部都唔使真有部遠端主機都證得到。
+
+### 邊啲係增量，邊啲唔係
+
+- **`bind-direct` 係真正嘅增量。** `localIncrementalCopy` 會比較大細同修改時間，只複製唔同嗰啲；遠端 fetch 就靠 rsync 個 `-a` 免費攞到同樣特性，佢做嘅比較係一模一樣。一個有一千個 region 檔、其中六個變咗嘅世界，就淨係搬六個檔。
+- **`container-copy` 同 `volume-copy` 唔係**，而呢個係老實嘅限制，唔係漏咗。Docker 根本冇「只複製變咗嘅嘢」呢個概念 — `docker cp` 同 helper container 嘅 `cp -a` 永遠讀晒成份。呢個 module *仲*提供到嘅增量性喺擺位嗰步：staging 永遠落喺一個 scratch 目錄，只有由 staging 搬入真正目的地嗰步係增量，所以一次排程 render 如果發現一個 volume 撐住嘅世界冇變過，就唔會重寫目的地下游嘅檔案 — 例如一份 git 追蹤緊嘅副本、一個 render cache — 就算個 `docker cp` 本身照樣行咗。
+- **呢度冇任何嘢會刪嘢。** 每次複製都淨係加同更新檔案；source 嗰邊剪走咗一個 region 或者移除咗一個維度，喺目的地會留低一個過時嘅檔案，而唔會因為一個比較邏輯嘅 bug 而蝕咗資料。呢個亦都係點解攞一個 Docker 世界唔需要破壞性操作嘅閘：呢個 module 做嘅嘢冇一樣係破壞性。
+
+### 平價嘅變更檢查，同佢掂到／掂唔到邊度
+
+`dockerworld/change.ts` 匯出 `dockerWorldFingerprint`，佢靠讀檔案**元資料** — region 檔名、大細、修改時間 — 嚟答「呢個世界變咗未」，一個 byte 內容都唔會讀，所以 caller 可以喺每次 fetch 之前問一問，唔使為一次可能判定為冇必要嘅複製找數。
+
+**淨係 `bind-direct` 路線攞到平價答案。** 呢條線同 `resolve.ts` 已經劃嘅一樣：一個 bind mount 完全唔使掂 Docker 都列得出，本機用 `readdir`/`stat`，遠端就一次 round trip 行 `find <root> -name '*.mca' -exec stat --format=%n:%s:%Y {} +`。`container-copy` 同 `volume-copy` 冇呢個觀察點 — Docker 自己嗰個檔案系統 view 淨係讀先掂得到，而讀佢正正就係一個變更檢查想避免嗰個貴步驟。問呢兩條路線攞 fingerprint 會直接回 `null`，唔會畀個錯嘅或者作出嚟嘅答案。想喺一個 volume 撐住嘅世界身上攞增量嘅人，喺 Docker 出到一個更平嘅問法之前，每次都要為複製找數；今日冇任何老實嘅方法繞過。
+
+`fingerprintsEqual` 比較兩個 fingerprint 係唔理次序嘅，所以 caller 可以將上一個 fingerprint 擺喺佢自己保存嗰份紀錄隔籬，下次夾得返就跳過 fetch。
+
+**經 IPC 暴露出嚟，同 git repository 同 SSH 路線暴露佢哋嗰啲一樣。** `DockerWorldFetcher.fingerprint(source)` 會解析個 source 再回傳佢個 fingerprint（上面兩條路線就老實回 `null`），而 `main/dockerworld/ipc.ts` 將佢擺喺 `dockerworld:fingerprint` 後面 — 同 git repository 世界用嘅 `worldrepo:remoteTip` 同一個形狀。`dockerworld:fingerprintsEqual` 就好似 `worldsource:ssh:diff` 噉暴露嗰個純比較。兩者都計入下面桌面應用一節講嘅八條 channel 之中，而嗰八條仲未喺 `design/packages/ui` 度被呼叫 — 同 fetch、list、inspect channel 已經帶住嘅同一個有文件記錄嘅缺口，而家連埋呢兩條。
+
+**呢個唔連去邊度，同點解：**[Scheduled re-rendering](./scheduled-render.md) 嘅 `evaluateScheduleChange` 有咗一個 `"git"` comparator，因為一個 GitHub 主機上面嘅 Actions runner 直接掂得到一個 GitHub 上面嘅 git branch — 一次 `gh api` 呼叫搞掂。佢**冇** `"docker"` comparator，而 `render-world.yml` 自己嘅 `world-source` 選擇就係 `repository`、`url`、`release-asset` 同 `git` — Docker 唔喺其中，而且呢個唔係遲啲要補嘅疏忽：一個 GitHub 主機嘅 runner 冇任何路徑掂到一個本機 Docker daemon，或者掂到某人自己網絡入面嘅 Docker host，除非將嗰個 daemon 曝露上互聯網，而呢個 project 唔會噉做。SSH 世界源自己嗰個 `surveyRemoteWorld`/`diffRemoteWorldSurveys`（比呢條路線早整，而且一早已經以同樣方式經 IPC 暴露）同樣從來冇加到對應嘅 kind，理由一模一樣。`dockerWorldFingerprint` 係真嘢、有測試、亦經 IPC bridge 畀呢部電腦上面任何本機呼叫者用；但佢唔係、而且結構上都變唔到係 GitHub Actions 排程 render workflow 嘅輸入。
+
+### 喺桌面應用度點用
+
+普通地圖 wizard 嘅 **World** 步驟而家會 mount 一個有引導嘅 **World in local Docker** 面板。佢淨係用呢部電腦嘅本機 IPC 註冊；佢冇聲稱掂得到一個遠端 Docker daemon。整個流程刻意用真正嘅選擇器，唔係要你打 identifier 嘅輸入框：
+
+1. **檢查 Docker 同重新整理。** 現有嗰個五狀態 Docker 說明會分開：指令唔存在、daemon 停咗、daemon socket 被拒、答案用唔到，同埋 daemon 正常。Container 同 volume 清單每次重新整理都由 `dockerworld:list` 攞。
+2. **揀個 source。** Container 模式會列出所有行緊同停咗嘅 container，跟住叫 `dockerworld:inspectContainer`，只提供佢真實嘅 bind 同 named volume mount。Volume 模式會列出 Docker 真實嘅 named volume 再 inspect 揀咗嗰個。冇任何 container id、volume 名或者 mount 路徑係作出嚟或者當自由文字收。
+3. **檢視 liveness 同路線。** 行緊／停咗嘅狀態會由 Docker 重新攞。一個直接讀得到嘅 bind mount 會顯示真實嘅平價元資料 fingerprint 同 region 數目。Container-copy 同 volume-copy 路線會講明佢哋個 fingerprint 係 `null`，因為 Docker 一定要讀過先知有冇變。
+4. **揀一個本機目的地。** 共用嘅 `PathField` 同時提供自由文字同原生資料夾瀏覽。呢個就係攞返嚟嗰個世界會變成嘅確切資料夾，唔係一個介面自己估個名嘅隱含子資料夾。
+5. **Fetch 同驗證。** 停咗嘅 container 或者 volume 可以即刻開始。行緊嘅 container 就要上面講嗰個即時、明確嘅撕裂 `.mca` 確認。嗰個 checkbox 一次嘗試就消耗掉，永遠唔會保存。成功之後會交畀 wizard 平時嘅本機檢查流程，佢會喺 wizard 可以繼續之前讀 `level.dat` 同實際 region 資料。
+
+Fetch 掣會喺隔籬講明佢點解 disabled。提交 handler 拒絕重入，操作期間粒掣保持 disabled，而取消會經一個 abort signal 去到子 `docker cp` 或者 helper container process。進度顯示對呢個接縫實際知幾多好老實：Docker 嘅來源複製階段係 indeterminate，因為 `docker cp` 同 `cp -a` 都唔會 expose 檔案總數；而本機加建擺位階段就會報真實檢查過嘅檔案數同目前嘅相對路徑。一個直接讀得到嘅 bind mount 由第一階段開始就報得出嗰啲真實檔案數。冇任何計時器形狀嘅百分比會扮成已完成嘅工作。
+
+呢個操作唔係破壞性，所以破壞性操作嘅超級確認閘唔適用：source 嗰邊係唯讀、volume helper mount 嘅係 `/mb-source:ro`、而本機擺位只會加或者更新，永遠唔會刪目的地嘅檔案。行緊 container 嘅確認係另一個安全決定，仍然係每次 fetch 都必須做。
+
+### 失敗情況
+
+帳戶嘅 `PATH` 上面冇 `docker` 報 `not-installed`；daemon 冇行報 `daemon-unreachable`；daemon 喺度但呢個帳戶冇資格同佢傾報 `refused`；Docker 答咗啲認唔到嘅嘢報 `unusable`；點名嗰個 container 或者 volume 唔存在報 `not-found`；請求指名一個 container 冇嘅 mount 目的地報 `invalid-request`；container 行緊而風險未被接受報 `live-world-not-acknowledged`；`docker cp` 或者 helper container 失敗報 `copy-failed`；複製出嚟嗰嚿嘢唔係 Minecraft 世界報 `not-a-world`，並且講明 `locateWorld` 搵過乜、搵過邊度；目的地資料夾寫唔到報 `storage-unwritable`；有人取消咗報 `cancelled`，而已經複製咗嘅嘢會留低。
+
+取消會將已經寫入目的地嘅嘢原封留低，因為呢個 module 每次複製都係只加不減。佢永遠唔會整壞現有嘅好資料；佢淨係令目的地更新到一半，而下次 fetch 嘅增量比較就正正由嗰度接返。至於呢次 fetch 為自己開嘅 staging 目錄，無論有冇取消，離開嗰陣都照樣會移除 — 入面冇任何嘢係有人要求保留嘅。
+
+### 安全注意
+
+- **個世界永遠係讀，唔會被寫。** 呢個 module 冇任何地方會向 container 或者 volume 方向發 `docker cp` 或者 helper container run；每次複製都係由 Docker 流向目的地資料夾。
+- **Helper container 嗰招係唯讀 mount 個 volume。** `-v <volume>:/mb-source:ro` — 就算個用完即棄 container 自己條指令有 bug，都寫唔入人哋個世界，因為個 mount 本身喺 kernel 層面就拒絕寫入，唔理入面行乜。
+- **Helper container 重用算圖引擎自己嗰個預設 image**（`eclipse-temurin:*-jre`，出自 `runtime/plan.ts`），唔會 pull 多個，所以一部已經經 Docker render 嘅機用呢個功能唔使額外落多個 image。
+- **唔會問你攞、亦唔會存任何秘密。** 冇 RCON 密碼欄、除咗行呢個 app 嗰個帳戶本身為 `docker` 配置咗嘅嘢之外冇任何 daemon credential，亦冇新地方畀秘密走漏落 log 或者 config 檔。
+- **Live 世界嘅拒絕，喺呢個 module 入面冇任何預設為 true 嘅覆寫 flag。** `acknowledgeLiveRisk` 每次都係由 caller 自己個請求度讀；冇任何嘢會將之前接受過嘅嘢保存成一個會靜靜雞套用喺第一個之後每個世界嘅設定。
+
+### 驗證
+
+`design/packages/app/src/main/dockerworld/` 加埋 preload/UI 接縫都有針對性測試，冇一個需要裝 Docker、有 daemon 或者有網絡連線。逐個檔案證嘅嘢：`inventory.test.ts` 證五個 daemon 狀態對應正確、container 同 volume 清單解析得到真實嘅 `docker ... --format {{json .}}` 輸出（連夾雜嘅非 JSON 行），以及 mount、running 狀態同 zero-time「未開過」情況由 `docker inspect` 讀得啱。`resolve.test.ts` 證 mount 喺錯目的地會被拒、掂得到嘅 host 路徑走 `bind-direct`、掂唔到嗰個（即 Docker Desktop VM 路徑情況）fallback 去 `container-copy`、淨係得個名嘅 volume 永遠走 `volume-copy`、running flag 同佢嘅警告文字會傳落去，以及 `remoteDirectoryExists` 係經指定 runner 行 `test -d`。`copy.test.ts` 證 `localIncrementalCopy` 複製一次、第二次冇變就乜都唔郁、大細或者修改時間變咗就重新複製，而且直接驗證過佢永遠唔會刪走目的地有而 source 已經冇嘅檔案；亦證 `dockerCopyToStaging` 同 `volumeCopyToStaging` 砌出上面描述嗰個確切 argv，同埋 `copyRemoteBindMount` 會建立目的地再叫傳入嗰個 `FileTransfer`。`fetch.test.ts` 覆蓋冇 daemon、權限被拒、唔存在嘅 volume、一個停咗 container 嘅世界唔使確認就攞到、一個行緊嘅 container 被拒並且確認目的地原封不動、同一個 container 喺接受風險之後成功攞到（連警告事件都證實有出）、複製出嚟唔係世界嘅資料夾、`container-copy` 同 `volume-copy` 兩條 staging 路線連 staging 目錄事後證實清乾淨、一次取消證實目的地冇咗被中斷嗰次複製，以及 `fingerprint()` 讀 bind-direct fingerprint 而唔會觸發任何複製、對 container-copy 候選答 `null`、並且會浮出同 `inspect()` 一樣嘅 resolve 失敗。`change.test.ts` 證本機同遠端 fingerprint 對住同樣內容一致、大細改變偵測得到、`container-copy`/`volume-copy` 候選答 `null` 而唔係估、以及一個冇 runner 嘅遠端 fingerprint 一樣答 `null`。`ipc.test.ts` 證八條 channel 準確噉註冊同 `dispose`、格式錯嘅請求會喺去到 fetcher 之前被拒、fetcher 自己 throw 會變成一個報出嚟嘅失敗而唔係 rejection、`list` 同 `inspect*` 會穿一個注入嘅 runner 而唔係亂攞測試機上面隨便邊個 `docker`、`dockerworld:fingerprint` 會拒絕冇 source 嘅請求同時放行格式正確嗰個而且永遠唔會因為 fetcher throw 而 reject，以及 `dockerworld:fingerprintsEqual` 比較唔理次序兼將格式錯嘅輸入當成空 fingerprint 而唔會 throw。`dockerWorldBridge.test.ts` 證八個 invoke 全部用確切嘅 channel 同參數形狀，而個事件 listener 會轉發 `dockerworld:event` 兼淨係移除自己嗰個 listener。`DockerWorldSourcePanel.test.ts` 證已 mount 嘅選擇器收到真實嘅 container/volume/mount 資料、一次 live fetch 喺攞到即時明確確認之前會被拒而且一次嘗試之後就消耗咗佢、一個 volume 老實噉報 null fingerprint、真實進度事件 render 得到而取消去到 active id。至於 policy inventory，就證呢個介面嘅搜尋開得到 anchored 完整 regex builder、佢個 AppearanceTarget 提供得到可搜尋嘅 context menu 同編輯器、目的地喺 PathField inventory 之內、overlay 有界、copy 事實喺每個 funny level 都守得住，以及嗰條唯讀／只加路徑明確記錄為非破壞性。
+
+喺 `design/` 度行 `npx vitest run packages/app/src/main/dockerworld` 就跑到。
+
+**呢一輪冇對住真實 source 驗證過。** 部主機有 Docker Desktop client 29.6.1，但佢個 `desktop-linux` daemon pipe 唔存在：`docker version` 回咗個真 client 加 `Server: null`，跟住 `docker ps` 喺 `npipe:////./pipe/dockerDesktopLinuxEngine` 失敗。列唔到任何真實 container、volume 或者 mount，所以冇模擬過亦冇聲稱過任何 runtime fetch。一個真實嘅 Docker Desktop VM 路徑 bind mount，同埋一部經 SSH 嘅真實遠端主機，一樣仲未驗證。嗰個平價嘅隱藏 UI 證明係另外驗證咗真實砌出嚟嘅面板同 daemon 冧咗嘅指引，唔係一次成功嘅 source 複製。
+
+### 相關閱讀
+
+- [Running the engine on this computer, or in a container](./docker-and-local.md) — *render* 走嘅 Docker 路徑，包括 `dockerworld/` 自己啲 host 路徑檢查所參照嘅 mount 規則。
+- [Rendering on a remote host](./remote-render.md) — 呢個 module 重用而唔係重新實作嘅 SSH primitive（`CommandRunner`、`FileTransfer`、`chooseTransfer`）。
+- [Worlds from somebody else's release](./world-sources.md) — 另一個輸入側世界源，同埋本文為同樣理由講嘅「完全整好、但仲未接落 UI」缺口。
+- [Scheduled re-rendering](./scheduled-render.md) — `dockerWorldFingerprint` 刻意*唔*接落去嘅 GitHub Actions lane，同埋點解：GitHub 主機嘅 runner 冇路徑掂到本機 Docker daemon。
+- [Worlds hosted on your own SSH server](./ssh-world-sources.md) — 另一個本機掂得到、排程 render 形狀嘅變更檢查（`surveyRemoteWorld`/`diffRemoteWorldSurveys`），佢同 GitHub Actions lane 之間帶住一模一樣嘅結構性缺口。
+- [Backing up a world or a rendered map](./backup.md) — 點解呢個 project 從來唔會用 Git LFS，包括用嚟存個世界本身。

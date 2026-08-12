@@ -154,6 +154,14 @@ async function browseFile(): Promise<void> {
                 autocomplete="off"
                 hide-details="auto"
             />
+            <!--
+                `height`/`width` as props rather than only in CSS. Vuetify renders these as an
+                inline style, which no stylesheet ordering can lose to - and a stylesheet rule
+                here did lose somewhere between this source and the packaged application, while
+                measuring 44 in the built bundle served directly. The touch target is not worth
+                leaving to that: 40x40 is under the minimum this project holds everywhere else.
+                `size="small"` stays for its typography and padding.
+            -->
             <v-btn
                 v-if="showFolderButton"
                 :icon="mdiFolderOpenOutline"
@@ -162,6 +170,8 @@ async function browseFile(): Promise<void> {
                 :disabled="isDisabled || resolvedBridge === null"
                 variant="tonal"
                 size="small"
+                height="44"
+                width="44"
                 @click="browseFolder"
             >
                 <v-tooltip v-if="resolvedBridge !== null" activator="parent" location="top" :text="folderAria" />
@@ -174,6 +184,8 @@ async function browseFile(): Promise<void> {
                 :disabled="isDisabled || resolvedBridge === null"
                 variant="tonal"
                 size="small"
+                height="44"
+                width="44"
                 @click="browseFile"
             >
                 <v-tooltip v-if="resolvedBridge !== null" activator="parent" location="top" :text="fileAria" />
@@ -200,15 +212,44 @@ async function browseFile(): Promise<void> {
     gap: 4px;
 }
 
+/*
+    The browse controls drop below the field rather than off the side of the window.
+
+    Every path box in the application carries a browse control beside it, and this row never
+    wrapped: the field can shrink (`min-width: 0` below) but a button cannot, so once the
+    surface is narrow enough the buttons simply continue past the right edge. The capture
+    harness measures exactly that at a 390px viewport and named the Docker world-source
+    destination's browse button.
+
+    Wrapping changes nothing where the row already fits, which is every desktop width - it
+    only decides what happens when it does not.
+*/
 .mb-path-field__row {
     display: flex;
     align-items: flex-start;
     gap: 8px;
+    flex-wrap: wrap;
+    max-inline-size: 100%;
 }
 
 .mb-path-field__row .v-text-field {
     flex: 1 1 220px;
     min-width: 0;
+}
+
+/*
+    The browse controls are a 44px touch target, not Vuetify's 40px `size="small"` icon.
+
+    Every path box in the application carries these, and at `size="small"` they render 40x40 -
+    under the minimum this project holds itself to everywhere else, and under what the capture
+    harness asserts at a 390x844 viewport, where it named the Docker world-source destination's
+    browse button as undersized. `size="small"` is kept for its typography and padding; only
+    the hit area is raised, so nothing about the visual weight of these buttons changes.
+*/
+.mb-path-field .mb-path-field__row .v-btn,
+.mb-path-field .mb-path-field__row .v-btn.v-btn--size-small {
+    min-inline-size: 44px;
+    min-block-size: 44px;
 }
 
 .mb-path-field__mono input {

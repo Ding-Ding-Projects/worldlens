@@ -122,14 +122,6 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
             phase: "rename-time",
         },
     ],
-    "design/packages/site/scripts/compact-proof.mjs": [
-        {
-            pattern: /candidate\.url\.includes\("\/material-bluemap\/"\)/g,
-            expectedMatches: 1,
-            reason: "rename-time proof target covered by the atomic finalizer",
-            phase: "rename-time",
-        },
-    ],
     "design/tools/regex-builder-reference/regex-builder.html": [
         {
             pattern: /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap/g,
@@ -200,9 +192,13 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
     ],
     "docs/pages-hosting.md": [
         {
+            // Two sites, one statement: the article documents the still-readable legacy marker
+            // once in English and once in its Cantonese section. A bilingual document says every
+            // compatibility fact twice by construction, and the count stays exact so a genuinely
+            // new legacy write still fails this guard.
             pattern: /\.material-bluemap-map\.json/g,
-            expectedMatches: 1,
-            reason: "documented legacy filename accepted for import",
+            expectedMatches: 2,
+            reason: "documented legacy filename accepted for import, stated in both languages",
         },
     ],
 };
@@ -384,7 +380,9 @@ describe("the atomic repository-rename finalizer", () => {
             "design/packages/site/src/content/home.ts",
             "design/packages/site/src/content/links.ts",
             "design/packages/site/src/main.ts",
-            "design/packages/site/scripts/compact-proof.mjs",
+            // compact-proof.mjs left this inventory when the fresh-host release tooling
+            // replaced its "/material-bluemap/" URL-substring check with an exact
+            // PAGES_PROOF_TARGET_URL match - nothing in it renames any more.
             "scripts/build-changelog.mjs",
             "CHANGELOG.md",
             "design/packages/ui/src/components/changelog/changelogData.generated.ts",

@@ -11,6 +11,7 @@ import {
 } from "@mdi/js";
 import { VIcon, VTooltip } from "vuetify/components";
 import type { RailDestination } from "./featureTargets.js";
+import { nonNegativeInteger } from "./shellNumbers.js";
 
 /**
  * The three destinations, and the three footer actions, on an 80 px column that is on screen no
@@ -49,7 +50,6 @@ const props = withDefaults(
         productName: string;
         /** The palette's real chord, so the tooltip cannot drift from the binding. */
         paletteShortcut?: string;
-        /** Reflected into `aria-expanded` so the footer buttons describe their own surfaces. */
         /**
          * The DOM id the notification history anchors to.
          *
@@ -58,13 +58,21 @@ const props = withDefaults(
          * generated its own id would be one the panel could never find.
          */
         notificationsActivatorId?: string;
+        /** The panel controlled by the notification disclosure button. */
+        notificationsPanelId?: string;
         notificationsOpen?: boolean;
+        /** The settings disclosure button and the docked panel it controls. */
+        settingsActivatorId?: string;
+        settingsPanelId?: string;
         settingsOpen?: boolean;
     }>(),
     {
         paletteShortcut: "Ctrl+Shift+F",
         notificationsActivatorId: "",
+        notificationsPanelId: "",
         notificationsOpen: false,
+        settingsActivatorId: "",
+        settingsPanelId: "",
         settingsOpen: false,
     },
 );
@@ -84,6 +92,9 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const openJobCount = computed(() => nonNegativeInteger(props.openJobCount));
+const unreadCount = computed(() => nonNegativeInteger(props.unreadCount));
 
 interface RailItem {
     readonly id: RailDestination;
@@ -112,13 +123,13 @@ const items = computed<readonly RailItem[]>(() => [
         id: "work",
         icon: mdiBriefcaseOutline,
         label: t("rail.work", "Work"),
-        badge: props.openJobCount,
+        badge: openJobCount.value,
         badgeLabel:
-            props.openJobCount === 0
+            openJobCount.value === 0
                 ? ""
                 : t(
                       "rail.work.openJobs",
-                      { count: String(props.openJobCount) },
+                      { count: String(openJobCount.value) },
                       "{count} jobs open",
                   ),
     },
@@ -126,15 +137,16 @@ const items = computed<readonly RailItem[]>(() => [
 
 /** Compact past ninety-nine, because the pill is 56 px wide and a four-digit badge is a smear. */
 function compact(count: number): string {
-    return count > 99 ? "99+" : String(count);
+    const safe = nonNegativeInteger(count);
+    return safe > 99 ? "99+" : String(safe);
 }
 
 const unreadLabel = computed(() =>
-    props.unreadCount === 0
+    unreadCount.value === 0
         ? t("rail.notifications", "Notifications")
         : t(
               "rail.notifications.unread",
-              { count: String(props.unreadCount) },
+              { count: String(unreadCount.value) },
               "Notifications, {count} unread",
           ),
 );
@@ -204,6 +216,7 @@ const unreadLabel = computed(() =>
                         'Search everything ({shortcut})',
                     )
                 "
+                aria-haspopup="dialog"
                 @click="emit('openPalette')"
             >
                 <v-icon :icon="mdiMagnify" size="22" />
@@ -233,6 +246,8 @@ const unreadLabel = computed(() =>
                 class="wl-rail-action mb-interactive"
                 :aria-label="unreadLabel"
                 :aria-expanded="notificationsOpen ? 'true' : 'false'"
+                :aria-controls="notificationsPanelId === '' ? undefined : notificationsPanelId"
+                aria-haspopup="dialog"
                 @click="emit('toggleNotifications')"
             >
                 <span class="wl-rail-action__icon">
@@ -245,10 +260,13 @@ const unreadLabel = computed(() =>
             </button>
 
             <button
+                :id="settingsActivatorId === '' ? undefined : settingsActivatorId"
                 type="button"
                 class="wl-rail-action mb-interactive"
                 :aria-label="t('settings.title', 'Settings')"
                 :aria-expanded="settingsOpen ? 'true' : 'false'"
+                :aria-controls="settingsPanelId === '' ? undefined : settingsPanelId"
+                aria-haspopup="dialog"
                 @click="emit('openSettings')"
             >
                 <v-icon :icon="mdiCogOutline" size="22" />
@@ -441,5 +459,12 @@ const unreadLabel = computed(() =>
 .wl-rail-action:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
+}
+
+/* This stays last so every transition introduced by the rail is covered. */
+@media (prefers-reduced-motion: reduce) {
+    .wl-rail-pill {
+        transition: none;
+    }
 }
 </style>

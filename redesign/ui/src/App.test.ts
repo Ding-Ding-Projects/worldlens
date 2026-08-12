@@ -1134,11 +1134,29 @@ describe("the options editor", () => {
 
         await openOptionsEditor();
 
-        // The whole tabbed shell goes inert rather than the one page, because the strip is
-        // behind the editor's opaque surface too and a tab nobody can see is a tab nobody
-        // should be able to reach with Tab.
+        // The content goes inert, not the whole shell row. A page nobody can see is a page
+        // nobody should reach with Tab - but the rail is beside the editor rather than behind
+        // it, and marking the row inert took out the only navigation in the application at
+        // the same moment the editor covered it, leaving Escape as the sole way back.
         expect(app.findComponent(WorldScreen).exists()).toBe(true);
-        expect(document.querySelector(".mb-shell-body")?.hasAttribute("inert")).toBe(true);
+        expect(document.querySelector(".mb-shell-content")?.hasAttribute("inert")).toBe(true);
+        expect(document.querySelector(".mb-shell-body")?.hasAttribute("inert")).toBe(false);
+    });
+
+    it("keeps the rail outside the inert subtree while the options editor is open", async () => {
+        const app = shell();
+        await openOptionsEditor();
+        expect(app.findComponent(ConfigScreen).exists()).toBe(true);
+
+        // Walked rather than asserted on one element: `inert` applies to a whole subtree, so
+        // the rail is only genuinely operable if nothing from it up to the shell row carries
+        // the attribute. jsdom does not enforce `inert` behaviourally, so this checks the
+        // markup contract; the rendered result is verified against a real browser.
+        const rail = app.find(".wl-rail").element;
+        for (let node: Element | null = rail; node !== null; node = node.parentElement) {
+            expect(node.hasAttribute("inert")).toBe(false);
+            if (node.classList.contains("mb-shell-body")) break;
+        }
     });
 
     it("closes on Escape and hands the focus back to itself", async () => {

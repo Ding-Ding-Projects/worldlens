@@ -744,6 +744,7 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
     -->
     <aside
         v-show="props.open"
+        :id="`docked.${props.surfaceId}.panel`"
         ref="root"
         class="mb-docked"
         :class="`mb-docked--${layout.placement}`"

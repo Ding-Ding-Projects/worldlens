@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { VCard, VMenu } from "vuetify/components";
 import { NoticeCentrePanel } from "../notifications/index.js";
@@ -35,24 +35,40 @@ const props = defineProps<{
     activator: string;
     /** The shell's one source of truth for whether the anchored panel is open. */
     open: boolean;
+    /** Stable id used by the rail disclosure button. */
+    panelId?: string;
 }>();
 
 const emit = defineEmits<{ "update:open": [open: boolean] }>();
 
 const { t } = useI18n();
 
+const panel = ref<HTMLElement | null>(null);
+let opener: HTMLElement | null = null;
+
 const panelOpen = computed({
     get: () => props.open,
     set: (value: boolean) => emit("update:open", value),
 });
 
-watch(panelOpen, (value) => {
+watch(panelOpen, async (value, wasOpen) => {
     // Opening the history is what "I have seen these" means, so the unread mark moves to the
     // newest entry at that moment. An id rather than a count, because the history is bounded and
     // two counts drift apart the moment it starts dropping its oldest entry.
     if (value) {
+        opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         const newest = props.state.history[0];
         if (newest !== undefined) props.state.reviewedId = newest.id;
+        await nextTick();
+        panel.value?.focus();
+        return;
+    }
+
+    if (wasOpen) {
+        const fallback = document.querySelector<HTMLElement>(props.activator);
+        const target = opener?.isConnected === true ? opener : fallback;
+        opener = null;
+        target?.focus();
     }
 });
 
@@ -89,9 +105,20 @@ function close(): void {
         offset="8"
         :aria-label="label"
     >
-        <v-card class="wl-notifications" rounded="lg" :aria-label="label">
-            <NoticeCentrePanel :state="state" @close="close" />
-        </v-card>
+        <div
+            :id="panelId ?? 'worldlens-notifications-panel'"
+            ref="panel"
+            class="wl-notifications"
+            role="dialog"
+            aria-modal="false"
+            :aria-label="label"
+            tabindex="-1"
+            @keydown.esc.stop="close"
+        >
+            <v-card class="wl-notifications__card" rounded="lg">
+                <NoticeCentrePanel :state="state" @close="close" />
+            </v-card>
+        </div>
     </v-menu>
 </template>
 
@@ -105,6 +132,19 @@ function close(): void {
     inline-size: 420px;
     max-inline-size: calc(100vw - 96px);
     max-block-size: min(560px, calc(100vh - 96px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.wl-notifications:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+.wl-notifications__card {
+    flex: 1 1 auto;
+    min-block-size: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;

@@ -71,9 +71,18 @@ const BUILT: readonly Built[] = [
 /**
  * A test file changing does not change what the application renders, and treating it as if
  * it did would make this check cry wolf on every unit-test edit until somebody disabled it.
+ *
+ * `changelogData.generated.ts` is excluded to stay identical to `shipsInInterface` in
+ * `scripts/check-screenshot-evidence.mjs`, which explains why: the file is generated from
+ * commit history, so its final bytes postdate every build and capture by construction.
  */
 function ships(name: string): boolean {
-    return !name.endsWith(".test.ts") && !name.endsWith(".test.tsx") && !name.endsWith(".spec.ts");
+    return (
+        !name.endsWith(".test.ts") &&
+        !name.endsWith(".test.tsx") &&
+        !name.endsWith(".spec.ts") &&
+        name !== "changelogData.generated.ts"
+    );
 }
 
 interface Newest {

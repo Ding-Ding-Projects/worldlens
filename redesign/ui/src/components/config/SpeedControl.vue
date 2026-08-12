@@ -330,14 +330,39 @@ function levelSummary(level: SpeedLevel): string {
     margin-block-end: 12px;
 }
 
-.mb-speed__toggle {
+/*
+    Two selectors deep on purpose. Vuetify's own `.v-btn-group` sets `height: var(--v-btn-height)`
+    and `overflow-y: hidden` at one class of specificity, so a single-class rule here ties with it
+    and loses on source order - `flex-wrap: wrap` applied, the five levels wrapped onto three rows,
+    and the 40px height then cut 68px of them off with no scrollbar to say so. Levels 4 and 5 were
+    invisible and unclickable at 800px wide. Beating the framework needs more specificity than it,
+    not a later position in the file.
+*/
+.mb-speed .mb-speed__toggle {
     flex-wrap: wrap;
     height: auto;
+    min-height: 40px;
+    overflow: visible;
+    row-gap: 8px;
 }
 
-.mb-speed__toggle .v-btn {
+.mb-speed .mb-speed__toggle .v-btn {
     height: auto;
+    min-height: 40px;
     padding-block: 8px;
+    /*
+        The widest level carries a label and the "BlueMap's default" chip on one line, which
+        is wider than the whole control at 390px - the card clipped 59px of it and the chip
+        sat off the right edge. The button may be narrower than its content and wrap it.
+    */
+    max-inline-size: 100%;
+    min-inline-size: 0;
+}
+
+.mb-speed .mb-speed__toggle .v-btn .v-btn__content {
+    flex-wrap: wrap;
+    white-space: normal;
+    row-gap: 4px;
 }
 
 .mb-speed__state {

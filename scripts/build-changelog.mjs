@@ -179,6 +179,19 @@ function gitLines(args) {
 }
 
 /**
+ * One spelling for a UTC timestamp, whatever git wrote.
+ *
+ * Git 2.54 renders a +0000 offset in strict ISO output as `Z`; older versions write
+ * `+00:00`. Both are the same instant, but this generator's outputs are compared byte for
+ * byte by `--check`, so a commit authored in UTC regenerated cleanly on one git version
+ * and read as stale on the other - an environment-dependent flake in a guard whose whole
+ * point is determinism. `Z` is the canonical RFC 3339 form, so it wins.
+ */
+function canonicalDate(date) {
+    return date.replace(/\+00:00$/, "Z");
+}
+
+/**
  * Trailing git trailers, removed from a body.
  *
  * `Co-Authored-By:` and friends are metadata about who wrote the commit, not a description of
@@ -239,7 +252,7 @@ function readCommits() {
 
         commits.set(sha, {
             sha,
-            date,
+            date: canonicalDate(date),
             parents: parents.length > 0 ? parents.split(" ") : [],
             subject,
             details: stripTrailers(body ?? ""),
@@ -283,7 +296,12 @@ function readVersions() {
         // when there is one. Both forms appear in repositories that changed CI along the way.
         const commit = type === "tag" ? (dereferenced ?? "") : (objectName ?? "");
         if (commit.length === 0) throw new Error(`tag ${tag} does not resolve to a commit`);
-        versions.push({ tag, version: (tag ?? "").replace(/^v/, ""), date, commit });
+        versions.push({
+            tag,
+            version: (tag ?? "").replace(/^v/, ""),
+            date: canonicalDate(date ?? ""),
+            commit,
+        });
     }
     return versions;
 }
@@ -348,7 +366,14 @@ function isGeneratedOnlyCommit(commit) {
     return commit.files.length > 0 && commit.files.every((path) =>
         path === "CHANGELOG.md" ||
         path === "design/packages/ui/src/components/changelog/changelogData.ts" ||
-        path === "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+        path === "design/packages/ui/src/components/changelog/changelogData.generated.ts" ||
+        // The `redesign/ui` tree is a byte-identical mirror of `design/packages/ui`, so a
+        // changelog refresh legitimately touches the mirror's copy of the generated data
+        // too. Leaving the mirror path out of this list once broke the fixed point: the
+        // refresh commit stopped counting as generated-only, wrote itself into the next
+        // regeneration, and `--check` could never again agree with any committed output.
+        path === "redesign/ui/src/components/changelog/changelogData.ts" ||
+        path === "redesign/ui/src/components/changelog/changelogData.generated.ts",
     );
 }
 
@@ -671,6 +696,43 @@ function generatedTextMatches(actual, expected) {
     return actual !== null && normalizeLineEndings(actual) === normalizeLineEndings(expected);
 }
 
+/**
+ * The first run of differing lines, rendered for the `--check` failure message.
+ *
+ * "Out of date" alone has proven to be an expensive thing to say: when the committed and
+ * regenerated text disagree only on an environment-dependent detail, the difference itself
+ * is the entire diagnosis, and a guard that withholds it turns a one-line fix into an
+ * archaeology session against a machine nobody can log into.
+ */
+function firstDifference(actual, expected, context = 3, span = 20) {
+    if (actual === null) return "  the committed file is missing entirely";
+    const actualLines = normalizeLineEndings(actual).split("\n");
+    const expectedLines = normalizeLineEndings(expected).split("\n");
+    const total = Math.max(actualLines.length, expectedLines.length);
+    let first = -1;
+    for (let index = 0; index < total; index += 1) {
+        if (actualLines[index] !== expectedLines[index]) {
+            first = index;
+            break;
+        }
+    }
+    if (first === -1) return "  the texts differ only in length"; // unreachable in practice
+    const from = Math.max(0, first - context);
+    const to = Math.min(total, first + span);
+    const lines = [`  first difference at line ${first + 1} (committed vs regenerated):`];
+    for (let index = from; index < to; index += 1) {
+        const committed = actualLines[index];
+        const regenerated = expectedLines[index];
+        if (committed === regenerated) {
+            lines.push(`      ${committed}`);
+        } else {
+            if (committed !== undefined) lines.push(`    - ${committed}`);
+            if (regenerated !== undefined) lines.push(`    + ${regenerated}`);
+        }
+    }
+    return lines.join("\n");
+}
+
 function main(argv) {
     const check = argv.includes("--check");
     const quiet = argv.includes("--quiet");
@@ -698,8 +760,15 @@ function main(argv) {
         );
         if (stale.length > 0) {
             const names = stale.map((output) => output.path.replace(REPO_ROOT, "")).join(", ");
+            const differences = stale
+                .map(
+                    (output) =>
+                        `${output.path.replace(REPO_ROOT, "")}:\n` +
+                        firstDifference(readIfPresent(output.path), output.text),
+                )
+                .join("\n");
             throw new Error(
-                `${names} is out of date. Run \`node scripts/build-changelog.mjs\` and commit the result.`,
+                `${names} is out of date. Run \`node scripts/build-changelog.mjs\` and commit the result.\n${differences}`,
             );
         }
         if (!quiet) {

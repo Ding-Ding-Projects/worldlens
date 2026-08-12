@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { isSettingsSection } from "../settings/settingsSections.js";
 import { ALL_CATALOGUE_FEATURES, CATALOGUES, catalogueForFeature, findFeature } from "./catalogues.js";
 import { knownMetaResolvers } from "./catalogueMeta.js";
 import { knownCapabilities } from "./capabilities.js";
@@ -23,6 +24,8 @@ import { activationsFromHome } from "./shellNavigation.js";
 
 const OVERLAY_IDS = ["settings", "config", "palette", "notifications", "eula", "tour"];
 const MAP_REVEALS = ["maps", "markers", "settings", "info"];
+/** Everything the options editor can be asked to open: its screens, plus the history tab. */
+const CONFIG_REVEALS = ["core", "webapp", "webserver", "plugin", "maps", "storages", "run", "history"];
 const WORK_ACTIONS = ["tab-finder", "dock-editor"];
 
 /** The approved feature accounting, from the design's own appendix. */
@@ -96,6 +99,18 @@ describe("every target resolves to something that exists", () => {
                     break;
                 case "overlay":
                     expect(OVERLAY_IDS, where).toContain(target.overlay);
+                    // Rail reveals were validated here and overlay reveals were not, which is
+                    // how a row shipped asking the options editor for "path-field" - a name no
+                    // screen answers to, so it resolved to Core and looked deliberate. A reveal
+                    // that names nothing routable is a row that quietly lands on the wrong page.
+                    if (target.reveal !== undefined) {
+                        if (target.overlay === "config") {
+                            expect(CONFIG_REVEALS, where).toContain(target.reveal);
+                        }
+                        if (target.overlay === "settings") {
+                            expect(isSettingsSection(target.reveal), where).toBe(true);
+                        }
+                    }
                     break;
                 case "work-action":
                     expect(WORK_ACTIONS, where).toContain(target.action);

@@ -242,6 +242,37 @@ const dirty = computed(
             serializeProjectFile(openProject.value) !== serializeProjectFile(savedProject.value)),
 );
 
+/**
+ * Every in-memory edit is queued for the main process's quiet autosave scheduler, which
+ * debounces bursts into one write and records one revision per write - the same path Save
+ * uses, just without anyone having to remember to press it. The unedited case costs
+ * nothing: the scheduler compares against what it last wrote and treats a no-change
+ * notification as a cancellation.
+ */
+watch(openProject, (project) => {
+    if (project === null || openWorld.value === null || !dirty.value) return;
+    void host?.notifyAutosaveChange?.(openWorld.value, project);
+});
+
+/**
+ * An autosave that landed *is* a save: the written project becomes the baseline the dirty
+ * badge compares against, so "Unsaved changes" means exactly "not yet on disk" and clears
+ * itself the moment the scheduler writes. A failed autosave surfaces where a failed manual
+ * save does, because the person's next question is the same either way.
+ */
+onMounted(() => {
+    const stop = host?.onAutosaveEvent?.((event) => {
+        if (event.worldFolder !== openWorld.value) return;
+        if (event.result.ok) {
+            savedProject.value = event.result.project;
+            if (saveFailure.value !== null) saveFailure.value = null;
+        } else {
+            saveFailure.value = event.result.reason;
+        }
+    });
+    if (stop !== undefined) onBeforeUnmount(stop);
+});
+
 // This is the same comparison that drives Save and the transition guard. Reporting a second
 // inferred flag from the shell would let the update guard disagree with the editor exactly when
 // the visible edit exists only in renderer memory.
@@ -256,6 +287,17 @@ watch(dirty, (value) => emit("dirty-change", value), { immediate: true });
  */
 function blockUnsavedTransition(action: string): boolean {
     if (!dirty.value) return false;
+    // With autosave wired, a boundary is a flush rather than a wall: whatever is pending
+    // is written through the same path Save uses, and the transition proceeds. The block
+    // below remains only for a host without the autosave scheduler (the browser preview),
+    // where proceeding really would abandon the edit.
+    if (host?.flushAutosave !== undefined && openWorld.value !== null && openProject.value !== null) {
+        const world = openWorld.value;
+        const project = openProject.value;
+        void host.notifyAutosaveChange?.(world, project).then(() => host.flushAutosave?.(world, "boundary"));
+        savedProject.value = project;
+        return false;
+    }
     raiseNotice(
         "warning",
         t(

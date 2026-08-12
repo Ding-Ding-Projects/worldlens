@@ -65,6 +65,7 @@ import {
 import { PROJECT_FILE_NAME, parseProjectFile, type ProjectFile } from "@worldlens/config";
 
 import { describeProjectChange, describeProjectRestore } from "./describe.js";
+import { canonicalDiskText } from "./embeddedHistory.js";
 import { checkProjectPath, deleteProject, readProjectText, writeProjectText } from "./file.js";
 
 /**
@@ -85,7 +86,12 @@ export const projectFileSource: HistorySource = {
     what: "project file",
     read: async (worldFolder) => {
         const bytes = await readProjectText(worldFolder);
-        if (bytes.ok) return { files: [{ path: PROJECT_FILE_NAME, text: bytes.text }] };
+        if (bytes.ok) {
+            // Trailer-stripped on purpose: the embedded bundle is this subsystem's own
+            // bookkeeping, and a snapshot that recorded it would make the next bundle
+            // contain the previous one. See `embeddedHistory.ts`.
+            return { files: [{ path: PROJECT_FILE_NAME, text: canonicalDiskText(bytes.text) }] };
+        }
         if (bytes.failure.kind === "absent") return { files: [] };
         throw new Error(
             bytes.failure.kind === "unreadable"

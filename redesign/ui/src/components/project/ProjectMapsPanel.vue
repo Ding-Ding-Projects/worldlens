@@ -1163,11 +1163,23 @@ function confirmRemoval(): void {
     }
 }
 
+/*
+    `align-items: flex-start` on a flex *column* sizes children to their content across the
+    inline axis rather than stretching them, and a bare `<input>`'s intrinsic width is about
+    twenty characters of nothing - so the map id field collapsed to a ~65px box rendering
+    "ove" out of "overworld", with its "Map id" label clipped to a single letter. The column
+    stretches its children now; only the rename button, which should stay its own width, opts
+    back out.
+*/
 .mb-project-maps__id {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    align-items: flex-start;
+    align-items: stretch;
+}
+
+.mb-project-maps__id > .v-btn {
+    align-self: flex-start;
 }
 
 .mb-project-maps__preview {

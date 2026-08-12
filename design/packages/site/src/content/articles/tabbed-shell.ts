@@ -40,10 +40,14 @@ export const tabbedShell: Article = {
                 },
                 {
                     kind: "table",
-                    caption: "One authority per ordering, so two of them can never contradict each other",
+                    caption:
+                        "One authority per ordering, so two of them can never contradict each other",
                     columns: ["Field", "The order it owns"],
                     rows: [
-                        ["The tab set", "Identity only. Its array order carries no meaning at all."],
+                        [
+                            "The tab set",
+                            "Identity only. Its array order carries no meaning at all.",
+                        ],
                         ["The pinned order", "The pinned region, left to right."],
                         [
                             "The slot list",
@@ -89,11 +93,18 @@ export const tabbedShell: Article = {
                 },
                 {
                     kind: "table",
-                    caption: "The four searches, each with its own query, mode, flags and anchored builder",
+                    caption:
+                        "The four searches, each with its own query, mode, flags and anchored builder",
                     columns: ["Search", "Scope"],
                     rows: [
-                        ["The current strip", "Including tabs in the overflow surface and members of collapsed groups"],
-                        ["One group", "Scoped by that group's own membership, and nothing outside it"],
+                        [
+                            "The current strip",
+                            "Including tabs in the overflow surface and members of collapsed groups",
+                        ],
+                        [
+                            "One group",
+                            "Scoped by that group's own membership, and nothing outside it",
+                        ],
                         ["Groups", "Group names, across every strip"],
                         ["Every tab", "Every strip in every window the application owns"],
                     ],
@@ -235,6 +246,11 @@ export const tabbedShell: Article = {
                     content:
                         "The Pages tab code reads its appearance records: normal right-click keeps management actions and adds Edit tab appearance or Edit group appearance, while Shift+right-click opens the same anchored editor directly. Desktop's own equivalent lives in components/tabs/TabStrip.vue, wired independently of this Pages change and proven by TabbedNavigation.test.ts, so both surfaces meet this clause on their own evidence rather than one borrowing the other's.",
                 },
+                {
+                    kind: "paragraph",
+                    content:
+                        "On a phone-width horizontal strip, every Pages tab also exposes a 44-pixel three-dot button. It opens that tab's same searchable context menu without activating the tab, so touch users retain pin, move, group, close, bulk-close, and appearance actions that desktop pointer users reach with right-click. Its accessible name includes the tab label, while the existing context-menu keyboard route preserves the strip's single roving tab stop.",
+                },
             ],
         },
     ],
@@ -260,7 +276,10 @@ export const tabbedShell: Article = {
 
     sources: [
         { label: "docs/tabbed-navigation.md", href: TABBED_NAVIGATION_DOC_URL },
-        { label: "packages/ui/src/components/tabs", href: repoFile("design/packages/ui/src/components/tabs") },
+        {
+            label: "packages/ui/src/components/tabs",
+            href: repoFile("design/packages/ui/src/components/tabs"),
+        },
         { label: "packages/ui/src/App.vue", href: repoFile("design/packages/ui/src/App.vue") },
     ],
 };

@@ -164,6 +164,13 @@ const props = defineProps<{
      * shell's own buttons have nothing to do with.
      */
     publishesInset?: boolean;
+    /**
+     * True where this strip's tabs are destinations rather than jobs. The redesign scopes
+     * close affordances to open jobs alone, so a destination strip draws no close button,
+     * answers no Delete key, and offers no close rows in its context menu - while keeping
+     * every other power: pinning, groups, reordering, overflow, and all four searches.
+     */
+    closeless?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -489,7 +496,7 @@ function onTabKeydown(event: KeyboardEvent, tab: TabRecord): void {
         if (last !== undefined) goTo(last.id);
     } else if (event.key === "Delete") {
         event.preventDefault();
-        emit("close", tab.id, props.strip.id);
+        if (props.closeless !== true) emit("close", tab.id, props.strip.id);
     } else if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         goTo(tab.id);
@@ -781,7 +788,10 @@ const tabMenuItems = computed<readonly TabMenuItem[]>(() => {
         });
     }
 
-    return items;
+    // A destination strip closes nothing, so it offers nothing that closes.
+    return props.closeless === true
+        ? items.filter((item) => !["close", "others", "toStart", "toEnd"].includes(item.id))
+        : items;
 });
 
 function onTabMenuChoose(id: string): void {
@@ -1152,6 +1162,7 @@ const tabCountLabel = computed(() =>
                     :panel-id="panelId"
                     :style="tabStyles[tab.id]"
                     :data-tutorial-anchor="`tab-${tab.pageId}`"
+                    :closeless="closeless === true"
                     compact
                     pinned
                     @activate="goTo(tab.id)"
@@ -1184,6 +1195,7 @@ const tabCountLabel = computed(() =>
                             :panel-id="panelId"
                             :style="tabStyles[segment.tab.id]"
                             :data-tutorial-anchor="`tab-${segment.tab.pageId}`"
+                            :closeless="closeless === true"
                             @activate="goTo(segment.tab.id)"
                             @close="emit('close', segment.tab.id, strip.id)"
                             @keydown="onTabKeydown($event, segment.tab)"
@@ -1782,7 +1794,17 @@ const tabCountLabel = computed(() =>
 
 .mb-tabs-strip-row[data-placement="left"],
 .mb-tabs-strip-row[data-placement="right"] {
-    flex: 0 0 clamp(13rem, 22vw, 20rem);
+    /*
+        The `min(22vw, 30%)` is the point. A side strip sized only against the viewport is
+        right when the strip spans the window and wrong the moment it is nested: the options
+        editor's strip sat inside a 385px pane and still claimed its 13rem floor, leaving
+        170px for the settings, which overflowed the speed card by 59px and cut a disclosure
+        label in half. A percentage flex-basis resolves against this strip's own pane, so the
+        30% keeps a nested strip proportionate to what it is actually inside while the 22vw
+        keeps a full-width strip exactly the size it already was. The floor drops to the
+        8.5rem the narrow-viewport rule below already uses, rather than 13rem.
+    */
+    flex: 0 0 clamp(8.5rem, min(22vw, 30%), 20rem);
     flex-direction: column;
     align-items: stretch;
     min-height: 0;
@@ -1935,10 +1957,23 @@ const tabCountLabel = computed(() =>
     outline-offset: 2px;
 }
 
+/*
+    `break-word`, not `anywhere`, and the difference is the whole defect.
+
+    Both break a long unbroken string - a world path, a map id - rather than letting it widen
+    the strip, which is why `anywhere` was reached for. But `anywhere` also counts toward the
+    element's min-content width, so a crowded strip could shrink a tab to a few characters and
+    the label would break inside the word to fit: "Projects" rendered as "Proje / cts" and
+    "Backups" as "Back / ups", with four groups open at 1280px wide.
+
+    `break-word` leaves min-content at the longest word, so a tab cannot shrink narrower than
+    one readable word and the strip overflows into the surface it already has for exactly that
+    - which is the behaviour the tab contract asks for, instead of mangling the names.
+*/
 .mb-tabs-strip__label {
     min-width: 0;
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 /* Unsaved work, shown as well as announced through the tab's own title. */
@@ -1985,6 +2020,29 @@ const tabCountLabel = computed(() =>
     cursor: pointer;
     min-block-size: 44px;
     min-inline-size: 44px;
+}
+
+/*
+    The group name truncates with an ellipsis instead of being cut mid-letter.
+
+    `.mb-tabs-strip__group-head` is `min-width: 0` so it can shrink as the strip fills, and a
+    Vuetify chip hides its own overflow - so "Finished maps" became "Finished ma" with nothing
+    to say a word had been removed, and "Keeping a copy" lost 25px the same way. Nothing is
+    hidden by this: the head's `aria-label` already announces the full group name and its tab
+    count, and the group's own context menu names it in full.
+
+    These selectors end in `.v-chip`, not in `.mb-tabs-strip__group-head`, deliberately -
+    `projectSurfaceSizing.test.ts` finds that class's rule by name to check the 44px touch
+    target, and a second rule ending in the same class is the one it would find instead.
+*/
+.mb-tabs-strip__group-head .v-chip {
+    min-inline-size: 0;
+}
+
+.mb-tabs-strip__group-head .v-chip .v-chip__content {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .mb-tabs-strip__count {

@@ -107,12 +107,13 @@ const BLOCKING_SURFACES: Record<string, BlockingSurface> = {
             "point of it, the same reasoning the UI package's own CommandPalette.vue entry gives.",
     },
     "archive-entry.ts": {
-        count: 3,
+        count: 4,
         decision:
             "No modal of its own: this file retrofits ARIA onto the archived static page's " +
-            "existing dialogs. Two markers stamp aria-modal on the regex builder and the command " +
-            "palette (surfaces whose decisions are declared above for the live site), and the " +
-            "third is the querySelector that finds an already-modal dialog to manage focus for.",
+            "existing dialogs. Three markers stamp aria-modal on the regex builder, the command " +
+            "palette, and the compact-width documentation drawer while it is open (surfaces whose " +
+            "decisions are declared for the live site), and the fourth is the querySelector that " +
+            "finds an already-modal dialog to manage focus for.",
     },
     "tabs/BulkCloseDialog.ts": {
         count: 2,

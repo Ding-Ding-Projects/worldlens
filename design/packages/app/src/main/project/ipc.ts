@@ -51,6 +51,16 @@ import {
 } from "./autosave.js";
 import { discoverProject, discoverProjects, type ProjectPresence } from "./discover.js";
 import { checkProjectValue, checkWorldFolder, readProject, type ProjectReadOutcome } from "./file.js";
+import { readEmbeddedHistory, seedProjectHistory } from "./embeddedHistory.js";
+
+/** JSON.parse that answers null instead of throwing; the reader already validated the text. */
+function safeJsonParse(text: string): unknown {
+    try {
+        return JSON.parse(text);
+    } catch {
+        return null;
+    }
+}
 import {
     discardOlderProjectRevisions,
     projectHistoryListing,
@@ -158,7 +168,7 @@ function checkRevision(value: unknown): { ok: true; id: string } | { ok: false; 
  * duplicate registration behind - `ipcMain.handle` throws on a channel that already has one.
  */
 export function registerProjectHandlers(ipcMain: IpcMain, options: ProjectIpcOptions): ProjectIpc {
-    const autosave = createProjectAutosave({ ...options, ...options.autosave });
+    const autosave = createProjectAutosave({ ...options, embedHistory: true, ...options.autosave });
 
     ipcMain.handle(
         "project:read",
@@ -172,7 +182,19 @@ export function registerProjectHandlers(ipcMain: IpcMain, options: ProjectIpcOpt
                     failure: { kind: "unreadable", message: checked.reason },
                 };
             }
-            return await readProject(checked.folder);
+            const outcome = await readProject(checked.folder);
+            if (outcome.ok) {
+                // A file that travelled here carrying its own history seeds this machine's
+                // empty repository before anyone opens the History tab. Awaited because it
+                // is cheap when there is nothing to do, and a listing raced against its own
+                // seeding would honestly-but-uselessly report an empty history once.
+                const embedded = readEmbeddedHistory(safeJsonParse(outcome.text));
+                if (embedded !== null) {
+                    const seeded = await seedProjectHistory(options, checked.folder, embedded);
+                    if (!seeded.ok) console.warn(`[project] embedded history not seeded: ${seeded.message}`);
+                }
+            }
+            return outcome;
         },
     );
 
@@ -220,7 +242,11 @@ export function registerProjectHandlers(ipcMain: IpcMain, options: ProjectIpcOpt
                 // `replaceUnreadable` is a deliberate act by the person, never a default, so
                 // it is compared against `true` rather than coerced: an accidental truthy
                 // value must not authorise overwriting settings nobody could read.
-                { ...options, write: { replaceUnreadable: replaceUnreadable === true } },
+                {
+                    ...options,
+                    write: { replaceUnreadable: replaceUnreadable === true },
+                    embedHistory: true,
+                },
                 checked.folder,
                 value.project,
             );

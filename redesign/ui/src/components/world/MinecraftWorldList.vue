@@ -691,6 +691,13 @@ function failureOf(folder: MinecraftFolder): string | null {
     margin-block-start: 4px;
 }
 
+/* The mount button is size="small", floored at 34px by `.mb-shell-layer .v-btn--size-small`;
+   the extra selector out-specifies that so the 44px hit-target floor really applies. */
+.mb-world-list__mount-actions .v-btn,
+.mb-shell-layer .mb-world-list__mount-actions .v-btn.v-btn--size-small {
+    min-block-size: 44px;
+}
+
 .mb-world-list__mount-actions > .v-btn {
     block-size: auto;
     min-block-size: 44px;

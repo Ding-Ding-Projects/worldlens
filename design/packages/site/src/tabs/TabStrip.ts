@@ -367,6 +367,25 @@ export class TabStrip {
         // full label either way, so nothing is lost when the text is not shown.
         tab.setAttribute("aria-label", model.label(id));
 
+        // Phones have no right-click, so the compact tab strip exposes the same searchable
+        // context menu through an explicit touch target. CSS keeps this control hidden on the
+        // wide strip, where the established pointer and keyboard routes remain available.
+        // It stays outside the tab sequence to preserve the tablist's single roving tab stop;
+        // keyboard users open the same menu from the focused tab with the context-menu key.
+        const menu = el("button", {
+            class: "md-icon-button tab__menu",
+            attrs: { type: "button", tabindex: "-1" },
+        });
+        menu.append(icon("moreVert"));
+        menu.setAttribute("aria-label", `${i18n.t("tabs.menu.pageActions")}: ${model.label(id)}`);
+        menu.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const rect = menu.getBoundingClientRect();
+            this.openTabMenu(menu, id, rect.right, rect.bottom);
+        });
+        tab.append(menu);
+
         if (model.isClosable(id) && !pinned) {
             // Taken out of the tab sequence on purpose: a tablist is one tab stop, and an
             // extra stop per tab would make arrowing through twenty pages take forty presses.

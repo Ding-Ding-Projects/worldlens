@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiAlertCircleOutline, mdiProgressClock } from "@mdi/js";
 import { VBtn, VIcon, VProgressLinear } from "vuetify/components";
+import { nonNegativeInteger, safeProgressPercent } from "./shellNumbers.js";
 
 /**
  * One reflowing line under the title bar, and only when there is something to say.
@@ -35,14 +36,25 @@ const props = withDefaults(
     defineProps<{
         /** Starting, running or offered - the same rows the Renders chip counts. */
         runningRenderCount?: number;
-        /** 0 to 1 across everything in flight, or null when nothing reports progress. */
+        /**
+         * A percentage, 0 to 100, across the running rows that can report one - the same scale
+         * `ProgressLevel.percent` uses - or null when nothing reports progress.
+         */
         renderProgress?: number | null;
         /** Unresolved problems, from the Problems adapter. */
         problemCount?: number;
         /** Whether the Problems panel is already showing, for `aria-expanded`. */
         problemsOpen?: boolean;
+        /** Stable id of the docked Problems panel this strip controls. */
+        problemsPanelId?: string;
     }>(),
-    { runningRenderCount: 0, renderProgress: null, problemCount: 0, problemsOpen: false },
+    {
+        runningRenderCount: 0,
+        renderProgress: null,
+        problemCount: 0,
+        problemsOpen: false,
+        problemsPanelId: "",
+    },
 );
 
 const emit = defineEmits<{
@@ -59,14 +71,12 @@ const { t } = useI18n();
  * optional prop `number | null | undefined` at the binding, and a template expression cannot
  * narrow all three the way a computed can.
  */
-const progressPercent = computed(() =>
-    props.renderProgress === null || props.renderProgress === undefined
-        ? null
-        : Math.round(props.renderProgress * 100),
-);
+const progressPercent = computed(() => safeProgressPercent(props.renderProgress));
 
-const hasRenders = computed(() => props.runningRenderCount > 0);
-const hasProblems = computed(() => props.problemCount > 0);
+const runningRenderCount = computed(() => nonNegativeInteger(props.runningRenderCount));
+const problemCount = computed(() => nonNegativeInteger(props.problemCount));
+const hasRenders = computed(() => runningRenderCount.value > 0);
+const hasProblems = computed(() => problemCount.value > 0);
 
 /** Nothing to say means nothing on screen, not an empty bar holding height. */
 const visible = computed(() => hasRenders.value || hasProblems.value);
@@ -74,7 +84,7 @@ const visible = computed(() => hasRenders.value || hasProblems.value);
 const renderText = computed(() =>
     t(
         "status.renders",
-        { count: String(props.runningRenderCount) },
+        { count: String(runningRenderCount.value) },
         "{count} rendering",
     ),
 );
@@ -82,7 +92,7 @@ const renderText = computed(() =>
 const problemText = computed(() =>
     t(
         "status.problems",
-        { count: String(props.problemCount) },
+        { count: String(problemCount.value) },
         "{count} problems",
     ),
 );
@@ -153,9 +163,14 @@ const primaryAction = computed<"problems" | "renders" | null>(() => {
             variant="text"
             size="small"
             :aria-expanded="problemsOpen ? 'true' : 'false'"
+            :aria-controls="problemsPanelId === '' ? undefined : problemsPanelId"
             @click="emit('toggleProblems')"
         >
-            {{ t("status.action.problems", "Show problems") }}
+            {{
+                problemsOpen
+                    ? t("problems.close", "Close the problems panel")
+                    : t("status.action.problems", "Show problems")
+            }}
         </v-btn>
         <v-btn
             v-else-if="primaryAction === 'renders'"

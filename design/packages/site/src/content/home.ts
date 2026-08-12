@@ -68,14 +68,31 @@ export const home: HomeContent = {
 
     intro: [
         {
+            kind: "callout",
+            tone: "note",
+            title: "1.0 is out, and here is exactly what that claims",
+            content: [
+                "The Material Design 3 shell rewrite is complete and closed against its acceptance ",
+                "issues, the full workspace suite of 10,512 tests is green in CI at the released ",
+                "commit, the committed screenshot matrix pictures that exact tree, and every push to ",
+                "the default branch that passes the fatal gates publishes a hash-verified Windows ",
+                "release by itself. Versions are ",
+                { code: "1.0.<run>" },
+                ". What 1.0 does not claim: the feature programs still tracked as open issues are ",
+                "future work, and Windows executables are intentionally and permanently unsigned.",
+            ],
+        },
+        {
             kind: "paragraph",
             content: [
                 { link: "BlueMap", href: UPSTREAM_URL, external: true },
                 " renders a Minecraft world into 3D map tiles and serves them to a browser. ",
-                "worldlens ports that renderer from Java to TypeScript, and builds two things on ",
-                "top of it: a Material Design 3 desktop application, and a way to render a world on ",
-                "GitHub's runners with nothing installed locally. A headless server serving the same map ",
-                "to an ordinary browser is planned and is not built.",
+                "worldlens ports that renderer from Java to TypeScript, and builds three things on ",
+                "top of it: a Material Design 3 desktop application, a way to render a world on ",
+                "GitHub's runners with nothing installed locally, and a standalone headless server ",
+                "that renders, serves the same map to an ordinary browser, ships a Docker image, and ",
+                "re-renders on a watch. What is still open in that server is narrower than the server ",
+                "itself: mod-resource scanning, resourceExtensions parity and SQL storages in the CLI.",
             ],
         },
         {
@@ -97,9 +114,11 @@ export const home: HomeContent = {
                 "A world you render locally is rendered by ",
                 { strong: "upstream BlueMap's own Java engine" },
                 ", built from the vendored source and driven by the application as a child process. The ",
-                "TypeScript mesher this project exists to write is being written and does not render ",
-                "anything yet. Every render records which engine produced it, and the two are laid out ",
-                "side by side below.",
+                "TypeScript mesher this project exists to write now passes its parity gate - a generated ",
+                "1000x1000 world rendered by both engines came out identical, 961 of 961 hires tiles equal ",
+                "byte for byte and all 24 lowres tiles equal pixel for pixel - but passing that gate is not ",
+                "the same as switching the product over, and it is still not what runs. Every render records ",
+                "which engine produced it, and the two are laid out side by side below.",
             ],
         },
     ],
@@ -794,6 +813,9 @@ export const home: HomeContent = {
         "Live players read from local player data or RCON, measurement and waypoint tools, the screenshot gallery inside the app, scheduled renders, the multi-server dashboard and the update checker.",
         "The five cross-cutting product contracts, as contracts. All five now have substantial working machinery in the application, and each is listed as a shipped feature above with its own article. None of the five is met as written, and the remaining clause is named in each case: the regex builder's own surface is not localised, tabs cannot be decorated per tab or per group, appearance reaches four elements rather than every one, the language catalogue answers roughly a hundred keys, and two destructive call sites are declared as gaps rather than gated. A contract with an unmet clause is a pending contract, so all five stay here.",
         "macOS and Linux packaging. Windows is the only platform with an installer, and the installers are not code signed.",
+        "The for-fun locks: a password or TOTP lock on individual tabs and on individual appearance values, each lock with its own credential. The shared contract describes them for every surface including this site, where they would run against local browser storage with clearing that storage as the documented recovery. Neither the desktop application nor this site has them yet.",
+        "The built-in authenticator: registering arbitrary TOTP secrets with in-process QR pairing, live codes with a countdown, and the RFC 6238 test vectors proving the arithmetic. Specified for every user-facing app; built in none of them yet.",
+        "Support Tickets, the recovery route dressed as a service desk: a local ticket form whose resolution opens the way to the real fix - here, clearing this site's storage - with the plain line that nothing is sent anywhere and no ticket exists outside this machine. Specified alongside the locks; not built.",
     ],
 
     /* ---------------------------------------------------------------------- */

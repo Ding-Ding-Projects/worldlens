@@ -81,6 +81,188 @@ test("the checked-in workflow has exact provenance and quoted data-only sinks", 
   }
 });
 
+test("tag-trigger and generated-changelog execution scope fail closed", () => {
+  const workflow = readFileSync(FILE, "utf8").replaceAll("\r\n", "\n");
+  assert.deepEqual(actionDependencyProblems(workflow, FILE), []);
+  assert.deepEqual(
+    actionDependencyProblems(workflow.replaceAll("\n", "\r\n"), FILE),
+    [],
+  );
+
+  const stepStart = workflow.indexOf(
+    "      - name: Verify generated changelog is current",
+  );
+  const stepEnd = workflow.indexOf("\n      - name: actionlint", stepStart);
+  assert.ok(stepStart >= 0);
+  assert.ok(stepEnd > stepStart);
+  const changelogStep = workflow.slice(stepStart, stepEnd);
+  const withoutChangelogStep =
+    workflow.slice(0, stepStart) + workflow.slice(stepEnd + 1);
+  const checkInstall = "      - run: pnpm install --frozen-lockfile";
+  assert.ok(withoutChangelogStep.includes(checkInstall));
+
+  const mutations = [
+    [
+      "relocated into the check job",
+      withoutChangelogStep.replace(
+        checkInstall,
+        `${changelogStep}\n\n${checkInstall}`,
+      ),
+      /must exist exactly once inside the workflows job/,
+    ],
+    [
+      "extra executable command",
+      workflow.replace(
+        "          node scripts/build-changelog.mjs --check",
+        "          node scripts/build-changelog.mjs --check\n          echo unexpected",
+      ),
+      /must contain only its reviewed executable commands/,
+    ],
+    ...[">", ">-", ">+"].map((scalar) => [
+      `folded changelog command block ${scalar}`,
+      workflow.replace(
+        changelogStep,
+        changelogStep.replace("        run: |", `        run: ${scalar}`),
+      ),
+      /must use the exact literal run block scalar/,
+    ]),
+    [
+      "continue on error",
+      workflow.replace(
+        "          node scripts/build-changelog.mjs --check",
+        "          node scripts/build-changelog.mjs --check\n        continue-on-error: true",
+      ),
+      /may not continue after an error/,
+    ],
+    [
+      "quoted continue-on-error key",
+      workflow.replace(
+        "          node scripts/build-changelog.mjs --check",
+        "          node scripts/build-changelog.mjs --check\n        'continue-on-error': true",
+      ),
+      /may not continue after an error/,
+    ],
+    [
+      "inverted tag condition",
+      workflow.replace(
+        "        if: github.ref_type != 'tag'",
+        "        if: github.ref_type == 'tag'",
+      ),
+      /must use exactly the reviewed non-tag condition/,
+    ],
+    [
+      "relaxed always condition",
+      workflow.replace(
+        "        if: github.ref_type != 'tag'",
+        "        if: always()",
+      ),
+      /must use exactly the reviewed non-tag condition/,
+    ],
+    [
+      "duplicate changelog step",
+      workflow.replace(
+        "\n      - name: actionlint",
+        `\n${changelogStep}\n\n      - name: actionlint`,
+      ),
+      /must exist exactly once inside the workflows job/,
+    ],
+    [
+      "tag guard on actionlint",
+      workflow.replace(
+        "      - name: actionlint\n",
+        "      - name: actionlint\n        if: github.ref_type != 'tag'\n",
+      ),
+      /workflow condition inventory/,
+    ],
+    [
+      "tag guard on the check job",
+      workflow.replace(
+        "  check:\n    name: Lint, build, test\n",
+        "  check:\n    name: Lint, build, test\n    if: github.ref_type != 'tag'\n",
+      ),
+      /workflow condition inventory/,
+    ],
+    [
+      "folded alternate tag predicate",
+      workflow.replace(
+        "      - name: actionlint\n",
+        [
+          "      - name: actionlint",
+          "        if: >-",
+          "          !startsWith(github.ref, 'refs/tags/')",
+          "",
+        ].join("\n"),
+      ),
+      /workflow condition inventory/,
+    ],
+    [
+      "generic condition on another validation step",
+      workflow.replace(
+        "      - name: actionlint\n",
+        "      - name: actionlint\n        if: false\n",
+      ),
+      /workflow condition inventory/,
+    ],
+    ...["'", '"'].flatMap((quote) => [
+      [
+        `${quote}quoted inline condition key`,
+        workflow.replace(
+          "      - name: actionlint\n",
+          `      - name: actionlint\n        ${quote}if${quote}: false\n`,
+        ),
+        /canonical unquoted spelling/,
+      ],
+      [
+        `${quote}quoted folded condition key`,
+        workflow.replace(
+          "      - name: actionlint\n",
+          [
+            "      - name: actionlint",
+            `        ${quote}if${quote}: >-`,
+            "          !startsWith(github.ref, 'refs/tags/')",
+            "",
+          ].join("\n"),
+        ),
+        /canonical unquoted spelling/,
+      ],
+      [
+        `${quote}quoted extra trigger key`,
+        workflow.replace(
+          "    type: boolean\n",
+          `    type: boolean\n  ${quote}schedule${quote}:\n    - cron: '0 0 * * *'\n`,
+        ),
+        /canonical unquoted spelling/,
+      ],
+    ]),
+    [
+      "push restricted to main",
+      workflow.replace(
+        "  push:\n  pull_request:",
+        "  push:\n    branches: [main]\n  pull_request:",
+      ),
+      /push must remain unrestricted/,
+    ],
+    [
+      "workflow dispatch trigger removed",
+      workflow.replace(
+        "  workflow_dispatch:\n",
+        "  workflow_dispatch_removed:\n",
+      ),
+      /root triggers must be exactly unrestricted/,
+    ],
+  ];
+
+  for (const [name, mutated, expectedProblem] of mutations) {
+    assert.notEqual(mutated, workflow, name);
+    assert.ok(
+      actionDependencyProblems(mutated, FILE).some((problem) =>
+        expectedProblem.test(problem.message),
+      ),
+      name,
+    );
+  }
+});
+
 test("complete run and env fingerprints reject indirect execution and harmless drift", () => {
   const workflow = readFileSync(FILE, "utf8");
   const anchor = 'if [ -n "$DISH_NAME_EN" ]; then';

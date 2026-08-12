@@ -107,9 +107,15 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
       env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
       run: "3e9ccd4f53a2a9d7818277af3b9285fb80d04e3c73bff33479f3d8d56ecdc9b0",
     }),
+    // Reviewed after the completion-stamp check moved from same-UTC-second equality to a
+    // bounded ten-second drift window. The equality could only pass when the publish PATCH,
+    // metadata readback and verification all landed inside the second the stamp named -
+    // about a second of API latency per attempt - and run 31364032707 published and
+    // verified a correct release five times before being declared failed by its own
+    // stopwatch. The window still fails closed on a genuinely stale stamp.
     Publish: Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
-      run: "f1be5492bc3af1415c7ae31ff7389990b37c8ad56f03ec2498d9a919ccb7dcbd",
+      run: "129f8f84b18f3a184623b1d40e65429f6ff7640af104f95dbdcfbb1dea6f4d13",
     }),
   }),
 });
@@ -117,8 +123,11 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 // Covers the whole `release` job, not only its watched steps, so a new step cannot be
 // slipped in beside the reviewed ones. The fingerprint includes the fail-closed eligibility
 // expression, draft-first publication, manifest readback, token chain and unsigned warning.
+// Re-reviewed with the Publish step's ten-second completion-drift window (see that step's
+// contract above); the eligibility expression, draft-first publication, manifest readback,
+// token chain and unsigned warning are unchanged.
 const RELEASE_JOB_FINGERPRINT =
-  "5f95efeb09ed8a0986622a549504784b755f2cfc253c0cb921ad5e44f5658de5";
+  "598019666479303eb95e4d70d930a6a3947e859ecaec35ffcd6e5dc989ec25b6";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this
@@ -338,10 +347,86 @@ const ACTION_INVENTORIES = Object.freeze({
 
 const SUPPORTED_HOSTED_RUNNERS = new Set(["ubuntu-24.04", "windows-2022"]);
 
+const EXPECTED_CI_TRIGGERS = Object.freeze([
+  "push",
+  "pull_request",
+  "workflow_dispatch",
+]);
+const CHANGELOG_STEP_NAME = "Verify generated changelog is current";
+const CHANGELOG_STEP_CONDITION = "github.ref_type != 'tag'";
+const CHANGELOG_STEP_COMMANDS = Object.freeze([
+  "set -euo pipefail",
+  "node scripts/build-changelog.mjs --check",
+]);
+const EXPECTED_RELEASE_CONDITION = Object.freeze([
+  "always()",
+  "&& github.event_name != 'pull_request'",
+  "&& github.ref == 'refs/heads/main'",
+  "&& (github.event_name == 'push' || inputs.publish_release == true)",
+  "&& needs.check.result == 'success'",
+  "&& needs.workflows.result == 'success'",
+  "&& needs.package.result == 'success'",
+  "&& needs.jars.result == 'success'",
+  "&& needs.test-world.result == 'success'",
+  "&& needs.config-java-roundtrip.result == 'success'",
+]);
+const EXPECTED_CI_CONDITIONS = Object.freeze([
+  Object.freeze({
+    scope: `jobs.workflows.steps.${CHANGELOG_STEP_NAME}`,
+    expression: CHANGELOG_STEP_CONDITION,
+  }),
+  Object.freeze({
+    scope: "jobs.package",
+    expression: "always() && needs.jars.result == 'success'",
+  }),
+  Object.freeze({
+    scope: "jobs.test-world",
+    expression: "always() && needs.jars.result == 'success'",
+  }),
+  Object.freeze({
+    scope: "jobs.screenshots",
+    expression: "always() && needs.test-world.result == 'success'",
+  }),
+  Object.freeze({
+    scope: "jobs.screenshots.steps.uses:actions/upload-artifact#1",
+    expression: "always()",
+  }),
+  Object.freeze({
+    scope: "jobs.screenshots.steps.uses:actions/upload-artifact#2",
+    expression: "failure()",
+  }),
+  Object.freeze({
+    scope: "jobs.release",
+    expression: EXPECTED_RELEASE_CONDITION.join(" "),
+  }),
+  Object.freeze({
+    scope: "jobs.release.steps.Verify nominated release already exists",
+    expression: "steps.tag.outputs.publish == 'false'",
+  }),
+  Object.freeze({
+    scope: "jobs.release.steps.Resolve dim sum code name",
+    expression: "steps.tag.outputs.publish == 'true'",
+  }),
+  Object.freeze({
+    scope: "jobs.release.steps.Prepare release payload and hash manifest",
+    expression: "steps.tag.outputs.publish == 'true'",
+  }),
+  Object.freeze({
+    scope: "jobs.release.steps.Compose release notes",
+    expression: "steps.tag.outputs.publish == 'true'",
+  }),
+  Object.freeze({
+    scope: "jobs.release.steps.Publish",
+    expression: "steps.tag.outputs.publish == 'true'",
+  }),
+]);
+
 const REQUIRED_STEP_LINES = Object.freeze({
   "Guard executable workflow expressions and release metadata": Object.freeze([
     "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs",
     "node scripts/lint-workflows.mjs",
+  ]),
+  "Verify generated changelog is current": Object.freeze([
     "node scripts/build-changelog.mjs --check",
   ]),
   "Resolve release tag": Object.freeze([
@@ -576,6 +661,304 @@ function jobFingerprint(text, jobName) {
   return block ? sha256(normalizeBlock(block.lines)) : null;
 }
 
+function jobBlocks(lines) {
+  const jobsStart = lines.findIndex((line) => /^jobs:\s*$/.test(line));
+  if (jobsStart < 0) return [];
+  const names = [];
+  for (let index = jobsStart + 1; index < lines.length; index++) {
+    if (/^[A-Za-z0-9_-]+:\s*$/.test(lines[index])) break;
+    const match = /^  ([A-Za-z0-9_-]+):\s*$/.exec(lines[index]);
+    if (match) names.push(match[1]);
+  }
+  return names
+    .map((name) => ({ name, ...jobBlock(lines, name) }))
+    .filter((block) => block.start >= 0);
+}
+
+function stepBlocks(lines, job) {
+  const starts = [];
+  const usesOccurrences = new Map();
+  for (let index = job.start + 1; index < job.end; index++) {
+    if (/^ {6}-\s+[A-Za-z0-9_-]+:\s*/.test(lines[index])) starts.push(index);
+  }
+  return starts.map((start, position) => {
+    const end = starts[position + 1] ?? job.end;
+    let name = null;
+    let uses = null;
+    for (let index = start; index < end; index++) {
+      const nameMatch = /^ {6}-\s+name:\s*(.+?)\s*$/.exec(lines[index]);
+      const nestedNameMatch = /^ {8}name:\s*(.+?)\s*$/.exec(lines[index]);
+      const usesMatch = /^ {6}-\s+uses:\s*([^\s#]+)/.exec(lines[index]);
+      const nestedUsesMatch = /^ {8}uses:\s*([^\s#]+)/.exec(lines[index]);
+      if (!name && (nameMatch || nestedNameMatch))
+        name = unquote((nameMatch ?? nestedNameMatch)[1]);
+      if (!uses && (usesMatch || nestedUsesMatch))
+        uses = (usesMatch ?? nestedUsesMatch)[1];
+    }
+    let label = name;
+    if (!label && uses) {
+      const action = uses.split("@", 1)[0];
+      const occurrence = (usesOccurrences.get(action) ?? 0) + 1;
+      usesOccurrences.set(action, occurrence);
+      label = `uses:${action}#${occurrence}`;
+    }
+    return {
+      start,
+      end,
+      jobName: job.name,
+      name,
+      label: label ?? `line:${start + 1}`,
+    };
+  });
+}
+
+function conditionRegions(text) {
+  const lines = text.split(/\r?\n/);
+  const jobs = jobBlocks(lines);
+  const steps = jobs.flatMap((job) => stepBlocks(lines, job));
+  const regions = [];
+  for (let index = 0; index < lines.length; index++) {
+    const match = /^( {4}| {8})if:\s*(.*?)\s*$/.exec(lines[index]);
+    if (!match) continue;
+    const indent = match[1].length;
+    const job = jobs.find(
+      (candidate) => index > candidate.start && index < candidate.end,
+    );
+    if (!job) continue;
+    const step =
+      indent === 8
+        ? steps.find(
+            (candidate) =>
+              candidate.jobName === job.name &&
+              index > candidate.start &&
+              index < candidate.end,
+          )
+        : null;
+    const rawValue = match[2];
+    let expression;
+    if (/^[|>][+-]?\d*[+-]?\s*(?:#.*)?$/.test(rawValue)) {
+      const block = [];
+      for (let next = index + 1; next < lines.length; next++) {
+        if (lines[next].trim() !== "" && indentOf(lines[next]) <= indent) break;
+        block.push({ number: next + 1, text: lines[next] });
+      }
+      expression = normalizeBlock(block).replace(/\s+/gu, " ").trim();
+    } else {
+      expression = unquote(rawValue.trim()).replace(/\s+/gu, " ").trim();
+    }
+    regions.push({
+      line: index + 1,
+      scope: step ? `jobs.${job.name}.steps.${step.label}` : `jobs.${job.name}`,
+      expression,
+      job,
+      step,
+    });
+  }
+  return regions;
+}
+
+function ciTriggerProblems(lines, file) {
+  const problems = [];
+  const onLines = lines
+    .map((line, index) => ({ line, index }))
+    .filter((item) => /^on:\s*$/.test(item.line));
+  if (onLines.length !== 1) {
+    problems.push({
+      file,
+      line: (onLines[0]?.index ?? 0) + 1,
+      stepName: null,
+      expression: null,
+      message: `CI must contain exactly one root event block; found ${onLines.length}`,
+    });
+    return problems;
+  }
+
+  const start = onLines[0].index;
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index++) {
+    if (/^[A-Za-z0-9_-]+:\s*$/.test(lines[index])) {
+      end = index;
+      break;
+    }
+  }
+  const triggers = [];
+  for (let index = start + 1; index < end; index++) {
+    const match = /^  ([A-Za-z0-9_-]+):(.*?)\s*$/.exec(lines[index]);
+    if (match) triggers.push({ name: match[1], rest: match[2].trim(), index });
+  }
+  if (
+    JSON.stringify(triggers.map((trigger) => trigger.name)) !==
+    JSON.stringify(EXPECTED_CI_TRIGGERS)
+  ) {
+    problems.push({
+      file,
+      line: start + 1,
+      stepName: null,
+      expression: null,
+      message:
+        "CI root triggers must be exactly unrestricted push, pull_request and workflow_dispatch events",
+    });
+  }
+
+  for (const name of ["push", "pull_request"]) {
+    const trigger = triggers.find((candidate) => candidate.name === name);
+    if (!trigger) continue;
+    const nextTrigger = triggers.find(
+      (candidate) => candidate.index > trigger.index,
+    );
+    const triggerEnd = nextTrigger?.index ?? end;
+    const nestedConfiguration = lines
+      .slice(trigger.index + 1, triggerEnd)
+      .filter((line) => line.trim() !== "" && !/^\s*#/.test(line));
+    if (trigger.rest !== "" || nestedConfiguration.length !== 0) {
+      problems.push({
+        file,
+        line: trigger.index + 1,
+        stepName: null,
+        expression: null,
+        message: `${name} must remain unrestricted so both branch and tag events run CI`,
+      });
+    }
+  }
+  return problems;
+}
+
+function quotedControlKeyProblems(lines, file) {
+  return lines.flatMap((line, index) =>
+    /^(?: {2}| {4}| {8})['"]/.test(line)
+      ? [
+          {
+            file,
+            line: index + 1,
+            stepName: null,
+            expression: null,
+            message:
+              "workflow control keys at job and step scope must use canonical unquoted spelling",
+          },
+        ]
+      : [],
+  );
+}
+
+function ciExecutionContractProblems(text, file) {
+  const lines = text.split(/\r?\n/);
+  const problems = [
+    ...ciTriggerProblems(lines, file),
+    ...quotedControlKeyProblems(lines, file),
+  ];
+  const jobs = jobBlocks(lines);
+  const steps = jobs.flatMap((job) => stepBlocks(lines, job));
+  const changelogSteps = steps.filter(
+    (step) => step.name === CHANGELOG_STEP_NAME,
+  );
+  if (
+    changelogSteps.length !== 1 ||
+    changelogSteps[0]?.jobName !== "workflows"
+  ) {
+    problems.push({
+      file,
+      line: (changelogSteps[0]?.start ?? 0) + 1,
+      stepName: CHANGELOG_STEP_NAME,
+      expression: null,
+      message:
+        "generated changelog verification must exist exactly once inside the workflows job",
+    });
+  }
+
+  if (changelogSteps.length === 1) {
+    const step = changelogSteps[0];
+    const conditions = conditionRegions(text).filter(
+      (condition) =>
+        condition.step?.start === step.start &&
+        condition.step?.jobName === step.jobName,
+    );
+    if (
+      conditions.length !== 1 ||
+      conditions[0].expression !== CHANGELOG_STEP_CONDITION
+    ) {
+      problems.push({
+        file,
+        line: conditions[0]?.line ?? step.start + 1,
+        stepName: CHANGELOG_STEP_NAME,
+        expression: conditions[0]?.expression ?? null,
+        message:
+          "generated changelog verification must use exactly the reviewed non-tag condition",
+      });
+    }
+
+    const runRegions = scriptRegions(text).filter(
+      (region) => region.keyLine > step.start + 1 && region.keyLine <= step.end,
+    );
+    const commands =
+      runRegions.length === 1
+        ? runRegions[0].lines
+            .map((line) => line.text.trim())
+            .filter((line) => line !== "" && !line.startsWith("#"))
+        : [];
+    if (runRegions.length !== 1 || runRegions[0].rawValue !== "|") {
+      problems.push({
+        file,
+        line: runRegions[0]?.keyLine ?? step.start + 1,
+        stepName: CHANGELOG_STEP_NAME,
+        expression: null,
+        message:
+          "generated changelog verification must use the exact literal run block scalar",
+      });
+    }
+    if (
+      runRegions.length === 1 &&
+      JSON.stringify(commands) !== JSON.stringify(CHANGELOG_STEP_COMMANDS)
+    ) {
+      problems.push({
+        file,
+        line: runRegions[0]?.keyLine ?? step.start + 1,
+        stepName: CHANGELOG_STEP_NAME,
+        expression: null,
+        message:
+          "generated changelog verification must contain only its reviewed executable commands",
+      });
+    }
+
+    const continueOnError = lines
+      .slice(step.start + 1, step.end)
+      .findIndex((line) =>
+        /^ {8}(?:continue-on-error|'continue-on-error'|"continue-on-error")\s*:/.test(
+          line,
+        ),
+      );
+    if (continueOnError >= 0) {
+      problems.push({
+        file,
+        line: step.start + continueOnError + 2,
+        stepName: CHANGELOG_STEP_NAME,
+        expression: null,
+        message:
+          "generated changelog verification may not continue after an error",
+      });
+    }
+  }
+
+  const actualConditions = conditionRegions(text).map(
+    ({ scope, expression }) => ({
+      scope,
+      expression,
+    }),
+  );
+  if (
+    JSON.stringify(actualConditions) !== JSON.stringify(EXPECTED_CI_CONDITIONS)
+  ) {
+    problems.push({
+      file,
+      line: 1,
+      stepName: null,
+      expression: null,
+      message:
+        "workflow condition inventory must match every reviewed job and step condition",
+    });
+  }
+  return problems;
+}
+
 function bindingProblems(lines, region, file, expected) {
   const stepLines = lines.slice(region.stepStart, region.stepEnd);
   const problems = [];
@@ -802,6 +1185,7 @@ function actionDependencyProblems(text, file) {
   }
 
   if (file !== ".github/workflows/ci.yml") return problems;
+  problems.push(...ciExecutionContractProblems(text, file));
 
   const workflowScriptRegions = scriptRegions(text);
   const renderProvenanceStepName = "Record what rendered it";
@@ -1047,18 +1431,6 @@ function actionDependencyProblems(text, file) {
     });
   }
 
-  const expectedReleaseCondition = [
-    "always()",
-    "&& github.event_name != 'pull_request'",
-    "&& github.ref == 'refs/heads/main'",
-    "&& (github.event_name == 'push' || inputs.publish_release == true)",
-    "&& needs.check.result == 'success'",
-    "&& needs.workflows.result == 'success'",
-    "&& needs.package.result == 'success'",
-    "&& needs.jars.result == 'success'",
-    "&& needs.test-world.result == 'success'",
-    "&& needs.config-java-roundtrip.result == 'success'",
-  ];
   const releaseConditionStarts = [];
   for (let index = releaseStart + 1; index < releaseEnd; index++) {
     if (/^ {4}if:\s*>-\s*$/.test(lines[index]))
@@ -1078,7 +1450,7 @@ function actionDependencyProblems(text, file) {
   if (
     releaseConditionStarts.length !== 1 ||
     JSON.stringify(actualReleaseCondition) !==
-      JSON.stringify(expectedReleaseCondition)
+      JSON.stringify(EXPECTED_RELEASE_CONDITION)
   ) {
     problems.push({
       file,

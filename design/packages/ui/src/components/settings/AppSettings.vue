@@ -714,6 +714,7 @@ function onDrawer(value: boolean): void {
             :aria-label="t('settings.body', 'All settings')"
         >
             <TabbedNavigation
+                closeless
                 ref="tabsNav"
                 :pages="settingsPages"
                 storage-key="worldlens-settings-tabs"

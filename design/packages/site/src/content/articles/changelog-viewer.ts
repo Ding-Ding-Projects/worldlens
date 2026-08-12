@@ -96,6 +96,16 @@ export const changelogViewer: Article = {
                     ],
                 },
                 {
+                    kind: "paragraph",
+                    content: [
+                        "Branch and pull-request CI run that assertion. A tag-triggered run skips only this ",
+                        "one check because the tag is created after the commit it names, so the commit cannot ",
+                        "already contain generated output derived from its own future tag. Every other tag-run ",
+                        "pre-publication build, test, rendering, workflow-security and packaging check still ",
+                        "runs; the main-only publisher remains intentionally ineligible.",
+                    ],
+                },
+                {
                     kind: "definitions",
                     items: [
                         {

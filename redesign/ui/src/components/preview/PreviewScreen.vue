@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiContentCopy,
@@ -53,6 +53,7 @@ onMounted(() => {
 });
 
 const networkExplainOpen = ref(false);
+const networkExplainId = useId();
 
 const disabledReason = computed<string | null>(() => {
     if (host.status.value.running) return null;
@@ -245,10 +246,11 @@ const renderItems = computed(() =>
                         variant="text"
                         :aria-label="t('preview.network.label', 'Also allow other devices on this network')"
                         :aria-expanded="networkExplainOpen"
+                        :aria-controls="networkExplainId"
                         @click="networkExplainOpen = !networkExplainOpen"
                     />
                 </div>
-                <div v-if="networkExplainOpen" class="mb-preview__explainBox">
+                <div v-if="networkExplainOpen" :id="networkExplainId" class="mb-preview__explainBox">
                     <p class="mb-meta mb-preview__consequence">
                         <v-icon :icon="mdiLan" size="16" />
                         {{

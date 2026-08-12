@@ -28,10 +28,15 @@ import type { FeatureTarget } from "./featureTargets.js";
  * Never colour alone. Each row names its severity in text next to an icon, so the distinction
  * survives a monochrome display, a contrast theme and a reader who cannot see red.
  */
-const props = defineProps<{
-    problems: readonly Problem[];
-    open: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        problems: readonly Problem[];
+        open: boolean;
+        /** Stable id used by the StatusStrip disclosure button. */
+        panelId?: string;
+    }>(),
+    { panelId: "worldlens-problems-panel" },
+);
 
 const emit = defineEmits<{
     "update:open": [open: boolean];
@@ -58,7 +63,9 @@ const title = computed(() =>
 <template>
     <section
         v-if="open"
+        :id="panelId"
         class="wl-problems mb-interactive"
+        role="region"
         :aria-label="title"
     >
         <header class="wl-problems__head">

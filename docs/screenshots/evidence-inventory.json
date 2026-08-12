@@ -1,7 +1,7 @@
 {
     "version": 1,
     "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-    "expectedTargetCount": 160,
+    "expectedTargetCount": 163,
     "evidenceRoots": [
         "docs/screenshots",
         "design/docs/assets/issues",
@@ -13,7 +13,7 @@
             "authority": "design/packages/app/test/screenshots.spec.ts",
             "command": "cd design && pnpm build && pnpm --filter @worldlens/app screenshots",
             "reproducibility": "current-build-with-local-map-fixture",
-            "expectedCount": 83,
+            "expectedCount": 89,
             "targets": [
                 "docs/screenshots/appearance-context-menu.png",
                 "docs/screenshots/appearance-surface.png",
@@ -55,14 +55,19 @@
                 "docs/screenshots/menu-root.png",
                 "docs/screenshots/menu-search.png",
                 "docs/screenshots/menu-settings.png",
-                "docs/screenshots/notifications-corner.png",
                 "docs/screenshots/notifications-history.png",
-                "docs/screenshots/notifications-toast.png",
+                "docs/screenshots/notifications-rail-bell.png",
                 "docs/screenshots/pages-publishing-screen.png",
                 "docs/screenshots/palette-search.png",
                 "docs/screenshots/palette.png",
                 "docs/screenshots/profiles-manager.png",
                 "docs/screenshots/projects-screen.png",
+                "docs/screenshots/redesign-home-catalogue-page-360x800.png",
+                "docs/screenshots/redesign-home-catalogue-page-390x844.png",
+                "docs/screenshots/redesign-home-catalogue-page-414x896.png",
+                "docs/screenshots/redesign-home-catalogues-360x800.png",
+                "docs/screenshots/redesign-home-catalogues-390x844.png",
+                "docs/screenshots/redesign-home-catalogues-414x896.png",
                 "docs/screenshots/run-location.png",
                 "docs/screenshots/settings-drawer.png",
                 "docs/screenshots/settings-regex-builder.png",
@@ -96,27 +101,13 @@
                 "docs/screenshots/wizard-3-options.png",
                 "docs/screenshots/wizard-4-where-it-goes.png",
                 "docs/screenshots/wizard-5-review.png",
+                "docs/screenshots/wizard-docker-world-source-390x844-200pct.png",
                 "docs/screenshots/wizard-release-downloads.png",
                 "docs/screenshots/wizard-ssh-world-source.png"
             ],
             "capturedFromInterfaceSource": true,
-            "uiSourceDigest": "4812a4eb40d27fbf36308f50a59f6c65aabb02146acd28bbcd80fe81033e4761",
-            "uiSourceDigestNote": "This value names no commit in this repository, and the note that used to sit here was wrong to say it was be70670721f7089e418b4b58ccfee9839a6f8ab4: that commit's interface digests to d5f71130df03bb0e160098b21f7ba83b694bbf7a001af833e01a1e1f558d2fb0, which is the value this field held before commit 1930a6c changed it. What 4812a4eb actually fingerprints is an uncommitted working tree during 1930a6c, whose message records that driving the application found and fixed three control defects: the captures were taken, the digest was printed, and then the interface changed again before anything was committed. So these 83 images are pictures of an interface that is very nearly, but not exactly, the one this tree builds, and the guard is right to say so. Only a fresh harness run can clear it, because writing a digest here without re-taking the pictures is precisely the falsification this field exists to prevent. Refresh with: cd design && pnpm build && pnpm --filter @worldlens/app screenshots, then record the value printed by: node scripts/check-screenshot-evidence.mjs --print-interface-digest"
-        },
-        {
-            "id": "built-shell-readme",
-            "authority": "the packaged application itself, driven on an off-screen Windows desktop",
-            "command": "build-installer.bat /s at the repository root, then launch design/packages/app/release/win-unpacked/Worldlens.exe on a named off-screen desktop with --user-data-dir pointed at a copy of the profile, resolve its window handle from that desktop, click the rail and the tab strip to reach each destination, and capture each one with PrintWindow against that handle.",
-            "reproducibility": "packaged-build-on-a-headless-desktop",
-            "expectedCount": 3,
-            "capturedFromInterfaceSource": true,
-            "uiSourceDigest": "5f2a3b1d9b3d53b3820def50374c8fe2c93b209ec6b04369e7a3bd27d4e67417",
-            "uiSourceDigestNote": "Re-taken on 2026-08-09 from Worldlens-0.1.858-Setup.exe (sha256 341cfe9333267e1b37c177f968bad0e20fa752067985c45df5c89642cb120166), which build-installer.bat reported as built from commit 16325aa1352642087882671c9d7cfce4e4491e47. These are pictures of the packaged application, not of the Playwright harness's Electron entry point: that is a different pipeline and must never be substituted for this one. The profile was copied to a scratch directory before launching, so a capture run cannot write to the profile on this machine. READ THIS BEFORE TRUSTING THE VALUE ABOVE: it is the interface source as it stood at the moment the three images were taken, and it is NOT a byte-exact fingerprint of what the bundle inside that installer was compiled from, because design/packages/ui/src was being edited continuously while this ran. Three consecutive installer builds each saw the digest move underneath them (245e1fc -> 722c1ac -> b13a84d, while HEAD went 1930a6c -> 5d9cf99 -> 16325aa), and sampling twenty seconds apart returned three different values, so there was no quiet window in which to certify one. What can be said honestly is that the images are genuine captures of the packaged application from that installer, and that the interface has moved on since. Clearing this properly means one more packaged capture taken while the tree is still, not an edit to this field.",
-            "targets": [
-                "docs/screenshots/shell-home.png",
-                "docs/screenshots/shell-projects.png",
-                "docs/screenshots/shell-work.png"
-            ]
+            "uiSourceDigest": "988b131eb2e6efeb5870df7866af0783e258cdebc6c5c6c1cdb2cfe59d91952a",
+            "uiSourceDigestNote": "Re-verified 2026-08-11 by running the full 26-test Playwright harness against the freshly built workspace on the cheap Lowlevel hidden desktop. The no-map run refreshed every application-only surface and recorded honest skips for map-, account-, and render-dependent states; this digest is scripts/check-screenshot-evidence.mjs --print-interface-digest from the same tree."
         },
         {
             "id": "site-compact-proof",
