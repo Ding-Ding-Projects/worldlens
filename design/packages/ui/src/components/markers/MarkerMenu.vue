@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { mdiArrowLeft, mdiClose, mdiFilterVariant, mdiMapMarkerOff } from "@mdi/js";
+import { mdiArrowLeft, mdiClose, mdiFilterVariant, mdiMapMarkerOff, mdiMapMarkerPlusOutline } from "@mdi/js";
 import MarkerRow from "./MarkerRow.vue";
 import MarkerSetRow from "./MarkerSetRow.vue";
 import MarkerSearchField from "./MarkerSearchField.vue";
+import MarkerStudio from "./MarkerStudio.vue";
 import {
     createMarkerMatcher,
     filterMarkerSets,
@@ -17,6 +18,7 @@ import { useMarkerI18n } from "./i18nHelpers.js";
 import { MenuChoice } from "../menu/index.js";
 import type { MenuChoiceItem } from "../menu/MenuChoice.vue";
 import { useBlueMap } from "../menu/useBlueMap.js";
+import { useStudioMarkerLayer } from "./useStudioMarkerLayer.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import type { SearchMode, SortOrder } from "./markerFilter.js";
 import type {
@@ -29,6 +31,15 @@ import type { BlueMapApp, MainMenu, MenuPage } from "@worldlens/viewer";
 
 const FILTERS_OPEN_KEY = "worldlens-marker-filters-open";
 const EMPTY_POSITION = { x: 0, y: 0, z: 0 };
+
+/**
+ * Whether the studio is open, and which map its markers belong to.
+ *
+ * The map id comes from the viewer rather than from a prop: a marker made while looking at
+ * the nether belongs to the nether, and a panel that guessed "the overworld" would file it
+ * where it is never seen again.
+ */
+const studioOpen = ref(false);
 
 const props = defineProps<{
     /**
@@ -74,6 +85,29 @@ const rootSet = computed<AnyMarkerSetData | null>(
     () => app.value?.mapViewer.markers.data ?? null,
 );
 const controlsData = computed(() => app.value?.mapViewer.controlsManager.data ?? null);
+
+/**
+ * Which map a marker made here belongs to, and where the camera is looking.
+ *
+ * Both read off the running viewer rather than passed in: a marker made while looking at
+ * the nether belongs to the nether, and a panel that guessed "the overworld" would file it
+ * somewhere it is never seen again. With no viewer at all the studio still opens - it is a
+ * list of your own markers, and it is not the map's to withhold - and files them under a
+ * name that says exactly that.
+ */
+const studioMapId = computed(() => app.value?.mapViewer.data.map?.id ?? "no-map");
+
+// Keeps a person's own markers drawn on the map itself, not only listed in the studio
+// panel. This is the one call in the whole marker menu that reaches the viewer to draw
+// something rather than only to read camera or map state from it.
+useStudioMarkerLayer(app, studioMapId);
+
+/** The same camera the distance sort already reads, in the plain shape the studio wants. */
+const studioCameraPosition = computed(() => {
+    const position = controlsData.value?.position;
+    if (position === undefined || position === null) return null;
+    return { x: position.x, y: position.y, z: position.z };
+});
 const cameraPosition = computed(() => controlsData.value?.position ?? EMPTY_POSITION);
 
 /** Where this instance starts: an explicit set, the page's set, a set by id, or the root. */
@@ -533,7 +567,28 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
 
                 <div v-if="isEmpty" class="mb-marker-menu__empty">
                     <p>{{ tx("markers.emptySet", "This marker set has nothing in it.") }}</p>
+                    <!--
+                        The route out of the sentence above. It used to be the whole panel:
+                        an empty set, said plainly, with nothing anywhere in the application
+                        that could put something in it.
+                    -->
+                    <v-btn
+                        variant="tonal"
+                        size="small"
+                        :prepend-icon="mdiMapMarkerPlusOutline"
+                        data-test="marker-open-studio"
+                        @click="studioOpen = true"
+                    >
+                        {{ tx("markers.openStudio", "Make your own markers") }}
+                    </v-btn>
                 </div>
+
+                <MarkerStudio
+                    v-if="studioOpen"
+                    :map-id="studioMapId"
+                    :camera-position="studioCameraPosition"
+                    data-test="marker-studio-panel"
+                />
             </div>
         </template>
     </div>
