@@ -26,6 +26,36 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "1fec4a2ba809cfaee8103e540929929223f6b72c",
+        shortSha: "1fec4a2ba8",
+        date: "2026-08-12T19:14:53-04:00",
+        subject: "Accept a structure or schematic dropped onto the window",
+        details: "Dragging a file onto the thing that renders it is the shortest route there is,\nand the application had no way to receive one. It does now: .nbt, .schem,\n.schematic and .litematic, classified before anything happens to them.\n\nA rejected file is named and so is its reason, rather than being dropped on the\nfloor. Dropping five files where two are not structures reports two accepted and\nthree refused with what was wrong with each, because silently rendering the ones\nit liked is how somebody concludes the other three worked too.\n\nThere is a \"Choose a file\" button beside it, which is not a courtesy: a\ndrop-only feature is unreachable by keyboard, and unreachable by anybody whose\npointer cannot drag. The drag state appears only while a drag is genuinely over\nthe zone, and is announced politely rather than only drawn.\n\nNavigation reuses what App.vue already had rather than inventing a second route\nto the same page: the existing watch on the active profile is what reveals the\nmap, so a finished render lands there by the same path a render started any\nother way does.\n\n將個檔案拖上去個 render 佢嘅嘢度，係最短嗰條路，但係之前根本冇得接。而家接到：\n.nbt、.schem、.schematic、.litematic，落手之前先分類。唔收嘅檔案會講明係邊個、\n點解唔收——拖五個入去有三個唔係 structure，就會照講兩個收咗、三個唔收同埋原因，\n唔會靜靜雞 render 咗鍾意嗰兩個，等你以為五個都得咗。旁邊有粒「Choose a file」，\n唔係客氣：淨係得拖放嘅功能，用鍵盤嘅人根本掂唔到。",
+        category: "interface",
+        areas: ["interface"],
+        files: 5,
+    },
+    {
+        sha: "534cc594c6deef1e786364459093768baeb97a54",
+        shortSha: "534cc594c6",
+        date: "2026-08-12T19:14:31-04:00",
+        subject: "Find the structures a world already holds, and render them one at a time",
+        details: "A world saved with structure blocks carries its own .nbt files under\ngenerated/<namespace>/structures, and nothing in this application had ever\nlooked at them. They are listed now, grouped by the namespace that owns them,\neach with its own render, and the finished ones become a searchable list of\ntheir own rather than a folder somebody has to remember.\n\nThe store follows the same fail-closed rule the marker studio's does: an\nunreadable read reports itself and never answers with an empty list, and it\nrefuses to persist while it is in that state, because writing there turns \"I\ncould not parse your structures\" into \"your structures are gone\" - the same\nfailure one step further along and no longer recoverable.\n\nThat last rule had no test. I found out by deleting the condition and watching\ntwenty-four tests stay green, which is exactly what a guard nobody has watched\nfail is worth. It has one now, and breaking the condition turns it red.\n\nBulk deletion previews its count and acts on exactly the filtered set. The two\nempty states are kept apart: \"this world holds no structures\" and \"this build\ncannot look\" are different sentences, and only one of them is about the world.\n\n用 structure block 存過嘢嘅世界，本身就有一批 .nbt 喺\ngenerated/<namespace>/structures 入面，呢個 app 一直冇望過。而家照 namespace\n分組列出嚟，逐個有得 render，render 完自己一張搜得到嘅清單。個 store 照跟\nmarker studio 嗰條 fail-closed 規矩。嗰條規矩本來冇 test：我試手刪咗個條件，\n二十四個 test 全部照綠——冇人睇住佢紅過嘅 guard 就係咁值錢。而家補返，\n刪咗就會紅。",
+        category: "interface",
+        areas: ["interface"],
+        files: 5,
+    },
+    {
+        sha: "d3b212d914695cf23a7877e97a9bf3e92e2f097c",
+        shortSha: "d3b212d914",
+        date: "2026-08-12T19:14:15-04:00",
+        subject: "Draw studio markers on the map, and offer the studio where the dead end was",
+        details: "The studio could make markers and the map could not show them, which is half a\nfeature that looks like a whole one until you go and look at the map.\n\n`useStudioMarkerLayer` keeps exactly one set under a fixed namespaced id in sync\nwith the store: it updates that set in place rather than adding another, so a\nchange does not stack a second copy on every keystroke, and it removes the set on\nunmount instead of leaving markers over a map nobody is editing any more. With no\nviewer at all it does nothing, quietly, because a marker list is not the map's to\nwithhold.\n\nThe marker panel now offers \"Make your own markers\" directly under \"This marker\nset has nothing in it\", which is where somebody is standing when they discover\nthe application cannot make one. Which map a new marker belongs to and where the\ncamera is are both read off the running viewer rather than guessed: a marker made\nwhile looking at the nether belongs to the nether, and a panel that assumed the\noverworld would file it somewhere it is never seen again.\n\n個 studio 整到 marker，個地圖又顯示唔到，即係半個功能扮成一個——唔行去睇個地圖\n根本睇唔出。而家同一個 set 就地更新，唔會每改一次就疊多一份，unmount 又會收返。\n「Make your own markers」直接擺喺「This marker set has nothing in it」下面，\n因為人就係企喺嗰度先發現整唔到。新 marker 屬邊個地圖、鏡頭喺邊，\n兩樣都問返個 viewer：望住 nether 整嘅 marker 就係 nether 嘅，\n靠估話係 overworld，就會歸檔去一個永遠見唔返嘅地方。",
+        category: "interface",
+        areas: ["interface"],
+        files: 3,
+    },
+    {
         sha: "5070dcd37ddcadf65bd36a698cb2c5921fff963f",
         shortSha: "5070dcd37d",
         date: "2026-08-12T18:57:48-04:00",

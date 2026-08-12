@@ -22,6 +22,9 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Accept a structure or schematic dropped onto the window - [`1fec4a2ba8`](https://github.com/Ding-Ding-Projects/worldlens/commit/1fec4a2ba809cfaee8103e540929929223f6b72c)
+- Find the structures a world already holds, and render them one at a time - [`534cc594c6`](https://github.com/Ding-Ding-Projects/worldlens/commit/534cc594c6deef1e786364459093768baeb97a54)
+- Draw studio markers on the map, and offer the studio where the dead end was - [`d3b212d914`](https://github.com/Ding-Ding-Projects/worldlens/commit/d3b212d914695cf23a7877e97a9bf3e92e2f097c)
 - Add a marker studio, because the app could show markers and not make one - [`5070dcd37d`](https://github.com/Ding-Ding-Projects/worldlens/commit/5070dcd37ddcadf65bd36a698cb2c5921fff963f)
 - Give the update banner a surface, and the Maps page a way back to a render - [`fafb946383`](https://github.com/Ding-Ding-Projects/worldlens/commit/fafb9463834e2b0f28367cc63d0aa63a5b368f8d)
 
