@@ -26,7 +26,7 @@ import {
     VSwitch,
     VTextField,
 } from "vuetify/components";
-import { DIMENSION_OPTIONS, findField, type FieldMeta, type PlainValue, type ProjectFile } from "@worldlens/config";
+import { DIMENSION_OPTIONS, type FieldMeta, type PlainValue, type ProjectFile } from "@worldlens/config";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
@@ -306,18 +306,6 @@ async function revealMask(): Promise<void> {
  * is a route into this card rather than a second editor with a second set of ordering
  * rules. The summary strip above routes the other way, revealing the row in the form.
  */
-/**
- * The `render-mask` row's own descriptor, out of the open map file.
- *
- * Resolved from the descriptor rather than held as a constant so a build whose map schema
- * does not carry the field answers `undefined` and the card simply does nothing, instead of
- * writing a setting the file has no place for.
- */
-const maskField = computed<FieldMeta | undefined>(() => {
-    const open = file.value;
-    return open === null ? undefined : findField(open.descriptor, "render-mask");
-});
-
 const renderMaskValue = computed<PlainValue[]>(() => {
     const open = file.value;
     const field = maskField.value;
