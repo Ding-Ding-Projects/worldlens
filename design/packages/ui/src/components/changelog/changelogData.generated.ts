@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "5070dcd37ddcadf65bd36a698cb2c5921fff963f",
+        shortSha: "5070dcd37d",
+        date: "2026-08-12T18:57:48-04:00",
+        subject: "Add a marker studio, because the app could show markers and not make one",
+        details: "Every marker this application could render came from somebody else: a BlueMap\nmarker file, or a live server's API. It filtered them, searched them, laid them\nover a map - and offered no way to create one. Open a map of your own world and\nthe panel said \"This marker set has nothing in it\", with nothing underneath it\nthat could put something in. That is the whole defect and the whole feature.\n\nStudio markers live in their own set, deliberately never merged into a server's.\nA marker file is refetched and replaced wholesale, so a marker of yours folded\ninto one would vanish at the next poll with nothing to explain it. Kept apart\nthey survive, and the interface can always answer \"did I make this, or did the\nserver?\" - which is the question somebody asks the moment two markers disagree.\n\nThe form starts where the camera is, because that is what \"add a marker\" means\nwhen somebody is looking at a place; typing three coordinates read off another\nscreen is the thing this exists to save. Validation reports every problem at once\nrather than one per submit, refuses a height no world builds to while accepting a\nfar-out X that is an ordinary coordinate, and rounds to a block so what is stored\nmatches the F3 screen it was read off. A refusal keeps the form open, so nothing\ntyped is lost to it.\n\nTwo failures are stated rather than smoothed over. Unreadable storage reports\nitself and refuses to write over what it could not read, because \"your markers\nare gone\" is the same failure one step further along and no longer recoverable.\nAnd the store never answers an unreadable read with an empty list, which would\ninvite somebody to make them all again on top of the ones still sitting there.\n\nIts own test found a real one while being written: the \"Deleted N markers\" line\nsat inside the list block, so deleting the last marker emptied the list and took\nthe confirmation with it - the one moment somebody most needs to be told what\njust happened was the one moment it could not be said. Lifted out.\n\n呢個 app 一路以嚟識 render marker、識 filter、識搵，但係整唔到一個。開自己個\n世界，塊板寫住「This marker set has nothing in it」，下面一粒掣都冇。自己整嘅\nmarker 擺自己一個 set，唔會撈埋去 server 嗰邊：marker file 每次都係成份換走，\n撈埋去下次 poll 就無聲無息消失。個表由鏡頭位置開始填，因為你望住個地方㩒\n「加 marker」就係想加喺嗰度。寫嘅時候佢自己個 test 捉到一個真 error：\n「刪咗 N 個」嗰句本來喺 list 入面，刪到最後一個 list 一空，嗰句都跟住冇埋。",
+        category: "interface",
+        areas: ["interface"],
+        files: 4,
+    },
+    {
         sha: "2b9c3be848a646705670e40b434cd513bbd6e709",
         shortSha: "2b9c3be848",
         date: "2026-08-12T18:40:49-04:00",

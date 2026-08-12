@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Add a marker studio, because the app could show markers and not make one - [`5070dcd37d`](https://github.com/Ding-Ding-Projects/worldlens/commit/5070dcd37ddcadf65bd36a698cb2c5921fff963f)
 - Give the update banner a surface, and the Maps page a way back to a render - [`fafb946383`](https://github.com/Ding-Ding-Projects/worldlens/commit/fafb9463834e2b0f28367cc63d0aa63a5b368f8d)
 
 ### Rendering and world data
