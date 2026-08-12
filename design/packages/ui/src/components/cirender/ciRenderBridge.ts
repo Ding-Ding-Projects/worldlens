@@ -237,6 +237,16 @@ export interface CiPreflight {
     readonly eulaAccepted: boolean;
     readonly plan: CiRenderPlan | null;
     readonly planFailure: string | null;
+    /**
+     * Which refusal produced {@link planFailure}, when the main process said.
+     *
+     * Optional deliberately: a released shell can be older than this renderer, and a build
+     * that predates the field simply reports the sentence with no remedy attached rather
+     * than the screen guessing one from the wording. `"no-project"` is the one this surface
+     * acts on - it offers to write the defaults into the world rather than sending somebody
+     * to another screen to do it by hand.
+     */
+    readonly planFailureCode?: string | null;
     readonly world: {
         readonly label: string;
         readonly files: number;

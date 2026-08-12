@@ -993,6 +993,75 @@ export const CIRENDER_VOICED = {
             "上次 check 搵唔到已配置嘅個世界，去搵完一場空手而回，所以乜都冇 render",
         ],
     },
+    /*
+     * The world has no project file. Every level keeps the word "defaults" and keeps the
+     * three dimensions by name, because "set it up" without saying what gets written is
+     * exactly the sentence somebody clicks and then wonders what it did to their world.
+     */
+    "cirender.defaultProject.create": {
+        en: [
+            "Set this world up with the defaults",
+            "Set this world up with the defaults",
+            "Set this world up with the defaults",
+            "Set this world up with the defaults, right here",
+            "Set this world up with the defaults, right here, and stop being sent somewhere else to do it",
+        ],
+        yue: [
+            "用預設值幫呢個世界設定好",
+            "用預設值幫呢個世界設定好",
+            "用預設值幫呢個世界設定好",
+            "就喺呢度用預設值幫呢個世界設定好",
+            "就喺呢度用預設值幫呢個世界設定好，唔使再走去第二版搞",
+        ],
+    },
+    "cirender.defaultProject.explain": {
+        en: [
+            "Writes a project file into the world with BlueMap's generated settings and an overworld, nether and end map.",
+            "Writes a project file into the world with BlueMap's generated settings and an overworld, nether and end map. Nothing else in the world is touched.",
+            "Writes a project file into the world holding BlueMap's own generated settings and an overworld, nether and end map. Nothing else in the world is touched, and everything in it stays editable from the Projects screen.",
+            "Writes a project file into the world holding BlueMap's own generated settings and an overworld, nether and end map. Nothing else in the world is touched, and everything in it stays editable from the Projects screen afterwards.",
+            "Writes a project file into the world holding BlueMap's own generated settings and an overworld, nether and end map. Nothing else in the world is touched - one small file appears, and everything in it stays editable from the Projects screen afterwards.",
+        ],
+        yue: [
+            "會喺個世界入面寫一個 project 檔，用 BlueMap 產生嘅設定，加 overworld、nether 同 end 三張地圖。",
+            "會喺個世界入面寫一個 project 檔，用 BlueMap 產生嘅設定，加 overworld、nether 同 end 三張地圖。個世界其他嘢一律唔郁。",
+            "會喺個世界入面寫一個 project 檔，入面係 BlueMap 自己產生嘅設定，加 overworld、nether 同 end 三張地圖。個世界其他嘢一律唔郁，之後喺 Projects 版度樣樣都改得。",
+            "會喺個世界入面寫一個 project 檔，入面係 BlueMap 自己產生嘅設定，加 overworld、nether 同 end 三張地圖。個世界其他嘢一律唔郁，寫完之後喺 Projects 版度樣樣都改得。",
+            "會喺個世界入面寫一個 project 檔，入面係 BlueMap 自己產生嘅設定，加 overworld、nether 同 end 三張地圖。個世界其他嘢一律唔郁，淨係多咗一個細細個檔案，寫完之後喺 Projects 版度樣樣都改得。",
+        ],
+    },
+    "cirender.defaultProject.unavailable": {
+        en: [
+            "This build cannot write a project file. Set the world up from the Projects screen or the map wizard.",
+            "This build cannot write a project file, so set the world up from the Projects screen or the map wizard.",
+            "This build cannot write a project file, so the world has to be set up from the Projects screen or the map wizard.",
+            "This build cannot write a project file at all, so the world has to be set up from the Projects screen or the map wizard instead.",
+            "This build cannot write a project file at all - not stubbornness, it simply has no way to - so the world has to be set up from the Projects screen or the map wizard instead.",
+        ],
+        yue: [
+            "呢個 build 寫唔到 project 檔。請去 Projects 版或者 map wizard 設定個世界。",
+            "呢個 build 寫唔到 project 檔，所以請去 Projects 版或者 map wizard 設定個世界。",
+            "呢個 build 寫唔到 project 檔，所以個世界要喺 Projects 版或者 map wizard 度設定。",
+            "呢個 build 根本寫唔到 project 檔，所以個世界要改為喺 Projects 版或者 map wizard 度設定。",
+            "呢個 build 根本寫唔到 project 檔，唔係扭計，係真係冇路可行，所以個世界要改為喺 Projects 版或者 map wizard 度設定。",
+        ],
+    },
+    "cirender.defaultProject.written": {
+        en: [
+            "Wrote {file}: an overworld, nether and end map from BlueMap's generated defaults.",
+            "Wrote {file} with BlueMap's generated defaults: an overworld, nether and end map.",
+            "Wrote {file} with BlueMap's generated defaults: an overworld, nether and end map. Open it from Projects to change anything.",
+            "Wrote {file} with BlueMap's generated defaults: an overworld, nether and end map. Open it from Projects if you want to change anything in it.",
+            "Wrote {file} with BlueMap's generated defaults: an overworld, nether and end map. That is the whole world set up; open it from Projects if you want to change anything in it.",
+        ],
+        yue: [
+            "寫咗 {file}：overworld、nether 同 end 三張地圖，用 BlueMap 產生嘅預設值。",
+            "寫咗 {file}，用 BlueMap 產生嘅預設值：overworld、nether 同 end 三張地圖。",
+            "寫咗 {file}，用 BlueMap 產生嘅預設值：overworld、nether 同 end 三張地圖。想改嘢就喺 Projects 度打開佢。",
+            "寫咗 {file}，用 BlueMap 產生嘅預設值：overworld、nether 同 end 三張地圖。想改入面任何嘢，就喺 Projects 度打開佢。",
+            "寫咗 {file}，用 BlueMap 產生嘅預設值：overworld、nether 同 end 三張地圖。成個世界就係咁設定好；想改入面任何嘢，就喺 Projects 度打開佢。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const CIRENDER_FIXED = {
@@ -1540,6 +1609,26 @@ export const CIRENDER_FACTS = {
     "cirender.schedule.result.error": {
         en: ["the configured world could not be found by the last check"],
         yue: ["上次 check 搵唔到已配置嘅個世界"],
+    },
+    // What the button does has to survive every level: it writes into the world.
+    "cirender.defaultProject.create": {
+        en: ["Set this world up with the defaults"],
+        yue: ["用預設值幫呢個世界設定好"],
+    },
+    // The three dimensions and "project file" are the facts; the rest is voice.
+    "cirender.defaultProject.explain": {
+        en: ["project file", "overworld, nether and end"],
+        yue: ["project 檔", "overworld、nether 同 end"],
+    },
+    // Where to go instead, which is the only actionable half of a refusal.
+    "cirender.defaultProject.unavailable": {
+        en: ["cannot write a project file", "Projects screen or the map wizard"],
+        yue: ["寫唔到 project 檔", "Projects 版或者 map wizard"],
+    },
+    // The path written, and what went into it.
+    "cirender.defaultProject.written": {
+        en: ["{file}", "overworld, nether and end"],
+        yue: ["{file}", "overworld、nether 同 end"],
     },
 } as const satisfies Record<
     keyof typeof CIRENDER_VOICED,

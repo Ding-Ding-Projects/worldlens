@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import {
     mdiCalendarSyncOutline,
     mdiCloudSyncOutline,
+    mdiFileDocumentPlusOutline,
     mdiFolderSearchOutline,
     mdiOpenInNew,
     mdiRefresh,
@@ -31,6 +32,12 @@ import {
     defaultGhCliAccountId,
 } from "../github/ghCliAccountsStore.js";
 import type { GhCliBridge } from "../github/ghCliBridge.js";
+import {
+    createProjectFromGeneratedDefaults,
+    resolveProjectHost,
+    worldLeaf,
+    type ProjectHost,
+} from "../project/index.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
 import { resolveWorldCatalogBridge } from "../world/worldCatalog.js";
 import type { WorldCatalogBridge } from "../world/worldCatalog.js";
@@ -131,6 +138,13 @@ const props = withDefaults(
          * one bridge and not the other.
          */
         accountsBridge?: GhCliBridge | null | undefined;
+        /**
+         * What can write a project file into a world folder, behind "Set this world up with the
+         * defaults". Probed exactly like the bridges above: `undefined` probes the Electron
+         * preload, an explicit `null` means there is deliberately none and the button says so
+         * rather than appearing and throwing when pressed.
+         */
+        projectHost?: ProjectHost | null | undefined;
         /** True when the shell can open settings at a row. */
         canOpenSettings?: boolean | undefined;
     }>(),
@@ -848,6 +862,91 @@ const showGhAccountRecovery = computed(
         routeReport.value?.ready === false &&
         routeReport.value.gh.recovery === "github-settings",
 );
+
+/* -------------------------------------------------------------------------- */
+/* A world nobody has set up yet: offer the defaults rather than a dead end     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Why this is a button and not a sentence.
+ *
+ * "There is no worldlens.project.json at the root of this world, so this world has no maps
+ * set up yet" is a true and completely unactionable thing to read on a screen whose only
+ * other control is a Render button that has just gone grey. The remedy it names - render it
+ * once in the app, or run the map wizard - lives on two other screens, and somebody who came
+ * here precisely *because* this machine cannot render the world is being sent to do the one
+ * thing they came here to avoid.
+ *
+ * A project made of BlueMap's own generated defaults is exactly what the wizard would have
+ * written for a world with nothing special about it, so the honest answer is to offer to
+ * write it here. It is the same `createProjectFromGeneratedDefaults` the Projects screen
+ * uses, not a second sparse idea of what a default project is, and it is written through the
+ * same project host - so it lands in the project history like any other save and can be
+ * opened and edited in full afterwards.
+ */
+const projectHost = computed<ProjectHost | null>(() =>
+    props.projectHost === undefined ? resolveProjectHost() : props.projectHost,
+);
+
+/** True for the one refusal this screen can fix: the world has no project file at all. */
+const needsDefaultProject = computed(
+    () => preflight.value !== null && preflight.value.planFailureCode === "no-project",
+);
+
+const creatingDefaultProject = ref(false);
+/** What writing the defaults did or could not do. Never a spinner that hides a refusal. */
+const defaultProjectFailure = ref<string | null>(null);
+const defaultProjectMessage = ref<string | null>(null);
+
+/** Why the button is dead on this build, or null when it works. */
+const defaultProjectUnavailableBecause = computed<string | null>(() => {
+    if (projectHost.value !== null) return null;
+    return t(
+        "cirender.defaultProject.unavailable",
+        "This build cannot write a project file, so the world has to be set up from the Projects screen or the map wizard.",
+    );
+});
+
+/**
+ * Writes BlueMap's generated defaults into the chosen world, then re-checks.
+ *
+ * Re-checking is the point of the last two lines: the person who pressed this wanted to
+ * render, not to own a file, so a successful write puts them on the next real decision
+ * rather than back in front of the same grey button with a green tick beside it.
+ */
+async function createDefaultProject(): Promise<void> {
+    if (creatingDefaultProject.value) return;
+    const host = projectHost.value;
+    const world = worldFolder.value.trim();
+    if (host === null || world === "") return;
+
+    creatingDefaultProject.value = true;
+    defaultProjectFailure.value = null;
+    defaultProjectMessage.value = null;
+    try {
+        const project = createProjectFromGeneratedDefaults(worldLeaf(world), {
+            world,
+            // The world's own path says which spelling this machine uses; a project written
+            // with the wrong one carries HOCON paths that read as another platform's.
+            separator: world.includes("\\") ? "\\" : "/",
+        });
+        const written = await host.writeProject(world, project);
+        if (!written.ok) {
+            defaultProjectFailure.value = written.message;
+            return;
+        }
+        defaultProjectMessage.value = t(
+            "cirender.defaultProject.written",
+            { file: written.file },
+            "Wrote {file} with BlueMap's generated defaults: an overworld, a nether and an end map. Open it from Projects to change anything.",
+        );
+        await check();
+    } catch (error) {
+        defaultProjectFailure.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        creatingDefaultProject.value = false;
+    }
+}
 
 /**
  * Whether the button may be pressed.
@@ -1856,6 +1955,65 @@ onBeforeUnmount(() => {
                     >
                         {{ blockedBecause }}
                     </p>
+
+                    <!--
+                        The world has no project file. Rather than leaving the sentence above
+                        pointing at two other screens, offer to write the same generated
+                        defaults the wizard would have written - here, where the person is.
+                    -->
+                    <div v-if="needsDefaultProject" class="mt-3" data-test="default-project">
+                        <VBtn
+                            :prepend-icon="mdiFileDocumentPlusOutline"
+                            :disabled="defaultProjectUnavailableBecause !== null"
+                            :loading="creatingDefaultProject"
+                            :title="defaultProjectUnavailableBecause ?? undefined"
+                            variant="tonal"
+                            data-test="default-project-create"
+                            @click="createDefaultProject"
+                        >
+                            {{
+                                t(
+                                    "cirender.defaultProject.create",
+                                    "Set this world up with the defaults",
+                                )
+                            }}
+                        </VBtn>
+                        <p class="text-caption text-medium-emphasis mt-2">
+                            {{
+                                t(
+                                    "cirender.defaultProject.explain",
+                                    "Writes a project file into the world holding BlueMap's own generated settings and an overworld, nether and end map. Nothing else in the world is touched, and everything in it stays editable from the Projects screen.",
+                                )
+                            }}
+                        </p>
+                        <p
+                            v-if="defaultProjectUnavailableBecause !== null"
+                            class="text-medium-emphasis mt-1"
+                            data-test="default-project-unavailable"
+                        >
+                            {{ defaultProjectUnavailableBecause }}
+                        </p>
+                        <VAlert
+                            v-if="defaultProjectFailure !== null"
+                            type="error"
+                            variant="tonal"
+                            density="compact"
+                            class="mt-2"
+                            data-test="default-project-failure"
+                            role="alert"
+                        >
+                            {{ defaultProjectFailure }}
+                        </VAlert>
+                        <p
+                            v-else-if="defaultProjectMessage !== null"
+                            class="text-success mt-2"
+                            data-test="default-project-written"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            {{ defaultProjectMessage }}
+                        </p>
+                    </div>
                 </VCardText>
             </VCard>
 

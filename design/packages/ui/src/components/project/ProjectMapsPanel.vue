@@ -24,7 +24,7 @@ import {
     VSwitch,
     VTextField,
 } from "vuetify/components";
-import { DIMENSION_OPTIONS, type FieldMeta, type PlainValue, type ProjectFile } from "@worldlens/config";
+import { DIMENSION_OPTIONS, findField, type FieldMeta, type PlainValue, type ProjectFile } from "@worldlens/config";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
@@ -191,6 +191,18 @@ const file = computed(() => (selected.value === undefined ? null : openMapFile(s
  * is a route into this card rather than a second editor with a second set of ordering
  * rules. The summary strip above routes the other way, revealing the row in the form.
  */
+/**
+ * The `render-mask` row's own descriptor, out of the open map file.
+ *
+ * Resolved from the descriptor rather than held as a constant so a build whose map schema
+ * does not carry the field answers `undefined` and the card simply does nothing, instead of
+ * writing a setting the file has no place for.
+ */
+const maskField = computed<FieldMeta | undefined>(() => {
+    const open = file.value;
+    return open === null ? undefined : findField(open.descriptor, "render-mask");
+});
+
 const renderMaskValue = computed<PlainValue[]>(() => {
     const open = file.value;
     const field = maskField.value;
@@ -254,20 +266,6 @@ function onRawText(text: string): void {
     const open = file.value;
     if (map === undefined || open === null) return;
     emit("update:project", withMapConfig(props.project, map.id, replaceText(open, text).text));
-}
-
-function setRenderMask(value: PlainValue[]): void {
-    const field = renderMaskField.value;
-    if (field !== null) onSet(field, value);
-}
-
-function clearRenderMask(): void {
-    const field = renderMaskField.value;
-    if (field !== null) onClear(field);
-}
-
-async function openRenderMaskCard(): Promise<void> {
-    await renderMaskCard.value?.openAndFocus();
 }
 
 /* -------------------------------------------------------------------------- */

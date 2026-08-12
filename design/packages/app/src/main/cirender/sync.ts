@@ -59,7 +59,7 @@ import { collectRenderedMap } from "./collect.js";
 import { fingerprintWorld, isUnchanged } from "./fingerprint.js";
 import type { WorldFingerprint } from "./fingerprint.js";
 import { chooseProjectMap, planCiRender, readProjectAt } from "./plan.js";
-import type { CiRenderOutput, CiRenderPlan } from "./plan.js";
+import type { CiPlanRefusal, CiRenderOutput, CiRenderPlan } from "./plan.js";
 import {
     ciRenderIdFor,
     ciSyncWorkspace,
@@ -388,6 +388,16 @@ export interface CiPreflight {
     readonly eulaAccepted: boolean;
     readonly plan: CiRenderPlan | null;
     readonly planFailure: string | null;
+    /**
+     * Which refusal produced {@link planFailure}, so a surface can offer the remedy that
+     * matches rather than reprinting the sentence and leaving the reader to act on it.
+     *
+     * `"no-project"` in particular is not really a failure at all - it is a world nobody has
+     * set up yet, and the honest answer to it is a button that writes the defaults, not a
+     * paragraph telling somebody to go and run a wizard on another screen. Null whenever
+     * `planFailure` is null.
+     */
+    readonly planFailureCode: CiPlanRefusal["code"] | null;
     readonly world: {
         readonly label: string;
         readonly files: number;
@@ -535,10 +545,13 @@ export class CiRenderSync {
         const project = await readProjectAt(request.worldFolder);
         let plan: CiRenderPlan | null = null;
         let planFailure: string | null = null;
+        let planFailureCode: CiPlanRefusal["code"] | null = null;
         if (project.ok) {
             const picked = chooseProjectMap(project.project, request.mapId);
-            if (!picked.ok) planFailure = picked.failure.message;
-            else {
+            if (!picked.ok) {
+                planFailure = picked.failure.message;
+                planFailureCode = picked.failure.code;
+            } else {
                 const planned = planCiRender({
                     project: project.project,
                     ...(request.mapId === undefined ? {} : { mapId: request.mapId }),
@@ -551,10 +564,14 @@ export class CiRenderSync {
                     ...(request.output === undefined ? {} : { output: request.output }),
                 });
                 if (planned.ok) plan = planned.plan;
-                else planFailure = planned.failure.message;
+                else {
+                    planFailure = planned.failure.message;
+                    planFailureCode = planned.failure.code;
+                }
             }
         } else {
             planFailure = project.failure.message;
+            planFailureCode = project.failure.code;
         }
 
         const mapId = plan?.mapId ?? request.mapId ?? "map";
@@ -597,6 +614,7 @@ export class CiRenderSync {
                 eulaAccepted: await this.#options.eulaAccepted(),
                 plan,
                 planFailure,
+                planFailureCode,
                 world,
                 worldFailure,
                 worldChanged: changed,

@@ -57,7 +57,6 @@ const documentationProvenance = computed(() =>
             <v-chip size="x-small" variant="outlined" data-field-provenance>
                 {{ documentationProvenance }}
             </v-chip>
-            </v-chip>
             <span class="mb-render-mask-launcher__path">{{ field.path }}</span>
         </div>
         <h3 class="mb-render-mask-launcher__title">{{ field.label }}</h3>

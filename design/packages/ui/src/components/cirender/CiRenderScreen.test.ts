@@ -17,6 +17,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VSelect } from "vuetify/components";
+import type { ProjectFile } from "@worldlens/config";
 import CiRenderScreen from "./CiRenderScreen.vue";
 import ciRenderScreenSource from "./CiRenderScreen.vue?raw";
 import type {
@@ -2526,6 +2527,126 @@ describe("a render row's title, which turns its <v-card-title> into a flex row",
         expect(ciRenderScreenSource).toMatch(/VCardTitle class="d-flex align-center ga-2 ci-row__title"/);
         expect(ciRenderScreenSource).toMatch(
             /<span class="ci-row__name">\{\{ row\.repository \|\| row\.syncId \}\}<\/span>/,
+        );
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A world with no project file gets a button, not a paragraph                */
+/* -------------------------------------------------------------------------- */
+
+describe("a world nobody has set up yet", () => {
+    /** A preflight refusing for the one reason this screen can actually fix. */
+    function noProject(): CiPreflight {
+        return preflight({
+            plan: null,
+            planFailure:
+                "There is no worldlens.project.json or material-bluemap.project.json at the root of /world, " +
+                "so this world has no maps set up yet.",
+            planFailureCode: "no-project",
+        });
+    }
+
+    /** A project host that records what it was asked to write. */
+    function recordingHost(
+        answer: { ok: true; file: string } | { ok: false; message: string } = {
+            ok: true,
+            file: "/world/worldlens.project.json",
+        },
+    ) {
+        const writes: { world: string; project: ProjectFile }[] = [];
+        return {
+            writes,
+            host: {
+                name: "test",
+                canDelete: false,
+                listProjects: async () => ({ projects: [], scanned: 0, problems: [] }),
+                readProject: async () => ({
+                    ok: false as const,
+                    failure: { kind: "absent" as const },
+                }),
+                writeProject: async (world: string, project: ProjectFile) => {
+                    writes.push({ world, project });
+                    return answer;
+                },
+            },
+        };
+    }
+
+    it("offers to write the defaults rather than only naming the missing file", async () => {
+        const { host } = recordingHost();
+        const wrapper = mountScreen(fakeBridge(noProject()), { projectHost: host });
+        await check(wrapper);
+
+        expect(wrapper.find('[data-test="default-project"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="default-project-create"]').exists()).toBe(true);
+    });
+
+    it("stays out of the way when the refusal is a different one entirely", async () => {
+        const { host } = recordingHost();
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    plan: null,
+                    planFailure: "That project has no map called nether.",
+                    planFailureCode: "no-such-map",
+                }),
+            ),
+            { projectHost: host },
+        );
+        await check(wrapper);
+
+        // A button offering to write default maps would be the wrong remedy for a project
+        // that already exists and simply does not hold the map that was asked for.
+        expect(wrapper.find('[data-test="default-project"]').exists()).toBe(false);
+    });
+
+    it("writes BlueMap's generated defaults into the chosen world and re-checks", async () => {
+        const { host, writes } = recordingHost();
+        const bridge = fakeBridge(noProject());
+        const wrapper = mountScreen(bridge, { projectHost: host });
+        await check(wrapper);
+
+        await wrapper.find('[data-test="default-project-create"]').trigger("click");
+        await flushPromises();
+
+        expect(writes).toHaveLength(1);
+        expect(writes[0]?.world).toBe("/world");
+        // The real generated set, not a sparse record claiming to follow defaults.
+        expect(writes[0]?.project.maps.map((map) => map.id)).toEqual([
+            "overworld",
+            "nether",
+            "end",
+        ]);
+        expect(writes[0]?.project.core).not.toBeNull();
+        expect(wrapper.find('[data-test="default-project-written"]').text()).toContain(
+            "/world/worldlens.project.json",
+        );
+    });
+
+    it("reports a refused write instead of claiming the world is now set up", async () => {
+        const { host } = recordingHost({ ok: false, message: "The world folder is read-only." });
+        const wrapper = mountScreen(fakeBridge(noProject()), { projectHost: host });
+        await check(wrapper);
+
+        await wrapper.find('[data-test="default-project-create"]').trigger("click");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="default-project-failure"]').text()).toContain(
+            "read-only",
+        );
+        expect(wrapper.find('[data-test="default-project-written"]').exists()).toBe(false);
+    });
+
+    it("says why the button is dead on a build with no project layer at all", async () => {
+        const wrapper = mountScreen(fakeBridge(noProject()), { projectHost: null });
+        await check(wrapper);
+
+        expect(
+            wrapper.find('[data-test="default-project-create"]').attributes("disabled"),
+        ).toBeDefined();
+        expect(wrapper.find('[data-test="default-project-unavailable"]').text()).toContain(
+            "Projects screen or the map wizard",
         );
     });
 });
