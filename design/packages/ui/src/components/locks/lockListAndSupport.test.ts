@@ -47,6 +47,13 @@ beforeAll(() => {
         addEventListener: () => {},
         removeEventListener: () => {},
     } as unknown as typeof globalThis.visualViewport;
+
+    // Vuetify's overlay scroll strategy calls `document.elementsFromPoint` on reposition,
+    // and jsdom has no layout engine to answer it. Unstubbed it rejects asynchronously,
+    // *after* the test that opened the menu has already passed - so every test stays green
+    // and vitest still exits non-zero for "unhandled errors", which is a failing CI run
+    // with a clean test table above it and nothing obvious to blame.
+    document.elementsFromPoint = () => [];
 });
 
 const FOLDER = "C:/Users/test/AppData/Roaming/Worldlens";
