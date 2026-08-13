@@ -362,7 +362,14 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="mb-ollama">
+    <!--
+        The capture harness finds this screen by its data-test attribute. It sits on this plain
+        root div rather than on one of the Vuetify components inside because a fallthrough
+        attribute on one of those is not reliably queryable, and it has to be the screen's own
+        root rather than the runtime alert below: that alert renders only while the runtime is
+        not ready, so anchoring to it would photograph one state of the page and miss the other.
+    -->
+    <div class="mb-ollama" data-test="ollama-screen">
         <VAlert
             v-if="!runtimeReady"
             type="warning"

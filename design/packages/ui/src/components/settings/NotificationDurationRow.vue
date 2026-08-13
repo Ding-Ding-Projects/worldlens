@@ -65,7 +65,12 @@ function levelSummary(level: NoticeDurationLevel): string {
 </script>
 
 <template>
-    <div class="mb-notice-duration">
+    <!--
+        The capture harness finds this row by its data-test attribute, and it sits on this plain
+        wrapper rather than on the button toggle inside because a Vuetify component's fallthrough
+        attributes are not reliably queryable.
+    -->
+    <div class="mb-notice-duration" data-test="notification-duration-row">
         <div
             class="mb-notice-duration__toggle-row"
             role="group"

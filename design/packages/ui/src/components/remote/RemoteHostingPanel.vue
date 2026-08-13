@@ -187,7 +187,14 @@ defineExpose({ record, publish, refresh, removeHosting, canPublish, port, bindMo
             </v-alert>
 
             <template v-else>
-                <div class="mb-hosting-panel__grid">
+                <!--
+                    The capture harness finds this panel by its data-test attribute. It sits here
+                    rather than on the surrounding card because that card is a Vuetify component,
+                    and a fallthrough attribute on one of those is not reliably queryable. This is
+                    the first plain element the panel owns, so it is the anchor; it renders
+                    whenever a hosting bridge exists, which is every build the harness captures.
+                -->
+                <div class="mb-hosting-panel__grid" data-test="remote-hosting-panel">
                     <v-text-field
                         :model-value="port"
                         :label="t('remote.targets.field.port', 'Port')"

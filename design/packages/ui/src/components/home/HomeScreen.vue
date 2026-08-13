@@ -755,7 +755,12 @@ function clearSearch(): void {
 </script>
 
 <template>
-    <section class="mb-home" aria-labelledby="mb-home-title">
+    <!--
+        The capture harness finds this surface by its data-test attribute, and it sits on this
+        plain section rather than on a Vuetify component because fallthrough attributes are not
+        reliably queryable once a component decides where to put them.
+    -->
+    <section class="mb-home" data-test="home-screen" aria-labelledby="mb-home-title">
         <AppearanceTarget id="home.page" :label="t('home.title', 'Home')" as="div">
             <div class="mb-home__inner">
                 <header class="mb-home__header">

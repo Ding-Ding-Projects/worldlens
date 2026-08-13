@@ -1807,6 +1807,27 @@ test("captures the Home destination and one of its catalogue pages", async () =>
     test.setTimeout(SURFACE_TIMEOUT);
     await ensureOptionsEditorClosed();
 
+    /*
+     * The landing screen itself, which is a different component from the catalogues below it.
+     *
+     * `App.vue` renders `HomeScreen` above `HomeCatalogues` on the same destination, so the
+     * existing "Home catalogues" step walks straight past this one: it waits for `.wl-home`,
+     * which the catalogues own, and photographs that. The landing screen was imported and never
+     * rendered once already, which `<script setup>` drops in silence, so the surface most likely
+     * to disappear without a failing test is exactly the one that had no picture.
+     */
+    await attempt("Home screen", async () => {
+        await selectDestination("home");
+        const home = page.locator('[data-test="home-screen"]');
+        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "home-screen",
+            "The landing screen the application opens on, above the catalogues: the weighted \"what would you like to do\" list, with its own search across everything Home can reach",
+            { crop: home, cropped: "the landing screen", mapArea: "covered" },
+        );
+    });
+
     await attempt("Home catalogues", async () => {
         await selectDestination("home");
         const home = page.locator(".wl-home");
@@ -2719,6 +2740,23 @@ test("captures the settings surface and every section in it", async () => {
         );
     });
 
+    // The notification duration dial, reached the same way the vocabulary row above is: through
+    // the panel's own search, because openSettingsSection's doc comment explains why a plain
+    // reopen cannot be trusted to land on any particular tab. The row was built and never
+    // mounted once already, which left the notices store reading a level nobody could change, so
+    // it is worth a picture that would go missing if it were ever unmounted again.
+    await attempt("Notification duration settings row", async () => {
+        await openSettingsSection("notification-duration", "Notification duration");
+        const row = page.locator(`${APP_SETTINGS} [data-test="notification-duration-row"]`);
+        await row.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "settings-notification-duration",
+            "The notification duration row in settings: how long an informational or success message stays in the corner before it dismisses itself, with the level this capture profile shipped on",
+            { crop: drawer, cropped: "the settings panel" },
+        );
+    });
+
     skip(
         "GitHub account, signed in",
         "signing in needs a real GitHub account and a real device-flow round trip to github.com, " +
@@ -3132,6 +3170,75 @@ test("captures the remaining first-class screens", async () => {
             "drop-render-zone",
             "The drop-render zone at the top of the Structures screen: drag a structure or schematic file straight onto it, or use the ordinary button beside it that does exactly the same thing",
             { crop: dropZone, cropped: "the drop-render zone", mapArea: "covered" },
+        );
+    });
+
+    /*
+     * Three more job screens that ship today and had never been photographed once.
+     *
+     * They are in the same category as the authenticator and the lock list above: each opens with
+     * nothing but the running application, no account, no network and no render in flight, and
+     * each was reachable through the tab strip the whole time. What was missing was the picture,
+     * which means a change that emptied any one of them outright would have left this run green.
+     */
+    await attempt("Chunker page", async () => {
+        await openJob("chunker", /^Convert$/i, "Convert");
+        const chunker = page.locator('[data-test="chunker-screen"]');
+        await chunker.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "chunker-screen",
+            "The world conversion screen, on its own tab in the Work destination: the source and destination fields and the four execution routes a conversion can be run through",
+            { crop: chunker, cropped: "the conversion screen", mapArea: "covered" },
+        );
+    });
+
+    // Anchored to the screen's own root rather than to its runtime alert, because that alert is
+    // there only while no Ollama runtime answers. A capture profile has no runtime, so the alert
+    // is what this photograph shows; the anchor still holds on a machine where one is running.
+    await attempt("Ollama page", async () => {
+        await openJob("ollama", /^Ollama$/i, "Ollama");
+        const ollama = page.locator('[data-test="ollama-screen"]');
+        await ollama.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "ollama-screen",
+            "The Ollama suite manager, on its own tab in the Work destination, on a capture profile with no Ollama runtime installed: the honest missing-runtime warning and the guidance that goes with it",
+            { crop: ollama, cropped: "the Ollama screen", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Browser extension downloads page", async () => {
+        await openJob("browserExtension", /Browser downloads/i, "Browser downloads");
+        const extension = page.locator('[data-test="browser-extension-screen"]');
+        await extension.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "browser-extension-screen",
+            "The browser-extension downloads screen, with its honest empty state on a throwaway profile where the extension has never handed a download over",
+            { crop: extension, cropped: "the browser extension downloads screen", mapArea: "covered" },
+        );
+    });
+
+    /*
+     * The remote hosting panel, which is deliberately not a required surface.
+     *
+     * `WorldScreen.vue` renders it only once there is a run target, a render id and at least one
+     * map that render produced, which is a finished render rather than a precondition a capture
+     * profile can satisfy by opening a screen. That is a real gap rather than an excuse, so the
+     * step is here to photograph it on any run that does have a render, and `attempt` records the
+     * miss in the manifest on every run that does not. Putting it in REQUIRED_SURFACES would make
+     * an honest gap read as a defect on every ordinary capture run.
+     */
+    await attempt("Remote hosting panel", async () => {
+        await openJob("world", /make a map/i, "Make a map");
+        const hosting = page.locator('[data-test="remote-hosting-panel"]');
+        await hosting.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "remote-hosting-panel",
+            "The remote hosting panel below a finished render on the world screen: the port and path a render just sent to another machine would be served from, so the map keeps answering after this window closes",
+            { crop: hosting, cropped: "the remote hosting panel", mapArea: "covered" },
         );
     });
 
@@ -4071,6 +4178,23 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     { surface: "Structures page" },
     { surface: "Drop-render zone" },
     { surface: "Personal vocabulary settings row" },
+    // Six more that shipped with no capture step of any kind. Three are job screens reached
+    // through the tab strip exactly as the four above are, and each needs nothing but the running
+    // application: the conversion screen, the Ollama suite manager on a machine with no runtime,
+    // and the browser-extension downloads list. The landing screen is required separately from
+    // "Home catalogues" because they are two components on one destination and the catalogues'
+    // step photographs only the second of them, so Home's own screen could vanish under a green
+    // run. The notification duration row is required for the reason it exists at all: it was
+    // built and left unmounted once, and an unmounted control is invisible to every test that
+    // renders it in isolation.
+    //
+    // "Remote hosting panel" is deliberately absent. It renders only below a finished render,
+    // which a capture profile has none of, so its attempt records an honest gap instead.
+    { surface: "Chunker page" },
+    { surface: "Ollama page" },
+    { surface: "Browser extension downloads page" },
+    { surface: "Home screen" },
+    { surface: "Notification duration settings row" },
     // A one-in-ten startup draw is not a surface a capture run can reach by waiting, so this
     // is forced through a screenshot-harness-only localStorage override - see
     // `DimSumSurprise.vue`'s own doc comment and `DIMSUM_TEST_OVERRIDE_KEY` above for why that

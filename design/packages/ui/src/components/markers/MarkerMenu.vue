@@ -596,11 +596,23 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
                     -->
                 </div>
 
+                <!--
+                    No `data-test` here, deliberately. `MarkerStudio.vue` puts
+                    `data-test="marker-studio"` on its own root, and an attribute passed from
+                    here falls through onto that same root and wins, so the studio rendered as
+                    `marker-studio-panel` and the anchor its own file declares never existed in
+                    the DOM at all.
+                    Nothing caught it for as long as it has been true: the capture step that
+                    looks for `marker-studio` only runs when a map is loaded, and a run without
+                    one records the surface as unreachable for want of a map and never reaches
+                    the selector. So the studio was nominally covered by a step that could not
+                    have passed, which is worse than an uncovered surface because the coverage
+                    list reads as though somebody had checked.
+                -->
                 <MarkerStudio
                     v-if="studioOpen"
                     :map-id="studioMapId"
                     :camera-position="studioCameraPosition"
-                    data-test="marker-studio-panel"
                 />
             </div>
         </template>

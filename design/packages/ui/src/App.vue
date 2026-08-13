@@ -1517,7 +1517,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         fourth destination. Opaque, so the map behind it is invisible without
                         being unmounted.
                     -->
-                    <div v-show="destination === 'home'" class="mb-shell-layer mb-interactive">
+                    <div v-show="destination === 'home'" class="mb-shell-layer mb-shell-layer--home mb-interactive">
                         <CataloguePage
                             v-if="shell.catalogueId.value"
                             :catalogue-id="shell.catalogueId.value"
@@ -2106,6 +2106,37 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 .mb-shell-layer--map {
     /* Transparent, and click-through except for its own controls. */
     pointer-events: none;
+}
+
+/*
+ * Home holds two surfaces one above the other rather than one, so it is the only layer that
+ * scrolls as a column instead of handing its whole height to a single child.
+ *
+ * This is a fix for a defect introduced by mounting the landing screen, and the defect is worth
+ * recording because it is the same one being hunted, wearing different clothes. The layer is
+ * `position: absolute; inset: 0`, so its height is fixed; `.wl-home` asks for `block-size: 100%`
+ * and, being a flex child, shrinks. On its own that was harmless, because it was the only child
+ * and 100% was the whole layer. With the landing screen above it, the catalogues shrank to zero
+ * and Playwright reported `.wl-home` as *resolved but hidden*: every catalogue capture, including
+ * the three compact widths, timed out against an element that was present in the DOM the whole
+ * time. Making one surface reachable had made another one invisible, which is a worse trade than
+ * leaving both alone.
+ *
+ * So: the layer scrolls, both children take their natural height, and the catalogues' own
+ * `block-size: 100%` is overridden here rather than in their file, because it is correct
+ * everywhere else it is used and only wrong when something is stacked above it.
+ */
+.mb-shell-layer--home {
+    overflow-y: auto;
+}
+
+.mb-shell-layer--home > * {
+    flex: 0 0 auto;
+}
+
+.mb-shell-layer--home > :deep(.wl-home) {
+    block-size: auto;
+    overflow-y: visible;
 }
 
 /*
