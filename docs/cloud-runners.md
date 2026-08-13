@@ -30,9 +30,20 @@ The hand-written inventory in
 Twenty-three executable jobs declare their expected hosted label; thirteen reusable call jobs
 declare their exact checked-in target.
 
+The same inventory declares the tools each job needs but does not install. Ten jobs declare `gh`:
+`chunk-world.yml` plan and assemble, `ci.yml` release, every job in `render-private-world.yml`,
+`render-world.yml` plan, and `scheduled-render.yml` check. `gh` is the one dependency nothing in a
+workflow installs, because it arrives preinstalled on the standard hosted images, which is exactly
+what makes it easy to depend on without noticing. A local checkout gets it from
+`node scripts/bootstrap.mjs`, which installs it user-scoped and reports separately whether anybody
+is signed in.
+
 ## Failure modes
 
 - A new workflow file or job fails the guard until the inventory deliberately names it.
+- A job that starts invoking `gh` without declaring it fails the guard, and so does a declaration
+  left behind after the step that used it was removed. Both directions are checked, because either
+  one alone is satisfied by a tree the inventory has stopped describing.
 - A missing `runs-on`, an expression, a private runner label, or a non-standard hosted label fails
   the guard for executable jobs.
 - A reusable call with a runner label, or an executable job replaced by a reusable call, fails
@@ -104,9 +115,18 @@ Runner 嘅選擇就寫喺 `.github/workflows/` 入面每個可執行 job 隔籬�
 指名咗每一個 workflow 同全部 36 個 job。其中 23 個可執行 job 宣告咗佢哋預期嘅 hosted label；
 13 個可重用呼叫 job 宣告咗佢哋確實嘅已 check in 目標。
 
+同一份清單仲會宣告每個 job 需要、但自己唔會安裝嘅工具。有 10 個 job 宣告咗 `gh`：
+`chunk-world.yml` 嘅 plan 同 assemble、`ci.yml` 嘅 release、`render-private-world.yml` 全部 job、
+`render-world.yml` 嘅 plan，同 `scheduled-render.yml` 嘅 check。`gh` 係唯一一個冇任何 workflow
+會去安裝嘅依賴，因為標準 hosted image 本身已經預裝咗佢，而正正就係咁，先至最易喺唔為意之下
+就用咗佢。本機 checkout 就靠 `node scripts/bootstrap.mjs` 攞返佢：佢會以 user scope 裝好，
+再分開講清楚究竟有冇人登入咗。
+
 ### 失敗模式
 
 - 一個新嘅 workflow 檔或者新 job，喺份清單特登指名佢之前，都會令個 guard 失敗。
+- 一個開始呼叫 `gh` 但冇宣告佢嘅 job 會令 guard 失敗；一個用咗嗰步已經刪走、但宣告仲留低嘅
+  job 一樣會失敗。兩個方向都會查，因為淨係查一邊嘅話，一棵份清單已經唔再描述得到嘅樹都照樣過骨。
 - 可執行 job 如果冇 `runs-on`、用咗表達式、用咗私有 runner label，或者用咗非標準嘅 hosted label，
   都會令個 guard 失敗。
 - 一個帶住 runner label 嘅可重用呼叫，或者一個被可重用呼叫取代咗嘅可執行 job，都會失敗，

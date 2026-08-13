@@ -40,9 +40,12 @@ import { fileURLToPath } from "node:url";
 import {
   JAR_STAMP_NAME,
   assertSafeDeletionTarget,
+  classifyGhAuthStatus,
   hasShadowJar,
   jarBuildState,
+  parseGhVersion,
   parseHeadCommit,
+  selectGhCandidate,
   selectJavaCandidate,
   resetDirectory,
   shadowJarVersion,
@@ -61,6 +64,19 @@ const skipJars = args.has("--skip-jars");
 
 /** Upstream pins `JavaLanguageVersion.of(25)` in buildSrc; anything older cannot build it. */
 const REQUIRED_JAVA_MAJOR = 25;
+
+/**
+ * The sign-in command printed for a reader to run in their own terminal, scopes and all.
+ *
+ * The scopes are spelled out because gh's own default grant is `repo`, `read:org`, `gist`, and
+ * three of the six this repository needs are outside it. Without `workflow` a render dispatch is
+ * refused, and without the two project scopes the Projects work is. Worse, the refusal arrives as
+ * a 403 that reads as "this account has no write access", which sends the reader looking at
+ * repository permissions for a missing scope.
+ */
+const GH_LOGIN_COMMAND =
+  "gh auth login --hostname github.com --git-protocol https " +
+  "--scopes repo,workflow,gist,read:org,read:project,project";
 
 /** A courtesy check must never hold a build hostage, so it gets a hard ceiling. */
 const UPSTREAM_CHECK_TIMEOUT_MS = 15_000;
@@ -650,6 +666,193 @@ function bluemapUpstream() {
   };
 }
 
+/**
+ * Every place a usable GitHub CLI might already be, in the order worth trying.
+ *
+ * The Java step above is the reason this list is not just `gh` on PATH. That step used to look
+ * only there, and told a machine which had provisioned a perfectly good JDK an hour earlier to go
+ * and install one. The same trap is set for gh on Windows, where the winget package installs into
+ * `%ProgramFiles%\GitHub CLI` or `%LOCALAPPDATA%\Programs\GitHub CLI` and a shell opened before
+ * that install does not yet have either on PATH. The application already resolves exactly those
+ * roots in `design/packages/app/src/main/ghcli/executable.ts`, so a bootstrap that reported gh as
+ * missing while the app was happily using it would be the two halves of one product disagreeing.
+ *
+ * `GH_PATH` is honoured because that is the variable gh's own ecosystem uses for an explicitly
+ * chosen executable, and somebody who has set it has already said which gh they mean.
+ *
+ * Unlike the application's resolver this list does include PATH. That resolver deliberately
+ * excludes it because it runs credential-bearing commands and must not be redirected by dropping
+ * another `gh` earlier on PATH. Nothing here handles a credential: this step reports what is
+ * installed, so the developer's own PATH is the right first answer rather than a hazard.
+ */
+function ghCandidates() {
+  const exe = process.platform === "win32" ? "gh.exe" : "gh";
+  const candidates = [{ command: "gh", from: "PATH" }];
+
+  const explicit = process.env.GH_PATH;
+  if (explicit !== undefined && explicit.trim().length > 0) {
+    candidates.push({ command: explicit.trim(), from: "GH_PATH" });
+  }
+
+  if (process.platform === "win32") {
+    for (const root of [
+      process.env["ProgramFiles"],
+      process.env["ProgramFiles(x86)"],
+    ]) {
+      if (root) candidates.push({ command: join(root, "GitHub CLI", exe), from: root });
+    }
+    if (process.env.LOCALAPPDATA) {
+      candidates.push({
+        command: join(process.env.LOCALAPPDATA, "Programs", "GitHub CLI", exe),
+        from: "the per-user install location",
+      });
+    }
+  } else {
+    for (const root of ["/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"]) {
+      candidates.push({ command: join(root, exe), from: root });
+    }
+  }
+
+  return candidates;
+}
+
+/**
+ * Installs gh with the platform's own package manager, without asking for administrator rights.
+ *
+ * User-scoped only, on purpose. Every other install in this script lands in the repository or in
+ * the user profile, and gh is not worth being the one that demands elevation: a developer who
+ * cannot elevate still needs a working checkout, and a machine-wide install is a change to
+ * somebody else's toolchain as well as this one. When the user-scoped route is unavailable the
+ * step says which command would do it rather than performing a machine-wide install quietly.
+ */
+function installGhCli() {
+  if (process.platform === "win32") {
+    return run("winget", [
+      "install",
+      "--id",
+      "GitHub.cli",
+      "--source",
+      "winget",
+      "--scope",
+      "user",
+      "--silent",
+      "--accept-package-agreements",
+      "--accept-source-agreements",
+    ]);
+  }
+  if (process.platform === "darwin") {
+    // Homebrew installs into a prefix the user already owns; the platform's other route on macOS
+    // is a machine-wide package installer, which is exactly what this function will not do.
+    return run("brew", ["install", "gh"]);
+  }
+  // Every mainstream Linux package manager writes to /usr and needs root, so there is nothing
+  // here that can be run without elevation. The caller reports that rather than pretending.
+  return { status: 1, unavailable: true };
+}
+
+/**
+ * Reports gh in three states, because they need three different things from the reader.
+ *
+ * gh is not an optional convenience for this repository: it is how every workflow reaches the
+ * GitHub API, how the release job publishes, how a private render moves its sealed payload
+ * around, and how the application itself authenticates every call it makes. So the step checks
+ * that gh is installed AND that somebody is signed in, and never reports one as the other.
+ *
+ * Being signed out is not a failure. A fresh clone that can build and test is the job of this
+ * script, and building needs the executable rather than a credential; only the workflows and the
+ * application need an account. So an unauthenticated gh reports the exact command that signs one
+ * in and lets the run continue. The command is printed for the reader to run in their own
+ * terminal, and is never spawned from here: `gh auth login` suppresses its device-code prompt
+ * when stdin is not a terminal, so a spawned one prints nothing and waits forever.
+ */
+function githubCli() {
+  const found = selectGhCandidate({
+    candidates: ghCandidates(),
+    readVersion: (candidate) => parseGhVersion(capture(candidate.command, ["--version"])),
+  });
+
+  if (found === null) {
+    if (checkOnly) {
+      return {
+        ok: false,
+        detail:
+          "gh is not installed. Looked on PATH, at GH_PATH, and in the conventional install " +
+          "locations. Run this script without --check to install it.",
+      };
+    }
+    log("  gh is not installed; installing it for this user only");
+    const install = installGhCli();
+    if (install.unavailable === true || install.status !== 0) {
+      return {
+        ok: false,
+        detail:
+          install.unavailable === true
+            ? "gh is not installed, and no package manager on this platform can install it " +
+              "without root. Install it from https://cli.github.com and run this again."
+            : "gh is not installed, and the user-scoped package install failed. See the output " +
+              "above, or install it from https://cli.github.com.",
+      };
+    }
+    // A package manager writes PATH for future shells, not for the process that called it, so a
+    // fresh install is found through the install locations rather than through PATH on this run.
+    const installed = selectGhCandidate({
+      candidates: ghCandidates(),
+      readVersion: (candidate) => parseGhVersion(capture(candidate.command, ["--version"])),
+    });
+    if (installed === null) {
+      return {
+        ok: false,
+        detail:
+          "the package manager reported success but no working gh appeared; open a new terminal " +
+          "and run this script again",
+      };
+    }
+    return ghAuthenticationState(installed, "installed just now");
+  }
+
+  return ghAuthenticationState(found, `found via ${found.candidate.from}`);
+}
+
+/** The second and third of the three states, once an executable has been established. */
+function ghAuthenticationState(found, provenance) {
+  const command = found.candidate.command;
+  const probe = spawnSync(command, ["auth", "status", "--json", "hosts"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+  const state = classifyGhAuthStatus({
+    started: probe.error === undefined,
+    output: `${probe.stdout ?? ""}${probe.stderr ?? ""}`,
+  });
+
+  if (state === "authenticated") {
+    return {
+      ok: true,
+      detail: `gh ${found.version} is installed and signed in (${provenance})`,
+    };
+  }
+  if (state === "unauthenticated") {
+    log("  gh is installed but nobody is signed in. In your own terminal, run:");
+    log(`    ${GH_LOGIN_COMMAND}`);
+    return {
+      ok: true,
+      detail:
+        `gh ${found.version} is installed but not signed in (${provenance}); ` +
+        "sign in with the command printed above before using the workflows",
+    };
+  }
+  // The structured route is what the application reads, so a gh that cannot answer it is
+  // reported as its own state rather than folded into "not signed in", which would send the
+  // reader to a login command that will not fix an out-of-date CLI.
+  return {
+    ok: false,
+    detail:
+      `gh ${found.version} (${provenance}) did not answer 'gh auth status --json hosts', which ` +
+      "this repository and the application both read. Upgrade gh and run this again.",
+  };
+}
+
 function playwrightCliPath() {
   const appRoot = join(designRoot, "packages", "app");
   return [
@@ -703,6 +906,7 @@ log(`repository: ${repoRoot}`);
 step("Node dependencies", nodeDependencies);
 step("Electron binary", electronBinary);
 step("Java toolchain", javaToolchain);
+step("GitHub CLI", githubCli);
 step("BlueMap upstream", bluemapUpstream);
 step("BlueMap jars", bluemapJars);
 step("Playwright browsers", playwrightBrowsers);

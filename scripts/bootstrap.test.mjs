@@ -15,10 +15,13 @@ import { afterEach, test } from "node:test";
 
 import {
   JAR_STAMP_NAME,
+  classifyGhAuthStatus,
   hasShadowJar,
   jarBuildState,
+  parseGhVersion,
   parseHeadCommit,
   readJarStamp,
+  selectGhCandidate,
   selectJavaCandidate,
   resetDirectory,
   sha256File,
@@ -310,4 +313,69 @@ test("git's own error text is never mistaken for a commit", () => {
   // A zero exit with something that is not an object name is refused on shape alone.
   assert.equal(parseHeadCommit({ status: 0, stdout: "HEAD\n" }), null);
   assert.equal(parseHeadCommit(null), null);
+});
+
+test("only a real gh banner is read as a gh version", () => {
+  assert.equal(
+    parseGhVersion(
+      "gh version 2.96.0 (2026-07-11)\nhttps://github.com/cli/cli/releases/tag/v2.96.0\n",
+    ),
+    "2.96.0",
+  );
+  assert.equal(parseGhVersion("gh version 2.4 (2021-11-30)"), "2.4");
+
+  // Something else on PATH under the same name. Reading a version out of this would let the
+  // step report gh as installed while every later gh call fails.
+  assert.equal(parseGhVersion("git version 2.51.0"), null);
+  assert.equal(parseGhVersion("'gh' is not recognized as an internal or external command"), null);
+  assert.equal(parseGhVersion(""), null);
+  assert.equal(parseGhVersion(undefined), null);
+});
+
+test("the first candidate that is actually gh wins, and a shim is skipped", () => {
+  const found = selectGhCandidate({
+    candidates: [
+      { command: "gh", from: "PATH", output: "not a program" },
+      { command: "C:\Program Files\GitHub CLI\gh.exe", from: "ProgramFiles", output: "gh version 2.96.0 (2026-07-11)" },
+    ],
+    readVersion: (candidate) => parseGhVersion(candidate.output),
+  });
+
+  assert.equal(found?.version, "2.96.0");
+  assert.equal(found?.candidate.from, "ProgramFiles");
+
+  // Nothing anywhere is null, which is the "install it" state rather than a version of "".
+  assert.equal(
+    selectGhCandidate({ candidates: [{ command: "gh" }], readVersion: () => null }),
+    null,
+  );
+});
+
+test("signed out and not installed are never reported as each other", () => {
+  // What a signed-in machine answers. The structured route is the one the application reads.
+  assert.equal(
+    classifyGhAuthStatus({
+      started: true,
+      output: JSON.stringify({ hosts: { "github.com": [{ login: "someone", active: true }] } }),
+    }),
+    "authenticated",
+  );
+
+  // Nobody signed in. This route answers exit code 0 with an empty host map, which is exactly
+  // why it is used: the plain-text form exits non-zero here and cannot be told apart from a
+  // command that broke.
+  assert.equal(classifyGhAuthStatus({ started: true, output: JSON.stringify({ hosts: {} }) }), "unauthenticated");
+  assert.equal(
+    classifyGhAuthStatus({ started: true, output: JSON.stringify({ hosts: { "github.com": [] } }) }),
+    "unauthenticated",
+  );
+
+  // A gh too old to understand --json prints usage text. That is a third state with a third fix,
+  // so it must not be read as either of the two real answers.
+  assert.equal(
+    classifyGhAuthStatus({ started: true, output: "unknown flag: --json\n\nUsage:  gh auth status\n" }),
+    "unreadable",
+  );
+  assert.equal(classifyGhAuthStatus({ started: true, output: JSON.stringify({ hosts: [] }) }), "unreadable");
+  assert.equal(classifyGhAuthStatus({ started: false, output: "" }), "unreadable");
 });

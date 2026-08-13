@@ -151,6 +151,80 @@ export function selectJavaCandidate({ candidates, requiredMajor, readMajor }) {
 }
 
 /**
+ * Pulls the version out of `gh --version`, or null when that is not what answered.
+ *
+ * `gh --version` prints `gh version 2.96.0 (2026-07-11)` followed by a release URL, so the
+ * version is the third word of the first line and nothing else in the output resembles it. The
+ * parse is deliberately anchored to the `gh version` prefix rather than to "the first thing that
+ * looks like a number": a candidate path can easily be some other program entirely, and a wrapper
+ * or shim that prints its own banner must be treated as "this is not gh" rather than have a
+ * version invented for it from whatever digits it happened to emit.
+ */
+export function parseGhVersion(output) {
+  const match = /\bgh version\s+(\d+\.\d+(?:\.\d+)?)/i.exec(String(output ?? ""));
+  return match === null ? null : match[1];
+}
+
+/**
+ * Picks the first candidate that really is the GitHub CLI.
+ *
+ * Ordered exactly like the Java candidates above and for the same reason: PATH first because that
+ * is what a developer expects to be used, then an explicit environment override, then the
+ * conventional install roots the application itself pins in
+ * `design/packages/app/src/main/ghcli/executable.ts`. A candidate that does not answer with a `gh
+ * version` banner is skipped rather than reported, so a stale shim on PATH cannot make the step
+ * claim gh is installed while every later call fails.
+ */
+export function selectGhCandidate({ candidates, readVersion }) {
+  for (const candidate of candidates) {
+    const version = readVersion(candidate);
+    if (typeof version === "string" && version.length > 0) {
+      return { candidate, version };
+    }
+  }
+  return null;
+}
+
+/**
+ * Decides which of the three gh states a probe actually found.
+ *
+ * The three are genuinely different problems with genuinely different fixes, and collapsing any
+ * two of them sends the reader somewhere useless: "not installed" tells someone with a working gh
+ * to install a second one, and "not authenticated" tells someone with no gh at all to run a
+ * command they do not have. So an absent executable, an executable nobody has signed in to, and a
+ * working signed-in CLI each get their own answer.
+ *
+ * Signed-in state is read from `gh auth status --json hosts`, which is the same structured route
+ * the application uses, and which answers exit code 0 with an empty host map when nobody is
+ * signed in. That matters here: the plain-text form of the command exits non-zero in that case,
+ * so a status probe built on it cannot tell "nobody is signed in" apart from "the command broke".
+ * An output that parses as neither is reported as unreadable rather than as either of the two
+ * real answers, because a gh too old to understand `--json` is a third thing again and guessing
+ * between them is exactly what this function exists to avoid.
+ */
+export function classifyGhAuthStatus({ started, output }) {
+  if (started !== true) return "unreadable";
+  let parsed;
+  try {
+    parsed = JSON.parse(String(output ?? ""));
+  } catch {
+    // A gh that predates `--json` on this command prints its usage text, and a fatal error
+    // prints prose. Neither is a statement about whether anybody is signed in, whatever the
+    // exit code was, so the exit code is deliberately not consulted here.
+    return "unreadable";
+  }
+  if (parsed === null || typeof parsed !== "object") return "unreadable";
+  const hosts = parsed.hosts;
+  if (typeof hosts !== "object" || hosts === null || Array.isArray(hosts)) {
+    return "unreadable";
+  }
+  const signedIn = Object.values(hosts).some(
+    (entries) => Array.isArray(entries) && entries.length > 0,
+  );
+  return signedIn ? "authenticated" : "unauthenticated";
+}
+
+/**
  * The provenance stamp lives beside the jars, not inside them, because the jar is
  * produced by upstream's Gradle build and we do not want to modify it.
  */

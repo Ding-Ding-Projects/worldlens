@@ -97,6 +97,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "startup-recovery.md",
     "dependency-provisioning.md",
     "gh-cli-accounts.md",
+    "github-cli-requirement.md",
     "automatic-updates.md",
     "worldlens-migration.md",
     "render-console.md",
@@ -106,6 +107,10 @@ export const APPLICATION_ORDER: readonly string[] = [
     "scheduled-settings-and-external-sources.md",
     "panel-geometry.md",
     "server-hosted-material-ui.md",
+    // These two were indexed in docs/README.md without ever being named here, so the in-app
+    // browser filed them under "uncategorized" while looking perfectly correct on the site.
+    "ollama.md",
+    "region-watch-safety.md",
 ];
 
 /**

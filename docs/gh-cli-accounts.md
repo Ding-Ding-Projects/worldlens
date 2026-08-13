@@ -31,13 +31,11 @@ command, the JSON route answers **exit code 0 even when nobody is signed in to a
 genuinely fatal error makes it fail, so the application never has to guess whether an empty answer
 means "nobody is signed in" or "the command itself broke".
 
-When the JSON route cannot be parsed at all — an old `gh` that predates `--json` on this command —
-the module falls back to parsing plain `gh auth status` text, isolated in its own function
-(`parseGhAuthStatusText`) with its own tests over real captured output from both the current and a
-legacy `gh` version. If neither route produces something recognisable, the list reports
-`availability: "unrecognised"` rather than an empty list: a format this application does not
-understand is never presented as "you have no accounts", because that would be a claim the
-application has no basis for making.
+When the JSON route cannot be parsed at all, which is what an old `gh` predating `--json` on this
+command produces, the list reports `availability: "incompatible"` and names the upgrade route rather
+than returning an empty list. There is deliberately no plain-text fallback parser: a format this
+application does not understand is never presented as "you have no accounts", because that would be
+a claim it has no basis for making, and guessing at prose output is how it would come to make one.
 
 Each account carries: its login, the host it is on (`github.com` or an enterprise host), whether it
 is the one `gh` would use right now, its reported scopes (or an honest "not reported by this token"
@@ -45,15 +43,15 @@ for a token kind that does not carry a scope list at all), how it was signed in 
 `keyring`, a plain file, and so on — never the credential itself), its git protocol, and whether
 `gh`'s own per-account health check reported anything other than success.
 
-### Install GitHub CLI and sign in from the same screen
+### Installing GitHub CLI from the same screen
 
 When the account probe says `gh` is missing, the account section uses the existing system-dependency
-bridge instead of sending somebody elsewhere or printing a command. It loads the dependency preview,
-selects only the registry entry `githubCli`, and shows its resolved package-manager route (currently
-`winget` package `GitHub.cli`) plus the registry's exact administrator-permission disclosure before
-the button is enabled.
+bridge instead of sending somebody elsewhere. It loads the dependency preview, selects only the
+registry entry `githubCli`, and shows its resolved package-manager route (currently `winget` package
+`GitHub.cli`) plus the registry's exact administrator-permission disclosure before the button is
+enabled.
 
-**Install GitHub CLI and sign in** is one guarded chain with one operation in flight:
+**Install GitHub CLI and check again** is one guarded chain with one operation in flight:
 
 1. Run `installSysdeps(["githubCli"])`, never the other selected dependencies from the full System
    dependencies screen.
@@ -61,52 +59,53 @@ the button is enabled.
    phase-only event remains indeterminate; the interface never invents a percentage.
 3. Accept only an `installed` or `already-installed` outcome that the dependency engine verified.
    If the preview already verified an installed `gh`, skip package-manager mutation entirely.
-4. Re-read the real `gh` account state. If `gh` is still unavailable on the app's PATH, stop and
-   say so; never pretend the installation made the next stage possible.
-5. Start the existing GUI device flow only after that re-probe proves `gh` is available.
+4. Re-read the real `gh` account state. If `gh` is still unavailable, stop and say so; never pretend
+   the installation made anything else possible.
 
 Cancellation follows the stage that owns the work. During installation it calls the existing
-`cancelSysdepInstall()` bridge and does not fall through to sign-in. Once device approval starts,
-the existing **Cancel sign-in** action calls `ghCliCancelLogin()`. A cancellation between stages is
-remembered and prevents the next stage from beginning.
+`cancelSysdepInstall()` bridge; a cancellation between stages is remembered and prevents the next
+stage from beginning, and says that the account list may therefore be out of date.
 
-### GUI sign-in and scope repair
+### Sign-in is a command, not a button
 
-The account section completes `gh` sign-in without asking somebody to run a terminal command. The
-main process uses GitHub CLI's verified public OAuth client identity (`178c6fc778ccc68e1d6a`) to
-request a device code, then shows only the one-time user code and GitHub approval URL in Settings.
-It requests `repo`, `workflow`, `gist`, `read:org`, `read:project`, and `project` together so one
-approval covers every permission this application can need through `gh`.
+There is no in-app sign-in, and its absence is deliberate. `gh auth login` and `gh auth refresh`
+suppress their own approval prompt when they are not attached to a terminal, so spawning either one
+from a window prints nothing and then waits forever. A button that appeared to sign somebody in and
+then hung would be worse than no button at all.
 
-Pending approval, GitHub's `slow_down` response, denial, expiry, cancellation, credential storage,
-and identity verification are distinct visible states. Before either opening or rendering an
-address, the main process requires the exact HTTPS `github.com/login/device` route (and only the
-matching `user_code` query on a complete URL); the code and URL remain visible if no browser
-association exists.
-
-After approval, the access token stays in the main process just long enough to be written over
-stdin with the exact argument array below. The app removes inherited `GH_TOKEN`, `GITHUB_TOKEN`,
-enterprise-token variants, `GH_HOST`, and `GH_DEBUG` from this command and both proof commands, so
-an environment override cannot masquerade as the newly stored account, redirect host selection, or
-print auth diagnostics:
+The section therefore prints the exact command, with a copy control beside it and the **Check
+again** action that re-reads `gh` afterwards:
 
 ```text
-gh auth login --hostname github.com --git-protocol https --with-token
+gh auth login --hostname github.com --git-protocol https --scopes repo,workflow,gist,read:org,read:project,project
 ```
 
-The app never places it in argv, an environment variable, an intermediary file, a log message, or
-IPC. `gh` owns whichever operating-system keyring or CLI configuration storage it selects. The
-main process then runs `gh auth status --hostname github.com --json hosts` and
-`gh api --hostname github.com user --jq .login`; success is reported only when the stored active
-account and effective API identity agree. The application retains no token copy.
+Every scope is named because `gh auth login`'s own default grant is only `repo`, `read:org` and
+`gist`. Without `workflow`, the first CI dispatch fails with a permission error that reads like a
+missing repository permission rather than a missing scope.
 
 The section still computes, per account, which operation-critical scopes (`repo` for backup and
-`workflow` for CI dispatch) are missing. **Approve required permissions** starts the same GUI flow
-with that account as the expected identity. If the browser approves somebody else, the interface
-reports which account `gh` actually stored and activated; it never claims the requested account
-changed.
+`workflow` for CI dispatch) are missing, and prints that account's own repair command rather than
+a general one:
 
-### Switching gh's active account
+```text
+gh auth refresh --hostname <host> --user <login> --scopes repo,workflow,read:project,project
+```
+
+The host and login come from the row, so an enterprise account's repair names that enterprise host.
+Nothing is redirected through `github.com`, and enterprise hosts are no longer a special case: what
+used to be a github.com-only device flow is now a command that names whichever host the account is
+actually on.
+
+Because an unqualified `gh` command runs as whichever account is active, and that is machine-wide,
+the section also names the active account in a sentence rather than leaving it to a chip on a row,
+and says so plainly when `gh` reports no active account at all.
+
+The whole reason this reads as a reporting surface is that this application holds no GitHub
+credential of its own. That arrangement, and what each reported state means, is
+[GitHub CLI is required, and it holds the only GitHub credential](./github-cli-requirement.md).
+
+### Switching gh's active account### Switching gh's active account
 
 Pressing "Switch" on a row calls `gh auth switch --hostname <host> --user <login>` — both flags are
 always supplied, so the call is never left to `gh`'s own interactive disambiguation prompt, which
@@ -191,16 +190,15 @@ button that cannot run.
 
 | Situation                                                                                            | What is shown                                                                                                                                                                   |
 | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gh` is not on PATH at all                                                                           | The resolved `GitHub.cli` installer route, administrator-permission disclosure, and **Install GitHub CLI and sign in**. Older shells fall back to the System dependencies link. |
-| The installer is cancelled                                                                           | Real cancellation progress followed by a stopped state. Account probing and device sign-in do not begin.                                                                        |
-| The package manager finishes but `gh` verification fails                                             | The real verification failure is shown. Account probing and device sign-in do not begin.                                                                                        |
-| The preview already verifies an installed `gh`                                                       | Package-manager mutation is skipped; the app re-probes accounts and proceeds to device sign-in.                                                                                 |
-| `gh` is installed but nobody is signed in to it                                                      | An honest signed-out status plus **Sign in with gh**, which opens the GUI device flow.                                                                                          |
+| `gh` cannot be started at all                                                                        | The resolved `GitHub.cli` installer route, administrator-permission disclosure, and **Install GitHub CLI and check again**. Older shells fall back to the System dependencies link. |
+| The installer is cancelled                                                                           | Real cancellation progress followed by a stopped state. The fresh account probe does not begin, and the list is described as possibly out of date.                              |
+| The package manager finishes but `gh` verification fails                                             | The real verification failure is shown, and the fresh account probe does not begin.                                                                                             |
+| The preview already verifies an installed `gh`                                                       | Package-manager mutation is skipped and the app simply re-probes accounts.                                                                                                      |
+| The account read itself throws                                                                       | The raw error plus a sentence saying nothing is known about the sign-in, explicitly not the same as `gh` reporting that nobody is signed in.                                     |
+| `gh` is installed but nobody is signed in to it                                                      | `gh`'s own signed-out answer plus the exact `gh auth login` command, with a copy control and **Check again**.                                                                    |
 | `gh` answers a shape this build does not recognise (a very old or very new `gh`)                     | "gh answered … in a format this application does not recognise, so its accounts cannot be listed safely." Never reported as zero accounts.                                      |
-| An account's token is short a scope this application needs                                           | A warning naming the missing scopes plus **Approve required permissions**, using the same GUI flow.                                                                             |
-| Approval is pending or GitHub asks the client to slow down                                           | The code, URL, countdown, and current wait state remain visible; the polling interval only grows.                                                                               |
-| Approval is denied, expires, or is cancelled                                                         | A terminal state names exactly what happened. No `gh` command runs before approval.                                                                                             |
-| `gh` stores the credential but status or API identity cannot be proved                               | The UI says storage may have happened but verification failed; it never reports a successful sign-in.                                                                           |
+| An account's token is short a scope this application needs                                           | A warning naming the missing scopes plus that account's own `gh auth refresh` command, carrying its real host and login.                                                         |
+| Accounts exist but none of them is active                                                            | Said in words, because an unqualified `gh` command is then unpredictable.                                                                                                       |
 | `gh auth switch` reports success but the account did not actually become active                      | Reported as a failure, with `gh`'s own message — never a false "Active" chip.                                                                                                   |
 | The selected account is signed in but inactive when a release operation begins                       | The app switches to it with the exact host and login, re-reads the account inventory, verifies the effective API identity, and leaves it active machine-wide.                   |
 | The selected account is missing, unhealthy, the switch is refused, or the effective identity differs | The release command is not run. The upload panel names the account and host, says no release data changed, and offers **Open GitHub accounts** beside the failure.              |
@@ -217,13 +215,11 @@ button that cannot run.
   warning above the row actions is treated as safety-critical copy: it is pinned by
   `GHCLIACCOUNTS_FACTS` so no funny level or rewrite can soften "whole computer" away, and it is
   shown before the action is taken as well as confirmed in the result afterward.
-- **The interactive `gh auth login` prompt is never scraped.** It suppresses its device code without
-  a terminal. The app performs the documented device exchange, then invokes only the
-  non-interactive `--with-token` storage form with the approved token on stdin.
-- **The token has one secret-safe route.** It exists only inside the main-process login function,
-  is redacted from every failure, and is absent from event, state, and result types. Tests assert it
-  is present on stdin but absent from argv, inherited auth environment, IPC-shaped JSON, and
-  rendered text. Account listing, switching, storage, status, and API proof all omit `GH_TOKEN`,
+- **Sign-in is never driven from here at all.** `gh auth login` and `gh auth refresh` suppress
+  their own approval prompt without a terminal, so the application names the command and lets the
+  user run it. There is no token route to secure because no token ever enters this application.
+- **Environment hygiene still applies to everything that does run.** Account listing, switching and
+  every credential-bearing call omit `GH_TOKEN`,
   `GITHUB_TOKEN`, their enterprise variants, `GH_HOST`, and `GH_DEBUG`; `GH_CONFIG_DIR` stays
   inherited because it identifies the user's real gh credential store.
 - **The credential-routing fallback never authenticates as an unselected identity for a write.**
@@ -236,24 +232,21 @@ button that cannot run.
 
 ## Verification
 
-- `design/packages/app/src/main/ghcli/accounts.test.ts` — 25 tests over real captured
-  `gh auth status --json hosts` and plain-text output (multi-account, empty, the "not logged into
-  any hosts" sentence, the legacy `Logged in to HOST as LOGIN` form, an unrecognised format, and the
-  switch path re-reading rather than trusting the exit code), plus a `--show-token` never-appears
-  check.
+- `design/packages/app/src/main/ghcli/accounts.test.ts` — real captured
+  `gh auth status --json hosts` output (multi-account, empty, an unparseable answer reported as
+  incompatible rather than as zero accounts, and the switch and sign-out paths re-reading rather
+  than trusting an exit code), plus a `--show-token` never-appears check.
 - `design/packages/app/src/main/ghcli/routing.test.ts` — 31 tests over the failure classifier, the
   scope-based chooser, the write-route gate, and the full `routeWithFallback` orchestrator (an
   authentication failure that falls back and succeeds; a network error and a rate limit that do not;
   a 404-then-success reported as an access difference; a 404-then-404 reported as genuinely missing;
   a write whose fallback account differs asking rather than proceeding, and one whose account matches
   proceeding; `gh` unavailable degrading honestly; no token-shaped string in any produced message).
-- `design/packages/app/src/main/ghcli/login.test.ts` — direct device-flow coverage for pending,
-  slow-down, denial, expiry, cancellation, stdin-only credential storage, status/API identity proof,
-  account mismatch, strict approval-URL validation, inherited auth-environment removal, and token
-  redaction.
-- `design/packages/app/src/main/ghcli/ipc.test.ts` — channel registration/disposal, account handlers,
-  secret-free progress events, explicit and renderer-close cancellation, and the
-  one-process-wide-login guard.
+- `design/packages/ui/src/components/github/GhCliAccountsList.test.ts` — the reported states, the
+  exact sign-in and per-account repair commands, the difference between a failed probe and an empty
+  account list, the named active account, and the absence of anything token-shaped.
+- `design/packages/app/src/main/ghcli/ipc.test.ts` — channel registration and disposal, and the
+  account handlers.
 - `design/packages/app/src/main/cirender/gh.test.ts` — a real child-process check proving omitted
   environment names are removed case-insensitively without putting their values in argv.
 - `design/packages/ui/src/copy/surfaces/ghCliAccounts.test.ts` — 12 tests over the catalogue's shape
@@ -303,41 +296,46 @@ runtime proof, not a claim made by these tests.
 
 Main process（`design/packages/app/src/main/ghcli/accounts.ts`）透過 `gh auth status --json hosts` 去讀 `gh` 嘅帳戶清單 —— 呢條係穩定、有結構嘅路徑，喺開發呢個功能時所用嘅 `gh` 版本（2.96.0，2026 年 7 月）確認過存在。同一條指令嘅純文字形式唔同，JSON 呢條路**就算冇人登入任何嘢都照樣回傳 exit code 0**；淨係真正致命嘅錯誤先會令佢失敗，所以 app 永遠唔使去估一個空答案究竟係「冇人登入」定係「條指令本身壞咗」。
 
-如果 JSON 嗰條路完全解析唔到（例如舊版 `gh`，嗰時呢條指令仲未有 `--json`），模組會退返去解析純文字嘅 `gh auth status`，而且獨立喺自己一個 function（`parseGhAuthStatusText`）入面，配自己嘅測試，測試資料係由現行版本同一個舊版 `gh` 真實擷取返嚟嘅輸出。兩條路都得唔到認得嘅嘢嗰陣，個清單會報 `availability: "unrecognised"`，而唔係一張空清單：一種 app 唔明嘅格式，永遠唔會被呈現成「你冇帳戶」，因為咁講係一個 app 根本冇根據去落嘅斷言。
+如果 JSON 嗰條路完全解析唔到（例如舊版 `gh`，嗰時呢條指令仲未有 `--json`），個清單會報 `availability: "incompatible"` 並指去升級路線，而唔係交一張空清單。呢度有心咁冇純文字後備解析器：一種 app 唔明嘅格式，永遠唔會被呈現成「你冇帳戶」，因為咁講係一個 app 根本冇根據去落嘅斷言，而靠估佢啲散文輸出正正就係會落到咁嘅斷言。
 
 每個帳戶帶住：佢嘅 login、佢喺邊個 host（`github.com` 或者 enterprise host）、佢係咪 `gh` 而家會用嗰個、佢報稱嘅 scopes（如果係一種根本唔帶 scope 清單嘅 token，就老實噉寫「呢個 token 冇報 scope」）、佢係點樣登入嘅（`tokenSource` —— `keyring`、純檔案等等，**永遠唔會**係 credential 本身）、佢嘅 git protocol，同埋 `gh` 自己嗰個逐帳戶健康檢查有冇報返任何唔係成功嘅嘢。
 
-#### 喺同一個畫面安裝 GitHub CLI 兼登入
+#### 喺同一個畫面安裝 GitHub CLI
 
-當帳戶探測話 `gh` 唔見咗，帳戶嗰節唔會叫人去第二度、亦唔會印一條指令畀你自己打，而係用返現有嘅 system-dependency bridge。佢載入 dependency preview，只揀 registry 入面 `githubCli` 嗰一項，喺個掣可以撳之前，顯示佢解析出嚟嘅套件管理員路徑（目前係 `winget` 嘅 `GitHub.cli` package）同埋 registry 寫明嘅管理員權限披露。
+探測話 `gh` 唔喺度嗰陣，帳戶區會用返現有嘅系統依賴橋接，唔會叫你去第二度。佢載入依賴預覽、只揀
+`githubCli` 一項，顯示解析到嘅套件管理器路線（而家係 `winget` 套件 `GitHub.cli`）同埋清單入面確切嘅
+管理員權限披露，之後粒掣先至可以撳。
 
-**Install GitHub CLI and sign in** 係一條有守衛嘅連鎖流程，同一時間只有一個操作進行中：
+**安裝 GitHub CLI 再檢查** 係一條有守衛、同一時間只做一件事嘅鏈：只跑 `installSysdeps(["githubCli"])`、
+只顯示真實階段同百分比、只接受依賴引擎驗證過嘅 `installed` 或 `already-installed`、然後重新讀一次
+`gh` 嘅真實帳戶狀態。取消由擁有嗰步嘅階段處理，並且會講明帳戶列表可能因此唔係最新。
 
-1. 行 `installSysdeps(["githubCli"])`，唔會連埋完整 System dependencies 畫面上面其他揀咗嘅相依項目一齊裝。
-2. 有真實數值嗰陣就顯示安裝事件真正嘅階段、訊息同確定百分比。只有階段而冇數值嘅事件就保持 indeterminate；介面永遠唔會作一個百分比出嚟。
-3. 只接受 dependency engine 驗證過嘅 `installed` 或者 `already-installed` 結果。如果 preview 已經驗證到 `gh` 裝咗，就完全跳過套件管理員嘅改動。
-4. 重新讀一次真實嘅 `gh` 帳戶狀態。如果 `gh` 喺 app 嘅 PATH 上面仲係搵唔到，就停低同講明；永遠唔會扮到好似安裝令下一步變得可行噉。
-5. 要等呢次重新探測證實到 `gh` 真係有，先至開始現有嘅 GUI device flow。
+#### 登入係一句指令，唔係一粒掣
 
-取消嘅處理跟返邊個階段擁有嗰份工。安裝期間佢會叫現有嘅 `cancelSysdepInstall()` bridge，唔會順住流落去做登入。一旦 device approval 開始咗，就係現有嘅 **Cancel sign-in** 動作去叫 `ghCliCancelLogin()`。喺兩個階段之間取消會被記住，並且阻止下一階段開始。
+呢度冇程式內登入，而且係有心咁冇。`gh auth login` 同 `gh auth refresh` 冇連住 terminal 就會收起自己
+個批准提示，喺視窗度開只會乜都唔印、然後永遠等落去。一粒睇落似登入、實際上吊死嘅掣，仲衰過冇掣。
 
-#### GUI 登入同 scope 修補
-
-帳戶嗰節可以完成 `gh` 登入，唔使叫人去 terminal 打指令。Main process 用 GitHub CLI 已核實嘅公開 OAuth client identity（`178c6fc778ccc68e1d6a`）去要一個 device code，然後喺 Settings 入面淨係顯示嗰個一次性 user code 同 GitHub 嘅批准 URL。佢一次過要求 `repo`、`workflow`、`gist`、`read:org`、`read:project` 同 `project`，等一次批准就覆蓋晒呢個 app 經 `gh` 可能需要嘅所有權限。
-
-等待批准、GitHub 回 `slow_down`、被拒絕、過期、取消、credential 儲存、身分核實，全部都係唔同嘅可見狀態。喺開啟或者顯示任何網址之前，main process 都要求佢必須係 HTTPS 嘅 `github.com/login/device` 呢條確切路徑（完整 URL 亦淨係接受相符嘅 `user_code` query）；就算冇瀏覽器可以關聯，個 code 同 URL 都會照樣顯示住。
-
-批准之後，access token 淨係喺 main process 停留到啱啱好夠用下面呢個確切參數陣列經 stdin 寫出去。App 會由呢條指令同兩條證明指令入面移走繼承落嚟嘅 `GH_TOKEN`、`GITHUB_TOKEN`、enterprise token 變體、`GH_HOST` 同 `GH_DEBUG`，令環境覆寫唔可以扮成新存起嘅帳戶、唔可以改變 host 選擇、亦唔會印出 auth 診斷資料：
+所以帳戶區直接印出確切指令，隔籬有複製掣，行完之後撳「再檢查」：
 
 ```text
-gh auth login --hostname github.com --git-protocol https --with-token
+gh auth login --hostname github.com --git-protocol https --scopes repo,workflow,gist,read:org,read:project,project
 ```
 
-App 永遠唔會將佢放入 argv、環境變數、中間檔案、log 訊息或者 IPC。要用邊個作業系統 keyring 定 CLI 設定儲存，係由 `gh` 自己話事。跟住 main process 會行 `gh auth status --hostname github.com --json hosts` 同 `gh api --hostname github.com user --jq .login`；要儲存咗嘅生效帳戶同實際 API 身分兩者一致，先會報成功。App 唔會留低任何 token 副本。
+每個 scope 都寫出嚟，因為 `gh auth login` 自己預設只授 `repo`、`read:org`、`gist`；冇咗 `workflow`，
+第一次 CI dispatch 會撞到一個似「冇 repository 權限」嘅錯，其實係少咗 scope。
 
-呢一節仲會逐個帳戶計出邊啲對操作至關重要嘅 scope 唔見咗（備份要 `repo`，CI dispatch 要 `workflow`）。**Approve required permissions** 會用同一條 GUI 流程，並將嗰個帳戶當成預期身分。如果喺瀏覽器批准咗第二個人，介面會報返 `gh` 實際存低同啟用咗邊個帳戶；佢永遠唔會訛稱你要求嗰個帳戶改咗。
+每個帳戶欠邊個關鍵 scope（`repo` 用嚟備份、`workflow` 用嚟 dispatch CI）照計，並且印出屬於嗰個帳戶
+自己嘅修復指令：
 
-#### 切換 `gh` 嘅生效帳戶
+```text
+gh auth refresh --hostname <host> --user <login> --scopes repo,workflow,read:project,project
+```
+
+host 同 login 由嗰一行嚟，所以企業帳戶會寫返自己嗰個企業主機，唔會被送去 `github.com`。同時，因為
+冇指名帳戶嘅 `gh` 指令會用生效嗰個、而生效係成部電腦通用，帳戶區會用一句說話講明邊個生效；`gh` 話
+冇生效帳戶都會照講。
+
+#### 切換 `gh` 嘅生效帳戶#### 切換 `gh` 嘅生效帳戶
 
 喺某一行撳 "Switch" 會叫 `gh auth switch --hostname <host> --user <login>` —— 兩個 flag 一定齊齊畀，噉就唔會落入 `gh` 自己嗰個互動式釐清提示（反正呢個 app 都答唔到）。
 
@@ -368,9 +366,9 @@ Release 相關嘅 subcommand 用佢哋支援嘅 repository 文法去帶住個 ho
 
 ### 失效情況
 
-原文嗰個表逐項列咗每種情況同對應顯示，重點如下。`gh` 完全唔喺 PATH 嗰陣，會顯示解析好嘅 `GitHub.cli` 安裝路徑、管理員權限披露同 **Install GitHub CLI and sign in**（舊 shell 就退返去 System dependencies 連結）。安裝被取消，會顯示真實嘅取消進度再入停止狀態，帳戶探測同 device 登入唔會開始；套件管理員行完但 `gh` 驗證失敗，都係顯示真實嘅驗證失敗，而且一樣唔會開始探測同登入。Preview 已經驗證到 `gh` 裝咗，就跳過套件管理員嘅改動，直接重新探測帳戶再入 device 登入。
+原文嗰個表逐項列咗每種情況同對應顯示，重點如下。完全起動唔到 `gh` 嗰陣，會顯示解析好嘅 `GitHub.cli` 安裝路徑、管理員權限披露同 **安裝 GitHub CLI 再檢查**（舊 shell 就退返去 System dependencies 連結）。安裝被取消，會顯示真實嘅取消進度再入停止狀態，重新探測帳戶唔會開始，而且會講明列表可能唔係最新；套件管理員行完但 `gh` 驗證失敗，都係顯示真實嘅驗證失敗，一樣唔會開始探測。Preview 已經驗證到 `gh` 裝咗，就跳過套件管理員嘅改動，直接重新探測帳戶。
 
-`gh` 裝咗但冇人登入，會顯示老實嘅未登入狀態加 **Sign in with gh**（開 GUI device flow）。`gh` 回一個呢個 build 唔認得嘅格式（太舊或者太新嘅 `gh`），會講明「gh 答咗一個本應用程式唔認得嘅格式，所以冇辦法安全噉列出佢啲帳戶」，永遠唔會報成零個帳戶。某帳戶嘅 token 少咗 app 需要嘅 scope，就會出一個列明缺乜嘅警告加 **Approve required permissions**，用同一條 GUI 流程。批准仲未有結果、或者 GitHub 叫 client 慢啲，個 code、URL、倒數同當前等待狀態都會繼續睇到，輪詢間隔只會越拉越長。批准被拒、過期或者取消，會有一個終局狀態講明到底發生咗咩事，而且喺批准之前唔會行過任何 `gh` 指令。`gh` 存低咗 credential 但 status 或者 API 身分證明唔到，介面會講可能已經存低但驗證失敗，永遠唔會報成登入成功。
+讀取帳戶時本身拋錯，會原文顯示嗰個錯，再加一句話明依家對登入一無所知，同 `gh` 講「冇人登入咗」唔係同一回事。`gh` 裝咗但冇人登入，會顯示 `gh` 自己嘅答案，加埋確切嘅 `gh auth login` 指令、複製掣同「再檢查」。`gh` 回一個呢個 build 解析唔到嘅格式（太舊嘅 `gh`），會報成 incompatible 並指去升級路線，永遠唔會報成零個帳戶；呢度冇純文字後備解析器，因為靠估佢啲散文輸出正正就係會作出無根據結論嘅方法。某帳戶嘅 token 少咗 app 需要嘅 scope，就會出一個列明缺乜嘅警告，加埋屬於嗰個帳戶自己嘅 `gh auth refresh` 指令，入面寫住佢真正嘅 host 同 login。有帳戶但一個都唔生效，都會用說話講出嚟，因為嗰陣冇指名帳戶嘅 `gh` 指令會變得估唔到。
 
 `gh auth switch` 話成功但個帳戶其實冇變成生效，會報成失敗並附 `gh` 自己嘅訊息，唔會出一個假嘅 "Active" chip。Release 操作開始嗰陣，如果所揀帳戶已登入但唔生效，app 會用確切嘅 host 同 login 切過去、重新讀帳戶清單、核實實際 API 身分，然後任由佢喺全機層面保持生效。如果所揀帳戶唔見咗、唔健康、切換被拒、或者實際身分唔對，就唔會行 release 指令：上載面板會講明係邊個帳戶同 host、話冇任何 release 資料改動過，並喺失敗訊息隔籬提供 **Open GitHub accounts**。揀咗 enterprise host 嗰陣，release 指令用 `--repo <host>/<owner>/<repository>`，唔會加上唔支援嘅 `--hostname`。有帳戶但搜尋乜都對唔到，會顯示「Nothing here matches that search. Clearing it brings the whole list back.」，同「裝咗但冇人登入」以及「冇裝」三者分得清清楚楚。
 
@@ -378,7 +376,7 @@ Release 相關嘅 subcommand 用佢哋支援嘅 repository 文法去帶住個 ho
 
 - **Token 永遠唔會越過呢條邊界。** 永遠唔會傳 `gh auth status --show-token`，永遠唔會直接讀 `gh` 嘅 credential 檔案，而帳戶／登入嘅 IPC channel、進度事件同 renderer bridge 嘅型別入面，冇任何一個帶 token 欄位。`main/ghcli/` 入面每一個測試都會斷言 `--show-token` 從來冇出現喺任何 spawn 出嚟嘅指令參數入面。
 - **切換係公開講明，唔係收埋。** 因為 `gh auth switch` 真係全機生效，行動作上方嗰個警告當成安全關鍵文案：由 `GHCLIACCOUNTS_FACTS` 釘死，所以冇任何 funny level 或者改寫可以將「成部電腦」呢句軟化掉；而且喺動作之前就顯示，事後結果度亦再確認一次。
-- **永遠唔會去 scrape 互動式嘅 `gh auth login` 提示。** 冇 terminal 嗰陣佢會收起自己嘅 device code。App 係按官方文件做 device exchange，然後淨係叫非互動嘅 `--with-token` 儲存形式，並將批准咗嘅 token 由 stdin 送入。
+- **完全唔會喺呢度代你登入。** 冇 terminal 嗰陣 `gh auth login` 同 `gh auth refresh` 會收起自己個批准提示，所以 app 只會寫出指令，畀用家自己行。根本冇 token 入過呢個程式，所以亦冇 token 路線需要保護。
 - **Token 只有一條 secret-safe 路徑。** 佢淨係存在於 main process 嘅登入 function 入面，喺每一個失敗訊息都會被 redact，亦唔會出現喺 event、state 或者 result 型別。測試會斷言佢出現喺 stdin，但唔會出現喺 argv、繼承落嚟嘅 auth 環境、IPC 形狀嘅 JSON 或者已渲染嘅文字。帳戶列舉、切換、儲存、狀態同 API 證明統統都省走 `GH_TOKEN`、`GITHUB_TOKEN`、佢哋嘅 enterprise 變體、`GH_HOST` 同 `GH_DEBUG`；`GH_CONFIG_DIR` 就保持繼承，因為佢指明咗用家真正嗰個 gh credential store。
 - **Credential 路由嘅 fallback 永遠唔會用一個未經揀選嘅身分去做寫入。** `decideWriteRoute` 係每一個有寫入能力、會叫 `routeWithFallback` 嘅呼叫者都必經嘅唯一一道閘；一發現 fallback 帳戶同揀咗嗰個唔同，佢就拒絕自動進行 —— 呢個係呢個功能唯一可能引入嘅「靜靜雞嘅意外」形狀。
 - **身分係喺寫入邊界檢查，唔係淨係 preflight 嗰陣檢查。** 打包幾千個檔案可以要幾個鐘，期間另一個 terminal 隨時可以改咗 `gh` 嘅生效帳戶。所以每一次 release 嘅讀／建立／上載都會再檢查一次所揀嘅 host 同 login，一有唔對就喺任何改動之前停低。
@@ -387,7 +385,7 @@ Release 相關嘅 subcommand 用佢哋支援嘅 repository 文法去帶住個 ho
 
 - `design/packages/app/src/main/ghcli/accounts.test.ts` —— 25 個測試，用真實擷取嘅 `gh auth status --json hosts` 同純文字輸出（多帳戶、空、「not logged into any hosts」嗰句、舊版 `Logged in to HOST as LOGIN` 形式、唔認得嘅格式、以及切換路徑係重新讀而唔係信 exit code），再加一個 `--show-token` 永不出現嘅檢查。
 - `design/packages/app/src/main/ghcli/routing.test.ts` —— 31 個測試，覆蓋失敗分類器、按 scope 揀帳戶、寫入路由閘同完整嘅 `routeWithFallback` orchestrator（認證失敗會 fallback 並成功；網絡錯誤同 rate limit 唔會；404 之後成功報成存取權差異；404 之後 404 報成真係唔見咗；fallback 帳戶唔同嘅寫入會去問而唔會照做，帳戶相同嘅就照做；`gh` 唔可用時老實降級；任何產生嘅訊息入面都冇 token 形狀嘅字串）。
-- `design/packages/app/src/main/ghcli/login.test.ts` —— 直接覆蓋 device flow 嘅等待、slow-down、拒絕、過期、取消、只經 stdin 儲存 credential、status/API 身分證明、帳戶唔對、嚴格嘅批准 URL 驗證、移除繼承嘅 auth 環境同 token redaction。
+- `design/packages/ui/src/components/github/GhCliAccountsList.test.ts` —— 覆蓋各個狀態、確切嘅登入同修復指令、探測失敗同空帳戶名單嘅分別、講明邊個帳戶生效，以及畫面上冇任何似 token 嘅嘢。
 - `design/packages/app/src/main/ghcli/ipc.test.ts` —— channel 註冊／釋放、帳戶 handler、唔含秘密嘅進度事件、明確取消同 renderer 關閉取消，以及全程序唯一一個登入嘅守衛。
 - `design/packages/app/src/main/cirender/gh.test.ts` —— 真實 child-process 檢查，證明被省走嘅環境變數名係唔分大細楷噉移除，而且唔會將佢哋嘅值塞入 argv。
 - `design/packages/ui/src/copy/surfaces/ghCliAccounts.test.ts` —— 12 個測試，覆蓋文案目錄嘅形狀（五個 level、兩種語言、冇 em-dash、永遠冇引用過 token）、funny-level slider 真係會改變文字、FACTS pin 喺任何 level 都唔會漏咗「成部電腦」警告或者「gh」／「separate」兩個儲存嘅區分。
