@@ -38,9 +38,13 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  JAR_STAMP_NAME,
   assertSafeDeletionTarget,
   hasShadowJar,
+  jarBuildState,
   resetDirectory,
+  shadowJarVersion,
+  shortCommit,
   verifyElectronArchive,
 } from "./bootstrap-helpers.mjs";
 
@@ -55,6 +59,9 @@ const skipJars = args.has("--skip-jars");
 
 /** Upstream pins `JavaLanguageVersion.of(25)` in buildSrc; anything older cannot build it. */
 const REQUIRED_JAVA_MAJOR = 25;
+
+/** A courtesy check must never hold a build hostage, so it gets a hard ceiling. */
+const UPSTREAM_CHECK_TIMEOUT_MS = 15_000;
 
 const steps = [];
 let failed = false;
@@ -384,10 +391,46 @@ function bluemapJars() {
   }
 
   const cliJar = join(vendorRoot, "implementations", "cli", "build", "libs");
+  const stampFile = join(cliJar, JAR_STAMP_NAME);
   const built = () => hasShadowJar(cliJar);
+  // Read the commit from git rather than from any file in the tree, because a file
+  // is exactly what a half-finished submodule update leaves behind pointing at the
+  // wrong revision. An empty answer means git could not resolve the submodule at
+  // all, and a stamp can never match that, so the build runs.
+  const sourceCommit = capture("git", ["-C", vendorRoot, "rev-parse", "HEAD"])
+    .trim()
+    .split(/\s+/)[0];
+  const state = jarBuildState({
+    jarDirectory: cliJar,
+    stampFile,
+    sourceCommit,
+  });
 
-  if (built()) return { ok: true, detail: "BlueMap CLI jar already built" };
-  if (checkOnly) return { ok: false, detail: "BlueMap CLI jar is not built" };
+  if (state.fresh) {
+    return {
+      ok: true,
+      detail: `BlueMap CLI jar already built from ${shortCommit(sourceCommit)}`,
+    };
+  }
+  if (checkOnly) {
+    // A stale jar and an absent jar are different problems with different fixes, so
+    // the check-only report names which one it found instead of collapsing both into
+    // "not built" and sending the reader looking for the wrong thing.
+    return {
+      ok: false,
+      detail:
+        state.reason === "stale"
+          ? `BlueMap CLI jars are stale: built from ${shortCommit(state.stampCommit)}, source is at ${shortCommit(sourceCommit)}`
+          : state.reason === "missing-jar"
+            ? "BlueMap CLI jar is not built"
+            : `BlueMap CLI jar has no readable provenance stamp, so it cannot be shown to match ${shortCommit(sourceCommit)}`,
+    };
+  }
+  if (state.reason === "stale") {
+    log(
+      `  vendored BlueMap moved from ${shortCommit(state.stampCommit)} to ${shortCommit(sourceCommit)}, rebuilding`,
+    );
+  }
 
   log(
     "  building the BlueMap CLI from vendored source (first run downloads Gradle)",
@@ -420,12 +463,92 @@ function bluemapJars() {
   if (build.status !== 0)
     return { ok: false, detail: "gradle :cli:shadowJar failed" };
 
-  return built()
-    ? { ok: true, detail: "BlueMap CLI jar built" }
-    : {
-        ok: false,
-        detail: "gradle reported success but produced no shadow jar",
-      };
+  if (!built()) {
+    return {
+      ok: false,
+      detail: "gradle reported success but produced no shadow jar",
+    };
+  }
+
+  // The stamp is written only after the jar has been verified present, so a failed or
+  // interrupted build can never leave behind a claim that the jars match the source.
+  const version = shadowJarVersion(cliJar);
+  writeFileSync(
+    stampFile,
+    `${JSON.stringify(
+      {
+        commit: sourceCommit,
+        ...(version === null ? {} : { version }),
+        builtAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  return {
+    ok: true,
+    detail: `BlueMap CLI jar built from ${shortCommit(sourceCommit)}`,
+  };
+}
+
+/**
+ * Says loudly, on every run, when the vendored BlueMap pin has fallen behind upstream.
+ *
+ * It reports and never acts. Advancing the pin changes which third-party source this
+ * project compiles and ships, and a supply-chain action wants a person saying yes to it
+ * rather than a bootstrap script doing it while nobody is watching. Being told every
+ * single build is the loud half of that bargain.
+ *
+ * The step can never fail the run and can never hang it. A developer with no network,
+ * no gh, or an expired token still needs to build, and none of those are reasons to
+ * stop. That is also why the report is never rendered as "up to date" when the check
+ * could not be made: the step reports what it actually knows.
+ */
+function bluemapUpstream() {
+  const script = join(repoRoot, "scripts", "check-bluemap-upstream.mjs");
+  const probe = spawnSync(process.execPath, [script, "--json"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+    // A slow or half-open network connection must not hold a build hostage, so the
+    // check is given a hard ceiling and its absence is simply reported.
+    timeout: UPSTREAM_CHECK_TIMEOUT_MS,
+  });
+  let report = null;
+  try {
+    report = JSON.parse(probe.stdout ?? "");
+  } catch {
+    report = null;
+  }
+  if (report === null || report.determined !== true) {
+    const why =
+      report?.message ??
+      (probe.error?.code === "ETIMEDOUT"
+        ? `no answer within ${UPSTREAM_CHECK_TIMEOUT_MS / 1000}s, which says nothing about whether upstream has moved`
+        : "the upstream check produced no usable report, which says nothing about whether upstream has moved");
+    return {
+      ok: true,
+      detail: `upstream not checked: ${why}`,
+    };
+  }
+  if (report.status === "behind") {
+    log(
+      `  vendored BlueMap is ${report.commitsBehind} commits behind ${report.upstreamRef}.`,
+    );
+    log(
+      "  Advancing it compiles and ships new third-party code, so it is left to you:",
+    );
+    log("    node scripts/check-bluemap-upstream.mjs --advance");
+    return {
+      ok: true,
+      detail: `behind upstream release ${report.upstreamRef} by ${report.commitsBehind} commits`,
+    };
+  }
+  return {
+    ok: true,
+    detail: `pin is ${report.status} against upstream release ${report.upstreamRef}`,
+  };
 }
 
 function playwrightCliPath() {
@@ -481,6 +604,7 @@ log(`repository: ${repoRoot}`);
 step("Node dependencies", nodeDependencies);
 step("Electron binary", electronBinary);
 step("Java toolchain", javaToolchain);
+step("BlueMap upstream", bluemapUpstream);
 step("BlueMap jars", bluemapJars);
 step("Playwright browsers", playwrightBrowsers);
 

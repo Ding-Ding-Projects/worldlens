@@ -123,3 +123,92 @@ export function hasShadowJar(directory) {
     return bytes.readUInt32LE(centralOffset) === 0x02014b50;
   });
 }
+
+/**
+ * The provenance stamp lives beside the jars, not inside them, because the jar is
+ * produced by upstream's Gradle build and we do not want to modify it.
+ */
+export const JAR_STAMP_NAME = "worldlens-jar-provenance.json";
+
+/** Returns the short form used in human-facing messages, tolerating a short input. */
+export function shortCommit(commit) {
+  return typeof commit === "string" ? commit.slice(0, 12) : "unknown";
+}
+
+/**
+ * Reads the stamp, treating every unreadable shape as absent rather than throwing.
+ *
+ * A stamp that cannot be parsed tells us nothing about which source the jars came
+ * from, which is exactly the situation a rebuild resolves. Failing the step instead
+ * would leave a developer stuck behind a one-line JSON file they never wrote by hand.
+ */
+export function readJarStamp(stampFile) {
+  let raw;
+  try {
+    raw = readFileSync(stampFile, "utf8");
+  } catch {
+    return null;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== "object") return null;
+  if (typeof parsed.commit !== "string" || parsed.commit.length === 0) {
+    return null;
+  }
+  return parsed;
+}
+
+/**
+ * Decides whether the built jars still correspond to the vendored source.
+ *
+ * The two conditions are deliberately conjunctive. Asking only whether a jar exists
+ * is the defect this replaces: advancing the submodule left a stale jar in place
+ * forever while the step reported success, so the product rendered with a renderer
+ * built from code no longer in the tree. Asking only whether the stamp matches is
+ * the mirror-image trap, because a stamp outlives a jar somebody deleted by hand.
+ */
+export function jarBuildState({
+  jarDirectory,
+  stampFile,
+  sourceCommit,
+  hasJar = hasShadowJar,
+}) {
+  if (!hasJar(jarDirectory)) {
+    return { fresh: false, reason: "missing-jar", stampCommit: null };
+  }
+  const stamp = readJarStamp(stampFile);
+  if (stamp === null) {
+    return { fresh: false, reason: "missing-stamp", stampCommit: null };
+  }
+  if (stamp.commit !== sourceCommit) {
+    return { fresh: false, reason: "stale", stampCommit: stamp.commit };
+  }
+  return { fresh: true, reason: "fresh", stampCommit: stamp.commit };
+}
+
+/**
+ * Pulls the upstream version out of a shadow jar filename when one is encoded there.
+ *
+ * Upstream does not publish the version anywhere this script can read cheaply, so the
+ * filename is the only source available. It is recorded for a human reading the stamp
+ * and is never used to decide whether to rebuild, which is why an unparseable name is
+ * simply omitted rather than treated as an error.
+ */
+export function shadowJarVersion(directory) {
+  let names;
+  try {
+    names = readdirSync(directory);
+  } catch {
+    return null;
+  }
+  for (const name of names) {
+    if (!name.endsWith("-shadow.jar")) continue;
+    const match = /-(\d[\w.+-]*?)-(?:cli-)?shadow\.jar$/.exec(name);
+    if (match !== null) return match[1];
+  }
+  return null;
+}

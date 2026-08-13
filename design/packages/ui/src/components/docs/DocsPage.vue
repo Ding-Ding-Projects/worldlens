@@ -159,6 +159,8 @@ function categoryLabel(id: DocsCategoryId): string {
     switch (id) {
         case "application":
             return t("docsViewer.category.application", "The application");
+        case "markers":
+            return t("docsViewer.category.markers", "Markers");
         case "rendering":
             return t("docsViewer.category.rendering", "Rendering");
         case "uncategorized":

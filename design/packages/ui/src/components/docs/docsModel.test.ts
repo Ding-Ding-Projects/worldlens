@@ -48,6 +48,10 @@ describe("categoryOfFile", () => {
         expect(categoryOfFile("command-palette.md")).toBe("application");
     });
 
+    it("places a file from the markers table", () => {
+        expect(categoryOfFile("marker-studio.md")).toBe("markers");
+    });
+
     it("places a file from the rendering table", () => {
         expect(categoryOfFile("large-worlds.md")).toBe("rendering");
         expect(categoryOfFile("cloud-runners.md")).toBe("rendering");
@@ -62,14 +66,31 @@ describe("categoryOfFile", () => {
 });
 
 describe("groupByCategory", () => {
-    it("orders groups application, rendering, uncategorized and drops empty ones", () => {
+    it("orders groups application, markers, rendering, uncategorized and drops empty ones", () => {
         const articles = [
             article("bedrock-worlds.md", "Bedrock"),
             article("command-palette.md", "Palette"),
+            article("marker-studio.md", "Studio"),
             article("bluemapgui-parity.md", "Parity"),
         ];
         const groups = groupByCategory(articles);
-        expect(groups.map((group) => group.id)).toEqual(["application", "rendering", "uncategorized"]);
+        expect(groups.map((group) => group.id)).toEqual([
+            "application",
+            "markers",
+            "rendering",
+            "uncategorized",
+        ]);
+    });
+
+    it("sorts a markers article against its own table rather than another category's", () => {
+        // The sort used to pick its ordering array with a two-way ternary, so anything that was
+        // not "application" was measured against RENDERING_ORDER. A markers article appears
+        // nowhere in that list, so it would have scored "not found" and fallen to the end of its
+        // group while still rendering under the right heading, which is exactly the kind of
+        // wrongness nobody notices. Asserting the real position keeps the lookup exhaustive.
+        const groups = groupByCategory([article("marker-studio.md", "Studio")]);
+        const markers = groups.find((group) => group.id === "markers");
+        expect(markers?.articles.map((a) => a.file)).toEqual(["marker-studio.md"]);
     });
 
     it("orders articles within a table category the way README.md lists them", () => {

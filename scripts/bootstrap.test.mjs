@@ -13,7 +13,10 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 
 import {
+  JAR_STAMP_NAME,
   hasShadowJar,
+  jarBuildState,
+  readJarStamp,
   resetDirectory,
   sha256File,
   verifyElectronArchive,
@@ -126,4 +129,83 @@ test("shadow-jar detection rejects tiny or non-jar files and creates no shell sc
 
   assert.equal(hasShadowJar(directory), true);
   assert.equal(existsSync(scratch), false);
+});
+
+// The jar-freshness cases below inject the jar predicate rather than fabricating a
+// real shadow jar, because what is under test is the freshness decision and not the
+// zip validation that hasShadowJar already covers in its own tests above.
+function stampState(directory, { jarPresent, sourceCommit }) {
+  return jarBuildState({
+    jarDirectory: directory,
+    stampFile: join(directory, JAR_STAMP_NAME),
+    sourceCommit,
+    hasJar: () => jarPresent,
+  });
+}
+
+function writeStamp(directory, contents) {
+  writeFileSync(join(directory, JAR_STAMP_NAME), contents);
+}
+
+test("jars with no provenance stamp are rebuilt", () => {
+  const directory = temporaryDirectory();
+  const state = stampState(directory, {
+    jarPresent: true,
+    sourceCommit: "aaa",
+  });
+  assert.equal(state.fresh, false);
+  assert.equal(state.reason, "missing-stamp");
+});
+
+test("jars stamped with the checked-out commit are kept", () => {
+  const directory = temporaryDirectory();
+  writeStamp(directory, JSON.stringify({ commit: "aaa", builtAt: "now" }));
+  const state = stampState(directory, {
+    jarPresent: true,
+    sourceCommit: "aaa",
+  });
+  assert.equal(state.fresh, true);
+  assert.equal(state.reason, "fresh");
+  assert.equal(state.stampCommit, "aaa");
+});
+
+test("jars stamped with a different commit are stale, and name that commit", () => {
+  const directory = temporaryDirectory();
+  writeStamp(directory, JSON.stringify({ commit: "old", builtAt: "then" }));
+  const state = stampState(directory, {
+    jarPresent: true,
+    sourceCommit: "new",
+  });
+  assert.equal(state.fresh, false);
+  assert.equal(state.reason, "stale");
+  assert.equal(state.stampCommit, "old");
+});
+
+test("a matching stamp never outvotes a missing jar", () => {
+  const directory = temporaryDirectory();
+  writeStamp(directory, JSON.stringify({ commit: "aaa", builtAt: "now" }));
+  const state = stampState(directory, {
+    jarPresent: false,
+    sourceCommit: "aaa",
+  });
+  assert.equal(state.fresh, false);
+  assert.equal(state.reason, "missing-jar");
+});
+
+test("an unreadable stamp is treated as absent rather than throwing", () => {
+  const directory = temporaryDirectory();
+  writeStamp(directory, "{ this is not json");
+  assert.equal(readJarStamp(join(directory, JAR_STAMP_NAME)), null);
+  const state = stampState(directory, {
+    jarPresent: true,
+    sourceCommit: "aaa",
+  });
+  assert.equal(state.fresh, false);
+  assert.equal(state.reason, "missing-stamp");
+});
+
+test("a stamp whose commit field is the wrong type is unreadable too", () => {
+  const directory = temporaryDirectory();
+  writeStamp(directory, JSON.stringify({ commit: 42 }));
+  assert.equal(readJarStamp(join(directory, JAR_STAMP_NAME)), null);
 });

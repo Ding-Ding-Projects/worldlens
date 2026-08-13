@@ -119,7 +119,7 @@
         "docs/screenshots/wizard-ssh-world-source.png"
       ],
       "capturedFromInterfaceSource": true,
-      "uiSourceDigest": "a0f027c0dc7116de26fac2eb3410ba1ff439d17a53cd910b0e7f38b78deb766b",
+      "uiSourceDigest": "9f1c372d1675df67b1919fc1fda4f45f3d4fbdae482606d9b065c66f82251967",
       "uiSourceDigestNote": "Re-verified 2026-08-13 by running the full Playwright harness against a freshly built workspace, twice: once with no map for the application-only surfaces and once with WORLDLENS_CAPTURE_MAP pointed at a real rendered web root so the map-dependent surfaces were photographed rather than recorded as out of reach. Every one of these targets came out of that second run, so the digest means all of them and not most of them. The map run is also what exposed the marker studio's capture step: it looked for an anchor that a fallthrough attribute had been overwriting, so it could not have passed on any run, and no run without a map ever reached the selector to find out."
     },
     {

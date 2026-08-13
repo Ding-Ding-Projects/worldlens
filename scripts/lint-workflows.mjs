@@ -447,7 +447,7 @@ const EXPECTED_CI_CONDITIONS = Object.freeze([
 
 const REQUIRED_STEP_LINES = Object.freeze({
   "Guard executable workflow expressions and release metadata": Object.freeze([
-    "node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs",
+    "node --test scripts/bootstrap.test.mjs scripts/check-bluemap-upstream.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs",
     "node scripts/lint-workflows.mjs",
   ]),
   "Verify generated changelog is current": Object.freeze([

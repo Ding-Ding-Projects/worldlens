@@ -136,11 +136,12 @@ export const DOCSVIEWER_FIXED = {
     "docsViewer.clearFilters": { en: "Clear the search", yue: "清走搜尋條件" },
 
     "docsViewer.category.application": { en: "The application", yue: "程式本身" },
+    "docsViewer.category.markers": { en: "Markers", yue: "標記" },
     "docsViewer.category.rendering": { en: "Rendering", yue: "算圖" },
     /*
      * Honest rather than apologetic: `docs/bluemapgui-parity.md` and `docs/README.md` itself
-     * are genuinely not listed under either of README's own two headings today, and this label
-     * says exactly that instead of implying a defect in the article.
+     * are genuinely not listed under any of README's own headings today, and this label says
+     * exactly that instead of implying a defect in the article.
      */
     "docsViewer.category.uncategorized": {
         en: "Elsewhere in the documentation",

@@ -68,7 +68,7 @@ jobs:
       - name: Guard executable workflow expressions and release metadata
         run: |
           set -euo pipefail
-          node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
+          node --test scripts/bootstrap.test.mjs scripts/check-bluemap-upstream.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
           node scripts/lint-workflows.mjs
 
       # A release tag is created after the commit it names, so that commit cannot already

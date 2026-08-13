@@ -2128,6 +2128,21 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  */
 .mb-shell-layer--home {
     overflow-y: auto;
+    /*
+     * The layer paints its own background rather than borrowing one.
+     *
+     * The comment on this destination in the template says it is opaque so the map behind it is
+     * invisible, and that was true by accident: nothing here painted anything, and the catalogues
+     * happened to fill the whole layer because they asked for `block-size: 100%` and were the only
+     * child. Taking that height away, which is what makes two stacked surfaces possible at all,
+     * also took the opacity away, and the map showed straight through Home - map tiles behind the
+     * search field, and the viewer's own control bar visible across the top of a destination that
+     * is `inert` there, which is chrome that looks usable and is not.
+     *
+     * A layer that is documented as opaque should say so itself, rather than depending on which
+     * child happens to be inside it and how tall that child happens to be.
+     */
+    background: rgb(var(--v-theme-background));
 }
 
 .mb-shell-layer--home > * {

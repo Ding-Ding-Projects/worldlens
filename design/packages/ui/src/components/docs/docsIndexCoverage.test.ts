@@ -6,8 +6,9 @@
  * agree:
  *
  *   - `docs/README.md` -- the category index tables a reader browses on the repository and
- *     the site, under "## The application" and "## Rendering".
- *   - `docsModel.ts`'s `APPLICATION_ORDER` and `RENDERING_ORDER` arrays -- which decide how
+ *     the site, under "## The application", "## Markers" and "## Rendering".
+ *   - `docsModel.ts`'s `APPLICATION_ORDER`, `MARKERS_ORDER` and `RENDERING_ORDER` arrays --
+ *     which decide how
  *     the SAME articles are grouped and ordered inside the in-app documentation browser, via
  *     `categoryOfFile()`.
  *
@@ -33,7 +34,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { APPLICATION_ORDER, RENDERING_ORDER, categoryOfFile } from "./docsModel.js";
+import { APPLICATION_ORDER, MARKERS_ORDER, RENDERING_ORDER, categoryOfFile } from "./docsModel.js";
 
 /** `docs/` at the top of the repository -- `docsContent.test.ts` resolves the same directory
  *  the same way, six levels above this file (`components/docs/`). */
@@ -86,10 +87,13 @@ function linkedMarkdownFiles(text: string): readonly string[] {
 
 const README_SECTIONS = sectionsByHeading(README_TEXT);
 const APPLICATION_SECTION = README_SECTIONS.get("The application") ?? "";
+const MARKERS_SECTION = README_SECTIONS.get("Markers") ?? "";
 const RENDERING_SECTION = README_SECTIONS.get("Rendering") ?? "";
 
 /** The `.md` files `docs/README.md` lists under "## The application", in table order. */
 const README_APPLICATION_FILES = linkedMarkdownFiles(APPLICATION_SECTION);
+/** The `.md` files `docs/README.md` lists under "## Markers", in table order. */
+const README_MARKERS_FILES = linkedMarkdownFiles(MARKERS_SECTION);
 /** The `.md` files `docs/README.md` lists under "## Rendering", in table order. */
 const README_RENDERING_FILES = linkedMarkdownFiles(RENDERING_SECTION);
 
@@ -131,8 +135,13 @@ describe("docs/README.md's tables and docsModel.ts's ordering arrays agree", () 
         // below pass vacuously. docs/README.md has 17 application rows and 18 rendering rows
         // today; anything near zero means the parser broke, not that the indexes agree.
         expect(APPLICATION_SECTION.length).toBeGreaterThan(0);
+        expect(MARKERS_SECTION.length).toBeGreaterThan(0);
         expect(RENDERING_SECTION.length).toBeGreaterThan(0);
         expect(README_APPLICATION_FILES.length).toBeGreaterThan(10);
+        // The markers table is deliberately small, so it gets the only floor that can honestly be
+        // asserted about it: at least one row. A "greater than ten" here would be a rule about a
+        // category this repository does not have rather than about the parser working.
+        expect(README_MARKERS_FILES.length).toBeGreaterThan(0);
         expect(README_RENDERING_FILES.length).toBeGreaterThan(10);
         expect(DISK_FILES.length).toBeGreaterThan(20);
     });
@@ -173,6 +182,28 @@ describe("docs/README.md's tables and docsModel.ts's ordering arrays agree", () 
         ).toEqual([]);
     });
 
+    it("has a MARKERS_ORDER entry for every article docs/README.md lists under 'Markers'", () => {
+        const missing = README_MARKERS_FILES.filter((file) => !MARKERS_ORDER.includes(file));
+        expect(
+            missing,
+            missing.length === 0
+                ? undefined
+                : "docs/README.md's \"## Markers\" table links these article(s), but " +
+                      "docsModel.ts's MARKERS_ORDER array does not name them -- so " +
+                      "categoryOfFile() falls back to \"uncategorized\" and each one renders " +
+                      "outside the \"Markers\" heading in the in-app documentation browser, with " +
+                      "no error and no visible breakage.\n\n" +
+                      missing
+                          .map(
+                              (file) =>
+                                  `  - ${file}\n` +
+                                  `    Fix: add "${file}" to MARKERS_ORDER in\n` +
+                                  "      design/packages/ui/src/components/docs/docsModel.ts",
+                          )
+                          .join("\n"),
+        ).toEqual([]);
+    });
+
     it("has a RENDERING_ORDER entry for every article docs/README.md lists under 'Rendering'", () => {
         const missing = README_RENDERING_FILES.filter((file) => !RENDERING_ORDER.includes(file));
         expect(
@@ -201,7 +232,7 @@ describe("docs/README.md's tables and docsModel.ts's ordering arrays agree", () 
         // than the raw arrays, so this fails the same way the shipped defect actually failed:
         // an article a reader can find in docs/README.md rendering under the wrong heading (or
         // no heading) in the app itself.
-        const indexed = [...README_APPLICATION_FILES, ...README_RENDERING_FILES];
+        const indexed = [...README_APPLICATION_FILES, ...README_MARKERS_FILES, ...README_RENDERING_FILES];
         const stranded = indexed.filter(
             (file) => !(file in CATEGORY_EXEMPT) && categoryOfFile(file) === "uncategorized",
         );
@@ -211,7 +242,8 @@ describe("docs/README.md's tables and docsModel.ts's ordering arrays agree", () 
                 ? undefined
                 : "these articles are indexed in docs/README.md but categoryOfFile() in " +
                       "design/packages/ui/src/components/docs/docsModel.ts still calls them " +
-                      "'uncategorized' -- add each one to APPLICATION_ORDER or RENDERING_ORDER " +
+                      "'uncategorized' -- add each one to APPLICATION_ORDER, MARKERS_ORDER or " +
+                      "RENDERING_ORDER " +
                       "there (whichever table docs/README.md lists it under), or add it to " +
                       "CATEGORY_EXEMPT in this test file with a written reason if it is genuinely " +
                       "not a feature article.",
@@ -244,6 +276,28 @@ describe("docs/README.md's tables and docsModel.ts's ordering arrays agree", () 
         ).toEqual([]);
     });
 
+    it("never keeps a MARKERS_ORDER entry docs/README.md's 'Markers' table no longer links", () => {
+        const stale = MARKERS_ORDER.filter((file) => !README_MARKERS_FILES.includes(file));
+        expect(
+            stale,
+            stale.length === 0
+                ? undefined
+                : "docsModel.ts's MARKERS_ORDER names these article(s), but docs/README.md's " +
+                      '"## Markers" table no longer links them (a rename, a deletion, or a row ' +
+                      "moved to a different table) -- a stale entry left behind.\n\n" +
+                      stale
+                          .map(
+                              (file) =>
+                                  `  - ${file}\n` +
+                                  `    Fix: remove "${file}" from MARKERS_ORDER in\n` +
+                                  "      design/packages/ui/src/components/docs/docsModel.ts,\n" +
+                                  "      or restore its row to docs/README.md's \"## Markers\" " +
+                                  "table if the article is meant to still exist.",
+                          )
+                          .join("\n"),
+        ).toEqual([]);
+    });
+
     it("never keeps a RENDERING_ORDER entry docs/README.md's 'Rendering' table no longer links", () => {
         const stale = RENDERING_ORDER.filter((file) => !README_RENDERING_FILES.includes(file));
         expect(
@@ -269,13 +323,16 @@ describe("docs/README.md's tables and docsModel.ts's ordering arrays agree", () 
     it("never names a file in either ordering array that does not exist under docs/ at all", () => {
         // The most literal reading of "stale entry": the article itself is gone, checked
         // against the real directory rather than either hand-maintained index.
-        const ghosts = [...APPLICATION_ORDER, ...RENDERING_ORDER].filter((file) => !DISK_FILES.includes(file));
+        const ghosts = [...APPLICATION_ORDER, ...MARKERS_ORDER, ...RENDERING_ORDER].filter(
+            (file) => !DISK_FILES.includes(file),
+        );
         expect(
             ghosts,
             ghosts.length === 0
                 ? undefined
                 : "these files are named in docsModel.ts's APPLICATION_ORDER or RENDERING_ORDER, " +
-                      "but no such file exists under docs/ -- almost certainly a rename or deletion " +
+                      "but no such file exists under docs/ (checked across every ordering array) -- " +
+                      "almost certainly a rename or deletion " +
                       "that never removed the old entry.\n\n" +
                       ghosts
                           .map((file) => `  - ${file}\n    Fix: remove it from docsModel.ts's ordering arrays.`)
@@ -283,15 +340,33 @@ describe("docs/README.md's tables and docsModel.ts's ordering arrays agree", () 
         ).toEqual([]);
     });
 
-    it("never lists the same file in both APPLICATION_ORDER and RENDERING_ORDER", () => {
-        const duplicated = APPLICATION_ORDER.filter((file) => RENDERING_ORDER.includes(file));
+    it("never lists the same file in two ordering arrays at once", () => {
+        // Every pair rather than the one pair that existed when there were two categories: with
+        // three arrays there are three ways to list an article twice, and a check hard-coded to
+        // application-versus-rendering would silently stop covering two of them.
+        const arrays: readonly (readonly [string, readonly string[]])[] = [
+            ["APPLICATION_ORDER", APPLICATION_ORDER],
+            ["MARKERS_ORDER", MARKERS_ORDER],
+            ["RENDERING_ORDER", RENDERING_ORDER],
+        ];
+        const duplicated: string[] = [];
+        for (let i = 0; i < arrays.length; i++) {
+            for (let j = i + 1; j < arrays.length; j++) {
+                const [leftName, left] = arrays[i] as readonly [string, readonly string[]];
+                const [rightName, right] = arrays[j] as readonly [string, readonly string[]];
+                for (const file of left) {
+                    if (right.includes(file)) duplicated.push(`${file} (${leftName} and ${rightName})`);
+                }
+            }
+        }
         expect(
             duplicated,
             duplicated.length === 0
                 ? undefined
-                : "these files are named in both APPLICATION_ORDER and RENDERING_ORDER at once, " +
-                      "which is not a real category and hides which table docs/README.md should " +
-                      "actually list them under.",
+                : "these files are named in two ordering arrays at once, which is not a real " +
+                      "category and hides which table docs/README.md should actually list them " +
+                      "under.\n\n" +
+                      duplicated.map((entry) => `  - ${entry}`).join("\n"),
         ).toEqual([]);
     });
 
@@ -300,14 +375,18 @@ describe("docs/README.md's tables and docsModel.ts's ordering arrays agree", () 
     /* ---------------------------------------------------------------------- */
 
     it("indexes every article file on disk in docs/README.md's tables, except a named exemption", () => {
-        const indexed = new Set([...README_APPLICATION_FILES, ...README_RENDERING_FILES]);
+        const indexed = new Set([
+            ...README_APPLICATION_FILES,
+            ...README_MARKERS_FILES,
+            ...README_RENDERING_FILES,
+        ]);
         const missing = DISK_FILES.filter((file) => !indexed.has(file) && !(file in CATEGORY_EXEMPT));
         expect(
             missing,
             missing.length === 0
                 ? undefined
                 : "these article files exist under docs/ but docs/README.md links none of them " +
-                      "under either \"## The application\" or \"## Rendering\" -- so a reader " +
+                      "under \"## The application\", \"## Markers\" or \"## Rendering\" -- so a reader " +
                       "browsing the repository or the site index cannot find them.\n\n" +
                       missing
                           .map(

@@ -16,17 +16,17 @@ import { compileSearchPattern, includesCI } from "../config/regexEngine.js";
 /* -------------------------------------------------------------------------- */
 
 /**
- * The two categories `docs/README.md` groups its articles under, plus a third this module
- * assigns to anything that is not in either of its tables.
+ * The three categories `docs/README.md` groups its articles under, plus a fourth this module
+ * assigns to anything that is not in any of its tables.
  *
  * `uncategorized` is not a defect in this module: `docs/bluemapgui-parity.md` genuinely is not
- * listed under either heading in `docs/README.md` today, and `docs/README.md` itself is the
- * index rather than an entry in its own tables. Bundling still carries both, which is the whole
- * point of the completeness guard in `docsContent.test.ts` - a file the hand-maintained index
- * forgot is exactly the file a "full means full" rule exists to still surface, rather than
+ * listed under any of those headings in `docs/README.md` today, and `docs/README.md` itself is
+ * the index rather than an entry in its own tables. Bundling still carries both, which is the
+ * whole point of the completeness guard in `docsContent.test.ts` - a file the hand-maintained
+ * index forgot is exactly the file a "full means full" rule exists to still surface, rather than
  * silently matching the same gap the index has.
  */
-export const DOCS_CATEGORIES = ["application", "rendering", "uncategorized"] as const;
+export const DOCS_CATEGORIES = ["application", "markers", "rendering", "uncategorized"] as const;
 export type DocsCategoryId = (typeof DOCS_CATEGORIES)[number];
 
 export interface DocsArticle {
@@ -75,7 +75,6 @@ export const APPLICATION_ORDER: readonly string[] = [
     "project-editor.md",
     "appearance-editors.md",
     "design-system.md",
-    "marker-studio.md",
     "structures.md",
     "authenticator.md",
     "dim-sum-surprise.md",
@@ -107,6 +106,16 @@ export const APPLICATION_ORDER: readonly string[] = [
     "server-hosted-material-ui.md",
 ];
 
+/**
+ * The same, for the "Markers" table. It holds only the articles whose subject really is the
+ * markers a user places and manages, rather than every article that happens to say the word:
+ * `repository-adoption.md`, `resumable-renders.md` and `ci-repository-setup.md` all talk about a
+ * marker *file* this application writes into a repository to recognise its own work later, which
+ * is a completely different thing from a pin on a map. A category that collected both would tell
+ * a reader nothing about where to look.
+ */
+export const MARKERS_ORDER: readonly string[] = ["marker-studio.md"];
+
 /** The same, for the "Rendering" table. */
 export const RENDERING_ORDER: readonly string[] = [
     "java-runtime-provisioning.md",
@@ -134,10 +143,34 @@ export const RENDERING_ORDER: readonly string[] = [
     "bedrock-worlds.md",
 ];
 
-/** Which of the two tables a filename is in, or `uncategorized` when it is in neither. */
+/**
+ * Every category's ordering array, keyed by the category id, with an entry for each member of
+ * `DOCS_CATEGORIES`.
+ *
+ * The lookup is deliberately exhaustive rather than a chain of comparisons, because both places
+ * that ask this question used to compare against one category and treat everything else as the
+ * other one. That shape happened to be correct while there were exactly two tables and became
+ * silently wrong the moment a third arrived: a markers article would have been sorted against the
+ * rendering table, found nowhere in it, and quietly sorted into filename order while still
+ * appearing under the right heading. `Record<DocsCategoryId, ...>` makes the compiler demand an
+ * entry when a fifth category is added, so that failure cannot come back.
+ *
+ * `uncategorized` maps to an empty array because it has no table in `docs/README.md` to follow;
+ * `groupByCategory` reads that emptiness as "sort these by filename" rather than naming the
+ * category again.
+ */
+const ORDER_BY_CATEGORY: Readonly<Record<DocsCategoryId, readonly string[]>> = {
+    application: APPLICATION_ORDER,
+    markers: MARKERS_ORDER,
+    rendering: RENDERING_ORDER,
+    uncategorized: [],
+};
+
+/** Which of the tables a filename is in, or `uncategorized` when it is in none of them. */
 export function categoryOfFile(file: string): DocsCategoryId {
-    if (APPLICATION_ORDER.includes(file)) return "application";
-    if (RENDERING_ORDER.includes(file)) return "rendering";
+    for (const category of DOCS_CATEGORIES) {
+        if (ORDER_BY_CATEGORY[category].includes(file)) return category;
+    }
     return "uncategorized";
 }
 
@@ -169,7 +202,7 @@ export interface DocsCategoryGroup {
  */
 export function groupByCategory(articles: readonly DocsArticle[]): readonly DocsCategoryGroup[] {
     const orderOf = (article: DocsArticle): number => {
-        const order = article.category === "application" ? APPLICATION_ORDER : RENDERING_ORDER;
+        const order = ORDER_BY_CATEGORY[article.category];
         const index = order.indexOf(article.file);
         return index === -1 ? order.length : index;
     };
@@ -178,8 +211,12 @@ export function groupByCategory(articles: readonly DocsArticle[]): readonly Docs
     for (const category of DOCS_CATEGORIES) {
         const members = articles.filter((article) => article.category === category);
         if (members.length === 0) continue;
+        // A category with no table in docs/README.md has nothing to reproduce, so its articles
+        // fall back to filename order. Asking whether the ordering array is empty rather than
+        // naming `uncategorized` means a future tableless category gets the same treatment
+        // without anybody having to remember to add it here.
         const sorted =
-            category === "uncategorized"
+            ORDER_BY_CATEGORY[category].length === 0
                 ? [...members].sort((a, b) => a.file.localeCompare(b.file))
                 : [...members].sort((a, b) => orderOf(a) - orderOf(b));
         groups.push({ id: category, articles: sorted });
