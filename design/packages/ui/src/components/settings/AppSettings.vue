@@ -18,6 +18,8 @@ import { schoolModeEnabled } from "../setup/schoolMode.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import DockedSurface from "./DockedSurface.vue";
 import DependencyInstallerPanel from "./DependencyInstallerPanel.vue";
+import BlueMapSourceRow from "./BlueMapSourceRow.vue";
+import { blueMapSourceSearchValues } from "./bluemapSourceStore.js";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
 import SettingsSection from "./SettingsSection.vue";
 import StorageSettingRow from "./StorageSettingRow.vue";
@@ -165,6 +167,7 @@ const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(nul
 const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const blueMapSourceSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const vocabularySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const appLogoSection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -374,6 +377,15 @@ const sections = computed<SettingsSectionText[]>(() => {
             description: text["system-dependencies"].description,
             values: ["git", "GitHub CLI", "Docker Desktop", "rsync", "winget", "Chocolatey"],
         },
+        // The commit, version and release tag this section is currently showing, so somebody
+        // who can see a hash on screen can search for it. Facts rather than the sentences
+        // around them, which the title and description already cover.
+        {
+            anchor: "bluemap-engine",
+            title: text["bluemap-engine"].title,
+            description: text["bluemap-engine"].description,
+            values: blueMapSourceSearchValues(),
+        },
         // The installed and staged versions, the last check and the feed, plus the row's
         // own words for whatever it is currently saying (checking, up to date, failed,
         // unsupported) - the same "search what is actually on screen" rule every other
@@ -510,6 +522,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return noticeDurationSection.value;
         case "system-dependencies":
             return systemDependenciesSection.value;
+        case "bluemap-engine":
+            return blueMapSourceSection.value;
         case "updates":
             return updatesSection.value;
         case "vocabulary":
@@ -979,6 +993,24 @@ function onDrawer(value: boolean): void {
                         :description="copy['system-dependencies'].description"
                     >
                         <DependencyInstallerPanel />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    Which BlueMap the jars in this installation were built from, per
+                    `main/bluemap/source.ts`. No render or other failure can send somebody
+                    here: a render that fails inside the engine fails with the engine's own
+                    message, and knowing the commit would not fix it. This is reached the
+                    same way updates and vocabulary are, by opening Settings.
+                -->
+                <template #bluemap-engine>
+                    <SettingsSection
+                        ref="blueMapSourceSection"
+                        anchor="bluemap-engine"
+                        :title="copy['bluemap-engine'].title"
+                        :description="copy['bluemap-engine'].description"
+                    >
+                        <BlueMapSourceRow />
                     </SettingsSection>
                 </template>
 

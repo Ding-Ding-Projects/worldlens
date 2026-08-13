@@ -2023,6 +2023,59 @@ export interface DockerWorldBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Where the vendored BlueMap engine came from                               */
+/* -------------------------------------------------------------------------- */
+
+/** One jar's recorded origin, mirroring `BlueMapJarProvenance` in `main/bluemap/source.ts`. */
+interface BlueMapJarProvenance {
+    readonly commit: string;
+    readonly shortCommit: string;
+    readonly version: string | null;
+    readonly builtAt: string | null;
+    readonly jarPath: string;
+}
+
+/** Where the newest upstream release stands relative to the commit the jars were built from. */
+interface BlueMapUpstreamRelease {
+    readonly ref: string;
+    readonly commit: string;
+    readonly shortCommit: string;
+    readonly publishedAt: string | null;
+    readonly comparison: "level" | "behind" | "ahead" | "diverged";
+    readonly commitsBehind: number;
+    readonly commitsAhead: number;
+}
+
+/**
+ * Both halves of the answer, either of which may be absent with a reason.
+ *
+ * The reason fields are not decoration: "we could not ask GitHub" and "there is no newer
+ * release" are different claims, and a shape that could only carry the second would have to
+ * misreport the first as being up to date.
+ */
+interface BlueMapSourceReport {
+    readonly jars: BlueMapJarProvenance | null;
+    readonly jarsReason: string | null;
+    readonly upstream: BlueMapUpstreamRelease | null;
+    readonly upstreamReason: string | null;
+    readonly checkedAt: string;
+}
+
+/**
+ * Which BlueMap this installation's engine is, mirroring `main/bluemap/ipc.ts`.
+ *
+ * Two methods rather than one because only one of them can be slow: `read` touches the local
+ * filesystem and is what opening the settings screen calls, and `check` is the only one that
+ * reaches GitHub. Neither rejects.
+ */
+interface BlueMapSourceBridge {
+    /** The local half: which commit these jars record having been built from. */
+    read(): Promise<BlueMapSourceReport>;
+    /** The local half plus an upstream release lookup, which is what Check now presses. */
+    check(): Promise<BlueMapSourceReport>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The profile list's and the application settings' own version history      */
 /* -------------------------------------------------------------------------- */
 
@@ -2690,6 +2743,9 @@ interface WorldlensBridge {
 
     /** The application settings' own version history. Same shape and reason as {@link profilesHistory}. */
     appSettingsHistory: AppSettingsHistoryBridge;
+
+    /** Which BlueMap this installation's engine was built from. See {@link BlueMapSourceBridge}. */
+    bluemapSource: BlueMapSourceBridge;
 
     /** Recognising and converting Bedrock Edition worlds. See {@link BedrockBridge}. */
     bedrock: BedrockBridge;
@@ -3588,6 +3644,11 @@ const bridge: WorldlensBridge = {
         list: (limit) => ipcRenderer.invoke("settingsHistory:list", limit),
         restore: (id) => ipcRenderer.invoke("settingsHistory:restore", id),
         discardOlderRevisions: (keep) => ipcRenderer.invoke("settingsHistory:discardOlder", keep),
+    },
+
+    bluemapSource: {
+        read: () => ipcRenderer.invoke("bluemapSource:read"),
+        check: () => ipcRenderer.invoke("bluemapSource:check"),
     },
 
     bedrock: {

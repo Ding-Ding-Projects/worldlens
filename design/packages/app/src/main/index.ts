@@ -110,6 +110,8 @@ import { registerProfilesHistoryHandlers } from "./profiles/index.js";
 import type { ProfilesHistoryIpc } from "./profiles/index.js";
 import { registerAppSettingsHistoryHandlers } from "./settings/index.js";
 import type { AppSettingsHistoryIpc } from "./settings/index.js";
+import { registerBlueMapSourceHandlers } from "./bluemap/index.js";
+import type { BlueMapSourceIpc } from "./bluemap/index.js";
 import { registerWorldHandlers } from "./world/index.js";
 import type { WorldIpc } from "./world/index.js";
 import { registerDialogHandlers } from "./dialogs/ipc.js";
@@ -814,6 +816,24 @@ function startProfilesHistory(): ProfilesHistoryIpc {
         dataDir: app.getPath("userData"),
     });
     return profilesHistoryIpc;
+}
+
+/**
+ * Where the vendored BlueMap engine in this installation came from.
+ *
+ * Registered beside the histories because it answers the same kind of question they do: what is
+ * actually here, rather than what a render is about to do with it. `resourcesPath` is passed so
+ * a packaged app finds its bundled jars, and omitting it in development lets the same resolver
+ * fall back to the checkout, per `main/java/jars.ts`.
+ */
+let blueMapSourceIpc: BlueMapSourceIpc | null = null;
+
+function startBlueMapSource(): BlueMapSourceIpc {
+    if (blueMapSourceIpc !== null) return blueMapSourceIpc;
+    blueMapSourceIpc = registerBlueMapSourceHandlers(ipcMain, {
+        resourcesPath: app.isPackaged ? process.resourcesPath : null,
+    });
+    return blueMapSourceIpc;
 }
 
 function startAppSettingsHistory(): AppSettingsHistoryIpc {
@@ -1675,6 +1695,12 @@ async function createWindow(): Promise<void> {
             "settings-history",
             "Settings history is unavailable",
             startAppSettingsHistory,
+        ],
+        [
+            "configuration",
+            "bluemap-source",
+            "The origin of the BlueMap engine is unavailable",
+            startBlueMapSource,
         ],
         [
             "initialization",

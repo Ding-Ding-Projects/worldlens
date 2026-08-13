@@ -95,6 +95,13 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["git", "Docker Desktop", "winget"],
     },
     {
+        anchor: "bluemap-engine",
+        title: "BlueMap engine",
+        description: "Which BlueMap this installation's rendering engine was built from.",
+        // The commit and the release tag the section is showing, so searching a hash finds it.
+        values: ["e664c1abdf69", "5.22-27", "v5.23"],
+    },
+    {
         anchor: "updates",
         title: "Updates",
         description: "Whether this build is up to date, when it last checked, and where updates come from.",
@@ -190,6 +197,7 @@ describe("every section the surface renders", () => {
             "download-concurrency",
             "notification-duration",
             "system-dependencies",
+            "bluemap-engine",
             "updates",
             "vocabulary",
             "app-logo",

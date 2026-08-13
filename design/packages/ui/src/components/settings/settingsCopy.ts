@@ -137,6 +137,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Install git, the GitHub CLI, Docker Desktop and rsync through Windows's own package managers, winget or Chocolatey. Each one is real system software, not a private copy for this app alone, so most of them will ask Windows for administrator permission - always disclosed here before the button is pressed.",
             ),
         },
+        "bluemap-engine": {
+            title: t("settings.bluemapSource.title", "BlueMap engine"),
+            description: t(
+                "settings.bluemapSource.description",
+                "Which BlueMap this installation's rendering engine was built from, and whether a newer BlueMap release exists. The engine is BlueMap's own code, compiled unmodified.",
+            ),
+        },
         "updates": {
             title: t("settings.updates.title", "Updates"),
             description: t(

@@ -65,6 +65,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "download-concurrency": "Download concurrency",
     "notification-duration": "Notification duration",
     "system-dependencies": "System dependencies",
+    "bluemap-engine": "BlueMap engine",
     "updates": "Updates",
     "vocabulary": "Personal vocabulary",
     "app-logo": "App logo",

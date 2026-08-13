@@ -102,6 +102,18 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * this one costs an administrator-permission prompt for most of what it installs, and the
  * section says so before the one button here is pressed, never after.
  *
+ * The BlueMap engine is next: which upstream commit and version the jars in this
+ * installation were built from, and whether a newer BlueMap release exists, per
+ * `main/bluemap/source.ts` and `docs/bluemap-upstream.md`. Not an anchor, and for a reason
+ * worth stating rather than inheriting from the section above it: a render that fails inside
+ * the engine fails with the engine's own message, and no failure this app can describe is
+ * fixed by knowing which commit the jar came from. This section answers a question somebody
+ * arrives with ("what is actually rendering my world"), not one a failure asks on their
+ * behalf, so nothing in the bridge's `SettingsTarget` could honestly point here. It sits
+ * beside system dependencies because both report on real software this installation holds
+ * rather than on a preference it stores, and beside updates because the two are the same
+ * question asked about two different pieces of code: this app, and the engine it drives.
+ *
  * Updates is next for the same reason GitHub sign-in and language-and-tone are not
  * anchors: no render stops for the want of an update, so nothing in the bridge's
  * `SettingsTarget` could honestly point at it. It is the one place the installed version,
@@ -137,6 +149,7 @@ export const SETTINGS_SECTIONS = [
     "download-concurrency",
     "notification-duration",
     "system-dependencies",
+    "bluemap-engine",
     "updates",
     "vocabulary",
     "app-logo",

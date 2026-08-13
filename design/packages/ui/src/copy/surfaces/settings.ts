@@ -1085,6 +1085,72 @@ export const SETTINGS_FIXED = {
         yue: "一個你自己嘅私人 JSON 詞彙檔案，淨係喺呢部電腦度讀。",
     },
 
+    /*
+     * The BlueMap-source section. Every string here is fixed rather than voiced, and that is
+     * a decision about what the section is for rather than an omission: it reports a commit,
+     * a version, a release tag and, when something could not be asked, why. A funny level
+     * styles the prose around a fact; there is almost no prose here that is not itself the
+     * fact.
+     *
+     * The three sentences that are prose stay careful about one distinction in both
+     * languages: an upstream check that could not be made is not the same as being up to
+     * date, and advancing the pin is somebody's deliberate act rather than something this
+     * screen does.
+     */
+    "settings.bluemapSource.title": { en: "BlueMap engine", yue: "BlueMap 引擎" },
+    "settings.bluemapSource.description": {
+        en: "Which BlueMap this installation's rendering engine was built from, and whether a newer BlueMap release exists. The engine is BlueMap's own code, compiled unmodified.",
+        yue: "呢個安裝入面嘅算圖引擎係由邊個 BlueMap 版本 build 出嚟，同埋上游有冇更新嘅 release。個引擎係 BlueMap 自己嘅代碼，原封不動咁 compile 出嚟。",
+    },
+    "settings.bluemapSource.unmodified": {
+        en: "The rendering engine is BlueMap's own code, compiled unmodified from a pinned copy of its source that ships with this repository. Nothing below is this app's version number.",
+        yue: "算圖引擎係 BlueMap 自己嘅代碼，由呢個 repository 帶住嘅一份固定 source 原封不動咁 compile 出嚟。下面啲數字冇一個係呢個 app 自己嘅版本號。",
+    },
+    "settings.bluemapSource.unavailable": {
+        en: "This build cannot look at the jars on disk, so it cannot say which BlueMap they came from. The desktop app can; a browser tab has no access to the files.",
+        yue: "呢個 build 睇唔到硬碟上面啲 jar，所以講唔到佢哋係邊個 BlueMap 嚟。桌面 app 得；browser 分頁掂唔到啲檔案。",
+    },
+    "settings.bluemapSource.builtFrom": {
+        en: "Built from BlueMap commit",
+        yue: "由呢個 BlueMap commit build",
+    },
+    "settings.bluemapSource.version": { en: "BlueMap version", yue: "BlueMap 版本" },
+    "settings.bluemapSource.builtAt": { en: "Built", yue: "Build 咗嘅時間" },
+    "settings.bluemapSource.jarPath": { en: "Jar", yue: "Jar" },
+    "settings.bluemapSource.check": {
+        en: "Check for a newer BlueMap",
+        yue: "睇下有冇新啲嘅 BlueMap",
+    },
+    "settings.bluemapSource.newestRelease": {
+        en: "Newest BlueMap release",
+        yue: "最新嘅 BlueMap release",
+    },
+    "settings.bluemapSource.published": { en: "Published", yue: "發佈時間" },
+    "settings.bluemapSource.commitsBehind": {
+        en: "Commits behind that release",
+        yue: "落後嗰個 release 幾多個 commit",
+    },
+    "settings.bluemapSource.level": {
+        en: "These jars were built from the newest BlueMap release. Nothing to do.",
+        yue: "呢啲 jar 就係由最新嗰個 BlueMap release build 出嚟。冇嘢要做。",
+    },
+    "settings.bluemapSource.behind": {
+        en: "A newer BlueMap release exists. Nothing has changed in this installation: moving to it compiles and ships new third-party code, so it is a deliberate step somebody takes rather than something this app does on its own.",
+        yue: "上游有新啲嘅 BlueMap release。呢個安裝乜都冇變過：搬過去即係要 compile 同埋出貨新嘅第三方代碼，所以要有人特登去做，唔會由呢個 app 自己做。",
+    },
+    "settings.bluemapSource.ahead": {
+        en: "These jars were built from a commit newer than the newest release, which is what a pin advanced past a tag looks like.",
+        yue: "呢啲 jar 係由一個仲新過最新 release 嘅 commit build 出嚟，即係個 pin 行咗過 tag 嗰陣嘅樣。",
+    },
+    "settings.bluemapSource.diverged": {
+        en: "The commit these jars were built from and the newest release have both moved since they last shared history.",
+        yue: "呢啲 jar 嘅 commit 同最新嗰個 release，喺最後一次共同歷史之後兩邊都各自行咗。",
+    },
+    "settings.bluemapSource.advance": {
+        en: "Moving to a newer BlueMap is done in the repository this app is built from, by advancing the pinned copy of BlueMap's source and rebuilding the jars. It is never done from this screen, and this screen never does it on your behalf.",
+        yue: "要換新啲嘅 BlueMap，要喺 build 呢個 app 嗰個 repository 度做：推前嗰份固定嘅 BlueMap source，然後重新 build 啲 jar。呢個畫面唔會做，亦都唔會幫你做。",
+    },
+
     /* The app-logo section's own heading, beside the other section headings for the same
      * reason vocabulary's is: one place a section title is written, not two. */
     "settings.appLogo.title": { en: "App logo", yue: "應用程式 logo" },
