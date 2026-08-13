@@ -186,6 +186,11 @@ export const RENDERSINPROGRESS_FIXED = {
     // The structures page's own tab. Lives here beside the other render-page labels rather
     // than in a surface of its own, because a one-key module is a module nobody finds.
     "tabs.page.structures": { en: "Structures", yue: "結構" },
+    // Three pages whose surfaces existed before anything rendered them. Their labels live
+    // beside the other page labels so there is one place a tab is named.
+    "tabs.page.authenticator": { en: "Authenticator", yue: "驗證器" },
+    "tabs.page.locks": { en: "Locks", yue: "鎖" },
+    "tabs.page.support": { en: "Support Tickets", yue: "Support Tickets" },
 } as const satisfies Record<string, FixedString>;
 
 export const RENDERSINPROGRESS_FACTS = {

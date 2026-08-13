@@ -8,6 +8,9 @@ import {
     mdiEye,
     mdiFileDocumentOutline,
     mdiCubeOutline,
+    mdiLifebuoy,
+    mdiLockOutline,
+    mdiShieldKeyOutline,
     mdiFolderMultipleOutline,
     mdiMapPlus,
     mdiProgressClock,
@@ -82,6 +85,10 @@ import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import DropRenderZone from "./components/dropRender/DropRenderZone.vue";
 import { DimSumSurprise } from "./components/dimsum/index.js";
+import AuthenticatorScreen from "./components/authenticator/AuthenticatorScreen.vue";
+import LockList from "./components/locks/LockList.vue";
+import { resolveLockHost } from "./components/locks/useLocks.js";
+import SupportTickets from "./components/locks/SupportTickets.vue";
 import {
     dropRenderHostMissingReason,
     useDropRenderHost,
@@ -160,6 +167,32 @@ const PAGE_PROJECTS = "projects";
 const PAGE_CIRENDER = "cirender";
 const PAGE_RENDERS = "renders";
 const PAGE_STRUCTURES = "structures";
+/*
+ * Three surfaces that were built, tested and unreachable until this.
+ *
+ * The authenticator, the lock list and the recovery desk each had a complete component and
+ * nothing anywhere that rendered it. That is not a small oversight: it is the difference
+ * between a feature and a folder, and a full green suite says nothing about it, because a
+ * component tested in isolation passes whether or not anybody can open it. Three separate
+ * defects of exactly this kind turned up in one day, which is why they now have pages.
+ */
+/**
+ * Opens the folder the recovery desk points at.
+ *
+ * Null when this build has no shell that can open one, which the desk then says plainly
+ * rather than offering a button that does nothing.
+ */
+async function openLockDataFolder(): Promise<boolean> {
+    const shell = (globalThis as { worldlens?: { shell?: { openPath?: (p: string) => Promise<boolean> } } })
+        .worldlens?.shell;
+    const folder = resolveLockHost()?.dataFolder ?? null;
+    if (shell?.openPath === undefined || folder === null) return false;
+    return await shell.openPath(folder);
+}
+
+const PAGE_AUTHENTICATOR = "authenticator";
+const PAGE_LOCKS = "locks";
+const PAGE_SUPPORT = "support";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
 const PAGE_PAGES = "pages";
@@ -259,6 +292,21 @@ const pages = computed<TabPage[]>(() => [
         id: PAGE_STRUCTURES,
         label: t("tabs.page.structures", "Structures"),
         icon: mdiCubeOutline,
+    },
+    {
+        id: PAGE_AUTHENTICATOR,
+        label: t("tabs.page.authenticator", "Authenticator"),
+        icon: mdiShieldKeyOutline,
+    },
+    {
+        id: PAGE_LOCKS,
+        label: t("tabs.page.locks", "Locks"),
+        icon: mdiLockOutline,
+    },
+    {
+        id: PAGE_SUPPORT,
+        label: t("tabs.page.support", "Support Tickets"),
+        icon: mdiLifebuoy,
     },
     {
         id: PAGE_RENDERS,
@@ -1548,6 +1596,18 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             that looks finished in a diff and is unreachable in the
                             application, so this is the half that makes them real.
                         -->
+                        <template #authenticator>
+                            <AuthenticatorScreen />
+                        </template>
+
+                        <template #locks>
+                            <LockList />
+                        </template>
+
+                        <template #support>
+                            <SupportTickets :open-data-folder="openLockDataFolder" />
+                        </template>
+
                         <template #structures>
                             <div class="mb-world-host mb-interactive">
                                 <!--
