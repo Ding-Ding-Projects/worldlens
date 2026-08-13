@@ -1157,6 +1157,26 @@ export interface ProjectBridge {
 }
 
 /**
+ * What rendering one dropped structure or schematic answered with. Mirrors
+ * `RenderStructureOutcome` in `main/structures/renderStructure.js`; restated here for the
+ * same reason every other bridge type in this file is restated rather than imported - the
+ * preload is bundled separately from the main process.
+ *
+ * `render` is intentionally left as `unknown` rather than the main process's own
+ * `RenderSuccess` type: that type already crosses the bridge for world renders (see
+ * `startRender` below) and is not restated a second time here, so the interface narrows it
+ * the same way it narrows any other IPC result it does not have a local type for.
+ */
+export type StructureRenderOutcome =
+    | { ok: true; render: unknown }
+    | { ok: false; code: string; message: string; render?: unknown };
+
+export interface StructuresBridge {
+    /** Renders one dropped file, landing it on the same render channel a world render uses. */
+    render(filePath: string): Promise<StructureRenderOutcome>;
+}
+
+/**
  * Why one autosave happened, and what it produced. Mirrors `AutosaveOutcome` in
  * `main/project/autosave.ts`; restated here for the same reason every other bridge type in
  * this file is restated rather than imported - the preload is bundled separately from the
@@ -2703,11 +2723,12 @@ interface WorldlensBridge {
     project: ProjectBridge;
 
     /**
-     * The structure files a world already has.
+     * The structure files a world already has, and rendering one.
      *
-     * A namespace of its own, like `project` beside it, rather than a loose method, so a
+     * A namespace of its own, like `project` beside it, rather than loose methods, so a
      * surface that only needs to know whether this build can scan a world at all can probe
-     * for the whole namespace once - see `structureHost.ts`'s own doc comment.
+     * for the whole namespace once - see `structureHost.ts`'s own doc comment. Rendering
+     * goes through the same render channel a world render does; see {@link StructuresBridge}.
      */
     structures: StructuresBridge;
 
@@ -3422,7 +3443,12 @@ const bridge: WorldlensBridge = {
         ipcRenderer.invoke("files:setDownloadConcurrency", workers),
 
     structures: {
+        // Both halves of the namespace on one object, because the renderer probes for the
+        // namespace once and a build that exposed only half of it would report itself as
+        // able to do both. Discovery and rendering arrived from separate lanes and keep
+        // separate channels behind this.
         discover: (worldFolder) => ipcRenderer.invoke("structures:discover", worldFolder),
+        render: (filePath) => ipcRenderer.invoke("structures:render", filePath),
     },
 
     project: {

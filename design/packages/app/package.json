@@ -29,10 +29,12 @@
     },
     "dependencies": {
         "@worldlens/config": "workspace:*",
+        "@worldlens/nbt": "workspace:*",
         "@worldlens/parts": "workspace:*",
         "@worldlens/render-actions": "workspace:*",
         "@worldlens/server": "workspace:*",
         "@worldlens/shared": "workspace:*",
+        "@worldlens/worldgen": "workspace:*",
         "electron-store": "^10.1.0"
     }
 }

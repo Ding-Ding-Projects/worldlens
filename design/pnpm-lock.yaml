@@ -41,6 +41,9 @@ importers:
       '@worldlens/config':
         specifier: workspace:*
         version: link:../config
+      '@worldlens/nbt':
+        specifier: workspace:*
+        version: link:../nbt
       '@worldlens/parts':
         specifier: workspace:*
         version: link:../parts
@@ -53,6 +56,9 @@ importers:
       '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
+      '@worldlens/worldgen':
+        specifier: workspace:*
+        version: link:../worldgen
       electron-store:
         specifier: ^10.1.0
         version: 10.1.0

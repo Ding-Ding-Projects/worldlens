@@ -36,8 +36,16 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    /** Fired once per drop, carrying only the files that passed classification. */
-    render: [files: { name: string; kind: string }[]];
+    /**
+     * Fired once per drop, carrying only the files that passed classification.
+     *
+     * `path` is the file's real location on disk, resolved through the preload bridge's
+     * `pathForDroppedFile` (Electron removed `File.path`, so nothing in this package can
+     * read it any other way). Null outside the desktop shell, or for a `File` that did not
+     * come from the real file system - the caller decides what to do about a drop it
+     * cannot actually reach.
+     */
+    render: [files: { name: string; kind: string; path: string | null }[]];
     /** The keyboard/pointer alternative to dragging a file in. */
     browse: [];
 }>();
@@ -82,12 +90,32 @@ function onDragLeave(event: DragEvent): void {
     dragDepth.value = Math.max(0, dragDepth.value - 1);
 }
 
-function filesFromTransfer(dataTransfer: DataTransfer | null): { name: string; size: number }[] {
+function filesFromTransfer(dataTransfer: DataTransfer | null): File[] {
     if (dataTransfer === null) return [];
     // A real `FileList` and the plain array jsdom tests stand in for one both support
     // `Array.from`, so this works against either without the component needing to know which
     // one it was handed.
-    return Array.from(dataTransfer.files).map((file) => ({ name: file.name, size: file.size }));
+    return Array.from(dataTransfer.files);
+}
+
+/**
+ * The real path of a dropped `File`, or null when this build cannot resolve one.
+ *
+ * Reached the same way `App.vue`'s own filesystem probes do - a direct, guarded read of
+ * `window.worldlens` - rather than through a provided host, because this is the one place
+ * in the whole render path that needs a raw DOM `File` object at all; everything past this
+ * line works in terms of paths and never touches one again.
+ */
+function pathForFile(file: File): string | null {
+    const bridge = (globalThis as { worldlens?: { pathForDroppedFile?: (file: File) => string | null } })
+        .worldlens;
+    const resolve = bridge?.pathForDroppedFile;
+    if (typeof resolve !== "function") return null;
+    try {
+        return resolve(file);
+    } catch {
+        return null;
+    }
 }
 
 function onDrop(event: DragEvent): void {
@@ -98,13 +126,21 @@ function onDrop(event: DragEvent): void {
     const files = filesFromTransfer(event.dataTransfer ?? null);
     if (files.length === 0) return;
 
-    const summary = dropSummary(files);
+    const summary = dropSummary(files.map((file) => ({ name: file.name, size: file.size })));
     lastSummary.value = summary;
 
     if (summary.accepted.length > 0) {
+        const byName = new Map(files.map((file) => [file.name, file]));
         emit(
             "render",
-            summary.accepted.map((accepted: AcceptedDrop) => ({ name: accepted.name, kind: accepted.kind })),
+            summary.accepted.map((accepted: AcceptedDrop) => {
+                const file = byName.get(accepted.name);
+                return {
+                    name: accepted.name,
+                    kind: accepted.kind,
+                    path: file === undefined ? null : pathForFile(file),
+                };
+            }),
         );
     }
 }

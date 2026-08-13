@@ -115,7 +115,14 @@ describe("dropping files", () => {
         expect(wrapper.find('[data-test="drop-render-overlay"]').exists()).toBe(false);
         const emitted = wrapper.emitted("render");
         expect(emitted).toHaveLength(1);
-        expect(emitted?.[0]?.[0]).toEqual([{ name: "castle.nbt", kind: "structure" }]);
+        // The payload now carries the resolved disk path as well as the name and kind,
+        // because the main process renders from a path and a browser File object has none.
+        // Asserted field by field rather than with a whole-object match, so adding a field
+        // the renderer needs does not fail a test about which files were accepted.
+        const payload = emitted?.[0]?.[0] as { name: string; kind: string }[];
+        expect(payload).toHaveLength(1);
+        expect(payload[0]?.name).toBe("castle.nbt");
+        expect(payload[0]?.kind).toBe("structure");
     });
 
     it("previews accepted and rejected counts without silently dropping either", async () => {

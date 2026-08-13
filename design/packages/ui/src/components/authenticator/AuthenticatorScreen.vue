@@ -15,6 +15,8 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import {
     mdiClose,
     mdiContentCopy,
@@ -475,14 +477,38 @@ onBeforeUnmount(() => {
                 @click="selected = entry.id"
             >
                 <template #append>
-                    <VBtn
-                        :icon="mdiDelete"
-                        variant="text"
-                        size="small"
-                        :aria-label="t('authenticator.list.remove', { account: entry.account }, 'Remove {account}')"
-                        data-test="authenticator-entry-remove"
-                        @click.stop="deleteEntry(entry.id)"
-                    />
+                    <!--
+                        The two-key gate rather than a delete button. Removing an entry
+                        takes its secret out of the vault, and nothing here can put it
+                        back: the person would have to pair the account again from the
+                        issuer, which for a second factor usually means recovery codes or
+                        a support conversation. That is the loss the gate exists for.
+                    -->
+                    <ConfigSuperConfirm
+                        :title="t('authenticator.list.removeTitle', 'Remove this account')"
+                        :action="
+                            t(
+                                'authenticator.list.removeAction',
+                                { account: entry.account, issuer: entry.issuer },
+                                'This removes {account} at {issuer} and deletes its secret from this computer. Nothing here can recover it: you would have to pair the account again from the issuer.',
+                            )
+                        "
+                        :affected="[`${entry.issuer}: ${entry.account}`]"
+                        :confirm-label="t('authenticator.list.removeConfirm', 'Remove it')"
+                        @confirm="deleteEntry(entry.id)"
+                    >
+                        <template #activator="{ props: activatorProps }">
+                            <VBtn
+                                v-bind="activatorProps"
+                                :icon="mdiDelete"
+                                variant="text"
+                                size="small"
+                                :aria-label="t('authenticator.list.remove', { account: entry.account }, 'Remove {account}')"
+                                data-test="authenticator-entry-remove"
+                                @click.stop
+                            />
+                        </template>
+                    </ConfigSuperConfirm>
                 </template>
             </VListItem>
         </VList>

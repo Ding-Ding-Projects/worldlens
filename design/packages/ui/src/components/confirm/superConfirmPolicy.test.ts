@@ -210,6 +210,35 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         gatedIn: "components/ProfileManager.vue",
     },
 
+    "components/authenticator/AuthenticatorScreen.vue": {
+        count: 2,
+        destroys:
+            "a registered second-factor account and its stored secret, which nothing in this " +
+            "application can put back",
+        standing: "gated",
+        gatedIn: "components/authenticator/AuthenticatorScreen.vue",
+    },
+    "components/authenticator/authenticatorStore.ts": {
+        count: 1,
+        destroys: "the vault entry behind one registered second factor",
+        standing: "gated",
+        note:
+            "The vault half of the removal the screen above gates. Declared separately " +
+            "because the call lives here, and the gate that authorises it lives there.",
+        gatedIn: "components/authenticator/AuthenticatorScreen.vue",
+    },
+    "components/vocabulary/vocabularyStore.ts": {
+        count: 2,
+        destroys:
+            "the cached copy of the personal vocabulary file, which restores the original " +
+            "shipped wording everywhere",
+        standing: "reversible",
+        note:
+            "Clearing purges a cache built from a file the person still holds, and supplying " +
+            "it again restores the same state exactly. Nothing they authored is destroyed, so " +
+            "the two-key gate in front of a reset that undoes itself would teach people to " +
+            "click through the gate that guards operations which genuinely cannot be undone.",
+    },
     "components/markers/MarkerStudio.vue": {
         count: 1,
         destroys:

@@ -1,41 +1,64 @@
 /**
- * The structure-discovery channel between the main process and the interface.
+ * The channel a dropped structure or schematic is rendered over.
  *
- * Built to the same shape as `project/ipc.ts`: this is the only file under `structures/`
- * that imports Electron, `IpcMain` arrives as a parameter so the module is testable with no
- * Electron runtime nearby, and the one channel it registers is named once in
- * {@link STRUCTURE_CHANNELS} so `dispose` cannot drift from `registerStructureHandlers`.
+ * Built to the same shape as `project/ipc.ts`: every channel named once in
+ * {@link STRUCTURE_CHANNELS} so `dispose` cannot drift from registration, and the handler
+ * itself never throws across the bridge - `renderStructure`'s own result already carries
+ * every refusal as a value, so this layer only has to check the one thing IPC hands it
+ * raw: that `filePath` is actually a string.
  *
- * There is exactly one channel because there is exactly one question worth asking the main
- * process about structures: "what does this world folder have". Rendering one is not a
- * second channel here - `StructureList.vue` reuses the existing `render:start` channel
- * through the world render bridge, because a structure's `.nbt` file lives inside the same
- * world a normal render already knows how to draw.
+ * This module takes an already-constructed `RenderOrchestrator` rather than building its
+ * own. `main/index.ts` constructs exactly one orchestrator, inside `startRendering()`, and
+ * every other feature that renders (CI sync, remote rendering) reaches through that same
+ * instance rather than standing up a second one - a second orchestrator would mean a
+ * second idea of which renders are active, which `render:cancel` and `render:active` would
+ * not know about.
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import type { RenderOrchestrator } from "../render/orchestrator.js";
+import { renderStructure, type RenderStructureOutcome } from "./renderStructure.js";
 
-import { discoverStructures, type DiscoveredStructureFile } from "./discover.js";
+export const STRUCTURE_CHANNELS = ["structures:render"] as const;
 
-/** Every channel this module registers, so `dispose` cannot drift from `register`. */
-export const STRUCTURE_CHANNELS = ["structures:discover"] as const;
+export interface StructureRenderIpcOptions {
+    readonly orchestrator: RenderOrchestrator;
+    /** Where synthetic worlds built from dropped structures are written. See {@link
+     * import("./renderStructure.js").RenderStructureOptions.worldsDir}. */
+    readonly worldsDir: string;
+}
 
-export interface StructureIpc {
+export interface StructureRenderIpc {
     dispose(): void;
 }
 
 /**
- * Registers the structure handlers.
+ * Registers the one handler this channel needs.
  *
- * Returns a `dispose` so a test, or a restart, can take the handler off again without
- * leaving a duplicate registration behind - `ipcMain.handle` throws on a channel that
- * already has one.
+ * Returns a `dispose` for the same reason every other IPC module here does: a test, or a
+ * relaunch through `createWindow`'s macOS `activate` path, must be able to take the
+ * handler off again without `ipcMain.handle` throwing on a channel that already has one.
  */
-export function registerStructureHandlers(ipcMain: IpcMain): StructureIpc {
+export function registerStructureRenderHandlers(
+    ipcMain: IpcMain,
+    options: StructureRenderIpcOptions,
+): StructureRenderIpc {
     ipcMain.handle(
-        "structures:discover",
-        async (_event: IpcMainInvokeEvent, worldFolder: unknown): Promise<readonly DiscoveredStructureFile[]> =>
-            await discoverStructures(worldFolder),
+        "structures:render",
+        async (_event: IpcMainInvokeEvent, filePath: unknown): Promise<RenderStructureOutcome> => {
+            if (typeof filePath !== "string" || filePath.trim() === "") {
+                return {
+                    ok: false,
+                    code: "read-failed",
+                    message: "No file path was given to render.",
+                };
+            }
+            return await renderStructure({
+                orchestrator: options.orchestrator,
+                filePath,
+                worldsDir: options.worldsDir,
+            });
+        },
     );
 
     return {
