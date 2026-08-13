@@ -931,6 +931,29 @@ export interface HistoryMergedFile {
 }
 
 /* -------------------------------------------------------------------------- */
+/* A world's structure files                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors `DiscoveredStructureFile` in `main/structures/discover.ts`, restated here for the
+ * same reason every other bridge type in this file is: the preload is bundled separately
+ * from the main process, and importing across that boundary would pull `node:fs` into the
+ * renderer's bundle.
+ */
+export interface StructureFileRow {
+    id: string;
+    name: string;
+    namespace: string;
+    path: string;
+    sizeBytes: number;
+}
+
+export interface StructuresBridge {
+    /** Every `.nbt` structure file a world folder holds, current and legacy layout alike. */
+    discover(worldFolder: string): Promise<StructureFileRow[]>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* A world's project                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -2679,6 +2702,15 @@ interface WorldlensBridge {
      */
     project: ProjectBridge;
 
+    /**
+     * The structure files a world already has.
+     *
+     * A namespace of its own, like `project` beside it, rather than a loose method, so a
+     * surface that only needs to know whether this build can scan a world at all can probe
+     * for the whole namespace once - see `structureHost.ts`'s own doc comment.
+     */
+    structures: StructuresBridge;
+
     /* ---- Keeping the application current ------------------------------- */
 
     /**
@@ -3388,6 +3420,10 @@ const bridge: WorldlensBridge = {
     downloadConcurrency: () => ipcRenderer.invoke("files:downloadConcurrency"),
     setDownloadConcurrency: (workers) =>
         ipcRenderer.invoke("files:setDownloadConcurrency", workers),
+
+    structures: {
+        discover: (worldFolder) => ipcRenderer.invoke("structures:discover", worldFolder),
+    },
 
     project: {
         read: (worldFolder) => ipcRenderer.invoke("project:read", worldFolder),

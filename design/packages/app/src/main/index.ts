@@ -93,6 +93,8 @@ import {
     wireAutosaveQuitFlush,
 } from "./project/index.js";
 import type { AutosaveOutcome, ProjectIpc } from "./project/index.js";
+import { registerStructureHandlers } from "./structures/index.js";
+import type { StructureIpc } from "./structures/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
 import type { BackupIpc } from "./backup/ipc.js";
 import { openExternalHttps } from "./security/external.js";
@@ -774,6 +776,21 @@ function startProjects(): ProjectIpc {
     });
     wireAutosaveQuitFlush(app, projectIpc.autosave);
     return projectIpc;
+}
+
+/**
+ * The structure files a world already has, for the Structures surface.
+ *
+ * Registered once, like `startProjects` beside it. It holds nothing between calls: a world
+ * folder is scanned fresh on every `structures:discover`, so a structure block placed while
+ * the app is open shows up the next time somebody looks rather than only after a restart.
+ */
+let structureIpc: StructureIpc | null = null;
+
+function startStructures(): StructureIpc {
+    if (structureIpc !== null) return structureIpc;
+    structureIpc = registerStructureHandlers(ipcMain);
+    return structureIpc;
 }
 
 /**
@@ -1619,6 +1636,7 @@ async function createWindow(): Promise<void> {
             startConfigHistory,
         ],
         ["configuration", "projects", "Project files are unavailable", startProjects],
+        ["configuration", "structures", "Structure discovery is unavailable", startStructures],
         [
             "configuration",
             "profile-history",
