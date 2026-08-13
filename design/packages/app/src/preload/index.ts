@@ -1134,6 +1134,26 @@ export interface ProjectBridge {
 }
 
 /**
+ * What rendering one dropped structure or schematic answered with. Mirrors
+ * `RenderStructureOutcome` in `main/structures/renderStructure.js`; restated here for the
+ * same reason every other bridge type in this file is restated rather than imported - the
+ * preload is bundled separately from the main process.
+ *
+ * `render` is intentionally left as `unknown` rather than the main process's own
+ * `RenderSuccess` type: that type already crosses the bridge for world renders (see
+ * `startRender` below) and is not restated a second time here, so the interface narrows it
+ * the same way it narrows any other IPC result it does not have a local type for.
+ */
+export type StructureRenderOutcome =
+    | { ok: true; render: unknown }
+    | { ok: false; code: string; message: string; render?: unknown };
+
+export interface StructuresBridge {
+    /** Renders one dropped file, landing it on the same render channel a world render uses. */
+    render(filePath: string): Promise<StructureRenderOutcome>;
+}
+
+/**
  * Why one autosave happened, and what it produced. Mirrors `AutosaveOutcome` in
  * `main/project/autosave.ts`; restated here for the same reason every other bridge type in
  * this file is restated rather than imported - the preload is bundled separately from the
@@ -2679,6 +2699,12 @@ interface WorldlensBridge {
      */
     project: ProjectBridge;
 
+    /**
+     * Rendering a structure or schematic dropped onto the app, reusing the same render
+     * channel a world render goes through. See {@link StructuresBridge}.
+     */
+    structures: StructuresBridge;
+
     /* ---- Keeping the application current ------------------------------- */
 
     /**
@@ -3493,6 +3519,10 @@ const bridge: WorldlensBridge = {
                   }
                 : { ok: false as const, message: saved.reason };
         },
+    },
+
+    structures: {
+        render: (filePath) => ipcRenderer.invoke("structures:render", filePath),
     },
 
     history: {

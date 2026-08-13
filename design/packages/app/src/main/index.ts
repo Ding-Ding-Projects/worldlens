@@ -33,6 +33,8 @@ import { installRenderIpc } from "./render/ipc.js";
 import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
 import type { DownloadIpc } from "./download/ipc.js";
+import { registerStructureRenderHandlers } from "./structures/ipc.js";
+import type { StructureRenderIpc } from "./structures/ipc.js";
 import { totalmem } from "node:os";
 import {
     createFileUpdateFeedHandoff,
@@ -901,6 +903,25 @@ function startFileAccess(render: RenderIpc): RenderMemoryStore {
 }
 
 /**
+ * Rendering a structure or schematic somebody dropped onto the app, reusing the same
+ * `RenderOrchestrator` every world render already goes through - see
+ * `structures/renderStructure.ts` for the full adaptation.
+ */
+let structureRenderIpc: StructureRenderIpc | null = null;
+
+function startStructureRendering(render: RenderIpc): StructureRenderIpc {
+    if (structureRenderIpc !== null) return structureRenderIpc;
+    structureRenderIpc = registerStructureRenderHandlers(ipcMain, {
+        orchestrator: render.orchestrator,
+        // Kept beside this app's own data rather than inside the map storage folder a
+        // person chose in setup: a synthetic input world has no business showing up in a
+        // "where are my rendered maps" listing of that folder.
+        worldsDir: path.join(app.getPath("userData"), "structure-worlds"),
+    });
+    return structureRenderIpc;
+}
+
+/**
  * Handing a render to GitHub's runners.
  *
  * It borrows rather than duplicates: the backup runner uploads the world, the download side
@@ -1568,6 +1589,12 @@ async function createWindow(): Promise<void> {
         );
         await attempt("initialization", "file-access", "File actions are unavailable", () =>
             startFileAccess(render),
+        );
+        await attempt(
+            "initialization",
+            "structure-rendering",
+            "Rendering dropped structures is unavailable",
+            () => startStructureRendering(render),
         );
         await attempt("update", "updates", "Automatic updates are unavailable in this launch", () =>
             startUpdates(render),

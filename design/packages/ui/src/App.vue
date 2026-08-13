@@ -81,6 +81,7 @@ import { DocsPage } from "./components/docs/index.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import DropRenderZone from "./components/dropRender/DropRenderZone.vue";
+import { dropRenderHostMissingReason, useDropRenderHost } from "./components/dropRender/dropRenderHost.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
 import { notices, raiseNotice } from "./stores/notices.js";
@@ -775,24 +776,99 @@ function openCiRender(world: string | null = null): void {
 }
 
 /**
- * A structure or schematic dropped onto the app, waiting for the render page to pick it up.
+ * A structure or schematic dropped onto the app, rendered in place.
  *
- * `DropRenderZone` only classifies and hands off files - it has no renderer of its own, and
- * neither does this file. What it can honestly do is name what was dropped and take the person
- * straight to the screen that actually starts a render, rather than pretending the drop itself
- * finished anything. Once that render completes, the existing `profilesStore.activeId` watch
- * above is what carries the app to the map page - the same path every other render, local or
- * CI, already takes.
+ * `DropRenderZone` only classifies a drop and resolves the dropped `File`s to real paths -
+ * it has no renderer of its own. This is where the render actually happens: the first
+ * accepted file goes to `structures:render` over `dropRenderHost`, which reuses the exact
+ * same `RenderOrchestrator` a world render goes through (see
+ * `main/structures/renderStructure.ts`), and a finished render is opened through
+ * `openRenderedMap` exactly as a world's or a CI run's render is - the map page has no idea
+ * which of the three produced what it is looking at.
+ *
+ * Only the first file of a multi-file drop is rendered. A structure render is a real,
+ * potentially multi-minute Java process, and starting several at once from one drop would
+ * either need a queue this lane has no room for or would silently only run one of them
+ * anyway - naming that limit up front is more honest than a progress bar for a render that
+ * was never going to start.
  */
-const droppedRenderFiles = ref<{ name: string; kind: string }[] | null>(null);
+const dropRenderHost = useDropRenderHost();
+const dropRenderBusy = ref(false);
 
-function onDropRender(files: { name: string; kind: string }[]): void {
-    droppedRenderFiles.value = files;
-    openCiRender();
+async function renderDroppedPath(name: string, path: string | null): Promise<void> {
+    if (dropRenderHost === null) {
+        raiseNotice("error", dropRenderHostMissingReason());
+        return;
+    }
+    if (path === null) {
+        raiseNotice(
+            "error",
+            t(
+                "dropRender.noPath",
+                { name },
+                "\"{name}\" could not be located on disk, so it cannot be rendered.",
+            ),
+        );
+        return;
+    }
+
+    dropRenderBusy.value = true;
+    // A render can take minutes; the honest reading of `raiseNotice` here is "this has
+    // started", not "this has finished" - the finish or failure gets its own notice below,
+    // exactly like every other long render in this app.
+    raiseNotice(
+        "info",
+        t("dropRender.started", { name }, "Rendering \"{name}\"…"),
+    );
+    try {
+        const outcome = await dropRenderHost.render(path);
+        if (!outcome.ok || outcome.render === undefined) {
+            raiseNotice(
+                "error",
+                outcome.message ??
+                    t("dropRender.failed", { name }, "\"{name}\" could not be rendered."),
+            );
+            return;
+        }
+        openRenderedMap(outcome.render.dataRoot, outcome.render.mapIds);
+        revealPage(PAGE_MAP);
+    } finally {
+        dropRenderBusy.value = false;
+    }
 }
 
-function onDropRenderBrowse(): void {
-    openCiRender();
+function onDropRender(files: { name: string; kind: string; path: string | null }[]): void {
+    const first = files[0];
+    if (first === undefined) return;
+    void renderDroppedPath(first.name, first.path);
+}
+
+async function onDropRenderBrowse(): Promise<void> {
+    const bridge = (
+        globalThis as {
+            worldlens?: {
+                dialog?: {
+                    pickFile?: (options: {
+                        title: string;
+                        extensions?: string[];
+                    }) => Promise<string | null>;
+                };
+            };
+        }
+    ).worldlens;
+    const pick = bridge?.dialog?.pickFile;
+    if (typeof pick !== "function") {
+        raiseNotice("error", dropRenderHostMissingReason());
+        return;
+    }
+    const path = await pick({
+        title: t("dropRender.pickFileTitle", "Choose a structure or schematic file"),
+        extensions: ["nbt", "schem", "schematic", "litematic"],
+    });
+    if (path === null) return;
+    const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+    const name = slash < 0 ? path : path.slice(slash + 1);
+    void renderDroppedPath(name, path);
 }
 
 /**
@@ -1462,6 +1538,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     page they look on.
                                 -->
                                 <DropRenderZone
+                                    :disabled="dropRenderBusy"
                                     @render="onDropRender"
                                     @browse="onDropRenderBrowse"
                                 />
