@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "b4cdc0c9430b81ef13f8a825a404e8d87ae370f4",
+        shortSha: "b4cdc0c943",
+        date: "2026-08-13T01:53:02-04:00",
+        subject: "Give the Gradle wrapper its absolute path so a local build can start",
+        details: "build-installer.bat stopped at bootstrap with \"gradlew.bat is not recognized as\nan internal or external command\", and the file it could not find was sitting\nright there in vendor/BlueMap. `cmd /c gradlew.bat` resolves a bare name against\nPATH, and the wrapper is in the working directory rather than on PATH, so the\nerror names a missing Gradle wrapper for a wrapper that is present.\n\nFound the way these things are meant to be found: by running the committed\nscript for a real release rather than reaching past it for an ad-hoc packaging\ncommand. A script that only ever runs on a warm machine is a script nobody has\nproven works, and the first time it is genuinely needed is the worst moment to\ndiscover it does not.\n\nThe obvious fix is the second trap. Written as a relative \".\\gradlew.bat\" in a\nJavaScript string, the backslash is the escape sequence \\g and the argument\nsilently becomes \".gradlew.bat\" - a different wrong answer that looks like a\nright one. An absolute path built with join() has neither problem, and both\ntraps are named in the comment so nobody pays for them twice.\n\nbuild-installer.bat 喺 bootstrap 度死咗，話搵唔到 gradlew.bat，但係嗰個檔案\n就喺 vendor/BlueMap 度好地地。`cmd /c gradlew.bat` 係去 PATH 度搵，\n而個 wrapper 喺 working directory，唔喺 PATH，所以佢話「冇」嘅嘢其實一直都喺。\n係照規矩行返個 committed script 去出 release 先揾到嘅，唔係捐窿捐罅自己打指令。\n順帶一提，改成 \".\\gradlew.bat\" 係第二個陷阱：喺 JS string 入面嗰個 \\g 係轉義，\n個參數會靜靜雞變成 \".gradlew.bat\"。",
+        category: "build",
+        areas: ["build"],
+        files: 1,
+    },
+    {
         sha: "8483b3da45737573cde00151f07cad1171bbaca1",
         shortSha: "8483b3da45",
         date: "2026-08-13T01:44:19-04:00",

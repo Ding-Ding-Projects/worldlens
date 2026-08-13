@@ -39,6 +39,10 @@ full message for the in-app changelog viewer.
 - Merge the structure discovery and render lane - [`1cef631556`](https://github.com/Ding-Ding-Projects/worldlens/commit/1cef631556409262a0fa5d4dcad92b0fe9130142) _(summary of 2 commits, also listed here)_
 - Make structure discovery and rendering real, not a stub - [`3da39defd0`](https://github.com/Ding-Ding-Projects/worldlens/commit/3da39defd04af8376bda86fa776c2e799bba0ea1)
 
+### Build, release and tooling
+
+- Give the Gradle wrapper its absolute path so a local build can start - [`b4cdc0c943`](https://github.com/Ding-Ding-Projects/worldlens/commit/b4cdc0c9430b81ef13f8a825a404e8d87ae370f4)
+
 ## 1.0.1077 - 2026-08-12
 
 Tagged at [`b769c22527`](https://github.com/Ding-Ding-Projects/worldlens/commit/b769c2252758d7b7d8b64b34609707c119d814a6).
