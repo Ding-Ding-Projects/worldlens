@@ -350,16 +350,78 @@ function parseJavaMajor(output) {
   return first === 1 ? Number(match[2] ?? 0) : first;
 }
 
+/**
+ * Every place a usable JDK might already be, in the order worth trying.
+ *
+ * This used to be `java` on PATH alone, and the message it printed on failure told the reader to
+ * install Temurin or set JAVA_HOME while consulting neither. Worse, the same product had already
+ * installed exactly the right JDK: the application provisions Temurin into its own user data
+ * directory for end users, at `<userData>/java/temurin-<feature>` per
+ * `design/packages/app/src/main/java/installation.ts`. So a machine that had rendered a map an hour
+ * earlier, and therefore certainly had a working Java, was told to go and install one. Two halves
+ * of one product, one provisioning a toolchain and the other unable to see it.
+ *
+ * The application's own data directory is Electron's `app.getPath("userData")`, which this script
+ * cannot call because it is not running inside Electron. The per-platform convention is stable and
+ * is reproduced here rather than guessed: a wrong path simply does not exist and falls through to
+ * the next candidate, so the cost of being wrong is one failed stat.
+ */
+function javaCandidates() {
+  const exe = process.platform === "win32" ? "java.exe" : "java";
+  const candidates = [{ command: "java", from: "PATH" }];
+
+  const javaHome = process.env.JAVA_HOME;
+  if (javaHome !== undefined && javaHome.trim().length > 0) {
+    candidates.push({ command: join(javaHome, "bin", exe), from: "JAVA_HOME" });
+  }
+
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+  const userData =
+    process.platform === "win32"
+      ? (process.env.APPDATA ?? join(home, "AppData", "Roaming"))
+      : process.platform === "darwin"
+        ? join(home, "Library", "Application Support")
+        : (process.env.XDG_CONFIG_HOME ?? join(home, ".config"));
+
+  for (const productDirectory of ["worldlens", "material-bluemap"]) {
+    candidates.push({
+      command: join(
+        userData,
+        productDirectory,
+        "java",
+        `temurin-${String(REQUIRED_JAVA_MAJOR)}`,
+        "bin",
+        exe,
+      ),
+      from: `the JDK this application provisioned for ${productDirectory}`,
+    });
+  }
+
+  return candidates;
+}
+
 function javaToolchain() {
-  const output = capture("java", ["-version"]);
-  const major = parseJavaMajor(output);
+  let major = null;
+  let found = null;
+  for (const candidate of javaCandidates()) {
+    const parsed = parseJavaMajor(capture(candidate.command, ["-version"]));
+    if (parsed === null) continue;
+    major = parsed;
+    found = candidate;
+    break;
+  }
   if (major === null) {
     return {
       ok: false,
       detail:
-        `no java on PATH. The app provisions a JDK at runtime for end users; ` +
-        `for development install Temurin ${REQUIRED_JAVA_MAJOR} or set JAVA_HOME.`,
+        `no usable java found. Looked on PATH, at JAVA_HOME, and where this application ` +
+        `provisions its own JDK. Install Temurin ${REQUIRED_JAVA_MAJOR} or set JAVA_HOME.`,
     };
+  }
+  if (found !== null && found.from !== "PATH" && major >= REQUIRED_JAVA_MAJOR) {
+    // Gradle reads JAVA_HOME, not this script's idea of where Java is, so a JDK found anywhere
+    // else has to be handed on or the jar step fails immediately after this one reported success.
+    process.env.JAVA_HOME = resolve(found.command, "..", "..");
   }
   if (major < REQUIRED_JAVA_MAJOR) {
     return {
@@ -369,7 +431,11 @@ function javaToolchain() {
   }
   return {
     ok: true,
-    detail: `java ${major} satisfies the required ${REQUIRED_JAVA_MAJOR}`,
+    detail:
+      `java ${major} satisfies the required ${REQUIRED_JAVA_MAJOR}` +
+      (found === null || found.from === "PATH"
+        ? ""
+        : `, found via ${found.from}`),
   };
 }
 

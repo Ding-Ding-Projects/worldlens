@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
 } from "node:fs";
 import {
   basename,
@@ -205,10 +206,31 @@ export function shadowJarVersion(directory) {
   } catch {
     return null;
   }
+  // The newest jar, not the first one the directory happens to list.
+  //
+  // Gradle does not remove the previous version's jar when the version changes, so after an
+  // upgrade this directory holds both. Taking the first match meant taking whichever name sorted
+  // earliest, and `cli-5.22-27-shadow.jar` sorts before `cli-5.23-shadow.jar`, so the very first
+  // real upgrade this feature handled wrote a stamp reading `"version": "5.22-27"` beside a jar
+  // built from 5.23. The commit is what decides a rebuild so nothing behaved wrongly, but a
+  // provenance record whose one human-readable field is wrong is worse than one that omits it:
+  // somebody reads the version, believes it, and stops looking.
+  let newest = null;
   for (const name of names) {
     if (!name.endsWith("-shadow.jar")) continue;
     const match = /-(\d[\w.+-]*?)-(?:cli-)?shadow\.jar$/.exec(name);
-    if (match !== null) return match[1];
+    if (match === null) continue;
+    let modified;
+    try {
+      modified = statSync(join(directory, name)).mtimeMs;
+    } catch {
+      // Vanished between the listing and the stat. Skip it rather than fail: this whole
+      // function is decoration on the stamp and must never break a build.
+      continue;
+    }
+    if (newest === null || modified > newest.modified) {
+      newest = { version: match[1], modified };
+    }
   }
-  return null;
+  return newest === null ? null : newest.version;
 }

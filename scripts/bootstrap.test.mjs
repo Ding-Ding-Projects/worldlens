@@ -6,6 +6,7 @@ import {
   rmSync,
   symlinkSync,
   unlinkSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,6 +20,7 @@ import {
   readJarStamp,
   resetDirectory,
   sha256File,
+  shadowJarVersion,
   verifyElectronArchive,
 } from "./bootstrap-helpers.mjs";
 
@@ -208,4 +210,38 @@ test("a stamp whose commit field is the wrong type is unreadable too", () => {
   const directory = temporaryDirectory();
   writeStamp(directory, JSON.stringify({ commit: 42 }));
   assert.equal(readJarStamp(join(directory, JAR_STAMP_NAME)), null);
+});
+
+test("the recorded version is the jar that was just built, not the one that sorts first", () => {
+  // The exact defect, from the first real upgrade this feature handled. Gradle leaves the
+  // previous version's jar in place, so after moving the submodule from 5.22-27 to 5.23 the
+  // directory held both, and reading the first name alphabetically stamped a jar built from
+  // 5.23 with `"version": "5.22-27"`. The commit field decides rebuilds so nothing behaved
+  // wrongly, but a provenance record whose one human-readable field is wrong is worse than one
+  // that omits it, because a reader believes it and stops looking.
+  const directory = temporaryDirectory();
+  const older = join(directory, "cli-5.22-27-shadow.jar");
+  const newer = join(directory, "cli-5.23-shadow.jar");
+  writeFileSync(older, "x".repeat(4096));
+  writeFileSync(newer, "x".repeat(4096));
+
+  // Ages set explicitly rather than relying on write order: two files written in the same
+  // millisecond would make this pass or fail by luck, which is not a test.
+  const old = new Date(Date.now() - 86_400_000);
+  utimesSync(older, old, old);
+
+  assert.equal(shadowJarVersion(directory), "5.23");
+});
+
+test("the recorded version still reads a lone jar, and is absent rather than wrong", () => {
+  const only = temporaryDirectory();
+  writeFileSync(join(only, "cli-5.23-shadow.jar"), "x".repeat(4096));
+  assert.equal(shadowJarVersion(only), "5.23");
+
+  // Nothing parseable, and a directory that is not there at all. Both omit the field rather
+  // than guessing, because this is decoration on the stamp and must never fail a build.
+  const unparseable = temporaryDirectory();
+  writeFileSync(join(unparseable, "cli-shadow.jar"), "x".repeat(4096));
+  assert.equal(shadowJarVersion(unparseable), null);
+  assert.equal(shadowJarVersion(join(unparseable, "no-such-directory")), null);
 });
