@@ -185,6 +185,8 @@ describe("GhCredentialBroker", () => {
         const main = mainRunner([{ host: "ghe.example", login: "octocat", active: true }]);
         const broker = new GhCredentialBroker({ runner: main.runner, candidates: [path] });
         const lease = await broker.account(ghAccountId("ghe.example", "octocat"));
+        const trustedExecutable = await broker.executable();
+        expect(trustedExecutable).not.toBeNull();
 
         await lease!.withAccount(async (runner) =>
             await runner.run("git", [
@@ -197,7 +199,7 @@ describe("GhCredentialBroker", () => {
 
         const push = main.calls.find((call) => call.command === "git");
         expect(push?.args).toContain(
-            `credential.helper=!'${path.replaceAll("\\", "/")}' auth git-credential`,
+            `credential.helper=!'${trustedExecutable!.replaceAll("\\", "/")}' auth git-credential`,
         );
         expect(push?.args).toContain("https://ghe.example/octocat/maps.git");
         expect(push?.args.join(" ")).not.toContain("=!gh auth git-credential");

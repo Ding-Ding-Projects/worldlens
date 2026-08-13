@@ -156,7 +156,7 @@ project generates configs from vendored templates rather than by asking the CLI 
 
 | Feature | BlueMapGUI's behaviour | Status here | Evidence | What it would take |
 |---|---|---|---|---|
-| A form editor over the configs | Five typed views: Core, Startup, Webapp, Webserver, Map. Roughly **21 settings in total** — Core has 2, Webapp has 1, Webserver has 1, Startup has 2, and a map has about 15. | **have**, far ahead | Seven screens (`ui/src/components/config/configSearch.ts`): Core, Maps, Storages, Web app, Web server, Server plugin, Run — plus a History tab. Schema field counts: core 10, map 32, mask 8, plugin 12, storage 10, webapp 19, webserver 8, plus the CLI flag set. | — |
+| A form editor over the configs | Five typed views: Core, Startup, Webapp, Webserver, Map. Roughly **21 settings in total** — Core has 2, Webapp has 1, Webserver has 1, Startup has 2, and a map has about 15. | **have**, far ahead | Seven screens (`ui/src/components/config/configSearch.ts`): Core, Maps, Storages, Web app, Web server, Server plugin, Run — plus a History tab. Schema field counts: core 10, map 32, mask 8, plugin 12, storage 10, webapp 20, webserver 8, plus the CLI flag set. | — |
 | Rich per-option prose, with links and inline code | Every option carries a paragraph under its title; links open in a browser; code fragments (`minecraft:the_nether`) are styled. | **have** | Field descriptions and groups live in the schema (`design/packages/config/src/schema/*.ts`) and render on the screens. | — |
 | Options a config file is too old to contain | Missing keys are **struck through and disabled**, the checkbox goes tri-state, and a tooltip explains the file is out of date. | **missing** | This project rewrites whole files from schema rather than editing keys in place, so the situation arises differently — but a *user-supplied* config folder with an old file hits exactly this case. | Small-to-medium, and a genuinely good pattern: it shows the setting exists, says why it cannot be used, and does not silently hide it. That matches this project's stated rule about never dropping a value it cannot represent. |
 | Surgical writes that preserve comments | A regex replaces only the value on the matching `key:` line in the real file, so comments, ordering and formatting survive. Saves on editing-complete, on slider release and on dispose. | **partial** | `ConfigApplyDialog.vue` and `configWorkspace.ts` write a config set; `render/config.ts` writes files whose own header says edits there are overwritten. | Relevant only where this app edits a folder somebody else authored. If that is a supported case, comment preservation is close to mandatory — silently eating a user's comments is the kind of thing they discover a month later. |
@@ -510,7 +510,7 @@ BlueMapGUI 嘅「project」係**磁碟上嘅一個資料夾**，入面有 `confi
   總共大約 **21 個設定**（Core 2、Webapp 1、Webserver 1、Startup 2，一個 map 大約 15）。
   呢邊 **have，而且遠遠領先**：七個畫面（`ui/src/components/config/configSearch.ts`）——Core、Maps、
   Storages、Web app、Web server、Server plugin、Run——再加一個 History tab。Schema 欄位數目係
-  core 10、map 32、mask 8、plugin 12、storage 10、webapp 19、webserver 8，仲有成套 CLI flag。
+  core 10、map 32、mask 8、plugin 12、storage 10、webapp 20、webserver 8，仲有成套 CLI flag。
 - **每個選項有豐富說明，有連結同 inline code**：BlueMapGUI 每個選項標題下面都有一段文字，
   連結會喺瀏覽器開，`minecraft:the_nether` 之類嘅 code 片段有樣式。呢邊 **have**：欄位描述同分組住喺 schema
   （`design/packages/config/src/schema/*.ts`），喺畫面上 render 出嚟。

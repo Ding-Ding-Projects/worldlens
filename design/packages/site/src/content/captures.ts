@@ -427,7 +427,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "The options editor",
         configuration: "1280 by 800, with no configuration folder attached",
-        alt: "The options editor filling the window: a toolbar for opening, importing, generating, re-reading and saving a config folder, with an unsaved-changes marker and a Save button; a search field reading 154 settings across every screen; and a column of eight tabs (Core, Maps, Storages, Web app, Web server, Server plugin, Run and History) beside the Core tab's own settings, which open on the render-speed dial. A message in the corner says that BlueMap's own defaults are being shown because nothing has been opened from disk yet.",
+        alt: "Historical capture of the options editor filling the window: a toolbar for opening, importing, generating, re-reading and saving a config folder, with an unsaved-changes marker and a Save button; a search field reading 154 settings across every screen before the client-decompression setting was added; and a column of eight tabs (Core, Maps, Storages, Web app, Web server, Server plugin, Run and History) beside the Core tab's own settings, which open on the render-speed dial. A message in the corner says that BlueMap's own defaults are being shown because nothing has been opened from disk yet.",
         featured: true,
     },
     {

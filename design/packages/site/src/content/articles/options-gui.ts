@@ -128,7 +128,7 @@ export const optionsGui: Article = {
                     columns: ["File", "Fields", "Upstream Java class"],
                     rows: [
                         [{ code: "core.conf" }, "10", { code: "CoreConfig" }],
-                        [{ code: "webapp.conf" }, "19", { code: "WebappConfig" }],
+                        [{ code: "webapp.conf" }, "20", { code: "WebappConfig" }],
                         [{ code: "webserver.conf" }, "8", { code: "WebserverConfig" }],
                         [{ code: "plugin.conf" }, "12", { code: "PluginConfig" }],
                         [{ code: "maps/<id>.conf" }, "31", { code: "MapConfig" }],

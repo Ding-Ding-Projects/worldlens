@@ -1149,7 +1149,7 @@ closed now. See the 2026-08-05 HANDOFF.md entry for the evidence behind each.
   covered by the same profiles history, per the issue's own text that it is one store viewed
   two ways.
 - **The options editor inventory is pinned.** `configSearch.test.ts` now asserts the generated
-  workspace exposes 154 settings across the seven configuration tabs, with History as the
+  workspace exposes 155 settings across the seven configuration tabs, with History as the
   eighth navigation tab, so a schema change cannot quietly make the published screenshot and
   README lie.
 

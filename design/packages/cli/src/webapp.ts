@@ -44,6 +44,7 @@ export interface WebappSettings {
     lowresSliderMin: number;
     mapDataRoot: string;
     liveDataRoot: string;
+    clientDecompression: boolean;
     maps: string[];
     scripts: string[];
     styles: string[];
@@ -96,6 +97,7 @@ export function buildWebappSettings(
         lowresSliderMin: webapp["lowres-slider-min"],
         mapDataRoot: webapp["map-data-root"],
         liveDataRoot: webapp["live-data-root"],
+        clientDecompression: webapp["client-decompression"],
         maps: sortedMapIds,
         scripts: [...webapp.scripts],
         styles: [...webapp.styles],

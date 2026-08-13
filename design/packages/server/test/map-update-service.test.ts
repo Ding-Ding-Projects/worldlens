@@ -90,6 +90,91 @@ class FakeChunk {
     }
 }
 
+type PendingWatchTake = {
+    resolve: (events: Vector2i[]) => void;
+    reject: (reason: unknown) => void;
+};
+
+type PendingWatchPoll = {
+    resolve: (events: Vector2i[] | null) => void;
+    reject: (reason: unknown) => void;
+    timer: ReturnType<typeof setTimeout>;
+};
+
+/**
+ * A controllable watch service for timing-only assertions. The real chokidar-backed
+ * service remains in the filesystem and worldgen tests; this fixture removes host
+ * scheduling from the one assertion whose contract is the cooldown arithmetic itself.
+ */
+class ManualWatchService implements WatchService<Vector2i> {
+    private closed = false;
+    private readonly queuedBatches: Vector2i[][] = [];
+    private readonly pendingTakes: PendingWatchTake[] = [];
+    private readonly pendingPolls: PendingWatchPoll[] = [];
+
+    poll(): Vector2i[] | null;
+    poll(timeoutMs: number): Promise<Vector2i[] | null>;
+    poll(timeoutMs?: number): Vector2i[] | null | Promise<Vector2i[] | null> {
+        if (timeoutMs === undefined) {
+            if (this.closed) throw new WatchService.ClosedException();
+            return this.queuedBatches.shift() ?? null;
+        }
+
+        if (this.closed) return Promise.reject(new WatchService.ClosedException());
+        const queued = this.queuedBatches.shift();
+        if (queued !== undefined) return Promise.resolve(queued);
+
+        return new Promise<Vector2i[] | null>((resolve, reject) => {
+            const pending: PendingWatchPoll = {
+                resolve,
+                reject,
+                timer: setTimeout(() => {
+                    const index = this.pendingPolls.indexOf(pending);
+                    if (index >= 0) this.pendingPolls.splice(index, 1);
+                    resolve(null);
+                }, timeoutMs),
+            };
+            this.pendingPolls.push(pending);
+        });
+    }
+
+    take(): Promise<Vector2i[]> {
+        if (this.closed) return Promise.reject(new WatchService.ClosedException());
+        const queued = this.queuedBatches.shift();
+        if (queued !== undefined) return Promise.resolve(queued);
+        return new Promise<Vector2i[]>((resolve, reject) => this.pendingTakes.push({ resolve, reject }));
+    }
+
+    emit(regionPos: Vector2i): void {
+        if (this.closed) throw new WatchService.ClosedException();
+        const take = this.pendingTakes.shift();
+        if (take !== undefined) {
+            take.resolve([regionPos]);
+            return;
+        }
+
+        const poll = this.pendingPolls.shift();
+        if (poll !== undefined) {
+            clearTimeout(poll.timer);
+            poll.resolve([regionPos]);
+            return;
+        }
+
+        this.queuedBatches.push([regionPos]);
+    }
+
+    async close(): Promise<void> {
+        if (this.closed) return;
+        this.closed = true;
+        const error = new WatchService.ClosedException();
+        for (const take of this.pendingTakes.splice(0)) take.reject(error);
+        for (const poll of this.pendingPolls.splice(0)) {
+            clearTimeout(poll.timer);
+            poll.reject(error);
+        }
+    }
+}
+
 function fakeWorldOverRegionFolder(regionFolder: string, watchServiceOverride?: () => WatchService<Vector2i>): World {
     const regionGrid = new Grid(64);
     const chunkGrid = new Grid(16);
@@ -147,6 +232,21 @@ async function watcherReady(service: MapUpdateService): Promise<void> {
     await (watchService as MCAWorldRegionWatchService).whenReady();
 }
 
+/** Waits for a real watcher condition without turning a busy host into a false failure. */
+async function waitForCondition(predicate: () => boolean, timeoutMs = 10000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (!predicate() && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    expect(predicate()).toBe(true);
+}
+
+/** Waits for the real watcher/queue bridge without turning a busy host into a false failure. */
+async function waitForScheduledRenderTaskCount(manager: RenderManager, expected: number, timeoutMs = 10000): Promise<void> {
+    await waitForCondition(() => manager.getScheduledRenderTaskCount() >= expected, timeoutMs);
+    expect(manager.getScheduledRenderTaskCount()).toBe(expected);
+}
+
 describe("MapUpdateService: bridges watch events to scheduled render tasks (issue #40)", () => {
     it("schedules exactly the right region on a real region-file change", { timeout: 15000 }, async () => {
         const regionFolder = join(root, "region");
@@ -159,10 +259,8 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
 
         writeFileSync(join(regionFolder, "r.3.-2.mca"), "data");
 
-        // let the fs event arrive and the (short, test-configured) debounce fire
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        expect(manager.getScheduledRenderTaskCount()).toBe(1);
+        // let the real fs event and the (short, test-configured) debounce fire
+        await waitForScheduledRenderTaskCount(manager, 1);
         const scheduled = manager.getScheduledRenderTasks()[0];
         expect(scheduled).toBeInstanceOf(WorldRegionUpdateTask);
         const task = scheduled as WorldRegionUpdateTask;
@@ -239,11 +337,10 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         await watcherReady(service);
 
         writeFileSync(join(regionFolder, "r.2.2.mca"), "data");
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await waitForScheduledRenderTaskCount(manager, 2);
 
         // the running/head task is untouched, and the new one queued behind it rather than
         // being refused as a duplicate or clobbering the head.
-        expect(manager.getScheduledRenderTaskCount()).toBe(2);
         const [first, second] = manager.getScheduledRenderTasks();
         expect(first).toBe(headTask);
         expect(second).toBeInstanceOf(WorldRegionUpdateTask);
@@ -253,34 +350,30 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         await service.close();
     });
 
-    it("stretches the delay by the cooldown so two real schedules of one region stay cooldownMs apart", { timeout: 15000 }, async () => {
+    it("stretches the delay by the cooldown so two queued schedules of one region stay cooldownMs apart", { timeout: 15000 }, async () => {
         const regionFolder = join(root, "region");
-        const map = await buildMapOverRegionFolder(regionFolder);
+        const watchService = new ManualWatchService();
+        const map = await buildMapOverRegionFolder(regionFolder, () => watchService);
         const manager = new RenderManager();
         // cooldown well above the floor, so the second schedule must wait for the cooldown
         // rather than for the (much shorter) floor.
         const service = new MapUpdateService(manager, map, { regionUpdateCooldownMs: 600, minUpdateDelayMs: 30 });
 
         service.start();
-        await watcherReady(service);
-
-        const regionFile = join(regionFolder, "r.7.7.mca");
-        writeFileSync(regionFile, "a");
+        watchService.emit(new Vector2i(7, 7));
 
         // wait for the first schedule to fire (floor is 30ms)
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        expect(manager.getScheduledRenderTaskCount()).toBe(1);
+        await waitForScheduledRenderTaskCount(manager, 1);
 
-        // touch again shortly after the first fired: timeSinceLastUpdate is small, so the
+        // emit again shortly after the first fired: timeSinceLastUpdate is small, so the
         // cooldown (600ms) should dominate the max(...) rather than the 30ms floor.
-        writeFileSync(regionFile, "ab");
+        watchService.emit(new Vector2i(7, 7));
         await new Promise((resolve) => setTimeout(resolve, 250));
         // still only one task: the second schedule has not fired yet, because it is waiting
         // out the cooldown rather than the floor.
         expect(manager.getScheduledRenderTaskCount()).toBe(1);
 
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        expect(manager.getScheduledRenderTaskCount()).toBe(2);
+        await waitForScheduledRenderTaskCount(manager, 2);
 
         await service.close();
     });
@@ -296,7 +389,7 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         await watcherReady(service);
 
         writeFileSync(join(regionFolder, "r.1.1.mca"), "data");
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await waitForCondition(() => (service as unknown as { scheduledUpdates: Map<string, unknown> }).scheduledUpdates.size === 1);
 
         // the debounce timer is pending, nothing scheduled yet
         expect(manager.getScheduledRenderTaskCount()).toBe(0);
@@ -341,9 +434,7 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
 
         service.start();
         // let the loop's microtasks/macrotasks settle
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        expect(errors.some((e) => e.message.includes("Exception trying to watch map"))).toBe(true);
+        await waitForCondition(() => errors.some((e) => e.message.includes("Exception trying to watch map")));
         expect(unhandled).toBe("not seen");
 
         process.off("unhandledRejection", onUnhandledRejection);
@@ -371,9 +462,7 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         await watcherReady(service);
 
         writeFileSync(join(regionFolder, "r.9.9.mca"), "data");
-        await new Promise((resolve) => setTimeout(resolve, 400));
-
-        expect(errors.some((e) => e.message.includes("Exception scheduling render task"))).toBe(true);
+        await waitForCondition(() => errors.some((e) => e.message.includes("Exception scheduling render task")));
         // the run-loop is still alive after the throw — proven by closing it cleanly rather
         // than the close() call hanging on a run-loop that already died some other way
         await expect(service.close()).resolves.toBeUndefined();
@@ -413,9 +502,7 @@ describe("MapUpdateService: over a real worldgen-generated world (issue #40's ow
         // touch (rewrite) the real, worldgen-produced region file
         writeFileSync(join(regionFolder, regionFiles[0]!), "touched");
 
-        await new Promise((resolve) => setTimeout(resolve, 600));
-
-        expect(manager.getScheduledRenderTaskCount()).toBe(1);
+        await waitForScheduledRenderTaskCount(manager, 1);
         const task = manager.getScheduledRenderTasks()[0] as WorldRegionUpdateTask;
         expect(task.getRegionPos().equals(expectedPos!)).toBe(true);
         expect(task.getMap()).toBe(map);
