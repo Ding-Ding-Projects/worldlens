@@ -66,6 +66,13 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
             phase: "rename-time",
         },
     ],
+    "scripts/bootstrap.mjs": [
+        {
+            pattern: /material-bluemap/g,
+            expectedMatches: 1,
+            reason: "read-only legacy Java runtime directory kept for existing installations",
+        },
+    ],
     "design/packages/app/src/main/index.ts": [
         {
             pattern: /Material BlueMap/g,

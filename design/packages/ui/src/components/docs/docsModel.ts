@@ -80,6 +80,8 @@ export const APPLICATION_ORDER: readonly string[] = [
     "dim-sum-surprise.md",
     "personal-vocabulary.md",
     "toy-locks.md",
+    "ollama.md",
+    "region-watch-safety.md",
     "super-confirmation.md",
     "language-and-tone.md",
     "display-and-ease-of-use.md",
