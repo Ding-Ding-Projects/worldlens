@@ -65,6 +65,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "download-concurrency": "Download concurrency",
     "system-dependencies": "System dependencies",
     "updates": "Updates",
+    "vocabulary": "Personal vocabulary",
     "history": "Version history",
     "diagnostics": "Diagnostics",
 };

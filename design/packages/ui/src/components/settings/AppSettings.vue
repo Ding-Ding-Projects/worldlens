@@ -27,6 +27,7 @@ import UpdateStatusRow from "../update/UpdateStatusRow.vue";
 import { updateText } from "../update/updateCopy.js";
 import type { UpdatesController } from "../update/useUpdates.js";
 import { SimpleHistoryPanel, simpleHistoryHostFrom } from "../history/index.js";
+import { VocabularyUploadRow, vocabularyStore } from "../vocabulary/index.js";
 import { RepairPanel } from "../repair/index.js";
 import { DOCK_PLACEMENTS } from "./dockPlacement.js";
 import { dockedSurfaces } from "./useDockPlacement.js";
@@ -160,6 +161,7 @@ const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(nul
 const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const vocabularySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 
@@ -373,6 +375,15 @@ const sections = computed<SettingsSectionText[]>(() => {
                 updateText(props.updates.status.value.messageKey, props.updates.status.value.vars),
             ].filter((value) => value !== ""),
         },
+        // The current status sentence - no file, loaded with a count, or a rejection
+        // reason - so the same "search what is on screen" rule every other section
+        // follows applies here too.
+        {
+            anchor: "vocabulary",
+            title: text.vocabulary.title,
+            description: text.vocabulary.description,
+            values: [String(Object.keys(vocabularyStore.entries).length), vocabularyStore.status],
+        },
         // The two headings this tab actually renders, so typing "profiles" or "application
         // settings" finds the version-history tab, the same "search what is on screen"
         // rule every other section follows.
@@ -473,6 +484,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return systemDependenciesSection.value;
         case "updates":
             return updatesSection.value;
+        case "vocabulary":
+            return vocabularySection.value;
         case "history":
             return historySection.value;
         case "diagnostics":
@@ -944,6 +957,23 @@ function onDrawer(value: boolean): void {
                             @restart="restartForSettingsUpdate"
                             @show-banner="showUpdateBannerAgain"
                         />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    The local personal-vocabulary JSON upload: always present in this
+                    surface's own settings, per `vocabulary/vocabularyStore.ts`. No render
+                    or other failure can send somebody here, so like updates and history
+                    this is reached by opening Settings.
+                -->
+                <template #vocabulary>
+                    <SettingsSection
+                        ref="vocabularySection"
+                        anchor="vocabulary"
+                        :title="copy.vocabulary.title"
+                        :description="copy.vocabulary.description"
+                    >
+                        <VocabularyUploadRow />
                     </SettingsSection>
                 </template>
 
