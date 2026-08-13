@@ -36,6 +36,9 @@ export const DEFAULT_CATALOG_URL = "https://ollama.com/api/library";
 /** Longest number of pages a single refresh will follow before refusing to keep pulling. */
 export const MAX_CATALOG_PAGES = 200;
 
+/** Largest catalogue page this screen will buffer before refusing the refresh. */
+export const MAX_CATALOG_RESPONSE_BYTES = 2 * 1024 * 1024;
+
 export interface CatalogTag {
     readonly tag: string;
     /** Bytes, when the catalogue source reports a size for this exact tag. */
@@ -69,7 +72,7 @@ export type CatalogRefreshResult =
     | { readonly ok: true; readonly catalog: OllamaCatalog }
     | {
           readonly ok: false;
-          readonly reason: "network" | "malformed" | "truncated";
+          readonly reason: "network" | "malformed" | "oversized" | "aborted" | "truncated";
           readonly message: string;
           /** Whatever was gathered before the refusal, so a partial refresh is not silently thrown away. */
           readonly partial: OllamaCatalog | null;
@@ -96,7 +99,10 @@ interface RawCatalogModel {
 function normalizeModel(raw: RawCatalogModel): CatalogModel | null {
     if (typeof raw.name !== "string" || raw.name.length === 0) return null;
     const tags: CatalogTag[] = (raw.tags ?? [])
-        .filter((tag): tag is NonNullable<typeof tag> & { tag: string } => typeof tag.tag === "string" && tag.tag.length > 0)
+        .filter(
+            (tag): tag is NonNullable<typeof tag> & { tag: string } =>
+                typeof tag.tag === "string" && tag.tag.length > 0,
+        )
         .map((tag) => ({
             tag: tag.tag,
             sizeBytes: typeof tag.size === "number" ? tag.size : null,
@@ -106,31 +112,84 @@ function normalizeModel(raw: RawCatalogModel): CatalogModel | null {
     return {
         family: raw.name,
         description: typeof raw.description === "string" ? raw.description : "",
-        capabilities: Array.isArray(raw.capabilities) ? raw.capabilities.filter((c): c is string => typeof c === "string") : [],
+        capabilities: Array.isArray(raw.capabilities)
+            ? raw.capabilities.filter((c): c is string => typeof c === "string")
+            : [],
         tags,
     };
+}
+
+type PageFetchResult =
+    | { readonly ok: true; readonly page: RawCatalogPage }
+    | { readonly ok: false; readonly reason: "network" | "malformed" | "oversized" | "aborted" };
+
+async function readBoundedCatalogText(
+    response: Response,
+): Promise<
+    | { readonly ok: true; readonly text: string }
+    | { readonly ok: false; readonly reason: "oversized" }
+> {
+    const advertisedLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(advertisedLength) && advertisedLength > MAX_CATALOG_RESPONSE_BYTES) {
+        return { ok: false, reason: "oversized" };
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+        const text = await response.text();
+        if (new TextEncoder().encode(text).byteLength > MAX_CATALOG_RESPONSE_BYTES) {
+            return { ok: false, reason: "oversized" };
+        }
+        return { ok: true, text };
+    }
+
+    const decoder = new TextDecoder();
+    let bytes = 0;
+    let text = "";
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > MAX_CATALOG_RESPONSE_BYTES) {
+            await reader.cancel().catch(() => undefined);
+            return { ok: false, reason: "oversized" };
+        }
+        text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return { ok: true, text };
 }
 
 async function fetchPage(
     url: string,
     fetchImpl: FetchLike,
     timeoutMs: number,
-): Promise<{ readonly ok: true; readonly page: RawCatalogPage } | { readonly ok: false; readonly reason: "network" | "malformed" }> {
+    signal?: AbortSignal,
+): Promise<PageFetchResult> {
+    if (signal?.aborted === true) return { ok: false, reason: "aborted" };
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let callerAborted = false;
+    const onCallerAbort = () => {
+        callerAborted = true;
+        controller.abort();
+    };
+    signal?.addEventListener("abort", onCallerAbort);
     try {
         const response = await fetchImpl(url, { method: "GET", signal: controller.signal });
         if (!response.ok) return { ok: false, reason: "network" };
-        const text = await response.text();
+        const body = await readBoundedCatalogText(response);
+        if (!body.ok) return body;
         try {
-            return { ok: true, page: JSON.parse(text) as RawCatalogPage };
+            return { ok: true, page: JSON.parse(body.text) as RawCatalogPage };
         } catch {
             return { ok: false, reason: "malformed" };
         }
     } catch {
-        return { ok: false, reason: "network" };
+        return { ok: false, reason: callerAborted ? "aborted" : "network" };
     } finally {
         clearTimeout(timer);
+        signal?.removeEventListener("abort", onCallerAbort);
     }
 }
 
@@ -142,7 +201,11 @@ async function fetchPage(
  */
 export async function refreshCatalog(
     fetchImpl: FetchLike,
-    options: { readonly url?: string; readonly timeoutMs?: number } = {},
+    options: {
+        readonly url?: string;
+        readonly timeoutMs?: number;
+        readonly signal?: AbortSignal;
+    } = {},
 ): Promise<CatalogRefreshResult> {
     const baseUrl = options.url ?? DEFAULT_CATALOG_URL;
     const timeoutMs = options.timeoutMs ?? 10_000;
@@ -157,10 +220,18 @@ export async function refreshCatalog(
                 ok: false,
                 reason: "truncated",
                 message: `The catalogue kept paginating past ${MAX_CATALOG_PAGES} pages, further than this build will follow.`,
-                partial: { models, revision: { sourceRevision, refreshedAt: new Date().toISOString(), pageCount, complete: false } },
+                partial: {
+                    models,
+                    revision: {
+                        sourceRevision,
+                        refreshedAt: new Date().toISOString(),
+                        pageCount,
+                        complete: false,
+                    },
+                },
             };
         }
-        const fetched = await fetchPage(nextUrl, fetchImpl, timeoutMs);
+        const fetched = await fetchPage(nextUrl, fetchImpl, timeoutMs, options.signal);
         pageCount += 1;
         if (!fetched.ok) {
             const reason = fetched.reason;
@@ -170,8 +241,20 @@ export async function refreshCatalog(
                 message:
                     reason === "network"
                         ? "The official model catalogue could not be reached."
-                        : "The official model catalogue answered with something this build could not parse.",
-                partial: { models, revision: { sourceRevision, refreshedAt: new Date().toISOString(), pageCount, complete: false } },
+                        : reason === "oversized"
+                          ? "The official model catalogue page was larger than this build will read."
+                          : reason === "aborted"
+                            ? "The catalogue refresh was cancelled."
+                            : "The official model catalogue answered with something this build could not parse.",
+                partial: {
+                    models,
+                    revision: {
+                        sourceRevision,
+                        refreshedAt: new Date().toISOString(),
+                        pageCount,
+                        complete: false,
+                    },
+                },
             };
         }
         for (const raw of fetched.page.models ?? []) {
@@ -179,12 +262,23 @@ export async function refreshCatalog(
             if (normalized) models.push(normalized);
         }
         if (typeof fetched.page.revision === "string") sourceRevision = fetched.page.revision;
-        nextUrl = typeof fetched.page.nextPage === "string" && fetched.page.nextPage.length > 0 ? fetched.page.nextPage : null;
+        nextUrl =
+            typeof fetched.page.nextPage === "string" && fetched.page.nextPage.length > 0
+                ? fetched.page.nextPage
+                : null;
     }
 
     return {
         ok: true,
-        catalog: { models, revision: { sourceRevision, refreshedAt: new Date().toISOString(), pageCount, complete: true } },
+        catalog: {
+            models,
+            revision: {
+                sourceRevision,
+                refreshedAt: new Date().toISOString(),
+                pageCount,
+                complete: true,
+            },
+        },
     };
 }
 

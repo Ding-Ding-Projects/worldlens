@@ -22,13 +22,24 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Harden updates, streams, and region watchers - [`57f1141c51`](https://github.com/Ding-Ding-Projects/worldlens/commit/57f1141c51227c9341afffca3ef0bc3961132692)
+- Rebuild the BlueMap jars when the source moves, and say when upstream has moved - [`ee6b0a2d25`](https://github.com/Ding-Ding-Projects/worldlens/commit/ee6b0a2d251ab30ec0a6ae0f89f9bbd4b75d7533)
+- Make five unreachable surfaces reachable, and show update download progress - [`00ddd0e8f2`](https://github.com/Ding-Ding-Projects/worldlens/commit/00ddd0e8f2069d05a8ebd01c4130ab4380633077)
 - Add the Chunker world-conversion suite and its four execution routes - [`dd02621e04`](https://github.com/Ding-Ding-Projects/worldlens/commit/dd02621e049a758fbdfdd6ccb2bed4bb86044244)
 - Build the three canonical features that were missing entirely - [`f8baa80c46`](https://github.com/Ding-Ding-Projects/worldlens/commit/f8baa80c461cfad06e1130d5c87281db972893e5)
 - Capture the eight new surfaces, and register four pages the tab strip never knew about - [`b32ad1c275`](https://github.com/Ding-Ding-Projects/worldlens/commit/b32ad1c275b7c9122279a7380e05f22ff7961dd0)
 - Stop the account load writing into a screen somebody has already left - [`efab5f3cfa`](https://github.com/Ding-Ding-Projects/worldlens/commit/efab5f3cfa02f01e3a30bb3f6fc8d58e9377b4f4)
 
+### Build, release and tooling
+
+- Advance BlueMap to v5.23, and fix two defects the upgrade itself exposed - [`763684e772`](https://github.com/Ding-Ding-Projects/worldlens/commit/763684e77258b5ee6276e4f83720bb524446085f)
+
 ### Documentation
 
+- Lead with the map, and replace every capture from one run against a real world - [`eae243da7e`](https://github.com/Ding-Ding-Projects/worldlens/commit/eae243da7ec4fc60f93980e8bbafc30ba3ddd756)
+- Give markers their own documentation category, and add a worked Bayville example - [`807491d0de`](https://github.com/Ding-Ding-Projects/worldlens/commit/807491d0de631b8b30acf97e57a751c27eb5b529)
+- Paint the Home layer's own background instead of borrowing a child's - [`80f1e51573`](https://github.com/Ding-Ding-Projects/worldlens/commit/80f1e51573d9dc744d684b8b99a9673d6ac008ce)
+- Photograph the surfaces that shipped unphotographed, and fix two that could not be - [`8b50828e92`](https://github.com/Ding-Ding-Projects/worldlens/commit/8b50828e927783145e81887d52d8c0c5ea8a7059)
 - Document the five features that shipped without an article - [`b145e52b61`](https://github.com/Ding-Ding-Projects/worldlens/commit/b145e52b61721d830b0fd721925326ecc5966a7c)
 
 ## 1.0.1082 - 2026-08-13

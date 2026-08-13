@@ -12,7 +12,7 @@ afterEach(async () => {
     await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-async function fixture() {
+async function fixture(options: { readonly flushAutosave?: () => Promise<void> } = {}) {
     const root = await mkdtemp(join(tmpdir(), "worldlens-startup-ipc-"));
     roots.push(root);
     const store = new StartupIssueStore(root);
@@ -46,6 +46,7 @@ async function fixture() {
         dialog,
         clipboard,
         store,
+        ...(options.flushAutosave === undefined ? {} : { flushAutosave: options.flushAutosave }),
         resolveWindow: () => null,
     });
     return { app, clipboard, dialog, handlers, startup, store };
@@ -85,6 +86,36 @@ describe("startup diagnostics IPC", () => {
         expect(vi.mocked(app.relaunch)).toHaveBeenCalledTimes(1);
         expect(vi.mocked(app.exit)).toHaveBeenCalledTimes(1);
         expect(vi.mocked(app.exit)).toHaveBeenCalledWith(0);
+    });
+
+    it("flushes pending project changes before recovery restart exits", async () => {
+        const order: string[] = [];
+        const flushAutosave = vi.fn(async () => {
+            order.push("flush");
+        });
+        const { app, startup } = await fixture({ flushAutosave });
+        vi.mocked(app.relaunch).mockImplementation(() => {
+            order.push("relaunch");
+        });
+        vi.mocked(app.exit).mockImplementation(() => {
+            order.push("exit");
+        });
+
+        await expect(startup.retry()).resolves.toMatchObject({ ok: true });
+        expect(order).toEqual(["flush", "relaunch", "exit"]);
+        expect(flushAutosave).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps recovery open when pending project changes cannot be flushed", async () => {
+        const { app, startup } = await fixture({
+            flushAutosave: async () => {
+                throw new Error("history is read-only");
+            },
+        });
+
+        await expect(startup.retry()).resolves.toMatchObject({ ok: false });
+        expect(vi.mocked(app.relaunch)).not.toHaveBeenCalled();
+        expect(vi.mocked(app.exit)).not.toHaveBeenCalled();
     });
 
     it("uses the caller's window for export when one exists", async () => {

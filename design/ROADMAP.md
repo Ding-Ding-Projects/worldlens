@@ -1,5 +1,21 @@
 # Roadmap
 
+## Updater, local-stream, lifecycle, and Node 26 watcher hardening (2026-08-13)
+
+The reliability pass now treats the failure modes that make a user restart work as first-class:
+update restarts carry a durable receipt and refuse ambiguous transitions, local Ollama streams
+stop and flush at their real terminal records without unbounded bodies, delayed UI work is
+cancelled when its owner leaves, and Windows Node 26+ uses a bounded chokidar polling fallback
+instead of the native `fs.watch` path that can abort on a newly-created child event. Native
+watching remains the default elsewhere. Region-folder creation, event coalescing, map-update
+cooldown, error propagation, and shutdown cleanup are all covered by focused tests.
+
+Focused verification is green: 180 affected-surface tests, 14 watcher/map-update tests, all 14
+active package typechecks, ESLint, and the workspace build. A complete `pnpm test:ci` attempt was
+stopped by the 20-minute tool ceiling at 1203.4s and emitted `EPIPE` only after its output pipe
+closed, so the full suite is deliberately not called green yet. See
+`design/HANDOFF.md` and [Region-file watch safety](../docs/region-watch-safety.md).
+
 ## The shell stops covering its own navigation, and ten surfaces stop cutting their own text (2026-08-11)
 
 The redesign keeps an 80px rail on screen at every supported width. It was not: the options

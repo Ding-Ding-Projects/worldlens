@@ -1,5 +1,40 @@
 # Handoff
 
+## 2026-08-13 — updater, stream, lifecycle, and Windows watcher safety pass
+
+**State: focused verification green; full-suite verification remains pending.** This pass
+preserves user work across update restarts, bounds local Ollama streams and catalogue reads,
+cleans delayed UI callbacks on unmount, and avoids a Node 26 Windows `fs.watch` process abort by
+selecting chokidar polling only for that runtime.
+
+### What changed
+
+- Update restart receipts validate the exact version transition, pin rollback/mismatch evidence
+  until the renderer acknowledges it, reject malformed or same/older targets, and keep manual
+  checks from racing an active download.
+- Ollama requests stop on cancellation or `done: true`, flush an unterminated final NDJSON line,
+  reject oversized bodies before they grow memory, bound catalogue responses, and refuse corrupt
+  saved sessions without overwriting recoverable data.
+- Projects, settings, consent, notifications, and the colour picker clear timers/listeners and
+  preserve dirty-state protection across unmounts and delayed callbacks.
+- Region watchers use polling on Windows Node 26+, keep native watching elsewhere, recover when a
+  region folder appears late, coalesce events, surface errors, and close every timer/watcher.
+
+### Evidence
+
+| Chut | Result |
+|---|---|
+| Changed updater/Ollama/UI/lifecycle surfaces | 16 files, 180 tests passed in 65.32s |
+| Watcher and map-update surfaces | 2 files, 14 tests passed in 17.60s |
+| Workspace typecheck | 14 active packages passed |
+| ESLint | passed |
+| Workspace build | 14 active packages passed |
+| Full `pnpm test:ci` | no terminal verdict: harness stopped it at 1203.4s; child then emitted `EPIPE` on the closed output pipe |
+
+The full-suite run is therefore recorded as pending rather than green. The focused evidence is
+real and reproducible; this section travels with the commit that records the pass and its exact
+verification boundary.
+
 ## 2026-08-11 — eleven clipping and navigation defects, found by measuring the running interface
 
 **Plain version, first:** the options editor was covering the navigation rail and switching it

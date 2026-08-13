@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, useId } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VChip, VIcon } from "vuetify/components";
 import { mdiCheckCircleOutline, mdiCloseCircleOutline, mdiOpenInNew } from "@mdi/js";
@@ -63,6 +63,7 @@ const documentUrl = computed(() => consent.record.value?.documentUrl ?? MOJANG_E
  * somebody on the right page and leaving them to hunt for the control is not arriving.
  */
 const flash = ref(false);
+let highlightTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * The licence itself, in this row, on request.
@@ -95,11 +96,18 @@ function toggleLicence(): void {
 
 function highlight(): void {
     root.value?.focus();
+    if (highlightTimer !== null) clearTimeout(highlightTimer);
     flash.value = true;
-    globalThis.setTimeout?.(() => {
+    highlightTimer = globalThis.setTimeout?.(() => {
         flash.value = false;
+        highlightTimer = null;
     }, 2000);
 }
+
+onBeforeUnmount(() => {
+    if (highlightTimer !== null) clearTimeout(highlightTimer);
+    highlightTimer = null;
+});
 
 defineExpose({ highlight, reload: consent.load });
 </script>
@@ -127,9 +135,7 @@ defineExpose({ highlight, reload: consent.load });
                     aria-hidden="true"
                 />
                 {{
-                    accepted
-                        ? i18n.t("consent.status.accepted")
-                        : i18n.t("consent.status.declined")
+                    accepted ? i18n.t("consent.status.accepted") : i18n.t("consent.status.declined")
                 }}
             </v-chip>
         </header>

@@ -30,6 +30,7 @@ import { classifyUpdateFailure, updateFailure } from "./failure.js";
 import { describeFeed, type FeedConfiguration, type FeedResolution } from "./feed.js";
 import type { UpdateFeedHandoff } from "./feedHandoff.js";
 import type { UpdateInstallJournal, UpdateInstallOutcome } from "./installJournal.js";
+import { isStrictlyNewerVersion } from "./version.js";
 import {
     STARTUP_DELAY_MS,
     initialSchedule,
@@ -129,7 +130,8 @@ export type UpdateRestartRefusal =
     | "failed";
 
 export type UpdateRestartResult =
-    | { readonly ok: true; readonly version: string }
+    /** The process accepted the request; the next launch must reconcile the journal. */
+    | { readonly ok: true; readonly version: string; readonly transition: "requested" }
     | { readonly ok: false; readonly code: UpdateRestartRefusal; readonly message: string };
 
 export interface UpdateRestartContext {
@@ -372,6 +374,10 @@ export class UpdateController {
             this.probeAnyway();
             return this.current();
         }
+        // A non-retryable failure describes a configuration or package-integrity problem,
+        // not a transient network check. Calling the engine after feed setup failed leaves
+        // `inFlight` true forever when the engine has no feed and emits no answer.
+        if (this.state.failure?.retryable === false) return this.current();
         if (this.inFlight) return this.current();
         if (isReady(this.state)) {
             // Already staged. Checking again cannot improve on "restart to install".
@@ -463,7 +469,7 @@ export class UpdateController {
             this.fail(failure);
             return { ok: false, code: "failed", message: failure.message };
         }
-        return { ok: true, version };
+        return { ok: true, version, transition: "requested" };
     }
 
     dispose(): void {
@@ -504,7 +510,10 @@ export class UpdateController {
             // Electron's updater begins downloading as part of the check; there is no
             // "found one, not fetching it yet" moment to report, so this is `downloading`
             // rather than `available`. `available` is what a metadata-only probe produces.
-            this.inFlight = false;
+            // The engine is now downloading. Keep the request in flight until either the
+            // package is staged or the engine reports an error; otherwise Check can start a
+            // second download and an intermediate no-update event can erase this state.
+            this.inFlight = true;
             this.apply({ type: "downloading", version: null });
         });
 
@@ -521,7 +530,6 @@ export class UpdateController {
 
         handler("update-downloaded", (args) => {
             this.inFlight = false;
-            if (this.activeFeed === "current") this.confirmCurrentFeed();
             // Electron's signature: (event, releaseNotes, releaseName, releaseDate, updateURL).
             const notes = typeof args[1] === "string" && args[1].trim() !== "" ? args[1] : null;
             const name = exactUpdateVersion(args[2]);
@@ -543,6 +551,21 @@ export class UpdateController {
                 );
                 return;
             }
+            if (!isStrictlyNewerVersion(name, this.state.currentVersion)) {
+                this.fail(
+                    updateFailure(
+                        "feed-mismatch",
+                        `The update package named version ${name}, but this app is already running ${this.state.currentVersion}. ` +
+                            "It will not offer the same or an older package for installation.",
+                        {
+                            detail: `Received release name: ${name}; current version: ${this.state.currentVersion}`,
+                            retryable: false,
+                        },
+                    ),
+                );
+                return;
+            }
+            if (this.activeFeed === "current") this.confirmCurrentFeed();
             this.schedule = scheduleAfterSuccess(this.schedule, true);
             this.apply({
                 type: "downloaded",

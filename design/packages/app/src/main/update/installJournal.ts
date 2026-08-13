@@ -26,6 +26,7 @@ import {
     writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { isStrictlyNewerVersion } from "./version.js";
 
 export const UPDATE_INSTALL_JOURNAL_FILE = ".worldlens-update-install.json";
 /** Small enough to read before the window opens without a corrupt local file stalling launch. */
@@ -133,6 +134,11 @@ export function createFileUpdateInstallJournal(
         begin(fromVersion, targetVersion) {
             if (!exactVersion(fromVersion) || !exactVersion(targetVersion)) {
                 throw new Error("The update transition did not carry two exact bounded versions.");
+            }
+            if (!isStrictlyNewerVersion(targetVersion, fromVersion)) {
+                throw new Error(
+                    "The update transition target must be newer than the running version.",
+                );
             }
             mkdirSync(dirname(path), { recursive: true });
             const temporary = `${path}.tmp-${process.pid}-${randomBytes(6).toString("hex")}`;

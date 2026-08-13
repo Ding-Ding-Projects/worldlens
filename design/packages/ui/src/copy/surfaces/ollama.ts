@@ -24,11 +24,17 @@ export const OLLAMA_FIXED = {
     "ollama.runtime.ready": { en: "Ollama is ready", yue: "Ollama 準備好喇" },
     "ollama.runtime.checking": { en: "Checking for Ollama…", yue: "檢查緊 Ollama…" },
     "ollama.runtime.recheck": { en: "Check again", yue: "再檢查一次" },
-    "ollama.runtime.openDownload": { en: "Open the official Ollama download page", yue: "開返 Ollama 官方下載頁" },
+    "ollama.runtime.openDownload": {
+        en: "Open the official Ollama download page",
+        yue: "開返 Ollama 官方下載頁",
+    },
     "ollama.store.title": { en: "Model Store", yue: "模型商店" },
     "ollama.store.search": { en: "Search models and tags", yue: "搜尋模型同標籤" },
     "ollama.store.refresh": { en: "Refresh catalogue", yue: "更新目錄" },
-    "ollama.store.stale": { en: "Showing the last verified catalogue. It is stale.", yue: "而家顯示緊上次驗證嘅目錄，已經過時。" },
+    "ollama.store.stale": {
+        en: "Showing the last verified catalogue. It is stale.",
+        yue: "而家顯示緊上次驗證嘅目錄，已經過時。",
+    },
     "ollama.store.filter.installed": { en: "Installed", yue: "已安裝" },
     "ollama.store.filter.fit": { en: "Hardware fit", yue: "硬件合適度" },
     "ollama.fit.runsWell": { en: "Runs well", yue: "跑得順" },
@@ -57,6 +63,10 @@ export const OLLAMA_FIXED = {
         yue: "呢個操作會刪除呢個對話入面 {count} 個訊息。其他嘢唔會受影響，刪除咗嘅對話冇得復原。",
     },
     "ollama.chat.search": { en: "Search chats", yue: "搜尋對話" },
+    "ollama.chat.storageFailure": {
+        en: "Saved chats could not be read, so this screen will not overwrite them. Resolve the local storage problem, then reopen this tab. Details: {reason}",
+        yue: "讀唔到已儲存嘅對話，所以呢個畫面唔會覆蓋佢哋。處理好本機儲存問題，再重新開呢個分頁。詳情：{reason}",
+    },
     "ollama.chat.systemPrompt": { en: "System prompt", yue: "系統提示" },
     "ollama.chat.send": { en: "Send", yue: "發送" },
     "ollama.chat.stop": { en: "Stop", yue: "停止" },
@@ -172,6 +182,12 @@ export const OLLAMA_FACTS = {
     "ollama.runtime.missingGuidance": { en: ["Ollama"], yue: ["Ollama"] },
     "ollama.runtime.stoppedGuidance": { en: ["Ollama"], yue: ["Ollama"] },
     "ollama.runtime.unhealthyGuidance": { en: ["Ollama"], yue: ["Ollama"] },
-    "ollama.cart.notCommerce": { en: ["no price", "no checkout", "no account", "no payment"], yue: ["冇價錢", "冇結帳", "冇帳戶", "冇付款"] },
+    "ollama.cart.notCommerce": {
+        en: ["no price", "no checkout", "no account", "no payment"],
+        yue: ["冇價錢", "冇結帳", "冇帳戶", "冇付款"],
+    },
     "ollama.chat.empty": { en: ["model"], yue: ["模型"] },
-} as const satisfies Record<keyof typeof OLLAMA_VOICED, { en: readonly string[]; yue: readonly string[] }>;
+} as const satisfies Record<
+    keyof typeof OLLAMA_VOICED,
+    { en: readonly string[]; yue: readonly string[] }
+>;

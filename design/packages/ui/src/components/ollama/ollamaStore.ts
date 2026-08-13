@@ -28,6 +28,12 @@ import type { FitAssessment } from "./hardwareFit.js";
 
 export const OLLAMA_CHAT_STORAGE_KEY = "worldlens-ollama-chat-sessions";
 
+/** Bounds keep a damaged or hostile local-storage cell from becoming a render-time denial of service. */
+export const MAX_CHAT_STORAGE_BYTES = 4 * 1024 * 1024;
+const MAX_CHAT_SESSIONS = 200;
+const MAX_MESSAGES_PER_SESSION = 2_000;
+const MAX_CHAT_TEXT_LENGTH = 1_000_000;
+
 export type RuntimeState = "unknown" | "missing" | "stopped" | "unhealthy" | "ready";
 
 export interface RuntimeStatus {
@@ -92,14 +98,63 @@ function loadChatState(): { sessions: ChatSession[]; failure: string | null } {
     try {
         const raw = localStorage.getItem(OLLAMA_CHAT_STORAGE_KEY);
         if (raw === null) return { sessions: [], failure: null };
+        if (raw.length > MAX_CHAT_STORAGE_BYTES) {
+            return {
+                sessions: [],
+                failure: "The saved chat sessions are larger than this build will load.",
+            };
+        }
         const parsed = JSON.parse(raw) as Partial<PersistedChatState>;
-        if (!Array.isArray(parsed.sessions)) {
-            return { sessions: [], failure: "The saved chat sessions are not in a shape this build recognises." };
+        if (
+            !Array.isArray(parsed.sessions) ||
+            parsed.sessions.length > MAX_CHAT_SESSIONS ||
+            !parsed.sessions.every(isChatSession)
+        ) {
+            return {
+                sessions: [],
+                failure: "The saved chat sessions are not in a shape this build recognises.",
+            };
         }
         return { sessions: parsed.sessions as ChatSession[], failure: null };
     } catch (error) {
         return { sessions: [], failure: error instanceof Error ? error.message : String(error) };
     }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function boundedString(value: unknown, max = MAX_CHAT_TEXT_LENGTH): value is string {
+    return typeof value === "string" && value.length <= max;
+}
+
+function isChatMessage(value: unknown): value is ChatMessageRecord {
+    if (!isRecord(value)) return false;
+    return (
+        boundedString(value.id, 256) &&
+        boundedString(value.createdAt, 128) &&
+        boundedString(value.content) &&
+        (value.role === "system" || value.role === "user" || value.role === "assistant")
+    );
+}
+
+function isChatSession(value: unknown): value is ChatSession {
+    if (
+        !isRecord(value) ||
+        !Array.isArray(value.messages) ||
+        value.messages.length > MAX_MESSAGES_PER_SESSION
+    )
+        return false;
+    return (
+        boundedString(value.id, 256) &&
+        boundedString(value.name, 512) &&
+        boundedString(value.model, 512) &&
+        boundedString(value.systemPrompt) &&
+        boundedString(value.createdAt, 128) &&
+        boundedString(value.updatedAt, 128) &&
+        value.messages.every(isChatMessage)
+    );
 }
 
 const initialChat = loadChatState();
@@ -126,7 +181,10 @@ watch(
         // "your sessions are gone", which is the same failure one step further and unrecoverable.
         if (!persisting || ollamaStore.failure !== null) return;
         try {
-            localStorage.setItem(OLLAMA_CHAT_STORAGE_KEY, JSON.stringify({ sessions: JSON.parse(serialised) }));
+            localStorage.setItem(
+                OLLAMA_CHAT_STORAGE_KEY,
+                JSON.stringify({ sessions: JSON.parse(serialised) }),
+            );
         } catch {
             // A full or refused quota is not worth taking the chat surface down for; sessions
             // stay in memory and the next successful write catches up.
@@ -148,7 +206,10 @@ export function reloadOllamaChatSessions(): void {
 }
 
 function newId(prefix: string): string {
-    const random = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const random =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random()}`;
     return `${prefix}-${random}`;
 }
 
@@ -186,7 +247,10 @@ export function enqueuePulls(modelNames: readonly string[]): readonly PullQueueI
     return created;
 }
 
-export function updatePullItem(id: string, patch: Partial<Pick<PullQueueItem, "state" | "percent" | "statusLine" | "error">>): void {
+export function updatePullItem(
+    id: string,
+    patch: Partial<Pick<PullQueueItem, "state" | "percent" | "statusLine" | "error">>,
+): void {
     const item = ollamaStore.pullQueue.find((entry) => entry.id === id);
     if (!item) return;
     if (patch.state !== undefined) item.state = patch.state;
@@ -245,9 +309,16 @@ export function deleteChatSession(id: string): void {
     }
 }
 
-export function appendChatMessage(sessionId: string, message: OllamaChatMessage): ChatMessageRecord {
+export function appendChatMessage(
+    sessionId: string,
+    message: OllamaChatMessage,
+): ChatMessageRecord {
     const session = ollamaStore.sessions.find((entry) => entry.id === sessionId);
-    const record: ChatMessageRecord = { ...message, id: newId("msg"), createdAt: new Date().toISOString() };
+    const record: ChatMessageRecord = {
+        ...message,
+        id: newId("msg"),
+        createdAt: new Date().toISOString(),
+    };
     if (session) {
         session.messages.push(record);
         session.updatedAt = record.createdAt;
@@ -267,5 +338,10 @@ export function updateLastAssistantMessage(sessionId: string, content: string): 
 
 /** The corpus a chat-search field's regex builder previews against. */
 export function chatSessionCorpus(): string {
-    return ollamaStore.sessions.map((session) => `${session.name}\n${session.model}\n${session.messages.map((m) => m.content).join("\n")}`).join("\n\n");
+    return ollamaStore.sessions
+        .map(
+            (session) =>
+                `${session.name}\n${session.model}\n${session.messages.map((m) => m.content).join("\n")}`,
+        )
+        .join("\n\n");
 }

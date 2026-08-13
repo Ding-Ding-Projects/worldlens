@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCheck, mdiContentCopy, mdiEyedropperVariant } from "@mdi/js";
 import { VAlert, VBtn, VChip, VDivider, VSelect, VTextField, VTooltip } from "vuetify/components";
@@ -113,6 +113,8 @@ const notationSwitched = ref(false);
 /** Set when the user has explicitly asked for the clipped notation anyway. */
 const allowClipping = ref(false);
 const copied = ref("");
+let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+let alive = true;
 
 /** Reads the model into the working colour, keeping the notation the caller wrote in. */
 function adoptModel(value: string): void {
@@ -128,7 +130,10 @@ function adoptModel(value: string): void {
         // The text stays exactly as the caller wrote it. A stored colour this build cannot
         // read is still the user's colour, and replacing it with black on the way into the
         // editor would destroy it the moment anything else is touched.
-        rawError.value = t(colorParseErrorKey(parsed.error), "That is not a colour this app can read.");
+        rawError.value = t(
+            colorParseErrorKey(parsed.error),
+            "That is not a colour this app can read.",
+        );
         return;
     }
 
@@ -298,7 +303,16 @@ function component(
     step: number,
     suffix = "",
 ): Component {
-    return { key, labelKey: `appearance.color.component.${key}`, fallback, value, min, max, step, suffix };
+    return {
+        key,
+        labelKey: `appearance.color.component.${key}`,
+        fallback,
+        value,
+        min,
+        max,
+        step,
+        suffix,
+    };
 }
 
 /**
@@ -445,7 +459,10 @@ function commitRawText(): void {
 
     const parsed = parseColor(rawText.value);
     if (!parsed.ok) {
-        rawError.value = t(colorParseErrorKey(parsed.error), "That is not a colour this app can read.");
+        rawError.value = t(
+            colorParseErrorKey(parsed.error),
+            "That is not a colour this app can read.",
+        );
         return;
     }
 
@@ -495,15 +512,24 @@ const searchCorpus = computed(() =>
 async function copy(text: string): Promise<void> {
     try {
         await navigator.clipboard.writeText(text);
+        if (!alive) return;
+        if (copiedTimer !== null) clearTimeout(copiedTimer);
         copied.value = text;
-        globalThis.setTimeout(() => {
+        copiedTimer = globalThis.setTimeout(() => {
             if (copied.value === text) copied.value = "";
+            copiedTimer = null;
         }, 1600);
     } catch {
         // A denied clipboard permission is not worth a dialog, and the text is on screen and
         // selectable either way.
     }
 }
+
+onBeforeUnmount(() => {
+    alive = false;
+    if (copiedTimer !== null) clearTimeout(copiedTimer);
+    copiedTimer = null;
+});
 
 /** Copying never changes the selection, which is the whole point of a translator row. */
 function pick(row: { space: ColorSpaceId; available: boolean }): void {
@@ -516,7 +542,10 @@ function pick(row: { space: ColorSpaceId; available: boolean }): void {
 /* Contrast, gamut and the eyedropper                                         */
 /* -------------------------------------------------------------------------- */
 
-function reportAgainst(other: string, asBackground: boolean): { ratio: string; level: string } | null {
+function reportAgainst(
+    other: string,
+    asBackground: boolean,
+): { ratio: string; level: string } | null {
     if (other.trim() === "") return null;
     const parsed = parseColor(other);
     if (!parsed.ok) return null;
@@ -581,10 +610,20 @@ const gamutLabel = computed(() => {
                 class="mb-color-picker__swatch"
                 :style="{ background: swatchColor }"
                 role="img"
-                :aria-label="t('appearance.color.swatch', { color: rawText }, 'The colour now selected: {color}')"
+                :aria-label="
+                    t(
+                        'appearance.color.swatch',
+                        { color: rawText },
+                        'The colour now selected: {color}',
+                    )
+                "
             />
             <h3 class="mb-color-picker__title">{{ label }}</h3>
-            <v-chip size="x-small" variant="tonal" :color="description.gamut === 'srgb' ? undefined : 'warning'">
+            <v-chip
+                size="x-small"
+                variant="tonal"
+                :color="description.gamut === 'srgb' ? undefined : 'warning'"
+            >
                 {{ gamutLabel }}
             </v-chip>
         </div>
@@ -645,7 +684,9 @@ const gamutLabel = computed(() => {
         </label>
 
         <label class="mb-color-picker__slider">
-            <span class="mb-color-picker__sliderLabel">{{ t("appearance.color.alpha", "Opacity") }}</span>
+            <span class="mb-color-picker__sliderLabel">{{
+                t("appearance.color.alpha", "Opacity")
+            }}</span>
             <input
                 :value="working.alpha"
                 type="range"
@@ -673,7 +714,14 @@ const gamutLabel = computed(() => {
                 )
             }}
             <template #append>
-                <v-btn size="small" variant="text" @click="allowClipping = true; write()">
+                <v-btn
+                    size="small"
+                    variant="text"
+                    @click="
+                        allowClipping = true;
+                        write();
+                    "
+                >
                     {{ t("appearance.color.clipAnyway", "Save the clipped value anyway") }}
                 </v-btn>
             </template>
@@ -694,7 +742,12 @@ const gamutLabel = computed(() => {
         <div class="mb-color-picker__entry">
             <v-select
                 v-model="notation"
-                :items="COLOR_SPACES.filter((space) => space !== 'named').map((space) => ({ title: t(colorSpaceLabelKey(space), spaceNames[space]), value: space }))"
+                :items="
+                    COLOR_SPACES.filter((space) => space !== 'named').map((space) => ({
+                        title: t(colorSpaceLabelKey(space), spaceNames[space]),
+                        value: space,
+                    }))
+                "
                 :label="t('appearance.color.notation', 'Notation')"
                 density="compact"
                 variant="outlined"
@@ -706,7 +759,9 @@ const gamutLabel = computed(() => {
                 v-for="entry in components"
                 :key="entry.key"
                 :model-value="formatNumber(entry.value, entry.step < 0.01 ? 4 : 2)"
-                :label="t(entry.labelKey, entry.fallback) + (entry.suffix ? ` (${entry.suffix})` : '')"
+                :label="
+                    t(entry.labelKey, entry.fallback) + (entry.suffix ? ` (${entry.suffix})` : '')
+                "
                 type="number"
                 :min="entry.min"
                 :max="entry.max"
@@ -722,7 +777,12 @@ const gamutLabel = computed(() => {
         <v-text-field
             v-model="rawText"
             :label="t('appearance.color.any', 'Any notation')"
-            :placeholder="t('appearance.color.anyHint', 'For example #1e88e5, oklch(0.6 0.15 250), or rebeccapurple')"
+            :placeholder="
+                t(
+                    'appearance.color.anyHint',
+                    'For example #1e88e5, oklch(0.6 0.15 250), or rebeccapurple',
+                )
+            "
             :error-messages="rawError"
             density="compact"
             variant="outlined"
@@ -751,8 +811,13 @@ const gamutLabel = computed(() => {
                 type="button"
                 class="mb-color-picker__recent"
                 :style="{ background: entry }"
-                :aria-label="t('appearance.color.recent', { color: entry }, 'Use the recent colour {color}')"
-                @click="adoptModel(entry); write()"
+                :aria-label="
+                    t('appearance.color.recent', { color: entry }, 'Use the recent colour {color}')
+                "
+                @click="
+                    adoptModel(entry);
+                    write();
+                "
             >
                 <v-tooltip activator="parent" location="top" :text="entry" />
             </button>
@@ -760,7 +825,9 @@ const gamutLabel = computed(() => {
 
         <v-divider class="mb-color-picker__rule" />
 
-        <h4 class="mb-color-picker__subtitle">{{ t("appearance.color.translator", "Every notation for this colour") }}</h4>
+        <h4 class="mb-color-picker__subtitle">
+            {{ t("appearance.color.translator", "Every notation for this colour") }}
+        </h4>
 
         <ConfigSearchField
             v-model="search"
@@ -768,7 +835,13 @@ const gamutLabel = computed(() => {
             v-model:flags="searchFlags"
             :label="t('appearance.color.searchLabel', 'Search the notations')"
             :sample="searchCorpus"
-            :summary="t('appearance.color.searchSummary', { shown: rows.length, total: COLOR_SPACES.length }, 'Showing {shown} of {total} notations.')"
+            :summary="
+                t(
+                    'appearance.color.searchSummary',
+                    { shown: rows.length, total: COLOR_SPACES.length },
+                    'Showing {shown} of {total} notations.',
+                )
+            "
         />
 
         <ul class="mb-color-picker__rows">
@@ -786,14 +859,26 @@ const gamutLabel = computed(() => {
                         <v-tooltip
                             activator="parent"
                             location="top"
-                            :text="t('appearance.color.clippedHint', { notation: row.notation }, '{notation} cannot hold this colour, so this line shows a different one.')"
+                            :text="
+                                t(
+                                    'appearance.color.clippedHint',
+                                    { notation: row.notation },
+                                    '{notation} cannot hold this colour, so this line shows a different one.',
+                                )
+                            "
                         />
                     </v-chip>
                     <v-btn
                         :icon="copied === row.text ? mdiCheck : mdiContentCopy"
                         size="x-small"
                         variant="text"
-                        :aria-label="t('appearance.color.copy', { notation: row.notation }, 'Copy the {notation} value')"
+                        :aria-label="
+                            t(
+                                'appearance.color.copy',
+                                { notation: row.notation },
+                                'Copy the {notation} value',
+                            )
+                        "
                         @click="copy(row.text)"
                     />
                     <v-btn size="x-small" variant="text" @click="pick(row)">
@@ -801,7 +886,12 @@ const gamutLabel = computed(() => {
                         <v-tooltip
                             activator="parent"
                             location="top"
-                            :text="t('appearance.color.useNotationHint', 'Save the colour in this notation. The colour itself does not change.')"
+                            :text="
+                                t(
+                                    'appearance.color.useNotationHint',
+                                    'Save the colour in this notation. The colour itself does not change.',
+                                )
+                            "
                         />
                     </v-btn>
                 </template>
@@ -814,7 +904,9 @@ const gamutLabel = computed(() => {
 
         <template v-if="contrastOnBackground !== null || contrastOfForeground !== null">
             <v-divider class="mb-color-picker__rule" />
-            <h4 class="mb-color-picker__subtitle">{{ t("appearance.color.contrast", "Contrast") }}</h4>
+            <h4 class="mb-color-picker__subtitle">
+                {{ t("appearance.color.contrast", "Contrast") }}
+            </h4>
             <p v-if="contrastOnBackground !== null" class="mb-color-picker__hint">
                 {{
                     t(

@@ -79,7 +79,8 @@ export type UpdateRestartRefusal =
     "nothing-ready" | "render-in-progress" | "unsaved-work" | "unsupported" | "failed";
 
 export type UpdateRestartResult =
-    | { readonly ok: true; readonly version: string }
+    /** The process accepted the request; the next launch proves the version transition. */
+    | { readonly ok: true; readonly version: string; readonly transition: "requested" }
     | { readonly ok: false; readonly code: UpdateRestartRefusal; readonly message: string };
 
 export interface UpdateBridge {

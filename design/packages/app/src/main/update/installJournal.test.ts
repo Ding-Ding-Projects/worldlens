@@ -94,4 +94,13 @@ describe("the update install journal", () => {
         expect(() => journal.begin("0.1", "0.2.0")).toThrow(/two exact bounded versions/);
         expect(journal.reconcile("0.1.0")).toEqual({ status: "none" });
     });
+
+    it("refuses a same-version or older install transition", () => {
+        const directory = root();
+        const journal = createFileUpdateInstallJournal(directory);
+
+        expect(() => journal.begin("0.1.0", "0.1.0")).toThrow(/target must be newer/);
+        expect(() => journal.begin("0.1.0", "0.0.9")).toThrow(/target must be newer/);
+        expect(journal.reconcile("0.1.0")).toEqual({ status: "none" });
+    });
 });

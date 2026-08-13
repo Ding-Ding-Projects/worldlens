@@ -21,6 +21,23 @@ interface ReadyWaiter {
 const EXISTENCE_CHECK_INTERVAL_MS = 1000;
 
 /**
+ * Node 26's Windows `fs.watch` backend can assert when a chokidar directory watcher receives a
+ * newly-created child event (`src\\win\\fs-event.c`, `_wcsnicmp(filename, dir, dirlen)`). This
+ * is a process-level abort, not an ordinary watcher error, so the affected runtime needs the
+ * safe polling backend. Keep the native watcher everywhere else: polling is deliberately a
+ * compatibility fallback, not the default, because this service may watch one folder per map.
+ */
+export function usesPollingForCurrentRuntime(
+    platform: string = process.platform,
+    nodeVersion: string = process.versions.node,
+): boolean {
+    const major = Number.parseInt(nodeVersion.split(".")[0] ?? "", 10);
+    return platform === "win32" && Number.isFinite(major) && major >= 26;
+}
+
+const NODE_26_WINDOWS_POLL_INTERVAL_MS = 100;
+
+/**
  * Watches a region-folder for changed region-files and provides the changed
  * region-positions in batches.
  *
@@ -128,7 +145,8 @@ export class MCAWorldRegionWatchService implements WatchService<Vector2i> {
             if (waiter.timer !== null) clearTimeout(waiter.timer);
             waiter.reject(new WatchService.ClosedException());
         }
-        for (const waiter of this.readyWaiters.splice(0)) waiter.reject(new WatchService.ClosedException());
+        for (const waiter of this.readyWaiters.splice(0))
+            waiter.reject(new WatchService.ClosedException());
         this.pending.clear();
 
         await this.watcher?.close();
@@ -155,6 +173,9 @@ export class MCAWorldRegionWatchService implements WatchService<Vector2i> {
             // are reported — chokidar's initial scan is suppressed
             ignoreInitial: true,
             depth: 0,
+            ...(usesPollingForCurrentRuntime()
+                ? { usePolling: true, interval: NODE_26_WINDOWS_POLL_INTERVAL_MS }
+                : {}),
         });
 
         this.watcher.on("all", (event, path) => this.handleEvent(event, path));
