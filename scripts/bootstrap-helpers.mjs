@@ -126,6 +126,31 @@ export function hasShadowJar(directory) {
 }
 
 /**
+ * Picks the first candidate JDK that is actually new enough, not the first one that answers.
+ *
+ * The distinction is the whole function. Candidates are ordered PATH first, then JAVA_HOME, then
+ * the JDK the application provisions for itself, and PATH is the one place an unrelated older
+ * java is almost guaranteed to be sitting: a developer machine that has ever built anything in
+ * Java has one, and so does every hosted CI image. Stopping there and comparing the version
+ * afterwards meant the two candidates added to find a usable JDK were never probed at all, and
+ * the failure told the reader to set JAVA_HOME while JAVA_HOME was already pointing at a JDK that
+ * would have satisfied it.
+ *
+ * The highest version seen is still returned when nothing satisfies the requirement, so the
+ * caller can name the java this machine does have rather than claiming it has none.
+ */
+export function selectJavaCandidate({ candidates, requiredMajor, readMajor }) {
+  let best = null;
+  for (const candidate of candidates) {
+    const major = readMajor(candidate);
+    if (typeof major !== "number" || !Number.isFinite(major)) continue;
+    if (best === null || major > best.major) best = { candidate, major };
+    if (major >= requiredMajor) break;
+  }
+  return best;
+}
+
+/**
  * The provenance stamp lives beside the jars, not inside them, because the jar is
  * produced by upstream's Gradle build and we do not want to modify it.
  */
@@ -134,6 +159,31 @@ export const JAR_STAMP_NAME = "worldlens-jar-provenance.json";
 /** Returns the short form used in human-facing messages, tolerating a short input. */
 export function shortCommit(commit) {
   return typeof commit === "string" ? commit.slice(0, 12) : "unknown";
+}
+
+/**
+ * The commit `git rev-parse HEAD` reported, or null when it reported no commit at all.
+ *
+ * This exists because the obvious reading of a failed `git` call is wrong in a way nothing
+ * announces. The bootstrap captures stdout and stderr together so a failing command explains
+ * itself in the log, which means a `git` that could not resolve the repository does not answer
+ * with an empty string: it answers with `fatal: not a git repository...`, and the first
+ * whitespace-separated word of that is the perfectly plausible looking `fatal:`. Stamped into
+ * the provenance file, that string is then compared against on the next run and shown to the
+ * user as the commit these jars were built from, which is a claim about upstream source that
+ * nobody ever made. A source archive with no `.git` beside it is the ordinary way to reach it.
+ *
+ * So the status is what decides, and the shape is checked afterwards: a full 40-character
+ * object name or nothing. Anything else is treated as "we could not read a commit", which the
+ * caller is expected to say out loud rather than paper over with a plausible looking value.
+ */
+export function parseHeadCommit(result) {
+  if (result === null || typeof result !== "object") return null;
+  if (result.status !== 0) return null;
+  const first = String(result.stdout ?? "")
+    .trim()
+    .split(/\s+/)[0];
+  return typeof first === "string" && /^[0-9a-f]{40}$/i.test(first) ? first : null;
 }
 
 /**

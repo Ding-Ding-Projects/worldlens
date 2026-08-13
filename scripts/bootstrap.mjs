@@ -42,6 +42,8 @@ import {
   assertSafeDeletionTarget,
   hasShadowJar,
   jarBuildState,
+  parseHeadCommit,
+  selectJavaCandidate,
   resetDirectory,
   shadowJarVersion,
   shortCommit,
@@ -401,15 +403,27 @@ function javaCandidates() {
 }
 
 function javaToolchain() {
-  let major = null;
-  let found = null;
-  for (const candidate of javaCandidates()) {
-    const parsed = parseJavaMajor(capture(candidate.command, ["-version"]));
-    if (parsed === null) continue;
-    major = parsed;
-    found = candidate;
-    break;
-  }
+  /*
+   * The first *usable* java, not the first java that answers.
+   *
+   * Stopping at the first candidate that parses looks equivalent and is not, because the version
+   * check happens after the loop rather than inside it. Almost every developer machine and almost
+   * every CI image has some java on PATH, so PATH answered first, the loop stopped there, and
+   * JAVA_HOME and the JDK this application provisions for itself were never even looked at. The
+   * failure then told the reader to set JAVA_HOME while JAVA_HOME was already set to a JDK that
+   * would have satisfied it, which is the exact configuration `javaCandidates` was written for.
+   *
+   * The best candidate seen is remembered anyway, so a machine with nothing new enough is still
+   * told which java it does have rather than being told it has none.
+   */
+  const best = selectJavaCandidate({
+    candidates: javaCandidates(),
+    requiredMajor: REQUIRED_JAVA_MAJOR,
+    readMajor: (candidate) =>
+      parseJavaMajor(capture(candidate.command, ["-version"])),
+  });
+  const major = best?.major ?? null;
+  const found = best?.candidate ?? null;
   if (major === null) {
     return {
       ok: false,
@@ -461,11 +475,27 @@ function bluemapJars() {
   const built = () => hasShadowJar(cliJar);
   // Read the commit from git rather than from any file in the tree, because a file
   // is exactly what a half-finished submodule update leaves behind pointing at the
-  // wrong revision. An empty answer means git could not resolve the submodule at
+  // wrong revision. A null answer means git could not resolve the submodule at
   // all, and a stamp can never match that, so the build runs.
-  const sourceCommit = capture("git", ["-C", vendorRoot, "rev-parse", "HEAD"])
-    .trim()
-    .split(/\s+/)[0];
+  const sourceCommit = parseHeadCommit(
+    spawnSync("git", ["-C", vendorRoot, "rev-parse", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false,
+    }),
+  );
+  /*
+   * How the source is named in every message and in the stamp.
+   *
+   * A vendored tree with no git metadata beside it, which is what a source archive is, has no
+   * commit to report, and saying so is the whole point: the alternative that was here reported
+   * git's own error text as the commit, so the build wrote `"commit": "fatal:"` into the
+   * provenance file and the next run announced that the jars had been built from `fatal:`.
+   */
+  const sourceLabel =
+    sourceCommit === null
+      ? "an unreadable source revision (git could not resolve vendor/BlueMap)"
+      : shortCommit(sourceCommit);
   const state = jarBuildState({
     jarDirectory: cliJar,
     stampFile,
@@ -475,7 +505,7 @@ function bluemapJars() {
   if (state.fresh) {
     return {
       ok: true,
-      detail: `BlueMap CLI jar already built from ${shortCommit(sourceCommit)}`,
+      detail: `BlueMap CLI jar already built from ${sourceLabel}`,
     };
   }
   if (checkOnly) {
@@ -486,15 +516,15 @@ function bluemapJars() {
       ok: false,
       detail:
         state.reason === "stale"
-          ? `BlueMap CLI jars are stale: built from ${shortCommit(state.stampCommit)}, source is at ${shortCommit(sourceCommit)}`
+          ? `BlueMap CLI jars are stale: built from ${shortCommit(state.stampCommit)}, source is at ${sourceLabel}`
           : state.reason === "missing-jar"
             ? "BlueMap CLI jar is not built"
-            : `BlueMap CLI jar has no readable provenance stamp, so it cannot be shown to match ${shortCommit(sourceCommit)}`,
+            : `BlueMap CLI jar has no readable provenance stamp, so it cannot be shown to match ${sourceLabel}`,
     };
   }
   if (state.reason === "stale") {
     log(
-      `  vendored BlueMap moved from ${shortCommit(state.stampCommit)} to ${shortCommit(sourceCommit)}, rebuilding`,
+      `  vendored BlueMap moved from ${shortCommit(state.stampCommit)} to ${sourceLabel}, rebuilding`,
     );
   }
 
@@ -543,7 +573,10 @@ function bluemapJars() {
     stampFile,
     `${JSON.stringify(
       {
-        commit: sourceCommit,
+        // Omitted rather than guessed when git could not be read: a stamp with no commit is
+        // read back as no provenance at all, which is exactly what this build has, and both
+        // this script and the application's own settings screen say so in those words.
+        ...(sourceCommit === null ? {} : { commit: sourceCommit }),
         ...(version === null ? {} : { version }),
         builtAt: new Date().toISOString(),
       },
@@ -554,7 +587,7 @@ function bluemapJars() {
 
   return {
     ok: true,
-    detail: `BlueMap CLI jar built from ${shortCommit(sourceCommit)}`,
+    detail: `BlueMap CLI jar built from ${sourceLabel}`,
   };
 }
 

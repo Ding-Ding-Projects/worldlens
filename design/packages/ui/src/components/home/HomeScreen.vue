@@ -102,6 +102,19 @@ import {
 
 const emit = defineEmits<{
     "reveal-page": [pageId: string];
+    /**
+     * The changelog and the tab finder, which live on other destinations.
+     *
+     * These two are emits rather than local calls for the same reason everything else in this
+     * list is, and the reason is sharper here than it looks. The three destinations are stacked
+     * layers: Home paints its own opaque background and leaves the Map layer mounted but inert
+     * underneath, and the Work layer is `v-show`n away entirely. So opening the viewer's Info
+     * page, or the tab strip's finder, from Home changed real state in a layer nobody could see -
+     * the press did nothing observable at all. The shell owns which destination is showing, and
+     * it already has one path that switches first and rings the bell after.
+     */
+    "open-changelog": [];
+    "open-tab-finder": [];
     "open-settings": [anchor: SettingsSectionAnchor | null];
     "open-config": [screen: PaletteConfigTarget];
     "open-eula": [];
@@ -111,6 +124,25 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const setupI18n = useSetupI18n();
+
+/**
+ * Runs something that acts on the open map, having first asked the shell to show the map.
+ *
+ * Every tile in the "The open map" group reaches into the viewer's own state - its menu pages, its
+ * camera - and none of that state is on this destination. The layers are stacked and Home is the
+ * one on top with an opaque background of its own, so an untouched destination meant the viewer
+ * menu opened behind a screen the user was still looking at: the tile pressed, the state changed,
+ * and the window did not move. Asking for the map first is what every other route into these
+ * surfaces already does, through `shellNavigation.ts`.
+ *
+ * The order is deliberate but not delicate: the viewer's menu state lives in the app object rather
+ * than in the layer's markup, so it survives the switch either way. Asking first simply means the
+ * user is looking at the surface by the time it opens.
+ */
+function onTheMap(open: () => void): void {
+    emit("reveal-page", "map");
+    open();
+}
 
 /* -------------------------------------------------------------------------- */
 /* The introduction: shown once, foldable forever after                       */
@@ -416,10 +448,13 @@ const capabilities = computed<HomeCapability[]>(() => {
                 ),
                 icon: mdiHistory,
                 keywords: ["release notes", "version", "what's new"],
-                action: () => {
-                    app.value?.appState.menu.openPage("info", () => t("info.title", "Info"));
-                    requestReveal("changelog");
-                },
+                // Both steps belong to the shell: switching to the map destination, and ringing
+                // the changelog's bell only after the Info page it lives inside has mounted. Rung
+                // here, in the same statement as the page request, the fold's own listener did not
+                // exist yet and `revealRequests.ts` drops a request nobody is listening for - so
+                // the page opened with the changelog still collapsed, which is the one thing this
+                // tile advertises.
+                action: () => emit("open-changelog"),
                 remedyAction: null,
             }),
         );
@@ -538,7 +573,7 @@ const capabilities = computed<HomeCapability[]>(() => {
             ),
             icon: mdiTabSearch,
             keywords: ["tab", "group", "search tabs", "close tabs"],
-            action: () => requestReveal("tabFinder"),
+            action: () => emit("open-tab-finder"),
             remedyAction: null,
         }),
     );
@@ -556,7 +591,7 @@ const capabilities = computed<HomeCapability[]>(() => {
                 ),
                 icon: mdiLayersOutline,
                 keywords: ["dimension", "nether", "end", "switch map"],
-                action: () => live.appState.menu.openPage("maps", () => t("maps.title", "Maps")),
+                action: () => onTheMap(() => live.appState.menu.openPage("maps", () => t("maps.title", "Maps"))),
                 remedyAction: null,
             }),
             tile({
@@ -569,7 +604,8 @@ const capabilities = computed<HomeCapability[]>(() => {
                 ),
                 icon: mdiCogOutline,
                 keywords: ["viewer settings", "reset all settings"],
-                action: () => live.appState.menu.openPage("settings", () => t("settings.title", "Settings")),
+                action: () =>
+                    onTheMap(() => live.appState.menu.openPage("settings", () => t("settings.title", "Settings"))),
                 remedyAction: null,
             }),
             tile({
@@ -582,7 +618,7 @@ const capabilities = computed<HomeCapability[]>(() => {
                 ),
                 icon: mdiHelpCircleOutline,
                 keywords: ["about", "version", "controls", "keys"],
-                action: () => live.appState.menu.openPage("info", () => t("info.title", "Info")),
+                action: () => onTheMap(() => live.appState.menu.openPage("info", () => t("info.title", "Info"))),
                 remedyAction: null,
             }),
             tile({
@@ -595,7 +631,7 @@ const capabilities = computed<HomeCapability[]>(() => {
                 ),
                 icon: mdiCameraOutline,
                 keywords: ["camera", "position", "north"],
-                action: () => live.resetCamera(),
+                action: () => onTheMap(() => live.resetCamera()),
                 remedyAction: null,
             }),
         );
@@ -614,9 +650,11 @@ const capabilities = computed<HomeCapability[]>(() => {
                     icon: mdiMapMarkerOutline,
                     keywords: ["poi", "label", "point of interest"],
                     action: () =>
-                        live.appState.menu.openPage("markers", () => t("markers.title", "Markers"), {
-                            markerSet: root,
-                        }),
+                        onTheMap(() =>
+                            live.appState.menu.openPage("markers", () => t("markers.title", "Markers"), {
+                                markerSet: root,
+                            }),
+                        ),
                     remedyAction: null,
                 }),
             );
@@ -632,9 +670,11 @@ const capabilities = computed<HomeCapability[]>(() => {
                     icon: mdiAccountGroupOutline,
                     keywords: ["online", "who"],
                     action: () =>
-                        live.appState.menu.openPage("markers", () => t("players.title", "Players"), {
-                            markerSet: playerSet,
-                        }),
+                        onTheMap(() =>
+                            live.appState.menu.openPage("markers", () => t("players.title", "Players"), {
+                                markerSet: playerSet,
+                            }),
+                        ),
                     remedyAction: null,
                 }),
             );

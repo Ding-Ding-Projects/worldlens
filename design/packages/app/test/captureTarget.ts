@@ -165,7 +165,19 @@ function locationHashFor(mapId: string, size: number | undefined): string {
 
 function describeWorld(provenance: CaptureProvenance | null): string {
     const world = provenance?.world;
-    if (world === undefined) return "a world this repository generated";
+    // No provenance record means the run was pointed at a rendered web root from outside this
+    // repository, which is exactly the case this default used to describe wrongly: it claimed
+    // "a world this repository generated" for a world the repository has never seen. Every
+    // capture in the committed gallery carried that sentence after the harness was first run
+    // against a real save, including the one the README leads with.
+    //
+    // What is actually known without a provenance file is that somebody handed the run a
+    // rendered map, so that is what this says. Naming the absence is the whole point of the
+    // caption: a reader who needs to know which world it was can be told it is not recorded,
+    // and a reader who is told a false origin cannot know to ask.
+    if (world === undefined) {
+        return "a world rendered outside this repository and supplied to the capture run, whose origin this run has no record of";
+    }
     const parts: string[] = [];
     if (world.seed !== undefined) parts.push(`seed ${world.seed}`);
     if (world.size !== undefined) parts.push(`${world.size}x${world.size} blocks`);

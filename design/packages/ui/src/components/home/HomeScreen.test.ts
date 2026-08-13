@@ -766,3 +766,67 @@ describe("every shell-owned action emits rather than acting itself", () => {
         expect(view.emitted("open-welcome")).toBeTruthy();
     });
 });
+
+describe("a tile whose surface lives on another destination asks for that destination first", () => {
+    /*
+     * The three destinations are stacked layers rather than routes, so a surface can open
+     * perfectly and still be invisible: Home paints an opaque background over the inert Map
+     * layer, and the Work layer is `v-show`n away. Every assertion below is about the request
+     * that makes the press visible, not about the surface itself, which is the shell's to open.
+     */
+    beforeEach(() => {
+        for (const id of ["settings", "learn", "viewer"]) setHomeSectionExpanded(id, true);
+    });
+
+    it("asks for the map before opening one of the viewer's own menu pages", async () => {
+        openALiveMap();
+        const view = render();
+        await settle();
+
+        const button = view.findAll("button").find((btn) => btn.attributes("aria-label") === "Open Markers");
+        expect(button).toBeDefined();
+        await button?.trigger("click");
+
+        expect(view.emitted("reveal-page")).toContainEqual(["map"]);
+    });
+
+    it("asks for the map before resetting the camera on it", async () => {
+        openALiveMap();
+        const view = render();
+        await settle();
+
+        const button = view
+            .findAll("button")
+            .find((btn) => btn.attributes("aria-label") === "Open Reset Camera & Position");
+        expect(button).toBeDefined();
+        await button?.trigger("click");
+
+        expect(view.emitted("reveal-page")).toContainEqual(["map"]);
+    });
+
+    it("hands the changelog to the shell rather than ringing its bell from here", async () => {
+        // The fold's listener lives inside the Info page, which does not exist until that page
+        // has rendered, and a request raised before then is dropped. Emitting leaves both the
+        // destination switch and the wait to the one place that already does them in order.
+        openALiveMap();
+        const view = render();
+        await settle();
+
+        const button = view.findAll("button").find((btn) => btn.attributes("aria-label") === "Open Changelog");
+        expect(button).toBeDefined();
+        await button?.trigger("click");
+
+        expect(view.emitted("open-changelog")).toBeTruthy();
+    });
+
+    it("hands the tab finder to the shell, which owns the destination it opens inside", async () => {
+        const view = render();
+        await settle();
+
+        const button = view.findAll("button").find((btn) => btn.attributes("aria-label") === "Open Find a tab");
+        expect(button).toBeDefined();
+        await button?.trigger("click");
+
+        expect(view.emitted("open-tab-finder")).toBeTruthy();
+    });
+});

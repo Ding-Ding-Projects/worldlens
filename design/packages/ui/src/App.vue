@@ -1245,10 +1245,28 @@ usePaletteShortcut(paletteOpen);
 function openChangelog(): void {
     const app = blueMapApp.value;
     if (app === null) return;
+    // The destination first, because the menu this page belongs to is drawn in the Map layer and
+    // the layers are stacked: Home paints its own opaque background over the map and marks it
+    // inert, so opening the page from Home changed state nobody could see. Every other route into
+    // a map surface goes through `shellNavigation.ts`, which switches destination before it rings
+    // any bell, and this is the same rule applied to the two callers that reach it directly.
+    shell.select("map");
     app.appState.menu.openPage("info", () => t("info.title", "Info"));
     void nextTick(() => {
         requestReveal("changelog");
     });
+}
+
+/**
+ * The tab finder, which is a panel anchored inside the tab strip and therefore inside Work.
+ *
+ * Routed through `activateTarget` rather than by ringing the bell here, because the controller
+ * already knows this pair of steps: switch to Work, wait for the layer to be on screen, then ask
+ * the strip to open its finder. Rung from Home without the switch, the panel opened inside a
+ * layer that is `display: none`, which is a press with no visible effect at all.
+ */
+function openTabFinder(): void {
+    void shell.activateTarget({ kind: "work-action", action: "tab-finder" });
 }
 
 /**
@@ -1537,6 +1555,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template v-else>
                             <HomeScreen
                                 @reveal-page="revealPage"
+                                @open-changelog="openChangelog"
+                                @open-tab-finder="openTabFinder"
                                 @open-settings="openSettings($event)"
                                 @open-config="openConfig($event)"
                                 @open-eula="eulaOpen = true"
@@ -1964,7 +1984,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @open-profiles="revealPage(PAGE_SERVERS)"
                 @open-page="revealPage($event)"
                 @open-notice-centre="requestReveal('noticeCentre')"
-                @open-tab-finder="requestReveal('tabFinder')"
+                @open-tab-finder="openTabFinder"
                 @open-changelog="openChangelog"
                 @open-tutorial="requestTutorialLaunch()"
                 @open-eula="eulaOpen = true"
