@@ -764,9 +764,11 @@ jobs:
           ( cd merged && zip -q -r "../out/${name}.zip" . )
           ( cd out && sha256sum "${name}.zip" > SHA256SUMS )
           digest=$(cut -d' ' -f1 < "out/SHA256SUMS")
-          echo "archive=out/${name}.zip" >> "$GITHUB_OUTPUT"
-          echo "name=${name}.zip" >> "$GITHUB_OUTPUT"
-          echo "sha256=${digest}" >> "$GITHUB_OUTPUT"
+          {
+            echo "archive=out/${name}.zip"
+            echo "name=${name}.zip"
+            echo "sha256=${digest}"
+          } >> "$GITHUB_OUTPUT"
           {
             echo ""
             echo "**${name}.zip**"
@@ -796,6 +798,11 @@ jobs:
         run: |
           set -euo pipefail
           tag="converted-${OUTPUT_NAME}-${GITHUB_RUN_NUMBER}"
+          # The single quotes are the point: this is a printf format string, so the
+          # placeholders must reach printf unexpanded and be filled from the arguments
+          # below. Double quotes here would let the shell expand them first and print
+          # an empty format.
+          # shellcheck disable=SC2016
           notes=$(printf 'Converted to %s by run %s.\n\n`%s  %s`\n' \
             "$TARGET_FORMAT" "$GITHUB_RUN_ID" "$DIGEST" "$ASSET")
           gh release create "$tag" \

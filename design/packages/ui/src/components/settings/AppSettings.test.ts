@@ -63,6 +63,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "surface-placement": "Where the panels sit",
     "render-memory": "Render memory",
     "download-concurrency": "Download concurrency",
+    "notification-duration": "Notification duration",
     "system-dependencies": "System dependencies",
     "updates": "Updates",
     "vocabulary": "Personal vocabulary",

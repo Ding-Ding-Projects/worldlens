@@ -79,6 +79,7 @@ export {
     initialUpdateState,
     isReady,
     reduceUpdate,
+    type UpdateDownloadProgress,
     type UpdateEvent,
     type UpdateState,
     type UpdateStatus,
@@ -99,6 +100,7 @@ export {
 export {
     UpdateController,
     engineFromAutoUpdater,
+    readDownloadProgress,
     type TimerHandle,
     type UpdateControllerOptions,
     type UpdateEngine,

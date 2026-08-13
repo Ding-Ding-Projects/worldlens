@@ -39,6 +39,26 @@ export type UpdateStatus =
     /** The last check or download did not finish. {@link UpdateState.failure} says why. */
     | "failed";
 
+/**
+ * What the engine has actually reported about the bytes, and nothing more.
+ *
+ * Every field is separately nullable because an updater is allowed to know some of this and
+ * not the rest. A feed served without a `Content-Length` gives a transferred count and no
+ * total, which means there is no honest percentage to show; a percentage computed from a
+ * total nobody sent would be a number the app made up, and a bar moving on an invented
+ * number tells the user the download is fine at exactly the moment it may not be.
+ */
+export interface UpdateDownloadProgress {
+    /** Bytes fetched so far, as the engine counted them. */
+    readonly transferredBytes: number;
+    /** The size of the whole package, or null when the server did not say. */
+    readonly totalBytes: number | null;
+    /** 0 to 100. Null unless the engine reported it or a real total makes it derivable. */
+    readonly percent: number | null;
+    /** The engine's own transfer rate. Null when it does not measure one. */
+    readonly bytesPerSecond: number | null;
+}
+
 export interface UpdateState {
     readonly status: UpdateStatus;
     /** True while a check is in flight, whatever the status underneath it is. */
@@ -71,6 +91,15 @@ export interface UpdateState {
     readonly renderInProgress: boolean;
     /** Where updates are fetched from. The credential is never part of this. */
     readonly feedUrl: string | null;
+    /**
+     * The live byte counts while a download runs, or null.
+     *
+     * Null is the ordinary case rather than an error: Electron's Squirrel updater reports
+     * that a download has begun and that it has finished, and says nothing in between. A
+     * download with no progress record is genuinely underway with no numbers known, and the
+     * interface is required to show that as an indeterminate bar rather than guessing.
+     */
+    readonly downloadProgress: UpdateDownloadProgress | null;
 }
 
 export type UpdateEvent =
@@ -80,6 +109,8 @@ export type UpdateEvent =
     | { readonly type: "up-to-date"; readonly at: string }
     /** A newer version exists and the engine has begun fetching it. */
     | { readonly type: "downloading"; readonly version: string | null }
+    /** Byte counts the engine measured itself. Only ever raised with real numbers. */
+    | { readonly type: "download-progress"; readonly progress: UpdateDownloadProgress }
     /** A newer version exists and nothing here is going to fetch it. */
     | { readonly type: "available"; readonly version: string | null; readonly notesUrl: string | null }
     | {
@@ -107,6 +138,7 @@ export function initialUpdateState(currentVersion: string): UpdateState {
         unsupportedReason: null,
         renderInProgress: false,
         feedUrl: null,
+        downloadProgress: null,
     };
 }
 
@@ -155,6 +187,7 @@ export function reduceUpdate(state: UpdateState, event: UpdateEvent): UpdateStat
                 newVersion: null,
                 failure: null,
                 lastCheckedAt: event.at,
+                downloadProgress: null,
             };
 
         case "downloading":
@@ -166,7 +199,18 @@ export function reduceUpdate(state: UpdateState, event: UpdateEvent): UpdateStat
                 checking: false,
                 newVersion: event.version,
                 failure: null,
+                // A download that is starting has transferred nothing yet, and the counts
+                // from a previous attempt describe a different download.
+                downloadProgress: null,
             };
+
+        case "download-progress":
+            // Only meaningful while bytes are actually moving. A staged update is finished,
+            // an unsupported build never started, and a progress event arriving in any other
+            // status describes a download this state does not believe is happening; adopting
+            // it would put a moving bar on a screen with nothing behind it.
+            if (state.status !== "downloading") return state;
+            return { ...state, downloadProgress: event.progress };
 
         case "available":
             if (state.status === "unsupported" && state.unsupportedReason !== null) {
@@ -187,6 +231,7 @@ export function reduceUpdate(state: UpdateState, event: UpdateEvent): UpdateStat
                 newVersion: event.version,
                 releaseNotesUrl: event.notesUrl,
                 failure: null,
+                downloadProgress: null,
             };
 
         case "downloaded":
@@ -201,6 +246,8 @@ export function reduceUpdate(state: UpdateState, event: UpdateEvent): UpdateStat
                 releaseNotesUrl: event.notesUrl,
                 failure: null,
                 lastCheckedAt: event.at,
+                // The bytes have all arrived, so there is no download left to report on.
+                downloadProgress: null,
             };
 
         case "failed":
@@ -217,6 +264,9 @@ export function reduceUpdate(state: UpdateState, event: UpdateEvent): UpdateStat
                 checking: false,
                 failure: event.failure,
                 lastCheckedAt: event.at,
+                // A download that stopped is not a download at 62 percent, and leaving the
+                // last count behind a failure message would say it was still moving.
+                downloadProgress: null,
             };
 
         case "render-activity":

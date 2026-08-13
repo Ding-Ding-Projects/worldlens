@@ -345,6 +345,16 @@ export const CHROME_FIXED = {
     "tabs.page.pages": { en: "Publish to Pages", yue: "發佈到 Pages" },
     "tabs.page.worldRepo": { en: "World repository", yue: "世界 Repository" },
     "tabs.page.preview": { en: "Watch it live", yue: "即時直播睇" },
+    "tabs.page.memory": { en: "Memory console", yue: "記憶體主控台" },
+    /*
+     * What the memory console page says when it is opened. The job is capability-gated and
+     * this build has no implementation of it, so the page says exactly that rather than
+     * drawing a status card full of invented numbers, which would be a fake integration.
+     */
+    "tabs.page.memory.absent": {
+        en: "This build has no memory console. The page is registered so a build that does have one can open it; nothing here is measuring anything.",
+        yue: "呢個 build 冇記憶體主控台。呢一頁登記咗係畀有嘅 build 開，呢度冇量度緊任何嘢。",
+    },
     "tabs.group.newName": { en: "New group", yue: "新群組" },
 
     "world.rendered": { en: "Rendered map", yue: "算好嘅地圖" },

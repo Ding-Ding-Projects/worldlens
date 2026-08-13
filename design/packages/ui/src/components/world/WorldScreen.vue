@@ -19,6 +19,7 @@ import {
     resolveWorldBridge,
     writeStorageDirectory,
     type OptionalWorldBridge,
+    type RenderMapRequest,
     type RenderRequest,
     type SettingsTarget,
     type WorldBridge,
@@ -29,6 +30,7 @@ import { resolveProjectHost, type ProjectHost } from "../project/projectHost.js"
 import { projectFromWizard } from "../project/projectModel.js";
 import { emitTutorialSignal } from "../tutorial/tutorialSignals.js";
 import {
+    RemoteHostingPanel,
     RunLocationCard,
     createRenderRouter,
     resolveRemoteBridge,
@@ -207,6 +209,14 @@ const storage = ref<{ current: string; default: string } | null>(null);
 const startFailure = ref<string | null>(null);
 /** The map config the wizard produced, kept so a finished render can still show it. */
 const lastConfig = ref("");
+/**
+ * The maps the last render was started with, kept for the same reason `lastConfig` is.
+ *
+ * Publishing a finished render to a remote host needs to know which maps it produced, and
+ * the request itself only exists for the length of {@link start}. Holding the maps here is
+ * what lets the hosting panel appear after a render rather than only during one.
+ */
+const lastMaps = ref<readonly RenderMapRequest[]>([]);
 
 /* -------------------------------------------------------------------------- */
 /* The project this world already has, and the one the guide writes            */
@@ -422,6 +432,7 @@ function withConfig(request: RenderRequest, configText: string): RenderRequest {
 
 async function start(request: RenderRequest, configText: string, storageDirectory: string): Promise<void> {
     lastConfig.value = configText;
+    lastMaps.value = request.maps;
     startFailure.value = null;
     // Written before the render rather than after it, so a render that is cancelled, fails,
     // or outlives the window still leaves the answers behind. A guide whose output survives
@@ -516,6 +527,21 @@ async function resume(renderId: string): Promise<void> {
             @open="(dataRoot, mapIds) => emit('openMap', dataRoot, mapIds)"
             @settings="(target) => emit('settings', target)"
             @again="again"
+        />
+
+        <!--
+            Publishing the render that just finished to the machine it was sent to, so the
+            map keeps answering after this window closes. It is here rather than on the
+            Renders page because this is the only surface that already holds all three
+            things it needs: the machine, the render id, and the maps that render made.
+            It shows itself only once there is a render to publish, which is why it sits
+            below the run panel rather than beside the location card above.
+        -->
+        <RemoteHostingPanel
+            v-if="runTarget !== null && run.renderId.value !== null && lastMaps.length > 0"
+            :target="runTarget"
+            :render-id="run.renderId.value"
+            :maps="lastMaps"
         />
 
         <v-alert v-if="startFailure" type="error" density="compact" variant="tonal" class="mb-3" role="alert">

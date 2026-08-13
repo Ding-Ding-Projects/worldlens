@@ -1115,6 +1115,11 @@ export const SETTINGS_FIXED = {
     "settings.renderMemory.saved": { en: "Saved.", yue: "已儲存。" },
 
     /* The Notification duration tab's own heading, above `settings.noticeDuration.description`. */
+    "settings.noticeDuration.title": { en: "Notification duration", yue: "通知留幾耐" },
+    "settings.noticeDuration.description": {
+        en: "How long an informational or success message stays in the corner before it dismisses itself. Warnings and errors already wait for you and are not affected.",
+        yue: "資訊同成功嘅訊息喺角落留幾耐先至自己收埋。警告同錯誤本身就會等你，唔受呢個影響。",
+    },
     "settings.noticeDuration.level.1": { en: "1 · Quick", yue: "1 級 · 快" },
     "settings.noticeDuration.level.2": { en: "2 · Brisk", yue: "2 級 · 爽快" },
     "settings.noticeDuration.level.3": { en: "3 · Balanced", yue: "3 級 · 均衡" },

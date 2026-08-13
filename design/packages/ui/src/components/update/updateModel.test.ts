@@ -9,6 +9,8 @@ import {
     clearDismissedUpdate,
     dismissUpdate,
     readDismissedUpdate,
+    formatByteCount,
+    progressFor,
     statusFor,
     unknownUpdateState,
 } from "./updateModel.js";
@@ -28,9 +30,13 @@ describe("bannerFor", () => {
     it("shows nothing until there is something staged", () => {
         expect(bannerFor(state()).visible).toBe(false);
         expect(bannerFor(state({ status: "up-to-date" })).visible).toBe(false);
-        expect(bannerFor(state({ status: "downloading", newVersion: "0.2.0" })).visible).toBe(
-            false,
-        );
+        // A download in flight is the one other state that earns the banner, because a bar
+        // is the only place "is this moving or has it stalled" can be answered. It carries
+        // no offer, so it carries no actions.
+        const downloading = bannerFor(state({ status: "downloading", newVersion: "0.2.0" }));
+        expect(downloading.visible).toBe(true);
+        expect(downloading.canRestart).toBe(false);
+        expect(downloading.canDismiss).toBe(false);
         // A failed check informs; it belongs in the notification corner, not in a fixture
         // that occupies the top of the window until somebody dismisses it.
         expect(bannerFor(state({ status: "failed" })).visible).toBe(false);
@@ -173,5 +179,82 @@ describe("statusFor", () => {
 
     it("reports a build with no manual check as having none", () => {
         expect(statusFor(state(), { canCheck: false }).canCheck).toBe(false);
+    });
+});
+
+describe("progressFor", () => {
+    it("reports nothing at all unless a download is running", () => {
+        expect(progressFor(state())).toBeNull();
+        expect(progressFor(ready)).toBeNull();
+        expect(progressFor(state({ status: "failed" }))).toBeNull();
+    });
+
+    it("is indeterminate when the download is underway and nobody is counting", () => {
+        // The ordinary case with Electron's Squirrel updater, which reports the start and the
+        // finish of a download and nothing in between. An indeterminate bar is the truth;
+        // a percentage here would be invented.
+        const progress = progressFor(state({ status: "downloading" }));
+        expect(progress?.indeterminate).toBe(true);
+        expect(progress?.percent).toBeNull();
+        expect(progress?.transferredLabel).toBeNull();
+    });
+
+    it("stays indeterminate when bytes are counted but no total was served", () => {
+        const progress = progressFor(
+            state({
+                status: "downloading",
+                downloadProgress: {
+                    transferredBytes: 5 * 1024 * 1024,
+                    totalBytes: null,
+                    percent: null,
+                    bytesPerSecond: null,
+                },
+            }),
+        );
+        // The byte count is real and is shown; the percentage it cannot support is not.
+        expect(progress?.transferredLabel).toBe("5.0 MB");
+        expect(progress?.totalLabel).toBeNull();
+        expect(progress?.percent).toBeNull();
+        expect(progress?.indeterminate).toBe(true);
+    });
+
+    it("renders the reported percentage, the counts and the rate when they exist", () => {
+        const progress = progressFor(
+            state({
+                status: "downloading",
+                downloadProgress: {
+                    transferredBytes: 12 * 1024 * 1024,
+                    totalBytes: 48 * 1024 * 1024,
+                    percent: 25,
+                    bytesPerSecond: 1536 * 1024,
+                },
+            }),
+        );
+        expect(progress?.indeterminate).toBe(false);
+        expect(progress?.percent).toBe(25);
+        expect(progress?.transferredLabel).toBe("12.0 MB");
+        expect(progress?.totalLabel).toBe("48.0 MB");
+        expect(progress?.rateLabel).toBe("1.5 MB/s");
+    });
+
+    it("survives a preload older than the field, rather than rendering undefined", () => {
+        // A running process decides what a state actually carries, whatever the type says.
+        const older = { ...state({ status: "downloading" }) } as Record<string, unknown>;
+        delete older["downloadProgress"];
+        const progress = progressFor(older as unknown as UpdateState);
+        expect(progress?.indeterminate).toBe(true);
+    });
+});
+
+describe("formatByteCount", () => {
+    it("names the unit and keeps one decimal above bytes", () => {
+        expect(formatByteCount(512)).toBe("512 B");
+        expect(formatByteCount(1024)).toBe("1.0 KB");
+        expect(formatByteCount(1024 * 1024 * 3.5)).toBe("3.5 MB");
+    });
+
+    it("refuses a count that is not one", () => {
+        expect(formatByteCount(-1)).toBeNull();
+        expect(formatByteCount(Number.NaN)).toBeNull();
     });
 });

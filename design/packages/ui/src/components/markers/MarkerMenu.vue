@@ -405,6 +405,27 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
                 </div>
             </header>
 
+            <!--
+                Marker Studio's only way in.
+                It used to live inside the empty-set message, which meant it rendered only
+                when the server's marker set was empty: on any map that publishes even one
+                marker the button did not exist, and there was no menu item, no keyboard
+                path and no palette row either, so the studio could not be opened at all.
+                Here it is part of the panel rather than part of one message, so it is
+                present whatever the set happens to contain.
+            -->
+            <div class="mb-marker-menu__studio-bar">
+                <v-btn
+                    variant="tonal"
+                    size="small"
+                    :prepend-icon="mdiMapMarkerPlusOutline"
+                    data-test="marker-open-studio"
+                    @click="studioOpen = !studioOpen"
+                >
+                    {{ tx("markers.openStudio", "Make your own markers") }}
+                </v-btn>
+            </div>
+
             <v-alert
                 v-if="errorMessage"
                 type="error"
@@ -568,19 +589,11 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
                 <div v-if="isEmpty" class="mb-marker-menu__empty">
                     <p>{{ tx("markers.emptySet", "This marker set has nothing in it.") }}</p>
                     <!--
-                        The route out of the sentence above. It used to be the whole panel:
-                        an empty set, said plainly, with nothing anywhere in the application
-                        that could put something in it.
+                        The route out of the sentence above is the studio button at the top
+                        of this panel. It is deliberately not repeated here: two buttons
+                        doing one thing is two things to keep in step, and the one above is
+                        rendered whether or not this message is.
                     -->
-                    <v-btn
-                        variant="tonal"
-                        size="small"
-                        :prepend-icon="mdiMapMarkerPlusOutline"
-                        data-test="marker-open-studio"
-                        @click="studioOpen = true"
-                    >
-                        {{ tx("markers.openStudio", "Make your own markers") }}
-                    </v-btn>
                 </div>
 
                 <MarkerStudio
@@ -595,6 +608,14 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
 </template>
 
 <style scoped>
+/* The studio button's own row, so it reads as part of the panel rather than as part of
+   whichever message happens to be showing underneath it. */
+.mb-marker-menu__studio-bar {
+    display: flex;
+    justify-content: flex-start;
+    padding: 4px 8px;
+}
+
 .mb-marker-menu {
     /* The app shell sets pointer-events: none on <v-main> so the map stays draggable;
        every interactive panel has to opt back in. */

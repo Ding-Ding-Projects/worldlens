@@ -84,6 +84,15 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * download reports as a download failure or simply as slowness, neither of which is a typed
  * `SettingsTarget` a render or a download could honestly point here from.
  *
+ * Notification duration is next: how long an informational or success toast stays before it
+ * dismisses itself, per `config/noticeDurationLevels.ts`. It is here rather than nowhere
+ * because the level the whole notification system reads was previously fixed at its default
+ * for every profile, with the control built and never mounted, which is a setting that
+ * exists in the code and not in the application. Not an anchor: nothing fails for the want
+ * of a longer toast, so there is no failure shape the bridge could honestly point here
+ * from. It sits beside download concurrency because both are small numeric dials the app
+ * has already picked a sensible answer to.
+ *
  * System dependencies is next: installing git, the GitHub CLI, Docker Desktop and rsync
  * through winget/Chocolatey, per `main/sysdeps/`. Not an anchor for the same reason
  * download concurrency is not one — a render or a world source that needs one of these
@@ -126,6 +135,7 @@ export const SETTINGS_SECTIONS = [
     "surface-placement",
     "render-memory",
     "download-concurrency",
+    "notification-duration",
     "system-dependencies",
     "updates",
     "vocabulary",

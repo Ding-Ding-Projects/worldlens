@@ -524,17 +524,28 @@ describe("teleporting", () => {
         );
     });
 
-    it("opens the settings surface for the GitHub section, which no anchor names, and says so", () => {
+    it("teleports to a section no render-failure anchor names, rather than landing on the tab", () => {
+        // This used to assert the opposite, and the opposite was a defect. The four anchors
+        // in `SETTINGS_ANCHORS` are the ones a *failed render* can point at, and the palette
+        // was reusing that list to decide whether it could reveal anything at all. So the
+        // twelve sections no render can fail into - GitHub sign-in, language and tone, the
+        // display dial, updates, history and the rest - fell through to `openSettings()` and
+        // dropped somebody on whichever section the surface happened to open at, which for a
+        // palette row naming an exact section reads as the row not working.
+        //
+        // The palette's own target is now the wider `SettingsSectionAnchor`, which is the
+        // superset the settings surface actually renders. Widening the render-failure
+        // contract to match would have been the wrong direction: nothing in the main process
+        // can honestly report that a render stopped for the want of a funny level.
         const shell = actions();
         const items = buildPaletteCatalog(input({ actions: shell }));
         const row = byId(items, "settings.github-account");
         if (row.kind !== "destination") throw new Error("expected a destination");
 
         row.go();
-        expect(shell.settingsOpened).toBe(1);
-        expect(shell.revealed).toEqual([]);
-        // The sentence has to be honest about the missing outline, not silently omit it.
-        expect(row.where).toContain("nothing outlines it");
+        expect(shell.revealed).toEqual([{ surface: "settings", anchor: "github-account", missing: false }]);
+        // And it did not also open the surface generically, which would race the reveal.
+        expect(shell.settingsOpened).toBe(0);
     });
 
     it("passes the chosen tab to the shell, and null when no tab was asked for", () => {

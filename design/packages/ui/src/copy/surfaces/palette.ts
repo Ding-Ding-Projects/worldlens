@@ -268,25 +268,6 @@ export const PALETTE_VOICED = {
             "打開設定，直接捲去呢個設定，仲用個發光框圈住佢，想唔見都難。",
         ],
     },
-    // Both the fact that this is the last section AND the fact that nothing outlines it stay
-    // literal at every level: a playful rewrite that dropped either would leave somebody
-    // hunting for a highlight that was never coming.
-    "palette.where.githubSection": {
-        en: [
-            "Opens Settings. This one is the last section in the panel; nothing outlines it, because no failure links to it.",
-            "Opens Settings. This one is the last section in the panel; nothing outlines it, because no failure links to it.",
-            "Opens Settings. This is the last section in the panel, and nothing outlines it, because no failure ever points here.",
-            "Opens Settings, landing on the last section in the panel; nothing outlines it, because no failure ever links here.",
-            "Opens Settings and drops you on the last section in the panel; nothing outlines it, because no failure has ever bothered pointing here.",
-        ],
-        yue: [
-            "打開設定。呢個係面板入面最尾嗰個部分；冇嘢會圈住佢，因為冇任何失敗會指去呢度。",
-            "打開設定。呢個係面板入面最尾嗰個部分；冇嘢會圈住佢，因為冇任何失敗會指去呢度。",
-            "打開設定。呢個已經係面板入面最尾嗰個部分，冇嘢會圈住佢，因為由頭到尾都冇失敗會指去呢度。",
-            "打開設定，直接去到面板入面最尾嗰個部分；冇嘢會圈住佢，因為冇失敗試過指去呢度。",
-            "打開設定，直接放你喺面板入面最尾嗰個部分；冇嘢會圈住佢，因為由嚟冇一個失敗費事指過嚟呢度。",
-        ],
-    },
     "palette.where.configAll": {
         en: [
             "Opens the server configuration editor at its first tab, Core. The tab strip along the top has the rest.",
@@ -1132,10 +1113,6 @@ export const PALETTE_FACTS = {
     "palette.where.config": { en: ["server configuration editor"], yue: ["伺服器設定編輯器"] },
     "palette.where.profiles": { en: ["server list"], yue: ["伺服器清單"] },
     "palette.where.section": { en: ["Settings", "outline"], yue: ["設定", "圈"] },
-    "palette.where.githubSection": {
-        en: ["Settings", "last section", "nothing outlines it"],
-        yue: ["設定", "最尾嗰個部分", "冇嘢會圈住佢"],
-    },
     "palette.where.configAll": {
         en: ["server configuration editor", "Core"],
         yue: ["伺服器設定編輯器", "Core"],

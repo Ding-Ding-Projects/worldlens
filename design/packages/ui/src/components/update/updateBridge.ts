@@ -41,6 +41,21 @@ export interface UpdateFailure {
     readonly retryable: boolean;
 }
 
+/**
+ * Mirrors `UpdateDownloadProgress` in `main/update/state.ts`, field for field.
+ *
+ * Each field is separately nullable because the updater is allowed to know some of this and
+ * not the rest, and the interface has to render each of those cases differently rather than
+ * filling a gap with an estimate. In particular `percent` is null whenever no total was
+ * served, and the banner is then required to show an indeterminate bar.
+ */
+export interface UpdateDownloadProgress {
+    readonly transferredBytes: number;
+    readonly totalBytes: number | null;
+    readonly percent: number | null;
+    readonly bytesPerSecond: number | null;
+}
+
 /** Mirrors `UpdateState` in `main/update/state.ts`, field for field. */
 export interface UpdateState {
     readonly status: UpdateStatus;
@@ -56,6 +71,8 @@ export interface UpdateState {
     readonly unsupportedReason: string | null;
     readonly renderInProgress: boolean;
     readonly feedUrl: string | null;
+    /** Live byte counts while a download runs. Null when nothing is counting them. */
+    readonly downloadProgress: UpdateDownloadProgress | null;
 }
 
 export type UpdateRestartRefusal =

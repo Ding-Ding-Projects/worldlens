@@ -22,7 +22,7 @@
 import { setupStorage } from "../setup/setupPrefs.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import type { UpdateCopyKey } from "./updateCopy.js";
-import type { UpdateState, UpdateStatus } from "./updateBridge.js";
+import type { UpdateDownloadProgress, UpdateState, UpdateStatus } from "./updateBridge.js";
 
 /** Where a dismissed version is remembered, so a restart does not resurrect the banner. */
 const DISMISSED_KEY = "worldlens.update.dismissed";
@@ -58,6 +58,107 @@ export function clearDismissedUpdate(): void {
 
 export type UpdateTone = "info" | "success" | "warning" | "error";
 
+/* -------------------------------------------------------------------------- */
+/* Download progress                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What the banner can honestly draw for a download in flight.
+ *
+ * The whole shape exists so the component never decides anything. A bar that invents motion
+ * is worse than no bar at all, because it tells the user the download is fine at the exact
+ * moment nothing may be happening, so the "is there a real percentage" decision is made here
+ * once, from the numbers the updater reported, and is unit-testable without mounting
+ * anything.
+ */
+export interface UpdateProgressModel {
+    /**
+     * True when the download is genuinely underway and no percentage is known.
+     *
+     * This is a real and ordinary case rather than a fallback for a bug: Electron's Squirrel
+     * updater reports the start and the finish of a download and nothing in between, and a
+     * feed served without a `Content-Length` gives a byte count with no total to divide it by.
+     */
+    readonly indeterminate: boolean;
+    /** 0 to 100, rounded for display. Null whenever the updater did not report one. */
+    readonly percent: number | null;
+    /** "12.4 MB", or null when even the transferred count is unknown. */
+    readonly transferredLabel: string | null;
+    /** "48.0 MB", or null when the server did not say how big the package is. */
+    readonly totalLabel: string | null;
+    /** "1.2 MB/s", or null when the engine does not measure a rate. */
+    readonly rateLabel: string | null;
+}
+
+const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
+
+/**
+ * A byte count as a person reads it.
+ *
+ * Kept in the model rather than the template so the numbers a screen reader hears and the
+ * numbers on screen come from one function, and so the rounding is testable. Powers of 1024
+ * with the unit names the installer and the releases page already use, which matters more
+ * than the decimal/binary argument: two surfaces disagreeing about the size of the same
+ * download is what a reader actually notices.
+ */
+export function formatByteCount(bytes: number): string | null {
+    if (!Number.isFinite(bytes) || bytes < 0) return null;
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
+        value /= 1024;
+        unit += 1;
+    }
+    // Whole bytes have no meaningful fraction, and everything larger reads better with one
+    // decimal than with a six-digit integer.
+    const rendered = unit === 0 ? String(Math.round(value)) : value.toFixed(1);
+    return `${rendered} ${BYTE_UNITS[unit] ?? "B"}`;
+}
+
+/**
+ * The progress model for a state, or null when nothing is downloading.
+ *
+ * `downloadProgress` is read defensively rather than trusted, because an older preload that
+ * predates this field sends a state without it: the type says the field is there and the
+ * running process is what actually decides.
+ */
+export function progressFor(state: UpdateState): UpdateProgressModel | null {
+    if (state.status !== "downloading") return null;
+
+    const progress: UpdateDownloadProgress | null = state.downloadProgress ?? null;
+    if (progress === null) {
+        // Downloading with nothing counting the bytes. Indeterminate is the honest answer;
+        // hiding the bar entirely would be the state this feature exists to remove, and a
+        // number here would be fiction.
+        return {
+            indeterminate: true,
+            percent: null,
+            transferredLabel: null,
+            totalLabel: null,
+            rateLabel: null,
+        };
+    }
+
+    const percent =
+        progress.percent === null || !Number.isFinite(progress.percent)
+            ? null
+            : Math.min(Math.max(Math.round(progress.percent), 0), 100);
+
+    return {
+        indeterminate: percent === null,
+        percent,
+        transferredLabel: formatByteCount(progress.transferredBytes),
+        totalLabel: progress.totalBytes === null ? null : formatByteCount(progress.totalBytes),
+        rateLabel:
+            progress.bytesPerSecond === null
+                ? null
+                : (() => {
+                      const rate = formatByteCount(progress.bytesPerSecond);
+                      return rate === null ? null : `${rate}/s`;
+                  })(),
+    };
+}
+
 export interface UpdateBannerModel {
     readonly visible: boolean;
     readonly tone: UpdateTone;
@@ -71,6 +172,16 @@ export interface UpdateBannerModel {
     readonly notesUrl: string | null;
     /** The notes themselves, when the feed carried them. Rendered, never printed raw. */
     readonly notes: string | null;
+    /** The bar and its byte counts while a download runs. Null the rest of the time. */
+    readonly progress: UpdateProgressModel | null;
+    /**
+     * False while the banner is reporting something the user cannot act on.
+     *
+     * A download in flight has no offer to put away: dismissal is remembered against the
+     * staged version, and there is no staged version yet, so a Later button there would look
+     * like a control and do nothing at all.
+     */
+    readonly canDismiss: boolean;
 }
 
 const HIDDEN: UpdateBannerModel = {
@@ -82,6 +193,8 @@ const HIDDEN: UpdateBannerModel = {
     canRestart: false,
     notesUrl: null,
     notes: null,
+    progress: null,
+    canDismiss: false,
 };
 
 /**
@@ -99,6 +212,38 @@ export function bannerFor(
         readonly unsavedWork?: boolean;
     } = {},
 ): UpdateBannerModel {
+    const downloading = progressFor(state);
+    if (downloading !== null) {
+        /*
+         * The one other state that earns the banner, and it earns it for the opposite reason
+         * to the ready state.
+         *
+         * The module comment above says a banner is for an offer the user has to be able to
+         * take later, and that anything which merely informs belongs in the notification
+         * corner. A download in flight is neither: it is a large file arriving over a
+         * connection that may be slow or may have stalled, and the only place that question
+         * can be answered is a bar that is on screen for as long as the download is. It
+         * removes itself when the download ends, so it never becomes a fixture nobody asked
+         * for, and it offers no action, so it never competes with the offer that follows it.
+         */
+        const named = state.newVersion;
+        return {
+            visible: true,
+            tone: "info",
+            titleKey:
+                named === null
+                    ? "update.banner.downloadingTitleUnknown"
+                    : "update.banner.downloadingTitle",
+            bodyKey: "update.banner.downloadingBody",
+            vars: named === null ? {} : { version: named },
+            canRestart: false,
+            notesUrl: state.releaseNotesUrl,
+            notes: null,
+            progress: downloading,
+            canDismiss: false,
+        };
+    }
+
     const version = state.readyVersion;
     if (state.status !== "ready" || version === null) return HIDDEN;
 
@@ -120,6 +265,8 @@ export function bannerFor(
         canRestart: !held && (options.canRestart ?? true),
         notesUrl: state.releaseNotesUrl,
         notes: state.releaseNotes,
+        progress: null,
+        canDismiss: true,
     };
 }
 
@@ -265,5 +412,6 @@ export function unknownUpdateState(currentVersion = ""): UpdateState {
         unsupportedReason: null,
         renderInProgress: false,
         feedUrl: null,
+        downloadProgress: null,
     };
 }

@@ -82,6 +82,13 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["4"],
     },
     {
+        anchor: "notification-duration",
+        title: "Notification duration",
+        description: "How long an informational or success message stays before it dismisses itself.",
+        // The level label the dial is showing, so searching what is on screen finds it.
+        values: ["3 · Balanced"],
+    },
+    {
         anchor: "system-dependencies",
         title: "System dependencies",
         description: "Install git, the GitHub CLI, Docker Desktop and rsync through winget or Chocolatey.",
@@ -181,6 +188,7 @@ describe("every section the surface renders", () => {
             "surface-placement",
             "render-memory",
             "download-concurrency",
+            "notification-duration",
             "system-dependencies",
             "updates",
             "vocabulary",

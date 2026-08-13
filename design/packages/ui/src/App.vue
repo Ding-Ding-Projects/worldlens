@@ -78,7 +78,7 @@ import { structureStore } from "./components/structures/structureStore.js";
 import { createActiveRenders } from "./components/renders/activeRenders.js";
 import type { ConsoleTarget } from "./components/renders/activeRenders.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
-import type { PaletteConfigTarget } from "./components/palette/index.js";
+import type { PaletteConfigTarget, PaletteSettingsTarget } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import type { TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
@@ -1030,6 +1030,18 @@ function revealSetting(target: SettingsTarget): void {
     openSettings(target.anchor, target.missing);
 }
 
+/**
+ * The same thing for the palette, whose targets are wider than a render's.
+ *
+ * A render can only name the handful of settings a render can stop for, so `SettingsTarget`
+ * is deliberately that narrow set. The palette knows exactly which section a person picked
+ * out of its own list, so it may name any of them, and every one of its rows now reveals
+ * rather than opening Settings on whatever tab happened to be first.
+ */
+function revealPaletteSetting(target: PaletteSettingsTarget): void {
+    openSettings(target.anchor, target.missing);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Licence viewer                                                             */
 /* -------------------------------------------------------------------------- */
@@ -1514,15 +1526,32 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @back="shell.backToHomeRoot()"
                             @activate-feature="onActivateFeature"
                         />
-                        <HomeCatalogues
-                            v-else
-                            :meta-sources="metaSources"
-                            :restricted-mode-active="schoolMode.enabled.value"
-                            @open-catalogue="shell.openCatalogue"
-                            @activate-feature="onActivateFeature"
-                            @new-map="revealPage(PAGE_PROJECTS)"
-                            @walk-me-through="revealPage(PAGE_WORLD)"
-                        />
+                        <!--
+                            The landing surface itself, above the catalogues rather than
+                            instead of them: it is the weighted "what would you like to do"
+                            list, and the catalogues underneath it are the exhaustive index
+                            of the same capabilities. It was imported here and never
+                            rendered, which `<script setup>` drops silently, so a fully
+                            built and fully tested landing screen shipped with no way in.
+                        -->
+                        <template v-else>
+                            <HomeScreen
+                                @reveal-page="revealPage"
+                                @open-settings="openSettings($event)"
+                                @open-config="openConfig($event)"
+                                @open-eula="eulaOpen = true"
+                                @open-welcome="welcomeOpen = true"
+                                @open-palette="paletteOpen = true"
+                            />
+                            <HomeCatalogues
+                                :meta-sources="metaSources"
+                                :restricted-mode-active="schoolMode.enabled.value"
+                                @open-catalogue="shell.openCatalogue"
+                                @activate-feature="onActivateFeature"
+                                @new-map="revealPage(PAGE_PROJECTS)"
+                                @walk-me-through="revealPage(PAGE_WORLD)"
+                            />
+                        </template>
                     </div>
 
                     <!--
@@ -1780,6 +1809,29 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 <OllamaScreen />
                             </div>
                         </template>
+
+                        <!--
+                            The memory console, which this build does not implement. The job
+                            is capability-gated, so `WorkPane` filters the tab out today and
+                            nothing opens this; the slot exists because a registered job with
+                            no slot renders the tab system's generic "no content for that
+                            page" fallback the instant its capability resolves, which reads
+                            as a broken page rather than as an honest absence.
+                        -->
+                        <template #memory>
+                            <div class="mb-world-host mb-interactive">
+                                <div class="mb-shell-centre">
+                                    <p class="mb-memory-absent">
+                                        {{
+                                            t(
+                                                "tabs.page.memory.absent",
+                                                "This build has no memory console. The page is registered so a build that does have one can open it; nothing here is measuring anything.",
+                                            )
+                                        }}
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
                         </WorkPane>
                     </div>
 
@@ -1906,7 +1958,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 :pages="pages"
                 :can-route-config-screens="true"
                 @update:open="paletteOpen = $event"
-                @reveal-setting="revealSetting"
+                @reveal-setting="revealPaletteSetting"
                 @open-settings="openSettings()"
                 @open-config="openConfig($event)"
                 @open-profiles="revealPage(PAGE_SERVERS)"
@@ -2199,6 +2251,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     flex-direction: column;
     align-items: center;
     padding: 16px;
+}
+
+/* The memory console's absence sentence, sized to read as prose rather than as a heading. */
+.mb-memory-absent {
+    max-inline-size: 60ch;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    text-wrap: pretty;
 }
 
 /*

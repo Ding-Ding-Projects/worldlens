@@ -43,10 +43,13 @@ import { UI_SIZE_LEVELS, currentUiSizeLevel, uiSizeLevelByNumber } from "./uiSiz
 import { THEME_CHOICES, currentTheme } from "./themeSetting.js";
 import { createDownloadConcurrencySetting } from "./downloadConcurrencySetting.js";
 import DownloadConcurrencyRow from "./DownloadConcurrencyRow.vue";
+import NotificationDurationRow from "./NotificationDurationRow.vue";
+import { notices } from "../../stores/notices.js";
 import {
     dockPlacementLabel,
     githubSectionCopy,
     javaUnsupportedCopy,
+    noticeDurationLevelLabel,
     sectionCopy,
     themeChoiceLabel,
     uiSizeLevelLabel,
@@ -160,6 +163,7 @@ const displaySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const vocabularySection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -352,6 +356,15 @@ const sections = computed<SettingsSectionText[]>(() => {
                           downloadConcurrency.readout.value.explanation,
                       ],
         },
+        // The level label as the dial is currently showing it, so somebody who can see
+        // "Balanced" or "Stay until dismissed" on screen can search for that word and be
+        // brought back here, the same rule every other section on this surface follows.
+        {
+            anchor: "notification-duration",
+            title: text["notification-duration"].title,
+            description: text["notification-duration"].description,
+            values: [noticeDurationLevelLabel(t, notices.durationLevel)],
+        },
         // The winget/Chocolatey rules everyone can already read: the dependency names and
         // the two package managers, so typing "docker" or "chocolatey" finds this tab even
         // before the live preview has resolved anything from the main process.
@@ -493,6 +506,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return renderMemorySection.value;
         case "download-concurrency":
             return downloadConcurrencySection.value;
+        case "notification-duration":
+            return noticeDurationSection.value;
         case "system-dependencies":
             return systemDependenciesSection.value;
         case "updates":
@@ -928,6 +943,25 @@ function onDrawer(value: boolean): void {
                         :description="copy['download-concurrency'].description"
                     >
                         <DownloadConcurrencyRow :setting="downloadConcurrency" />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    How long an informational or success toast stays before it dismisses
+                    itself. The row was built, tested and never mounted, which left
+                    `stores/notices.ts` reading a level nobody could change: every profile
+                    was stuck on the shipped default forever. It is a section of its own
+                    rather than a row under Display because it is about the notification
+                    system rather than about how the app is drawn.
+                -->
+                <template #notification-duration>
+                    <SettingsSection
+                        ref="noticeDurationSection"
+                        anchor="notification-duration"
+                        :title="copy['notification-duration'].title"
+                        :description="copy['notification-duration'].description"
+                    >
+                        <NotificationDurationRow />
                     </SettingsSection>
                 </template>
 

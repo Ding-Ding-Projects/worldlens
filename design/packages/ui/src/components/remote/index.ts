@@ -18,6 +18,12 @@ export { default as RunLocationCard } from "./RunLocationCard.vue";
 export { default as RemoteTargetEditor } from "./RemoteTargetEditor.vue";
 export { default as RemotePreflightPanel } from "./RemotePreflightPanel.vue";
 export { default as DockerStateNote } from "./DockerStateNote.vue";
+/*
+ * Publishing a finished render to that same machine, so the map keeps answering after this
+ * application closes. It is exported here rather than kept folder-private because nothing
+ * outside this folder could import it, which is why it shipped with no mount at all.
+ */
+export { default as RemoteHostingPanel } from "./RemoteHostingPanel.vue";
 
 export { describeDocker, dockerName, dockerNotProbed } from "./dockerStates.js";
 export type { DockerNote, DockerTone } from "./dockerStates.js";

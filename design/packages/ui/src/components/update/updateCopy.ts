@@ -76,6 +76,70 @@ export const UPDATE_VOICED = {
             "你鍾意幾時重開都得，佢自己換位。未重開之前佢就坐喺角落頭，乜都唔掂。",
         ],
     },
+    "update.banner.downloadingTitle": {
+        en: [
+            "Downloading version {version}.",
+            "Version {version} is downloading.",
+            "Version {version} is coming down in the background.",
+            "Version {version} is on its way down in the background.",
+            "Version {version} is trundling down the wire in the background.",
+        ],
+        yue: [
+            "下載緊版本 {version}。",
+            "版本 {version} 下載緊。",
+            "版本 {version} 喺背景慢慢落緊嚟。",
+            "版本 {version} 喺後台一路搬緊落嚟。",
+            "版本 {version} 喺後台沿住條線慢慢爬緊落嚟。",
+        ],
+    },
+    "update.banner.downloadingTitleUnknown": {
+        en: [
+            "Downloading an update.",
+            "An update is downloading.",
+            "An update is coming down in the background.",
+            "An update is on its way down in the background.",
+            "An update is trundling down the wire in the background.",
+        ],
+        yue: [
+            "下載緊更新。",
+            "有個更新下載緊。",
+            "有個更新喺背景慢慢落緊嚟。",
+            "有個更新喺後台一路搬緊落嚟。",
+            "有個更新喺後台沿住條線慢慢爬緊落嚟。",
+        ],
+    },
+    "update.banner.downloadingBody": {
+        en: [
+            "Nothing installs until you restart the app.",
+            "Carry on working. Nothing installs until you restart the app.",
+            "Carry on with what you were doing; nothing installs until you restart the app.",
+            "Carry on regardless. Nothing installs itself until you restart the app.",
+            "Pay it no mind. Nothing installs itself until you restart the app, and it will say so when it is ready.",
+        ],
+        yue: [
+            "未重新開機之前唔會安裝任何嘢。",
+            "你照做嘢。未重新開機之前唔會安裝。",
+            "你繼續做你嘅嘢，未重開之前佢唔會裝。",
+            "你照做，唔使理佢。未重開之前佢唔會自己裝。",
+            "唔使理佢啦。未重開之前佢唔會自己裝，裝得就會出聲話你知。",
+        ],
+    },
+    "update.banner.downloadingPercent": {
+        en: [
+            "Downloading the update: {percent} percent.",
+            "The update is {percent} percent downloaded.",
+            "The update is {percent} percent of the way down.",
+            "The update is {percent} percent of the way here.",
+            "The update is {percent} percent of the way here, one byte after another.",
+        ],
+        yue: [
+            "下載更新：{percent} 百分比。",
+            "更新已經下載咗 {percent} 百分比。",
+            "更新落咗 {percent} 百分比。",
+            "更新行咗 {percent} 百分比路程。",
+            "更新行咗 {percent} 百分比路程，一個 byte 跟一個 byte 咁嚟。",
+        ],
+    },
     "update.banner.heldBody": {
         en: [
             "A render is running. Installing would stop it, so Restart is unavailable until it finishes.",
@@ -244,6 +308,18 @@ export const UPDATE_FIXED = {
     "update.label.feed": { en: "Updates come from", yue: "更新來源" },
     "update.label.detail": { en: "What the updater reported", yue: "更新器嘅原話" },
     "update.label.state": { en: "Update state", yue: "更新狀態" },
+    /*
+     * The progress labels are fixed rather than voiced on purpose. They sit beside live
+     * numbers as the words that say what those numbers count, so a level that reworded them
+     * would be styling the reading of a measurement rather than the sentence around it.
+     */
+    "update.label.progress": { en: "Update download progress", yue: "更新下載進度" },
+    "update.label.downloaded": { en: "Downloaded", yue: "已下載" },
+    "update.label.rate": { en: "Speed", yue: "速度" },
+    "update.label.downloadingUnknownSize": {
+        en: "No download size was reported, so there is no percentage to show.",
+        yue: "冇報告下載大小，所以顯示唔到百分比。",
+    },
 } as const satisfies Readonly<Record<string, { readonly en: string; readonly yue: string }>>;
 
 export type UpdateVoicedKey = keyof typeof UPDATE_VOICED;

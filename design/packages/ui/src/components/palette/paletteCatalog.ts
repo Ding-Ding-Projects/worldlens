@@ -62,7 +62,6 @@ import { sectionCopy } from "../settings/settingsCopy.js";
 import {
     SETTINGS_ANCHORS,
     SETTINGS_SECTIONS,
-    isSettingsAnchor,
     type SettingsSectionAnchor,
 } from "../settings/settingsSections.js";
 import { schoolModeEnabled } from "../setup/schoolMode.js";
@@ -81,7 +80,15 @@ import { viewerSettingItems } from "./viewerSettings.js";
  */
 export interface PaletteSettingsTarget {
     readonly surface: "settings";
-    readonly anchor: "mojang-download-consent" | "java-runtime" | "map-storage-directory" | "world-folder";
+    /*
+     * Every section, not only the four a failed render can name.
+     *
+     * It was the four, and the other twelve rows fell back to opening Settings on whichever
+     * tab happened to be first, which since Settings became tabbed means landing on a
+     * different tab from the one that was searched for. `AppSettings.revealSection` has
+     * always accepted any section; the palette simply never asked it to.
+     */
+    readonly anchor: SettingsSectionAnchor;
     readonly missing: boolean;
 }
 
@@ -399,19 +406,10 @@ function settingsSectionItems(input: PaletteCatalogInput, group: string): Palett
             anchor === "language-and-tone" && schoolModeEnabled()
                 ? [section.title]
                 : [anchor.replaceAll("-", " ")];
-        if (isSettingsAnchor(anchor)) {
-            return {
-                kind: "destination",
-                id: `settings.${anchor}`,
-                group,
-                title: section.title,
-                description: section.description,
-                keywords,
-                where: t("palette.where.section", "Opens Settings and outlines this setting."),
-                go: () => actions.revealSetting({ surface: "settings", anchor, missing: false }),
-            };
-        }
-
+        // Every section reveals now, including the twelve no render can name. Whether a
+        // failure could point here decides nothing about whether the palette can: the
+        // palette knows exactly which section was picked, so opening Settings and leaving
+        // somebody to find that tab by hand was only ever a limitation of this function.
         return {
             kind: "destination",
             id: `settings.${anchor}`,
@@ -419,11 +417,8 @@ function settingsSectionItems(input: PaletteCatalogInput, group: string): Palett
             title: section.title,
             description: section.description,
             keywords,
-            where: t(
-                "palette.where.githubSection",
-                "Opens Settings. This one is the last section in the panel; nothing outlines it, because no failure links to it.",
-            ),
-            go: () => actions.openSettings(),
+            where: t("palette.where.section", "Opens Settings and outlines this setting."),
+            go: () => actions.revealSetting({ surface: "settings", anchor, missing: false }),
         };
     });
 }

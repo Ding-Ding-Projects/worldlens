@@ -42,6 +42,7 @@ import {
     initialUpdateState,
     isReady,
     reduceUpdate,
+    type UpdateDownloadProgress,
     type UpdateEvent,
     type UpdateState,
 } from "./state.js";
@@ -188,6 +189,50 @@ const EXACT_UPDATE_VERSION = /^v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z
 function exactUpdateVersion(value: unknown): string | null {
     if (typeof value !== "string") return null;
     return EXACT_UPDATE_VERSION.exec(value.trim())?.[1] ?? null;
+}
+
+/** A count the engine really produced, or null. Rejects NaN, Infinity and negatives. */
+function measuredCount(value: unknown): number | null {
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+    return value;
+}
+
+/**
+ * Reads a progress payload, keeping only what the engine actually measured.
+ *
+ * Structural and defensive because the payload is not one shape: Electron's own Squirrel
+ * updater emits no progress at all, while engines that do emit it disagree about the field
+ * names, so this accepts the common spellings and refuses everything it cannot read as a
+ * number. Returns null when there is no transferred count, because a progress record whose
+ * only content is a percentage somebody else computed is exactly the invented motion this
+ * feature must not produce.
+ *
+ * The percentage is taken from the engine when the engine reports one, and otherwise derived
+ * only from a real total. With no total there is deliberately no percentage, and the banner
+ * renders an indeterminate bar instead.
+ */
+export function readDownloadProgress(payload: unknown): UpdateDownloadProgress | null {
+    if (typeof payload !== "object" || payload === null) return null;
+    const record = payload as Record<string, unknown>;
+
+    const transferred = measuredCount(record["transferred"] ?? record["transferredBytes"]);
+    if (transferred === null) return null;
+
+    const total = measuredCount(record["total"] ?? record["totalBytes"]);
+    const rate = measuredCount(record["bytesPerSecond"] ?? record["speed"]);
+
+    const reported = measuredCount(record["percent"]);
+    const derived = total !== null && total > 0 ? (transferred / total) * 100 : null;
+    const percent = reported ?? derived;
+
+    return {
+        transferredBytes: transferred,
+        totalBytes: total,
+        // A percentage above 100 is a miscount somewhere upstream; it is clamped rather than
+        // rendered, because a bar wider than its track reads as a broken widget.
+        percent: percent === null ? null : Math.min(percent, 100),
+        bytesPerSecond: rate,
+    };
 }
 
 export class UpdateController {
@@ -461,6 +506,17 @@ export class UpdateController {
             // rather than `available`. `available` is what a metadata-only probe produces.
             this.inFlight = false;
             this.apply({ type: "downloading", version: null });
+        });
+
+        handler("download-progress", (args) => {
+            // Subscribed unconditionally even though Electron's Squirrel updater never emits
+            // it. Listening for an event that does not arrive costs nothing and keeps the
+            // renderer honest either way: with no event the state carries no numbers and the
+            // banner shows an indeterminate bar, which is the truth about a download nobody
+            // is counting.
+            const progress = readDownloadProgress(args[0]);
+            if (progress === null) return;
+            this.apply({ type: "download-progress", progress });
         });
 
         handler("update-downloaded", (args) => {

@@ -123,6 +123,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "How many release-asset parts a download fetches at once. More at a time can finish a fast connection sooner; fewer means a dropped connection costs less and the disk is not asked to write several parts at the same time.",
             ),
         },
+        "notification-duration": {
+            title: t("settings.noticeDuration.title", "Notification duration"),
+            description: t(
+                "settings.noticeDuration.description",
+                "How long an informational or success message stays in the corner before it dismisses itself, from quick to staying up until you dismiss it by hand. Warnings and errors already wait for you and are not affected.",
+            ),
+        },
         "system-dependencies": {
             title: t("settings.dependencies.title", "System dependencies"),
             description: t(

@@ -10,6 +10,17 @@ otherwise be read as a guarantee. The site under `design/packages/site/` carries
 feature as well; the articles summarise and link back here rather than duplicating these files,
 because two copies of one explanation drift apart and only one of them gets edited.
 
+## Audits
+
+Not feature documents, so they are listed apart from the two tables below rather than folded into
+them: an audit describes a comparison that was made once, at a commit, rather than behaviour the
+application has. The in-app documentation browser groups them the same way, under
+`uncategorized`, which is a deliberate result rather than a missing category.
+
+| Document                                                              | Covers                                                                                          |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [BlueMapGUI parity](./bluemapgui-parity.md)                           | A source-code audit of this application against BlueMapGUI, feature by feature, with the verdict and evidence for each. |
+
 ## The application
 
 | Document                                                                                | What it covers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |

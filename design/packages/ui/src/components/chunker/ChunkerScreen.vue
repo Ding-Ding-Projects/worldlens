@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip, VDivider, VList, VListItem, VProgressLinear, VSelect, VSwitch, VTextField } from "vuetify/components";
 
+import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import ChunkerRoutePicker from "./ChunkerRoutePicker.vue";
@@ -427,8 +428,10 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <section v-if="step === 'source'" data-test="chunker-step-source">
                 <h3>{{ t("chunker.step.source", "Source world") }}</h3>
                 <MinecraftWorldList :model-value="sourceFolder" :bridge="catalog" @choose="chooseWorld" />
-                <VTextField
+                <PathField
                     v-model="sourceFolder"
+                    field="world folder"
+                    semantic="folder"
                     :label="t('chunker.sourceFolder', 'World folder')"
                     density="compact"
                     class="mt-3"
@@ -472,8 +475,10 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                     :label="t('chunker.version', 'Version')"
                     density="compact"
                 />
-                <VTextField
+                <PathField
                     v-model="outputFolder"
+                    field="output folder"
+                    semantic="folder"
                     :label="t('chunker.outputFolder', 'Output folder')"
                     density="compact"
                 />
