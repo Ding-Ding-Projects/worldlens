@@ -123,6 +123,7 @@ export const SETTINGS_SECTIONS = [
     "download-concurrency",
     "system-dependencies",
     "updates",
+    "vocabulary",
     "history",
     "diagnostics",
 ] as const;

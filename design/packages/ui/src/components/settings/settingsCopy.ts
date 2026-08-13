@@ -137,6 +137,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Whether this build is up to date, when it last checked, and where updates come from. Check for updates by hand from here, and bring back an update banner you dismissed.",
             ),
         },
+        "vocabulary": {
+            title: t("settings.vocabulary.title", "Personal vocabulary"),
+            description: t(
+                "settings.vocabulary.description",
+                "A local JSON file that replaces specific words with your own, everywhere this app shows text. Nothing is sent anywhere, and nothing changes until you supply a file.",
+            ),
+        },
         "history": {
             title: t("settings.history.title", "Version history"),
             description: t(
