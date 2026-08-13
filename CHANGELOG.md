@@ -22,6 +22,8 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Capture the eight new surfaces, and register four pages the tab strip never knew about - [`b32ad1c275`](https://github.com/Ding-Ding-Projects/worldlens/commit/b32ad1c275b7c9122279a7380e05f22ff7961dd0)
+- Stop the account load writing into a screen somebody has already left - [`efab5f3cfa`](https://github.com/Ding-Ding-Projects/worldlens/commit/efab5f3cfa02f01e3a30bb3f6fc8d58e9377b4f4)
 - Give the three unreachable surfaces a page, and guard the whole class - [`8483b3da45`](https://github.com/Ding-Ding-Projects/worldlens/commit/8483b3da45737573cde00151f07cad1171bbaca1)
 - Resolve the five-lane integration and gate the new destructive actions - [`13e04dda63`](https://github.com/Ding-Ding-Projects/worldlens/commit/13e04dda6311f7bb32cb4e90a0a54556dbf2e03c) _(summary of 2 commits, also listed here)_
 - Reconcile the four merged lanes with the catalogue and section guards - [`8dd5474c05`](https://github.com/Ding-Ding-Projects/worldlens/commit/8dd5474c05a3b6590f41b07fba06655d888f916a)

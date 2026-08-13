@@ -26,6 +26,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "b32ad1c275b7c9122279a7380e05f22ff7961dd0",
+        shortSha: "b32ad1c275",
+        date: "2026-08-13T02:41:43-04:00",
+        subject: "Capture the eight new surfaces, and register four pages the tab strip never knew about",
+        details: "The capture suite photographs a hand-written list of surfaces and today's eight\nwere not on it, so it passed twenty-six tests while never looking at any of\nthem. Adding them found something worse than a missing photograph.\n\nFour of the new pages were unreachable. App.vue had their slots and their page\nids, and jobRegistry.ts had never listed them, so TabbedNavigation did not know\nthey existed: no new-tab entry, no palette row, no way in at all. They render\nperfectly and nobody could open them. The harness found it by trying to open\nthem and timing out, which is the only kind of test that could have.\n\nThat is the fourth variation of one defect in a day: a component nobody renders,\na component mounted so it destroys the layout, a page the tab system has never\nheard of, and then the guard written for the first three, which stayed green\nwhen the registry entry was deleted because the id also appears in a type union.\nIt now asserts the two structural forms that actually make a page openable, and\ndeleting either turns it red.\n\nDim sum is captured for real rather than excused. A harness-only localStorage\nkey that shipped code never writes forces the draw and supplies its own dish, so\nthe public catalog fetch never runs and the one in ten odds are untouched in\nproduction. The marker studio is excused under the mechanism the file already\nhas for surfaces needing a loaded map, with the reason on the entry: its only\ndoor is the marker menu, and that menu's only door is a control bar that needs a\nmap.\n\n個 capture suite 影嘅係一張人手寫嘅清單，今日八個 surface 一個都唔喺上面，\n所以佢二十六個 test 全過，但係一眼都冇望過。加落去之後揾到更弊嘅嘢：\n四個新版面根本入唔到。App.vue 有 slot 有 page id，但 jobRegistry.ts 從來冇列過，\n所以 tab 系統唔知佢哋存在，新分頁冇、palette 冇、完全冇路入。畫面畫得好地地，\n就係冇人開得到。呢個係一日之內同一種問題嘅第四種變奏。",
+        category: "interface",
+        areas: ["interface", "shell"],
+        files: 4,
+    },
+    {
+        sha: "efab5f3cfa02f01e3a30bb3f6fc8d58e9377b4f4",
+        shortSha: "efab5f3cfa",
+        date: "2026-08-13T02:04:19-04:00",
+        subject: "Stop the account load writing into a screen somebody has already left",
+        details: "WorldRepoScreen loads its GitHub accounts on mount, and that is a real network\nround trip a person can navigate away during. The continuation was unguarded, so\nit ran after teardown and reached t() with no window left to resolve a message\nformat against.\n\nThe failure that produces is worth describing, because it is the kind that gets\nmisread. Every assertion passes, no test is marked failed, and the run still\nexits non-zero on an unhandled rejection with nothing beside it to blame. It\nonly appears under load, so it looks like flakiness rather than a defect, and\nthe honest reading is that it is a real race which contention merely makes\nlikely enough to see.\n\nFound while running the full suite next to a Gradle build and an installer\npackage on one machine, which is a bad way to measure a suite and a good way to\nshake out a race.\n\nWorldRepoScreen 一 mount 就去攞 GitHub 帳戶，嗰個係真嘅網絡來回，人係可以中途走\n咗去第二版。原本個 continuation 冇守門，component 冇咗之後照跑，撞到 t() 嗰陣\n已經冇 window。呢種 failure 最易睇錯：所有 assertion 都過，冇一個 test 話死咗，\n但係成個 run 因為一個 unhandled rejection 而非零離開，旁邊乜線索都冇。",
+        category: "interface",
+        areas: ["interface"],
+        files: 1,
+    },
+    {
         sha: "b4cdc0c9430b81ef13f8a825a404e8d87ae370f4",
         shortSha: "b4cdc0c943",
         date: "2026-08-13T01:53:02-04:00",
