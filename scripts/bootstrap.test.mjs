@@ -17,7 +17,9 @@ import {
   JAR_STAMP_NAME,
   hasShadowJar,
   jarBuildState,
+  parseHeadCommit,
   readJarStamp,
+  selectJavaCandidate,
   resetDirectory,
   sha256File,
   shadowJarVersion,
@@ -244,4 +246,68 @@ test("the recorded version still reads a lone jar, and is absent rather than wro
   writeFileSync(join(unparseable, "cli-shadow.jar"), "x".repeat(4096));
   assert.equal(shadowJarVersion(unparseable), null);
   assert.equal(shadowJarVersion(join(unparseable, "no-such-directory")), null);
+});
+
+test("the java probe keeps looking past an old java on PATH", () => {
+  // The exact configuration the candidate list was written for: an older java on PATH, which
+  // almost every developer machine and every hosted CI image has, and a new enough JDK behind
+  // it. Stopping at the first java that answers reported this machine as unable to build.
+  const probed = [];
+  const best = selectJavaCandidate({
+    candidates: [
+      { command: "java", from: "PATH", major: 21 },
+      { command: "/jdk25/bin/java", from: "JAVA_HOME", major: 25 },
+      { command: "/provisioned/bin/java", from: "the provisioned JDK", major: 25 },
+    ],
+    requiredMajor: 25,
+    readMajor: (candidate) => {
+      probed.push(candidate.from);
+      return candidate.major;
+    },
+  });
+
+  assert.equal(best?.major, 25);
+  assert.equal(best?.candidate.from, "JAVA_HOME");
+  // And it stops as soon as one satisfies, rather than probing every remaining candidate.
+  assert.deepEqual(probed, ["PATH", "JAVA_HOME"]);
+});
+
+test("a machine with nothing new enough is told which java it does have", () => {
+  const best = selectJavaCandidate({
+    candidates: [{ command: "java", from: "PATH", major: 17 }, { command: "/jdk21/bin/java", from: "JAVA_HOME", major: 21 }],
+    requiredMajor: 25,
+    readMajor: (candidate) => candidate.major,
+  });
+
+  assert.equal(best?.major, 21);
+
+  // Nothing that answers at all is null, which is a different message: install one.
+  assert.equal(
+    selectJavaCandidate({
+      candidates: [{ command: "java" }],
+      requiredMajor: 25,
+      readMajor: () => null,
+    }),
+    null,
+  );
+});
+
+test("git's own error text is never mistaken for a commit", () => {
+  const real = "0123456789abcdef0123456789abcdef01234567";
+  assert.equal(parseHeadCommit({ status: 0, stdout: `${real}\n` }), real);
+
+  // What a source archive with no .git beside it produces. The first word of git's complaint is
+  // "fatal:", which is what used to be stamped into the provenance file as the source commit.
+  assert.equal(
+    parseHeadCommit({
+      status: 128,
+      stdout: "",
+      stderr:
+        "fatal: not a git repository (or any of the parent directories): .git\n",
+    }),
+    null,
+  );
+  // A zero exit with something that is not an object name is refused on shape alone.
+  assert.equal(parseHeadCommit({ status: 0, stdout: "HEAD\n" }), null);
+  assert.equal(parseHeadCommit(null), null);
 });

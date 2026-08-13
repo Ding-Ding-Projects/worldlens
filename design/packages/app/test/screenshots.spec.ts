@@ -680,6 +680,17 @@ async function pointAppAtCaptureTarget(): Promise<void> {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#app", { timeout: 30_000 });
+
+    /*
+     * Back to what the map area of this run actually holds, because `pointAppAtNoMap` took a map
+     * away and only this restores it. Leaving the note behind was not a cosmetic slip: `mapNote`
+     * is what every caption after that point reads, so a run captioned the rendered-map hero shot
+     * itself with "no map is loaded, so the application is showing the wizard for making one",
+     * and the README led with that image. A caption that contradicts its own picture discredits
+     * the whole manifest rather than only the one line it is wrong about, which is why this is
+     * derived from the target here rather than assumed to still be right from the run setup.
+     */
+    mapArea = target.profile === null ? "none" : "map";
 }
 
 /**

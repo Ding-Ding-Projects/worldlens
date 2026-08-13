@@ -120,8 +120,8 @@
         "docs/screenshots/wizard-ssh-world-source.png"
       ],
       "capturedFromInterfaceSource": true,
-      "uiSourceDigest": "b5cb86d47156d9dd49c9a9d885099a689c64f040a22e32200934e8e6fe4c7cd1",
-      "uiSourceDigestNote": "Re-verified 2026-08-13. Every capture in this group comes from one run of the freshly built application against a real rendered world served over loopback, so the map-dependent surfaces are photographed rather than recorded as out of reach. The lead capture, rendered-map, was added in that same pass: until then this project had no picture of the thing it exists to produce, only cropped controls, theme shots and views with a side sheet across a third of them."
+      "uiSourceDigest": "58c5cfeb6947924a4de833c352f638f4163f47b998f2ffb635088d3bc8c40a28",
+      "uiSourceDigestNote": "Re-verified 2026-08-13 after two false clauses were removed from every caption in this group. One said no map was loaded under pictures of a loaded map, because the harness set a flag when it pointed the app at no map and never restored it. The other asserted that this repository generated the world, which was the default whenever no provenance record existed, and therefore exactly wrong for a run pointed at a real save from outside. Both had been carried by the lead image. Every capture here comes from one run of the freshly built application against a real rendered world served over loopback."
     },
     {
       "id": "site-compact-proof",

@@ -261,7 +261,22 @@ export async function readUpstreamRelease(
     }
 
     const comparison = await fetchJson(`${api}/compare/${pinnedCommit}...${commit}`);
-    const status = stringField(comparison, "status") ?? "identical";
+    /*
+     * No status means the question was never answered, and that is thrown rather than defaulted.
+     *
+     * Defaulting to "identical" here read as harmless and was the one mistake this whole module
+     * exists to avoid: an unrecognised status falls through `classifyComparison` to "level", so a
+     * body with no status at all - a rewritten response, a future change to the API's shape -
+     * rendered the settings row as "These jars were built from the newest BlueMap release.
+     * Nothing to do." That is an up-to-date verdict established from a field nobody read. Throwing
+     * hands it to the caller's own catch, which says plainly that GitHub could not be asked and
+     * that this is not the same as being up to date. `scripts/check-bluemap-upstream.mjs` already
+     * refuses the same shape for the same reason.
+     */
+    const status = stringField(comparison, "status");
+    if (status === null) {
+        throw new Error("GitHub's comparison returned no usable status");
+    }
     return {
         ref: tag,
         commit,
