@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "8483b3da45737573cde00151f07cad1171bbaca1",
+        shortSha: "8483b3da45",
+        date: "2026-08-13T01:44:19-04:00",
+        subject: "Give the three unreachable surfaces a page, and guard the whole class",
+        details: "The authenticator, the lock list and the Support Tickets desk each shipped with\na complete component, a store, a model and a green suite, and nothing anywhere\nthat rendered them. Nobody could open any of the three.\n\nA component test proves the component. It says nothing about whether a person\ncan get to it, because the test mounts it directly and a person cannot. That gap\nis invisible to typecheck, to lint and to every other guard here, and it looks\nidentical every time: everything passes and the feature does not exist as far as\nanybody using the application is concerned. Three of them in one day, plus a\nfourth caught only because somebody looked at a screenshot, and a fifth mounted\nin a way that collapsed the entire window.\n\nSo the three get pages, and a hand-written list names every surface that must be\nreachable, checked against what App.vue actually renders. Hand-written rather\nthan derived, because a rule that asks whether every component is mounted\nsomewhere is only checking the components it already found, and can never fail\nfor one nobody built. Unmounting a surface on purpose turns it red, confirmed\nboth ways.\n\nThe layout check moved in beside it: a surface can be unreachable by being\nabsent, and unreachable by being mounted somewhere that destroys the layout.\nBoth failures produce a full green suite.\n\n驗證器、鎖清單、Support Tickets 三個都有齊 component、store、model 同綠色測試，\n但係冇一個地方 render 佢哋，即係冇人開得到。Component test 只證到個 component\n本身，證唔到有人去得到嗰度，因為 test 係直接掛住佢，人唔係。一日之內三單，\n再加一單靠人望截圖先發現，同一單掛錯位置搞到成個視窗變黑。份清單係人手寫嘅，\n唔係推導出嚟，因為推導只會檢查佢已經搵到嗰啲，永遠捉唔到冇人起過嗰個。",
+        category: "interface",
+        areas: ["interface"],
+        files: 3,
+    },
+    {
         sha: "13e04dda6311f7bb32cb4e90a0a54556dbf2e03c",
         shortSha: "13e04dda63",
         date: "2026-08-13T01:35:35-04:00",
