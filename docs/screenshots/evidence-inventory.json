@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 176,
+  "expectedTargetCount": 177,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -13,7 +13,7 @@
       "authority": "design/packages/app/test/screenshots.spec.ts",
       "command": "cd design && pnpm build && pnpm --filter @worldlens/app screenshots",
       "reproducibility": "current-build-with-local-map-fixture",
-      "expectedCount": 102,
+      "expectedCount": 103,
       "targets": [
         "docs/screenshots/appearance-context-menu.png",
         "docs/screenshots/appearance-surface.png",
@@ -77,6 +77,7 @@
         "docs/screenshots/redesign-home-catalogues-360x800.png",
         "docs/screenshots/redesign-home-catalogues-390x844.png",
         "docs/screenshots/redesign-home-catalogues-414x896.png",
+        "docs/screenshots/rendered-map.png",
         "docs/screenshots/run-location.png",
         "docs/screenshots/settings-drawer.png",
         "docs/screenshots/settings-notification-duration.png",
@@ -119,8 +120,8 @@
         "docs/screenshots/wizard-ssh-world-source.png"
       ],
       "capturedFromInterfaceSource": true,
-      "uiSourceDigest": "9f1c372d1675df67b1919fc1fda4f45f3d4fbdae482606d9b065c66f82251967",
-      "uiSourceDigestNote": "Re-verified 2026-08-13 by running the full Playwright harness against a freshly built workspace, twice: once with no map for the application-only surfaces and once with WORLDLENS_CAPTURE_MAP pointed at a real rendered web root so the map-dependent surfaces were photographed rather than recorded as out of reach. Every one of these targets came out of that second run, so the digest means all of them and not most of them. The map run is also what exposed the marker studio's capture step: it looked for an anchor that a fallthrough attribute had been overwriting, so it could not have passed on any run, and no run without a map ever reached the selector to find out."
+      "uiSourceDigest": "b5cb86d47156d9dd49c9a9d885099a689c64f040a22e32200934e8e6fe4c7cd1",
+      "uiSourceDigestNote": "Re-verified 2026-08-13. Every capture in this group comes from one run of the freshly built application against a real rendered world served over loopback, so the map-dependent surfaces are photographed rather than recorded as out of reach. The lead capture, rendered-map, was added in that same pass: until then this project had no picture of the thing it exists to produce, only cropped controls, theme shots and views with a side sheet across a third of them."
     },
     {
       "id": "site-compact-proof",

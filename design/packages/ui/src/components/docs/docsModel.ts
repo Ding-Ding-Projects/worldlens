@@ -126,6 +126,7 @@ export const MARKERS_ORDER: readonly string[] = ["marker-studio.md"];
  */
 export const RENDERING_ORDER: readonly string[] = [
     "bayville-walkthrough.md",
+    "bluemap-upstream.md",
     "java-runtime-provisioning.md",
     "docker-and-local.md",
     "automatic-repair.md",

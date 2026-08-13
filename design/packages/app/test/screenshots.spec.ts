@@ -1685,6 +1685,38 @@ test("captures the window's own chrome", async () => {
         );
     });
 
+    /*
+     * The whole window on the Map destination, with the rendered world in it and nothing opened
+     * over it.
+     *
+     * Every other map-bearing capture here is cropped to a control, or is showing a theme, or has
+     * a side sheet across a third of the width. None of them is a picture of the thing this
+     * application exists to produce, which is why the README's own lead image was a screenshot of
+     * Home: a list of catalogue cards, from a program whose entire point is that it turns a
+     * Minecraft save into a map you can fly around.
+     */
+    await attempt("Rendered map", async () => {
+        if (!hasLoadedMap()) {
+            skip("Rendered map", NO_MAP_REASON);
+            return;
+        }
+        await selectDestination("map");
+        const bar = page.locator(".mb-cb");
+        await bar.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        // The tiles arrive over loopback a few at a time, and a capture taken the instant the
+        // control bar appears photographs a half-drawn world. There is no event for "the renderer
+        // has stopped fetching", so this waits for the network to go quiet and then a little
+        // longer, which is the honest version of the same idea.
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await page.waitForTimeout(2500);
+        await shoot(
+            "rendered-map",
+            "The Map destination with a world rendered by upstream BlueMap's Java engine and served " +
+                "to the application over loopback: the map itself filling the window, the application " +
+                "rail down the left, and the viewer's control bar with its live coordinates above it",
+        );
+    });
+
     await attempt("Viewer control bar", async () => {
         if (!hasLoadedMap()) {
             skip("Viewer control bar", NO_MAP_REASON);
@@ -4172,6 +4204,9 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     // The marker studio is reached through the marker menu, so it shares that menu's
     // precondition: no map, no menu, no studio button to press.
     { surface: "Marker studio", needsLoadedMap: true },
+    // The lead image of this project, so it is required rather than merely attempted. It needs a
+    // map for the obvious reason, and shares the precondition every other map surface carries.
+    { surface: "Rendered map", needsLoadedMap: true },
     { surface: "Authenticator page" },
     { surface: "Locks page" },
     { surface: "Support Tickets page" },

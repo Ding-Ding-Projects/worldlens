@@ -1647,7 +1647,7 @@ class Component extends DCLogic {
     const navDefs = [
       { id:PAGES.home, en:"Home", yue:"主頁", icon:P.home },
       { id:PAGES.docs, en:"Documentation", yue:"說明文件", icon:P.docs, count:String(srcArticles.length) },
-      { id:PAGES.screenshots, en:"Screenshots", yue:"截圖", icon:P.shots, count:"12" },
+      { id:PAGES.screenshots, en:"Screenshots", yue:"截圖", icon:P.shots, count:"14" },
       { id:PAGES.changelog, en:"Changelog", yue:"更新紀錄", icon:P.changelog },
       { id:PAGES.search, en:"Search", yue:"搜尋", icon:P.search },
       { id:PAGES.notifications, en:"Notifications", yue:"通知", icon:P.bell, count: s.unread ? String(s.unread) : "" },
@@ -1850,6 +1850,12 @@ class Component extends DCLogic {
     });
 
     const shotsAll = [
+      // These two lead because they are what the program is for, and because they are the two
+      // captures here taken from the real packaged application against a real rendered world
+      // rather than from the prototype. A gallery that opens on a list of catalogue cards is a
+      // gallery that never shows anybody the map.
+      { cat:"Rendering", src:"assets/shot-rendered-map.png", title:"A rendered world", caption:"The real application on its Map destination, showing a Minecraft save rendered by upstream BlueMap's Java engine and served over loopback.", alt:"A rendered Minecraft world filling the application window: a town of roads, houses, farmland and a harbour, forest around it and a snowfield to the north east, with the application rail down the left and the viewer's control bar above" },
+      { cat:"Rendering", src:"assets/shot-marker-studio.png", title:"The marker studio", caption:"Markers you place yourself, kept in a set of your own so a refresh from a server cannot take them away.", alt:"The marker studio open in the side sheet over the rendered map, with a Make your own markers button, a My markers set and an Add a marker button" },
       { cat:"Shell", src:"assets/shot-shell.png", title:"Desktop shell", caption:"1920×1080. Rail, tab strip and content pane at their default widths.", alt:"Worldlens desktop shell" },
       { cat:"Shell", src:"assets/shot-home.png", title:"Home screen", caption:"Project cards, recent renders and the wizard entry point.", alt:"Worldlens home screen" },
       { cat:"Rendering", src:"assets/shot-render-running.png", title:"A render running", caption:"Live tile counts, throughput and the console beneath.", alt:"A render in progress" },
