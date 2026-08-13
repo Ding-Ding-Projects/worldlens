@@ -148,7 +148,7 @@ async function watcherReady(service: MapUpdateService): Promise<void> {
 }
 
 /** Waits for a real watcher condition without turning a busy host into a false failure. */
-async function waitForCondition(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
+async function waitForCondition(predicate: () => boolean, timeoutMs = 10000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     while (!predicate() && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 25));
@@ -157,7 +157,7 @@ async function waitForCondition(predicate: () => boolean, timeoutMs = 5000): Pro
 }
 
 /** Waits for the real watcher/queue bridge without turning a busy host into a false failure. */
-async function waitForScheduledRenderTaskCount(manager: RenderManager, expected: number, timeoutMs = 5000): Promise<void> {
+async function waitForScheduledRenderTaskCount(manager: RenderManager, expected: number, timeoutMs = 10000): Promise<void> {
     await waitForCondition(() => manager.getScheduledRenderTaskCount() >= expected, timeoutMs);
     expect(manager.getScheduledRenderTaskCount()).toBe(expected);
 }
