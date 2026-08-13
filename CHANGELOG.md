@@ -34,6 +34,10 @@ full message for the in-app changelog viewer.
 
 - Let the host say who draws the chrome, so only one bar renders - [`2b9c3be848`](https://github.com/Ding-Ding-Projects/worldlens/commit/2b9c3be848a646705670e40b434cd513bbd6e709)
 
+### Desktop shell
+
+- Guard the one line that makes the startup update check reach anybody - [`30c5442ed0`](https://github.com/Ding-Ding-Projects/worldlens/commit/30c5442ed050f59fd303f637941986ee824d8bf4)
+
 ## 1.0.1068 - 2026-08-12
 
 Tagged at [`47547f485a`](https://github.com/Ding-Ding-Projects/worldlens/commit/47547f485a6ce6c2cd5a45e7770861195d8c61dc).

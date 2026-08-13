@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "30c5442ed050f59fd303f637941986ee824d8bf4",
+        shortSha: "30c5442ed0",
+        date: "2026-08-12T20:07:18-04:00",
+        subject: "Guard the one line that makes the startup update check reach anybody",
+        details: "The check itself was already right and already covered: start() arms a delayed\nfirst check, and deleting that line turns four controller tests red. What no\ncontroller test could tell me is whether anything in the application ever calls\nstart() - and that is the whole of the difference between a feature and a\nfeature somebody can have.\n\nThat gap has cost this project twice today. A structure list shipped fully\ntested with nothing rendering it, and a bridge shape passed every unit test\nwhile the host exposed something else. A thing is not reachable because its unit\ntests pass. It is reachable because one line wires it up, and testing the thing\nbeing wired can never cover that line.\n\nSo the chain is asserted end to end: main defines startUpdates, boot actually\ncalls it, it goes through the same guarded attempt every other subsystem uses so\na network problem at launch cannot look like a broken application, installing\nthe IPC calls controller.start(), and start() arms the first check. Removing the\nboot call turns two of these red, which was confirmed rather than assumed.\n\nIt also holds the two apart. update:check passes manual: true and the startup arm\ndoes not, because a startup check arriving as a manual one would report itself to\nthe user as something they asked for.\n\nWorth recording while looking at this: the comment above startUpdates says the\ninstaller had been emitting what the updater reads for some time with nothing\nconsuming it, so every release then was an update nobody was offered. That is the\nexact failure this guard now refuses to let recur silently.\n\n個 check 本身一早啱，亦一早有 test：start() 會排一個延遲嘅首次檢查，刪咗嗰行\n就有四個 test 紅。但係冇一個 controller test 講得到成個 app 究竟有冇人 call\n過 start()——而「有功能」同「用家真係摸得到」嘅分別就係喺呢度。今日已經俾呢個\n窿咬過兩次。所以由頭到尾串埋：main 有 startUpdates、開機真係 call、\ncall 完 installUpdateIpc 會 controller.start()、start() 會排首次檢查。",
+        category: "shell",
+        areas: ["shell"],
+        files: 1,
+    },
+    {
         sha: "1a8f700caaea42db7843ea4189e4206abb774c80",
         shortSha: "1a8f700caa",
         date: "2026-08-12T19:29:47-04:00",
