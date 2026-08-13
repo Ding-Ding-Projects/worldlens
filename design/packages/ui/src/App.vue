@@ -81,6 +81,7 @@ import { DocsPage } from "./components/docs/index.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import DropRenderZone from "./components/dropRender/DropRenderZone.vue";
+import { DimSumSurprise } from "./components/dimsum/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
 import { notices, raiseNotice } from "./stores/notices.js";
@@ -939,6 +940,31 @@ function onFirstRunFinished(): void {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The dim sum startup surprise                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The three suppression signals `DimSumSurprise.vue` is given, each drawn from state this
+ * shell already owns rather than anything invented for the surprise:
+ *
+ *  - `dimSumFirstRunActive` mirrors `FirstRunSetup`'s own `update:active`, so the surprise
+ *    is blind to first run exactly while the wizard actually holds the screen;
+ *  - `dimSumUpdateFlowActive` is true while an update is downloading, staged and ready to
+ *    install, or actually restarting into - the three states in which interrupting the
+ *    user is the one thing an update flow must not do, and this must not either;
+ *  - `dimSumErrorActive` reuses the same `problems` list the rail bell's badge counts, so
+ *    "an error path" here means exactly what it means everywhere else in this shell.
+ */
+const dimSumFirstRunActive = ref(false);
+const dimSumUpdateFlowActive = computed(
+    () =>
+        restartingForUpdate.value ||
+        updates.status.value.status === "downloading" ||
+        updates.status.value.status === "ready",
+);
+const dimSumErrorActive = computed(() => problems.value.length > 0);
+
+/* -------------------------------------------------------------------------- */
 /* Offering the interactive tour, exactly once                                */
 /* -------------------------------------------------------------------------- */
 
@@ -1711,7 +1737,22 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             invisible when it is not. It is mounted outside v-main so its blocking dialog -
             the only one in this application - is never a child of a click-through layer.
         -->
-        <FirstRunSetup @finished="onFirstRunFinished" />
+        <FirstRunSetup
+            @finished="onFirstRunFinished"
+            @update:active="dimSumFirstRunActive = $event"
+        />
+
+        <!--
+            The dim sum startup surprise: a 10% chance, one dish, gone on its own. Mounted as
+            a sibling here for the same reason `FirstRunSetup` and `TutorialOverlay` are -
+            see `App.vue`'s own note on `<v-app>` computing layout from its direct children
+            only, which is why nothing wraps them.
+        -->
+        <DimSumSurprise
+            :first-run="dimSumFirstRunActive"
+            :update-flow-active="dimSumUpdateFlowActive"
+            :error-active="dimSumErrorActive"
+        />
 
         <!--
             The interactive tour: a highlighted control and a card of text beside it, never a
