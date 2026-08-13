@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from "v
 import { useI18n } from "vue-i18n";
 import { i18nModule, loadLanguage, setLanguage } from "./i18n.js";
 import {
+    mdiCloudDownloadOutline,
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiEye,
@@ -10,6 +11,7 @@ import {
     mdiCubeOutline,
     mdiLifebuoy,
     mdiLockOutline,
+    mdiRobotOutline,
     mdiShieldKeyOutline,
     mdiFolderMultipleOutline,
     mdiMapPlus,
@@ -69,6 +71,7 @@ import { createCiRenders } from "./components/cirender/ciRenders.js";
 import { resolveCiRenderBridge } from "./components/cirender/ciRenderBridge.js";
 import RendersScreen from "./components/renders/RendersScreen.vue";
 import StructureList from "./components/structures/StructureList.vue";
+import OllamaScreen from "./components/ollama/OllamaScreen.vue";
 import { structureStore } from "./components/structures/structureStore.js";
 import { createActiveRenders } from "./components/renders/activeRenders.js";
 import type { ConsoleTarget } from "./components/renders/activeRenders.js";
@@ -87,6 +90,7 @@ import DropRenderZone from "./components/dropRender/DropRenderZone.vue";
 import { DimSumSurprise } from "./components/dimsum/index.js";
 import AuthenticatorScreen from "./components/authenticator/AuthenticatorScreen.vue";
 import LockList from "./components/locks/LockList.vue";
+import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensionScreen.vue";
 import { resolveLockHost } from "./components/locks/useLocks.js";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import {
@@ -193,12 +197,14 @@ async function openLockDataFolder(): Promise<boolean> {
 const PAGE_AUTHENTICATOR = "authenticator";
 const PAGE_LOCKS = "locks";
 const PAGE_SUPPORT = "support";
+const PAGE_BROWSER_EXTENSION = "browserExtension";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
 const PAGE_PAGES = "pages";
 const PAGE_WORLDREPO = "worldrepo";
 const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
+const PAGE_OLLAMA = "ollama";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -309,6 +315,11 @@ const pages = computed<TabPage[]>(() => [
         icon: mdiLifebuoy,
     },
     {
+        id: PAGE_BROWSER_EXTENSION,
+        label: t("tabs.page.browserExtension", "Browser downloads"),
+        icon: mdiCloudDownloadOutline,
+    },
+    {
         id: PAGE_RENDERS,
         label:
             runningRenderCount.value > 0
@@ -341,6 +352,10 @@ const pages = computed<TabPage[]>(() => [
     // changelog this is a browsable, searchable set of 25-odd articles that deserves the
     // same reach as every other destination in the strip.
     { id: PAGE_DOCS, label: t("tabs.page.docs", "Docs"), icon: mdiFileDocumentOutline },
+    // The local model runner. Its own tab rather than a corner of Projects, because pulling,
+    // chatting and hardware fit are a whole workflow of their own, exactly as GitHub runners
+    // and Structures earned their own tabs above for the same reason.
+    { id: PAGE_OLLAMA, label: t("ollama.title", "Ollama"), icon: mdiRobotOutline },
 ]);
 
 /**
@@ -1608,6 +1623,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <SupportTickets :open-data-folder="openLockDataFolder" />
                         </template>
 
+                        <template #browserExtension>
+                            <BrowserExtensionScreen />
+                        </template>
+
                         <template #structures>
                             <div class="mb-world-host mb-interactive">
                                 <!--
@@ -1730,6 +1749,17 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #docs>
                             <div class="mb-world-host mb-interactive">
                                 <DocsPage />
+                            </div>
+                        </template>
+
+                        <!--
+                            The local Ollama suite manager: runtime health, the Model Store,
+                            the pull cart and streaming chat, all talking to the documented
+                            local daemon only. See OllamaScreen.vue's own doc comment.
+                        -->
+                        <template #ollama>
+                            <div class="mb-world-host mb-interactive">
+                                <OllamaScreen />
                             </div>
                         </template>
                         </WorkPane>

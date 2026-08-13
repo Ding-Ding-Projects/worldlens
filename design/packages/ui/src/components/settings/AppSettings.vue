@@ -28,6 +28,7 @@ import { updateText } from "../update/updateCopy.js";
 import type { UpdatesController } from "../update/useUpdates.js";
 import { SimpleHistoryPanel, simpleHistoryHostFrom } from "../history/index.js";
 import { VocabularyUploadRow, vocabularyStore } from "../vocabulary/index.js";
+import { AppLogoRow, logoStore } from "../appLogo/index.js";
 import { RepairPanel } from "../repair/index.js";
 import { DOCK_PLACEMENTS } from "./dockPlacement.js";
 import { dockedSurfaces } from "./useDockPlacement.js";
@@ -162,6 +163,7 @@ const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | nu
 const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const vocabularySection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const appLogoSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 
@@ -384,6 +386,17 @@ const sections = computed<SettingsSectionText[]>(() => {
             description: text.vocabulary.description,
             values: [String(Object.keys(vocabularyStore.entries).length), vocabularyStore.status],
         },
+        // Which mark is active right now - shipped preset id or "custom" plus its format -
+        // so the same "search what is on screen" rule every other section follows applies
+        // here too.
+        {
+            anchor: "app-logo",
+            title: text["app-logo"].title,
+            description: text["app-logo"].description,
+            values: [
+                logoStore.custom !== null ? logoStore.custom.format : logoStore.presetId,
+            ],
+        },
         // The two headings this tab actually renders, so typing "profiles" or "application
         // settings" finds the version-history tab, the same "search what is on screen"
         // rule every other section follows.
@@ -486,6 +499,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return updatesSection.value;
         case "vocabulary":
             return vocabularySection.value;
+        case "app-logo":
+            return appLogoSection.value;
         case "history":
             return historySection.value;
         case "diagnostics":
@@ -974,6 +989,23 @@ function onDrawer(value: boolean): void {
                         :description="copy.vocabulary.description"
                     >
                         <VocabularyUploadRow />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    Which shipped preset or local file this application draws as its own
+                    mark, per `appLogo/logoStore.ts`. No render or other failure can send
+                    somebody here, so like vocabulary and updates this is reached by
+                    opening Settings.
+                -->
+                <template #app-logo>
+                    <SettingsSection
+                        ref="appLogoSection"
+                        anchor="app-logo"
+                        :title="copy['app-logo'].title"
+                        :description="copy['app-logo'].description"
+                    >
+                        <AppLogoRow />
                     </SettingsSection>
                 </template>
 

@@ -92,6 +92,16 @@ const REACHABLE_SURFACES: readonly {
         reachedBy: "v-app sibling",
         why: "The startup surprise, which has no opt-out and therefore has to be mounted.",
     },
+    {
+        component: "OllamaScreen",
+        reachedBy: "PAGE_OLLAMA",
+        why: "The local Ollama suite manager: runtime health, the Model Store, the pull cart and chat all live here.",
+    },
+    {
+        component: "BrowserExtensionScreen",
+        reachedBy: "PAGE_BROWSER_EXTENSION",
+        why: "The whole browser-extension capture flow: Start download, Downloading, and the completion notice.",
+    },
 ];
 
 describe("every shipped surface can actually be opened", () => {

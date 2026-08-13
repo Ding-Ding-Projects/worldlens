@@ -66,6 +66,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "system-dependencies": "System dependencies",
     "updates": "Updates",
     "vocabulary": "Personal vocabulary",
+    "app-logo": "App logo",
     "history": "Version history",
     "diagnostics": "Diagnostics",
 };

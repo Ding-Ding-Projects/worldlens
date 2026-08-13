@@ -99,6 +99,11 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * the last check, the feed and a manual "Check for updates" are always reachable rather
  * than only appearing as a banner when there happens to be one to show.
  *
+ * App logo is next: which shipped preset or local file is drawn as the application's own
+ * mark, and its crop, fit, focal point and background, per `appLogo/logoStore.ts`. Not an
+ * anchor for the same reason vocabulary is not one - no render stops for the want of a
+ * different picture, so this is reached the same way vocabulary is, by opening Settings.
+ *
  * History is next to last: the server-profile list's and the application settings' own
  * version histories, per `main/profiles/ipc.ts` and `main/settings/ipc.ts`. No render
  * stops for the want of an old profile either, so this is reached the same way updates is —
@@ -124,6 +129,7 @@ export const SETTINGS_SECTIONS = [
     "system-dependencies",
     "updates",
     "vocabulary",
+    "app-logo",
     "history",
     "diagnostics",
 ] as const;

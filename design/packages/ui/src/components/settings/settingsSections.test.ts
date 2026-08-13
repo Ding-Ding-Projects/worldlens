@@ -101,6 +101,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["0", "No file loaded"],
     },
     {
+        anchor: "app-logo",
+        title: "App logo",
+        description: "Pick a shipped mark or your own local image for this app's own logo.",
+        values: ["square", "Using the shipped mark"],
+    },
+    {
         anchor: "history",
         title: "Version history",
         description: "Every saved version of your server profiles and your application settings.",
@@ -178,6 +184,7 @@ describe("every section the surface renders", () => {
             "system-dependencies",
             "updates",
             "vocabulary",
+            "app-logo",
             "history",
             "diagnostics",
         ]);

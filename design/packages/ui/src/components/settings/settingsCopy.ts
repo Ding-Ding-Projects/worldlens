@@ -144,6 +144,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "A local JSON file that replaces specific words with your own, everywhere this app shows text. Nothing is sent anywhere, and nothing changes until you supply a file.",
             ),
         },
+        "app-logo": {
+            title: t("settings.appLogo.title", "App logo"),
+            description: t(
+                "settings.appLogo.description",
+                "Pick a shipped mark or your own local image for this app's own logo, with its crop, fit and background. This changes the picture only, never the app's package identity.",
+            ),
+        },
         "history": {
             title: t("settings.history.title", "Version history"),
             description: t(

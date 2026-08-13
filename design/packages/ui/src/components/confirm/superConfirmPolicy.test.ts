@@ -210,6 +210,40 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         gatedIn: "components/ProfileManager.vue",
     },
 
+    "components/browserExtension/browserExtensionHost.ts": {
+        count: 3,
+        destroys: "nothing: two are host-shape declarations and one forwards the call to the host",
+        standing: "type-only",
+        note:
+            "Two are the interface declarations of `cancelDownload` (the seam this file exposes " +
+            "and the shape the bridge is expected to satisfy), and the third is the thin " +
+            "forwarding call that hands the id to whatever real bridge is behind it. Nothing " +
+            "here decides to cancel anything; the caller does.",
+    },
+    "components/browserExtension/BrowserExtensionScreen.vue": {
+        count: 1,
+        destroys: "nothing: it stops a transfer that is running",
+        standing: "resumable",
+        note:
+            "Cancelling a browser-extension capture leaves the bytes already written on disk, " +
+            "exactly as `components/downloads/downloads.ts` already treats its own cancel: the " +
+            "action costs time rather than data, so it is not gated behind the two-key ceremony.",
+    },
+
+    "components/appLogo/logoStore.ts": {
+        count: 1,
+        destroys:
+            "the cached custom-logo presentation choice, which restores the shipped mark and " +
+            "every crop, fit and background default",
+        standing: "reversible",
+        note:
+            "Resetting purges a cache built from a file the person still holds, and picking a " +
+            "shipped preset or uploading the same file again reaches the exact same state. " +
+            "Nothing they authored is destroyed, so the two-key gate in front of a reset that " +
+            "undoes itself would teach people to click through the gate that guards operations " +
+            "which genuinely cannot be undone - the same reasoning `components/vocabulary/" +
+            "vocabularyStore.ts`'s own entry below gives for its own reset.",
+    },
     "components/authenticator/AuthenticatorScreen.vue": {
         count: 2,
         destroys:
@@ -471,6 +505,21 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "version history for the notification queue the way there is for a config folder, so " +
             "the gate's own sentence is the only place 'this cannot be undone' is said, and it has " +
             "to say so.",
+    },
+    "components/ollama/OllamaScreen.vue": {
+        count: 3,
+        destroys:
+            "a locally pulled Ollama model's blob on disk, or an entire local chat session and " +
+            "every message it holds",
+        standing: "gated",
+        gatedIn: "components/ollama/OllamaScreen.vue",
+        note:
+            "Two anchored ConfigSuperConfirm gates, one per row of each list: the model row's " +
+            "gate names the exact tag and calls deleteInstalled(variant.fullName) only from its " +
+            "confirm event, and the chat row's gate names the exact chat and calls " +
+            "deleteChatSession(session.id) the same way. deleteInstalled(name) itself calls " +
+            "deleteInstalledModel(name) from ollamaApi.ts, which is the third counted call and " +
+            "runs only after the same gate authorizes it.",
     },
     "components/project/ProjectsScreen.vue": {
         count: 1,

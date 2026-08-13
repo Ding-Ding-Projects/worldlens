@@ -23,6 +23,7 @@
  */
 
 import {
+    mdiCloudDownloadOutline,
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiCubeOutline,
@@ -33,6 +34,7 @@ import {
     mdiLockOutline,
     mdiMapPlus,
     mdiMemory,
+    mdiRobotOutline,
     mdiProgressClock,
     mdiServerNetwork,
     mdiShieldKeyOutline,
@@ -50,13 +52,15 @@ export type CoreJobId =
     | "authenticator"
     | "locks"
     | "support"
+    | "browserExtension"
     | "renders"
     | "servers"
     | "pages"
     | "preview"
     | "backups"
     | "worldrepo"
-    | "docs";
+    | "docs"
+    | "ollama";
 
 /**
  * Jobs that exist only where a sanitized public contract for them is in this checkout.
@@ -94,6 +98,8 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     worldrepo: "worldrepo",
     docs: "docs",
     memory: "memory",
+    ollama: "ollama",
+    browserExtension: "browserExtension",
 } as const satisfies Record<string, JobId>;
 
 /** The semantic name a manifest row writes. */
@@ -311,6 +317,24 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.docs",
         labelFallback: "Docs",
         icon: mdiFileDocumentOutline,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "ollama",
+        semanticName: "ollama",
+        labelKey: "tabs.page.ollama",
+        labelFallback: "Ollama",
+        icon: mdiRobotOutline,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "browserExtension",
+        semanticName: "browserExtension",
+        labelKey: "tabs.page.browserExtension",
+        labelFallback: "Browser downloads",
+        icon: mdiCloudDownloadOutline,
         seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },

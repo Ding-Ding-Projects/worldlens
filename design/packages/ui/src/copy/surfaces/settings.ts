@@ -1085,6 +1085,14 @@ export const SETTINGS_FIXED = {
         yue: "一個你自己嘅私人 JSON 詞彙檔案，淨係喺呢部電腦度讀。",
     },
 
+    /* The app-logo section's own heading, beside the other section headings for the same
+     * reason vocabulary's is: one place a section title is written, not two. */
+    "settings.appLogo.title": { en: "App logo", yue: "應用程式 logo" },
+    "settings.appLogo.description": {
+        en: "Pick a shipped mark or your own local image for this app's own logo, with its crop, fit and background. This changes the picture only, never the app's package identity.",
+        yue: "揀一個出廠標記或者你自己部機度嘅圖片做呢個程式嘅 logo，連埋裁切、填滿方式同背景。呢個淨係改緊幅圖，唔會改應用程式嘅套件身份。",
+    },
+
     /* The History tab's own heading, above `settings.history.description`. */
     "settings.history.title": { en: "Version history", yue: "版本記錄" },
     "settings.history.profiles": { en: "Server profiles", yue: "伺服器設定檔" },
