@@ -26,7 +26,7 @@ itself.
 | File | Descriptor | Fields | Java class |
 | --- | --- | --- | --- |
 | `core.conf` | `coreConfigDescriptor` | 10 | `CoreConfig` |
-| `webapp.conf` | `webappConfigDescriptor` | 19 | `WebappConfig` |
+| `webapp.conf` | `webappConfigDescriptor` | 20 | `WebappConfig` |
 | `webserver.conf` | `webserverConfigDescriptor` | 8 | `WebserverConfig` |
 | `plugin.conf` | `pluginConfigDescriptor` | 12 | `PluginConfig` |
 | `maps/<id>.conf` | `mapConfigDescriptor` | 31 | `MapConfig` |

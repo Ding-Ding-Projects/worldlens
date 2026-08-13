@@ -3,7 +3,7 @@
  * `ConfigMaskField.vue` and `ConfigMarkerSetsField.vue` put beside every render-mask
  * shape's fields and every marker set's own container properties.
  *
- * `ConfigField.vue` already carries this pair for the 154 settings a config file's own
+ * `ConfigField.vue` already carries this pair for the 155 settings a config file's own
  * top-level schema reaches: `config.field.more`/`.less`/`.inherited`/`.setToDefault`/
  * `.changed`/`.nothing`, split between `configEditor.ts` and `appCopy.ts`. Those settings
  * are edited a whole file at a time, and their doc text is upstream BlueMap's own

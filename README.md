@@ -463,7 +463,9 @@ remembered, and downloads nothing.
 <details>
 <summary><b>The options editor</b> - all eight tabs of BlueMap's own configuration</summary>
 
-<img src="docs/screenshots/config-screen.png" alt="The options editor with eight tabs, a search across all 154 settings on them, and the core settings below" width="900">
+<img src="docs/screenshots/config-screen.png" alt="Historical capture of the options editor with eight tabs and a search across 154 settings, taken before the client-decompression setting was added" width="900">
+
+> The current generated options inventory is **155 settings**. This capture remains a real built-artifact screenshot, but it predates the `client-decompression` setting; a fresh hidden-desktop capture is pending because the required cheap capture route is unavailable in this environment.
 
 |                                                                                                                                                                        |                                                                                                                                                      |                                                                                                                                       |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
