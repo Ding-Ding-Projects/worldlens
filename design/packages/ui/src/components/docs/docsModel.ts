@@ -116,8 +116,16 @@ export const APPLICATION_ORDER: readonly string[] = [
  */
 export const MARKERS_ORDER: readonly string[] = ["marker-studio.md"];
 
-/** The same, for the "Rendering" table. */
+/**
+ * The same, for the "Rendering" table.
+ *
+ * The worked example leads it rather than sitting in filename order somewhere in the middle,
+ * because it is the one article here that assumes nothing and links out to the rest: a reader who
+ * opens this category not knowing which of two dozen rendering documents applies to them wants the
+ * walkthrough first, and every other row reads as a reference once they have taken it.
+ */
 export const RENDERING_ORDER: readonly string[] = [
+    "bayville-walkthrough.md",
     "java-runtime-provisioning.md",
     "docker-and-local.md",
     "automatic-repair.md",
