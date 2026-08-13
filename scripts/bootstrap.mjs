@@ -399,7 +399,15 @@ function bluemapJars() {
           "/d",
           "/s",
           "/c",
-          "gradlew.bat",
+          // The wrapper's absolute path, never the bare name and never a relative one with
+          // a backslash in a JS string. `cmd /c gradlew.bat` resolves a bare name against
+          // PATH, so with the wrapper sitting in `cwd` and not on PATH it reports "is not
+          // recognized as an internal or external command", which reads as a missing Gradle
+          // wrapper when the file is right there. Seen on a real machine where
+          // `vendor/BlueMap/gradlew.bat` existed and the build failed anyway. A relative
+          // ".\gradlew.bat" is the other trap: written with one backslash it is the escape
+          // sequence \g, and the argument silently becomes ".gradlew.bat".
+          join(vendorRoot, "gradlew.bat"),
           ":cli:shadowJar",
           "--no-daemon",
           "--console=plain",
