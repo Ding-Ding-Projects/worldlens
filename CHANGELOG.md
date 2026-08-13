@@ -22,8 +22,21 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Add the Chunker world-conversion suite and its four execution routes - [`dd02621e04`](https://github.com/Ding-Ding-Projects/worldlens/commit/dd02621e049a758fbdfdd6ccb2bed4bb86044244)
+- Build the three canonical features that were missing entirely - [`f8baa80c46`](https://github.com/Ding-Ding-Projects/worldlens/commit/f8baa80c461cfad06e1130d5c87281db972893e5)
 - Capture the eight new surfaces, and register four pages the tab strip never knew about - [`b32ad1c275`](https://github.com/Ding-Ding-Projects/worldlens/commit/b32ad1c275b7c9122279a7380e05f22ff7961dd0)
 - Stop the account load writing into a screen somebody has already left - [`efab5f3cfa`](https://github.com/Ding-Ding-Projects/worldlens/commit/efab5f3cfa02f01e3a30bb3f6fc8d58e9377b4f4)
+
+### Documentation
+
+- Document the five features that shipped without an article - [`b145e52b61`](https://github.com/Ding-Ding-Projects/worldlens/commit/b145e52b61721d830b0fd721925326ecc5966a7c)
+
+## 1.0.1082 - 2026-08-13
+
+Tagged at [`f88a9e04a1`](https://github.com/Ding-Ding-Projects/worldlens/commit/f88a9e04a11631c3ae0b21c16c04b75672f8736f).
+
+### Interface
+
 - Give the three unreachable surfaces a page, and guard the whole class - [`8483b3da45`](https://github.com/Ding-Ding-Projects/worldlens/commit/8483b3da45737573cde00151f07cad1171bbaca1)
 - Resolve the five-lane integration and gate the new destructive actions - [`13e04dda63`](https://github.com/Ding-Ding-Projects/worldlens/commit/13e04dda6311f7bb32cb4e90a0a54556dbf2e03c) _(summary of 2 commits, also listed here)_
 - Reconcile the four merged lanes with the catalogue and section guards - [`8dd5474c05`](https://github.com/Ding-Ding-Projects/worldlens/commit/8dd5474c05a3b6590f41b07fba06655d888f916a)
