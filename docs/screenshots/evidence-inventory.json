@@ -120,7 +120,7 @@
         "docs/screenshots/wizard-ssh-world-source.png"
       ],
       "capturedFromInterfaceSource": true,
-      "uiSourceDigest": "58c5cfeb6947924a4de833c352f638f4163f47b998f2ffb635088d3bc8c40a28",
+      "uiSourceDigest": "11d1742919eef442325fc4c64446ed42c866455366d621893649f4a9fae6ddf5",
       "uiSourceDigestNote": "Re-verified 2026-08-13 after two false clauses were removed from every caption in this group. One said no map was loaded under pictures of a loaded map, because the harness set a flag when it pointed the app at no map and never restored it. The other asserted that this repository generated the world, which was the default whenever no provenance record existed, and therefore exactly wrong for a run pointed at a real save from outside. Both had been carried by the lead image. Every capture here comes from one run of the freshly built application against a real rendered world served over loopback."
     },
     {
