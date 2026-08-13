@@ -9,6 +9,7 @@ import {
     mdiEye,
     mdiFileDocumentOutline,
     mdiCubeOutline,
+    mdiSwapHorizontal,
     mdiLifebuoy,
     mdiLockOutline,
     mdiRobotOutline,
@@ -71,6 +72,7 @@ import { createCiRenders } from "./components/cirender/ciRenders.js";
 import { resolveCiRenderBridge } from "./components/cirender/ciRenderBridge.js";
 import RendersScreen from "./components/renders/RendersScreen.vue";
 import StructureList from "./components/structures/StructureList.vue";
+import ChunkerScreen from "./components/chunker/ChunkerScreen.vue";
 import OllamaScreen from "./components/ollama/OllamaScreen.vue";
 import { structureStore } from "./components/structures/structureStore.js";
 import { createActiveRenders } from "./components/renders/activeRenders.js";
@@ -171,6 +173,13 @@ const PAGE_PROJECTS = "projects";
 const PAGE_CIRENDER = "cirender";
 const PAGE_RENDERS = "renders";
 const PAGE_STRUCTURES = "structures";
+/*
+ * Converting a world is its own page because it is its own job: it reads one world and
+ * writes a different one, takes minutes, and has a review step somebody has to read. Folded
+ * into the world guide it would be a wizard inside a wizard, and the review nobody scrolls
+ * to is the review nobody reads.
+ */
+const PAGE_CHUNKER = "chunker";
 /*
  * Three surfaces that were built, tested and unreachable until this.
  *
@@ -298,6 +307,11 @@ const pages = computed<TabPage[]>(() => [
         id: PAGE_STRUCTURES,
         label: t("tabs.page.structures", "Structures"),
         icon: mdiCubeOutline,
+    },
+    {
+        id: PAGE_CHUNKER,
+        label: t("tabs.page.chunker", "Convert"),
+        icon: mdiSwapHorizontal,
     },
     {
         id: PAGE_AUTHENTICATOR,
@@ -1625,6 +1639,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                         <template #browserExtension>
                             <BrowserExtensionScreen />
+                        </template>
+
+                        <template #chunker>
+                            <ChunkerScreen />
                         </template>
 
                         <template #structures>

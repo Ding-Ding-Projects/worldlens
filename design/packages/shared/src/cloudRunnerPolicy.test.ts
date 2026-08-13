@@ -24,6 +24,7 @@ type WorkflowJob = RunnerJob | ReusableWorkflowJob;
 
 const WORKFLOWS = [
     "build-jars.yml",
+    "chunk-world.yml",
     "ci.yml",
     "pages.yml",
     "render-private-world.yml",
@@ -39,6 +40,9 @@ const WORKFLOWS = [
  */
 const WORKFLOW_JOBS: readonly WorkflowJob[] = [
     { workflow: "build-jars.yml", job: "build", runner: "ubuntu-24.04" },
+    { workflow: "chunk-world.yml", job: "plan", runner: "ubuntu-24.04" },
+    { workflow: "chunk-world.yml", job: "convert", runner: "ubuntu-24.04" },
+    { workflow: "chunk-world.yml", job: "assemble", runner: "ubuntu-24.04" },
     { workflow: "ci.yml", job: "workflows", runner: "ubuntu-24.04" },
     { workflow: "ci.yml", job: "check", runner: "ubuntu-24.04" },
     { workflow: "ci.yml", job: "package", runner: "windows-2022" },

@@ -214,6 +214,29 @@ const PAGES_PINNED_ACTIONS = Object.freeze({
   }),
 });
 
+// The world converter. It runs Hive Games' Chunker CLI, which is fetched at run time from
+// its own release rather than through an action, so nothing new enters the trust set here:
+// the four identities below were all reviewed already and are pinned at the same commit
+// SHAs every other workflow uses.
+const CHUNK_WORLD_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "actions/setup-java": Object.freeze({
+    sha: "cf277c60eb25467037889841efdb72551f06f6c3",
+    count: 2,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 5,
+  }),
+  "actions/download-artifact": Object.freeze({
+    sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    count: 5,
+  }),
+});
+
 const RENDER_PRIVATE_WORLD_PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
@@ -337,6 +360,7 @@ const SCHEDULED_RENDER_PINNED_ACTIONS = Object.freeze({
 const ACTION_INVENTORIES = Object.freeze({
   ".github/workflows/ci.yml": PINNED_ACTIONS,
   ".github/workflows/build-jars.yml": BUILD_JARS_PINNED_ACTIONS,
+  ".github/workflows/chunk-world.yml": CHUNK_WORLD_PINNED_ACTIONS,
   ".github/workflows/pages.yml": PAGES_PINNED_ACTIONS,
   ".github/workflows/render-private-world.yml":
     RENDER_PRIVATE_WORLD_PINNED_ACTIONS,

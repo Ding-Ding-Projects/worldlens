@@ -27,6 +27,12 @@ import {
 } from "./browserExtension.js";
 import { CHANGELOG_FACTS, CHANGELOG_FIXED, CHANGELOG_VOICED } from "./changelog.js";
 import { CHROME_FACTS, CHROME_FIXED, CHROME_VOICED } from "./chrome.js";
+import { CHUNKER_FACTS, CHUNKER_FIXED, CHUNKER_VOICED } from "./chunker.js";
+import {
+    CHUNKERROUTE_FACTS,
+    CHUNKERROUTE_FIXED,
+    CHUNKERROUTE_VOICED,
+} from "./chunkerRoute.js";
 import { SHELL_FACTS, SHELL_FIXED, SHELL_VOICED } from "./shell.js";
 import { CIRENDER_FACTS, CIRENDER_FIXED, CIRENDER_VOICED } from "./cirender.js";
 import { CONFIGEDITOR_FACTS, CONFIGEDITOR_FIXED, CONFIGEDITOR_VOICED } from "./configEditor.js";
@@ -79,6 +85,8 @@ import { VOCABULARY_FACTS, VOCABULARY_FIXED, VOCABULARY_VOICED } from "./vocabul
 
 export const SURFACE_VOICED = {
     ...CHROME_VOICED,
+    ...CHUNKER_VOICED,
+    ...CHUNKERROUTE_VOICED,
     ...SHELL_VOICED,
     ...APPEARANCE_VOICED,
     ...APPLOGO_VOICED,
@@ -133,6 +141,8 @@ export const SURFACE_VOICED = {
 
 export const SURFACE_FIXED = {
     ...CHROME_FIXED,
+    ...CHUNKER_FIXED,
+    ...CHUNKERROUTE_FIXED,
     ...SHELL_FIXED,
     ...APPEARANCE_FIXED,
     ...APPLOGO_FIXED,
@@ -187,6 +197,8 @@ export const SURFACE_FIXED = {
 
 export const SURFACE_FACTS = {
     ...CHROME_FACTS,
+    ...CHUNKER_FACTS,
+    ...CHUNKERROUTE_FACTS,
     ...SHELL_FACTS,
     ...APPEARANCE_FACTS,
     ...APPLOGO_FACTS,

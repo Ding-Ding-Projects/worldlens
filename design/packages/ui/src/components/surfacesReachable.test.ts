@@ -78,6 +78,11 @@ const REACHABLE_SURFACES: readonly {
         why: "The recovery route out of a forgotten lock. Unreachable, a for-fun lock becomes permanent.",
     },
     {
+        component: "ChunkerScreen",
+        reachedBy: "PAGE_CHUNKER",
+        why: "The only surface that converts a world between editions. Unreachable, Chunker is a jar nobody can run.",
+    },
+    {
         component: "StructureList",
         reachedBy: "PAGE_STRUCTURES",
         why: "The structures a world holds, and the renders made from them.",

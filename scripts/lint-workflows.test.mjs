@@ -355,7 +355,7 @@ for (const [lineEnding, workflow] of [
   });
 }
 
-test("all 114 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+test("all 127 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
   const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
   const workflowFiles = readdirSync(".github/workflows")
     .filter((name) => /\.ya?ml$/i.test(name))
@@ -376,7 +376,7 @@ test("all 114 actions in every executable workflow are SHA-pinned and checkouts 
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    114,
+    127,
   );
   assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
 });

@@ -1,0 +1,805 @@
+name: Convert world
+
+# Converts a Minecraft world between editions and versions on GitHub's runners, using
+# Hive Games' Chunker CLI. Nothing is installed locally and no Java is needed on the
+# machine that starts the run.
+#
+# This is the Actions counterpart of the desktop application's own Chunker integration in
+# design/packages/app/src/main/bedrock, and it deliberately reuses that integration's
+# hard-won facts rather than inventing its own:
+#
+#   * Chunker's `-p` pruning file takes chunk bounding boxes per dimension, and an excluded
+#     chunk is never read - so pruning genuinely bounds a shard's memory rather than merely
+#     filtering a fully converted world.
+#   * A column at the edge of a pruned area is converted as though its missing neighbour
+#     were empty, which silently breaks fences, walls, panes, doors and stair shapes along
+#     every boundary. Each shard therefore converts its regions grown by one chunk on every
+#     side and keeps only the region files it owns, so every kept chunk was converted with
+#     all of its neighbours loaded.
+#   * Because the unit is a whole 32x32 region file and every region is owned by exactly one
+#     shard, merging is a file copy. Nothing here ever splices chunks inside an Anvil file.
+#
+# The shard plan comes from Chunker's own SETTINGS pass, which reports the world's regions
+# without converting it. A world whose settings pass produces nothing this file recognises
+# is refused here rather than sharded against a guessed grid.
+#
+# Partial output is never published. The assemble job checks that every planned shard
+# reported a conversion and that every owned region file actually arrived; a missing shard
+# fails the run with the numbers instead of uploading a world with a hole in it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      world-source:
+        description: Where the world to convert comes from
+        type: choice
+        default: release-asset
+        options:
+          - release-asset
+          - url
+          - artifact
+      world:
+        description: >-
+          release-asset: asset name, optionally "tag/asset" (default tag: latest) ·
+          url: link to a .zip · artifact: "run-id/artifact-name"
+        type: string
+        default: world.zip
+      world-repository:
+        description: >-
+          release-asset and artifact only. owner/name of the repository the world lives in.
+          Blank means this repository.
+        type: string
+        default: ''
+      target-format:
+        description: >-
+          Chunker output format, e.g. JAVA_1_21_4 or BEDROCK_1_21_0. Edition and version
+          together, exactly as Chunker names them.
+        type: string
+        default: JAVA_1_21_4
+      prune-bounds:
+        description: >-
+          Optional trim, as minChunkX,minChunkZ,maxChunkX,maxChunkZ. Blank converts the
+          whole world.
+        type: string
+        default: ''
+      output-name:
+        description: File name of the converted world archive, without the .zip
+        type: string
+        default: converted-world
+      output:
+        description: Where the converted world goes
+        type: choice
+        default: artifact
+        options:
+          - artifact
+          - artifact-and-release
+      max-jobs:
+        description: Cap on parallel conversion jobs (GitHub itself refuses more than 256)
+        type: string
+        default: '64'
+      regions-per-shard:
+        description: Region files one conversion job converts before another is started
+        type: string
+        default: '64'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chunk-world-${{ inputs.output-name }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------------
+  # Fetch the world and the converter, ask Chunker which regions exist, and cut those
+  # regions into shards.
+  # ---------------------------------------------------------------------------------
+  plan:
+    name: Measure and plan
+    runs-on: ubuntu-24.04
+    outputs:
+      shard-ids: ${{ steps.plan.outputs.shard-ids }}
+      shard-count: ${{ steps.plan.outputs.shard-count }}
+      region-count: ${{ steps.plan.outputs.region-count }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      # Chunker's own README requires Java 17 or newer; the desktop integration records the
+      # same floor in REQUIRED_CHUNKER_JAVA_FEATURE. 21 is the current long-term release and
+      # satisfies it with room to spare.
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Fetch the converter
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+          # Pinned rather than "latest": every shard of one run, and every re-dispatch of the
+          # same world, must convert through the exact same converter. A conversion is not
+          # reproducible across Chunker versions, and half a world converted by one version
+          # and half by another is exactly the seam this workflow exists to avoid.
+          CHUNKER_TAG: 1.10.0
+          # Optional. Set the repository variable CHUNKER_JAR_SHA256 to the digest you have
+          # reviewed and this step refuses anything else. Left unset, the digest is recorded
+          # and the run says plainly that nobody pinned it.
+          CHUNKER_JAR_SHA256: ${{ vars.CHUNKER_JAR_SHA256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p chunker
+          gh release download "$CHUNKER_TAG" --repo HiveGamesOSS/Chunker \
+            --pattern '*.jar' --dir chunker --clobber
+          jar=$(find chunker -maxdepth 1 -name '*.jar' -print -quit)
+          if [ -z "$jar" ]; then
+            echo "::error::the Chunker release $CHUNKER_TAG published no jar"
+            exit 1
+          fi
+          mv "$jar" chunker/chunker-cli.jar
+          digest=$(sha256sum chunker/chunker-cli.jar | cut -d' ' -f1)
+          echo "Chunker $CHUNKER_TAG sha256=$digest"
+          if [ -n "$CHUNKER_JAR_SHA256" ]; then
+            if [ "$digest" != "$CHUNKER_JAR_SHA256" ]; then
+              echo "::error::the Chunker jar has digest $digest and the reviewed digest is $CHUNKER_JAR_SHA256, so this is not the converter that was reviewed."
+              exit 1
+            fi
+            echo "Digest matches the reviewed CHUNKER_JAR_SHA256."
+          else
+            echo "::warning::CHUNKER_JAR_SHA256 is not set, so this jar was taken on the release's word alone. Its digest is $digest."
+          fi
+
+      - name: Fetch the world
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+          SOURCE: ${{ inputs.world-source }}
+          WORLD: ${{ inputs.world }}
+          WORLD_REPOSITORY: ${{ inputs.world-repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p world-in
+          if [ -z "$WORLD" ]; then
+            echo "::error::'world' is empty. It is the asset name, URL or run-id/artifact-name to convert."
+            exit 1
+          fi
+          repo_flags=()
+          if [ -n "$WORLD_REPOSITORY" ]; then
+            slashes="$(printf '%s' "$WORLD_REPOSITORY" | tr -cd '/' | wc -c)"
+            if [ "$slashes" != "1" ] \
+              || [ "${WORLD_REPOSITORY#/}" != "$WORLD_REPOSITORY" ] \
+              || [ "${WORLD_REPOSITORY%/}" != "$WORLD_REPOSITORY" ]; then
+              echo "::error::'world-repository' must be owner/name, and was '$WORLD_REPOSITORY'."
+              exit 1
+            fi
+            repo_flags=(--repo "$WORLD_REPOSITORY")
+          fi
+          case "$SOURCE" in
+            url)
+              echo "Downloading $WORLD"
+              curl -fSL --retry 3 --retry-delay 5 -o world.zip "$WORLD"
+              ;;
+            artifact)
+              # "run-id/artifact-name". An artifact name may contain slashes on no platform
+              # this runs on, so splitting on the first one is unambiguous.
+              case "$WORLD" in
+                */*) RUN_ID="${WORLD%%/*}"; ARTIFACT="${WORLD#*/}" ;;
+                *)
+                  echo "::error::'world' must be 'run-id/artifact-name' when world-source is 'artifact', and was '$WORLD'."
+                  exit 1
+                  ;;
+              esac
+              mkdir -p artifact-in
+              gh run download "$RUN_ID" "${repo_flags[@]}" --name "$ARTIFACT" --dir artifact-in
+              # An artifact is already a directory of files rather than an archive, so it is
+              # the unpacked world unless it happens to contain exactly one zip.
+              inner=$(find artifact-in -maxdepth 1 -name '*.zip' -print -quit)
+              if [ -n "$inner" ]; then
+                mv "$inner" world.zip
+              else
+                cp -r artifact-in/. world-in/
+              fi
+              rm -rf artifact-in
+              ;;
+            release-asset)
+              # "asset", or "tag/asset" to pin a release. A release asset's file name cannot
+              # contain a slash, so splitting on the LAST one keeps a tag that has slashes in
+              # it - release/1.4 - working.
+              case "$WORLD" in
+                */*) RELEASE_TAG="${WORLD%/*}"; RELEASE_ASSET="${WORLD##*/}" ;;
+                *)   RELEASE_TAG="latest";      RELEASE_ASSET="$WORLD" ;;
+              esac
+              tag_flags=()
+              if [ "$RELEASE_TAG" != "latest" ]; then
+                tag_flags=("$RELEASE_TAG")
+              fi
+              mkdir -p release-in
+              gh release download "${tag_flags[@]}" "${repo_flags[@]}" \
+                --pattern "$RELEASE_ASSET" --dir release-in --clobber
+              found=$(find release-in -maxdepth 1 -type f -print -quit)
+              if [ -z "$found" ]; then
+                echo "::error::the release download produced no file for '$RELEASE_ASSET'."
+                exit 1
+              fi
+              mv "$found" world.zip
+              rm -rf release-in
+              ;;
+          esac
+          if [ -f world.zip ]; then
+            echo "Unpacking world.zip ($(du -h world.zip | cut -f1))"
+            unzip -q world.zip -d world-in
+            rm -f world.zip
+          fi
+          # A world archive is usually one directory holding the world, and Chunker wants the
+          # world root itself. One directory and nothing else means that directory is it.
+          entries=(world-in/*)
+          if [ "${#entries[@]}" = "1" ] && [ -d "${entries[0]}" ]; then
+            mv "${entries[0]}" world-root
+            rm -rf world-in
+            mv world-root world-in
+          fi
+          echo "Contents of world-in:"
+          ls -la world-in
+
+      # Chunker's SETTINGS writer reports a world without converting it: it writes a
+      # data.json carrying `dimensions: { "<dimension>": [[regionX, regionZ], ...] }` taken
+      # from the world's own region index. That is a cheap enumeration rather than a second
+      # full read, and it is the only honest source for a shard plan - a guessed grid would
+      # convert regions that do not exist and miss ones that do.
+      - name: Ask Chunker which regions exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -jar chunker/chunker-cli.jar -i world-in -f SETTINGS -o settings-out
+          settings=$(find settings-out -name 'data.json' -print -quit)
+          if [ -z "$settings" ]; then
+            echo "::error::Chunker's settings pass wrote no data.json, so this world's regions could not be read. Refusing to shard against a guessed grid."
+            exit 1
+          fi
+          cp "$settings" world-settings.json
+          echo "Settings report: $(du -h world-settings.json | cut -f1)"
+
+      - name: Plan the conversion
+        id: plan
+        shell: bash
+        env:
+          PRUNE_BOUNDS: ${{ inputs.prune-bounds }}
+          MAX_JOBS: ${{ inputs.max-jobs }}
+          REGIONS_PER_SHARD: ${{ inputs.regions-per-shard }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { readFileSync, writeFileSync, appendFileSync } = require("node:fs");
+
+          const REGION_CHUNKS = 32;
+          const MARGIN_CHUNKS = 1;
+          const MATRIX_LIMIT = 256;
+
+          const positiveInteger = (raw, fallback, name) => {
+            if (raw === undefined || raw.trim() === "") return fallback;
+            const value = Number(raw.trim());
+            if (!Number.isInteger(value) || value < 1) {
+              console.log(`::error::'${name}' must be a whole number of at least 1, and was '${raw}'.`);
+              process.exit(1);
+            }
+            return value;
+          };
+
+          const maxJobs = Math.min(positiveInteger(process.env.MAX_JOBS, 64, "max-jobs"), MATRIX_LIMIT);
+          const perShard = positiveInteger(process.env.REGIONS_PER_SHARD, 64, "regions-per-shard");
+
+          // The trim is expressed in chunks because that is the unit Chunker prunes in, and
+          // a region is kept when any part of it survives the trim. A half-kept region file
+          // is still a whole file, and the shard that owns it converts only the chunks the
+          // pruning boxes allow.
+          let bounds = null;
+          const rawBounds = (process.env.PRUNE_BOUNDS ?? "").trim();
+          if (rawBounds !== "") {
+            const parts = rawBounds.split(",").map((part) => Number(part.trim()));
+            if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) {
+              console.log(`::error::'prune-bounds' must be minChunkX,minChunkZ,maxChunkX,maxChunkZ, and was '${rawBounds}'.`);
+              process.exit(1);
+            }
+            const [minX, minZ, maxX, maxZ] = parts;
+            if (minX > maxX || minZ > maxZ) {
+              console.log(`::error::'prune-bounds' has its minimum past its maximum: ${rawBounds}.`);
+              process.exit(1);
+            }
+            bounds = { minX, minZ, maxX, maxZ };
+          }
+
+          const raw = readFileSync("world-settings.json", "utf8");
+          let parsed;
+          try {
+            parsed = JSON.parse(raw);
+          } catch {
+            console.log("::error::Chunker's settings report is not JSON, so this world cannot be sharded.");
+            process.exit(1);
+          }
+          const dimensions = parsed?.dimensions;
+          if (typeof dimensions !== "object" || dimensions === null) {
+            console.log("::error::Chunker's settings report carries no dimensions, so this world cannot be sharded.");
+            process.exit(1);
+          }
+
+          // Null rather than a partial answer, exactly as the desktop integration's
+          // parseSettingsRegions does: a plan built from a half-read report converts part of
+          // the world and calls it whole, which is the silent loss this design exists to stop.
+          const owned = [];
+          for (const [dimension, value] of Object.entries(dimensions)) {
+            if (!Array.isArray(value)) {
+              console.log(`::error::the settings report lists '${dimension}' as something other than a region array.`);
+              process.exit(1);
+            }
+            for (const entry of value) {
+              if (!Array.isArray(entry) || entry.length < 2 || !Number.isInteger(entry[0]) || !Number.isInteger(entry[1])) {
+                console.log(`::error::the settings report has a region in '${dimension}' that is not an integer [x, z] pair.`);
+                process.exit(1);
+              }
+              const [x, z] = entry;
+              if (bounds !== null) {
+                const minChunkX = x * REGION_CHUNKS;
+                const minChunkZ = z * REGION_CHUNKS;
+                const maxChunkX = minChunkX + REGION_CHUNKS - 1;
+                const maxChunkZ = minChunkZ + REGION_CHUNKS - 1;
+                if (maxChunkX < bounds.minX || minChunkX > bounds.maxX) continue;
+                if (maxChunkZ < bounds.minZ || minChunkZ > bounds.maxZ) continue;
+              }
+              owned.push({ dimension, x, z });
+            }
+          }
+
+          if (owned.length === 0) {
+            console.log("::error::no region survives this plan: the world reported no regions, or 'prune-bounds' excludes all of them.");
+            process.exit(1);
+          }
+
+          // A shard is a set of whole regions of ONE dimension, because a pruning file keys
+          // its boxes by dimension and mixing them in one shard would convert each dimension
+          // with the other's boxes.
+          const byDimension = new Map();
+          for (const region of owned) {
+            const list = byDimension.get(region.dimension) ?? [];
+            list.push(region);
+            byDimension.set(region.dimension, list);
+          }
+
+          // Enough regions per shard that the plan fits the job cap, never fewer than asked
+          // for. Growing the shards is the only way to honour a cap; truncating the plan
+          // would drop part of the world.
+          const groupSize = Math.max(perShard, Math.ceil(owned.length / maxJobs));
+
+          const shards = [];
+          for (const [dimension, regions] of [...byDimension.entries()].sort()) {
+            regions.sort((left, right) => left.x - right.x || left.z - right.z);
+            for (let start = 0; start < regions.length; start += groupSize) {
+              const slice = regions.slice(start, start + groupSize);
+              const id = String(shards.length);
+              shards.push({
+                id,
+                dimension,
+                regions: slice.map((region) => ({ x: region.x, z: region.z })),
+                // The one-chunk margin is what makes a boundary chunk's fences, walls, panes,
+                // doors and stair shapes correct: it is converted with its real neighbours
+                // loaded, and only the region files this shard owns are kept afterwards.
+                pruning: {
+                  configs: {
+                    [dimension]: {
+                      include: true,
+                      regions: slice.map((region) => ({
+                        minChunkX: region.x * REGION_CHUNKS - MARGIN_CHUNKS,
+                        minChunkZ: region.z * REGION_CHUNKS - MARGIN_CHUNKS,
+                        maxChunkX: region.x * REGION_CHUNKS + REGION_CHUNKS - 1 + MARGIN_CHUNKS,
+                        maxChunkZ: region.z * REGION_CHUNKS + REGION_CHUNKS - 1 + MARGIN_CHUNKS,
+                      })),
+                    },
+                  },
+                },
+              });
+            }
+          }
+
+          if (shards.length > MATRIX_LIMIT) {
+            console.log(`::error::this world needs ${shards.length} conversion jobs and one matrix holds ${MATRIX_LIMIT}. Raise 'regions-per-shard', or trim the world with 'prune-bounds'.`);
+            process.exit(1);
+          }
+
+          writeFileSync("conversion-plan.json", `${JSON.stringify({ version: 1, regions: owned.length, shards }, null, 2)}\n`);
+
+          const output = process.env.GITHUB_OUTPUT;
+          appendFileSync(output, `shard-ids=${JSON.stringify(shards.map((shard) => shard.id))}\n`);
+          appendFileSync(output, `shard-count=${shards.length}\n`);
+          appendFileSync(output, `region-count=${owned.length}\n`);
+
+          const summary = process.env.GITHUB_STEP_SUMMARY;
+          appendFileSync(summary, `## Conversion plan\n\n`);
+          appendFileSync(summary, `${owned.length} region files across ${byDimension.size} dimension(s), in ${shards.length} job(s).\n\n`);
+          for (const shard of shards) {
+            appendFileSync(summary, `- shard ${shard.id}: ${shard.dimension}, ${shard.regions.length} region(s)\n`);
+          }
+          NODE
+
+      # The world and the converter are uploaded once here rather than re-fetched by every
+      # shard, so a thirty-way split does not download the same archive thirty times from
+      # someone else's server.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chunk-world-in
+          path: world-in
+          retention-days: 1
+          compression-level: 1
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chunk-converter
+          path: chunker/chunker-cli.jar
+          retention-days: 1
+
+      # Deliberately not named "chunk-shard-something": the assemble job collects the shards
+      # with the pattern `chunk-shard-*`, and a plan artifact swept up with them would then
+      # fail as a shard with no outcome record.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chunk-plan
+          path: conversion-plan.json
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------------
+  # One job per shard. Each converts its own regions, with a margin, into its own output,
+  # keeps only the region files it owns, and records honestly what it did.
+  # ---------------------------------------------------------------------------------
+  convert:
+    name: Convert shard ${{ matrix.shard }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    strategy:
+      # A shard that fails must not cancel the ones still running: their output is worth
+      # keeping, a re-dispatch then has less to do, and the assemble job refuses to publish
+      # a partial world anyway.
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shard-ids) }}
+    steps:
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: chunk-world-in
+          path: world-in
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: chunk-converter
+          path: chunker
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: chunk-plan
+          path: plan-in
+
+      - name: Convert this shard
+        shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+          TARGET_FORMAT: ${{ inputs.target-format }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { readFileSync, writeFileSync, mkdirSync } = require("node:fs");
+          const plan = JSON.parse(readFileSync("plan-in/conversion-plan.json", "utf8"));
+          const shard = plan.shards.find((candidate) => candidate.id === process.env.SHARD);
+          if (!shard) {
+            console.log(`::error::the plan has no shard '${process.env.SHARD}'.`);
+            process.exit(1);
+          }
+          mkdirSync("shard", { recursive: true });
+          writeFileSync("shard/pruning.json", `${JSON.stringify(shard.pruning, null, 2)}\n`);
+          writeFileSync("shard/shard.json", `${JSON.stringify(shard, null, 2)}\n`);
+          NODE
+
+          # Java's default heap on a hosted runner is a quarter of its RAM, which leaves a
+          # large shard failing on heap while the runner still has memory free. The desktop
+          # integration's RECOMMENDED_JVM_ARGS make the same choice for the same reason.
+          java -Xmx6G -jar chunker/chunker-cli.jar \
+            -i world-in \
+            -f "$TARGET_FORMAT" \
+            -o shard-out \
+            -p shard/pruning.json
+
+          node <<'NODE'
+          const { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readdirSync } = require("node:fs");
+          const { join } = require("node:path");
+
+          const shard = JSON.parse(readFileSync("shard/shard.json", "utf8"));
+
+          // Where a dimension's region files live inside a Java world, relative to its root.
+          // Identical to the desktop integration's dimensionDirectory, and for the same
+          // reason: a converted custom dimension has to stay where a reader looks for it.
+          const dimensionDirectory = (dimension) => {
+            if (dimension === "minecraft:overworld") return "";
+            if (dimension === "minecraft:the_nether") return "DIM-1";
+            if (dimension === "minecraft:the_end") return "DIM1";
+            const [namespace, name] = dimension.includes(":") ? dimension.split(":", 2) : ["minecraft", dimension];
+            return `dimensions/${namespace || "minecraft"}/${name || "custom"}`;
+          };
+
+          // Terrain, entities and points of interest are three parallel directories keyed by
+          // the same region coordinates. All three belong to whichever shard owns the region.
+          const REGION_DIRECTORIES = ["region", "entities", "poi"];
+
+          const base = dimensionDirectory(shard.dimension);
+          const kept = [];
+          const missing = [];
+          for (const region of shard.regions) {
+            const file = `r.${region.x}.${region.z}.mca`;
+            for (const directory of REGION_DIRECTORIES) {
+              const from = join("shard-out", base, directory, file);
+              if (!existsSync(from)) {
+                // `entities` and `poi` are legitimately absent for a region that has neither,
+                // and a region that converted to nothing at all is a fact worth reporting
+                // rather than an error worth inventing. `region` is the one that matters.
+                if (directory === "region") missing.push(file);
+                continue;
+              }
+              const intoDirectory = join("shard-kept", base, directory);
+              mkdirSync(intoDirectory, { recursive: true });
+              copyFileSync(from, join(intoDirectory, file));
+              kept.push(join(base, directory, file));
+            }
+          }
+
+          // Everything a world needs that is not a region file. Taken from every shard and
+          // deduplicated at merge time, because each shard's Chunker run writes a complete
+          // one of these and they are identical apart from the regions they describe.
+          const GLOBAL_WORLD_ENTRIES = [
+            "level.dat",
+            "level.dat_old",
+            "data",
+            "datapacks",
+            "playerdata",
+            "stats",
+            "advancements",
+          ];
+          mkdirSync("shard-global", { recursive: true });
+          const globals = [];
+          for (const entry of GLOBAL_WORLD_ENTRIES) {
+            const from = join("shard-out", entry);
+            if (!existsSync(from)) continue;
+            globals.push(entry);
+          }
+
+          const outcome = {
+            shard: shard.id,
+            dimension: shard.dimension,
+            status: missing.length === 0 ? "converted" : "incomplete",
+            plannedRegions: shard.regions.length,
+            keptFiles: kept.length,
+            missingRegionFiles: missing,
+            globals,
+          };
+          writeFileSync("shard-kept-outcome.json", `${JSON.stringify(outcome, null, 2)}\n`);
+          console.log(JSON.stringify(outcome, null, 2));
+
+          if (missing.length > 0) {
+            console.log(`::error::shard ${shard.id} converted ${shard.regions.length - missing.length} of its ${shard.regions.length} planned region files; ${missing.join(", ")} never arrived.`);
+            process.exit(1);
+          }
+          // Deliberately after the check: a shard that could not finish uploads what it has,
+          // says so, and fails. The assemble job then refuses rather than publishing a world
+          // that is quietly short of a region.
+          const entries = readdirSync("shard-out");
+          console.log(`Chunker wrote: ${entries.join(", ")}`);
+          NODE
+
+      - name: Stage what this shard owns
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p shard-upload
+          if [ -d shard-kept ]; then
+            cp -r shard-kept/. shard-upload/
+          fi
+          if [ -f shard-kept-outcome.json ]; then
+            cp shard-kept-outcome.json shard-upload/outcome.json
+          fi
+          # A shard that died before writing an outcome still uploads one, so the assemble
+          # job sees a failure rather than an artifact that simply is not there - which reads
+          # identically to a shard nobody ever dispatched.
+          if [ ! -f shard-upload/outcome.json ]; then
+            printf '{ "shard": "%s", "status": "failed" }\n' "${SHARD}" > shard-upload/outcome.json
+          fi
+          # The first shard to hold a complete set of the non-region world files contributes
+          # them; the merge takes the first it finds and ignores the rest.
+          for entry in level.dat level.dat_old data datapacks playerdata stats advancements; do
+            if [ -e "shard-out/$entry" ]; then
+              mkdir -p shard-upload-global
+              cp -r "shard-out/$entry" shard-upload-global/
+            fi
+          done
+          if [ -d shard-upload-global ]; then
+            mkdir -p shard-upload/__global__
+            cp -r shard-upload-global/. shard-upload/__global__/
+          fi
+          ls -la shard-upload
+        env:
+          SHARD: ${{ matrix.shard }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: chunk-shard-${{ matrix.shard }}
+          path: shard-upload
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------------
+  # Put the shards back together, prove nothing is missing, and publish only then.
+  # ---------------------------------------------------------------------------------
+  assemble:
+    name: Assemble and publish
+    needs: [plan, convert]
+    # `always()` so a failed shard still reaches this job and is reported here with the
+    # numbers, rather than the run simply ending with a red matrix and no account of what
+    # arrived. The shard results are checked explicitly below, so nothing partial publishes.
+    if: ${{ always() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: chunk-plan
+          path: plan-in
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: chunk-shard-*
+          path: shards-in
+
+      - name: Merge the shards and refuse a partial world
+        id: merge
+        shell: bash
+        env:
+          OUTPUT_NAME: ${{ inputs.output-name }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, readdirSync, appendFileSync } = require("node:fs");
+          const { join } = require("node:path");
+
+          const plan = JSON.parse(readFileSync("plan-in/conversion-plan.json", "utf8"));
+          const summary = process.env.GITHUB_STEP_SUMMARY;
+          appendFileSync(summary, "## Conversion outcome\n\n| shard | dimension | planned | kept | status |\n| --- | --- | --- | --- | --- |\n");
+
+          const problems = [];
+          const outcomes = [];
+          for (const shard of plan.shards) {
+            const directory = join("shards-in", `chunk-shard-${shard.id}`);
+            const outcomeFile = join(directory, "outcome.json");
+            if (!existsSync(outcomeFile)) {
+              problems.push(`shard ${shard.id} produced no outcome record at all, so nothing is known about its ${shard.regions.length} region file(s).`);
+              appendFileSync(summary, `| ${shard.id} | ${shard.dimension} | ${shard.regions.length} | 0 | missing |\n`);
+              continue;
+            }
+            let outcome;
+            try {
+              outcome = JSON.parse(readFileSync(outcomeFile, "utf8"));
+            } catch {
+              problems.push(`shard ${shard.id} wrote an outcome record that is not JSON.`);
+              appendFileSync(summary, `| ${shard.id} | ${shard.dimension} | ${shard.regions.length} | 0 | unreadable |\n`);
+              continue;
+            }
+            outcomes.push(outcome);
+            appendFileSync(summary, `| ${shard.id} | ${shard.dimension} | ${shard.regions.length} | ${outcome.keptFiles ?? 0} | ${outcome.status ?? "unknown"} |\n`);
+            if (outcome.status !== "converted") {
+              problems.push(`shard ${shard.id} reports '${outcome.status ?? "unknown"}' rather than a completed conversion.`);
+            }
+          }
+
+          // The merge itself is a file copy, because every region file is produced by exactly
+          // one shard and each shard already discarded the partial files its margin wrote.
+          mkdirSync("merged", { recursive: true });
+          for (const shard of plan.shards) {
+            const directory = join("shards-in", `chunk-shard-${shard.id}`);
+            if (!existsSync(directory)) continue;
+            for (const entry of readdirSync(directory)) {
+              if (entry === "outcome.json") continue;
+              if (entry === "__global__") {
+                for (const global of readdirSync(join(directory, entry))) {
+                  const destination = join("merged", global);
+                  if (existsSync(destination)) continue;
+                  cpSync(join(directory, entry, global), destination, { recursive: true });
+                }
+                continue;
+              }
+              cpSync(join(directory, entry), join("merged", entry), { recursive: true });
+            }
+          }
+
+          // Counted from the merged tree rather than from what the shards claimed, because a
+          // shard reporting success and an artifact that arrived short are different facts
+          // and only the second one is on disk here.
+          const countRegionFiles = (directory) => {
+            let total = 0;
+            for (const entry of readdirSync(directory, { withFileTypes: true })) {
+              const path = join(directory, entry.name);
+              if (entry.isDirectory()) total += countRegionFiles(path);
+              else if (entry.name.endsWith(".mca") && directory.endsWith("region")) total += 1;
+            }
+            return total;
+          };
+          const merged = existsSync("merged") ? countRegionFiles("merged") : 0;
+          if (merged !== plan.regions) {
+            problems.push(`the merged world holds ${merged} region file(s) and the plan converted ${plan.regions}.`);
+          }
+          if (!existsSync(join("merged", "level.dat"))) {
+            problems.push("the merged world has no level.dat, so it is not a world a game would open.");
+          }
+
+          appendFileSync(summary, `\n${merged} of ${plan.regions} planned region file(s) merged.\n`);
+
+          if (problems.length > 0) {
+            for (const problem of problems) console.log(`::error::${problem}`);
+            console.log("::error::this conversion is incomplete and will not be published. Re-dispatch to convert the shards that did not finish.");
+            process.exit(1);
+          }
+          NODE
+
+          name="${OUTPUT_NAME}"
+          if [ -z "$name" ]; then
+            echo "::error::'output-name' is empty."
+            exit 1
+          fi
+          case "$name" in
+            */*|*\\*|.*)
+              echo "::error::'output-name' must be a plain file name without a path, and was '$name'."
+              exit 1
+              ;;
+          esac
+          mkdir -p out
+          ( cd merged && zip -q -r "../out/${name}.zip" . )
+          ( cd out && sha256sum "${name}.zip" > SHA256SUMS )
+          digest=$(cut -d' ' -f1 < "out/SHA256SUMS")
+          echo "archive=out/${name}.zip" >> "$GITHUB_OUTPUT"
+          echo "name=${name}.zip" >> "$GITHUB_OUTPUT"
+          echo "sha256=${digest}" >> "$GITHUB_OUTPUT"
+          {
+            echo ""
+            echo "**${name}.zip**"
+            echo ""
+            echo "\`sha256:${digest}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: converted-world
+          path: out
+          retention-days: 7
+          compression-level: 0
+
+      # Only reached when the merge step above passed, so a release can never carry a world
+      # that was short of a shard.
+      - name: Publish the converted world as a release asset
+        if: inputs.output == 'artifact-and-release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+          ARCHIVE: ${{ steps.merge.outputs.archive }}
+          ASSET: ${{ steps.merge.outputs.name }}
+          DIGEST: ${{ steps.merge.outputs.sha256 }}
+          TARGET_FORMAT: ${{ inputs.target-format }}
+          OUTPUT_NAME: ${{ inputs.output-name }}
+        run: |
+          set -euo pipefail
+          tag="converted-${OUTPUT_NAME}-${GITHUB_RUN_NUMBER}"
+          notes=$(printf 'Converted to %s by run %s.\n\n`%s  %s`\n' \
+            "$TARGET_FORMAT" "$GITHUB_RUN_ID" "$DIGEST" "$ASSET")
+          gh release create "$tag" \
+            --title "$ASSET" \
+            --notes "$notes" \
+            "$ARCHIVE" "out/SHA256SUMS"
+          echo "Published $tag with $ASSET (sha256:$DIGEST)"

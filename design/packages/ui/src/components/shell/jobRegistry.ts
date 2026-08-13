@@ -27,6 +27,7 @@ import {
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiCubeOutline,
+    mdiSwapHorizontal,
     mdiEye,
     mdiFileDocumentOutline,
     mdiFolderMultipleOutline,
@@ -49,6 +50,7 @@ export type CoreJobId =
     | "projects"
     | "cirender"
     | "structures"
+    | "chunker"
     | "authenticator"
     | "locks"
     | "support"
@@ -87,6 +89,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     projects: "projects",
     runners: "cirender",
     structures: "structures",
+    chunker: "chunker",
     authenticator: "authenticator",
     locks: "locks",
     support: "support",
@@ -227,6 +230,19 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.structures",
         labelFallback: "Structures",
         icon: mdiCubeOutline,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    /*
+     * Converting a world between editions. Loose for the same reason the four above are:
+     * it is neither rendering, nor a finished map, nor keeping a copy.
+     */
+    {
+        id: "chunker",
+        semanticName: "chunker",
+        labelKey: "tabs.page.chunker",
+        labelFallback: "Convert",
+        icon: mdiSwapHorizontal,
         seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },

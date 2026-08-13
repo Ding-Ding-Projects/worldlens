@@ -85,6 +85,15 @@ importers:
         specifier: 0.35.3
         version: 0.35.3(@types/node@22.20.1)
 
+  packages/chunker:
+    dependencies:
+      '@worldlens/nbt':
+        specifier: workspace:*
+        version: link:../nbt
+      '@worldlens/worldgen':
+        specifier: workspace:*
+        version: link:../worldgen
+
   packages/cli:
     dependencies:
       '@worldlens/config':
