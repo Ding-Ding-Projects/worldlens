@@ -22,6 +22,28 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Resolve the five-lane integration and gate the new destructive actions - [`13e04dda63`](https://github.com/Ding-Ding-Projects/worldlens/commit/13e04dda6311f7bb32cb4e90a0a54556dbf2e03c) _(summary of 2 commits, also listed here)_
+- Reconcile the four merged lanes with the catalogue and section guards - [`8dd5474c05`](https://github.com/Ding-Ding-Projects/worldlens/commit/8dd5474c05a3b6590f41b07fba06655d888f916a)
+- Merge the authenticator lane - [`af5627b8b9`](https://github.com/Ding-Ding-Projects/worldlens/commit/af5627b8b93ecfcda3ab33949fcdd03f00a3e3ad) _(summary of 2 commits, also listed here)_
+- Add the built-in authenticator surface: local QR pairing, live TOTP codes - [`2ad99a0ba3`](https://github.com/Ding-Ding-Projects/worldlens/commit/2ad99a0ba34110481350ff81f09b71e745f4438d)
+- Merge the vocabulary lane - [`e7880f6ab9`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7880f6ab9342010e6c3e825876294ce369d8288) _(summary of 2 commits, also listed here)_
+- Add local personal-vocabulary JSON upload control to app settings - [`c4e2f9e433`](https://github.com/Ding-Ding-Projects/worldlens/commit/c4e2f9e43359a3c4ca0940aba40c5da6cd9c5404)
+- Merge the dimsum lane - [`03f97d3fa8`](https://github.com/Ding-Ding-Projects/worldlens/commit/03f97d3fa8ad041e7f812b5fd1e36927a64d2766) _(summary of 2 commits, also listed here)_
+- Add the dim sum startup surprise (10% chance, non-blocking) - [`f20430f06a`](https://github.com/Ding-Ding-Projects/worldlens/commit/f20430f06a46694f488d59406c6c16615e0afa6a)
+- Stop the structure list recording a render that never ran - [`c2769621e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c2769621e5b0b36ffc1f3a9412e36b40268abb3a)
+
+### Desktop shell
+
+- Render dropped structures and schematics, and land on the map page - [`73d57dfe4d`](https://github.com/Ding-Ding-Projects/worldlens/commit/73d57dfe4db7b63a508046278f5517c8cf988816)
+- Merge the structure discovery and render lane - [`1cef631556`](https://github.com/Ding-Ding-Projects/worldlens/commit/1cef631556409262a0fa5d4dcad92b0fe9130142) _(summary of 2 commits, also listed here)_
+- Make structure discovery and rendering real, not a stub - [`3da39defd0`](https://github.com/Ding-Ding-Projects/worldlens/commit/3da39defd04af8376bda86fa776c2e799bba0ea1)
+
+## 1.0.1077 - 2026-08-12
+
+Tagged at [`b769c22527`](https://github.com/Ding-Ding-Projects/worldlens/commit/b769c2252758d7b7d8b64b34609707c119d814a6).
+
+### Interface
+
 - Stop the drop zone eating the window, and gate the two bulk deletes - [`3db6f58384`](https://github.com/Ding-Ding-Projects/worldlens/commit/3db6f583849c980209b3d6e6b1a66559b49f6041)
 - Voice the three keys the new pages added - [`1a8f700caa`](https://github.com/Ding-Ding-Projects/worldlens/commit/1a8f700caaea42db7843ea4189e4206abb774c80)
 - Put the structures list on a page somebody can actually open - [`f340ee71c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/f340ee71c4d00adc63d5c7f58e2ff2b668ec9271)
