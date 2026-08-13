@@ -104,14 +104,18 @@ describe("discovery and grouping", () => {
         expect(namespaces).toEqual(["minecraft", "mymodpack"]);
     });
 
-    it("renders a structure when its button is pressed, and marks it rendered", async () => {
+    it("offers the render button, and records nothing when no renderer is there", async () => {
+        // This used to assert that pressing recorded a render. It did, because the button
+        // was a seam that only wrote a row. It now starts a real render through the world
+        // bridge, and there is no bridge in jsdom, so nothing is recorded - which is the
+        // honest outcome. A row written here would claim a render that never ran, and the
+        // whole point of the list is that a row means tiles exist.
         const target = file();
         const wrapper = mountList({ files: [target] });
         const button = wrapper.find('[data-test="structure-render"]');
         expect(button.text()).toContain("Render this structure");
         await button.trigger("click");
-        expect(structureStore.rendered).toHaveLength(1);
-        expect(structureStore.rendered[0]?.structureId).toBe(target.id);
+        expect(structureStore.rendered).toHaveLength(0);
     });
 
     it("keeps exactly one render per structure when rendered twice", () => {
