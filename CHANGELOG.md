@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Stop the drop zone eating the window, and gate the two bulk deletes - [`3db6f58384`](https://github.com/Ding-Ding-Projects/worldlens/commit/3db6f583849c980209b3d6e6b1a66559b49f6041)
 - Voice the three keys the new pages added - [`1a8f700caa`](https://github.com/Ding-Ding-Projects/worldlens/commit/1a8f700caaea42db7843ea4189e4206abb774c80)
 - Put the structures list on a page somebody can actually open - [`f340ee71c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/f340ee71c4d00adc63d5c7f58e2ff2b668ec9271)
 - Accept a structure or schematic dropped onto the window - [`1fec4a2ba8`](https://github.com/Ding-Ding-Projects/worldlens/commit/1fec4a2ba809cfaee8103e540929929223f6b72c)

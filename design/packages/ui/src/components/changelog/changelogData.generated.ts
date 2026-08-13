@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "3db6f583849c980209b3d6e6b1a66559b49f6041",
+        shortSha: "3db6f58384",
+        date: "2026-08-12T21:02:19-04:00",
+        subject: "Stop the drop zone eating the window, and gate the two bulk deletes",
+        details: "Two things, both mine, both shipped.\n\nThe drop zone was wrapped around the app's children. Vuetify computes its\nlayout from `<v-app>`'s DIRECT children, so a plain element between it and\n`<v-main>` collapses the main region to zero height: the built application\nrendered as a black rectangle with the zone's own bar across the top and nothing\nelse at all. Ninety-four tests passed through that, because layout is exactly\nwhat jsdom does not have and no assertion anywhere was about it. The first thing\nthat noticed was somebody opening the app.\n\nThe zone now lives on the Structures page, which is also where a person goes\nlooking for a drop target rather than somewhere it merely happens to be. A guard\nreads the template and fails when anything is left open between `<v-app>` and\n`<v-main>`. It is a blunt check and it is the only one available; reproducing\nthe exact regression turns it red, which was confirmed rather than assumed.\n\nThe second is the super-confirmation policy guard doing its job. Both new bulk\ndeletes were undeclared, and my first answer to that - a count preview and a\nconfirm button - was not the gate. Deleting markers somebody made by hand\ndestroys content nothing here restores, and deleting a render record removes the\nonly route this application keeps back to those tiles, which is the same loss\nProfileManager is already gated for. Both go through the two keys and the full\nslider now, both are declared, and their tests drive the real gate rather than a\nbutton.\n\n兩單都係我整嘅，兩單都出咗街。個 drop zone 包住成個 app 嘅仔，Vuetify 要\n`<v-main>` 做 `<v-app>` 嘅直屬仔，中間夾一層就會塌到零高度：build 出嚟成塊黑，\n淨係見到佢自己條 bar。九十四個 test 全部照過，因為 jsdom 根本冇 layout，\n冇一句 assertion 講緊 layout。第一個發現嘅係開個 app 嘅人。第二單係\nsuper-confirmation guard 做嘢：我第一次答佢嗰個「數量預覽加確認掣」根本唔係個\ngate，而家兩個都行真嘅兩匙加拉桿。",
+        category: "interface",
+        areas: ["interface"],
+        files: 7,
+    },
+    {
         sha: "30c5442ed050f59fd303f637941986ee824d8bf4",
         shortSha: "30c5442ed0",
         date: "2026-08-12T20:07:18-04:00",
