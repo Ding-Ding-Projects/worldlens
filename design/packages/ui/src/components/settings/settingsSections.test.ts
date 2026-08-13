@@ -94,6 +94,13 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["1.4.0", "Checked 3 August 2026"],
     },
     {
+        anchor: "vocabulary",
+        title: "Personal vocabulary",
+        description: "A private JSON file of your own wording, kept on this computer.",
+        // The status sentence, so searching what is on screen finds this section too.
+        values: ["0", "No file loaded"],
+    },
+    {
         anchor: "history",
         title: "Version history",
         description: "Every saved version of your server profiles and your application settings.",
@@ -170,6 +177,7 @@ describe("every section the surface renders", () => {
             "download-concurrency",
             "system-dependencies",
             "updates",
+            "vocabulary",
             "history",
             "diagnostics",
         ]);

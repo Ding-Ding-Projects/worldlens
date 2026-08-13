@@ -1077,6 +1077,13 @@ export const SETTINGS_FIXED = {
 
     /* The Updates tab's own heading, above `settings.updates.description`. */
     "settings.updates.title": { en: "Updates", yue: "更新" },
+    /* The personal-vocabulary section's own heading, beside the other section headings so
+     * there is one place a section title is written rather than two. */
+    "settings.vocabulary.title": { en: "Personal vocabulary", yue: "個人詞彙" },
+    "settings.vocabulary.description": {
+        en: "A private JSON file of your own wording, read only on this computer.",
+        yue: "一個你自己嘅私人 JSON 詞彙檔案，淨係喺呢部電腦度讀。",
+    },
 
     /* The History tab's own heading, above `settings.history.description`. */
     "settings.history.title": { en: "Version history", yue: "版本記錄" },

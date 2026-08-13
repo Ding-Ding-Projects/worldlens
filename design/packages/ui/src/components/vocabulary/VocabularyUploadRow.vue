@@ -25,8 +25,56 @@ const rejection = ref<VocabularyRejectionReason | null>(null);
 
 const entryCount = computed(() => Object.keys(vocabularyStore.entries).length);
 
+/**
+ * One rejection reason, in words.
+ *
+ * A literal `t()` call per branch rather than a key assembled from `reason`, because the
+ * catalogue coverage guard reads the source for literal calls and cannot follow a key built
+ * at runtime. Assembled, every one of these reads as an entry nobody calls, and the guard
+ * cannot tell that from a key somebody deleted the call site of.
+ */
 function reasonText(reason: VocabularyRejectionReason): string {
-    return t(`vocabulary.reason.${reason}`, "the file does not match the expected format");
+    switch (reason) {
+        case "too-large":
+            return t("vocabulary.reason.too-large", "too large");
+        case "malformed-json":
+            return t("vocabulary.reason.malformed-json", "malformed json");
+        case "not-an-object":
+            return t("vocabulary.reason.not-an-object", "not an object");
+        case "unexpected-field":
+            return t("vocabulary.reason.unexpected-field", "unexpected field");
+        case "missing-schema-version":
+            return t("vocabulary.reason.missing-schema-version", "missing schema version");
+        case "unknown-schema-version":
+            return t("vocabulary.reason.unknown-schema-version", "unknown schema version");
+        case "missing-entries":
+            return t("vocabulary.reason.missing-entries", "missing entries");
+        case "entries-not-an-object":
+            return t("vocabulary.reason.entries-not-an-object", "entries not an object");
+        case "too-many-entries":
+            return t("vocabulary.reason.too-many-entries", "too many entries");
+        case "too-deeply-nested":
+            return t("vocabulary.reason.too-deeply-nested", "too deeply nested");
+        case "unsafe-key":
+            return t("vocabulary.reason.unsafe-key", "unsafe key");
+        case "key-too-long":
+            return t("vocabulary.reason.key-too-long", "key too long");
+        case "empty-key":
+            return t("vocabulary.reason.empty-key", "empty key");
+        case "duplicate-key":
+            return t("vocabulary.reason.duplicate-key", "duplicate key");
+        case "value-not-a-string":
+            return t("vocabulary.reason.value-not-a-string", "value not a string");
+        case "value-too-long":
+            return t("vocabulary.reason.value-too-long", "value too long");
+        case "read-failed":
+            return t("vocabulary.reason.read-failed", "read failed");
+        default:
+            return t(
+                "vocabulary.reason.unknown",
+                "the file does not match the expected format",
+            );
+    }
 }
 
 const description = computed(() =>

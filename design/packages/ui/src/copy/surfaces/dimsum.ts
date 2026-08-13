@@ -35,8 +35,8 @@ export const DIMSUM_VOICED = {
         en: [
             "A dim sum surprise:",
             "A small dim sum surprise:",
-            "Look what just rolled by on the trolley:",
-            "The steamer cart stopped by for a second:",
+            "Look what just rolled by on the dim sum trolley:",
+            "The dim sum trolley stopped by for a second:",
             "Surprise! The dim sum trolley snuck up on you:",
         ],
         yue: [

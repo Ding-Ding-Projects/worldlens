@@ -17,16 +17,16 @@ export const VOCABULARY_VOICED = {
         en: [
             "Upload your own local JSON file to replace specific words with your own, everywhere this app shows text. Nothing is sent anywhere, and nothing changes until you supply a file.",
             "Upload your own local JSON file to replace specific words with your own, everywhere this app shows text. Nothing is sent anywhere, and nothing changes until you supply a file.",
-            "Upload your own local JSON file to swap specific words for your own, everywhere this app shows text. Nothing leaves this machine, and nothing changes until you supply a file.",
-            "Upload your own local JSON file to swap specific words for your own, everywhere this app shows text. Nothing leaves this machine, and not one word changes until you actually supply a file.",
-            "Upload your own local JSON file and swap specific words for your own, everywhere this app opens its mouth. Nothing leaves this machine, and it says exactly what it always said until you hand it a file.",
+            "Upload your own local JSON file to swap specific words for your own, everywhere this app shows text. Nothing is sent anywhere, and nothing changes until you supply a file.",
+            "Upload your own local JSON file to swap specific words for your own, everywhere this app shows text. Nothing is sent anywhere, it never was, and nothing changes until you supply a file.",
+            "Upload your own local JSON file and swap specific words for your own, everywhere this app opens its mouth. Nothing is sent anywhere, not one byte, and nothing changes until you supply a file.",
         ],
         yue: [
             "上載你自己部機度嘅 JSON 檔案，將指定嘅字換成你自己揀嘅字，喺呢個程式顯示文字嘅任何地方都會生效。乜嘢都唔會傳去邊度，而且未上載檔案之前乜都唔會變。",
             "上載你自己部機度嘅 JSON 檔案，將指定嘅字換成你自己揀嘅字，喺呢個程式顯示文字嘅任何地方都會生效。乜嘢都唔會傳去邊度，而且未上載檔案之前乜都唔會變。",
-            "上載返你自己部機度嘅 JSON 檔案，將指定嘅字換成你自己揀嘅字，成個程式顯示文字嘅地方都會生效。乜嘢都唔會離開呢部機，而且未上載檔案之前乜都唔會變。",
-            "上載返你自己部機度嘅 JSON 檔案，將指定嘅字換成你自己揀嘅字，成個程式顯示文字嘅地方都會生效。乜嘢都唔會離開呢部機，而且一隻字都唔會變，直到你真係上載咗個檔案。",
-            "上載返你自己部機度嘅 JSON 檔案，成個程式一開口就用你自己揀嘅字。乜嘢都唔會離開呢部機，而且未上載檔案之前，佢照樣講返本來嗰句。",
+            "上載返你自己部機度嘅 JSON 檔案，將指定嘅字換成你自己揀嘅字，成個程式顯示文字嘅地方都會生效。乜嘢都唔會傳去邊度，而且未上載檔案之前乜都唔會變。",
+            "上載返你自己部機度嘅 JSON 檔案，將指定嘅字換成你自己揀嘅字，成個程式顯示文字嘅地方都會生效。乜嘢都唔會傳去邊度，而且未上載檔案之前乜都唔會變。",
+            "上載返你自己部機度嘅 JSON 檔案，成個程式一開口就用你自己揀嘅字。乜嘢都唔會傳去邊度，而且未上載檔案之前，未上載檔案之前乜都唔會變，佢照樣講返本來嗰句。",
         ],
     },
     "vocabulary.upload.noFile": {
@@ -35,14 +35,14 @@ export const VOCABULARY_VOICED = {
             "No vocabulary file supplied. Everything is shown in its original wording.",
             "No vocabulary file supplied yet, so everything is shown in its original wording.",
             "No vocabulary file supplied yet, so everything on screen is still in its original wording.",
-            "No vocabulary file has turned up yet, so everything on screen is still speaking in its original, unedited wording.",
+            "No vocabulary file has turned up yet, so everything on screen is still speaking in its original wording, unedited.",
         ],
         yue: [
             "未上載過詞彙檔案，全部文字都用返原本嘅字眼。",
             "未上載過詞彙檔案，全部文字都用返原本嘅字眼。",
             "重未上載過詞彙檔案，所以全部文字都用返原本嘅字眼。",
             "重未上載過詞彙檔案，所以畫面上嘅嘢全部都用返原本嘅字眼。",
-            "詞彙檔案重未現身，所以畫面上嘅嘢全部都照講返原汁原味嘅字眼。",
+            "未上載過詞彙檔案，個檔案重未現身，所以畫面上嘅嘢全部都照講返原本嘅字眼。",
         ],
     },
     "vocabulary.upload.loaded": {
@@ -67,20 +67,19 @@ export const VOCABULARY_VOICED = {
             "That file was not applied: {reason} Nothing already on screen was changed.",
             "That file was not applied: {reason} Nothing already on screen changed as a result.",
             "That file was not applied. {reason} Nothing already on screen changed - a rejected file never applies partially.",
-            "That file was turned away at the door: {reason} Nothing already on screen so much as flickered - a rejected file never applies partially.",
+            "That file was not applied, turned away at the door: {reason} Nothing already on screen so much as flickered, and a rejected file never applies partially.",
         ],
         yue: [
             "呢個檔案冇被採用：{reason} 畫面上原有嘅嘢冇變過。",
             "呢個檔案冇被採用：{reason} 畫面上原有嘅嘢冇變過。",
             "呢個檔案冇被採用：{reason} 畫面上原有嘅嘢完全冇變過。",
-            "呢個檔案冇被採用。{reason} 畫面上原有嘅嘢冇變過－俾拒絕嘅檔案唔會部分生效。",
-            "呢個檔案喺門口就俾人截返轉頭：{reason} 畫面上原有嘅嘢郁都冇郁過－俾拒絕嘅檔案唔會部分生效。",
+            "呢個檔案冇被採用。{reason} 畫面上原有嘅嘢冇變過，俾拒絕嘅檔案唔會部分生效。",
+            "呢個檔案冇被採用，喺門口就俾人截返轉頭：{reason} 畫面上原有嘅嘢郁都冇郁過，俾拒絕嘅檔案唔會部分生效。",
         ],
     },
 } as const satisfies Record<string, VoicedString>;
 
 export const VOCABULARY_FIXED = {
-    "vocabulary.upload.title": { en: "Personal vocabulary", yue: "個人詞彙" },
     "vocabulary.upload.chooseFile": {
         en: "Choose a vocabulary file...",
         yue: "揀一個詞彙檔案…",
