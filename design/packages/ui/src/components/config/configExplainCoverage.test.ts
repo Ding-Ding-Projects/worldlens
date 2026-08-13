@@ -3,7 +3,7 @@
  * editor shows gets the full explanation with its disclosure toggle, and the
  * default-provenance line, truthfully.
  *
- * `ConfigField.vue` has always carried that pair for the 154 settings
+ * `ConfigField.vue` has always carried that pair for the 155 settings
  * `configSearch.test.ts`'s `buildSettingIndex()` counts. This file adds the two
  * places that count does not reach, because neither is a `FieldMeta` a whole
  * config file owns: a render mask's own shape fields (`MASK_SHAPES`, rendered by
@@ -94,11 +94,11 @@ function everyExplainedField(): { source: string; field: FieldMeta }[] {
 }
 
 describe("every setting gets the full explanation and the provenance line", () => {
-    it("reaches the number the three sources are supposed to add up to: 154 + 27 mask + 4 marker-set", () => {
+    it("reaches the number the three sources are supposed to add up to: 155 + 27 mask + 4 marker-set", () => {
         const fields = everyExplainedField();
         // Guards the guard: a scanner that silently stopped walking one of the three
         // sources would still pass every per-field assertion below, on a smaller list.
-        expect(fields).toHaveLength(154 + 27 + 4);
+        expect(fields).toHaveLength(155 + 27 + 4);
     });
 
     it("gives every one of them a non-empty explanation", () => {
@@ -122,7 +122,7 @@ describe("every setting gets the full explanation and the provenance line", () =
         expect(unmarked).toEqual([]);
     });
 
-    it("leaves the 154 top-level settings on their default provenance, since every one of them really is upstream's own comment", () => {
+    it("leaves the 155 top-level settings on their default provenance, since every one of them really is upstream's own comment", () => {
         const wronglyMarked = everyExplainedField()
             .filter(({ source, field }) => !source.startsWith("mask:") && !source.startsWith("marker-set:") && field.docSource === "authored")
             .map(({ source }) => source);

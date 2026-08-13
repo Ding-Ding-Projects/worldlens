@@ -6,7 +6,7 @@
  * "show the rest of the explanation" toggle once `field.doc` runs past three
  * lines, and a line underneath the control saying whether the current file wrote
  * this setting or is quietly inheriting BlueMap's own default. That pair applies
- * to every one of the 154 settings a config file's own top-level schema reaches
+ * to every one of the 155 settings a config file's own top-level schema reaches
  * (`configSearch.test.ts` pins that count), because `ConfigFileForm.vue` renders
  * every field of every group through `ConfigField.vue` with no per-field opt-out.
  *

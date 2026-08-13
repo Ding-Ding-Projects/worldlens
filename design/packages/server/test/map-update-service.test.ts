@@ -90,6 +90,91 @@ class FakeChunk {
     }
 }
 
+type PendingWatchTake = {
+    resolve: (events: Vector2i[]) => void;
+    reject: (reason: unknown) => void;
+};
+
+type PendingWatchPoll = {
+    resolve: (events: Vector2i[] | null) => void;
+    reject: (reason: unknown) => void;
+    timer: ReturnType<typeof setTimeout>;
+};
+
+/**
+ * A controllable watch service for timing-only assertions. The real chokidar-backed
+ * service remains in the filesystem and worldgen tests; this fixture removes host
+ * scheduling from the one assertion whose contract is the cooldown arithmetic itself.
+ */
+class ManualWatchService implements WatchService<Vector2i> {
+    private closed = false;
+    private readonly queuedBatches: Vector2i[][] = [];
+    private readonly pendingTakes: PendingWatchTake[] = [];
+    private readonly pendingPolls: PendingWatchPoll[] = [];
+
+    poll(): Vector2i[] | null;
+    poll(timeoutMs: number): Promise<Vector2i[] | null>;
+    poll(timeoutMs?: number): Vector2i[] | null | Promise<Vector2i[] | null> {
+        if (timeoutMs === undefined) {
+            if (this.closed) throw new WatchService.ClosedException();
+            return this.queuedBatches.shift() ?? null;
+        }
+
+        if (this.closed) return Promise.reject(new WatchService.ClosedException());
+        const queued = this.queuedBatches.shift();
+        if (queued !== undefined) return Promise.resolve(queued);
+
+        return new Promise<Vector2i[] | null>((resolve, reject) => {
+            const pending: PendingWatchPoll = {
+                resolve,
+                reject,
+                timer: setTimeout(() => {
+                    const index = this.pendingPolls.indexOf(pending);
+                    if (index >= 0) this.pendingPolls.splice(index, 1);
+                    resolve(null);
+                }, timeoutMs),
+            };
+            this.pendingPolls.push(pending);
+        });
+    }
+
+    take(): Promise<Vector2i[]> {
+        if (this.closed) return Promise.reject(new WatchService.ClosedException());
+        const queued = this.queuedBatches.shift();
+        if (queued !== undefined) return Promise.resolve(queued);
+        return new Promise<Vector2i[]>((resolve, reject) => this.pendingTakes.push({ resolve, reject }));
+    }
+
+    emit(regionPos: Vector2i): void {
+        if (this.closed) throw new WatchService.ClosedException();
+        const take = this.pendingTakes.shift();
+        if (take !== undefined) {
+            take.resolve([regionPos]);
+            return;
+        }
+
+        const poll = this.pendingPolls.shift();
+        if (poll !== undefined) {
+            clearTimeout(poll.timer);
+            poll.resolve([regionPos]);
+            return;
+        }
+
+        this.queuedBatches.push([regionPos]);
+    }
+
+    async close(): Promise<void> {
+        if (this.closed) return;
+        this.closed = true;
+        const error = new WatchService.ClosedException();
+        for (const take of this.pendingTakes.splice(0)) take.reject(error);
+        for (const poll of this.pendingPolls.splice(0)) {
+            clearTimeout(poll.timer);
+            poll.reject(error);
+        }
+    }
+}
+
 function fakeWorldOverRegionFolder(regionFolder: string, watchServiceOverride?: () => WatchService<Vector2i>): World {
     const regionGrid = new Grid(64);
     const chunkGrid = new Grid(16);
@@ -265,26 +350,24 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         await service.close();
     });
 
-    it("stretches the delay by the cooldown so two real schedules of one region stay cooldownMs apart", { timeout: 15000 }, async () => {
+    it("stretches the delay by the cooldown so two queued schedules of one region stay cooldownMs apart", { timeout: 15000 }, async () => {
         const regionFolder = join(root, "region");
-        const map = await buildMapOverRegionFolder(regionFolder);
+        const watchService = new ManualWatchService();
+        const map = await buildMapOverRegionFolder(regionFolder, () => watchService);
         const manager = new RenderManager();
         // cooldown well above the floor, so the second schedule must wait for the cooldown
         // rather than for the (much shorter) floor.
         const service = new MapUpdateService(manager, map, { regionUpdateCooldownMs: 600, minUpdateDelayMs: 30 });
 
         service.start();
-        await watcherReady(service);
-
-        const regionFile = join(regionFolder, "r.7.7.mca");
-        writeFileSync(regionFile, "a");
+        watchService.emit(new Vector2i(7, 7));
 
         // wait for the first schedule to fire (floor is 30ms)
         await waitForScheduledRenderTaskCount(manager, 1);
 
-        // touch again shortly after the first fired: timeSinceLastUpdate is small, so the
+        // emit again shortly after the first fired: timeSinceLastUpdate is small, so the
         // cooldown (600ms) should dominate the max(...) rather than the 30ms floor.
-        writeFileSync(regionFile, "ab");
+        watchService.emit(new Vector2i(7, 7));
         await new Promise((resolve) => setTimeout(resolve, 250));
         // still only one task: the second schedule has not fired yet, because it is waiting
         // out the cooldown rather than the floor.

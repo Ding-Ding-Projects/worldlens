@@ -131,9 +131,9 @@ describe("the generated changelog", () => {
         }
     });
 
-    it("keeps the trailers out of the bodies it will search and export", () => {
+    it("keeps trailers out of the bodies it will search and export", () => {
         for (const entry of entries) {
-            expect(entry.details).not.toMatch(/Co-Authored-By:\s*$/);
+            expect(entry.details).not.toContain("Co-Authored-By:");
         }
     });
 

@@ -196,11 +196,13 @@ function canonicalDate(date) {
  *
  * `Co-Authored-By:` and friends are metadata about who wrote the commit, not a description of
  * what changed, and leaving them in means every search for a word that happens to appear in a
- * name matches half the changelog. Only a trailing run of `Key: value` lines is removed, so a
- * body that merely contains a colon keeps every word of it.
+ * name matches half the changelog. Commit bodies normally contain real newlines, but a shell
+ * can also leave literal `\\n` escapes behind; decode those before finding the trailing metadata
+ * run so a malformed body does not turn a trailer into public prose. Only a trailing run of
+ * `Key: value` lines is removed, so a body that merely contains a colon keeps every word of it.
  */
 function stripTrailers(body) {
-    const lines = body.replace(/\r\n/g, "\n").split("\n");
+    const lines = body.replace(/\r\n/g, "\n").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").split("\n");
     while (lines.length > 0 && (lines.at(-1) ?? "").trim() === "") lines.pop();
     while (lines.length > 0 && /^[A-Za-z][A-Za-z-]*:\s/.test(lines.at(-1) ?? "")) lines.pop();
     while (lines.length > 0 && (lines.at(-1) ?? "").trim() === "") lines.pop();

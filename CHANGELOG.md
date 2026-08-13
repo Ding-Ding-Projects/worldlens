@@ -22,6 +22,8 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge remote-tracking branch 'origin/main' - [`9b46be16bf`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b46be16bf26ad8c64495ea1abc98a821f982a68) _(summary of 3 commits, also listed here)_
+- Align legacy identity and docs inventories - [`f41d3289a8`](https://github.com/Ding-Ding-Projects/worldlens/commit/f41d3289a8ab9e7888c4dd93c201904b2296837a)
 - Harden updates, streams, and region watchers - [`57f1141c51`](https://github.com/Ding-Ding-Projects/worldlens/commit/57f1141c51227c9341afffca3ef0bc3961132692)
 - Rebuild the BlueMap jars when the source moves, and say when upstream has moved - [`ee6b0a2d25`](https://github.com/Ding-Ding-Projects/worldlens/commit/ee6b0a2d251ab30ec0a6ae0f89f9bbd4b75d7533)
 - Make five unreachable surfaces reachable, and show update download progress - [`00ddd0e8f2`](https://github.com/Ding-Ding-Projects/worldlens/commit/00ddd0e8f2069d05a8ebd01c4130ab4380633077)
@@ -30,12 +32,25 @@ full message for the in-app changelog viewer.
 - Capture the eight new surfaces, and register four pages the tab strip never knew about - [`b32ad1c275`](https://github.com/Ding-Ding-Projects/worldlens/commit/b32ad1c275b7c9122279a7380e05f22ff7961dd0)
 - Stop the account load writing into a screen somebody has already left - [`efab5f3cfa`](https://github.com/Ding-Ding-Projects/worldlens/commit/efab5f3cfa02f01e3a30bb3f6fc8d58e9377b4f4)
 
+### Server, CLI and configuration
+
+- Widen watcher wait bounds under contention - [`0e900ac568`](https://github.com/Ding-Ding-Projects/worldlens/commit/0e900ac5681974ac409e59f9308ee685d63118a0)
+- Make watcher timing checks contention-safe - [`fbf70c32d4`](https://github.com/Ding-Ding-Projects/worldlens/commit/fbf70c32d42e06fa457ffac9b65da68493ca5d2e)
+- Model upstream client decompression - [`856fcc0a59`](https://github.com/Ding-Ding-Projects/worldlens/commit/856fcc0a5941e14f396b3f1a4cf119319ed11110)
+
+### Desktop shell
+
+- Assert the canonical credential helper path - [`270b250463`](https://github.com/Ding-Ding-Projects/worldlens/commit/270b250463c045f9e1689da4c41d21b21ce2e142)
+
 ### Build, release and tooling
 
 - Advance BlueMap to v5.23, and fix two defects the upgrade itself exposed - [`763684e772`](https://github.com/Ding-Ding-Projects/worldlens/commit/763684e77258b5ee6276e4f83720bb524446085f)
 
 ### Documentation
 
+- Reconcile capture updates with configuration fixes - [`3e35525aaf`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e35525aaf372ea674a18f4cbfb870511d58d8dd) _(summary of 4 commits, also listed here)_
+- Refresh the capture gallery against the merged tree - [`855fdf219f`](https://github.com/Ding-Ding-Projects/worldlens/commit/855fdf219ff4a601bd58b2b3c7356e845e8b961a)
+- Fix seven defects an adversarial pass found in the day's own work - [`eff400fb81`](https://github.com/Ding-Ding-Projects/worldlens/commit/eff400fb81e8ee493ee7d3fe36664e3a49ab8b86)
 - Lead with the map, and replace every capture from one run against a real world - [`eae243da7e`](https://github.com/Ding-Ding-Projects/worldlens/commit/eae243da7ec4fc60f93980e8bbafc30ba3ddd756)
 - Give markers their own documentation category, and add a worked Bayville example - [`807491d0de`](https://github.com/Ding-Ding-Projects/worldlens/commit/807491d0de631b8b30acf97e57a751c27eb5b529)
 - Paint the Home layer's own background instead of borrowing a child's - [`80f1e51573`](https://github.com/Ding-Ding-Projects/worldlens/commit/80f1e51573d9dc744d684b8b99a9673d6ac008ce)
