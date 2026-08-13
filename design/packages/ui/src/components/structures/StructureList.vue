@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCubeOutline, mdiOpenInNew } from "@mdi/js";
 import { VAlert, VBtn, VCheckbox, VList, VListItem } from "vuetify/components";
@@ -7,6 +7,7 @@ import { VAlert, VBtn, VCheckbox, VList, VListItem } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import { resolveWorldBridge, type RenderMapRequest, type WorldBridge } from "../world/worldBridge.js";
 import {
     groupByNamespace,
     renderedStructureSearchText,
@@ -20,6 +21,7 @@ import {
     renderedFor,
     structureStore,
 } from "./structureStore.js";
+import { useStructureHost, type StructureHost } from "./structureHost.js";
 
 /**
  * Every structure file a world scan found, and one render per structure.
@@ -48,8 +50,19 @@ const props = withDefaults(
         files: readonly StructureFile[];
         /** False when this build has no way to scan a world's filesystem at all. */
         canScan?: boolean;
+        /**
+         * The world folder to scan on mount, when this list should discover its own files
+         * rather than being handed them.
+         *
+         * Optional and separate from `files` on purpose: a surface that already scans a
+         * world for other reasons (the wizard, the world screen's own project loading) can
+         * keep doing that and pass the result in as `files`, exactly as before this
+         * existed. This is for the common case - a Structures tab mounted on its own,
+         * against one world, with nothing upstream to hand it a list.
+         */
+        worldFolder?: string | null;
     }>(),
-    { canScan: true },
+    { canScan: true, worldFolder: null },
 );
 
 const emit = defineEmits<{
@@ -57,6 +70,46 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+/* -------------------------------------------------------------------------- */
+/* Self-discovery, when a world folder was handed to this list directly       */
+/* -------------------------------------------------------------------------- */
+
+const structureHost: StructureHost | null = useStructureHost();
+const discoveredFromHost = ref<readonly StructureFile[] | null>(null);
+/** Set when a self-discovery scan could not run at all, distinct from "found nothing". */
+const discoverFailure = ref<string | null>(null);
+
+async function runDiscovery(worldFolder: string | null): Promise<void> {
+    discoverFailure.value = null;
+    if (worldFolder === null || structureHost === null) {
+        discoveredFromHost.value = null;
+        return;
+    }
+    try {
+        discoveredFromHost.value = await structureHost.discover(worldFolder);
+    } catch (error) {
+        discoveredFromHost.value = null;
+        discoverFailure.value = error instanceof Error ? error.message : String(error);
+    }
+}
+
+onMounted(() => {
+    void runDiscovery(props.worldFolder);
+});
+watch(
+    () => props.worldFolder,
+    (next) => {
+        void runDiscovery(next);
+    },
+);
+
+/** `files` as handed in, unless this list discovered its own from a world folder. */
+const effectiveFiles = computed(() => discoveredFromHost.value ?? props.files);
+/** False only when there is truly no way to know what this world holds. */
+const effectiveCanScan = computed(() =>
+    props.worldFolder !== null ? structureHost !== null : props.canScan,
+);
 
 /* -------------------------------------------------------------------------- */
 /* Discovered structures                                                      */
@@ -71,31 +124,77 @@ const discoveredMatcher = computed(() =>
 );
 
 const filteredFiles = computed(() =>
-    props.files.filter((file) => discoveredMatcher.value.test(structureSearchText(file))),
+    effectiveFiles.value.filter((file) => discoveredMatcher.value.test(structureSearchText(file))),
 );
 
 const groups = computed(() => groupByNamespace(filteredFiles.value));
 
-const discoveredCorpus = computed(() => props.files.map(structureSearchText).join("\n"));
+const discoveredCorpus = computed(() => effectiveFiles.value.map(structureSearchText).join("\n"));
 
 const discoveredSummary = computed(() =>
     discoveredQuery.value === ""
         ? ""
         : t(
               "structures.list.discoveredSummary",
-              { shown: filteredFiles.value.length, total: props.files.length },
+              { shown: filteredFiles.value.length, total: effectiveFiles.value.length },
               "{shown} of {total} structures match.",
           ),
 );
 
-function render(file: StructureFile): void {
-    recordRender({
-        id: crypto.randomUUID(),
-        structureId: file.id,
-        name: file.name,
-        dataRoot: file.path,
-        renderedAt: new Date().toISOString(),
-    });
+/**
+ * True while a structure's render is in flight, keyed by structure id.
+ *
+ * There is no structure-specific renderer anywhere in this application: BlueMap draws a
+ * *world*, not one captured `.nbt` file. The honest adaptation this button makes is to
+ * start an ordinary world render, pointed at the world the structure file lives in, and
+ * record the result against the structure once it finishes - which is exactly what
+ * `renderedFor`/`recordRender` already model as "the render made from this structure". A
+ * future structure-only renderer would replace the body of this function without touching
+ * anything else in this file.
+ */
+const rendering = ref(new Set<string>());
+
+function structureWorldFolder(_file: StructureFile): string | null {
+    // `worldFolder` is trusted over guessing from `file.path`: this list may be showing
+    // structures that were handed in from a scan of a *different* world folder spelling
+    // (a symlink, a mapped drive letter) than the one this render bridge would recognise,
+    // and the prop is the one value this component was actually told is the world.
+    return props.worldFolder;
+}
+
+async function render(file: StructureFile): Promise<void> {
+    const world = structureWorldFolder(file);
+    const bridge: WorldBridge | null = resolveWorldBridge();
+    if (world === null || bridge === null) {
+        // No world to render and no bridge to render it with - both are build/context
+        // limits rather than user mistakes, and `structures.list.render` button being
+        // disabled once a render is already recorded is the only gating this list does.
+        return;
+    }
+    if (rendering.value.has(file.id)) return;
+    rendering.value = new Set(rendering.value).add(file.id);
+
+    try {
+        const mapRequest: RenderMapRequest = {
+            id: `structure-${file.id}`,
+            world,
+            name: file.name,
+        };
+        const result = await bridge.startRender({ maps: [mapRequest] });
+        if (result.ok) {
+            recordRender({
+                id: crypto.randomUUID(),
+                structureId: file.id,
+                name: file.name,
+                dataRoot: result.dataRoot,
+                renderedAt: new Date().toISOString(),
+            });
+        }
+    } finally {
+        const next = new Set(rendering.value);
+        next.delete(file.id);
+        rendering.value = next;
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -188,7 +287,7 @@ function isRendered(file: StructureFile): boolean {
             </span>
         </VAlert>
 
-        <template v-if="!canScan">
+        <template v-if="!effectiveCanScan">
             <p class="mb-structure-list__empty" data-test="structure-cannot-scan">
                 {{
                     t(
@@ -200,7 +299,21 @@ function isRendered(file: StructureFile): boolean {
         </template>
 
         <template v-else>
-            <p v-if="files.length === 0" class="mb-structure-list__empty" data-test="structure-empty">
+            <p
+                v-if="discoverFailure !== null"
+                class="mb-structure-list__empty"
+                data-test="structure-discover-failure"
+            >
+                {{
+                    t(
+                        "structures.list.discoverFailed",
+                        { message: discoverFailure },
+                        "Scanning this world for structures did not work: {message}",
+                    )
+                }}
+            </p>
+
+            <p v-else-if="effectiveFiles.length === 0" class="mb-structure-list__empty" data-test="structure-empty">
                 {{ t("structures.list.empty", "No structures found in this world.") }}
             </p>
 
@@ -246,7 +359,8 @@ function isRendered(file: StructureFile): boolean {
                                     variant="tonal"
                                     color="primary"
                                     :prepend-icon="mdiCubeOutline"
-                                    :disabled="isRendered(file)"
+                                    :disabled="isRendered(file) || rendering.has(file.id)"
+                                    :loading="rendering.has(file.id)"
                                     data-test="structure-render"
                                     @click="render(file)"
                                 >
