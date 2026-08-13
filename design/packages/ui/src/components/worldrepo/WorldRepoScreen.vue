@@ -602,12 +602,26 @@ async function adoptPlan(): Promise<void> {
     }
 }
 
+/**
+ * False once this screen has gone, so a round trip that outlives it stops rather than
+ * writing into a component nobody is looking at.
+ *
+ * The account load below is a real network round trip and a person can navigate away
+ * during it. Unguarded, its continuation ran after teardown and reached `t()` with no
+ * `window` left to resolve a message format against, which surfaces as an unhandled
+ * rejection with no failing test beside it: every assertion passes and the run still exits
+ * non-zero. It only shows up under load, which is the worst way for a defect to announce
+ * itself.
+ */
+let live = true;
+
 onMounted(() => {
     if (bridge !== null) {
         void wr.loadRecords();
     }
     if (accountsList.canList) {
         void accountsList.load().then(() => {
+            if (!live) return;
             accountsLoaded.value = true;
             void loadAccountScope();
         });
@@ -618,6 +632,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    live = false;
     wr.dispose();
 });
 
