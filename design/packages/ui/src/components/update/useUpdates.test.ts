@@ -53,7 +53,9 @@ function fakeBridge(
         },
         restart: (_unsavedWork) => {
             counters.restarts += 1;
-            return Promise.resolve(options.restart ?? { ok: true, version: "0.2.0" });
+            return Promise.resolve(
+                options.restart ?? { ok: true, version: "0.2.0", transition: "requested" },
+            );
         },
         onUpdateEvent: (listener) => {
             listeners.push(listener);
@@ -218,6 +220,27 @@ describe("createUpdates", () => {
         expect(updates.refusal.value).toBeNull();
     });
 
+    it("does not let a stale check snapshot overwrite a newer pushed state", async () => {
+        const fake = fakeBridge();
+        let resolveCheck: ((state: UpdateState) => void) | undefined;
+        const bridge: UpdateBridge = {
+            ...fake.bridge,
+            check: () =>
+                new Promise<UpdateState>((resolve) => {
+                    resolveCheck = resolve;
+                }),
+        };
+        const updates = createUpdates({ bridge });
+        const pending = updates.check();
+        const staged = ready();
+        fake.push(staged);
+
+        resolveCheck?.({ ...unknownUpdateState("0.1.0"), checking: true });
+        await pending;
+
+        expect(updates.state.value).toEqual(staged);
+    });
+
     it("turns a bridge that rejects into a refusal instead of an unhandled rejection", async () => {
         const fake = fakeBridge();
         const broken: UpdateBridge = {
@@ -227,6 +250,25 @@ describe("createUpdates", () => {
         const updates = createUpdates({ bridge: broken });
         await updates.check();
         expect(updates.refusal.value).toBe("older preload");
+    });
+
+    it("turns a rejected restart bridge into a refusal value", async () => {
+        const seen: string[] = [];
+        const fake = fakeBridge();
+        const broken: UpdateBridge = {
+            ...fake.bridge,
+            restart: () => Promise.reject(new Error("IPC closed")),
+        };
+        const updates = createUpdates({
+            bridge: broken,
+            onRefusal: (message) => seen.push(message),
+        });
+        fake.push(ready());
+
+        const answer = await updates.restart();
+        expect(answer).toEqual({ ok: false, code: "failed", message: "IPC closed" });
+        expect(updates.refusal.value).toBe("IPC closed");
+        expect(seen).toEqual(["IPC closed"]);
     });
 
     it("hides Restart when the build can report but not install", () => {

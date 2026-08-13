@@ -293,7 +293,10 @@ describe("the discovered-worlds panel, wired into the tab", () => {
 
         // The edit is queued for the main process's quiet scheduler the moment it exists,
         // and nothing is written from the renderer's side of the bridge.
-        expect(notifyAutosaveChange).toHaveBeenCalledWith(folder, withRender(initial, { force: true }));
+        expect(notifyAutosaveChange).toHaveBeenCalledWith(
+            folder,
+            withRender(initial, { force: true }),
+        );
         expect(host.written).toHaveLength(0);
         expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
 
@@ -304,6 +307,48 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         expect(flushAutosave).toHaveBeenCalledWith(folder, "boundary");
         expect(host.written).toHaveLength(0);
         view.unmount();
+    });
+
+    it("unsubscribes the autosave listener when the project surface unmounts", async () => {
+        const stop = vi.fn();
+        const onAutosaveEvent = vi.fn(() => stop);
+        const host = { ...fakeHost(), onAutosaveEvent };
+        const view = screen(host, null);
+        await flushPromises();
+
+        expect(onAutosaveEvent).toHaveBeenCalledTimes(1);
+        expect(stop).not.toHaveBeenCalled();
+
+        view.unmount();
+
+        expect(stop).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not clear dirty-state protection when an edited page unmounts", async () => {
+        const path = "/home/ada/.minecraft/saves/Bastion";
+        const initial = withRender(createProject("Bastion"), { route: "github-actions" });
+        const host = {
+            ...fakeHost(),
+            readProject: async () => ({
+                ok: true as const,
+                file: `${path}/worldlens.project.json`,
+                project: initial,
+            }),
+        };
+        const view = screen(host, null, { openWorld: path });
+        await flushPromises();
+        await flushPromises();
+
+        const editor = view.findComponent(ProjectEditor);
+        expect(editor.exists()).toBe(true);
+        editor.vm.$emit("update:project", withRender(initial, { force: true }));
+        await flushPromises();
+        expect(view.emitted("dirty-change")?.at(-1)).toEqual([true]);
+        const dirtySignals = view.emitted("dirty-change");
+
+        view.unmount();
+
+        expect(dirtySignals?.at(-1)).toEqual([true]);
     });
 
     it("still writes through the explicit Save event, beside the autosave queue", async () => {

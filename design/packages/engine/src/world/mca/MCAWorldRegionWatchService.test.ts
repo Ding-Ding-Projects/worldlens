@@ -3,10 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { WatchService } from "../../util/WatchService.js";
-import { MCAWorldRegionWatchService } from "./MCAWorldRegionWatchService.js";
+import {
+    MCAWorldRegionWatchService,
+    usesPollingForCurrentRuntime,
+} from "./MCAWorldRegionWatchService.js";
 
 describe("MCAWorldRegionWatchService", () => {
-    let tempDir: string;
+    let tempDir = "";
     let service: MCAWorldRegionWatchService | null = null;
 
     function createTempDir(): string {
@@ -14,29 +17,40 @@ describe("MCAWorldRegionWatchService", () => {
         return tempDir;
     }
 
+    it("uses polling only for the Node 26 Windows watcher crash", () => {
+        expect(usesPollingForCurrentRuntime("win32", "26.5.0")).toBe(true);
+        expect(usesPollingForCurrentRuntime("win32", "25.9.0")).toBe(false);
+        expect(usesPollingForCurrentRuntime("linux", "26.5.0")).toBe(false);
+    });
+
     afterEach(async () => {
         await service?.close();
         service = null;
-        rmSync(tempDir, { recursive: true, force: true });
+        if (tempDir.length > 0) rmSync(tempDir, { recursive: true, force: true });
+        tempDir = "";
     });
 
-    it("emits region-positions for created and changed region-files", { timeout: 15000 }, async () => {
-        const regionFolder = createTempDir();
-        service = new MCAWorldRegionWatchService(regionFolder);
-        await service.whenReady();
+    it(
+        "emits region-positions for created and changed region-files",
+        { timeout: 15000 },
+        async () => {
+            const regionFolder = createTempDir();
+            service = new MCAWorldRegionWatchService(regionFolder);
+            await service.whenReady();
 
-        const takePromise = service.take();
-        writeFileSync(join(regionFolder, "r.1.-2.mca"), "data");
+            const takePromise = service.take();
+            writeFileSync(join(regionFolder, "r.1.-2.mca"), "data");
 
-        const batch = await takePromise;
-        expect(batch.map((pos) => pos.getX() + "," + pos.getY())).toEqual(["1,-2"]);
+            const batch = await takePromise;
+            expect(batch.map((pos) => pos.getX() + "," + pos.getY())).toEqual(["1,-2"]);
 
-        // a modification of the same file emits the position again
-        const nextTake = service.take();
-        writeFileSync(join(regionFolder, "r.1.-2.mca"), "more data");
-        const nextBatch = await nextTake;
-        expect(nextBatch.map((pos) => pos.getX() + "," + pos.getY())).toEqual(["1,-2"]);
-    });
+            // a modification of the same file emits the position again
+            const nextTake = service.take();
+            writeFileSync(join(regionFolder, "r.1.-2.mca"), "more data");
+            const nextBatch = await nextTake;
+            expect(nextBatch.map((pos) => pos.getX() + "," + pos.getY())).toEqual(["1,-2"]);
+        },
+    );
 
     it("coalesces pending events and ignores non-region files", { timeout: 15000 }, async () => {
         const regionFolder = createTempDir();

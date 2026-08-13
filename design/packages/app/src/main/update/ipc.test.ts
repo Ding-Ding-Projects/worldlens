@@ -183,7 +183,7 @@ describe("registerUpdateHandlers", () => {
         const result = (await ipcMain.handlers.get("update:restart")?.(noEvent, {
             unsavedWork: false,
         })) as UpdateRestartResult;
-        expect(result).toEqual({ ok: true, version: "0.2.0" });
+        expect(result).toEqual({ ok: true, version: "0.2.0", transition: "requested" });
         expect(engine.installs).toBe(1);
         installed.dispose();
     });

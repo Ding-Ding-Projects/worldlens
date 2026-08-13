@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId } from "vue";
+import { computed, onBeforeUnmount, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiAlertCircleOutline,
@@ -17,7 +17,12 @@ import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
 import { type DayKey } from "../changelog/changelogDates.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import { restore, type Notice, type NoticeLevel, type NoticeState } from "../config/notifications.js";
+import {
+    restore,
+    type Notice,
+    type NoticeLevel,
+    type NoticeState,
+} from "../config/notifications.js";
 import {
     NOTICE_LEVELS,
     countByLevel,
@@ -87,6 +92,8 @@ const to = ref<DayKey | null>(null);
 const filtersOpen = ref(false);
 
 const copied = ref(false);
+let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+let alive = true;
 
 /**
  * Bulk selection: which ids are picked, and the last plain-clicked id a shift-click extends
@@ -228,14 +235,23 @@ async function copyVisible(): Promise<void> {
     const text = formatNoticesAsMarkdown(visible.value);
     try {
         await navigator.clipboard.writeText(text);
+        if (!alive) return;
+        if (copiedTimer !== null) clearTimeout(copiedTimer);
         copied.value = true;
-        setTimeout(() => {
+        copiedTimer = setTimeout(() => {
             copied.value = false;
+            copiedTimer = null;
         }, 2000);
     } catch {
         copied.value = false;
     }
 }
+
+onBeforeUnmount(() => {
+    alive = false;
+    if (copiedTimer !== null) clearTimeout(copiedTimer);
+    copiedTimer = null;
+});
 </script>
 
 <template>
@@ -245,7 +261,9 @@ async function copyVisible(): Promise<void> {
         :aria-label="t('notices.centre.title', 'Notification centre')"
     >
         <header class="mb-notice-centre__head">
-            <h2 class="mb-notice-centre__heading">{{ t("notices.centre.title", "Notification centre") }}</h2>
+            <h2 class="mb-notice-centre__heading">
+                {{ t("notices.centre.title", "Notification centre") }}
+            </h2>
             <v-btn
                 :icon="mdiClose"
                 :aria-label="t('notices.centre.close', 'Close the notification centre')"
@@ -319,7 +337,13 @@ async function copyVisible(): Promise<void> {
                         density="comfortable"
                         @click="toggleLevel(level)"
                     >
-                        {{ t("notices.centre.levelChip", { level: levelLabel(level), count: counts[level] }, "{level} ({count})") }}
+                        {{
+                            t(
+                                "notices.centre.levelChip",
+                                { level: levelLabel(level), count: counts[level] },
+                                "{level} ({count})",
+                            )
+                        }}
                     </v-btn>
                 </div>
             </div>
@@ -344,7 +368,12 @@ async function copyVisible(): Promise<void> {
             real button, so keyboard reach comes from the document rather than from a widget.
         -->
         <p v-if="state.history.length === 0" class="mb-notice-centre__empty">
-            {{ t("notices.centre.empty", "Nothing has been reported yet. Messages appear here after they leave the corner.") }}
+            {{
+                t(
+                    "notices.centre.empty",
+                    "Nothing has been reported yet. Messages appear here after they leave the corner.",
+                )
+            }}
         </p>
         <p v-else-if="visible.length === 0" class="mb-notice-centre__empty">
             {{
@@ -365,13 +394,22 @@ async function copyVisible(): Promise<void> {
                         :summary="noticeSummary(notice)"
                         @pick="onPick(notice.id, $event)"
                     />
-                    <v-icon :icon="LEVEL_ICONS[notice.level]" :color="notice.level" size="small" aria-hidden="true" />
+                    <v-icon
+                        :icon="LEVEL_ICONS[notice.level]"
+                        :color="notice.level"
+                        size="small"
+                        aria-hidden="true"
+                    />
                     <div class="mb-notice-centre__text">
                         <p class="mb-notice-centre__meta">
-                            <span class="mb-notice-centre__level-name">{{ levelLabel(notice.level) }}</span>
+                            <span class="mb-notice-centre__level-name">{{
+                                levelLabel(notice.level)
+                            }}</span>
                             <span>{{ notice.at }}</span>
                         </p>
-                        <p v-if="notice.title" class="mb-notice-centre__title">{{ notice.title }}</p>
+                        <p v-if="notice.title" class="mb-notice-centre__title">
+                            {{ notice.title }}
+                        </p>
                         <p class="mb-notice-centre__message">{{ notice.message }}</p>
                         <details v-if="notice.detail">
                             <summary>{{ t("notices.centre.detail", "Details") }}</summary>

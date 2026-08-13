@@ -38,12 +38,7 @@ export const STREAM_CHUNK_TIMEOUT_MS = 30_000;
 export const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 
 export type OllamaErrorKind =
-    | "unreachable"
-    | "timeout"
-    | "http"
-    | "oversized"
-    | "malformed"
-    | "aborted";
+    "unreachable" | "timeout" | "http" | "oversized" | "malformed" | "aborted";
 
 export interface OllamaApiError {
     readonly kind: OllamaErrorKind;
@@ -52,7 +47,9 @@ export interface OllamaApiError {
     readonly status?: number;
 }
 
-export type OllamaResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: OllamaApiError };
+export type OllamaResult<T> =
+    | { readonly ok: true; readonly value: T }
+    | { readonly ok: false; readonly error: OllamaApiError };
 
 function okResult<T>(value: T): OllamaResult<T> {
     return { ok: true, value };
@@ -87,11 +84,21 @@ interface RequestOptions {
  * unbounded stream into memory because a misbehaving daemon decided to send gigabytes.
  */
 async function readBoundedText(response: Response): Promise<OllamaResult<string>> {
+    const advertisedLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(advertisedLength) && advertisedLength > MAX_RESPONSE_BYTES) {
+        return errResult({
+            kind: "oversized",
+            message: "The response was larger than this client will read.",
+        });
+    }
     const reader = response.body?.getReader();
     if (!reader) {
         const text = await response.text();
         if (text.length > MAX_RESPONSE_BYTES) {
-            return errResult({ kind: "oversized", message: "The response was larger than this client will read." });
+            return errResult({
+                kind: "oversized",
+                message: "The response was larger than this client will read.",
+            });
         }
         return okResult(text);
     }
@@ -104,7 +111,10 @@ async function readBoundedText(response: Response): Promise<OllamaResult<string>
         bytes += value.byteLength;
         if (bytes > MAX_RESPONSE_BYTES) {
             await reader.cancel().catch(() => undefined);
-            return errResult({ kind: "oversized", message: "The response was larger than this client will read." });
+            return errResult({
+                kind: "oversized",
+                message: "The response was larger than this client will read.",
+            });
         }
         text += decoder.decode(value, { stream: true });
     }
@@ -117,9 +127,15 @@ async function request(
     init: RequestInit,
     options: RequestOptions,
 ): Promise<OllamaResult<string>> {
+    if (options.signal?.aborted === true) {
+        return errResult({ kind: "aborted", message: "The request was cancelled." });
+    }
     const fetchImpl = resolveFetch(options.fetchImpl);
     if (!fetchImpl) {
-        return errResult({ kind: "unreachable", message: "No HTTP client is available in this build to reach a local Ollama daemon." });
+        return errResult({
+            kind: "unreachable",
+            message: "No HTTP client is available in this build to reach a local Ollama daemon.",
+        });
     }
     const baseUrl = options.baseUrl ?? DEFAULT_OLLAMA_BASE_URL;
     const controller = new AbortController();
@@ -130,7 +146,10 @@ async function request(
     const onCallerAbort = () => controller.abort();
     options.signal?.addEventListener("abort", onCallerAbort);
     try {
-        const response = await fetchImpl(`${baseUrl}${path}`, { ...init, signal: controller.signal });
+        const response = await fetchImpl(`${baseUrl}${path}`, {
+            ...init,
+            signal: controller.signal,
+        });
         if (!response.ok) {
             const body = await readBoundedText(response);
             const detail = body.ok ? body.value.slice(0, 500) : "";
@@ -142,15 +161,19 @@ async function request(
         }
         return await readBoundedText(response);
     } catch (error) {
-        if (options.signal?.aborted === true) {
+        if (options.signal?.aborted) {
             return errResult({ kind: "aborted", message: "The request was cancelled." });
         }
         if (controller.signal.aborted) {
-            return errResult({ kind: "timeout", message: "The local Ollama daemon did not answer in time." });
+            return errResult({
+                kind: "timeout",
+                message: "The local Ollama daemon did not answer in time.",
+            });
         }
         return errResult({
             kind: "unreachable",
-            message: error instanceof Error ? error.message : "Could not reach a local Ollama daemon.",
+            message:
+                error instanceof Error ? error.message : "Could not reach a local Ollama daemon.",
         });
     } finally {
         clearTimeout(timer);
@@ -162,7 +185,10 @@ function parseJson<T>(text: string): OllamaResult<T> {
     try {
         return okResult(JSON.parse(text) as T);
     } catch {
-        return errResult({ kind: "malformed", message: "The local Ollama daemon's response was not valid JSON." });
+        return errResult({
+            kind: "malformed",
+            message: "The local Ollama daemon's response was not valid JSON.",
+        });
     }
 }
 
@@ -175,7 +201,9 @@ export interface OllamaVersion {
 }
 
 /** `GET /api/version`. Also doubles as the health probe: an answer means the daemon is up. */
-export async function fetchVersion(options: RequestOptions = {}): Promise<OllamaResult<OllamaVersion>> {
+export async function fetchVersion(
+    options: RequestOptions = {},
+): Promise<OllamaResult<OllamaVersion>> {
     const result = await request("/api/version", { method: "GET" }, options);
     if (!result.ok) return result;
     return parseJson<OllamaVersion>(result.value);
@@ -207,7 +235,9 @@ interface TagsResponse {
 }
 
 /** `GET /api/tags`: every model this daemon already has pulled. */
-export async function fetchInstalledModels(options: RequestOptions = {}): Promise<OllamaResult<readonly OllamaInstalledModel[]>> {
+export async function fetchInstalledModels(
+    options: RequestOptions = {},
+): Promise<OllamaResult<readonly OllamaInstalledModel[]>> {
     const result = await request("/api/tags", { method: "GET" }, options);
     if (!result.ok) return result;
     const parsed = parseJson<TagsResponse>(result.value);
@@ -228,10 +258,17 @@ export interface OllamaShowResult {
 }
 
 /** `POST /api/show`: metadata for one model, installed or not, when the daemon has it cached. */
-export async function showModel(name: string, options: RequestOptions = {}): Promise<OllamaResult<OllamaShowResult>> {
+export async function showModel(
+    name: string,
+    options: RequestOptions = {},
+): Promise<OllamaResult<OllamaShowResult>> {
     const result = await request(
         "/api/show",
-        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: name }) },
+        {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ model: name }),
+        },
         options,
     );
     if (!result.ok) return result;
@@ -243,10 +280,17 @@ export async function showModel(name: string, options: RequestOptions = {}): Pro
 /* -------------------------------------------------------------------------- */
 
 /** `DELETE /api/delete`: removes one installed model's local blob. */
-export async function deleteInstalledModel(name: string, options: RequestOptions = {}): Promise<OllamaResult<true>> {
+export async function deleteInstalledModel(
+    name: string,
+    options: RequestOptions = {},
+): Promise<OllamaResult<true>> {
     const result = await request(
         "/api/delete",
-        { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: name }) },
+        {
+            method: "DELETE",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ model: name }),
+        },
         options,
     );
     if (!result.ok) return result;
@@ -278,9 +322,15 @@ export async function pullModel(
     onProgress: (progress: OllamaPullProgress) => void,
     options: RequestOptions = {},
 ): Promise<OllamaResult<true>> {
+    if (options.signal?.aborted === true) {
+        return errResult({ kind: "aborted", message: "The pull was cancelled." });
+    }
     const fetchImpl = resolveFetch(options.fetchImpl);
     if (!fetchImpl) {
-        return errResult({ kind: "unreachable", message: "No HTTP client is available in this build to reach a local Ollama daemon." });
+        return errResult({
+            kind: "unreachable",
+            message: "No HTTP client is available in this build to reach a local Ollama daemon.",
+        });
     }
     const baseUrl = options.baseUrl ?? DEFAULT_OLLAMA_BASE_URL;
     const controller = new AbortController();
@@ -289,7 +339,10 @@ export async function pullModel(
     let chunkTimer: ReturnType<typeof setTimeout> | null = null;
     const resetChunkTimer = () => {
         if (chunkTimer !== null) clearTimeout(chunkTimer);
-        chunkTimer = setTimeout(() => controller.abort(), options.timeoutMs ?? STREAM_CHUNK_TIMEOUT_MS);
+        chunkTimer = setTimeout(
+            () => controller.abort(),
+            options.timeoutMs ?? STREAM_CHUNK_TIMEOUT_MS,
+        );
     };
 
     try {
@@ -301,7 +354,11 @@ export async function pullModel(
             signal: controller.signal,
         });
         if (!response.ok) {
-            return errResult({ kind: "http", status: response.status, message: `The pull request answered with HTTP ${response.status}.` });
+            return errResult({
+                kind: "http",
+                status: response.status,
+                message: `The pull request answered with HTTP ${response.status}.`,
+            });
         }
         const reader = response.body?.getReader();
         if (!reader) {
@@ -323,6 +380,28 @@ export async function pullModel(
         const decoder = new TextDecoder();
         let buffer = "";
         let totalBytes = 0;
+        const emitLine = (line: string): void => {
+            const trimmed = line.trim();
+            if (trimmed.length === 0) return;
+            try {
+                onProgress(JSON.parse(trimmed) as OllamaPullProgress);
+            } catch {
+                // Skipped: see the doc comment above.
+            }
+        };
+        const drainLines = (flush: boolean): void => {
+            if (flush) buffer += decoder.decode();
+            let newlineIndex = buffer.indexOf("\n");
+            while (newlineIndex >= 0) {
+                emitLine(buffer.slice(0, newlineIndex));
+                buffer = buffer.slice(newlineIndex + 1);
+                newlineIndex = buffer.indexOf("\n");
+            }
+            if (flush && buffer.trim().length > 0) {
+                emitLine(buffer);
+                buffer = "";
+            }
+        };
         for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -333,28 +412,26 @@ export async function pullModel(
                 // ceiling is wider, but it still has one: an endlessly repeating daemon must
                 // not be allowed to grow this buffer without bound.
                 await reader.cancel().catch(() => undefined);
-                return errResult({ kind: "oversized", message: "The pull progress stream was larger than this client will read." });
+                return errResult({
+                    kind: "oversized",
+                    message: "The pull progress stream was larger than this client will read.",
+                });
             }
             buffer += decoder.decode(value, { stream: true });
-            let newlineIndex = buffer.indexOf("\n");
-            while (newlineIndex >= 0) {
-                const line = buffer.slice(0, newlineIndex).trim();
-                buffer = buffer.slice(newlineIndex + 1);
-                if (line.length > 0) {
-                    try {
-                        onProgress(JSON.parse(line) as OllamaPullProgress);
-                    } catch {
-                        // Skipped: see the doc comment above.
-                    }
-                }
-                newlineIndex = buffer.indexOf("\n");
-            }
+            drainLines(false);
         }
+        drainLines(true);
         return okResult(true);
     } catch (error) {
-        if (options.signal?.aborted === true) return errResult({ kind: "aborted", message: "The pull was cancelled." });
-        if (controller.signal.aborted) return errResult({ kind: "timeout", message: "The pull stalled and was abandoned." });
-        return errResult({ kind: "unreachable", message: error instanceof Error ? error.message : "Could not reach a local Ollama daemon." });
+        if (options.signal?.aborted)
+            return errResult({ kind: "aborted", message: "The pull was cancelled." });
+        if (controller.signal.aborted)
+            return errResult({ kind: "timeout", message: "The pull stalled and was abandoned." });
+        return errResult({
+            kind: "unreachable",
+            message:
+                error instanceof Error ? error.message : "Could not reach a local Ollama daemon.",
+        });
     } finally {
         if (chunkTimer !== null) clearTimeout(chunkTimer);
         options.signal?.removeEventListener("abort", onCallerAbort);
@@ -394,9 +471,15 @@ export async function streamChat(
     chatOptions: OllamaChatOptions = {},
     options: RequestOptions = {},
 ): Promise<OllamaResult<true>> {
+    if (options.signal?.aborted === true) {
+        return errResult({ kind: "aborted", message: "Chat was stopped." });
+    }
     const fetchImpl = resolveFetch(options.fetchImpl);
     if (!fetchImpl) {
-        return errResult({ kind: "unreachable", message: "No HTTP client is available in this build to reach a local Ollama daemon." });
+        return errResult({
+            kind: "unreachable",
+            message: "No HTTP client is available in this build to reach a local Ollama daemon.",
+        });
     }
     const baseUrl = options.baseUrl ?? DEFAULT_OLLAMA_BASE_URL;
     const controller = new AbortController();
@@ -405,7 +488,10 @@ export async function streamChat(
     let chunkTimer: ReturnType<typeof setTimeout> | null = null;
     const resetChunkTimer = () => {
         if (chunkTimer !== null) clearTimeout(chunkTimer);
-        chunkTimer = setTimeout(() => controller.abort(), options.timeoutMs ?? STREAM_CHUNK_TIMEOUT_MS);
+        chunkTimer = setTimeout(
+            () => controller.abort(),
+            options.timeoutMs ?? STREAM_CHUNK_TIMEOUT_MS,
+        );
     };
 
     try {
@@ -417,7 +503,11 @@ export async function streamChat(
             signal: controller.signal,
         });
         if (!response.ok) {
-            return errResult({ kind: "http", status: response.status, message: `Chat answered with HTTP ${response.status}.` });
+            return errResult({
+                kind: "http",
+                status: response.status,
+                message: `Chat answered with HTTP ${response.status}.`,
+            });
         }
         const reader = response.body?.getReader();
         if (!reader) {
@@ -437,6 +527,37 @@ export async function streamChat(
         const decoder = new TextDecoder();
         let buffer = "";
         let totalBytes = 0;
+        let completed = false;
+        const emitLine = (line: string): void => {
+            const trimmed = line.trim();
+            if (trimmed.length === 0) return;
+            let chunk: OllamaChatChunk;
+            try {
+                chunk = JSON.parse(trimmed) as OllamaChatChunk;
+            } catch {
+                // A malformed line in an otherwise good stream is skipped, not fatal.
+                return;
+            }
+            try {
+                onChunk(chunk);
+            } catch {
+                // A renderer callback must not tear down the transport.
+            }
+            if (chunk.done === true) completed = true;
+        };
+        const drainLines = (flush: boolean): void => {
+            if (flush) buffer += decoder.decode();
+            let newlineIndex = buffer.indexOf("\n");
+            while (newlineIndex >= 0 && !completed) {
+                emitLine(buffer.slice(0, newlineIndex));
+                buffer = buffer.slice(newlineIndex + 1);
+                newlineIndex = buffer.indexOf("\n");
+            }
+            if (flush && !completed && buffer.trim().length > 0) {
+                emitLine(buffer);
+                buffer = "";
+            }
+        };
         for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -444,28 +565,30 @@ export async function streamChat(
             totalBytes += value.byteLength;
             if (totalBytes > MAX_RESPONSE_BYTES * 8) {
                 await reader.cancel().catch(() => undefined);
-                return errResult({ kind: "oversized", message: "The chat response stream was larger than this client will read." });
+                return errResult({
+                    kind: "oversized",
+                    message: "The chat response stream was larger than this client will read.",
+                });
             }
             buffer += decoder.decode(value, { stream: true });
-            let newlineIndex = buffer.indexOf("\n");
-            while (newlineIndex >= 0) {
-                const line = buffer.slice(0, newlineIndex).trim();
-                buffer = buffer.slice(newlineIndex + 1);
-                if (line.length > 0) {
-                    try {
-                        onChunk(JSON.parse(line) as OllamaChatChunk);
-                    } catch {
-                        // Skipped: see above.
-                    }
-                }
-                newlineIndex = buffer.indexOf("\n");
+            drainLines(false);
+            if (completed) {
+                await reader.cancel().catch(() => undefined);
+                return okResult(true);
             }
         }
+        drainLines(true);
         return okResult(true);
     } catch (error) {
-        if (options.signal?.aborted === true) return errResult({ kind: "aborted", message: "Chat was stopped." });
-        if (controller.signal.aborted) return errResult({ kind: "timeout", message: "Chat stalled and was abandoned." });
-        return errResult({ kind: "unreachable", message: error instanceof Error ? error.message : "Could not reach a local Ollama daemon." });
+        if (options.signal?.aborted)
+            return errResult({ kind: "aborted", message: "Chat was stopped." });
+        if (controller.signal.aborted)
+            return errResult({ kind: "timeout", message: "Chat stalled and was abandoned." });
+        return errResult({
+            kind: "unreachable",
+            message:
+                error instanceof Error ? error.message : "Could not reach a local Ollama daemon.",
+        });
     } finally {
         if (chunkTimer !== null) clearTimeout(chunkTimer);
         options.signal?.removeEventListener("abort", onCallerAbort);

@@ -289,6 +289,7 @@ describe("UpdateController", () => {
         const build100 = harness({
             feed: bridgedFeedFor("0.1.0-build.100"),
             feedHandoff: handoff,
+            currentVersion: "0.1.0-build.100",
         });
         build100.controller.start();
         build100.controller.check({ manual: true });
@@ -297,6 +298,7 @@ describe("UpdateController", () => {
         const build101 = harness({
             feed: bridgedFeedFor("0.1.0-build.101"),
             feedHandoff: handoff,
+            currentVersion: "0.1.0-build.101",
         });
         build101.controller.start();
         build101.controller.check({ manual: true });
@@ -338,6 +340,8 @@ describe("UpdateController", () => {
         test.engine.emit("update-available");
 
         expect(test.controller.current().status).toBe("downloading");
+        test.controller.check({ manual: true });
+        expect(test.engine.checks).toBe(1);
         // The one guarantee that makes this non-interrupting: nothing installs unless the
         // user asks for it.
         expect(test.engine.installs).toBe(0);
@@ -371,7 +375,7 @@ describe("UpdateController", () => {
         valid.engine.emit("update-downloaded", {}, null, "v0.2.0", new Date(), null);
         expect(valid.controller.current().readyVersion).toBe("0.2.0");
 
-        for (const releaseName of [null, "", "Worldlens 0.2.0", "0.2"]) {
+        for (const releaseName of [null, "", "Worldlens 0.2.0", "0.2", "0.1.0", "0.0.9"]) {
             const invalid = harness();
             invalid.controller.start();
             invalid.engine.emit("update-downloaded", {}, null, releaseName, new Date(), null);
@@ -395,7 +399,7 @@ describe("UpdateController", () => {
         test.engine.emit("update-downloaded", {}, null, "0.2.0", new Date(), null);
 
         const result = test.controller.restart();
-        expect(result).toEqual({ ok: true, version: "0.2.0" });
+        expect(result).toEqual({ ok: true, version: "0.2.0", transition: "requested" });
         expect(journal.attempts).toEqual([{ fromVersion: "0.1.0", targetVersion: "0.2.0" }]);
         expect(test.engine.installs).toBe(1);
     });
@@ -690,6 +694,8 @@ describe("UpdateController", () => {
         expect(test.controller.current().status).toBe("failed");
         expect(test.controller.current().failure?.code).toBe("not-installed");
         expect(test.timers.pending.size).toBe(0);
+        test.controller.check({ manual: true });
+        expect(engine.checks).toBe(0);
     });
 
     it("turns a refusal from quitAndInstall into a value rather than an exception", () => {

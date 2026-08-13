@@ -14,7 +14,7 @@
  * nothing, which is the failure this project keeps finding.
  */
 
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick, type PropType } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
@@ -23,7 +23,12 @@ import { VApp } from "vuetify/components";
 import NoticeCentrePanel from "./NoticeCentrePanel.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
-import { createNoticeState, dismissAll, notify, type NoticeState } from "../config/notifications.js";
+import {
+    createNoticeState,
+    dismissAll,
+    notify,
+    type NoticeState,
+} from "../config/notifications.js";
 
 beforeAll(() => {
     // jsdom has no layout engine, and Vuetify's fields and overlays observe their own size.
@@ -67,7 +72,9 @@ const Host = defineComponent({
     setup(props, { emit }) {
         return () =>
             h(VApp, null, {
-                default: () => [h(NoticeCentrePanel, { state: props.state, onClose: () => emit("close") })],
+                default: () => [
+                    h(NoticeCentrePanel, { state: props.state, onClose: () => emit("close") }),
+                ],
             });
     },
 });
@@ -184,13 +191,45 @@ describe("finding one again", () => {
         expect(String(sample).split("\n")).toHaveLength(4);
     });
 
+    it("does not schedule a copied-state timer after a delayed clipboard write finishes after unmount", async () => {
+        fillHistory();
+        let resolveCopy: (() => void) | undefined;
+        Object.defineProperty(navigator, "clipboard", {
+            configurable: true,
+            value: {
+                writeText: vi.fn(() => new Promise<void>((resolve) => (resolveCopy = resolve))),
+            },
+        });
+        vi.useFakeTimers();
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const view = open();
+        await nextTick();
+        const copy = view
+            .findAll("button")
+            .find((button) => button.text().includes("Copy what is shown"));
+        expect(copy).toBeDefined();
+
+        await copy?.trigger("click");
+        view.unmount();
+        setTimeoutSpy.mockClear();
+        resolveCopy?.();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(setTimeoutSpy).not.toHaveBeenCalled();
+        setTimeoutSpy.mockRestore();
+        vi.useRealTimers();
+    });
+
     it("says no match, and distinguishes that from having nothing to show", async () => {
         fillHistory();
         const view = open();
         await type(view, "nothing matches this");
 
         expect(rows(view)).toHaveLength(0);
-        expect(view.text()).toContain("No notification matches this search, these levels and this date range.");
+        expect(view.text()).toContain(
+            "No notification matches this search, these levels and this date range.",
+        );
         expect(view.text()).not.toContain("Nothing has been reported yet.");
     });
 });
@@ -235,7 +274,9 @@ describe("filtering by level", () => {
         await nextTick();
 
         expect(rows(view)).toHaveLength(0);
-        expect(view.text()).toContain("No notification matches this search, these levels and this date range.");
+        expect(view.text()).toContain(
+            "No notification matches this search, these levels and this date range.",
+        );
     });
 });
 
@@ -286,7 +327,9 @@ describe("the filters row starts collapsed", () => {
         await nextTick();
 
         expect(view.findComponent(ConfigSearchField).exists()).toBe(true);
-        expect(view.findComponent(ConfigSearchField).element.closest(".mb-notice-centre__filters")).toBeNull();
+        expect(
+            view.findComponent(ConfigSearchField).element.closest(".mb-notice-centre__filters"),
+        ).toBeNull();
     });
 
     it("shows a badge naming how many filters are active, search included", async () => {
@@ -306,7 +349,9 @@ describe("the filters row starts collapsed", () => {
         await view.findAll(".mb-notice-centre__level")[0]?.trigger("click");
         await nextTick();
 
-        const clear = view.findAll("button").find((button) => button.text().includes("Clear every filter"));
+        const clear = view
+            .findAll("button")
+            .find((button) => button.text().includes("Clear every filter"));
         expect(clear).toBeDefined();
         await clear?.trigger("click");
         await nextTick();
@@ -371,7 +416,9 @@ describe("bringing one back", () => {
         await nextTick();
 
         const failure = state.history[0];
-        const restore = view.findAll("button").find((button) => button.text().includes("Show again"));
+        const restore = view
+            .findAll("button")
+            .find((button) => button.text().includes("Show again"));
         await restore?.trigger("click");
         await nextTick();
 

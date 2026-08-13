@@ -149,6 +149,26 @@ describe("statusFor", () => {
         expect(statusFor(state({ checking: true })).canCheck).toBe(false);
     });
 
+    it("will not start another check while a package is downloading", () => {
+        expect(statusFor(state({ status: "downloading" })).canCheck).toBe(false);
+    });
+
+    it("does not offer a retry for a non-retryable feed failure", () => {
+        expect(
+            statusFor(
+                state({
+                    status: "failed",
+                    failure: {
+                        code: "not-installed",
+                        message: "The updater is not installed.",
+                        detail: null,
+                        retryable: false,
+                    },
+                }),
+            ).canCheck,
+        ).toBe(false);
+    });
+
     it("offers no check at all on a build that cannot update", () => {
         const model = statusFor(
             state({ status: "unsupported", unsupportedReason: "Not packaged." }),

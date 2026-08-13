@@ -16,7 +16,7 @@
  * of testing the maths would notice.
  */
 
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
@@ -176,6 +176,35 @@ describe("typing a colour", () => {
         expect(view.text()).toContain("not a colour");
     });
 
+    it("does not schedule a copied-state timer after a delayed clipboard write finishes after unmount", async () => {
+        let resolveCopy: (() => void) | undefined;
+        Object.defineProperty(navigator, "clipboard", {
+            configurable: true,
+            value: {
+                writeText: vi.fn(() => new Promise<void>((resolve) => (resolveCopy = resolve))),
+            },
+        });
+        vi.useFakeTimers();
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const view = mountPicker("#ff0000");
+        const copy = view
+            .findAll("button")
+            .find((button) => button.attributes("aria-label")?.includes("Copy"));
+        expect(copy).toBeDefined();
+
+        await copy?.trigger("click");
+        view.unmount();
+        wrapper = null;
+        setTimeoutSpy.mockClear();
+        resolveCopy?.();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(setTimeoutSpy).not.toHaveBeenCalled();
+        setTimeoutSpy.mockRestore();
+        vi.useRealTimers();
+    });
+
     it("keeps an unreadable stored value on screen rather than replacing it", () => {
         const view = mountPicker("chartruse");
         expect((view.find(".mb-color-picker__raw input").element as HTMLInputElement).value).toBe(
@@ -285,9 +314,7 @@ describe("a colour sRGB cannot show", () => {
 describe("numeric entry", () => {
     it("offers the components of the notation being used, not only red green and blue", async () => {
         const view = mountPicker("oklch(0.6 0.15 250)");
-        const labels = view
-            .findAll(".mb-color-picker__number label")
-            .map((node) => node.text());
+        const labels = view.findAll(".mb-color-picker__number label").map((node) => node.text());
 
         expect(labels.join(" ")).toContain("Lightness");
         expect(labels.join(" ")).toContain("Chroma");

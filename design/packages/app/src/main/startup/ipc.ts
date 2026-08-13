@@ -23,6 +23,8 @@ export function installStartupIpc(options: {
     readonly dialog: Dialog;
     readonly clipboard: Clipboard;
     readonly store: StartupIssueStore;
+    /** Flushes project autosaves before recovery exits the process. */
+    readonly flushAutosave?: () => Promise<void>;
     readonly resolveWindow: (sender: Electron.WebContents) => BrowserWindow | null;
 }): StartupIpc {
     const retryFlight = new SingleFlight<{ ok: boolean; message: string }>();
@@ -30,9 +32,19 @@ export function installStartupIpc(options: {
 
     const retry = (): Promise<{ ok: boolean; message: string }> =>
         retryFlight.run(async () => {
-            options.app.relaunch();
-            options.app.exit(0);
-            return { ok: true, message: "Worldlens is restarting." };
+            try {
+                await options.flushAutosave?.();
+                options.app.relaunch();
+                options.app.exit(0);
+                return { ok: true, message: "Worldlens is restarting." };
+            } catch (error) {
+                return {
+                    ok: false,
+                    message:
+                        "Worldlens could not safely restart because pending project changes could not be flushed. " +
+                        (error instanceof Error ? error.message : String(error)),
+                };
+            }
         });
 
     const copy = async (): Promise<{ ok: boolean; message: string }> => {

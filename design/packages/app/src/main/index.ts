@@ -211,6 +211,9 @@ function ensureStartupIpc(): StartupIpc {
         dialog,
         clipboard,
         store: startupStore,
+        flushAutosave: async () => {
+            await projectIpc?.autosave.flushAll("quit");
+        },
         resolveWindow: (sender) => BrowserWindow.fromWebContents(sender),
     });
     return startupIpc;
@@ -857,7 +860,7 @@ function startAppSettingsHistory(): AppSettingsHistoryIpc {
  */
 let updatesInstalled: InstalledUpdates | null = null;
 
-function startUpdates(render: RenderIpc): void {
+function startUpdates(render: RenderIpc | null): void {
     if (updatesInstalled !== null) return;
     updatesInstalled = installUpdateIpc(ipcMain, {
         currentVersion: app.getVersion(),
@@ -877,7 +880,7 @@ function startUpdates(render: RenderIpc): void {
         engine: process.platform === "win32" ? engineFromAutoUpdater(autoUpdater) : null,
         feedHandoff: createFileUpdateFeedHandoff(app.getPath("userData")),
         installJournal: createFileUpdateInstallJournal(app.getPath("userData")),
-        renderInProgress: () => render.orchestrator.activeRenderIds().length > 0,
+        renderInProgress: () => render !== null && render.orchestrator.activeRenderIds().length > 0,
         broadcast: (state) => {
             for (const window of BrowserWindow.getAllWindows()) {
                 if (!window.isDestroyed()) window.webContents.send(UPDATE_EVENT_CHANNEL, state);
@@ -1633,10 +1636,13 @@ async function createWindow(): Promise<void> {
             "Rendering dropped structures is unavailable",
             () => startStructureRendering(render),
         );
-        await attempt("update", "updates", "Automatic updates are unavailable in this launch", () =>
-            startUpdates(render),
-        );
     }
+    // Updates do not require the renderer or the render engine. Keep their IPC and install
+    // receipt reconciliation alive even when rendering startup failed and recovery is the
+    // only surface this launch can show.
+    await attempt("update", "updates", "Automatic updates are unavailable in this launch", () =>
+        startUpdates(render),
+    );
     if (render !== null && downloads !== null && github !== null) {
         await attempt("network", "world-sources", "World-source downloads are unavailable", () =>
             startWorldSources(render, downloads, github),

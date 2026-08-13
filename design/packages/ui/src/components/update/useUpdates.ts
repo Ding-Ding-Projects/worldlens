@@ -78,6 +78,8 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
      * window opened, and the banner the download just earned disappears again.
      */
     let pushed = false;
+    let stateRevision = 0;
+    let checkRequest = 0;
 
     const hasUnsavedWork = (): boolean => {
         try {
@@ -90,6 +92,7 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
     if (bridge !== null) {
         unsubscribe = bridge.onUpdateEvent((next) => {
             pushed = true;
+            stateRevision += 1;
             state.value = next;
         });
         void bridge.state().then(
@@ -132,8 +135,16 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
         async check(): Promise<void> {
             if (bridge === null) return;
             refusal.value = null;
+            const request = ++checkRequest;
+            const revisionAtStart = stateRevision;
             try {
-                state.value = await bridge.check();
+                const next = await bridge.check();
+                // A push is newer evidence than the snapshot returned by a check, and a
+                // second caller's answer must not roll it back either. This is especially
+                // important when a manual check overlaps the download event that makes the
+                // Restart action visible.
+                if (request !== checkRequest || revisionAtStart !== stateRevision) return;
+                state.value = next;
             } catch (error) {
                 // The bridge is not supposed to reject, and a build whose preload is older
                 // than this renderer might. Reported as a refusal rather than escaping into
@@ -164,12 +175,23 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
                 options.onRefusal?.(answer.message);
                 return answer;
             }
-            const answer = await bridge.restart(false);
-            if (!answer.ok) {
-                refusal.value = answer.message;
-                options.onRefusal?.(answer.message);
+            try {
+                const answer = await bridge.restart(false);
+                if (!answer.ok) {
+                    refusal.value = answer.message;
+                    options.onRefusal?.(answer.message);
+                }
+                return answer;
+            } catch (error) {
+                const message =
+                    error instanceof Error
+                        ? error.message
+                        : `The update restart request failed: ${String(error)}`;
+                const answer: UpdateRestartResult = { ok: false, code: "failed", message };
+                refusal.value = message;
+                options.onRefusal?.(message);
+                return answer;
             }
-            return answer;
         },
         dismiss(): void {
             const version = state.value.readyVersion;

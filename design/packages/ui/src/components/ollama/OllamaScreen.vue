@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCartOutline,
@@ -40,7 +40,12 @@ import {
     type OllamaChatMessage,
 } from "./ollamaApi.js";
 import { assessFit, type DetectedHardware, type FitVerdict } from "./hardwareFit.js";
-import { catalogIsStale, flattenVariants, refreshCatalog, type CatalogVariant } from "./ollamaCatalog.js";
+import {
+    catalogIsStale,
+    flattenVariants,
+    refreshCatalog,
+    type CatalogVariant,
+} from "./ollamaCatalog.js";
 import {
     appendChatMessage,
     cacheFit,
@@ -82,11 +87,24 @@ async function checkRuntime(): Promise<void> {
     try {
         const result = await fetchVersion();
         if (!result.ok) {
-            const state = result.error.kind === "unreachable" || result.error.kind === "timeout" ? "stopped" : "unhealthy";
-            setRuntimeStatus({ state, version: null, checkedAt: new Date().toISOString(), detail: result.error.message });
+            const state =
+                result.error.kind === "unreachable" || result.error.kind === "timeout"
+                    ? "stopped"
+                    : "unhealthy";
+            setRuntimeStatus({
+                state,
+                version: null,
+                checkedAt: new Date().toISOString(),
+                detail: result.error.message,
+            });
             return;
         }
-        setRuntimeStatus({ state: "ready", version: result.value.version, checkedAt: new Date().toISOString(), detail: null });
+        setRuntimeStatus({
+            state: "ready",
+            version: result.value.version,
+            checkedAt: new Date().toISOString(),
+            detail: null,
+        });
         await refreshInstalledModels();
     } finally {
         checkingRuntime.value = false;
@@ -116,11 +134,20 @@ const runtimeLabel = computed(() => {
 const runtimeGuidance = computed(() => {
     switch (ollamaStore.runtime.state) {
         case "missing":
-            return t("ollama.runtime.missingGuidance", "Ollama itself is not installed. Install it, then check again.");
+            return t(
+                "ollama.runtime.missingGuidance",
+                "Ollama itself is not installed. Install it, then check again.",
+            );
         case "stopped":
-            return t("ollama.runtime.stoppedGuidance", "Ollama is installed but not currently running. Start it, then check again.");
+            return t(
+                "ollama.runtime.stoppedGuidance",
+                "Ollama is installed but not currently running. Start it, then check again.",
+            );
         case "unhealthy":
-            return t("ollama.runtime.unhealthyGuidance", "Ollama answered, but not in the shape this app expected. Check again once it settles.");
+            return t(
+                "ollama.runtime.unhealthyGuidance",
+                "Ollama answered, but not in the shape this app expected. Check again once it settles.",
+            );
         default:
             return "";
     }
@@ -140,28 +167,41 @@ const storeQuery = ref("");
 const storeRegex = ref(false);
 const storeFlags = ref("i");
 const refreshingCatalog = ref(false);
+const catalogAbort = ref<AbortController | null>(null);
 
 async function refreshStoreCatalog(): Promise<void> {
+    if (refreshingCatalog.value) return;
     refreshingCatalog.value = true;
+    const controller = new AbortController();
+    catalogAbort.value = controller;
     try {
         const fetchImpl = (globalThis as { fetch?: typeof fetch }).fetch;
         if (!fetchImpl) return;
-        const result = await refreshCatalog(fetchImpl);
+        const result = await refreshCatalog(fetchImpl, { signal: controller.signal });
         if (result.ok) {
             setCatalog(result.catalog, catalogIsStale(result.catalog.revision));
         } else if (result.partial) {
             setCatalog(result.partial, true);
         }
     } finally {
-        refreshingCatalog.value = false;
+        if (catalogAbort.value === controller) {
+            refreshingCatalog.value = false;
+            catalogAbort.value = null;
+        }
     }
 }
 
-const allVariants = computed<readonly CatalogVariant[]>(() => (ollamaStore.catalog ? flattenVariants(ollamaStore.catalog) : []));
+const allVariants = computed<readonly CatalogVariant[]>(() =>
+    ollamaStore.catalog ? flattenVariants(ollamaStore.catalog) : [],
+);
 
-const storeMatcher = computed(() => createSettingMatcher(storeQuery.value, storeRegex.value, storeFlags.value));
+const storeMatcher = computed(() =>
+    createSettingMatcher(storeQuery.value, storeRegex.value, storeFlags.value),
+);
 
-const installedNames = computed(() => new Set(ollamaStore.installedModels.map((model) => model.model)));
+const installedNames = computed(
+    () => new Set(ollamaStore.installedModels.map((model) => model.model)),
+);
 
 /** Conservative hardware facts. Detection is intentionally minimal: unknown stays unknown. */
 const detectedHardware = ref<DetectedHardware>({
@@ -189,15 +229,24 @@ const installedFilter = ref<boolean | null>(null);
 
 const visibleVariants = computed(() =>
     allVariants.value.filter((variant) => {
-        if (!storeMatcher.value.test(`${variant.family} ${variant.tag} ${variant.description}`)) return false;
-        if (installedFilter.value !== null && installedNames.value.has(variant.fullName) !== installedFilter.value) return false;
+        if (!storeMatcher.value.test(`${variant.family} ${variant.tag} ${variant.description}`))
+            return false;
+        if (
+            installedFilter.value !== null &&
+            installedNames.value.has(variant.fullName) !== installedFilter.value
+        )
+            return false;
         if (fitFilter.value !== null && fitFor(variant) !== fitFilter.value) return false;
         return true;
     }),
 );
 
 const storeSummary = computed(() =>
-    t("config.search.summary", { shown: visibleVariants.value.length, total: allVariants.value.length }, "Showing {shown} of {total}"),
+    t(
+        "config.search.summary",
+        { shown: visibleVariants.value.length, total: allVariants.value.length },
+        "Showing {shown} of {total}",
+    ),
 );
 
 /* -------------------------------------------------------------------------- */
@@ -211,7 +260,9 @@ function toggleCart(fullName: string): void {
     else cart.value.add(fullName);
 }
 
-const cartVariants = computed(() => allVariants.value.filter((variant) => cart.value.has(variant.fullName)));
+const cartVariants = computed(() =>
+    allVariants.value.filter((variant) => cart.value.has(variant.fullName)),
+);
 
 const cartAggregateBytes = computed(() =>
     cartVariants.value.reduce((total, variant) => total + (variant.sizeBytes ?? 0), 0),
@@ -238,7 +289,9 @@ async function startPulls(): Promise<void> {
             updatePullItem(item.id, { state: "pulling", statusLine: "Starting…" });
             const result = await pullModel(item.modelName, (progress) => {
                 const percent =
-                    typeof progress.total === "number" && progress.total > 0 && typeof progress.completed === "number"
+                    typeof progress.total === "number" &&
+                    progress.total > 0 &&
+                    typeof progress.completed === "number"
                         ? Math.round((progress.completed / progress.total) * 100)
                         : null;
                 updatePullItem(item.id, { percent, statusLine: progress.status });
@@ -268,14 +321,19 @@ async function deleteInstalled(name: string): Promise<void> {
 const chatQuery = ref("");
 const chatRegex = ref(false);
 const chatFlags = ref("i");
-const chatMatcher = computed(() => createSettingMatcher(chatQuery.value, chatRegex.value, chatFlags.value));
+const chatMatcher = computed(() =>
+    createSettingMatcher(chatQuery.value, chatRegex.value, chatFlags.value),
+);
 
 const visibleSessions = computed(() =>
-    ollamaStore.sessions.filter((session) => chatMatcher.value.test(`${session.name} ${session.model}`)),
+    ollamaStore.sessions.filter((session) =>
+        chatMatcher.value.test(`${session.name} ${session.model}`),
+    ),
 );
 
 const activeSession = computed<ChatSession | null>(
-    () => ollamaStore.sessions.find((session) => session.id === ollamaStore.activeSessionId) ?? null,
+    () =>
+        ollamaStore.sessions.find((session) => session.id === ollamaStore.activeSessionId) ?? null,
 );
 
 const draftMessage = ref("");
@@ -295,7 +353,8 @@ function beginRename(session: ChatSession): void {
 }
 
 function commitRename(): void {
-    if (renamingSessionId.value) renameChatSession(renamingSessionId.value, renameDraft.value.trim() || "Untitled chat");
+    if (renamingSessionId.value)
+        renameChatSession(renamingSessionId.value, renameDraft.value.trim() || "Untitled chat");
     renamingSessionId.value = null;
 }
 
@@ -312,8 +371,12 @@ async function sendMessage(): Promise<void> {
     appendChatMessage(session.id, { role: "assistant", content: "" });
 
     const history: OllamaChatMessage[] = [
-        ...(session.systemPrompt.trim().length > 0 ? [{ role: "system" as const, content: session.systemPrompt }] : []),
-        ...session.messages.filter((m) => m.content.length > 0 || m.role === "user").map((m) => ({ role: m.role, content: m.content })),
+        ...(session.systemPrompt.trim().length > 0
+            ? [{ role: "system" as const, content: session.systemPrompt }]
+            : []),
+        ...session.messages
+            .filter((m) => m.content.length > 0 || m.role === "user")
+            .map((m) => ({ role: m.role, content: m.content })),
     ];
 
     sending.value = true;
@@ -333,7 +396,10 @@ async function sendMessage(): Promise<void> {
         { signal: controller.signal },
     );
     if (!result.ok && result.error.kind !== "aborted") {
-        updateLastAssistantMessage(session.id, assembled.length > 0 ? assembled : `(${result.error.message})`);
+        updateLastAssistantMessage(
+            session.id,
+            assembled.length > 0 ? assembled : `(${result.error.message})`,
+        );
     }
     sending.value = false;
     chatAbort.value = null;
@@ -359,6 +425,13 @@ async function retryLast(): Promise<void> {
 onMounted(() => {
     void checkRuntime();
 });
+
+onBeforeUnmount(() => {
+    // A chat stream belongs to this screen. Leaving it alive would keep the component closure
+    // and its session reference reachable, then append late chunks after the user has moved on.
+    chatAbort.value?.abort();
+    catalogAbort.value?.abort();
+});
 </script>
 
 <template>
@@ -379,7 +452,9 @@ onMounted(() => {
         >
             <div class="mb-ollama__runtime-body">
                 <p class="mb-ollama__runtime-label">{{ runtimeLabel }}</p>
-                <p v-if="runtimeGuidance" class="mb-ollama__runtime-guidance">{{ runtimeGuidance }}</p>
+                <p v-if="runtimeGuidance" class="mb-ollama__runtime-guidance">
+                    {{ runtimeGuidance }}
+                </p>
                 <div class="mb-ollama__runtime-actions">
                     <VBtn
                         v-if="ollamaStore.runtime.state === 'missing'"
@@ -387,9 +462,19 @@ onMounted(() => {
                         :append-icon="mdiOpenInNew"
                         @click="openDownloadPage"
                     >
-                        {{ t("ollama.runtime.openDownload", "Open the official Ollama download page") }}
+                        {{
+                            t(
+                                "ollama.runtime.openDownload",
+                                "Open the official Ollama download page",
+                            )
+                        }}
                     </VBtn>
-                    <VBtn variant="tonal" :prepend-icon="mdiRefresh" :loading="checkingRuntime" @click="checkRuntime">
+                    <VBtn
+                        variant="tonal"
+                        :prepend-icon="mdiRefresh"
+                        :loading="checkingRuntime"
+                        @click="checkRuntime"
+                    >
                         {{ t("ollama.runtime.recheck", "Check again") }}
                     </VBtn>
                 </div>
@@ -400,12 +485,36 @@ onMounted(() => {
             <VCardText>{{ runtimeLabel }} · {{ ollamaStore.runtime.version }}</VCardText>
         </VCard>
 
-        <p class="mb-ollama__intro">{{ t("ollama.intro", "Run language models on this machine, with no cloud account required.") }}</p>
+        <p class="mb-ollama__intro">
+            {{
+                t(
+                    "ollama.intro",
+                    "Run language models on this machine, with no cloud account required.",
+                )
+            }}
+        </p>
+
+        <VAlert
+            v-if="ollamaStore.failure !== null"
+            type="error"
+            variant="tonal"
+            data-test="ollama-chat-storage-failure"
+        >
+            {{
+                t(
+                    "ollama.chat.storageFailure",
+                    { reason: ollamaStore.failure },
+                    "Saved chats could not be read, so this screen will not overwrite them. Resolve the local storage problem, then reopen this tab. Details: {reason}",
+                )
+            }}
+        </VAlert>
 
         <VDivider class="my-4" />
 
         <section aria-labelledby="ollama-store-heading">
-            <h2 id="ollama-store-heading" class="mb-ollama__heading">{{ t("ollama.store.title", "Model Store") }}</h2>
+            <h2 id="ollama-store-heading" class="mb-ollama__heading">
+                {{ t("ollama.store.title", "Model Store") }}
+            </h2>
 
             <div class="mb-ollama__store-toolbar">
                 <ConfigSearchField
@@ -421,7 +530,11 @@ onMounted(() => {
                     :prepend-icon="mdiRefresh"
                     :loading="refreshingCatalog"
                     :disabled="!runtimeReady"
-                    :title="!runtimeReady ? t('ollama.disabled.noRuntime', 'Ollama is not ready yet.') : undefined"
+                    :title="
+                        !runtimeReady
+                            ? t('ollama.disabled.noRuntime', 'Ollama is not ready yet.')
+                            : undefined
+                    "
                     @click="refreshStoreCatalog"
                 >
                     {{ t("ollama.store.refresh", "Refresh catalogue") }}
@@ -451,7 +564,10 @@ onMounted(() => {
                     :items="[
                         { title: t('config.search.clear', 'Clear the search'), value: null },
                         { title: t('ollama.fit.runsWell', 'Runs well'), value: 'Runs well' },
-                        { title: t('ollama.fit.runsWithLimits', 'Runs with limits'), value: 'Runs with limits' },
+                        {
+                            title: t('ollama.fit.runsWithLimits', 'Runs with limits'),
+                            value: 'Runs with limits',
+                        },
                         { title: t('ollama.fit.unlikely', 'Unlikely'), value: 'Unlikely' },
                         { title: t('ollama.fit.unknown', 'Unknown'), value: 'Unknown' },
                     ]"
@@ -462,7 +578,11 @@ onMounted(() => {
             </div>
 
             <VList class="mb-ollama__variant-list" data-test="ollama-variant-list">
-                <VListItem v-for="variant in visibleVariants" :key="variant.fullName" class="mb-ollama__variant">
+                <VListItem
+                    v-for="variant in visibleVariants"
+                    :key="variant.fullName"
+                    class="mb-ollama__variant"
+                >
                     <template #title>{{ variant.fullName }}</template>
                     <template #subtitle>
                         <VChip size="x-small" class="mr-1">{{ fitFor(variant) }}</VChip>
@@ -479,7 +599,9 @@ onMounted(() => {
                                     'This deletes the local copy of {name}. Nothing else on this machine is touched, and it would have to be pulled again to use it.',
                                 )
                             "
-                            :confirm-label="t('ollama.model.deleteConfirmLabel', 'Delete model forever')"
+                            :confirm-label="
+                                t('ollama.model.deleteConfirmLabel', 'Delete model forever')
+                            "
                             data-test="ollama-model-delete-gate"
                             @confirm="deleteInstalled(variant.fullName)"
                         >
@@ -513,10 +635,17 @@ onMounted(() => {
                 {{ t("ollama.cart.title", "Pull cart") }}
             </h2>
             <p class="mb-ollama__not-commerce">
-                {{ t("ollama.cart.notCommerce", "This is a download queue: no price, no checkout, no account and no payment.") }}
+                {{
+                    t(
+                        "ollama.cart.notCommerce",
+                        "This is a download queue: no price, no checkout, no account and no payment.",
+                    )
+                }}
             </p>
 
-            <p v-if="cartVariants.length === 0" class="mb-ollama__empty">{{ t("ollama.cart.empty", "Nothing queued yet.") }}</p>
+            <p v-if="cartVariants.length === 0" class="mb-ollama__empty">
+                {{ t("ollama.cart.empty", "Nothing queued yet.") }}
+            </p>
             <VList v-else>
                 <VListItem v-for="variant in cartVariants" :key="variant.fullName">
                     <template #title>{{ variant.fullName }}</template>
@@ -540,12 +669,20 @@ onMounted(() => {
                 {{ t("ollama.cart.start", "Start pulling") }}
             </VBtn>
 
-            <VList v-if="ollamaStore.pullQueue.length > 0" class="mb-ollama__queue" data-test="ollama-pull-queue">
+            <VList
+                v-if="ollamaStore.pullQueue.length > 0"
+                class="mb-ollama__queue"
+                data-test="ollama-pull-queue"
+            >
                 <VListItem v-for="item in ollamaStore.pullQueue" :key="item.id">
                     <template #title>{{ item.modelName }}</template>
                     <template #subtitle>
                         {{ item.statusLine }}
-                        <VProgressLinear v-if="item.percent !== null" :model-value="item.percent" height="4" />
+                        <VProgressLinear
+                            v-if="item.percent !== null"
+                            :model-value="item.percent"
+                            height="4"
+                        />
                     </template>
                 </VListItem>
             </VList>
@@ -561,7 +698,13 @@ onMounted(() => {
 
             <div class="mb-ollama__chat-layout">
                 <div class="mb-ollama__chat-sidebar">
-                    <VBtn :prepend-icon="mdiPlus" block variant="tonal" :disabled="!runtimeReady" @click="newSession">
+                    <VBtn
+                        :prepend-icon="mdiPlus"
+                        block
+                        variant="tonal"
+                        :disabled="!runtimeReady"
+                        @click="newSession"
+                    >
                         {{ t("ollama.chat.newSession", "New chat") }}
                     </VBtn>
                     <ConfigSearchField
@@ -598,7 +741,9 @@ onMounted(() => {
                                     @click.stop="beginRename(session)"
                                 />
                                 <ConfigSuperConfirm
-                                    :title="t('ollama.chat.deleteConfirmTitle', 'Delete this chat?')"
+                                    :title="
+                                        t('ollama.chat.deleteConfirmTitle', 'Delete this chat?')
+                                    "
                                     :action="
                                         t(
                                             'ollama.chat.deleteAction',
@@ -606,7 +751,9 @@ onMounted(() => {
                                             'This deletes {count} messages in this chat. Nothing else is touched, and a deleted chat cannot be recovered.',
                                         )
                                     "
-                                    :confirm-label="t('ollama.chat.deleteConfirmLabel', 'Delete chat forever')"
+                                    :confirm-label="
+                                        t('ollama.chat.deleteConfirmLabel', 'Delete chat forever')
+                                    "
                                     data-test="ollama-chat-delete-gate"
                                     @confirm="confirmDeleteSession(session)"
                                 >
@@ -645,9 +792,19 @@ onMounted(() => {
 
                         <div class="mb-ollama__chat-messages" data-test="ollama-chat-messages">
                             <p v-if="activeSession.messages.length === 0" class="mb-ollama__empty">
-                                {{ t("ollama.chat.empty", "No messages yet. Choose a model and start typing.") }}
+                                {{
+                                    t(
+                                        "ollama.chat.empty",
+                                        "No messages yet. Choose a model and start typing.",
+                                    )
+                                }}
                             </p>
-                            <div v-for="message in activeSession.messages" :key="message.id" class="mb-ollama__message" :data-role="message.role">
+                            <div
+                                v-for="message in activeSession.messages"
+                                :key="message.id"
+                                class="mb-ollama__message"
+                                :data-role="message.role"
+                            >
                                 <strong>{{ message.role }}</strong>
                                 <p>{{ message.content }}</p>
                             </div>
@@ -680,26 +837,44 @@ onMounted(() => {
                                 v-else
                                 :prepend-icon="mdiSend"
                                 color="primary"
-                                :disabled="!runtimeReady || !activeSession.model || draftMessage.trim().length === 0"
+                                :disabled="
+                                    !runtimeReady ||
+                                    !activeSession.model ||
+                                    draftMessage.trim().length === 0
+                                "
                                 :title="
                                     !runtimeReady
                                         ? t('ollama.disabled.noRuntime', 'Ollama is not ready yet.')
                                         : !activeSession.model
                                           ? t('ollama.disabled.noModel', 'Choose a model first.')
                                           : draftMessage.trim().length === 0
-                                            ? t('ollama.disabled.noMessage', 'Type a message first.')
+                                            ? t(
+                                                  'ollama.disabled.noMessage',
+                                                  'Type a message first.',
+                                              )
                                             : undefined
                                 "
                                 @click="sendMessage"
                             >
                                 {{ t("ollama.chat.send", "Send") }}
                             </VBtn>
-                            <VBtn variant="text" :disabled="sending || activeSession.messages.length === 0" @click="retryLast">
+                            <VBtn
+                                variant="text"
+                                :disabled="sending || activeSession.messages.length === 0"
+                                @click="retryLast"
+                            >
                                 {{ t("ollama.chat.retry", "Retry") }}
                             </VBtn>
                         </div>
                     </template>
-                    <p v-else class="mb-ollama__empty">{{ t("ollama.chat.empty", "No messages yet. Choose a model and start typing.") }}</p>
+                    <p v-else class="mb-ollama__empty">
+                        {{
+                            t(
+                                "ollama.chat.empty",
+                                "No messages yet. Choose a model and start typing.",
+                            )
+                        }}
+                    </p>
                 </div>
             </div>
         </section>

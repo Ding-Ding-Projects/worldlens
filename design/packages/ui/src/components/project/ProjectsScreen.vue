@@ -204,7 +204,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     run.dispose();
-    emit("dirty-change", false);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -260,8 +259,15 @@ watch(openProject, (project) => {
  * itself the moment the scheduler writes. A failed autosave surfaces where a failed manual
  * save does, because the person's next question is the same either way.
  */
+let stopAutosave: (() => void) | undefined;
+
+onBeforeUnmount(() => {
+    stopAutosave?.();
+    stopAutosave = undefined;
+});
+
 onMounted(() => {
-    const stop = host?.onAutosaveEvent?.((event) => {
+    stopAutosave = host?.onAutosaveEvent?.((event) => {
         if (event.worldFolder !== openWorld.value) return;
         if (event.result.ok) {
             savedProject.value = event.result.project;
@@ -270,7 +276,6 @@ onMounted(() => {
             saveFailure.value = event.result.reason;
         }
     });
-    if (stop !== undefined) onBeforeUnmount(stop);
 });
 
 // This is the same comparison that drives Save and the transition guard. Reporting a second
@@ -291,10 +296,16 @@ function blockUnsavedTransition(action: string): boolean {
     // is written through the same path Save uses, and the transition proceeds. The block
     // below remains only for a host without the autosave scheduler (the browser preview),
     // where proceeding really would abandon the edit.
-    if (host?.flushAutosave !== undefined && openWorld.value !== null && openProject.value !== null) {
+    if (
+        host?.flushAutosave !== undefined &&
+        openWorld.value !== null &&
+        openProject.value !== null
+    ) {
         const world = openWorld.value;
         const project = openProject.value;
-        void host.notifyAutosaveChange?.(world, project).then(() => host.flushAutosave?.(world, "boundary"));
+        void host
+            .notifyAutosaveChange?.(world, project)
+            .then(() => host.flushAutosave?.(world, "boundary"));
         savedProject.value = project;
         return false;
     }

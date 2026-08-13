@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useId } from "vue";
+import { onBeforeUnmount, ref, useId } from "vue";
 import type { SettingsSectionAnchor } from "./settingsSections.js";
 
 /**
@@ -66,6 +66,11 @@ function reveal(options: { focus?: boolean } = {}): void {
         flashTimer = null;
     }, 2200);
 }
+
+onBeforeUnmount(() => {
+    if (flashTimer !== null) clearTimeout(flashTimer);
+    flashTimer = null;
+});
 
 defineExpose({ reveal, element: root });
 </script>

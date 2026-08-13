@@ -313,7 +313,12 @@ export function statusFor(
         failureMessage: state.failure?.message ?? null,
         failureDetail: state.failure?.detail ?? null,
         unsupportedReason: state.unsupportedReason,
-        canCheck: (options.canCheck ?? true) && !state.checking && state.status !== "unsupported",
+        canCheck:
+            (options.canCheck ?? true) &&
+            !state.checking &&
+            state.status !== "unsupported" &&
+            state.status !== "downloading" &&
+            state.failure?.retryable !== false,
         canRestart: staged && !state.renderInProgress && !unsaved && (options.canRestart ?? true),
     };
 
