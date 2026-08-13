@@ -34,6 +34,24 @@ import { describe, expect, it } from "vitest";
 const appSource = readFileSync(fileURLToPath(new URL("../App.vue", import.meta.url)), "utf8");
 
 /**
+ * The tab system's own list of page ids.
+ *
+ * Read because this guard already missed one variation of the defect it exists for. It
+ * checked that `App.vue` renders the component and declares the page id, and both were
+ * true for four pages that were still completely unreachable: `jobRegistry.ts` never
+ * listed them, so `TabbedNavigation` did not know they existed and there was no new-tab
+ * entry, no palette row, and no way in. The capture harness found it by trying to open
+ * them and timing out; nothing in this file could see it.
+ *
+ * So a page is reachable when three separate files agree it exists, and this reads the
+ * third.
+ */
+const registrySource = readFileSync(
+    fileURLToPath(new URL("./shell/jobRegistry.ts", import.meta.url)),
+    "utf8",
+);
+
+/**
  * The surfaces a person must be able to open, and the page or row that opens each.
  *
  * `mountedAs` is the component tag as `App.vue` renders it. `reachedBy` is the thing that
@@ -86,6 +104,39 @@ describe("every shipped surface can actually be opened", () => {
                 "and no component test can tell you that.",
         ).toBe(true);
     });
+
+    it.each(REACHABLE_SURFACES.filter((surface) => surface.reachedBy.startsWith("PAGE_")))(
+        "registers $component's page with the tab system so it can be opened",
+        ({ reachedBy }) => {
+            // The id as `App.vue` defines it, then the same id in the registry the tab
+            // strip reads. A page missing here renders perfectly and cannot be reached.
+            // Parsed with plain string operations rather than a regular expression. Three
+            // attempts at the regex form each lost a backslash somewhere between the
+            // editor and the file, and a pattern whose escape has quietly become a literal
+            // letter matches nothing while looking exactly right.
+            const marker = "const " + reachedBy + " = ";
+            const at = appSource.indexOf(marker);
+            expect(at, reachedBy + " is not declared in App.vue").toBeGreaterThan(-1);
+            const pageId = appSource.slice(at + marker.length).split('"')[1] ?? "";
+            expect(pageId, "no page id parsed for " + reachedBy).not.toBe("");
+            // Three structural places, not merely "the string appears somewhere". The id is
+            // in the type union whether or not the page is wired, so an `includes` check
+            // stays green when the mapping and the definition are both deleted. Confirmed
+            // by deleting the mapping and watching this pass, which is how the check earned
+            // its current shape.
+            for (const [form, needle] of [
+                ["semantic-name mapping", pageId + ': "' + pageId + '"'],
+                ["job definition", 'id: "' + pageId + '"'],
+            ] as const) {
+                expect(
+                    registrySource.includes(needle),
+                    "jobRegistry.ts has no " + form + " for the page id " + pageId + ", so the " +
+                        "tab system does not know it exists: no new-tab entry, no palette row, " +
+                        "no way in. The component renders correctly and is unreachable.",
+                ).toBe(true);
+            }
+        },
+    );
 
     it.each(REACHABLE_SURFACES.filter((surface) => surface.reachedBy.startsWith("PAGE_")))(
         "gives $component a page in the tab list via $reachedBy",

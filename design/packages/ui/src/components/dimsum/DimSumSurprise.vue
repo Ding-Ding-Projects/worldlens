@@ -25,6 +25,25 @@ import { pickDish, shouldShowDimSum, type DimSumEligibilityContext } from "./dim
  * true in the same tick this component mounts still suppresses the draw, and a genuinely
  * won draw is simply not shown rather than deferred to a "safer" later moment - deferring it
  * would risk it landing mid-task instead, which is exactly the moment this must not appear.
+ *
+ * ## The screenshot harness's one escape hatch
+ *
+ * A 10% chance is, by construction, a surface the capture harness cannot reach by waiting: it
+ * would need roughly ten launches on average, and it needs one every run. `readTestOverride`
+ * below is the honest way out of that, not a weakening of the chance for anyone else. It reads
+ * one `localStorage` key that nothing in the shipped product ever writes, so every real launch
+ * finds it absent and draws exactly as the two paragraphs above describe - the same
+ * `shouldShowDimSum` call, the same fresh `Math.random()`, the same one-in-ten odds. Only when
+ * the harness has deliberately written that key does the draw skip straight to "won", and even
+ * then it still renders through this exact template with a real dish record - never a
+ * different component, never a screenshot of something else relabelled as this one.
+ *
+ * It also has to skip {@link resolveDimSumCatalog} entirely rather than merely forcing a win
+ * and letting the fetch run: that fetch reaches a public repository over plain HTTPS, and the
+ * harness's own offline guard (see `networkGuard.ts`) records any attempt to reach anything but
+ * loopback as a violation whether or not the attempt succeeds. So the override carries its own
+ * small, harness-supplied dish list, and the real network path is never invoked while it is
+ * present.
  */
 const props = withDefaults(
     defineProps<{
@@ -51,15 +70,38 @@ function buildContext(): DimSumEligibilityContext {
     };
 }
 
+/**
+ * The screenshot harness's forced-win payload, or null on every real launch.
+ *
+ * `worldlens.dimsum.testOverride.v1` is not read, written or referenced anywhere else in this
+ * package - see the doc comment above. A malformed or foreign value is treated the same as no
+ * override at all rather than thrown, because a broken test fixture must not turn into a
+ * broken startup surprise for anybody running a real build with the same key coincidentally
+ * present.
+ */
+function readTestOverride(): readonly DimSumDish[] | null {
+    try {
+        const raw = globalThis.localStorage?.getItem("worldlens.dimsum.testOverride.v1") ?? null;
+        if (raw === null) return null;
+        const parsed: unknown = JSON.parse(raw);
+        const list = (parsed as { dishes?: unknown } | null)?.dishes;
+        return Array.isArray(list) && list.length > 0 ? (list as DimSumDish[]) : null;
+    } catch {
+        return null;
+    }
+}
+
 async function draw(): Promise<void> {
     if (drawn) return;
+    const override = readTestOverride();
     const random = Math.random();
-    const won = shouldShowDimSum(random, buildContext());
+    const won = override !== null ? true : shouldShowDimSum(random, buildContext());
     drawn = true;
     if (!won) return;
     // The catalog fetch happens only for a winning draw, so a losing draw - nine times out
-    // of ten - never spends a network round trip at all.
-    const dishes = await resolveDimSumCatalog();
+    // of ten - never spends a network round trip at all. A harness-forced win skips it too,
+    // reading the override's own dishes instead - see readTestOverride's doc comment for why.
+    const dishes = override ?? (await resolveDimSumCatalog());
     const picked = pickDish(dishes, Math.random());
     if (picked === null) return;
     // Re-check eligibility after the await: a first-run wizard, an update flow or an error

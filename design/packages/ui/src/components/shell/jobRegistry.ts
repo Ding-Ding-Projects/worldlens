@@ -25,13 +25,17 @@
 import {
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
+    mdiCubeOutline,
     mdiEye,
     mdiFileDocumentOutline,
     mdiFolderMultipleOutline,
+    mdiLifebuoy,
+    mdiLockOutline,
     mdiMapPlus,
     mdiMemory,
     mdiProgressClock,
     mdiServerNetwork,
+    mdiShieldKeyOutline,
     mdiSourceRepository,
     mdiWeb,
 } from "@mdi/js";
@@ -42,6 +46,10 @@ export type CoreJobId =
     | "world"
     | "projects"
     | "cirender"
+    | "structures"
+    | "authenticator"
+    | "locks"
+    | "support"
     | "renders"
     | "servers"
     | "pages"
@@ -74,6 +82,10 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     wizard: "world",
     projects: "projects",
     runners: "cirender",
+    structures: "structures",
+    authenticator: "authenticator",
+    locks: "locks",
+    support: "support",
     renders: "renders",
     servers: "servers",
     pages: "pages",
@@ -192,6 +204,51 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelFallback: "GitHub runners",
         icon: mdiCloudSyncOutline,
         seedGroup: "rendering",
+        pinnedOnFreshWorkspace: false,
+    },
+    /*
+     * Four jobs `App.vue` has hosted a slot for since the doc comment beside
+     * `openLockDataFolder` ("built, tested and unreachable until this") added them, but this
+     * registry never learned their ids - so `TabbedNavigation` never knew they existed, no
+     * new-tab menu item could open one, and no command-palette row could reveal one either.
+     * The same gap the doc comment describes, one file over. Loose rather than seeded into any
+     * of the three named groups below: none of Rendering, Finished maps or Keeping a copy
+     * describes what any of these four are for.
+     */
+    {
+        id: "structures",
+        semanticName: "structures",
+        labelKey: "tabs.page.structures",
+        labelFallback: "Structures",
+        icon: mdiCubeOutline,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "authenticator",
+        semanticName: "authenticator",
+        labelKey: "tabs.page.authenticator",
+        labelFallback: "Authenticator",
+        icon: mdiShieldKeyOutline,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "locks",
+        semanticName: "locks",
+        labelKey: "tabs.page.locks",
+        labelFallback: "Locks",
+        icon: mdiLockOutline,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "support",
+        semanticName: "support",
+        labelKey: "tabs.page.support",
+        labelFallback: "Support Tickets",
+        icon: mdiLifebuoy,
+        seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },
     {

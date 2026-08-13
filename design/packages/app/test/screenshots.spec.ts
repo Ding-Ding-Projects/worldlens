@@ -1725,6 +1725,75 @@ test("captures the window's own chrome", async () => {
 });
 
 /**
+ * `worldlens.dimsum.testOverride.v1`, matched exactly against the key `DimSumSurprise.vue`
+ * reads in `readTestOverride`. Hard-coded rather than imported, for the same reason
+ * `PROFILE_STORAGE_KEY` is: this is a plain Playwright/Node test with no access to the
+ * `packages/ui` Vite build, so the string has to travel by agreement rather than by import.
+ */
+const DIMSUM_TEST_OVERRIDE_KEY = "worldlens.dimsum.testOverride.v1";
+
+/**
+ * The dim sum startup surprise, forced to win its one-in-ten draw.
+ *
+ * A real 10% chance is not a surface a capture run can reach by waiting - that would need on
+ * the order of ten launches, and this harness gets one. `DimSumSurprise.vue`'s own doc comment
+ * explains the honest way out: a `localStorage` key that nothing in the shipped product ever
+ * writes, read once at mount, that both forces the draw to win and supplies the dish list
+ * itself so the real fetch to the public catalog - which would otherwise be the one deliberate
+ * reach past loopback in this whole harness - never runs. Production behaviour is untouched:
+ * every real launch finds the key absent and draws exactly the same 10% chance it always did.
+ *
+ * The override is written before a reload rather than after, because the component draws once
+ * on mount and the mount that matters is the one about to happen. It is removed again
+ * afterwards and the target profile restored, exactly as the World wizard step above restores
+ * it after its own detour - so every capture that runs after this one meets the same profile
+ * every other capture in this file expects, not a page left mid-reload by this one.
+ */
+test("captures the dim sum startup surprise", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Dim sum surprise", async () => {
+        await page.evaluate(
+            (seed: { key: string; value: string }) => {
+                window.localStorage.setItem(seed.key, seed.value);
+            },
+            {
+                key: DIMSUM_TEST_OVERRIDE_KEY,
+                value: JSON.stringify({
+                    dishes: [
+                        {
+                            id: "har-gow",
+                            nameEn: "Har gow",
+                            nameZhHant: "蝦餃",
+                            imageUrl: null,
+                        },
+                    ],
+                }),
+            },
+        );
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await page.waitForSelector("#app", { timeout: 30_000 });
+
+        const surprise = page.locator(".mb-dimsum-surprise");
+        await surprise.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "dimsum-surprise",
+            "The dim sum startup surprise: a non-blocking, auto-dismissing corner snackbar naming one dish in both languages. Forced to win its draw by a screenshot-harness-only localStorage override that also supplies the dish, so the capture never has to reach the public dish catalog; production code never writes this key and draws the real one-in-ten chance every other launch",
+            { mapArea: "covered" },
+        );
+
+        await page.evaluate((key: string) => {
+            window.localStorage.removeItem(key);
+        }, DIMSUM_TEST_OVERRIDE_KEY);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await page.waitForSelector("#app", { timeout: 30_000 });
+        await ensureFirstRunClosed();
+        await pointAppAtCaptureTarget();
+    });
+});
+
+/**
  * Home, which is where the application now opens and had no capture at all.
  *
  * The five catalogues are the shell's answer to a tab strip that used to hold every destination
@@ -2251,6 +2320,25 @@ test("captures every page of the menu", async () => {
         );
     });
 
+    // Inside the marker menu, and therefore behind the same map precondition as the menu
+    // itself: `MarkerMenu.vue` only offers "Make your own markers" while the active set is
+    // empty, which a throwaway capture profile's map always is, so the button is on screen
+    // by construction rather than by luck.
+    await attemptOnMap("Marker studio", async () => {
+        await openMenuPage("Markers", ".mb-marker-menu");
+        await page
+            .locator('[data-test="marker-open-studio"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        const studio = page.locator('[data-test="marker-studio"]');
+        await studio.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "marker-studio",
+            "The marker studio, opened from the marker menu's own \"Make your own markers\" button: the panel that lets somebody add markers of their own, kept in a set separate from anything a server or a marker file supplies",
+        );
+    });
+
     await closeSideSheet();
 });
 
@@ -2616,6 +2704,21 @@ test("captures the settings surface and every section in it", async () => {
         await page.waitForTimeout(400);
     });
 
+    // The always-present personal-vocabulary upload row, reached the same way every other
+    // settings section is: through the panel's own search, per openSettingsSection's doc
+    // comment on why a plain reopen cannot be trusted to land on any particular tab.
+    await attempt("Personal vocabulary settings row", async () => {
+        await openSettingsSection("vocabulary", "Personal vocabulary");
+        const row = page.locator(`${APP_SETTINGS} [data-anchor="vocabulary"]`);
+        await row.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "settings-vocabulary",
+            "The personal-vocabulary settings row, present in its own settings section whether or not a file has ever been uploaded: its honest no-file state on a throwaway capture profile",
+            { crop: drawer, cropped: "the settings panel" },
+        );
+    });
+
     skip(
         "GitHub account, signed in",
         "signing in needs a real GitHub account and a real device-flow round trip to github.com, " +
@@ -2961,6 +3064,74 @@ test("captures the remaining first-class screens", async () => {
             "pages-publishing-screen",
             "The Pages publishing screen: the searchable render list, the repository fields, and the check that reports what publishing would push before anything is pushed",
             { crop: publish, cropped: "the Pages publishing screen", mapArea: "covered" },
+        );
+    });
+
+    // Four screens that had a complete component and no page that rendered it, per App.vue's
+    // own doc comment on the authenticator, the lock list and the recovery desk: "a full green
+    // suite says nothing about it, because a component tested in isolation passes whether or
+    // not anybody can open it." All four need nothing but the application - no account, no
+    // network, no render in flight - and are reached the same way every other job screen is.
+    await attempt("Authenticator page", async () => {
+        await openJob("authenticator", /^Authenticator$/i, "Authenticator");
+        const authenticator = page.locator('[data-test="authenticator-screen"]');
+        await authenticator.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "authenticator-screen",
+            "The built-in authenticator, on its own tab in the Work destination, with its honest empty state on a throwaway profile that has never registered a TOTP account",
+            { crop: authenticator, cropped: "the authenticator screen", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Locks page", async () => {
+        await openJob("locks", /^Locks$/i, "Locks");
+        const locks = page.locator('[data-test="lock-list"]');
+        await locks.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "lock-list-screen",
+            "The lock list, enumerating every toy lock on this computer, with its honest empty state on a throwaway profile that has never locked an element",
+            { crop: locks, cropped: "the lock list", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Support Tickets page", async () => {
+        await openJob("support", /Support Tickets/i, "Support Tickets");
+        const support = page.locator('[data-test="support-tickets"]');
+        await support.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "support-tickets-screen",
+            "The recovery desk, dressed as a support desk: a ticket form and the plain, unstyled line stating that nothing is ever sent anywhere",
+            { crop: support, cropped: "the Support Tickets screen", mapArea: "covered" },
+        );
+    });
+
+    // Structures and the drop zone share one tab - see App.vue's own doc comment on why the
+    // drop zone lives on this page rather than wrapping the whole application - so one job
+    // open reaches both required surfaces.
+    await attempt("Structures page", async () => {
+        await openJob("structures", /^Structures$/i, "Structures");
+        const structures = page.locator('[data-test="structure-list"]');
+        await structures.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "structures-screen",
+            "The Structures screen, listing every structure file a world scan found and, once rendered, the render for each one - with its honest empty state on a throwaway profile with no world scanned yet",
+            { crop: structures, cropped: "the Structures screen", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Drop-render zone", async () => {
+        await openJob("structures", /^Structures$/i, "Structures");
+        const dropZone = page.locator('[data-test="drop-render-zone"]');
+        await dropZone.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "drop-render-zone",
+            "The drop-render zone at the top of the Structures screen: drag a structure or schematic file straight onto it, or use the ordinary button beside it that does exactly the same thing",
+            { crop: dropZone, cropped: "the drop-render zone", mapArea: "covered" },
         );
     });
 
@@ -3885,6 +4056,26 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     { surface: "Marker menu", needsLoadedMap: true },
     { surface: "Menu search bar", needsLoadedMap: true },
     { surface: "Reset settings super confirmation", needsLoadedMap: true },
+    // Added after an audit found eight more surfaces that shipped with no capture step at
+    // all - the marker studio, three tab-strip jobs App.vue's own doc comment names as
+    // "built, tested and unreachable until this", the Structures page and the drop zone that
+    // lives on it, the always-present personal-vocabulary row, and the dim sum surprise - so a
+    // change deleting any of them outright would still have left this run green.
+    //
+    // The marker studio is reached through the marker menu, so it shares that menu's
+    // precondition: no map, no menu, no studio button to press.
+    { surface: "Marker studio", needsLoadedMap: true },
+    { surface: "Authenticator page" },
+    { surface: "Locks page" },
+    { surface: "Support Tickets page" },
+    { surface: "Structures page" },
+    { surface: "Drop-render zone" },
+    { surface: "Personal vocabulary settings row" },
+    // A one-in-ten startup draw is not a surface a capture run can reach by waiting, so this
+    // is forced through a screenshot-harness-only localStorage override - see
+    // `DimSumSurprise.vue`'s own doc comment and `DIMSUM_TEST_OVERRIDE_KEY` above for why that
+    // is the honest route rather than a weakening of the real chance for anyone else.
+    { surface: "Dim sum surprise" },
 ];
 
 test("captured every surface that needs nothing but the application", () => {
