@@ -52,7 +52,20 @@ const i18n = useSetupI18n();
 
 const flow = createFirstRunController();
 
-const emit = defineEmits<{ finished: [] }>();
+const emit = defineEmits<{ finished: []; "update:active": [boolean] }>();
+
+/*
+ * A plain mirror of `flow.visible`, emitted for the shell to read without reaching into
+ * this component's internals. Added for the dim sum startup surprise, which must never
+ * appear while this wizard is on screen - see `App.vue`'s `dimSumFirstRunActive` binding -
+ * but it is deliberately a generic "am I open" signal rather than anything dim-sum-shaped,
+ * so any other startup surface with the same "not during first run" rule can reuse it.
+ */
+watch(
+    () => flow.visible.value,
+    (open) => emit("update:active", open),
+    { immediate: true },
+);
 
 async function onFinish(): Promise<void> {
     const succeeded = await flow.finish();
