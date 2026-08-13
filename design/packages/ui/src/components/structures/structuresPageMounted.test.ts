@@ -81,3 +81,58 @@ describe("the drop zone is mounted too", () => {
         expect(appSource).toMatch(/@browse=/);
     });
 });
+
+/* -------------------------------------------------------------------------- */
+/* The regression that 94 passing tests did not notice                         */
+/* -------------------------------------------------------------------------- */
+
+describe("nothing wraps the application layout", () => {
+    /**
+     * Vuetify's `<v-app>` computes its layout from its DIRECT children. Put any plain
+     * element between it and `<v-main>` and the main region collapses to zero height: the
+     * whole window renders as a black rectangle with only the interloper's own chrome
+     * visible across the top.
+     *
+     * That shipped. The drop zone was wrapped around the app's children, every unit test
+     * in this package stayed green, and the first thing that noticed was a person opening
+     * the built application and seeing nothing. No assertion anywhere was about layout,
+     * because layout is exactly what jsdom does not have.
+     *
+     * So the shape is asserted from the source instead. It is a blunt check and it is the
+     * only one available: a wrapper here is invisible to every other guard in this project.
+     */
+    it("keeps v-main a direct child of v-app, with no element opened between them", () => {
+        const open = appSource.indexOf("<v-app ");
+        const main = appSource.indexOf("<v-main ");
+        expect(open).toBeGreaterThan(-1);
+        expect(main).toBeGreaterThan(open);
+
+        const between = appSource.slice(appSource.indexOf(">", open) + 1, main);
+        // Comments are fine; an opened element is not. Anything that opens a tag here and
+        // does not close it before <v-main> is a wrapper around the layout.
+        const withoutComments = between.replace(/<!--[\s\S]*?-->/g, "");
+        const opened = [...withoutComments.matchAll(/<([A-Za-z][\w.-]*)(\s|>|\/)/g)].map(
+            (match) => match[1],
+        );
+        const closed = [...withoutComments.matchAll(/<\/([A-Za-z][\w.-]*)>/g)].map(
+            (match) => match[1],
+        );
+        const selfClosing = [...withoutComments.matchAll(/<([A-Za-z][\w.-]*)[^>]*\/>/g)].map(
+            (match) => match[1],
+        );
+
+        const unclosed = opened.filter((tag) => {
+            const opens = opened.filter((name) => name === tag).length;
+            const closes = closed.filter((name) => name === tag).length;
+            const selfs = selfClosing.filter((name) => name === tag).length;
+            return opens - closes - selfs > 0;
+        });
+
+        expect(
+            unclosed,
+            "an element left open between <v-app> and <v-main> wraps Vuetify's layout, " +
+                "which collapses the main region to zero height and renders the window as a " +
+                "black rectangle. Nothing else in this project can see that.",
+        ).toEqual([]);
+    });
+});

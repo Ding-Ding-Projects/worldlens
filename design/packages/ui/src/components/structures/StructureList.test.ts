@@ -5,9 +5,11 @@
  */
 
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { VSlider, VSwitch } from "vuetify/components";
 
 import StructureList from "./StructureList.vue";
 import type { StructureFile } from "./structureModel.js";
@@ -199,8 +201,21 @@ describe("bulk delete", () => {
 
         await wrapper.find('[data-test="structure-select-filtered"]').trigger("click");
         await wrapper.find('[data-test="structure-remove-selected"]').trigger("click");
-        expect(wrapper.find('[data-test="structure-remove-confirm"]').text()).toContain("Delete 1");
-        await wrapper.find('[data-test="structure-remove-go"]').trigger("click");
+        await flushPromises();
+        // The gate names what is about to go. Read off the sentence the gate is handed
+        // rather than the rendered card, because that card is teleported out of this
+        // wrapper and the point being checked is the count, not where it is drawn.
+        expect(wrapper.findComponent(ConfigSuperConfirm).props("action")).toContain(
+            "This deletes 1 rendered structures",
+        );
+
+        const switches = wrapper.findAllComponents(VSwitch);
+        expect(switches.length).toBeGreaterThanOrEqual(2);
+        await switches[0]!.setValue(true);
+        await switches[1]!.setValue(true);
+        await flushPromises();
+        wrapper.findComponent(VSlider).vm.$emit("update:modelValue", 100);
+        await flushPromises();
 
         expect(structureStore.rendered).toHaveLength(1);
         expect(structureStore.rendered[0]?.name).toBe("tower");
@@ -210,8 +225,21 @@ describe("bulk delete", () => {
         const wrapper = mountList({ files: [] });
         await wrapper.find('[data-test="structure-select-filtered"]').trigger("click");
         await wrapper.find('[data-test="structure-remove-selected"]').trigger("click");
-        expect(wrapper.find('[data-test="structure-remove-confirm"]').text()).toContain("Delete 2");
-        await wrapper.find('[data-test="structure-remove-go"]').trigger("click");
+        await flushPromises();
+        // The gate names what is about to go. Read off the sentence the gate is handed
+        // rather than the rendered card, because that card is teleported out of this
+        // wrapper and the point being checked is the count, not where it is drawn.
+        expect(wrapper.findComponent(ConfigSuperConfirm).props("action")).toContain(
+            "This deletes 2 rendered structures",
+        );
+
+        const switches = wrapper.findAllComponents(VSwitch);
+        expect(switches.length).toBeGreaterThanOrEqual(2);
+        await switches[0]!.setValue(true);
+        await switches[1]!.setValue(true);
+        await flushPromises();
+        wrapper.findComponent(VSlider).vm.$emit("update:modelValue", 100);
+        await flushPromises();
         expect(wrapper.find('[data-test="structure-removed"]').text()).toContain("Deleted 2");
         expect(structureStore.rendered).toHaveLength(0);
     });

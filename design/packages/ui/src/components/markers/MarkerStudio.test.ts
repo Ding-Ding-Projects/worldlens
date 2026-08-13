@@ -13,6 +13,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { VSlider, VSwitch } from "vuetify/components";
 
 import MarkerStudio from "./MarkerStudio.vue";
 import { markerStudioStore, setMarkerPersistence } from "./markerStudioStore.js";
@@ -250,12 +251,21 @@ describe("bulk deletion acts on exactly what it previewed", () => {
 
         await wrapper.find('[data-test="marker-select-listed"]').trigger("click");
         await flushPromises();
+
+        // Open the gate, then drive it the way the contract requires: two independent keys
+        // and a slider all the way across. A plain confirm button here would mean the gate
+        // was declared and never actually wired.
         await wrapper.find('[data-test="marker-remove-selected"]').trigger("click");
         await flushPromises();
-        await wrapper.vm.$nextTick();
-        expect(wrapper.text()).toContain("Delete 2 markers?");
 
-        await wrapper.find('[data-test="marker-remove-go"]').trigger("click");
+        const switches = wrapper.findAllComponents(VSwitch);
+        expect(switches.length).toBeGreaterThanOrEqual(2);
+        await switches[0]!.setValue(true);
+        await switches[1]!.setValue(true);
+        await flushPromises();
+
+        const slider = wrapper.findComponent(VSlider);
+        slider.vm.$emit("update:modelValue", 100);
         await flushPromises();
 
         expect(markerStudioStore.markers).toHaveLength(0);

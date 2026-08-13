@@ -5,6 +5,7 @@ import { mdiCubeOutline, mdiOpenInNew } from "@mdi/js";
 import { VAlert, VBtn, VCheckbox, VList, VListItem } from "vuetify/components";
 
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     groupByNamespace,
@@ -128,7 +129,12 @@ const renderedSummary = computed(() =>
 /* Bulk select and delete, exactly as every other list in this application has. */
 
 const selected = ref(new Set<string>());
-const confirming = ref(false);
+/** The names the gate lists, so it names what goes rather than only how many. */
+const selectedNames = computed(() =>
+    structureStore.rendered
+        .filter((entry) => selected.value.has(entry.id))
+        .map((entry) => entry.name),
+);
 const removedCount = ref<number | null>(null);
 
 function toggleSelected(id: string): void {
@@ -150,7 +156,6 @@ function selectNone(): void {
 function removeSelected(): void {
     removedCount.value = removeRenderedStructures([...selected.value]);
     selected.value = new Set();
-    confirming.value = false;
 }
 
 function isRendered(file: StructureFile): boolean {
@@ -321,43 +326,42 @@ function isRendered(file: StructureFile): boolean {
                 >
                     {{ t("structures.list.selectNone", "Select none") }}
                 </VBtn>
-                <VBtn
+                <!--
+                    The two-key gate rather than the count preview this first shipped with.
+                    Deleting a render record removes the only route this application keeps
+                    back to those tiles, which is the same loss `ProfileManager` is gated
+                    for. The source .nbt on disk is untouched either way, and the gate says
+                    so rather than leaving somebody to wonder.
+                -->
+                <ConfigSuperConfirm
                     v-if="selected.size > 0"
-                    size="small"
-                    color="error"
-                    variant="tonal"
-                    data-test="structure-remove-selected"
-                    @click="confirming = true"
-                >
-                    {{
+                    :title="t('structures.list.deleteTitle', 'Delete these rendered structures')"
+                    :action="
                         t(
-                            "structures.list.removeSelected",
+                            'structures.list.deleteAction',
                             { count: selected.size },
-                            "Delete {count} renders",
+                            'This deletes {count} rendered structures from the list, and with them the only route this application keeps back to those tiles. The source structure files on disk are not touched.',
                         )
-                    }}
-                </VBtn>
+                    "
+                    :affected="selectedNames"
+                    :confirm-label="t('structures.list.confirmYes', 'Delete them')"
+                    data-test="structure-remove-gate"
+                    @confirm="removeSelected"
+                >
+                    <template #activator="{ props: activatorProps }">
+                        <VBtn
+                            v-bind="activatorProps"
+                            size="small"
+                            color="error"
+                            variant="tonal"
+                            data-test="structure-remove-selected"
+                        >
+                            {{ t("structures.list.removeSelected", { count: selected.size }, "Delete {count} renders") }}
+                        </VBtn>
+                    </template>
+                </ConfigSuperConfirm>
             </div>
 
-            <VAlert v-if="confirming" type="warning" variant="tonal" density="compact" class="mt-2">
-                <span data-test="structure-remove-confirm">
-                    {{
-                        t(
-                            "structures.list.confirmRemove",
-                            { count: selected.size },
-                            "Delete {count} rendered structures? The source structure files on disk are not touched.",
-                        )
-                    }}
-                </span>
-                <div class="d-flex ga-2 mt-2">
-                    <VBtn size="small" color="error" data-test="structure-remove-go" @click="removeSelected">
-                        {{ t("structures.list.confirmYes", "Delete them") }}
-                    </VBtn>
-                    <VBtn size="small" variant="text" @click="confirming = false">
-                        {{ t("structures.list.confirmNo", "Keep them") }}
-                    </VBtn>
-                </div>
-            </VAlert>
 
             <p
                 v-if="filteredRendered.length === 0"

@@ -210,6 +210,21 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         gatedIn: "components/ProfileManager.vue",
     },
 
+    "components/markers/MarkerStudio.vue": {
+        count: 1,
+        destroys:
+            "markers somebody made by hand, which nothing in this application restores",
+        standing: "gated",
+        gatedIn: "components/markers/MarkerStudio.vue",
+    },
+    "components/structures/StructureList.vue": {
+        count: 1,
+        destroys:
+            "a rendered structure's record, and with it the only route this application keeps " +
+            "back to those tiles. The source .nbt on disk is untouched.",
+        standing: "gated",
+        gatedIn: "components/structures/StructureList.vue",
+    },
     "components/appearance/AppearanceEditor.vue": {
         count: 1,
         destroys:

@@ -13,6 +13,7 @@ import {
 } from "vuetify/components";
 import { mdiMapMarkerPlusOutline, mdiPencilOutline } from "@mdi/js";
 
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import MarkerSearchField from "./MarkerSearchField.vue";
 import { compileSearchPattern, includesCI, type SearchMode } from "./markerFilter.js";
 import {
@@ -165,7 +166,11 @@ function save(): void {
 /* -------------------------------------------------------------------------- */
 
 const selected = ref(new Set<string>());
-const confirming = ref(false);
+
+/** The names the gate lists, so it names what goes rather than only how many. */
+const selectedLabels = computed(() =>
+    all.value.filter((marker) => selected.value.has(marker.id)).map((marker) => marker.label),
+);
 
 function toggle(id: string): void {
     const next = new Set(selected.value);
@@ -188,7 +193,6 @@ const removedCount = ref<number | null>(null);
 function removeSelected(): void {
     removedCount.value = removeMarkers([...selected.value]);
     selected.value = new Set();
-    confirming.value = false;
 }
 
 function positionText(marker: StudioMarker): string {
@@ -370,55 +374,42 @@ function positionText(marker: StudioMarker): string {
                 >
                     {{ t("markers.studio.selectNone", "Select none") }}
                 </VBtn>
-                <VBtn
+                <!--
+                    The two-key gate, not the count preview I first shipped. These are
+                    markers somebody made by hand and nothing in this application restores
+                    them, so this destroys user content with no undo. `ProfileManager` sets
+                    the precedent: an entry whose loss removes the only route back to
+                    something is gated, and a list of your own markers is exactly that.
+                -->
+                <ConfigSuperConfirm
                     v-if="selected.size > 0"
-                    size="small"
-                    color="error"
-                    variant="tonal"
-                    data-test="marker-remove-selected"
-                    @click="confirming = true"
-                >
-                    {{
+                    :title="t('markers.studio.deleteTitle', 'Delete these markers')"
+                    :action="
                         t(
-                            "markers.studio.removeSelected",
+                            'markers.studio.deleteAction',
                             { count: selected.size },
-                            "Delete {count} markers",
+                            'This deletes {count} of your own markers. Nothing else on the map is touched, and deleted markers cannot be recovered.',
                         )
-                    }}
-                </VBtn>
+                    "
+                    :affected="selectedLabels"
+                    :confirm-label="t('markers.studio.confirmYes', 'Delete them')"
+                    data-test="marker-remove-gate"
+                    @confirm="removeSelected"
+                >
+                    <template #activator="{ props: activatorProps }">
+                        <VBtn
+                            v-bind="activatorProps"
+                            size="small"
+                            color="error"
+                            variant="tonal"
+                            data-test="marker-remove-selected"
+                        >
+                            {{ t("markers.studio.removeSelected", { count: selected.size }, "Delete {count} markers") }}
+                        </VBtn>
+                    </template>
+                </ConfigSuperConfirm>
             </div>
 
-            <VAlert
-                v-if="confirming"
-                type="warning"
-                variant="tonal"
-                density="compact"
-                class="mt-2"
-            >
-                <!--
-                    The hook is on a plain element inside the alert rather than on the alert
-                    itself: a component's fallthrough attribute is not reliably queryable
-                    from a test, and a preview nobody can assert on is a preview that can
-                    silently stop naming the right count.
-                -->
-                <span data-test="marker-remove-confirm">
-                    {{
-                        t(
-                            "markers.studio.confirmRemove",
-                            { count: selected.size },
-                            "Delete {count} markers? Nothing else on the map is touched.",
-                        )
-                    }}
-                </span>
-                <div class="d-flex ga-2 mt-2">
-                    <VBtn size="small" color="error" data-test="marker-remove-go" @click="removeSelected">
-                        {{ t("markers.studio.confirmYes", "Delete them") }}
-                    </VBtn>
-                    <VBtn size="small" variant="text" @click="confirming = false">
-                        {{ t("markers.studio.confirmNo", "Keep them") }}
-                    </VBtn>
-                </div>
-            </VAlert>
 
             <VList density="compact" class="mt-2">
                 <VListItem

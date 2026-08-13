@@ -1140,7 +1140,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             anything by itself; it classifies what was dropped and hands the accepted files
             to `onDropRender`, which takes the person to the screen that actually renders.
         -->
-        <DropRenderZone @render="onDropRender" @browse="onDropRenderBrowse">
         <!--
             The window's own chrome. Frameless means the operating system draws no caption
             bar, so this is it; in a browser build the component renders nothing at all.
@@ -1452,6 +1451,20 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     inside a world, and the list says that instead of showing
                                     an empty result that reads as "this world has none".
                                 -->
+                                <!--
+                                    The drop zone lives on this page rather than wrapping
+                                    the whole application. It used to wrap `<v-app>`'s
+                                    children, and Vuetify's layout needs `v-main` as a
+                                    direct child: everything below collapsed to zero height
+                                    and the window rendered as a black rectangle with the
+                                    zone's own bar across the top. A drop target is also
+                                    something somebody goes looking for, and this is the
+                                    page they look on.
+                                -->
+                                <DropRenderZone
+                                    @render="onDropRender"
+                                    @browse="onDropRenderBrowse"
+                                />
                                 <StructureList
                                     :files="structureStore.discovered"
                                     :can-scan="canScanStructures"
@@ -1709,7 +1722,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             `revealPage` as its steps advance.
         -->
         <TutorialOverlay :reveal-page="revealPage" />
-        </DropRenderZone>
 
     </v-app>
 </template>
