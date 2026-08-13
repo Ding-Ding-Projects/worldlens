@@ -349,7 +349,7 @@ the schema first.
 | Core | `core.conf` | 10 | `design/packages/config/src/schema/core.ts` |
 | Map (per map) | `maps/<id>.conf` | 31 | `schema/map.ts` (+ `schema/mask.ts` for `render-mask`) |
 | Storages | `storages/<id>.conf` | 10 | `schema/storage.ts` |
-| Web app | `webapp.conf` | 19 | `schema/webapp.ts` |
+| Web app | `webapp.conf` | 20 | `schema/webapp.ts` |
 | Web server | `webserver.conf` | 8 | `schema/webserver.ts` |
 | Server plugin | `plugin.conf` | 12 | `schema/plugin.ts` |
 | Command line | `bluemap-cli` | 17 flags | `config/src/cli/flags.ts` |

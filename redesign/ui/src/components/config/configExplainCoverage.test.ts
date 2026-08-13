@@ -3,7 +3,7 @@
  * editor shows gets the full explanation with its disclosure toggle, and the
  * default-provenance line, truthfully.
  *
- * `ConfigField.vue` has always carried that pair for the 154 settings
+ * `ConfigField.vue` has always carried that pair for the 155 settings
  * `configSearch.test.ts`'s `buildSettingIndex()` counts. This file adds the two
  * places that count does not reach, because neither is a `FieldMeta` a whole
  * config file owns: a render mask's own shape fields (`MASK_SHAPES`, rendered by

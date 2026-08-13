@@ -216,10 +216,10 @@ describe("coverage against the schema itself", () => {
         expect(reachable).toBe(total);
     });
 
-    it("keeps the published editor inventory honest: 154 settings over seven config tabs plus History", () => {
+    it("keeps the published editor inventory honest: 155 settings over seven config tabs plus History", () => {
         const current = workspace();
         const total = buildSettingIndex(current).length;
         expect(SCREENS).toHaveLength(7);
-        expect(total).toBe(154);
+        expect(total).toBe(155);
     });
 });
