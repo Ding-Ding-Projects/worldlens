@@ -14,6 +14,18 @@ BlueMap shadow JAR and local Playwright CLI without invoking `npm exec`, downloa
 installing a browser dependency. The normal mode uses the manifest-pinned pnpm version and the
 same local Playwright CLI to install what is missing.
 
+The GitHub CLI step reports three states and never conflates them, because they need three
+different things from the reader: `gh` is not installed, `gh` is installed but nobody is signed in,
+and `gh` is installed and signed in. It looks on PATH, at `GH_PATH`, and in the same conventional
+install roots the application pins in `design/packages/app/src/main/ghcli/executable.ts`, so a gh
+that winget has just installed into `%LOCALAPPDATA%\Programs\GitHub CLI` is never reported as
+absent. When it really is absent, the normal mode installs it with the platform's own package
+manager, user-scoped, without asking for administrator rights; where no such route exists it says
+which command would do it rather than installing machine-wide. Being signed out is reported and
+does not fail the run: the sign-in command, scopes and all, is printed for the reader to run in
+their own terminal, because `gh auth login` suppresses its device-code prompt when stdin is not a
+terminal and a spawned one would print nothing and wait forever.
+
 The Electron recovery path verifies the cached archive against Electron's checksum manifest before
 extracting it. Its recursive cleanup is bounded to the package directory and rejects lexical escapes
 and Windows reparse points (or POSIX symbolic links) before removing anything. Shadow-JAR detection
