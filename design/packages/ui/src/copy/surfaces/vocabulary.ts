@@ -155,6 +155,10 @@ export const VOCABULARY_FIXED = {
         en: "the same word appears more than once",
         yue: "同一個字出現咗多過一次",
     },
+    "vocabulary.reason.control-character": {
+        en: "one entry contains a control character this app will not display",
+        yue: "有一個項目包含呢個程式唔會顯示嘅控制字元",
+    },
     "vocabulary.reason.value-not-a-string": {
         en: "one entry's replacement is not plain text",
         yue: "有一個項目嘅替換字唔係純文字",

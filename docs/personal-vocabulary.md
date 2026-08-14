@@ -17,14 +17,22 @@ Clearing purges the cache and restores the original wording immediately.
 ## What a file has to satisfy
 
 The complete payload is validated before anything is displayed or cached, and a rejected
-file **never applies partially**:
+file **never applies partially**. Its only accepted top-level fields are `schemaVersion`, fixed
+at `1`, and `entries`, a flat string-to-string object. Any extra top-level field is rejected.
+If a private vocabulary service or another local tool uses a different internal representation,
+it must normalize the file before the person chooses it here; WorldLens does not guess at legacy
+or undocumented shapes.
 
 - a hard byte ceiling
 - a supported schema version, with an unknown version refused rather than guessed at
 - maximum nesting depth and entry count
 - bounded key and value lengths
 - string-only replacement values
-- no duplicate keys, no unsafe object keys, no unexpected fields
+- no duplicate keys, no unsafe object keys, no control characters, and no unexpected fields
+
+The current bounds are 256 KiB of UTF-8 input, depth 2, 4,096 entries, 160 characters per key,
+and 1,000 characters per replacement. These limits apply before the candidate replaces an
+existing valid cache, so an over-limit or malformed file cannot partially change active wording.
 
 Each refusal names the exact bound that was broken rather than saying the file is invalid.
 
@@ -40,6 +48,12 @@ they omitted the vocabulary rather than silently dropping it.
 
 Replacements apply at the user-facing text boundary, including accessible names, and leave
 commands, URLs, identifiers, code, file paths and factual external records verbatim.
+
+The application's central localization catalogue applies replacements to the static parts of
+its message templates before interpolation. Values supplied at runtime — including template
+placeholders such as `{folder}`, paths, URLs, flags, counts, and identifiers — are kept
+verbatim. Loading, replacing, or clearing a valid local file refreshes that catalogue in the
+open application without sending the data anywhere.
 
 ## Verification
 

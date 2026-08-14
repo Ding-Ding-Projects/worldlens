@@ -47,6 +47,8 @@
 
 import { watch, type WatchStopHandle } from "vue";
 import type { I18n } from "vue-i18n";
+import { applyVocabularyTemplate } from "../components/vocabulary/applyVocabulary.js";
+import { vocabularyStore } from "../components/vocabulary/vocabularyStore.js";
 import {
     APP_FIXED,
     APP_VOICED,
@@ -135,10 +137,10 @@ export function appMessage(key: AppCopyKey, settings: LanguageSettings): string 
 export function voiceMessages(settings: LanguageSettings): Record<string, string> {
     const messages: Record<string, string> = {};
     for (const key of Object.keys(APP_VOICED) as AppVoicedKey[]) {
-        messages[key] = appMessage(key, settings);
+        messages[key] = applyVocabularyTemplate(appMessage(key, settings));
     }
     for (const key of Object.keys(APP_FIXED) as AppFixedKey[]) {
-        messages[key] = appMessage(key, settings);
+        messages[key] = applyVocabularyTemplate(appMessage(key, settings));
     }
     return messages;
 }
@@ -202,7 +204,15 @@ export function installAppVoice(
     return watch(
         () => {
             const settings = currentLanguageSettings();
-            return [localeOf(), settings.mode, settings.funnyEn, settings.funnyYue] as const;
+            const vocabularyEntries = Object.entries(vocabularyStore.entries);
+            return [
+                localeOf(),
+                settings.mode,
+                settings.funnyEn,
+                settings.funnyYue,
+                vocabularyStore.status,
+                vocabularyEntries,
+            ] as const;
         },
         ([locale, mode]) => {
             mergeVoiceInto(i18n, locale);

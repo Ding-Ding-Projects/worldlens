@@ -33,3 +33,23 @@ export function applyVocabulary(text: string): string {
     }
     return result;
 }
+
+/**
+ * Applies replacements to a localization message before its named values are interpolated.
+ * Placeholder tokens stay literal, so a user-supplied mapping cannot alter a runtime path,
+ * URL, command, identifier, count, or other factual value passed through `{name}`.
+ */
+export function applyVocabularyTemplate(template: string): string {
+    const placeholder = /\{[A-Za-z_][A-Za-z0-9_]*\}/g;
+    let cursor = 0;
+    let result = "";
+
+    for (const match of template.matchAll(placeholder)) {
+        const index = match.index ?? cursor;
+        result += applyVocabulary(template.slice(cursor, index));
+        result += match[0];
+        cursor = index + match[0].length;
+    }
+
+    return result + applyVocabulary(template.slice(cursor));
+}

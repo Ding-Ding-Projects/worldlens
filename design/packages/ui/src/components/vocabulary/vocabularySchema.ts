@@ -21,17 +21,17 @@ export const VOCABULARY_SCHEMA_VERSION = 1 as const;
 /** Hard ceiling on the raw file, in bytes, read before anything is parsed. */
 export const VOCABULARY_MAX_BYTES = 262_144; // 256 KiB
 
-/** JSON.parse produces plain objects and arrays; this bounds how deep either may nest. */
-export const VOCABULARY_MAX_DEPTH = 4;
+/** The complete payload is a top-level object containing one flat entries object. */
+export const VOCABULARY_MAX_DEPTH = 2;
 
 /** How many replacement entries a single file may declare. */
-export const VOCABULARY_MAX_ENTRIES = 2_000;
+export const VOCABULARY_MAX_ENTRIES = 4_096;
 
 /** Bounds on one entry's key (the term being replaced). */
-export const VOCABULARY_MAX_KEY_LENGTH = 200;
+export const VOCABULARY_MAX_KEY_LENGTH = 160;
 
 /** Bounds on one entry's value (the replacement text). */
-export const VOCABULARY_MAX_VALUE_LENGTH = 2_000;
+export const VOCABULARY_MAX_VALUE_LENGTH = 1_000;
 
 /**
  * Object keys JavaScript treats specially, and which this format refuses to accept as
@@ -39,6 +39,9 @@ export const VOCABULARY_MAX_VALUE_LENGTH = 2_000;
  * because merging it is how a crafted file reaches the store's own prototype.
  */
 const UNSAFE_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+
+/** Control code points do not belong in labels or accessible names. */
+const CONTROL_CHARACTER = /[\u0000-\u001F\u007F-\u009F]/u;
 
 /** The only top-level shape a payload may declare. Extra fields are rejected outright. */
 const ALLOWED_TOP_LEVEL_KEYS = new Set(["schemaVersion", "entries"]);
@@ -64,6 +67,7 @@ export type VocabularyRejectionReason =
     | "key-too-long"
     | "empty-key"
     | "duplicate-key"
+    | "control-character"
     | "value-not-a-string"
     | "value-too-long"
     /** Not a validation outcome: the chosen file's bytes could not be read from disk. */
@@ -87,17 +91,116 @@ function fail(reason: VocabularyRejectionReason, key?: string): VocabularyValida
     return key === undefined ? { ok: false, reason } : { ok: false, reason, key };
 }
 
+/** Counts Unicode code points rather than UTF-16 code units for the contract's text limits. */
+function characterCount(value: string): number {
+    return Array.from(value).length;
+}
+
 /**
- * How deep a parsed JSON value nests. A bare string or number is depth 0; an object or
- * array wrapping one is depth 1, and so on. Only used to reject a payload whose
- * "entries" value hides further nested objects or arrays rather than plain strings,
- * since the contract is a flat map and nothing here needs more than that to render.
+ * Returns true as soon as the parsed value would exceed the contract's allowed nesting.
+ * The iterative walk stays bounded even when an adversarial payload is deeply nested.
  */
-function depthOf(value: unknown): number {
-    if (value === null || typeof value !== "object") return 0;
-    const children = Array.isArray(value) ? value : Object.values(value as Record<string, unknown>);
-    if (children.length === 0) return 1;
-    return 1 + Math.max(...children.map(depthOf));
+function exceedsMaximumDepth(value: unknown): boolean {
+    const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+    while (pending.length > 0) {
+        const current = pending.pop() as { value: unknown; depth: number };
+        if (current.value === null || typeof current.value !== "object") continue;
+
+        const nextDepth = current.depth + 1;
+        if (nextDepth > VOCABULARY_MAX_DEPTH) return true;
+        const children = Array.isArray(current.value)
+            ? current.value
+            : Object.values(current.value as Record<string, unknown>);
+        for (const child of children) pending.push({ value: child, depth: nextDepth });
+    }
+    return false;
+}
+
+/**
+ * `JSON.parse` keeps only the last occurrence of a repeated object key. Scan the already
+ * syntax-checked JSON once as well so duplicate keys are rejected instead of silently folded.
+ */
+function hasDuplicateJsonObjectKey(source: string): boolean {
+    let cursor = 0;
+    let duplicate = false;
+
+    const skipWhitespace = (): void => {
+        while (/\s/u.test(source[cursor] ?? "")) cursor += 1;
+    };
+
+    const scanString = (): string => {
+        const start = cursor;
+        cursor += 1; // opening quote
+        while (cursor < source.length) {
+            const character = source[cursor] as string;
+            cursor += 1;
+            if (character === "\\") {
+                cursor += 1;
+                continue;
+            }
+            if (character === '"') return JSON.parse(source.slice(start, cursor)) as string;
+        }
+        // JSON.parse has already verified syntax, so this is defensive only.
+        return "";
+    };
+
+    const scanValue = (): void => {
+        skipWhitespace();
+        const character = source[cursor];
+        if (character === "{") {
+            cursor += 1;
+            const keys = new Set<string>();
+            skipWhitespace();
+            if (source[cursor] === "}") {
+                cursor += 1;
+                return;
+            }
+            while (cursor < source.length) {
+                skipWhitespace();
+                const key = scanString();
+                if (keys.has(key)) duplicate = true;
+                keys.add(key);
+                skipWhitespace();
+                cursor += 1; // colon
+                scanValue();
+                skipWhitespace();
+                if (source[cursor] === "}") {
+                    cursor += 1;
+                    return;
+                }
+                cursor += 1; // comma
+            }
+            return;
+        }
+        if (character === "[") {
+            cursor += 1;
+            skipWhitespace();
+            if (source[cursor] === "]") {
+                cursor += 1;
+                return;
+            }
+            while (cursor < source.length) {
+                scanValue();
+                skipWhitespace();
+                if (source[cursor] === "]") {
+                    cursor += 1;
+                    return;
+                }
+                cursor += 1; // comma
+            }
+            return;
+        }
+        if (character === '"') {
+            scanString();
+            return;
+        }
+        while (cursor < source.length && !/[\s,}\]]/u.test(source[cursor] as string)) {
+            cursor += 1;
+        }
+    };
+
+    scanValue();
+    return duplicate;
 }
 
 /**
@@ -107,11 +210,7 @@ function depthOf(value: unknown): number {
  * first 899 - the "never partially" rule this feature exists under.
  */
 export function validateVocabularyPayload(bytes: string): VocabularyValidationResult {
-    // `bytes.length` is UTF-16 code units, not bytes, but it is a safe, cheap proxy for
-    // an upper bound: no encoding turns fewer UTF-16 units into more UTF-8 bytes by a
-    // factor worth worrying about here, and this only needs to reject something clearly
-    // too large before the more expensive checks below run.
-    if (bytes.length > VOCABULARY_MAX_BYTES) return fail("too-large");
+    if (new TextEncoder().encode(bytes).byteLength > VOCABULARY_MAX_BYTES) return fail("too-large");
 
     let parsed: unknown;
     try {
@@ -119,6 +218,8 @@ export function validateVocabularyPayload(bytes: string): VocabularyValidationRe
     } catch {
         return fail("malformed-json");
     }
+
+    if (hasDuplicateJsonObjectKey(bytes)) return fail("duplicate-key");
 
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
         return fail("not-an-object");
@@ -129,6 +230,8 @@ export function validateVocabularyPayload(bytes: string): VocabularyValidationRe
         if (!ALLOWED_TOP_LEVEL_KEYS.has(field)) return fail("unexpected-field");
     }
 
+    if (exceedsMaximumDepth(parsed)) return fail("too-deeply-nested");
+
     if (!("schemaVersion" in record)) return fail("missing-schema-version");
     if (record.schemaVersion !== VOCABULARY_SCHEMA_VERSION) return fail("unknown-schema-version");
 
@@ -138,34 +241,23 @@ export function validateVocabularyPayload(bytes: string): VocabularyValidationRe
         return fail("entries-not-an-object");
     }
 
-    if (depthOf(entries) > VOCABULARY_MAX_DEPTH) return fail("too-deeply-nested");
-
     const entriesRecord = entries as Record<string, unknown>;
     const keys = Object.keys(entriesRecord);
     if (keys.length > VOCABULARY_MAX_ENTRIES) return fail("too-many-entries");
 
-    // `Object.keys` already folds JSON's own duplicate keys down to the last one written,
-    // so a JSON-level duplicate cannot be detected after parsing. What is checked here is
-    // a duplicate that survives case-insensitive or whitespace-padded comparison, which a
-    // parsed object's keys can still carry and which would otherwise let two entries
-    // silently disagree about the same rendered term.
-    const seenNormalised = new Set<string>();
-
     for (const key of keys) {
         if (UNSAFE_KEYS.has(key)) return fail("unsafe-key", key);
         if (key.length === 0) return fail("empty-key");
-        if (key.length > VOCABULARY_MAX_KEY_LENGTH) return fail("key-too-long", key);
-
-        const normalised = key.trim().toLowerCase();
-        if (seenNormalised.has(normalised)) return fail("duplicate-key", key);
-        seenNormalised.add(normalised);
+        if (characterCount(key) > VOCABULARY_MAX_KEY_LENGTH) return fail("key-too-long", key);
+        if (CONTROL_CHARACTER.test(key)) return fail("control-character", key);
 
         const value = entriesRecord[key];
         if (typeof value !== "string") return fail("value-not-a-string", key);
-        if (value.length > VOCABULARY_MAX_VALUE_LENGTH) return fail("value-too-long", key);
+        if (characterCount(value) > VOCABULARY_MAX_VALUE_LENGTH) return fail("value-too-long", key);
+        if (CONTROL_CHARACTER.test(value)) return fail("control-character", key);
     }
 
-    const validated: Record<string, string> = {};
+    const validated: Record<string, string> = Object.create(null) as Record<string, string>;
     for (const key of keys) validated[key] = entriesRecord[key] as string;
 
     return {

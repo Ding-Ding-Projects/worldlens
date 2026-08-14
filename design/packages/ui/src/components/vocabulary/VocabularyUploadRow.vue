@@ -63,6 +63,8 @@ function reasonText(reason: VocabularyRejectionReason): string {
             return t("vocabulary.reason.empty-key", "empty key");
         case "duplicate-key":
             return t("vocabulary.reason.duplicate-key", "duplicate key");
+        case "control-character":
+            return t("vocabulary.reason.control-character", "control characters are not allowed");
         case "value-not-a-string":
             return t("vocabulary.reason.value-not-a-string", "value not a string");
         case "value-too-long":
