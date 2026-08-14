@@ -48,6 +48,21 @@ on:
 permissions:
   contents: read
 
+env:
+  # This project's own pinned commit of https://github.com/Ding-Ding-Projects/worldlens,
+  # cloned fresh by the render job below rather than assumed to sit beside
+  # `.github/workflows` in whichever repository dispatched render-world.yml, which calls
+  # this reusable workflow. A repository this application bootstraps for somebody else
+  # carries only the three workflow files it writes and a marker - no `design/` of its own
+  # - so every step below that used to read the planner out of that checkout now reads it
+  # out of a `toolchain/` clone pinned to this commit instead. See the render job's own
+  # "Check out the render toolchain" step.
+  #
+  # A `workflow_call` reusable workflow does not inherit the caller's `env:` block, so this
+  # is duplicated from render-world.yml rather than shared - keep the two values equal, and
+  # advance both in the same commit the same way render-world.yml's copy is advanced.
+  WORLDLENS_TOOLCHAIN_COMMIT: 2f02d6544769add2ee048c9cc5e394bdae98b127
+
 jobs:
   render:
     name: Wave ${{ inputs.wave }} shard ${{ matrix.shard }}
@@ -66,6 +81,20 @@ jobs:
         with:
           persist-credentials: false
 
+      # This project's own tooling, fresh at a pinned commit, rather than assumed to sit
+      # beside `.github/workflows` in whichever repository dispatched render-world.yml. A
+      # repository this application bootstraps for somebody else carries only the three
+      # workflow files it writes and a marker - it has no `design/` of its own - so every
+      # step below that used to read that directory out of the checkout above now reads it
+      # out of this clone instead. See WORLDLENS_TOOLCHAIN_COMMIT near the top of this file
+      # for how the pin is advanced.
+      - name: Check out the render toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ding-Ding-Projects/worldlens.git toolchain
+          git -C toolchain checkout --quiet "$WORLDLENS_TOOLCHAIN_COMMIT"
+
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10
@@ -74,7 +103,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          cache-dependency-path: toolchain/design/pnpm-lock.yaml
 
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
@@ -87,11 +116,11 @@ jobs:
           java-version: '25'
 
       - name: Install
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm install --frozen-lockfile
 
       - name: Build the planner
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm --filter "@worldlens/render-actions..." run build
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -115,7 +144,7 @@ jobs:
       - name: Locate this shard
         id: shard
         run: |
-          node design/packages/render-actions/dist/cli.js waves \
+          node toolchain/design/packages/render-actions/dist/cli.js waves \
             --plan shard-plan.json \
             --shard '${{ matrix.shard }}' \
             --run-id '${{ github.run_id }}' \
@@ -140,7 +169,7 @@ jobs:
       - name: Is this shard already finished?
         id: resume
         run: |
-          node design/packages/render-actions/dist/cli.js resume-check \
+          node toolchain/design/packages/render-actions/dist/cli.js resume-check \
             --plan shard-plan.json \
             --shard '${{ matrix.shard }}' \
             --storage-root "$GITHUB_WORKSPACE/bluemap-out/maps" \
@@ -154,7 +183,7 @@ jobs:
       - name: Write this shard's BlueMap config
         if: steps.resume.outputs.complete != 'true'
         run: |
-          node design/packages/render-actions/dist/cli.js config \
+          node toolchain/design/packages/render-actions/dist/cli.js config \
             --plan shard-plan.json \
             --shard '${{ matrix.shard }}' \
             --world "$GITHUB_WORKSPACE/world-in" \
@@ -184,7 +213,7 @@ jobs:
       - name: Mark this shard finished
         if: steps.resume.outputs.complete != 'true' && steps.render.outcome == 'success'
         run: |
-          node design/packages/render-actions/dist/cli.js shard-complete \
+          node toolchain/design/packages/render-actions/dist/cli.js shard-complete \
             --plan shard-plan.json \
             --shard '${{ matrix.shard }}' \
             --storage-root "$GITHUB_WORKSPACE/bluemap-out/maps" \

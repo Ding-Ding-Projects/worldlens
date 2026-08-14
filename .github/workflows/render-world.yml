@@ -119,6 +119,26 @@ concurrency:
 # in a job's `with:` block and a value that silently resolved to empty there would read as
 # "refuse" for a repository that had accepted.
 
+env:
+  # This project's own pinned commit of https://github.com/Ding-Ding-Projects/worldlens,
+  # cloned fresh by the plan, merge and merge-lowres jobs below rather than assumed to sit
+  # beside `.github/workflows` in whichever repository dispatched this workflow. A
+  # repository this application bootstraps for somebody else carries only the three
+  # workflow files it writes and a marker - no `design/` and no `scripts/` of its own - so
+  # every step that used to read the planner, the documentation site or `join-parts.mjs`
+  # out of that checkout now reads them out of a `toolchain/` clone pinned to this commit
+  # instead. See each job's "Check out the render toolchain" step.
+  #
+  # Unlike BLUEMAP_ACCEPT_DOWNLOAD above, this value is only ever read inside `run:` steps,
+  # where a workflow-level `env` IS available as a plain process environment variable, so a
+  # workflow-level `env` block is the right place for it.
+  #
+  # Advance this the same way BLUEMAP_UPSTREAM_COMMIT is advanced in the cli job below: once
+  # a change to design/packages/render-actions or design/packages/site lands on this
+  # project's own main branch, update this value to that commit in the same change - a
+  # toolchain that silently changed between runs is a render nobody could reproduce.
+  WORLDLENS_TOOLCHAIN_COMMIT: 2f02d6544769add2ee048c9cc5e394bdae98b127
+
 jobs:
   # ---------------------------------------------------------------------------------
   # The renderer itself, built once from the vendored BlueMap sources so every shard
@@ -127,27 +147,66 @@ jobs:
   cli:
     name: Build the BlueMap CLI
     runs-on: ubuntu-24.04
+    env:
+      # The exact upstream commit this project builds and ships as its renderer. This
+      # workflow used to check out this repository's own vendor/BlueMap git submodule
+      # and build that, which only works in this repository: a repository this
+      # application bootstraps for somebody else carries only the three workflow
+      # files it writes and has no such submodule, so that checkout failed in 41
+      # seconds with "No such file or directory" for vendor/BlueMap. Every repository
+      # that renders a world now clones BlueMap fresh from upstream at exactly this
+      # commit instead, so the render never depends on a sibling directory existing.
+      #
+      # Advance this the same way the submodule pin used to be advanced: run
+      # `node scripts/check-bluemap-upstream.mjs --advance` in a checkout that still
+      # carries the submodule, read the commit it moved to, and update this value in
+      # the same commit as a person reviewing the change - a render that silently
+      # changed renderer version between runs is a render nobody could reproduce.
+      BLUEMAP_UPSTREAM_COMMIT: 4c4cbc291b361ceff6ee239448e9f988f9019dbb
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # Restore rather than the full cache action, so the build below only runs on a
+      # genuine miss and the save step still runs after a build that failed partway
+      # through gradle rather than being skipped along with everything else.
+      #
+      # Keyed on the pinned commit alone: a build of the same BlueMap commit produces
+      # the same jar regardless of which repository dispatched this workflow, so every
+      # repository that renders a world shares one cache entry instead of each paying
+      # to clone and build it themselves. Advancing the pin changes the key, so a stale
+      # jar from an older commit can never be served for a newer one.
+      - name: Restore the built BlueMap CLI jar
+        id: restore
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          persist-credentials: false
-          submodules: recursive
+          path: cli-out/bluemap-cli.jar
+          key: bluemap-cli-${{ env.BLUEMAP_UPSTREAM_COMMIT }}
+
+      - name: Clone BlueMap at the pinned commit
+        if: steps.restore.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/BlueMap-Minecraft/BlueMap.git vendor/BlueMap
+          git -C vendor/BlueMap checkout --quiet "$BLUEMAP_UPSTREAM_COMMIT"
 
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        if: steps.restore.outputs.cache-hit != 'true'
         with:
           distribution: temurin
           # Matches `build-jars.yml`, which compiles at 25. See render-shard-wave.yml.
           java-version: '25'
 
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        if: steps.restore.outputs.cache-hit != 'true'
 
       # Bare project paths: the vendored build declares the CLI as `:cli`, not
       # `:implementations:cli`, and the wrong path fails with "project not found".
       - name: Build the shadow jar
+        if: steps.restore.outputs.cache-hit != 'true'
         working-directory: vendor/BlueMap
         run: ./gradlew --no-daemon :cli:shadowJar
 
       - name: Collect the jar
+        if: steps.restore.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -159,6 +218,13 @@ jobs:
           echo "Built $jar ($(du -h "$jar" | cut -f1))"
           mkdir -p cli-out
           cp "$jar" cli-out/bluemap-cli.jar
+
+      - name: Save the built BlueMap CLI jar
+        if: always() && steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: cli-out/bluemap-cli.jar
+          key: bluemap-cli-${{ env.BLUEMAP_UPSTREAM_COMMIT }}
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -218,6 +284,20 @@ jobs:
         with:
           persist-credentials: false
 
+      # This project's own tooling, fresh at a pinned commit, rather than assumed to sit
+      # beside `.github/workflows` in whichever repository dispatched this workflow. A
+      # repository this application bootstraps for somebody else carries only the three
+      # workflow files it writes and a marker - it has no `design/` and no `scripts/` of
+      # its own - so every step below that used to read those directories out of the
+      # checkout above now reads them out of this clone instead. See
+      # WORLDLENS_TOOLCHAIN_COMMIT near the top of this file for how the pin is advanced.
+      - name: Check out the render toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ding-Ding-Projects/worldlens.git toolchain
+          git -C toolchain checkout --quiet "$WORLDLENS_TOOLCHAIN_COMMIT"
+
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10
@@ -226,10 +306,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          cache-dependency-path: toolchain/design/pnpm-lock.yaml
 
       - name: Install
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm install --frozen-lockfile
 
       # `@worldlens/parts` is built beside the planner because the release-asset
@@ -237,7 +317,7 @@ jobs:
       # command line over that package. The `...` suffix pulls each filter's own
       # dependencies; `parts` is not one of the planner's, so it is named separately.
       - name: Build the planner
-        working-directory: design
+        working-directory: toolchain/design
         run: |
           pnpm --filter "@worldlens/render-actions..." run build
           pnpm --filter "@worldlens/parts" run build
@@ -368,7 +448,7 @@ jobs:
                 # Published the way this project publishes one. The manifest already carries
                 # a digest for every part AND one for the whole file, so nothing is derived.
                 echo "Rejoining from ${manifests[0]}"
-                node scripts/join-parts.mjs "${manifests[0]}" --out .
+                node toolchain/scripts/join-parts.mjs "${manifests[0]}" --out .
                 archive="$(basename "${manifests[0]}" .parts.json)"
               elif [ ${#parts[@]} -gt 0 ]; then
                 if [ ! -f release-in/SHA256SUMS ]; then
@@ -465,7 +545,7 @@ jobs:
                 } > "release-in/${RELEASE_ASSET}.parts.json"
                 echo "Derived ${RELEASE_ASSET}.parts.json for ${#parts[@]} verified parts."
 
-                node scripts/join-parts.mjs "release-in/${RELEASE_ASSET}.parts.json" --out .
+                node toolchain/scripts/join-parts.mjs "release-in/${RELEASE_ASSET}.parts.json" --out .
                 archive="$RELEASE_ASSET"
               elif [ ${#wholes[@]} -gt 0 ]; then
                 archive="$(basename "${wholes[0]}")"
@@ -496,7 +576,7 @@ jobs:
       - name: Plan the render
         id: plan
         run: |
-          node design/packages/render-actions/dist/cli.js plan \
+          node toolchain/design/packages/render-actions/dist/cli.js plan \
             --world world-in \
             --dimension '${{ inputs.dimension }}' \
             --map-id '${{ inputs.map-id }}' \
@@ -796,6 +876,17 @@ jobs:
         with:
           persist-credentials: false
 
+      # This project's own tooling, fresh at a pinned commit, rather than assumed to sit
+      # beside `.github/workflows` in whichever repository dispatched this workflow. See
+      # the `plan` job's identical step above, and WORLDLENS_TOOLCHAIN_COMMIT near the top
+      # of this file for how the pin is advanced.
+      - name: Check out the render toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ding-Ding-Projects/worldlens.git toolchain
+          git -C toolchain checkout --quiet "$WORLDLENS_TOOLCHAIN_COMMIT"
+
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10
@@ -804,14 +895,14 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          cache-dependency-path: toolchain/design/pnpm-lock.yaml
 
       - name: Install
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm install --frozen-lockfile
 
       - name: Build the planner
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm --filter "@worldlens/render-actions..." run build
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -838,7 +929,7 @@ jobs:
       - name: Which shards this group takes on
         id: group
         run: |
-          node design/packages/render-actions/dist/cli.js waves \
+          node toolchain/design/packages/render-actions/dist/cli.js waves \
             --plan shard-plan.json \
             --group '${{ matrix.group }}' \
             --github-output "$GITHUB_OUTPUT"
@@ -852,7 +943,7 @@ jobs:
           unfinished=""
           for shard in $(node -e 'process.stdout.write(JSON.parse(process.env.GROUP_SHARDS).join(" "))'); do
             root="shards/shard-g${{ matrix.group }}-$shard"
-            report=$(node design/packages/render-actions/dist/cli.js resume-check \
+            report=$(node toolchain/design/packages/render-actions/dist/cli.js resume-check \
               --plan shard-plan.json \
               --shard "$shard" \
               --storage-root "$root" \
@@ -877,7 +968,7 @@ jobs:
       # merged lod 1 anyway.
       - name: Merge this group's shards
         run: |
-          node design/packages/render-actions/dist/cli.js merge \
+          node toolchain/design/packages/render-actions/dist/cli.js merge \
             --shards shards \
             --plan shard-plan.json \
             --map-id '${{ needs.plan.outputs.map-id }}' \
@@ -891,7 +982,7 @@ jobs:
         if: needs.plan.outputs.single-group == 'true'
         id: verify
         run: |
-          node design/packages/render-actions/dist/cli.js verify \
+          node toolchain/design/packages/render-actions/dist/cli.js verify \
             --plan shard-plan.json \
             --shards shards \
             --map-id '${{ needs.plan.outputs.map-id }}' \
@@ -939,7 +1030,7 @@ jobs:
       # and the map is placed underneath them at /map/, and both survive.
       - name: Build the documentation site to publish alongside the map
         if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
-        working-directory: design
+        working-directory: toolchain/design
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile
@@ -955,7 +1046,7 @@ jobs:
         if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
         run: |
           set -euo pipefail
-          node design/packages/render-actions/dist/cli.js static-host \
+          node toolchain/design/packages/render-actions/dist/cli.js static-host \
             --web-root site \
             --summary "$GITHUB_STEP_SUMMARY"
 
@@ -964,7 +1055,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf pages-root
-          cp -r design/packages/site/dist pages-root
+          cp -r toolchain/design/packages/site/dist pages-root
           if [ -d pages-root/map ]; then
             echo "::error::the documentation site already publishes /map/; refusing to overwrite it"
             exit 1
@@ -1018,6 +1109,17 @@ jobs:
         with:
           persist-credentials: false
 
+      # This project's own tooling, fresh at a pinned commit, rather than assumed to sit
+      # beside `.github/workflows` in whichever repository dispatched this workflow. See
+      # the `plan` job's identical step above, and WORLDLENS_TOOLCHAIN_COMMIT near the top
+      # of this file for how the pin is advanced.
+      - name: Check out the render toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ding-Ding-Projects/worldlens.git toolchain
+          git -C toolchain checkout --quiet "$WORLDLENS_TOOLCHAIN_COMMIT"
+
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10
@@ -1026,14 +1128,14 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          cache-dependency-path: toolchain/design/pnpm-lock.yaml
 
       - name: Install
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm install --frozen-lockfile
 
       - name: Build the planner
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm --filter "@worldlens/render-actions..." run build
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -1070,7 +1172,7 @@ jobs:
 
       - name: Merge the lowres layers
         run: |
-          node design/packages/render-actions/dist/cli.js merge-lowres \
+          node toolchain/design/packages/render-actions/dist/cli.js merge-lowres \
             --partials partials \
             --plan shard-plan.json \
             --map-id '${{ needs.plan.outputs.map-id }}' \

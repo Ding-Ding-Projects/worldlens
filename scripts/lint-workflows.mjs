@@ -306,7 +306,7 @@ const RENDER_SHARD_WAVE_PINNED_ACTIONS = Object.freeze({
 const RENDER_WORLD_PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
-    count: 4,
+    count: 3,
   }),
   "actions/setup-java": Object.freeze({
     sha: "cf277c60eb25467037889841efdb72551f06f6c3",
@@ -314,6 +314,14 @@ const RENDER_WORLD_PINNED_ACTIONS = Object.freeze({
   }),
   "gradle/actions/setup-gradle": Object.freeze({
     sha: "0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d",
+    count: 1,
+  }),
+  "actions/cache/restore": Object.freeze({
+    sha: "0057852bfaa89a56745cba8c7296529d2fc39830",
+    count: 1,
+  }),
+  "actions/cache/save": Object.freeze({
+    sha: "0057852bfaa89a56745cba8c7296529d2fc39830",
     count: 1,
   }),
   "actions/upload-artifact": Object.freeze({

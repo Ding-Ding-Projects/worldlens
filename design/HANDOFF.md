@@ -1,5 +1,87 @@
 # Handoff
 
+## 2026-08-14 — reachability, capture honesty, gh as a required dependency, and a CI render that never worked outside this repository
+
+**State: local gates green; the CI render fix is written and unverified against a real run.**
+The headline is not a feature. Driving the application against a real repository proved that
+rendering in GitHub Actions could never have worked for anybody except this repository, and the
+fix for that has not itself been exercised end to end.
+
+### What changed
+
+- Five surfaces that shipped implemented, tested and unreachable are now reachable: the landing
+  screen (imported into `App.vue` and never rendered, which `<script setup>` drops silently), the
+  remote hosting panel (no tag anywhere, and the one component its folder's barrel never
+  exported), the notification-duration row, the `memory` job (registered with no slot, so its tab
+  opened nothing), and the Marker Studio button, which existed only inside the empty-state block
+  and so was absent on exactly the maps that have markers.
+- The update banner shows real download progress. The updater publishes no byte counts of its
+  own, so an indeterminate bar is the honest baseline and the added plumbing carries real counts
+  only when an engine reports them.
+- `gh` is a declared, checked, installable dependency. It was already the route every GitHub
+  operation took; it was never declared, so a machine without it failed somewhere downstream
+  instead of at setup.
+- The assisted sign-in states which scopes it requests before approval. `gh auth login`'s own
+  default grant omits `workflow`, so a missing scope surfaced much later as a 403 that reads like
+  a permissions problem.
+- A published map page and the landing page can offer the desktop application, with a button that
+  is verified or absent: the release must carry a Squirrel installer, a `RELEASES` manifest and a
+  package, or the section renders with no button and says why.
+- `render-world.yml` no longer assumes it is running inside this repository.
+
+### The defect this session existed to find
+
+`Ding-Ding-Projects/worldlens-bayville-example` was created and bootstrapped by the application
+itself, then given a real 107 MB world. Run 31767846694 failed in 41 seconds with two symptoms of
+one cause:
+
+| Symptom | Cause |
+| --- | --- |
+| `working directory '.../vendor/BlueMap'. No such file or directory` | the CLI job built BlueMap from a submodule that exists only here |
+| `Some specified paths were not resolved, unable to cache dependencies` | `cache-dependency-path: design/pnpm-lock.yaml`, and the bootstrapped repository has no `design/` |
+
+A bootstrapped repository contains three workflow files, a marker and a README. Every test passed,
+the workflows committed correctly, Actions reported enabled and ready, and the feature could not
+work. It is the same shape as a component wired at one end and consumed at neither: only running
+it somewhere that is not here can show it.
+
+The fix clones upstream BlueMap at `4c4cbc291b361ceff6ee239448e9f988f9019dbb` and this project at
+a pinned toolchain commit, both cached on their pins. **It has not been proven by a passing run.**
+That is the first thing a next owner should do.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| `vitest run packages/ui packages/chunker` (primary tree) | 313 files passed |
+| `vitest run packages/ui packages/app/... packages/chunker` (worktree) | 345 files passed |
+| `vitest run packages/app/src/main/cirender` after the render fix | 15 files passed |
+| `node --test scripts/bootstrap.test.mjs` | 19 passed |
+| `node --test scripts/lint-workflows.test.mjs` | 33 passed |
+| `node scripts/lint-workflows.mjs` | 8 workflows, 128 pinned actions clean |
+| `check-screenshot-evidence.mjs` | 103 captures, digest matches the tree |
+| Both typechecks, `pnpm lint` | clean |
+
+Full-suite runs exit non-zero on `[vitest-worker]: Timeout calling "onTaskUpdate"` with zero test
+failures. That is a worker RPC timeout under contention, not a regression, and it did not appear in
+CI.
+
+### Known boundaries
+
+- The CI render fix is unverified against a real run. Re-dispatch in the example repository.
+- The example repository has no rendered map, no Pages site and no map release asset yet, because
+  the render never completed. The world upload and the release-asset path did work.
+- `DingDingChae/worldlens-bayville-example` was created before it was known that both accounts can
+  reach the organization. It is redundant and was deliberately not deleted, because deleting a
+  repository is irreversible.
+- The active `gh` account changes underneath long operations: the credential broker switches to a
+  leased account and restores the previous one, so `gh auth status` and the application's picker can
+  disagree at any instant. This is by design and is worth knowing before diagnosing a push refusal.
+- The landing screen describes the product as BlueMap in eleven strings, with tests asserting them.
+  That copy was never reviewed after the rebrand because nobody could open the screen.
+- Capture evidence goes stale on every merge that touches the interface. Five refreshes were needed
+  in one day, four of them invalidated by a push landing between the build and the dew.
+
 ## 2026-08-13 — updater, stream, lifecycle, and Windows watcher safety pass
 
 **State: focused verification green; full-suite verification remains pending.** This pass
