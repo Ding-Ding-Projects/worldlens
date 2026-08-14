@@ -179,7 +179,17 @@ async function renderAMap(mapIds: readonly string[] = ["world"]): Promise<string
     return webRoot;
 }
 
-function host(runner: ProcessRunner): PagesHost {
+/**
+ * A test never reaches the real network to ask what this project has released. Every test
+ * that publishes a map gets this refusal by default, which resolves to the honest
+ * `available: false` banner rather than a hung or flaky real request; a test that cares
+ * about the banner overrides it explicitly.
+ */
+function noDesktopAppFetch(): ReturnType<typeof fetch> {
+    return Promise.reject(new Error("no network in a test"));
+}
+
+function host(runner: ProcessRunner, desktopAppFetch = noDesktopAppFetch): PagesHost {
     return new PagesHost({
         storageDir: () => storage,
         workRoot: () => work,
@@ -189,6 +199,7 @@ function host(runner: ProcessRunner): PagesHost {
         pollAttempts: 3,
         pollIntervalMs: 0,
         now: () => new Date("2026-08-04T12:00:00.000Z"),
+        desktopAppFetch,
     });
 }
 
@@ -393,6 +404,7 @@ describe("publishing", () => {
             sleep: () => Promise.resolve(),
             pollAttempts: 2,
             pollIntervalMs: 0,
+            desktopAppFetch: noDesktopAppFetch,
             onEvent: (event) => events.push(event.type === "phase" ? `phase:${event.phase}` : event.type),
         }).publish({
             renderId: RENDER,
@@ -531,6 +543,7 @@ describe("publishing", () => {
             sleep: () => Promise.resolve(),
             pollAttempts: 1,
             pollIntervalMs: 0,
+            desktopAppFetch: noDesktopAppFetch,
         }).publish({
             renderId: RENDER,
             owner: "octocat",
@@ -563,6 +576,7 @@ describe("publishing", () => {
             sleep: () => Promise.resolve(),
             pollAttempts: 2,
             pollIntervalMs: 0,
+            desktopAppFetch: noDesktopAppFetch,
         }).publish({
             renderId: RENDER,
             owner: "octocat",
@@ -669,6 +683,7 @@ describe("publishing", () => {
             sleep: () => Promise.resolve(),
             pollAttempts: 2,
             pollIntervalMs: 0,
+            desktopAppFetch: noDesktopAppFetch,
             onEvent: (event) => {
                 events.push(event.type === "phase" ? `phase:${event.phase}` : event.type);
                 if (event.type === "log" && event.level === "info") infoLogs.push(event.message);
@@ -735,6 +750,7 @@ describe("publishing", () => {
             sleep: () => Promise.resolve(),
             pollAttempts: 1,
             pollIntervalMs: 0,
+            desktopAppFetch: noDesktopAppFetch,
         });
         const published = await publisher.publish({
             renderId: RENDER,

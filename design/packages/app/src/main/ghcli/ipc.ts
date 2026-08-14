@@ -65,6 +65,7 @@ function loginState(
             attempt: 0,
             account: null,
             failureCode,
+            requestedScopes: [],
             message,
         },
     };

@@ -187,6 +187,24 @@ export const GHCLIACCOUNTS_VOICED = {
             "GitHub CLI 今次甩咗個出場位，所以登入幕布都冇打開：{reason}",
         ],
     },
+    /* Shown before the code is approved, so a later 403 never comes as a surprise. The exact
+     * scope names arrive as {scopes} and stay untranslated, the same as a login or a host. */
+    "settings.github.ghCli.requestedScopesExplainer": {
+        en: [
+            "This is everything the approval on GitHub will grant. Approving fewer than these on GitHub's page leaves this application short of what it needs later.",
+            "This is everything the approval on GitHub will grant. Approving fewer than these on GitHub's page leaves this application short of what it needs later.",
+            "This is the full list the GitHub page is about to grant. Approve less than this there and this application will come up short later.",
+            "Whatever is listed above is what GitHub is about to grant - trim it on that page and this application ends up short down the line.",
+            "That list above is the whole deal GitHub is about to grant on your behalf - shortchange it on that page and this application will come up empty-handed later.",
+        ],
+        yue: [
+            "呢個就係 GitHub 批准之後會畀嘅嘢晒齊。喺 GitHub 頁面批少咗嘅話，呢個程式之後就會唔夠用。",
+            "呢個就係 GitHub 批准之後會畀嘅嘢晒齊。喺 GitHub 頁面批少咗嘅話，呢個程式之後就會唔夠用。",
+            "以上就係 GitHub 個頁面即將畀晒嘅清單。喺嗰度批少咗，呢個程式之後就會唔夠用。",
+            "上面列嗰啲就係 GitHub 即刻會畀晒嘅嘢，喺嗰頁剪少咗，呢個程式遲啲就會唔夠用。",
+            "上面成張單就係 GitHub 即刻畀晒同你嘅嘢，喺嗰頁慳少少嘅話，呢個程式遲啲就會兩手空空。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const GHCLIACCOUNTS_FIXED = {
@@ -354,6 +372,14 @@ export const GHCLIACCOUNTS_FIXED = {
         en: "{seconds} seconds remaining.",
         yue: "仲有 {seconds} 秒。",
     },
+    "settings.github.ghCli.codeExpired": {
+        en: "This code has expired.",
+        yue: "呢個 code 已經過咗期。",
+    },
+    "settings.github.ghCli.requestedScopesLabel": {
+        en: "Permissions this approval will grant",
+        yue: "呢次批准會畀嘅權限",
+    },
     "settings.github.ghCli.field.source": { en: "Signed in with", yue: "用咩登入" },
     "settings.github.ghCli.field.protocol": { en: "Git protocol", yue: "Git 協議" },
     "settings.github.ghCli.field.scopes": { en: "Permissions", yue: "權限" },
@@ -412,6 +438,10 @@ export const GHCLIACCOUNTS_FACTS = {
     "settings.github.ghCli.installFailed": {
         en: ["GitHub CLI", "sign-in", "{reason}"],
         yue: ["GitHub CLI", "登入", "{reason}"],
+    },
+    "settings.github.ghCli.requestedScopesExplainer": {
+        en: ["GitHub", "grant"],
+        yue: ["GitHub", "畀"],
     },
 } as const satisfies Record<
     keyof typeof GHCLIACCOUNTS_VOICED,

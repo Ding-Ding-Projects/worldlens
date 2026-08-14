@@ -73,6 +73,37 @@ renderer is not a guard.
    answered `200`.** "GitHub says built" and "a browser can open it" are two different claims,
    and a first build routinely reports built a minute before the address resolves.
 
+### Naming the application on the published page
+
+A published map is a bare BlueMap viewer: nothing on the page says what made it. Somebody handed
+the link has no way to learn that the same viewer is one free download away for their own worlds,
+so before staging, `design/packages/app/src/main/pages/desktopAppBanner.ts` writes a small,
+clearly labelled section into the page's `index.html`, fixed above the viewer, naming Worldlens
+and explaining what it does.
+
+The install link inside it is never typed by hand. `resolveDesktopAppRelease` asks GitHub for
+this project's own newest published, non-draft, non-prerelease release
+(`Ding-Ding-Projects/worldlens`) and requires the same three files
+`design/packages/site/scripts/fetch-release.mjs` requires of the site's own download button: an
+asset named `*-Setup.exe` above 10 MB, a `RELEASES` manifest, and a `.nupkg` package beside it.
+Only when all three are present does the banner get a button, and that button's `href` is the
+asset's own `browser_download_url` - never a URL assembled from a version number. When the check
+fails for any reason, the banner still renders, but names the application and links the releases
+page instead, and says plainly why no installer was offered. Nothing here fabricates a URL to
+make the section look complete.
+
+The banner also states, every time, that this project's Windows installer is intentionally and
+permanently unsigned and that Windows will show an unknown-publisher warning before it runs. A
+button that hands somebody an unsigned executable with no warning first is a button that looks
+like a scam the moment the operating system objects to it.
+
+The section is inline HTML with inline CSS, written straight into the page. No CDN script, no
+remote font, no analytics and no tracking - matching everything else `prepareStaticHost` already
+puts into a published map. It is written once per publish, guarded by an HTML comment marker so a
+resumed publish never writes a second copy, and a failure resolving the release is never a reason
+to refuse publishing somebody's map: whether this project happens to have a verified installer
+today has nothing to do with whether their world gets a website.
+
 ### Interruptions and status refresh
 
 The application writes `publish.json` under `<userData>/pages-hosting/<renderId>/` before each

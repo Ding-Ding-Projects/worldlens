@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiAccountKey,
@@ -517,6 +517,37 @@ const approvalUri = computed(() => {
     return current?.verificationUri ?? null;
 });
 
+const requestedScopes = computed(() => state.loginState.value?.requestedScopes ?? []);
+
+/*
+ * `state.loginState.value.secondsRemaining` only moves once per poll, which is once every
+ * few seconds at best and once a minute after GitHub asks this client to slow down - too
+ * coarse to read as "live". This ticks every second between those updates from the one
+ * fact that never goes stale mid-second, the expiry deadline itself, so the number on
+ * screen always agrees with the clock rather than freezing between polls.
+ */
+const now = ref(Date.now());
+let liveTicker: ReturnType<typeof setInterval> | null = null;
+
+onMounted(() => {
+    liveTicker = setInterval(() => {
+        now.value = Date.now();
+    }, 1000);
+});
+
+onBeforeUnmount(() => {
+    if (liveTicker !== null) {
+        clearInterval(liveTicker);
+        liveTicker = null;
+    }
+});
+
+const liveSecondsRemaining = computed(() => {
+    const expiresAt = state.loginState.value?.expiresAt ?? null;
+    if (expiresAt === null) return null;
+    return Math.max(0, Math.ceil((expiresAt - now.value) / 1000));
+});
+
 const loginAlertType = computed<"success" | "error" | "info">(() => {
     const stage = state.loginState.value?.stage;
     if (stage === "succeeded") return "success";
@@ -670,12 +701,15 @@ async function checkAgain(): Promise<void> {
                 <span class="mb-ghcli__deviceLabel">
                     {{ t("settings.github.ghCli.verificationUrlLabel", "GitHub approval page") }}
                 </span>
-                <code
+                <a
+                    :href="approvalUri"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     class="mb-ghcli__verificationLink"
                     data-testid="gh-cli-verification-uri"
                 >
                     {{ approvalUri }}
-                </code>
+                </a>
                 <v-btn
                     v-if="clipboardAvailable"
                     :prepend-icon="mdiContentCopy"
@@ -691,13 +725,36 @@ async function checkAgain(): Promise<void> {
                 </v-btn>
             </div>
 
-            <p v-if="state.loginState.value.secondsRemaining !== null" class="mb-ghcli__note">
+            <div v-if="requestedScopes.length > 0" class="mb-ghcli__scopes">
+                <span class="mb-ghcli__deviceLabel">
+                    {{ t("settings.github.ghCli.requestedScopesLabel", "Permissions this approval will grant") }}
+                </span>
+                <p class="mb-ghcli__note" data-testid="gh-cli-requested-scopes">
+                    {{ requestedScopes.join(", ") }}
+                </p>
+                <p class="mb-ghcli__note">
+                    {{
+                        t(
+                            "settings.github.ghCli.requestedScopesExplainer",
+                            "This is everything the approval on GitHub will grant. Approving fewer than these on GitHub's page leaves this application short of what it needs later.",
+                        )
+                    }}
+                </p>
+            </div>
+
+            <p
+                v-if="liveSecondsRemaining !== null"
+                class="mb-ghcli__note"
+                data-testid="gh-cli-seconds-remaining"
+            >
                 {{
-                    t(
-                        "settings.github.ghCli.secondsRemaining",
-                        { seconds: state.loginState.value.secondsRemaining },
-                        "{seconds} seconds remaining.",
-                    )
+                    liveSecondsRemaining > 0
+                        ? t(
+                              "settings.github.ghCli.secondsRemaining",
+                              { seconds: liveSecondsRemaining },
+                              "{seconds} seconds remaining.",
+                          )
+                        : t("settings.github.ghCli.codeExpired", "This code has expired.")
                 }}
             </p>
 
@@ -1264,6 +1321,19 @@ async function checkAgain(): Promise<void> {
     gap: 4px;
     max-width: 100%;
     overflow-wrap: anywhere;
+    color: rgb(var(--v-theme-primary));
+}
+
+.mb-ghcli__verificationLink:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+.mb-ghcli__scopes {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
 }
 
 .mb-ghcli__installCard {

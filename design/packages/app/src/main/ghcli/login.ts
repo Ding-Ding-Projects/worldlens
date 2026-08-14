@@ -77,6 +77,14 @@ export interface GhCliLoginState {
     readonly failureCode: string | null;
     /** Ready to render as-is and guaranteed not to contain the approved token. */
     readonly message: string;
+    /**
+     * The exact scopes this one approval carries, so the sign-in screen can name every
+     * permission before the person approves anything, rather than only after a dispatch
+     * fails with a 403 that reads like an unrelated permissions problem. Always the same
+     * list `requestDeviceCode` was actually called with; never trimmed or reworded per
+     * stage, so a screenshot of any stage shows the truth.
+     */
+    readonly requestedScopes: readonly string[];
 }
 
 export interface GhCliLoginResult {
@@ -126,6 +134,7 @@ function publicState(
         account: null,
         failureCode: null,
         message,
+        requestedScopes: GH_CLI_LOGIN_SCOPES,
         ...overrides,
     };
 }

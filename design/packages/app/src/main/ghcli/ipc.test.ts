@@ -154,6 +154,7 @@ function failedLogin() {
             attempt: 0,
             account: null,
             failureCode: "cancelled",
+            requestedScopes: [],
             message: "Sign-in was cancelled.",
         },
     };

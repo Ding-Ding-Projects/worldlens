@@ -71,6 +71,8 @@ import { ActionsCallError } from "../cirender/actions.js";
 import { GH_COMMAND, detectGh, ghApiJson, ghApiSend, nodeProcessRunner } from "../cirender/gh.js";
 import type { GhStatus, ProcessResult, ProcessRunner } from "../cirender/gh.js";
 import { listRenderIds, renderWorkspace } from "../render/workspace.js";
+import { injectDesktopAppBanner, resolveDesktopAppRelease } from "./desktopAppBanner.js";
+import type { FetchLike } from "../download/release.js";
 
 /** The executable, named once so a test and the real runner cannot drift. */
 export const GIT_COMMAND = "git";
@@ -325,6 +327,12 @@ export interface PagesHostOptions {
     readonly pollIntervalMs?: number | undefined;
     readonly pollAttempts?: number | undefined;
     readonly now?: (() => Date) | undefined;
+    /**
+     * Fetches this project's own release feed for the desktop-app banner written into a
+     * published page. Left out, the real `fetch`; overridden in every test so a publish
+     * test never depends on the network or on what this project happens to have released.
+     */
+    readonly desktopAppFetch?: FetchLike | undefined;
     /** The name on the generated commit. Never a person's git identity, which is not ours. */
     readonly committer?: { readonly name: string; readonly email: string } | undefined;
 }
@@ -1035,6 +1043,28 @@ export class PagesHost {
                 `That branch was carrying the render ${guard.branchMarker.renderId}, which this ` +
                     "publish replaces.",
             );
+        }
+        this.stop(signal);
+
+        /* -- name the desktop application on the published page ---------- */
+        // Only on a fresh publish: a resumed one already has its files staged and
+        // committed, so writing the banner again here would sit on disk unused while the
+        // commit it never reaches keeps whatever the interrupted attempt wrote. Failure
+        // resolving the release is not thrown as a refusal, because whether this project
+        // has a verified installer today has nothing to do with whether somebody's map
+        // gets published.
+        if (!resumeAfterCommit) {
+            const resolution = await resolveDesktopAppRelease(this.options.desktopAppFetch ?? fetch);
+            const wrote = await injectDesktopAppBanner(webRoot, resolution);
+            if (wrote) {
+                this.log(
+                    renderId,
+                    "info",
+                    resolution.available
+                        ? `Added a desktop-app banner linking Worldlens ${resolution.version} for Windows.`
+                        : `Added a desktop-app banner with no download link: ${resolution.reason}`,
+                );
+            }
         }
         this.stop(signal);
 

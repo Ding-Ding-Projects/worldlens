@@ -162,6 +162,7 @@ function scriptedGhCli(
                 attempt: 1,
                 account: account({ login: expectedLogin ?? "octocat", active: true }),
                 failureCode: null,
+                requestedScopes: [],
                 message: `${expectedLogin ?? "octocat"} is signed in through gh on github.com.`,
             };
             for (const listener of loginListeners) listener(state);
@@ -418,7 +419,7 @@ describe("rendering real accounts", () => {
 });
 
 describe("GUI device login", () => {
-    it("shows the one-time code, inert URL and countdown, then cancels without a terminal command or browser launch", async () => {
+    it("shows the one-time code, an openable approval link and a countdown, then cancels without a terminal command", async () => {
         const listeners = new Set<(state: GhCliLoginStateReadout) => void>();
         let finish: ((result: GhCliLoginResultReadout) => void) | null = null;
         const waiting: GhCliLoginStateReadout = {
@@ -433,6 +434,7 @@ describe("GUI device login", () => {
             attempt: 2,
             account: null,
             failureCode: null,
+            requestedScopes: ["repo", "workflow", "gist", "read:org", "read:project", "project"],
             message: "Open the displayed GitHub address yourself. This application will not open a browser.",
         };
         const cancelled: GhCliLoginStateReadout = {
@@ -485,9 +487,19 @@ describe("GUI device login", () => {
         expect(root.get('[data-testid="gh-cli-verification-uri"]').text()).toContain(
             "github.com/login/device",
         );
-        expect(root.find('a[href*="github.com/login/device"]').exists()).toBe(false);
+        // The address is a real link the person opens themselves, in their own browser;
+        // this application never launches one. Its target is exactly the address gh
+        // reported, with no extra parameter this code did not put there.
+        const link = root.get('a[data-testid="gh-cli-verification-uri"]');
+        expect(link.attributes("href")).toBe("https://github.com/login/device");
+        expect(link.attributes("target")).toBe("_blank");
+        expect(link.attributes("rel")).toBe("noopener noreferrer");
         expect(root.text()).toContain("600 seconds remaining");
         expect(root.text()).not.toContain("gh auth login");
+        // Every scope this one approval will grant is named before it can be approved.
+        expect(root.get('[data-testid="gh-cli-requested-scopes"]').text()).toBe(
+            "repo, workflow, gist, read:org, read:project, project",
+        );
 
         await root
             .findAll("button")
@@ -531,6 +543,7 @@ describe("GUI device login", () => {
                         attempt: 1,
                         account: null,
                         failureCode: null,
+                        requestedScopes: [],
                         message: "GitHub approved the sign-in. Handing the credential to gh.",
                     };
                     for (const listener of listeners) listener(storing);

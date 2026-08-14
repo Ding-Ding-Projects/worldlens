@@ -2195,6 +2195,8 @@ export interface GhCliLoginState {
     account: GhCliAccount | null;
     failureCode: string | null;
     message: string;
+    /** Every scope this one approval carries. Shown before the person approves anything. */
+    requestedScopes: string[];
 }
 
 export interface GhCliLoginResult {

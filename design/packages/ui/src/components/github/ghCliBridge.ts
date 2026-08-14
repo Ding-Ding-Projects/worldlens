@@ -88,6 +88,8 @@ export interface GhCliLoginStateReadout {
     readonly account: GhCliAccountReadout | null;
     readonly failureCode: string | null;
     readonly message: string;
+    /** Every scope this one approval carries, visible before the person approves anything. */
+    readonly requestedScopes: readonly string[];
 }
 
 export interface GhCliLoginResultReadout {
