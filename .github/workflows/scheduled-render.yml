@@ -62,14 +62,45 @@ concurrency:
   group: scheduled-render
   cancel-in-progress: false
 
+env:
+  # This project's own pinned commit of https://github.com/Ding-Ding-Projects/worldlens,
+  # cloned fresh by the check job below rather than assumed to sit beside
+  # `.github/workflows` in whichever repository dispatched this workflow. A repository this
+  # application bootstraps for somebody else carries only the three workflow files it
+  # writes and a marker - no `design/` of its own - so every step below that used to read
+  # the planner out of that checkout now reads it out of a `toolchain/` clone pinned to
+  # this commit instead. See the check job's own "Check out the render toolchain" step.
+  #
+  # Duplicated from render-world.yml's copy of the same value, the same way
+  # render-shard-wave.yml's copy is: keep all three equal, and advance them together.
+  WORLDLENS_TOOLCHAIN_COMMIT: 2f02d6544769add2ee048c9cc5e394bdae98b127
+
 jobs:
   check:
     name: Check whether the scheduled world changed
     runs-on: ubuntu-24.04
     steps:
+      # Kept: the repository source below reads `$WORLD` (default "worlds/world") as a
+      # path inside the repository that dispatched this workflow, which is what this
+      # checkout brings. It is never used to reach `design/` - that comes from the
+      # toolchain clone next.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+
+      # This project's own tooling, fresh at a pinned commit, rather than assumed to sit
+      # beside `.github/workflows` in whichever repository dispatched this workflow. A
+      # repository this application bootstraps for somebody else carries only the three
+      # workflow files it writes and a marker - it has no `design/` of its own - so every
+      # step below that used to read that directory out of the checkout above now reads it
+      # out of this clone instead. See WORLDLENS_TOOLCHAIN_COMMIT near the top of this file
+      # for how the pin is advanced.
+      - name: Check out the render toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ding-Ding-Projects/worldlens.git toolchain
+          git -C toolchain checkout --quiet "$WORLDLENS_TOOLCHAIN_COMMIT"
 
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
@@ -79,14 +110,14 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          cache-dependency-path: toolchain/design/pnpm-lock.yaml
 
       - name: Install
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm install --frozen-lockfile
 
       - name: Build the planner
-        working-directory: design
+        working-directory: toolchain/design
         run: pnpm --filter "@worldlens/render-actions..." run build
 
       - name: Read the schedule configuration
@@ -118,7 +149,7 @@ jobs:
             echo "Forced check requested via workflow_dispatch, ignoring the cadence." \
                  >> "$GITHUB_STEP_SUMMARY"
           else
-            node design/packages/render-actions/dist/cli.js schedule-due \
+            node toolchain/design/packages/render-actions/dist/cli.js schedule-due \
               --cadence "${{ steps.config.outputs.cadence }}" \
               --last-check-at "${{ vars.CIRENDER_SCHEDULE_LAST_CHECK_AT }}" \
               --github-output "$GITHUB_OUTPUT"
@@ -142,7 +173,7 @@ jobs:
             echo "::warning::CIRENDER_SCHEDULE_WORLD ('$WORLD') is not a directory in this repository."
             echo "found=false" >> "$GITHUB_OUTPUT"
           else
-            node design/packages/render-actions/dist/cli.js fingerprint \
+            node toolchain/design/packages/render-actions/dist/cli.js fingerprint \
               --world "$WORLD" --out current-snapshot.json
             echo "found=true" >> "$GITHUB_OUTPUT"
           fi
@@ -293,7 +324,7 @@ jobs:
             PREVIOUS_ARG="previous-snapshot.json"
           fi
 
-          node design/packages/render-actions/dist/cli.js schedule-check \
+          node toolchain/design/packages/render-actions/dist/cli.js schedule-check \
             --kind "${{ steps.config.outputs.world-source }}" \
             --previous "$PREVIOUS_ARG" \
             --current "$CURRENT_ARG" \
