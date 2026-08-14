@@ -187,6 +187,14 @@ jobs:
           set -euo pipefail
           git clone --quiet https://github.com/BlueMap-Minecraft/BlueMap.git vendor/BlueMap
           git -C vendor/BlueMap checkout --quiet "$BLUEMAP_UPSTREAM_COMMIT"
+          # Upstream vendors BlueMapAPI as its own submodule and takes the api version from it, so
+          # a clone without this leaves that directory empty and the build fails while configuring
+          # :fabric with "Could not find de.bluecolored:bluemap-api:" and no version after the
+          # colon. The empty version is the tell: it is not a missing artifact in a repository, it
+          # is a subproject that was never checked out. Initialised after the checkout rather than
+          # with clone --recursive because the pinned commit decides which submodule revision is
+          # correct, and cloning recursively first would fetch whichever the default branch names.
+          git -C vendor/BlueMap submodule update --init --recursive --quiet
 
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         if: steps.restore.outputs.cache-hit != 'true'
