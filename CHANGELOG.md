@@ -22,6 +22,9 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Align personal-vocabulary uploads with the canonical contract - [`a0a477e0b5`](https://github.com/Ding-Ding-Projects/worldlens/commit/a0a477e0b57252f17cc0041706e3cec58502f932)
+- Merge remote-tracking branch 'origin/main' - [`1b88610e4e`](https://github.com/Ding-Ding-Projects/worldlens/commit/1b88610e4e41c6885d15778841515844c0ef9cdf) _(summary of 9 commits, also listed here)_
+- Stabilize full-suite config and watcher checks - [`fd72f4552e`](https://github.com/Ding-Ding-Projects/worldlens/commit/fd72f4552e2db4999c1429cbdce3b9d2f9168359)
 - Merge remote-tracking branch 'origin/main' - [`9b46be16bf`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b46be16bf26ad8c64495ea1abc98a821f982a68) _(summary of 3 commits, also listed here)_
 - Align legacy identity and docs inventories - [`f41d3289a8`](https://github.com/Ding-Ding-Projects/worldlens/commit/f41d3289a8ab9e7888c4dd93c201904b2296837a)
 - Harden updates, streams, and region watchers - [`57f1141c51`](https://github.com/Ding-Ding-Projects/worldlens/commit/57f1141c51227c9341afffca3ef0bc3961132692)
@@ -40,14 +43,23 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Say which scopes the sign-in asks for, and advertise the app honestly or not at all - [`b3b18ae79f`](https://github.com/Ding-Ding-Projects/worldlens/commit/b3b18ae79f5e1da60b3c38943a7042b6a77bcbd4)
 - Assert the canonical credential helper path - [`270b250463`](https://github.com/Ding-Ding-Projects/worldlens/commit/270b250463c045f9e1689da4c41d21b21ce2e142)
 
 ### Build, release and tooling
 
+- Check out BlueMap's own submodule before building it - [`b63f3fd022`](https://github.com/Ding-Ding-Projects/worldlens/commit/b63f3fd022fcd025c1818c3a36dac9e7f5baecd9)
+- Merge branch 'assisted-gh-login' - [`db11147da2`](https://github.com/Ding-Ding-Projects/worldlens/commit/db11147da295067e69479a02cddcba6851d78f4c) _(summary of 2 commits, also listed here)_
+- Stop the render workflow assuming it runs inside this repository, and hand off - [`45483ee5e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/45483ee5e5bf395b229e977016c65760e073ebfe)
 - Advance BlueMap to v5.23, and fix two defects the upgrade itself exposed - [`763684e772`](https://github.com/Ding-Ding-Projects/worldlens/commit/763684e77258b5ee6276e4f83720bb524446085f)
 
 ### Documentation
 
+- Recapture for the sign-in panel's new scope disclosure - [`2f02d65447`](https://github.com/Ding-Ding-Projects/worldlens/commit/2f02d6544769add2ee048c9cc5e394bdae98b127)
+- Refresh the capture gallery against the pulled tree - [`194add465c`](https://github.com/Ding-Ding-Projects/worldlens/commit/194add465c00ba6cab0e4e8c6359e3c6c0705914)
+- Integrate upstream hardening into redesign handoff - [`bcf1f3b3b0`](https://github.com/Ding-Ding-Projects/worldlens/commit/bcf1f3b3b041948cf2ffc199de01ce67f87528b1) _(summary of 3 commits, also listed here)_
+- Make the GitHub CLI a required dependency the bootstrap checks and installs - [`4e38c7460d`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e38c7460db1c9bd359ac3ef852752dd11130ef7)
+- Refresh configuration inventory docs - [`e53cd94b35`](https://github.com/Ding-Ding-Projects/worldlens/commit/e53cd94b352c58f0db27c9fbc479499681c5de22)
 - Reconcile capture updates with configuration fixes - [`3e35525aaf`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e35525aaf372ea674a18f4cbfb870511d58d8dd) _(summary of 4 commits, also listed here)_
 - Refresh the capture gallery against the merged tree - [`855fdf219f`](https://github.com/Ding-Ding-Projects/worldlens/commit/855fdf219ff4a601bd58b2b3c7356e845e8b961a)
 - Fix seven defects an adversarial pass found in the day's own work - [`eff400fb81`](https://github.com/Ding-Ding-Projects/worldlens/commit/eff400fb81e8ee493ee7d3fe36664e3a49ab8b86)
@@ -56,6 +68,10 @@ full message for the in-app changelog viewer.
 - Paint the Home layer's own background instead of borrowing a child's - [`80f1e51573`](https://github.com/Ding-Ding-Projects/worldlens/commit/80f1e51573d9dc744d684b8b99a9673d6ac008ce)
 - Photograph the surfaces that shipped unphotographed, and fix two that could not be - [`8b50828e92`](https://github.com/Ding-Ding-Projects/worldlens/commit/8b50828e927783145e81887d52d8c0c5ea8a7059)
 - Document the five features that shipped without an article - [`b145e52b61`](https://github.com/Ding-Ding-Projects/worldlens/commit/b145e52b61721d830b0fd721925326ecc5966a7c)
+
+### Elsewhere in the repository
+
+- Align redesign inventory with schema - [`8a218ee98d`](https://github.com/Ding-Ding-Projects/worldlens/commit/8a218ee98dc2ad566927c92dad7cd884768b5863)
 
 ## 1.0.1082 - 2026-08-13
 
