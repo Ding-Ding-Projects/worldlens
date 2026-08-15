@@ -714,9 +714,24 @@ jobs:
     # decides that the job's own failure never travels back out to the run. Evidence-gathering
     # that can veto a release is not evidence-gathering.
     continue-on-error: true
-    # A wedged browser must not retain the workflow indefinitely. Timing out remains an
-    # advisory job result because this job is deliberately absent from the release needs.
-    timeout-minutes: 20
+    # A wedged browser must not retain the workflow indefinitely - but the ceiling has to be
+    # above what the job legitimately needs, and 20 minutes was not.
+    #
+    # An earlier version of this comment said "timing out remains an advisory job result
+    # because this job is deliberately absent from the release needs". That is wrong, and it
+    # cost two runs before anybody checked it. `continue-on-error: true` above swallows a
+    # FAILING job; it does not swallow a CANCELLED one, and a job killed by `timeout-minutes`
+    # concludes as `cancelled`. That conclusion travels straight out to the run, so this
+    # deliberately-advisory job was turning an otherwise entirely successful run - installer
+    # built, release published, every other job green - into a run reported as cancelled.
+    #
+    # This job installs dependencies, builds the whole workspace, unpacks a rendered world,
+    # installs Playwright's OS dependencies and only then drives the packaged application
+    # through every surface. On this runner that is comfortably past twenty minutes, and the
+    # capture set has grown since the ceiling was chosen - Kid Mode alone added eight surfaces.
+    # 45 leaves real headroom while still killing a genuinely wedged browser rather than
+    # paying for a six-hour default.
+    timeout-minutes: 45
     concurrency:
       group: ci-screenshots-${{ github.ref }}
       cancel-in-progress: true
