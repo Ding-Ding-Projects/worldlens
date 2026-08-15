@@ -24,7 +24,7 @@ import {
     groupFeatures,
     type ResolvedCatalogue,
 } from "../components/shell/catalogueSearch.js";
-import { KID_CATALOGUE_LABELS, KID_FEATURE_LABELS, kidAccessibleName, kidLabel } from "./kidLabels.js";
+import { KID_FEATURE_LABELS, kidAccessibleName, kidCatalogueLabel, kidLabel } from "./kidLabels.js";
 import { useKidMode } from "./kidMode.js";
 
 const props = defineProps<{ catalogue: ResolvedCatalogue }>();
@@ -61,7 +61,7 @@ const sample = computed(() => catalogueSampleText(props.catalogue.features));
             <button class="wl-kid-cat__back" type="button" :aria-label="t('shell.catalogue.back', 'All five catalogues')" @click="emit('back')">
                 <v-icon :icon="mdiArrowLeft" size="24" aria-hidden="true" />
             </button>
-            <h1>{{ KID_CATALOGUE_LABELS[props.catalogue.id] ?? props.catalogue.title }}</h1>
+            <h1>{{ kidCatalogueLabel(props.catalogue.id, props.catalogue.title) }}</h1>
             <p>{{ props.catalogue.title }} · {{ props.catalogue.features.length }}</p>
             <ConfigSearchField
                 v-model="query"

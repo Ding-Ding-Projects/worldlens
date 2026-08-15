@@ -52,7 +52,7 @@
       "file": "firstrun-1-welcome.png",
       "surface": "First-run setup, the welcome step, with the three language modes and a separate funny level for each language",
       "caption": "First-run setup, the welcome step, with the three language modes and a separate funny level for each language. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the first-run dialog rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:40.575Z"
+      "capturedAt": "2026-08-15T18:46:52.029Z"
     },
     {
       "kind": "capture",
@@ -60,7 +60,7 @@
       "file": "firstrun-1-welcome-window.png",
       "surface": "First-run setup as it appears over the whole application window on a fresh profile",
       "caption": "First-run setup as it appears over the whole application window on a fresh profile. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
-      "capturedAt": "2026-08-15T13:53:41.001Z"
+      "capturedAt": "2026-08-15T18:46:52.463Z"
     },
     {
       "kind": "capture",
@@ -68,7 +68,7 @@
       "file": "firstrun-2-eula.png",
       "surface": "First-run setup, the Minecraft licence step, with the document provenance and its anchored search",
       "caption": "First-run setup, the Minecraft licence step, with the document provenance and its anchored search. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the first-run dialog rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:41.908Z"
+      "capturedAt": "2026-08-15T18:46:53.365Z"
     },
     {
       "kind": "capture",
@@ -76,7 +76,7 @@
       "file": "firstrun-2-consent.png",
       "surface": "First-run setup, the Minecraft files step, which asks once whether the application may download from Mojang and says what each answer means",
       "caption": "First-run setup, the Minecraft files step, which asks once whether the application may download from Mojang and says what each answer means. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the first-run dialog rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:42.761Z"
+      "capturedAt": "2026-08-15T18:46:54.221Z"
     },
     {
       "kind": "capture",
@@ -84,7 +84,7 @@
       "file": "firstrun-3-storage.png",
       "surface": "First-run setup, the map storage step, which asks where rendered maps should be written",
       "caption": "First-run setup, the map storage step, which asks where rendered maps should be written. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the first-run dialog rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:43.596Z"
+      "capturedAt": "2026-08-15T18:46:55.050Z"
     },
     {
       "kind": "capture",
@@ -92,7 +92,7 @@
       "file": "run-location.png",
       "surface": "The render-location choice: local, Docker on this computer, and another machine over SSH, with Docker's real daemon state and the route that will actually be used",
       "caption": "The render-location choice: local, Docker on this computer, and another machine over SSH, with Docker's real daemon state and the route that will actually be used. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the render-location card rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:46.753Z"
+      "capturedAt": "2026-08-15T18:46:58.202Z"
     },
     {
       "kind": "capture",
@@ -100,7 +100,7 @@
       "file": "chrome-titlebar.png",
       "surface": "The application's own Material title bar, the whole width of the window, with no operating system caption bar above it",
       "caption": "The application's own Material title bar, the whole width of the window, with no operating system caption bar above it. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the title bar rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:47.705Z"
+      "capturedAt": "2026-08-15T18:46:59.164Z"
     },
     {
       "kind": "capture",
@@ -108,7 +108,7 @@
       "file": "chrome-titlebar-window-buttons.png",
       "surface": "The minimize, maximize and close buttons the application draws for itself, because the window is frameless",
       "caption": "The minimize, maximize and close buttons the application draws for itself, because the window is frameless. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the window buttons rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:48.100Z"
+      "capturedAt": "2026-08-15T18:46:59.553Z"
     },
     {
       "kind": "capture",
@@ -116,7 +116,7 @@
       "file": "chrome-app-rail.png",
       "surface": "The application rail: the three destinations - Home, Map and Work - each with its visible label, the Work badge counting open jobs, and a footer holding search, notifications and settings",
       "caption": "The application rail: the three destinations - Home, Map and Work - each with its visible label, the Work badge counting open jobs, and a footer holding search, notifications and settings. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the application rail rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:48.499Z"
+      "capturedAt": "2026-08-15T18:46:59.956Z"
     },
     {
       "kind": "capture",
@@ -124,7 +124,7 @@
       "file": "dimsum-surprise.png",
       "surface": "The dim sum startup surprise: a non-blocking, auto-dismissing corner snackbar naming one dish in both languages. Forced to win its draw by a screenshot-harness-only localStorage override that also supplies the dish, so the capture never has to reach the public dish catalog; production code never writes this key and draws the real one-in-ten chance every other launch",
       "caption": "The dim sum startup surprise: a non-blocking, auto-dismissing corner snackbar naming one dish in both languages. Forced to win its draw by a screenshot-harness-only localStorage override that also supplies the dish, so the capture never has to reach the public dish catalog; production code never writes this key and draws the real one-in-ten chance every other launch. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible.",
-      "capturedAt": "2026-08-15T13:53:49.877Z"
+      "capturedAt": "2026-08-15T18:47:01.323Z"
     },
     {
       "kind": "capture",
@@ -132,7 +132,7 @@
       "file": "home-screen.png",
       "surface": "The landing screen the application opens on, above the catalogues: the weighted \"what would you like to do\" list, with its own search across everything Home can reach",
       "caption": "The landing screen the application opens on, above the catalogues: the weighted \"what would you like to do\" list, with its own search across everything Home can reach. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the landing screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:53:51.792Z"
+      "capturedAt": "2026-08-15T18:47:03.220Z"
     },
     {
       "kind": "capture",
@@ -140,7 +140,7 @@
       "file": "home-catalogues.png",
       "surface": "Home, the destination the application opens on: five catalogues covering everything it can do, each card saying what that catalogue is for, with its own search across all of them",
       "caption": "Home, the destination the application opens on: five catalogues covering everything it can do, each card saying what that catalogue is for, with its own search across all of them. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible.",
-      "capturedAt": "2026-08-15T13:53:52.628Z"
+      "capturedAt": "2026-08-15T18:47:04.033Z"
     },
     {
       "kind": "capture",
@@ -148,15 +148,7 @@
       "file": "home-catalogue-page.png",
       "surface": "One catalogue opened from Home: every feature it holds as its own row with a blurb saying what it does, grouped under headings, and the search that reaches all of them",
       "caption": "One catalogue opened from Home: every feature it holds as its own row with a blurb saying what it does, grouped under headings, and the search that reaches all of them. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible.",
-      "capturedAt": "2026-08-15T13:53:53.501Z"
-    },
-    {
-      "kind": "capture",
-      "name": "eula-viewer",
-      "file": "eula-viewer.png",
-      "surface": "The EULA viewer embedded in Settings, with the bundled or cached licence copy, its provenance and its searchable section tabs",
-      "caption": "The EULA viewer embedded in Settings, with the bundled or cached licence copy, its provenance and its searchable section tabs. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the EULA viewer rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:07.432Z"
+      "capturedAt": "2026-08-15T18:47:04.900Z"
     },
     {
       "kind": "capture",
@@ -164,7 +156,7 @@
       "file": "redesign-home-catalogues-360x800.png",
       "surface": "The redesigned Home catalogue shell at 360 by 800 CSS pixels: the persistent application rail, five-catalogue discovery surface, and anchored search field in their compact layout",
       "caption": "The redesigned Home catalogue shell at 360 by 800 CSS pixels: the persistent application rail, five-catalogue discovery surface, and anchored search field in their compact layout. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
-      "capturedAt": "2026-08-15T13:53:54.713Z"
+      "capturedAt": "2026-08-15T18:47:06.110Z"
     },
     {
       "kind": "capture",
@@ -172,7 +164,7 @@
       "file": "redesign-home-catalogue-page-360x800.png",
       "surface": "A redesigned Home catalogue at 360 by 800 CSS pixels: feature rows, their direct targets, the persistent application rail, and the catalogue's own search field without a horizontal escape route",
       "caption": "A redesigned Home catalogue at 360 by 800 CSS pixels: feature rows, their direct targets, the persistent application rail, and the catalogue's own search field without a horizontal escape route. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
-      "capturedAt": "2026-08-15T13:53:55.556Z"
+      "capturedAt": "2026-08-15T18:47:06.965Z"
     },
     {
       "kind": "capture",
@@ -180,15 +172,7 @@
       "file": "redesign-home-catalogues-390x844.png",
       "surface": "The redesigned Home catalogue shell at 390 by 844 CSS pixels: the persistent application rail, five-catalogue discovery surface, and anchored search field in their compact layout",
       "caption": "The redesigned Home catalogue shell at 390 by 844 CSS pixels: the persistent application rail, five-catalogue discovery surface, and anchored search field in their compact layout. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
-      "capturedAt": "2026-08-15T13:53:56.784Z"
-    },
-    {
-      "kind": "capture",
-      "name": "notifications-rail-bell",
-      "file": "notifications-rail-bell.png",
-      "surface": "The live Notification bell in the application rail, carrying its unread badge before it opens the history anchored beside it",
-      "caption": "The live Notification bell in the application rail, carrying its unread badge before it opens the history anchored beside it. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the rail notification bell rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:10.786Z"
+      "capturedAt": "2026-08-15T18:47:08.179Z"
     },
     {
       "kind": "capture",
@@ -196,15 +180,7 @@
       "file": "redesign-home-catalogue-page-390x844.png",
       "surface": "A redesigned Home catalogue at 390 by 844 CSS pixels: feature rows, their direct targets, the persistent application rail, and the catalogue's own search field without a horizontal escape route",
       "caption": "A redesigned Home catalogue at 390 by 844 CSS pixels: feature rows, their direct targets, the persistent application rail, and the catalogue's own search field without a horizontal escape route. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
-      "capturedAt": "2026-08-15T13:53:57.635Z"
-    },
-    {
-      "kind": "capture",
-      "name": "notifications-history",
-      "file": "notifications-history.png",
-      "surface": "The notification centre, so a message that has already faded away is still readable, searchable and filterable by level",
-      "caption": "The notification centre, so a message that has already faded away is still readable, searchable and filterable by level. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the notification centre rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:11.764Z"
+      "capturedAt": "2026-08-15T18:47:09.023Z"
     },
     {
       "kind": "capture",
@@ -212,15 +188,7 @@
       "file": "redesign-home-catalogues-414x896.png",
       "surface": "The redesigned Home catalogue shell at 414 by 896 CSS pixels: the persistent application rail, five-catalogue discovery surface, and anchored search field in their compact layout",
       "caption": "The redesigned Home catalogue shell at 414 by 896 CSS pixels: the persistent application rail, five-catalogue discovery surface, and anchored search field in their compact layout. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
-      "capturedAt": "2026-08-15T13:53:58.873Z"
-    },
-    {
-      "kind": "capture",
-      "name": "palette",
-      "file": "palette.png",
-      "surface": "The command palette, opened with Ctrl+Shift+F: every command, setting and destination the application has, in one searchable list",
-      "caption": "The command palette, opened with Ctrl+Shift+F: every command, setting and destination the application has, in one searchable list. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible.",
-      "capturedAt": "2026-08-15T13:56:13.059Z"
+      "capturedAt": "2026-08-15T18:47:10.254Z"
     },
     {
       "kind": "capture",
@@ -228,15 +196,7 @@
       "file": "redesign-home-catalogue-page-414x896.png",
       "surface": "A redesigned Home catalogue at 414 by 896 CSS pixels: feature rows, their direct targets, the persistent application rail, and the catalogue's own search field without a horizontal escape route",
       "caption": "A redesigned Home catalogue at 414 by 896 CSS pixels: feature rows, their direct targets, the persistent application rail, and the catalogue's own search field without a horizontal escape route. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
-      "capturedAt": "2026-08-15T13:53:59.734Z"
-    },
-    {
-      "kind": "capture",
-      "name": "palette-search",
-      "file": "palette-search.png",
-      "surface": "The command palette filtered by a search, with a setting row that carries its own live control - changing it here changes the real setting, the same way changing it on its own page would",
-      "caption": "The command palette filtered by a search, with a setting row that carries its own live control - changing it here changes the real setting, the same way changing it on its own page would. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the command palette rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:13.986Z"
+      "capturedAt": "2026-08-15T18:47:11.099Z"
     },
     {
       "kind": "capture",
@@ -244,15 +204,7 @@
       "file": "shell-1280x800.png",
       "surface": "The application shell at 1280x800",
       "caption": "The application shell at 1280x800. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:00.841Z"
-    },
-    {
-      "kind": "capture",
-      "name": "tab-strip",
-      "file": "tab-strip.png",
-      "surface": "The browser-style tab strip inside the Work destination: the jobs that have actually been opened rather than every destination the application has, their seeded groups, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier",
-      "caption": "The browser-style tab strip inside the Work destination: the jobs that have actually been opened rather than every destination the application has, their seeded groups, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the tab strip rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:14.818Z"
+      "capturedAt": "2026-08-15T18:47:12.219Z"
     },
     {
       "kind": "capture",
@@ -260,15 +212,7 @@
       "file": "shell-1920x1080.png",
       "surface": "The application shell at 1920x1080",
       "caption": "The application shell at 1920x1080. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:01.599Z"
-    },
-    {
-      "kind": "capture",
-      "name": "tab-context-menu",
-      "file": "tab-context-menu.png",
-      "surface": "Right-clicking a tab: its own management commands, with the keyboard-reachable filter every context menu in this application carries and the working shortcut printed beside each item that has one",
-      "caption": "Right-clicking a tab: its own management commands, with the keyboard-reachable filter every context menu in this application carries and the working shortcut printed beside each item that has one. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the tab's context menu rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:15.679Z"
+      "capturedAt": "2026-08-15T18:47:12.962Z"
     },
     {
       "kind": "capture",
@@ -276,7 +220,7 @@
       "file": "shell-1024x768.png",
       "surface": "The application shell at 1024x768",
       "caption": "The application shell at 1024x768. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:02.335Z"
+      "capturedAt": "2026-08-15T18:47:13.678Z"
     },
     {
       "kind": "capture",
@@ -284,15 +228,7 @@
       "file": "shell-800x600-narrow.png",
       "surface": "The application shell at 800x600-narrow",
       "caption": "The application shell at 800x600-narrow. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:03.044Z"
-    },
-    {
-      "kind": "capture",
-      "name": "tab-finder",
-      "file": "tab-finder.png",
-      "surface": "The tab finder: search this strip, search every open tab in every window, search groups by name, and both text bulk closes, each with its own anchored regex builder",
-      "caption": "The tab finder: search this strip, search every open tab in every window, search groups by name, and both text bulk closes, each with its own anchored regex builder. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the tab finder rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:16.971Z"
+      "capturedAt": "2026-08-15T18:47:14.403Z"
     },
     {
       "kind": "capture",
@@ -300,7 +236,7 @@
       "file": "shell-scale-1x.png",
       "surface": "The application shell at 100% display scale",
       "caption": "The application shell at 100% display scale. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:03.794Z"
+      "capturedAt": "2026-08-15T18:47:15.137Z"
     },
     {
       "kind": "capture",
@@ -308,15 +244,7 @@
       "file": "shell-scale-1_25x.png",
       "surface": "The application shell at 125% display scale",
       "caption": "The application shell at 125% display scale. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:04.523Z"
-    },
-    {
-      "kind": "capture",
-      "name": "tab-bulk-close-preview",
-      "file": "tab-bulk-close-preview.png",
-      "surface": "Close tabs containing text, previewing exactly which tabs the pattern matches and what closing them would do, before anything closes",
-      "caption": "Close tabs containing text, previewing exactly which tabs the pattern matches and what closing them would do, before anything closes. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the bulk-close panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:17.933Z"
+      "capturedAt": "2026-08-15T18:47:15.847Z"
     },
     {
       "kind": "capture",
@@ -324,15 +252,7 @@
       "file": "shell-scale-1_5x.png",
       "surface": "The application shell at 150% display scale",
       "caption": "The application shell at 150% display scale. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:05.236Z"
-    },
-    {
-      "kind": "capture",
-      "name": "appearance-context-menu",
-      "file": "appearance-context-menu.png",
-      "surface": "A tab's own context menu: its management commands, then \"Edit tab appearance...\" with its working Ctrl+Shift+F10 shortcut printed beside it, and the menu's own searchable filter at the top",
-      "caption": "A tab's own context menu: its management commands, then \"Edit tab appearance...\" with its working Ctrl+Shift+F10 shortcut printed beside it, and the menu's own searchable filter at the top. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the tab's context menu rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:19.315Z"
+      "capturedAt": "2026-08-15T18:47:16.563Z"
     },
     {
       "kind": "capture",
@@ -340,23 +260,7 @@
       "file": "shell-scale-2x.png",
       "surface": "The application shell at 200% display scale",
       "caption": "The application shell at 200% display scale. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:05.955Z"
-    },
-    {
-      "kind": "capture",
-      "name": "appearance-typography",
-      "file": "appearance-typography.png",
-      "surface": "The appearance editor's Text tab: every installed and bundled font with its own live preview, size, weight, style and the rest of the Word-depth typography controls, editing this tab's own label live",
-      "caption": "The appearance editor's Text tab: every installed and bundled font with its own live preview, size, weight, style and the rest of the Word-depth typography controls, editing this tab's own label live. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the appearance editor rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:20.410Z"
-    },
-    {
-      "kind": "capture",
-      "name": "appearance-surface",
-      "file": "appearance-surface.png",
-      "surface": "The appearance editor's Surface tab: background and border colour, border style, radius, spacing, shadow and opacity for this tab, each with a reset of its own",
-      "caption": "The appearance editor's Surface tab: background and border colour, border style, radius, spacing, shadow and opacity for this tab, each with a reset of its own. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the appearance editor rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:21.363Z"
+      "capturedAt": "2026-08-15T18:47:17.293Z"
     },
     {
       "kind": "capture",
@@ -364,15 +268,7 @@
       "file": "theme-light.png",
       "surface": "The application shell in the light theme",
       "caption": "The application shell in the light theme. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:08.483Z"
-    },
-    {
-      "kind": "capture",
-      "name": "infinite-colour-picker",
-      "file": "infinite-colour-picker.png",
-      "surface": "The infinite colour picker: a continuous field rather than a swatch grid, translated across named colours, hex, RGB, HSL, HSV, HWB, CIELAB/LCH, OKLab/OKLCH and CMYK, with a contrast readout",
-      "caption": "The infinite colour picker: a continuous field rather than a swatch grid, translated across named colours, hex, RGB, HSL, HSV, HWB, CIELAB/LCH, OKLab/OKLCH and CMYK, with a contrast readout. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the infinite colour picker rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:22.359Z"
+      "capturedAt": "2026-08-15T18:47:19.830Z"
     },
     {
       "kind": "capture",
@@ -380,23 +276,7 @@
       "file": "theme-dark.png",
       "surface": "The application shell in the dark theme",
       "caption": "The application shell in the dark theme. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:10.433Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-1-world",
-      "file": "wizard-1-world.png",
-      "surface": "The make-a-map wizard on its first step, asking for the world folder, with its five steps listed across the top",
-      "caption": "The make-a-map wizard on its first step, asking for the world folder, with its five steps listed across the top. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:56:26.133Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-ssh-world-source",
-      "file": "wizard-ssh-world-source.png",
-      "surface": "The SSH world-source checklist inside the first wizard step: saved key-only machines, explicit host-key review, remote-world inspection, and a local fetch destination",
-      "caption": "The SSH world-source checklist inside the first wizard step: saved key-only machines, explicit host-key review, remote-world inspection, and a local fetch destination. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the SSH world-source checklist rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:27.095Z"
+      "capturedAt": "2026-08-15T18:47:21.727Z"
     },
     {
       "kind": "capture",
@@ -404,23 +284,7 @@
       "file": "profiles-manager.png",
       "surface": "The maps and servers manager on its own tab in the Work destination, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
       "caption": "The maps and servers manager on its own tab in the Work destination, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible.",
-      "capturedAt": "2026-08-15T13:54:14.461Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-docker-world-source-390x844-200pct",
-      "file": "wizard-docker-world-source-390x844-200pct.png",
-      "surface": "The local Docker world-source checklist at a 390 by 844 CSS-pixel viewport and 200% device scale: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress",
-      "caption": "The local Docker world-source checklist at a 390 by 844 CSS-pixel viewport and 200% device scale: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one. Captured through Chromium's own DevTools surface so the image uses the same exact CSS viewport and device scale as the metrics. The metrics record zero horizontal overflow, outer or internal control clipping, or undersized interactive targets.",
-      "capturedAt": "2026-08-15T13:56:27.785Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-1-world-read",
-      "file": "wizard-1-world-read.png",
-      "surface": "The wizard's first step after the world folder has been read: it names the dimensions it found and how many region files each of them holds",
-      "caption": "The wizard's first step after the world folder has been read: it names the dimensions it found and how many region files each of them holds. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:56:29.061Z"
+      "capturedAt": "2026-08-15T18:47:25.753Z"
     },
     {
       "kind": "capture",
@@ -428,15 +292,7 @@
       "file": "backups.png",
       "surface": "Backing a world or a rendered map up to GitHub release assets: what to pack, where it goes, and the notice saying nobody is signed in to GitHub on this computer yet. The screen states why this uses release assets rather than Git LFS, and the pointer format it writes",
       "caption": "Backing a world or a rendered map up to GitHub release assets: what to pack, where it goes, and the notice saying nobody is signed in to GitHub on this computer yet. The screen states why this uses release assets rather than Git LFS, and the pointer format it writes. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible.",
-      "capturedAt": "2026-08-15T13:54:16.204Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-2-name-and-dimension",
-      "file": "wizard-2-name-and-dimension.png",
-      "surface": "The make-a-map wizard on its \"Name and dimension\" step",
-      "caption": "The make-a-map wizard on its \"Name and dimension\" step. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:56:30.336Z"
+      "capturedAt": "2026-08-15T18:47:27.478Z"
     },
     {
       "kind": "capture",
@@ -444,15 +300,7 @@
       "file": "settings-drawer.png",
       "surface": "The application settings, opened from the rail footer over whichever destination was showing",
       "caption": "The application settings, opened from the rail footer over whichever destination was showing. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:54:17.789Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-3-options",
-      "file": "wizard-3-options.png",
-      "surface": "The make-a-map wizard on its \"Options\" step",
-      "caption": "The make-a-map wizard on its \"Options\" step. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:56:31.815Z"
+      "capturedAt": "2026-08-15T18:47:29.066Z"
     },
     {
       "kind": "capture",
@@ -460,7 +308,7 @@
       "file": "settings-section-mojang-download-consent.png",
       "surface": "The \"Mojang download consent\" settings section, on its own browser-style tab inside the settings panel",
       "caption": "The \"Mojang download consent\" settings section, on its own browser-style tab inside the settings panel. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:18.800Z"
+      "capturedAt": "2026-08-15T18:47:30.045Z"
     },
     {
       "kind": "capture",
@@ -468,15 +316,7 @@
       "file": "settings-section-java-runtime.png",
       "surface": "The \"Java runtime\" settings section, on its own browser-style tab inside the settings panel",
       "caption": "The \"Java runtime\" settings section, on its own browser-style tab inside the settings panel. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:19.779Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-4-where-it-goes",
-      "file": "wizard-4-where-it-goes.png",
-      "surface": "The make-a-map wizard on its \"Where it goes\" step",
-      "caption": "The make-a-map wizard on its \"Where it goes\" step. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:56:33.086Z"
+      "capturedAt": "2026-08-15T18:47:31.021Z"
     },
     {
       "kind": "capture",
@@ -484,15 +324,7 @@
       "file": "settings-section-map-storage-directory.png",
       "surface": "The \"Where rendered maps go\" settings section, on its own browser-style tab inside the settings panel",
       "caption": "The \"Where rendered maps go\" settings section, on its own browser-style tab inside the settings panel. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:20.770Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-5-review",
-      "file": "wizard-5-review.png",
-      "surface": "The make-a-map wizard on its \"Review\" step",
-      "caption": "The make-a-map wizard on its \"Review\" step. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
-      "capturedAt": "2026-08-15T13:56:34.346Z"
+      "capturedAt": "2026-08-15T18:47:32.010Z"
     },
     {
       "kind": "capture",
@@ -500,7 +332,7 @@
       "file": "settings-section-world-folder.png",
       "surface": "The \"World folder\" settings section, on its own browser-style tab inside the settings panel",
       "caption": "The \"World folder\" settings section, on its own browser-style tab inside the settings panel. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:21.738Z"
+      "capturedAt": "2026-08-15T18:47:32.990Z"
     },
     {
       "kind": "capture",
@@ -508,15 +340,7 @@
       "file": "settings-section-github-account.png",
       "surface": "The \"GitHub account\" settings section, on its own browser-style tab inside the settings panel",
       "caption": "The \"GitHub account\" settings section, on its own browser-style tab inside the settings panel. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:22.746Z"
-    },
-    {
-      "kind": "capture",
-      "name": "wizard-release-downloads",
-      "file": "wizard-release-downloads.png",
-      "surface": "The release downloads panel, which offers to fetch a world from a GitHub release for somebody with no Minecraft save on this machine",
-      "caption": "The release downloads panel, which offers to fetch a world from a GitHub release for somebody with no Minecraft save on this machine. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the release downloads panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:36.121Z"
+      "capturedAt": "2026-08-15T18:47:34.001Z"
     },
     {
       "kind": "capture",
@@ -524,23 +348,7 @@
       "file": "settings-section-language-and-tone.png",
       "surface": "The \"Language and tone\" settings section, on its own browser-style tab inside the settings panel",
       "caption": "The \"Language and tone\" settings section, on its own browser-style tab inside the settings panel. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:23.744Z"
-    },
-    {
-      "kind": "capture",
-      "name": "kid-home",
-      "file": "kid-home.png",
-      "surface": "Kid Mode's Home, and the default view of a fresh install: kidMode.ts's own KEY_ENABLED flag defaults to true, so this - not the adult shell - is the very first screen this application ever shows anybody. The GO hero card, the five catalogues drawn as picture-first 'lands', what the app is doing right now, and the maps and servers this computer already knows about",
-      "caption": "Kid Mode's Home, and the default view of a fresh install: kidMode.ts's own KEY_ENABLED flag defaults to true, so this - not the adult shell - is the very first screen this application ever shows anybody. The GO hero card, the five catalogues drawn as picture-first 'lands', what the app is doing right now, and the maps and servers this computer already knows about. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state. Kid Mode always paints from its own fixed 'kid' Vuetify theme (KID_SCHEME in kidTheme.ts) rather than the light/dark/contrast scheme chosen in Adult Mode's own Settings - App.vue's own watcher snaps the live theme name straight back to 'kid' the instant Kid Mode is active, so there is no separate light/dark/contrast variant of any Kid Mode surface to capture.",
-      "capturedAt": "2026-08-15T13:56:37.374Z"
-    },
-    {
-      "kind": "capture",
-      "name": "kid-rail",
-      "file": "kid-rail.png",
-      "surface": "Kid Mode's own rail, cropped from the Home capture above: Home, Explore, My jobs and Stickers as big picture-first destinations with the level badge and XP bar in the status header above them, then Find, Messages and the grown-up gate as small footer actions - the same three-destination-plus-footer shape the adult rail has, per KidRail.vue's own doc comment",
-      "caption": "Kid Mode's own rail, cropped from the Home capture above: Home, Explore, My jobs and Stickers as big picture-first destinations with the level badge and XP bar in the status header above them, then Find, Messages and the grown-up gate as small footer actions - the same three-destination-plus-footer shape the adult rail has, per KidRail.vue's own doc comment. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the Kid Mode rail rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:37.778Z"
+      "capturedAt": "2026-08-15T18:47:35.008Z"
     },
     {
       "kind": "capture",
@@ -548,15 +356,7 @@
       "file": "settings-search.png",
       "surface": "The settings search, filtering the panel to the settings whose name, explanation or current value matches what was typed, and saying which tab each result lives on",
       "caption": "The settings search, filtering the panel to the settings whose name, explanation or current value matches what was typed, and saying which tab each result lives on. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:24.786Z"
-    },
-    {
-      "kind": "capture",
-      "name": "kid-catalogue",
-      "file": "kid-catalogue.png",
-      "surface": "One of Kid Mode's five catalogues, opened as a 'land' from Kid Home: every feature it holds as its own picture-first row with the real shipped blurb underneath, grouped under headings, with the same search field and anchored regex builder every other catalogue page in this application carries (ConfigSearchField, reused rather than hand-rolled, per KidCataloguePage.vue's own doc comment)",
-      "caption": "One of Kid Mode's five catalogues, opened as a 'land' from Kid Home: every feature it holds as its own picture-first row with the real shipped blurb underneath, grouped under headings, with the same search field and anchored regex builder every other catalogue page in this application carries (ConfigSearchField, reused rather than hand-rolled, per KidCataloguePage.vue's own doc comment). Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
-      "capturedAt": "2026-08-15T13:56:38.636Z"
+      "capturedAt": "2026-08-15T18:47:36.047Z"
     },
     {
       "kind": "capture",
@@ -564,23 +364,7 @@
       "file": "settings-regex-builder.png",
       "surface": "The regex builder anchored to the settings search, showing the pattern, the supported flags, the guided token palette and the live matches against the text on screen",
       "caption": "The regex builder anchored to the settings search, showing the pattern, the supported flags, the guided token palette and the live matches against the text on screen. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the regex builder rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:26.011Z"
-    },
-    {
-      "kind": "capture",
-      "name": "kid-job-strip",
-      "file": "kid-job-strip.png",
-      "surface": "Kid Mode's Work view: WorkPane re-hosted rather than reimplemented, per KidJobStrip.vue's own doc comment - the exact same tab strip, seeded groups, pinning, drag reorder and overflow as Adult Mode's own Work destination, wearing Kid Mode's own labels (applied through WorkPane's existing renamePage) and a 64px-minimum chip floor rather than the adult shell's 44px one",
-      "caption": "Kid Mode's Work view: WorkPane re-hosted rather than reimplemented, per KidJobStrip.vue's own doc comment - the exact same tab strip, seeded groups, pinning, drag reorder and overflow as Adult Mode's own Work destination, wearing Kid Mode's own labels (applied through WorkPane's existing renamePage) and a 64px-minimum chip floor rather than the adult shell's 44px one. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
-      "capturedAt": "2026-08-15T13:56:39.608Z"
-    },
-    {
-      "kind": "capture",
-      "name": "kid-stickers",
-      "file": "kid-stickers.png",
-      "surface": "The sticker book on a fresh capture profile: every sticker this build knows about, each naming the real feature it is earned from and doubling as a second route into that feature's catalogue rather than a dead trophy shelf, none of them won yet - a fresh profile has completed nothing, and the book says so plainly (KidStickerBook.vue's own doc comment: 'a sticker that has not been won says so plainly; nothing is hidden or teased')",
-      "caption": "The sticker book on a fresh capture profile: every sticker this build knows about, each naming the real feature it is earned from and doubling as a second route into that feature's catalogue rather than a dead trophy shelf, none of them won yet - a fresh profile has completed nothing, and the book says so plainly (KidStickerBook.vue's own doc comment: 'a sticker that has not been won says so plainly; nothing is hidden or teased'). Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
-      "capturedAt": "2026-08-15T13:56:40.453Z"
+      "capturedAt": "2026-08-15T18:47:37.246Z"
     },
     {
       "kind": "capture",
@@ -588,15 +372,7 @@
       "file": "settings-vocabulary.png",
       "surface": "The personal-vocabulary settings row, present in its own settings section whether or not a file has ever been uploaded: its honest no-file state on a throwaway capture profile",
       "caption": "The personal-vocabulary settings row, present in its own settings section whether or not a file has ever been uploaded: its honest no-file state on a throwaway capture profile. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:27.761Z"
-    },
-    {
-      "kind": "capture",
-      "name": "kid-gate-no-credential",
-      "file": "kid-gate-no-credential.png",
-      "surface": "The grown-up gate in its no-credential-configured state, which is the state every fresh install actually starts in: nobody has ever set the shared restricted-mode code on this computer, so KidGrownUpGate.vue lets one press go straight through to Adult Mode rather than demanding a code that was never set - the mechanism its own doc comment says exists precisely so 'Kid Mode must never become a one-way door'. The honesty line at the bottom names this as a user-experience lock, not a security lock, and names the real reset route rather than gesturing at it",
-      "caption": "The grown-up gate in its no-credential-configured state, which is the state every fresh install actually starts in: nobody has ever set the shared restricted-mode code on this computer, so KidGrownUpGate.vue lets one press go straight through to Adult Mode rather than demanding a code that was never set - the mechanism its own doc comment says exists precisely so 'Kid Mode must never become a one-way door'. The honesty line at the bottom names this as a user-experience lock, not a security lock, and names the real reset route rather than gesturing at it. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
-      "capturedAt": "2026-08-15T13:56:41.292Z"
+      "capturedAt": "2026-08-15T18:47:38.989Z"
     },
     {
       "kind": "capture",
@@ -604,23 +380,7 @@
       "file": "settings-notification-duration.png",
       "surface": "The notification duration row in settings: how long an informational or success message stays in the corner before it dismisses itself, with the level this capture profile shipped on",
       "caption": "The notification duration row in settings: how long an informational or success message stays in the corner before it dismisses itself, with the level this capture profile shipped on. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:28.670Z"
-    },
-    {
-      "kind": "capture",
-      "name": "kid-mode-settings-row",
-      "file": "kid-mode-settings-row.png",
-      "surface": "The Kid Mode settings row, reached the moment this run first leaves Kid Mode through its own grown-up gate: the Kid Mode/Adult Mode choice, showing Adult Mode selected because this capture is looking at the row from inside Adult Mode; the child's name; the celebration and sound switches; and the label-style choice. The accessible name of every control keeps the real feature name at all three label styles, per this row's own doc comment",
-      "caption": "The Kid Mode settings row, reached the moment this run first leaves Kid Mode through its own grown-up gate: the Kid Mode/Adult Mode choice, showing Adult Mode selected because this capture is looking at the row from inside Adult Mode; the child's name; the celebration and sound switches; and the label-style choice. The accessible name of every control keeps the real feature name at all three label styles, per this row's own doc comment. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:56:43.139Z"
-    },
-    {
-      "kind": "capture",
-      "name": "kid-home-390",
-      "file": "kid-home-390.png",
-      "surface": "Kid Home at 390 by 844 CSS pixels - the same phone width the redesigned adult shell proves itself at (COMPACT_PHONE_VIEWPORTS): the rail, hero, five lands and both panels holding their layout rather than being narrowed to a scroll of unreadable pieces, at Kid Mode's own 64px-minimum touch targets",
-      "caption": "Kid Home at 390 by 844 CSS pixels - the same phone width the redesigned adult shell proves itself at (COMPACT_PHONE_VIEWPORTS): the rail, hero, five lands and both panels holding their layout rather than being narrowed to a scroll of unreadable pieces, at Kid Mode's own 64px-minimum touch targets. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state. Captured through Chromium's DevTools surface at the exact CSS viewport, the same technique 'captures the redesigned Home shell at compact phone viewports' uses for the adult shell.",
-      "capturedAt": "2026-08-15T13:56:44.762Z"
+      "capturedAt": "2026-08-15T18:47:39.892Z"
     },
     {
       "kind": "capture",
@@ -628,7 +388,7 @@
       "file": "config-screen.png",
       "surface": "The options editor as it opens",
       "caption": "The options editor as it opens. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:31.939Z"
+      "capturedAt": "2026-08-15T18:47:43.135Z"
     },
     {
       "kind": "capture",
@@ -636,7 +396,7 @@
       "file": "config-tab-core.png",
       "surface": "The options editor, the \"Core\" tab, with the settings that tab owns",
       "caption": "The options editor, the \"Core\" tab, with the settings that tab owns. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:33.211Z"
+      "capturedAt": "2026-08-15T18:47:44.383Z"
     },
     {
       "kind": "capture",
@@ -644,7 +404,7 @@
       "file": "config-tab-maps.png",
       "surface": "The options editor, the \"Maps\" tab, with the settings that tab owns",
       "caption": "The options editor, the \"Maps\" tab, with the settings that tab owns. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:34.620Z"
+      "capturedAt": "2026-08-15T18:47:45.786Z"
     },
     {
       "kind": "capture",
@@ -652,7 +412,7 @@
       "file": "config-tab-storages.png",
       "surface": "The options editor, the \"Storages\" tab, with the settings that tab owns",
       "caption": "The options editor, the \"Storages\" tab, with the settings that tab owns. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:35.839Z"
+      "capturedAt": "2026-08-15T18:47:47.001Z"
     },
     {
       "kind": "capture",
@@ -660,7 +420,7 @@
       "file": "config-tab-web-app.png",
       "surface": "The options editor, the \"Web app\" tab, with the settings that tab owns",
       "caption": "The options editor, the \"Web app\" tab, with the settings that tab owns. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:37.063Z"
+      "capturedAt": "2026-08-15T18:47:48.201Z"
     },
     {
       "kind": "capture",
@@ -668,7 +428,7 @@
       "file": "config-tab-web-server.png",
       "surface": "The options editor, the \"Web server\" tab, with the settings that tab owns",
       "caption": "The options editor, the \"Web server\" tab, with the settings that tab owns. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:38.253Z"
+      "capturedAt": "2026-08-15T18:47:49.382Z"
     },
     {
       "kind": "capture",
@@ -676,7 +436,7 @@
       "file": "config-tab-server-plugin.png",
       "surface": "The options editor, the \"Server plugin\" tab, with the settings that tab owns",
       "caption": "The options editor, the \"Server plugin\" tab, with the settings that tab owns. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:39.450Z"
+      "capturedAt": "2026-08-15T18:47:50.583Z"
     },
     {
       "kind": "capture",
@@ -684,7 +444,7 @@
       "file": "config-tab-run.png",
       "surface": "The options editor, the \"Run\" tab, with the settings that tab owns",
       "caption": "The options editor, the \"Run\" tab, with the settings that tab owns. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:40.658Z"
+      "capturedAt": "2026-08-15T18:47:51.763Z"
     },
     {
       "kind": "capture",
@@ -692,7 +452,7 @@
       "file": "config-tab-history.png",
       "surface": "The options editor, the \"History\" tab, with the settings that tab owns",
       "caption": "The options editor, the \"History\" tab, with the settings that tab owns. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:41.798Z"
+      "capturedAt": "2026-08-15T18:47:52.897Z"
     },
     {
       "kind": "capture",
@@ -700,7 +460,7 @@
       "file": "config-search.png",
       "surface": "The options editor's search, which reaches every setting on all of the tabs at once and says which tab each result lives on",
       "caption": "The options editor's search, which reaches every setting on all of the tabs at once and says which tab each result lives on. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible. The editor is showing BlueMap's own generated defaults, because the throwaway profile this run uses has no config folder on disk, and it says so in the notice across the top. Every setting, tab and control in the image is real, live and savable; what is absent is a folder read off this machine.",
-      "capturedAt": "2026-08-15T13:54:42.951Z"
+      "capturedAt": "2026-08-15T18:47:54.025Z"
     },
     {
       "kind": "capture",
@@ -708,7 +468,7 @@
       "file": "config-regex-builder.png",
       "surface": "The regex builder anchored to the options editor's search bar",
       "caption": "The regex builder anchored to the options editor's search bar. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the regex builder rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:44.124Z"
+      "capturedAt": "2026-08-15T18:47:55.213Z"
     },
     {
       "kind": "capture",
@@ -716,7 +476,7 @@
       "file": "config-delete-gate.png",
       "surface": "The super confirmation that guards deleting a map's configuration: two keys, then a full-travel slider, with an emergency exit that is always available",
       "caption": "The super confirmation that guards deleting a map's configuration: two keys, then a full-travel slider, with an emergency exit that is always available. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the confirmation popover rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:48.596Z"
+      "capturedAt": "2026-08-15T18:47:59.694Z"
     },
     {
       "kind": "capture",
@@ -724,7 +484,7 @@
       "file": "config-history.png",
       "surface": "The config folder's version-history tab, including its honest empty state when this throwaway profile has no folder attached",
       "caption": "The config folder's version-history tab, including its honest empty state when this throwaway profile has no folder attached. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the version-history panel rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:52.791Z"
+      "capturedAt": "2026-08-15T18:48:03.897Z"
     },
     {
       "kind": "capture",
@@ -732,7 +492,7 @@
       "file": "projects-screen.png",
       "surface": "The Projects screen, showing the real empty state and the path into a new render project",
       "caption": "The Projects screen, showing the real empty state and the path into a new render project. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the Projects screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:55.290Z"
+      "capturedAt": "2026-08-15T18:48:06.425Z"
     },
     {
       "kind": "capture",
@@ -740,7 +500,7 @@
       "file": "ci-render-screen.png",
       "surface": "The CI-render screen, with its honest repository fields and the preflight route that refuses before uploading anything",
       "caption": "The CI-render screen, with its honest repository fields and the preflight route that refuses before uploading anything. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the CI-render screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:54:57.116Z"
+      "capturedAt": "2026-08-15T18:48:08.801Z"
     },
     {
       "kind": "capture",
@@ -748,7 +508,7 @@
       "file": "pages-publishing-screen.png",
       "surface": "The Pages publishing screen: the searchable render list, the repository fields, and the check that reports what publishing would push before anything is pushed",
       "caption": "The Pages publishing screen: the searchable render list, the repository fields, and the check that reports what publishing would push before anything is pushed. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the Pages publishing screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:00.166Z"
+      "capturedAt": "2026-08-15T18:48:11.809Z"
     },
     {
       "kind": "capture",
@@ -756,7 +516,7 @@
       "file": "authenticator-screen.png",
       "surface": "The built-in authenticator, on its own tab in the Work destination, with its honest empty state on a throwaway profile that has never registered a TOTP account",
       "caption": "The built-in authenticator, on its own tab in the Work destination, with its honest empty state on a throwaway profile that has never registered a TOTP account. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the authenticator screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:02.637Z"
+      "capturedAt": "2026-08-15T18:48:14.736Z"
     },
     {
       "kind": "capture",
@@ -764,7 +524,7 @@
       "file": "lock-list-screen.png",
       "surface": "The lock list, enumerating every toy lock on this computer, with its honest empty state on a throwaway profile that has never locked an element",
       "caption": "The lock list, enumerating every toy lock on this computer, with its honest empty state on a throwaway profile that has never locked an element. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the lock list rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:05.056Z"
+      "capturedAt": "2026-08-15T18:48:17.175Z"
     },
     {
       "kind": "capture",
@@ -772,7 +532,7 @@
       "file": "support-tickets-screen.png",
       "surface": "The recovery desk, dressed as a support desk: a ticket form and the plain, unstyled line stating that nothing is ever sent anywhere",
       "caption": "The recovery desk, dressed as a support desk: a ticket form and the plain, unstyled line stating that nothing is ever sent anywhere. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the Support Tickets screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:08.008Z"
+      "capturedAt": "2026-08-15T18:48:19.627Z"
     },
     {
       "kind": "capture",
@@ -780,7 +540,7 @@
       "file": "structures-screen.png",
       "surface": "The Structures screen, listing every structure file a world scan found and, once rendered, the render for each one - with its honest empty state on a throwaway profile with no world scanned yet",
       "caption": "The Structures screen, listing every structure file a world scan found and, once rendered, the render for each one - with its honest empty state on a throwaway profile with no world scanned yet. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the Structures screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:10.460Z"
+      "capturedAt": "2026-08-15T18:48:22.057Z"
     },
     {
       "kind": "capture",
@@ -788,7 +548,7 @@
       "file": "drop-render-zone.png",
       "surface": "The drop-render zone at the top of the Structures screen: drag a structure or schematic file straight onto it, or use the ordinary button beside it that does exactly the same thing",
       "caption": "The drop-render zone at the top of the Structures screen: drag a structure or schematic file straight onto it, or use the ordinary button beside it that does exactly the same thing. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the drop-render zone rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:12.115Z"
+      "capturedAt": "2026-08-15T18:48:23.685Z"
     },
     {
       "kind": "capture",
@@ -796,7 +556,7 @@
       "file": "chunker-screen.png",
       "surface": "The world conversion screen, on its own tab in the Work destination: the source and destination fields and the four execution routes a conversion can be run through",
       "caption": "The world conversion screen, on its own tab in the Work destination: the source and destination fields and the four execution routes a conversion can be run through. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the conversion screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:14.604Z"
+      "capturedAt": "2026-08-15T18:48:26.174Z"
     },
     {
       "kind": "capture",
@@ -804,7 +564,7 @@
       "file": "ollama-screen.png",
       "surface": "The Ollama suite manager, on its own tab in the Work destination, on a capture profile with no Ollama runtime installed: the honest missing-runtime warning and the guidance that goes with it",
       "caption": "The Ollama suite manager, on its own tab in the Work destination, on a capture profile with no Ollama runtime installed: the honest missing-runtime warning and the guidance that goes with it. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the Ollama screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:17.591Z"
+      "capturedAt": "2026-08-15T18:48:28.645Z"
     },
     {
       "kind": "capture",
@@ -812,7 +572,415 @@
       "file": "browser-extension-screen.png",
       "surface": "The browser-extension downloads screen, with its honest empty state on a throwaway profile where the extension has never handed a download over",
       "caption": "The browser-extension downloads screen, with its honest empty state on a throwaway profile where the extension has never handed a download over. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the browser extension downloads screen rather than showing the whole window.",
-      "capturedAt": "2026-08-15T13:55:20.045Z"
+      "capturedAt": "2026-08-15T18:48:31.580Z"
+    },
+    {
+      "kind": "capture",
+      "name": "eula-viewer",
+      "file": "eula-viewer.png",
+      "surface": "The EULA viewer embedded in Settings, with the bundled or cached licence copy, its provenance and its searchable section tabs",
+      "caption": "The EULA viewer embedded in Settings, with the bundled or cached licence copy, its provenance and its searchable section tabs. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the EULA viewer rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:18.949Z"
+    },
+    {
+      "kind": "capture",
+      "name": "notifications-rail-bell",
+      "file": "notifications-rail-bell.png",
+      "surface": "The live Notification bell in the application rail, carrying its unread badge before it opens the history anchored beside it",
+      "caption": "The live Notification bell in the application rail, carrying its unread badge before it opens the history anchored beside it. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the rail notification bell rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:22.309Z"
+    },
+    {
+      "kind": "capture",
+      "name": "notifications-history",
+      "file": "notifications-history.png",
+      "surface": "The notification centre, so a message that has already faded away is still readable, searchable and filterable by level",
+      "caption": "The notification centre, so a message that has already faded away is still readable, searchable and filterable by level. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the notification centre rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:23.294Z"
+    },
+    {
+      "kind": "capture",
+      "name": "palette",
+      "file": "palette.png",
+      "surface": "The command palette, opened with Ctrl+Shift+F: every command, setting and destination the application has, in one searchable list",
+      "caption": "The command palette, opened with Ctrl+Shift+F: every command, setting and destination the application has, in one searchable list. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible.",
+      "capturedAt": "2026-08-15T18:49:24.607Z"
+    },
+    {
+      "kind": "capture",
+      "name": "palette-search",
+      "file": "palette-search.png",
+      "surface": "The command palette filtered by a search, with a setting row that carries its own live control - changing it here changes the real setting, the same way changing it on its own page would",
+      "caption": "The command palette filtered by a search, with a setting row that carries its own live control - changing it here changes the real setting, the same way changing it on its own page would. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the command palette rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:25.524Z"
+    },
+    {
+      "kind": "capture",
+      "name": "tab-strip",
+      "file": "tab-strip.png",
+      "surface": "The browser-style tab strip inside the Work destination: the jobs that have actually been opened rather than every destination the application has, their seeded groups, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier",
+      "caption": "The browser-style tab strip inside the Work destination: the jobs that have actually been opened rather than every destination the application has, their seeded groups, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the tab strip rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:26.364Z"
+    },
+    {
+      "kind": "capture",
+      "name": "tab-context-menu",
+      "file": "tab-context-menu.png",
+      "surface": "Right-clicking a tab: its own management commands, with the keyboard-reachable filter every context menu in this application carries and the working shortcut printed beside each item that has one",
+      "caption": "Right-clicking a tab: its own management commands, with the keyboard-reachable filter every context menu in this application carries and the working shortcut printed beside each item that has one. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the tab's context menu rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:27.244Z"
+    },
+    {
+      "kind": "capture",
+      "name": "tab-finder",
+      "file": "tab-finder.png",
+      "surface": "The tab finder: search this strip, search every open tab in every window, search groups by name, and both text bulk closes, each with its own anchored regex builder",
+      "caption": "The tab finder: search this strip, search every open tab in every window, search groups by name, and both text bulk closes, each with its own anchored regex builder. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the tab finder rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:28.536Z"
+    },
+    {
+      "kind": "capture",
+      "name": "tab-bulk-close-preview",
+      "file": "tab-bulk-close-preview.png",
+      "surface": "Close tabs containing text, previewing exactly which tabs the pattern matches and what closing them would do, before anything closes",
+      "caption": "Close tabs containing text, previewing exactly which tabs the pattern matches and what closing them would do, before anything closes. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the bulk-close panel rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:29.485Z"
+    },
+    {
+      "kind": "capture",
+      "name": "appearance-context-menu",
+      "file": "appearance-context-menu.png",
+      "surface": "A tab's own context menu: its management commands, then \"Edit tab appearance...\" with its working Ctrl+Shift+F10 shortcut printed beside it, and the menu's own searchable filter at the top",
+      "caption": "A tab's own context menu: its management commands, then \"Edit tab appearance...\" with its working Ctrl+Shift+F10 shortcut printed beside it, and the menu's own searchable filter at the top. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the tab's context menu rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:30.849Z"
+    },
+    {
+      "kind": "capture",
+      "name": "appearance-typography",
+      "file": "appearance-typography.png",
+      "surface": "The appearance editor's Text tab: every installed and bundled font with its own live preview, size, weight, style and the rest of the Word-depth typography controls, editing this tab's own label live",
+      "caption": "The appearance editor's Text tab: every installed and bundled font with its own live preview, size, weight, style and the rest of the Word-depth typography controls, editing this tab's own label live. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the appearance editor rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:31.931Z"
+    },
+    {
+      "kind": "capture",
+      "name": "appearance-surface",
+      "file": "appearance-surface.png",
+      "surface": "The appearance editor's Surface tab: background and border colour, border style, radius, spacing, shadow and opacity for this tab, each with a reset of its own",
+      "caption": "The appearance editor's Surface tab: background and border colour, border style, radius, spacing, shadow and opacity for this tab, each with a reset of its own. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the appearance editor rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:32.898Z"
+    },
+    {
+      "kind": "capture",
+      "name": "infinite-colour-picker",
+      "file": "infinite-colour-picker.png",
+      "surface": "The infinite colour picker: a continuous field rather than a swatch grid, translated across named colours, hex, RGB, HSL, HSV, HWB, CIELAB/LCH, OKLab/OKLCH and CMYK, with a contrast readout",
+      "caption": "The infinite colour picker: a continuous field rather than a swatch grid, translated across named colours, hex, RGB, HSL, HSV, HWB, CIELAB/LCH, OKLab/OKLCH and CMYK, with a contrast readout. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the infinite colour picker rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:33.887Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-1-world",
+      "file": "wizard-1-world.png",
+      "surface": "The make-a-map wizard on its first step, asking for the world folder, with its five steps listed across the top",
+      "caption": "The make-a-map wizard on its first step, asking for the world folder, with its five steps listed across the top. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
+      "capturedAt": "2026-08-15T18:49:37.632Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-ssh-world-source",
+      "file": "wizard-ssh-world-source.png",
+      "surface": "The SSH world-source checklist inside the first wizard step: saved key-only machines, explicit host-key review, remote-world inspection, and a local fetch destination",
+      "caption": "The SSH world-source checklist inside the first wizard step: saved key-only machines, explicit host-key review, remote-world inspection, and a local fetch destination. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the SSH world-source checklist rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:38.589Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-docker-world-source-390x844-200pct",
+      "file": "wizard-docker-world-source-390x844-200pct.png",
+      "surface": "The local Docker world-source checklist at a 390 by 844 CSS-pixel viewport and 200% device scale: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress",
+      "caption": "The local Docker world-source checklist at a 390 by 844 CSS-pixel viewport and 200% device scale: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one. Captured through Chromium's own DevTools surface so the image uses the same exact CSS viewport and device scale as the metrics. The metrics record zero horizontal overflow, outer or internal control clipping, or undersized interactive targets.",
+      "capturedAt": "2026-08-15T18:49:39.275Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-1-world-read",
+      "file": "wizard-1-world-read.png",
+      "surface": "The wizard's first step after the world folder has been read: it names the dimensions it found and how many region files each of them holds",
+      "caption": "The wizard's first step after the world folder has been read: it names the dimensions it found and how many region files each of them holds. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
+      "capturedAt": "2026-08-15T18:49:40.527Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-2-name-and-dimension",
+      "file": "wizard-2-name-and-dimension.png",
+      "surface": "The make-a-map wizard on its \"Name and dimension\" step",
+      "caption": "The make-a-map wizard on its \"Name and dimension\" step. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
+      "capturedAt": "2026-08-15T18:49:41.800Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-3-options",
+      "file": "wizard-3-options.png",
+      "surface": "The make-a-map wizard on its \"Options\" step",
+      "caption": "The make-a-map wizard on its \"Options\" step. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
+      "capturedAt": "2026-08-15T18:49:43.180Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-4-where-it-goes",
+      "file": "wizard-4-where-it-goes.png",
+      "surface": "The make-a-map wizard on its \"Where it goes\" step",
+      "caption": "The make-a-map wizard on its \"Where it goes\" step. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
+      "capturedAt": "2026-08-15T18:49:44.444Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-5-review",
+      "file": "wizard-5-review.png",
+      "surface": "The make-a-map wizard on its \"Review\" step",
+      "caption": "The make-a-map wizard on its \"Review\" step. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded, so the application is showing the wizard for making one.",
+      "capturedAt": "2026-08-15T18:49:45.702Z"
+    },
+    {
+      "kind": "capture",
+      "name": "wizard-release-downloads",
+      "file": "wizard-release-downloads.png",
+      "surface": "The release downloads panel, which offers to fetch a world from a GitHub release for somebody with no Minecraft save on this machine",
+      "caption": "The release downloads panel, which offers to fetch a world from a GitHub release for somebody with no Minecraft save on this machine. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the release downloads panel rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:47.476Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home",
+      "file": "kid-home.png",
+      "surface": "Kid Mode's Home, and the default view of a fresh install: kidMode.ts's own KEY_ENABLED flag defaults to true, so this - not the adult shell - is the very first screen this application ever shows anybody. The GO hero card, the five catalogues drawn as picture-first 'lands', what the app is doing right now, and the maps and servers this computer already knows about",
+      "caption": "Kid Mode's Home, and the default view of a fresh install: kidMode.ts's own KEY_ENABLED flag defaults to true, so this - not the adult shell - is the very first screen this application ever shows anybody. The GO hero card, the five catalogues drawn as picture-first 'lands', what the app is doing right now, and the maps and servers this computer already knows about. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state. Kid Mode always paints from its own fixed 'kid' Vuetify theme (KID_SCHEME in kidTheme.ts) rather than the light/dark/contrast scheme chosen in Adult Mode's own Settings - App.vue's own watcher snaps the live theme name straight back to 'kid' the instant Kid Mode is active, so there is no separate light/dark/contrast variant of any Kid Mode surface to capture.",
+      "capturedAt": "2026-08-15T18:49:48.721Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-rail",
+      "file": "kid-rail.png",
+      "surface": "Kid Mode's own rail, cropped from the Home capture above: Home, Explore, My jobs and Stickers as big picture-first destinations with the level badge and XP bar in the status header above them, then Find, Messages and the grown-up gate as small footer actions - the same three-destination-plus-footer shape the adult rail has, per KidRail.vue's own doc comment",
+      "caption": "Kid Mode's own rail, cropped from the Home capture above: Home, Explore, My jobs and Stickers as big picture-first destinations with the level badge and XP bar in the status header above them, then Find, Messages and the grown-up gate as small footer actions - the same three-destination-plus-footer shape the adult rail has, per KidRail.vue's own doc comment. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the Kid Mode rail rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:49.125Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-catalogue",
+      "file": "kid-catalogue.png",
+      "surface": "One of Kid Mode's five catalogues, opened as a 'land' from Kid Home: every feature it holds as its own picture-first row with the real shipped blurb underneath, grouped under headings, with the same search field and anchored regex builder every other catalogue page in this application carries (ConfigSearchField, reused rather than hand-rolled, per KidCataloguePage.vue's own doc comment)",
+      "caption": "One of Kid Mode's five catalogues, opened as a 'land' from Kid Home: every feature it holds as its own picture-first row with the real shipped blurb underneath, grouped under headings, with the same search field and anchored regex builder every other catalogue page in this application carries (ConfigSearchField, reused rather than hand-rolled, per KidCataloguePage.vue's own doc comment). Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:49:49.979Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-job-strip",
+      "file": "kid-job-strip.png",
+      "surface": "Kid Mode's Work view: WorkPane re-hosted rather than reimplemented, per KidJobStrip.vue's own doc comment - the exact same tab strip, seeded groups, pinning, drag reorder and overflow as Adult Mode's own Work destination, wearing Kid Mode's own labels (applied through WorkPane's existing renamePage) and a 64px-minimum chip floor rather than the adult shell's 44px one",
+      "caption": "Kid Mode's Work view: WorkPane re-hosted rather than reimplemented, per KidJobStrip.vue's own doc comment - the exact same tab strip, seeded groups, pinning, drag reorder and overflow as Adult Mode's own Work destination, wearing Kid Mode's own labels (applied through WorkPane's existing renamePage) and a 64px-minimum chip floor rather than the adult shell's 44px one. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:49:50.924Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-stickers",
+      "file": "kid-stickers.png",
+      "surface": "The sticker book on a fresh capture profile: every sticker this build knows about, each naming the real feature it is earned from and doubling as a second route into that feature's catalogue rather than a dead trophy shelf, none of them won yet - a fresh profile has completed nothing, and the book says so plainly (KidStickerBook.vue's own doc comment: 'a sticker that has not been won says so plainly; nothing is hidden or teased')",
+      "caption": "The sticker book on a fresh capture profile: every sticker this build knows about, each naming the real feature it is earned from and doubling as a second route into that feature's catalogue rather than a dead trophy shelf, none of them won yet - a fresh profile has completed nothing, and the book says so plainly (KidStickerBook.vue's own doc comment: 'a sticker that has not been won says so plainly; nothing is hidden or teased'). Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:49:51.767Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-gate-no-credential",
+      "file": "kid-gate-no-credential.png",
+      "surface": "The grown-up gate in its no-credential-configured state, which is the state every fresh install actually starts in: nobody has ever set the shared restricted-mode code on this computer, so KidGrownUpGate.vue lets one press go straight through to Adult Mode rather than demanding a code that was never set - the mechanism its own doc comment says exists precisely so 'Kid Mode must never become a one-way door'. The honesty line at the bottom names this as a user-experience lock, not a security lock, and names the real reset route rather than gesturing at it",
+      "caption": "The grown-up gate in its no-credential-configured state, which is the state every fresh install actually starts in: nobody has ever set the shared restricted-mode code on this computer, so KidGrownUpGate.vue lets one press go straight through to Adult Mode rather than demanding a code that was never set - the mechanism its own doc comment says exists precisely so 'Kid Mode must never become a one-way door'. The honesty line at the bottom names this as a user-experience lock, not a security lock, and names the real reset route rather than gesturing at it. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:49:52.612Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-mode-settings-row",
+      "file": "kid-mode-settings-row.png",
+      "surface": "The Kid Mode settings row, reached the moment this run first leaves Kid Mode through its own grown-up gate: the Kid Mode/Adult Mode choice, showing Adult Mode selected because this capture is looking at the row from inside Adult Mode; the child's name; the celebration and sound switches; and the label-style choice. The accessible name of every control keeps the real feature name at all three label styles, per this row's own doc comment",
+      "caption": "The Kid Mode settings row, reached the moment this run first leaves Kid Mode through its own grown-up gate: the Kid Mode/Adult Mode choice, showing Adult Mode selected because this capture is looking at the row from inside Adult Mode; the child's name; the celebration and sound switches; and the label-style choice. The accessible name of every control keeps the real feature name at all three label styles, per this row's own doc comment. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the settings panel rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:49:54.425Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-390",
+      "file": "kid-home-390.png",
+      "surface": "Kid Home at 390 by 844 CSS pixels - the same phone width the redesigned adult shell proves itself at (COMPACT_PHONE_VIEWPORTS): the rail, hero, five lands and both panels holding their layout rather than being narrowed to a scroll of unreadable pieces, at Kid Mode's own 64px-minimum touch targets",
+      "caption": "Kid Home at 390 by 844 CSS pixels - the same phone width the redesigned adult shell proves itself at (COMPACT_PHONE_VIEWPORTS): the rail, hero, five lands and both panels holding their layout rather than being narrowed to a scroll of unreadable pieces, at Kid Mode's own 64px-minimum touch targets. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state. Captured through Chromium's DevTools surface at the exact CSS viewport, the same technique 'captures the redesigned Home shell at compact phone viewports' uses for the adult shell.",
+      "capturedAt": "2026-08-15T18:49:56.053Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-catalogue-maps",
+      "file": "kid-catalogue-maps.png",
+      "surface": "Kid Mode's \"Your maps\" land (the shipped feature name is \"Your maps\"; position 1 of 5 on Home) - one of the five catalogues, alongside the first one the existing 'Kid catalogue page' capture already proves above: every feature it holds as its own picture-first row with the real shipped blurb underneath, the same search field and anchored regex builder every catalogue page in this application carries",
+      "caption": "Kid Mode's \"Your maps\" land (the shipped feature name is \"Your maps\"; position 1 of 5 on Home) - one of the five catalogues, alongside the first one the existing 'Kid catalogue page' capture already proves above: every feature it holds as its own picture-first row with the real shipped blurb underneath, the same search field and anchored regex builder every catalogue page in this application carries. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:49:56.940Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-catalogue-share",
+      "file": "kid-catalogue-share.png",
+      "surface": "Kid Mode's \"Show people\" land (the shipped feature name is \"Share a map\"; position 2 of 5 on Home) - one of the five catalogues, alongside the first one the existing 'Kid catalogue page' capture already proves above: every feature it holds as its own picture-first row with the real shipped blurb underneath, the same search field and anchored regex builder every catalogue page in this application carries",
+      "caption": "Kid Mode's \"Show people\" land (the shipped feature name is \"Share a map\"; position 2 of 5 on Home) - one of the five catalogues, alongside the first one the existing 'Kid catalogue page' capture already proves above: every feature it holds as its own picture-first row with the real shipped blurb underneath, the same search field and anchored regex builder every catalogue page in this application carries. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:49:57.802Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-catalogue-copy",
+      "file": "kid-catalogue-copy.png",
+      "surface": "Kid Mode's \"Keep it safe\" land (the shipped feature name is \"Keep a copy\"; position 3 of 5 on Home) - one of the five catalogues, alongside the first one the existing 'Kid catalogue page' capture already proves above: every feature it holds as its own picture-first row with the real shipped blurb underneath, the same search field and anchored regex builder every catalogue page in this application carries",
+      "caption": "Kid Mode's \"Keep it safe\" land (the shipped feature name is \"Keep a copy\"; position 3 of 5 on Home) - one of the five catalogues, alongside the first one the existing 'Kid catalogue page' capture already proves above: every feature it holds as its own picture-first row with the real shipped blurb underneath, the same search field and anchored regex builder every catalogue page in this application carries. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:49:58.660Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-catalogue-setup",
+      "file": "kid-catalogue-setup.png",
+      "surface": "Kid Mode's \"Buttons & help\" land (the shipped feature name is \"Set up & help\"; position 4 of 5 on Home) - one of the five catalogues, alongside the first one the existing 'Kid catalogue page' capture already proves above: every feature it holds as its own picture-first row with the real shipped blurb underneath, the same search field and anchored regex builder every catalogue page in this application carries",
+      "caption": "Kid Mode's \"Buttons & help\" land (the shipped feature name is \"Set up & help\"; position 4 of 5 on Home) - one of the five catalogues, alongside the first one the existing 'Kid catalogue page' capture already proves above: every feature it holds as its own picture-first row with the real shipped blurb underneath, the same search field and anchored regex builder every catalogue page in this application carries. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:49:59.532Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-explore",
+      "file": "kid-explore.png",
+      "surface": "Kid Mode's Explore view: the one screen in this whole shell where the real map canvas shows through its own chrome instead of being covered by it (`.wl-kid__map`'s own doc comment in KidShell.vue names this as the deliberate exception to every other kid-mode view painting an opaque surface over the entire window) - the free-flight controls, zoom buttons, control bar and main menu the #map slot forwards, over the viewer's own empty state, since this run served no rendered map to load",
+      "caption": "Kid Mode's Explore view: the one screen in this whole shell where the real map canvas shows through its own chrome instead of being covered by it (`.wl-kid__map`'s own doc comment in KidShell.vue names this as the deliberate exception to every other kid-mode view painting an opaque surface over the entire window) - the free-flight controls, zoom buttons, control bar and main menu the #map slot forwards, over the viewer's own empty state, since this run served no rendered map to load. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:00.618Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-find-palette",
+      "file": "kid-find-palette.png",
+      "surface": "The command palette, opened from Kid Mode's own rail 'Find anything' footer button rather than the Ctrl+Shift+F shortcut the adult shell's own 'Command palette' capture uses: KidShell.vue's openPalette() routes through the real 'Set up & help' catalogue feature setup.how-the-interface-behaves.command-palette and activates it exactly as any other feature target would, rather than a fabricated row invented for this button - so this is the same global palette every other capture in this file already proves, reached the way a child actually presses it",
+      "caption": "The command palette, opened from Kid Mode's own rail 'Find anything' footer button rather than the Ctrl+Shift+F shortcut the adult shell's own 'Command palette' capture uses: KidShell.vue's openPalette() routes through the real 'Set up & help' catalogue feature setup.how-the-interface-behaves.command-palette and activates it exactly as any other feature target would, rather than a fabricated row invented for this button - so this is the same global palette every other capture in this file already proves, reached the way a child actually presses it. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, an opaque surface fills the window, so none of the map behind it is visible.",
+      "capturedAt": "2026-08-15T18:50:01.503Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-messages",
+      "file": "kid-messages.png",
+      "surface": "The notification centre, opened from Kid Mode's own rail 'Messages' footer button through the same 'Set up & help' catalogue route Find above uses (setup.how-the-interface-behaves.notification-centre). NotificationPanel.vue anchors this overlay to the adult rail's own bell button by CSS selector, and that button does not exist while Kid Mode's own tree is mounted in its place - this capture is the honest, driven proof of whatever Vuetify's v-menu genuinely does when its declared activator selector resolves to nothing, not an assumption about it",
+      "caption": "The notification centre, opened from Kid Mode's own rail 'Messages' footer button through the same 'Set up & help' catalogue route Find above uses (setup.how-the-interface-behaves.notification-centre). NotificationPanel.vue anchors this overlay to the adult rail's own bell button by CSS selector, and that button does not exist while Kid Mode's own tree is mounted in its place - this capture is the honest, driven proof of whatever Vuetify's v-menu genuinely does when its declared activator selector resolves to nothing, not an assumption about it. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the notifications panel rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:50:02.776Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-catalogue-regex-builder",
+      "file": "kid-catalogue-regex-builder.png",
+      "surface": "The anchored regex builder, opened from a Kid catalogue's own search field - ConfigSearchField, the identical component and the identical 'Open the regex builder' control the adult settings search already proves above, reused rather than hand-rolled per KidCataloguePage.vue's own doc comment: the pattern, the supported flags, the guided token palette and the live matches against this catalogue's own rows",
+      "caption": "The anchored regex builder, opened from a Kid catalogue's own search field - ConfigSearchField, the identical component and the identical 'Open the regex builder' control the adult settings search already proves above, reused rather than hand-rolled per KidCataloguePage.vue's own doc comment: the pattern, the supported flags, the guided token palette and the live matches against this catalogue's own rows. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. This image is cropped to the regex builder rather than showing the whole window.",
+      "capturedAt": "2026-08-15T18:50:04.448Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-funny-1",
+      "file": "kid-home-funny-1.png",
+      "surface": "Kid Home with the English funny-level slider seeded to 1 (fully serious) and reloaded so it takes effect (worldlens.language.funny.en, the persisted key setupI18n.ts reads): the hero heading and blurb read at their plainest voiced level - compare against the funny-level-5 capture immediately below, the identical screen at the opposite extreme",
+      "caption": "Kid Home with the English funny-level slider seeded to 1 (fully serious) and reloaded so it takes effect (worldlens.language.funny.en, the persisted key setupI18n.ts reads): the hero heading and blurb read at their plainest voiced level - compare against the funny-level-5 capture immediately below, the identical screen at the opposite extreme. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:06.111Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-funny-5",
+      "file": "kid-home-funny-5.png",
+      "surface": "Kid Home with the English funny-level slider seeded to 5 (maximum playfulness) and reloaded so it takes effect: the same hero heading and blurb as the funny-level-1 capture above, at the opposite end of the same slider - the voice changes, the facts (what the GO button does, what each land opens) never do",
+      "caption": "Kid Home with the English funny-level slider seeded to 5 (maximum playfulness) and reloaded so it takes effect: the same hero heading and blurb as the funny-level-1 capture above, at the opposite end of the same slider - the voice changes, the facts (what the GO button does, what each land opens) never do. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:07.295Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-yue",
+      "file": "kid-home-yue.png",
+      "surface": "Kid Home with the language mode seeded to Cantonese (worldlens.language.mode = \"yue\") and reloaded so it takes effect. This is the first capture in this whole harness's history to exercise the language mode on any surface, and it found a real, honest gap rather than a clean result: the rail, the hero card, the status header and both panel headings genuinely render Cantonese (kidCopy.ts's own KID_VOICED strings, driven by the same setLanguageMode this file's language-mode seed writes to) - but the five catalogue land labels below the hero stay in English ('Make a map', 'Your maps', 'Show people', 'Keep it safe', 'Buttons & help') at every language mode. Confirmed by reading the source rather than guessed at: KID_CATALOGUE_LABELS in kidLabels.ts is a plain hardcoded object with no t() call at all, and the shipped catalogue titles underneath them (catalogue.make.title etc. in catalogues.ts) have no Cantonese entry anywhere in this application's copy catalogue (packages/ui/src/copy/surfaces) to translate to - confirmed by searching the whole design/ tree for those exact key strings and finding only their own English-fallback definition. This is not a kid-mode-only gap either: the adult Home Catalogues page reads the identical CATALOGUES array through the identical resolveCatalogues(), so it renders the same English-only land titles in Cantonese mode too",
+      "caption": "Kid Home with the language mode seeded to Cantonese (worldlens.language.mode = \"yue\") and reloaded so it takes effect. This is the first capture in this whole harness's history to exercise the language mode on any surface, and it found a real, honest gap rather than a clean result: the rail, the hero card, the status header and both panel headings genuinely render Cantonese (kidCopy.ts's own KID_VOICED strings, driven by the same setLanguageMode this file's language-mode seed writes to) - but the five catalogue land labels below the hero stay in English ('Make a map', 'Your maps', 'Show people', 'Keep it safe', 'Buttons & help') at every language mode. Confirmed by reading the source rather than guessed at: KID_CATALOGUE_LABELS in kidLabels.ts is a plain hardcoded object with no t() call at all, and the shipped catalogue titles underneath them (catalogue.make.title etc. in catalogues.ts) have no Cantonese entry anywhere in this application's copy catalogue (packages/ui/src/copy/surfaces) to translate to - confirmed by searching the whole design/ tree for those exact key strings and finding only their own English-fallback definition. This is not a kid-mode-only gap either: the adult Home Catalogues page reads the identical CATALOGUES array through the identical resolveCatalogues(), so it renders the same English-only land titles in Cantonese mode too. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:08.460Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-catalogue-yue",
+      "file": "kid-catalogue-yue.png",
+      "surface": "The first Kid catalogue in Cantonese, reached by the same position-based land click the five-catalogue captures above use rather than an English-text selector - the language mode is still seeded to \"yue\" from the Kid Home capture immediately above this one, since neither this step nor the click that opened this page reloaded the page in between. Only the rail, the level badge and the search field's own placeholder are actually Cantonese in this picture: the catalogue's own heading, its group headings ('Finding a world', 'Setting up a render', ...) and every feature row's name and blurb render in English regardless of language mode, because CataloguePage.vue and KidCataloguePage.vue both source that copy from catalogues.ts's own nameKey/blurbKey/groupKey strings and no Cantonese message answers any of them - the same real gap the Kid Home Cantonese capture above found on this screen's own land labels, extended to the catalogue's entire body",
+      "caption": "The first Kid catalogue in Cantonese, reached by the same position-based land click the five-catalogue captures above use rather than an English-text selector - the language mode is still seeded to \"yue\" from the Kid Home capture immediately above this one, since neither this step nor the click that opened this page reloaded the page in between. Only the rail, the level badge and the search field's own placeholder are actually Cantonese in this picture: the catalogue's own heading, its group headings ('Finding a world', 'Setting up a render', ...) and every feature row's name and blurb render in English regardless of language mode, because CataloguePage.vue and KidCataloguePage.vue both source that copy from catalogues.ts's own nameKey/blurbKey/groupKey strings and no Cantonese message answers any of them - the same real gap the Kid Home Cantonese capture above found on this screen's own land labels, extended to the catalogue's entire body. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:09.340Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-bilingual",
+      "file": "kid-home-bilingual.png",
+      "surface": "Kid Home with the language mode seeded to bilingual and reloaded so it takes effect: the rail, hero, status header and both panel headings genuinely pair English with Cantonese underneath it, exactly as designed. The same five catalogue land labels that stayed English-only in the Cantonese-only capture above stay English-only here too, with no Cantonese line underneath them at all rather than a shortened or missing pairing - the same untranslated-key gap, just visibly obvious in bilingual mode specifically because every other label on this screen does carry a second line and these five plainly do not",
+      "caption": "Kid Home with the language mode seeded to bilingual and reloaded so it takes effect: the rail, hero, status header and both panel headings genuinely pair English with Cantonese underneath it, exactly as designed. The same five catalogue land labels that stayed English-only in the Cantonese-only capture above stay English-only here too, with no Cantonese line underneath them at all rather than a shortened or missing pairing - the same untranslated-key gap, just visibly obvious in bilingual mode specifically because every other label on this screen does carry a second line and these five plainly do not. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:10.602Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-catalogue-bilingual",
+      "file": "kid-catalogue-bilingual.png",
+      "surface": "The first Kid catalogue in bilingual mode, reached the same position-based way as every other catalogue capture in this section. Its heading, group headings and every feature row stay English-only here too, with no Cantonese line beneath any of them - the same untranslated catalogue-copy gap the Cantonese capture immediately above this one already found on this same page",
+      "caption": "The first Kid catalogue in bilingual mode, reached the same position-based way as every other catalogue capture in this section. Its heading, group headings and every feature row stay English-only here too, with no Cantonese line beneath any of them - the same untranslated catalogue-copy gap the Cantonese capture immediately above this one already found on this same page. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:11.458Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-360",
+      "file": "kid-home-360.png",
+      "surface": "Kid Home at 360 by 800 CSS pixels, the narrowest width COMPACT_PHONE_VIEWPORTS names - the same matrix the redesigned adult shell and Kid Home's own 390px capture above already prove themselves against, extended down to the width where the adult shell's own compact captures start",
+      "caption": "Kid Home at 360 by 800 CSS pixels, the narrowest width COMPACT_PHONE_VIEWPORTS names - the same matrix the redesigned adult shell and Kid Home's own 390px capture above already prove themselves against, extended down to the width where the adult shell's own compact captures start. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state. Captured through Chromium's DevTools surface at the exact CSS viewport, the same technique the 390px Kid Home capture above and the redesigned adult shell's own compact captures use.",
+      "capturedAt": "2026-08-15T18:50:12.643Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-414",
+      "file": "kid-home-414.png",
+      "surface": "Kid Home at 414 by 896 CSS pixels, the widest of the three phone widths COMPACT_PHONE_VIEWPORTS names, alongside the 360px capture above and the 390px capture further up this section",
+      "caption": "Kid Home at 414 by 896 CSS pixels, the widest of the three phone widths COMPACT_PHONE_VIEWPORTS names, alongside the 360px capture above and the 390px capture further up this section. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state. Captured through Chromium's DevTools surface at the exact CSS viewport, the same technique used throughout this section.",
+      "capturedAt": "2026-08-15T18:50:13.896Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-scale-1x",
+      "file": "kid-home-scale-1x.png",
+      "surface": "Kid Home at 100% display scale, the same SCALES matrix 'captures the shell at every supported display scale' already proves for the adult shell",
+      "caption": "Kid Home at 100% display scale, the same SCALES matrix 'captures the shell at every supported display scale' already proves for the adult shell. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:15.104Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-scale-1_25x",
+      "file": "kid-home-scale-1_25x.png",
+      "surface": "Kid Home at 125% display scale, the same SCALES matrix 'captures the shell at every supported display scale' already proves for the adult shell",
+      "caption": "Kid Home at 125% display scale, the same SCALES matrix 'captures the shell at every supported display scale' already proves for the adult shell. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:15.823Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-scale-1_5x",
+      "file": "kid-home-scale-1_5x.png",
+      "surface": "Kid Home at 150% display scale, the same SCALES matrix 'captures the shell at every supported display scale' already proves for the adult shell",
+      "caption": "Kid Home at 150% display scale, the same SCALES matrix 'captures the shell at every supported display scale' already proves for the adult shell. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:16.537Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-home-scale-2x",
+      "file": "kid-home-scale-2x.png",
+      "surface": "Kid Home at 200% display scale, the same SCALES matrix 'captures the shell at every supported display scale' already proves for the adult shell",
+      "caption": "Kid Home at 200% display scale, the same SCALES matrix 'captures the shell at every supported display scale' already proves for the adult shell. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:17.261Z"
+    },
+    {
+      "kind": "capture",
+      "name": "kid-stickers-won",
+      "file": "kid-stickers-won.png",
+      "surface": "The sticker book with two of its eight stickers won and 70 XP: 'Won!' at full opacity on 'Map maker' and 'World finder', 'Not yet' and dimmed on the other six - the difference the always-empty 'Sticker book' capture above cannot show. This state was SEEDED directly into bluemap-kid-progress, the exact localStorage key useKidProgress.ts persists to and reads back on mount (JSON-parsed by that module's own defensive read(), the identical seed-then-reload mechanism every other planted value in this file uses), NOT earned through a real completion event: reaching 'first-map' for real needs the vendored Java render pipeline with an accepted Mojang download consent, and reaching 'world-finder' for real needs driving the make-a-world wizard's own guide end to end, both of which this harness avoids for the same reasons the 'Celebration' skip below gives in full. No celebration toast accompanies this picture, and none ever could from this route: KidCelebration.vue's celebrate() is called only from KidShell.vue's own award(), at the moment a real completion event fires, never derived from the ledger a component merely reads on mount - so seeding the ledger populates the book without, and could never also, stage a celebration",
+      "caption": "The sticker book with two of its eight stickers won and 70 XP: 'Won!' at full opacity on 'Map maker' and 'World finder', 'Not yet' and dimmed on the other six - the difference the always-empty 'Sticker book' capture above cannot show. This state was SEEDED directly into bluemap-kid-progress, the exact localStorage key useKidProgress.ts persists to and reads back on mount (JSON-parsed by that module's own defensive read(), the identical seed-then-reload mechanism every other planted value in this file uses), NOT earned through a real completion event: reaching 'first-map' for real needs the vendored Java render pipeline with an accepted Mojang download consent, and reaching 'world-finder' for real needs driving the make-a-world wizard's own guide end to end, both of which this harness avoids for the same reasons the 'Celebration' skip below gives in full. No celebration toast accompanies this picture, and none ever could from this route: KidCelebration.vue's celebrate() is called only from KidShell.vue's own award(), at the moment a real completion event fires, never derived from the ledger a component merely reads on mount - so seeding the ledger populates the book without, and could never also, stage a celebration. Real Electron app with no map loaded: WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve. The map area is the app's empty state, not a rendering failure. Nothing was fetched from any network. In this image, no map is loaded; the map area is the app's empty state.",
+      "capturedAt": "2026-08-15T18:50:18.546Z"
     }
   ],
   "skipped": [
@@ -828,23 +996,8 @@
     },
     {
       "kind": "skip",
-      "surface": "Remote hosting panel",
-      "reason": "the harness could not open it in this run: locator.waitFor: Timeout 45000ms exceeded. (the whole failure is in diagnostic-remote-hosting-panel.txt, beside the images)"
-    },
-    {
-      "kind": "skip",
-      "surface": "Render console",
-      "reason": "the console exists only while a render is genuinely in flight, and this run has none: starting one needs a Java runtime, an accepted Mojang download consent (declined here, deliberately) and minutes of work. Nothing was substituted"
-    },
-    {
-      "kind": "skip",
       "surface": "Map popup at the viewport edge",
       "reason": "this run has no rendered map to click"
-    },
-    {
-      "kind": "skip",
-      "surface": "Changelog viewer",
-      "reason": "this run served no rendered map, so no BlueMap instance exists, so the viewer's control bar is not rendered at all - and its Menu button is the only way into the side sheet this surface lives in. Set WORLDLENS_CAPTURE_MAP to a rendered web root to capture it"
     },
     {
       "kind": "skip",
@@ -893,6 +1046,31 @@
     },
     {
       "kind": "skip",
+      "surface": "GitHub account, signed in",
+      "reason": "signing in needs a real GitHub account and a real device-flow round trip to github.com, and the offline guard refuses every request that is not loopback; the signed-out state of the account section is real and is the one captured"
+    },
+    {
+      "kind": "skip",
+      "surface": "Options editor save plan",
+      "reason": "the Save control is disabled in this state, and its tooltip says why; the dialog that lists the files a save would write therefore has no door to open through, and nothing was substituted for it"
+    },
+    {
+      "kind": "skip",
+      "surface": "Remote hosting panel",
+      "reason": "the harness could not open it in this run: locator.waitFor: Timeout 45000ms exceeded. (the whole failure is in diagnostic-remote-hosting-panel.txt, beside the images)"
+    },
+    {
+      "kind": "skip",
+      "surface": "Render console",
+      "reason": "the console exists only while a render is genuinely in flight, and this run has none: starting one needs a Java runtime, an accepted Mojang download consent (declined here, deliberately) and minutes of work. Nothing was substituted"
+    },
+    {
+      "kind": "skip",
+      "surface": "Changelog viewer",
+      "reason": "this run served no rendered map, so no BlueMap instance exists, so the viewer's control bar is not rendered at all - and its Menu button is the only way into the side sheet this surface lives in. Set WORLDLENS_CAPTURE_MAP to a rendered web root to capture it"
+    },
+    {
+      "kind": "skip",
       "surface": "Release asset list and download progress",
       "reason": "listing a release's assets and downloading one both need real traffic to github.com, which the offline guard refuses; the panel is captured in the state it is in before anything has been asked for"
     },
@@ -913,8 +1091,8 @@
     },
     {
       "kind": "skip",
-      "surface": "GitHub account, signed in",
-      "reason": "signing in needs a real GitHub account and a real device-flow round trip to github.com, and the offline guard refuses every request that is not loopback; the signed-out state of the account section is real and is the one captured"
+      "surface": "Grown-up gate, wrong-code refusal",
+      "reason": "a sub-state of the credentialed branch the 'Grown-up gate, credential configured' skip above already declines to reach on this host, for the identical reason given there in full: the shared restricted-mode credential a wrong code would be checked against is not scoped to this run's throwaway --user-data-dir, so there is no credentialed branch on this host for a wrong code to be typed into in the first place. Reachable safely in CI, where the ephemeral runner's own $HOME makes both this and the credentialed branch above genuinely safe to seed"
     },
     {
       "kind": "skip",
@@ -925,11 +1103,6 @@
       "kind": "skip",
       "surface": "Celebration",
       "reason": "KidCelebration.vue only ever fires from a real completion event forwarded through App.vue's awardKidSticker() - a rendered map opened, a page published to GitHub Pages, a local render finished, or the guide finding a world (App.vue's own doc comment on that function: 'every caller below this point is a real action finishing, never a fabricated signal'). Every one of those needs either the vendored Java render pipeline with an accepted Mojang download consent and minutes of work (the same reason 'Render progress panel' above is unreachable) or a signed-in GitHub account (the same reason 'GitHub account, signed in' above is unreachable). Calling useKidProgress().award() directly from this harness, bypassing awardKidSticker's real trigger, would be exactly the staging this file's own header rules out for every surface: 'no value is planted to make a screen look populated, and no screen stands in for a different one'"
-    },
-    {
-      "kind": "skip",
-      "surface": "Options editor save plan",
-      "reason": "the Save control is disabled in this state, and its tooltip says why; the dialog that lists the files a save would write therefore has no door to open through, and nothing was substituted for it"
     }
   ],
   "note": "Every image is a capture of the real running app. None is a mockup or a design file. Publish each one with its caption from captions.md: the caption is what keeps a capture of the viewer from being read as a capture of the mesher. `skipped` lists the surfaces this run could not reach, with the reason; nothing was substituted for any of them."

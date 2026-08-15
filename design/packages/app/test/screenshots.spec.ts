@@ -161,6 +161,41 @@ const PROFILE_STORAGE_KEY = "worldlens-profiles";
  */
 const KID_MODE_STORAGE_KEY = "bluemap-kid-mode";
 
+/**
+ * The keys `packages/ui/src/components/setup/setupI18n.ts` persists language mode and the two
+ * funny-level sliders under (`MODE_KEY`, `FUNNY_EN_KEY`, `FUNNY_YUE_KEY` there). Hard-coded for
+ * the same reason `PROFILE_STORAGE_KEY` and `KID_MODE_STORAGE_KEY` above are: that module is a
+ * Vue module this plain Playwright/Node process has no access to, and its own `state` is a
+ * module-level `reactive` populated once, at import time, from `readOneOf`/`readInt` - so a
+ * value written from outside the page only takes effect on the next fresh mount, exactly like
+ * the kid mode flag above.
+ *
+ * Values are raw strings, not JSON - confirmed against `setupPrefs.ts`'s own `readOneOf`/
+ * `readInt` before writing this, rather than assumed from the JSON shape every other seed in
+ * this file happens to use: `readOneOf` compares `localStorage.getItem` verbatim against
+ * `LANGUAGE_MODES` (`"en" | "yue" | "bilingual"`), and `readInt` runs `Number.parseInt` on the
+ * raw string for the funny levels (`"1"`-`"5"`).
+ */
+const LANGUAGE_MODE_KEY = "worldlens.language.mode";
+const LANGUAGE_FUNNY_EN_KEY = "worldlens.language.funny.en";
+const LANGUAGE_FUNNY_YUE_KEY = "worldlens.language.funny.yue";
+
+/**
+ * The key `packages/ui/src/kid/useKidProgress.ts` persists the sticker/XP ledger under
+ * (`KEY_LEDGER` there), for the one capture in the Kid Mode section below that seeds a won
+ * sticker rather than photographing the always-empty fresh-install book. Hard-coded for the
+ * same reason every other cross-package key above is.
+ *
+ * Format is `{ xp: number, won: { id: StickerId, at: string }[] }`, read once per
+ * `useKidProgress()` call through that module's own defensive `read()`. The sticker id strings
+ * this file seeds are copied from `STICKER_DEFINITIONS` there rather than imported - `StickerId`
+ * is a union this plain Playwright/Node process cannot import either - which is exactly why the
+ * one capture that uses this key says plainly, in its own caption, that the state was planted
+ * rather than earned: a renamed sticker id there would silently stop matching anything here, and
+ * the honest caption is what stops that silent drift from also becoming a silent false claim.
+ */
+const KID_PROGRESS_LEDGER_KEY = "bluemap-kid-progress";
+
 /** Window geometries worth proving, including the narrow widths where labels clip. */
 const VIEWPORTS = [
     { name: "1280x800", width: 1280, height: 800 },
@@ -4118,6 +4153,49 @@ async function pointAppAtKidMode(): Promise<void> {
 }
 
 /**
+ * {@link pointAppAtKidMode}, with the language mode and both funny levels also seeded before the
+ * same reload - so a language or funny-level capture is deterministic regardless of what an
+ * earlier capture in this test left behind, rather than trusting whichever value localStorage
+ * still happens to hold. Every caller passes all three explicitly, even to restate the defaults,
+ * for exactly that reason: a partial seed here would leave the two not mentioned exactly as
+ * stale as the flag `pointAppAtKidMode` alone already fixes for `KID_MODE_STORAGE_KEY`.
+ */
+async function pointAppAtKidModeWithLanguage(
+    mode: "en" | "yue" | "bilingual",
+    funnyEn: "1" | "2" | "3" | "4" | "5",
+    funnyYue: "1" | "2" | "3" | "4" | "5",
+): Promise<void> {
+    await page.evaluate(
+        (seed: {
+            kidKey: string;
+            modeKey: string;
+            mode: string;
+            funnyEnKey: string;
+            funnyEn: string;
+            funnyYueKey: string;
+            funnyYue: string;
+        }) => {
+            window.localStorage.setItem(seed.kidKey, "true");
+            window.localStorage.setItem(seed.modeKey, seed.mode);
+            window.localStorage.setItem(seed.funnyEnKey, seed.funnyEn);
+            window.localStorage.setItem(seed.funnyYueKey, seed.funnyYue);
+        },
+        {
+            kidKey: KID_MODE_STORAGE_KEY,
+            modeKey: LANGUAGE_MODE_KEY,
+            mode,
+            funnyEnKey: LANGUAGE_FUNNY_EN_KEY,
+            funnyEn,
+            funnyYueKey: LANGUAGE_FUNNY_YUE_KEY,
+            funnyYue,
+        },
+    );
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#app", { timeout: 30_000 });
+    await page.waitForSelector(".wl-kid", { state: "visible", timeout: ELEMENT_TIMEOUT });
+}
+
+/**
  * What every Kid Mode caption says about the map area, derived from the real capture target
  * rather than assumed - so this run tells the truth whether it has a rendered map to serve
  * (CI, with `WORLDLENS_CAPTURE_MAP` set) or does not (this host, today). Kid Mode's own shell
@@ -4308,6 +4386,27 @@ test("captures Kid Mode", async () => {
             "fixed harness limitation",
     );
 
+    /*
+     * The wrong-code refusal (`failed.value = true` in `KidGrownUpGate.vue`) is a sub-state of the
+     * exact branch the skip immediately above already declines to reach, not a separate capability
+     * question: `lockConfigured` has to be true before the code-entry field even renders, and that
+     * needs the same real shared restricted-mode credential the skip above explains this harness
+     * will not write to this machine's real, persistent application-data directory. There is no
+     * route to a wrong-code refusal that does not first go through the state that skip is about, so
+     * this is recorded as its own named gap rather than silently folded into that one - a reader
+     * searching this manifest for "wrong-code" or "refusal" should find an answer, not a class they
+     * have to infer belongs together with a differently-worded neighbour.
+     */
+    skip(
+        "Grown-up gate, wrong-code refusal",
+        "a sub-state of the credentialed branch the 'Grown-up gate, credential configured' skip above " +
+            "already declines to reach on this host, for the identical reason given there in full: the " +
+            "shared restricted-mode credential a wrong code would be checked against is not scoped to " +
+            "this run's throwaway --user-data-dir, so there is no credentialed branch on this host for a " +
+            "wrong code to be typed into in the first place. Reachable safely in CI, where the ephemeral " +
+            "runner's own $HOME makes both this and the credentialed branch above genuinely safe to seed",
+    );
+
     await attempt("Kid Mode settings row", async () => {
         await page.locator(".wl-kid-gate__go").click({ timeout: ELEMENT_TIMEOUT });
         // `switchToAdult()` (KidShell.vue) sets `kid.enabled.value = false`; `<KidShell v-if=...>`
@@ -4394,6 +4493,424 @@ test("captures Kid Mode", async () => {
             await cdp.send("Emulation.clearDeviceMetricsOverride");
         }
     });
+
+    /*
+     * Everything below this point is the expansion from one frame per surface to a real matrix:
+     * all five catalogues rather than one, Explore, Find and Messages, the catalogue search's own
+     * regex builder, a sticker book that has actually won something, both funny-level extremes,
+     * Cantonese and bilingual on two surfaces, and the narrow-width/display-scale matrix the
+     * redesigned adult shell already proves itself against. Kid Home is left active, in English,
+     * at 1280x800 and 1x scale by the compact-viewport capture immediately above, which is exactly
+     * the state every step below assumes as its own starting point - and every step that cannot
+     * simply trust that assumption (because an earlier step in this same list navigated away,
+     * reloaded, or changed a seeded preference) re-establishes it explicitly rather than hoping.
+     */
+
+    /*
+     * Four more catalogues, so the whole navigation model has a picture rather than one land of
+     * it. `.wl-kid-home__land.nth(i)` is a position-based selector rather than the `hasText`
+     * selectors the rest of this file's kid-mode navigation uses: `CATALOGUES` in `catalogues.ts`
+     * is a fixed five-entry array and `resolveCatalogues` maps it 1:1 with no filtering or
+     * reordering (confirmed by reading that function before relying on it), and a position never
+     * changes when the active language mode does - which matters directly below, where the
+     * Cantonese and bilingual catalogue captures reuse this exact land-by-index click to reach a
+     * catalogue with no English-text selector anywhere in the path.
+     */
+    const REMAINING_KID_CATALOGUES: readonly {
+        readonly index: number;
+        readonly slug: string;
+        readonly label: string;
+        readonly shipped: string;
+        readonly surface: string;
+    }[] = [
+        { index: 1, slug: "maps", label: "Your maps", shipped: "Your maps", surface: "Kid catalogue: Your maps" },
+        { index: 2, slug: "share", label: "Show people", shipped: "Share a map", surface: "Kid catalogue: Show people" },
+        { index: 3, slug: "copy", label: "Keep it safe", shipped: "Keep a copy", surface: "Kid catalogue: Keep it safe" },
+        { index: 4, slug: "setup", label: "Buttons & help", shipped: "Set up & help", surface: "Kid catalogue: Buttons & help" },
+    ];
+    for (const land of REMAINING_KID_CATALOGUES) {
+        await attempt(land.surface, async () => {
+            await page.locator(".wl-kid-rail__big").first().click({ timeout: ELEMENT_TIMEOUT });
+            await page.locator(".wl-kid-home").waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+            await page.locator(".wl-kid-home__land").nth(land.index).click({ timeout: ELEMENT_TIMEOUT });
+            const catalogue = page.locator(".wl-kid-cat");
+            await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+            await page.waitForTimeout(400);
+            await shoot(
+                `kid-catalogue-${land.slug}`,
+                `Kid Mode's "${land.label}" land (the shipped feature name is "${land.shipped}"; position ` +
+                    `${land.index} of 5 on Home) - one of the five catalogues, alongside the first one the ` +
+                    "existing 'Kid catalogue page' capture already proves above: every feature it holds as its " +
+                    "own picture-first row with the real shipped blurb underneath, the same search field and " +
+                    "anchored regex builder every catalogue page in this application carries",
+                { mapArea: kidMapArea() },
+            );
+        });
+    }
+
+    await attempt("Kid Explore view", async () => {
+        await page.locator(".wl-kid-rail__big", { hasText: "Explore" }).first().click({ timeout: ELEMENT_TIMEOUT });
+        const mapView = page.locator(".wl-kid__map");
+        await mapView.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(600);
+        await shoot(
+            "kid-explore",
+            "Kid Mode's Explore view: the one screen in this whole shell where the real map canvas shows through " +
+                "its own chrome instead of being covered by it (`.wl-kid__map`'s own doc comment in " +
+                "KidShell.vue names this as the deliberate exception to every other kid-mode view painting an " +
+                "opaque surface over the entire window) - the free-flight controls, zoom buttons, control bar " +
+                "and main menu the #map slot forwards, over " +
+                (hasLoadedMap()
+                    ? "the same rendered map every other map capture in this run shows"
+                    : "the viewer's own empty state, since this run served no rendered map to load"),
+            { mapArea: hasLoadedMap() ? "map" : "empty-not-wizard" },
+        );
+    });
+
+    await attempt("Kid Find (command palette)", async () => {
+        await page.locator('[aria-label="Find anything"]').first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-palette", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-find-palette",
+            "The command palette, opened from Kid Mode's own rail 'Find anything' footer button rather than the " +
+                "Ctrl+Shift+F shortcut the adult shell's own 'Command palette' capture uses: KidShell.vue's " +
+                "openPalette() routes through the real 'Set up & help' catalogue feature " +
+                "setup.how-the-interface-behaves.command-palette and activates it exactly as any other feature " +
+                "target would, rather than a fabricated row invented for this button - so this is the same " +
+                "global palette every other capture in this file already proves, reached the way a child " +
+                "actually presses it",
+            { mapArea: "covered" },
+        );
+        await dismiss();
+    });
+
+    await attempt("Kid Messages (notification centre)", async () => {
+        await page.locator('[aria-label="Messages"]').first().click({ timeout: ELEMENT_TIMEOUT });
+        const panel = page.locator(".wl-notifications");
+        await panel.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-messages",
+            "The notification centre, opened from Kid Mode's own rail 'Messages' footer button through the same " +
+                "'Set up & help' catalogue route Find above uses " +
+                "(setup.how-the-interface-behaves.notification-centre). NotificationPanel.vue anchors this " +
+                "overlay to the adult rail's own bell button by CSS selector, and that button does not exist " +
+                "while Kid Mode's own tree is mounted in its place - this capture is the honest, driven proof of " +
+                "whatever Vuetify's v-menu genuinely does when its declared activator selector resolves to " +
+                "nothing, not an assumption about it",
+            { crop: panel, cropped: "the notifications panel", mapArea: kidMapArea() },
+        );
+        await dismiss();
+    });
+
+    await attempt("Kid catalogue search regex builder", async () => {
+        await page.locator(".wl-kid-rail__big").first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.locator(".wl-kid-home").waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.locator(".wl-kid-home__land").first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.locator(".wl-kid-cat").waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page
+            .locator('.wl-kid-cat__search [aria-label="Open the regex builder"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-config-regex", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.locator(".mb-config-regex__pattern textarea").first().fill("world|render");
+        await page.waitForTimeout(700);
+        await shoot(
+            "kid-catalogue-regex-builder",
+            "The anchored regex builder, opened from a Kid catalogue's own search field - ConfigSearchField, the " +
+                "identical component and the identical 'Open the regex builder' control the adult settings " +
+                "search already proves above, reused rather than hand-rolled per KidCataloguePage.vue's own doc " +
+                "comment: the pattern, the supported flags, the guided token palette and the live matches " +
+                "against this catalogue's own rows",
+            { crop: page.locator(".mb-config-regex"), cropped: "the regex builder", mapArea: kidMapArea() },
+        );
+        await dismiss();
+    });
+
+    await attempt("Kid Home, funny level 1 (fully serious)", async () => {
+        await pointAppAtKidModeWithLanguage("en", "1", "3");
+        const home = page.locator(".wl-kid-home");
+        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-home-funny-1",
+            "Kid Home with the English funny-level slider seeded to 1 (fully serious) and reloaded so it takes " +
+                "effect (worldlens.language.funny.en, the persisted key setupI18n.ts reads): the hero heading " +
+                "and blurb read at their plainest voiced level - compare against the funny-level-5 capture " +
+                "immediately below, the identical screen at the opposite extreme",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Kid Home, funny level 5 (maximum playfulness)", async () => {
+        await pointAppAtKidModeWithLanguage("en", "5", "3");
+        const home = page.locator(".wl-kid-home");
+        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-home-funny-5",
+            "Kid Home with the English funny-level slider seeded to 5 (maximum playfulness) and reloaded so it " +
+                "takes effect: the same hero heading and blurb as the funny-level-1 capture above, at the " +
+                "opposite end of the same slider - the voice changes, the facts (what the GO button does, what " +
+                "each land opens) never do",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Kid Home, Cantonese", async () => {
+        await pointAppAtKidModeWithLanguage("yue", "3", "3");
+        const home = page.locator(".wl-kid-home");
+        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-home-yue",
+            'Kid Home with the language mode seeded to Cantonese (worldlens.language.mode = "yue") and reloaded ' +
+                "so it takes effect. This is the first capture in this whole harness's history to exercise the " +
+                "language mode on any surface, and it found a real, honest gap rather than a clean result: the " +
+                "rail, the hero card, the status header and both panel headings genuinely render Cantonese " +
+                "(kidCopy.ts's own KID_VOICED strings, driven by the same setLanguageMode this file's language" +
+                "-mode seed writes to) - but the five catalogue land labels below the hero stay in English " +
+                "('Make a map', 'Your maps', 'Show people', 'Keep it safe', 'Buttons & help') at every language " +
+                "mode. Confirmed by reading the source rather than guessed at: KID_CATALOGUE_LABELS in " +
+                "kidLabels.ts is a plain hardcoded object with no t() call at all, and the shipped catalogue " +
+                "titles underneath them (catalogue.make.title etc. in catalogues.ts) have no Cantonese entry " +
+                "anywhere in this application's copy catalogue (packages/ui/src/copy/surfaces) to translate to " +
+                "- confirmed by searching the whole design/ tree for those exact key strings and finding only " +
+                "their own English-fallback definition. This is not a kid-mode-only gap either: the adult " +
+                "Home Catalogues page reads the identical CATALOGUES array through the identical " +
+                "resolveCatalogues(), so it renders the same English-only land titles in Cantonese mode too",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Kid catalogue page, Cantonese", async () => {
+        await page.locator(".wl-kid-home__land").first().click({ timeout: ELEMENT_TIMEOUT });
+        const catalogue = page.locator(".wl-kid-cat");
+        await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-catalogue-yue",
+            "The first Kid catalogue in Cantonese, reached by the same position-based land click the " +
+                'five-catalogue captures above use rather than an English-text selector - the language mode is ' +
+                'still seeded to "yue" from the Kid Home capture immediately above this one, since neither this ' +
+                "step nor the click that opened this page reloaded the page in between. Only the rail, the " +
+                "level badge and the search field's own placeholder are actually Cantonese in this picture: the " +
+                "catalogue's own heading, its group headings ('Finding a world', 'Setting up a render', ...) and " +
+                "every feature row's name and blurb render in English regardless of language mode, because " +
+                "CataloguePage.vue and KidCataloguePage.vue both source that copy from catalogues.ts's own " +
+                "nameKey/blurbKey/groupKey strings and no Cantonese message answers any of them - the same real " +
+                "gap the Kid Home Cantonese capture above found on this screen's own land labels, extended to " +
+                "the catalogue's entire body",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Kid Home, bilingual", async () => {
+        await pointAppAtKidModeWithLanguage("bilingual", "3", "3");
+        const home = page.locator(".wl-kid-home");
+        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-home-bilingual",
+            "Kid Home with the language mode seeded to bilingual and reloaded so it takes effect: the rail, " +
+                "hero, status header and both panel headings genuinely pair English with Cantonese underneath " +
+                "it, exactly as designed. The same five catalogue land labels that stayed English-only in the " +
+                "Cantonese-only capture above stay English-only here too, with no Cantonese line underneath " +
+                "them at all rather than a shortened or missing pairing - the same untranslated-key gap, just " +
+                "visibly obvious in bilingual mode specifically because every other label on this screen does " +
+                "carry a second line and these five plainly do not",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Kid catalogue page, bilingual", async () => {
+        await page.locator(".wl-kid-home__land").first().click({ timeout: ELEMENT_TIMEOUT });
+        const catalogue = page.locator(".wl-kid-cat");
+        await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-catalogue-bilingual",
+            "The first Kid catalogue in bilingual mode, reached the same position-based way as every other " +
+                "catalogue capture in this section. Its heading, group headings and every feature row stay " +
+                "English-only here too, with no Cantonese line beneath any of them - the same untranslated " +
+                "catalogue-copy gap the Cantonese capture immediately above this one already found on this same " +
+                "page",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Kid Home, compact phone viewport (360 CSS px)", async () => {
+        await pointAppAtKidModeWithLanguage("en", "3", "3");
+        const cdp = await page.context().newCDPSession(page);
+        try {
+            await cdp.send("Emulation.setDeviceMetricsOverride", {
+                width: 360,
+                height: 800,
+                deviceScaleFactor: 1,
+                mobile: false,
+            });
+            const home = page.locator(".wl-kid-home");
+            await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+            await page.waitForTimeout(400);
+            await shoot(
+                "kid-home-360",
+                "Kid Home at 360 by 800 CSS pixels, the narrowest width COMPACT_PHONE_VIEWPORTS names - the same " +
+                    "matrix the redesigned adult shell and Kid Home's own 390px capture above already prove " +
+                    "themselves against, extended down to the width where the adult shell's own compact " +
+                    "captures start",
+                {
+                    mapArea: kidMapArea(),
+                    capture: async () => {
+                        const captured = await cdp.send("Page.captureScreenshot", {
+                            format: "png",
+                            fromSurface: true,
+                            captureBeyondViewport: false,
+                        });
+                        return Buffer.from(captured.data, "base64");
+                    },
+                    note:
+                        "Captured through Chromium's DevTools surface at the exact CSS viewport, the same " +
+                        "technique the 390px Kid Home capture above and the redesigned adult shell's own " +
+                        "compact captures use.",
+                },
+            );
+        } finally {
+            await cdp.send("Emulation.clearDeviceMetricsOverride");
+        }
+    });
+
+    await attempt("Kid Home, compact phone viewport (414 CSS px)", async () => {
+        await pointAppAtKidModeWithLanguage("en", "3", "3");
+        const cdp = await page.context().newCDPSession(page);
+        try {
+            await cdp.send("Emulation.setDeviceMetricsOverride", {
+                width: 414,
+                height: 896,
+                deviceScaleFactor: 1,
+                mobile: false,
+            });
+            const home = page.locator(".wl-kid-home");
+            await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+            await page.waitForTimeout(400);
+            await shoot(
+                "kid-home-414",
+                "Kid Home at 414 by 896 CSS pixels, the widest of the three phone widths " +
+                    "COMPACT_PHONE_VIEWPORTS names, alongside the 360px capture above and the 390px capture " +
+                    "further up this section",
+                {
+                    mapArea: kidMapArea(),
+                    capture: async () => {
+                        const captured = await cdp.send("Page.captureScreenshot", {
+                            format: "png",
+                            fromSurface: true,
+                            captureBeyondViewport: false,
+                        });
+                        return Buffer.from(captured.data, "base64");
+                    },
+                    note:
+                        "Captured through Chromium's DevTools surface at the exact CSS viewport, the same " +
+                        "technique used throughout this section.",
+                },
+            );
+        } finally {
+            await cdp.send("Emulation.clearDeviceMetricsOverride");
+        }
+    });
+
+    /*
+     * Not wrapped in a `REQUIRED_SURFACES` entry, matching the adult shell's own "captures the
+     * shell at every supported display scale" test: that one is not required either. Window size
+     * and display-scale variation is treated as a matrix worth proving, not as a distinct surface
+     * whose disappearance alone should turn coverage red - the CSS-viewport widths above are the
+     * one exception this file already makes, for the compact-shell contract specifically.
+     */
+    await attempt("Kid Home at every supported display scale", async () => {
+        await pointAppAtKidModeWithLanguage("en", "3", "3");
+        try {
+            for (const scale of SCALES) {
+                await page.evaluate((z) => {
+                    document.documentElement.style.zoom = String(z);
+                }, scale);
+                await page.waitForTimeout(300);
+                const home = page.locator(".wl-kid-home");
+                await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+                await shoot(
+                    `kid-home-scale-${String(scale).replace(".", "_")}x`,
+                    `Kid Home at ${scale * 100}% display scale, the same SCALES matrix 'captures the shell at ` +
+                        "every supported display scale' already proves for the adult shell",
+                    { mapArea: kidMapArea() },
+                );
+            }
+        } finally {
+            await page.evaluate(() => {
+                document.documentElement.style.zoom = "1";
+            });
+        }
+    });
+
+    /*
+     * Deliberately the last Kid Mode capture that touches this key, so the "70 XP, two won" state
+     * it plants never bleeds into any of the fresh-install captures above - every one of which
+     * would otherwise be an honest picture of a dishonest state, since nothing else in this test
+     * clears the ledger between steps. `useKidProgress().award()` bypassing the real completion
+     * event is explicitly not used here (see that module's own doc comment on why nothing outside
+     * a real event may call it): this seeds the exact persisted record that function itself writes
+     * to, through the identical seed-then-reload mechanism this file already uses for the profile,
+     * the kid-mode flag and the language preferences above, and says so plainly in its own caption.
+     */
+    await attempt("Sticker book, with progress seeded", async () => {
+        await page.evaluate(
+            (seed: { kidKey: string; ledgerKey: string; ledgerValue: string }) => {
+                window.localStorage.setItem(seed.kidKey, "true");
+                window.localStorage.setItem(seed.ledgerKey, seed.ledgerValue);
+            },
+            {
+                kidKey: KID_MODE_STORAGE_KEY,
+                ledgerKey: KID_PROGRESS_LEDGER_KEY,
+                ledgerValue: JSON.stringify({
+                    xp: 70,
+                    won: [
+                        { id: "first-map", at: "2026-01-01T00:00:00.000Z" },
+                        { id: "world-finder", at: "2026-01-02T00:00:00.000Z" },
+                    ],
+                }),
+            },
+        );
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await page.waitForSelector("#app", { timeout: 30_000 });
+        await page.waitForSelector(".wl-kid", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.locator(".wl-kid-rail__big", { hasText: "Stickers" }).first().click({ timeout: ELEMENT_TIMEOUT });
+        const stickers = page.locator(".wl-kid-stickers");
+        await stickers.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-stickers-won",
+            "The sticker book with two of its eight stickers won and 70 XP: 'Won!' at full opacity on 'Map " +
+                "maker' and 'World finder', 'Not yet' and dimmed on the other six - the difference the always" +
+                "-empty 'Sticker book' capture above cannot show. This state was SEEDED directly into " +
+                "bluemap-kid-progress, the exact localStorage key useKidProgress.ts persists to and reads back " +
+                "on mount (JSON-parsed by that module's own defensive read(), the identical seed-then-reload " +
+                "mechanism every other planted value in this file uses), NOT earned through a real completion " +
+                "event: reaching 'first-map' for real needs the vendored Java render pipeline with an accepted " +
+                "Mojang download consent, and reaching 'world-finder' for real needs driving the make-a-world " +
+                "wizard's own guide end to end, both of which this harness avoids for the same reasons the " +
+                "'Celebration' skip below gives in full. No celebration toast accompanies this picture, and " +
+                "none ever could from this route: KidCelebration.vue's celebrate() is called only from " +
+                "KidShell.vue's own award(), at the moment a real completion event fires, never derived from " +
+                "the ledger a component merely reads on mount - so seeding the ledger populates the book " +
+                "without, and could never also, stage a celebration",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    // Language mode, both funny levels and the sticker ledger are local-only preferences and
+    // planted state with no effect on anything this file captures after this point, but cleared
+    // anyway - the same "leave it the way a fresh install found it" discipline the compact-viewport
+    // capture above already states for the profile and location hash it restores.
+    await page.evaluate((keys: readonly string[]) => {
+        for (const key of keys) window.localStorage.removeItem(key);
+    }, [LANGUAGE_MODE_KEY, LANGUAGE_FUNNY_EN_KEY, LANGUAGE_FUNNY_YUE_KEY, KID_PROGRESS_LEDGER_KEY]);
 
     // Left the way a fresh install opens, so nothing after this point - including the closing
     // guarantee tests below - has to guess which shell is on screen. This also restores the real
@@ -4648,6 +5165,35 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     { surface: "Grown-up gate, no credential configured" },
     { surface: "Kid Mode settings row" },
     { surface: "Kid Home, compact phone viewport (390 CSS px)" },
+    // Added when the eight-frame set above was audited and found to be one picture per surface
+    // and nothing more, for a mode that ships on by default and is the first screen a fresh
+    // install shows anybody. Every entry below needs nothing but the running application, exactly
+    // like the eight above: no account, no render, no map. Language mode, both funny levels, the
+    // narrow-width matrix and the display-scale matrix are deliberately NOT required entries here,
+    // matching the adult shell's own precedent - "captures the shell at every supported display
+    // scale" and its theme captures are not required either, because they prove a matrix on top of
+    // an already-required surface rather than a surface that could silently vanish on its own. The
+    // three CSS-viewport widths are the one exception this file already makes, for the compact-shell
+    // contract specifically, which is why the 360px and 414px entries below join the existing 390px
+    // one rather than the funny-level and language captures beside them in the test body.
+    { surface: "Kid catalogue: Your maps" },
+    { surface: "Kid catalogue: Show people" },
+    { surface: "Kid catalogue: Keep it safe" },
+    { surface: "Kid catalogue: Buttons & help" },
+    { surface: "Kid Explore view" },
+    { surface: "Kid Find (command palette)" },
+    { surface: "Kid catalogue search regex builder" },
+    { surface: "Kid Home, compact phone viewport (360 CSS px)" },
+    { surface: "Kid Home, compact phone viewport (414 CSS px)" },
+    // "Kid Messages (notification centre)" is deliberately absent from this required list. The
+    // scout report behind this expansion flagged real, unresolved uncertainty about how Vuetify's
+    // v-menu behaves when its declared `:activator` selector (the adult rail's own bell button)
+    // does not exist in the document at all, which is genuinely the case while Kid Mode's tree is
+    // mounted - so this is attempted, honestly, rather than promised as always reachable.
+    // "Sticker book, with progress seeded" is also deliberately absent: it is a planted variant of
+    // the already-required "Sticker book" above, not a distinct surface, and requiring it forever
+    // would mean requiring this file to keep inventing seed data rather than reporting an honest
+    // gap if the seeding mechanism itself ever breaks.
 ];
 
 test("captured every surface that needs nothing but the application", () => {

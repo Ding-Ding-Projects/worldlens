@@ -25,7 +25,7 @@ import { findFeature } from "../components/shell/catalogues.js";
 /* `ResolvedCatalogue` is not part of the shell barrel's own public surface - it comes straight
  * from `catalogueSearch.js`, the same direct import `KidCataloguePage.vue` already uses for it. */
 import type { ResolvedCatalogue } from "../components/shell/catalogueSearch.js";
-import { KID_CATALOGUE_LABELS, KID_FEATURE_LABELS, kidLabel } from "./kidLabels.js";
+import { KID_FEATURE_LABELS, kidCatalogueLabel, kidLabel } from "./kidLabels.js";
 import { useKidMode } from "./kidMode.js";
 
 const props = defineProps<{
@@ -105,7 +105,7 @@ function rowLabel(row: { label: string; renderId: string }): string {
                 @click="emit('openCatalogue', catalogue.id)"
             >
                 <v-icon :icon="catalogue.definition.icon" size="34" aria-hidden="true" />
-                <strong>{{ KID_CATALOGUE_LABELS[catalogue.id] ?? catalogue.title }}</strong>
+                <strong>{{ kidCatalogueLabel(catalogue.id, catalogue.title) }}</strong>
                 <em>{{ catalogue.title }}</em>
                 <span class="wl-kid-home__count">{{ catalogue.features.length }}</span>
             </button>

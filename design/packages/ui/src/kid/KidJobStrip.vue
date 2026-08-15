@@ -10,7 +10,12 @@
  *     the mechanism the tab system already has for a label that changes. `TabbedNavigation` has no
  *     chip slot, so re-labelling is the honest route - and because a rename is persisted the same
  *     way the user's own renames are, kid labels survive a restart and turning kid mode off puts
- *     the shipped labels back.
+ *     the shipped labels back. `kidLabel()` resolves the current language mode itself (see
+ *     `kidLabels.ts`'s own doc comment), but only when something actually calls it again - a
+ *     `renamePage` here is a one-off imperative write, not a reactive template read, so
+ *     `applyKidLabels()` has to be re-run by hand whenever the language mode changes rather than
+ *     picking the change up on its own the way a `<template>` expression would. That is exactly
+ *     what the `languageMode` watch source below is for.
  *  2. **Kid sizing**, as CSS on this wrapper only: 64px minimum chip height and the two-line chip.
  *
  * Everything else is untouched and therefore still true: docking left/right/top/bottom, groups,
@@ -20,6 +25,7 @@
 import { onMounted, ref, watch } from "vue";
 import WorkPane from "../components/shell/WorkPane.vue";
 import { JOB_DEFINITIONS } from "../components/shell/jobRegistry.js";
+import { languageMode } from "../components/setup/setupI18n.js";
 import { KID_JOB_LABELS, kidLabel } from "./kidLabels.js";
 import { useKidMode } from "./kidMode.js";
 
@@ -44,7 +50,11 @@ function applyKidLabels(): void {
 }
 
 onMounted(applyKidLabels);
-watch([kid.labelStyle, kid.enabled], applyKidLabels);
+// `languageMode` is a plain function, not a ref - `watch()` treats a function element of its
+// source array as a reactive getter, so this re-runs `applyKidLabels()` on the same schedule a
+// `<template>` read of `languageMode()` would re-render on, without this file needing to import
+// or construct a `computed()` just to give `watch()` something ref-shaped to hold.
+watch([kid.labelStyle, kid.enabled, languageMode], applyKidLabels);
 
 /** The shell drives Work exactly as it always did; kid mode adds no second navigation path. */
 defineExpose({
