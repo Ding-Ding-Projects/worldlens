@@ -85,6 +85,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "super-confirmation.md",
     "language-and-tone.md",
     "display-and-ease-of-use.md",
+    "kid-mode.md",
     "action-artwork.md",
     "finding-worlds.md",
     "project-world-discovery.md",

@@ -52,8 +52,6 @@ const props = defineProps<{
     runningRenderCount?: number;
     /** Forwarded to `KidHome`. Local renders and remote servers, from the existing profile store. */
     profiles?: readonly { id: string; name: string; meta: string; remote: boolean }[];
-    /** Forwarded to `KidHome`. Live rows the adult shell already computes: preview, backups, CI. */
-    activity?: readonly { key: string; feature: string; meta: string }[];
 }>();
 
 const emit = defineEmits<{
@@ -156,17 +154,65 @@ function award(id: StickerId): void {
     }
 }
 
+/**
+ * Job requests that arrived before `KidJobStrip` existed to receive them.
+ *
+ * `ensureJob`/`revealJob` below flip `view.value` to `"work"` and, in that same call, used to try
+ * reaching `jobStrip.value` immediately - but `KidJobStrip` sits behind `v-else-if="view === 'work'"`
+ * in the template, so the very first time a caller enters Work from any other view, Vue has not yet
+ * run the render/patch that mounts it: a reactive update is batched onto the microtask queue like
+ * every other Vue update, never applied synchronously inside the function that triggered it. So
+ * `jobStrip.value` was still `null` at the exact point this file read it, and the call silently did
+ * nothing - the first tap on any non-pinned job (Backups, GitHub runners, Pages, and so on) opened
+ * nothing at all, with no error and no way for a child to know why. A second tap worked, because by
+ * then the strip had mounted from the first tap's own `view.value = "work"` - which is exactly what
+ * made this bug read as "the app randomly ignores the first tap" rather than "job X is broken".
+ *
+ * The fix queues the request instead of dropping it, and the `watch` below drains the whole queue,
+ * in order, the moment `jobStrip` actually becomes non-null. This is deliberately not a `nextTick()`
+ * guess that happens to win a race on a fast machine: it reacts to the one event that actually
+ * matters (the ref being set by Vue's own mount), so it is correct no matter how many render passes
+ * the real mount takes. Queuing rather than overwriting also means a second request that arrives
+ * before the strip has mounted is not lost to the first - both are queued, in arrival order, and
+ * both are applied once the strip exists, rather than the later call clobbering the earlier one.
+ */
+type PendingJobRequest = { readonly pageId: string; readonly focus: boolean };
+const pendingJobRequests = ref<PendingJobRequest[]>([]);
+
+watch(jobStrip, (strip) => {
+    if (strip === null || pendingJobRequests.value.length === 0) return;
+    const queued = pendingJobRequests.value;
+    pendingJobRequests.value = [];
+    for (const request of queued) {
+        if (request.focus) strip.revealPage(request.pageId);
+        else strip.ensurePage(request.pageId);
+    }
+});
+
 /** Switches to the Work view and ensures the job's tab exists, without focusing it - the same pair
- * of effects `App.vue`'s own `ShellNavigationHost.ensureJob` produces for the adult shell. */
+ * of effects `App.vue`'s own `ShellNavigationHost.ensureJob` produces for the adult shell.
+ *
+ * `KidJobStrip` may not be mounted yet the instant this runs - see `pendingJobRequests`'s own doc
+ * comment above. When that is the case, the request is queued rather than dropped; the `watch`
+ * above applies it, in order, as soon as the strip actually mounts. */
 function ensureJob(pageId: string): void {
     view.value = "work";
-    jobStrip.value?.ensurePage(pageId);
+    if (jobStrip.value !== null) {
+        jobStrip.value.ensurePage(pageId);
+    } else {
+        pendingJobRequests.value = [...pendingJobRequests.value, { pageId, focus: false }];
+    }
 }
 
-/** Switches to the Work view and focuses the job's tab. */
+/** Switches to the Work view and focuses the job's tab. Same queuing as `ensureJob` above applies
+ * when the strip has not mounted yet. */
 function revealJob(pageId: string): void {
     view.value = "work";
-    jobStrip.value?.revealPage(pageId);
+    if (jobStrip.value !== null) {
+        jobStrip.value.revealPage(pageId);
+    } else {
+        pendingJobRequests.value = [...pendingJobRequests.value, { pageId, focus: true }];
+    }
 }
 
 /**
@@ -230,7 +276,6 @@ defineExpose({ ensureJob, revealJob, award });
                 :catalogues="props.catalogues"
                 :render-rows="props.renderRows"
                 :profiles="props.profiles"
-                :activity="props.activity"
                 @open-catalogue="openCatalogue"
                 @activate="(feature) => emit('activate', feature)"
             />

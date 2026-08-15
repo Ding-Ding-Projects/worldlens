@@ -111,7 +111,7 @@ import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js
 import { notices, raiseNotice } from "./stores/notices.js";
 import { wireProjectAutosaveNotices } from "./stores/projectAutosaveNotices.js";
 import { productDisplayName } from "./stores/productName.js";
-import { KidShell, createKidMode } from "./kid/index.js";
+import { KidShell, createKidMode, type StickerId } from "./kid/index.js";
 import { resolveCatalogues, type ResolvedCatalogue } from "./components/shell/catalogueSearch.js";
 import { useTheme } from "vuetify";
 
@@ -571,6 +571,29 @@ const tabs = ref<InstanceType<typeof WorkPane> | null>(null);
  */
 const kidShellRef = ref<InstanceType<typeof KidShell> | null>(null);
 
+/**
+ * The one seam between a real completion event and Kid Mode's sticker ledger.
+ *
+ * `award()` from `useKidProgress.ts` was never unreachable by accident of typing - it was
+ * unreachable because nothing outside `kid/` ever called it. `KidShell.vue`'s own `award()` was
+ * always fully wired to the ledger, the XP total and the celebration; every caller below this
+ * point is a real action finishing, never a fabricated signal, and this is the only place that
+ * forwards one to it.
+ *
+ * Gated on `kid.enabled` explicitly, not only by `kidShellRef` happening to be `null` while
+ * `<KidShell v-if="kid.enabled.value">` is unmounted: the explicit check says in the code exactly
+ * what the rule is ("must not fire when Kid Mode is off") rather than leaving it to fall out of a
+ * ref's lifecycle. Kid Mode stays presentation-only precisely because this function changes
+ * nothing about what its caller does - it only decides, afterwards, whether a sticker gets
+ * recorded. `progress.award()` itself is what makes repeat calls for the same id inert (see its
+ * own doc comment), so a re-render or an app restart re-reading the same persisted ledger can
+ * never re-award, re-animate or re-chime.
+ */
+function awardKidSticker(id: StickerId): void {
+    if (!kid.enabled.value) return;
+    kidShellRef.value?.award(id);
+}
+
 /* -------------------------------------------------------------------------- */
 /* The shell: three destinations                                              */
 /* -------------------------------------------------------------------------- */
@@ -966,6 +989,20 @@ function openInBrowser(url: string): void {
 }
 
 /**
+ * `openInBrowser`, specifically for `PagesScreen`'s own `open`.
+ *
+ * That screen only ever emits it from a row inside `pages.published.value`, guarded by
+ * `v-if="site.url !== null"` on the "Open it" button - so this can only fire for a site GitHub
+ * Pages actually answered for, which this application actually published. Every other screen's
+ * `open` (Backups, GitHub runners, the world repository, live preview) opens an unrelated link
+ * and stays bound to `openInBrowser` directly, earning nothing.
+ */
+function onPagesOpened(url: string): void {
+    awardKidSticker("sharer");
+    openInBrowser(url);
+}
+
+/**
  * Restoring a backup, which is the downloads surface's job and not a second downloader.
  *
  * The backup screen has already chosen the release and the asset; the settings surface is
@@ -1004,6 +1041,25 @@ function openRenderedMap(dataRoot: string, mapIds: readonly string[]): void {
     const label = mapIds.length > 0 ? mapIds.join(", ") : t("world.rendered", "Rendered map");
     const profile = addLocalMap(dataRoot, label);
     profilesStore.activeId = profile.id;
+    // A render of any kind - local, CI, structure or a dropped file - just became a real,
+    // openable map. Every render path already funnels through this one function, which makes
+    // it the honest place for "you made your first map" rather than a check re-implemented at
+    // each call site.
+    awardKidSticker("first-map");
+}
+
+/**
+ * `openRenderedMap`, for a render this machine's own engine produced.
+ *
+ * Its only two callers are WorldScreen's and ProjectsScreen's own `open-map` - the two screens
+ * where the "Live render speed" dial (`make.setting-up-a-render.live-render-speed`) actually
+ * applies. That dial has no effect on a render GitHub's own runners did, and none on a
+ * structure's much smaller render; a completion that reaches here is a completion the local
+ * speed setting genuinely governed.
+ */
+function onLocalRenderOpened(dataRoot: string, mapIds: readonly string[]): void {
+    awardKidSticker("speed-racer");
+    openRenderedMap(dataRoot, mapIds);
 }
 
 /**
@@ -1053,6 +1109,21 @@ const ciWorldToOpen = ref<string | null>(null);
 function openProject(world: string): void {
     projectToOpen.value = world;
     revealPage(PAGE_PROJECTS);
+}
+
+/**
+ * `openProject`, specifically for the guide (`WorldScreen`'s own `open-project`) handing back a
+ * project for a world it just found.
+ *
+ * `WorldRepoScreen`'s `@adopted` reaches `openProject` too, further down this file, but stays
+ * bound to `openProject` directly rather than through here: adopting a repository is a real,
+ * different completed action ("Repository adoption") that no sticker in this build names, and
+ * awarding "World finder" for it would be the wrong-event mistake `useKidProgress.award()`'s own
+ * doc comment warns against. This is only for the guide genuinely finding a world.
+ */
+function onWorldProjectOpened(world: string): void {
+    awardKidSticker("world-finder");
+    openProject(world);
 }
 
 /** Opens the GitHub Actions renderer, optionally prefilled from a project's saved route. */
@@ -1704,8 +1775,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             :focus-render-id="worldFocusRenderId"
                             @consent="openSettings('mojang-download-consent')"
                             @settings="revealSetting"
-                            @open-map="openRenderedMap"
-                            @open-project="openProject"
+                            @open-map="onLocalRenderOpened"
+                            @open-project="onWorldProjectOpened"
                             @open-ci-render="openCiRender()"
                         />
                     </div>
@@ -1718,7 +1789,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             :open-world="projectToOpen"
                             @consent="openSettings('mojang-download-consent')"
                             @settings="revealSetting"
-                            @open-map="openRenderedMap"
+                            @open-map="onLocalRenderOpened"
                             @cloud-render="openCiRender"
                             @dirty-change="unsavedProjectChanges = $event"
                         />
@@ -1810,7 +1881,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #pages>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
-                            <PagesScreen @open="openInBrowser" />
+                            <PagesScreen @open="onPagesOpened" />
                         </div>
                     </div>
                 </template>
@@ -2047,8 +2118,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     :focus-render-id="worldFocusRenderId"
                                     @consent="openSettings('mojang-download-consent')"
                                     @settings="revealSetting"
-                                    @open-map="openRenderedMap"
-                                    @open-project="openProject"
+                                    @open-map="onLocalRenderOpened"
+                                    @open-project="onWorldProjectOpened"
                                     @open-ci-render="openCiRender()"
                                 />
                             </div>
@@ -2067,7 +2138,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     :open-world="projectToOpen"
                                     @consent="openSettings('mojang-download-consent')"
                                     @settings="revealSetting"
-                                    @open-map="openRenderedMap"
+                                    @open-map="onLocalRenderOpened"
                                     @cloud-render="openCiRender"
                                     @dirty-change="unsavedProjectChanges = $event"
                                 />
@@ -2217,7 +2288,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #pages>
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
-                                    <PagesScreen @open="openInBrowser" />
+                                    <PagesScreen @open="onPagesOpened" />
                                 </div>
                             </div>
                         </template>

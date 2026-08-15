@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { I18n } from "../i18n/I18n.js";
 import { Preferences } from "../platform/Preferences.js";
+import { createLightbox } from "../shots/Lightbox.js";
 import { createWalkthroughGallery } from "./Gallery.js";
 import { ACTION_WALKTHROUGHS } from "./manifest.js";
 
@@ -84,7 +85,8 @@ describe("action walkthrough inventory", () => {
             value: vi.fn().mockReturnValue({ matches: false }),
         });
         const i18n = new I18n(new Preferences(new MemoryStorage()));
-        const gallery = createWalkthroughGallery({ i18n, openArticle: vi.fn() });
+        const lightbox = createLightbox(i18n);
+        const gallery = createWalkthroughGallery({ i18n, openArticle: vi.fn(), lightbox });
         expect(gallery.querySelectorAll("article")).toHaveLength(12);
         for (const image of gallery.querySelectorAll<HTMLImageElement>("img")) {
             expect(image.loading).toBe("lazy");
@@ -97,6 +99,7 @@ describe("action walkthrough inventory", () => {
         }
         expect(generatorSource).toContain("repeat: -1");
         expect(gallerySource).not.toMatch(/audio|autoplay/i);
+        lightbox.destroy();
     });
 
     it("keeps the grid narrow-safe and never clips captions", () => {

@@ -371,7 +371,12 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;">
                 <sc-for list="{{ homeShots }}" as="s" hint-placeholder-count="3">
                   <figure style="margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--outv);background:var(--s-lowest);">
-                    <img src="{{ s.src }}" alt="{{ s.alt }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--s-cont);">
+                    <button type="button" onClick="{{ s.onClick }}" aria-label="{{ s.zoomLabel }}" style="display:block;position:relative;width:100%;padding:0;border:0;background:none;cursor:zoom-in;" style-hover="opacity:.94">
+                      <img src="{{ s.src }}" alt="{{ s.alt }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--s-cont);">
+                      <span aria-hidden="true" style="position:absolute;right:8px;bottom:8px;width:32px;height:32px;border-radius:999px;background:rgb(0 0 0/.55);color:#fff;display:grid;place-items:center;">
+                        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
+                      </span>
+                    </button>
                     <figcaption style="padding:14px 16px;font-size:13px;line-height:1.5;color:var(--osv);">{{ s.caption }}</figcaption>
                   </figure>
                 </sc-for>
@@ -542,7 +547,12 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;">
               <sc-for list="{{ shots }}" as="s" hint-placeholder-count="6">
                 <figure style="margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--outv);background:var(--s-lowest);">
-                  <img src="{{ s.src }}" alt="{{ s.alt }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--s-cont);">
+                  <button type="button" onClick="{{ s.onClick }}" aria-label="{{ s.zoomLabel }}" style="display:block;position:relative;width:100%;padding:0;border:0;background:none;cursor:zoom-in;" style-hover="opacity:.94">
+                    <img src="{{ s.src }}" alt="{{ s.alt }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--s-cont);">
+                    <span aria-hidden="true" style="position:absolute;right:8px;bottom:8px;width:32px;height:32px;border-radius:999px;background:rgb(0 0 0/.55);color:#fff;display:grid;place-items:center;">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
+                    </span>
+                  </button>
                   <figcaption style="padding:14px 16px;">
                     <div style="font-size:14px;font-weight:600;margin-bottom:4px;">{{ s.title }}</div>
                     <div style="font-size:12.5px;line-height:1.5;color:var(--osv);">{{ s.caption }}</div>
@@ -1080,6 +1090,28 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
       <div style="{{ paletteEmptyStyle }}">Nothing matches “{{ paletteQuery }}”. Change the query or open the adjacent regular expression builder.</div>
     </div>
   </div>
+
+  <div class="wl-overlay-scrim" style="{{ zoomScrimStyle }}" onClick="{{ zoomClose }}"></div>
+  <div ref="{{ zoomDialogRef }}" style="{{ zoomStyle }}" role="dialog" aria-modal="true" aria-labelledby="wl-zoom-caption">
+    <div style="flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:10px 8px 10px 20px;border-bottom:1px solid var(--outv);background:var(--s-cont);">
+      <div id="wl-zoom-caption" style="flex:1;min-width:0;font-size:14px;font-weight:600;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ zoomCaption }}</div>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;padding:0 6px;min-width:44px;text-align:right;">{{ zoomPercentLabel }}</span>
+      <button type="button" onClick="{{ zoomOutAction }}" disabled="{{ zoomOutDisabled }}" aria-disabled="{{ zoomOutDisabledAttr }}" aria-label="{{ zoomOutLabel }}" title="{{ zoomOutLabel }}" style="width:40px;height:40px;flex:0 0 auto;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M19 13H5v-2h14z"></path></svg>
+      </button>
+      <button type="button" onClick="{{ zoomInAction }}" disabled="{{ zoomInDisabled }}" aria-disabled="{{ zoomInDisabledAttr }}" aria-label="{{ zoomInLabel }}" title="{{ zoomInLabel }}" style="width:40px;height:40px;flex:0 0 auto;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;" style-hover="background:var(--s-high)">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"></path></svg>
+      </button>
+      <button type="button" onClick="{{ zoomResetAction }}" disabled="{{ zoomResetDisabled }}" aria-label="{{ zoomResetLabel }}" title="{{ zoomResetLabel }}" style="height:36px;padding:0 14px;flex:0 0 auto;border:1px solid var(--outv);border-radius:999px;background:transparent;color:var(--osv);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--p);color:var(--on)"><span lang="en" style="{{ zoomTextEnStyle }}">Reset</span><span aria-hidden="true" style="{{ zoomTextSeparatorStyle }}"> · </span><span lang="zh-HK" style="{{ zoomTextYueStyle }}">重設</span></button>
+      <button ref="{{ zoomCloseRef }}" type="button" data-action="close-overlay" onClick="{{ zoomClose }}" aria-label="{{ zoomCloseLabel }}" title="{{ zoomCloseTitle }}" style="width:40px;height:40px;flex:0 0 auto;display:grid;place-items:center;border:0;border-radius:999px;background:none;color:var(--osv);cursor:pointer;margin-left:2px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+      </button>
+    </div>
+    <div ref="{{ zoomViewportRef }}" onWheel="{{ onZoomWheel }}" onMouseDown="{{ onZoomMouseDown }}" onDoubleClick="{{ onZoomDoubleClick }}" onTouchStart="{{ onZoomTouchStart }}" onTouchMove="{{ onZoomTouchMove }}" onTouchEnd="{{ onZoomTouchEnd }}" onTouchCancel="{{ onZoomTouchEnd }}" style="{{ zoomViewportStyle }}">
+      <img src="{{ zoomImgSrc }}" alt="{{ zoomImgAlt }}" onLoad="{{ onZoomImgLoad }}" draggable="false" style="{{ zoomImgStyle }}">
+    </div>
+    <div style="flex:0 0 auto;padding:8px 20px;font-size:11.5px;line-height:1.4;color:var(--osv);text-align:center;border-top:1px solid var(--outv);background:var(--s-cont);"><span lang="en" style="{{ zoomTextEnStyle }}">Scroll or pinch to zoom · drag to pan · +/− and the arrow keys work too · Esc to close</span><span aria-hidden="true" style="{{ zoomTextSeparatorStyle }}"> · </span><span lang="zh-HK" style="{{ zoomTextYueStyle }}">碌滑鼠或用兩指縮放 · 拖曳郁地圖 · +/− 掣同方向鍵都得 · 撳 Esc 閂咗佢</span></div>
+  </div>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
@@ -1177,13 +1209,38 @@ const SEARCH_FIELDS = {
 };
 const DEFAULT_REGEX_FLAGS = { g:true, i:true, m:true, s:false, u:true, y:false };
 
+// Screenshot zoom viewer — the site ships captures as evidence that the real application
+// looks a given way, and a capture nobody can read past its cropped 16/10 thumbnail proves
+// nothing. These constants and helpers back the lightbox added to every gallery below; they
+// are pure functions with no DOM access so the geometry can be reasoned about (and, if this
+// file grows a test harness later, exercised) without a mounted component.
+const ZOOM_MIN_SCALE = 1;
+const ZOOM_MAX_SCALE = 5;
+const ZOOM_STEP = 0.5;
+const ZOOM_WHEEL_STEP = 0.0018;
+const ZOOM_DOUBLE_TAP_SCALE = 2.5;
+function touchDistance(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+function touchMidpoint(a, b) { return { x:(a.clientX + b.clientX) / 2, y:(a.clientY + b.clientY) / 2 }; }
+// The size the image would render at under plain CSS object-fit:contain inside a box of
+// boxW×boxH, computed from the intrinsic pixel size rather than measured from a possibly
+// already-transformed element. shot-tabs.png (1200×66) and shot-changelog.png (304×81310)
+// are exactly why this cannot be "assume roughly square": a strip and a scroll capture both
+// have to fit without cropping, at whatever wildly non-16:10 ratio they actually are.
+function containSize(natW, natH, boxW, boxH) {
+  if (!natW || !natH || !boxW || !boxH) return { w:boxW, h:boxH };
+  const imgRatio = natW / natH;
+  const boxRatio = boxW / boxH;
+  if (imgRatio > boxRatio) return { w:boxW, h:boxW / imgRatio };
+  return { w:boxH * imgRatio, h:boxH };
+}
+
 class Component extends DCLogic {
   state = {
     articles:[], loaded:false, articleId:"site-material-design-3-pages",
     page:"home", theme:"light", density:"comfortable", language:"en",
     width: typeof window !== "undefined" ? window.innerWidth : 1440,
     height: typeof window !== "undefined" ? window.innerHeight : 900,
-    drawer:false, sheet:false, palette:false, paletteIndex:0, indexOpen:false,
+    drawer:false, sheet:false, palette:false, paletteIndex:0, indexOpen:false, zoom:null,
     scope:"Documentation", shotFilter:"All",
     queries:{ sidebar:"", tabstrip:"", docs:"", shots:"", changelog:"", notif:"", settings:"", appearance:"", search:"regex", palette:"" },
     builderFor:null, builderAnchor:null, builderPos:null, builderStatus:"", regexOn:{}, flagsByKey:{}, fieldSel:{}, testText:{}, savedPats:[], primerDismissed:false,
@@ -1281,6 +1338,14 @@ class Component extends DCLogic {
     this._motionQuery.addEventListener("change", this._onMotionChange);
     this._onKey = (e) => {
       if (e.isComposing || e.keyCode === 229) return;
+      if (this.state.zoom) {
+        // The zoom viewer is modal: while it is open it owns every key it cares about
+        // (Escape, +/-, 0, the arrows, Tab for the focus trap) and nothing else — in
+        // particular Ctrl+Shift+F must not open the command palette underneath it.
+        if (e.key === "Escape") { this.closeZoom(); return; }
+        this.handleZoomKey(e);
+        return;
+      }
       if (e.key === "F" && e.shiftKey && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.openCommandPalette(); }
       if (e.key === "Escape") this.setState({ palette:false, sheet:false, drawer:false });
     };
@@ -1538,6 +1603,95 @@ class Component extends DCLogic {
     });
   }
 
+  // Opens the zoom viewer on a capture. `record` is a shotsAll-shaped object ({ src, alt,
+  // caption/title, ... }); `triggerEl` is the specific <button> that was activated, so focus
+  // has somewhere real to come back to on close rather than falling back to <body>.
+  openZoom(record, triggerEl) {
+    if (!record || !record.src) return;
+    this._zoomTrigger = (triggerEl instanceof HTMLElement) ? triggerEl
+      : (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    this._zoomDrag = null;
+    this.setState({
+      zoom:{ src:record.src, alt:record.alt || "", caption:record.caption || record.title || "", scale:1, tx:0, ty:0, natW:0, natH:0 }
+    }, () => {
+      window.requestAnimationFrame(() => { if (this._zoomClose) this._zoomClose.focus({ preventScroll:true }); });
+    });
+  }
+  closeZoom() {
+    const trigger = this._zoomTrigger;
+    this._zoomTrigger = null;
+    this._zoomDrag = null;
+    this.setState({ zoom:null }, () => {
+      window.requestAnimationFrame(() => {
+        if (trigger instanceof HTMLElement && document.body.contains(trigger)) trigger.focus({ preventScroll:true });
+      });
+    });
+  }
+  // Keeps translate3d(tx,ty,0) from ever carrying the image fully off screen. Overflow is
+  // measured against the contain-fit size at the CURRENT scale, so at scale 1 (or before the
+  // image has reported its natural size) overflow is 0 and tx/ty are forced back to (0,0) —
+  // there is no separate "reset" case to keep in sync with this.
+  clampPan(tx, ty, scale, natW, natH, boxW, boxH) {
+    const base = containSize(natW, natH, boxW, boxH);
+    const overW = Math.max(0, (base.w * scale - boxW) / 2);
+    const overH = Math.max(0, (base.h * scale - boxH) / 2);
+    return { tx: Math.min(overW, Math.max(-overW, tx)), ty: Math.min(overH, Math.max(-overH, ty)) };
+  }
+  panTo(tx, ty) {
+    const z = this.state.zoom;
+    if (!z) return;
+    const rect = this._zoomViewport ? this._zoomViewport.getBoundingClientRect() : null;
+    const clamped = this.clampPan(tx, ty, z.scale, z.natW, z.natH, rect ? rect.width : 0, rect ? rect.height : 0);
+    this.setState({ zoom: Object.assign({}, z, { tx:clamped.tx, ty:clamped.ty }) });
+  }
+  // Changes scale while keeping the point at (anchorX, anchorY) — screen-space pixels measured
+  // from the viewport's own centre — fixed under the cursor (or the two-finger midpoint, or
+  // simply (0,0) for a keyboard/button zoom that has no pointer to anchor to). Standard
+  // zoom-toward-a-point algebra for a translate-then-scale transform where translate is applied
+  // in unscaled pixels: newTx = anchor - (newScale/oldScale) * (anchor - oldTx).
+  applyZoom(nextScaleRaw, anchorX, anchorY) {
+    const z = this.state.zoom;
+    if (!z) return;
+    const nextScale = Math.min(ZOOM_MAX_SCALE, Math.max(ZOOM_MIN_SCALE, nextScaleRaw));
+    if (Math.abs(nextScale - z.scale) < 0.0001) return;
+    const ratio = nextScale / z.scale;
+    const tx = anchorX - ratio * (anchorX - z.tx);
+    const ty = anchorY - ratio * (anchorY - z.ty);
+    const rect = this._zoomViewport ? this._zoomViewport.getBoundingClientRect() : null;
+    const clamped = this.clampPan(tx, ty, nextScale, z.natW, z.natH, rect ? rect.width : 0, rect ? rect.height : 0);
+    this.setState({ zoom: Object.assign({}, z, { scale:nextScale, tx:clamped.tx, ty:clamped.ty }) });
+  }
+  // A minimal manual focus trap: only the wrap-around cases need handling, because every
+  // element the Tab key would land on in between is already inside the dialog's own DOM
+  // subtree, so the browser's ordinary tab order keeps focus there on its own.
+  trapZoomFocus(e) {
+    const container = this._zoomDialog;
+    if (!container) return;
+    const focusables = container.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey) {
+      if (active === first || !container.contains(active)) { e.preventDefault(); last.focus(); }
+    } else if (active === last || !container.contains(active)) { e.preventDefault(); first.focus(); }
+  }
+  // Called from the global keydown listener only while the zoom viewer is open (Escape is
+  // handled by the caller so it can also restore focus via closeZoom()).
+  handleZoomKey(e) {
+    const z = this.state.zoom;
+    if (!z) return;
+    if (e.key === "Tab") { this.trapZoomFocus(e); return; }
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); this.applyZoom(z.scale + ZOOM_STEP, 0, 0); return; }
+    if (e.key === "-" || e.key === "_") { e.preventDefault(); this.applyZoom(z.scale - ZOOM_STEP, 0, 0); return; }
+    if (e.key === "0") { e.preventDefault(); this.setState({ zoom:Object.assign({}, z, { scale:1, tx:0, ty:0 }) }); return; }
+    const step = 56;
+    if (e.key === "ArrowLeft") { e.preventDefault(); this.panTo(z.tx + step, z.ty); return; }
+    if (e.key === "ArrowRight") { e.preventDefault(); this.panTo(z.tx - step, z.ty); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); this.panTo(z.tx, z.ty + step); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); this.panTo(z.tx, z.ty - step); }
+  }
+
   transform(kind) {
     const k = this.state.builderFor;
     if (!k) return;
@@ -1644,6 +1798,13 @@ class Component extends DCLogic {
       yueStyle:s.language === "en" ? "display:none;" : "",
       separatorStyle:s.language === "bilingual" ? "" : "display:none;"
     });
+    // The screenshot's own title/caption/alt is data and stays exact in every language mode —
+    // only the surrounding "enlarge…" phrasing is translated. The fallback word only fires when
+    // a record somehow has none of the three, which none in shotsAll ever do today.
+    const zoomShotLabel = (x) => {
+      const name = x.title || x.caption || x.alt || tr("screenshot", "截圖");
+      return tr("Enlarge screenshot — " + name, "放大截圖 — " + name);
+    };
     const navDefs = [
       { id:PAGES.home, en:"Home", yue:"主頁", icon:P.home },
       { id:PAGES.docs, en:"Documentation", yue:"說明文件", icon:P.docs, count:String(srcArticles.length) },
@@ -1872,7 +2033,12 @@ class Component extends DCLogic {
     const shotFilters = ["All","Shell","Rendering","Interface","Appearance"].map((f) => ({
       label:f, pressed:String(s.shotFilter === f), onClick:() => this.setState({ shotFilter:f }), style:this.chip(s.shotFilter === f)
     }));
-    const shots = shotsAll.filter((x) => (s.shotFilter === "All" || x.cat === s.shotFilter) && this.matchesK("shots", x));
+    const shots = shotsAll
+      .filter((x) => (s.shotFilter === "All" || x.cat === s.shotFilter) && this.matchesK("shots", x))
+      .map((x) => Object.assign({}, x, {
+        zoomLabel: zoomShotLabel(x),
+        onClick:(e) => this.openZoom(x, e.currentTarget)
+      }));
 
     const settingsGroupsAll = [
       { gid:"general", label:"General", icon:P.tune, desc:"Theme, navigation placement, motion, how the site names itself, dialog tone.", meta:"14 settings · 6 groups", page:PAGES.settingsDetail },
@@ -2182,7 +2348,11 @@ class Component extends DCLogic {
         ";color:" + (p.tone === "ok" ? "var(--osecc)" : p.tone === "warn" ? "var(--oterc)" : "var(--osv)") + ";"
     }));
 
-    const homeShots = shotsAll.slice(0,3).map((x) => ({ src:x.src, alt:x.alt, caption:x.caption }));
+    const homeShots = shotsAll.slice(0,3).map((x) => ({
+      src:x.src, alt:x.alt, caption:x.caption,
+      zoomLabel: zoomShotLabel(x),
+      onClick:(e) => this.openZoom(x, e.currentTarget)
+    }));
     const walkthroughs = [
       { id:"command-palette", title:"Open the global command palette", body:"Ctrl+Shift+F opens the bounded palette and teleports to a chosen destination.", alt:"Command palette opening and selecting a destination" },
       { id:"theme-switch", title:"Switch the live colour scheme", body:"Theme controls update the M3 system roles live and persist the visitor's choice.", alt:"Settings changing the site from light to dark" },
@@ -2453,6 +2623,13 @@ class Component extends DCLogic {
     } : null;
     const builderExportText = builderExportRecord ? JSON.stringify(builderExportRecord, null, 2) + "\n" : "";
 
+    // The zoom viewer's dialog and image are always mounted (display:none when closed, like
+    // every other overlay in this file) so every prop below has to be null-safe with `z`.
+    const z = s.zoom;
+    const zoomAtMin = !z || z.scale <= ZOOM_MIN_SCALE + 0.001;
+    const zoomAtMax = !z || z.scale >= ZOOM_MAX_SCALE - 0.001;
+    const zoomAtIdentity = !z || (Math.abs(z.scale - 1) < 0.001 && Math.abs(z.tx) < 0.5 && Math.abs(z.ty) < 0.5);
+
     const out = {
       sidebarCats, docsCats, sidebarTabs, horizontalTabItems,
       isHome: page === PAGES.home, isDocs: page === PAGES.docs, isArticle,
@@ -2702,7 +2879,112 @@ class Component extends DCLogic {
       paletteScrimStyle: s.palette ? "position:fixed;inset:0;background:rgb(0 0 0/.45);z-index:80;animation:wl-fade .15s ease;" : "display:none;",
       paletteStyle: s.palette
         ? "position:fixed;top:" + (compact ? "max(12px,var(--safe-t))" : "max(12vh,var(--safe-t))") + ";left:50%;transform:translateX(-50%);width:calc(100vw - var(--safe-l) - var(--safe-r) - 16px);max-width:620px;max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 24px);z-index:90;background:var(--s-low);border:1px solid var(--outv);border-radius:24px;box-shadow:var(--e3);overflow:hidden;animation:wl-rise .2s cubic-bezier(.05,.7,.1,1);"
-        : "display:none;"
+        : "display:none;",
+
+      // Screenshot zoom viewer. z-index sits above every other overlay in this file (the
+      // highest otherwise is the regex builder panel at 96) so opening it from any surface,
+      // in any state, always lands on top rather than under something already open.
+      zoomScrimStyle: z ? "position:fixed;inset:0;background:rgb(0 0 0/.72);z-index:150;animation:wl-fade .15s ease;" : "display:none;",
+      zoomStyle: z
+        ? "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(96vw,1400px);height:min(92vh,900px);max-width:calc(100vw - var(--safe-l) - var(--safe-r) - 16px);max-height:calc(100dvh - var(--safe-t) - var(--safe-b) - 16px);z-index:151;display:flex;flex-direction:column;background:var(--s-low);border:1px solid var(--outv);border-radius:20px;box-shadow:var(--e3);overflow:hidden;animation:wl-rise .2s cubic-bezier(.05,.7,.1,1);"
+        : "display:none;",
+      zoomViewportStyle:"flex:1;min-height:0;min-width:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--s-cont);touch-action:none;overscroll-behavior:contain;cursor:" +
+        (z && z.scale > 1.001 ? "grab" : "zoom-in") + ";",
+      zoomImgStyle: z
+        ? "max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;transform:translate3d(" +
+          z.tx + "px," + z.ty + "px,0) scale(" + z.scale + ");transform-origin:center center;"
+        : "display:none;",
+      zoomImgSrc: z ? z.src : "",
+      zoomImgAlt: z ? z.alt : "",
+      zoomCaption: z ? (z.caption || z.alt || tr("Screenshot", "截圖")) : "",
+      zoomPercentLabel: z ? Math.round(z.scale * 100) + "%" : "",
+      zoomOutDisabled:zoomAtMin, zoomOutDisabledAttr:String(zoomAtMin),
+      zoomInDisabled:zoomAtMax, zoomInDisabledAttr:String(zoomAtMax),
+      zoomResetDisabled:zoomAtIdentity,
+      // Attribute values (aria-label/title) can't hold the lang="en"/lang="zh-HK" paired-span
+      // markup — they're flat strings — so they go through tr() instead. The zoom dialog's own
+      // *visible* text (Reset, the footer hint) uses the paired-span pattern below via
+      // zoomTextEnStyle/zoomTextYueStyle/zoomTextSeparatorStyle, same as moreEnStyle et al.
+      zoomOutLabel: tr("Zoom out", "縮小"),
+      zoomInLabel: tr("Zoom in", "放大"),
+      zoomResetLabel: tr("Reset zoom", "重設縮放"),
+      zoomCloseLabel: tr("Close screenshot view", "關閉截圖檢視"),
+      zoomCloseTitle: tr("Close", "關閉"),
+      zoomTextEnStyle: s.language === "yue" ? "display:none;" : "",
+      zoomTextYueStyle: s.language === "en" ? "display:none;" : "",
+      zoomTextSeparatorStyle: s.language === "bilingual" ? "" : "display:none;",
+      zoomClose:() => this.closeZoom(),
+      zoomInAction:() => { const zz = this.state.zoom; if (zz) this.applyZoom(zz.scale + ZOOM_STEP, 0, 0); },
+      zoomOutAction:() => { const zz = this.state.zoom; if (zz) this.applyZoom(zz.scale - ZOOM_STEP, 0, 0); },
+      zoomResetAction:() => { const zz = this.state.zoom; if (zz) this.setState({ zoom:Object.assign({}, zz, { scale:1, tx:0, ty:0 }) }); },
+      onZoomWheel:(e) => {
+        const zz = this.state.zoom;
+        if (!zz) return;
+        e.preventDefault();
+        const rect = this._zoomViewport ? this._zoomViewport.getBoundingClientRect() : null;
+        const cx = rect ? (e.clientX - (rect.left + rect.width / 2)) : 0;
+        const cy = rect ? (e.clientY - (rect.top + rect.height / 2)) : 0;
+        const delta = Math.max(-0.4, Math.min(0.4, -e.deltaY * ZOOM_WHEEL_STEP));
+        this.applyZoom(zz.scale * (1 + delta), cx, cy);
+      },
+      onZoomMouseDown:(e) => {
+        const zz = this.state.zoom;
+        if (!zz || (e.button !== undefined && e.button !== 0)) return;
+        const startX = e.clientX, startY = e.clientY, startTx = zz.tx, startTy = zz.ty;
+        const move = (ev) => this.panTo(startTx + (ev.clientX - startX), startTy + (ev.clientY - startY));
+        const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", up);
+      },
+      onZoomDoubleClick:(e) => {
+        const zz = this.state.zoom;
+        if (!zz) return;
+        e.preventDefault();
+        if (zz.scale > 1.01) { this.setState({ zoom:Object.assign({}, zz, { scale:1, tx:0, ty:0 }) }); return; }
+        const rect = this._zoomViewport ? this._zoomViewport.getBoundingClientRect() : null;
+        const cx = rect ? (e.clientX - (rect.left + rect.width / 2)) : 0;
+        const cy = rect ? (e.clientY - (rect.top + rect.height / 2)) : 0;
+        this.applyZoom(ZOOM_DOUBLE_TAP_SCALE, cx, cy);
+      },
+      // Touch handling is entirely separate from onZoomMouseDown — a single finger pans, two
+      // fingers pinch, and both live in a plain instance field (this._zoomDrag) rather than
+      // state, because a touchmove fires far too often to route every sample through setState
+      // bookkeeping beyond the pan/zoom update itself.
+      onZoomTouchStart:(e) => {
+        const zz = this.state.zoom;
+        if (!zz) return;
+        const touches = e.touches;
+        if (touches.length >= 2) this._zoomDrag = { mode:"pinch", lastDist:touchDistance(touches[0], touches[1]) };
+        else if (touches.length === 1) this._zoomDrag = { mode:"pan", startX:touches[0].clientX, startY:touches[0].clientY, startTx:zz.tx, startTy:zz.ty };
+      },
+      onZoomTouchMove:(e) => {
+        const zz = this.state.zoom;
+        if (!zz || !this._zoomDrag) return;
+        const touches = e.touches;
+        if (this._zoomDrag.mode === "pinch" && touches.length >= 2) {
+          e.preventDefault();
+          const dist = touchDistance(touches[0], touches[1]);
+          const mid = touchMidpoint(touches[0], touches[1]);
+          const rect = this._zoomViewport ? this._zoomViewport.getBoundingClientRect() : null;
+          const cx = rect ? (mid.x - (rect.left + rect.width / 2)) : 0;
+          const cy = rect ? (mid.y - (rect.top + rect.height / 2)) : 0;
+          const prevDist = this._zoomDrag.lastDist || dist;
+          this._zoomDrag.lastDist = dist;
+          if (prevDist > 0) this.applyZoom(zz.scale * (dist / prevDist), cx, cy);
+        } else if (this._zoomDrag.mode === "pan" && touches.length === 1) {
+          e.preventDefault();
+          this.panTo(this._zoomDrag.startTx + (touches[0].clientX - this._zoomDrag.startX), this._zoomDrag.startTy + (touches[0].clientY - this._zoomDrag.startY));
+        }
+      },
+      onZoomTouchEnd:() => { this._zoomDrag = null; },
+      onZoomImgLoad:(e) => {
+        const img = e && e.target, zz = this.state.zoom;
+        if (!img || !zz) return;
+        this.setState({ zoom:Object.assign({}, zz, { natW:img.naturalWidth || 0, natH:img.naturalHeight || 0 }) });
+      },
+      zoomViewportRef:(el) => { this._zoomViewport = el; },
+      zoomDialogRef:(el) => { this._zoomDialog = el; },
+      zoomCloseRef:(el) => { this._zoomClose = el; }
     };
     return Object.assign(out, F);
   }

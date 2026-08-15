@@ -192,6 +192,13 @@ export const KID_FIXED = {
     "kid.home.now": { en: "What this app is doing right now", yue: "呢個程式而家做緊乜" },
     "kid.home.maps": { en: "Your maps and servers", yue: "你嘅地圖同伺服器" },
     "kid.home.addMap": { en: "Add another one", yue: "加多一個" },
+    /*
+     * The second line under a map/server card in `kid.home.maps`'s list: where it lives. A
+     * local render says so in words a kid reads as plainly as a place name; a remote server
+     * shows its address instead (`App.vue`'s `kidProfiles`, mirroring `isLocalProfile()`'s
+     * split everywhere else in the app).
+     */
+    "kid.home.mapMeta.local": { en: "This computer", yue: "呢部電腦" },
 
     "kid.search": { en: "Look for something…", yue: "搵下啲嘢…" },
 
