@@ -1,0 +1,373 @@
+/*
+ * This instrument's OWN chrome: the toolbar (theme/scale/row picker), the honesty banner, the
+ * coverage notice, the row grid, and the measurement table. None of it is product UI - it never
+ * appears in Worldlens itself - so it is free to use the real `--v-theme-*` colour roles and
+ * `--md-sys-*` shape tokens from `@worldlens/ui/src/styles/md3.scss` the way any ordinary
+ * consumer of those tokens would, WITHOUT that being a self-consistency trap. That discipline
+ * belongs specifically to `m3Reference.scss`'s LEFT-hand pane, which exists to be judged
+ * against an independent spec - this file exists to be a usable toolbar, and reusing this
+ * repository's own real tokens for a plain utility UI is simply normal, honest reuse.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Undoing two rules `global.scss` sets for a COMPLETELY different layout, and that this
+ * instrument's own layout breaks under if they are left in place.
+ *
+ * `global.scss` is written for the real app's shell: a fixed, full-viewport `#map-container`
+ * with `#app` as a `position: fixed; inset: 0;` OVERLAY on top of it, `pointer-events: none` by
+ * default so drags reach the map underneath through the gaps between floating controls, and
+ * `html, body { overflow: hidden }` because the map itself is the thing that pans and zooms -
+ * the page never scrolls, only the map content inside it does.
+ *
+ * This instrument has no map. It is an ordinary, tall, scrollable document - fifteen rows, most
+ * of them several hundred pixels tall on their own once the measurement table is included -
+ * and every one of those three rules actively breaks it if left inherited:
+ *
+ *   - `overflow: hidden` on `html`/`body` makes the page UNSCROLLABLE. Content below the first
+ *     viewport's worth is still laid out (`getBoundingClientRect` reports its real position) but
+ *     never PAINTED, because nothing can ever scroll it into the one visible region - a
+ *     `locator.screenshot()` of a later row captures real coordinates over pixels the browser
+ *     never drew, which is exactly what an all-black capture of a real, correctly-laid-out row
+ *     looks like. Reproduced directly: before this fix, `scripts/capture.mjs`'s own PNG output
+ *     for every row after the first showed a solid dark rectangle at 692px of real, measured
+ *     row height with the actual buttons and table nowhere visible in it.
+ *   - `#app { position: fixed; inset: 0; }` pins the mount point to exactly one viewport's size
+ *     REGARDLESS of how much content is inside it, instead of growing with that content the way
+ *     a normal block element does - the root cause of the paint-vs-layout mismatch above.
+ *   - `#app { pointer-events: none; }` makes every control inside `#app` unclickable by
+ *     default. The real app re-enables it selectively, on `.v-application__wrap > *` (a
+ *     structure only `<v-app>` produces) and on anything explicitly marked `.mb-interactive`.
+ *     This app uses neither - it mounts straight into `<v-theme-provider>`, no `<v-app>` at all
+ *     (see `App.vue`'s own header for why) - so without this reset, the theme/scale/jump-to-row
+ *     toolbar controls and every native `<select>`/`<button>` in this file would silently accept
+ *     no clicks at all, which is exactly the kind of "looks like a working control, is not"
+ *     defect this repository's own rules call out by name.
+ *
+ * Same specificity as the rules being undone (`html`/`body`/`#app`, no `!important` anywhere in
+ * the originals), later in the cascade (this sheet imports after `global.scss` - see
+ * `main.ts`), so a plain override here wins without needing `!important` of its own.
+ * ------------------------------------------------------------------------- */
+html,
+body {
+    overflow: auto;
+    overscroll-behavior: auto;
+}
+
+#app {
+    position: static;
+    inset: auto;
+    z-index: auto;
+    pointer-events: auto;
+    min-height: 100vh;
+}
+
+.md3check-app-root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: Roboto, sans-serif;
+    color: rgb(var(--v-theme-on-surface));
+    background: rgb(var(--v-theme-background));
+}
+
+/* The scale control applies `zoom` to everything below the toolbar, never to the toolbar
+   itself - a picker that shrank along with the thing it controls would be the one control a
+   person struggling to read a 200%-scaled screen could no longer operate. */
+.md3check-scaled-region {
+    flex: 1;
+}
+
+.md3check-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 20px;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+    background: rgb(var(--v-theme-surface-container));
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.md3check-toolbar__group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.md3check-toolbar__group > span {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.md3check-toolbar select,
+.md3check-toolbar button {
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgb(var(--v-theme-outline));
+    background: rgb(var(--v-theme-surface));
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.md3check-toolbar button[aria-pressed="true"] {
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+    border-color: rgb(var(--v-theme-primary));
+}
+
+/* Every interactive control this app draws gets a visible, unambiguous focus ring - the one
+   accessibility contract explicitly required of this instrument even though it is not a full
+   product surface. `:focus-visible` rather than `:focus` so a mouse click does not paint a ring
+   a keyboard user never asked to see removed. */
+.md3check-toolbar select:focus-visible,
+.md3check-toolbar button:focus-visible,
+.md3check-toolbar input:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+.md3check-honesty-banner {
+    margin: 16px 20px 0;
+    padding: 16px 20px;
+    border-radius: var(--md-sys-shape-corner-lg);
+    border: 1px solid rgb(var(--v-theme-outline));
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
+.md3check-honesty-banner h1 {
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+
+.md3check-honesty-banner p {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.md3check-honesty-banner p:last-child {
+    margin-bottom: 0;
+}
+
+.md3check-honesty-banner strong {
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.md3check-coverage {
+    margin: 16px 20px 0;
+    padding: 12px 20px;
+    border-radius: var(--md-sys-shape-corner-md);
+    background: rgb(var(--v-theme-surface-container-low));
+    font-size: 13px;
+}
+
+.md3check-coverage summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.md3check-coverage ul {
+    margin: 8px 0 0;
+    padding-left: 20px;
+}
+
+.md3check-coverage li {
+    margin-bottom: 6px;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.md3check-coverage li strong {
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.md3check-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 20px;
+}
+
+.md3check-row {
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-lg);
+    padding: 16px 20px;
+    background: rgb(var(--v-theme-surface-container-low));
+}
+
+/* `tabindex="-1"` on the row (see RowShell.vue) makes it a programmatic focus target for the
+   toolbar's "Jump to component" picker, without adding it to the normal Tab order. This ring is
+   what tells a keyboard user which row they just landed on. */
+.md3check-row:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 4px;
+}
+
+.md3check-row__header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.md3check-row__title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.md3check-row__m3name {
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: rgb(var(--v-theme-secondary-container));
+    color: rgb(var(--v-theme-on-secondary-container));
+}
+
+.md3check-row__citations {
+    margin: 8px 0 16px;
+    padding-left: 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.md3check-row__no-spec {
+    margin: 8px 0 16px;
+    padding: 10px 14px;
+    border-radius: var(--md-sys-shape-corner-md);
+    background: rgb(var(--v-theme-tertiary-container));
+    color: rgb(var(--v-theme-on-tertiary-container));
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.md3check-row__panes {
+    display: grid;
+    grid-template-columns: 1fr 1fr minmax(140px, auto);
+    gap: 16px;
+    align-items: stretch;
+}
+
+@media (max-width: 760px) {
+    .md3check-row__panes {
+        grid-template-columns: 1fr;
+    }
+}
+
+.md3check-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border-radius: var(--md-sys-shape-corner-md);
+    background: rgb(var(--v-theme-surface));
+    min-width: 0;
+    border-left: 3px solid transparent;
+}
+
+/* A colour-coded edge on top of the "M3 reference"/"Worldlens" text labels, so which pane is
+   which stays legible even in a cropped capture-mode screenshot where the label text might sit
+   right at the image's own edge. Tertiary/primary rather than a matched pair, so the distinction
+   reads even to someone who cannot tell two similar hues apart at a glance. */
+.md3check-pane--reference {
+    border-left-color: rgb(var(--v-theme-tertiary));
+}
+
+.md3check-pane--worldlens {
+    border-left-color: rgb(var(--v-theme-primary));
+}
+
+.md3check-pane__label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.md3check-pane__stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 64px;
+    padding: 8px;
+}
+
+.md3check-diff-narrow {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 130px;
+    padding: 12px 14px;
+    border-radius: var(--md-sys-shape-corner-md);
+    background: rgb(var(--v-theme-surface-container));
+    font-size: 12px;
+}
+
+.md3check-diff-narrow__label {
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 2px;
+}
+
+.md3check-diff-narrow__item {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.md3check-diff-narrow__field {
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* A difference is neutral information, never an error - see `measure.ts`'s own comment on
+   `diffMeasurements`. Tertiary rather than the error role, on purpose: this is a highlight, not
+   an alarm. */
+.md3check-diff-narrow__item--differs .md3check-diff-narrow__value {
+    color: rgb(var(--v-theme-tertiary));
+    font-weight: 700;
+}
+
+.md3check-row__table {
+    width: 100%;
+    margin-top: 16px;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.md3check-row__table-caption {
+    text-align: left;
+    caption-side: top;
+    font-size: 11px;
+    line-height: 1.5;
+    color: rgb(var(--v-theme-on-surface-variant));
+    padding-bottom: 8px;
+}
+
+.md3check-row__table th,
+.md3check-row__table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+    text-align: left;
+    font-weight: 400;
+}
+
+.md3check-row__table thead th {
+    font-weight: 700;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.md3check-row__table-diff td,
+.md3check-row__table-diff th {
+    color: rgb(var(--v-theme-tertiary));
+    font-weight: 600;
+}

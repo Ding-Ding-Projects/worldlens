@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>MD3 Conformance Check &mdash; Worldlens</title>
+        <!--
+          This instrument makes zero network requests, by design and by policy (see the
+          repository's own "no network at runtime" rule, which applies to this harness exactly
+          as it applies to the shipped product). The CSP below is not decoration: `connect-src
+          'none'` means a stray `fetch()` a future edit adds here would be refused by Chromium
+          itself, not merely by convention. `style-src 'unsafe-inline'` is required because
+          Vuetify injects its generated theme stylesheet as an inline <style> tag at runtime
+          (`packages/ui/src/vuetify.ts` does the same thing in the real app, under the same
+          constraint - see that file's own CSP notes in `main/index.ts`). Everything else stays
+          `'self'`/`'none'`; nothing here is ever expected to load from anywhere but this file's
+          own bundle.
+        -->
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';"
+        />
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="./main.ts"></script>
+    </body>
+</html>

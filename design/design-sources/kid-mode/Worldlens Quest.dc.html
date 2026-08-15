@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Roboto+Mono:wght@500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,700,1,0&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #072A4B; }
+  a { color: #1177D1; } a:hover { color: #0B3C68; }
+  .msr { font-family: "Material Symbols Rounded"; font-weight: normal; line-height: 1; display: inline-block; white-space: nowrap; -webkit-font-smoothing: antialiased; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes stripe { 0% { background-position: 0 0; } 100% { background-position: 36px 0; } }
+  @keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+  ::-webkit-scrollbar { width: 14px; height: 14px; }
+  ::-webkit-scrollbar-thumb { background: #9CC8EA; border-radius: 7px; border: 4px solid transparent; background-clip: content-box; }
+</style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; background: #072A4B; padding: 14px; box-sizing: border-box; font-family: 'Baloo 2', Verdana, sans-serif; color: #12304F; overflow: hidden;">
+ <div style="width: 100%; height: 100%; background: #0B3C68; border-radius: 40px; padding: 14px; box-sizing: border-box; display: flex; gap: 14px; position: relative;">
+
+  <div style="width: 124px; flex: 0 0 124px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+    <sc-for list="{{ railTop }}" as="r" hint-placeholder-count="4">
+      <div onClick="{{ r.go }}" style="position: relative; width: 106px; height: 92px; border-radius: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; background: {{ r.bg }}; color: {{ r.fg }};">
+        <span class="msr" style="font-size: 40px;">{{ r.icon }}</span>
+        <div style="font-size: 17px; font-weight: 800;">{{ r.label }}</div>
+        <sc-if value="{{ r.badge }}" hint-placeholder-val="{{ false }}">
+          <span style="position: absolute; top: 7px; right: 11px; min-width: 26px; height: 26px; padding: 0 5px; box-sizing: border-box; border-radius: 13px; background: #FFC531; color: #4A2E00; font-size: 15px; font-weight: 800; line-height: 26px; text-align: center;">{{ r.badge }}</span>
+        </sc-if>
+      </div>
+    </sc-for>
+    <span style="flex: 1;"></span>
+    <sc-for list="{{ railBottom }}" as="r" hint-placeholder-count="3">
+      <div onClick="{{ r.go }}" title="{{ r.label }}" style="position: relative; width: 94px; height: 68px; border-radius: 22px; display: grid; place-items: center; cursor: pointer; background: {{ r.bg }}; color: {{ r.fg }};">
+        <span class="msr" style="font-size: 34px;">{{ r.icon }}</span>
+        <sc-if value="{{ r.badge }}" hint-placeholder-val="{{ false }}">
+          <span style="position: absolute; top: 5px; right: 12px; min-width: 26px; height: 26px; padding: 0 5px; box-sizing: border-box; border-radius: 13px; background: #FF6B57; color: #FFFFFF; font-size: 15px; font-weight: 800; line-height: 26px; text-align: center;">{{ r.badge }}</span>
+        </sc-if>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="flex: 1; min-width: 0; background: #EAF4FF; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+    <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 11px 16px; background: #FFFFFF; border-bottom: 3px solid #D6E9F9;">
+      <div onClick="{{ goStickers }}" style="display: flex; align-items: center; gap: 9px; height: 48px; padding: 0 16px 0 7px; border-radius: 24px; background: #FFF3D0; cursor: pointer;">
+        <div style="width: 36px; height: 36px; border-radius: 18px; background: #FFC531; color: #4A2E00; display: grid; place-items: center; font-size: 18px; font-weight: 800;">{{ level }}</div>
+        <div style="font-size: 18px; font-weight: 700; color: #4A2E00;">Level {{ level }}</div>
+      </div>
+      <div style="width: 230px;">
+        <div style="height: 18px; border-radius: 9px; background: #DCEBF8; overflow: hidden;"><div style="height: 100%; width: {{ xpWidth }}; background: #34B44A; border-radius: 9px;"></div></div>
+        <div style="margin-top: 2px; font-size: 14px; font-weight: 600; color: #5B7793;">{{ xpLabel }}</div>
+      </div>
+      <sc-if value="{{ running }}" hint-placeholder-val="{{ true }}">
+        <div onClick="{{ openRenders }}" style="display: flex; align-items: center; gap: 9px; height: 48px; padding: 0 14px; border-radius: 24px; background: #E8F7EA; cursor: pointer;">
+          <span class="msr" style="font-size: 24px; color: #1E7A2E;">brush</span>
+          <div style="font-size: 17px; font-weight: 700; color: #1E7A2E;">{{ runningLabel }}</div>
+          <div style="width: 74px; height: 12px; border-radius: 6px; background: #C6E9CC; overflow: hidden;"><div style="height: 100%; width: {{ renderWidth }}; background: #34B44A;"></div></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ hasProblems }}" hint-placeholder-val="{{ true }}">
+        <div onClick="{{ toggleProblems }}" style="display: flex; align-items: center; gap: 7px; height: 48px; padding: 0 15px; border-radius: 24px; background: #FFECE8; color: #C63A26; cursor: pointer;"><span class="msr" style="font-size: 24px;">report</span><div style="font-size: 18px; font-weight: 800;">{{ problemCount }}</div></div>
+      </sc-if>
+      <span style="flex: 1;"></span>
+      <sc-if value="{{ updateReady }}" hint-placeholder-val="{{ true }}">
+        <div onClick="{{ openUpdates }}" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 15px; border-radius: 24px; background: #E7F0FF; color: #0B5CA5; cursor: pointer;"><span class="msr" style="font-size: 24px;">system_update</span><div style="font-size: 16px; font-weight: 700;">New version ready</div></div>
+      </sc-if>
+      <div style="font-size: 19px; font-weight: 700;">{{ kidName }}</div>
+      <div onClick="{{ toggleNarrator }}" title="Read it out loud" style="width: 48px; height: 48px; border-radius: 24px; display: grid; place-items: center; cursor: pointer; background: {{ narratorBg }}; color: {{ narratorFg }};"><span class="msr" style="font-size: 27px;">{{ narratorIcon }}</span></div>
+    </div>
+
+    <div style="flex: 1; min-height: 0; overflow: auto;">
+
+      <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+        <div style="padding: 20px 24px 28px;">
+          <div style="display: flex; align-items: center; gap: 16px; background: #1177D1; border-radius: 28px; padding: 18px 22px; color: #FFFFFF; box-shadow: 0 8px 0 #0B5CA5;">
+            <div style="width: 100px; height: 100px; flex: 0 0 100px; border-radius: 26px; background: #FFC531; color: #4A2E00; display: grid; place-items: center; animation: bob 2.6s ease-in-out infinite;"><span class="msr" style="font-size: 58px;">terrain</span></div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 36px; font-weight: 800; line-height: 1.1;">Make a new map!</div>
+              <div style="font-size: 20px; font-weight: 600; opacity: 0.92;">Pick a world, press GO, and watch it get drawn.</div>
+            </div>
+            <div onClick="{{ openGuide }}" style="height: 60px; padding: 0 22px; border-radius: 30px; border: 3px solid rgba(255,255,255,0.6); font-size: 19px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">Walk me through it</div>
+            <div onClick="{{ openProjects }}" style="height: 82px; padding: 0 34px; border-radius: 41px; background: #FFC531; color: #4A2E00; font-size: 30px; font-weight: 800; display: flex; align-items: center; gap: 10px; cursor: pointer; box-shadow: 0 7px 0 #C98F00;"><span class="msr" style="font-size: 38px;">play_circle</span>GO</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 16px;">
+            <sc-for list="{{ lands }}" as="land" hint-placeholder-count="5">
+              <div onClick="{{ land.open }}" style="background: #FFFFFF; border-radius: 26px; padding: 15px; cursor: pointer; box-shadow: 0 6px 0 #D2E5F6;" style-hover="background: #F6FBFF;">
+                <div style="width: 70px; height: 70px; border-radius: 22px; display: grid; place-items: center; background: {{ land.tint }}; color: {{ land.ink }};"><span class="msr" style="font-size: 40px;">{{ land.icon }}</span></div>
+                <div style="font-size: 24px; font-weight: 800; margin-top: 9px; line-height: 1.12;">{{ land.kid }}</div>
+                <div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ land.name }}</div>
+                <div style="margin-top: 7px; font-size: 16px; font-weight: 800; color: #1177D1;">{{ land.count }} things</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; margin-top: 16px;">
+            <div style="background: #FFFFFF; border-radius: 26px; padding: 16px 18px; box-shadow: 0 6px 0 #D2E5F6;">
+              <div style="font-size: 24px; font-weight: 800;">What this app is doing now</div>
+              <div style="display: flex; flex-direction: column; gap: 9px; margin-top: 11px;">
+                <sc-for list="{{ liveRows }}" as="q" hint-placeholder-count="4">
+                  <div onClick="{{ q.go }}" style="display: flex; align-items: center; gap: 12px; padding: 11px 13px; border-radius: 20px; background: {{ q.bg }}; cursor: pointer;">
+                    <div style="width: 52px; height: 52px; flex: 0 0 52px; border-radius: 17px; background: #FFFFFF; color: {{ q.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 30px;">{{ q.icon }}</span></div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 21px; font-weight: 800;">{{ q.kid }}</div>
+                      <div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ q.name }}</div>
+                    </div>
+                    <div style="font-family: 'Roboto Mono', monospace; font-size: 14px; color: #5B7793;">{{ q.meta }}</div>
+                    <span class="msr" style="font-size: 28px; color: #1177D1;">chevron_right</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background: #FFFFFF; border-radius: 26px; padding: 16px 18px; box-shadow: 0 6px 0 #D2E5F6;">
+              <div style="font-size: 24px; font-weight: 800;">Your maps and servers</div>
+              <div style="display: flex; flex-direction: column; gap: 9px; margin-top: 11px;">
+                <sc-for list="{{ myMaps }}" as="m" hint-placeholder-count="3">
+                  <div onClick="{{ m.open }}" style="display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 18px; background: #EAF4FF; cursor: pointer;">
+                    <div style="width: 50px; height: 50px; border-radius: 16px; background: #FFFFFF; color: #1177D1; display: grid; place-items: center;"><span class="msr" style="font-size: 28px;">{{ m.icon }}</span></div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 19px; font-weight: 800;">{{ m.name }}</div>
+                      <div style="font-size: 14px; font-weight: 600; color: #5B7793;">{{ m.meta }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div onClick="{{ openServers }}" style="margin-top: 12px; height: 58px; border-radius: 29px; background: #EAF4FF; color: #0B5CA5; font-size: 19px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">Add another one</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isLand }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 16px 24px 28px;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div onClick="{{ goHome }}" style="width: 68px; height: 68px; border-radius: 22px; background: #FFFFFF; color: #1177D1; display: grid; place-items: center; cursor: pointer; box-shadow: 0 5px 0 #D2E5F6;"><span class="msr" style="font-size: 38px;">arrow_back</span></div>
+            <div style="width: 76px; height: 76px; border-radius: 24px; display: grid; place-items: center; background: {{ landTint }}; color: {{ landInk }};"><span class="msr" style="font-size: 44px;">{{ landIcon }}</span></div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 34px; font-weight: 800; line-height: 1.1;">{{ landKid }}</div>
+              <div style="font-size: 18px; font-weight: 600; color: #5B7793;">{{ landName }} · {{ landCount }} things in here</div>
+            </div>
+            <div onClick="{{ typeSearch }}" style="width: 340px; height: 60px; border-radius: 30px; background: #FFFFFF; display: flex; align-items: center; gap: 11px; padding: 0 16px; cursor: text; box-shadow: 0 5px 0 #D2E5F6;">
+              <span class="msr" style="font-size: 28px; color: #1177D1;">search</span>
+              <div style="flex: 1; font-size: 19px; font-weight: 600; color: {{ searchFg }}; overflow: hidden; white-space: nowrap;">{{ searchText }}</div>
+              <div onClick="{{ toggleRegex }}" title="Regex builder" style="font-family: 'Roboto Mono', monospace; font-size: 15px; padding: 5px 9px; border-radius: 10px; background: {{ regexBg }}; color: {{ regexFg }}; cursor: pointer;">.*</div>
+            </div>
+          </div>
+
+          <sc-if value="{{ regexOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top: 12px; background: #FFFFFF; border-radius: 24px; padding: 15px 17px; box-shadow: 0 5px 0 #D2E5F6;">
+              <div style="display: flex; align-items: center; gap: 10px;"><div style="font-size: 21px; font-weight: 800;">Pattern builder</div><div style="font-family: 'Roboto Mono', monospace; font-size: 16px; color: #0B5CA5;">{{ regexPattern }}</div><span style="flex: 1;"></span><div style="font-size: 17px; font-weight: 700; color: #5B7793;">{{ regexMatches }}</div></div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+                <sc-for list="{{ regexTokens }}" as="tk" hint-placeholder-count="6">
+                  <div onClick="{{ tk.add }}" style="height: 46px; padding: 0 13px; border-radius: 16px; background: #EAF4FF; display: flex; align-items: center; gap: 8px; cursor: pointer;"><span style="font-family: 'Roboto Mono', monospace; font-size: 16px; color: #0B5CA5;">{{ tk.token }}</span><span style="font-size: 15px; font-weight: 700; color: #5B7793;">{{ tk.what }}</span></div>
+                </sc-for>
+                <sc-for list="{{ regexFlags }}" as="fl" hint-placeholder-count="3">
+                  <div onClick="{{ fl.toggle }}" style="height: 46px; padding: 0 15px; border-radius: 23px; background: {{ fl.bg }}; color: {{ fl.fg }}; font-size: 16px; font-weight: 700; display: grid; place-items: center; cursor: pointer;">{{ fl.label }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-for list="{{ landGroups }}" as="grp" hint-placeholder-count="4">
+            <div style="margin-top: 18px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="font-size: 21px; font-weight: 800; color: #0B5CA5;">{{ grp.name }}</div>
+                <div style="flex: 1; height: 4px; border-radius: 2px; background: #D6E9F9;"></div>
+                <div style="font-size: 16px; font-weight: 700; color: #5B7793;">{{ grp.count }}</div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; margin-top: 11px;">
+                <sc-for list="{{ grp.features }}" as="ft" hint-placeholder-count="4">
+                  <div onClick="{{ ft.open }}" style="display: flex; align-items: center; gap: 13px; background: #FFFFFF; border-radius: 22px; padding: 13px 15px; cursor: pointer; box-shadow: 0 5px 0 #D2E5F6;" style-hover="background: #F6FBFF;">
+                    <div style="width: 60px; height: 60px; flex: 0 0 60px; border-radius: 19px; background: {{ ft.tint }}; color: {{ ft.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 34px;">{{ ft.icon }}</span></div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 22px; font-weight: 800; line-height: 1.15;">{{ ft.kid }}</div>
+                      <div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ ft.name }}</div>
+                      <div style="font-family: 'Roboto Mono', monospace; font-size: 13px; color: #7C94AC;">{{ ft.meta }}</div>
+                    </div>
+                    <span class="msr" style="font-size: 28px; color: #1177D1;">chevron_right</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isJob }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; min-height: 100%;">
+          <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 14px 0; background: #DCEBF8; overflow: hidden;">
+            <sc-for list="{{ jobChips }}" as="c" hint-placeholder-count="4">
+              <div onClick="{{ c.select }}" style="display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 8px 0 14px; border-radius: 20px 20px 0 0; cursor: pointer; background: {{ c.bg }}; color: {{ c.fg }};">
+                <span class="msr" style="font-size: 26px;">{{ c.icon }}</span>
+                <div style="font-size: 19px; font-weight: 800; white-space: nowrap;">{{ c.label }}</div>
+                <sc-if value="{{ c.pinned }}" hint-placeholder-val="{{ false }}"><span class="msr" style="font-size: 19px;">push_pin</span></sc-if>
+                <sc-if value="{{ c.closable }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ c.close }}" style="width: 34px; height: 34px; border-radius: 17px; display: grid; place-items: center;" style-hover="background: rgba(0,0,0,0.1);"><span class="msr" style="font-size: 22px;">close</span></div>
+                </sc-if>
+              </div>
+            </sc-for>
+            <div onClick="{{ goHome }}" title="Open another job" style="width: 46px; height: 46px; border-radius: 16px; background: #FFFFFF; color: #1177D1; display: grid; place-items: center; cursor: pointer; margin-bottom: 5px;"><span class="msr" style="font-size: 26px;">add</span></div>
+            <span style="flex: 1;"></span>
+            <div onClick="{{ openTabFinder }}" title="Find a tab or group, or close a lot at once" style="height: 46px; padding: 0 14px; border-radius: 16px; background: #FFFFFF; color: #0B5CA5; display: flex; align-items: center; gap: 7px; cursor: pointer; margin-bottom: 5px;"><span class="msr" style="font-size: 24px;">manage_search</span><div style="font-size: 17px; font-weight: 700;">{{ hiddenTabs }}</div></div>
+            <div onClick="{{ openTabDock }}" title="Where the tabs sit" style="width: 46px; height: 46px; border-radius: 16px; background: #FFFFFF; color: #0B5CA5; display: grid; place-items: center; cursor: pointer; margin-bottom: 5px;"><span class="msr" style="font-size: 24px;">dock_to_left</span></div>
+          </div>
+
+          <div style="flex: 1; padding: 18px 24px 28px;">
+            <div style="display: flex; align-items: flex-start; gap: 14px;">
+              <div style="width: 76px; height: 76px; flex: 0 0 76px; border-radius: 24px; background: {{ jobTint }}; color: {{ jobInk }}; display: grid; place-items: center;"><span class="msr" style="font-size: 44px;">{{ jobIcon }}</span></div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 34px; font-weight: 800; line-height: 1.1;">{{ jobKid }}</div>
+                <div style="font-size: 18px; font-weight: 600; color: #5B7793;">{{ jobName }}</div>
+                <div style="font-size: 19px; font-weight: 600; color: #34526E; margin-top: 6px; max-width: 76ch; text-wrap: pretty;">{{ jobBlurb }}</div>
+              </div>
+            </div>
+
+            <sc-if value="{{ jobIsWizard }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 16px; display: flex; gap: 10px;">
+                <sc-for list="{{ steps }}" as="s" hint-placeholder-count="5">
+                  <div onClick="{{ s.go }}" style="flex: 1; height: 62px; border-radius: 20px; display: flex; align-items: center; justify-content: center; gap: 9px; cursor: pointer; background: {{ s.bg }}; color: {{ s.fg }};">
+                    <span class="msr" style="font-size: 30px;">{{ s.icon }}</span><div style="font-size: 19px; font-weight: 800;">{{ s.label }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="margin-top: 14px; background: #FFFFFF; border-radius: 26px; padding: 20px 22px; box-shadow: 0 6px 0 #D2E5F6;">
+                <div style="font-size: 30px; font-weight: 800;">{{ stepTitle }}</div>
+                <div style="font-size: 19px; font-weight: 600; color: #34526E; margin-top: 4px; max-width: 74ch; text-wrap: pretty;">{{ stepHelp }}</div>
+
+                <sc-if value="{{ step1 }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px;">
+                    <sc-for list="{{ wizardWorlds }}" as="w" hint-placeholder-count="3">
+                      <div onClick="{{ w.pick }}" style="border-radius: 22px; padding: 15px; cursor: pointer; background: {{ w.bg }}; border: 4px solid {{ w.border }};">
+                        <div style="height: 86px; border-radius: 16px; background-color: #DCEBF8; background-image: repeating-linear-gradient(45deg, rgba(17,119,209,0.16) 0 9px, transparent 9px 18px); display: grid; place-items: center; color: #1177D1;"><span class="msr" style="font-size: 44px;">{{ w.icon }}</span></div>
+                        <div style="font-size: 23px; font-weight: 800; margin-top: 9px;">{{ w.name }}</div>
+                        <div style="font-family: 'Roboto Mono', monospace; font-size: 14px; color: #5B7793;">{{ w.regions }} region files</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ step2 }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px;">
+                    <sc-for list="{{ wizardDims }}" as="d" hint-placeholder-count="3">
+                      <div onClick="{{ d.pick }}" style="border-radius: 22px; padding: 16px; text-align: center; cursor: pointer; background: {{ d.bg }}; border: 4px solid {{ d.border }};">
+                        <div style="width: 78px; height: 78px; margin: 0 auto; border-radius: 22px; background: {{ d.tint }}; color: {{ d.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 44px;">{{ d.icon }}</span></div>
+                        <div style="font-size: 24px; font-weight: 800; margin-top: 9px;">{{ d.name }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="margin-top: 14px; background: #EAF4FF; border-radius: 18px; padding: 13px 16px;">
+                    <div style="font-size: 17px; font-weight: 700; color: #5B7793;">Its computer name</div>
+                    <div style="font-family: 'Roboto Mono', monospace; font-size: 17px;">{{ mapId }}</div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ step3 }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; gap: 12px; margin-top: 16px;">
+                    <sc-for list="{{ speeds }}" as="sp" hint-placeholder-count="5">
+                      <div onClick="{{ sp.pick }}" style="flex: 1; border-radius: 22px; padding: 16px 10px; text-align: center; cursor: pointer; background: {{ sp.bg }}; border: 4px solid {{ sp.border }};">
+                        <span class="msr" style="font-size: 44px; color: {{ sp.ink }};">{{ sp.icon }}</span>
+                        <div style="font-size: 21px; font-weight: 800; margin-top: 5px;">{{ sp.label }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ step4 }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 16px;">
+                    <sc-for list="{{ wizardPlaces }}" as="p" hint-placeholder-count="4">
+                      <div onClick="{{ p.pick }}" style="display: flex; align-items: center; gap: 14px; border-radius: 22px; padding: 16px; cursor: pointer; background: {{ p.bg }}; border: 4px solid {{ p.border }};">
+                        <div style="width: 66px; height: 66px; flex: 0 0 66px; border-radius: 20px; background: {{ p.tint }}; color: {{ p.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 38px;">{{ p.icon }}</span></div>
+                        <div><div style="font-size: 23px; font-weight: 800;">{{ p.name }}</div><div style="font-size: 16px; font-weight: 600; color: #5B7793;">{{ p.meta }}</div></div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="margin-top: 14px; background: #EAF4FF; border-radius: 18px; padding: 13px 16px; font-family: 'Roboto Mono', monospace; font-size: 15px; color: #34526E;">C:\Users\cntow\Documents\Worldlens\maps</div>
+                </sc-if>
+
+                <sc-if value="{{ step5 }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px;">
+                    <sc-for list="{{ wizardSummary }}" as="r" hint-placeholder-count="6">
+                      <div style="display: flex; align-items: center; gap: 12px; background: #EAF4FF; border-radius: 20px; padding: 14px 16px;">
+                        <div style="width: 56px; height: 56px; border-radius: 17px; background: #FFFFFF; color: #1177D1; display: grid; place-items: center;"><span class="msr" style="font-size: 32px;">{{ r.icon }}</span></div>
+                        <div><div style="font-size: 16px; font-weight: 700; color: #5B7793;">{{ r.label }}</div><div style="font-size: 21px; font-weight: 800;">{{ r.value }}</div></div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="margin-top: 14px; display: flex; align-items: center; gap: 13px; background: #FFECE8; border-radius: 20px; padding: 14px 16px;">
+                    <span class="msr" style="font-size: 32px; color: #C63A26;">gavel</span>
+                    <div style="flex: 1; font-size: 18px; font-weight: 600; color: #7A2314;">A grown-up answers Mojang download consent before the first map is drawn. The engine needs Minecraft's own client files for textures and models.</div>
+                    <div onClick="{{ openMojang }}" style="height: 60px; padding: 0 20px; border-radius: 30px; background: #C63A26; color: #FFFFFF; font-size: 18px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">Ask a grown-up</div>
+                  </div>
+                </sc-if>
+
+                <div style="display: flex; align-items: center; gap: 14px; margin-top: 18px;">
+                  <div onClick="{{ stepBack }}" style="height: 70px; padding: 0 26px; border-radius: 35px; background: #EAF4FF; color: #0B5CA5; font-size: 21px; font-weight: 800; display: flex; align-items: center; gap: 9px; cursor: pointer;"><span class="msr" style="font-size: 30px;">arrow_back</span>Back</div>
+                  <span style="flex: 1;"></span>
+                  <div onClick="{{ stepNext }}" style="height: 80px; padding: 0 34px; border-radius: 40px; background: {{ nextBg }}; color: {{ nextFg }}; font-size: 27px; font-weight: 800; display: flex; align-items: center; gap: 10px; cursor: pointer; box-shadow: 0 6px 0 {{ nextShadow }};"><span class="msr" style="font-size: 34px;">{{ nextIcon }}</span>{{ nextLabel }}</div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ jobIsRender }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 16px; background: #FFFFFF; border-radius: 26px; padding: 20px; box-shadow: 0 6px 0 #D2E5F6;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                  <div style="width: 94px; height: 94px; flex: 0 0 94px; border-radius: 28px; background: #FFF3D0; color: #C98F00; display: grid; place-items: center; animation: bob 1.8s ease-in-out infinite;"><span class="msr" style="font-size: 54px;">brush</span></div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 30px; font-weight: 800;">{{ renderTitle }}</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #34526E;">{{ renderWhere }}</div>
+                  </div>
+                  <div style="font-size: 52px; font-weight: 800; color: #34B44A;">{{ percentLabel }}</div>
+                </div>
+                <div style="margin-top: 16px; height: 38px; border-radius: 19px; background: #DCEBF8; overflow: hidden;">
+                  <div style="height: 100%; width: {{ renderWidth }}; border-radius: 19px; background-color: #34B44A; background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.32) 0 12px, transparent 12px 24px); background-size: 36px 100%; animation: stripe 0.9s linear infinite;"></div>
+                </div>
+                <div style="margin-top: 7px; display: flex; gap: 14px; font-family: 'Roboto Mono', monospace; font-size: 16px; color: #5B7793;"><div>{{ tilesLabel }}</div><div>·</div><div>{{ throughputLabel }}</div><div>·</div><div>{{ etaLabel }}</div></div>
+                <div style="margin-top: 16px; display: flex; align-items: center; gap: 11px;">
+                  <div style="font-size: 20px; font-weight: 800;">Speed</div>
+                  <sc-for list="{{ speeds }}" as="sp" hint-placeholder-count="5">
+                    <div onClick="{{ sp.pick }}" title="{{ sp.label }}" style="width: 70px; height: 62px; border-radius: 20px; display: grid; place-items: center; cursor: pointer; background: {{ sp.bg }}; border: 4px solid {{ sp.border }}; color: {{ sp.ink }};"><span class="msr" style="font-size: 32px;">{{ sp.icon }}</span></div>
+                  </sc-for>
+                  <span style="flex: 1;"></span>
+                  <div onClick="{{ askStop }}" style="height: 66px; padding: 0 22px; border-radius: 33px; background: #FFECE8; color: #C63A26; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 9px; cursor: pointer;"><span class="msr" style="font-size: 30px;">stop_circle</span>Stop</div>
+                  <div onClick="{{ finishRender }}" style="height: 66px; padding: 0 24px; border-radius: 33px; background: #1177D1; color: #FFFFFF; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 9px; cursor: pointer; box-shadow: 0 6px 0 #0B5CA5;"><span class="msr" style="font-size: 30px;">fast_forward</span>Jump to the end</div>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+              <sc-for list="{{ jobRows }}" as="row" hint-placeholder-count="6">
+                <div onClick="{{ row.act }}" style="display: flex; align-items: center; gap: 13px; background: #FFFFFF; border-radius: 22px; padding: 14px 16px; cursor: pointer; box-shadow: 0 5px 0 #D2E5F6;" style-hover="background: #F6FBFF;">
+                  <div style="width: 58px; height: 58px; flex: 0 0 58px; border-radius: 18px; background: {{ row.tint }}; color: {{ row.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 32px;">{{ row.icon }}</span></div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 21px; font-weight: 800;">{{ row.kid }}</div>
+                    <div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ row.name }}</div>
+                  </div>
+                  <div style="font-family: 'Roboto Mono', monospace; font-size: 14px; color: #5B7793; text-align: right;">{{ row.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{ jobHasConsole }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 14px; background: #0B3C68; border-radius: 24px; padding: 16px 18px;">
+                <div style="display: flex; align-items: center; gap: 10px;"><span class="msr" style="font-size: 26px; color: #9CC8EA;">terminal</span><div style="font-size: 21px; font-weight: 800; color: #FFFFFF;">What the engine is saying</div></div>
+                <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 11px;">
+                  <sc-for list="{{ consoleLines }}" as="ln" hint-placeholder-count="5">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                      <span class="msr" style="font-size: 20px; color: {{ ln.ink }};">{{ ln.icon }}</span>
+                      <div style="font-family: 'Roboto Mono', monospace; font-size: 14px; color: #CFE6F8; flex: 1;">{{ ln.text }}</div>
+                      <div style="font-size: 16px; font-weight: 700; color: #9CC8EA;">{{ ln.means }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isMap }}" hint-placeholder-val="{{ false }}">
+        <div style="height: 100%; position: relative; background: #061B2E;">
+          <img src="assets/map-render.png" alt="The rendered world" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;" />
+          <div style="position: absolute; top: 16px; left: 16px; display: flex; gap: 12px;">
+            <div onClick="{{ toggleMapMenu }}" style="width: 74px; height: 74px; border-radius: 24px; background: #FFFFFF; color: #1177D1; display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 0 rgba(0,0,0,0.35);"><span class="msr" style="font-size: 42px;">menu</span></div>
+            <div onClick="{{ openServers }}" style="height: 74px; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-radius: 24px; background: #FFFFFF; cursor: pointer; box-shadow: 0 6px 0 rgba(0,0,0,0.35);">
+              <span class="msr" style="font-size: 34px; color: #1177D1;">public</span>
+              <div><div style="font-size: 22px; font-weight: 800;">{{ mapName }}</div><div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ mapMeta }}</div></div>
+              <span class="msr" style="font-size: 30px; color: #5B7793;">expand_more</span>
+            </div>
+          </div>
+          <div style="position: absolute; top: 16px; right: 16px; display: flex; align-items: center; gap: 8px; height: 74px; padding: 0 12px; border-radius: 24px; background: #FFFFFF; box-shadow: 0 6px 0 rgba(0,0,0,0.35);">
+            <div onClick="{{ toggleDayNight }}" title="{{ dayNightTitle }}" style="width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; cursor: pointer; background: {{ dayBg }}; color: {{ dayFg }};"><span class="msr" style="font-size: 32px;">{{ dayIcon }}</span></div>
+            <sc-for list="{{ viewModes }}" as="vm" hint-placeholder-count="3">
+              <div onClick="{{ vm.pick }}" title="{{ vm.title }}" style="width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; cursor: pointer; background: {{ vm.bg }}; color: {{ vm.fg }};"><span class="msr" style="font-size: 32px;">{{ vm.icon }}</span></div>
+            </sc-for>
+            <div onClick="{{ resetCamera }}" title="Put the camera back" style="width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; color: #1177D1; cursor: pointer;"><span class="msr" style="font-size: 32px;">recenter</span></div>
+            <div style="display: flex; gap: 6px; font-family: 'Roboto Mono', monospace; font-size: 15px;">
+              <div style="height: 52px; min-width: 72px; padding: 0 10px; border-radius: 16px; background: #EAF4FF; display: flex; align-items: center; gap: 6px;"><span style="color: #5B7793;">x</span>{{ posX }}</div>
+              <div style="height: 52px; min-width: 72px; padding: 0 10px; border-radius: 16px; background: #EAF4FF; display: flex; align-items: center; gap: 6px;"><span style="color: #5B7793;">z</span>{{ posZ }}</div>
+            </div>
+            <div onClick="{{ faceNorth }}" title="Face north" style="width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; color: #1177D1; cursor: pointer;"><span class="msr" style="font-size: 34px; transform: rotate({{ compassDeg }}deg);">navigation</span></div>
+          </div>
+          <div style="position: absolute; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+            <div style="padding: 5px 12px; border-radius: 14px; background: #FFFFFF; font-family: 'Roboto Mono', monospace; font-size: 15px;">z {{ mapZoom }}</div>
+            <div onClick="{{ zoomIn }}" title="Bigger" style="width: 78px; height: 78px; border-radius: 26px; background: #FFC531; color: #4A2E00; display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 0 #C98F00;"><span class="msr" style="font-size: 46px;">add</span></div>
+            <div onClick="{{ zoomOut }}" title="Smaller" style="width: 78px; height: 78px; border-radius: 26px; background: #FFFFFF; color: #1177D1; display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 0 rgba(0,0,0,0.35);"><span class="msr" style="font-size: 46px;">remove</span></div>
+          </div>
+          <sc-if value="{{ mapMenuOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 400px; background: #FFFFFF; display: flex; flex-direction: column;">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 16px 14px 12px 20px;">
+                <div style="font-size: 26px; font-weight: 800; flex: 1;">Map menu</div>
+                <div onClick="{{ toggleMapMenu }}" style="width: 54px; height: 54px; border-radius: 18px; background: #EAF4FF; color: #1177D1; display: grid; place-items: center; cursor: pointer;"><span class="msr" style="font-size: 30px;">close</span></div>
+              </div>
+              <div style="flex: 1; overflow: auto; padding: 0 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <sc-for list="{{ mapMenuRows }}" as="row" hint-placeholder-count="9">
+                  <div onClick="{{ row.act }}" style="display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 14px; border-radius: 20px; cursor: pointer; background: {{ row.bg }};" style-hover="background: #DCEBF8;">
+                    <span class="msr" style="font-size: 30px; color: #1177D1;">{{ row.icon }}</span>
+                    <div style="flex: 1; font-size: 20px; font-weight: 700;">{{ row.label }}</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #5B7793;">{{ row.meta }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="padding: 12px 20px; font-size: 15px; font-weight: 600; color: #5B7793;">{{ engineLine }}</div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStickers }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 20px 24px 28px;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 80px; height: 80px; border-radius: 26px; background: #F1E4FF; color: #8B5CF6; display: grid; place-items: center;"><span class="msr" style="font-size: 46px;">workspace_premium</span></div>
+            <div style="flex: 1;">
+              <div style="font-size: 34px; font-weight: 800;">Sticker book</div>
+              <div style="font-size: 19px; font-weight: 600; color: #5B7793;">{{ stickerLine }}</div>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin-top: 18px;">
+            <sc-for list="{{ stickers }}" as="st" hint-placeholder-count="8">
+              <div onClick="{{ st.go }}" style="background: #FFFFFF; border-radius: 26px; padding: 15px; text-align: center; cursor: pointer; box-shadow: 0 6px 0 #D2E5F6; opacity: {{ st.opacity }};">
+                <div style="width: 88px; height: 88px; margin: 0 auto; border-radius: 44px; background: {{ st.tint }}; color: {{ st.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 50px;">{{ st.icon }}</span></div>
+                <div style="font-size: 21px; font-weight: 800; margin-top: 9px;">{{ st.kid }}</div>
+                <div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ st.name }}</div>
+                <div style="font-size: 17px; font-weight: 800; color: {{ st.stateInk }}; margin-top: 5px;">{{ st.state }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isMail }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 20px 24px 28px;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 78px; height: 78px; border-radius: 26px; background: #E7F0FF; color: #0B5CA5; display: grid; place-items: center;"><span class="msr" style="font-size: 44px;">mail</span></div>
+            <div style="flex: 1;">
+              <div style="font-size: 34px; font-weight: 800;">Messages</div>
+              <div style="font-size: 18px; font-weight: 600; color: #5B7793;">Nothing pops up over what you are doing. It waits here.</div>
+            </div>
+            <div onClick="{{ openNoticeDuration }}" style="height: 60px; padding: 0 20px; border-radius: 30px; background: #FFFFFF; color: #0B5CA5; font-size: 18px; font-weight: 800; display: grid; place-items: center; cursor: pointer; box-shadow: 0 5px 0 #D2E5F6;">How long they stay</div>
+          </div>
+          <div style="display: flex; gap: 9px; margin-top: 16px; flex-wrap: wrap;">
+            <sc-for list="{{ mailFilters }}" as="f" hint-placeholder-count="5">
+              <div onClick="{{ f.pick }}" style="height: 56px; padding: 0 18px; border-radius: 28px; background: {{ f.bg }}; color: {{ f.fg }}; font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; cursor: pointer;"><span class="msr" style="font-size: 26px;">{{ f.icon }}</span>{{ f.label }} {{ f.count }}</div>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 9px; margin-top: 11px; flex-wrap: wrap;">
+            <sc-for list="{{ mailActions }}" as="a" hint-placeholder-count="6">
+              <div onClick="{{ a.act }}" style="height: 54px; padding: 0 17px; border-radius: 27px; background: {{ a.bg }}; color: {{ a.fg }}; font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer;"><span class="msr" style="font-size: 24px;">{{ a.icon }}</span>{{ a.label }}</div>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+            <sc-for list="{{ mailRows }}" as="n" hint-placeholder-count="5">
+              <div onClick="{{ n.toggle }}" style="display: flex; align-items: center; gap: 13px; background: #FFFFFF; border-radius: 22px; padding: 13px 15px; cursor: pointer; box-shadow: 0 5px 0 #D2E5F6; border: 4px solid {{ n.border }};">
+                <div style="width: 56px; height: 56px; flex: 0 0 56px; border-radius: 18px; background: {{ n.tint }}; color: {{ n.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 32px;">{{ n.icon }}</span></div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 21px; font-weight: 800;">{{ n.kid }}</div>
+                  <div style="font-size: 16px; font-weight: 600; color: #5B7793;">{{ n.text }}</div>
+                </div>
+                <div style="font-family: 'Roboto Mono', monospace; font-size: 14px; color: #5B7793;">{{ n.time }}</div>
+                <sc-if value="{{ n.hasAction }}" hint-placeholder-val="{{ false }}">
+                  <div onClick="{{ n.act }}" style="height: 52px; padding: 0 18px; border-radius: 26px; background: #EAF4FF; color: #0B5CA5; font-size: 17px; font-weight: 800; display: grid; place-items: center;">{{ n.actionLabel }}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isGrown }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 20px 24px 28px;">
+          <sc-if value="{{ grownLocked }}" hint-placeholder-val="{{ true }}">
+            <div style="max-width: 700px; margin: 30px auto 0; background: #FFFFFF; border-radius: 28px; padding: 24px; text-align: center; box-shadow: 0 7px 0 #D2E5F6;">
+              <div style="width: 104px; height: 104px; margin: 0 auto; border-radius: 32px; background: #FFECE8; color: #C63A26; display: grid; place-items: center;"><span class="msr" style="font-size: 58px;">lock</span></div>
+              <div style="font-size: 31px; font-weight: 800; margin-top: 12px;">Grown-ups only</div>
+              <div style="font-size: 19px; font-weight: 600; color: #34526E; margin: 6px auto 0; max-width: 56ch; text-wrap: pretty;">{{ lockBlurb }}</div>
+              <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; margin-top: 18px; max-width: 380px; margin-left: auto; margin-right: auto;">
+                <sc-for list="{{ pinKeys }}" as="k" hint-placeholder-count="12">
+                  <div onClick="{{ k.press }}" style="width: 62px; height: 62px; border-radius: 20px; background: {{ k.bg }}; color: {{ k.fg }}; font-size: 24px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">{{ k.label }}</div>
+                </sc-for>
+              </div>
+              <div style="font-family: 'Roboto Mono', monospace; font-size: 22px; color: #0B5CA5; margin-top: 12px;">{{ pinMask }}</div>
+              <div style="font-size: 15px; font-weight: 600; color: #7C94AC; margin: 12px auto 0; max-width: 62ch;">{{ lockHonesty }}</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ grownOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="width: 74px; height: 74px; border-radius: 24px; background: #E7F0FF; color: #0B5CA5; display: grid; place-items: center;"><span class="msr" style="font-size: 42px;">tune</span></div>
+              <div style="flex: 1;">
+                <div style="font-size: 33px; font-weight: 800;">Grown-up room</div>
+                <div style="font-size: 18px; font-weight: 600; color: #5B7793;">{{ grownSubtitle }}</div>
+              </div>
+              <div onClick="{{ lockGrown }}" style="height: 58px; padding: 0 20px; border-radius: 29px; background: #FFFFFF; color: #C63A26; font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 5px 0 #D2E5F6;"><span class="msr" style="font-size: 26px;">lock</span>Lock again</div>
+            </div>
+
+            <div style="display: flex; gap: 9px; margin-top: 16px; flex-wrap: wrap;">
+              <sc-for list="{{ grownTabs }}" as="t" hint-placeholder-count="3">
+                <div onClick="{{ t.pick }}" style="height: 58px; padding: 0 20px; border-radius: 29px; background: {{ t.bg }}; color: {{ t.fg }}; font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px; cursor: pointer;"><span class="msr" style="font-size: 26px;">{{ t.icon }}</span>{{ t.label }} <span style="font-size: 16px; font-weight: 700; opacity: 0.7;">{{ t.count }}</span></div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{ grownIsSettings }}" hint-placeholder-val="{{ true }}">
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; margin-top: 14px;">
+                <sc-for list="{{ settingRows }}" as="s" hint-placeholder-count="8">
+                  <div onClick="{{ s.act }}" style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border-radius: 20px; padding: 13px 15px; cursor: pointer; box-shadow: 0 5px 0 #D2E5F6;" style-hover="background: #F6FBFF;">
+                    <div style="width: 54px; height: 54px; flex: 0 0 54px; border-radius: 17px; background: #EAF4FF; color: #0B5CA5; display: grid; place-items: center;"><span class="msr" style="font-size: 30px;">{{ s.icon }}</span></div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 20px; font-weight: 800;">{{ s.name }}</div>
+                      <div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ s.kid }}</div>
+                    </div>
+                    <div style="font-family: 'Roboto Mono', monospace; font-size: 13px; color: #5B7793; text-align: right; max-width: 16ch;">{{ s.value }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ grownIsConfig }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
+                <sc-for list="{{ configScreens }}" as="c" hint-placeholder-count="8">
+                  <div onClick="{{ c.pick }}" style="height: 54px; padding: 0 16px; border-radius: 18px; background: {{ c.bg }}; color: {{ c.fg }}; font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer;">{{ c.label }}<span style="font-family: 'Roboto Mono', monospace; font-size: 14px; opacity: 0.75;">{{ c.count }}</span></div>
+                </sc-for>
+              </div>
+              <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px; margin-top: 12px;">
+                <div style="background: #FFFFFF; border-radius: 22px; padding: 15px 17px; box-shadow: 0 5px 0 #D2E5F6;">
+                  <div style="font-size: 21px; font-weight: 800;">{{ configTitle }}</div>
+                  <div style="display: flex; flex-direction: column; gap: 9px; margin-top: 11px;">
+                    <sc-for list="{{ configFields }}" as="f" hint-placeholder-count="5">
+                      <div onClick="{{ f.act }}" style="display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 16px; background: #F6FBFF; cursor: pointer;" style-hover="background: #EAF4FF;">
+                        <div style="flex: 1; min-width: 0;">
+                          <div style="font-family: 'Roboto Mono', monospace; font-size: 14px; color: #0B5CA5;">{{ f.path }}</div>
+                          <div style="font-size: 16px; font-weight: 600; color: #34526E;">{{ f.doc }}</div>
+                        </div>
+                        <sc-if value="{{ f.retiles }}" hint-placeholder-val="{{ false }}">
+                          <div style="height: 36px; padding: 0 12px; border-radius: 18px; background: #FFF3D0; color: #7A5200; font-size: 15px; font-weight: 800; display: grid; place-items: center;">re-draws tiles</div>
+                        </sc-if>
+                        <div style="font-family: 'Roboto Mono', monospace; font-size: 15px; color: #12304F; min-width: 90px; text-align: right;">{{ f.value }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="background: #FFFFFF; border-radius: 22px; padding: 15px 17px; box-shadow: 0 5px 0 #D2E5F6;">
+                  <div style="font-size: 21px; font-weight: 800;">What Save will write</div>
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 11px;">
+                    <sc-for list="{{ savePlan }}" as="p" hint-placeholder-count="4">
+                      <div style="display: flex; align-items: center; gap: 9px; font-family: 'Roboto Mono', monospace; font-size: 14px; color: #34526E;"><span class="msr" style="font-size: 20px; color: #1177D1;">{{ p.icon }}</span>{{ p.file }}</div>
+                    </sc-for>
+                  </div>
+                  <div style="margin-top: 12px; font-size: 16px; font-weight: 600; color: #5B7793;">{{ saveNote }}</div>
+                  <div onClick="{{ askSave }}" style="margin-top: 12px; height: 58px; border-radius: 29px; background: #1177D1; color: #FFFFFF; font-size: 19px; font-weight: 800; display: grid; place-items: center; cursor: pointer; box-shadow: 0 5px 0 #0B5CA5;">Save</div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ grownIsShared }}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; margin-top: 14px;">
+                <sc-for list="{{ sharedRows }}" as="s" hint-placeholder-count="8">
+                  <div onClick="{{ s.act }}" style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border-radius: 20px; padding: 13px 15px; cursor: pointer; box-shadow: 0 5px 0 #D2E5F6;">
+                    <div style="width: 54px; height: 54px; flex: 0 0 54px; border-radius: 17px; background: {{ s.tint }}; color: {{ s.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 30px;">{{ s.icon }}</span></div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 20px; font-weight: 800;">{{ s.name }}</div>
+                      <div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ s.state }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      </div>
+
+      <sc-if value="{{ problemsOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 0 0 auto; background: #FFECE8; border-top: 4px solid #F3C4BA; padding: 14px 20px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="msr" style="font-size: 28px; color: #C63A26;">report</span>
+            <div style="font-size: 22px; font-weight: 800; color: #7A2314; flex: 1;">Things that need a grown-up</div>
+            <div onClick="{{ toggleProblems }}" style="width: 46px; height: 46px; border-radius: 16px; background: #FFFFFF; color: #C63A26; display: grid; place-items: center; cursor: pointer;"><span class="msr" style="font-size: 26px;">close</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+            <sc-for list="{{ problemRows }}" as="p" hint-placeholder-count="2">
+              <div style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border-radius: 18px; padding: 11px 14px;">
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 19px; font-weight: 800; color: #7A2314;">{{ p.what }}</div>
+                  <div style="font-family: 'Roboto Mono', monospace; font-size: 14px; color: #5B7793;">{{ p.where }}</div>
+                </div>
+                <div onClick="{{ p.fix }}" style="height: 52px; padding: 0 18px; border-radius: 26px; background: #C63A26; color: #FFFFFF; font-size: 17px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">{{ p.fixLabel }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ paletteOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closePalette }}" style="position: absolute; inset: 0; background: rgba(7,42,75,0.55); display: flex; align-items: flex-start; justify-content: center; padding-top: 90px; border-radius: 40px;">
+        <div style="width: 800px; background: #FFFFFF; border-radius: 30px; padding: 18px; box-shadow: 0 20px 40px rgba(0,0,0,0.35);">
+          <div style="display: flex; align-items: center; gap: 12px; height: 66px; padding: 0 16px; border-radius: 24px; background: #EAF4FF;">
+            <span class="msr" style="font-size: 32px; color: #1177D1;">search</span>
+            <div style="flex: 1; font-size: 22px; font-weight: 700; color: #12304F;">{{ paletteQuery }}</div>
+            <div style="font-family: 'Roboto Mono', monospace; font-size: 15px; color: #5B7793;">Ctrl+Shift+F</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 12px; max-height: 420px; overflow: auto;">
+            <sc-for list="{{ paletteRows }}" as="p" hint-placeholder-count="7">
+              <div onClick="{{ p.run }}" style="display: flex; align-items: center; gap: 12px; padding: 11px 13px; border-radius: 18px; cursor: pointer; background: #F6FBFF;" style-hover="background: #DCEBF8;">
+                <div style="width: 52px; height: 52px; border-radius: 17px; background: {{ p.tint }}; color: {{ p.ink }}; display: grid; place-items: center;"><span class="msr" style="font-size: 28px;">{{ p.icon }}</span></div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 20px; font-weight: 800;">{{ p.kid }}</div>
+                  <div style="font-size: 15px; font-weight: 600; color: #5B7793;">{{ p.name }}</div>
+                </div>
+                <div style="font-size: 15px; font-weight: 700; color: #7C94AC;">{{ p.where }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ gateOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; inset: 0; background: rgba(7,42,75,0.6); display: grid; place-items: center; border-radius: 40px;">
+        <div style="width: 760px; background: #FFFFFF; border-radius: 30px; padding: 22px; box-shadow: 0 20px 40px rgba(0,0,0,0.35);">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 74px; height: 74px; border-radius: 24px; background: #FFECE8; color: #C63A26; display: grid; place-items: center;"><span class="msr" style="font-size: 42px;">key</span></div>
+            <div style="flex: 1;">
+              <div style="font-size: 28px; font-weight: 800;">{{ gateTitle }}</div>
+              <div style="font-size: 18px; font-weight: 600; color: #C63A26;">{{ gateConsequence }}</div>
+            </div>
+          </div>
+          <div style="height: 150px; margin-top: 14px; border-radius: 20px; background-color: #DCEBF8; background-image: repeating-linear-gradient(45deg, rgba(17,119,209,0.14) 0 10px, transparent 10px 20px); display: grid; place-items: center; font-family: 'Roboto Mono', monospace; font-size: 14px; color: #34526E;">{{ gateArtworkAlt }}</div>
+          <div style="display: flex; gap: 12px; margin-top: 14px;">
+            <sc-for list="{{ gateKeys }}" as="k" hint-placeholder-count="2">
+              <div onClick="{{ k.turn }}" style="flex: 1; height: 74px; border-radius: 24px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; background: {{ k.bg }}; color: {{ k.fg }}; font-size: 20px; font-weight: 800;"><span class="msr" style="font-size: 30px;">{{ k.icon }}</span>{{ k.label }}</div>
+            </sc-for>
+          </div>
+          <div onClick="{{ slideGate }}" style="margin-top: 12px; height: 74px; border-radius: 37px; background: #EAF4FF; display: flex; align-items: center; padding: 0 8px; cursor: pointer;">
+            <div style="height: 58px; width: {{ gateSlideWidth }}; border-radius: 29px; background: {{ gateSlideBg }}; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: #FFFFFF; font-size: 18px; font-weight: 800;">{{ gateSlideLabel }}</div>
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 14px;">
+            <div onClick="{{ closeGate }}" style="flex: 1; height: 68px; border-radius: 34px; background: #EAF4FF; color: #0B5CA5; font-size: 20px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">Get me out</div>
+            <div onClick="{{ confirmGate }}" style="flex: 1; height: 68px; border-radius: 34px; background: {{ gateGoBg }}; color: {{ gateGoFg }}; font-size: 20px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">{{ gateGoLabel }}</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeDetail }}" style="position: absolute; inset: 0; background: rgba(7,42,75,0.5); display: flex; align-items: flex-end; justify-content: center; border-radius: 40px;">
+        <div onClick="{{ swallow }}" style="width: 100%; background: #FFFFFF; border-radius: 30px 30px 0 0; padding: 22px 26px 26px;">
+          <div style="display: flex; align-items: flex-start; gap: 14px;">
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 30px; font-weight: 800;">{{ detailKid }}</div>
+              <div style="font-size: 18px; font-weight: 600; color: #5B7793;">{{ detailName }}</div>
+            </div>
+            <div style="font-family: 'Roboto Mono', monospace; font-size: 16px; color: #0B5CA5; text-align: right; max-width: 32ch;">{{ detailValue }}</div>
+            <div onClick="{{ closeDetail }}" style="width: 64px; height: 64px; border-radius: 22px; background: #EAF4FF; color: #0B5CA5; display: grid; place-items: center; cursor: pointer;"><span class="msr" style="font-size: 34px;">close</span></div>
+          </div>
+          <div style="font-size: 19px; font-weight: 600; color: #34526E; margin-top: 8px; max-width: 84ch; text-wrap: pretty;">{{ detailNote }}</div>
+          <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
+            <sc-for list="{{ detailActions }}" as="a" hint-placeholder-count="2">
+              <div onClick="{{ a.act }}" style="height: 66px; padding: 0 24px; border-radius: 33px; background: #EAF4FF; color: #0B5CA5; font-size: 20px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">{{ a.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ celebrateOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeCelebrate }}" style="position: absolute; inset: 0; background: rgba(7,42,75,0.55); display: grid; place-items: center; border-radius: 40px;">
+        <div style="width: 620px; background: #FFFFFF; border-radius: 34px; padding: 28px; text-align: center; animation: pop 0.4s ease-out; box-shadow: 0 20px 40px rgba(0,0,0,0.35);">
+          <div style="width: 140px; height: 140px; margin: 0 auto; border-radius: 70px; background: #FFF3D0; color: #C98F00; display: grid; place-items: center;"><span class="msr" style="font-size: 80px;">emoji_events</span></div>
+          <div style="font-size: 38px; font-weight: 800; margin-top: 14px;">{{ celebrateTitle }}</div>
+          <div style="font-size: 21px; font-weight: 600; color: #34526E; margin-top: 6px;">{{ celebrateBody }}</div>
+          <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <div onClick="{{ goMap }}" style="flex: 1; height: 74px; border-radius: 37px; background: #FFC531; color: #4A2E00; font-size: 22px; font-weight: 800; display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 0 #C98F00;">Look at it</div>
+            <div onClick="{{ goStickers }}" style="flex: 1; height: 74px; border-radius: 37px; background: #EAF4FF; color: #0B5CA5; font-size: 22px; font-weight: 800; display: grid; place-items: center; cursor: pointer;">See my sticker</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+ </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;kidName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Explorer&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showXp&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;celebrations&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;labelStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;kid first&quot;,&quot;real name first&quot;,&quot;real names only&quot;],&quot;default&quot;:&quot;kid first&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const T = {
+  blue: { tint: "#E7F0FF", ink: "#0B5CA5" },
+  sun: { tint: "#FFF3D0", ink: "#C98F00" },
+  green: { tint: "#E8F7EA", ink: "#1E7A2E" },
+  grape: { tint: "#F1E4FF", ink: "#8B5CF6" },
+  red: { tint: "#FFECE8", ink: "#C63A26" },
+};
+
+/* Every row below is a real surface in design/packages/ui. kid = the 4-6 label, name = the
+   shipped English name from catalogues.ts / jobRegistry.ts / settingsSections.ts. */
+const LANDS = [
+  {
+    id: "make", kid: "Make a map", name: "Make a map", icon: "add_location_alt", tone: "blue",
+    groups: [
+      { name: "Finding a world", features: [
+        ["Build room", "The project editor", "folder_open", "155 settings", "job:projects"],
+        ["Five questions", "The guide", "waving_hand", "5 steps", "job:world"],
+        ["Find my worlds", "Project world discovery", "travel_explore", "3 folders", "job:projects"],
+        ["Which part of the world?", "Dimension detection", "public", "", "job:world"],
+        ["Really old worlds", "Legacy 1.12.2 worlds", "history", "1.12.2", "job:world"],
+        ["Bedrock worlds", "Bedrock worlds", "deployed_code", "LevelDB", "job:world"],
+      ] },
+      { name: "Setting up a render", features: [
+        ["Maps on this computer", "Projects on this machine", "folder_copy", "2 projects", "job:projects"],
+        ["Draw the bit to make", "Render mask drawing", "gesture", "3 shapes", "job:projects"],
+        ["Speed dial", "Live render speed", "speed", "5 levels", "job:world"],
+        ["Where things live", "The path field", "folder", "core.conf", "config:core"],
+        ["Do it later", "Scheduled render", "schedule", "", "job:projects"],
+      ] },
+      { name: "Where it runs", features: [
+        ["This computer or a box", "Docker or this machine", "inventory_2", "", "job:renders"],
+        ["Another computer", "Remote rendering over SSH", "lan", "", "job:renders"],
+        ["Robot helpers", "Rendering in GitHub Actions", "smart_toy", "", "job:cirender"],
+        ["Rented helpers", "Disposable cloud CI", "cloud", "", "job:cirender"],
+        ["Helper's toolbox", "CI repository setup", "source_environment", "", "job:cirender"],
+        ["Huge worlds", "Large worlds", "zoom_out_map", "961 regions", "job:renders"],
+      ] },
+      { name: "While it runs", features: [
+        ["What is being drawn", "Renders in progress", "hourglass_top", "1 running", "job:renders"],
+        ["What the engine says", "The render console", "terminal", "", "job:renders"],
+        ["Carry on later", "Resumable renders", "restart_alt", "", "job:renders"],
+        ["Change speed now", "Live speed control", "speed", "", "job:renders"],
+        ["Use the box we have", "Container offers", "inventory_2", "digest", "job:renders"],
+        ["Ones that stopped", "Interrupted renders", "timer", "", "job:renders"],
+        ["How fast is it going", "Render throughput", "monitor_heart", "62 tiles/min", "job:renders"],
+        ["Fix it for me", "Automatic repair", "healing", "", "job:renders"],
+      ] },
+      { name: "What it needs", features: [
+        ["Get the engine's Java", "Java runtime provisioning", "coffee", "Java 21", "settings:java-runtime"],
+        ["Get the other bits", "Dependency provisioning", "inventory", "verified", "settings:system-dependencies"],
+        ["Say yes to Mojang", "Mojang download consent", "gavel", "asked once", "settings:mojang-download-consent"],
+      ] },
+    ],
+  },
+  {
+    id: "maps", kid: "Your maps", name: "Your maps", icon: "layers", tone: "green",
+    groups: [
+      { name: "The list", features: [
+        ["All my maps", "Maps and servers", "dns", "4 profiles", "job:servers"],
+        ["Someone else's map", "Remote BlueMap servers", "vpn_lock", "token", "job:servers"],
+      ] },
+      { name: "The viewer", features: [
+        ["Fly around", "The viewer and its controls", "explore", "", "map:"],
+        ["Pins and flags", "Markers and marker sets", "push_pin", "3 sets", "map:markers"],
+        ["How pretty it looks", "Viewer settings", "tune", "", "map:settings"],
+        ["Map in a browser", "Server-hosted Material UI", "desktop_windows", "", "job:preview"],
+      ] },
+    ],
+  },
+  {
+    id: "share", kid: "Show people", name: "Share a map", icon: "ios_share", tone: "grape",
+    groups: [
+      { name: "Publishing", features: [
+        ["Put it on the web", "Publish to GitHub Pages", "public", "not published", "job:pages"],
+        ["Keep it secret", "Private worlds", "lock", "", "job:pages"],
+        ["Anywhere else", "Remote hosting", "cloud_upload", "", "job:pages"],
+        ["Same app on the web", "Pages feature parity", "verified", "12 proofs", "job:pages"],
+        ["Safe publishing rules", "Release workflow security", "shield", "", "job:pages"],
+      ] },
+      { name: "Without publishing", features: [
+        ["Watch it now", "Watch it live", "visibility", "serving", "job:preview"],
+      ] },
+    ],
+  },
+  {
+    id: "copy", kid: "Keep it safe", name: "Keep a copy", icon: "backup", tone: "blue",
+    groups: [
+      { name: "Sending a copy out", features: [
+        ["Make a safe copy", "Backups", "cloud_upload", "1 GiB parts", "job:backups"],
+        ["Copy that grows", "World git repository", "source_environment", "", "job:worldrepo"],
+        ["Another computer joins", "Repository adoption", "swap_horiz", "", "job:worldrepo"],
+      ] },
+      { name: "Bringing a copy in", features: [
+        ["Get a world", "World sources", "download", "verified", "job:backups"],
+        ["Get it from a computer", "SSH world sources", "lan", "", "job:backups"],
+        ["Get it from a box", "Docker world source", "inventory_2", "", "job:backups"],
+      ] },
+      { name: "History kept here", features: [
+        ["Go back in time", "Local version history", "history", "rev 41", "config:history"],
+      ] },
+    ],
+  },
+  {
+    id: "setup", kid: "Buttons & help", name: "Set up & help", icon: "tune", tone: "sun",
+    groups: [
+      { name: "Configuration", features: [
+        ["All the switches", "Settings", "settings", "18 sections", "settings:"],
+        ["Engine switches", "Options editor", "rule_settings", "8 screens · 155", "config:core"],
+        ["Who we sign in as", "GitHub CLI accounts", "account_circle", "signed in", "job:cirender"],
+      ] },
+      { name: "How the interface behaves", features: [
+        ["My tabs", "Tabbed navigation", "tab", "", "work:tab-finder"],
+        ["Where things sit", "Where the panels sit", "dock_to_left", "", "settings:surface-placement"],
+        ["Change the colours", "Appearance editors", "palette", "", "settings:display"],
+        ["Clever searching", "The regex builder", "regular_expression", "", "docs:regex-builder"],
+        ["Find anything", "Command palette", "search", "Ctrl+Shift+F", "palette:"],
+        ["My messages", "Notification centre", "mail", "2 unread", "mail:"],
+        ["Two keys first", "Super confirmation", "key", "", "docs:super-confirmation"],
+        ["Picture for big buttons", "Action-specific artwork", "image", "5 images", "docs:action-artwork"],
+        ["Bigger and easier", "Display and ease of use", "visibility", "", "settings:display"],
+        ["Day or night colours", "Theme", "brightness_6", "3 themes", "settings:display"],
+        ["How many at once", "Downloads at once", "download", "1-8", "settings:download-concurrency"],
+        ["What we call this app", "What this application is called", "edit", "Worldlens", "settings:language-and-tone"],
+      ] },
+      { name: "Language", features: [
+        ["How it talks", "Language and tone", "translate", "3 modes · 1-5", "settings:language-and-tone"],
+        ["Grown-up lock", "Shared restricted mode", "lock", "off", "settings:"],
+        ["Our own words", "Personal vocabulary", "menu_book", "file needed", "settings:vocabulary"],
+        ["Read it out loud", "Spoken narrator", "volume_up", "off", "settings:"],
+        ["Change it by clock", "Scheduled language and appearance", "alarm", "2 rules", "settings:language-and-tone"],
+      ] },
+      { name: "Shared across these apps", features: [
+        ["Shared memory desk", "Memory Console", "memory", "not in this build", "shared:console"],
+        ["Are we in sync?", "Status Hub", "desktop_windows", "not in this build", "shared:status"],
+        ["Shared engine room", "Control-plane runtime", "monitor_heart", "not in this build", "shared:runtime"],
+        ["Proof it synced", "Sync attestation", "verified", "not in this build", "shared:attestation"],
+        ["Secret keeper", "Secret intake", "key", "not in this build", "shared:secret"],
+        ["Other tools", "Tooling integrations", "lan", "not in this build", "shared:integrations"],
+        ["Shared word rules", "Shared localization contract", "translate", "", "docs:localization-contract"],
+      ] },
+      { name: "Keeping the app healthy", features: [
+        ["New versions", "Automatic updates", "system_update", "0.14.3 ready", "settings:updates"],
+        ["If it wakes up poorly", "Startup recovery", "health_and_safety", "", "settings:diagnostics"],
+        ["Moving old stuff over", "Migration", "swap_horiz", "", "settings:"],
+        ["Memory desk switches", "Memory console settings", "memory", "not in this build", "settings:render-memory"],
+      ] },
+      { name: "Reading about it", features: [
+        ["Read about it", "Docs", "menu_book", "60 articles", "job:docs"],
+        ["What changed", "Changelog viewer", "list", "versions", "job:docs"],
+        ["Word list", "Glossary", "spellcheck", "", "job:docs"],
+        ["The rules", "Licence and consent", "gavel", "accepted", "eula:"],
+        ["Show me around", "The interactive tour", "explore", "", "tour:"],
+        ["How it is drawn", "The design system", "account_tree", "", "job:docs"],
+      ] },
+    ],
+  },
+];
+
+const JOBS = [
+  ["world", "Make a map", "Five questions", "add_location_alt", "blue", true],
+  ["projects", "Projects", "Build room", "folder_open", "blue", false],
+  ["cirender", "GitHub runners", "Robot helpers", "smart_toy", "grape", false],
+  ["structures", "Structures", "Things already built", "deployed_code", "green", false],
+  ["chunker", "Convert", "Change a world's shape", "swap_horiz", "blue", false],
+  ["authenticator", "Authenticator", "Code keeper", "shield", "red", false],
+  ["locks", "Locks", "Locks list", "lock", "red", false],
+  ["support", "Support Tickets", "Ask for help", "support_agent", "sun", false],
+  ["browserExtension", "Browser downloads", "Grabbed from the web", "cloud_download", "blue", false],
+  ["renders", "Renders", "Being drawn", "hourglass_top", "green", false],
+  ["servers", "Maps and servers", "All my maps", "dns", "green", false],
+  ["pages", "Publish to Pages", "Put it on the web", "public", "grape", false],
+  ["preview", "Watch it live", "Watch it now", "visibility", "grape", false],
+  ["backups", "Backups", "Safe copies", "cloud_upload", "blue", false],
+  ["worldrepo", "World repository", "Copy that grows", "source_environment", "blue", false],
+  ["docs", "Docs", "Read about it", "menu_book", "sun", false],
+  ["ollama", "Ollama", "Talk to the robot", "robot_2", "grape", false],
+  ["memory", "Memory Console", "Shared memory desk", "memory", "red", false],
+];
+
+const JOB_BLURB = {
+  world: "Five questions and nothing is written to disk until the last one is answered.",
+  projects: "One project file at the root of a world, holding every map, storage and setting it renders with, opened on BlueMap's own generated defaults.",
+  cirender: "GitHub's machines do the work, sharded and resumable; this computer only uploads and downloads.",
+  structures: "Every structure the world already holds, each one its own small render.",
+  chunker: "Reads one world and writes a different one, with a review step before anything is written.",
+  authenticator: "One-time codes for the accounts this app signs in with, kept in the OS keychain.",
+  locks: "Every lock this machine holds, and the desk that opens the folder they live in.",
+  support: "Tickets raised from this app, with the diagnostics they carry named before they are sent.",
+  browserExtension: "Downloads captured from the browser, each one named and verified before it is used.",
+  renders: "Every render this application started, on any route, in one list, with the console for each.",
+  servers: "Every local render and every remote BlueMap server this application knows about.",
+  pages: "Preflights the real render, publishes guarded static files and verifies the public address.",
+  preview: "Serves the render off this computer's own disk so it can be watched while it is still rendering.",
+  backups: "Packs a world or a map, splits it into parts and publishes it with digests a restore can check.",
+  worldrepo: "A world kept in a git repository so it updates region by region instead of being re-zipped.",
+  docs: "Sixty articles bundled with the app; no network needed to read them.",
+  ollama: "Pull a local model, check it fits this machine, and chat with it.",
+  memory: "Capability-gated: this checkout carries no implementation, so nothing is drawn rather than faked.",
+};
+
+const JOB_ROWS = {
+  world: [["Which world?", "World folder", "folder", "heapandyville"], ["Name it", "Display name and map id", "edit", "heapandyville_overworld"], ["How fast?", "Live render speed", "speed", "Normal"], ["Where does it go?", "Map storage directory", "save", "Documents\\Worldlens\\maps"], ["Draw the bit", "Render mask drawing", "gesture", "3 shapes"], ["Say yes first", "Mojang download consent", "gavel", "asked once"]],
+  projects: [["Pick a project", "Project chooser", "folder_open", "2 here"], ["Maps in it", "Map nodes", "layers", "3 maps"], ["Where files go", "Storages", "save", "2 storages"], ["Engine switches", "Options editor", "rule_settings", "155 fields"], ["Draw the bit", "Render mask drawing", "gesture", "784 regions"], ["Do it later", "Scheduled render", "schedule", "2 rules"], ["Go back in time", "Local version history", "history", "rev 41"], ["Command line", "bluemap-cli flags", "terminal", "17 flags"]],
+  cirender: [["Sign in", "GitHub CLI accounts", "account_circle", "signed in"], ["Its toolbox", "CI repository setup", "source_environment", "ready"], ["Rented helpers", "Disposable cloud CI", "cloud", "linux + windows"], ["Watch the jobs", "Actions run watcher", "monitor_heart", "3 jobs"], ["Bring it home", "Download and register", "download", "waiting"], ["Safe rules", "Release workflow security", "shield", "checked"]],
+  structures: [["Find them", "Structure scan", "travel_explore", "18 found"], ["Draw one", "Structure render", "brush", "per structure"], ["Where it is", "Coordinates", "explore", "x/z"]],
+  chunker: [["Read this world", "Source world", "folder", "heapandyville"], ["Write that one", "Target world", "save", "new folder"], ["Read it first", "Review step", "fact_check", "must read"]],
+  authenticator: [["Add a code", "Add account", "add", "QR"], ["Codes now", "One-time codes", "pin", "30s"], ["Keep them safe", "OS keychain", "shield", "keychain"]],
+  locks: [["Locks here", "Lock list", "lock", "4 locks"], ["Open the folder", "Data folder", "folder_open", "shell"], ["Recovery desk", "Recovery", "health_and_safety", "ready"]],
+  support: [["New ticket", "Raise a ticket", "add", ""], ["What it sends", "Attached diagnostics", "fact_check", "named first"], ["My tickets", "Ticket list", "list", "1 open"]],
+  browserExtension: [["What came down", "Captured downloads", "cloud_download", "2 files"], ["Start one", "Start download", "play_circle", ""], ["When it's done", "Download complete notice", "check_circle", "no popup"]],
+  renders: [["Being drawn", "Renders in progress", "hourglass_top", "1 running"], ["How fast", "Render throughput", "monitor_heart", "62 tiles/min"], ["Change speed", "Live speed control", "speed", "Normal"], ["Ones that stopped", "Interrupted renders", "timer", "1 kept"], ["Use the box we have", "Container offers", "inventory_2", "sha256:9f2…"], ["Fix it for me", "Automatic repair", "healing", "evidence first"], ["Where it runs", "Runtime routes", "memory", "4 routes"], ["Huge worlds", "Large worlds", "zoom_out_map", "sharded"]],
+  servers: [["My maps", "Local renders", "layers", "2"], ["Someone else's", "Remote BlueMap servers", "vpn_lock", "2"], ["Add one", "Add remote server", "add", "token"], ["Open it", "Open in the viewer", "explore", ""]],
+  pages: [["Check first", "Publish preflight", "fact_check", "passed"], ["Put it up", "Publish", "public", "not published"], ["Is it really there?", "Address verification", "verified", ""], ["Keep it secret", "Private worlds", "lock", "sealed"], ["Anywhere else", "Remote hosting", "cloud_upload", "decompress on"], ["Stop hosting", "Stop hosting gate", "key", "two keys"]],
+  preview: [["Watch it now", "Live preview", "visibility", "serving"], ["Same app in a browser", "Server-hosted Material UI", "desktop_windows", "one bundle"], ["Tile caching", "Cache caveat", "info", "always shown"]],
+  backups: [["Make a copy", "Create backup", "cloud_upload", "1 GiB parts"], ["Get a world", "World sources", "download", "verified"], ["From a computer", "SSH world sources", "lan", ""], ["From a box", "Docker world source", "inventory_2", ""], ["Check it byte for byte", "Digest verification", "verified", "sha256"]],
+  worldrepo: [["Copy that grows", "Repository", "source_environment", "region by region"], ["Another computer joins", "Repository adoption", "swap_horiz", ""], ["What changed", "Region diff", "difference", ""]],
+  docs: [["All articles", "Docs", "menu_book", "60"], ["What changed", "Changelog viewer", "list", "date filter"], ["Word list", "Glossary", "spellcheck", ""], ["How it is drawn", "The design system", "account_tree", "tokens"], ["Clever searching", "The regex builder", "regular_expression", "anchored"]],
+  ollama: [["Get a model", "Pull a model", "download", ""], ["Does it fit?", "Hardware fit", "memory", "checked"], ["Chat", "Chat", "chat", ""]],
+  memory: [["Nothing is faked", "Capability gate", "block", "absent"]],
+};
+
+const SETTINGS = [
+  ["mojang-download-consent", "Mojang download consent", "Say yes to Mojang", "gavel", "asked once"],
+  ["java-runtime", "Java runtime", "The engine's Java", "coffee", "Java 21 (bundled)"],
+  ["map-storage-directory", "Where rendered maps go", "Where maps live", "save", "Documents\\Worldlens"],
+  ["world-folder", "World folder", "Where worlds live", "folder", ".minecraft\\saves"],
+  ["github-account", "GitHub account", "Who we sign in as", "account_circle", "signed in"],
+  ["language-and-tone", "Language and tone", "How it talks", "translate", "English · 3"],
+  ["display", "Display and ease of use", "Bigger and easier", "visibility", "dark · 100%"],
+  ["surface-placement", "Where the panels sit", "Where things sit", "dock_to_left", "5 classes"],
+  ["render-memory", "Render memory", "How much thinking room", "memory", "4 GiB"],
+  ["download-concurrency", "Downloads at once", "How many at once", "download", "3"],
+  ["notification-duration", "How long a notice stays", "How long messages stay", "timer", "normal"],
+  ["system-dependencies", "System dependencies", "Get the other bits", "inventory", "4 checked"],
+  ["bluemap-engine", "BlueMap engine", "Which engine", "settings_suggest", "5.11"],
+  ["updates", "Updates", "New versions", "system_update", "0.14.3 ready"],
+  ["vocabulary", "Personal vocabulary", "Our own words", "menu_book", "no file supplied"],
+  ["app-logo", "App logo", "Our picture", "image", "preset"],
+  ["history", "History", "Go back in time", "history", "restore"],
+  ["diagnostics", "Diagnostics", "If it wakes up poorly", "health_and_safety", "clean"],
+];
+
+/* What each settings section actually does, and where its own controls lead. Text taken from the
+   section's doc comment in settingsSections.ts, not invented. */
+const SETTING_NOTES = {
+  "mojang-download-consent": "One remembered answer about whether the app may download Minecraft's own client files, which the engine needs for textures and models.",
+  "java-runtime": "Provisions a suitable Java for the engine if this machine has none, without installing anything system-wide.",
+  "map-storage-directory": "Where rendered maps go. Never inside your Minecraft save.",
+  "world-folder": "Which folder worlds are looked for in, plus every launcher instance you mount.",
+  "github-account": "Which account the app acts as for Actions, Pages, backups and repositories, held in the OS keychain rather than a config file.",
+  "language-and-tone": "English, Hong Kong Cantonese and bilingual, each with its own funny-level slider from 1 to 5. Destructive, security and error copy stays accurate at every level.",
+  "display": "Interface size through page zoom, motion, the contrast theme, focus-ring thickness, smallest touch target and cursor affordance, with a live preview.",
+  "surface-placement": "One row per panel class, each viewport-bounded, keyboard movable and separately resettable.",
+  "render-memory": "How much memory the engine may use for a render.",
+  "download-concurrency": "How many parts of a world, backup or dependency are fetched at once: 1 to 8.",
+  "notification-duration": "Brief, normal, patient, or until dismissed.",
+  "system-dependencies": "Installs git, the GitHub CLI, Docker Desktop and rsync, and says what installing each one costs before the button is pressed.",
+  "bluemap-engine": "Which upstream commit and version the jars in this installation were built from.",
+  "updates": "The installed version, the last check, the feed, and a manual check. A restart is always your decision.",
+  "vocabulary": "Applied only from a private file you supply. There is no upload control and no share control, and nothing is ever collected.",
+  "app-logo": "Which shipped preset or local file is drawn as the app's own mark, with its crop, fit, focal point and background.",
+  "history": "The server-profile list's and the app settings' own version histories: browse and restore.",
+  "diagnostics": "Why a render or the web server failed to start, with the deterministic diagnosis first and the guardrailed repair second.",
+};
+
+const SETTING_ACTIONS = {
+  "mojang-download-consent": [["Read the licence", ""], ["Say yes", ""]],
+  "java-runtime": [["Check again", ""], ["Get the other bits", "settings:system-dependencies"]],
+  "map-storage-directory": [["Browse…", ""], ["Open the folder", ""]],
+  "world-folder": [["Browse…", ""], ["Find my worlds", "job:projects"]],
+  "github-account": [["Switch account", "job:cirender"]],
+  "language-and-tone": [["Funny level 1-5", ""], ["Change it by the clock", ""]],
+  "display": [["Try a bigger size", ""], ["Contrast colours", ""]],
+  "surface-placement": [["Put everything back", ""]],
+  "render-memory": [["More room", ""], ["Less room", ""]],
+  "download-concurrency": [["Fewer at once", ""], ["More at once", ""]],
+  "notification-duration": [["My messages", "mail:"]],
+  "system-dependencies": [["Fetch and verify", ""]],
+  "bluemap-engine": [["Check for a newer BlueMap", ""]],
+  "updates": [["Check now", ""], ["Restart later", ""]],
+  "vocabulary": [["Choose the file", ""], ["Read it from the private repository", ""]],
+  "app-logo": [["Choose a preset", ""], ["Use a local file", ""]],
+  "history": [["Browse revisions", "config:history"]],
+  "diagnostics": [["Show the evidence", "job:renders"]],
+};
+
+const CONFIG = [
+  ["core", "Core", "core.conf", 10, [["core.data", "Where the engine keeps its working files.", "worldlens\\data", false], ["core.render-thread-count", "How many threads the render may use.", "6", false], ["core.metrics", "Whether upstream's metrics ping is sent.", "false", false]]],
+  ["map", "Map", "maps/<id>.conf", 31, [["map.world", "The save folder this map reads.", "…\\heapandyville", true], ["map.dimension", "Which dimension of that world.", "overworld", true], ["map.render-mask", "The ordered add and subtract shapes.", "3 shapes", true], ["map.ambient-light", "How much light is added everywhere.", "0.1", true]]],
+  ["storages", "Storages", "storages/<id>.conf", 10, [["storage.type", "File storage or SQL.", "file", false], ["storage.compression", "How tiles are compressed.", "gzip", true]]],
+  ["webapp", "Web app", "webapp.conf", 20, [["webapp.enabled", "Whether the viewer is written out.", "true", false], ["webapp.use-cookies", "Whether the viewer remembers a visitor.", "true", false]]],
+  ["webserver", "Web server", "webserver.conf", 8, [["webserver.port", "The port the built-in server listens on.", "8100", false], ["webserver.ip", "Which address it binds to.", "0.0.0.0", false]]],
+  ["plugin", "Server plugin", "plugin.conf", 12, [["plugin.live-updates", "Whether players show live.", "true", false], ["plugin.skin-download", "Whether skins are fetched.", "true", false]]],
+  ["cli", "Command line", "bluemap-cli", 17, [["-r", "Render the maps.", "on", true], ["-g", "Inside a render this forces regeneration.", "resolved", false], ["-w", "Start the web server.", "off", false]]],
+  ["history", "History", "git history", 41, [["rev", "The revision this save will commit.", "rev 42", false]]],
+];
+
+const SHARED = [
+  ["Memory Console", "Not in this build — nothing faked", "memory", "red"],
+  ["Status Hub", "Not in this build — nothing faked", "desktop_windows", "red"],
+  ["Control-plane runtime", "Not in this build — nothing faked", "monitor_heart", "red"],
+  ["Sync attestation", "Not in this build — nothing faked", "verified", "red"],
+  ["Secret intake", "Guarded intake + keychain boundary", "key", "blue"],
+  ["Tooling integrations", "Sanitized surface only", "lan", "blue"],
+  ["Shared localization contract", "Published contract", "translate", "green"],
+  ["Shared restricted mode", "Off · renamable · shared record", "lock", "sun"],
+];
+
+const STICKERS = [
+  ["First map", "Publish to GitHub Pages", "map", true],
+  ["Speed racer", "Live render speed", "speed", true],
+  ["Safe keeper", "Backups", "cloud_upload", true],
+  ["Pin dropper", "Markers and marker sets", "push_pin", true],
+  ["Map maker", "Renders in progress", "brush", false],
+  ["World finder", "Project world discovery", "travel_explore", false],
+  ["Sharer", "Publish to GitHub Pages", "public", false],
+  ["Fixer", "Automatic repair", "healing", false],
+];
+
+const NOTICES = [
+  ["Your map is being drawn", "Rendering heapandyville · overworld, 41% done", "brush", "green", "info", "12:04", "Open the console", "job:renders"],
+  ["A grown-up needs to say yes", "Mojang download consent has not been answered", "gavel", "red", "error", "12:01", "Open settings", "settings:mojang-download-consent"],
+  ["New version ready", "0.14.3 downloaded and its package hashes check out", "system_update", "blue", "info", "11:47", "Restart later", "settings:updates"],
+  ["A render stopped", "One interrupted render kept its finished tiles", "timer", "sun", "warning", "10:22", "Resume it", "job:renders"],
+  ["Backup finished", "3 parts published, digests verified", "cloud_upload", "green", "info", "09:15", "", ""],
+];
+
+const PALETTE = [
+  ["Make a new map", "The guide", "waving_hand", "job:world"],
+  ["Build room", "The project editor", "folder_open", "job:projects"],
+  ["Look at my map", "The viewer and its controls", "public", "map:"],
+  ["What is being drawn", "Renders in progress", "hourglass_top", "job:renders"],
+  ["Put it on the web", "Publish to GitHub Pages", "public", "job:pages"],
+  ["Make a safe copy", "Backups", "cloud_upload", "job:backups"],
+  ["All the switches", "Settings", "settings", "settings:"],
+  ["Engine switches", "Options editor", "rule_settings", "config:core"],
+  ["My messages", "Notification centre", "mail", "mail:"],
+  ["Read about it", "Docs", "menu_book", "job:docs"],
+  ["Show me around", "The interactive tour", "explore", "tour:"],
+  ["My tabs", "Tabbed navigation", "tab", "work:tab-finder"],
+];
+
+const SPEEDS = [["Sleepy", "bedtime"], ["Slow", "directions_walk"], ["Normal", "directions_run"], ["Fast", "rocket_launch"], ["Turbo", "bolt"]];
+const VIEW_MODES = [["perspective", "3D", "deployed_code"], ["flat", "Flat", "grid_on"], ["free", "Fly", "flight"]];
+const MAP_MENU = [["Maps", "layers", "3"], ["Markers", "push_pin", "3 sets"], ["Players", "group", "live"], ["Day or night", "brightness_6", ""], ["How pretty it looks", "tune", ""], ["Pins I dropped", "push_pin", "2"], ["Copy where I am", "content_copy", "x/z"], ["Face north", "navigation", ""], ["Put the camera back", "recenter", ""]];
+const CONSOLE = [["Loading resource packs…", "getting the blocks ready", "inventory", "#9CC8EA"], ["Rendering tile 394/961", "drawing your map", "brush", "#7BD86B"], ["Cache size 1024 MiB", "how much it remembers", "memory", "#9CC8EA"], ["WARN Region r.-1.2 unreadable, skipped", "one bit was broken, we skipped it", "warning", "#FFC531"], ["Tiles per minute: 62", "how fast it is going", "monitor_heart", "#9CC8EA"]];
+
+class Component extends DCLogic {
+  state = {
+    view: "home", landId: "make", jobId: "renders",
+    openJobs: ["world", "projects", "renders", "docs"],
+    xp: 340, level: 4,
+    percent: 41, running: true,
+    mapMenuOpen: false, day: true, mode: "perspective", zoom: 3, compass: 0, x: 128, z: -64,
+    speed: 2, narrator: false,
+    palette: false, problems: false, regex: false, regexPattern: "heap.*", flags: { i: true, m: false, s: false },
+    gate: null, gateKeys: [false, false], gateSlide: 0,
+    celebrate: false, mailFilter: "All", selected: [], read: [2, 4],
+    grownUnlocked: false, pin: "", grownTab: "settings", configScreen: "map",
+    search: "", searchFocused: false, step: 1, detail: null,
+  };
+
+  set(patch) { this.setState(patch); }
+
+  /* Every row opens the real surface it names. When the surface is a control rather than a
+     destination, it opens here: the shipped name, its current value, and its own actions. */
+  openDetail(kid, name, value, note, actions) {
+    this.set({ detail: { kid: kid, name: name, value: value, note: note, actions: actions || [] } });
+  }
+
+  tone(name) { return T[name] || T.blue; }
+
+  go(spec) {
+    const [kind, arg] = String(spec || "").split(":");
+    this.set({ detail: null });
+    if (kind === "job") {
+      const open = this.state.openJobs.includes(arg) ? this.state.openJobs : this.state.openJobs.concat([arg]);
+      this.set({ view: "job", jobId: arg, openJobs: open });
+    } else if (kind === "map") this.set({ view: "map", mapMenuOpen: arg === "markers" || arg === "settings" });
+    else if (kind === "settings") this.set({ view: "grown", grownTab: "settings" });
+    else if (kind === "config") this.set({ view: "grown", grownTab: "config", configScreen: arg || "core" });
+    else if (kind === "shared") this.set({ view: "grown", grownTab: "shared" });
+    else if (kind === "palette") this.set({ palette: true });
+    else if (kind === "mail") this.set({ view: "mail" });
+    else if (kind === "docs" || kind === "eula" || kind === "tour") {
+      const open = this.state.openJobs.includes("docs") ? this.state.openJobs : this.state.openJobs.concat(["docs"]);
+      this.set({ view: "job", jobId: "docs", openJobs: open });
+    } else if (kind === "work") this.set({ view: "job" });
+    else this.set({ view: "home" });
+  }
+
+  railItem(id, label, icon, badge) {
+    const active = (id === "home" && this.state.view === "home") || (id === "map" && this.state.view === "map") ||
+      (id === "jobs" && this.state.view === "job") || (id === "stickers" && this.state.view === "stickers") ||
+      (id === "mail" && this.state.view === "mail") || (id === "grown" && this.state.view === "grown");
+    return {
+      label, icon, badge: badge || 0,
+      bg: active ? "#FFC531" : "rgba(255,255,255,0.12)",
+      fg: active ? "#4A2E00" : "#DCEBF8",
+      go: () => {
+        /* Leaving a screen closes the sheet that belonged to it. */
+        if (id === "home") this.set({ view: "home", detail: null });
+        if (id === "map") this.set({ view: "map", detail: null });
+        if (id === "jobs") this.set({ view: "job", detail: null });
+        if (id === "stickers") this.set({ view: "stickers", detail: null });
+        if (id === "find") this.set({ palette: true, detail: null });
+        if (id === "mail") this.set({ view: "mail", detail: null });
+        if (id === "grown") this.set({ view: "grown", detail: null });
+      },
+    };
+  }
+
+  currentLand() { return LANDS.find((l) => l.id === this.state.landId) || LANDS[0]; }
+  landFeatureCount(land) { return land.groups.reduce((n, g) => n + g.features.length, 0); }
+  currentJob() { return JOBS.find((j) => j[0] === this.state.jobId) || JOBS[9]; }
+
+  matches(text) {
+    const q = this.state.search.trim();
+    if (q === "") return true;
+    try { return new RegExp(this.state.regex ? this.state.regexPattern : q, this.state.flags.i ? "i" : "").test(text); }
+    catch (e) { return text.toLowerCase().indexOf(q.toLowerCase()) >= 0; }
+  }
+
+  award(title, body) { this.set({ celebrate: true, celebrateTitle: title, celebrateBody: body, xp: this.state.xp + 50 }); }
+
+  renderVals() {
+    const s = this.state;
+    const land = this.currentLand();
+    const landTone = this.tone(land.tone);
+    const job = this.currentJob();
+    const jobTone = this.tone(job[4]);
+    const unread = NOTICES.filter((n, i) => s.read.indexOf(i) < 0).length;
+    const totalFeatures = LANDS.reduce((n, l) => n + this.landFeatureCount(l), 0);
+    const cfg = CONFIG.find((c) => c[0] === s.configScreen) || CONFIG[0];
+
+    return {
+      /* chrome */
+      railTop: [
+        this.railItem("home", "Home", "cottage", 0),
+        this.railItem("map", "Explore", "public", 0),
+        this.railItem("jobs", "My jobs", "construction", s.openJobs.length),
+        this.railItem("stickers", "Stickers", "workspace_premium", 0),
+      ],
+      railBottom: [
+        this.railItem("find", "Find anything", "search", 0),
+        this.railItem("mail", "Messages", "mail", unread),
+        this.railItem("grown", "Grown-ups only", s.grownUnlocked ? "lock_open" : "lock", 0),
+      ],
+      level: s.level, xpWidth: Math.min(100, (s.xp % 500) / 5) + "%",
+      xpLabel: (s.xp % 500) + " of 500 XP to level " + (s.level + 1),
+      kidName: "Explorer",
+      running: s.running, runningLabel: s.percent + "%", renderWidth: s.percent + "%",
+      hasProblems: true, problemCount: 2, problemsOpen: s.problems,
+      updateReady: true,
+      narratorBg: s.narrator ? "#FFC531" : "#EAF4FF", narratorFg: s.narrator ? "#4A2E00" : "#0B5CA5",
+      narratorIcon: s.narrator ? "volume_up" : "volume_off",
+      toggleNarrator: () => this.set({ narrator: !s.narrator }),
+      goHome: () => this.set({ view: "home" }), goMap: () => this.set({ view: "map" }),
+      goStickers: () => this.set({ view: "stickers" }),
+      openRenders: () => this.go("job:renders"), openProjects: () => this.go("job:projects"),
+      openGuide: () => this.go("job:world"), openServers: () => this.go("job:servers"),
+      openUpdates: () => this.go("settings:updates"),
+      openMojang: () => this.go("settings:mojang-download-consent"), openNoticeDuration: () => this.go("settings:notification-duration"),
+      toggleProblems: () => this.set({ problems: !s.problems }),
+
+      /* views */
+      isHome: s.view === "home", isLand: s.view === "land", isJob: s.view === "job",
+      isMap: s.view === "map", isStickers: s.view === "stickers", isMail: s.view === "mail", isGrown: s.view === "grown",
+
+      /* home */
+      lands: LANDS.map((l) => {
+        const t = this.tone(l.tone);
+        /* Two catalogues already read as kid language, so the second line would repeat itself. */
+        return { kid: l.kid, name: l.kid === l.name ? "" : l.name, icon: l.icon, tint: t.tint, ink: t.ink,
+          count: this.landFeatureCount(l), open: () => this.set({ view: "land", landId: l.id, search: "" }) };
+      }),
+      liveRows: [
+        { kid: "Being drawn", name: "Renders in progress", icon: "hourglass_top", meta: "394 / 961 tiles", bg: "#E8F7EA", ink: "#1E7A2E", go: () => this.go("job:renders") },
+        { kid: "Watch it now", name: "Watch it live", icon: "visibility", meta: "serving on :8100", bg: "#F1E4FF", ink: "#8B5CF6", go: () => this.go("job:preview") },
+        { kid: "Safe copy", name: "Backups", icon: "cloud_upload", meta: "3 parts verified", bg: "#E7F0FF", ink: "#0B5CA5", go: () => this.go("job:backups") },
+        { kid: "Robot helpers", name: "Rendering in GitHub Actions", icon: "smart_toy", meta: "3 jobs queued", bg: "#FFF3D0", ink: "#C98F00", go: () => this.go("job:cirender") },
+      ],
+      myMaps: [
+        { name: "heapandyville", meta: "overworld · on this computer", icon: "layers", open: () => this.set({ view: "map" }) },
+        { name: "heapandyville", meta: "the nether · on this computer", icon: "local_fire_department", open: () => this.set({ view: "map" }) },
+        { name: "bayville", meta: "someone else's server", icon: "vpn_lock", open: () => this.go("job:servers") },
+      ],
+
+      /* land page */
+      landKid: land.kid, landName: land.name, landIcon: land.icon, landTint: landTone.tint, landInk: landTone.ink,
+      landCount: this.landFeatureCount(land),
+      searchText: s.search === "" ? (s.searchFocused ? "|" : "Look for something…") : s.search,
+      searchFg: s.search === "" ? "#7C94AC" : "#12304F",
+      typeSearch: () => this.set({ searchFocused: true, search: s.search === "" ? "map" : "" }),
+      toggleRegex: () => this.set({ regex: !s.regex }),
+      regexOpen: s.regex, regexBg: s.regex ? "#1177D1" : "#EAF4FF", regexFg: s.regex ? "#FFFFFF" : "#0B5CA5",
+      regexPattern: s.regexPattern,
+      regexMatches: LANDS.reduce((n, l) => n + l.groups.reduce((m, g) => m + g.features.filter((f) => this.matches(f[0] + " " + f[1])).length, 0), 0) + " matches",
+      regexTokens: [[".*", "anything"], ["^", "starts"], ["$", "ends"], ["\\d", "a number"], ["[abc]", "one of"], ["(a|b)", "either"]].map((t) => ({
+        token: t[0], what: t[1], add: () => this.setState((st) => ({ regexPattern: st.regexPattern + t[0] })),
+      })),
+      regexFlags: [["i", "i"], ["m", "m"], ["s", "s"]].map((f) => ({
+        label: "flag " + f[0], bg: s.flags[f[1]] ? "#1177D1" : "#EAF4FF", fg: s.flags[f[1]] ? "#FFFFFF" : "#0B5CA5",
+        toggle: () => this.setState((st) => { const next = Object.assign({}, st.flags); next[f[1]] = !next[f[1]]; return { flags: next }; }),
+      })),
+      landGroups: land.groups.map((g) => {
+        const rows = g.features.filter((f) => this.matches(f[0] + " " + f[1]));
+        return { name: g.name, count: rows.length + " of " + g.features.length, features: rows.map((f) => {
+          const t = this.tone(land.tone);
+          return { kid: f[0], name: f[1], icon: f[2], meta: f[3], tint: t.tint, ink: t.ink, open: () => this.go(f[4]) };
+        }) };
+      }),
+
+      /* jobs */
+      jobChips: s.openJobs.map((id) => {
+        const j = JOBS.find((x) => x[0] === id) || JOBS[0];
+        const active = id === s.jobId;
+        return { label: j[2], icon: j[3], pinned: j[5], closable: !j[5],
+          bg: active ? "#EAF4FF" : "#FFFFFF", fg: active ? "#12304F" : "#5B7793",
+          select: () => this.set({ view: "job", jobId: id }),
+          close: () => this.set({ openJobs: s.openJobs.filter((x) => x !== id), jobId: s.jobId === id ? (s.openJobs.filter((x) => x !== id)[0] || "world") : s.jobId }) };
+      }),
+      hiddenTabs: (JOBS.length - s.openJobs.length) + " more",
+      openTabFinder: () => this.set({ palette: true }),
+      openTabDock: () => this.go("settings:surface-placement"),
+      jobKid: job[2], jobName: job[1], jobIcon: job[3], jobTint: jobTone.tint, jobInk: jobTone.ink,
+      jobBlurb: JOB_BLURB[job[0]] || "",
+      jobIsWizard: job[0] === "world", jobIsRender: job[0] === "renders",
+      jobHasConsole: job[0] === "renders" || job[0] === "cirender",
+      jobRows: (JOB_ROWS[job[0]] || []).map((r) => ({
+        kid: r[0], name: r[1], icon: r[2], value: r[3], tint: jobTone.tint, ink: jobTone.ink,
+        act: () => {
+          if (r[1] === "Options editor" || r[1] === "bluemap-cli flags") this.go("config:core");
+          else if (r[1].indexOf("consent") >= 0) this.go("settings:mojang-download-consent");
+          else if (r[1] === "Local version history") this.go("config:history");
+          else if (r[1] === "Render mask drawing") this.openDetail(r[0], r[1], r[3], "Ordered adds and subtracts over measured region bounds and the real overworld spawn. Same result here, in the CLI and in Actions.", [["Draw a shape", ""], ["Cut one out", ""], ["Open the map node", "job:projects"]]);
+          else if (r[1] === "Live render speed" || r[1] === "Live speed control") this.openDetail(r[0], r[1], SPEEDS[s.speed][0], "One dial over several raw engine settings, changeable while a render runs.", [["Open the render", "job:renders"]]);
+          else if (r[1] === "Options editor") this.go("config:core");
+          else this.openDetail(r[0], r[1], r[3], JOB_BLURB[job[0]] || "", [["Open " + job[1], "job:" + job[0]]]);
+        },
+      })),
+      steps: [["World", "folder"], ["Name", "edit"], ["How", "speed"], ["Where", "save"], ["Go", "play_circle"]].map((st, i) => ({
+        label: st[0], icon: st[1], go: () => this.set({ step: i + 1 }),
+        bg: s.step === i + 1 ? "#1177D1" : (s.step > i + 1 ? "#E8F7EA" : "#FFFFFF"),
+        fg: s.step === i + 1 ? "#FFFFFF" : (s.step > i + 1 ? "#1E7A2E" : "#5B7793"),
+      })),
+      renderTitle: s.percent >= 100 ? "Your map is ready!" : "Drawing your map…",
+      renderWhere: "heapandyville · overworld · on this computer",
+      percentLabel: s.percent + "%",
+      tilesLabel: Math.round(961 * s.percent / 100) + " / 961 tiles",
+      throughputLabel: "62 tiles/min", etaLabel: Math.max(0, Math.round((100 - s.percent) * 0.15)) + " min left",
+      speeds: SPEEDS.map((sp, i) => ({
+        label: sp[0], icon: sp[1], pick: () => this.set({ speed: i }),
+        bg: s.speed === i ? "#FFF3D0" : "#FFFFFF", border: s.speed === i ? "#FFC531" : "#DCEBF8",
+        ink: s.speed === i ? "#C98F00" : "#5B7793",
+      })),
+      askStop: () => this.set({ gate: "stop", gateKeys: [false, false], gateSlide: 0 }),
+      finishRender: () => { this.set({ percent: 100, running: false }); this.award("Map finished!", "You made heapandyville · overworld. +50 XP and a new sticker."); },
+      consoleLines: CONSOLE.map((c) => ({ text: c[0], means: c[1], icon: c[2], ink: c[3] })),
+
+      /* the guide, all five steps — the same five questions the shipped wizard asks */
+      step1: s.step === 1, step2: s.step === 2, step3: s.step === 3, step4: s.step === 4, step5: s.step === 5,
+      stepTitle: ["Which world?", "What is it called?", "How should it draw?", "Where does it go?", "Ready?"][s.step - 1],
+      stepHelp: [
+        "Point at a Minecraft save folder — the one holding level.dat. It is checked as soon as it is given, and the dimensions below come from the world itself.",
+        "The map id is what BlueMap writes into its own config. The name above it is only for people.",
+        "Every one of these has a working default. The speed dial is one control over several raw settings at once.",
+        "Every tile, the viewer's own copy of the web app and the engine's working files go under this folder. Never inside your Minecraft save.",
+        "Nothing has been written to disk yet. This is everything that will happen when you press GO.",
+      ][s.step - 1],
+      wizardWorlds: [["heapandyville", "961", "cottage"], ["bayville", "412", "location_city"], ["dim-sum-flats", "88", "apartment"]].map((w, i) => ({
+        name: w[0], regions: w[1], icon: w[2], pick: () => this.set({ world: i }),
+        bg: (s.world || 0) === i ? "#FFF3D0" : "#F6FBFF", border: (s.world || 0) === i ? "#FFC531" : "#DCEBF8",
+      })),
+      wizardDims: [["Overworld", "wb_sunny", 0], ["The Nether", "local_fire_department", 1], ["The End", "auto_awesome", 2]].map((d) => ({
+        name: d[0], icon: d[1], pick: () => this.set({ dim: d[2] }),
+        bg: (s.dim || 0) === d[2] ? "#FFF3D0" : "#F6FBFF", border: (s.dim || 0) === d[2] ? "#FFC531" : "#DCEBF8",
+        tint: "#EAF4FF", ink: "#0B5CA5",
+      })),
+      mapId: "heapandyville_overworld",
+      wizardPlaces: [["This computer", "The local runtime", "computer"], ["A box", "Docker container", "inventory_2"], ["Another computer", "Over SSH", "lan"], ["Robot helpers", "GitHub Actions", "smart_toy"]].map((p, i) => ({
+        name: p[0], meta: p[1], icon: p[2], pick: () => this.set({ place: i }),
+        bg: (s.place || 0) === i ? "#FFF3D0" : "#F6FBFF", border: (s.place || 0) === i ? "#FFC531" : "#DCEBF8",
+        tint: "#EAF4FF", ink: "#0B5CA5",
+      })),
+      wizardSummary: [
+        ["World", "heapandyville", "folder"], ["Part", ["Overworld", "The Nether", "The End"][s.dim || 0], "public"],
+        ["Speed", SPEEDS[s.speed][0], "speed"], ["Runs on", ["This computer", "A box", "Another computer", "Robot helpers"][s.place || 0], "memory"],
+        ["Goes to", "Documents\\Worldlens\\maps", "save"], ["Can carry on later", "Yes", "restart_alt"],
+      ].map((r) => ({ label: r[0], value: r[1], icon: r[2] })),
+      stepBack: () => this.set({ step: Math.max(1, s.step - 1) }),
+      stepNext: () => {
+        if (s.step < 5) { this.set({ step: s.step + 1 }); return; }
+        this.set({ step: 1, running: true, percent: 3, view: "job", jobId: "renders", openJobs: s.openJobs.indexOf("renders") >= 0 ? s.openJobs : s.openJobs.concat(["renders"]) });
+      },
+      nextLabel: s.step < 5 ? "Next" : "GO!",
+      nextIcon: s.step < 5 ? "arrow_forward" : "play_circle",
+      nextBg: s.step < 5 ? "#1177D1" : "#FFC531", nextFg: s.step < 5 ? "#FFFFFF" : "#4A2E00",
+      nextShadow: s.step < 5 ? "#0B5CA5" : "#C98F00",
+
+      /* map */
+      mapName: "heapandyville", mapMeta: "overworld · on this computer",
+      mapMenuOpen: s.mapMenuOpen, toggleMapMenu: () => this.set({ mapMenuOpen: !s.mapMenuOpen }),
+      dayIcon: s.day ? "wb_sunny" : "bedtime", dayNightTitle: s.day ? "Day" : "Night",
+      dayBg: s.day ? "#FFF3D0" : "#E7F0FF", dayFg: s.day ? "#C98F00" : "#0B5CA5",
+      toggleDayNight: () => this.set({ day: !s.day }),
+      viewModes: VIEW_MODES.map((v) => ({
+        title: v[1], icon: v[2], pick: () => this.set({ mode: v[0] }),
+        bg: s.mode === v[0] ? "#EAF4FF" : "transparent", fg: s.mode === v[0] ? "#1177D1" : "#5B7793",
+      })),
+      resetCamera: () => this.set({ x: 0, z: 0, zoom: 3 }), faceNorth: () => this.set({ compass: 0 }),
+      compassDeg: s.compass, posX: s.x, posZ: s.z, mapZoom: s.zoom,
+      zoomIn: () => this.set({ zoom: Math.min(8, s.zoom + 1) }), zoomOut: () => this.set({ zoom: Math.max(0, s.zoom - 1) }),
+      mapMenuRows: MAP_MENU.map((m) => ({
+        label: m[0], icon: m[1], meta: m[2], bg: "#EAF4FF",
+        act: () => {
+          if (m[0] === "Maps") this.go("job:servers");
+          else if (m[0] === "Day or night") this.set({ day: !s.day });
+          else if (m[0] === "Face north") this.set({ compass: 0 });
+          else if (m[0] === "Put the camera back") this.set({ x: 0, z: 0, zoom: 3 });
+          else if (m[0] === "How pretty it looks") this.openDetail(m[0], "Viewer settings", "resolution · render distance · fly speed", "Remembered per visitor rather than per install.", [["Open display settings", "settings:display"]]);
+          else if (m[0] === "Markers") this.openDetail(m[0], "Markers and marker sets", m[2], "The marker sets of the loaded map, plus the live players set.", []);
+          else if (m[0] === "Players") this.openDetail(m[0], "Live players marker set", "live", "Upstream BlueMap's own live players set, shown when the map has one.", []);
+          else if (m[0] === "Pins I dropped") this.openDetail(m[0], "Pinpoints", m[2], "Right-click loaded terrain to add one. Pinpoints are local to this machine.", []);
+          else this.openDetail(m[0], "Copy coordinates", "x " + s.x + " z " + s.z, "Copied in the viewer's own format.", []);
+        },
+      })),
+      engineLine: "Worldlens 0.14.2 · BlueMap 5.11 engine",
+
+      /* stickers */
+      stickerLine: STICKERS.filter((x) => x[3]).length + " of " + STICKERS.length + " won · every sticker is a real thing you did",
+      stickers: STICKERS.map((st) => ({
+        kid: st[0], name: st[1], icon: st[2], opacity: st[3] ? 1 : 0.45,
+        tint: st[3] ? "#FFF3D0" : "#EAF4FF", ink: st[3] ? "#C98F00" : "#9CC8EA",
+        state: st[3] ? "Won!" : "Not yet", stateInk: st[3] ? "#1E7A2E" : "#7C94AC",
+        go: () => this.go("job:renders"),
+      })),
+
+      /* mail */
+      mailFilters: [["All", "inbox", NOTICES.length], ["Problems", "error", 1], ["Careful", "warning", 1], ["News", "info", 3], ["New", "mark_email_unread", unread]].map((f) => ({
+        label: f[0], icon: f[1], count: f[2], pick: () => this.set({ mailFilter: f[0] }),
+        bg: s.mailFilter === f[0] ? "#1177D1" : "#FFFFFF", fg: s.mailFilter === f[0] ? "#FFFFFF" : "#0B5CA5",
+      })),
+      mailActions: [["Mark read", "mark_email_read"], ["Mark new", "mark_email_unread"], ["Flip picks", "flip_to_front"], ["Copy", "content_copy"], ["Save as file", "download"], ["Throw away", "delete"]].map((a) => ({
+        label: a[0], icon: a[1], bg: s.selected.length ? "#FFFFFF" : "#F0F5FA", fg: s.selected.length ? "#0B5CA5" : "#A9BDCE",
+        act: () => { if (a[0] === "Mark read") this.set({ read: NOTICES.map((n, i) => i) }); else if (a[0] === "Mark new") this.set({ read: [] }); else if (a[0] === "Throw away") this.set({ selected: [] }); },
+      })),
+      mailRows: NOTICES.filter((n) => s.mailFilter === "All" || (s.mailFilter === "Problems" && n[4] === "error") || (s.mailFilter === "Careful" && n[4] === "warning") || (s.mailFilter === "News" && n[4] === "info") || (s.mailFilter === "New" && s.read.indexOf(NOTICES.indexOf(n)) < 0)).map((n) => {
+        const i = NOTICES.indexOf(n); const t = this.tone(n[3]);
+        return { kid: n[0], text: n[1], icon: n[2], tint: t.tint, ink: t.ink, time: n[5],
+          border: s.selected.indexOf(i) >= 0 ? "#1177D1" : "transparent",
+          hasAction: n[6] !== "", actionLabel: n[6], act: () => this.go(n[7]),
+          toggle: () => this.setState((st) => ({ selected: st.selected.indexOf(i) >= 0 ? st.selected.filter((x) => x !== i) : st.selected.concat([i]) })) };
+      }),
+
+      /* grown-up room */
+      grownLocked: !s.grownUnlocked, grownOpen: s.grownUnlocked,
+      lockBlurb: "This is where the switches live. A grown-up types the shared code to come in. It is the same code across all these apps.",
+      lockHonesty: "This lock keeps a child out of the settings. It is not security: deleting the shared record on this machine clears it, and that is on purpose.",
+      pinKeys: "1234567890".split("").concat(["⌫", "OK"]).map((k) => ({
+        label: k, bg: k === "OK" ? "#1177D1" : "#EAF4FF", fg: k === "OK" ? "#FFFFFF" : "#0B5CA5",
+        /* Read state at click time, not from the render snapshot: a child mashing the keypad
+           fires several presses inside one tick, and a snapshot loses all but the last. */
+        press: () => {
+          if (k === "⌫") this.setState((st) => ({ pin: st.pin.slice(0, -1) }));
+          else if (k === "OK") this.setState((st) => ({ grownUnlocked: st.pin.length >= 4, pin: "" }));
+          else this.setState((st) => ({ pin: (st.pin + k).slice(0, 6) }));
+        },
+      })),
+      pinMask: s.pin.replace(/./g, "●") || "● ● ● ●",
+      lockGrown: () => this.set({ grownUnlocked: false }),
+      grownSubtitle: SETTINGS.length + " settings sections · " + CONFIG.length + " engine screens · 155 engine fields",
+      grownTabs: [["settings", "App settings", "settings", SETTINGS.length], ["config", "Engine options", "rule_settings", "155"], ["shared", "Shared with other apps", "hub", SHARED.length]].map((t) => ({
+        label: t[1], icon: t[2], count: t[3], pick: () => this.set({ grownTab: t[0] }),
+        bg: s.grownTab === t[0] ? "#1177D1" : "#FFFFFF", fg: s.grownTab === t[0] ? "#FFFFFF" : "#0B5CA5",
+      })),
+      grownIsSettings: s.grownTab === "settings", grownIsConfig: s.grownTab === "config", grownIsShared: s.grownTab === "shared",
+      settingRows: SETTINGS.map((r) => ({
+        name: r[1], kid: r[2], icon: r[3], value: r[4],
+        act: () => this.openDetail(r[2], r[1], r[4], SETTING_NOTES[r[0]] || "", SETTING_ACTIONS[r[0]] || []),
+      })),
+      configScreens: CONFIG.map((c) => ({
+        label: c[1], count: c[3], pick: () => this.set({ configScreen: c[0] }),
+        bg: s.configScreen === c[0] ? "#1177D1" : "#FFFFFF", fg: s.configScreen === c[0] ? "#FFFFFF" : "#0B5CA5",
+      })),
+      configTitle: cfg[1] + " · " + cfg[2] + " · " + cfg[3] + " keys",
+      configFields: cfg[4].map((f) => ({
+        path: f[0], doc: f[1], value: f[2], retiles: f[3],
+        act: () => this.openDetail(f[0], cfg[1] + " · " + f[0], f[2], f[1] + (f[3] ? " Changing this throws away finished tiles." : ""), [["Put the default back", ""], ["Edit appearance…", "settings:display"]]),
+      })),
+      savePlan: [["core.conf", "description"], ["maps/heapandyville_overworld.conf", "description"], ["storages/file.conf", "description"], ["git commit rev 42", "history"]].map((p) => ({ file: p[0], icon: p[1] })),
+      saveNote: "Two changed fields re-draw tiles: 394 finished tiles would be thrown away.",
+      askSave: () => this.set({ gate: "save", gateKeys: [false, false], gateSlide: 0 }),
+      sharedRows: SHARED.map((r) => { const t = this.tone(r[3]); return {
+        name: r[0], state: r[1], icon: r[2], tint: t.tint, ink: t.ink,
+        act: () => this.openDetail(r[0], r[0], r[1], r[1].indexOf("Not in this build") === 0
+          ? "This checkout carries no implementation of it, so nothing is drawn. A status card with demo values would be a fake integration."
+          : "Present here, with its existing security and lifecycle contract preserved.", []),
+      }; }),
+
+      /* problems */
+      problemRows: [
+        { what: "A grown-up has not said yes to Mojang downloads", where: "settings · mojang-download-consent", fixLabel: "Open it", fix: () => this.go("settings:mojang-download-consent") },
+        { what: "One region file could not be read and was skipped", where: "r.-1.2.mca · render console", fixLabel: "Show me", fix: () => this.go("job:renders") },
+      ],
+
+      /* palette */
+      paletteOpen: s.palette, closePalette: () => this.set({ palette: false }),
+      paletteQuery: "Type what you want…",
+      paletteRows: PALETTE.map((p) => { const t = this.tone("blue"); return {
+        kid: p[0], name: p[1], icon: p[2], where: p[3].split(":")[0], tint: t.tint, ink: t.ink,
+        run: () => { this.set({ palette: false }); this.go(p[3]); } }; }),
+
+      /* super confirmation */
+      gateOpen: s.gate !== null,
+      gateTitle: s.gate === "save" ? "Save these engine changes?" : "Stop drawing the map?",
+      gateConsequence: s.gate === "save" ? "394 finished tiles get thrown away and drawn again." : "The map stops now. Finished tiles are kept, so it can carry on later.",
+      gateArtworkAlt: s.gate === "save" ? "action artwork: destructive config review" : "action artwork: local render speed",
+      gateKeys: [0, 1].map((i) => ({
+        label: "Key " + (i + 1), icon: s.gateKeys[i] ? "lock_open" : "key",
+        bg: s.gateKeys[i] ? "#E8F7EA" : "#EAF4FF", fg: s.gateKeys[i] ? "#1E7A2E" : "#0B5CA5",
+        turn: () => { const next = s.gateKeys.slice(); next[i] = !next[i]; this.set({ gateKeys: next }); },
+      })),
+      gateSlideWidth: (s.gateSlide ? 100 : 22) + "%",
+      gateSlideBg: s.gateSlide ? "#C63A26" : "#9CC8EA",
+      gateSlideLabel: s.gateSlide ? "All the way" : "Slide me",
+      slideGate: () => this.set({ gateSlide: s.gateSlide ? 0 : 1 }),
+      closeGate: () => this.set({ gate: null }),
+      gateGoBg: s.gateKeys[0] && s.gateKeys[1] && s.gateSlide ? "#C63A26" : "#F0D8D3",
+      gateGoFg: s.gateKeys[0] && s.gateKeys[1] && s.gateSlide ? "#FFFFFF" : "#C79E96",
+      gateGoLabel: s.gate === "save" ? "Save it" : "Stop it",
+      confirmGate: () => {
+        if (!(s.gateKeys[0] && s.gateKeys[1] && s.gateSlide)) return;
+        if (s.gate === "stop") this.set({ running: false, gate: null });
+        else this.set({ gate: null });
+      },
+
+      /* detail sheet: a control row that is not a destination opens here */
+      detailOpen: s.detail !== null,
+      detailKid: s.detail ? s.detail.kid : "",
+      detailName: s.detail ? s.detail.name : "",
+      detailValue: s.detail ? s.detail.value : "",
+      detailNote: s.detail ? s.detail.note : "",
+      detailActions: (s.detail ? s.detail.actions : []).map((a) => ({
+        label: a[0], act: () => { this.set({ detail: null }); if (a[1]) this.go(a[1]); },
+      })),
+      closeDetail: () => this.set({ detail: null }),
+      /* Taps inside the sheet must not reach the backdrop that closes it. */
+      swallow: (event) => { if (event && event.stopPropagation) event.stopPropagation(); },
+
+      /* celebration */
+      celebrateOpen: s.celebrate, celebrateTitle: s.celebrateTitle || "Nice one!",
+      celebrateBody: s.celebrateBody || "", closeCelebrate: () => this.set({ celebrate: false }),
+      totalFeatures: totalFeatures,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
