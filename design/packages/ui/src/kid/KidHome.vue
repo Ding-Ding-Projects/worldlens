@@ -30,7 +30,8 @@ import { useKidMode } from "./kidMode.js";
 
 const props = defineProps<{
     catalogues: readonly ResolvedCatalogue[];
-    renderRows: readonly { state: string; percent: number | null; label: string }[];
+    /** See `KidShell.vue`'s own doc comment on why `renderId` rides along with `label`. */
+    renderRows: readonly { state: string; percent: number | null; label: string; renderId: string }[];
     /**
      * Local renders and remote servers, from the existing profile store. `| undefined`
      * alongside the `?` for the same reason `BackupScreen.vue`'s own optional array props
@@ -57,6 +58,25 @@ const guideTarget = computed(() => findFeature("make.finding-a-world.the-guide")
 function activateByName(featureName: string): void {
     const match = props.catalogues.flatMap((catalogue) => catalogue.features).find((entry) => entry.name === featureName);
     if (match !== undefined) emit("activate", match.definition);
+}
+
+/**
+ * What a four-to-six-year-old reads for "which map/world is this row about" - never the raw
+ * technical id `activeRenders.ts` falls back to before a real name has resolved (a local render's
+ * own render id, or a CI row's sync id - see `KidShell.vue`'s own doc comment on the `renderId`
+ * prop this compares against).
+ *
+ * `row.label === row.renderId` is the exact condition under which `worldLabelOf`/`ciToRow` had
+ * nothing better to report: both functions return the id itself, verbatim, as their own fallback,
+ * so equality here can only mean "no human name yet" - never a real folder that happens to share
+ * its name with a hash-suffixed render id, which the id's own 12-hex-character tail makes
+ * astronomically unlikely on top of already being a stable, string-equal comparison rather than a
+ * guess at the id's shape. This never invents a name; it only decides whether the honest
+ * "still finding out" line replaces the id, or the real resolved label is shown as-is.
+ */
+function rowLabel(row: { label: string; renderId: string }): string {
+    if (row.label !== row.renderId) return row.label;
+    return t("kid.home.nowUnnamed", "Finding its name");
 }
 </script>
 
@@ -97,14 +117,14 @@ function activateByName(featureName: string): void {
                 <!-- Running renders first: the same rows the status strip and the Work badge read. -->
                 <button
                     v-for="row in props.renderRows"
-                    :key="row.label"
+                    :key="row.renderId"
                     class="wl-kid-home__row"
                     type="button"
                     @click="activateByName('Renders in progress')"
                 >
                     <v-icon :icon="mdiProgressClock" size="20" aria-hidden="true" />
                     <strong>{{ kidLabel("Renders in progress", KID_FEATURE_LABELS, kid.labelStyle.value).primary }}</strong>
-                    <em>{{ row.label }}</em>
+                    <em>{{ rowLabel(row) }}</em>
                     <span class="wl-kid-home__meta">{{ row.percent === null ? "…" : Math.round(row.percent) + "%" }}</span>
                 </button>
                 <p v-if="props.renderRows.length === 0">

@@ -65,7 +65,9 @@ describe("KidHome, with the dead activity prop gone", () => {
 
     it("still shows the quiet message as false the moment a real render row exists", () => {
         const wrapper = home({
-            renderRows: [{ state: "running", percent: 42, label: "overworld" }],
+            // `renderId` differs from `label`: a resolved world name, not the id fallback -
+            // see `KidHome.renderRowLabel.test.ts` for the placeholder-vs-resolved cases.
+            renderRows: [{ state: "running", percent: 42, label: "overworld", renderId: "overworld-0a974df3a729" }],
         });
 
         expect(wrapper.text()).not.toContain("Nothing is happening right now. Press GO to start something.");

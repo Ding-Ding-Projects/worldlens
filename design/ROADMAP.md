@@ -1,5 +1,24 @@
 # Roadmap
 
+## CI failed on a fully green test suite, and the real Kid Mode feature count (2026-08-15)
+
+**State: no source change; this entry records the current verified status.** CI run 31879080680 on
+`90484d6b` failed two jobs and skipped the release job as a result: `Run pnpm test:ci` failed on
+vitest's own worker-RPC heartbeat after three retries that each reported the identical
+`770 passed | 5 skipped (775)` files, `11054 passed | 18 skipped (11072)` tests — zero real test
+failures — and `Verify generated changelog is current` failed on a genuinely one-commit-stale
+`CHANGELOG.md`. The latest published release remains `v1.0.1109` (tag `729c84b8`, published
+2026-08-14T16:39:00Z), verified directly against the GitHub API and against the exact CI run
+(31818314942) whose `Publish release` job succeeded even though its overall status reads
+`cancelled` for an unrelated reason (a later push cancelled its `Screenshots` job after the release
+had already published). Full detail, evidence and next-owner actions are in `design/HANDOFF.md`.
+
+Separately: `ALL_CATALOGUE_FEATURES.length` is 84, not 85 — `catalogues.ts`'s own top-of-file doc
+comment and this repository's root `README.md` both said 85 features, for a build that has actually
+shipped 84 for a while, per `catalogues.test.ts`'s own `expect(...).toBe(84)`. `README.md` is
+corrected this session; `catalogues.ts`'s doc comment is not, and is named as an open item in
+`design/HANDOFF.md`.
+
 ## Updater, local-stream, lifecycle, and Node 26 watcher hardening (2026-08-13)
 
 The reliability pass now treats the failure modes that make a user restart work as first-class:

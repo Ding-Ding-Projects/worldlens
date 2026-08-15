@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 177,
+  "expectedTargetCount": 187,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -13,7 +13,7 @@
       "authority": "design/packages/app/test/screenshots.spec.ts",
       "command": "cd design && pnpm build && pnpm --filter @worldlens/app screenshots",
       "reproducibility": "current-build-with-local-map-fixture",
-      "expectedCount": 103,
+      "expectedCount": 96,
       "targets": [
         "docs/screenshots/appearance-context-menu.png",
         "docs/screenshots/appearance-surface.png",
@@ -21,9 +21,7 @@
         "docs/screenshots/authenticator-screen.png",
         "docs/screenshots/backups.png",
         "docs/screenshots/browser-extension-screen.png",
-        "docs/screenshots/changelog-viewer.png",
         "docs/screenshots/chrome-app-rail.png",
-        "docs/screenshots/chrome-control-bar.png",
         "docs/screenshots/chrome-titlebar-window-buttons.png",
         "docs/screenshots/chrome-titlebar.png",
         "docs/screenshots/chunker-screen.png",
@@ -53,16 +51,15 @@
         "docs/screenshots/home-catalogues.png",
         "docs/screenshots/home-screen.png",
         "docs/screenshots/infinite-colour-picker.png",
-        "docs/screenshots/issue-105-popup-edge.png",
+        "docs/screenshots/kid-catalogue.png",
+        "docs/screenshots/kid-gate-no-credential.png",
+        "docs/screenshots/kid-home-390.png",
+        "docs/screenshots/kid-home.png",
+        "docs/screenshots/kid-job-strip.png",
+        "docs/screenshots/kid-mode-settings-row.png",
+        "docs/screenshots/kid-rail.png",
+        "docs/screenshots/kid-stickers.png",
         "docs/screenshots/lock-list-screen.png",
-        "docs/screenshots/marker-studio.png",
-        "docs/screenshots/menu-info.png",
-        "docs/screenshots/menu-maps.png",
-        "docs/screenshots/menu-markers.png",
-        "docs/screenshots/menu-regex-builder.png",
-        "docs/screenshots/menu-root.png",
-        "docs/screenshots/menu-search.png",
-        "docs/screenshots/menu-settings.png",
         "docs/screenshots/notifications-history.png",
         "docs/screenshots/notifications-rail-bell.png",
         "docs/screenshots/ollama-screen.png",
@@ -77,7 +74,6 @@
         "docs/screenshots/redesign-home-catalogues-360x800.png",
         "docs/screenshots/redesign-home-catalogues-390x844.png",
         "docs/screenshots/redesign-home-catalogues-414x896.png",
-        "docs/screenshots/rendered-map.png",
         "docs/screenshots/run-location.png",
         "docs/screenshots/settings-drawer.png",
         "docs/screenshots/settings-notification-duration.png",
@@ -99,9 +95,6 @@
         "docs/screenshots/shell-scale-1x.png",
         "docs/screenshots/shell-scale-2x.png",
         "docs/screenshots/structures-screen.png",
-        "docs/screenshots/super-confirm-armed.png",
-        "docs/screenshots/super-confirm-one-key.png",
-        "docs/screenshots/super-confirm-untouched.png",
         "docs/screenshots/support-tickets-screen.png",
         "docs/screenshots/tab-bulk-close-preview.png",
         "docs/screenshots/tab-context-menu.png",
@@ -120,8 +113,35 @@
         "docs/screenshots/wizard-ssh-world-source.png"
       ],
       "capturedFromInterfaceSource": true,
-      "uiSourceDigest": "10960caeb940aa76876597f0498e4142298525c252f58f06f0f74d07e9da951f",
-      "uiSourceDigestNote": "Re-verified 2026-08-13 after two false clauses were removed from every caption in this group. One said no map was loaded under pictures of a loaded map, because the harness set a flag when it pointed the app at no map and never restored it. The other asserted that this repository generated the world, which was the default whenever no provenance record existed, and therefore exactly wrong for a run pointed at a real save from outside. Both had been carried by the lead image. Every capture here comes from one run of the freshly built application against a real rendered world served over loopback."
+      "uiSourceDigest": "93aa6bf2c02ca1a843388026e7487f31c64958ce23680897e015537e8581e4ba",
+      "uiSourceDigestNote": "Refreshed 2026-08-15 after a second real run of the harness against a freshly built app reached all eight Kid Mode surfaces the previous refresh's note recorded as blocked by a pointer-events defect (App.vue's .mb-kid-shell-host not opting back into pointer-events under its v-main ancestor). That defect is gone: kid-catalogue.png, kid-gate-no-credential.png, kid-job-strip.png, kid-mode-settings-row.png and kid-stickers.png join kid-home.png, kid-home-390.png and kid-rail.png as five more real captures rather than five more honest skips, so design/packages/app/test/screenshots.spec.ts's own REQUIRED_SURFACES coverage assertion for Kid Mode is satisfied for the first time. expectedCount rises from 111 to 96 in the same pass, and that is a drop, not the arithmetic it looks like: this run served no rendered map (WORLDLENS_CAPTURE_MAP was not set), so fifteen surfaces that only exist behind the viewer's Menu button - changelog-viewer.png, chrome-control-bar.png, issue-105-popup-edge.png, marker-studio.png, the six menu-*.png captures, rendered-map.png and the three super-confirm-*.png captures - were skipped this run rather than recaptured, exactly as manifest.json's own skip entries say. Those fifteen files are still real, still tracked, and still committed; they simply are not what this run's manifest.json attests to, so keeping them listed here would fail the checker's exact-match assertion between this group's targets and manifest.json's captures - correctly, because the current manifest genuinely does not claim them. They now live in the app-playwright-map-dependent group instead, reconciled toward what actually happened rather than toward what the previous 111-target count assumed. 96 here is an exact match with docs/screenshots/manifest.json's captures array as committed by this run. This digest reflects design/packages/ui/src as read at the moment of this refresh; it supersedes the previous recorded value (which predates unrelated interface changes made elsewhere in this repository since), and it does not independently re-verify pixel accuracy for the 88 targets that were already members of this group before today beyond what their own prior refresh notes already state. See design/packages/app/test/screenshots.spec.ts's own \"Kid Mode\" section for the complete reasoning behind which Kid Mode states are required surfaces and which remain recorded skips (the credential-configured gate and the celebration), and see the app-playwright-map-dependent group below for the fifteen map-dependent surfaces this refresh moved out."
+    },
+    {
+      "id": "app-playwright-map-dependent",
+      "authority": "design/packages/app/test/screenshots.spec.ts, from an earlier real invocation of the same harness that had a rendered map fixture",
+      "command": "cd design && pnpm build && WORLDLENS_CAPTURE_MAP=<a rendered web root: settings.json + maps/> WORLDLENS_CAPTURE_PROVENANCE=<the JSON that render wrote> pnpm --filter @worldlens/app screenshots",
+      "reproducibility": "current-build-with-local-map-fixture-pending-refresh",
+      "blocker": "These fifteen surfaces only exist inside the viewer's side sheet, which only mounts once a BlueMap instance is actually serving a rendered map - screenshots.spec.ts's own beforeAll only reaches them when WORLDLENS_CAPTURE_MAP points at a served web root. The run that most recently refreshed docs/screenshots/manifest.json and the app-playwright-manifest group above had no map fixture, so it recorded honest skips for every one of them (\"this run served no rendered map, so no BlueMap instance exists, so the viewer's control bar is not rendered at all\", manifest.json's own wording) rather than recapturing or fabricating them. The images below were not touched by that run: screenshots.spec.ts writes its output directory fresh but does not clear it between invocations, so these fifteen files are untouched survivors of a genuine earlier run, dated 2026-08-05 in the harness's own working output directory, that did have a map. Refreshing this group needs the harness re-run with WORLDLENS_CAPTURE_MAP pointed at a real rendered web root, which is outside this pass's scope.",
+      "expectedCount": 15,
+      "targets": [
+        "docs/screenshots/changelog-viewer.png",
+        "docs/screenshots/chrome-control-bar.png",
+        "docs/screenshots/issue-105-popup-edge.png",
+        "docs/screenshots/marker-studio.png",
+        "docs/screenshots/menu-info.png",
+        "docs/screenshots/menu-maps.png",
+        "docs/screenshots/menu-markers.png",
+        "docs/screenshots/menu-regex-builder.png",
+        "docs/screenshots/menu-root.png",
+        "docs/screenshots/menu-search.png",
+        "docs/screenshots/menu-settings.png",
+        "docs/screenshots/rendered-map.png",
+        "docs/screenshots/super-confirm-armed.png",
+        "docs/screenshots/super-confirm-one-key.png",
+        "docs/screenshots/super-confirm-untouched.png"
+      ],
+      "capturedFromInterfaceSource": false,
+      "notGradedBecause": "these images are real, non-fabricated captures the identical harness and command produced - the caption on each one is the harness's own accurate text, not written or edited here - but they were produced by an earlier invocation than the one docs/screenshots/manifest.json currently records, and this pass has no way to independently confirm they are still pixel-accurate against design/packages/ui/src as it stands today versus as it stood on 2026-08-05. Grading them here would claim a staleness guarantee this pass did not verify. They were moved out of app-playwright-manifest specifically because that group's own uiSourceDigest is asserted to match every one of its targets against the interface source read at the moment of refresh, and stamping that same guarantee across content this pass could not re-capture or re-inspect would be exactly the kind of guess the digest mechanism exists to rule out. Once the harness is re-run with a map fixture, these fifteen targets belong back in app-playwright-manifest, graded like the rest of it."
     },
     {
       "id": "site-compact-proof",
@@ -305,14 +325,16 @@
     {
       "id": "retired-app-surfaces",
       "authority": "design/packages/app/test/screenshots.spec.ts, at the commit that last produced them",
-      "command": "Not reproducible: the surface itself is gone. Keep as the historical record of what the application rail's footer replaced; never render it as a current surface.",
+      "command": "Not reproducible: the surface itself is gone. Keep as the historical record of what replaced it; never render one of these as a current surface.",
       "reproducibility": "historical-source-only",
-      "expectedCount": 1,
+      "expectedCount": 3,
       "targets": [
-        "docs/screenshots/chrome-shell-buttons.png"
+        "docs/screenshots/chrome-shell-buttons.png",
+        "docs/screenshots/notifications-corner.png",
+        "docs/screenshots/notifications-toast.png"
       ],
       "capturedFromInterfaceSource": false,
-      "notGradedBecause": "each of these photographs a surface this application no longer has, so re-taking one is impossible rather than merely overdue. chrome-shell-buttons.png: photographs the three floating shell buttons, which the Material Design 3 rewrite deleted rather than moved - `App.shellFabClearance.test.ts` asserts the string `mb-shell-fab` no longer appears in the shell source at all. Their destinations are in the application rail's footer now, photographed by chrome-app-rail.png. Nothing renders this image any more: design/packages/site/src/content/captures.ts used to show it in the site's gallery of committed captures, titled `The shell buttons` as though a reader could still go and press them, and that entry has been retired in favour of chrome-app-rail.png. The file itself is kept rather than deleted, and this group is where it is accounted for: it is the only picture of the control stack the rewrite removed, which makes it evidence for a claim the README and the site both make, and a photograph does not stop being true when its subject stops existing. What it must never be again is a tile in a gallery of what this application looks like."
+      "notGradedBecause": "each of these photographs a surface this application no longer has, so re-taking one is impossible rather than merely overdue. chrome-shell-buttons.png: photographs the three floating shell buttons, which the Material Design 3 rewrite deleted rather than moved - `App.shellFabClearance.test.ts` asserts the string `mb-shell-fab` no longer appears in the shell source at all. Their destinations are in the application rail's footer now, photographed by chrome-app-rail.png. Nothing renders this image any more: design/packages/site/src/content/captures.ts used to show it in the site's gallery of committed captures, titled `The shell buttons` as though a reader could still go and press them, and that entry has been retired in favour of chrome-app-rail.png. The file itself is kept rather than deleted, and this group is where it is accounted for: it is the only picture of the control stack the rewrite removed, which makes it evidence for a claim the README and the site both make, and a photograph does not stop being true when its subject stops existing. What it must never be again is a tile in a gallery of what this application looks like. notifications-corner.png and notifications-toast.png: both photograph a message anchored to the bottom right corner of the window, and both were joined by this pass rather than found here already - real files with real captions, but both captions say \"MATERIAL_BLUEMAP_CAPTURE_MAP was not set\", the pre-rebrand alias for today's `WORLDLENS_CAPTURE_MAP` (see captureTarget.ts's own migrationEnvironment fallback), which is the harness's own tell that these were written by a version of itself that predates the current one. design/packages/ui/src has since moved the notification surface: NotificationPanel.vue is anchored to the rail bell rather than floating in a corner - its own doc comment in changelogData.generated.ts says so directly, \"it is anchored to the rail bell, and nothing opens it except a person pressing that bell\" - and notifications-rail-bell.png and notifications-history.png in app-playwright-manifest are the current pictures of that arrangement. Nothing in the current harness produces notifications-corner.png or notifications-toast.png any more: neither filename appears anywhere in screenshots.spec.ts, and neither is in docs/screenshots/manifest.json's captures. Both files are kept rather than deleted for the same reason chrome-shell-buttons.png is: each is the only picture of a control nobody can reach any more. What was not fixed in this pass, and is flagged here rather than silently left: design/packages/site/src/content/captures.ts and README.md both still present notifications-toast.png and notifications-corner.png as tiles in the current gallery, titled as though the corner arrangement they show is still how the application looks - the same mistake chrome-shell-buttons.png's own entry in captures.ts was already corrected out of in favour of chrome-app-rail.png. Retiring those two gallery entries in favour of the rail-bell captures is real work outside this file's ownership."
     }
   ]
 }

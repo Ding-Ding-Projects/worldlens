@@ -46,7 +46,14 @@ const props = defineProps<{
     openJobs: readonly string[];
     problems: readonly { id: string; message: string }[];
     notices: readonly { level: string; text: string; at: string; read: boolean }[];
-    renderRows: readonly { state: string; percent: number | null; label: string }[];
+    /**
+     * `renderId` is the same id `label` itself falls back to when nothing human-readable has been
+     * resolved yet (`activeRenders.ts`'s `worldLabelOf`/`ciToRow`) - forwarded through unchanged so
+     * `KidHome` can tell "a real name" apart from "the technical id, because nothing better is
+     * known yet" without guessing at the id's shape. See `KidHome.vue`'s own doc comment on why a
+     * child is never shown the bare id either way.
+     */
+    renderRows: readonly { state: string; percent: number | null; label: string; renderId: string }[];
     renderPercent: number | null;
     /** Forwarded to `KidJobStrip` -> `WorkPane`, exactly as the adult shell already computes it. */
     runningRenderCount?: number;
@@ -253,8 +260,15 @@ defineExpose({ ensureJob, revealJob, award });
 
         <main class="wl-kid__pane">
             <header class="wl-kid__status">
+                <!--
+                    Was `<span class="wl-kid__level-badge">{{ progress.level.value }}</span>` right
+                    beside `t("kid.status.level", ...)`, which already spells out "Level {n}" - so a
+                    four-to-six-year-old read the level number twice, once bare and once inside its
+                    own sentence ("1 Level 1"). `wl-kid__level-badge` was never even given a style of
+                    its own (`KidShell.vue`'s style block has no such rule), so it was not a deliberate
+                    numeral badge either - just a leftover duplicate. One number, in one sentence.
+                -->
                 <button class="wl-kid__level" type="button" @click="view = 'stickers'">
-                    <span class="wl-kid__level-badge">{{ progress.level.value }}</span>
                     {{ t("kid.status.level", { n: String(progress.level.value) }, "Level {n}") }}
                 </button>
                 <div class="wl-kid__xp" role="progressbar" :aria-valuenow="progress.intoLevel.value" aria-valuemin="0" :aria-valuemax="500">
@@ -314,6 +328,34 @@ defineExpose({ ensureJob, revealJob, award });
 </template>
 
 <style scoped>
+/*
+ * `pointer-events: auto`, stated explicitly, is the one property standing between this shell and
+ * a build where nothing in it can be pressed - `App.vue`'s own `.mb-kid-shell-host` positions this
+ * component over the same rectangle `.mb-shell-body` fills, and that rectangle sits inside
+ * `#app .v-main`, which `styles/global.scss` sets to `pointer-events: none` on purpose: it is what
+ * keeps the map draggable through the gaps of the adult shell's own chrome. `pointer-events` is an
+ * inherited property, so that `none` was never something this component started from and had to
+ * opt out of - it was the ambient value flowing straight down through `.mb-kid-shell-host`,
+ * `.wl-kid` and every descendant all the way to the buttons a child actually presses, because
+ * nothing in this file ever said otherwise.
+ *
+ * The adult shell never hits this trap because its own non-map destinations declare the opposite
+ * explicitly at exactly this level - `App.vue`'s Home and Work layers are each
+ * `class="mb-shell-layer mb-shell-layer--home mb-interactive"` / `"mb-shell-layer mb-interactive"`
+ * - and this rule is that same opt-in, moved to the one root every kid-mode view already shares
+ * instead of repeated per destination. Without it, a real click or tap anywhere in kid mode - the
+ * rail, the catalogue tiles, the grown-up gate's own button - hit-tests straight past this entire
+ * subtree to whatever is behind it in the document, which in this app is `#map-container`
+ * (`position: fixed`, filling the viewport, a sibling of `#app` per `global.scss`'s own stacking
+ * comment). That is not a Playwright quirk: `elementFromPoint`-style hit-testing skips a
+ * `pointer-events: none` ancestor in a real browser exactly as it does in a driven one, so a real
+ * child tapping "Explore" on a fresh install - kid mode ships on by default - would have had the
+ * tap swallowed by an empty map canvas and nothing on screen would ever have responded. Found by
+ * three screenshot captures timing out with Playwright naming the interceptor outright:
+ * "<div id=map-container> intercepts pointer events".
+ *
+ * `.wl-kid__map` below is the one deliberate exception - see its own comment.
+ */
 .wl-kid {
     display: flex;
     gap: 14px;
@@ -321,6 +363,7 @@ defineExpose({ ensureJob, revealJob, award });
     padding: 14px;
     background: rgb(var(--v-theme-background));
     font-family: var(--wl-kid-font);
+    pointer-events: auto;
 }
 .wl-kid__pane {
     flex: 1;
@@ -330,6 +373,20 @@ defineExpose({ ensureJob, revealJob, award });
     overflow: hidden;
     border-radius: var(--wl-kid-radius-lg);
     background: rgb(var(--v-theme-surface));
+    /*
+     * Vuetify's own `.v-application` wrapper sets the WHOLE app's default text colour to
+     * `on-background` - white, in kid mode's scheme, because `background` is the dark navy the rail
+     * sits on. Every element inside this pane that draws text or an icon without its own explicit
+     * `color` (the catalogue tile labels, the "what this app is doing" row, panel headings, the
+     * child's own name in the status header, ...) was inheriting that ambient white straight through
+     * onto this pane's light surfaces - not a loading skeleton and not deliberate styling, just
+     * unreadable white-on-near-white. One `color` here, on the one ancestor every kid-mode screen
+     * shares, is what every un-coloured descendant should have been inheriting from the start; see
+     * `KidShell.paneColor.test.ts` for the guard, and its own doc comment for why a real packaged-app
+     * screenshot caught this and this project's own unit suite never had - jsdom does not render real
+     * CSS custom-property cascade and inheritance the way a browser paints one.
+     */
+    color: rgb(var(--v-theme-on-surface));
 }
 .wl-kid__status {
     display: flex;
@@ -356,5 +413,18 @@ defineExpose({ ensureJob, revealJob, award });
 .wl-kid__xp { width: 240px; height: 18px; border-radius: 9px; background: rgb(var(--v-theme-surface-variant)); overflow: hidden; }
 .wl-kid__xp-fill { height: 100%; background: rgb(var(--v-theme-primary)); }
 .wl-kid__spacer { flex: 1; }
-.wl-kid__map { flex: 1; min-height: 0; position: relative; }
+/*
+ * The one view in this shell that must stay click-through, and for the same reason the adult
+ * shell's own `.mb-shell-layer--map` does: the `#map` slot rendered inside it is the identical
+ * `.mb-map-page` markup `App.vue` gives the adult tree - the live WebGL canvas is a `#map-container`
+ * sibling of `#app` underneath it, never a child of this element, and a child dragging the map with
+ * a finger needs that drag to reach the canvas rather than stop at this transparent pane. Every
+ * floating control the slot actually draws (`ZoomButtons`, `ControlBar`, `MainMenu`, the free-flight
+ * arrows) already declares its own `pointer-events: auto` - `.mb-interactive` or an equivalent
+ * explicit rule in each of those components' own files - which is what keeps them pressable while
+ * everything else here reverts to the ambient `none` this override restores. Removing this line
+ * would not break kid mode's own chrome (the `.wl-kid` rule above already covers that); it would
+ * make the map itself impossible to pan wherever no floating control happens to be drawn.
+ */
+.wl-kid__map { flex: 1; min-height: 0; position: relative; pointer-events: none; }
 </style>

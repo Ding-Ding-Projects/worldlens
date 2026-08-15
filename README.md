@@ -159,6 +159,13 @@ fixture 世界上面已經同 Java 引擎輸出逐 byte 一樣,但佢仲未係�
 有指令搜尋、通知歷史同設定 - 全部係導軌動作,唔係浮動按鈕。通知只入歷史,唔會彈出嚟遮住
 內容。快速鍵 `Ctrl+Shift+F` 開指令面板。
 
+**呢個係成人模式,啱啱裝完打開嗰陣唔係見到呢個。** 因為 `kid.enabled` 出貨就已經係
+`true`,所以第一眼見到嘅其實係「兒童模式」:掣大啲、字同圖畫行先,五個目錄變成五個
+「地頭」代替呢三個導軌目的地 - 用嘅係同一批 84 個功能,唔係另外整多一份;仲有 XP 條同
+埋一本記低真係做過嘅事嘅印仔簿。兩個模式之間乜都冇加、冇減、冇隱藏。撳兒童介面自己嗰個
+「大人掣」,或者過咗嗰關之後喺設定度揀「Kid Mode and Adult Mode」,就會轉返上面講嗰個
+三目的地介面。詳情見 [`docs/kid-mode.md`](docs/kid-mode.md)。
+
 **文件。** 每個功能都有自己嘅文章,講明行為、設定、失敗模式、保安考慮同驗證方法 - 見下面
 嘅功能清單,同埋 [docs/](docs/) 入面嘅文章;58 篇文章每篇都有廣東話版本,喺文末嘅「廣東話」
 一節,行為、設定、失敗模式、保安考慮同驗證方法全部有齊。文件網站本身係一個 Material Design 3 Expressive 應用程式外殼:可摺疊導航、真瀏覽器
@@ -230,9 +237,19 @@ The desktop shell is a Material Design 3 rewrite, and the whole of it fits in on
 
 | Rail | What it is |
 | --- | --- |
-| **Home** | Five catalogue cards over **85 features**. Open one to see what is inside it. |
+| **Home** | Five catalogue cards over **84 features**. Open one to see what is inside it. |
 | **Map** | The live 3D canvas and its viewer controls. |
 | **Work** | The tab system, holding only the jobs you have actually started. |
+
+**This is Adult Mode, and a fresh install does not open here.** `kid.enabled` ships `true`, so
+the very first thing anyone sees is Kid Mode: bigger targets, picture-first labels and five
+catalogue "lands" instead of these three rail destinations, drawn from the exact same 84
+features rather than a second copy of them, plus an XP bar and a sticker book for things
+actually completed. Nothing is added, removed, renamed or gated between the two modes — Kid
+Mode only relabels and resizes what this shell already reaches. The grown-up padlock on Kid
+Mode's own rail, or **Settings → Kid Mode and Adult Mode** once through it, switches to the
+three-destination shell described in the rest of this section. See
+[`docs/kid-mode.md`](docs/kid-mode.md).
 
 The rail footer carries command search (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>), the
 notification bell and settings — as rail actions, never floating buttons. **Nothing floats over
@@ -278,7 +295,7 @@ this rewrite replaced, and not one was skipped, weakened or deleted to bring tha
 | **Your maps** | 6 | Local renders and remote BlueMap servers in one list, the viewer, and its markers |
 | **Share a map** | 6 | Publishing, remote hosting, private worlds, and watching a render live off this machine's own disk |
 | **Keep a copy** | 7 | Backups, the world git repository, the sources a copy comes back from, and the append-only local history |
-| **Set up & help** | 38 | Every preference, every BlueMap configuration option, how the interface itself behaves, and every documentation article, offline |
+| **Set up & help** | 37 | Every preference, every BlueMap configuration option, how the interface itself behaves, and every documentation article, offline |
 
 Nine of those rows are capability-gated: their only implementation is a contract this public
 checkout does not carry, so they are **absent** rather than drawn as cards with invented status.

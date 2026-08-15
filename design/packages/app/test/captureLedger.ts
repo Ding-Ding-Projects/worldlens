@@ -45,6 +45,18 @@ export interface LedgerCapture {
     readonly file: string;
     readonly surface: string;
     readonly caption: string;
+    /**
+     * ISO-8601, recorded per capture rather than per run - see `shoot()`'s own doc comment on why
+     * "how old is this picture" is answered per image instead of by one run-level timestamp that
+     * would misdate everything captured a run's own tens of minutes away from it.
+     *
+     * Declared here because `shoot()` already writes it into every ledger entry and always has;
+     * this field was simply missing from the type that describes what `shoot()` writes, which is
+     * a real excess-property mismatch rather than a stylistic gap - `tsc` catches it the moment
+     * anything actually type-checks this file (its home package's own `tsconfig.json` excludes
+     * `test/`, which is exactly how it went unnoticed).
+     */
+    readonly capturedAt: string;
 }
 
 /** One surface this run did not photograph, and why. */

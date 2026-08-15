@@ -143,6 +143,24 @@ const shotDir = join(appRoot, "screenshots");
  */
 const PROFILE_STORAGE_KEY = "worldlens-profiles";
 
+/**
+ * The key `packages/ui/src/kid/kidMode.ts` persists the Kid Mode flag under.
+ *
+ * Hard-coded for the same reason `PROFILE_STORAGE_KEY` above is: `kidMode.ts` is a Vue module
+ * this plain Playwright/Node process has no access to. It matters more here than it does for the
+ * profile key, because this one defaults to **`true`** - `persisted(KEY_ENABLED, true)` in that
+ * file - so a fresh throwaway profile with this key never written opens in Kid Mode, not Adult
+ * Mode. Every capture in this file before the dedicated Kid Mode section below was written
+ * against the adult shell's own class names (`.wl-home`, `.wl-rail`, `.mb-*`), none of which exist
+ * anywhere in the Kid Mode tree - so `pointAppAtCaptureTarget` and `pointAppAtNoMap` write this
+ * key explicitly to `"false"` on every reload, exactly as they already write the profile key
+ * explicitly rather than trusting an implicit default. Without that, every one of those captures
+ * would silently open Kid Mode's shell instead, and every `attempt()` in this file would time out
+ * looking for a class Kid Mode never renders - which is a genuinely different failure from "the
+ * adult shell broke": it is "the harness never looked at the adult shell at all".
+ */
+const KID_MODE_STORAGE_KEY = "bluemap-kid-mode";
+
 /** Window geometries worth proving, including the narrow widths where labels clip. */
 const VIEWPORTS = [
     { name: "1280x800", width: 1280, height: 800 },
@@ -189,8 +207,23 @@ type MapArea =
     | "map"
     /** A map is loaded, but this surface paints over the whole of it. */
     | "covered"
-    /** No profile is active, so there is no map at all. */
-    | "none";
+    /**
+     * No profile is active, and this is `pointAppAtNoMap`'s own doing: the active profile was
+     * deliberately cleared so the make-a-map wizard would be truthful, per that function's own
+     * doc comment. `mapNote()` therefore names the wizard by name for this value - correctly,
+     * every time, because nothing else in this file ever sets it.
+     */
+    | "none"
+    /**
+     * No profile is active, but not because of the wizard: this run genuinely has no map to
+     * serve (`target.mode === "none"`, e.g. `WORLDLENS_CAPTURE_MAP` was never set), and the
+     * surface being captured is not the wizard either. Kid Home is the first caller: reusing
+     * `"none"` here would have `mapNote()` say a Kid Home capture "is showing the wizard for
+     * making one", which is false - Kid Home is not the wizard, and the wizard is not reachable
+     * from inside Kid Mode's own tree at all. This value exists so that false clause never gets
+     * written, rather than trusting every future caller to remember the distinction.
+     */
+    | "empty-not-wizard";
 
 let mapArea: MapArea = "map";
 
@@ -244,7 +277,9 @@ function mapNote(): string {
     if (mapArea === "covered") {
         return "an opaque surface fills the window, so none of the map behind it is visible";
     }
-    if (target.mode === "none") return "no map is loaded; the map area is the app's empty state";
+    if (mapArea === "empty-not-wizard" || target.mode === "none") {
+        return "no map is loaded; the map area is the app's empty state";
+    }
     if (!mapDrew) return "the map had drawn nothing when this was taken, so the map area is empty";
     return target.mode === "remote"
         ? "the map area shows tiles fetched from the remote server named above"
@@ -663,6 +698,12 @@ async function attemptOnMap(surface: string, run: () => Promise<void>): Promise<
  * place before the document that uses it. Writing it and reloading is what makes the
  * capture deterministic: the same profile, the same map and the same camera in every run,
  * instead of whatever the app happened to remember.
+ *
+ * Also pins Kid Mode to `"false"`, for the reason `KID_MODE_STORAGE_KEY`'s own doc comment
+ * gives: every capture this function points the app at is written against the adult shell, and
+ * Kid Mode ships on by default, so leaving this key unwritten would silently point every one of
+ * them at a shell they have no selectors for instead. `pointAppAtKidMode()`, in the dedicated Kid
+ * Mode section near the end of this file, is the one place that writes the opposite value.
  */
 async function pointAppAtCaptureTarget(): Promise<void> {
     const state = JSON.stringify({
@@ -671,11 +712,17 @@ async function pointAppAtCaptureTarget(): Promise<void> {
     });
 
     await page.evaluate(
-        (seed: { key: string; value: string; hash: string }) => {
-            window.localStorage.setItem(seed.key, seed.value);
+        (seed: { profileKey: string; profileValue: string; hash: string; kidModeKey: string }) => {
+            window.localStorage.setItem(seed.profileKey, seed.profileValue);
+            window.localStorage.setItem(seed.kidModeKey, "false");
             if (seed.hash.length > 0) window.location.hash = seed.hash;
         },
-        { key: PROFILE_STORAGE_KEY, value: state, hash: target.locationHash },
+        {
+            profileKey: PROFILE_STORAGE_KEY,
+            profileValue: state,
+            hash: target.locationHash,
+            kidModeKey: KID_MODE_STORAGE_KEY,
+        },
     );
 
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -700,12 +747,20 @@ async function pointAppAtCaptureTarget(): Promise<void> {
  * active profile makes the wizard page truthful, but a fresh shell still lands on the map
  * tab, so the harness follows the same visible navigation a person would use before it
  * waits for the wizard. It never forces the component into the DOM over another page.
+ *
+ * Also pins Kid Mode to `"false"`, for the same reason `pointAppAtCaptureTarget` above does:
+ * `openJob` below drives the adult Work destination's own tab strip, which does not exist at all
+ * inside Kid Mode's tree.
  */
 async function pointAppAtNoMap(): Promise<void> {
-    await page.evaluate((key: string) => {
-        window.localStorage.setItem(key, JSON.stringify({ profiles: [], activeId: null }));
-        window.location.hash = "";
-    }, PROFILE_STORAGE_KEY);
+    await page.evaluate(
+        (seed: { profileKey: string; kidModeKey: string }) => {
+            window.localStorage.setItem(seed.profileKey, JSON.stringify({ profiles: [], activeId: null }));
+            window.localStorage.setItem(seed.kidModeKey, "false");
+            window.location.hash = "";
+        },
+        { profileKey: PROFILE_STORAGE_KEY, kidModeKey: KID_MODE_STORAGE_KEY },
+    );
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#app", { timeout: 30_000 });
@@ -3916,6 +3971,11 @@ test("captures the make-a-map wizard at every step", async () => {
                 file: `${compactName}.png`,
                 surface: compactSurface,
                 caption: compactCaption,
+                // Missing here before `LedgerCapture.capturedAt` existed as a declared field -
+                // this is the one other place in the file that appends a capture entry by hand
+                // instead of going through `shoot()`, and it had silently gone without the
+                // per-capture timestamp every other image in the manifest carries.
+                capturedAt: new Date().toISOString(),
             });
             await opener.click({ timeout: ELEMENT_TIMEOUT });
         } finally {
@@ -4013,6 +4073,333 @@ test("captures the make-a-map wizard at every step", async () => {
         "it only appears when a previous render was interrupted and left a session behind, and " +
             "the throwaway profile this run used has never started one",
     );
+});
+
+/* -------------------------------------------------------------------------- */
+/* Kid Mode                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Kid Mode had no capture of any kind before this section, in a repository whose whole
+ * documentation argument rests on captures being real. That is worth stating plainly rather
+ * than leaving to be inferred from a diff: `kid/*.vue` is the largest single UI addition this
+ * project's history has, `kidMode.ts`'s own `KEY_ENABLED` flag defaults to `true`, and
+ * `App.vue`'s `<KidShell v-if="kid.enabled.value">` means Kid Mode - not the shell every other
+ * capture in this file was written against - is the very first screen a fresh install opens on.
+ * Nobody, including the agents that built it, had looked at it running until this section existed.
+ *
+ * It also explains why `pointAppAtCaptureTarget` and `pointAppAtNoMap` above now write
+ * `KID_MODE_STORAGE_KEY` explicitly to `"false"` on every reload: every surface captured before
+ * this section is written against the adult shell's own class names, none of which exist inside
+ * Kid Mode's tree, and a throwaway profile with that key never written opens in Kid Mode by
+ * default - not in Adult Mode, which every one of those captures silently assumed.
+ */
+
+/**
+ * Points the app at Kid Mode and reloads so it takes effect - the same seed-then-reload shape
+ * `pointAppAtCaptureTarget` and `pointAppAtNoMap` already use, and for the identical reason:
+ * `kidMode.ts`'s own `persisted()` helper reads `localStorage` exactly once, at ref creation, so
+ * a flag flipped from outside the page only takes effect on the next fresh mount.
+ *
+ * Deliberately does not touch `PROFILE_STORAGE_KEY`: whatever profile state the real capture
+ * target already established (none, on a host with no `WORLDLENS_CAPTURE_MAP`; a real rendered
+ * map in CI) is left exactly as it was, because none of Kid Mode's own screens this section
+ * captures need one - see `hasLoadedMap()`'s own doc comment for why the surfaces that do are
+ * reached through the viewer's side sheet alone, which Kid Mode has no route to at all.
+ */
+async function pointAppAtKidMode(): Promise<void> {
+    await page.evaluate((key: string) => {
+        window.localStorage.setItem(key, "true");
+    }, KID_MODE_STORAGE_KEY);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#app", { timeout: 30_000 });
+    await page.waitForSelector(".wl-kid", { state: "visible", timeout: ELEMENT_TIMEOUT });
+}
+
+/**
+ * What every Kid Mode caption says about the map area, derived from the real capture target
+ * rather than assumed - so this run tells the truth whether it has a rendered map to serve
+ * (CI, with `WORLDLENS_CAPTURE_MAP` set) or does not (this host, today). Kid Mode's own shell
+ * fills the window edge to edge in every view this section captures, so a loaded map is either
+ * entirely covered by it or does not exist at all; it is never visible underneath.
+ *
+ * `"empty-not-wizard"` rather than plain `"none"` for the no-map case - see that value's own
+ * doc comment on `MapArea`. A Kid Home capture with `mapArea: "none"` produced the exact false
+ * clause this project's own evidence-inventory digest note already records having removed once
+ * before, from a different cause: "no map is loaded, so the application is showing the wizard
+ * for making one", underneath a picture of Kid Home, which is not the wizard and has no route to
+ * it - confirmed by running this section for real, once, before this fix existed.
+ */
+function kidMapArea(): MapArea {
+    return hasLoadedMap() ? "covered" : "empty-not-wizard";
+}
+
+/**
+ * Why "captures Kid Mode" never takes a light/dark/contrast pair the way "captures both themes"
+ * does for the adult shell: Kid Mode is not a themeable surface of the adult shell, it is its own
+ * fixed palette. `App.vue` watches Vuetify's live theme name and snaps it straight back to `"kid"`
+ * the instant Kid Mode is active ("Kid Mode is the reason it should never have moved"), regardless
+ * of whatever light/dark/contrast choice is saved in Adult Mode's own Settings - so there is no
+ * second Kid Mode palette this harness could switch to and no third to compare it against. Every
+ * capture below already shows the one true Kid Mode palette (`KID_SCHEME` in `kidTheme.ts`), which
+ * is exactly the fact this constant's callers put into a caption and a recorded skip rather than
+ * leaving a reader to wonder why no `kid-theme-*` pair sits beside `theme-light.png`/`theme-dark.png`.
+ */
+const KID_THEME_NOTE =
+    "Kid Mode always paints from its own fixed 'kid' Vuetify theme (KID_SCHEME in kidTheme.ts) " +
+    "rather than the light/dark/contrast scheme chosen in Adult Mode's own Settings - App.vue's " +
+    "own watcher snaps the live theme name straight back to 'kid' the instant Kid Mode is active, " +
+    "so there is no separate light/dark/contrast variant of any Kid Mode surface to capture.";
+
+test("captures Kid Mode", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Kid Home", async () => {
+        await pointAppAtKidMode();
+        const home = page.locator(".wl-kid-home");
+        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-home",
+            "Kid Mode's Home, and the default view of a fresh install: kidMode.ts's own KEY_ENABLED " +
+                "flag defaults to true, so this - not the adult shell - is the very first screen this " +
+                "application ever shows anybody. The GO hero card, the five catalogues drawn as " +
+                "picture-first 'lands', what the app is doing right now, and the maps and servers " +
+                "this computer already knows about",
+            { mapArea: kidMapArea(), note: KID_THEME_NOTE },
+        );
+    });
+
+    await attempt("Kid rail", async () => {
+        const rail = page.locator(".wl-kid-rail");
+        await rail.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "kid-rail",
+            "Kid Mode's own rail, cropped from the Home capture above: Home, Explore, My jobs and " +
+                "Stickers as big picture-first destinations with the level badge and XP bar in the " +
+                "status header above them, then Find, Messages and the grown-up gate as small footer " +
+                "actions - the same three-destination-plus-footer shape the adult rail has, per " +
+                "KidRail.vue's own doc comment",
+            { crop: rail, cropped: "the Kid Mode rail", mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Kid catalogue page", async () => {
+        await page.locator(".wl-kid-home__land").first().click({ timeout: ELEMENT_TIMEOUT });
+        const catalogue = page.locator(".wl-kid-cat");
+        await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-catalogue",
+            "One of Kid Mode's five catalogues, opened as a 'land' from Kid Home: every feature it " +
+                "holds as its own picture-first row with the real shipped blurb underneath, grouped " +
+                "under headings, with the same search field and anchored regex builder every other " +
+                "catalogue page in this application carries (ConfigSearchField, reused rather than " +
+                "hand-rolled, per KidCataloguePage.vue's own doc comment)",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Kid job strip", async () => {
+        await page.locator(".wl-kid-rail__big", { hasText: "My jobs" }).first().click({
+            timeout: ELEMENT_TIMEOUT,
+        });
+        const jobs = page.locator(".wl-kid-jobs");
+        await jobs.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-job-strip",
+            "Kid Mode's Work view: WorkPane re-hosted rather than reimplemented, per KidJobStrip.vue's " +
+                "own doc comment - the exact same tab strip, seeded groups, pinning, drag reorder and " +
+                "overflow as Adult Mode's own Work destination, wearing Kid Mode's own labels (applied " +
+                "through WorkPane's existing renamePage) and a 64px-minimum chip floor rather than the " +
+                "adult shell's 44px one",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Sticker book", async () => {
+        await page.locator(".wl-kid-rail__big", { hasText: "Stickers" }).first().click({
+            timeout: ELEMENT_TIMEOUT,
+        });
+        const stickers = page.locator(".wl-kid-stickers");
+        await stickers.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-stickers",
+            "The sticker book on a fresh capture profile: every sticker this build knows about, each " +
+                "naming the real feature it is earned from and doubling as a second route into that " +
+                "feature's catalogue rather than a dead trophy shelf, none of them won yet - a fresh " +
+                "profile has completed nothing, and the book says so plainly (KidStickerBook.vue's own " +
+                "doc comment: 'a sticker that has not been won says so plainly; nothing is hidden or " +
+                "teased')",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    await attempt("Grown-up gate, no credential configured", async () => {
+        await page.locator('[aria-label="Grown-ups: switch to Adult Mode"]').first().click({
+            timeout: ELEMENT_TIMEOUT,
+        });
+        const gate = page.locator(".wl-kid-gate");
+        await gate.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-gate-no-credential",
+            "The grown-up gate in its no-credential-configured state, which is the state every fresh " +
+                "install actually starts in: nobody has ever set the shared restricted-mode code on " +
+                "this computer, so KidGrownUpGate.vue lets one press go straight through to Adult Mode " +
+                "rather than demanding a code that was never set - the mechanism its own doc comment " +
+                "says exists precisely so 'Kid Mode must never become a one-way door'. The honesty line " +
+                "at the bottom names this as a user-experience lock, not a security lock, and names the " +
+                "real reset route rather than gesturing at it",
+            { mapArea: kidMapArea() },
+        );
+    });
+
+    /*
+     * The gate's other branch - `lockConfigured`, reached once a grown-up has actually set the
+     * shared code - is deliberately not captured here, and this is a genuine architecture fact
+     * rather than a harness limitation, so it is worth the length of this explanation.
+     *
+     * That shared code is not scoped to this run's throwaway `--user-data-dir` the way every other
+     * piece of state this harness seeds is. `SchoolModeStore`
+     * (design/packages/app/src/main/schoolMode/record.ts) writes it to
+     * `<app.getPath("appData")>/Ding-Ding Shared/school-mode.v1.json` - a location `schoolMode.ts`'s
+     * own module doc comment calls "the shared restricted-mode record" on purpose, because every
+     * Kid-Mode-capable app on a machine reads and writes the same file. `app.getPath("appData")` is
+     * resolved once in `main/index.ts`, before `WORLDLENS_SCREENSHOTS` redirects `userData` to this
+     * run's throwaway profile, and is never itself redirected - so setting a real credential here to
+     * reach this one capture would write that file to this machine's real, persistent
+     * application-data directory, not to anything this run deletes when it finishes.
+     *
+     * This project's own harness already declines exactly this trade for a strictly weaker case:
+     * "captures the reset-settings super confirmation" arms its slider and then presses Emergency
+     * exit rather than complete it, because "driving the slider to the end really does reset every
+     * setting and reload the page, and a capture is not worth doing that" - and that slider's own
+     * blast radius is the throwaway profile alone, which this run deletes on exit regardless. Forcing
+     * a real credential onto a shared, cross-app, host-persistent file is the more cautious side of
+     * the identical judgment, not a stricter one invented for this surface alone.
+     *
+     * It costs nothing this harness cannot already show: the two capture profiles that state needs
+     * (no credential, credential) differ by exactly one prop read - `noLockConfigured` versus
+     * `lockConfigured` in KidGrownUpGate.vue's own template - and the branch that would differ is
+     * fully quoted in this file's earlier read of that component. And it is not a fixed limitation of
+     * this harness either: a CI runner's own ephemeral `$HOME` makes this reachable safely there,
+     * where the file this note is careful about evaporates with the runner regardless of whether
+     * anything ever cleaned it up.
+     */
+    skip(
+        "Grown-up gate, credential configured",
+        "reaching this state needs a real shared restricted-mode credential, and that record is " +
+            "deliberately not scoped to this run's throwaway --user-data-dir: SchoolModeStore " +
+            "(design/packages/app/src/main/schoolMode/record.ts) writes it to " +
+            "<app.getPath('appData')>/Ding-Ding Shared/school-mode.v1.json, a location shared on " +
+            "purpose across every Kid-Mode-capable app on the host. Setting one here to capture this " +
+            "state would write that file to this machine's real, persistent application-data " +
+            "directory rather than to the disposable profile the rest of this harness confines " +
+            "itself to - the same trade this file's own 'captures the reset-settings super " +
+            "confirmation' test already declines for a strictly weaker case (a slider armed and then " +
+            "backed out of with Emergency exit, because completing it 'really does reset every " +
+            "setting ... and a capture is not worth doing that', even though that slider's own blast " +
+            "radius is the throwaway profile alone). See this test's own comment immediately above " +
+            "for the full reasoning, including why this is a genuine architecture fact rather than a " +
+            "fixed harness limitation",
+    );
+
+    await attempt("Kid Mode settings row", async () => {
+        await page.locator(".wl-kid-gate__go").click({ timeout: ELEMENT_TIMEOUT });
+        // `switchToAdult()` (KidShell.vue) sets `kid.enabled.value = false`; `<KidShell v-if=...>`
+        // unmounts on its own the moment Vue's next patch runs, and `openSettingsSection` below
+        // needs the adult rail this unmount uncovers - see `openSettingsSurface`'s own doc comment
+        // on why it clicks `.wl-rail__footer`, which does not exist while Kid Mode's tree is up.
+        await page.waitForSelector(".wl-kid", { state: "detached", timeout: ELEMENT_TIMEOUT });
+        await openSettingsSection("kid-mode", "Kid Mode and Adult Mode");
+        const row = page.locator(`${APP_SETTINGS} [data-anchor="kid-mode"]`);
+        await row.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "kid-mode-settings-row",
+            "The Kid Mode settings row, reached the moment this run first leaves Kid Mode through its " +
+                "own grown-up gate: the Kid Mode/Adult Mode choice, showing Adult Mode selected because " +
+                "this capture is looking at the row from inside Adult Mode; the child's name; the " +
+                "celebration and sound switches; and the label-style choice. The accessible name of " +
+                "every control keeps the real feature name at all three label styles, per this row's " +
+                "own doc comment",
+            { crop: page.locator(APP_SETTINGS), cropped: "the settings panel", mapArea: "covered" },
+        );
+        await dismiss();
+    });
+
+    skip(
+        "Kid Mode theme variants (light/dark/contrast)",
+        KID_THEME_NOTE + " Not a harness limitation: there is genuinely nothing else to capture " +
+            "here, and the note on the 'Kid Home' capture above says the same thing at the point a " +
+            "reader is most likely to be asking why no kid-theme-* pair sits beside " +
+            "theme-light.png/theme-dark.png",
+    );
+
+    skip(
+        "Celebration",
+        "KidCelebration.vue only ever fires from a real completion event forwarded through App.vue's " +
+            "awardKidSticker() - a rendered map opened, a page published to GitHub Pages, a local " +
+            "render finished, or the guide finding a world (App.vue's own doc comment on that " +
+            "function: 'every caller below this point is a real action finishing, never a fabricated " +
+            "signal'). Every one of those needs either the vendored Java render pipeline with an " +
+            "accepted Mojang download consent and minutes of work (the same reason 'Render progress " +
+            "panel' above is unreachable) or a signed-in GitHub account (the same reason 'GitHub " +
+            "account, signed in' above is unreachable). Calling useKidProgress().award() directly from " +
+            "this harness, bypassing awardKidSticker's real trigger, would be exactly the staging this " +
+            "file's own header rules out for every surface: 'no value is planted to make a screen look " +
+            "populated, and no screen stands in for a different one'",
+    );
+
+    await attempt("Kid Home, compact phone viewport (390 CSS px)", async () => {
+        await pointAppAtKidMode();
+        const cdp = await page.context().newCDPSession(page);
+        try {
+            await cdp.send("Emulation.setDeviceMetricsOverride", {
+                width: 390,
+                height: 844,
+                deviceScaleFactor: 1,
+                mobile: false,
+            });
+            const home = page.locator(".wl-kid-home");
+            await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+            await page.waitForTimeout(400);
+            await shoot(
+                "kid-home-390",
+                "Kid Home at 390 by 844 CSS pixels - the same phone width the redesigned adult shell " +
+                    "proves itself at (COMPACT_PHONE_VIEWPORTS): the rail, hero, five lands and both " +
+                    "panels holding their layout rather than being narrowed to a scroll of unreadable " +
+                    "pieces, at Kid Mode's own 64px-minimum touch targets",
+                {
+                    mapArea: kidMapArea(),
+                    capture: async () => {
+                        const captured = await cdp.send("Page.captureScreenshot", {
+                            format: "png",
+                            fromSurface: true,
+                            captureBeyondViewport: false,
+                        });
+                        return Buffer.from(captured.data, "base64");
+                    },
+                    note:
+                        "Captured through Chromium's DevTools surface at the exact CSS viewport, the " +
+                        "same technique 'captures the redesigned Home shell at compact phone viewports' " +
+                        "uses for the adult shell.",
+                },
+            );
+        } finally {
+            await cdp.send("Emulation.clearDeviceMetricsOverride");
+        }
+    });
+
+    // Left the way a fresh install opens, so nothing after this point - including the closing
+    // guarantee tests below - has to guess which shell is on screen. This also restores the real
+    // capture target's own profile and location hash, which every reload inside this test left
+    // untouched but which `pointAppAtKidMode` never reasserted either.
+    await pointAppAtCaptureTarget();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -4246,6 +4633,21 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     // `DimSumSurprise.vue`'s own doc comment and `DIMSUM_TEST_OVERRIDE_KEY` above for why that
     // is the honest route rather than a weakening of the real chance for anyone else.
     { surface: "Dim sum surprise" },
+    // Kid Mode ships on by default (kidMode.ts's own KEY_ENABLED flag) and had no capture of any
+    // kind before the "Kid Mode" section above - every one of these needs nothing but the running
+    // application, exactly like the surfaces above it. "Grown-up gate, credential configured" and
+    // "Celebration" are deliberately absent from this list: both are recorded skips with a full
+    // explanation in the "captures Kid Mode" test rather than required surfaces, because reaching
+    // either one safely needs something this harness cannot supply on every host it runs on - see
+    // that test's own comments immediately above each `skip()` call.
+    { surface: "Kid Home" },
+    { surface: "Kid rail" },
+    { surface: "Kid catalogue page" },
+    { surface: "Kid job strip" },
+    { surface: "Sticker book" },
+    { surface: "Grown-up gate, no credential configured" },
+    { surface: "Kid Mode settings row" },
+    { surface: "Kid Home, compact phone viewport (390 CSS px)" },
 ];
 
 test("captured every surface that needs nothing but the application", () => {

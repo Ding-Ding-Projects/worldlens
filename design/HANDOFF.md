@@ -1,5 +1,169 @@
 # Handoff
 
+## 2026-08-15 — CI failed on a fully green test suite, Kid Mode's real feature count, and five standing gaps a next owner should close first
+
+**Plain version, first:** every real test in the workspace passed — three times in a row, 11,054
+of 11,072 tests, 770 of 775 files, nothing red — and CI still failed, because the thing that timed
+out each time was vitest's own worker heartbeat, not a test. A second, unrelated job failed too:
+the generated changelog was one commit behind the tree that carried it. Neither is fixed by this
+entry; both are diagnosed with exact evidence below. The release job (`Publish release`) was
+skipped as a direct result, so `v1.0.1109` — published the day before, from a run whose *overall*
+status confusingly reads "cancelled" for an unrelated reason — is still the latest shipped build.
+
+**State: CI failed on commit `90484d6b`; this entry records facts, it does not change source.**
+
+### Why CI failed, exactly
+
+CI run [31879080680](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31879080680) on
+`90484d6bc36e7f8d764dfdb5e8ac2509c4a2aaf4` failed two jobs, which skipped the release job that
+needs both of them along with four others that did pass:
+
+| Job | Result | Real cause |
+| --- | --- | --- |
+| `Lint, build, test` → `Run pnpm test:ci` | failed | vitest's worker-to-main RPC heartbeat, a hardcoded 60s deadline with no config knob in this vitest version — **not** a failing test |
+| `Lint the workflow files` → `Verify generated changelog is current` | failed | `CHANGELOG.md` and `changelogData.generated.ts` were genuinely one commit stale (first difference at `CHANGELOG.md:25`) |
+| `BlueMap jars`, `Config` (real Java CLI round trip), `Windows installer`, `Generate and render a test world` | passed | — |
+| `Screenshots` | cancelled | superseded by a later push's concurrency group, not a failure |
+| `Publish release` | **skipped** | needs `check`, `workflows`, `package`, `jars`, `test-world`; two of those did not report success |
+
+The test job is the one worth reading twice. `run-tests-ci.mjs` retried the full suite three
+separate times, and every attempt reported the identical, unchanged result before dying on the
+same RPC timeout:
+
+```
+Test Files  770 passed | 5 skipped (775)
+     Tests  11054 passed | 18 skipped (11072)
+   Duration ~1000s each attempt (1007.5s, 1002.9s, 1002.8s)
+```
+
+— then gave up on the third attempt with exactly this line: "Hit the worker-RPC-heartbeat flake on
+all 3 attempts, with every test passing every time. That is no longer plausibly transient - failing
+for real so it gets looked at rather than retried forever." **That is the real, current, full-suite
+count: 775 test files, 11,072 tests.** The suite itself is not broken; the retry harness's own
+escape hatch is correctly refusing to call a genuinely uncertain result green, at the cost of a
+failed run on zero real test failures. Worth a lead for whoever looks at the timeout itself: the
+last stdout line before the timeout was identical across all three attempts —
+`packages/engine/src/map/rendermanager/rendertasks.test.ts`'s "claims each tile once even when
+several workers call doWork concurrently" — which may or may not be the worker that starves the
+heartbeat; it was not investigated further this session.
+
+### The two tests that actually are flaky — a separate fact from the above
+
+Independently of the CI RPC-timeout: `packages/server/test/map-update-service.test.ts` and
+`packages/engine/src/world/mca/MCAWorldRegionWatchService.test.ts` are flaky under local repeated
+runs, both about coalescing timed events (debounce/cooldown windows racing real timers). Both pass
+in isolation; `map-update-service.test.ts` failed on three *different* assertions across four
+consecutive local runs, which is the signature of a real timing race rather than one wrong
+expectation. Record this honestly: the suite is neither fully green nor "broken" — every individual
+assertion that ran this session passed, and two specific tests are known timing-sensitive and worth
+making deterministic (a fake/injected clock, rather than widening the window a third time — this
+same area already had its wait bounds widened twice, see `CHANGELOG.md`'s "Widen watcher wait
+bounds under contention" and "Make watcher timing checks contention-safe").
+
+### The published baseline, and how it is actually verified — not just asserted
+
+`v1.0.1109`, tagged at `729c84b8b1b9241f7a1d3f03076b9f55f5add0da`, published
+`2026-08-14T16:39:00Z`, non-draft, non-prerelease, six assets present
+(`Worldlens-1.0.1109-Setup.exe`, `RELEASES`, the full `.nupkg`, the BlueMap jars zip plus its
+SHA-256 list, and an extras zip). Confirmed directly against the GitHub API this session, not
+inferred from the tag merely existing: run
+[31818314942](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/31818314942)'s
+`Publish release` job itself reports `success` on that exact commit, even though the *overall* run
+status reads `cancelled` — its `Screenshots` job was cancelled by a later push landing under the
+same concurrency group, strictly after `Publish release` had already completed. Every fatal gate
+for that commit (`Lint, build, test`, both jar/CLI jobs, `Generate and render a test world`,
+`Windows installer`, `Publish release`) reports `success` individually when read job by job; only
+the non-fatal capture job was interrupted. This is the release contract working exactly as
+`README.md` describes it — screenshot capture is advisory, never a release gate — worth stating
+plainly because a bare `cancelled` badge on the run list would otherwise read as "this release
+might not be real."
+
+### Kid Mode's real feature count, and where the wrong one is still written down
+
+`ALL_CATALOGUE_FEATURES.length` is **84**, confirmed this session by counting `nameFallback:`
+entries directly in `catalogues.ts` (28 + 6 + 6 + 7 + 37 — not the 28 + 6 + 6 + 7 + 38 = 85 the
+per-catalogue table in `README.md` used to claim) and cross-checked against
+`catalogues.test.ts`'s own `expect(ALL_CATALOGUE_FEATURES.length).toBe(84)`. `README.md` is fixed
+this session (the "85 features" lede and the "Set up & help" row's "38"), and now also names Kid
+Mode as what a fresh install actually opens into, since `kid.enabled` ships `true` and the previous
+README text only described the Adult Mode shell. **`catalogues.ts`'s own top-of-file doc comment
+still says "eighty-five" in three places** (lines 2, 30, 170) and was left untouched — out of scope
+for the lane that found this; it belongs to whichever lane owns that file next. `kidLabels.ts`'s own
+doc comment already recorded that its source registry "briefly disagreed with itself about whether
+there were eighty-four or eighty-five features," and `kidMode.contract.test.ts` deliberately derives
+its own count from `ALL_CATALOGUE_FEATURES.length` rather than a typed-in number, specifically so a
+disagreement like this one gets caught instead of quietly trusted — which is exactly what happened.
+
+### Five standing gaps, named so nobody has to rediscover them
+
+1. **~90 modules under `design/packages/site/src/` render nothing a visitor ever sees.**
+   `design/packages/site/index.html` loads exactly one module script, `/src/archive-entry.ts`, and
+   that file's only import is `import "virtual:worldlens-archive-runtime"` — a Vite virtual module,
+   not a reference to `main.ts` or anything else in the tree. Confirmed directly this session:
+   nothing under `content/`, `search/`, `notifications/`, `settings/`, `shell/` or `policy/` is
+   reachable from the shipped entry point. `README.md`'s own "Documentation site" paragraphs
+   describe a `main.ts`-assembled Material 3 shell with tabs, search and a command palette; that
+   description is currently true of source that does not run in the shipped build.
+2. **Kid Mode has no tutorial.** `TUTORIAL_STEPS` and its whole controller live under
+   `design/packages/ui/src/components/tutorial/`, which nothing in `design/packages/ui/src/kid/`
+   imports or references (confirmed by search this session — zero hits). A child using Kid Mode
+   for the first time gets whichever onboarding the adult shell shows, or none, never a walkthrough
+   scaled to Kid Mode's own five lands.
+3. **Four of the eight kid stickers cannot be earned.** `useKidProgress.ts`'s own doc comment names
+   them: **pin-dropper**, **safe-keeper**, **fixer**, **time-traveller**. `App.vue` calls
+   `awardKidSticker()` for four completions today (`first-map`, `speed-racer`, `world-finder`,
+   `sharer`); the other four "stay in this list because they name real, shipped features, not
+   because anything can earn them yet" — `MarkerMenu.vue` has no "a pin was placed" emit,
+   `BackupScreen.vue` has no "a backup finished" emit, nothing surfaces automatic repair applying a
+   fix outside the render-repair flow itself, and `HistoryPanel.vue` restores a revision without
+   telling its parent. Each needs one small emit in a file this kid-mode wiring pass does not own.
+4. **`catalogues.ts`'s own doc comment says 85 features; the real count is 84.** See above — fixed
+   in `README.md` this session, not in `catalogues.ts` itself.
+5. **A latent, same-shape race in `App.vue`'s `kidShellRef`, reported but not reproduced this
+   session.** `KidShell.vue`'s own `ensureJob`/`revealJob` reading `jobStrip.value` synchronously in
+   the same call that flips `view.value` to `"work"` was a real, proven defect — Vue batches the
+   reactive update onto the microtask queue, so the very first tap on any non-pinned job silently
+   dropped — and is now fixed and guarded by `KidShell.jobStripRace.test.ts`. `App.vue`'s own
+   `kidShellRef.value?.award(id)` inside `awardKidSticker()` reads the same kind of ref immediately
+   after a state check (`kid.enabled.value`), in the same general shape that produced the original
+   bug, but nothing today calls it in a window where that ref could plausibly still be unmounted, so
+   it has not actually misfired. Recorded here as a standing risk rather than a reproduced failure —
+   worth a guard test before item 3's four unwired stickers get their completion events added, since
+   that is exactly the kind of change that would start exercising this path for the first time.
+
+### What a next owner should do first
+
+1. **Fix the vitest worker-RPC heartbeat, not the timeout value.** Widening a 60s deadline hides
+   the same flake at a higher cost, and the retry harness already proves the suite is correct on
+   every attempt. Check whether `rendertasks.test.ts`'s "claims each tile once even when several
+   workers call doWork concurrently" (the consistent last line before all three timeouts) is
+   starving the main thread long enough to miss the heartbeat, before assuming the two are unrelated.
+2. **Regenerate the changelog and commit it** — `node scripts/build-changelog.mjs`, then commit
+   both `CHANGELOG.md` and `changelogData.generated.ts` — so the next push's `--check` passes and
+   `Publish release` is reachable again.
+3. **Wire the four missing sticker emits** (`MarkerMenu.vue`, `BackupScreen.vue`, the auto-repair
+   flow, `HistoryPanel.vue`) so all eight of Kid Mode's stickers are earnable, and add a guard for
+   the `kidShellRef` race noted above while touching that code.
+4. **Fix `catalogues.ts`'s stale "eighty-five" doc comment** (lines 2, 30, 170) to "eighty-four,"
+   now that `README.md` no longer disagrees with the test that already had this right.
+5. **Decide what to do with `design/packages/site/src/`'s unreachable ~90 modules** — wire
+   `main.ts` (or whichever file was meant to be the real entry) into `index.html`, or say plainly in
+   `README.md`/`docs/` that the documentation site ships as a static archive today and that tree is
+   speculative or superseded, rather than leaving both descriptions contradicting each other.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| CI run `31879080680` on `90484d6b`, read via `gh run view --json jobs` | `Lint, build, test` failed, `Lint the workflow files` failed, four jobs passed, `Screenshots` cancelled, `Publish release` skipped |
+| `pnpm test:ci` inside that run, all three retries | `770 passed \| 5 skipped (775)` files, `11054 passed \| 18 skipped (11072)` tests, identically each time |
+| `node scripts/build-changelog.mjs --check` inside that run | failed: first difference at `CHANGELOG.md:25` and `changelogData.generated.ts:29` |
+| `nameFallback:` count per catalogue in `catalogues.ts` (MAKE/MAPS/SHARE/COPY/SETUP line ranges) | 28, 6, 6, 7, 37 → 84 total, matching `catalogues.test.ts`'s own assertion |
+| `gh release view v1.0.1109 --json tagName,publishedAt,isDraft,isPrerelease,assets` | non-draft, non-prerelease, published `2026-08-14T16:39:00Z`, six assets present |
+| `gh run view 31818314942 --json jobs` | `Publish release` = `success` on `729c84b8`, `Screenshots` = `cancelled`, overall run = `cancelled` |
+| `grep -rl TUTORIAL_STEPS design/packages/ui/src` | only under `components/tutorial/`; zero hits under `kid/` |
+| `useKidProgress.ts` read directly | doc comment and `STICKER_DEFINITIONS` confirm the four unwired sticker ids and why |
+
 ## 2026-08-14 — reachability, capture honesty, gh as a required dependency, and a CI render that never worked outside this repository
 
 **State: local gates green; the CI render fix is written and unverified against a real run.**
@@ -80,7 +244,8 @@ CI.
 - The landing screen describes the product as BlueMap in eleven strings, with tests asserting them.
   That copy was never reviewed after the rebrand because nobody could open the screen.
 - Capture evidence goes stale on every merge that touches the interface. Five refreshes were needed
-  in one day, four of them invalidated by a push landing between the build and the dew.
+  in one day, four of them invalidated by a push landing between the build and the push that
+  recorded it.
 
 ## 2026-08-13 — updater, stream, lifecycle, and Windows watcher safety pass
 
@@ -104,7 +269,7 @@ selecting chokidar polling only for that runtime.
 
 ### Evidence
 
-| Chut | Result |
+| Gate | Result |
 |---|---|
 | Changed updater/Ollama/UI/lifecycle surfaces | 16 files, 180 tests passed in 65.32s |
 | Watcher and map-update surfaces | 2 files, 14 tests passed in 17.60s |
@@ -126,7 +291,7 @@ of "overworld", and two of the five speed levels were not merely ugly but imposs
 The download-consent row kept saying "not accepted yet" after you had accepted. All eleven are
 fixed, each one measured before and after in a real browser.
 
-**State: verified locally against a running build; four commits dewed to `main`.**
+**State: verified locally against a running build; four commits pushed to `main`.**
 
 Nothing here was found by reading source. A harness drove the built interface in headless
 Chromium and walked every element comparing `scrollWidth` against `clientWidth`, at 800x600,

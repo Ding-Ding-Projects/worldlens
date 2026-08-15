@@ -22,6 +22,20 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge Kid Mode into main - [`33be4dd7b2`](https://github.com/Ding-Ding-Projects/worldlens/commit/33be4dd7b2f8d28e71a35d1904e6857163c2bde9) _(summary of 2 commits, also listed here)_
+- Add Kid Mode as a second shell, and ship it turned on - [`6e32445ad4`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e32445ad4935f68ce8938939fe55dcf3818595a)
+
+### Landing page and documentation site
+
+- Merge the screenshot viewer and Kid Mode's repairs into main - [`90484d6bc3`](https://github.com/Ding-Ding-Projects/worldlens/commit/90484d6bc36e7f8d764dfdb5e8ac2509c4a2aaf4) _(summary of 2 commits, also listed here)_
+- Let people actually look at the screenshots, and make Kid Mode's rewards real - [`b55ad1f51f`](https://github.com/Ding-Ding-Projects/worldlens/commit/b55ad1f51f8f392438084fa7eb5d3193ed8b1221)
+
+## 1.0.1109 - 2026-08-14
+
+Tagged at [`729c84b8b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/729c84b8b1b9241f7a1d3f03076b9f55f5add0da).
+
+### Interface
+
 - Align personal-vocabulary uploads with the canonical contract - [`a0a477e0b5`](https://github.com/Ding-Ding-Projects/worldlens/commit/a0a477e0b57252f17cc0041706e3cec58502f932)
 - Merge remote-tracking branch 'origin/main' - [`1b88610e4e`](https://github.com/Ding-Ding-Projects/worldlens/commit/1b88610e4e41c6885d15778841515844c0ef9cdf) _(summary of 9 commits, also listed here)_
 - Stabilize full-suite config and watcher checks - [`fd72f4552e`](https://github.com/Ding-Ding-Projects/worldlens/commit/fd72f4552e2db4999c1429cbdce3b9d2f9168359)

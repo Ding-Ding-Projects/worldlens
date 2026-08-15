@@ -800,12 +800,23 @@ const kidNotices = computed(() =>
  * `renderIndicator.rows`, reshaped for `KidShell`'s own narrower contract: one `label` rather
  * than the world/project label pair the adult renders list reads, because Kid Mode's status
  * bar chip has room for one short string, not two.
+ *
+ * `renderId` rides along beside it, unlabelled and untranslated - a structural fact, not
+ * presentation - because it is the one thing this shell can tell Kid Mode that lets it decide
+ * `label` honestly instead of guessing: `activeRenders.ts`'s own `worldLabelOf`/`ciToRow` return
+ * the row's raw `renderId` right back as `worldLabel` whenever no human name has resolved yet, so
+ * `row.worldLabel === row.renderId` is the exact, reliable signal for "nothing better is known
+ * yet" - not a pattern match against what a render id happens to look like today. `KidHome.vue`'s
+ * own `rowLabel()` is what turns that into the honest "still finding out" line a child reads
+ * instead of a hex id (kid-mode home-screen audit: a raw render id like `world-0a974df3a729` was
+ * shown to the child verbatim while a render's real name had not resolved yet).
  */
 const kidRenderRows = computed(() =>
     renderIndicator.rows.value.map((row) => ({
         state: row.state,
         percent: row.percent,
         label: row.worldLabel,
+        renderId: row.renderId,
     })),
 );
 
@@ -2580,9 +2591,25 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * against a parent with a definite height, and `v-main`'s own content area does not reliably
  * give its children one. `position: absolute; inset: 0` is what `.mb-shell-body` already
  * relies on for the same reason, against the same ancestor, so this repeats it rather than
- * inventing a second way to fill the same space. `KidShell` is not click-through by default
- * the way `.mb-shell-body` is - it has no map layer beneath it that a click needs to reach
- * through - so `pointer-events` is left at the normal `auto` here.
+ * inventing a second way to fill the same space.
+ *
+ * This class deliberately declares no `pointer-events` of its own. An earlier version of this
+ * comment claimed `KidShell` was "click-through by default... so pointer-events is left at the
+ * normal auto here" - which was wrong in a way that shipped Kid Mode entirely unusable:
+ * `pointer-events` is an *inherited* property, not one with a per-element default, so leaving it
+ * unset here meant this host inherited whatever `v-main` above it computes, which is
+ * `pointer-events: none` (see `styles/global.scss`'s own comment on `#app .v-main`) - and every
+ * descendant all the way down to a real button inherited that same `none`, unless something
+ * overrode it. Nothing did. Three screenshot captures timed out with Playwright naming
+ * `#map-container` as the element actually receiving the click, which is exactly what a
+ * `pointer-events: none` ancestor produces: hit-testing skips straight past this whole subtree to
+ * the next positioned element behind it, real click or driven one alike.
+ *
+ * The fix lives in `KidShell.vue` itself, at `.wl-kid` - not here - because it is `.wl-kid`, not
+ * this wrapper, that is the one root every kid-mode view (rail, status header, home, catalogue,
+ * jobs, stickers, the grown-up gate) actually shares, and `.wl-kid__map` there carries the one
+ * deliberate exception back to `none` so the live map canvas underneath stays draggable. See that
+ * file's own comments on both rules for the reasoning this one used to (wrongly) claim.
  */
 .mb-kid-shell-host {
     position: absolute;

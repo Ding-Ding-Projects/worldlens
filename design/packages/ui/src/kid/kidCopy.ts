@@ -9,12 +9,18 @@
  * rewrite is not allowed to lose - the fact that no grown-up code is configured, the word "Adult
  * Mode", the honesty statement that this is a speed bump and not a lock.
  *
- * This module does not register itself. `copy/surfaces/index.ts` is where every surface's three
- * exports get spread into the application-wide catalogue, and that file sits under `copy/`, which
- * this feature does not own - wiring it in is the next task's job. Until that three-line addition
- * lands, every call site below still renders correctly: vue-i18n falls back to the English text
- * given as each `t()` call's own fallback argument, exactly as it does for any other key with no
- * catalogue entry yet.
+ * This module does not register itself, and that is still true - but it IS registered. The wiring
+ * lives in `copy/surfaces/kid.ts`, which re-exports these three objects, and `copy/surfaces/
+ * index.ts` spreads them into the application-wide catalogue alongside every other surface. So
+ * Cantonese, bilingual mode and both funny-level sliders genuinely reach every string below.
+ *
+ * An earlier version of this comment said the opposite - that wiring it in was "the next task's
+ * job" and that until then vue-i18n was falling back to each `t()` call's own English argument.
+ * That was true when it was written and became false the moment the surface landed, which is the
+ * dangerous kind of stale: a reader who believed it would conclude Kid Mode is English-only and
+ * either register it a second time or write documentation saying a shipped feature does not work.
+ * The English fallback argument on each call site below is still correct and still load-bearing -
+ * it is what a missing key would render - but it is no longer what actually renders.
  */
 import type { FixedString, VoicedString } from "../components/setup/setupStrings.js";
 
@@ -59,6 +65,31 @@ export const KID_VOICED = {
             "而家靜英英，撳 GO 開始一樣嘢。",
             "而家好靜喎！撳 GO 開始一樣嘢啦。",
             "而家好靜喎！撳一撳個 GO 掣，開始整啲嘢啦。",
+        ],
+    },
+    /*
+     * "What is being drawn" row on Home, for a render whose world/project name has not resolved
+     * yet: `KidHome.vue` shows this instead of the row's raw fallback value (`activeRenders.ts`'s
+     * own `idFallback`/`syncId` - a hash like `world-0a974df3a729`, or a CI sync id), which is a
+     * meaningless string to a pre-reading child and exactly the kind of adult/technical detail kid
+     * mode exists to translate. This is honest about not knowing yet - it never invents a name -
+     * and disappears on its own the instant the real one resolves, because `KidHome.vue` only shows
+     * it while the row's `label` is still literally the same value as its `renderId`.
+     */
+    "kid.home.nowUnnamed": {
+        en: [
+            "Finding its name",
+            "Finding its name",
+            "Finding its name…",
+            "Working out what to call it!",
+            "Working out what to call it - hang tight!",
+        ],
+        yue: [
+            "搵緊佢個名",
+            "搵緊佢個名",
+            "搵緊佢個名…",
+            "度緊要點叫佢！",
+            "度緊要點叫佢，等等啊！",
         ],
     },
     "kid.stickers.blurb": {
@@ -253,6 +284,7 @@ export const KID_FACTS = {
     "kid.home.hero": { en: ["map"], yue: ["地圖"] },
     "kid.home.heroBlurb": { en: ["GO"], yue: ["GO"] },
     "kid.home.quiet": { en: ["GO"], yue: ["GO"] },
+    "kid.home.nowUnnamed": { en: ["name"], yue: ["名"] },
     "kid.stickers.blurb": { en: ["real"], yue: ["真係"] },
     "kid.gate.noLock.blurb": { en: ["No grown-up code is set", "Adult Mode"], yue: ["未設定大人密碼", "大人模式"] },
     "kid.gate.locked.blurb": { en: ["shared code", "Adult Mode"], yue: ["共用密碼", "大人模式"] },

@@ -55,6 +55,7 @@ describe("the capture ledger", () => {
             file: "config-screen.png",
             surface: "The options editor as it opens",
             caption: "The options editor as it opens.",
+            capturedAt: "2026-01-01T00:00:00.000Z",
         });
 
         // A different reader entirely, which is what a restarted Playwright worker is.
