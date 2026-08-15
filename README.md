@@ -306,10 +306,10 @@ A status card with demo values is still a fake integration.
 <details open>
 <summary><b>The shell, captured from the built application</b></summary>
 
-Real captures of the packaged application - the one `build-installer.bat` produces, launched on an
-off-screen desktop and driven by clicking its rail and its tab strip, then photographed through its
-own window handle. That is a different pipeline from the Playwright harness further down this file,
-and neither may ever stand in for the other. Not mockups, and not the prototype.
+Real captures of the running application, taken by the project's Playwright harness against a
+freshly built Electron process and driven by clicking its rail and its tab strip - the same harness
+that produced every capture in the Screenshots section further down this file, run most recently on
+2026-08-15. Not mockups, and not the prototype.
 
 **Home** — five catalogue cards behind an 80 px rail, dark by default. The hero spans both columns
 and carries the Make a map catalogue's own group headings as chips; the count in the lede is the
@@ -324,17 +324,49 @@ catalogues rather than crowding the strip.
 ![Worldlens Work: the browser-style tab strip inside the Work destination, holding the jobs that have actually been opened rather than every destination the application has, with their seeded groups, the new-tab menu and the overflow control](docs/screenshots/tab-strip.png)
 
 </details>
+
+<details open>
+<summary><b>Kid Mode</b> - what a fresh install actually opens on, not the shell above</summary>
+
+`kid.enabled` ships `true`, so before anyone ever sees the three-destination shell captured above,
+a fresh install shows this instead: bigger touch targets, picture-first labels, and the same 84
+features the adult catalogues hold, reorganised into five "lands" rather than copied into a second
+set. Nothing is added, removed, renamed or hidden between the two modes - see
+[`docs/kid-mode.md`](docs/kid-mode.md).
+
+![Kid Mode's Home, and the default view of a fresh install: kid.enabled defaults to true, so this - not the Adult Mode shell above - is the very first screen this application ever shows anybody. A GO hero card, the five catalogues drawn as picture-first "lands", what the app is doing right now, and the maps and servers this computer already knows about](docs/screenshots/kid-home.png)
+
+The grown-up gate is the door back to the shell above, and it is worth showing in the state a
+confused adult will actually meet it in: nobody has ever set the shared restricted-mode code on a
+fresh install, so the gate lets one press go straight through rather than demanding a code that was
+never set. The mechanism exists specifically so Kid Mode can never become a one-way door.
+
+![The grown-up gate in its no-credential-configured state, which is the state every fresh install actually starts in: a single button through to Adult Mode, and an honesty line at the bottom naming this as a user-experience lock rather than a security lock and pointing at the real reset route](docs/screenshots/kid-gate-no-credential.png)
+
+More of Kid Mode - its own rail, a catalogue "land", the re-hosted Work view, the sticker book and
+its settings row - is further down this page, in its own collapsible section.
+
+</details>
+
 ## Screenshots
 
 Photographed from the real running application by the project's Playwright harness. None is a
-mockup. The harness covers the shell, the wizard, the options editor, settings, the menu, the
-notification surfaces, the destructive-action gate and the Pages publishing screen. The harness
+mockup. The harness covers the shell, Kid Mode, the wizard, the options editor, settings, the menu,
+the notification surfaces, the destructive-action gate and the Pages publishing screen. The harness
 also fails closed when the UI, main process or preload bundle is stale, so a passing capture is
 not silently photographing an older build. The world under the interface is a real save rendered
 by upstream BlueMap's Java engine and served to the application over loopback, and the harness
 fails its own run if the application reaches the public internet while capturing. A run given no
 rendered map records every map-dependent surface as out of reach, with that reason, rather than
 photographing an empty viewer and calling it a map.
+
+**Two ages sit side by side below, honestly.** The most recent run was 2026-08-15 and had no
+rendered map loaded, so it refreshed everything that does not need one - including all eight Kid
+Mode captures, for the first time ever - and recorded an honest skip for everything that does. The
+map itself, and everything reached only through the viewer's own Menu button (the menu's own
+pages, the marker studio, the viewer's control bar, and the reset-settings confirmation gate below),
+are therefore still the last captures taken with a map actually loaded, on 2026-08-05. Each one
+says so again beside the image, rather than letting its place on this page imply it is fresh.
 
 **The map.** A Minecraft save, rendered by upstream BlueMap's Java engine and served to the
 application over loopback. This is what the program is for, so it leads.
@@ -346,6 +378,9 @@ what you place in a set of your own, separate from anything a server publishes, 
 cannot take them away.
 
 <img src="docs/screenshots/marker-studio.png" alt="The marker studio open in the side sheet over the rendered map: a Make your own markers button, a My markers set with its visibility switch, an Add a marker button, and the sentence saying markers you make yourself stay on this computer and are kept separate from anything a server publishes" width="900">
+
+_Both captured 2026-08-05, the last Playwright run with a rendered map loaded - see the note above
+this section for why they are ten days older than most of the rest of this page._
 
 Open a section to see the rest. Each capture's own caption sits beside it in
 `docs/screenshots/captions.md`, and `docs/screenshots/manifest.json` records what took it, by
@@ -428,6 +463,9 @@ all of it, including the three window buttons.
 
 <img src="docs/screenshots/chrome-control-bar.png" alt="The viewer control bar: the menu button on the left, then a search over the viewer's own controls and buttons for the viewer settings and the command palette; and on the right the day and night switch, the perspective, flat and free-flight view modes, reset camera, live x and z position inputs both reading 256, and a compass" width="900">
 
+_Captured 2026-08-05, the last run with a rendered map loaded - the control bar only exists while
+a map is being served, so it is the same age as the map images at the top of this section._
+
 </details>
 
 <details>
@@ -447,7 +485,36 @@ remembered, and downloads nothing.
 </details>
 
 <details>
+<summary><b>Kid Mode</b> - the rail, a catalogue, the re-hosted Work view, the sticker book and its settings row</summary>
+
+The two headline Kid Mode captures - Kid Home and the grown-up gate - are shown further up this
+page, open by default, because Kid Mode is what a fresh install actually shows. The rest of Kid
+Mode's eight captures are here.
+
+|                                                                                                                                                                                                                                                                                        |                                                                                                                                                                                                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src="docs/screenshots/kid-rail.png" alt="Kid Mode's own rail, cropped from the Home capture: Home, Explore, My jobs and Stickers as big picture-first destinations under a level badge and XP bar, with Find, Messages and the grown-up gate as small footer actions - the same three-destination-plus-footer shape the adult rail has" width="140"> | <img src="docs/screenshots/kid-catalogue.png" alt="One of Kid Mode's five catalogues, opened as a picture-first land from Kid Home: every feature it holds as its own row with a real shipped blurb underneath, grouped under headings, with the same search field and anchored regex builder every other catalogue page in this application carries" width="420"> |
+| Kid Mode's own rail                                                                                                                                                                                                                                                                     | A catalogue "land" opened                                                                                                                                                                                                                                           |
+| <img src="docs/screenshots/kid-job-strip.png" alt="Kid Mode's Work view: the same tab strip, seeded groups, pinning, drag reorder and overflow as Adult Mode's own Work destination, re-hosted with Kid Mode's own labels and a 64px-minimum chip floor rather than the adult shell's 44px one" width="420"> | <img src="docs/screenshots/kid-stickers.png" alt="The sticker book on a fresh capture profile: every sticker this build knows about, each naming the real feature it is earned from, none of them won yet - a sticker that has not been won says so plainly, nothing is hidden or teased" width="420"> |
+| Work, re-hosted with Kid Mode's own labels                                                                                                                                                                                                                                              | The sticker book, honestly empty on a fresh profile                                                                                                                                                                                                                 |
+| <img src="docs/screenshots/kid-mode-settings-row.png" alt="The Kid Mode settings row, reached from inside Adult Mode: the Kid Mode / Adult Mode choice, the child's name, the celebration and sound switches, and the label-style choice" width="420"> | <img src="docs/screenshots/kid-home-390.png" alt="Kid Home held at 390 by 844 CSS pixels, the same phone width the redesigned adult shell proves itself at: the rail, hero, five lands and both panels holding their layout rather than being narrowed to a scroll, at Kid Mode's own 64px-minimum touch targets" width="240"> |
+| The Kid Mode / Adult Mode settings row                                                                                                                                                                                                                                                  | Kid Home at phone width                                                                                                                                                                                                                                             |
+
+Not captured, and honestly recorded as skipped rather than faked: the grown-up gate with a
+credential actually set (the shared restricted-mode code is deliberately not scoped to this run's
+disposable profile - see below), the celebration overlay (it only ever fires from a real completion
+event, never a planted value), and any light, dark or contrast variant of a Kid Mode surface - Kid
+Mode always paints from its own fixed theme regardless of the scheme chosen in Adult Mode's
+Settings, so there is genuinely nothing else to capture here.
+
+</details>
+
+<details>
 <summary><b>The menu</b> - its root page, the maps, markers, settings and info pages, and the regex builder</summary>
+
+_All seven images below were captured 2026-08-05, the last Playwright run with a rendered map
+loaded - the menu only exists once a map is being served. See the note near the top of the
+Screenshots section._
 
 |                                                                                                                                                                                                   |                                                                                                                                                                 |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -481,9 +548,10 @@ remembered, and downloads nothing.
 <details>
 <summary><b>The options editor</b> - all eight tabs of BlueMap's own configuration</summary>
 
-<img src="docs/screenshots/config-screen.png" alt="Historical capture of the options editor with eight tabs and a search across 154 settings, taken before the client-decompression setting was added" width="900">
+<img src="docs/screenshots/config-screen.png" alt="The options editor as it opens: eight tabs down the side, BlueMap's own generated defaults filling the page because the throwaway capture profile has no config folder on disk, and a search across every setting" width="900">
 
-> The current generated options inventory is **155 settings**. This capture remains a real built-artifact screenshot, but it predates the `client-decompression` setting; a fresh hidden-desktop capture is pending because the required cheap capture route is unavailable in this environment.
+Captured 2026-08-15 against the current build, so this is not a historical image: the generated
+options inventory it shows carries all **155 settings**, including `client-decompression`.
 
 |                                                                                                                                                                        |                                                                                                                                                      |                                                                                                                                       |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -522,6 +590,14 @@ read off the machine, not the ability to write one.
 
 <img src="docs/screenshots/wizard-release-downloads.png" alt="The release downloads panel, which offers to fetch a world from a GitHub release for somebody with no Minecraft save on this machine" width="600">
 
+The wizard's first step also opens two remote world sources without leaving it: a saved SSH host,
+and a local Docker installation.
+
+|                                                                                                                                                                                                           |                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src="docs/screenshots/wizard-ssh-world-source.png" alt="The SSH world-source checklist inside the wizard's first step: saved key-only machines, explicit host-key review, remote-world inspection, and a local fetch destination" width="420"> | <img src="docs/screenshots/wizard-docker-world-source-390x844-200pct.png" alt="The local Docker world-source checklist at a 390 by 844 CSS-pixel viewport and 200 percent device scale: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress" width="280"> |
+| SSH world source                                                                                                                                                                                          | Docker world source, at a phone viewport and 200% scale                                                                                                                                                                              |
+
 </details>
 
 <details>
@@ -530,12 +606,10 @@ read off the machine, not the ability to write one.
 Nothing that only informs is a dialog. Messages appear in a corner, never block, and stay
 readable afterwards in a history.
 
-|                                                                                                                                                                                                                                         |                                                                                                                                                                                   |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <img src="docs/screenshots/profiles-manager.png" alt="The maps and servers manager, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with fields for adding another" width="420"> | <img src="docs/screenshots/notifications-toast.png" alt="The notification corner reporting what the options editor loaded when it opened, without blocking anything" width="420"> |
-| Maps and servers                                                                                                                                                                                                                        | A message in the corner                                                                                                                                                           |
-| <img src="docs/screenshots/notifications-corner.png" alt="The bottom right corner of the window while the application is saying something: one message explaining that BlueMap's own defaults are being shown because nothing has been opened from disk yet, with a dismiss button beside it" width="300">                                                  | <img src="docs/screenshots/notifications-history.png" alt="The notification centre: its own search field, a line reading it is showing 4 of the 4 notifications recorded, filters, the bulk select and invert actions, and each message with its level, its exact time and a Show again action" width="300">     |
-| The button that opens the history                                                                                                                                                                                                       | The history itself                                                                                                                                                                |
+|                                                                                                                                                                                                                                         |                                                                                                                                                                                   |                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src="docs/screenshots/profiles-manager.png" alt="The maps and servers manager, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with fields for adding another" width="300"> | <img src="docs/screenshots/notifications-rail-bell.png" alt="The live notification bell in the application rail, carrying its unread badge, before it opens the history anchored beside it" width="70"> | <img src="docs/screenshots/notifications-history.png" alt="The notification centre that bell opens: its own search field, a line reading it is showing 4 of the 4 notifications recorded, filters, the bulk select and invert actions, and each message with its level, its exact time and a Show again action" width="300"> |
+| Maps and servers                                                                                                                                                                                                                        | The rail's notification bell                                                                                                                                                      | The history it opens                                                                                                                                                              |
 
 A destructive action takes two keys and a full-travel slider, and an emergency exit is available
 throughout.
@@ -544,6 +618,20 @@ throughout.
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | <img src="docs/screenshots/super-confirm-untouched.png" alt="The reset-settings gate before either key is turned, with the slider refusing to move" width="280"> | <img src="docs/screenshots/super-confirm-one-key.png" alt="The reset-settings gate with one key turned, which is not enough to arm the slider" width="280"> | <img src="docs/screenshots/super-confirm-armed.png" alt="The reset-settings gate with both keys turned and the slider armed" width="280"> |
 | Untouched                                                                                                                                                        | One key                                                                                                                                                     | Both keys, armed                                                                                                                          |
+
+_All three captured 2026-08-05, the last run with a rendered map loaded - this gate is reached only
+through the viewer's own Menu button, so it is the same age as the menu pages above, even though the
+reset it guards has nothing to do with the map itself._
+
+</details>
+
+<details>
+<summary><b>Projects, the EULA viewer and rendering in GitHub Actions</b> - three screens with their own capture steps, not shown in the sections above</summary>
+
+|                                                                                                                                                                 |                                                                                                                                                                                                |                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src="docs/screenshots/projects-screen.png" alt="The Projects screen, showing the real empty state and the path into a new render project" width="260"> | <img src="docs/screenshots/eula-viewer.png" alt="The EULA viewer embedded in Settings, with the bundled or cached licence copy, its provenance and its searchable section tabs" width="260"> | <img src="docs/screenshots/ci-render-screen.png" alt="The CI-render screen, with its honest repository fields and the preflight route that refuses before uploading anything" width="260"> |
+| Projects                                                                                                                                                       | The EULA viewer                                                                                                                                                                                | Rendering in GitHub Actions                                                                                                                                             |
 
 </details>
 
@@ -568,21 +656,39 @@ looks similar. As of the committed set:
 - **The options editor's save plan.** That dialog lists the files a save would write, and its
   Save control is disabled while the editor has no folder attached, so there is no door to open
   it through in the state the captures were taken in.
-- **The wizard's Docker world source.** The harness could not open it in this run, and said so
-  rather than photographing something adjacent; the failure it hit is written out beside the
-  images.
 - **The notification centre opened from the rail's bell.** The panel itself is captured, through
   the command palette's row for it, which works every time. What has no honest capture is the
   bell working: pressing it on a fresh profile leaves its own `aria-expanded` at `false` and puts
   the panel in the document not at all. A capture of the panel would not have shown that, which
   is exactly why the skip is recorded separately from the capture.
+- **The grown-up gate with a credential actually set.** The shared restricted-mode code is
+  deliberately not scoped to this run's disposable capture profile: it lives in a location shared
+  on purpose across every Kid-Mode-capable app on the host, so setting one just to capture this
+  state would write to this machine's real, persistent application data rather than the throwaway
+  profile the rest of this harness confines itself to. The no-credential state shown above is the
+  one every fresh install genuinely starts in, and it is the one captured.
+- **Kid Mode's celebration overlay.** It only ever fires from a real completion event - a rendered
+  map opened, a page published to GitHub Pages, a local render finished - never from a value
+  planted to make the screen look populated.
+- **Any light, dark or contrast variant of a Kid Mode surface.** Kid Mode always paints from its
+  own fixed theme, regardless of the scheme chosen in Adult Mode's Settings, so there is genuinely
+  nothing else here to capture.
+- **A remote-hosting panel, in one run.** The most recent run timed out opening it; the failure is
+  written out in full beside the images rather than the panel being silently dropped from the set.
+- **A map popup at the viewport edge.** That needs a rendered map with a marker near the window's
+  edge to click, which this run's map-free capture profile does not have.
 
 The exact list for the committed set, with reasons, is the `skipped` array in
-`docs/screenshots/manifest.json` - nine entries as it stands, all of them a surface the run could
-not honestly reach rather than one nobody wrote a step for. The **History** tab of the options
-editor, the **projects** screen, the **EULA viewer** and the **rendering-in-Actions** screen were
-in that second category once; they have their own capture steps now, and their images are in the
-committed set above.
+`docs/screenshots/manifest.json` - 23 entries in the run this page's newest captures come from.
+Most of that count is the map-dependent surfaces already explained above (the menu and everything
+reached only through it), honestly skipped rather than faked because this particular run had no
+map fixture; the rest are surfaces this build genuinely cannot reach without a real render, a real
+GitHub sign-in, or - for Kid Mode's credential-configured gate - writing to this machine's real,
+shared application data. The **History** tab of the options editor, the **projects** screen, the
+**EULA viewer** and the **rendering-in-Actions** screen were once in that second category too; they
+have their own capture steps now - History is in **The options editor** section above, and
+Projects, the EULA viewer and rendering in GitHub Actions are in their own section immediately
+above this one.
 
 </details>
 
@@ -768,6 +874,7 @@ The source of truth lives in the repository:
 ## Contents
 
 - [Everything the application does](#features)
+- [Screenshots](#screenshots)
 - [Rendering engines](#rendering-engines)
 - [Phase status](#phase-status)
 - [Packages](#packages)
