@@ -1,0 +1,6 @@
+# Package-local .gitignore, kept here rather than added to design/.gitignore: this package
+# owns its own build/output paths and does not need to touch a file outside its own directory
+# to ignore them. design/.gitignore already ignores dist/ and node_modules/ at any depth, so
+# this mostly just adds this package's own capture output directory.
+dist/
+capture-output/

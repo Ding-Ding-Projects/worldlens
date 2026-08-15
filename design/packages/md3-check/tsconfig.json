@@ -1,0 +1,23 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "rootDir": "src",
+        "outDir": "dist",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2023", "DOM", "DOM.Iterable"],
+        "types": ["vite/client"],
+        // Same reasoning as `packages/ui/tsconfig.json`: this package is built by `vite
+        // build`, never by `tsc`, and nothing holds a project reference to its declaration
+        // output. Composite's stricter file-list enforcement produces false-positive TS6307
+        // errors on a `.ts` module reached only through a `.vue` file's `.js`-extension
+        // import (every module here is imported that way, matching the rest of the repo).
+        "composite": false,
+        "declaration": false,
+        "declarationMap": false
+    },
+    // `src/main/index.mjs` is deliberately excluded: it is plain, un-typed Node ESM (see its
+    // own header for why), not part of the Vue/DOM renderer this tsconfig type-checks.
+    "include": ["src/renderer"],
+    "exclude": ["src/main"]
+}

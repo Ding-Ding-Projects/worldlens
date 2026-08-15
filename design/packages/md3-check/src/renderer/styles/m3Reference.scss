@@ -1,0 +1,346 @@
+/*
+ * The LEFT-hand pane's styling: hand-transcribed values from the publicly published Material
+ * Design 3 baseline component specification (m3.material.io/components), typed by a human/
+ * assistant reviewing this code for this instrument, at the point in time this file was
+ * written. It is NOT sourced from any installed package (`@material/web` is not a dependency
+ * anywhere in this workspace - see the scout report this app was built from), not sourced from
+ * a machine-readable spec artifact, and not verified against one in this environment. Treat
+ * every number below as a best-effort transcription, not a certified copy - the same claim the
+ * app's own honesty banner (`HonestyBanner.vue`) makes on screen, in the one place a reader is
+ * guaranteed to see it before looking at a single row.
+ *
+ * ## What this file is NOT allowed to import, and why
+ *
+ * Nothing here reads a value out of `@worldlens/ui/src/styles/md3.scss`, `vuetify.ts`, or any
+ * other Worldlens token file. Doing that would make this "reference" pane secretly measure
+ * Worldlens against itself while a reader believes it is being measured against an independent
+ * spec - exactly the failure this whole instrument exists to refuse. The one exception is
+ * colour: every rule below reads `--v-theme-*` custom properties (Worldlens's own resolved
+ * role colours), not literal hex values, and that is a deliberate, documented choice, not an
+ * oversight. Material 3 does not mandate specific hex values, only which named ROLE a given
+ * component part should use (a filled button's container is "primary", whichever hex primary
+ * happens to resolve to). Using Worldlens's own role values on both sides means a reader is
+ * comparing what this instrument actually needs comparing - shape, elevation, type scale,
+ * spacing, and correct-role-application - rather than being distracted by two different colour
+ * systems that were never going to match by construction. `App.vue`'s honesty banner says this
+ * explicitly, in the UI, not only in a code comment nobody using the app will ever read.
+ *
+ * ## Baseline spec, not "M3 Expressive"
+ *
+ * `md3.scss`'s own header repeatedly invokes "MD3 Expressive" for its motion vocabulary, while
+ * shipping the pre-Expressive 7-step shape scale (see that file's own comments). This reference
+ * pane cites the ORIGINAL/baseline M3 component specification throughout, not the 2025
+ * "Expressive" update - which is itself a real, unresolved tension the scout report flagged and
+ * this instrument does not paper over. A component that looks "wrong" against this reference
+ * might instead be intentionally Expressive; the honesty banner says so, and a reader judging a
+ * genuine difference should weigh that possibility rather than trust this file as the final word.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Buttons - M3 "Common buttons" spec.
+ *
+ * Height 40dp and shape Full (fully rounded / stadium) apply to every button type. Label text
+ * is Label Large (14sp / 20sp line-height / 500 weight / +0.1px tracking) in every variant.
+ * Filled/Outlined/Elevated/Tonal buttons take 24dp horizontal padding; the Text button, having
+ * no container to pad, takes 12dp.
+ * ------------------------------------------------------------------------- */
+.md3ref-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 40px;
+    border-radius: 9999px;
+    font-family: Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+    white-space: nowrap;
+    border: none;
+}
+
+/* Filled: container = primary, label = on-primary. */
+.md3ref-btn--filled {
+    padding: 0 24px;
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+}
+
+/* Outlined: transparent container, 1dp outline border, label = primary. */
+.md3ref-btn--outlined {
+    padding: 0 24px;
+    background: transparent;
+    color: rgb(var(--v-theme-primary));
+    border: 1px solid rgb(var(--v-theme-outline));
+}
+
+/* Text: transparent container, no border, label = primary, 12dp horizontal padding. */
+.md3ref-btn--text {
+    padding: 0 12px;
+    background: transparent;
+    color: rgb(var(--v-theme-primary));
+}
+
+/* ---------------------------------------------------------------------------
+ * Chip - M3 "Chips" spec, flat Assist chip.
+ *
+ * Height 32dp, shape Small (8dp corner - every chip TYPE in the spec shares this one shape
+ * token). The flat Assist chip's container sits on the surrounding surface colour with a 1dp
+ * outline border; its label uses on-surface-variant. Label text style is Label Large, the same
+ * ramp buttons use.
+ * ------------------------------------------------------------------------- */
+.md3ref-chip {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid rgb(var(--v-theme-outline));
+    background: rgb(var(--v-theme-surface));
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-family: Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Card - M3 "Cards" spec, Elevated card.
+ *
+ * Shape Medium (12dp), container = surface, body text = on-surface. The elevation shadow
+ * itself is not hand-drawn here (this reference is not independently re-deriving M3's shadow
+ * math a second time; `md3.scss`'s own two-part key+ambient ladder already exists and this
+ * pane is free to look identical there without that being a self-consistency trap - only
+ * SHAPE/COLOUR-ROLE accuracy is what this row exists to check, and its shadow is cosmetic).
+ * ------------------------------------------------------------------------- */
+.md3ref-card {
+    box-sizing: border-box;
+    /* Deliberately NOT `width: 100%`, unlike `.md3ref-alert` below - measured directly, the
+       real Vuetify VCard used in this row's Worldlens pane shrink-wraps to its own content
+       width (~115px for "Card content") rather than filling its container the way VAlert does
+       by default. Stretching only this side would manufacture a large, meaningless Width Δ
+       that reflects a one-sided styling choice, not anything M3 or Worldlens actually does;
+       leaving both sides free to size to their own content is what makes that row's Width
+       comparison a real one. */
+    border-radius: 12px;
+    padding: 16px;
+    background: rgb(var(--v-theme-surface));
+    color: rgb(var(--v-theme-on-surface));
+    box-shadow:
+        0 1px 2px 0 rgba(var(--v-theme-shadow), 0.3),
+        0 1px 3px 1px rgba(var(--v-theme-shadow), 0.15);
+    font-family: Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+}
+
+/* ---------------------------------------------------------------------------
+ * Text field - M3 "Text fields" spec, Outlined variant.
+ *
+ * Height 56dp, shape Extra small (4dp) applied to ALL FOUR corners of the outline (the
+ * Outlined variant is unlike the Filled variant, whose square bottom corners come from an
+ * underline rather than a full outline). Input text is Body Large (16sp / 24sp / 400 /
+ * +0.5px). Worldlens pins `VTextField: { rounded: "md" }` (12px, via `vuetify.ts`'s
+ * COMPONENT_DEFAULTS) - a real, deliberate 8px divergence from this 4px baseline, not a bug
+ * this file is trying to catch; the row just reports the numbers so a reader can judge it.
+ * ------------------------------------------------------------------------- */
+.md3ref-textfield {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 56px;
+    padding: 0 16px;
+    border-radius: 4px;
+    border: 1px solid rgb(var(--v-theme-outline));
+    background: transparent;
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-family: Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Switch - M3 "Switch" spec, selected/on state.
+ *
+ * Track 52dp x 32dp, shape Full. Selected track container = primary; selected thumb (24dp,
+ * shown here as a simple filled circle rather than the spec's optional inner check glyph) =
+ * on-primary.
+ * ------------------------------------------------------------------------- */
+.md3ref-switch-track {
+    box-sizing: border-box;
+    width: 52px;
+    height: 32px;
+    border-radius: 9999px;
+    background: rgb(var(--v-theme-primary));
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 4px;
+}
+
+.md3ref-switch-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 9999px;
+    background: rgb(var(--v-theme-on-primary));
+}
+
+/* ---------------------------------------------------------------------------
+ * Checkbox - M3 "Checkbox" spec, selected state.
+ *
+ * Container box 18dp x 18dp, shape Extra small (2dp corner), selected container = primary.
+ * The checkmark glyph itself is not drawn (only shape/size/colour are measured by this row);
+ * see the row's own citation text in RowsGallery.vue.
+ * ------------------------------------------------------------------------- */
+.md3ref-checkbox {
+    box-sizing: border-box;
+    width: 18px;
+    height: 18px;
+    border-radius: 2px;
+    background: rgb(var(--v-theme-primary));
+}
+
+/* ---------------------------------------------------------------------------
+ * Radio button - M3 "Radio button" spec, selected state.
+ *
+ * Outer circle 20dp diameter (shape Full, i.e. a true circle - the corner-radius measurement
+ * for this row is expected to equal half the box size on both panes by construction, so it is
+ * really the SIZE that is being checked here, not the roundness). Selected ring = primary.
+ * ------------------------------------------------------------------------- */
+.md3ref-radio {
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    border: 2px solid rgb(var(--v-theme-primary));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.md3ref-radio-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: rgb(var(--v-theme-primary));
+}
+
+/* ---------------------------------------------------------------------------
+ * List item - M3 "Lists" spec, one-line list item.
+ *
+ * Height 56dp minimum, 16dp horizontal padding, label text Body Large (16sp / 24sp / 400).
+ * Deliberately corner-radius 0: the baseline spec does not apply a shape token to an ordinary
+ * list row at all (rounding is a Contacts-style "card list" pattern, not the default). Worldlens
+ * pins `VListItem: { rounded: "lg" }` (16px) - a second real, deliberate divergence this row
+ * exists to surface honestly, not to flag as broken.
+ * ------------------------------------------------------------------------- */
+.md3ref-list-item {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: 56px;
+    padding: 0 16px;
+    border-radius: 0;
+    background: rgb(var(--v-theme-surface));
+    color: rgb(var(--v-theme-on-surface));
+    font-family: Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+}
+
+/* ---------------------------------------------------------------------------
+ * Linear progress indicator - M3 "Progress indicators" spec.
+ *
+ * Track (full bar) height 4dp, shape Full (rounded ends). Inactive track = secondary-container;
+ * active indicator = primary. Shown at a fixed 60% for a deterministic, non-animating capture -
+ * this row measures the STATIC track's height/shape/colour, not motion.
+ * ------------------------------------------------------------------------- */
+.md3ref-progress-linear-track {
+    box-sizing: border-box;
+    width: 100%;
+    height: 4px;
+    border-radius: 9999px;
+    background: rgb(var(--v-theme-secondary-container));
+    overflow: hidden;
+}
+
+.md3ref-progress-linear-active {
+    height: 100%;
+    width: 60%;
+    background: rgb(var(--v-theme-primary));
+}
+
+/* ---------------------------------------------------------------------------
+ * Circular progress indicator - M3 "Progress indicators" spec.
+ *
+ * 48dp diameter with a 4dp stroke is a commonly published default size (the spec permits
+ * multiple sizes); rendered as a static SVG arc rather than an animated spinner, again for a
+ * deterministic capture. No visible track ring in the baseline spec's default depiction.
+ * ------------------------------------------------------------------------- */
+.md3ref-progress-circular {
+    width: 48px;
+    height: 48px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Divider - M3 "Divider" spec.
+ *
+ * 1dp thickness, full width, colour = outline-variant.
+ * ------------------------------------------------------------------------- */
+.md3ref-divider {
+    width: 100%;
+    height: 1px;
+    background: rgb(var(--v-theme-outline-variant));
+}
+
+/* ---------------------------------------------------------------------------
+ * Icon - M3 iconography guidance.
+ *
+ * 24dp standard size. Material 3 does not mandate one colour role for every icon (it depends
+ * on context - an icon inside a filled button inherits that button's label colour, for
+ * instance); on-surface-variant is used here as a common, citable default for a standalone,
+ * non-interactive icon with no surrounding component to inherit from.
+ * ------------------------------------------------------------------------- */
+.md3ref-icon {
+    width: 24px;
+    height: 24px;
+    color: rgb(var(--v-theme-on-surface-variant));
+    display: inline-flex;
+}
+
+.md3ref-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+}
+
+/* ---------------------------------------------------------------------------
+ * "Alert" - NOT a named Material 3 component. See RowsGallery.vue's own citation text and the
+ * app's honesty banner. Shape 12dp (Medium) is this instrument's own judgement call, borrowed
+ * from the Card row's baseline as the nearest cited container-shape convention, not a numbered
+ * spec fact the way every rule above is. Colour uses the spec's own explicitly-defined
+ * error-container / on-error-container role pair, which IS a real M3 citation, applied here to
+ * the clearest available alert semantics (an error/warning banner).
+ * ------------------------------------------------------------------------- */
+.md3ref-alert {
+    box-sizing: border-box;
+    /* Same reasoning as `.md3ref-card` above: stretches to match Vuetify's own default alert
+       width so the Width row measures a real difference, not an artifact of one side never
+       being asked to fill its container. */
+    width: 100%;
+    border-radius: 12px;
+    padding: 16px;
+    background: rgb(var(--v-theme-error-container));
+    color: rgb(var(--v-theme-on-error-container));
+    font-family: Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+}
