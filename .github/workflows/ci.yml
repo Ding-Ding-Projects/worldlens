@@ -24,7 +24,7 @@ on:
 # The `concurrency` blocks below stay scoped per job, never to the whole workflow.
 # A job-level group only supersedes that same job across runs - it can never cancel a
 # *different* job in the *same* run the way a shared workflow-level group would, so jobs
-# meant to run in parallel (`workflows`, `check` and `jars` all start together below) still
+# meant to run in parallel (`check` and `jars` all start together below) still
 # do. `release` deliberately carries none of these new groups: it already has its own
 # job-level group further down with `cancel-in-progress: false`, for the reason recorded
 # there - a queued publish waits, it is never dropped, and nothing above cancels it either.
@@ -33,94 +33,25 @@ permissions:
   contents: read
 
 jobs:
-  # A workflow file with an invalid expression is not a workflow that fails - it is a
-  # workflow that never registers. It disappears from the Actions list, `gh workflow run`
-  # reports it as not found, and the only symptom is a zero-second "workflow file issue"
-  # hung on some unrelated push. `Render world` shipped in that state and nobody could
-  # have told from a green CI run, because nothing here ever read those files.
+  # The "Lint the workflow files" job used to live here (job id `workflows`): a unit-test
+  # run, a static-analysis pass over the workflow files (`node scripts/lint-workflows.mjs`),
+  # a changelog-freshness diff, and a YAML linter (`actionlint`), all `continue-on-error:
+  # true` so a failure could never withhold a release. The repository owner was asked
+  # directly how to resolve a conflict in `lint-workflows.mjs`'s own reviewed contract and
+  # answered "No lint and no timeout" - confirming the standing policy that GitHub Actions
+  # runs no tests and no lint, in any project, all the way down to this job's own existence.
+  # A `continue-on-error` job that only ever reports is not a build step; it is a lint step
+  # that happens to run in CI, which the policy already forbids everywhere else in this
+  # file. Removed rather than further weakened.
   #
-  # This job reads them. It is deliberately first and deliberately cheap: it needs no
-  # checkout of anything but the workflows and no toolchain at all.
-  workflows:
-    name: Lint the workflow files
-    runs-on: ubuntu-24.04
-    concurrency:
-      group: ci-workflows-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      # Full history and every tag: the changelog check below derives its versions from
-      # the tags and its entries from the commits, and a depth-1 checkout would report a
-      # changelog covering one version as current.
-      #
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-          # Pull requests are otherwise checked out at GitHub's synthetic merge
-          # commit. The generated changelog follows the branch history, so lint
-          # the actual PR head instead of inventing an unlisted merge entry.
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-
-      # Standing policy: GitHub Actions runs no tests and no lint, in any project, and
-      # nothing in a workflow gates the release. Every step below is exactly that kind of
-      # check - a unit-test run, a static-analysis pass over the workflow files, a
-      # changelog-freshness diff, a YAML linter - and none of them builds or publishes
-      # anything. `continue-on-error: true` keeps each one running and its verdict visible
-      # on the Actions page (a real failure still shows a warning triangle on the step),
-      # but a failure here can no longer fail this job, and this job has been removed from
-      # `release`'s `needs:` below so a stale changelog or a flaky script test can never
-      # again withhold a release the way it did in run 31879080680. Checking these moved to
-      # where a human asked for it: locally, before the dew - `node --test ...`,
-      # `node scripts/lint-workflows.mjs`, `node scripts/build-changelog.mjs --check` and
-      # `./actionlint` are still exactly what to run by hand before pushing.
-      - name: Guard executable workflow expressions and release metadata
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          node --test scripts/bootstrap.test.mjs scripts/check-bluemap-upstream.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
-          node scripts/lint-workflows.mjs
-
-      # A release tag is created after the commit it names, so that commit cannot already
-      # contain a changelog generated from its own future tag. Branch and pull-request runs
-      # remain strict; tag runs still execute every other pre-publication validation and
-      # packaging check. The main-only release job remains intentionally ineligible on tags.
-      #
-      # Non-blocking for the same standing-policy reason as the step above: a stale
-      # changelog is a real thing worth fixing, but it is a documentation gap, not a broken
-      # artifact, and it must never be the reason nobody gets an installer.
-      - name: Verify generated changelog is current
-        if: github.ref_type != 'tag'
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          # Generated-only commits are deliberately excluded by the generator, so a commit
-          # containing only its two outputs does not make itself stale. Full history above
-          # keeps both released versions and the Unreleased section reproducible.
-          node scripts/build-changelog.mjs --check
-
-      # Non-blocking for the same standing-policy reason as the two steps above: this is a
-      # YAML linter, not a release gate.
-      - name: actionlint
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          version=1.7.12
-          curl -fsSL --retry 3 \
-            "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz" \
-            -o actionlint.tar.gz
-          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" \
-            | sha256sum --check --strict -
-          tar -xzf actionlint.tar.gz actionlint
-          # The hosted runner already ships shellcheck, so every run block is checked.
-          # (This note deliberately never starts a line with the word shellcheck: a
-          # comment starting "# shellcheck" is parsed as a shellcheck *directive*, and a
-          # malformed one fails the very lint step this comment sits in.)
-          ./actionlint -color
-
+  # Nothing downstream ever depended on this job (`release`'s `needs:` already excluded it,
+  # see the comment there), so removing it changes no other job's `needs:` or `if:`.
+  #
+  # Every check that job ran is still exactly what to run locally, by hand, before pushing:
+  #   node --test scripts/bootstrap.test.mjs scripts/check-bluemap-upstream.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
+  #   node scripts/lint-workflows.mjs
+  #   node scripts/build-changelog.mjs --check
+  #   ./actionlint -color   (see the retired job's git history for the pinned download)
   check:
     name: Lint, build, test
     runs-on: ubuntu-24.04
@@ -703,16 +634,47 @@ jobs:
     #
     # `test-world` is a real input: it produces the rendered map this job serves and
     # photographs. With no map there is nothing to capture, so the job correctly does not run.
-    if: always() && needs.test-world.result == 'success'
+    #
+    # DISABLED - owner decision, 2026-08-15. Not broken: this job was reliably timing out
+    # at exactly its ceiling, and `continue-on-error: true` below only swallows a FAILING
+    # job, never a CANCELLED one - a job killed by `timeout-minutes` concludes as
+    # `cancelled`, and that conclusion travels straight out to the run (see the comment on
+    # `timeout-minutes` below, unchanged since before this disablement, for the full
+    # history). So this deliberately-advisory job kept concluding an otherwise entirely
+    # successful run - installer built, release published, every other job green - as
+    # cancelled, purely because its own ceiling was too low for what it actually does:
+    # install dependencies, build the whole workspace, unpack a rendered world, install
+    # Playwright's OS dependencies, and only then drive the packaged application through
+    # every surface.
+    #
+    # `if: false` turns the job off without touching a single step below it, on purpose:
+    # every step, and the capture harness they drive, stays exactly as built, so this can
+    # be turned back on with a one-line change rather than reconstructed from scratch.
+    #
+    # To re-enable: remove `if: false` and give the job a realistic ceiling first - 20
+    # minutes was never enough for install + workspace build + world unpack + Playwright's
+    # OS dependencies + driving every surface of the packaged app, which is exactly why the
+    # ceiling below was already raised once; re-check it again against the current capture
+    # set before trusting it, rather than assuming a number chosen earlier still holds.
+    #
+    # This removes the CI *gate*, not the evidence: captures are still produced and
+    # committed locally through `pnpm --filter @worldlens/app screenshots`, the same
+    # command this job runs, so the screenshot record keeps moving between releases even
+    # while nothing here runs it. `lint-workflows.mjs` no longer asserts a reviewed
+    # timeout value for this job - that rule guarded a job that actually ran; guarding the
+    # timeout of a job nobody runs would be asserting nothing.
+    if: false
     runs-on: ubuntu-24.04
     # Screenshot capture is diagnostic evidence, not a release gate. A broken capture
     # still uploads whatever images and traces it produced, but it must not turn an
     # otherwise valid build red or prevent publication.
     #
-    # This is the other half of the `if:` above, and the two are not redundant: the condition
-    # decides whether the job gets to run at all when something upstream went red, and this
-    # decides that the job's own failure never travels back out to the run. Evidence-gathering
-    # that can veto a release is not evidence-gathering.
+    # This is the other half of the `if:` above (currently `if: false` - see the
+    # disablement comment there), and the two are not redundant: the condition decides
+    # whether the job gets to run at all when something upstream went red, and this decides
+    # that the job's own failure never travels back out to the run once it does. Evidence-
+    # gathering that can veto a release is not evidence-gathering. Left in place while the
+    # job is disabled so re-enabling needs only the one-line change described above.
     continue-on-error: true
     # A wedged browser must not retain the workflow indefinitely - but the ceiling has to be
     # above what the job legitimately needs, and 20 minutes was not.

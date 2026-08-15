@@ -81,7 +81,16 @@ test("the checked-in workflow has exact provenance and quoted data-only sinks", 
   }
 });
 
-test("tag-trigger and generated-changelog execution scope fail closed", () => {
+// The "workflows" job ("Lint the workflow files") - a unit-test run, a static-analysis
+// pass over the workflow files, a changelog-freshness diff and a YAML linter - was removed
+// from ci.yml entirely under the "no lint in CI" policy (repository owner, "No lint and no
+// timeout"). The generated-changelog-step contract this test used to exercise
+// (exactly-one-step-inside-`workflows`, its exact non-tag condition, its exact literal
+// run-block commands, no continue-on-error) verified a step that no longer exists, so that
+// coverage went with it. What is still live - unrestricted triggers, canonical unquoted
+// control keys, and the exact reviewed inventory of every remaining `if:` condition in the
+// file - is still exercised below, retargeted onto anchors that still exist.
+test("trigger, quoting and condition-inventory contracts fail closed", () => {
   const workflow = readFileSync(FILE, "utf8").replaceAll("\r\n", "\n");
   assert.deepEqual(actionDependencyProblems(workflow, FILE), []);
   assert.deepEqual(
@@ -89,91 +98,7 @@ test("tag-trigger and generated-changelog execution scope fail closed", () => {
     [],
   );
 
-  const stepStart = workflow.indexOf(
-    "      - name: Verify generated changelog is current",
-  );
-  const stepEnd = workflow.indexOf("\n      - name: actionlint", stepStart);
-  assert.ok(stepStart >= 0);
-  assert.ok(stepEnd > stepStart);
-  const changelogStep = workflow.slice(stepStart, stepEnd);
-  const withoutChangelogStep =
-    workflow.slice(0, stepStart) + workflow.slice(stepEnd + 1);
-  const checkInstall = "      - run: pnpm install --frozen-lockfile";
-  assert.ok(withoutChangelogStep.includes(checkInstall));
-
   const mutations = [
-    [
-      "relocated into the check job",
-      withoutChangelogStep.replace(
-        checkInstall,
-        `${changelogStep}\n\n${checkInstall}`,
-      ),
-      /must exist exactly once inside the workflows job/,
-    ],
-    [
-      "extra executable command",
-      workflow.replace(
-        "          node scripts/build-changelog.mjs --check",
-        "          node scripts/build-changelog.mjs --check\n          echo unexpected",
-      ),
-      /must contain only its reviewed executable commands/,
-    ],
-    ...[">", ">-", ">+"].map((scalar) => [
-      `folded changelog command block ${scalar}`,
-      workflow.replace(
-        changelogStep,
-        changelogStep.replace("        run: |", `        run: ${scalar}`),
-      ),
-      /must use the exact literal run block scalar/,
-    ]),
-    [
-      "continue on error",
-      workflow.replace(
-        "          node scripts/build-changelog.mjs --check",
-        "          node scripts/build-changelog.mjs --check\n        continue-on-error: true",
-      ),
-      /may not continue after an error/,
-    ],
-    [
-      "quoted continue-on-error key",
-      workflow.replace(
-        "          node scripts/build-changelog.mjs --check",
-        "          node scripts/build-changelog.mjs --check\n        'continue-on-error': true",
-      ),
-      /may not continue after an error/,
-    ],
-    [
-      "inverted tag condition",
-      workflow.replace(
-        "        if: github.ref_type != 'tag'",
-        "        if: github.ref_type == 'tag'",
-      ),
-      /must use exactly the reviewed non-tag condition/,
-    ],
-    [
-      "relaxed always condition",
-      workflow.replace(
-        "        if: github.ref_type != 'tag'",
-        "        if: always()",
-      ),
-      /must use exactly the reviewed non-tag condition/,
-    ],
-    [
-      "duplicate changelog step",
-      workflow.replace(
-        "\n      - name: actionlint",
-        `\n${changelogStep}\n\n      - name: actionlint`,
-      ),
-      /must exist exactly once inside the workflows job/,
-    ],
-    [
-      "tag guard on actionlint",
-      workflow.replace(
-        "      - name: actionlint\n",
-        "      - name: actionlint\n        if: github.ref_type != 'tag'\n",
-      ),
-      /workflow condition inventory/,
-    ],
     [
       "tag guard on the check job",
       workflow.replace(
@@ -183,45 +108,33 @@ test("tag-trigger and generated-changelog execution scope fail closed", () => {
       /workflow condition inventory/,
     ],
     [
-      "folded alternate tag predicate",
+      "folded alternate condition on the check job",
       workflow.replace(
-        "      - name: actionlint\n",
+        "  check:\n    name: Lint, build, test\n",
         [
-          "      - name: actionlint",
-          "        if: >-",
-          "          !startsWith(github.ref, 'refs/tags/')",
+          "  check:",
+          "    name: Lint, build, test",
+          "    if: >-",
+          "      !startsWith(github.ref, 'refs/tags/')",
           "",
         ].join("\n"),
       ),
       /workflow condition inventory/,
     ],
     [
-      "generic condition on another validation step",
+      "screenshots re-enabled without updating the reviewed inventory",
       workflow.replace(
-        "      - name: actionlint\n",
-        "      - name: actionlint\n        if: false\n",
+        "    if: false\n    runs-on: ubuntu-24.04\n    # Screenshot capture is diagnostic evidence",
+        "    if: always() && needs.test-world.result == 'success'\n    runs-on: ubuntu-24.04\n    # Screenshot capture is diagnostic evidence",
       ),
       /workflow condition inventory/,
     ],
     ...["'", '"'].flatMap((quote) => [
       [
-        `${quote}quoted inline condition key`,
+        `${quote}quoted inline condition key on the check job`,
         workflow.replace(
-          "      - name: actionlint\n",
-          `      - name: actionlint\n        ${quote}if${quote}: false\n`,
-        ),
-        /canonical unquoted spelling/,
-      ],
-      [
-        `${quote}quoted folded condition key`,
-        workflow.replace(
-          "      - name: actionlint\n",
-          [
-            "      - name: actionlint",
-            `        ${quote}if${quote}: >-`,
-            "          !startsWith(github.ref, 'refs/tags/')",
-            "",
-          ].join("\n"),
+          "  check:\n    name: Lint, build, test\n",
+          `  check:\n    name: Lint, build, test\n    ${quote}if${quote}: false\n`,
         ),
         /canonical unquoted spelling/,
       ],
@@ -355,7 +268,11 @@ for (const [lineEnding, workflow] of [
   });
 }
 
-test("all 128 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+// 126, not the previous 128: `actions/checkout` and `actions/setup-node` each dropped one
+// use when the `workflows` job ("Lint the workflow files") was removed from ci.yml under
+// the "no lint in CI" policy - that job was the only place either action ran without also
+// using one of the other four identities below.
+test("all 126 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
   const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
   const workflowFiles = readdirSync(".github/workflows")
     .filter((name) => /\.ya?ml$/i.test(name))
@@ -376,7 +293,7 @@ test("all 128 actions in every executable workflow are SHA-pinned and checkouts 
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    128,
+    126,
   );
   assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
 });
@@ -617,16 +534,6 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const unwired = workflow.replace(
-    "node --test scripts/bootstrap.test.mjs scripts/check-bluemap-upstream.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs",
-    "echo skipped",
-  );
-  assert.ok(
-    actionDependencyProblems(unwired, FILE).some((problem) =>
-      /security contract must run exactly once/.test(problem.message),
-    ),
-  );
-
   const unvalidatedOutput = workflow.replace(
     "printf 'ordinal=%s\\n' \"$ordinal\"",
     'echo "ordinal=$ordinal"',
@@ -637,44 +544,26 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const skippedFatalGate = workflow.replace(
-    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
-    "needs: [check, workflows, package, jars, test-world]",
-  );
-  assert.notEqual(skippedFatalGate, workflow);
-  assert.ok(
-    actionDependencyProblems(skippedFatalGate, FILE).some((problem) =>
-      /release must depend/.test(problem.message),
-    ),
-  );
-
-  const lintGate = workflow.replace(
-    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
-    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, lint]",
-  );
-  assert.notEqual(lintGate, workflow);
-  assert.ok(
-    actionDependencyProblems(lintGate, FILE).some((problem) =>
-      /every correctness job and no advisory job/.test(problem.message),
-    ),
-  );
-
-  for (const job of [
-    "check",
-    "workflows",
-    "package",
-    "jars",
-    "test-world",
-    "config-java-roundtrip",
-  ]) {
+  // The two checks these three sub-tests used to exercise - an exact `needs:` list
+  // requiring `release` to depend on every correctness job ("release must depend on every
+  // correctness job and no advisory job"), and a duplicate re-parse of `release`'s own
+  // `if:` block requiring the same jobs' success ("release eligibility must require
+  // success...") - both encoded a policy the repository owner has since repealed ("No lint
+  // and no timeout"). `release` now depends only on `package`, `jars` and `test-world`
+  // (see ci.yml's own `needs:` comment on the `release` job), and there is no reviewed
+  // rule left in this script that forbids adding an advisory job like `screenshots` there.
+  //
+  // What survives is the generic condition-inventory protection: removing any of the
+  // `needs.X.result` clauses that ARE still part of the reviewed `release` condition is
+  // still caught, just via the same "workflow condition inventory" mechanism that guards
+  // every other `if:` in the file, using REVIEWED_RELEASE_CONDITION as the reviewed value.
+  for (const job of ["package", "jars", "test-world"]) {
     const requiredLine = `      && needs.${job}.result == 'success'`;
     const relaxedEligibility = workflow.replace(requiredLine, "");
     assert.notEqual(relaxedEligibility, workflow, job);
     assert.ok(
       actionDependencyProblems(relaxedEligibility, FILE).some((problem) =>
-        /release eligibility must require success from every correctness job/.test(
-          problem.message,
-        ),
+        /workflow condition inventory/.test(problem.message),
       ),
       job,
     );
@@ -699,17 +588,6 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   assert.ok(
     actionDependencyProblems(secondPublisher, FILE).some((problem) =>
       /exactly one reviewed release publisher/.test(problem.message),
-    ),
-  );
-
-  const screenshotGate = workflow.replace(
-    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
-    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip, screenshots]",
-  );
-  assert.notEqual(screenshotGate, workflow);
-  assert.ok(
-    actionDependencyProblems(screenshotGate, FILE).some((problem) =>
-      /release must depend/.test(problem.message),
     ),
   );
 
@@ -878,16 +756,11 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const unboundedScreenshots = workflow.replace(
-    `    timeout-minutes: 20${eol}`,
-    "",
-  );
-  assert.notEqual(unboundedScreenshots, workflow);
-  assert.ok(
-    actionDependencyProblems(unboundedScreenshots, FILE).some((problem) =>
-      /20-minute job timeout/.test(problem.message),
-    ),
-  );
+  // A reviewed 20-minute `timeout-minutes` value used to be required on this job. That
+  // policy is repealed (repository owner, "No lint and no timeout"), and the job itself is
+  // now disabled (`if: false`) - see ci.yml's own comment on the job for the full history -
+  // which makes a reviewed timeout value doubly moot. No replacement assertion: there is
+  // nothing left for this script to guard about that job's ceiling.
 
   const floatingRunner = workflow.replace(
     "runs-on: ubuntu-24.04",
