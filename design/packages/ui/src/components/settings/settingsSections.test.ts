@@ -64,6 +64,15 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["3 · Large", "150%", "Contrast"],
     },
     {
+        anchor: "kid-mode",
+        title: "Kid Mode and Adult Mode",
+        description: "Picture-first labels, bigger controls, celebrations and stickers, on by default. Every feature stays exactly where it is; only the way it is drawn changes.",
+        // Both option labels are on screen at once, whichever mode is active, so a
+        // grown-up searching for "adult" finds the way back just as readily as a search
+        // for "kid" finds the row at all.
+        values: ["Kid Mode", "Adult Mode", "Explorer"],
+    },
+    {
         anchor: "surface-placement",
         title: "Where the panels sit",
         description: "Every panel that docks to an edge remembers its own position.",
@@ -192,6 +201,7 @@ describe("every section the surface renders", () => {
             "github-account",
             "language-and-tone",
             "display",
+            "kid-mode",
             "surface-placement",
             "render-memory",
             "download-concurrency",

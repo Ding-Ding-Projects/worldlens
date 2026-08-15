@@ -12,10 +12,12 @@
  * survives a code review and dies in a test.
  *
  * The contrast pairs are asserted with real WCAG arithmetic rather than by trusting the
- * generator: every `on-X` must read against its `X` at 4.5:1 or better, in all three
- * themes. The contrast theme additionally has to stay what it is for - black surfaces,
- * white text - because a "contrast" theme that drifted toward taste would be a fourth
- * ordinary theme wearing the accessibility label.
+ * generator: every `on-X` must read against its `X` at 4.5:1 or better, in all four
+ * themes - `kid` included, because a presentation scheme that happens to fail the same
+ * reading-pair floor every other theme is held to is not "for kids", it is illegible. The
+ * contrast theme additionally has to stay what it is for - black surfaces, white text -
+ * because a "contrast" theme that drifted toward taste would just be another ordinary
+ * theme wearing the accessibility label.
  */
 
 import { readFileSync } from "node:fs";
@@ -82,7 +84,7 @@ const CONTRAST_PAIRS: readonly (readonly [string, string])[] = [
     ["inverse-surface", "inverse-on-surface"],
 ];
 
-function colorsOf(theme: "dark" | "light" | "contrast"): Record<string, string> {
+function colorsOf(theme: "dark" | "light" | "contrast" | "kid"): Record<string, string> {
     return (THEME_SCHEMES[theme].colors ?? {}) as Record<string, string>;
 }
 
@@ -104,7 +106,7 @@ function contrastRatio(a: string, b: string): number {
     return (lighter + 0.05) / (darker + 0.05);
 }
 
-const THEMES = ["dark", "light", "contrast"] as const;
+const THEMES = ["dark", "light", "contrast", "kid"] as const;
 
 describe("every theme carries the complete M3 role set", () => {
     for (const theme of THEMES) {
@@ -162,10 +164,15 @@ describe("what must not drift", () => {
         expect(contrastRatio(colors.surface!, colors["on-surface"]!)).toBeCloseTo(21, 0);
     });
 
-    it("marks dark and contrast as dark schemes and light as a light one", () => {
+    it("marks dark and contrast as dark schemes, and light and kid as light ones", () => {
+        // Kid mode's surfaces run light, the same direction the product's own `light` scheme
+        // takes. Vuetify's own text/overlay contrast math for a theme depends on this flag
+        // being right regardless of how a scheme got its colours, so it is asserted directly
+        // rather than inferred from the theme's name.
         expect(THEME_SCHEMES.dark.dark).toBe(true);
         expect(THEME_SCHEMES.contrast.dark).toBe(true);
         expect(THEME_SCHEMES.light.dark).toBe(false);
+        expect(THEME_SCHEMES.kid.dark).toBe(false);
     });
 });
 

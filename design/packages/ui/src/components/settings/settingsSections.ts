@@ -67,6 +67,18 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * anchor: no render stops for the want of a bigger button, so nothing on the bridge
  * could honestly point here.
  *
+ * Kid Mode and Adult Mode is next, right beside display, for the same kind of reason
+ * that put display beside language and tone: this is a third sense of "how this app
+ * looks", not a fourth capability — picture-first labels, bigger controls, celebrations
+ * and a sticker book, with every feature staying exactly where it always was. It ships
+ * on: a fresh install opens in Kid Mode rather than Adult Mode, so this is where a
+ * grown-up finds the way back, which is exactly why the section's own search has to
+ * answer to "adult" as readily as it answers to "kid". The lock in front of leaving Kid
+ * Mode is not a lock of its own — it reads the shared restricted-mode credential that
+ * `language-and-tone`'s own row already exposes a setting for, so there is one code to
+ * remember rather than two. Not an anchor: no render stops for the want of Kid Mode, so
+ * nothing on the bridge could honestly point here either.
+ *
  * Where the panels sit is next, and is a setting about this surface as much as about any
  * other: every docked panel remembers its own placement, and the one control that resets
  * all of them at once has to live somewhere a person can find it when they have moved a
@@ -144,6 +156,7 @@ export const SETTINGS_SECTIONS = [
     "github-account",
     "language-and-tone",
     "display",
+    "kid-mode",
     "surface-placement",
     "render-memory",
     "download-concurrency",

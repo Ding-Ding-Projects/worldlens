@@ -45,6 +45,7 @@ import {
     markMigrationRan,
     migrateWorkspace,
     migrationAlreadyRan,
+    resolveMeta,
     type CatalogueFeatureDefinition,
     type CatalogueMetaSources,
     type FeatureTarget,
@@ -63,7 +64,13 @@ import {
     tutorialOffered,
 } from "./components/tutorial/index.js";
 import { FirstRunSetup, WelcomeSurface, useSchoolMode } from "./components/setup/index.js";
-import { AppSettings, type SettingsSectionAnchor } from "./components/settings/index.js";
+import {
+    AppSettings,
+    changeTheme,
+    currentTheme,
+    type SettingsSectionAnchor,
+    type ThemeChoice,
+} from "./components/settings/index.js";
 import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
@@ -99,14 +106,26 @@ import {
     dropRenderHostMissingReason,
     useDropRenderHost,
 } from "./components/dropRender/dropRenderHost.js";
-import { addLocalMap, profilesStore } from "./stores/profiles.js";
+import { addLocalMap, isLocalProfile, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
 import { notices, raiseNotice } from "./stores/notices.js";
 import { wireProjectAutosaveNotices } from "./stores/projectAutosaveNotices.js";
 import { productDisplayName } from "./stores/productName.js";
+import { KidShell, createKidMode } from "./kid/index.js";
+import { resolveCatalogues, type ResolvedCatalogue } from "./components/shell/catalogueSearch.js";
+import { useTheme } from "vuetify";
 
 const { t } = useI18n();
 const schoolMode = useSchoolMode();
+
+/**
+ * The kid-mode state, provided exactly once so every descendant - `KidShell` and everything
+ * inside it - reads the same reactive object rather than each falling back to its own
+ * disconnected copy. See `kidMode.ts`'s own doc comment on why `createKidMode()` must be
+ * called once, from the root, before any child that calls `useKidMode()` mounts, and on why
+ * `enabled` starts `true`: a fresh install opens in Kid Mode, not Adult Mode.
+ */
+const kid = createKidMode();
 
 /**
  * The viewer's own locale picker is a separate upstream seam from setupI18n. While the shared
@@ -145,6 +164,104 @@ watch(
 const currentApp = computed(() => blueMapApp.value);
 provideBlueMap(currentApp);
 useBlueMapTheme(currentApp);
+
+/* -------------------------------------------------------------------------- */
+/* Kid Mode's theme swap                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `useTheme()` above is a second call into the same Vuetify plugin instance
+ * `useBlueMapTheme` already holds - Vuetify's own composable, not a store this file owns, so
+ * calling it again here returns the identical reactive object rather than a second theme.
+ */
+const theme = useTheme();
+
+/**
+ * The Vuetify theme name `vuetify.ts` itself ships as `defaultTheme` - restated here as a
+ * named constant rather than duplicated silently, because it is what "no adult theme has
+ * ever been remembered" falls back to below. Kid Mode ships on (`kidMode.ts`'s own "Kid Mode
+ * ships on" comment), so a fresh install has no adult theme choice to have remembered the
+ * first time a grown-up actually leaves it - this constant is what keeps that grown-up
+ * landing on a real, intentional theme instead of on nothing at all.
+ */
+const SHIPPED_DEFAULT_THEME: ThemeChoice = "dark";
+
+/** Persisted the same way `themeSetting.ts` persists the viewer's own theme choice: a `bluemap-*`
+ * key, JSON-encoded so `null` (follow the system) round-trips as a real value rather than as
+ * an absent one. */
+const REMEMBERED_ADULT_THEME_KEY = "bluemap-kid-remembered-adult-theme";
+
+function isThemeChoiceValue(value: unknown): value is ThemeChoice {
+    return value === null || value === "dark" || value === "light" || value === "contrast";
+}
+
+function readRememberedAdultTheme(): ThemeChoice {
+    try {
+        const raw = globalThis.localStorage?.getItem(REMEMBERED_ADULT_THEME_KEY);
+        if (raw === null || raw === undefined) return SHIPPED_DEFAULT_THEME;
+        const parsed: unknown = JSON.parse(raw);
+        return isThemeChoiceValue(parsed) ? parsed : SHIPPED_DEFAULT_THEME;
+    } catch {
+        // A blocked store and a value that is not JSON both mean the same thing here: no
+        // usable stored memory, so the shipped default rather than nothing.
+        return SHIPPED_DEFAULT_THEME;
+    }
+}
+
+function writeRememberedAdultTheme(choice: ThemeChoice): void {
+    try {
+        globalThis.localStorage?.setItem(REMEMBERED_ADULT_THEME_KEY, JSON.stringify(choice));
+    } catch {
+        // Private mode or a full quota. The memory still applies for this session.
+    }
+}
+
+const rememberedAdultTheme = ref<ThemeChoice>(readRememberedAdultTheme());
+
+/**
+ * Turning Kid Mode on hands the whole shell `kid`'s brighter Vuetify scheme; turning it off
+ * hands back exactly the adult theme that was showing the moment Kid Mode was switched on -
+ * never Vuetify's own static default, and never a blank, unthemed frame.
+ *
+ * `{ immediate: true }` is what resolves the very first frame correctly rather than after it:
+ * `useBlueMapTheme` above already applied an adult theme synchronously during this same
+ * `setup()`, and this watcher's own immediate call runs synchronously right after it, in the
+ * same tick - before Vue has painted anything - so a cold start that opens in Kid Mode never
+ * shows adult colours first and then flips.
+ *
+ * Restoring goes through `changeTheme()` rather than `theme.change()` directly, because
+ * `changeTheme` is the one function `themeSetting.ts` allows to write the durable viewer-theme
+ * record. Calling `theme.change()` alone would repaint the frame without updating that record,
+ * so the settings row would keep showing whatever was chosen before Kid Mode, and the very
+ * next `currentTheme` change - a system-preference flip, another control - would silently
+ * undo the restore.
+ */
+watch(
+    kid.enabled,
+    (enabled) => {
+        if (enabled) {
+            rememberedAdultTheme.value = currentTheme.value;
+            writeRememberedAdultTheme(currentTheme.value);
+            theme.change("kid");
+            return;
+        }
+        changeTheme(rememberedAdultTheme.value);
+    },
+    { immediate: true },
+);
+
+/**
+ * `useBlueMapTheme`'s own watcher answers every `currentTheme` change and every
+ * system-preference flip with `dark`/`light`/`contrast` only - it has no idea Kid Mode
+ * exists, and teaching it is not this file's to do. Rather than reaching into that bridge,
+ * this reads Vuetify's own live theme name and snaps it straight back to `kid` whenever Kid
+ * Mode is the reason it should never have moved, which covers every path that could
+ * otherwise repaint the kid shell in adult colours out from under it - not only the one this
+ * file triggers itself above.
+ */
+watch(theme.name, (name) => {
+    if (kid.enabled.value && name !== "kid") theme.change("kid");
+});
 
 /* -------------------------------------------------------------------------- */
 /* Pages                                                                      */
@@ -446,6 +563,14 @@ const pages = computed<TabPage[]>(() => [
 
 const tabs = ref<InstanceType<typeof WorkPane> | null>(null);
 
+/**
+ * Kid Mode's own `WorkPane` instance lives inside `KidShell` - by way of `KidJobStrip.vue`,
+ * see that file's own doc comment - never inside the adult tree's `tabs` ref above, which
+ * Kid Mode leaves entirely unmounted. `shell`'s own `ensureJob`/`revealJob` host callbacks
+ * below need this to reach whichever tree is actually on screen.
+ */
+const kidShellRef = ref<InstanceType<typeof KidShell> | null>(null);
+
 /* -------------------------------------------------------------------------- */
 /* The shell: three destinations                                              */
 /* -------------------------------------------------------------------------- */
@@ -458,8 +583,24 @@ const tabs = ref<InstanceType<typeof WorkPane> | null>(null);
  * same division the command palette has always used here.
  */
 const shell = createShellNavigation({
-    ensureJob: (jobId) => tabs.value?.ensurePage(jobId),
-    revealJob: (jobId) => tabs.value?.revealPage(jobId),
+    // Routed to whichever shell is actually mounted. Kid Mode and Adult Mode are drawn by two
+    // completely separate trees - see the `<KidShell v-if>` / `v-else` branch in the template -
+    // so only one of `kidShellRef` and `tabs` is ever non-null at a time; this is not a guess
+    // at which one to prefer, it is a dispatch to the one that exists.
+    ensureJob: (jobId) => {
+        if (kid.enabled.value) {
+            kidShellRef.value?.ensureJob(jobId);
+            return;
+        }
+        tabs.value?.ensurePage(jobId);
+    },
+    revealJob: (jobId) => {
+        if (kid.enabled.value) {
+            kidShellRef.value?.revealJob(jobId);
+            return;
+        }
+        tabs.value?.revealPage(jobId);
+    },
     revealInJob: (jobId, reveal) => {
         // Deep reveals reuse each screen's own existing request mechanism rather than a new one.
         // Docs is the only job with a published article route today; the rest land on the job
@@ -596,6 +737,70 @@ const metaSources = computed<CatalogueMetaSources>(() => ({
     unreadNoticeCount: unreadNoticeCount.value,
     paletteShortcut: "Ctrl+Shift+F",
 }));
+
+/* -------------------------------------------------------------------------- */
+/* Kid Mode's own reshapes of state this shell already holds                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The same resolved catalogues Home and the catalogue pages already build for themselves -
+ * see `HomeCatalogues.vue`'s own identical `catalogues` computed. Built again here, with the
+ * same three arguments, because `resolveCatalogues` returns freshly translated,
+ * capability-filtered data rather than state this shell already held anywhere: `KidHome` and
+ * `KidCataloguePage` need exactly what Home and the adult catalogue pages need, not a second
+ * shape of it.
+ */
+const kidCatalogues = computed<readonly ResolvedCatalogue[]>(() =>
+    resolveCatalogues(
+        t as never,
+        (feature) => resolveMeta(feature.metaResolver, metaSources.value, t as never),
+        schoolMode.enabled.value,
+    ),
+);
+
+/**
+ * The notice history, reshaped for `KidShell`'s own narrower contract: `text` rather than
+ * `message`, and a plain `read` boolean rather than the id comparison the rail bell's own
+ * `unreadNoticeCount` above does inline. `notice.id <= notices.reviewedId` is exactly that
+ * same comparison, negated, so "read" here can never disagree with "unread" there.
+ */
+const kidNotices = computed(() =>
+    notices.history.map((notice) => ({
+        level: notice.level,
+        text: notice.message,
+        at: notice.at,
+        read: notice.id <= notices.reviewedId,
+    })),
+);
+
+/**
+ * `renderIndicator.rows`, reshaped for `KidShell`'s own narrower contract: one `label` rather
+ * than the world/project label pair the adult renders list reads, because Kid Mode's status
+ * bar chip has room for one short string, not two.
+ */
+const kidRenderRows = computed(() =>
+    renderIndicator.rows.value.map((row) => ({
+        state: row.state,
+        percent: row.percent,
+        label: row.worldLabel,
+    })),
+);
+
+/**
+ * The profile list, reshaped for `KidHome`'s own "your maps and servers" panel. A local
+ * render says where it lives; a remote server says the address it was added at - the same
+ * two facts `isLocalProfile()` already distinguishes everywhere else this store is read.
+ */
+const kidProfiles = computed(() =>
+    profilesStore.profiles.map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        meta: isLocalProfile(profile)
+            ? t("kid.home.mapMeta.local", "This computer")
+            : profile.url,
+        remote: !isLocalProfile(profile),
+    })),
+);
 
 function onRailSelect(next: RailDestination): void {
     // Picking a destination closes the options editor. The editor is an opaque surface over
@@ -1415,6 +1620,250 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             <MapView v-if="profilesStore.activeId" :key="profilesStore.activeId" />
 
             <!--
+                Kid Mode's own shell: the same three destinations, the same resolved
+                catalogues, the same job screens - forwarded through slots exactly as they
+                already are to the adult `WorkPane` below, never reimplemented. Every
+                `<template #...>` here duplicates a slot the adult branch already fills,
+                because Vue's slot syntax has no way to hand one block of slot content to two
+                sibling components at once - and `v-if`/`v-else` below means only one of the
+                two trees is ever mounted, so there is no risk of a screen like `WorldScreen`
+                or `AuthenticatorScreen` running twice. Toggling Kid Mode while a job is open
+                does mean that job's own component remounts fresh on the other side: `KidShell`
+                owns its own `WorkPane` instance (`KidJobStrip.vue`'s own doc comment explains
+                why), so it is a different instance from `tabs` below, not the same one moved.
+            -->
+            <KidShell
+                v-if="kid.enabled.value"
+                ref="kidShellRef"
+                class="mb-kid-shell-host"
+                :inert="configOpen"
+                :destination="destination"
+                :catalogues="kidCatalogues"
+                :open-jobs="openJobIds"
+                :problems="problems"
+                :notices="kidNotices"
+                :render-rows="kidRenderRows"
+                :render-percent="renderProgressPercent"
+                :running-render-count="runningRenderCount"
+                :profiles="kidProfiles"
+                @activate="onActivateFeature"
+                @select-destination="onRailSelect"
+                @workspace-change="(ids: readonly string[]) => (openJobIds = ids)"
+            >
+                <!--
+                    The map chrome, duplicated from `.mb-map-page` below rather than shared
+                    with it: the live WebGL canvas itself is mounted once, at shell level,
+                    above this whole branch (`<MapView>` up in `v-main`), so nothing here
+                    risks a second renderer - only the buttons and menus that sit over it are
+                    being drawn twice.
+                -->
+                <template #map>
+                    <div class="mb-map-page">
+                        <FreeFlightMobileControls v-if="showFreeFlightControls" />
+                        <ZoomButtons v-if="showZoomButtons" />
+
+                        <ControlBar v-if="showViewerChrome" />
+
+                        <div v-if="mapState !== 'loaded'" class="mb-map-state">
+                            <p class="mb-map-state__line" role="status" aria-live="polite">
+                                {{ mapStateMessage }}
+                            </p>
+
+                            <v-btn
+                                v-if="profilesStore.activeId === null"
+                                class="mb-interactive"
+                                variant="tonal"
+                                :prepend-icon="mdiMapPlus"
+                                @click="revealPage(PAGE_WORLD)"
+                            >
+                                {{ t("tabs.page.world", "Make a map") }}
+                            </v-btn>
+                        </div>
+
+                        <MainMenu
+                            @open-docs="revealPage(PAGE_DOCS)"
+                            @open-tutorial="requestTutorialLaunch()"
+                        >
+                            <template #markers="{ page, menu }">
+                                <MarkerMenu
+                                    v-if="blueMapApp"
+                                    :app="blueMapApp"
+                                    :menu="menu"
+                                    :marker-set="pageMarkerSet(page)"
+                                />
+                            </template>
+                        </MainMenu>
+                    </div>
+                </template>
+
+                <template #world>
+                    <div class="mb-world-host mb-interactive">
+                        <WorldScreen
+                            :settings-epoch="settingsEpoch"
+                            :can-open-ci="true"
+                            :focus-render-id="worldFocusRenderId"
+                            @consent="openSettings('mojang-download-consent')"
+                            @settings="revealSetting"
+                            @open-map="openRenderedMap"
+                            @open-project="openProject"
+                            @open-ci-render="openCiRender()"
+                        />
+                    </div>
+                </template>
+
+                <template #projects>
+                    <div class="mb-world-host mb-interactive">
+                        <ProjectsScreen
+                            :settings-epoch="settingsEpoch"
+                            :open-world="projectToOpen"
+                            @consent="openSettings('mojang-download-consent')"
+                            @settings="revealSetting"
+                            @open-map="openRenderedMap"
+                            @cloud-render="openCiRender"
+                            @dirty-change="unsavedProjectChanges = $event"
+                        />
+                    </div>
+                </template>
+
+                <template #cirender>
+                    <div class="mb-world-host mb-interactive">
+                        <div class="mb-shell-centre">
+                            <CiRenderScreen
+                                :key="ciWorldToOpen ?? 'manual'"
+                                :worlds="
+                                    ciWorldToOpen === null
+                                        ? []
+                                        : [{ folder: ciWorldToOpen, label: ciWorldToOpen }]
+                                "
+                                :can-open-settings="true"
+                                @sign-in="openSettings('github-account')"
+                                @open-consent="openSettings('mojang-download-consent')"
+                                @open="openInBrowser"
+                                @rendered="openCiRenderedMap"
+                            />
+                        </div>
+                    </div>
+                </template>
+
+                <template #authenticator>
+                    <AuthenticatorScreen />
+                </template>
+
+                <template #locks>
+                    <LockList />
+                </template>
+
+                <template #support>
+                    <SupportTickets :open-data-folder="openLockDataFolder" />
+                </template>
+
+                <template #browserExtension>
+                    <BrowserExtensionScreen />
+                </template>
+
+                <template #chunker>
+                    <ChunkerScreen />
+                </template>
+
+                <template #structures>
+                    <div class="mb-world-host mb-interactive">
+                        <DropRenderZone
+                            :disabled="dropRenderBusy"
+                            @render="onDropRender"
+                            @browse="onDropRenderBrowse"
+                        />
+                        <StructureList
+                            :files="structureStore.discovered"
+                            :can-scan="canScanStructures"
+                            @open="onOpenRenderedStructure"
+                        />
+                    </div>
+                </template>
+
+                <template #renders>
+                    <div class="mb-world-host mb-interactive">
+                        <RendersScreen @open-console="onOpenConsole" />
+                    </div>
+                </template>
+
+                <template #servers>
+                    <div class="mb-world-host mb-interactive">
+                        <div class="mb-shell-centre">
+                            <ProfileManager @close="revealPage(PAGE_MAP)" />
+                        </div>
+                    </div>
+                </template>
+
+                <template #backups>
+                    <div class="mb-world-host mb-interactive">
+                        <div class="mb-shell-centre">
+                            <BackupScreen
+                                :can-open-settings="true"
+                                @sign-in="openSettings()"
+                                @open="openInBrowser"
+                                @restore="revealBackupRestore"
+                            />
+                        </div>
+                    </div>
+                </template>
+
+                <template #pages>
+                    <div class="mb-world-host mb-interactive">
+                        <div class="mb-shell-centre">
+                            <PagesScreen @open="openInBrowser" />
+                        </div>
+                    </div>
+                </template>
+
+                <template #worldrepo>
+                    <div class="mb-world-host mb-interactive">
+                        <div class="mb-shell-centre">
+                            <WorldRepoScreen
+                                @open="openInBrowser"
+                                @open-settings="(anchor) => openSettings(anchor)"
+                                @adopted="openProject"
+                            />
+                        </div>
+                    </div>
+                </template>
+
+                <template #preview>
+                    <div class="mb-world-host mb-interactive">
+                        <div class="mb-shell-centre">
+                            <PreviewScreen />
+                        </div>
+                    </div>
+                </template>
+
+                <template #docs>
+                    <div class="mb-world-host mb-interactive">
+                        <DocsPage />
+                    </div>
+                </template>
+
+                <template #ollama>
+                    <div class="mb-world-host mb-interactive">
+                        <OllamaScreen />
+                    </div>
+                </template>
+
+                <template #memory>
+                    <div class="mb-world-host mb-interactive">
+                        <div class="mb-shell-centre">
+                            <p class="mb-memory-absent">
+                                {{
+                                    t(
+                                        "tabs.page.memory.absent",
+                                        "This build has no memory console. The page is registered so a build that does have one can open it; nothing here is measuring anything.",
+                                    )
+                                }}
+                            </p>
+                        </div>
+                    </div>
+                </template>
+            </KidShell>
+
+            <!--
                 The strip and its pages. Made inert rather than unmounted while the options
                 editor is open, for the same reason the editor's own comment gives: the page
                 behind an opaque surface must not still be reachable with Tab, and tearing it
@@ -1426,7 +1875,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 application and then disabled it, so the way out of the options editor was to
                 already know about Escape.
             -->
-            <div class="mb-shell-body">
+            <div v-else class="mb-shell-body">
                 <!--
                     The application rail: 80 px, always, at every supported width. It emits and
                     owns nothing - every action below is a call into the code this component
@@ -2052,6 +2501,21 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     display: flex;
     flex-direction: row;
     pointer-events: none;
+}
+
+/*
+ * `KidShell` fills exactly the same rectangle `.mb-shell-body` does, and needs the same
+ * technique to do it: `height: 100%` on `.wl-kid` (`KidShell.vue`'s own root) only resolves
+ * against a parent with a definite height, and `v-main`'s own content area does not reliably
+ * give its children one. `position: absolute; inset: 0` is what `.mb-shell-body` already
+ * relies on for the same reason, against the same ancestor, so this repeats it rather than
+ * inventing a second way to fill the same space. `KidShell` is not click-through by default
+ * the way `.mb-shell-body` is - it has no map layer beneath it that a click needs to reach
+ * through - so `pointer-events` is left at the normal `auto` here.
+ */
+.mb-kid-shell-host {
+    position: absolute;
+    inset: 0;
 }
 
 .mb-shell-content {

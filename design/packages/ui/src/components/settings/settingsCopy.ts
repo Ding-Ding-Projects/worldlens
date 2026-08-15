@@ -102,6 +102,17 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "How big everything is drawn, from the designed size up to double it, and whether the app is dark, light, high-contrast, or follows this computer. Both apply immediately and are remembered.",
             ),
         },
+        // Same two keys `KidModeRow.vue` itself renders with, per that file's own doc
+        // comment and the doc comment on the "kid-mode" entry above in
+        // `settingsSections.ts`: one copy of the title and the blurb, so what the search
+        // matches is the words actually on screen rather than a second, driftable copy.
+        "kid-mode": {
+            title: t("settings.kidMode.title", "Kid Mode and Adult Mode"),
+            description: t(
+                "settings.kidMode.blurb",
+                "Picture-first labels, bigger controls, XP and stickers. Every feature stays exactly where it is; only the way it is drawn changes.",
+            ),
+        },
         "surface-placement": {
             title: t("settings.placement.title", "Where the panels sit"),
             description: t(
