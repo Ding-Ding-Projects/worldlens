@@ -390,6 +390,19 @@ defineExpose({ ensureJob, revealJob, award });
 }
 .wl-kid__status {
     display: flex;
+    /*
+     * `docs/screenshots/kid-home-390.png` caught the child's own name truncated to "Explor":
+     * this row's children (the level pill, the fixed-width XP bar, the running-render chip)
+     * never shrank or wrapped, so at 390px window width their combined size ran past the
+     * room `.wl-kid__pane` has for the whole header - and because `.wl-kid__pane` clips
+     * overflow (see its own comment on why it has to), the name simply ran past that clip
+     * edge instead of reflowing. `.wl-kid__xp`'s own fix below gives room back before
+     * anything downstream of it has to; `flex-wrap` here is the backstop for whatever that
+     * still cannot fit - the header wraps the name onto its own line instead of clipping it,
+     * at any width, rather than trusting one fixed-width sibling to always leave enough room.
+     */
+    flex-wrap: wrap;
+    row-gap: 6px;
     align-items: center;
     gap: 12px;
     padding: 11px 16px;
@@ -406,13 +419,26 @@ defineExpose({ ensureJob, revealJob, award });
     font-weight: 800;
     font-size: 18px;
     cursor: pointer;
+    flex: 0 0 auto;
 }
 .wl-kid__level { background: rgb(var(--v-theme-tertiary-container)); color: rgb(var(--v-theme-on-tertiary-container)); }
 .wl-kid__chip--go { background: rgb(var(--v-theme-secondary-container)); color: rgb(var(--v-theme-on-secondary-container)); }
 .wl-kid__chip--problem { background: rgb(var(--v-theme-error-container)); color: rgb(var(--v-theme-on-error-container)); }
-.wl-kid__xp { width: 240px; height: 18px; border-radius: 9px; background: rgb(var(--v-theme-surface-variant)); overflow: hidden; }
+/*
+ * A fixed 240px here was the other half of the "Explor" defect above: this bar alone, plus
+ * the level pill beside it, already exceeded the header's available width at 390px, well
+ * before the child's own name ever got a chance to render. `flex: 1 1 80px` with a cap lets
+ * the bar give room back to its neighbours before the row has to wrap at all; the cap keeps
+ * it from ballooning past its original 240px on a wide window, where nothing needs the room.
+ */
+.wl-kid__xp { flex: 1 1 80px; min-width: 48px; max-width: 240px; height: 18px; border-radius: 9px; background: rgb(var(--v-theme-surface-variant)); overflow: hidden; }
 .wl-kid__xp-fill { height: 100%; background: rgb(var(--v-theme-primary)); }
-.wl-kid__spacer { flex: 1; }
+.wl-kid__spacer { flex: 1 1 0; min-width: 0; }
+/* No rule of its own before this fix - a bare `<span>` with nothing to stop it running past
+   the clip edge `.wl-kid__pane` draws around this whole header. `min-width: 0` lets it
+   actually shrink/wrap instead of forcing the row wider than the pane, and `overflow-wrap`
+   keeps a long bilingual-mode name from doing the same thing on its own. */
+.wl-kid__name { min-width: 0; overflow-wrap: anywhere; }
 /*
  * The one view in this shell that must stay click-through, and for the same reason the adult
  * shell's own `.mb-shell-layer--map` does: the `#map` slot rendered inside it is the identical

@@ -156,4 +156,21 @@ const unreadLabel = computed(() =>
 }
 .wl-kid-rail__badge--alert { background: rgb(var(--v-theme-error)); color: rgb(var(--v-theme-on-error)); }
 .wl-kid-rail__spacer { flex: 1; }
+
+/*
+ * Narrow-width shrink, at the same 860px measure `KidHome.vue`'s own reflow rules use. This
+ * rail was a fixed 124px at every window width - unlike the adult shell's `AppRail.vue`,
+ * whose fixed 80px it can afford because that rail never has to share a narrow window with a
+ * second column this wide. At 390px this rail alone, plus `.wl-kid`'s own padding and gap
+ * (see `KidShell.vue`), left barely 220px for everything else in the pane - which is exactly
+ * why `KidHome.vue`'s own reflow rules had so little room to work with. Shrinking the rail's
+ * width and type scale here, never below its own `--wl-kid-target-min` (64px) floor, is the
+ * other half of the same fix.
+ */
+@media (max-width: 860px) {
+    .wl-kid-rail { width: 88px; gap: 6px; }
+    .wl-kid-rail__big { width: 80px; min-height: var(--wl-kid-target-min); font-size: 13px; padding: 6px 2px; }
+    .wl-kid-rail__small { width: var(--wl-kid-target-min); min-height: var(--wl-kid-target-min); }
+    .wl-kid-rail__badge { right: 4px; }
+}
 </style>
