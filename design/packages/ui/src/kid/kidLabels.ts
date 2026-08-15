@@ -132,7 +132,7 @@ export const KID_JOB_LABELS: Readonly<Record<string, string>> = {
     "Memory console": "Shared memory desk",
 };
 
-/** Settings section anchor → kid label. All eighteen sections. */
+/** Settings section anchor → kid label. All nineteen sections. */
 export const KID_SETTINGS_LABELS: Readonly<Record<string, string>> = {
     "mojang-download-consent": "Say yes to Mojang",
     "java-runtime": "The engine's Java",
@@ -141,6 +141,12 @@ export const KID_SETTINGS_LABELS: Readonly<Record<string, string>> = {
     "github-account": "Who we sign in as",
     "language-and-tone": "How it talks",
     "display": "Bigger and easier",
+    // This is Kid Mode's own settings row - the one a grown-up uses to leave. The kid label
+    // names the grown-up's way out ("the grown-up switch") rather than hiding it: this row must
+    // never be harder for a grown-up to recognise than the row beside it. `kidAccessibleName()`
+    // still appends the real anchor after this label wherever it is used, exactly as it does for
+    // every other entry in this file, so the shipped name is never the part that goes missing.
+    "kid-mode": "Kid pictures or the grown-up switch",
     "surface-placement": "Where things sit",
     "render-memory": "How much thinking room",
     "download-concurrency": "How many at once",

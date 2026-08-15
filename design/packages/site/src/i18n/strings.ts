@@ -1303,6 +1303,27 @@ export const FIXED = {
         en: "From push to release",
         yue: "由推送到發佈",
     },
+
+    /* The screenshot lightbox: opened from any capture figure across the home showcase, the
+       Screenshots page's committed and CI-fetched galleries, and the walkthrough cards. One
+       shared set of labels because it is the same control and the same dialog in every case
+       -- see `shots/openAffordance.ts` and `shots/Lightbox.ts`. Fixed rather than voiced: a
+       funny level cannot usefully restyle "Zoom in", and the zoom percentage is a fact read
+       out to a visitor mid-interaction, not a place for a joke to land while they are trying
+       to read the interface text they just zoomed in for. */
+    "shots.enlargeNamed": { en: "Enlarge {name}", yue: "放大 {name}" },
+    "shots.dialogLabel": { en: "Enlarged view: {name}", yue: "放大檢視：{name}" },
+    "shots.zoomIn": { en: "Zoom in", yue: "放大" },
+    "shots.zoomOut": { en: "Zoom out", yue: "縮小" },
+    "shots.resetZoom": { en: "Reset to fit", yue: "重設至適合畫面" },
+    /* The visible readout beside the zoom buttons. Just the number: digits and a percent
+       sign carry no language of their own, but the key still goes through `i18n` like every
+       other on-screen string rather than being written into the DOM by hand. */
+    "shots.zoomLevel": { en: "{percent}%", yue: "{percent}%" },
+    /* The polite live-region announcement, debounced so a run of wheel ticks reports once it
+       settles rather than once per tick. "巴仙" is the everyday Cantonese loanword for
+       "per cent" (from the English), which is how this would actually be said out loud. */
+    "shots.zoomAnnounce": { en: "Zoom: {percent} percent", yue: "縮放：{percent} 巴仙" },
 } as const satisfies Record<string, FixedString>;
 
 export type VoicedKey = keyof typeof VOICED;

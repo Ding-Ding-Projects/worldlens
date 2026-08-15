@@ -21,6 +21,7 @@ import "./search/search.css";
 import "./dimsum/dimsum.css";
 import "./content/content.css";
 import "./walkthroughs/walkthroughs.css";
+import "./shots/shots.css";
 
 import { AppearanceController } from "./appearance/index.js";
 import {
@@ -54,6 +55,7 @@ import type {
     HomeStat,
     PhaseRow,
     RepoCapture,
+    ScreenshotCapture,
 } from "./content/index.js";
 import { maybeShowDimSum } from "./dimsum/index.js";
 import { createChangelogView } from "./content/changelogView.js";
@@ -79,6 +81,9 @@ import { articlePaletteCommands } from "./shell/articleCommands.js";
 import { SidebarNavigation } from "./shell/SidebarNavigation.js";
 import { ExpressiveSiteShell } from "./shell/ExpressiveSiteShell.js";
 import { createWalkthroughGallery } from "./walkthroughs/Gallery.js";
+import { createLightbox, type Lightbox } from "./shots/Lightbox.js";
+import { wrapCaptureInOpenButton } from "./shots/openAffordance.js";
+import { sizeFromAspectRatio } from "./shots/zoomMath.js";
 import {
     installRovingAppearanceFocus,
     registerAppearanceTarget,
@@ -202,7 +207,18 @@ function statusBadge(status: FeatureStatus, i18n: I18n): HTMLElement {
     return badge;
 }
 
-function captureFigure(capture: RepoCapture, className: string): HTMLElement {
+/**
+ * A capture figure, wrapped in the shared open-affordance so it can be enlarged.
+ *
+ * Every capture the site renders -- committed or CI-fetched, in the showcase strip or the
+ * dedicated gallery -- goes through this or `screenshotCaptureFigure` below, both of which
+ * call `wrapCaptureInOpenButton`. That is what fixes the poke guy this file exists to fix:
+ * without it, `.mb-shot-image` renders at a fixed, cropped `aspect-ratio` box
+ * (`content.css`'s `object-fit: contain` already stops the crop; it never offered a way to
+ * see the capture any larger than that box) with no way to see the whole capture, let alone
+ * read the interface text inside it.
+ */
+function captureFigure(capture: RepoCapture, className: string, i18n: I18n, lightbox: Lightbox): HTMLElement {
     const figure = el("figure", className);
 
     const image = el("img", "mb-shot-image");
@@ -213,13 +229,65 @@ function captureFigure(capture: RepoCapture, className: string): HTMLElement {
     // Reserves the window's shape through CSS rather than an inline style, so a lazily
     // loaded capture arriving does not shove the rest of the page down.
     image.dataset.ratio = capture.aspectRatio;
-    figure.appendChild(image);
+    // The lightbox's own initial fit is computed from this same ratio before the bundled
+    // image has necessarily finished loading, then superseded the moment it has -- see
+    // `sizeFromAspectRatio`'s doc comment in `shots/zoomMath.ts`.
+    const hint = sizeFromAspectRatio(capture.aspectRatio);
+    const open = wrapCaptureInOpenButton(image, {
+        i18n,
+        ariaLabelKey: "shots.enlargeNamed",
+        name: capture.title,
+        onActivate: (trigger) =>
+            lightbox.open(
+                {
+                    src: capture.url,
+                    alt: capture.alt,
+                    name: capture.title,
+                    ...(hint === null ? {} : { naturalWidth: hint.width, naturalHeight: hint.height }),
+                },
+                trigger,
+            ),
+    });
+    figure.appendChild(open);
 
     const caption = el("figcaption", "mb-shot-caption");
     caption.appendChild(el("strong", undefined, capture.title));
     caption.appendChild(document.createTextNode(capture.configuration));
     figure.appendChild(caption);
 
+    return figure;
+}
+
+/**
+ * The CI-fetched gallery's own figure: same open-affordance, built from `ScreenshotCapture`
+ * instead of `RepoCapture` -- the CI set carries a real decoded `widthPx`/`heightPx` rather
+ * than a captured window's aspect ratio, so the lightbox's initial fit is exact from the
+ * first frame rather than only ratio-accurate until the image loads.
+ */
+function screenshotCaptureFigure(
+    capture: ScreenshotCapture,
+    src: string,
+    i18n: I18n,
+    lightbox: Lightbox,
+): HTMLElement {
+    const figure = el("figure", "mb-shot");
+    const img = el("img", "mb-shot-image");
+    img.src = src;
+    img.alt = capture.alt;
+    img.loading = "lazy";
+    img.decoding = "async";
+    const open = wrapCaptureInOpenButton(img, {
+        i18n,
+        ariaLabelKey: "shots.enlargeNamed",
+        name: capture.title,
+        onActivate: (trigger) =>
+            lightbox.open(
+                { src, alt: capture.alt, name: capture.title, naturalWidth: capture.widthPx, naturalHeight: capture.heightPx },
+                trigger,
+            ),
+    });
+    figure.appendChild(open);
+    figure.appendChild(el("figcaption", "mb-shot-caption", captureCaption(capture)));
     return figure;
 }
 
@@ -414,7 +482,7 @@ function renderEngines(host: HTMLElement, navigation: PageNavigation): void {
     wrapper.appendChild(note);
 }
 
-function renderShowcase(host: HTMLElement, navigation: PageNavigation): void {
+function renderShowcase(host: HTMLElement, navigation: PageNavigation, i18n: I18n, lightbox: Lightbox): void {
     const wrapper = sectionFor(host, home.showcaseSection);
 
     // A record whose image did not resolve was dropped upstream of here, so an empty list
@@ -425,11 +493,11 @@ function renderShowcase(host: HTMLElement, navigation: PageNavigation): void {
     }
 
     const [lead, ...rest] = featuredCaptures;
-    if (lead !== undefined) wrapper.appendChild(captureFigure(lead, "mb-shot-lead"));
+    if (lead !== undefined) wrapper.appendChild(captureFigure(lead, "mb-shot-lead", i18n, lightbox));
 
     if (rest.length > 0) {
         const strip = el("div", "mb-shot-strip");
-        for (const capture of rest) strip.appendChild(captureFigure(capture, "mb-shot"));
+        for (const capture of rest) strip.appendChild(captureFigure(capture, "mb-shot", i18n, lightbox));
         wrapper.appendChild(strip);
     }
 
@@ -590,7 +658,7 @@ function renderGettingStarted(host: HTMLElement, navigation: PageNavigation, i18
     wrapper.appendChild(actions);
 }
 
-function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
+function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n, lightbox: Lightbox): void {
     const root = page(host);
 
     renderHero(root, navigation, i18n);
@@ -598,11 +666,12 @@ function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n): 
     // stack of prose. It is the single most visually convincing thing on this page -- a
     // real, running application, not a mockup -- so it renders immediately after the hero
     // instead of waiting for a reader to scroll past three sections of numbers first.
-    renderShowcase(root, navigation);
+    renderShowcase(root, navigation, i18n, lightbox);
     root.appendChild(
         createWalkthroughGallery({
             i18n,
             openArticle: navigation.openArticle,
+            lightbox,
         }),
     );
     renderGettingStarted(root, navigation, i18n);
@@ -774,7 +843,7 @@ function renderProvenance(host: HTMLElement): void {
     host.appendChild(where);
 }
 
-function renderScreenshots(host: HTMLElement, i18n: I18n): void {
+function renderScreenshots(host: HTMLElement, i18n: I18n, lightbox: Lightbox): void {
     const root = page(host);
     // Reuses the tab's own already-voiced label, the same fix `renderDocs` makes for its
     // own h1, rather than a second hardcoded copy of "Screenshots" that could drift from it.
@@ -796,7 +865,7 @@ function renderScreenshots(host: HTMLElement, i18n: I18n): void {
             screenshotsCopy.committedLead,
         );
         const grid = el("div", "mb-shot-grid");
-        for (const capture of repoCaptures) grid.appendChild(captureFigure(capture, "mb-shot"));
+        for (const capture of repoCaptures) grid.appendChild(captureFigure(capture, "mb-shot", i18n, lightbox));
         committed.appendChild(grid);
         renderProvenance(committed);
     }
@@ -828,15 +897,9 @@ function renderScreenshots(host: HTMLElement, i18n: I18n): void {
 
         const grid = el("div", "mb-shot-grid");
         for (const capture of group.captures) {
-            const figure = el("figure", "mb-shot");
-            const img = el("img", "mb-shot-image");
-            img.src = screenshotUrl(publicPath, capture.file);
-            img.alt = capture.alt;
-            img.loading = "lazy";
-            img.decoding = "async";
-            figure.appendChild(img);
-            figure.appendChild(el("figcaption", "mb-shot-caption", captureCaption(capture)));
-            grid.appendChild(figure);
+            grid.appendChild(
+                screenshotCaptureFigure(capture, screenshotUrl(publicPath, capture.file), i18n, lightbox),
+            );
         }
         collected.appendChild(grid);
     }
@@ -938,6 +1001,9 @@ function boot(): void {
     i18n.subscribe(() => {
         setSearchLocale({ mode: i18n.mode, funnyEn: i18n.funnyEn, funnyYue: i18n.funnyYue });
     });
+    // One dialog, built once, reused by every capture on every page: the home showcase, both
+    // Screenshots-page galleries, and the walkthrough cards all call the same `lightbox.open()`.
+    const lightbox = createLightbox(i18n);
     const theme = new ThemeController(prefs);
     const appearance = new AppearanceController(prefs);
     const shortcuts = new ShortcutRegistry();
@@ -1078,9 +1144,9 @@ function boot(): void {
 
     for (const contentPage of contentPages) {
         const render = (host: HTMLElement): void => {
-            if (contentPage.id === "home") renderHome(host, navigation, i18n);
+            if (contentPage.id === "home") renderHome(host, navigation, i18n, lightbox);
             else if (contentPage.id === "docs") renderDocs(host, navigation, i18n);
-            else renderScreenshots(host, i18n);
+            else renderScreenshots(host, i18n, lightbox);
             decoratePage(host, contentPage.id, appearance);
         };
         tabs.registerPage({

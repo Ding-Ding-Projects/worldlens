@@ -24,6 +24,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import App from "./App.vue";
+import { KidShell } from "./kid/index.js";
 import { HomeCatalogues } from "./components/shell/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
 import { BackupScreen } from "./components/backup/index.js";
@@ -176,6 +177,25 @@ beforeAll(() => {
         } as unknown as Storage,
     });
 });
+
+/**
+ * The exact `localStorage` key `kidMode.ts`'s own `persisted(KEY_ENABLED, true)` reads and
+ * writes for the kid-mode flag. `KEY_ENABLED` is a module-private constant there, so this is a
+ * literal copy rather than an import - the same way `cells` above stands in for `localStorage`
+ * itself without importing anything from the modules that read it.
+ *
+ * Kid Mode ships on (`kidMode.ts`'s own "Kid Mode ships on" doc comment: `enabled` defaults to
+ * `true`), and `App.vue` mounts `KidShell` instead of the adult rail-and-tab-strip tree whenever
+ * it is on - see the `<KidShell v-if="kid.enabled.value"> / v-else` branch there. Every case
+ * below this point except the "which shell mounts" pair right after `shell()` is about that
+ * adult tree specifically: the rail, the tab strip, the appearance target that wraps it, the
+ * notification bell, the settings/config editor host. None of it exists in `KidShell`'s own
+ * markup, which has its own rail (`.wl-kid-rail`) and its own job strip. `beforeEach` below
+ * forces the flag off before every mount in this file for exactly that reason - this file's
+ * business is Adult Mode, and it says so, rather than leaving three dozen assertions to fail
+ * against a shell they were never written to describe.
+ */
+const KID_MODE_ENABLED_KEY = "bluemap-kid-mode";
 
 let wrapper: VueWrapper | null = null;
 const originalBridge = (globalThis as { worldlens?: unknown }).worldlens;
@@ -366,6 +386,12 @@ beforeEach(() => {
     // the whole file. Cleared so each case starts on the seeded layout rather than on
     // whichever page the case before it navigated to.
     cells.clear();
+    // See `KID_MODE_ENABLED_KEY`'s own doc comment above: this file is about the adult shell,
+    // and Kid Mode ships on, so every case has to say so before it mounts anything. Set after
+    // `clear()` rather than before it, and set as the string `"false"` rather than the boolean
+    // `false`, because that is exactly what `kidMode.ts`'s own `persisted()` reads back out of
+    // `localStorage.getItem()` and compares against the literal string `"true"`.
+    cells.set(KID_MODE_ENABLED_KEY, "false");
 });
 
 afterEach(() => {
@@ -375,6 +401,48 @@ afterEach(() => {
     for (const profile of [...profilesStore.profiles]) removeProfile(profile.id);
     profilesStore.activeId = null;
     (globalThis as { worldlens?: unknown }).worldlens = originalBridge;
+});
+
+describe("which shell mounts", () => {
+    /*
+     * This is the seam `KID_MODE_ENABLED_KEY` forces shut for the rest of the file, and until
+     * now nothing proved the seam itself works - only that each side, once forced, behaves the
+     * way its own describe block already expected. A flipped `v-if`/`v-else` in `App.vue`, or a
+     * changed default in `kidMode.ts`'s `persisted(KEY_ENABLED, true)`, would pass every other
+     * case below and go completely unnoticed here: this is the only pair of cases in the file
+     * that lets the flag decide which tree mounts rather than pinning it first.
+     */
+
+    it("mounts Kid Mode's own shell on a fresh install, because kidMode.ts ships enabled: true", () => {
+        // Undoes this file's own `beforeEach` declaration: every other case deliberately forces
+        // Adult Mode, but this one is specifically about what a genuinely fresh install sees
+        // with nothing overriding the shipped default - no stored value at all, which is exactly
+        // what `persisted()` falls back to `true` for.
+        cells.delete(KID_MODE_ENABLED_KEY);
+
+        const app = shell();
+
+        expect(app.findComponent(KidShell).exists()).toBe(true);
+        expect(document.querySelector(".wl-kid")).not.toBeNull();
+        // The rail and the tab strip are the adult tree's own chrome. `KidShell` renders
+        // neither - it has its own rail (`.wl-kid-rail`) and its own job strip - so their total
+        // absence is what proves the adult tree never mounted at all, not merely that something
+        // is covering it.
+        expect(document.querySelectorAll(".wl-rail-item")).toHaveLength(0);
+        expect(shellTabs()).toHaveLength(0);
+    });
+
+    it("mounts the adult rail-and-tab-strip shell once Kid Mode is turned off", () => {
+        // Restates what `beforeEach` above already set. This is the case that makes it true
+        // rather than merely convenient for the rest of this file.
+        cells.set(KID_MODE_ENABLED_KEY, "false");
+
+        const app = shell();
+
+        expect(app.findComponent(KidShell).exists()).toBe(false);
+        expect(document.querySelector(".wl-kid")).toBeNull();
+        expect(document.querySelectorAll(".wl-rail-item").length).toBeGreaterThan(0);
+    });
 });
 
 describe("the tab strip", () => {

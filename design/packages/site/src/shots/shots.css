@@ -1,0 +1,200 @@
+/*
+ * The screenshot lightbox and the open-affordance that summons it.
+ *
+ * Everything here paints its own surface from the theme's own tokens (no hex literal, no
+ * reach into `content.css`/`walkthroughs.css` -- this file adds a wrapping control and a new
+ * full-viewport layer beside the galleries those files already style, rather than editing
+ * either of them) and stays fully inside the viewport: the outer layer is `position: fixed;
+ * inset: 0`, so it can never be larger than the screen, and the toolbar wraps rather than
+ * overflowing it sideways at narrow widths.
+ */
+
+/* ---- The open affordance, wrapping every capture image the site renders ------------- */
+
+.mb-shot-open {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-height: max(44px, var(--md-sys-min-touch-target));
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: inherit;
+    cursor: zoom-in;
+    /* The button wraps an <img> (or a <picture> in the walkthrough gallery) that already
+       carries its own sizing rules in content.css/walkthroughs.css. `display: block` plus
+       `border-radius: inherit` keep this wrapper an invisible pass-through box rather than a
+       second element those files would otherwise have to be taught to size around. */
+}
+
+.mb-shot-open:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 3px;
+}
+
+.mb-shot-open__glyph {
+    position: absolute;
+    right: var(--md-sys-spacing-2);
+    bottom: var(--md-sys-spacing-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: color-mix(in srgb, var(--md-sys-color-scrim) 55%, transparent);
+    color: white;
+    opacity: 0;
+    transition: opacity var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+    /* Decoration only -- see the aria-hidden icon it wraps in openAffordance.ts. Its own
+       accessible name lives on the button, not here. */
+    pointer-events: none;
+}
+
+.mb-shot-open__glyph .md-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+/* Visible on hover, on keyboard focus, and while the pointer is anywhere over a touch device
+   that cannot hover at all -- so the affordance is discoverable without requiring a mouse. */
+.mb-shot-open:hover .mb-shot-open__glyph,
+.mb-shot-open:focus-visible .mb-shot-open__glyph {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .mb-shot-open__glyph {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-shot-open__glyph {
+        transition: none;
+    }
+}
+
+/* ---- The lightbox itself -------------------------------------------------------------- */
+
+.mb-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--md-sys-color-scrim) 78%, var(--md-sys-color-surface-container-lowest));
+    color: var(--md-sys-color-on-surface);
+}
+
+.mb-lightbox[hidden] {
+    display: none;
+}
+
+.mb-lightbox__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    background: var(--md-sys-color-surface-container-high);
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.mb-lightbox__level {
+    min-width: 3.5rem;
+    padding: 0 var(--md-sys-spacing-1);
+    text-align: center;
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    /* A live number a visitor reads by eye while zooming; this is the visible half of the
+       zoom-level requirement. The debounced *spoken* half is `.mb-lightbox__status` below. */
+}
+
+.mb-lightbox__spacer {
+    flex: 1 1 auto;
+}
+
+.mb-lightbox__stage {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: zoom-out;
+    /* `touch-action: none` hands the whole gesture to this file's own pointer handlers --
+       one-finger pan and two-finger pinch -- instead of letting the browser's native
+       pinch-to-zoom or pull-to-scroll fight the in-viewer zoom over the same gesture. */
+    touch-action: none;
+}
+
+.mb-lightbox__image {
+    display: block;
+    max-width: none;
+    max-height: none;
+    /* `object-fit` only matters once a width/height are set on the element (it decides how the
+       box's *content* fills a box whose *size* was decided elsewhere), so it is the
+       transform-driven width/height Lightbox.ts writes as inline style, not this rule alone,
+       that keeps the image from ever being cropped. It is still declared here, and still
+       `contain` rather than `cover`, because a future caller that sizes the element through
+       CSS instead of inline style must not silently regain the crop this file exists to fix. */
+    object-fit: contain;
+    transform-origin: center center;
+    transition: transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+    cursor: zoom-in;
+    -webkit-user-drag: none;
+    user-select: none;
+}
+
+.mb-lightbox__image--zoomed {
+    cursor: grab;
+}
+
+.mb-lightbox__image--dragging {
+    cursor: grabbing;
+    transition: none;
+}
+
+.mb-lightbox__caption {
+    margin: 0;
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+/* Reachable by assistive technology, invisible to everyone else -- the standard
+   visually-hidden clip, not `display: none` (which an `aria-live` region must never use, or
+   nothing is ever announced) and not `visibility: hidden` (same problem). */
+.mb-lightbox__status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    border: 0;
+}
+
+@media (width <= 480px) {
+    .mb-lightbox__toolbar {
+        justify-content: center;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-lightbox__image {
+        transition: none;
+    }
+}

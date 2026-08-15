@@ -5,8 +5,16 @@
  *
  * Every card and every row here activates through the same `FeatureTarget` the adult Home uses, so
  * nothing on this screen is decorative and nothing routes on its own. The five lands come from the
- * resolved catalogues; the live rows come from `createActiveRenders`, the preview service and the
- * backup and CI stores the adult shell already mounts; the map list comes from the profile store.
+ * resolved catalogues; the "what this app is doing right now" rows come from `createActiveRenders`,
+ * the one live feed `App.vue` actually computes and forwards as `renderRows`; the map list comes
+ * from the profile store.
+ *
+ * An earlier version of this component also declared an `activity` prop for "preview, backups and
+ * CI" rows its own doc comment claimed the adult shell already computed. It never did: `App.vue`
+ * never passed `:activity` to `KidShell`, so the prop was always `undefined`, the row it fed always
+ * rendered nothing, and the claim above was aspirational rather than true. Removed rather than left
+ * wired to nothing - see this checkout's own rule against a declared-but-never-supplied prop that
+ * renders an empty region. `renderRows` is unaffected; it was always real.
  */
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
@@ -17,7 +25,7 @@ import { findFeature } from "../components/shell/catalogues.js";
 /* `ResolvedCatalogue` is not part of the shell barrel's own public surface - it comes straight
  * from `catalogueSearch.js`, the same direct import `KidCataloguePage.vue` already uses for it. */
 import type { ResolvedCatalogue } from "../components/shell/catalogueSearch.js";
-import { KID_CATALOGUE_LABELS, KID_FEATURE_LABELS, kidAccessibleName, kidLabel } from "./kidLabels.js";
+import { KID_CATALOGUE_LABELS, KID_FEATURE_LABELS, kidLabel } from "./kidLabels.js";
 import { useKidMode } from "./kidMode.js";
 
 const props = defineProps<{
@@ -31,8 +39,6 @@ const props = defineProps<{
      * `exactOptionalPropertyTypes` treats that as a different type from a bare `T[]`.
      */
     profiles?: readonly { id: string; name: string; meta: string; remote: boolean }[] | undefined;
-    /** Live rows the adult shell already computes: preview, backups, CI. */
-    activity?: readonly { key: string; feature: string; meta: string }[] | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -47,7 +53,6 @@ const kid = useKidMode();
 /** The hero action is the project editor, exactly as the adult Home's hero is. */
 const heroTarget = computed(() => findFeature("make.finding-a-world.the-project-editor"));
 const guideTarget = computed(() => findFeature("make.finding-a-world.the-guide"));
-const activity = computed(() => props.activity ?? []);
 
 function activateByName(featureName: string): void {
     const match = props.catalogues.flatMap((catalogue) => catalogue.features).find((entry) => entry.name === featureName);
@@ -102,19 +107,7 @@ function activateByName(featureName: string): void {
                     <em>{{ row.label }}</em>
                     <span class="wl-kid-home__meta">{{ row.percent === null ? "…" : Math.round(row.percent) + "%" }}</span>
                 </button>
-                <button
-                    v-for="row in activity"
-                    :key="row.key"
-                    class="wl-kid-home__row"
-                    type="button"
-                    :aria-label="kidAccessibleName(row.feature, KID_FEATURE_LABELS)"
-                    @click="activateByName(row.feature)"
-                >
-                    <strong>{{ kidLabel(row.feature, KID_FEATURE_LABELS, kid.labelStyle.value).primary }}</strong>
-                    <em>{{ row.feature }}</em>
-                    <span class="wl-kid-home__meta">{{ row.meta }}</span>
-                </button>
-                <p v-if="props.renderRows.length === 0 && activity.length === 0">
+                <p v-if="props.renderRows.length === 0">
                     {{ t("kid.home.quiet", "Nothing is happening right now. Press GO to start something.") }}
                 </p>
             </section>

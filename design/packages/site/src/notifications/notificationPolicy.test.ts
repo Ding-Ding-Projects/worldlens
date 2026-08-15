@@ -106,6 +106,28 @@ const BLOCKING_SURFACES: Record<string, BlockingSurface> = {
             "click outside. It takes the keyboard on purpose because typing a command is the whole " +
             "point of it, the same reasoning the UI package's own CommandPalette.vue entry gives.",
     },
+    "shots/Lightbox.ts": {
+        // Only one of these four is the real `role="dialog" aria-modal="true"` this file
+        // builds (a hand-rolled dialog rather than a native `<dialog>`, because jsdom 30 --
+        // what every test in this package runs under -- does not implement
+        // `HTMLDialogElement.showModal` at all). The other three are the file's own doc
+        // comment explaining that choice, which spells out `.showModal()` and `aria-modal=
+        // "true"` in prose to say why neither is the runtime mechanism here; the scanner
+        // reads raw source text rather than parsing comments away from code, so it counts all
+        // four rather than only the one that executes. See the detector's own "on cases it
+        // has to get right" tests above for the same acknowledged behaviour on the marker for
+        // a native `<dialog>`/`.showModal()`.
+        count: 4,
+        decision:
+            "The screenshot lightbox: look closely at one capture, zoomed and panned to whatever " +
+            "level makes its interface text legible, before returning to the page it was opened " +
+            "from. It takes the keyboard and traps focus on purpose -- the same reasoning the " +
+            "command palette above is given -- because reading the enlarged capture is the entire " +
+            "point of opening it. One instance is built once and reused as a single page-level " +
+            "dialog by every gallery on the site (main.ts's showcase and Screenshots-page " +
+            "captures, and walkthroughs/Gallery.ts's cards), so this one declaration covers all " +
+            "of them rather than each carrying its own.",
+    },
     "archive-entry.ts": {
         count: 4,
         decision:

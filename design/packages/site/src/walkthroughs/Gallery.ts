@@ -1,9 +1,12 @@
 import type { I18n, LanguageMode } from "../i18n/I18n.js";
+import type { Lightbox } from "../shots/Lightbox.js";
+import { wrapCaptureInOpenButton } from "../shots/openAffordance.js";
 import { ACTION_WALKTHROUGHS, type ActionWalkthrough } from "./manifest.js";
 
 export interface WalkthroughGalleryOptions {
     readonly i18n: I18n;
     readonly openArticle: (articleId: string) => void;
+    readonly lightbox: Lightbox;
 }
 
 interface CopyNodes {
@@ -53,7 +56,31 @@ function mediaCard(
     image.height = item.height;
     image.alt = options.i18n.mode === "yue" ? item.alt.yue : item.alt.en;
     picture.append(reducedSource, image);
-    figure.appendChild(picture);
+
+    // Enlargeable exactly like every other capture on the site (see `shots/Lightbox.ts`): a
+    // walkthrough at its shipped 640x400 is too small to read the interface text in, and the
+    // fixed 8/5 crop `walkthroughs.css` reserves for it is `object-fit: cover`, which is the
+    // same "you cannot see the whole thing" defect the poke guy names for the other galleries.
+    // `image.currentSrc` -- read fresh on every activation, not captured once here -- is
+    // whichever of the still and the animated source the browser is actually displaying right
+    // now, honouring both the reduced-motion `<source>` above and the Replay button below.
+    const open = wrapCaptureInOpenButton(picture, {
+        i18n: options.i18n,
+        ariaLabelKey: "shots.enlargeNamed",
+        name: item.title.en,
+        onActivate: (trigger) =>
+            options.lightbox.open(
+                {
+                    src: image.currentSrc || image.src,
+                    alt: image.alt,
+                    name: item.title.en,
+                    naturalWidth: item.width,
+                    naturalHeight: item.height,
+                },
+                trigger,
+            ),
+    });
+    figure.appendChild(open);
 
     const caption = document.createElement("figcaption");
     caption.className = "mb-walkthrough-caption";
