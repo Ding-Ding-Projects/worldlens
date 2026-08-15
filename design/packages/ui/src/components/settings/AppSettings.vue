@@ -32,6 +32,7 @@ import { SimpleHistoryPanel, simpleHistoryHostFrom } from "../history/index.js";
 import { VocabularyUploadRow, vocabularyStore } from "../vocabulary/index.js";
 import { AppLogoRow, logoStore } from "../appLogo/index.js";
 import { RepairPanel } from "../repair/index.js";
+import { KidModeRow, useKidMode } from "../../kid/index.js";
 import { DOCK_PLACEMENTS } from "./dockPlacement.js";
 import { dockedSurfaces } from "./useDockPlacement.js";
 import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
@@ -148,6 +149,14 @@ const java = createJavaSetting();
 const github = createGhCliAccountsStore();
 const renderMemory = createRenderMemorySetting();
 const downloadConcurrency = createDownloadConcurrencySetting();
+/**
+ * Read for the search text only: `<KidModeRow />` below owns the actual controls. When
+ * `App.vue` has called `createKidMode()` at the root - the real build, always - this
+ * resolves the same injected, reactive state the row does, so a name typed into the
+ * row's own field is a name this section's search can find a moment later. See
+ * `kidMode.ts`'s own doc comment for the one case where that injection is missing.
+ */
+const kid = useKidMode();
 
 /** Every docked panel that is open right now, including this one. */
 const surfaces = dockedSurfaces();
@@ -162,6 +171,7 @@ const worldSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const githubSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const displaySection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const kidModeSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -313,6 +323,22 @@ const sections = computed<SettingsSectionText[]>(() => {
                 `${uiSizeLevelByNumber(currentUiSizeLevel.value).percent}%`,
                 ...THEME_CHOICES.map((choice) => themeChoiceLabel(t, choice)),
                 themeChoiceLabel(t, currentTheme.value),
+            ],
+        },
+        // Both option labels are on screen at once, whichever mode this profile is
+        // currently in - the row renders two radios, not one switch - so a grown-up who
+        // types "adult" finds the way back exactly as readily as a search for "kid"
+        // finds this row at all. The keys are the same ones `KidModeRow.vue` renders
+        // with, so the words this matches are the words actually on screen rather than a
+        // second, driftable copy of them.
+        {
+            anchor: "kid-mode",
+            title: text["kid-mode"].title,
+            description: text["kid-mode"].description,
+            values: [
+                t("settings.kidMode.kidModeOption", "Kid Mode"),
+                t("settings.kidMode.adultModeOption", "Adult Mode"),
+                kid.childName.value,
             ],
         },
         // The names of the panels that are open and the five placements they can take, so
@@ -512,6 +538,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return languageSection.value;
         case "display":
             return displaySection.value;
+        case "kid-mode":
+            return kidModeSection.value;
         case "surface-placement":
             return placementSection.value;
         case "render-memory":
@@ -900,6 +928,27 @@ function onDrawer(value: boolean): void {
                     >
                         <UiSizeRow />
                         <ThemeRow />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    Picture-first labels, bigger controls, celebrations and a sticker book -
+                    a third sense of "how this app looks", beside display and beside language
+                    and tone, per `settingsSections.ts`'s own note on why it sits here. Kid
+                    Mode ships on, so this is where a grown-up finds Adult Mode again; the row
+                    itself, `KidModeRow.vue`, owns the choice, the child's name, whether
+                    celebrations animate and sound, and the label style. No render or other
+                    failure can send somebody here, so like display and language-and-tone this
+                    is reached by opening Settings.
+                -->
+                <template #kid-mode>
+                    <SettingsSection
+                        ref="kidModeSection"
+                        anchor="kid-mode"
+                        :title="copy['kid-mode'].title"
+                        :description="copy['kid-mode'].description"
+                    >
+                        <KidModeRow />
                     </SettingsSection>
                 </template>
 

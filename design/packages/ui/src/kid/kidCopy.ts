@@ -1,0 +1,256 @@
+/**
+ * Kid mode's own words: the rail, Home, the sticker book, the grown-up gate, the celebration, and
+ * the `kid-mode` settings row.
+ *
+ * Built to the same contract every other surface's copy module carries (see
+ * `copy/surfaces/home.ts` for the canonical shape this one was checked against): `KID_VOICED` is
+ * prose that varies across the five funny levels, `KID_FIXED` is one string per language with no
+ * level, and `KID_FACTS` names, for every `KID_VOICED` key, the literal substrings a playful
+ * rewrite is not allowed to lose - the fact that no grown-up code is configured, the word "Adult
+ * Mode", the honesty statement that this is a speed bump and not a lock.
+ *
+ * This module does not register itself. `copy/surfaces/index.ts` is where every surface's three
+ * exports get spread into the application-wide catalogue, and that file sits under `copy/`, which
+ * this feature does not own - wiring it in is the next task's job. Until that three-line addition
+ * lands, every call site below still renders correctly: vue-i18n falls back to the English text
+ * given as each `t()` call's own fallback argument, exactly as it does for any other key with no
+ * catalogue entry yet.
+ */
+import type { FixedString, VoicedString } from "../components/setup/setupStrings.js";
+
+export const KID_VOICED = {
+    "kid.home.hero": {
+        en: [
+            "Make a new map",
+            "Make a new map",
+            "Make a new map!",
+            "Let's make a new map!",
+            "Let's make an awesome new map!",
+        ],
+        yue: ["整個新地圖", "整個新地圖", "整個新地圖啦！", "嚟整個新地圖啦！", "嚟整個勁正嘅新地圖啦！"],
+    },
+    "kid.home.heroBlurb": {
+        en: [
+            "Pick a world, press GO, and watch it get drawn.",
+            "Pick a world, press GO, and watch it get drawn.",
+            "Pick a world, press GO, and watch it get drawn!",
+            "Pick a world, smash GO, and watch it get drawn!",
+            "Pick a world, smash that GO button, and watch the magic happen!",
+        ],
+        yue: [
+            "揀個世界，撳 GO，睇住佢畫出嚟。",
+            "揀個世界，撳 GO，睇住佢畫出嚟。",
+            "揀個世界，撳一下 GO，睇住佢畫出嚟！",
+            "揀個世界，大力撳 GO，睇住佢畫出嚟！",
+            "揀個世界，大力撳落個 GO 掣，睇住佢變魔術咁畫出嚟！",
+        ],
+    },
+    "kid.home.quiet": {
+        en: [
+            "Nothing is happening right now. Press GO to start something.",
+            "Nothing is happening right now. Press GO to start something.",
+            "Nothing is happening right now - press GO to start something.",
+            "All quiet here! Press GO to start something.",
+            "All quiet here! Give that GO button a press and start something.",
+        ],
+        yue: [
+            "而家未有嘢喺度做緊。撳 GO 開始一樣嘢。",
+            "而家未有嘢喺度做緊。撳 GO 開始一樣嘢。",
+            "而家靜英英，撳 GO 開始一樣嘢。",
+            "而家好靜喎！撳 GO 開始一樣嘢啦。",
+            "而家好靜喎！撳一撳個 GO 掣，開始整啲嘢啦。",
+        ],
+    },
+    "kid.stickers.blurb": {
+        en: [
+            "Every sticker is a real thing you did.",
+            "Every sticker is a real thing you did.",
+            "Every sticker is a real thing you did, not a guess.",
+            "Every single sticker is a real thing you actually did.",
+            "Every single sticker is a real thing you actually did, no pretending.",
+        ],
+        yue: [
+            "每個貼紙都係你真係做過嘅嘢。",
+            "每個貼紙都係你真係做過嘅嘢。",
+            "每個貼紙都係你真係做過嘅嘢，唔係估嘅。",
+            "每一個貼紙，都係你真係一手一腳做過嘅嘢。",
+            "每一個貼紙，都係你真係一手一腳做過嘅嘢，冇呃你嘅。",
+        ],
+    },
+    /*
+     * A fresh install has no shared restricted-mode credential configured, so this is the honest
+     * state the grown-up gate opens in on day one - see `KidGrownUpGate.vue`'s own doc comment and
+     * `kidMode.ts`'s "Kid Mode ships on" note for the full reasoning. The two facts that must never
+     * disappear at any funny level: that no code is set, and that the door out is "Adult Mode" by
+     * name, so a grown-up scanning quickly still recognises the destination.
+     */
+    "kid.gate.noLock.blurb": {
+        en: [
+            "No grown-up code is set on this computer yet, so anyone can switch to Adult Mode.",
+            "No grown-up code is set on this computer yet, so anyone can switch to Adult Mode.",
+            "No grown-up code is set on this computer yet - anyone can switch to Adult Mode.",
+            "No grown-up code is set on this computer yet, so anyone can hop straight into Adult Mode.",
+            "No grown-up code is set on this computer yet, so absolutely anyone can hop straight into Adult Mode.",
+        ],
+        yue: [
+            "呢部電腦未設定大人密碼，所以邊個都轉得去大人模式。",
+            "呢部電腦未設定大人密碼，所以邊個都轉得去大人模式。",
+            "呢部電腦未設定大人密碼喎，邊個都轉得去大人模式。",
+            "呢部電腦未設定大人密碼喎，邊個都可以直接跳去大人模式。",
+            "呢部電腦未設定大人密碼喎，邊個都可以大搖大擺跳去大人模式。",
+        ],
+    },
+    "kid.gate.locked.blurb": {
+        en: [
+            "A grown-up types the shared code to switch to Adult Mode. It is the same code across these apps.",
+            "A grown-up types the shared code to switch to Adult Mode. It is the same code across these apps.",
+            "A grown-up types the shared code to switch to Adult Mode - the same code across these apps.",
+            "A grown-up types in the shared code to switch to Adult Mode. Same code, every one of these apps.",
+            "A grown-up types in the shared code to switch to Adult Mode - one code, every single one of these apps.",
+        ],
+        yue: [
+            "大人打共用密碼就轉得去大人模式，呢個同其他程式都用同一個密碼。",
+            "大人打共用密碼就轉得去大人模式，呢個同其他程式都用同一個密碼。",
+            "大人打共用密碼，就轉得去大人模式喇，同其他程式共用一個密碼。",
+            "大人打一打共用密碼，就直接轉去大人模式，呢幾個程式全部都用同一個密碼。",
+            "大人打一打共用密碼，就大搖大擺轉去大人模式，呢幾個程式全部都係用番同一個密碼。",
+        ],
+    },
+    /*
+     * The toy-lock honesty statement, in this project's exact voice: a user-experience lock, not a
+     * security boundary, with a real recovery route named rather than gestured at. "Shared
+     * restricted mode" is the real shipped English name of the settings section that owns this
+     * shared credential (`catalogue.setup.restrictedMode.name`); the Cantonese half deliberately
+     * does not invent its own translation of that proper noun, since this module has not verified
+     * what `settings.ts`'s own Cantonese for it is, and a second, disagreeing translation of the
+     * same section name would be worse than a plain description of where it lives.
+     */
+    "kid.gate.honesty": {
+        en: [
+            "This is a user-experience lock, not a security lock. A grown-up who has already reached Adult Mode can reset the shared code from Settings, in Shared restricted mode.",
+            "This is a user-experience lock, not a security lock. A grown-up who has already reached Adult Mode can reset the shared code from Settings, in Shared restricted mode.",
+            "This is a user-experience lock, not a security lock - a grown-up already in Adult Mode can reset the shared code from Settings, under Shared restricted mode.",
+            "Just a user-experience lock, not a security lock. Forgot the code? A grown-up already in Adult Mode can reset it from Settings, under Shared restricted mode.",
+            "Just a friendly speed bump, not a security lock. Forgot the code? Whoever is already in Adult Mode can reset it from Settings, under Shared restricted mode.",
+        ],
+        yue: [
+            "呢個淨係使用體驗鎖，唔係保安鎖。已經喺大人模式嘅大人，可以喺設定入面重設呢條共用密碼。",
+            "呢個淨係使用體驗鎖，唔係保安鎖。已經喺大人模式嘅大人，可以喺設定入面重設呢條共用密碼。",
+            "呢個淨係使用體驗鎖，唔係保安鎖 - 已經喺大人模式嘅大人，可以喺設定入面重設共用密碼。",
+            "淨係使用體驗鎖啫，唔係保安鎖。唔記得個密碼？已經喺大人模式嘅大人，去設定入面就重設得。",
+            "淨係一條得意嘅擋路帶啫，唔係保安鎖。唔記得個密碼？隨便邊個已經喺大人模式嘅大人，去設定入面就重設得。",
+        ],
+    },
+    "kid.celebrate.levelUp.title": {
+        en: ["Level {n}", "Level {n}", "Level {n}!", "Level {n}! Nice one!", "Level {n}!! You are on fire!"],
+        yue: ["第 {n} 級", "第 {n} 級", "第 {n} 級喇！", "第 {n} 級喇！好嘢！", "第 {n} 級喇！勁到爆！"],
+    },
+    "kid.celebrate.sticker.title": {
+        en: [
+            "New sticker: {sticker}",
+            "New sticker: {sticker}",
+            "New sticker: {sticker}!",
+            "New sticker unlocked: {sticker}!",
+            "Ta-da! New sticker unlocked: {sticker}!",
+        ],
+        yue: ["新貼紙：{sticker}", "新貼紙：{sticker}", "新貼紙：{sticker}！", "解鎖新貼紙：{sticker}！", "叮！解鎖新貼紙：{sticker}！"],
+    },
+    "settings.kidMode.blurb": {
+        en: [
+            "Picture-first labels, bigger controls, XP and stickers. Every feature stays exactly where it is; only the way it is drawn changes.",
+            "Picture-first labels, bigger controls, XP and stickers. Every feature stays exactly where it is; only the way it is drawn changes.",
+            "Picture-first labels, bigger controls, XP and stickers - every feature stays exactly where it is, only the way it is drawn changes.",
+            "Bigger buttons, picture-first labels, XP and stickers. Every single feature stays exactly where it is - only how it looks changes.",
+            "Bigger buttons, picture-first labels, XP, stickers, the works. Every single feature stays exactly where it is - only how it looks changes, promise.",
+        ],
+        yue: [
+            "圖畫行先嘅標籤、大啲嘅按鈕、經驗值同貼紙。每個功能都一樣喺原本位置，淨係畫法變咗。",
+            "圖畫行先嘅標籤、大啲嘅按鈕、經驗值同貼紙。每個功能都一樣喺原本位置，淨係畫法變咗。",
+            "圖畫行先嘅標籤、大啲嘅按鈕、經驗值同貼紙 - 每個功能都一樣喺原本位置，淨係畫法變咗。",
+            "更大嘅按鈕、圖畫行先嘅標籤、經驗值同貼紙。每一個功能都一樣喺原本位置，淨係樣貌變咗。",
+            "更大嘅按鈕、圖畫行先嘅標籤、經驗值、貼紙，樣樣齊。每一個功能都一樣喺原本位置，淨係樣貌變咗，保證唔呃你。",
+        ],
+    },
+} as const satisfies Record<string, VoicedString>;
+
+export const KID_FIXED = {
+    "kid.rail.label": { en: "Where to go", yue: "去邊度" },
+    "kid.rail.home": { en: "Home", yue: "主頁" },
+    "kid.rail.map": { en: "Explore", yue: "探索" },
+    "kid.rail.work": { en: "My jobs", yue: "我嘅工作" },
+    "kid.rail.stickers": { en: "Stickers", yue: "貼紙" },
+    "kid.rail.find": { en: "Find anything", yue: "搵嘢" },
+    "kid.rail.messages": { en: "Messages", yue: "訊息" },
+    /* Names the destination by name, so it is findable by searching "adult" as well as "grown-up". */
+    "kid.rail.grownUps": { en: "Grown-ups: switch to Adult Mode", yue: "大人專用：轉去大人模式" },
+    "kid.rail.workOpenJobs": { en: "{count} jobs open", yue: "開緊 {count} 份工" },
+    "kid.rail.messagesUnread": { en: "{count} unread", yue: "{count} 個未睇" },
+
+    "kid.home.guide": { en: "Walk me through it", yue: "帶我行一次" },
+    "kid.home.go": { en: "GO", yue: "GO" },
+    "kid.home.lands": { en: "Everything this app can do", yue: "呢個程式識做嘅所有嘢" },
+    "kid.home.now": { en: "What this app is doing right now", yue: "呢個程式而家做緊乜" },
+    "kid.home.maps": { en: "Your maps and servers", yue: "你嘅地圖同伺服器" },
+    "kid.home.addMap": { en: "Add another one", yue: "加多一個" },
+
+    "kid.search": { en: "Look for something…", yue: "搵下啲嘢…" },
+
+    "kid.stickers.title": { en: "Sticker book", yue: "貼紙簿" },
+    "kid.stickers.won": { en: "Won!", yue: "攞到喇！" },
+    "kid.stickers.notYet": { en: "Not yet", yue: "未攞到" },
+    "kid.stickers.progress": { en: "{won} of {total} stickers won", yue: "攞咗 {total} 個入面嘅 {won} 個貼紙" },
+
+    "kid.gate.heading": { en: "Grown-ups only", yue: "淨係大人先入得" },
+    "kid.gate.loading": { en: "Checking for a grown-up code…", yue: "檢查緊有冇大人密碼…" },
+    "kid.gate.noLock.action": { en: "Go to Adult Mode", yue: "去大人模式" },
+    "kid.gate.credential": { en: "Shared code", yue: "共用密碼" },
+    "kid.gate.unlock": { en: "Switch to Adult Mode", yue: "轉去大人模式" },
+    "kid.gate.failed": { en: "That code did not match. Kid Mode stays on.", yue: "個密碼唔啱，Kid Mode 繼續開住。" },
+
+    "kid.celebrate.levelUp.body": { en: "You earned enough XP to level up.", yue: "你攞夠經驗值升咗級。" },
+    "kid.celebrate.sticker.body": { en: "Open the sticker book to see it.", yue: "打開貼紙簿睇下佢。" },
+    "kid.celebrate.close": { en: "Yay!", yue: "嘩！" },
+
+    "kid.status.level": { en: "Level {n}", yue: "第 {n} 級" },
+
+    "settings.kidMode.title": { en: "Kid Mode and Adult Mode", yue: "Kid Mode 同大人模式" },
+    "settings.kidMode.modeLabel": { en: "Which mode should open?", yue: "打開邊個模式？" },
+    "settings.kidMode.kidModeOption": { en: "Kid Mode", yue: "Kid Mode" },
+    "settings.kidMode.kidModeOptionHint": {
+        en: "Picture-first labels, bigger buttons, stickers",
+        yue: "圖畫行先嘅標籤、大啲嘅按鈕、貼紙",
+    },
+    "settings.kidMode.adultModeOption": { en: "Adult Mode", yue: "大人模式" },
+    "settings.kidMode.adultModeOptionHint": {
+        en: "The full application, exactly as it always was",
+        yue: "完整版程式，同以前一模一樣",
+    },
+    "settings.kidMode.name": { en: "What to call the child", yue: "點稱呼呢個小朋友" },
+    "settings.kidMode.celebrations": { en: "Celebrate finished jobs", yue: "完成工作要慶祝" },
+    "settings.kidMode.sound": { en: "Play a sound with a celebration", yue: "慶祝嗰陣播個聲" },
+    "settings.kidMode.labelStyle": { en: "Labels", yue: "標籤" },
+    "settings.kidMode.kidFirst": { en: "Kid words first, real name underneath", yue: "細路用字行先，真名喺底下" },
+    "settings.kidMode.nameFirst": { en: "Real name first, kid words underneath", yue: "真名行先，細路用字喺底下" },
+    "settings.kidMode.nameOnly": { en: "Real names only", yue: "淨係真名" },
+    "settings.kidMode.accessibleNote": {
+        en: "The accessible name of every control keeps the real feature name at all three settings, so a screen reader and every screenshot still identify it.",
+        yue: "每個控制項嘅無障礙名稱，喺三個設定入面都會保留真正嘅功能名，等螢幕閱讀器同每張截圖都認得出佢。",
+    },
+    "settings.kidMode.noLockNote": {
+        en: "No grown-up code is set on this computer yet. Anyone can switch between Kid Mode and Adult Mode.",
+        yue: "呢部電腦未設定大人密碼。邊個都轉得切 Kid Mode 同大人模式。",
+    },
+} as const satisfies Record<string, FixedString>;
+
+export const KID_FACTS = {
+    "kid.home.hero": { en: ["map"], yue: ["地圖"] },
+    "kid.home.heroBlurb": { en: ["GO"], yue: ["GO"] },
+    "kid.home.quiet": { en: ["GO"], yue: ["GO"] },
+    "kid.stickers.blurb": { en: ["real"], yue: ["真係"] },
+    "kid.gate.noLock.blurb": { en: ["No grown-up code is set", "Adult Mode"], yue: ["未設定大人密碼", "大人模式"] },
+    "kid.gate.locked.blurb": { en: ["shared code", "Adult Mode"], yue: ["共用密碼", "大人模式"] },
+    "kid.gate.honesty": { en: ["not a security lock", "Shared restricted mode"], yue: ["唔係保安鎖", "設定"] },
+    "kid.celebrate.levelUp.title": { en: ["Level", "{n}"], yue: ["{n}", "級"] },
+    "kid.celebrate.sticker.title": { en: ["{sticker}"], yue: ["{sticker}"] },
+    "settings.kidMode.blurb": { en: ["stays exactly where it is"], yue: ["喺原本位置"] },
+} as const satisfies Record<keyof typeof KID_VOICED, { en: readonly string[]; yue: readonly string[] }>;

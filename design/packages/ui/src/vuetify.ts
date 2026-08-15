@@ -6,12 +6,13 @@ import * as directives from "vuetify/directives";
 import { md3 } from "vuetify/blueprints";
 import { CONTRAST_SCHEME, DARK_SCHEME, LIGHT_SCHEME } from "@worldlens/shared";
 import { aliases, mdi } from "vuetify/iconsets/mdi-svg";
+import { KID_SCHEME } from "./kid/kidTheme.js";
 
 /**
  * MD3 token bridge: these palettes drive Vuetify AND are exported as CSS custom
  * properties (--v-theme-*, mapped onto --md-sys-color-* in styles/markers.scss) so the
- * viewer's raw-DOM marker elements can share the theme. Three themes preserve upstream's
- * dark/light/contrast.
+ * viewer's raw-DOM marker elements can share the theme. Four themes ship: upstream's
+ * dark/light/contrast, plus `kid`, the presentation scheme kid mode renders with.
  *
  * ## The complete Material Design 3 colour system, not five colours and a guess
  *
@@ -37,9 +38,23 @@ import { aliases, mdi } from "vuetify/iconsets/mdi-svg";
  * meaning: black surfaces at every tier, white text and outlines, white primary, yellow
  * secondary, and the error red on black. Deriving it from a seed would defeat the one
  * thing it exists for.
+ *
+ * ## `kid` is a presentation scheme, not a new token vocabulary
+ *
+ * Kid mode does not invent a fifth colour role or a parallel design system - it answers the
+ * exact thirty-eight roles `dark`/`light`/`contrast` already answer, with brighter, higher-
+ * chroma values built from the same blue seed, plus a sunshine-yellow tertiary. Every
+ * component that already asks Vuetify for `primary` or `surface-container-high` keeps
+ * working unchanged when `kid` is the active theme; nothing downstream needs to know a
+ * fourth theme exists. `KID_SCHEME` lives in `./kid/kidTheme.ts` rather than
+ * `@worldlens/shared` because it is this app's presentation choice for a mode the served
+ * viewer does not have, not a scheme the marker layer's raw-DOM identity test needs to
+ * agree with - see that file's own header for how it derived the roles `@worldlens/shared`
+ * added after `KID_SCHEME` was first written.
  */
 /*
- * The three schemes are `@worldlens/shared`'s now, not this file's.
+ * The three upstream schemes - dark, light, contrast - are `@worldlens/shared`'s now, not
+ * this file's. `kid` is not among them; see its own comment below.
  *
  * They lived here, and the served viewer's framework-neutral shell carried a miniature vocabulary
  * of its own beside them - six roles, hand-picked, in entirely different hex values. The same
@@ -66,11 +81,21 @@ const lightScheme: ThemeDefinition = { dark: false, colors: { ...LIGHT_SCHEME } 
 const contrastScheme: ThemeDefinition = { dark: true, colors: { ...CONTRAST_SCHEME } };
 
 
-/** The three schemes, exported for the completeness test rather than re-parsed from CSS. */
-export const THEME_SCHEMES: Readonly<Record<"dark" | "light" | "contrast", ThemeDefinition>> = {
+/*
+ * `dark: false` - kid mode's surfaces are light, the same direction the product's own
+ * `light` scheme takes, not a fourth mood invented for the occasion. `KID_SCHEME` is owned
+ * by kid mode (`./kid/kidTheme.ts`), not `@worldlens/shared`: this scheme is this app's own
+ * presentation choice, not one the framework-neutral served viewer needs to render.
+ */
+const kidScheme: ThemeDefinition = { dark: false, colors: { ...KID_SCHEME } };
+
+
+/** The four schemes, exported for the completeness test rather than re-parsed from CSS. */
+export const THEME_SCHEMES: Readonly<Record<"dark" | "light" | "contrast" | "kid", ThemeDefinition>> = {
     dark: darkScheme,
     light: lightScheme,
     contrast: contrastScheme,
+    kid: kidScheme,
 };
 
 /**
@@ -161,6 +186,7 @@ export const vuetify = createVuetify({
             dark: darkScheme,
             light: lightScheme,
             contrast: contrastScheme,
+            kid: kidScheme,
         },
     },
 });

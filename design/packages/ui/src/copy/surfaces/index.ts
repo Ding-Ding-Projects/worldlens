@@ -51,6 +51,7 @@ import { HISTORY_FACTS, HISTORY_FIXED, HISTORY_VOICED } from "./history.js";
 import { LOCKS_FACTS, LOCKS_FIXED, LOCKS_VOICED } from "./locks.js";
 import { HOME_FACTS, HOME_FIXED, HOME_VOICED } from "./home.js";
 import { HOSTING_FACTS, HOSTING_FIXED, HOSTING_VOICED } from "./hosting.js";
+import { KID_FACTS, KID_FIXED, KID_VOICED } from "./kid.js";
 import { LIVESPEED_FACTS, LIVESPEED_FIXED, LIVESPEED_VOICED } from "./liveSpeed.js";
 import { MARKERREGEX_FACTS, MARKERREGEX_FIXED, MARKERREGEX_VOICED } from "./markerRegex.js";
 import { MASKDRAW_FACTS, MASKDRAW_FIXED, MASKDRAW_VOICED } from "./maskDraw.js";
@@ -110,6 +111,7 @@ export const SURFACE_VOICED = {
     ...LOCKS_VOICED,
     ...HOME_VOICED,
     ...HOSTING_VOICED,
+    ...KID_VOICED,
     ...LIVESPEED_VOICED,
     ...MARKERREGEX_VOICED,
     ...MASKDRAW_VOICED,
@@ -166,6 +168,7 @@ export const SURFACE_FIXED = {
     ...LOCKS_FIXED,
     ...HOME_FIXED,
     ...HOSTING_FIXED,
+    ...KID_FIXED,
     ...LIVESPEED_FIXED,
     ...MARKERREGEX_FIXED,
     ...MASKDRAW_FIXED,
@@ -222,6 +225,7 @@ export const SURFACE_FACTS = {
     ...LOCKS_FACTS,
     ...HOME_FACTS,
     ...HOSTING_FACTS,
+    ...KID_FACTS,
     ...LIVESPEED_FACTS,
     ...MARKERREGEX_FACTS,
     ...MASKDRAW_FACTS,
