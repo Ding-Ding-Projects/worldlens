@@ -60,7 +60,10 @@ const WORKFLOW_JOBS: readonly WorkflowJob[] = [
     { workflow: "chunk-world.yml", job: "plan", runner: "ubuntu-24.04", tools: ["gh"] },
     { workflow: "chunk-world.yml", job: "convert", runner: "ubuntu-24.04", tools: [] },
     { workflow: "chunk-world.yml", job: "assemble", runner: "ubuntu-24.04", tools: ["gh"] },
-    { workflow: "ci.yml", job: "workflows", runner: "ubuntu-24.04", tools: [] },
+    // `ci.yml:workflows` used to be listed here. That job was deliberately removed from ci.yml -
+    // its own retirement comment in that file records the decision and the reason - but this
+    // hand-maintained inventory kept naming it, so all four checks below failed against a job
+    // that no longer exists. An inventory that outlives its subject asserts nothing.
     { workflow: "ci.yml", job: "check", runner: "ubuntu-24.04", tools: [] },
     { workflow: "ci.yml", job: "package", runner: "windows-2022", tools: [] },
     { workflow: "ci.yml", job: "jars", uses: "./.github/workflows/build-jars.yml", tools: [] },

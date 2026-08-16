@@ -92,6 +92,16 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
             reason: "rename-time noscript repository destination covered by the atomic finalizer",
             phase: "rename-time",
         },
+        {
+            pattern: /Material BlueMap/g,
+            expectedMatches: 1,
+            reason:
+                "a comment recording why two gallery entries were deleted: both were captured " +
+                "before the rename and their window chrome still read the old name, and the run " +
+                "had no map fixture to capture replacements with. The same reasoning as the " +
+                "eula-and-consent.md allowance above - the text names the old identity as history, " +
+                "and the pictures were removed rather than passed off as current",
+        },
     ],
     "design/packages/site/src/content/home.ts": [
         {
