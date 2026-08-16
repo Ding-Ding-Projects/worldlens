@@ -20,7 +20,17 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
-_No changes have been committed since `v1.0.1127`._
+### Interface
+
+- Repair the four local gates nothing in CI ever runs - [`709c992833`](https://github.com/Ding-Ding-Projects/worldlens/commit/709c99283348751adff5298745f6801fdfb4bd7a)
+
+### Server, CLI and configuration
+
+- Retire two inventories that outlived what they described - [`5154ec2e4c`](https://github.com/Ding-Ding-Projects/worldlens/commit/5154ec2e4c5441624f606b0ddcfa555bf9737cd5)
+
+### Documentation
+
+- Replace every application capture from this build, and grade the map surfaces - [`47bad3bc20`](https://github.com/Ding-Ding-Projects/worldlens/commit/47bad3bc20aac077a972035602095ce3d5eceb42)
 
 ## 1.0.1127 - 2026-08-15
 

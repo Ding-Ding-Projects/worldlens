@@ -24,7 +24,38 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  * the last release" line rather than being hidden, because a missing section and an empty one
  * read very differently to somebody checking whether their fix shipped.
  */
-export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [];
+export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
+    {
+        sha: "47bad3bc20aac077a972035602095ce3d5eceb42",
+        shortSha: "47bad3bc20",
+        date: "2026-08-16T14:07:40-04:00",
+        subject: "Replace every application capture from this build, and grade the map surfaces",
+        details: "The committed gallery had gone stale: check-screenshot-evidence refused it because\nthe 117 images in app-playwright-manifest were pictures of an interface this tree\nno longer builds, and a stale capture is worse than none because the caption under\nit confidently describes the wrong thing.\n\nRather than record a new digest over the old pictures, the real harness was run\nagainst this exact tree twice, and every image here comes out of those runs:\n\n- 28 specs, 3.7 minutes, no map fixture - everything that needs nothing but the app.\n- 28 specs, 10.9 minutes, WORLDLENS_CAPTURE_MODE=local against a served rendered\n  map - the fifteen viewer side-sheet surfaces the first run correctly reported it\n  could not reach, because that sheet only mounts once a BlueMap instance is\n  actually serving something.\n\nThe map is not a mock. It is the rendered-map artifact from CI run 31903971213 at\ncommit bfe86254d7666a5f8a54fd796e97dd3226693f70, whose provenance records 961 hires\ntiles rendered by the upstream BlueMap Java engine from a world this repository\ngenerated itself (seed 1839200155); the paired test-world artifact was verified\nwith sha256sum -c before it was unpacked. Both runs drove the built application on\nan off-screen desktop, so nothing touched the machine's visible session.\n\napp-playwright-map-dependent therefore stops being ungraded. Its own note said the\nfifteen were real but came from an earlier invocation than the recorded manifest,\nwhich is exactly what is no longer true, so it now carries the same digest as the\nrest and is checked for staleness like everything else.\n\nThe groups still marked \"not graded for staleness\" are untouched on purpose: they\nare historical baselines, externally hosted state, or the output of different\nharnesses, and refreshing them here would either be impossible or would destroy the\nthing they exist to record.",
+        category: "docs",
+        areas: ["docs"],
+        files: 222,
+    },
+    {
+        sha: "5154ec2e4c5441624f606b0ddcfa555bf9737cd5",
+        shortSha: "5154ec2e4c",
+        date: "2026-08-16T13:26:09-04:00",
+        subject: "Retire two inventories that outlived what they described",
+        details: "Both failures are hand-maintained lists that kept naming something the tree no\nlonger contains, so they asserted against a subject that had gone.\n\n- cloudRunnerPolicy listed ci.yml:workflows. That job was deliberately removed\n  from ci.yml, and its retirement comment there records the decision and why.\n  Four separate checks in this file failed against it: the job inventory, the\n  runner-label check, the runner-policy check and the gh-declaration check. All\n  four were reporting the staleness of the list rather than a defect in a workflow.\n\n- worldlensIdentityResiduals flagged \"Material BlueMap\" in design/packages/site/\n  index.html. It sits in a comment explaining why two gallery entries were\n  deleted: both were captured before the rename, their window chrome still read\n  the old name, and that run had no map fixture to capture replacements with.\n  That is history stated as history, which is exactly what LEGACY_ALLOWLIST is\n  for, so it joins the existing entry for this file rather than becoming a second\n  key for it - a duplicate key would have been silently discarded.\n\nThe remaining suite failure, map-update-service's \"leaks no timers once closed\",\nis not a defect and is not changed here: it waits up to ten seconds for the\nWindows polling watcher to observe a write, and it only exceeded that while two\nfull vitest runs were competing for this host. Alone it passes in about 350ms.",
+        category: "services",
+        areas: ["services", "shell"],
+        files: 2,
+    },
+    {
+        sha: "709c99283348751adff5298745f6801fdfb4bd7a",
+        shortSha: "709c992833",
+        date: "2026-08-16T13:18:52-04:00",
+        subject: "Repair the four local gates nothing in CI ever runs",
+        details: "Every check in ci.yml carries continue-on-error, so main has been shipping\nreleases with four of its own gates red. Running them by hand, as the workflow\ncomments say to do before pushing, found all four.\n\n- eslint: six errors, all in design-sources/kid-mode/support.js, whose own first\n  line reads \"GENERATED from dc-runtime/src/*.ts - do not edit\". They are esbuild\n  output style, not anything written here, and the config already ignores the\n  byte-identical copy at packages/site/archive/support.js. Ignored on the same\n  grounds rather than hand-edited, which the next rebuild would undo.\n\n- build-changelog --check: CHANGELOG.md and changelogData.generated.ts had gone\n  stale. Releases 1.0.1122, 1.0.1124 and 1.0.1127 were missing entirely and the\n  Unreleased section still listed commits that had already shipped in them.\n  Regenerated: 154 versions, 1040 entries, nothing unreleased.\n\n- docsIndexCoverage: kid-mode-smoke.md and md3-conformance.md exist under docs/\n  but appear in none of docs/README.md's tables. Both document harnesses rather\n  than features - md3-conformance.md opens by calling itself an instrument, not a\n  product - so they are exempted with a written reason, the route that test\n  offers for exactly this case, rather than forced into a user-facing table.\n\n- appCopy: kid.home.nowUnnamed dropped the word \"name\" (and the Cantonese equivalent)\n  at funny levels 4 and 5, which the catalogue's own rule forbids: the level styles\n  the voice and never the facts. Reworded to keep the playful register and the word.\n\nAlso widens publicText() in build-changelog.mjs. It rewrote ten project-internal\nshorthand terms out of commit subjects before publishing them, but the list had\nonly ever grown after a term appeared, so one walked straight through it and into\nthe generated changelog data. The gap is closed with the terms that exist today,\nand the same shorthand is replaced with ordinary technical wording in eight source\ncomments and doc paragraphs that had picked it up.",
+        category: "interface",
+        areas: ["interface", "build", "docs", "site", "other"],
+        files: 14,
+    }
+];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
