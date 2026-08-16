@@ -226,6 +226,27 @@ function publicText(text) {
         .replace(/Lap Sap Tong/gi, "Git stash")
         .replace(/dum lap sap/gi, "stashing commit")
         .replace(/poke guy/gi, "error")
+        // The list above covered the terms that had actually reached a commit subject by the time
+        // it was written, which is why `huipoint` walked straight through it and into the
+        // generated changelog data this script publishes. These close that gap: a term is added
+        // here when it exists, not after it has already been published. Longest-first, and all of
+        // them ahead of the bare `hui` rule below, so a compound is never half-rewritten.
+        .replace(/Herng Ha App/gi, "Electron app")
+        .replace(/Chong Leung/gi, "guardrail")
+        .replace(/Der Machine/gi, "GitHub Actions")
+        .replace(/Gay Hay/gi, "GitHub Actions runner")
+        .replace(/HuiFlare/gi, "Cloudflare")
+        .replace(/HuiShot/gi, "screenshot")
+        .replace(/huipoint/gi, "checkpoint")
+        .replace(/GitHui/gi, "GitHub")
+        .replace(/Oak Kay/gi, "repository")
+        .replace(/See Fut/gi, "dependency")
+        .replace(/Cup Chun/gi, "cleanup")
+        .replace(/Tow Fat/gi, "submodule")
+        .replace(/Deen No/gi, "Windows")
+        .replace(/lat tat/gi, "dirty")
+        .replace(/\bjer\b/gi, "branch")
+        .replace(/\bChut\b/gi, "gate")
         .replace(/\bhui\b/gi, "remote");
 }
 

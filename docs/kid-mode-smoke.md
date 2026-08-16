@@ -3,7 +3,7 @@
 `scripts/kid-smoke.mjs` boots the real, built `@worldlens/ui` renderer inside
 `design/packages/kid-check` — a plain Electron harness that exists for exactly this — and drives it
 the way a child actually would: click the rail, click a catalogue card, type a wrong code into the
-grown-up gate. It is not a second unit suite. Every serious poke guy Kid Mode shipped this session -
+grown-up gate. It is not a second unit suite. Every serious bug Kid Mode shipped this session -
 `award()` wired to nothing that ever called it, the first tap into a non-pinned job silently doing
 nothing, a settings row missing its kid label, a copy key rendering its English fallback in every
 language - passed the entire existing unit suite, because a component test injects its own
@@ -37,7 +37,7 @@ page reload is the honest way to force.
 
 ### The nine assertions, and why each one matters
 
-Every one of these is a regression guard for a real, already-shipped poke guy - not a hypothetical.
+Every one of these is a regression guard for a real, already-shipped bug - not a hypothetical.
 The table names which historical bug each one would have caught, and how the check was actually
 watched failing (the task's own hard rule - "Edit ONLY your assigned files" - rules out the obvious
 route of temporarily reintroducing the bug in source this script does not own; see "How every
@@ -275,7 +275,7 @@ node scripts/kid-smoke.mjs
 `scripts/kid-smoke.mjs` 喺 `design/packages/kid-check`——一個為咗呢個目的專登起返嚟嘅、純淨版
 Electron harness——入面，開返個真、起好咗嗰個 `@worldlens/ui` renderer，然後好似小朋友咁真係去撳：
 撳條 rail、撳個目錄卡、喺大人閘口打錯個碼。呢個唔係第二套 unit test。今次 session 入面 Kid Mode
-出嘅每一個正經 poke guy——`award()` 冇嘢叫過佢、第一下撳一個未釘住嘅 job 靜靜雞冇反應、一行設定
+出嘅每一個正經 bug——`award()` 冇嘢叫過佢、第一下撳一個未釘住嘅 job 靜靜雞冇反應、一行設定
 冇 kid label、一條文案 key 喺每種語言都印緊英文後備——全部都喺成套 unit test 度過關,因為一個
 component test 注入自己嗰個依賴,證明嘅係嗰個畫面,永遠唔係畫面之間嗰條 seam。呢個套裝就係為咗
 捉返嗰條 seam 而存在。
@@ -304,7 +304,7 @@ devDependency。呢個就係呢個任務 brief 自己叫做「用返現有 harne
 
 ##### 九個斷言,同埋每一個點解重要
 
-以下每一個都係一個真係已經出咗貨嘅 poke guy 嘅回歸守衛——唔係憑空想像嘅。個表列明每一個對應緊
+以下每一個都係一個真係已經出咗貨嘅 bug 嘅回歸守衛——唔係憑空想像嘅。個表列明每一個對應緊
 邊個歷史問題,同埋個檢查究竟係點樣真係俾人睇住佢 fail 過（呢個任務自己嗰條硬規則——「淨係改你
 自己派到嗰啲檔案」——排除咗最直接嗰條路,就係喺呢個 script 冇擁有嘅源碼度暫時擺返個 bug 落去;
 下面「每一個斷言係點樣俾人睇住佢 fail」有講返實際用嗰三種老實方法)。

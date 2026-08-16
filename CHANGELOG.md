@@ -20,6 +20,66 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+_No changes have been committed since `v1.0.1127`._
+
+## 1.0.1127 - 2026-08-15
+
+Tagged at [`bfe86254d7`](https://github.com/Ding-Ding-Projects/worldlens/commit/bfe86254d7666a5f8a54fd796e97dd3226693f70).
+
+### Documentation
+
+- Give Kid Mode's own labels a Cantonese half, and photograph the whole mode - [`bfe86254d7`](https://github.com/Ding-Ding-Projects/worldlens/commit/bfe86254d7666a5f8a54fd796e97dd3226693f70)
+
+## 1.0.1124 - 2026-08-15
+
+Tagged at [`a03a6da74f`](https://github.com/Ding-Ding-Projects/worldlens/commit/a03a6da74f1a07cf4e166de2127fe90d3d82ea7c).
+
+### Interface
+
+- Make Kid Mode survive a phone-width window - [`a03a6da74f`](https://github.com/Ding-Ding-Projects/worldlens/commit/a03a6da74f1a07cf4e166de2127fe90d3d82ea7c)
+
+## 1.0.1122 - 2026-08-15
+
+Tagged at [`6d1d920f70`](https://github.com/Ding-Ding-Projects/worldlens/commit/6d1d920f706e19916ca81e9583eaa79e3e56111e).
+
+### Landing page and documentation site
+
+- Put Kid Mode on the documentation site, including the screen that is broken - [`6d1d920f70`](https://github.com/Ding-Ding-Projects/worldlens/commit/6d1d920f706e19916ca81e9583eaa79e3e56111e)
+
+## 1.0.1121 - 2026-08-15
+
+Tagged at [`4e2496e44e`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e2496e44edca4cc8d160c2ffb961110b30d4ede).
+
+### Build, release and tooling
+
+- Take lint out of CI and switch the screenshot job off - [`c2b7a020cc`](https://github.com/Ding-Ding-Projects/worldlens/commit/c2b7a020cc0d9c40400479d833abda213fd7877d)
+
+### Documentation
+
+- Correct a README caption that claimed the opposite of its own picture - [`4e2496e44e`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e2496e44edca4cc8d160c2ffb961110b30d4ede)
+- Show Kid Mode on the README - [`31bfcd8fb9`](https://github.com/Ding-Ding-Projects/worldlens/commit/31bfcd8fb95ce25c07c3948941f008c42449f565)
+
+## 1.0.1117 - 2026-08-15
+
+Tagged at [`6eab3ab934`](https://github.com/Ding-Ding-Projects/worldlens/commit/6eab3ab9346d8073ed62e6d84f3125d86cc72e66).
+
+### Build, release and tooling
+
+- Stop the screenshot job's own timeout cancelling the whole run - [`6eab3ab934`](https://github.com/Ding-Ding-Projects/worldlens/commit/6eab3ab9346d8073ed62e6d84f3125d86cc72e66)
+
+## 1.0.1114 - 2026-08-15
+
+Tagged at [`1424ce1b02`](https://github.com/Ding-Ding-Projects/worldlens/commit/1424ce1b027a2101b4bc4494699719870eea7d3c).
+
+### Elsewhere in the repository
+
+- Merge the MD3 conformance and Kid Mode instruments into main - [`1424ce1b02`](https://github.com/Ding-Ding-Projects/worldlens/commit/1424ce1b027a2101b4bc4494699719870eea7d3c) _(summary of 2 commits, also listed here)_
+- Add two instruments: one that measures Material 3, one that drives Kid Mode - [`71db5e7f0c`](https://github.com/Ding-Ding-Projects/worldlens/commit/71db5e7f0c1ec1c3a39ab023ce757b73e80f37ae)
+
+## 1.0.1113 - 2026-08-15
+
+Tagged at [`485e65987b`](https://github.com/Ding-Ding-Projects/worldlens/commit/485e65987b21d6e453d16fb15a665ba750487756).
+
 ### Interface
 
 - Merge Kid Mode into main - [`33be4dd7b2`](https://github.com/Ding-Ding-Projects/worldlens/commit/33be4dd7b2f8d28e71a35d1904e6857163c2bde9) _(summary of 2 commits, also listed here)_
@@ -29,6 +89,10 @@ full message for the in-app changelog viewer.
 
 - Merge the screenshot viewer and Kid Mode's repairs into main - [`90484d6bc3`](https://github.com/Ding-Ding-Projects/worldlens/commit/90484d6bc36e7f8d764dfdb5e8ac2509c4a2aaf4) _(summary of 2 commits, also listed here)_
 - Let people actually look at the screenshots, and make Kid Mode's rewards real - [`b55ad1f51f`](https://github.com/Ding-Ding-Projects/worldlens/commit/b55ad1f51f8f392438084fa7eb5d3193ed8b1221)
+
+### Documentation
+
+- Look at Kid Mode running, and fix what looking found - [`485e65987b`](https://github.com/Ding-Ding-Projects/worldlens/commit/485e65987b21d6e453d16fb15a665ba750487756)
 
 ## 1.0.1109 - 2026-08-14
 

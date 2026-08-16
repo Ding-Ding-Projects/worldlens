@@ -2,7 +2,7 @@
  * A plain Electron main process that boots the real `@worldlens/ui` renderer with nothing of its
  * own painted over it.
  *
- * "Plain" is the load-bearing word in the brief this package answers. Every serious poke guy found
+ * "Plain" is the load-bearing word in the brief this package answers. Every serious bug found
  * in Kid Mode this session - the sticker ledger nothing ever called, the first tap into Work doing
  * nothing, a settings row missing its kid label - passed the whole unit suite, because a component
  * test injects its own dependency and proves the screen, never the seam between screens. Catching

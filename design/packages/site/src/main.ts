@@ -212,7 +212,7 @@ function statusBadge(status: FeatureStatus, i18n: I18n): HTMLElement {
  *
  * Every capture the site renders -- committed or CI-fetched, in the showcase strip or the
  * dedicated gallery -- goes through this or `screenshotCaptureFigure` below, both of which
- * call `wrapCaptureInOpenButton`. That is what fixes the poke guy this file exists to fix:
+ * call `wrapCaptureInOpenButton`. That is what fixes the bug this file exists to fix:
  * without it, `.mb-shot-image` renders at a fixed, cropped `aspect-ratio` box
  * (`content.css`'s `object-fit: contain` already stops the crop; it never offered a way to
  * see the capture any larger than that box) with no way to see the whole capture, let alone

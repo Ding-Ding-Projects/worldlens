@@ -123,6 +123,18 @@ const CATEGORY_EXEMPT: Readonly<Record<string, string>> = {
     "README.md":
         "docs/README.md is the index itself, not an entry in its own tables -- the same reasoning " +
         "docsModel.ts's own DOCS_CATEGORIES comment gives for why README.md is uncategorized.",
+    "kid-mode-smoke.md":
+        "An article about a test harness, not about a feature of the application. It documents " +
+        "scripts/kid-smoke.mjs and the design/packages/kid-check Electron harness it drives -- " +
+        "developer tooling a reader of the product index has no route to and cannot use. Kid Mode " +
+        "itself is already indexed under 'The application' as kid-mode.md, which is the feature " +
+        "article; this one is the proof that feature works.",
+    "md3-conformance.md":
+        "An instrument rather than a product, in the article's own opening words. It documents the " +
+        "Material 3 conformance harness -- a chrome-less Electron app that photographs this " +
+        "application's components beside a hand-transcribed M3 reference -- which ships to nobody " +
+        "and appears in no user-facing surface. The design system it measures against is already " +
+        "indexed under 'The application' as design-system.md.",
 };
 
 /* -------------------------------------------------------------------------- */

@@ -6,7 +6,7 @@
  *
  * ## Why this exists, in one sentence
  *
- * Every serious poke guy Kid Mode shipped this session — `award()` wired to nothing that ever
+ * Every serious bug Kid Mode shipped this session — `award()` wired to nothing that ever
  * called it, the first tap into a non-pinned job silently doing nothing, a copy key rendering its
  * English fallback in Cantonese — passed the entire unit suite, because a component test injects
  * its own dependency and proves the screen, never the seam between screens. This file drives the

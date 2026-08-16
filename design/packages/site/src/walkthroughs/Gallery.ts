@@ -60,7 +60,7 @@ function mediaCard(
     // Enlargeable exactly like every other capture on the site (see `shots/Lightbox.ts`): a
     // walkthrough at its shipped 640x400 is too small to read the interface text in, and the
     // fixed 8/5 crop `walkthroughs.css` reserves for it is `object-fit: cover`, which is the
-    // same "you cannot see the whole thing" defect the poke guy names for the other galleries.
+    // same "you cannot see the whole thing" defect the bug names for the other galleries.
     // `image.currentSrc` -- read fresh on every activation, not captured once here -- is
     // whichever of the still and the animated source the browser is actually displaying right
     // now, honouring both the reduced-motion `<source>` above and the Replay button below.

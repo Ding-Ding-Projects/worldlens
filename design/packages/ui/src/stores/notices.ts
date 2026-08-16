@@ -45,7 +45,7 @@ setNoticeDurationLevel(notices, readNoticeDurationLevel());
  *
  * Saves the shell from importing the queue's own `notify` and remembering to pass the one
  * state to it, which is how a second, private queue gets created by accident. The delivery is
- * deliberately fixed after caller options: a Herng Ha App event must wait at the rail bell even
+ * deliberately fixed after caller options: an Electron app event must wait at the rail bell even
  * when a caller supplies otherwise valid presentation metadata.
  *
  * The third argument is a detail string or the full options object, exactly as `notify`

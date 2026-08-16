@@ -24,53 +24,209 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  * the last release" line rather than being hidden, because a missing section and an empty one
  * read very differently to somebody checking whether their fix shipped.
  */
-export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
-    {
-        sha: "90484d6bc36e7f8d764dfdb5e8ac2509c4a2aaf4",
-        shortSha: "90484d6bc3",
-        date: "2026-08-15T06:15:48-04:00",
-        subject: "Merge the screenshot viewer and Kid Mode's repairs into main",
-        details: "The documentation site can enlarge a capture now, and Kid Mode's stickers,\ncelebration and chime can actually happen -- award() had never been called from\nanywhere, so the whole reward system was wired to itself and to nothing else.\n\n睇得到張截圖喇,細路模式啲貼紙都真係賺到喇 -- 之前 award() 由頭到尾冇人叫過。",
-        category: "site",
-        areas: ["site", "interface", "docs"],
-        files: 26,
-        summarizes: 2,
-    },
-    {
-        sha: "b55ad1f51f8f392438084fa7eb5d3193ed8b1221",
-        shortSha: "b55ad1f51f",
-        date: "2026-08-15T05:47:25-04:00",
-        subject: "Let people actually look at the screenshots, and make Kid Mode's rewards real",
-        details: "Two things, and the second is the one that mattered.\n\nThe documentation site could not enlarge a screenshot. Not a broken lightbox --\nthere had never been one. Worse, both galleries drew every capture through\nobject-fit: cover inside a fixed 16/10 box, so each one was cropped as well as\nunopenable. For a site whose entire argument is \"these are real captures of the\nreal application, none is a mockup\", shipping cropped thumbnails nobody can open\nrather undermines the case: you could see that a screenshot existed and could not\nread a single word of interface text inside it. There is now a real viewer --\nzoom to 4x, clamped panning, wheel and pinch and +/- and the arrow keys, Escape\nand backdrop to close, focus returned to the figure that opened it, and the\ncapture shown uncropped.\n\nIt went into index.html, which is the file that actually ships. src/main.ts and\nsome ninety modules around it are imported by nothing executable; only test files\nthat read them as text. A fix confined to src/ would have passed every test and\nchanged nothing anyone could see. That orphaned tree is left alone here -- it is a\nreal question and not this commit's to answer.\n\nThen Kid Mode, which had been landing on a promise. Its own README said \"each\nsticker bound to a real completed action\", and award() was called from nowhere at\nall. The ledger, the sticker book and the celebration were wired beautifully to\neach other and to nothing else, so no sticker could be earned, the book stayed\npermanently empty, XP never moved, and the chime added earlier could never sound\nbecause the celebration that would play it never happened. Every unit test passed,\nbecause they tested the parts and never the seam. Four stickers now hang off real\nevents the app already emits; four others have no real event to hang off and are\ndocumented as unearnable rather than faked.\n\nAnd the first tap on Backups or Pages did nothing. KidShell read the job strip's\nref in the same synchronous call that asked Vue to mount it, so the ref was still\nnull and the request was dropped -- silently, with no error, only on the first\nattempt. To a four-year-old that is an app that ignores you. Requests made before\nthe strip mounts are now queued and drained in arrival order.\n\nAlso here: the shots files were never git add-ed, so a fresh clone would have\nfailed to resolve every one of them while typecheck, build and the whole suite\nstayed green -- caught by this repository's own import-tracking guard, which is\nthe only check that could have. A copy key with nothing behind it. An article\nindexed but uncategorised. The kid-mode settings row with no kid label, because\ntwo lanes landed in parallel and neither knew about the other. Forty-four adult\nshell tests asserting a default that changed, now saying which mode they exercise\n-- and, for the first time, two tests proving which shell mounts at all.\n\nVerified: 11,039 passed, 0 failed. docs/kid-mode.md re-read against the shipped\ncode, twelve claims corrected in both languages.\n\n===\n\n而家終於撳得開張截圖。之前唔係個燈箱壞咗,係壓根未整過;仲要兩個相簿都用\nobject-fit: cover 切到剩返一橛。個網成日話\"呢啲係真app嘅真截圖\",但你連入面隻字\n都睇唔清,咁點證明啫。而家放得大四倍,拖得,碌得,撳得,Esc 閂得,而且唔切圖。\n\n改咗喺 index.html — 因為真正出街嘅係佢。src/ 嗰九十幾個 module 冇人 import,\n淨係啲 test 當文字咁讀佢。改 src/ 嘅話,測試全綠,個網一啲都冇變。\n\n跟住係細路模式。佢份 README 話「每張貼紙都連住一件真做完嘅事」,點知 award()\n由頭到尾冇人叫過。貼紙簿永遠空,XP 永遠零,慶祝永遠唔出,連上次整好嗰下叮聲都\n響唔到 —— 因為個慶祝本身根本唔會發生。所有測試都綠,因為佢哋淨係測零件,冇測\n接口。而家四張貼紙駁咗真事件;另外四張冇真事件可駁,老實寫明賺唔到,唔作假。\n\n仲有:第一次撳 Backups 或者 Pages 係完全冇反應嘅。KidShell 喺同一格叫 Vue 掛個\njob strip,轉頭即刻讀個 ref,梗係仲係 null,個要求就咁靜靜雞跌咗。對住個四歲細路\n嚟講,即係「呢個app唔理我」。而家掛之前嘅要求會排隊,掛好之後照順序做返。\n\n順手執埋:shots 啲檔案冇 git add 過,fresh clone 會全部 resolve 唔到,但 typecheck、\nbuild、成個 suite 都係綠嘅 —— 全靠呢個 repo 自己嗰個 import 追蹤閘先捉到。\n\n驗過:11,039 passed，0 failed。",
-        category: "site",
-        areas: ["site", "interface", "docs"],
-        files: 26,
-    },
-    {
-        sha: "33be4dd7b2f8d28e71a35d1904e6857163c2bde9",
-        shortSha: "33be4dd7b2",
-        date: "2026-08-15T02:39:28-04:00",
-        subject: "Merge Kid Mode into main",
-        details: "Adds the second shell and turns it on by default. Adult Mode is the shell that\nwas already here, now named.\n\n細路模式埋位,預設開住;大人模式即係本來嗰個殼,而家有咗個名。",
-        category: "interface",
-        areas: ["interface", "docs"],
-        files: 29,
-        summarizes: 2,
-    },
-    {
-        sha: "6e32445ad4935f68ce8938939fe55dcf3818595a",
-        shortSha: "6e32445ad4",
-        date: "2026-08-15T02:39:20-04:00",
-        subject: "Add Kid Mode as a second shell, and ship it turned on",
-        details: "Kid Mode is a presentation layer over the shell the app already had, which is\nnow called Adult Mode. It re-skins; it does not re-implement. Every row is\nderived from the real CATALOGUES, JOB_REGISTRY and SETTINGS_SECTIONS, every\nactivation still routes through shellNavigation, and capabilities.ts still\ndecides what exists -- so a feature added to a schema reaches Kid Mode with no\nedit here, and a capability this checkout lacks stays absent rather than drawn\nas a demo that lies.\n\nIt ships enabled. That is the whole reason the grown-up gate had to be built\ncarefully rather than obviously: if it had simply demanded the shared code, a\nfresh install would have opened in Kid Mode with no code ever configured, and\nthe first grown-up to try to leave would have discovered a one-way door with\ntheir own map editor on the far side of it. So the gate reads\ncredentialConfigured off the shared School mode record -- no second credential\ninvented -- and when nobody has set a code it says so plainly and steps aside.\nIt is a speed bump with a sign on it, not a lock, and the copy never pretends\notherwise.\n\nFour things the drop-in claimed that the repository disagreed with, each fixed\nrather than worked around:\n\n  - 'Baloo 2' was never bundled. Nothing would have failed; the browser would\n    have quietly fallen through to Verdana while a remote-font rule sat in the\n    stylesheet looking satisfied. Now Roboto, which main.ts already bundles.\n  - The gate imported useRestrictedMode from components/settings, an export\n    that does not exist. The real record is useSchoolMode in components/setup.\n  - WorkPane exposes no way to close a tab, so closeJobWithGuard could not be\n    wired to anything. KidJobStrip re-hosts WorkPane instead and lets it keep\n    owning its own tabs, which is where that behaviour belonged anyway.\n  - The sound switch persisted a preference that nothing on earth consumed. It\n    now plays a two-note chime synthesised on the spot -- no asset bundled, no\n    asset fetched -- so the label is true.\n\nThe kid label is never the only label: kidAccessibleName keeps the shipped\nfeature name at every label style, so a screen reader, the command palette and\nthe tab finder all still call a feature what the documentation calls it. That\nis the part that makes this safe to ship on the same build a grown-up uses.\n\nVerified: vue-tsc clean at exit 0. The suite and the captures have NOT run --\nthis landed through an ultra-speed pass that deliberately skips them, and they\nare owed.\n\n===\n\n細路模式：舊嗰個殼而家叫大人模式，新嗰個係細路模式，淨係換樣唔換骨。\n啲嘢全部照舊喺 CATALOGUES 同 JOB_REGISTRY 度攞，冇一樣係手寫死嘅。\n\n預設開住細路模式，所以個「搵大人」閘要諗清楚：新裝機根本未設過密碼,\n如果照樣問你攞,大人就會困死喺細路模式入面,望住自己個地圖編輯器出唔到嚟。\n而家佢會睇 credentialConfigured,冇設過就照直講「呢部機未上鎖」然後行開。\n係個減速墩,唔係把鎖,啲字都冇扮嘢。\n\n執咗四個蠱惑嘢:'Baloo 2' 呢隻字體根本冇 bundle 過(靜靜雞跌落 Verdana,\n連錯都唔會報);個閘 import 咗個唔存在嘅 useRestrictedMode;WorkPane 壓根冇\nclose 呢個方法,所以改成 KidJobStrip 直接載住佢;仲有粒「播聲」掣,由頭到尾\n冇嘢聽,而家真係會叮兩聲(即場合成,唔載檔案唔落載)。\n\nvue-tsc 行到清,exit 0。測試同截圖未行過 -- 呢轉係快車,爭住嘅。",
-        category: "interface",
-        areas: ["interface", "docs"],
-        files: 29,
-    }
-];
+export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "1.0.1127",
+        tag: "v1.0.1127",
+        date: "2026-08-15T15:27:40-04:00",
+        commit: "bfe86254d7666a5f8a54fd796e97dd3226693f70",
+        entries: [
+            {
+                sha: "bfe86254d7666a5f8a54fd796e97dd3226693f70",
+                shortSha: "bfe86254d7",
+                date: "2026-08-15T15:27:40-04:00",
+                subject: "Give Kid Mode's own labels a Cantonese half, and photograph the whole mode",
+                details: "A Cantonese capture is what found this. Kid Mode's prose translated correctly -\nhero, rail, panel headings, the level badge - because `kidCopy.ts` is registered\nthrough the shared surface catalogue. But the five catalogue tiles, every feature\nand job and settings label, and the live-work row stayed English in every language,\nbecause `kidLabels.ts`'s four tables were plain `Record<string, string>` and the\ncall sites indexed them directly. `KidHome.vue` read\n`KID_CATALOGUE_LABELS[catalogue.id]` with no `t()` anywhere near it.\n\nThose five tiles ARE the navigation for a child who cannot read. In Cantonese they\nwere five English phrases, which is the one thing this mode exists to prevent.\n\nThe file's own doc comment claimed \"every entry goes through `t()` at the call\nsite\". It never did. That is the sixth comment in this repository found asserting\na behaviour that was aspirational when written and false ever after, and the third\none today whose sentence is the reason nobody looked.\n\nAll four tables now hold real `{ en, yue }` values, resolved through a `kidText()`\nreader that follows the language mode - 84 feature labels, 18 jobs, 19 settings, 5\ncatalogues, in the same Hong Kong register `kidCopy.ts` already uses, keeping\nproduct identifiers (Bedrock, Java, Mojang, GO) untranslated as that file does.\n\n`kidAccessibleName()` still appends the shipped English name unconditionally, in\nevery language and at every label style. That is the contract making Kid Mode safe\nto ship on the same build a grown-up uses, and the capture shows it holding: every\ntile carries its kid label above the documented name.\n\nA real reactivity gap closed on the way: `KidJobStrip` renames tabs imperatively,\noutside any reactive render, so it never re-applied labels on a language change.\nIt now watches the mode.\n\nThe capture matrix goes from eight frames to twenty-nine: all five catalogues,\nCantonese and bilingual, funny levels 1 and 5, scales to 2x, widths 360/390/414,\nExplore, Find, Messages, the regex builder, and the sticker book both empty and\nwon. Zero diagnostics. One frame per surface would never have shown this - it\nneeded the same surface in another language.\n\n===\n\n係一張廣東話截圖捉到呢單嘢。細路模式啲文字譯得好地地,但五個地圖磚、每個功能同\n工作嘅標籤、連「而家畫緊乜嘢」全部都仲係英文。`kidLabels.ts` 四個表全部淨係英文,\ncall site 直接拎嚟用,連 `t()` 都冇。\n\n嗰五個磚就係唔識字嘅細路用嚟認路嘅嘢。喺廣東話模式下變咗五句英文,正正就係\n呢個模式想避免嘅嘢。\n\n份 doc comment 仲寫住「每個 entry 都會經 `t()`」。從來冇。呢個係今次喺呢個 repo\n搵到嘅第六句「講咗當做咗」嘅 comment。\n\n而家四個表全部係真 `{ en, yue }`,84 個功能、18 個工作、19 個設定、5 個分類,\n用返 `kidCopy.ts` 嗰把聲。`kidAccessibleName()` 照舊硬接返英文正名 —— 張相都\n睇得到:每個磚上面係細路字,下面係正名。\n\n截圖由 8 張變 29 張。一個畫面影一張,係永遠都捉唔到呢單嘢嘅。",
+                category: "docs",
+                areas: ["docs", "interface", "shell"],
+                files: 56,
+            }
+        ],
+    },
+    {
+        version: "1.0.1124",
+        tag: "v1.0.1124",
+        date: "2026-08-15T14:29:49-04:00",
+        commit: "a03a6da74f1a07cf4e166de2127fe90d3d82ea7c",
+        entries: [
+            {
+                sha: "a03a6da74f1a07cf4e166de2127fe90d3d82ea7c",
+                shortSha: "a03a6da74f",
+                date: "2026-08-15T14:29:49-04:00",
+                subject: "Make Kid Mode survive a phone-width window",
+                details: "Kid Home at 390x844 fell apart, and the picture of it going onto the README is\nwhat made anybody look. The headline was cut off mid-word, the child's name\ntruncated to \"Explor\", the five catalogue lands crushed to roughly one character\nwide each, the walkthrough button sat on top of the hero text, and the content\noverflowed into a horizontal scrollbar.\n\nThree fixed-size pieces that had never been asked to give up space, none of them\never checked below desktop width:\n\n  - the rail was a flat 124px at every width, which on a 390px window is a third\n    of the screen before anything else gets a say;\n  - the lands were `repeat(5, minmax(0, 1fr))`, so five columns shared whatever\n    the rail left and each label collapsed to a letter;\n  - the hero was one flex row, and squeezing its copy toward zero let the `h1`\n    overflow its own box, because a long word does not break by default - that\n    overflow is where the horizontal scrollbar came from;\n  - `.wl-kid__name` had no CSS rule at all, so the name simply ran past the pane's\n    clip edge.\n\nThe fix reuses the grown-up shell's own 860px breakpoint rather than inventing a\nnumber: the rail narrows to 88px, the hero stacks into a column, the lands drop to\ntwo columns, the panels collapse to one, and every label gets\n`overflow-wrap: anywhere` with `overflow-x: hidden` behind it as a backstop.\nNothing goes below Kid Mode's 64px touch-target floor - the whole point of the\nmode is bigger targets, and buying a narrow layout by shrinking them would be a\nworse defect than the one being fixed.\n\nA horizontally scrolling lands strip was considered and rejected: a child who\ncannot read also cannot infer a scroll affordance.\n\nThe guard asserts the media queries in source, with a comment explaining why -\njsdom has no layout engine, so a computed-style test here would pass on the broken\nversion and prove nothing. It was watched failing (lands forced back to five\ncolumns) before being trusted.\n\nBoth captions are rewritten a second time. They first claimed the layout held when\nit did not - my wording, written from what the surface was supposed to do rather\nthan from the file, and it propagated from the README into the shipped gallery\nbefore anybody opened the image. Then they described the defect. Now they describe\nthe fix, and the frame backs them up.\n\n===\n\n細路模式喺 390 闊嘅窗度散晒。標題斷半橛、個名剩「Explor」、五個 land 逼到剩一個\n字、掣疊字、仲有條橫向捲軸。而發現到,係因為要擺張相上 README。\n\n三個從來冇縮過嘅固定尺寸:側欄成日 124px、五欄 grid 死唔放手、hero 一行擠到個\n標題滿瀉(長字預設唔會斷行,條橫捲軸就係咁嚟)。仲有 `.wl-kid__name` 由頭到尾\n冇過一條 CSS。\n\n改法係借返大人殼自己嗰個 860px 斷點,唔另外發明數字。冇一樣跌穿 64px —— 大粒掣\n本身就係呢個模式存在嘅理由。\n\n啲說明改咗第二次。第一次寫「守得住」係假嘅,係我照「應該係咁」寫,冇望過張相,\n仲由 README 傳咗去出街嘅相簿。第二次寫佢壞。而家寫佢好返,而張相撐得住。",
+                category: "interface",
+                areas: ["interface", "site", "docs"],
+                files: 8,
+            }
+        ],
+    },
+    {
+        version: "1.0.1122",
+        tag: "v1.0.1122",
+        date: "2026-08-15T14:14:26-04:00",
+        commit: "6d1d920f706e19916ca81e9583eaa79e3e56111e",
+        entries: [
+            {
+                sha: "6d1d920f706e19916ca81e9583eaa79e3e56111e",
+                shortSha: "6d1d920f70",
+                date: "2026-08-15T14:14:26-04:00",
+                subject: "Put Kid Mode on the documentation site, including the screen that is broken",
+                details: "Eight Kid Mode captures join the gallery on index.html, which is the file that\nactually ships. Two pre-rebrand assets that nothing referenced any more are gone.\n\nOne tile is a known defect, captioned as one. Kid Home at 390x844 does not hold\nits layout: the headline is cut off mid-word, the child's name truncates to\n\"Explor\", the five catalogue tiles crush to roughly one character each, the\nwalkthrough button overlaps the hero, and the content overflows into a horizontal\nscrollbar - which this project's own layout rules forbid outright.\n\nIt stays in the gallery. A showcase that quietly omits the screen that looks bad\nis worth nothing, and Kid Mode ships enabled by default, so a narrow window is\nwhat some people will meet first.\n\nThe caption it arrived with said the opposite - \"holding its layout rather than\ncollapsing to an unreadable scroll\", with alt text promising the tiles were \"all\nstill readable\". That wording was mine, written for the README from what the\nsurface was supposed to do rather than from the picture, and it propagated here\nbefore anybody opened the file. Both are rewritten to describe the actual frame.\n\nEvery referenced asset was checked in the BUILT output rather than the source\ntree, because a path that resolves in the repository and 404s after the build is\na failure this project has already had.\n\n===\n\n八張細路模式相加咗上個網嘅相簿(index.html —— 真正出街嗰個)。兩張冇人用嘅\n舊名資產刪咗。\n\n其中一張係已知壞嘅,而且照直寫明。390 闊嘅細路 Home 守唔住:標題斷半橛、個名\n剩返「Explor」、五個 land 逼到剩一個字、掣疊字、仲有條橫向捲軸。\n\n但係唔抽走佢。一個專登收埋醜相嘅相簿,一文不值 —— 而且細路模式係預設開嘅,\n用窄窗開就係見到咁。\n\n佢原本嗰句說明講嘅係相反嘅嘢。嗰啲字係我喺 README 度寫嘅,照「應該係咁」寫,\n冇望過張相,然後就傳咗過嚟。兩處都改返照實寫。",
+                category: "site",
+                areas: ["site"],
+                files: 20,
+            }
+        ],
+    },
+    {
+        version: "1.0.1121",
+        tag: "v1.0.1121",
+        date: "2026-08-15T14:08:47-04:00",
+        commit: "4e2496e44edca4cc8d160c2ffb961110b30d4ede",
+        entries: [
+            {
+                sha: "4e2496e44edca4cc8d160c2ffb961110b30d4ede",
+                shortSha: "4e2496e44e",
+                date: "2026-08-15T14:08:47-04:00",
+                subject: "Correct a README caption that claimed the opposite of its own picture",
+                details: "The 390-pixel Kid Home capture was captioned as \"holding their layout rather than\nbeing narrowed to a scroll\". The image it labels shows the hero headline cut off\nmid-word, the child's name truncated to \"Explor\", the five catalogue lands crushed\nto about one character each, the walkthrough button overlapping the hero, and a\nhorizontal scrollbar - the one thing this project's own layout rules forbid\noutright.\n\nThe caption was written from what the surface was supposed to do. Nobody opened\nthe file. Every path was verified to resolve and not one image was looked at,\nwhich is precisely the check that matters on a page whose entire argument is that\nits pictures are real.\n\nThe caption now describes what is actually in the frame and says plainly that it\nis a known defect being fixed. The picture stays: a gallery that quietly drops the\nscreen that looks bad is worth nothing, and this application ships Kid Mode on by\ndefault, so somebody opening it on a phone-width window meets exactly this.\n\n===\n\n嗰張 390 闊嘅細路 Home 相,個說明寫住「排版守得住,冇變成要橫拉」。但係張相入面\n標題斷咗半橛、個名剩返「Explor」、五個 land 逼到剩返一個字、掣又疊埋,仲要有條\n橫向捲軸 —— 呢個係本專案明文禁止嘅嘢。\n\n段說明係照「應該係咁」寫嘅,冇人開過張相。所有路徑都驗過通,但一張都冇望過。\n\n而家照實寫,仲寫明係已知問題、正在修。張相唔抽走:一個專門收埋醜相嘅相簿,\n一文不值,而且細路模式係預設開嘅,用手機闊度開就係見到咁。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            },
+            {
+                sha: "31bfcd8fb95ce25c07c3948941f008c42449f565",
+                shortSha: "31bfcd8fb9",
+                date: "2026-08-15T14:06:18-04:00",
+                subject: "Show Kid Mode on the README",
+                details: "Kid Mode shipped without a single picture of it anywhere. It is enabled by\ndefault, so the Home capture here is not one screen among many - it is the first\nscreen this application shows anybody, and until today nobody had seen it.\n\nAll eight captures, from the real packaged application: Home at full width and at\n390 by 844, the rail, a catalogue opened as a land, the Work view re-hosting the\nsame tab strip the grown-up shell uses, the sticker book with nothing won yet, the\nKid Mode settings row, and the grown-up gate.\n\nThe gate is the one worth having on a README. It is photographed in the state a\nfresh install actually starts in - no code configured - where it shows a single\nbutton through to Adult Mode and says plainly that it is a user-experience lock\nand not a security lock, with the real reset route named. An adult who installs\nthis and finds a children's interface needs that screen, and needs to find it\nbefore deciding the app is broken.\n\nFive of these could not have been taken yesterday. Everything reached by clicking\n- the catalogue, the job strip, the settings row, the gate, the sticker book -\nwas unreachable, because the whole shell inherited `pointer-events: none` and the\nmap canvas behind it swallowed every press. The harness wrote diagnostics where\nthe images should have been.\n\nAlt text describes what each picture actually shows rather than naming the file,\nbecause the gallery reaches screen-reader users through it and \"screenshot\" tells\nthem nothing.\n\n===\n\n細路模式出咗街,但一張相都冇。佢係預設開嘅,所以嗰張 Home 唔係「其中一個畫面」\n—— 係人人裝完第一眼見到嘅嗰個畫面,而直到今日都冇人望過。\n\n八張全部齊,真 app 影嘅。最值得擺上 README 嗰張係「搵大人」個閘:影嘅係新裝機\n真正嘅狀態 —— 未設過密碼 —— 一粒掣就去到大人模式,下面老老實實寫住呢個係\n「用戶體驗鎖」唔係「保安鎖」,仲寫埋點 reset。大人裝完見到個細路介面,就係要\n搵呢個畫面,而且要喺佢以為部機壞咗之前搵到。\n\n其中五張尋日係影唔到嘅:所有要撳先入到嘅畫面都撳唔郁,成個殼遺傳咗\n`pointer-events: none`,啲撳全部跌落後面塊地圖度。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            },
+            {
+                sha: "c2b7a020cc0d9c40400479d833abda213fd7877d",
+                shortSha: "c2b7a020cc",
+                date: "2026-08-15T13:59:21-04:00",
+                subject: "Take lint out of CI and switch the screenshot job off",
+                details: "Owner decision, asked and answered directly: no lint, and the screenshot job off\nfor now.\n\nThe \"Lint the workflow files\" job is gone. It ran unit tests, the workflow linter,\na changelog-freshness diff and actionlint -- none of which builds or publishes\nanything, and all of which could withhold a release. Its exact commands are named\nin a comment where it used to be, because they are still the right things to run\nby hand before a dew. Nothing referenced it in a `needs:`, so no graph moved.\n\nThe screenshot job is disabled with `if: false` rather than deleted. Every step,\nits `continue-on-error` and its timeout are left exactly as they were, so turning\nit back on is removing one line. It was being killed at exactly 20:00 twice, and\n`continue-on-error` swallows a FAILING job but not a CANCELLED one -- a job killed\nby `timeout-minutes` concludes as cancelled, and that conclusion travels straight\nout to the run. So the one job explicitly designed never to veto anything was\nreporting entire runs as cancelled while the installer built and the release\npublished. Captures still come from `pnpm --filter @worldlens/app screenshots`\nlocally, so what goes away is the CI gate, not the evidence.\n\nPages was checked rather than assumed: it downloads that artifact from the newest\nsuccessful CI run, and `fetch-screenshots.mjs` catches every failure and degrades\nto an honest \"no captures available\" rather than throwing. Existing artifacts stay\nusable to their retention limit and the gallery then says so. No change needed.\n\n`lint-workflows.mjs` no longer asserts a policy that has been repealed. Out go the\nrelease-boundary rules demanding every correctness job in `needs:`, the duplicate\n`if:` re-parse behind them, and the reviewed 20-minute screenshot timeout, which\nis doubly obsolete now the job is off. A committed guard encoding a rule that no\nlonger exists is worse than no guard: the next reader treats it as the authority\nand puts the workflow back.\n\nEverything that guards something real stays: injection prevention on watched run\nblocks, action SHA pinning, credential erasure, the release-job fingerprint\ntripwire, trigger and runner-label checks, and every required-step check for hash\nverification, unsigned-executable proof and the unsigned-installer warning. Two\nstale SHA-256 fingerprints were found while verifying and confirmed by stashing to\npredate this change; they are recomputed from what actually shipped.\n\nVerified unpiped, because a pipe reports its last stage's status and has produced\nfour false clean readings today: lint-workflows exits 0 across 8 workflows, 126\npinned actions and 6 watched release steps; its own 33 tests pass; the six sibling\nscript suites pass 55/55.\n\n===\n\n老細親口答:唔要 lint,截圖個 job 暫時熄咗佢。\n\nLint 嗰個 job 成個拆咗。佢又唔起貨又唔出 release,但就攔得住 release。啲指令\n留咗喺 comment 度,因為推之前喺本機行返佢哋仍然係啱嘅。\n\n截圖個 job 用 `if: false` 熄,唔係刪。每一步、`continue-on-error`、timeout 全部\n原封不動,想開返只係刪一行。之前兩轉都啱啱好 20:00 斷氣,而 `continue-on-error`\n食得住「失敗」食唔住「被取消」—— 俾 timeout 斬死係 cancelled,呢個結論會直接\n變成成個 run 嘅結論。即係話,嗰個講明「唔會否決任何嘢」嘅 job,一路喺度否決緊。\n\n`lint-workflows.mjs` 唔再堅持一條已經廢咗嘅規矩,但係所有真係守住嘢嘅檢查\n(防注入、action SHA pin、清 credential、unsigned 證明)一條都冇少。\n\n冇用 pipe 驗過:exit 0。今日已經有四次 pipe 呃我話乾淨。",
+                category: "build",
+                areas: ["build"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.1117",
+        tag: "v1.0.1117",
+        date: "2026-08-15T12:12:12-04:00",
+        commit: "6eab3ab9346d8073ed62e6d84f3125d86cc72e66",
+        entries: [
+            {
+                sha: "6eab3ab9346d8073ed62e6d84f3125d86cc72e66",
+                shortSha: "6eab3ab934",
+                date: "2026-08-15T12:12:12-04:00",
+                subject: "Stop the screenshot job's own timeout cancelling the whole run",
+                details: "The Screenshots job carries `continue-on-error: true` and is deliberately absent\nfrom the release's `needs:`, and its comment claimed that timing out therefore\n\"remains an advisory job result\". It does not. `continue-on-error` swallows a\nFAILING job; it does not swallow a CANCELLED one, and a job killed by\n`timeout-minutes` concludes as cancelled. That conclusion travels straight out to\nthe run.\n\nSo the last two runs read as cancelled while every job that matters had succeeded\n-- workspace built, installer packaged, release published, jars green. The one\njob explicitly designed never to veto anything was vetoing the verdict.\n\nTwenty minutes was also simply too few. The job installs dependencies, builds the\nentire workspace, unpacks a rendered world, installs Playwright's OS dependencies\nand only then drives the packaged application through every surface -- and the\ncapture set has grown since that ceiling was picked, Kid Mode alone adding eight.\nIt timed out at exactly 20:00 twice. 45 leaves real headroom and still kills a\nwedged browser rather than paying for the six-hour default.\n\nThe comment is rewritten to say what is true and to name what it used to say,\nbecause that sentence is the reason nobody looked at a number that had been\ncancelling runs.\n\n===\n\n截圖嗰個 job 明明寫住 `continue-on-error`,又冇擺喺 release 個 `needs:` 入面,\n段 comment 仲話「就算超時都只係參考」。假嘅。`continue-on-error` 只食得住\n「失敗」,食唔住「被取消」,而俾 `timeout-minutes` 斬死嘅 job 係 cancelled,\n呢個結果會直接跳返出去變成成個 run 嘅結論。\n\n所以之前兩轉明明樣樣都成功 —— 裝好、包好、release 都出咗 —— 個 run 竟然報\ncancelled。嗰個講明「唔會否決任何嘢」嘅 job,反而否決咗個判決。\n\n20 分鐘本身都唔夠用,兩轉都啱啱好喺 20:00 斷。改 45。",
+                category: "build",
+                areas: ["build"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.1114",
+        tag: "v1.0.1114",
+        date: "2026-08-15T10:36:33-04:00",
+        commit: "1424ce1b027a2101b4bc4494699719870eea7d3c",
+        entries: [
+            {
+                sha: "1424ce1b027a2101b4bc4494699719870eea7d3c",
+                shortSha: "1424ce1b02",
+                date: "2026-08-15T10:36:33-04:00",
+                subject: "Merge the MD3 conformance and Kid Mode instruments into main",
+                details: "Two plain Electron apps that look at the real thing, plus the Claude Design\nsources Kid Mode was built from.\n\n兩個樸素 Electron app,望真啲;仲有細路模式嘅設計原檔。",
+                category: "other",
+                areas: ["other", "build", "docs"],
+                files: 51,
+                summarizes: 2,
+            },
+            {
+                sha: "71db5e7f0c1ec1c3a39ab023ce757b73e80f37ae",
+                shortSha: "71db5e7f0c",
+                date: "2026-08-15T10:36:22-04:00",
+                subject: "Add two instruments: one that measures Material 3, one that drives Kid Mode",
+                details: "Both exist because this session kept finding defects that every unit test was\nhappy with. A component test that injects its dependency proves the screen and\nnothing about the wiring, and neither jsdom nor a stylesheet can tell you which\nrule actually won. So: two plain Electron apps that look at the real thing.\n\n`md3-check` renders canonical Material Design 3 beside this app's own components\nand measures both off the rendered DOM -- getBoundingClientRect and\ngetComputedStyle, never read from a source file. Corner radius, height, touch\ntarget, font metrics, resolved colours, contrast ratio, shown as numbers next to\nthe pair, in all four themes.\n\nIts honesty is the point, and the app says so on its own face. This repository\nhas no independent copy of the M3 specification: `@material/web` is not a\ndependency, declared or transitive, and Vuetify's `md3` blueprint carries only\ncomponent prop defaults and five colours -- no pixel shape scale, no type scale,\nno elevation, no motion, no state layers, and it disagrees with this app's own\nchoices anyway. So the reference column is hand-typed from the published spec with\na citation per row, and it is labelled \"M3 REFERENCE (HAND-TYPED, STATIC)\" in the\ninterface rather than in a comment nobody reads. Comparing the project against its\nown tokens would have proved self-consistency and called it conformance.\n\nThe first answer it gives: not fully. Colour and type match exactly -- 14px, 500,\nRoboto, 6.45:1, identical. The geometry is Vuetify's, not M3's: a filled button is\n36px tall against the spec's 40dp, an 18px corner against 20px, 17px line-height\nagainst 20px, and 1.3px letter-spacing against 0.1px, which is Material 2's. The\n36px matters twice over, because it is also under the 48px minimum touch target\nthis project's own rules require. Five rows are listed as not built, with reasons:\ntooltip, select, menu, dialog and slider all need overlay measurement the static\nrow machinery does not do yet.\n\n`kid-check` boots the real UI package with Kid Mode forced on and drives every kid\nsurface end to end. Its assertions are not chosen for coverage; each one is a\ndefect that already shipped past the 11,000-test suite -- a job that must open on\nthe first tap and not the second, a sticker that must be earnable at all, the way\nout to Adult Mode with and without a credential configured, no English fallback\nsurviving in Cantonese, 64px targets measured rather than declared, accessible\nnames read from the accessibility tree rather than the label table, and no network\nrequest made.\n\nAlso here, in `design/design-sources/kid-mode/`: the Claude Design files Kid Mode\nwas built from, as a record. Nothing builds from that folder and nothing imports\nit. Its README keeps what the prototypes got wrong about this codebase, because\nthat was most of the integration work -- five named bindings that do not exist,\n`WorkPane` having no way to close a tab at all, and a font that was never bundled.\n\n===\n\n兩件工具,兩個都係因為今晚啲蟲全部瞞得過單元測試。測試 inject 咗個假嘅\ndependency,就只證到個畫面,證唔到條線駁咗未;jsdom 同一份 stylesheet 都話你\n唔到邊條 rule 真係贏咗。所以就整兩個好樸素嘅 Electron app,望真啲。\n\n`md3-check` 將官方 Material 3 擺喺我哋自己啲元件隔籬,兩邊都直接喺畫面度度,\n唔係喺 source 度讀。第一個答案:唔係完全啱。顏色同字體一模一樣,但個尺寸係\nVuetify 嘅,唔係 M3 嘅 —— 掣高 36px(規格係 40dp),而且 36px 仲低過本專案\n自己要求嘅 48px 最細掂指範圍。\n\n呢個 repo 根本冇官方 M3 規格嘅獨立副本,所以參考嗰欄係人手打、逐行引規格,\n而且喺個介面度大大隻寫明係人手打嘅 —— 唔寫明嘅話,就變咗「自己同自己一致」\n扮「合規」。\n\n`kid-check` 就係開真嘅細路模式,逐個畫面撳一次。佢每條 assertion 都係一隻已經\n出咗街、而且瞞過咗成萬個測試嘅蟲。",
+                category: "other",
+                areas: ["other", "build", "docs"],
+                files: 51,
+            }
+        ],
+    },
+    {
+        version: "1.0.1113",
+        tag: "v1.0.1113",
+        date: "2026-08-15T10:32:41-04:00",
+        commit: "485e65987b21d6e453d16fb15a665ba750487756",
+        entries: [
+            {
+                sha: "485e65987b21d6e453d16fb15a665ba750487756",
+                shortSha: "485e65987b",
+                date: "2026-08-15T10:32:41-04:00",
+                subject: "Look at Kid Mode running, and fix what looking found",
+                details: "Kid Mode had never been photographed. It ships enabled by default, so it is the\nfirst screen every new user meets, and nobody -- including the agents that built\nit -- had ever seen it run. Eight captures now exist, taken from the real\npackaged application. Everything else here is what those pictures revealed.\n\nThe worst of it: nothing in Kid Mode could be clicked. `global.scss` sets\n`#app .v-main { pointer-events: none }` on purpose, so the fixed map canvas stays\ndraggable through the gaps in the adult chrome, and every adult click target opts\nback in with `.mb-interactive`. Kid Mode never opted in, and `pointer-events` is\ninherited, so hit-testing skipped the entire kid subtree and landed on the empty\nmap canvas behind it. A child tapping a catalogue tile, or \"My jobs\", or the way\nout to Adult Mode, got nothing at all -- silently, every time, on a fresh install.\nThe kid map view keeps `pointer-events: none` so the map itself still pans, which\nis why this is two rules rather than one.\n\nA comment on that element said \"pointer-events is left at the normal auto here\".\n`auto` is the initial value, not an inherited default. That sentence is the reason\nnobody looked, and it is the second such comment found today: `kidCopy.ts` still\nclaimed its own copy surface was unwired and that vue-i18n was falling back to\nEnglish, months of minutes after the surface landed. Both are rewritten to say\nwhat is true and to name what they used to say, because a comment inventing a\nguarantee removes the check from precisely the reader careful enough to have\ncaught the bug.\n\nThe rest was visible once the text was: Vuetify's `.v-application` sets the app's\ndefault text colour to `on-background`, white, which is right for the dark navy\nrail and wrong for every light kid surface under it. Catalogue labels, panel\nheadings, row labels and the child's own name were rendering white on near-white.\nOne `color` on the pane they all share. jsdom implements no CSS custom-property\ncascade, so no unit test could ever have seen it.\n\nAlso: the level badge printed its number twice (\"1 Level 1\"), from a bare span\nwhose class had no style rule anywhere. A live render row showed a raw\n`world-0a974df3a729` to a pre-reading four-year-old; it now says \"Finding its\nname\" until a real name resolves, and never invents one.\n\nCI stops gating the release on checks that were never meant to gate it. The last\nrun reported 770 test files passed, zero failures, three times over, and still\nfailed the job on a worker-RPC heartbeat flake -- and because that job was in\n`release`'s `needs:`, no release shipped at all. Tests, lint, typecheck and the\nchangelog-freshness diff are now advisory; `release` needs only the jobs that\nactually produce what it publishes. Checking moved to where a person asked for it:\nbefore the push, by hand. The cost is stated plainly in the workflow itself -- a\nrelease can now ship from a commit whose tests would have failed, and the first\nthing to notice will be somebody running the installer.\n\nEvidence inventory: 187 targets, all tracked, digest refreshed so the pictures are\nprovably of this tree. The fifteen map-dependent captures moved to their own\nungraded group naming the blocker, rather than being merged into this run's\nmanifest -- merging them would have asserted a single coherent run that never\nhappened.\n\nVerified: kid suite 30/30, ui typecheck clean, screenshot evidence 187/187,\nPlaywright 28 passed with zero diagnostics.\n\n===\n\n終於有人望過細路模式跑起上嚟係點。佢預設開住,即係人人裝完第一眼見到嘅就係佢,\n但由頭到尾冇人影過相,連整佢嗰班都冇。而家影咗八張,係真app嚟嘅。\n\n最大鑊嗰單:成個細路模式撳唔郁。`.v-main` 特登設咗 `pointer-events: none`,等\n張地圖喺大人殼啲罅度仲拖得郁,大人嗰邊每粒掣自己 opt-in 返。細路模式冇 opt-in,\n而 `pointer-events` 係會遺傳嘅,所以成棵樹被跳過,啲撳全部跌落後面塊空地圖度。\n細路撳極都冇反應,一聲都唔出。\n\n仲有句 comment 話「呢度 pointer-events 係正常 auto」—— `auto` 係初始值,唔係\n遺傳預設。就係嗰句令冇人去查。今日第二單咁嘅嘢:`kidCopy.ts` 都仲寫住自己未\n接落 catalogue。兩句都改咗,順便寫明佢哋以前講錯咗乜。\n\n跟住就係啲字睇唔到:Vuetify 將預設字色設成白色(深藍側欄啱,淺色細路面板就大鑊),\n搞到啲標題、標籤、連細路自己個名都係白撞白。一條 `color` 搞掂。jsdom 冇 CSS\n變數 cascade,所以單元測試永世都睇唔到。\n\nCI 唔再用唔應該卡 release 嘅嘢卡住 release。上一轉 770 個檔全綠,零失敗,行足\n三次,最後仲係死喺個 worker flake 度 —— 而嗰個 job 喺 `release` 嘅 needs 入面,\n所以根本冇出過 release。\n\n驗過:細路測試 30/30,typecheck 清,截圖證據 187/187,Playwright 28 passed。",
+                category: "docs",
+                areas: ["docs", "interface", "shell", "build"],
+                files: 242,
+            },
+            {
+                sha: "90484d6bc36e7f8d764dfdb5e8ac2509c4a2aaf4",
+                shortSha: "90484d6bc3",
+                date: "2026-08-15T06:15:48-04:00",
+                subject: "Merge the screenshot viewer and Kid Mode's repairs into main",
+                details: "The documentation site can enlarge a capture now, and Kid Mode's stickers,\ncelebration and chime can actually happen -- award() had never been called from\nanywhere, so the whole reward system was wired to itself and to nothing else.\n\n睇得到張截圖喇,細路模式啲貼紙都真係賺到喇 -- 之前 award() 由頭到尾冇人叫過。",
+                category: "site",
+                areas: ["site", "interface", "docs"],
+                files: 26,
+                summarizes: 2,
+            },
+            {
+                sha: "b55ad1f51f8f392438084fa7eb5d3193ed8b1221",
+                shortSha: "b55ad1f51f",
+                date: "2026-08-15T05:47:25-04:00",
+                subject: "Let people actually look at the screenshots, and make Kid Mode's rewards real",
+                details: "Two things, and the second is the one that mattered.\n\nThe documentation site could not enlarge a screenshot. Not a broken lightbox --\nthere had never been one. Worse, both galleries drew every capture through\nobject-fit: cover inside a fixed 16/10 box, so each one was cropped as well as\nunopenable. For a site whose entire argument is \"these are real captures of the\nreal application, none is a mockup\", shipping cropped thumbnails nobody can open\nrather undermines the case: you could see that a screenshot existed and could not\nread a single word of interface text inside it. There is now a real viewer --\nzoom to 4x, clamped panning, wheel and pinch and +/- and the arrow keys, Escape\nand backdrop to close, focus returned to the figure that opened it, and the\ncapture shown uncropped.\n\nIt went into index.html, which is the file that actually ships. src/main.ts and\nsome ninety modules around it are imported by nothing executable; only test files\nthat read them as text. A fix confined to src/ would have passed every test and\nchanged nothing anyone could see. That orphaned tree is left alone here -- it is a\nreal question and not this commit's to answer.\n\nThen Kid Mode, which had been landing on a promise. Its own README said \"each\nsticker bound to a real completed action\", and award() was called from nowhere at\nall. The ledger, the sticker book and the celebration were wired beautifully to\neach other and to nothing else, so no sticker could be earned, the book stayed\npermanently empty, XP never moved, and the chime added earlier could never sound\nbecause the celebration that would play it never happened. Every unit test passed,\nbecause they tested the parts and never the seam. Four stickers now hang off real\nevents the app already emits; four others have no real event to hang off and are\ndocumented as unearnable rather than faked.\n\nAnd the first tap on Backups or Pages did nothing. KidShell read the job strip's\nref in the same synchronous call that asked Vue to mount it, so the ref was still\nnull and the request was dropped -- silently, with no error, only on the first\nattempt. To a four-year-old that is an app that ignores you. Requests made before\nthe strip mounts are now queued and drained in arrival order.\n\nAlso here: the shots files were never git add-ed, so a fresh clone would have\nfailed to resolve every one of them while typecheck, build and the whole suite\nstayed green -- caught by this repository's own import-tracking guard, which is\nthe only check that could have. A copy key with nothing behind it. An article\nindexed but uncategorised. The kid-mode settings row with no kid label, because\ntwo lanes landed in parallel and neither knew about the other. Forty-four adult\nshell tests asserting a default that changed, now saying which mode they exercise\n-- and, for the first time, two tests proving which shell mounts at all.\n\nVerified: 11,039 passed, 0 failed. docs/kid-mode.md re-read against the shipped\ncode, twelve claims corrected in both languages.\n\n===\n\n而家終於撳得開張截圖。之前唔係個燈箱壞咗,係壓根未整過;仲要兩個相簿都用\nobject-fit: cover 切到剩返一橛。個網成日話\"呢啲係真app嘅真截圖\",但你連入面隻字\n都睇唔清,咁點證明啫。而家放得大四倍,拖得,碌得,撳得,Esc 閂得,而且唔切圖。\n\n改咗喺 index.html — 因為真正出街嘅係佢。src/ 嗰九十幾個 module 冇人 import,\n淨係啲 test 當文字咁讀佢。改 src/ 嘅話,測試全綠,個網一啲都冇變。\n\n跟住係細路模式。佢份 README 話「每張貼紙都連住一件真做完嘅事」,點知 award()\n由頭到尾冇人叫過。貼紙簿永遠空,XP 永遠零,慶祝永遠唔出,連上次整好嗰下叮聲都\n響唔到 —— 因為個慶祝本身根本唔會發生。所有測試都綠,因為佢哋淨係測零件,冇測\n接口。而家四張貼紙駁咗真事件;另外四張冇真事件可駁,老實寫明賺唔到,唔作假。\n\n仲有:第一次撳 Backups 或者 Pages 係完全冇反應嘅。KidShell 喺同一格叫 Vue 掛個\njob strip,轉頭即刻讀個 ref,梗係仲係 null,個要求就咁靜靜雞跌咗。對住個四歲細路\n嚟講,即係「呢個app唔理我」。而家掛之前嘅要求會排隊,掛好之後照順序做返。\n\n順手執埋:shots 啲檔案冇 git add 過,fresh clone 會全部 resolve 唔到,但 typecheck、\nbuild、成個 suite 都係綠嘅 —— 全靠呢個 repo 自己嗰個 import 追蹤閘先捉到。\n\n驗過:11,039 passed，0 failed。",
+                category: "site",
+                areas: ["site", "interface", "docs"],
+                files: 26,
+            },
+            {
+                sha: "33be4dd7b2f8d28e71a35d1904e6857163c2bde9",
+                shortSha: "33be4dd7b2",
+                date: "2026-08-15T02:39:28-04:00",
+                subject: "Merge Kid Mode into main",
+                details: "Adds the second shell and turns it on by default. Adult Mode is the shell that\nwas already here, now named.\n\n細路模式埋位,預設開住;大人模式即係本來嗰個殼,而家有咗個名。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 29,
+                summarizes: 2,
+            },
+            {
+                sha: "6e32445ad4935f68ce8938939fe55dcf3818595a",
+                shortSha: "6e32445ad4",
+                date: "2026-08-15T02:39:20-04:00",
+                subject: "Add Kid Mode as a second shell, and ship it turned on",
+                details: "Kid Mode is a presentation layer over the shell the app already had, which is\nnow called Adult Mode. It re-skins; it does not re-implement. Every row is\nderived from the real CATALOGUES, JOB_REGISTRY and SETTINGS_SECTIONS, every\nactivation still routes through shellNavigation, and capabilities.ts still\ndecides what exists -- so a feature added to a schema reaches Kid Mode with no\nedit here, and a capability this checkout lacks stays absent rather than drawn\nas a demo that lies.\n\nIt ships enabled. That is the whole reason the grown-up gate had to be built\ncarefully rather than obviously: if it had simply demanded the shared code, a\nfresh install would have opened in Kid Mode with no code ever configured, and\nthe first grown-up to try to leave would have discovered a one-way door with\ntheir own map editor on the far side of it. So the gate reads\ncredentialConfigured off the shared School mode record -- no second credential\ninvented -- and when nobody has set a code it says so plainly and steps aside.\nIt is a speed bump with a sign on it, not a lock, and the copy never pretends\notherwise.\n\nFour things the drop-in claimed that the repository disagreed with, each fixed\nrather than worked around:\n\n  - 'Baloo 2' was never bundled. Nothing would have failed; the browser would\n    have quietly fallen through to Verdana while a remote-font rule sat in the\n    stylesheet looking satisfied. Now Roboto, which main.ts already bundles.\n  - The gate imported useRestrictedMode from components/settings, an export\n    that does not exist. The real record is useSchoolMode in components/setup.\n  - WorkPane exposes no way to close a tab, so closeJobWithGuard could not be\n    wired to anything. KidJobStrip re-hosts WorkPane instead and lets it keep\n    owning its own tabs, which is where that behaviour belonged anyway.\n  - The sound switch persisted a preference that nothing on earth consumed. It\n    now plays a two-note chime synthesised on the spot -- no asset bundled, no\n    asset fetched -- so the label is true.\n\nThe kid label is never the only label: kidAccessibleName keeps the shipped\nfeature name at every label style, so a screen reader, the command palette and\nthe tab finder all still call a feature what the documentation calls it. That\nis the part that makes this safe to ship on the same build a grown-up uses.\n\nVerified: vue-tsc clean at exit 0. The suite and the captures have NOT run --\nthis landed through an ultra-speed pass that deliberately skips them, and they\nare owed.\n\n===\n\n細路模式：舊嗰個殼而家叫大人模式，新嗰個係細路模式，淨係換樣唔換骨。\n啲嘢全部照舊喺 CATALOGUES 同 JOB_REGISTRY 度攞，冇一樣係手寫死嘅。\n\n預設開住細路模式，所以個「搵大人」閘要諗清楚：新裝機根本未設過密碼,\n如果照樣問你攞,大人就會困死喺細路模式入面,望住自己個地圖編輯器出唔到嚟。\n而家佢會睇 credentialConfigured,冇設過就照直講「呢部機未上鎖」然後行開。\n係個減速墩,唔係把鎖,啲字都冇扮嘢。\n\n執咗四個蠱惑嘢:'Baloo 2' 呢隻字體根本冇 bundle 過(靜靜雞跌落 Verdana,\n連錯都唔會報);個閘 import 咗個唔存在嘅 useRestrictedMode;WorkPane 壓根冇\nclose 呢個方法,所以改成 KidJobStrip 直接載住佢;仲有粒「播聲」掣,由頭到尾\n冇嘢聽,而家真係會叮兩聲(即場合成,唔載檔案唔落載)。\n\nvue-tsc 行到清,exit 0。測試同截圖未行過 -- 呢轉係快車,爭住嘅。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 29,
+            }
+        ],
+    },
     {
         version: "1.0.1109",
         tag: "v1.0.1109",
@@ -807,7 +963,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "e378236687",
                 date: "2026-08-12T14:21:44-04:00",
                 subject: "Preserve in-flight workflow-lint, CI and project-editor work",
-                details: "A checkpoint rather than a finished feature, committed so nothing is holding\nit in a working tree where a stray checkout can take it away. Three lanes are\nin it and none of them is finished:\n\n- `scripts/lint-workflows.mjs` grows a real rule set, with its test file grown\n  alongside it, so a workflow defect is caught before a runner finds it;\n- `ci.yml` stops letting a stale screenshot gallery - which is diagnostic\n  evidence, not a correctness gate - skip the build, typecheck and tests behind\n  it, and nests the render provenance under a real `world` object;\n- `ProjectEditor.vue` is part-way through the render-mask rewrite. Four of its\n  own tests are red at this commit and say so plainly rather than being deleted\n  to make a number look better.\n\n呢個係 huipoint，唔係做完。三條線都仲行緊：workflow lint 加咗真規則同測試；\nCI 唔再畀一份過期嘅截圖評語擋住後面嘅 build、typecheck 同 test；\nProjectEditor 個 render-mask 改寫做到一半，佢自己四個 test 而家係紅嘅，\n照留低唔刪，紅住講真話好過綠住呃人。",
+                details: "A checkpoint rather than a finished feature, committed so nothing is holding\nit in a working tree where a stray checkout can take it away. Three lanes are\nin it and none of them is finished:\n\n- `scripts/lint-workflows.mjs` grows a real rule set, with its test file grown\n  alongside it, so a workflow defect is caught before a runner finds it;\n- `ci.yml` stops letting a stale screenshot gallery - which is diagnostic\n  evidence, not a correctness gate - skip the build, typecheck and tests behind\n  it, and nests the render provenance under a real `world` object;\n- `ProjectEditor.vue` is part-way through the render-mask rewrite. Four of its\n  own tests are red at this commit and say so plainly rather than being deleted\n  to make a number look better.\n\n呢個係 checkpoint，唔係做完。三條線都仲行緊：workflow lint 加咗真規則同測試；\nCI 唔再畀一份過期嘅截圖評語擋住後面嘅 build、typecheck 同 test；\nProjectEditor 個 render-mask 改寫做到一半，佢自己四個 test 而家係紅嘅，\n照留低唔刪，紅住講真話好過綠住呃人。",
                 category: "build",
                 areas: ["build", "interface"],
                 files: 4,
