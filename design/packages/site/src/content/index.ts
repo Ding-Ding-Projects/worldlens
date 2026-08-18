@@ -41,7 +41,12 @@ export * from "./pages.js";
 export * from "./search.js";
 
 export { home } from "./home.js";
-export { articles, articleCategoryOrder, findArticle, articlesInCategory } from "./articles/index.js";
+export {
+    articles,
+    articleCategoryOrder,
+    findArticle,
+    articlesInCategory,
+} from "./articles/index.js";
 
 export {
     releaseAvailability,
@@ -69,3 +74,21 @@ export {
     type RepoCapture,
     type CaptureProvenance,
 } from "./captures.js";
+
+export {
+    GALLERY_CATEGORIES,
+    GALLERY_CATEGORY_IDS,
+    GALLERY_SEARCH_FIELD_NAMES,
+    committedCaptureGallery,
+    filterGalleryByCategory,
+    galleryCategory,
+    galleryCategoryCounts,
+    galleryCategorySearchText,
+    gallerySearchValue,
+    groupGalleryCaptures,
+    type GalleryCapture,
+    type GalleryCaptureGroup,
+    type GalleryCategoryDefinition,
+    type GalleryCategoryId,
+    type GallerySearchField,
+} from "./screenshotGallery.js";

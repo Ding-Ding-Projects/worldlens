@@ -30,6 +30,7 @@ import {
     articlesInCategory,
     captureCaption,
     captureProvenance,
+    committedCaptureGallery,
     contentPages,
     downloadAccessibleName,
     downloadButtonLabel,
@@ -49,6 +50,8 @@ import type {
     ArticleCategory,
     EngineRow,
     FeatureStatus,
+    GalleryCapture,
+    GalleryCategoryId,
     HomeFeature,
     HomeLink,
     HomeSectionCopy,
@@ -61,7 +64,11 @@ import { maybeShowDimSum } from "./dimsum/index.js";
 import { createChangelogView } from "./content/changelogView.js";
 import { createDiscoveryView } from "./content/discoveryView.js";
 import { I18n, setTextTransform } from "./i18n/I18n.js";
-import { applyProductName, ProductIdentity, SHIPPED_PRODUCT_NAME } from "./identity/productIdentity.js";
+import {
+    applyProductName,
+    ProductIdentity,
+    SHIPPED_PRODUCT_NAME,
+} from "./identity/productIdentity.js";
 import { PersonalVocabulary } from "./settings/personalVocabulary.js";
 import { SchoolMode } from "./settings/schoolMode.js";
 import { createRangeSelection } from "./platform/rangeSelection.js";
@@ -82,6 +89,7 @@ import { SidebarNavigation } from "./shell/SidebarNavigation.js";
 import { ExpressiveSiteShell } from "./shell/ExpressiveSiteShell.js";
 import { createWalkthroughGallery } from "./walkthroughs/Gallery.js";
 import { createLightbox, type Lightbox } from "./shots/Lightbox.js";
+import { createCaptureGallery } from "./shots/CaptureGallery.js";
 import { wrapCaptureInOpenButton } from "./shots/openAffordance.js";
 import { sizeFromAspectRatio } from "./shots/zoomMath.js";
 import {
@@ -194,6 +202,38 @@ const FEATURE_GROUP_KICKER_KEYS: ReadonlyMap<string, FixedKey> = new Map([
     ["delivery", "home.groupKickerDelivery"],
 ]);
 
+const GALLERY_CATEGORY_LABEL_KEYS: Readonly<Record<GalleryCategoryId, FixedKey>> = {
+    "getting-started": "site.screenshotGalleryCategory.getting-started",
+    "shell-navigation": "site.screenshotGalleryCategory.shell-navigation",
+    "settings-appearance": "site.screenshotGalleryCategory.settings-appearance",
+    "worlds-projects": "site.screenshotGalleryCategory.worlds-projects",
+    configuration: "site.screenshotGalleryCategory.configuration",
+    "delivery-runtime": "site.screenshotGalleryCategory.delivery-runtime",
+    "kid-mode": "site.screenshotGalleryCategory.kid-mode",
+    "site-evidence": "site.screenshotGalleryCategory.site-evidence",
+    "installed-builds": "site.screenshotGalleryCategory.installed-builds",
+    "rendered-maps": "site.screenshotGalleryCategory.rendered-maps",
+    "issue-baselines": "site.screenshotGalleryCategory.issue-baselines",
+    "historical-retired": "site.screenshotGalleryCategory.historical-retired",
+    other: "site.screenshotGalleryCategory.other",
+};
+
+const GALLERY_CATEGORY_DESCRIPTION_KEYS: Readonly<Record<GalleryCategoryId, FixedKey>> = {
+    "getting-started": "site.screenshotGalleryDescription.getting-started",
+    "shell-navigation": "site.screenshotGalleryDescription.shell-navigation",
+    "settings-appearance": "site.screenshotGalleryDescription.settings-appearance",
+    "worlds-projects": "site.screenshotGalleryDescription.worlds-projects",
+    configuration: "site.screenshotGalleryDescription.configuration",
+    "delivery-runtime": "site.screenshotGalleryDescription.delivery-runtime",
+    "kid-mode": "site.screenshotGalleryDescription.kid-mode",
+    "site-evidence": "site.screenshotGalleryDescription.site-evidence",
+    "installed-builds": "site.screenshotGalleryDescription.installed-builds",
+    "rendered-maps": "site.screenshotGalleryDescription.rendered-maps",
+    "issue-baselines": "site.screenshotGalleryDescription.issue-baselines",
+    "historical-retired": "site.screenshotGalleryDescription.historical-retired",
+    other: "site.screenshotGalleryDescription.other",
+};
+
 /**
  * A status badge.
  *
@@ -218,7 +258,12 @@ function statusBadge(status: FeatureStatus, i18n: I18n): HTMLElement {
  * see the capture any larger than that box) with no way to see the whole capture, let alone
  * read the interface text inside it.
  */
-function captureFigure(capture: RepoCapture, className: string, i18n: I18n, lightbox: Lightbox): HTMLElement {
+function captureFigure(
+    capture: RepoCapture,
+    className: string,
+    i18n: I18n,
+    lightbox: Lightbox,
+): HTMLElement {
     const figure = el("figure", className);
 
     const image = el("img", "mb-shot-image");
@@ -243,7 +288,9 @@ function captureFigure(capture: RepoCapture, className: string, i18n: I18n, ligh
                     src: capture.url,
                     alt: capture.alt,
                     name: capture.title,
-                    ...(hint === null ? {} : { naturalWidth: hint.width, naturalHeight: hint.height }),
+                    ...(hint === null
+                        ? {}
+                        : { naturalWidth: hint.width, naturalHeight: hint.height }),
                 },
                 trigger,
             ),
@@ -282,12 +329,81 @@ function screenshotCaptureFigure(
         name: capture.title,
         onActivate: (trigger) =>
             lightbox.open(
-                { src, alt: capture.alt, name: capture.title, naturalWidth: capture.widthPx, naturalHeight: capture.heightPx },
+                {
+                    src,
+                    alt: capture.alt,
+                    name: capture.title,
+                    naturalWidth: capture.widthPx,
+                    naturalHeight: capture.heightPx,
+                },
                 trigger,
             ),
     });
     figure.appendChild(open);
     figure.appendChild(el("figcaption", "mb-shot-caption", captureCaption(capture)));
+    return figure;
+}
+
+/** One card in the searchable committed-capture gallery. */
+function galleryCaptureFigure(
+    capture: GalleryCapture,
+    i18n: I18n,
+    lightbox: Lightbox,
+): HTMLElement {
+    const figure = el("figure", "mb-shot mb-capture-gallery__card");
+    const image = el("img", "mb-shot-image");
+    image.src = capture.url;
+    image.alt = capture.alt;
+    image.loading = "lazy";
+    image.decoding = "async";
+    if (capture.aspectRatio !== null) image.style.aspectRatio = capture.aspectRatio;
+
+    const hint = capture.aspectRatio === null ? null : sizeFromAspectRatio(capture.aspectRatio);
+    const open = wrapCaptureInOpenButton(image, {
+        i18n,
+        ariaLabelKey: "shots.enlargeNamed",
+        name: capture.title,
+        onActivate: (trigger) =>
+            lightbox.open(
+                {
+                    src: capture.url,
+                    alt: capture.alt,
+                    name: capture.title,
+                    ...(hint === null
+                        ? {}
+                        : { naturalWidth: hint.width, naturalHeight: hint.height }),
+                },
+                trigger,
+            ),
+    });
+    figure.appendChild(open);
+
+    const caption = el("figcaption", "mb-shot-caption mb-capture-gallery__caption");
+    caption.append(
+        el("strong", "mb-capture-gallery__title", capture.title),
+        el("p", "mb-capture-gallery__description", capture.description),
+    );
+
+    const metadata = el("dl", "mb-capture-gallery__metadata");
+    const rows: readonly (readonly [FixedKey, string])[] = [
+        ["site.screenshotGalleryTheme", capture.theme],
+        ["site.screenshotGalleryViewport", capture.viewport],
+        ["site.screenshotGalleryCommit", capture.sourceCommit],
+        ["site.screenshotGalleryCaptured", capture.capturedAt],
+    ];
+    for (const [labelKey, value] of rows) {
+        const term = el("dt", "mb-capture-gallery__metadata-label");
+        i18n.bindText(term, labelKey);
+        metadata.append(term, el("dd", "mb-capture-gallery__metadata-value", value));
+    }
+    caption.appendChild(metadata);
+
+    const state = el("details", "mb-capture-gallery__state");
+    const stateSummary = el("summary", "mb-capture-gallery__state-summary");
+    i18n.bindText(stateSummary, "site.screenshotGalleryState");
+    state.append(stateSummary, el("p", "mb-capture-gallery__state-copy", capture.state));
+    caption.appendChild(state);
+    figure.appendChild(caption);
     return figure;
 }
 
@@ -482,7 +598,12 @@ function renderEngines(host: HTMLElement, navigation: PageNavigation): void {
     wrapper.appendChild(note);
 }
 
-function renderShowcase(host: HTMLElement, navigation: PageNavigation, i18n: I18n, lightbox: Lightbox): void {
+function renderShowcase(
+    host: HTMLElement,
+    navigation: PageNavigation,
+    i18n: I18n,
+    lightbox: Lightbox,
+): void {
     const wrapper = sectionFor(host, home.showcaseSection);
 
     // A record whose image did not resolve was dropped upstream of here, so an empty list
@@ -493,11 +614,13 @@ function renderShowcase(host: HTMLElement, navigation: PageNavigation, i18n: I18
     }
 
     const [lead, ...rest] = featuredCaptures;
-    if (lead !== undefined) wrapper.appendChild(captureFigure(lead, "mb-shot-lead", i18n, lightbox));
+    if (lead !== undefined)
+        wrapper.appendChild(captureFigure(lead, "mb-shot-lead", i18n, lightbox));
 
     if (rest.length > 0) {
         const strip = el("div", "mb-shot-strip");
-        for (const capture of rest) strip.appendChild(captureFigure(capture, "mb-shot", i18n, lightbox));
+        for (const capture of rest)
+            strip.appendChild(captureFigure(capture, "mb-shot", i18n, lightbox));
         wrapper.appendChild(strip);
     }
 
@@ -658,7 +781,12 @@ function renderGettingStarted(host: HTMLElement, navigation: PageNavigation, i18
     wrapper.appendChild(actions);
 }
 
-function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n, lightbox: Lightbox): void {
+function renderHome(
+    host: HTMLElement,
+    navigation: PageNavigation,
+    i18n: I18n,
+    lightbox: Lightbox,
+): void {
     const root = page(host);
 
     renderHero(root, navigation, i18n);
@@ -858,15 +986,37 @@ function renderScreenshots(host: HTMLElement, i18n: I18n, lightbox: Lightbox): v
 
     // The committed set first, because it is the one that exists in every clone. The
     // fetched set below it may or may not have been collected for this build.
-    if (repoCaptures.length > 0) {
+    if (committedCaptureGallery.length > 0) {
         const committed = section(
             root,
             screenshotsCopy.committedHeading,
             screenshotsCopy.committedLead,
         );
-        const grid = el("div", "mb-shot-grid");
-        for (const capture of repoCaptures) grid.appendChild(captureFigure(capture, "mb-shot", i18n, lightbox));
-        committed.appendChild(grid);
+        const gallery = createCaptureGallery({
+            captures: committedCaptureGallery,
+            renderCard: (capture) => galleryCaptureFigure(capture, i18n, lightbox),
+            copy: () => ({
+                searchLabel: i18n.t("site.screenshotGallerySearch"),
+                searchPlaceholder: i18n.t("site.screenshotGallerySearchPlaceholder"),
+                resultsLabel: i18n.t("site.screenshotGalleryResults"),
+                filterLabel: i18n.t("site.screenshotGalleryFilters"),
+                allCategoriesLabel: i18n.t("site.screenshotGalleryAll"),
+                categoryLabel: (category) => i18n.t(GALLERY_CATEGORY_LABEL_KEYS[category.id]),
+                categoryDescription: (category) =>
+                    i18n.t(GALLERY_CATEGORY_DESCRIPTION_KEYS[category.id]),
+                categoryButton: (label, count) =>
+                    i18n.t("site.screenshotGalleryCategoryCount", { label, count }),
+                countStatus: (shown, total, category) =>
+                    i18n.t("site.screenshotGalleryCount", { shown, total, category }),
+                noMatchStatus: (query, category) =>
+                    i18n.t("site.screenshotGalleryNoMatch", { query, category }),
+                invalidStatus: i18n.t("site.screenshotGalleryInvalid"),
+                timeoutStatus: (milliseconds) =>
+                    i18n.t("site.screenshotGalleryTimeout", { ms: milliseconds }),
+            }),
+            subscribeCopy: (listener) => i18n.subscribe(listener),
+        });
+        committed.appendChild(gallery.element);
         renderProvenance(committed);
     }
 
@@ -890,15 +1040,29 @@ function renderScreenshots(host: HTMLElement, i18n: I18n, lightbox: Lightbox): v
 
     const collected = section(root, screenshotsCopy.ciHeading, screenshotsCopy.ciLead);
     const publicPath = screenshotAvailability.publicPath;
+    const committedFiles = new Set(committedCaptureGallery.map((capture) => capture.file));
+    const additionalCaptures = screenshotAvailability.captures.filter(
+        (capture) => !committedFiles.has(capture.file),
+    );
 
-    for (const group of groupCaptures(screenshotAvailability.captures)) {
+    if (additionalCaptures.length === 0) {
+        collected.appendChild(el("p", "mb-note", screenshotsCopy.ciNoAdditional));
+        return;
+    }
+
+    for (const group of groupCaptures(additionalCaptures)) {
         collected.appendChild(el("h3", "mb-feature-group-title", group.title));
         collected.appendChild(el("p", "mb-section-lede", group.description));
 
         const grid = el("div", "mb-shot-grid");
         for (const capture of group.captures) {
             grid.appendChild(
-                screenshotCaptureFigure(capture, screenshotUrl(publicPath, capture.file), i18n, lightbox),
+                screenshotCaptureFigure(
+                    capture,
+                    screenshotUrl(publicPath, capture.file),
+                    i18n,
+                    lightbox,
+                ),
             );
         }
         collected.appendChild(grid);

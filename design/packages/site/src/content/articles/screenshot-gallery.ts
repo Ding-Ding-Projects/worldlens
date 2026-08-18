@@ -104,19 +104,30 @@ export const screenshotGallery: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "This site's gallery page is downstream of that. At build time a script asks the forge for ",
-                        "the most recent successful run of the checks workflow on the default branch that has a ",
-                        "screenshots artifact, downloads it, copies the images into the site, and reads the ",
-                        "manifest so every image can be captioned with its window size, display scale and colour ",
-                        "scheme.",
+                        "This site's gallery always reads the committed evidence inventory and every PNG it ",
+                        "names. Manifest captions, hand-written descriptions and evidence-group provenance are ",
+                        "joined without replacing one another, so current application captures, map-dependent ",
+                        "captures, installed-build proofs, site proofs, issue baselines and retired surfaces stay ",
+                        "distinguishable. The gallery groups those records, filters them by category, and searches ",
+                        "category, title, description, recorded state, theme, viewport and source commit through ",
+                        "the site's ordinary plain-text-first search and its adjacent full regex builder.",
+                    ],
+                },
+                {
+                    kind: "paragraph",
+                    content: [
+                        "At build time a second script may also ask the forge for the most recent successful run of ",
+                        "the checks workflow on the default branch that still has a screenshots artifact. It ",
+                        "downloads that artifact, copies its images into the site and reads its manifest so each ",
+                        "additional capture can carry its recorded window size, display scale and colour scheme.",
                     ],
                 },
                 {
                     kind: "callout",
                     tone: "note",
-                    title: "No artifact means no gallery, not a placeholder",
+                    title: "No artifact means no fetched set, not an empty gallery",
                     content:
-                        "Artifacts expire after 30 days, and a token without the right access cannot download one. When that happens the page says captures are not available for this build and gives the reason. It never shows stand-in images, because a placeholder in a gallery of real captures is indistinguishable from a real capture to anyone scrolling.",
+                        "Artifacts expire after 30 days, and a token without the right access cannot download one. When that happens the committed categorized gallery remains available and the page gives the reason the extra fetched set is missing. It never shows stand-in images, because a placeholder in a gallery of real captures is indistinguishable from a real capture to anyone scrolling.",
                 },
             ],
         },

@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
 const VIRTUAL_ID = "virtual:worldlens-archive-runtime";
@@ -17,6 +17,163 @@ const MIME_TYPES = {
     ".png": "image/png",
     ".txt": "text/plain; charset=utf-8",
 };
+
+const SCREENSHOT_CATEGORIES = [
+    ["Getting started", ["firstrun-", "home-", "redesign-home-", "eula-", "run-location"]],
+    [
+        "Shell and navigation",
+        [
+            "shell-",
+            "chrome-",
+            "menu-",
+            "tab-",
+            "palette-",
+            "browser-",
+            "notifications-",
+            "theme-",
+            "dimsum-",
+        ],
+    ],
+    [
+        "Settings and appearance",
+        [
+            "settings-",
+            "appearance-",
+            "infinite-",
+            "lock-",
+            "support-",
+            "authenticator-",
+            "super-confirm-",
+        ],
+    ],
+    [
+        "Worlds and projects",
+        ["wizard-", "projects-", "profiles-", "drop-", "structures-", "backups-"],
+    ],
+    ["Configuration editor", ["config-"]],
+    ["Delivery and runtime", ["ci-", "pages-", "ollama-", "chunker-"]],
+    ["Kid Mode", ["kid-"]],
+];
+
+const EVIDENCE_CATEGORIES = {
+    "site-compact-proof": "Website evidence",
+    "site-walkthrough-media": "Website evidence",
+    "live-pages": "Website evidence",
+    "site-tabs-compact-proof": "Website evidence",
+    "installed-app-cdp": "Installed builds",
+    "profile-migration-packaged": "Installed builds",
+    "app-playwright-map-dependent": "Rendered maps",
+    "consent-render": "Rendered maps",
+    "issue-baselines": "Issue baselines",
+    "historical-site-baseline": "Historical and retired",
+    "retired-app-surfaces": "Historical and retired",
+};
+
+function humanScreenshotTitle(file) {
+    const stem = file.replace(/\.png$/iu, "").replaceAll("_", ".");
+    const title = stem.split("-").filter(Boolean).join(" ");
+    return title ? title[0].toUpperCase() + title.slice(1) : file;
+}
+
+function screenshotCategory(file, groupId) {
+    if (EVIDENCE_CATEGORIES[groupId]) return EVIDENCE_CATEGORIES[groupId];
+    const lower = file.toLowerCase();
+    const semantic = SCREENSHOT_CATEGORIES.find(([, prefixes]) =>
+        prefixes.some((prefix) => lower.startsWith(prefix)),
+    );
+    return semantic ? semantic[0] : "Other real captures";
+}
+
+function screenshotViewport(...values) {
+    const match = /\b(\d{3,4})\s*(?:x|×|by)\s*(\d{3,4})\b/iu.exec(values.join(" "));
+    return match ? `${match[1]} × ${match[2]}` : "Not recorded";
+}
+
+function screenshotTheme(...values) {
+    const text = values.join(" ").toLowerCase();
+    if (/\b(?:high[- ]?)?contrast\b/u.test(text)) return "High contrast";
+    const dark = /\bdark\b/u.test(text);
+    const light = /\blight\b/u.test(text);
+    if (dark && light) return "Light and dark";
+    if (dark) return "Dark";
+    if (light) return "Light";
+    return "Not recorded";
+}
+
+function firstSentence(value) {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return "";
+    const sentence = /^(.+?[.!?])(?:\s|$)/u.exec(trimmed);
+    return sentence ? sentence[1] : trimmed;
+}
+
+export function buildScreenshotCatalog(packageRoot) {
+    const screenshotRoot = resolve(packageRoot, "../../..", "docs", "screenshots");
+    const inventory = JSON.parse(
+        readFileSync(join(screenshotRoot, "evidence-inventory.json"), "utf8"),
+    );
+    const manifest = JSON.parse(readFileSync(join(screenshotRoot, "manifest.json"), "utf8"));
+    const manifestByFile = new Map(
+        (Array.isArray(manifest.captures) ? manifest.captures : [])
+            .filter((entry) => entry && entry.kind === "capture" && typeof entry.file === "string")
+            .map((entry) => [entry.file, entry]),
+    );
+    const records = [];
+    const seen = new Set();
+    for (const group of Array.isArray(inventory.groups) ? inventory.groups : []) {
+        for (const target of Array.isArray(group.targets) ? group.targets : []) {
+            const match = /^docs\/screenshots\/([^/]+\.png)$/iu.exec(String(target));
+            if (!match) continue;
+            const file = match[1];
+            if (seen.has(file)) throw new Error(`Screenshot evidence inventory repeats ${file}`);
+            seen.add(file);
+            const source = manifestByFile.get(file);
+            const captionPath = join(screenshotRoot, file.replace(/\.png$/iu, ".caption.txt"));
+            const sidecar = existsSync(captionPath) ? readFileSync(captionPath, "utf8").trim() : "";
+            const description = String(
+                source?.surface || firstSentence(sidecar) || humanScreenshotTitle(file),
+            );
+            const state = String(
+                source?.caption ||
+                    sidecar ||
+                    `${group.reproducibility}; captured by ${group.authority}.`,
+            );
+            const category = screenshotCategory(file, group.id);
+            const proof = String(
+                group.uiSourceDigestNote || "No additional proof note is recorded.",
+            );
+            records.push({
+                cat: category,
+                src: `assets/captures/${file}`,
+                file,
+                title: humanScreenshotTitle(file),
+                caption: description,
+                description,
+                state: `${state} Evidence group: ${group.id}. Reproducibility: ${group.reproducibility}.`,
+                alt: description,
+                theme: screenshotTheme(file, description, state),
+                viewport: screenshotViewport(file, description, state),
+                commit: `${manifest.commit || "Commit not recorded"}; ${group.authority}; ${proof}`,
+                capturedAt: String(
+                    source?.capturedAt || "Not recorded for this individual capture",
+                ),
+            });
+        }
+    }
+
+    const pngFiles = readdirSync(screenshotRoot)
+        .filter((file) => file.toLowerCase().endsWith(".png"))
+        .sort();
+    const catalogFiles = records.map((record) => record.file).sort();
+    if (JSON.stringify(catalogFiles) !== JSON.stringify(pngFiles)) {
+        const missing = pngFiles.filter((file) => !seen.has(file));
+        const extra = catalogFiles.filter((file) => !pngFiles.includes(file));
+        throw new Error(
+            `Screenshot gallery inventory mismatch: missing ${missing.join(", ") || "none"}; extra ${extra.join(", ") || "none"}`,
+        );
+    }
+    return records;
+}
 
 function assertRecord(value, label) {
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -243,22 +400,44 @@ function replaceSection(source, startMarker, endMarker, replacement, label) {
     return source.slice(0, start) + replacement + source.slice(end);
 }
 
-function canonicalLogic(indexSource, articles) {
+function canonicalLogic(indexSource, articles, screenshots) {
     const match = indexSource.match(
         /<script type="text\/x-dc"[^>]*data-dc-script[^>]*>([\s\S]*?)<\/script>\s*<\/body>/u,
     );
     if (!match) throw new Error("Canonical archive index is missing its data-dc-script logic");
 
     let logic = match[1];
-    const articleFetch = /\n\s{4}fetch\("content\/articles\.json"\)[\s\S]*?\.catch\(\(\) => this\.setState\(\{ loaded:true \}\)\);/u;
+    const articleFetch =
+        /\n\s{4}fetch\("content\/articles\.json"\)[\s\S]*?\.catch\(\(\) => this\.setState\(\{ loaded:true \}\)\);/u;
     if (!articleFetch.test(logic)) {
-        throw new Error("Canonical archive logic no longer contains the expected article acquisition block");
+        throw new Error(
+            "Canonical archive logic no longer contains the expected article acquisition block",
+        );
     }
     logic = logic.replace(
         articleFetch,
         `\n    this.setState({ articles:${JSON.stringify(articles)}, loaded:true });`,
     );
-    logic = logic.replace("class Component extends DCLogic", "class Component extends StreamableLogic");
+    const screenshotCatalog =
+        /\n    const shotsAll = \[[\s\S]*?\n    \];(?=\n    const shotCategoryDescriptions =)/u;
+    if (!screenshotCatalog.test(logic)) {
+        throw new Error("Canonical archive logic no longer contains the screenshot catalog block");
+    }
+    logic = logic.replace(
+        screenshotCatalog,
+        `\n    const shotsAll = ${JSON.stringify(screenshots)};`,
+    );
+    if (!logic.includes("const ARCHIVE_SCREENSHOT_COUNT = 0;")) {
+        throw new Error("Canonical archive logic no longer contains the screenshot count marker");
+    }
+    logic = logic.replace(
+        "const ARCHIVE_SCREENSHOT_COUNT = 0;",
+        `const ARCHIVE_SCREENSHOT_COUNT = ${screenshots.length};`,
+    );
+    logic = logic.replace(
+        "class Component extends DCLogic",
+        "class Component extends StreamableLogic",
+    );
     if (!logic.includes("class Component extends StreamableLogic")) {
         throw new Error("Canonical archive logic class could not be bound to the local runtime");
     }
@@ -280,7 +459,11 @@ export function buildCanonicalRuntime(packageRoot) {
     );
     validateArticleCatalog(articleCatalog);
 
-    const logic = canonicalLogic(indexSource, articleCatalog.articles);
+    const logic = canonicalLogic(
+        indexSource,
+        articleCatalog.articles,
+        buildScreenshotCatalog(packageRoot),
+    );
     let runtime = supportSource;
     runtime = replaceSection(
         runtime,
@@ -341,10 +524,12 @@ export function buildCanonicalRuntime(packageRoot) {
         `}\nwindow.__resources = window.__resources || Object.create(null);\n` +
         runtime;
 
-    const forbidden = ["unpkg.com", "new Function(", 'postMessage(', "fetch("];
+    const forbidden = ["unpkg.com", "new Function(", "postMessage(", "fetch("];
     for (const marker of forbidden) {
         if (runtime.includes(marker)) {
-            throw new Error(`Production archive runtime still contains forbidden marker: ${marker}`);
+            throw new Error(
+                `Production archive runtime still contains forbidden marker: ${marker}`,
+            );
         }
     }
     return runtime;
@@ -352,8 +537,9 @@ export function buildCanonicalRuntime(packageRoot) {
 
 function publicFiles(packageRoot) {
     const archiveRoot = resolve(packageRoot, "archive");
+    const screenshotRoot = resolve(packageRoot, "../../..", "docs", "screenshots");
     const groups = ["assets", "vendor"];
-    return groups.flatMap((group) =>
+    const archiveFiles = groups.flatMap((group) =>
         readdirSync(join(archiveRoot, group), { withFileTypes: true })
             .filter((entry) => entry.isFile())
             .map((entry) => ({
@@ -361,6 +547,13 @@ function publicFiles(packageRoot) {
                 absolutePath: join(archiveRoot, group, entry.name),
             })),
     );
+    const screenshotFiles = readdirSync(screenshotRoot, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".png"))
+        .map((entry) => ({
+            fileName: `assets/captures/${entry.name}`,
+            absolutePath: join(screenshotRoot, entry.name),
+        }));
+    return [...archiveFiles, ...screenshotFiles];
 }
 
 function createArchiveMiddleware(files, prefix, readAsset = readFileSync) {
@@ -421,13 +614,9 @@ function runArchiveMiddlewareSelfChecks() {
 
     const asset = selfCheckResponse();
     let assetNextCalls = 0;
-    middleware(
-        { url: "/worldlens/assets/fixture%2Etxt?cache=1" },
-        asset.response,
-        () => {
-            assetNextCalls += 1;
-        },
-    );
+    middleware({ url: "/worldlens/assets/fixture%2Etxt?cache=1" }, asset.response, () => {
+        assetNextCalls += 1;
+    });
     if (
         asset.response.statusCode !== 200 ||
         asset.body !== "fixture body" ||
@@ -442,13 +631,9 @@ function runArchiveMiddlewareSelfChecks() {
 
     const malformed = selfCheckResponse();
     let malformedNextCalls = 0;
-    middleware(
-        { url: "/worldlens/assets/%E0%A4%A" },
-        malformed.response,
-        () => {
-            malformedNextCalls += 1;
-        },
-    );
+    middleware({ url: "/worldlens/assets/%E0%A4%A" }, malformed.response, () => {
+        malformedNextCalls += 1;
+    });
     if (
         malformed.response.statusCode !== 400 ||
         malformed.body !== MALFORMED_REQUEST_BODY ||
@@ -479,7 +664,8 @@ export function canonicalArchiveSitePlugin(packageRoot, base) {
             return null;
         },
         transformIndexHtml(html) {
-            const logicScript = /(<script type="text\/x-dc"[^>]*data-dc-script[^>]*>)[\s\S]*?(<\/script>\s*<\/body>)/u;
+            const logicScript =
+                /(<script type="text\/x-dc"[^>]*data-dc-script[^>]*>)[\s\S]*?(<\/script>\s*<\/body>)/u;
             if (!logicScript.test(html)) {
                 throw new Error("Canonical archive index is missing its production logic trigger");
             }

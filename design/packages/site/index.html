@@ -535,7 +535,7 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
             <div style="display:flex;gap:8px;align-items:center;max-width:560px;margin-bottom:16px;">
               <div style="flex:1;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-radius:14px;background:var(--s-lowest);border:1px solid var(--outv);min-width:0;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="color:var(--osv);flex:0 0 auto;"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                <input type="text" value="{{ shotsQuery }}" onChange="{{ onshotsQuery }}" placeholder="Filter captures by caption" aria-label="Filter screenshots" aria-describedby="wl-shots-error" aria-invalid="{{ shotsInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
+                <input type="text" value="{{ shotsQuery }}" onChange="{{ onshotsQuery }}" placeholder="Search category, title, state, theme, viewport, or commit" aria-label="Search screenshots" aria-describedby="wl-shots-error wl-shots-summary" aria-invalid="{{ shotsInvalid }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;color:var(--on);font-size:15px;">
                 <span style="font-family:var(--mono);font-size:12px;color:var(--osv);flex:0 0 auto;">{{ shotsCount }}</span>
               </div>
               <button type="button" onClick="{{ toggleshotsBuilder }}" aria-label="Regex builder for screenshots" title="Regex builder" style="{{ shotsBuilderBtnStyle }}">.*</button>
@@ -546,20 +546,37 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
                 <button type="button" onClick="{{ c.onClick }}" aria-pressed="{{ c.pressed }}" style="{{ c.style }}" style-hover="background:var(--s-high)">{{ c.label }}</button>
               </sc-for>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;">
-              <sc-for list="{{ shots }}" as="s" hint-placeholder-count="6">
-                <figure style="margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--outv);background:var(--s-lowest);">
-                  <button type="button" onClick="{{ s.onClick }}" aria-label="{{ s.zoomLabel }}" style="display:block;position:relative;width:100%;padding:0;border:0;background:none;cursor:zoom-in;" style-hover="opacity:.94">
-                    <img src="{{ s.src }}" alt="{{ s.alt }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--s-cont);">
-                    <span aria-hidden="true" style="position:absolute;right:8px;bottom:8px;width:32px;height:32px;border-radius:999px;background:rgb(0 0 0/.55);color:#fff;display:grid;place-items:center;">
-                      <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
-                    </span>
-                  </button>
-                  <figcaption style="padding:14px 16px;">
-                    <div style="font-size:14px;font-weight:600;margin-bottom:4px;">{{ s.title }}</div>
-                    <div style="font-size:12.5px;line-height:1.5;color:var(--osv);">{{ s.caption }}</div>
-                  </figcaption>
-                </figure>
+            <p id="wl-shots-summary" role="status" aria-live="polite" style="font-size:13px;line-height:1.5;color:var(--osv);margin:-14px 0 24px;">{{ shotsSummary }}</p>
+            <div style="{{ shotsEmptyStyle }}">{{ shotsEmpty }}</div>
+            <div style="display:grid;gap:34px;">
+              <sc-for list="{{ shotGroups }}" as="g" hint-placeholder-count="6">
+                <section style="display:grid;gap:10px;padding-top:6px;border-top:1px solid var(--outv);">
+                  <h2 style="font-family:var(--brand);font-size:22px;line-height:1.25;margin:0;">{{ g.label }}</h2>
+                  <p style="font-size:13px;line-height:1.55;color:var(--osv);margin:0 0 4px;max-width:72ch;">{{ g.description }}</p>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;">
+                    <sc-for list="{{ g.items }}" as="s" hint-placeholder-count="6">
+                      <figure style="margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--outv);background:var(--s-lowest);">
+                        <button type="button" onClick="{{ s.onClick }}" aria-label="{{ s.zoomLabel }}" style="display:block;position:relative;width:100%;padding:0;border:0;background:none;cursor:zoom-in;" style-hover="opacity:.94">
+                          <img src="{{ s.src }}" alt="{{ s.alt }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;object-fit:contain;object-position:top left;background:var(--s-cont);">
+                          <span aria-hidden="true" style="position:absolute;right:8px;bottom:8px;width:32px;height:32px;border-radius:999px;background:rgb(0 0 0/.55);color:#fff;display:grid;place-items:center;">
+                            <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"></path></svg>
+                          </span>
+                        </button>
+                        <figcaption style="padding:14px 16px;display:grid;gap:8px;">
+                          <div style="font-size:14px;font-weight:600;">{{ s.title }}</div>
+                          <div style="font-size:12.5px;line-height:1.5;color:var(--osv);">{{ s.caption }}</div>
+                          <div style="display:flex;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--osv);">
+                            <span>{{ s.theme }}</span><span aria-hidden="true">·</span><span>{{ s.viewport }}</span><span aria-hidden="true">·</span><span>{{ s.capturedAt }}</span>
+                          </div>
+                          <details style="border-top:1px solid var(--outv);padding-top:6px;">
+                            <summary style="min-height:44px;display:flex;align-items:center;color:var(--p);font-size:12.5px;font-weight:600;cursor:pointer;">Recorded state and provenance</summary>
+                            <p style="font-size:11.5px;line-height:1.55;color:var(--osv);overflow-wrap:anywhere;margin:4px 0 0;">{{ s.state }} {{ s.commit }}</p>
+                          </details>
+                        </figcaption>
+                      </figure>
+                    </sc-for>
+                  </div>
+                </section>
               </sc-for>
             </div>
           </div>
@@ -1197,11 +1214,12 @@ const ELEMENT_PAGES = {
 };
 
 const PAGES = { home:"home", docs:"docs", article:"article", screenshots:"screenshots", settings:"settings", settingsDetail:"settings-detail", search:"search", changelog:"changelog", notifications:"notifications", notFound:"404" };
+const ARCHIVE_SCREENSHOT_COUNT = 0;
 const SEARCH_FIELDS = {
   sidebar:[["title","Tab and article titles"],["blurb","Article summaries"]],
   tabstrip:[["title","Open tab titles"]],
   docs:[["title","Titles"],["blurb","Summaries"],["cat","Category names"]],
-  shots:[["title","Capture titles"],["caption","Captions"],["cat","Category"]],
+  shots:[["cat","Category"],["title","Capture titles"],["description","Description"],["state","Recorded state"],["theme","Theme"],["viewport","Viewport"],["commit","Source commit and provenance"]],
   changelog:[["subject","Commit subjects"],["sha","Commit SHAs"],["area","Areas"]],
   notif:[["title","Titles"],["body","Message bodies"]],
   settings:[["label","Group names"],["desc","Descriptions"]],
@@ -1810,7 +1828,7 @@ class Component extends DCLogic {
     const navDefs = [
       { id:PAGES.home, en:"Home", yue:"主頁", icon:P.home },
       { id:PAGES.docs, en:"Documentation", yue:"說明文件", icon:P.docs, count:String(srcArticles.length) },
-      { id:PAGES.screenshots, en:"Screenshots", yue:"截圖", icon:P.shots, count:"20" },
+      { id:PAGES.screenshots, en:"Screenshots", yue:"截圖", icon:P.shots, count:String(ARCHIVE_SCREENSHOT_COUNT) },
       { id:PAGES.changelog, en:"Changelog", yue:"更新紀錄", icon:P.changelog },
       { id:PAGES.search, en:"Search", yue:"搜尋", icon:P.search },
       { id:PAGES.notifications, en:"Notifications", yue:"通知", icon:P.bell, count: s.unread ? String(s.unread) : "" },
@@ -2046,15 +2064,40 @@ class Component extends DCLogic {
       { cat:"Kid Mode", src:"assets/shot-kid-gate-no-credential.png", title:"The grown-up gate", caption:"The gate back to Adult Mode in its no-credential state, which is where every fresh install actually starts: one press goes straight through, because Kid Mode must never become a one-way door.", alt:"The \"Grown-ups only\" gate reading \"No grown-up code is set on this computer yet\", a \"Go to Adult Mode\" button, and a line naming this as a user-experience lock rather than a security lock" },
       { cat:"Kid Mode", src:"assets/shot-kid-mode-settings-row.png", title:"Kid Mode settings", caption:"The Kid Mode and Adult Mode switch reached from Settings, with the child's name field beside it and every control keeping its real name at each label style.", alt:"The Kid Mode and Adult Mode settings row showing the mode choice with Adult Mode selected, a child name field reading \"Explorer\", and further switches below" }
     ];
-    const shotFilters = ["All","Shell","Rendering","Interface","Appearance","Kid Mode"].map((f) => ({
-      label:f, pressed:String(s.shotFilter === f), onClick:() => this.setState({ shotFilter:f }), style:this.chip(s.shotFilter === f)
-    }));
+    const shotCategoryDescriptions = {
+      "Getting started":"First run, Home, compact Home layouts and the first runtime choice.",
+      "Shell and navigation":"Full windows, title bars, navigation, menus, tabs, palettes and notices.",
+      "Settings and appearance":"Settings, appearance tools, locks, support, authentication and confirmation states.",
+      "Worlds and projects":"Project, profile, backup, import, structure and map-creation surfaces.",
+      "Configuration editor":"The complete options editor, its tabs, search, history and guarded actions.",
+      "Delivery and runtime":"Publishing, continuous integration, local model and large-file runtime surfaces.",
+      "Kid Mode":"Kid Mode catalogues, settings, progress, stickers, narrow layouts and scales.",
+      "Website evidence":"Compact site proofs, walkthrough frames, tab layouts and live Pages captures.",
+      "Installed builds":"Real installed or packaged application captures driven outside the component test path.",
+      "Rendered maps":"Captures backed by a real rendered world and its recorded rendering provenance.",
+      "Issue baselines":"Real before-and-after or focused evidence retained for individual reported defects.",
+      "Historical and retired":"Evidence kept for audit value and labelled so it is not mistaken for the current interface.",
+      "Other real captures":"Manifest-backed captures that do not belong to one of the named sets above."
+    };
+    const shotCategories = shotsAll.map((x) => x.cat).filter((cat, index, all) => all.indexOf(cat) === index);
+    const shotFilters = ["All"].concat(shotCategories).map((f) => {
+      const count = f === "All" ? shotsAll.length : shotsAll.filter((x) => x.cat === f).length;
+      return { label:f + " (" + count + ")", pressed:String(s.shotFilter === f), onClick:() => this.setState({ shotFilter:f }), style:this.chip(s.shotFilter === f) };
+    });
     const shots = shotsAll
       .filter((x) => (s.shotFilter === "All" || x.cat === s.shotFilter) && this.matchesK("shots", x))
       .map((x) => Object.assign({}, x, {
         zoomLabel: zoomShotLabel(x),
         onClick:(e) => this.openZoom(x, e.currentTarget)
       }));
+    const shotGroups = shotCategories.map((cat) => ({
+      label:cat + " (" + shots.filter((x) => x.cat === cat).length + ")",
+      description:shotCategoryDescriptions[cat] || shotCategoryDescriptions["Other real captures"],
+      items:shots.filter((x) => x.cat === cat)
+    })).filter((group) => group.items.length);
+    const shotsSummary = "Showing " + shots.length + " of " + shotsAll.length + " real captures" + (s.shotFilter === "All" ? " across all categories." : " in " + s.shotFilter + ".");
+    const shotsEmpty = "No screenshots match this search in " + (s.shotFilter === "All" ? "the selected categories" : s.shotFilter) + ". Change the search or category filter.";
+    const shotsEmptyStyle = shots.length ? "display:none;" : "padding:18px;border:1px solid var(--outv);border-radius:16px;background:var(--s-low);color:var(--osv);margin-bottom:24px;";
 
     const settingsGroupsAll = [
       { gid:"general", label:"General", icon:P.tune, desc:"Theme, navigation placement, motion, how the site names itself, dialog tone.", meta:"14 settings · 6 groups", page:PAGES.settingsDetail },
@@ -2469,7 +2512,7 @@ class Component extends DCLogic {
       sidebar:"Navigation filter — open pages and the article tree",
       tabstrip:"Current tab strip — open page titles",
       docs:"Documentation index — 59 articles",
-      shots:"Screenshot gallery — 12 captures in this build",
+      shots:"Screenshot gallery — " + ARCHIVE_SCREENSHOT_COUNT + " captures in this build",
       changelog:"Changelog — commit subjects, areas and SHAs",
       notif:"Notification history — 5 records",
       settings:"Settings — 6 groups, 63 declared settings",
@@ -2695,7 +2738,7 @@ class Component extends DCLogic {
       },
       paletteEmptyStyle: paletteItems.length ? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1.6;color:var(--osv);",
       stats, features, steps, phases, homeShots, walkthroughs, releaseNotes, repoLinks,
-      shots, shotFilters, settingsGroups, perElement,
+      shots, shotGroups, shotFilters, shotsSummary, shotsEmpty, shotsEmptyStyle, settingsGroups, perElement,
       groupTitle:group.title, groupDesc:group.desc, groupSections,
       goAppearance: () => this.go(PAGES.settingsDetail, null, "appearance"),
       crumbParentStyle: elPage
