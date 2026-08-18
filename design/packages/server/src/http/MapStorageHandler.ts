@@ -17,11 +17,10 @@
  * `LocalMapHandler` reads two candidate files off disk (`<path>` and `<path>.gz`) because
  * it has no storage abstraction to ask. This handler has one — {@link GridStorage} and
  * {@link ItemStorage} already know how a tile or a document is compressed — so it ports
- * `MapStorageRequestHandler#writeToResponse` instead: the *requested* file extension is
- * never inspected (upstream's tile-matching regex discards it with a trailing `.*`), and
- * the response's `Content-Encoding` is decided purely from the stored {@link Compression}
- * and the request's `Accept-Encoding` header. A request for `.prbm` and a request for
- * `.prbm.gz` get an identical response.
+ * `MapStorageRequestHandler#writeToResponse` instead. A terminal `.gz` is a file-format
+ * request upstream: it is stripped before lookup and forces gzip bytes without a
+ * `Content-Encoding` transport header. Requests without that suffix negotiate the stored
+ * {@link Compression} through `Accept-Encoding` as usual.
  *
  * ## What is deliberately NOT the same as `RemoteProxyHandler`
  *
@@ -289,6 +288,14 @@ export class MapStorageHandler implements HttpHandler {
             return true;
         }
 
+        // upstream: MapStorageRequestHandler strips a terminal suffix before routing and
+        // remembers that the response itself must be a gzip file (not gzip transport).
+        let requestGzipped = false;
+        if (path.endsWith(".gz")) {
+            path = path.slice(0, -3);
+            requestGzipped = true;
+        }
+
         try {
             const tileMatch = TILE_PATTERN.exec(path);
             if (tileMatch !== null) {
@@ -311,20 +318,32 @@ export class MapStorageHandler implements HttpHandler {
                         return true;
                     }
 
-                    await this.writeToResponse(req, res, data, {
-                        "cache-control": `public, max-age=${String(ONE_DAY_SECONDS)}`,
-                        "content-type": lod === 0 ? HIRES_CONTENT_TYPE : LOWRES_CONTENT_TYPE,
-                    });
+                    await this.writeToResponse(
+                        req,
+                        res,
+                        data,
+                        {
+                            "cache-control": `public, max-age=${String(ONE_DAY_SECONDS)}`,
+                            "content-type": lod === 0 ? HIRES_CONTENT_TYPE : LOWRES_CONTENT_TYPE,
+                        },
+                        requestGzipped,
+                    );
                     return true;
                 }
             }
 
             const data = await this.readMeta(mount, path);
             if (data !== null) {
-                await this.writeToResponse(req, res, data, {
-                    "cache-control": `public, max-age=${String(ONE_DAY_SECONDS)}`,
-                    "content-type": contentTypeFromFileName(path),
-                });
+                await this.writeToResponse(
+                    req,
+                    res,
+                    data,
+                    {
+                        "cache-control": `public, max-age=${String(ONE_DAY_SECONDS)}`,
+                        "content-type": contentTypeFromFileName(path),
+                    },
+                    requestGzipped,
+                );
                 return true;
             }
         } catch (error) {
@@ -351,6 +370,10 @@ export class MapStorageHandler implements HttpHandler {
                 return mount.storage.settings().read();
             case "textures.json":
                 return mount.storage.textures().read();
+            case "live/markers.json":
+                return mount.storage.markers().read();
+            case "live/players.json":
+                return mount.storage.players().read();
             default:
                 if (path.startsWith("assets/")) {
                     return mount.storage.asset(path.slice("assets/".length)).read();
@@ -376,13 +399,19 @@ export class MapStorageHandler implements HttpHandler {
         res: http.ServerResponse,
         data: CompressedInputStream,
         headers: Record<string, string>,
+        requestGzipped: boolean,
     ): Promise<void> {
         const acceptEncoding = req.headers["accept-encoding"];
         const acceptEncodingValue = Array.isArray(acceptEncoding) ? acceptEncoding.join(",") : acceptEncoding;
         const compression = data.getCompression();
 
         let body: Buffer;
-        if (compression !== Compression.NONE && hasEncoding(acceptEncodingValue, compression.getId())) {
+        if (requestGzipped) {
+            body =
+                compression === Compression.GZIP
+                    ? data.getBuffer()
+                    : await Compression.GZIP.compress(await data.decompress());
+        } else if (compression !== Compression.NONE && hasEncoding(acceptEncodingValue, compression.getId())) {
             headers["content-encoding"] = compression.getId();
             body = data.getBuffer();
         } else if (

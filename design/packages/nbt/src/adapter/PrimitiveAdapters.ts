@@ -41,6 +41,9 @@ export function javaLongCast(value: number): bigint {
 // -- Java number-parsing (Byte/Short/Integer/Long.parseXxx & Float/Double.parseXxx) --
 
 const INTEGRAL = /^[+-]?[0-9]+$/;
+const DECIMAL_FLOAT = /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?[fFdD]?$/;
+const HEX_FLOAT = /^([+-]?)0[xX]([0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?|\.[0-9a-fA-F]+)[pP]([+-]?[0-9]+)[fFdD]?$/;
+const DOUBLE_BITS = new DataView(new ArrayBuffer(8));
 
 function parseIntegral(value: string, min: number, max: number): number {
     if (!INTEGRAL.test(value)) throw new NumberFormatException('For input string: "' + value + '"');
@@ -58,15 +61,73 @@ function parseLongString(value: string): bigint {
     return parsed;
 }
 
+/** Rounds an unsigned integer divided by 2^shift to nearest, ties to even. */
+function roundRight(value: bigint, shift: number, bitLength: number): bigint {
+    if (shift <= 0) return value << BigInt(-shift);
+    if (shift > bitLength) return 0n;
+
+    const amount = BigInt(shift);
+    const rounded = value >> amount;
+    const remainder = value - (rounded << amount);
+    const halfway = 1n << (amount - 1n);
+    if (remainder > halfway || (remainder === halfway && (rounded & 1n) !== 0n)) {
+        return rounded + 1n;
+    }
+    return rounded;
+}
+
+function doubleFromBits(negative: boolean, exponent: number, fraction: bigint): number {
+    const sign = negative ? 1n << 63n : 0n;
+    DOUBLE_BITS.setBigUint64(0, sign | (BigInt(exponent) << 52n) | fraction);
+    return DOUBLE_BITS.getFloat64(0);
+}
+
+/** Converts Java's hexadecimal floating-point syntax to an exactly rounded IEEE-754 double. */
+function parseHexFloating(match: RegExpExecArray): number {
+    const negative = match[1] === "-";
+    const significand = match[2]!;
+    const dot = significand.indexOf(".");
+    const fractionalDigits = dot < 0 ? 0 : significand.length - dot - 1;
+    const coefficient = BigInt("0x" + significand.replace(".", ""));
+    if (coefficient === 0n) return negative ? -0 : 0;
+
+    const exponent2 = Number(match[3]!) - fractionalDigits * 4;
+    if (exponent2 === Number.POSITIVE_INFINITY) return negative ? -Infinity : Infinity;
+    if (exponent2 === Number.NEGATIVE_INFINITY) return negative ? -0 : 0;
+
+    const bitLength = coefficient.toString(2).length;
+    let unbiasedExponent = bitLength - 1 + exponent2;
+    if (unbiasedExponent > 1023) return negative ? -Infinity : Infinity;
+
+    if (unbiasedExponent >= -1022) {
+        let significandBits = roundRight(coefficient, bitLength - 53, bitLength);
+        if (significandBits === 1n << 53n) {
+            significandBits >>= 1n;
+            unbiasedExponent++;
+            if (unbiasedExponent > 1023) return negative ? -Infinity : Infinity;
+        }
+        return doubleFromBits(negative, unbiasedExponent + 1023, significandBits - (1n << 52n));
+    }
+
+    const subnormalBits = roundRight(coefficient, -(exponent2 + 1074), bitLength);
+    if (subnormalBits === 0n) return negative ? -0 : 0;
+    if (subnormalBits >= 1n << 52n) return doubleFromBits(negative, 1, 0n);
+    return doubleFromBits(negative, 0, subnormalBits);
+}
+
 function parseFloating(value: string): number {
-    const trimmed = value.trim();
+    // Float.parseFloat/Double.parseDouble trim only characters <= U+0020 (String.trim()).
+    const trimmed = value.replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, "");
     if (trimmed.length === 0) throw new NumberFormatException("empty String");
-    // strip the float/double type-suffix Java's parsers accept
+    if (/^[+-]?(?:Infinity|NaN)$/.test(trimmed)) return Number(trimmed);
+
+    const hex = HEX_FLOAT.exec(trimmed);
+    if (hex !== null) return parseHexFloating(hex);
+
+    if (!DECIMAL_FLOAT.test(trimmed))
+        throw new NumberFormatException('For input string: "' + value + '"');
     const unsuffixed = /[fFdD]$/.test(trimmed) ? trimmed.slice(0, -1) : trimmed;
-    if (/^[+-]?(Infinity|NaN)$/.test(unsuffixed)) return Number(unsuffixed);
-    const parsed = Number(unsuffixed);
-    if (Number.isNaN(parsed)) throw new NumberFormatException('For input string: "' + value + '"');
-    return parsed;
+    return Number(unsuffixed);
 }
 
 // -- lenient primitive readers (PrimitiveDeserializerFactory.readXxx) --
