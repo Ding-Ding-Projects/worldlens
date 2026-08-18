@@ -22,6 +22,54 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Fix UI navigation and unsaved-close routing - [`4a4187c553`](https://github.com/Ding-Ding-Projects/worldlens/commit/4a4187c5533d3c760bc95baa575c141ad8557629)
+
+### Server, CLI and configuration
+
+- Restore BlueMap wire and parser parity - [`1a7f93dd1b`](https://github.com/Ding-Ding-Projects/worldlens/commit/1a7f93dd1b7da26dc555bea2b5365e8ef3dfc449)
+
+### Desktop shell
+
+- Expand the hidden-desktop capture contract - [`7adffcdde8`](https://github.com/Ding-Ding-Projects/worldlens/commit/7adffcdde8f9dc45fac19661e8941ba1bcaefba2)
+- Harden runtime origins, updates, and state writes - [`facd06ba12`](https://github.com/Ding-Ding-Projects/worldlens/commit/facd06ba12761bbbcb2b0752506c4ab103e59589)
+- Expand the hidden-desktop capture contract - [`5b88acf9c3`](https://github.com/Ding-Ding-Projects/worldlens/commit/5b88acf9c38d82f86a8d91fb676b6488baa7a72d)
+
+### Landing page and documentation site
+
+- feat(site): publish the complete searchable capture gallery - [`5166ba9de7`](https://github.com/Ding-Ding-Projects/worldlens/commit/5166ba9de7910934d03494f8908cb458a7667dd6)
+- Align the archive download guard with verified links - [`bf907e1691`](https://github.com/Ding-Ding-Projects/worldlens/commit/bf907e16918bb80945e682f803b9c9d60ae0fbf2)
+- Fix release delivery wiring and evidence - [`2c058156b4`](https://github.com/Ding-Ding-Projects/worldlens/commit/2c058156b473784b004e34857ed6a3992eeee937)
+- Align the archive download guard with verified links - [`57a31f36db`](https://github.com/Ding-Ding-Projects/worldlens/commit/57a31f36db27f58d92b430df9475d104707e51a5)
+- feat(site): publish the complete searchable capture gallery - [`2a0c5e8ce7`](https://github.com/Ding-Ding-Projects/worldlens/commit/2a0c5e8ce7c8359e681180bf2cb273fe97c1bcc3)
+
+### Build, release and tooling
+
+- Refresh reviewed workflow fingerprints - [`55866dded7`](https://github.com/Ding-Ding-Projects/worldlens/commit/55866dded7de08d05015bf83211fdc9b8c1bb677)
+- Refresh reviewed workflow fingerprints - [`c9b4afd73b`](https://github.com/Ding-Ding-Projects/worldlens/commit/c9b4afd73b4da6169765ee96ade6468021b5b6f4)
+
+### Documentation
+
+- Refresh pre-rewrite Pages capture - [`392eca4dfa`](https://github.com/Ding-Ding-Projects/worldlens/commit/392eca4dfa2189a4d313f38fede13f797a6511dc)
+- Recapture issue 107 historical Pages baseline - [`79193123b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/79193123b1f8b0c2d8c099062ffbd0c5284499a6)
+- Refresh issue 107 post-replacement capture - [`2b890a388e`](https://github.com/Ding-Ding-Projects/worldlens/commit/2b890a388ed1440bafac9d4529e2698ff9b4dc1e)
+- Refresh pre-rewrite Pages capture - [`b6f88b7fbb`](https://github.com/Ding-Ding-Projects/worldlens/commit/b6f88b7fbbba94ea7ff2b3d4b400e8f4711915e8)
+- Refresh issue 107 post-replacement capture - [`336c3cf419`](https://github.com/Ding-Ding-Projects/worldlens/commit/336c3cf4194fdb6d971b293767dcc53dbe7d910a)
+- Recapture issue 107 historical Pages baseline - [`ac4ff7935d`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac4ff7935d20cb0d78de5c01c87557e99ac735ae)
+- Record twelve rapid-pass fixes and evidence limits - [`64523b4195`](https://github.com/Ding-Ding-Projects/worldlens/commit/64523b41956ed6d2154630dc38ff3b49a3e38dce)
+
+### Elsewhere in the repository
+
+- Record capture-source ancestry after integration - [`cfd69300cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/cfd69300cd27f8102d8be832d529b9dabd0c2478) _(summary of 7 commits, also listed here)_
+- Record source-lane ancestry without changing content - [`b8dae74bf3`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8dae74bf3258b844a4bd07ed17dbf533c3d28b5) _(summary of 13 commits, also listed here)_
+- Make installer cleanliness checks content-aware - [`8e835bda45`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e835bda45f31c7d4bda839653e5800d7e777b32)
+- Make installer cleanliness checks content-aware - [`7782d435b8`](https://github.com/Ding-Ding-Projects/worldlens/commit/7782d435b88c1c95e0c2ae19c8a27bc092fb45b6)
+
+## 1.0.1137 - 2026-08-18
+
+Tagged at [`35891985c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/35891985c9802ca74c2cfa43109d6947b46918c0).
+
+### Interface
+
 - Fix UI navigation and unsaved-close routing - [`27572e97f0`](https://github.com/Ding-Ding-Projects/worldlens/commit/27572e97f03181511867ef3a56d7a44b3204902e)
 
 ### Server, CLI and configuration
@@ -34,16 +82,16 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
-- Align the archive download guard with verified links - [`57a31f36db`](https://github.com/Ding-Ding-Projects/worldlens/commit/57a31f36db27f58d92b430df9475d104707e51a5)
+- Align the archive download guard with verified links - [`3adda0c07b`](https://github.com/Ding-Ding-Projects/worldlens/commit/3adda0c07be35bf3d907f8c7e3109d4ccf78d4a0)
 - Fix release delivery wiring and evidence - [`c363f49504`](https://github.com/Ding-Ding-Projects/worldlens/commit/c363f495043bd66a83e0d0705302c735f778307d)
 
 ### Documentation
 
-- Record twelve rapid-pass fixes and evidence limits - [`64523b4195`](https://github.com/Ding-Ding-Projects/worldlens/commit/64523b41956ed6d2154630dc38ff3b49a3e38dce)
+- Record twelve rapid-pass fixes and evidence limits - [`fb3e358f74`](https://github.com/Ding-Ding-Projects/worldlens/commit/fb3e358f7477dd54badde5d2addfbea2c05dc060)
 
 ### Elsewhere in the repository
 
-- Make installer cleanliness checks content-aware - [`7782d435b8`](https://github.com/Ding-Ding-Projects/worldlens/commit/7782d435b88c1c95e0c2ae19c8a27bc092fb45b6)
+- Make installer cleanliness checks content-aware - [`68b2728197`](https://github.com/Ding-Ding-Projects/worldlens/commit/68b2728197f223f339453b8cf667b6a693b946cf)
 
 ## 1.0.1135 - 2026-08-17
 
