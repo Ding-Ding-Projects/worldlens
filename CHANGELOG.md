@@ -41,6 +41,10 @@ full message for the in-app changelog viewer.
 
 - Record twelve rapid-pass fixes and evidence limits - [`64523b4195`](https://github.com/Ding-Ding-Projects/worldlens/commit/64523b41956ed6d2154630dc38ff3b49a3e38dce)
 
+### Elsewhere in the repository
+
+- Make installer cleanliness checks content-aware - [`7782d435b8`](https://github.com/Ding-Ding-Projects/worldlens/commit/7782d435b88c1c95e0c2ae19c8a27bc092fb45b6)
+
 ## 1.0.1135 - 2026-08-17
 
 Tagged at [`8a1a1329c3`](https://github.com/Ding-Ding-Projects/worldlens/commit/8a1a1329c39fbd44e460451783dee9391d868917).
