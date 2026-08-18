@@ -571,6 +571,24 @@ const tabs = ref<InstanceType<typeof WorkPane> | null>(null);
  */
 const kidShellRef = ref<InstanceType<typeof KidShell> | null>(null);
 
+/** Adds a job to whichever Work pane is actually mounted. */
+function ensureJob(pageId: string): void {
+    if (kid.enabled.value) {
+        kidShellRef.value?.ensureJob(pageId);
+        return;
+    }
+    tabs.value?.ensurePage(pageId);
+}
+
+/** Focuses a job in whichever Work pane is actually mounted. */
+function revealJob(pageId: string): void {
+    if (kid.enabled.value) {
+        kidShellRef.value?.revealJob(pageId);
+        return;
+    }
+    tabs.value?.revealPage(pageId);
+}
+
 /**
  * The one seam between a real completion event and Kid Mode's sticker ledger.
  *
@@ -610,20 +628,8 @@ const shell = createShellNavigation({
     // completely separate trees - see the `<KidShell v-if>` / `v-else` branch in the template -
     // so only one of `kidShellRef` and `tabs` is ever non-null at a time; this is not a guess
     // at which one to prefer, it is a dispatch to the one that exists.
-    ensureJob: (jobId) => {
-        if (kid.enabled.value) {
-            kidShellRef.value?.ensureJob(jobId);
-            return;
-        }
-        tabs.value?.ensurePage(jobId);
-    },
-    revealJob: (jobId) => {
-        if (kid.enabled.value) {
-            kidShellRef.value?.revealJob(jobId);
-            return;
-        }
-        tabs.value?.revealPage(jobId);
-    },
+    ensureJob,
+    revealJob,
     revealInJob: (jobId, reveal) => {
         // Deep reveals reuse each screen's own existing request mechanism rather than a new one.
         // Docs is the only job with a published article route today; the rest land on the job
@@ -842,7 +848,8 @@ function onRailSelect(next: RailDestination): void {
     // Home stayed hidden behind the editor - the rail would look broken rather than the
     // navigation it is. `closeConfig` keeps its own unsaved-changes handling.
     if (configOpen.value) {
-        closeConfig();
+        requestConfigClose(next);
+        return;
     }
     shell.select(next);
 }
@@ -871,8 +878,8 @@ function revealPage(pageId: string): void {
         shell.select("map");
         return;
     }
-    tabs.value?.ensurePage(pageId);
-    tabs.value?.revealPage(pageId);
+    ensureJob(pageId);
+    revealJob(pageId);
     shell.destination.value = "work";
 }
 
@@ -1495,8 +1502,42 @@ function openConfig(screen: PaletteConfigTarget = null): void {
     void nextTick(() => configHost.value?.focus());
 }
 
-/** Escape and a finished save both land here, and focus goes back to the button that opened it. */
+const configClosePromptOpen = ref(false);
+const configCloseDestination = ref<RailDestination | null>(null);
+
+/** Escape and rail navigation ask before throwing an in-memory workspace away. */
+function requestConfigClose(destination: RailDestination | null = null): void {
+    if (!configOpen.value) {
+        if (destination !== null) shell.select(destination);
+        return;
+    }
+    if (unsavedConfigChanges.value) {
+        configCloseDestination.value = destination;
+        configClosePromptOpen.value = true;
+        return;
+    }
+    closeConfig();
+    if (destination !== null) shell.select(destination);
+}
+
+/** Keeps the editor and its in-memory workspace exactly where they are. */
+function cancelConfigClose(): void {
+    configClosePromptOpen.value = false;
+    configCloseDestination.value = null;
+    void nextTick(() => configHost.value?.focus());
+}
+
+/** The explicit destructive choice: discard the draft, then honour any pending rail selection. */
+function discardConfigChanges(): void {
+    const destination = configCloseDestination.value;
+    closeConfig();
+    if (destination !== null) shell.select(destination);
+}
+
+/** An explicit discard or a finished save lands here, and focus returns to the opener. */
 function closeConfig(): void {
+    configClosePromptOpen.value = false;
+    configCloseDestination.value = null;
     configOpen.value = false;
     pendingConfigScreen.value = null;
     void nextTick(() => document.getElementById(configFabId)?.focus());
@@ -1881,7 +1922,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <div class="mb-shell-centre">
                             <BackupScreen
                                 :can-open-settings="true"
-                                @sign-in="openSettings()"
+                                @sign-in="openSettings('github-account')"
                                 @open="openInBrowser"
                                 @restore="revealBackupRestore"
                             />
@@ -2288,7 +2329,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 <div class="mb-shell-centre">
                                     <BackupScreen
                                         :can-open-settings="true"
-                                        @sign-in="openSettings()"
+                                        @sign-in="openSettings('github-account')"
                                         @open="openInBrowser"
                                         @restore="revealBackupRestore"
                                     />
@@ -2419,7 +2460,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 tabindex="-1"
                 role="region"
                 :aria-label="t('config.title', 'Server configuration')"
-                @keydown.esc="closeConfig"
+                @keydown.esc="requestConfigClose()"
             >
                 <ConfigScreen
                     :initial-screen="
@@ -2438,6 +2479,31 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     @dirty-change="unsavedConfigChanges = $event"
                 />
             </div>
+
+            <v-dialog :model-value="configClosePromptOpen" persistent max-width="500">
+                <v-card>
+                    <v-card-title>
+                        {{ t("config.shell.closeUnsavedTitle", "Discard unsaved configuration changes?") }}
+                    </v-card-title>
+                    <v-card-text>
+                        {{
+                            t(
+                                "config.shell.closeUnsavedBody",
+                                "The options editor still has changes that are only in memory. Keep editing to save them, or discard them and close the editor.",
+                            )
+                        }}
+                    </v-card-text>
+                    <v-card-actions>
+                        <v-spacer />
+                        <v-btn variant="text" @click="cancelConfigClose">
+                            {{ t("config.shell.keepEditing", "Keep editing") }}
+                        </v-btn>
+                        <v-btn color="error" variant="tonal" @click="discardConfigChanges">
+                            {{ t("config.shell.discardAndClose", "Discard and close") }}
+                        </v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
 
             <!--
                 Shell-only controls: settings and the options editor have no upstream
