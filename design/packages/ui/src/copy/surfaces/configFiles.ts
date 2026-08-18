@@ -1519,6 +1519,16 @@ export const CONFIGFILES_FIXED = {
     },
     "config.shell.errorCount": { en: "{n} problems", yue: "{n} 個問題" },
     "config.shell.unsaved": { en: "Unsaved changes", yue: "有未儲存嘅改動" },
+    "config.shell.closeUnsavedTitle": {
+        en: "Discard unsaved configuration changes?",
+        yue: "放棄未儲存嘅設定改動？",
+    },
+    "config.shell.closeUnsavedBody": {
+        en: "The options editor still has changes that are only in memory. Keep editing to save them, or discard them and close the editor.",
+        yue: "選項編輯器仲有只係留喺記憶體嘅改動。繼續編輯就可以儲存，或者放棄改動並關閉編輯器。",
+    },
+    "config.shell.keepEditing": { en: "Keep editing", yue: "繼續編輯" },
+    "config.shell.discardAndClose": { en: "Discard and close", yue: "放棄改動並關閉" },
     "config.shell.search": { en: "Search every setting", yue: "搵晒所有設定" },
     "config.shell.searchHint": {
         en: "name, key, or anything in the explanation",
