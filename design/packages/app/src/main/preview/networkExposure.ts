@@ -28,8 +28,9 @@
  * asked for network exposure."
  */
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { atomicWriteTextFileSync } from "../storage/atomicReplace.js";
 
 /** What a fresh install behaves as: loopback only. */
 export const DEFAULT_ALLOW_NETWORK = false;
@@ -88,9 +89,10 @@ export class PreviewNetworkStore {
     write(allowNetwork: boolean): PreviewNetworkSetting {
         try {
             mkdirSync(dirname(this.file), { recursive: true });
-            const staging = `${this.file}.writing`;
-            writeFileSync(staging, `${JSON.stringify({ allowNetwork }, null, 4)}\n`, "utf8");
-            renameSync(staging, this.file);
+            atomicWriteTextFileSync(
+                this.file,
+                `${JSON.stringify({ allowNetwork }, null, 4)}\n`,
+            );
         } catch {
             // Applies for this session only; `read()` reports it as unsaved by falling
             // back to whatever was last actually persisted (or the default).

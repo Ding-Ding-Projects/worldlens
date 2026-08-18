@@ -44,8 +44,9 @@
  * a setting that never actually shipped anywhere.
  */
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { atomicWriteTextFileSync } from "../storage/atomicReplace.js";
 
 /** The smallest number of parts worth fetching at once: one, i.e. sequential. */
 export const MIN_CONCURRENCY = 1;
@@ -186,11 +187,9 @@ export class DownloadConcurrencyStore {
     private persist(setting: { readonly workers: number }): void {
         try {
             mkdirSync(dirname(this.file), { recursive: true });
-            // Staged then renamed, so a crash mid-write cannot leave a half-written file
-            // that parses as a different, smaller number than the one that was chosen.
-            const staging = `${this.file}.writing`;
-            writeFileSync(staging, `${JSON.stringify(setting, null, 4)}\n`, "utf8");
-            renameSync(staging, this.file);
+            // A unique sibling preserves the old complete value through a crash or
+            // concurrent write; transient Windows destination sharing is retried briefly.
+            atomicWriteTextFileSync(this.file, `${JSON.stringify(setting, null, 4)}\n`);
         } catch {
             // A settings file that cannot be written must never stop a download from
             // starting. The choice applies for this session and is reported as unsaved by

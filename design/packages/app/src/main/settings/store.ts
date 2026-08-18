@@ -22,8 +22,9 @@
  * the boundary in `ipc.ts` should refuse rather than silently coerce.
  */
 
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { atomicWriteTextFile } from "../storage/atomicReplace.js";
 
 /** The directory inside the application's data folder holding the live settings file. */
 export const APP_SETTINGS_STORE_DIRECTORY = "app-settings-store";
@@ -81,16 +82,13 @@ export async function readAppSettingsState(dataDir: string): Promise<AppSettings
 }
 
 /**
- * Writes the live settings file through a temporary file and a rename, exactly as
- * `profiles/store.ts` writes the profile list, and for the same reason: a rename is atomic
- * on every platform this ships to, so a crash mid-write leaves the old state rather than half
- * of the new one.
+ * Writes the live settings file through a unique sibling and a bounded atomic replacement,
+ * exactly as `profiles/store.ts` writes the profile list. A crash leaves the old complete state,
+ * concurrent saves cannot share staging bytes, and transient Windows sharing failures are retried.
  */
 export async function writeAppSettingsState(dataDir: string, state: AppSettingsState): Promise<void> {
     const folder = appSettingsFolder(dataDir);
     await mkdir(folder, { recursive: true });
     const target = join(folder, APP_SETTINGS_FILE);
-    const temporary = `${target}.tmp`;
-    await writeFile(temporary, `${JSON.stringify(state, null, 4)}\n`, "utf8");
-    await rename(temporary, target);
+    await atomicWriteTextFile(target, `${JSON.stringify(state, null, 4)}\n`);
 }

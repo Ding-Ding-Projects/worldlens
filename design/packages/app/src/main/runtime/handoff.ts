@@ -47,9 +47,10 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import type { EngineDescription } from "../render/orchestrator.js";
+import { atomicWriteTextFile } from "../storage/atomicReplace.js";
 import type { RenderEngineId } from "../render/provenance.js";
 
 /** Bumped when the shape below changes incompatibly. An older file reads as absent. */
@@ -326,19 +327,15 @@ export async function readContainerHandoff(path: string): Promise<ContainerHando
 }
 
 /**
- * Writes a record, staged and renamed.
+ * Writes a record through a unique sibling and a bounded atomic replacement.
  *
- * The same shape as `writeRenderSession` on purpose: a rename is atomic on every file
- * system this app runs on, so a reader sees the previous complete file or the new complete
- * file and never the bytes in between. That matters here for a specific reason - the write
- * happens moments before a container is started, which is one of the moments an app is
- * most likely to be killed.
+ * A reader sees the previous complete file or the new complete file and never the bytes in
+ * between. Unique staging also prevents two writes from moving each other's bytes, while a
+ * short bounded retry survives transient Windows sharing by a scanner or indexer.
  */
 export async function writeContainerHandoff(path: string, record: ContainerHandoff): Promise<void> {
     await mkdir(dirname(path), { recursive: true });
-    const staging = `${path}.writing`;
-    await writeFile(staging, `${JSON.stringify(record, null, 4)}\n`, "utf8");
-    await rename(staging, path);
+    await atomicWriteTextFile(path, `${JSON.stringify(record, null, 4)}\n`);
 }
 
 /** Every record on disk, newest first. A directory walk, for the reason `listRenderIds` gives. */
