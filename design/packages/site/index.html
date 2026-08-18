@@ -274,12 +274,13 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
               <p class="wl-hero-lede" style="font-size:clamp(16px,2vw,20px);line-height:1.5;margin:0 0 12px;max-width:58ch;text-wrap:pretty;">A from-scratch TypeScript port of BlueMap, the Minecraft world renderer and 3D web map.</p>
               <p class="wl-hero-detail" style="font-size:15px;line-height:1.6;margin:0 0 32px;max-width:62ch;opacity:.85;text-wrap:pretty;">Render from a desktop application, or from a GitHub Actions run with nothing installed at all, and browse it in an interface rebuilt from the ground up in Material Design 3.</p>
               <div class="wl-hero-actions" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-                <a class="wl-hero-action" href="https://github.com/Ding-Ding-Projects/worldlens/releases/download/v0.1.943/Worldlens-0.1.943-Setup.exe" style="display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 28px;border-radius:999px;background:var(--p);color:var(--op);text-decoration:none;font-size:16px;font-weight:600;box-shadow:var(--e1);" style-hover="box-shadow:var(--e2);color:var(--op)">
+                <a class="wl-hero-action" data-worldlens-download-link="hero" hidden style="display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 28px;border-radius:999px;background:var(--p);color:var(--op);text-decoration:none;font-size:16px;font-weight:600;box-shadow:var(--e1);" style-hover="box-shadow:var(--e2);color:var(--op)">
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M5 20h14v-2H5zm7-16-5.5 5.5L8 11l3-3v9h2V8l3 3 1.5-1.5z"></path></svg>
-                  Download for Windows
+                  <span data-worldlens-download-label="hero">Download for Windows</span>
                 </a>
                 <button class="wl-hero-action" type="button" onClick="{{ goDocs }}" style="display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 26px;border-radius:999px;background:transparent;color:var(--opc);border:1px solid var(--out);font-size:16px;font-weight:600;cursor:pointer;" style-hover="background:var(--s-lowest)">Read the documentation</button>
               </div>
+              <p data-worldlens-download-unavailable="hero" style="font-size:13px;line-height:1.5;margin:16px 0 0;max-width:56ch;">This build of the site did not find a published release with a verified installer attached, so it offers no download. Nothing here guesses a URL.</p>
               <p class="wl-hero-note" style="font-size:12px;line-height:1.5;margin:20px 0 0;max-width:56ch;opacity:.75;">Windows only, and permanently unsigned by choice — SmartScreen will warn. Rendering needs Java, which the app fetches into its own folder.</p>
             </section>
 
@@ -409,7 +410,7 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
             <section id="download" style="margin-top:var(--secgap);border-radius:24px;border:1px solid var(--outv);background:var(--s-low);padding:clamp(20px,3vw,32px);">
               <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between;margin-bottom:20px;">
                 <h2 style="font-family:var(--brand);font-size:clamp(22px,3vw,28px);font-weight:600;margin:0;">Latest release</h2>
-                <span style="font-family:var(--mono);font-size:13px;color:var(--osv);">0.1.943 · 2026-08-09</span>
+                <span data-worldlens-release-summary style="font-family:var(--mono);font-size:13px;color:var(--osv);">No verified release for this build</span>
               </div>
               <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
                 <sc-for list="{{ releaseNotes }}" as="r" hint-placeholder-count="3">
@@ -420,7 +421,8 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
                 </sc-for>
               </div>
               <div style="display:flex;flex-wrap:wrap;gap:12px;">
-                <a href="https://github.com/Ding-Ding-Projects/worldlens/releases/download/v0.1.943/Worldlens-0.1.943-Setup.exe" style="display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 24px;border-radius:999px;background:var(--p);color:var(--op);text-decoration:none;font-size:15px;font-weight:600;">Setup.exe · 149 MB</a>
+                <a data-worldlens-download-link="latest" hidden style="display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 24px;border-radius:999px;background:var(--p);color:var(--op);text-decoration:none;font-size:15px;font-weight:600;"><span data-worldlens-download-label="latest">Setup.exe</span></a>
+                <span data-worldlens-download-unavailable="latest" style="font-size:14px;line-height:1.55;color:var(--osv);">This build of the site did not find a published release with a verified installer attached, so it offers no download. Nothing here guesses a URL.</span>
                 <button type="button" onClick="{{ goChangelog }}" style="height:48px;padding:0 22px;border-radius:999px;border:1px solid var(--out);background:transparent;color:var(--p);font-size:15px;font-weight:600;cursor:pointer;" style-hover="background:var(--s-cont)">See what changed</button>
               </div>
             </section>

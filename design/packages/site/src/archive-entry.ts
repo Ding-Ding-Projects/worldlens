@@ -1,4 +1,12 @@
 import "virtual:worldlens-archive-runtime";
+import {
+    downloadAccessibleName,
+    downloadButtonLabel,
+    downloadCopy,
+    formatBytes,
+    formatDate,
+    releaseAvailability,
+} from "./content/release.js";
 
 const focusableSelector = [
     "a[href]",
@@ -145,11 +153,50 @@ function labelDialogs(root: ParentNode): void {
     }
 }
 
+function hydrateReleaseDownloads(root: ParentNode): void {
+    const links = [...root.querySelectorAll<HTMLAnchorElement>("[data-worldlens-download-link]")];
+    const unavailable = [
+        ...root.querySelectorAll<HTMLElement>("[data-worldlens-download-unavailable]"),
+    ];
+    const summary = root.querySelector<HTMLElement>("[data-worldlens-release-summary]");
+
+    if (!releaseAvailability.available) {
+        for (const link of links) {
+            link.removeAttribute("href");
+            link.hidden = true;
+        }
+        for (const message of unavailable) {
+            message.textContent = downloadCopy.unavailableLead;
+            message.hidden = false;
+        }
+        if (summary) summary.textContent = downloadCopy.unavailableHeading;
+        return;
+    }
+
+    const release = releaseAvailability.release;
+    const size = formatBytes(release.installer.sizeBytes);
+    for (const link of links) {
+        link.href = release.installer.url;
+        link.hidden = false;
+        link.setAttribute("aria-label", downloadAccessibleName(release));
+    }
+    for (const message of unavailable) message.hidden = true;
+
+    const heroLabel = root.querySelector<HTMLElement>('[data-worldlens-download-label="hero"]');
+    if (heroLabel) {
+        heroLabel.textContent = `${downloadButtonLabel(release)} · ${release.version} · ${size}`;
+    }
+    const latestLabel = root.querySelector<HTMLElement>('[data-worldlens-download-label="latest"]');
+    if (latestLabel) latestLabel.textContent = `${release.installer.assetName} · ${size}`;
+    if (summary) summary.textContent = `${release.version} · ${formatDate(release.publishedAt)}`;
+}
+
 function enhance(root: ParentNode = document): void {
     useStaticWalkthroughs(root);
     labelTabControls(root);
     labelExpandedControls(root);
     labelDialogs(root);
+    hydrateReleaseDownloads(root);
     for (const button of root.querySelectorAll<HTMLButtonElement>("button")) {
         if (!button.getAttribute("aria-label") && !button.textContent?.trim()) {
             button.setAttribute("aria-label", button.title || "Site action");

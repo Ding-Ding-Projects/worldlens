@@ -177,6 +177,9 @@ set "WORLDLENS_PACKAGE_VERSION=%PACKAGE_VERSION%"
 set "WORLDLENS_RELEASE_TAG=%RELEASE_TAG%"
 node -e "if(process.env.WORLDLENS_RELEASE_TAG!==('v'+process.env.WORLDLENS_PACKAGE_VERSION))process.exit(1)"
 if errorlevel 1 goto :identity_mismatch
+set "LIVE_TAG_PATTERN="
+for /f "tokens=1,2 delims=." %%a in ("%RELEASE_TAG%") do set "LIVE_TAG_PATTERN=refs/tags/%%a.%%b.*"
+if not defined LIVE_TAG_PATTERN goto :identity_failed
 set "WORLDLENS_REPOSITORY_ROOT=%ROOT%."
 set "GH_PROMPT_DISABLED=1"
 set "GIT_TERMINAL_PROMPT=0"
@@ -189,7 +192,7 @@ if not "%REPOSITORY_RESULT%"=="0" goto :live_inventory_failed
 set /p "REPOSITORY_SLUG=" < "%REPOSITORY_FILE%"
 if not defined REPOSITORY_SLUG goto :live_inventory_failed
 
-git -C "%ROOT%." -c credential.interactive=never -c http.lowSpeedLimit=1 -c http.lowSpeedTime=20 ls-remote --tags --refs origin "refs/tags/v0.1.*" > "%LIVE_TAGS_FILE%"
+git -C "%ROOT%." -c credential.interactive=never -c http.lowSpeedLimit=1 -c http.lowSpeedTime=20 ls-remote --tags --refs origin "%LIVE_TAG_PATTERN%" > "%LIVE_TAGS_FILE%"
 if errorlevel 1 goto :live_inventory_failed
 gh release list --repo "%REPOSITORY_SLUG%" --limit 1000 --json tagName,isDraft,isPrerelease > "%LIVE_RELEASES_FILE%"
 if errorlevel 1 goto :live_inventory_failed

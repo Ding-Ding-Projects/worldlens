@@ -1239,7 +1239,7 @@ jobs:
             # `release`'s own `needs:` comment) - name only those, and name the rest honestly as
             # what they are: advisory jobs that still ran, in this same run, visibly, but whose
             # verdict was never a precondition for this release existing.
-            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). The Windows installer, the seven BlueMap jars and the rendered test world all built successfully before this release published - those are the only checks this workflow requires. Workflow-file linting, the TypeScript build/typecheck, the full test suite, the real-Java config round-trip test and screenshot capture all ran in this same run as advisory evidence, visible on the Actions page for this run, but none of them can withhold a release. Checking that kind of correctness happens locally, before code is pushed."
+            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). The Windows installer, the seven BlueMap jars and the rendered test world all built successfully before this release published - those are the only checks this workflow requires. The TypeScript build, typecheck, full test suite and real-Java config round-trip report their exact attempted, skipped or failed outcomes on the Actions page without withholding the release. Workflow-file lint/security checks and screenshot capture are intentionally not run by this workflow. Checking that kind of correctness happens locally, before code is pushed."
             echo
             node scripts/count-lines.mjs --format=markdown
             echo
@@ -1247,7 +1247,7 @@ jobs:
             echo
             echo "## Changelog"
             echo
-            echo "Changelog commit: \`${GITHUB_SHA}\`. Every entry is grouped and linked by full SHA in [\`CHANGELOG.md\`](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/CHANGELOG.md) at this exact commit. Regenerated with \`node scripts/build-changelog.mjs\`; the workflow-security job runs \`--check\` over full history before publication."
+            echo "Changelog commit: \`${GITHUB_SHA}\`. Every entry is grouped and linked by full SHA in [\`CHANGELOG.md\`](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/CHANGELOG.md) at this exact commit. Regenerated with \`node scripts/build-changelog.mjs\`; this workflow does not run the changelog freshness check, so the linked file at the exact commit is the published record."
           } > release-notes.md
           echo "Composed $(wc -l < release-notes.md) lines of release notes"
 
