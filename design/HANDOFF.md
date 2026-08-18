@@ -1,5 +1,60 @@
 # Handoff
 
+## 2026-08-18 — rapid defect pass: twelve source repairs integrated, build and package evidence pending
+
+**State:** twelve bounded source repairs are integrated at
+`26161ff56d35770135829892f528da726c754cb3` across the four commits below. This rapid pass ran no
+tests, lint, typecheck, independent review, screenshot capture, application build, installer build,
+packaging, or runtime exercise. Build and package production are still pending, so this section is
+an implementation record, not verification or release evidence.
+
+Tracking remains on [issue #142](https://github.com/Ding-Ding-Projects/worldlens/issues/142) and
+the rolling [Discussion #49](https://github.com/Ding-Ding-Projects/worldlens/discussions/49).
+
+### Exact integrated commits
+
+| Commit | Scope |
+| --- | --- |
+| [`27572e97f03181511867ef3a56d7a44b3204902e`](https://github.com/Ding-Ding-Projects/worldlens/commit/27572e97f03181511867ef3a56d7a44b3204902e) | UI navigation and unsaved-close routing |
+| [`a8bdfba468d5bb4a944f473df944badae8b97ef7`](https://github.com/Ding-Ding-Projects/worldlens/commit/a8bdfba468d5bb4a944f473df944badae8b97ef7) | BlueMap wire-format and parser parity |
+| [`c363f495043bd66a83e0d0705302c735f778307d`](https://github.com/Ding-Ding-Projects/worldlens/commit/c363f495043bd66a83e0d0705302c735f778307d) | Release delivery wiring and evidence copy |
+| [`26161ff56d35770135829892f528da726c754cb3`](https://github.com/Ding-Ding-Projects/worldlens/commit/26161ff56d35770135829892f528da726c754cb3) | Runtime origin checks, bounded updates, and state-file replacement |
+
+### The twelve repaired behaviours
+
+1. Kid Mode job reveals now route through the mounted Work pane instead of targeting an
+   unreachable screen.
+2. Closing a modified configuration draft now requires an explicit keep-editing or discard
+   decision instead of silently losing the draft.
+3. Backup reauthentication now lands on the GitHub account row that owns the recovery action.
+4. A map request ending in `.gz` now returns gzip file bytes without mislabelling them as
+   transport-decoded content; unsuffixed requests retain ordinary encoding negotiation.
+5. Primitive adapters now parse Java-compatible decimal and hexadecimal floating literals,
+   including exact IEEE-754 rounding for hexadecimal inputs.
+6. Each server-sent-event connection now uses the upstream 64-event bounded queue rather than
+   the incorrect smaller capacity.
+7. Both documentation-site installer links now consume the generated, verified release record;
+   an unavailable record removes the links and shows the existing honest explanation.
+8. The local installer build now derives its remote-tag inventory from the candidate's resolved
+   major/minor version family instead of searching the retired `v0.1.*` family.
+9. Generated release notes now distinguish actual build/package evidence from advisory outcomes
+   and plainly state that workflow lint/security and screenshot capture did not run.
+10. Privileged navigation and response hardening now compare fully parsed, exact origins instead
+    of accepting a hostile URL that merely starts with the trusted text.
+11. Silent update checks and downloads now have a bounded 30-minute deadline, refreshed only by
+    real updater activity, so a missing terminal event cannot leave the interface busy forever.
+12. Main-process state replacement now uses unique sibling staging files, bounded retries for
+    transient Windows sharing failures, and serialized writes to the shared history index, so
+    concurrent saves cannot move or overwrite one another's temporary bytes.
+
+### Evidence boundary and next action
+
+The four commits and their source diffs are the only evidence from this pass. The next owner should
+build the application and installer from exact commit `26161ff56d35770135829892f528da726c754cb3`,
+record the resulting package identity and artifacts, and run whatever verification the release
+owner requires before publication. Until then, none of the twelve behaviours is claimed as
+runtime-tested or packaged.
+
 ## 2026-08-15 — CI failed on a fully green test suite, Kid Mode's real feature count, and five standing gaps a next owner should close first
 
 **Plain version, first:** every real test in the workspace passed — three times in a row, 11,054
