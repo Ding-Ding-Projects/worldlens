@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "57a31f36db27f58d92b430df9475d104707e51a5",
+        shortSha: "57a31f36db",
+        date: "2026-08-18T16:28:57-04:00",
+        subject: "Align the archive download guard with verified links",
+        details: "Require the stable hero download hook plus its initial hidden, no-href state instead of the retired v0.1.943 URL. The completeness row stays fail-closed; it has simply stopped checking the passport of a link that already retired.\n\nArchive download guard 而家認 stable hero hook，同時釘住初始 hidden 同冇 href 嘅狀態，唔再追住退休咗嘅 v0.1.943 URL。Completeness row 照樣 fail closed，只係唔再查一條已退休連結嘅證件。",
+        category: "site",
+        areas: ["site"],
+        files: 1,
+    },
+    {
         sha: "64523b41956ed6d2154630dc38ff3b49a3e38dce",
         shortSha: "64523b4195",
         date: "2026-08-18T16:17:50-04:00",
