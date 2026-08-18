@@ -42,3 +42,6 @@ tools/oracle/prbm/out/
 # interrupted, and it must never be committed - a stray file naming a version nobody chose
 # reads to the next person as a deliberate release decision.
 design/packages/app/.version-backup
+
+# Screenshots taken by .claude/skills/run-worldlens/driver.mjs
+.worldlens-driver/
