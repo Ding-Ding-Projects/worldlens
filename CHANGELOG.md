@@ -34,6 +34,7 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- Align the archive download guard with verified links - [`57a31f36db`](https://github.com/Ding-Ding-Projects/worldlens/commit/57a31f36db27f58d92b430df9475d104707e51a5)
 - Fix release delivery wiring and evidence - [`c363f49504`](https://github.com/Ding-Ding-Projects/worldlens/commit/c363f495043bd66a83e0d0705302c735f778307d)
 
 ### Documentation
