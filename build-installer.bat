@@ -144,11 +144,9 @@ git -C "%ROOT%." rev-parse --verify HEAD > "%COMMIT_FILE%"
 if errorlevel 1 goto :not_a_checkout
 set /p "COMMIT=" < "%COMMIT_FILE%"
 if not defined COMMIT goto :not_a_checkout
-set "DIRTY="
-git -C "%ROOT%." status --porcelain --untracked-files=all > "%STATUS_FILE%"
-if errorlevel 1 goto :source_status_failed
-for /f "usebackq delims=" %%s in ("%STATUS_FILE%") do set "DIRTY=1"
-if defined DIRTY goto :dirty_source
+call :probe_clean_tree
+if errorlevel 2 goto :source_status_failed
+if errorlevel 1 goto :dirty_source
 echo       commit %COMMIT%
 echo       working tree is clean
 
@@ -258,11 +256,9 @@ if errorlevel 1 goto :final_commit_failed
 set "FINAL_COMMIT="
 set /p "FINAL_COMMIT=" < "%COMMIT_FILE%"
 if not "%FINAL_COMMIT%"=="%COMMIT%" goto :final_commit_changed
-git -C "%ROOT%." status --porcelain --untracked-files=all > "%STATUS_FILE%"
-if errorlevel 1 goto :final_status_failed
-set "FINAL_DIRTY="
-for /f "usebackq delims=" %%s in ("%STATUS_FILE%") do set "FINAL_DIRTY=1"
-if defined FINAL_DIRTY goto :final_dirty_source
+call :probe_clean_tree
+if errorlevel 2 goto :final_status_failed
+if errorlevel 1 goto :final_dirty_source
 echo       commit %FINAL_COMMIT% is unchanged and the working tree is clean
 
 set /p "SETUP_PATH=" < "%VERIFY_REPORT%"
@@ -294,6 +290,20 @@ echo.
 choice /c YN /n /m "Open the folder containing the installer? [Y/N] "
 if errorlevel 2 exit /b 0
 start "" explorer "%OUTPUT%"
+exit /b 0
+
+:probe_clean_tree
+rem Content-aware diffs distinguish rewritten-but-identical generated files from real changes.
+rem Keeping submodule comparison explicit preserves the old status probe's nested-tree coverage.
+git -C "%ROOT%." diff --quiet --ignore-submodules=none --
+if errorlevel 2 exit /b 2
+if errorlevel 1 exit /b 1
+git -C "%ROOT%." diff --cached --quiet --ignore-submodules=none --
+if errorlevel 2 exit /b 2
+if errorlevel 1 exit /b 1
+git -C "%ROOT%." ls-files --others --exclude-standard -- > "%STATUS_FILE%"
+if errorlevel 1 exit /b 2
+for /f "usebackq delims=" %%s in ("%STATUS_FILE%") do exit /b 1
 exit /b 0
 
 :restore_manifest
