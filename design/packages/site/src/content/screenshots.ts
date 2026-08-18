@@ -20,7 +20,7 @@ export const screenshotsCopy = {
     caveat: "The map under the interface is real and was rendered by the same workflow run: CI generates a world with a fresh seed on every push, renders it with upstream BlueMap's Java engine built in that run, and serves it to the harness, which fails the job if the application reaches the public internet while capturing. When a capture shows a broken or empty window, that is the state the build was in: the harness publishes what it found rather than hiding it.",
     committedHeading: "Committed to this repository",
     committedLead:
-        "These are tracked in git, so they travel with every clone and this page shows them whether or not a workflow artifact could be collected for the build. They are also what the landing page shows. The record below describes the harness run that produced the sized and themed set; the captures taken outside it, an installed build and the two of the title bar, say so in their own captions.",
+        "These are tracked in git, so they travel with every clone and this page shows the complete committed evidence inventory whether or not a workflow artifact could be collected for the build. The cards are grouped by what they prove, and one plain-text-first search covers category, title, description, recorded state, theme, viewport and source commit. Its adjacent builder applies the site's full bounded regular-expression engine to that same search. Historical, issue-specific and retired captures stay visible in their own labelled categories instead of being presented as the current interface.",
     committedSourceLabel: "Captured by",
     committedMethodLabel: "How",
     committedCommitLabel: "Commit",
@@ -28,6 +28,8 @@ export const screenshotsCopy = {
     committedDirectoryLabel: "The files live in",
     ciHeading: "Collected from a recent workflow run",
     ciLead: "Downloaded from the newest workflow run that still had an unexpired screenshot artifact when this site was built. Artifacts expire, so this set changes and the committed set above does not.",
+    ciNoAdditional:
+        "Every filename in the fetched artifact is already present in the complete committed gallery above, so the page does not render duplicate cards.",
     unavailableHeading: "No workflow artifact was collected for this build",
     unavailableLead:
         "No screenshot artifact could be collected when this site was built, so there is no fetched set to show. The reason is below. Nothing has been substituted for the missing images.",
@@ -43,7 +45,11 @@ export const screenshotsCopy = {
  * prefix. `base` is a parameter rather than a constant so a differently mounted copy of
  * the site can pass its own.
  */
-export function screenshotUrl(publicPath: string, file: string, base: string = SITE_BASE_PATH): string {
+export function screenshotUrl(
+    publicPath: string,
+    file: string,
+    base: string = SITE_BASE_PATH,
+): string {
     const cleanBase = base.endsWith("/") ? base : `${base}/`;
     const cleanDir = publicPath.replace(/^\/+|\/+$/g, "");
     return `${cleanBase}${cleanDir}/${file}`;
@@ -59,7 +65,10 @@ export function captureCaption(capture: ScreenshotCapture): string {
     if (!capture.configurationKnown) {
         return `${capture.title} · configuration not recorded by the harness`;
     }
-    const scheme = capture.colourScheme === "system" ? "system colour scheme" : `${capture.colourScheme} colour scheme`;
+    const scheme =
+        capture.colourScheme === "system"
+            ? "system colour scheme"
+            : `${capture.colourScheme} colour scheme`;
     return `${capture.title} · ${capture.windowSize} · ${capture.displayScale} display scale · ${scheme}`;
 }
 
@@ -120,7 +129,8 @@ const GROUP_DEFINITIONS: readonly {
         title: "Window sizes",
         description:
             "Four supported geometries including the narrow case, where labels clip first and bilingual copy is longest.",
-        match: (capture) => capture.file.startsWith("shell-") && !capture.file.startsWith("shell-scale-"),
+        match: (capture) =>
+            capture.file.startsWith("shell-") && !capture.file.startsWith("shell-scale-"),
     },
     {
         id: "display-scales",
@@ -159,7 +169,9 @@ export function groupCaptures(captures: readonly ScreenshotCapture[]): readonly 
     const groups: CaptureGroup[] = [];
 
     for (const definition of GROUP_DEFINITIONS) {
-        const matched = captures.filter((capture) => !claimed.has(capture.file) && definition.match(capture));
+        const matched = captures.filter(
+            (capture) => !claimed.has(capture.file) && definition.match(capture),
+        );
         for (const capture of matched) claimed.add(capture.file);
         if (matched.length > 0) {
             groups.push({

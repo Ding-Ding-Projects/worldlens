@@ -1102,6 +1102,122 @@ export const FIXED = {
     "site.homeTab": { en: "Home", yue: "主頁" },
     "site.docsTab": { en: "Documentation", yue: "說明文件" },
     "site.screenshotsTab": { en: "Screenshots", yue: "螢幕截圖" },
+    "site.screenshotGallerySearch": { en: "Search screenshots", yue: "搜尋螢幕截圖" },
+    "site.screenshotGallerySearchPlaceholder": {
+        en: "Search category, title, state, theme, viewport, or commit",
+        yue: "搜尋分類、標題、狀態、主題、畫面尺寸或者 commit",
+    },
+    "site.screenshotGalleryResults": { en: "Screenshot gallery results", yue: "螢幕截圖相簿結果" },
+    "site.screenshotGalleryFilters": { en: "Screenshot categories", yue: "螢幕截圖分類" },
+    "site.screenshotGalleryAll": { en: "All categories", yue: "所有分類" },
+    "site.screenshotGalleryCategoryCount": { en: "{label} ({count})", yue: "{label}（{count}）" },
+    "site.screenshotGalleryCount": {
+        en: "Showing {shown} of {total} real captures in {category}.",
+        yue: "喺{category}顯示 {total} 張真實截圖入面嘅 {shown} 張。",
+    },
+    "site.screenshotGalleryNoMatch": {
+        en: "No screenshots match “{query}” in {category}.",
+        yue: "{category}入面冇螢幕截圖符合「{query}」。",
+    },
+    "site.screenshotGalleryInvalid": {
+        en: "The regular expression is invalid, so no screenshots are shown.",
+        yue: "正規表示式無效，所以而家唔顯示任何螢幕截圖。",
+    },
+    "site.screenshotGalleryTimeout": {
+        en: "The regular expression was stopped after {ms} ms, so no stale results are shown.",
+        yue: "正規表示式喺 {ms} 毫秒後停止，所以唔會顯示舊結果。",
+    },
+    "site.screenshotGalleryState": { en: "Recorded state", yue: "已記錄狀態" },
+    "site.screenshotGalleryTheme": { en: "Theme", yue: "主題" },
+    "site.screenshotGalleryViewport": { en: "Viewport", yue: "畫面尺寸" },
+    "site.screenshotGalleryCommit": { en: "Source commit", yue: "來源 commit" },
+    "site.screenshotGalleryCaptured": { en: "Captured", yue: "截圖時間" },
+    "site.screenshotGalleryCategory.getting-started": { en: "Getting started", yue: "開始使用" },
+    "site.screenshotGalleryCategory.shell-navigation": {
+        en: "Shell and navigation",
+        yue: "外殼同導覽",
+    },
+    "site.screenshotGalleryCategory.settings-appearance": {
+        en: "Settings and appearance",
+        yue: "設定同外觀",
+    },
+    "site.screenshotGalleryCategory.worlds-projects": {
+        en: "Worlds and projects",
+        yue: "世界同專案",
+    },
+    "site.screenshotGalleryCategory.configuration": {
+        en: "Configuration editor",
+        yue: "設定檔編輯器",
+    },
+    "site.screenshotGalleryCategory.delivery-runtime": {
+        en: "Delivery and runtime",
+        yue: "發佈同執行環境",
+    },
+    "site.screenshotGalleryCategory.kid-mode": { en: "Kid Mode", yue: "兒童模式" },
+    "site.screenshotGalleryCategory.site-evidence": { en: "Website evidence", yue: "網站證據" },
+    "site.screenshotGalleryCategory.installed-builds": {
+        en: "Installed builds",
+        yue: "已安裝版本",
+    },
+    "site.screenshotGalleryCategory.rendered-maps": { en: "Rendered maps", yue: "已渲染地圖" },
+    "site.screenshotGalleryCategory.issue-baselines": { en: "Issue baselines", yue: "問題基準" },
+    "site.screenshotGalleryCategory.historical-retired": {
+        en: "Historical and retired",
+        yue: "歷史同已退役",
+    },
+    "site.screenshotGalleryCategory.other": { en: "Other real captures", yue: "其他真實截圖" },
+    "site.screenshotGalleryDescription.getting-started": {
+        en: "First run, Home, compact Home layouts, and the first runtime choice.",
+        yue: "首次啟動、主頁、窄版主頁，同第一個執行位置選擇。",
+    },
+    "site.screenshotGalleryDescription.shell-navigation": {
+        en: "Full windows, title bars, navigation, menus, tabs, palettes, and notices.",
+        yue: "完整視窗、標題列、導覽、選單、分頁、指令面板同通知。",
+    },
+    "site.screenshotGalleryDescription.settings-appearance": {
+        en: "Settings, appearance tools, locks, support, authentication, and confirmation states.",
+        yue: "設定、外觀工具、鎖定、支援、驗證同確認狀態。",
+    },
+    "site.screenshotGalleryDescription.worlds-projects": {
+        en: "Project, profile, backup, import, structure, and map-creation surfaces.",
+        yue: "專案、設定檔、備份、匯入、結構同建立地圖畫面。",
+    },
+    "site.screenshotGalleryDescription.configuration": {
+        en: "The complete options editor, its tabs, search, history, and guarded actions.",
+        yue: "完整選項編輯器、各分頁、搜尋、歷史同受確認保護嘅操作。",
+    },
+    "site.screenshotGalleryDescription.delivery-runtime": {
+        en: "Publishing, continuous integration, local model, and large-file runtime surfaces.",
+        yue: "發佈、持續整合、本機模型同大型檔案執行畫面。",
+    },
+    "site.screenshotGalleryDescription.kid-mode": {
+        en: "Kid Mode catalogues, settings, progress, stickers, narrow layouts, and scales.",
+        yue: "兒童模式目錄、設定、進度、貼紙、窄版畫面同顯示比例。",
+    },
+    "site.screenshotGalleryDescription.site-evidence": {
+        en: "Compact site proofs, walkthrough frames, tab layouts, and live Pages captures.",
+        yue: "窄版網站證據、操作示範畫面、分頁版面同真實 Pages 截圖。",
+    },
+    "site.screenshotGalleryDescription.installed-builds": {
+        en: "Real installed or packaged application captures driven outside the component test path.",
+        yue: "喺元件測試路徑以外，實際安裝或封裝版本嘅真實截圖。",
+    },
+    "site.screenshotGalleryDescription.rendered-maps": {
+        en: "Captures backed by a real rendered world and its recorded rendering provenance.",
+        yue: "由真實渲染世界同已記錄渲染來源支持嘅截圖。",
+    },
+    "site.screenshotGalleryDescription.issue-baselines": {
+        en: "Real before-and-after or focused evidence retained for individual reported defects.",
+        yue: "為個別已報告問題保留嘅真實前後或聚焦證據。",
+    },
+    "site.screenshotGalleryDescription.historical-retired": {
+        en: "Evidence kept for audit value and labelled so it is not mistaken for the current interface.",
+        yue: "為審核保留嘅證據，清楚標示避免當成目前介面。",
+    },
+    "site.screenshotGalleryDescription.other": {
+        en: "Manifest-backed captures that do not belong to one of the named sets above.",
+        yue: "有 manifest 記錄，但唔屬於上面任何一組嘅真實截圖。",
+    },
     "site.settingsTab": { en: "Settings", yue: "設定" },
     "site.searchTab": { en: "Search", yue: "搜尋" },
     "site.changelogTab": { en: "Changelog", yue: "變更記錄" },

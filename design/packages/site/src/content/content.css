@@ -1059,6 +1059,156 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
 }
 
+.mb-capture-gallery {
+    display: grid;
+    gap: var(--md-sys-spacing-6);
+    min-width: 0;
+}
+
+.mb-capture-gallery__controls {
+    display: grid;
+    gap: var(--md-sys-spacing-4);
+    padding: var(--md-sys-spacing-4);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.mb-capture-gallery__categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--md-sys-spacing-2);
+}
+
+.mb-capture-gallery__category {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.mb-capture-gallery__category[aria-pressed="true"] {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.mb-capture-gallery__category:hover {
+    background: var(--md-sys-color-surface-container-highest);
+}
+
+.mb-capture-gallery__category:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 2px;
+}
+
+.mb-capture-gallery__search {
+    max-width: 56rem;
+}
+
+.mb-capture-gallery__results,
+.mb-capture-gallery__group {
+    display: grid;
+    gap: var(--md-sys-spacing-3);
+    min-width: 0;
+}
+
+.mb-capture-gallery__group + .mb-capture-gallery__group {
+    padding-block-start: var(--md-sys-spacing-5);
+    border-block-start: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.mb-capture-gallery__group-title {
+    margin: 0;
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--md-sys-typescale-headline-small-font);
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    line-height: var(--md-sys-typescale-headline-small-line-height);
+    letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+}
+
+.mb-capture-gallery__group-description {
+    max-width: var(--md-sys-measure);
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-capture-gallery__card {
+    align-self: start;
+    overflow: hidden;
+    padding: var(--md-sys-spacing-3);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-lowest);
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.mb-capture-gallery__caption {
+    display: grid;
+    gap: var(--md-sys-spacing-2);
+}
+
+.mb-capture-gallery__description,
+.mb-capture-gallery__state-copy {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.mb-capture-gallery__metadata {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--md-sys-spacing-1) var(--md-sys-spacing-2);
+    margin: 0;
+    font-size: var(--md-sys-typescale-label-small-size);
+}
+
+.mb-capture-gallery__metadata-label {
+    color: var(--md-sys-color-on-surface);
+    font-weight: 700;
+}
+
+.mb-capture-gallery__metadata-value {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.mb-capture-gallery__state {
+    padding-block-start: var(--md-sys-spacing-2);
+    border-block-start: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.mb-capture-gallery__state-summary {
+    min-height: 2.75rem;
+    padding-block: var(--md-sys-spacing-2);
+    color: var(--md-sys-color-primary);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@media (width <= 600px) {
+    .mb-capture-gallery__controls,
+    .mb-capture-gallery__card {
+        padding: var(--md-sys-spacing-3);
+    }
+
+    .mb-capture-gallery__category {
+        flex: 1 1 11rem;
+    }
+
+    .mb-capture-gallery__metadata {
+        grid-template-columns: 1fr;
+    }
+}
+
 /*
  * Captures of differently shaped windows are differently tall, so their captions land at
  * different heights and the row reads as ragged. Subgrid lines the caption row up across
