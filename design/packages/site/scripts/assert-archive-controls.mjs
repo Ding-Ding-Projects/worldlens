@@ -105,7 +105,7 @@ const requiredControls = [
     ["article boundary disabled model", /prevDisabled:!prevArt,\s*nextDisabled:!nextArt,\s*prevDisabledAttr:String\(!prevArt\),\s*nextDisabledAttr:String\(!nextArt\),/u],
     ["palette empty-state contrast", /paletteEmptyStyle: paletteItems\.length \? "display:none;" : "padding:18px 14px;font-size:13px;line-height:1\.6;color:var\(--osv\);"/u],
     ["contrast-safe compact helper text", /font-size:11px;font-weight:700;letter-spacing:\.6px;text-transform:uppercase;color:var\(--osv\);margin-bottom:4px;"[^>]*>Previous/u],
-    ["installer download", /<a\b(?=[^>]*class="wl-hero-action")(?=[^>]*href="https:\/\/github\.com\/Ding-Ding-Projects\/worldlens\/releases\/download\/v0\.1\.943\/Worldlens-0\.1\.943-Setup\.exe")[^>]*>/u],
+    ["installer download", /<a\b(?=[^>]*class="wl-hero-action")(?=[^>]*data-worldlens-download-link="hero")(?=[^>]*\bhidden(?:\s|>))(?![^>]*\bhref\s*=)[^>]*>/u],
     ["documentation action", /<button\b(?=[^>]*class="wl-hero-action")(?=[^>]*onClick="\{\{ goDocs \}\}")[^>]*>/u],
     ["mobile header sizing", ".wl-header-utility{display:none!important;}"],
     ["mobile hero sizing", ".wl-hero-actions{display:grid!important;"],
