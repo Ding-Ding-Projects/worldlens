@@ -22,6 +22,38 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Fix UI navigation and unsaved-close routing - [`27572e97f0`](https://github.com/Ding-Ding-Projects/worldlens/commit/27572e97f03181511867ef3a56d7a44b3204902e)
+
+### Server, CLI and configuration
+
+- Restore BlueMap wire and parser parity - [`a8bdfba468`](https://github.com/Ding-Ding-Projects/worldlens/commit/a8bdfba468d5bb4a944f473df944badae8b97ef7)
+
+### Desktop shell
+
+- Harden runtime origins, updates, and state writes - [`26161ff56d`](https://github.com/Ding-Ding-Projects/worldlens/commit/26161ff56d35770135829892f528da726c754cb3)
+
+### Landing page and documentation site
+
+- Fix release delivery wiring and evidence - [`c363f49504`](https://github.com/Ding-Ding-Projects/worldlens/commit/c363f495043bd66a83e0d0705302c735f778307d)
+
+### Documentation
+
+- Record twelve rapid-pass fixes and evidence limits - [`64523b4195`](https://github.com/Ding-Ding-Projects/worldlens/commit/64523b41956ed6d2154630dc38ff3b49a3e38dce)
+
+## 1.0.1135 - 2026-08-17
+
+Tagged at [`8a1a1329c3`](https://github.com/Ding-Ding-Projects/worldlens/commit/8a1a1329c39fbd44e460451783dee9391d868917).
+
+### Elsewhere in the repository
+
+- Ship a run skill that drives the app instead of describing it - [`8a1a1329c3`](https://github.com/Ding-Ding-Projects/worldlens/commit/8a1a1329c39fbd44e460451783dee9391d868917)
+
+## 1.0.1133 - 2026-08-16
+
+Tagged at [`93e50abc0a`](https://github.com/Ding-Ding-Projects/worldlens/commit/93e50abc0a549bbe535c5e2c65ff8dd9b03caf8b).
+
+### Interface
+
 - Repair the four local gates nothing in CI ever runs - [`709c992833`](https://github.com/Ding-Ding-Projects/worldlens/commit/709c99283348751adff5298745f6801fdfb4bd7a)
 
 ### Server, CLI and configuration
