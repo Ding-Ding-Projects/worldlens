@@ -34,8 +34,9 @@
  * to `ipc.ts`, which is the boundary a renderer's untrusted JSON actually crosses.
  */
 
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { atomicWriteTextFile } from "../storage/atomicReplace.js";
 
 /** The directory inside the application's data folder holding the live profiles file. */
 export const PROFILES_STORE_DIRECTORY = "profiles-store";
@@ -128,17 +129,13 @@ export async function readProfilesState(dataDir: string): Promise<ProfilesState>
 }
 
 /**
- * Writes the live profiles file through a temporary file and a rename.
- *
- * A rename is atomic on every platform this ships to, so a crash mid-write leaves the old
- * state rather than half of the new one - the same reasoning `history/store.ts` writes its
- * mapping file with.
+ * Writes the live profiles file through a unique sibling and a bounded atomic replacement.
+ * A crash leaves the old complete state, concurrent saves cannot share staging bytes, and
+ * transient Windows sharing failures are retried.
  */
 export async function writeProfilesState(dataDir: string, state: ProfilesState): Promise<void> {
     const folder = profilesFolder(dataDir);
     await mkdir(folder, { recursive: true });
     const target = join(folder, PROFILES_FILE);
-    const temporary = `${target}.tmp`;
-    await writeFile(temporary, `${JSON.stringify(state, null, 4)}\n`, "utf8");
-    await rename(temporary, target);
+    await atomicWriteTextFile(target, `${JSON.stringify(state, null, 4)}\n`);
 }

@@ -14,11 +14,10 @@
  * writing to it too. Three rules follow, and each of them exists because of a specific way
  * this could go wrong.
  *
- *  1. **The write is atomic.** The text goes to a temporary file beside the target and is
- *     then renamed over it. `rename` replaces a file in one step on every platform this
- *     ships to, so the failure mode of writing in place - a crash, a full disk, or a
- *     process kill leaving a half-written project that parses as neither the old settings
- *     nor the new ones - cannot happen. What the reader sees is always one complete file.
+ *  1. **The write is atomic.** The text goes to a unique temporary file beside the target and
+ *     is then renamed over it, with a short bounded retry for transient Windows sharing.
+ *     A crash, a full disk, or a process kill cannot leave a half-written project that parses
+ *     as neither the old settings nor the new ones. The reader sees one complete file.
  *  2. **Nothing is clobbered that was not first read and understood.** A file this build
  *     cannot parse is a file whose contents it cannot claim to be replacing. It might be a
  *     project written by a newer app, and overwriting one of those silently discards every
@@ -41,6 +40,7 @@
 import { randomBytes } from "node:crypto";
 import { lstat, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
+import { replaceFileWithRetry } from "../storage/atomicReplace.js";
 
 import {
     LEGACY_PROJECT_FILE_NAME,
@@ -409,7 +409,7 @@ export async function writeProjectText(
     }
 
     try {
-        await io.rename(temporary, path);
+        await replaceFileWithRetry(temporary, path, io.rename);
     } catch (error) {
         // The rename is the moment the new project becomes real. Failing here means the old
         // one is still exactly as it was, which is the whole point - so the only thing left

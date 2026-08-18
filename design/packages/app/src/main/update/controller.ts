@@ -186,6 +186,9 @@ const REAL_TIMERS: UpdateTimers = {
     },
 };
 
+/** Long enough for Squirrel to fetch an installer, bounded so a silent engine cannot wedge checks. */
+export const UPDATE_CHECK_TIMEOUT_MS = 30 * 60 * 1000;
+
 const EXACT_UPDATE_VERSION = /^v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)$/;
 
 function exactUpdateVersion(value: unknown): string | null {
@@ -245,6 +248,7 @@ export class UpdateController {
     private state: UpdateState;
     private schedule: ScheduleState = initialSchedule();
     private timer: TimerHandle | null = null;
+    private checkTimer: TimerHandle | null = null;
     private started = false;
     private disposed = false;
     /** True between a check being asked for and the engine answering it. */
@@ -386,10 +390,11 @@ export class UpdateController {
 
         this.inFlight = true;
         this.apply({ type: "check-started", manual });
+        this.armCheckTimeout();
         try {
             engine.checkForUpdates();
         } catch (error) {
-            this.inFlight = false;
+            this.finishCheck();
             this.fail(classifyUpdateFailure(error));
         }
         return this.current();
@@ -475,6 +480,7 @@ export class UpdateController {
     dispose(): void {
         this.disposed = true;
         this.cancelTimer();
+        this.cancelCheckTimeout();
     }
 
     /* ---------------------------------------------------------------------- */
@@ -495,10 +501,11 @@ export class UpdateController {
             // only from `check()`, or the interface would miss those entirely.
             this.inFlight = true;
             this.apply({ type: "check-started", manual: this.state.lastCheckWasManual });
+            this.armCheckTimeout();
         });
 
         handler("update-not-available", () => {
-            this.inFlight = false;
+            this.finishCheck();
             if (this.activeFeed === "current" && this.tryLegacyFallback(engine, true)) return;
             if (this.activeFeed === "legacy") this.restoreCurrentFeed(engine);
             this.schedule = scheduleAfterSuccess(this.schedule, isReady(this.state));
@@ -515,6 +522,7 @@ export class UpdateController {
             // second download and an intermediate no-update event can erase this state.
             this.inFlight = true;
             this.apply({ type: "downloading", version: null });
+            this.armCheckTimeout();
         });
 
         handler("download-progress", (args) => {
@@ -525,11 +533,12 @@ export class UpdateController {
             // is counting.
             const progress = readDownloadProgress(args[0]);
             if (progress === null) return;
+            this.armCheckTimeout();
             this.apply({ type: "download-progress", progress });
         });
 
         handler("update-downloaded", (args) => {
-            this.inFlight = false;
+            this.finishCheck();
             // Electron's signature: (event, releaseNotes, releaseName, releaseDate, updateURL).
             const notes = typeof args[1] === "string" && args[1].trim() !== "" ? args[1] : null;
             const name = exactUpdateVersion(args[2]);
@@ -578,7 +587,7 @@ export class UpdateController {
         });
 
         handler("error", (args) => {
-            this.inFlight = false;
+            this.finishCheck();
             if (this.activeFeed === "current" && this.tryLegacyFallback(engine, false)) return;
             if (this.activeFeed === "legacy" && this.currentFeedHadNoUpdate) {
                 this.restoreCurrentFeed(engine);
@@ -620,9 +629,10 @@ export class UpdateController {
             this.apply({ type: "feed", url: describeFeed(fallback).url });
             this.inFlight = true;
             this.apply({ type: "check-started", manual: this.state.lastCheckWasManual });
+            this.armCheckTimeout();
             engine.checkForUpdates();
         } catch (error) {
-            this.inFlight = false;
+            this.finishCheck();
             this.restoreCurrentFeed(engine);
             if (currentHadNoUpdate) {
                 // The current feed already gave an authoritative no-update result. A
@@ -790,6 +800,37 @@ export class UpdateController {
         if (this.timer === null) return;
         this.timers.clearTimeout(this.timer);
         this.timer = null;
+    }
+
+    private armCheckTimeout(): void {
+        this.cancelCheckTimeout();
+        if (this.disposed) return;
+        this.checkTimer = this.timers.setTimeout(() => {
+            this.checkTimer = null;
+            if (this.disposed || !this.inFlight) return;
+            this.inFlight = false;
+            this.fail(
+                updateFailure(
+                    "unknown",
+                    "The update check did not answer within 30 minutes, so it was stopped and will be tried again later.",
+                    {
+                        detail: "The updater emitted no terminal result before its bounded deadline.",
+                        retryable: true,
+                    },
+                ),
+            );
+        }, UPDATE_CHECK_TIMEOUT_MS);
+    }
+
+    private finishCheck(): void {
+        this.inFlight = false;
+        this.cancelCheckTimeout();
+    }
+
+    private cancelCheckTimeout(): void {
+        if (this.checkTimer === null) return;
+        this.timers.clearTimeout(this.checkTimer);
+        this.checkTimer = null;
     }
 
     /**

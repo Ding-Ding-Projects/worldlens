@@ -43,8 +43,9 @@
  */
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { atomicWriteTextFile } from "../storage/atomicReplace.js";
 
 /** The directory inside the application's data folder that holds every history. */
 export const HISTORY_DIRECTORY = "config-history";
@@ -223,20 +224,27 @@ export async function readIndex(dataDir: string, directory?: string): Promise<Hi
 }
 
 /**
- * Writes the mapping through a temporary file and a rename.
- *
- * A rename is atomic on every platform this ships to, so a crash mid-write leaves the old
- * mapping rather than half of the new one. Truncating in place would make the one file
- * that says which history belongs to whom the most likely file in the application to end
- * up empty.
+ * Writes the mapping through a unique sibling and a bounded atomic replacement. A crash leaves
+ * the old complete mapping, concurrent writers cannot share staging bytes, and transient Windows
+ * sharing failures are retried instead of making a committed history disappear from the listing.
  */
 export async function writeIndex(dataDir: string, index: HistoryIndex, directory?: string): Promise<void> {
     const root = historyRoot(dataDir, directory);
     await mkdir(root, { recursive: true });
     const target = join(root, INDEX_FILE);
-    const temporary = `${target}.tmp`;
-    await writeFile(temporary, `${JSON.stringify(index, null, 4)}\n`, "utf8");
-    await rename(temporary, target);
+    await atomicWriteTextFile(target, `${JSON.stringify(index, null, 4)}\n`);
+}
+
+/** Serializes the shared index read/modify/write cycle across concurrent project flushes. */
+let indexUpdateQueue: Promise<void> = Promise.resolve();
+
+function serializeIndexUpdate<T>(update: () => Promise<T>): Promise<T> {
+    const result = indexUpdateQueue.then(update, update);
+    indexUpdateQueue = result.then(
+        () => undefined,
+        () => undefined,
+    );
+    return result;
 }
 
 /**
@@ -255,27 +263,27 @@ export async function rememberProject(
 ): Promise<HistoryProject> {
     const id = projectId(folder, platform);
     const repository = repositoryPath(dataDir, folder, platform, directory);
-    const now = new Date().toISOString();
+    return await serializeIndexUpdate(async () => {
+        const index = await readIndex(dataDir, directory);
+        const existing = index.projects.find((project) => project.id === id);
+        const project: HistoryProject = {
+            id,
+            folder,
+            repository,
+            firstSeen: existing?.firstSeen ?? new Date().toISOString(),
+            lastSnapshot: at ?? existing?.lastSnapshot ?? null,
+        };
 
-    const index = await readIndex(dataDir, directory);
-    const existing = index.projects.find((project) => project.id === id);
-    const project: HistoryProject = {
-        id,
-        folder,
-        repository,
-        firstSeen: existing?.firstSeen ?? now,
-        lastSnapshot: at ?? existing?.lastSnapshot ?? null,
-    };
+        const projects = [...index.projects.filter((entry) => entry.id !== id), project].sort(
+            (left, right) => left.folder.localeCompare(right.folder),
+        );
 
-    const projects = [...index.projects.filter((entry) => entry.id !== id), project].sort((left, right) =>
-        left.folder.localeCompare(right.folder),
-    );
-
-    try {
-        await writeIndex(dataDir, { version: INDEX_VERSION, projects }, directory);
-    } catch {
-        // Deliberately swallowed. See the doc comment: the record of the snapshot is the
-        // commit, and this file only makes the set of histories listable.
-    }
-    return project;
+        try {
+            await writeIndex(dataDir, { version: INDEX_VERSION, projects }, directory);
+        } catch {
+            // Deliberately swallowed. See the doc comment: the record of the snapshot is the
+            // commit, and this file only makes the set of histories listable.
+        }
+        return project;
+    });
 }

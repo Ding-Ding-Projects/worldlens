@@ -348,6 +348,15 @@ async function startEmbeddedServer(): Promise<string> {
 
 let sessionHardened = false;
 
+/** Exact parsed-origin comparison; malformed and user-info lookalike URLs fail closed. */
+function hasTrustedOrigin(candidate: string, trusted: string): boolean {
+    try {
+        return new URL(candidate).origin === new URL(trusted).origin;
+    } catch {
+        return false;
+    }
+}
+
 function hardenSession(baseUrl: string): void {
     if (sessionHardened) return;
     sessionHardened = true;
@@ -387,7 +396,7 @@ function hardenSession(baseUrl: string): void {
     );
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
         const headers = { ...details.responseHeaders };
-        if (details.url.startsWith(baseUrl) && details.resourceType === "mainFrame") {
+        if (hasTrustedOrigin(details.url, baseUrl) && details.resourceType === "mainFrame") {
             headers["Content-Security-Policy"] = [
                 "default-src 'self'; " +
                     "script-src 'self'; " +
@@ -1567,7 +1576,7 @@ async function createWindow(): Promise<void> {
         return { action: "deny" };
     });
     window.webContents.on("will-navigate", (event, url) => {
-        if (!url.startsWith(baseUrl)) event.preventDefault();
+        if (!hasTrustedOrigin(url, baseUrl)) event.preventDefault();
     });
 
     // Optional feature registration begins only after a real window exists. Every step owns
