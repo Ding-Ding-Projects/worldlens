@@ -2,7 +2,7 @@
  * Server-Sent Events, the transport half of "live".
  *
  * upstream: `common/.../web/SseConnection.java` and `.../web/SseConnectionManager.java`.
- * Upstream queues events onto a small bounded queue (capacity 16) drained by a dedicated
+ * Upstream queues events onto a small bounded queue (capacity 64) drained by a dedicated
  * virtual thread per connection, and drops — closing the connection — a client whose queue
  * fills up rather than letting a slow reader block a broadcast to everyone else. Node's
  * `http.ServerResponse.write` already hands back a per-write completion callback, so this
@@ -14,7 +14,7 @@
 import type * as http from "node:http";
 
 /** upstream: `SseConnection.QUEUE_CAPACITY` */
-const QUEUE_CAPACITY = 16;
+const QUEUE_CAPACITY = 64;
 
 class SseConnection {
     private readonly queue: Array<[eventType: string, data: string]> = [];

@@ -107,22 +107,18 @@ describe("MapStorageHandler: hires tiles", () => {
         expect(res.status).toBe(204);
     });
 
-    it("answers identically for a request naming the .prbm.gz suffix — the suffix is not inspected", async () => {
-        const raw = Buffer.from("same tile, different requested name");
+    it("serves .prbm.gz as a gzip file without labelling it as gzip transport", async () => {
+        const raw = Buffer.from("suffix-selected gzip tile");
         await storage.hiresTiles().write(3, 4, raw);
         const base = await startServer();
 
-        const asPrbm = await fetch(`${base}/maps/world/tiles/0/x3/z4.prbm`, {
-            headers: { "accept-encoding": "gzip" },
-        });
-        const asPrbmGz = await fetch(`${base}/maps/world/tiles/0/x3/z4.prbm.gz`, {
-            headers: { "accept-encoding": "gzip" },
+        const response = await rawRequest(`${base}/maps/world/tiles/0/x3/z4.prbm.gz`, {
+            "accept-encoding": "gzip",
         });
 
-        expect(asPrbm.status).toBe(200);
-        expect(asPrbmGz.status).toBe(200);
-        expect(asPrbmGz.headers.get("content-encoding")).toBe(asPrbm.headers.get("content-encoding"));
-        expect(Buffer.from(await asPrbmGz.arrayBuffer())).toEqual(Buffer.from(await asPrbm.arrayBuffer()));
+        expect(response.status).toBe(200);
+        expect(response.headers["content-encoding"]).toBeUndefined();
+        expect(gunzipSync(response.body)).toEqual(raw);
     });
 
     it("treats a non-numeric lod as not-a-tile-path and falls through to 404", async () => {
@@ -182,6 +178,18 @@ describe("MapStorageHandler: meta-data endpoints", () => {
         const plain = await rawRequest(`${base}/maps/world/textures.json`);
         expect(plain.headers["content-encoding"]).toBeUndefined();
         expect(plain.body.toString()).toBe(textures);
+    });
+
+    it("strips .gz before metadata lookup and returns a gzip file", async () => {
+        const settings = JSON.stringify({ name: "gzip world" });
+        await storage.settings().write(Buffer.from(settings));
+        const base = await startServer();
+
+        const response = await rawRequest(`${base}/maps/world/settings.json.gz`);
+        expect(response.status).toBe(200);
+        expect(response.headers["content-type"]).toBe("application/json");
+        expect(response.headers["content-encoding"]).toBeUndefined();
+        expect(gunzipSync(response.body).toString()).toBe(settings);
     });
 
     it("serves a named asset under assets/, with content-type from its extension", async () => {
