@@ -141,7 +141,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
     // "No lint and no timeout" changes; only the stale hash is being corrected here.
     "Compose release notes": Object.freeze({
       env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
-      run: "5291029344cd70fb76832caaba00e9066e7eda8544cb09536efab20c8feb496e",
+      run: "b43b179114c9f19692ad12429c9229992e2d4f36760e1280be5ee4b5863c3a02",
     }),
     // Reviewed after the completion-stamp check moved from same-UTC-second equality to a
     // bounded ten-second drift window. The equality could only pass when the publish PATCH,
@@ -168,7 +168,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 // timeout" changes (the `release` job itself is untouched by this pass - `needs:` is still
 // exactly `[package, jars, test-world]`). Recomputed from the real current job block.
 const RELEASE_JOB_FINGERPRINT =
-  "5603a9e1f22bc62c8e0aebb5c6ef3d333ff3d1876bda30e5e013d2286a06f34d";
+  "b5f5f79c99188ceb7095ce2de7ca970e8ef8e8c524bce9e4984cc4de955eedf4";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this
