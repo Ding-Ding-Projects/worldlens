@@ -110,13 +110,12 @@ const BLOCKING_SURFACES: Record<string, BlockingSurface> = {
         count: 1,
         decision: "First-run consent, which cannot be assumed and cannot be deferred.",
     },
-    /*
-     * `App.vue` was here for the server-profile manager's overlay and no longer is. The
-     * maps-and-servers list is a tab now, so the shell opens nothing the user cannot see past
-     * at all - which is the outcome this inventory exists to push code towards, and the
-     * declaration is removed rather than left at zero so the count check keeps meaning
-     * something.
-     */
+    "App.vue": {
+        count: 1,
+        decision:
+            "Discard the unsaved configuration workspace and close it, or keep editing with " +
+            "the in-memory work preserved. Navigation waits for that explicit choice.",
+    },
     "components/palette/CommandPalette.vue": {
         count: 1,
         decision:

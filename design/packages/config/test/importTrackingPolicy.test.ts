@@ -126,13 +126,71 @@ const SOURCE_FILES = [...TRACKED]
 
 /**
  * Strips `/* ... *\/` and `// ...` comments so a worked example inside a doc comment cannot
- * be mistaken for a real import. The `//` pass keeps whatever precedes a colon (`https://…`)
- * so a URL written directly in real code - not in a comment - survives; it does not need to
- * be perfect for a URL sitting inside prose, because that whole comment is already gone by
- * the time the line-comment pass runs.
+ * be mistaken for a real import, while leaving quoted strings intact. The old regular
+ * expression treated the `/*` in a literal glob such as `screenshots/*.png` as the start of a
+ * comment and erased every export until the next real `*\/`. A tiny lexical walk is enough for
+ * this guard: imports inside a quoted string are not executable, and comment markers inside a
+ * quoted string are just data.
  */
 function stripComments(source: string): string {
-    return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    let result = "";
+    let quote: "'" | '"' | "`" | null = null;
+
+    for (let index = 0; index < source.length; ) {
+        const current = source[index] ?? "";
+        const next = source[index + 1] ?? "";
+
+        if (quote !== null) {
+            result += current;
+            if (current === "\\" && index + 1 < source.length) {
+                result += next;
+                index += 2;
+                continue;
+            }
+            if (current === quote) quote = null;
+            index += 1;
+            continue;
+        }
+
+        if (current === "'" || current === '"' || current === "`") {
+            quote = current;
+            result += current;
+            index += 1;
+            continue;
+        }
+
+        if (current === "/" && next === "*") {
+            result += "  ";
+            index += 2;
+            while (index < source.length) {
+                const commentChar = source[index] ?? "";
+                const commentNext = source[index + 1] ?? "";
+                if (commentChar === "*" && commentNext === "/") {
+                    result += "  ";
+                    index += 2;
+                    break;
+                }
+                result += commentChar === "\n" || commentChar === "\r" ? commentChar : " ";
+                index += 1;
+            }
+            continue;
+        }
+
+        if (current === "/" && next === "/") {
+            result += "  ";
+            index += 2;
+            while (index < source.length && source[index] !== "\n" && source[index] !== "\r") {
+                result += " ";
+                index += 1;
+            }
+            continue;
+        }
+
+        result += current;
+        index += 1;
+    }
+
+    return result;
 }
 
 /**
@@ -718,6 +776,14 @@ const url = "https://example.com/not/an/import"; // trailing comment, not stripp
 });
 
 describe("importTrackingPolicy.ts: the binding detector itself", () => {
+    it("does not erase exports after a glob wildcard that contains slash-star inside a string", () => {
+        const source = `
+const images = import.meta.glob("../../docs/screenshots/*.png");
+export const GALLERY_CATEGORIES = [];
+`;
+        expect(exportedBindings(stripComments(source)).names).toContain("GALLERY_CATEGORIES");
+    });
+
     it("extracts the required (non-type) binding names from import and re-export-from clauses", () => {
         const source = `
 import { A, B as C } from "./target.js";
