@@ -79,17 +79,28 @@ printf 'url\nbuttons\nss onboarding\nclick .v-overlay--active button:has-text("N
 Commands are one per line on stdin; each answers with a single `ok …` / `err …` line, so a pipe
 or `tmux send-keys` both work. Screenshots land in `.worldlens-driver/`.
 
-| command | does |
-|---|---|
-| `url` | current renderer URL |
-| `ss <name>` | screenshot → `.worldlens-driver/<name>.png` |
-| `onboard` | clear the first-run dialog (declines the download consent) — run this first |
-| `rail` | navigation rail labels — `["Home","Map","Work"]` |
-| `nav <label>` | click a rail item by label |
-| `buttons` | button labels in the open dialog, else the whole page |
-| `text <selector>` / `count <selector>` / `click <selector>` | Playwright locator, first match |
-| `eval <js>` | evaluate in the renderer, JSON-printed |
-| `detach` | disconnect; the app keeps running |
+| command                                                     | does                                                                             |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `url`                                                       | current renderer URL                                                             |
+| `ss <name>`                                                 | screenshot → `.worldlens-driver/<name>.png`                                      |
+| `onboard`                                                   | clear the first-run dialog (declines the download consent) — run this first      |
+| `rail`                                                      | navigation rail labels — `["Home","Map","Work"]`                                 |
+| `nav <label>`                                               | click a rail item by label                                                       |
+| `buttons`                                                   | button labels in the open dialog, else the whole page                            |
+| `text <selector>` / `count <selector>` / `click <selector>` | Playwright locator, first match                                                  |
+| `ssclip <name> <selector>`                                  | capture one real element and write its metadata sidecar                          |
+| `fill <selector> <text>` / `press <selector> <key>`         | operate a real field                                                             |
+| `rightclick <selector>` / `wait <selector>`                 | open a real context menu or wait for a surface                                   |
+| `viewport <w> <h>` / `zoom <factor>`                        | set exact responsive and display-scale states                                    |
+| `plan <path>`                                               | run a committed JSON array or JSONL action plan against this same hidden process |
+| `eval <js>`                                                 | evaluate in the renderer, JSON-printed                                           |
+| `detach`                                                    | disconnect; the app keeps running                                                |
+
+A JSON action line may use `wait`, `click`, `fill`, `press`, `viewport`, `zoom`, `sleep`,
+`assertText`, `screenshot`, or `walkthroughFrame`. Capture actions write `.capture.json`
+sidecars with the exact alt text, category, theme, viewport, state, expected surface, source
+commit and timestamp. Set `WORLDLENS_CAPTURE_COMMIT` to the candidate SHA and
+`WORLDLENS_DRIVER_OUTPUT` to the task-owned evidence directory before the driver attaches.
 
 **Step 3 — window-level capture,** when the renderer cannot see what you need. Lowlevel
 `list_headless_windows` on `WorldlensDriver`, take the `Chrome_WidgetWin_1` entry with a
@@ -106,8 +117,23 @@ person sitting at the machine; never use it from an agent session.
 
 ```bash
 cd design && pnpm test                 # vitest, whole workspace
-cd design/packages/app && pnpm screenshots   # the project's own 89-capture matrix (visible desktop)
 ```
+
+The capture matrix is deliberately not a self-launching package command. First build both the
+UI and app outputs, then launch `launch-headless.cmd` through cheap Lowlevel's
+`launch_on_headless_desktop` on a named off-screen desktop with a fresh profile and task port.
+After `/json/list` proves exactly one page target, attach the complete matrix to that process:
+
+```powershell
+$env:WORLDLENS_CDP_PORT = '9333'
+$env:WORLDLENS_CAPTURE_COMMIT = (git rev-parse HEAD)
+pnpm --filter @worldlens/app screenshots
+```
+
+Without `WORLDLENS_CDP_PORT`, the matrix fails closed before opening anything. It has no visible
+desktop fallback. The same hidden process can produce committed walkthrough frames by piping a
+JSONL plan to `driver.mjs`; each of the twelve walkthrough ids needs at least two ordered
+`walkthroughFrame` actions before `build-walkthrough-gifs.mjs` is allowed to run.
 
 ## Gotchas
 
@@ -129,7 +155,7 @@ cd design/packages/app && pnpm screenshots   # the project's own 89-capture matr
   Minecraft download consent on purpose: both answers are real, and an agent must not accept
   a licence for the user. Accept it yourself, deliberately, if a test needs the download path.
 - **`--force-prefers-reduced-motion` is load-bearing.** Playwright waits for an element to be
-  *stable* before clicking, and this interface animates page arrivals; without the flag clicks
+  _stable_ before clicking, and this interface animates page arrivals; without the flag clicks
   time out and the failure reads as "the screen is broken" when it is working perfectly.
 - **The rail is not a Vuetify drawer.** Labels are `.wl-rail-label` and items `.wl-rail-item`;
   `.v-navigation-drawer .v-list-item-title` matches nothing and returns a confident `[]`.
@@ -141,11 +167,11 @@ cd design/packages/app && pnpm screenshots   # the project's own 89-capture matr
 
 ## Troubleshooting
 
-| symptom | cause / fix |
-|---|---|
-| `Cannot find module 'playwright'` | bare `playwright` is not installed; the driver resolves `@playwright/test`, which re-exports the browser API |
-| `curl` to `/json/list` returns nothing | the launch failed; enumerate hidden windows and look for an `Error` dialog, then `kill_process` the stray |
-| `expected exactly 1 page target, got N` | a second target got in — do not drive it; kill the process tree and relaunch |
-| `nav <label>` times out after 30 s | the first-run dialog is still up; run `onboard` |
-| driver attaches but the UI looks stale | `packages/ui` was not rebuilt; `cd design && pnpm build` |
-| onboarding dialog missing on a fresh profile | the capture seam did not apply — you are driving the real profile; see the second gotcha |
+| symptom                                      | cause / fix                                                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `Cannot find module 'playwright'`            | bare `playwright` is not installed; the driver resolves `@playwright/test`, which re-exports the browser API |
+| `curl` to `/json/list` returns nothing       | the launch failed; enumerate hidden windows and look for an `Error` dialog, then `kill_process` the stray    |
+| `expected exactly 1 page target, got N`      | a second target got in — do not drive it; kill the process tree and relaunch                                 |
+| `nav <label>` times out after 30 s           | the first-run dialog is still up; run `onboard`                                                              |
+| driver attaches but the UI looks stale       | `packages/ui` was not rebuilt; `cd design && pnpm build`                                                     |
+| onboarding dialog missing on a fresh profile | the capture seam did not apply — you are driving the real profile; see the second gotcha                     |

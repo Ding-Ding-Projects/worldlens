@@ -55,6 +55,13 @@ describe("the capture ledger", () => {
             file: "config-screen.png",
             surface: "The options editor as it opens",
             caption: "The options editor as it opens.",
+            alt: "The options editor as it opens",
+            category: "settings-customization",
+            theme: "light",
+            viewport: "1280x800@100%",
+            state: "open",
+            expectedSurface: "Options editor",
+            commit: "0123456789abcdef0123456789abcdef01234567",
             capturedAt: "2026-01-01T00:00:00.000Z",
         });
 
