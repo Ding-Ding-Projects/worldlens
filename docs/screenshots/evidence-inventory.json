@@ -192,9 +192,23 @@
     {
       "id": "site-walkthrough-media",
       "authority": "design/packages/site/scripts/build-walkthrough-gifs.mjs",
-      "command": "cd design/packages/site && node scripts/build-walkthrough-gifs.mjs --frames <fresh-real-capture-frame-directory>",
-      "reproducibility": "blocked-until-fresh-source-frames-exist",
-      "blocker": "The generator requires at least two ordered real PNG frames for each of twelve action IDs. Those source frames are deliberately not tracked, so the 24 outputs cannot be honestly regenerated from the current checkout alone.",
+      "command": "Build the exact candidate, launch it through cheap Lowlevel on a named hidden desktop, require one loopback CDP page, use run-worldlens driver.mjs walkthroughFrame JSON actions to record at least two ordered real frames for each framePlan id, then run cd design/packages/site && node scripts/build-walkthrough-gifs.mjs --frames <fresh-frame-root>.",
+      "reproducibility": "current-candidate-hidden-desktop-frames",
+      "minimumFramesPerId": 2,
+      "framePlan": {
+        "appearance-editor": ["tab context menu before opening the editor", "anchored appearance editor open on Text or Surface"],
+        "changelog-filter": ["changelog viewer before filtering", "date/text filter applied with a real result count"],
+        "command-palette": ["command palette open", "palette filtered to a live setting control"],
+        "documentation-search": ["offline documentation index", "offline documentation search results"],
+        "language-tone": ["Language and tone settings tab before a change", "same tab after a real funny-level or language control change"],
+        "navigation-drawer": ["Home destination with the application rail", "Work destination selected through that rail"],
+        "notification-history": ["rail notification bell with unread badge", "notification history opened from that exact bell"],
+        "regex-builder": ["plain-text search field", "its adjacent full regex builder open with a valid pattern"],
+        "tab-discovery": ["Work tab strip", "tab finder open from that strip"],
+        "tab-groups": ["seeded collapsed tab groups", "one real group expanded without changing membership"],
+        "theme-switch": ["same shell in light theme", "same shell in high-contrast theme"],
+        "verified-download": ["real release asset list from an authorized published release", "real download progress or verified completion for one selected asset"]
+      },
       "expectedCount": 24,
       "targets": [
         "design/packages/site/src/assets/walkthroughs/appearance-editor.gif",
@@ -279,10 +293,27 @@
     {
       "id": "issue-baselines",
       "authority": "cheap Lowlevel off-screen desktop captures documented in docs/screenshots/card-title-clipping-baseline.md and issue #106 history",
-      "command": "Capture each issue's exact owning surface on the cheap Lowlevel off-screen desktop, with the issue-specific real data state in frame.",
-      "reproducibility": "historical-or-data-dependent",
-      "blocker": "These files record pre-fix or in-progress states. A current-build image must not be relabelled as an historical before-state; data-dependent rows require their real owning operation and long-value fixture.",
-      "replacementPolicy": "Create a separately named current after-capture and update references; retain truthful historical semantics until the public record no longer depends on them.",
+      "command": "Create a detached checkout at each target's exact source commit, run its declared build, launch it only through the current run-worldlens launch-headless.cmd via cheap Lowlevel launch_on_headless_desktop, require exactly one loopback CDP page target, drive the issue's owning surface with the committed driver, and replace the PNG without changing its historical caption or semantics.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "replacementPolicy": "Replace every target during this release pass from its exact historical source commit. A current-build image, mock, source preview, or relabelled different state is refused.",
+      "sourceCommits": {
+        "design/docs/assets/issues/106-before-startup-blocked.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-100-in-progress-container-offers.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-101-in-progress-interrupted-renders.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-103-in-progress-pages.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-103-in-progress-world-repo.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-107-after-pages-replacement.png": "90a66a85dab807d7e14de65d8da6cae295758a78",
+        "docs/screenshots/issue-107-before-pages-replacement.png": "b3f556547c4c6431911d49ffdf7953419bbc7cc1",
+        "docs/screenshots/issue-123-before-account-overview.png": "67767606adb555d974d727a91301e113ad43ae88",
+        "docs/screenshots/issue-123-before-credential-surface.png": "67767606adb555d974d727a91301e113ad43ae88",
+        "docs/screenshots/issue-93-in-progress-backup-run.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-94-in-progress-backup-listing.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-95-in-progress-config-save.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-96-in-progress-config-source.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-97-in-progress-downloads.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-98-in-progress-discovered-worlds.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+        "docs/screenshots/issue-99-in-progress-dependencies.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc"
+      },
       "expectedCount": 16,
       "targets": [
         "design/docs/assets/issues/106-before-startup-blocked.png",
@@ -303,21 +334,23 @@
         "docs/screenshots/issue-99-in-progress-dependencies.png"
       ],
       "capturedFromInterfaceSource": false,
-      "notGradedBecause": "point-in-time evidence attached to numbered issues; re-taking it from a later build would destroy the before-state each image exists to record"
+      "notGradedBecause": "point-in-time evidence attached to numbered issues; freshness is judged against each target's exact historical source commit rather than current interface source"
     },
     {
       "id": "historical-site-baseline",
       "authority": "genuine headless capture of the live pre-rewrite Pages site at commit e5ff0d5",
-      "command": "Check out and serve the exact historical source revision, or preserve the existing before-state; never overwrite it with current UI while retaining a before filename/caption.",
-      "reproducibility": "historical-source-only",
-      "blocker": "The current build cannot produce a truthful pre-rewrite state.",
-      "replacementPolicy": "Create a separately named current Pages capture and update current-state references.",
+      "command": "Check out e5ff0d5a3ca3e51e4f14415aef9b5daaaac84de3, build and serve that exact site on loopback, launch isolated Edge only on the cheap Lowlevel hidden desktop, require exactly one expected CDP page target, and replace the baseline from that historical page.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "replacementPolicy": "Replace this target during this release pass from its exact historical source commit; never substitute the current site.",
+      "sourceCommits": {
+        "docs/screenshots/pages-m3-rewrite-before.png": "e5ff0d5a3ca3e51e4f14415aef9b5daaaac84de3"
+      },
       "expectedCount": 1,
       "targets": [
         "docs/screenshots/pages-m3-rewrite-before.png"
       ],
       "capturedFromInterfaceSource": false,
-      "notGradedBecause": "a deliberately preserved picture of the pre-rewrite site, which no longer exists to be re-photographed"
+      "notGradedBecause": "a pre-rewrite site picture refreshed from its exact historical source commit rather than current site source"
     },
     {
       "id": "site-tabs-compact-proof",
@@ -346,8 +379,14 @@
     {
       "id": "retired-app-surfaces",
       "authority": "design/packages/app/test/screenshots.spec.ts, at the commit that last produced them",
-      "command": "Not reproducible: the surface itself is gone. Keep as the historical record of what replaced it; never render one of these as a current surface.",
-      "reproducibility": "historical-source-only",
+      "command": "Check out 485e65987b21d6e453d16fb15a665ba750487756, build that exact app, launch it only through the current run-worldlens launch-headless.cmd via cheap Lowlevel, require one loopback CDP target, drive the retired surface with the committed driver, and replace each PNG without presenting it as current UI.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "replacementPolicy": "Replace all three during this release pass from the last exact commit that produced them; never substitute the current rail-bell UI.",
+      "sourceCommits": {
+        "docs/screenshots/chrome-shell-buttons.png": "485e65987b21d6e453d16fb15a665ba750487756",
+        "docs/screenshots/notifications-corner.png": "485e65987b21d6e453d16fb15a665ba750487756",
+        "docs/screenshots/notifications-toast.png": "485e65987b21d6e453d16fb15a665ba750487756"
+      },
       "expectedCount": 3,
       "targets": [
         "docs/screenshots/chrome-shell-buttons.png",
@@ -355,7 +394,7 @@
         "docs/screenshots/notifications-toast.png"
       ],
       "capturedFromInterfaceSource": false,
-      "notGradedBecause": "each of these photographs a surface this application no longer has, so re-taking one is impossible rather than merely overdue. chrome-shell-buttons.png: photographs the three floating shell buttons, which the Material Design 3 rewrite deleted rather than moved - `App.shellFabClearance.test.ts` asserts the string `mb-shell-fab` no longer appears in the shell source at all. Their destinations are in the application rail's footer now, photographed by chrome-app-rail.png. Nothing renders this image any more: design/packages/site/src/content/captures.ts used to show it in the site's gallery of committed captures, titled `The shell buttons` as though a reader could still go and press them, and that entry has been retired in favour of chrome-app-rail.png. The file itself is kept rather than deleted, and this group is where it is accounted for: it is the only picture of the control stack the rewrite removed, which makes it evidence for a claim the README and the site both make, and a photograph does not stop being true when its subject stops existing. What it must never be again is a tile in a gallery of what this application looks like. notifications-corner.png and notifications-toast.png: both photograph a message anchored to the bottom right corner of the window, and both were joined by this pass rather than found here already - real files with real captions, but both captions say \"MATERIAL_BLUEMAP_CAPTURE_MAP was not set\", the pre-rebrand alias for today's `WORLDLENS_CAPTURE_MAP` (see captureTarget.ts's own migrationEnvironment fallback), which is the harness's own tell that these were written by a version of itself that predates the current one. design/packages/ui/src has since moved the notification surface: NotificationPanel.vue is anchored to the rail bell rather than floating in a corner - its own doc comment in changelogData.generated.ts says so directly, \"it is anchored to the rail bell, and nothing opens it except a person pressing that bell\" - and notifications-rail-bell.png and notifications-history.png in app-playwright-manifest are the current pictures of that arrangement. Nothing in the current harness produces notifications-corner.png or notifications-toast.png any more: neither filename appears anywhere in screenshots.spec.ts, and neither is in docs/screenshots/manifest.json's captures. Both files are kept rather than deleted for the same reason chrome-shell-buttons.png is: each is the only picture of a control nobody can reach any more. What was not fixed in this pass, and is flagged here rather than silently left: design/packages/site/src/content/captures.ts and README.md both still present notifications-toast.png and notifications-corner.png as tiles in the current gallery, titled as though the corner arrangement they show is still how the application looks - the same mistake chrome-shell-buttons.png's own entry in captures.ts was already corrected out of in favour of chrome-app-rail.png. Retiring those two gallery entries in favour of the rail-bell captures is real work outside this file's ownership."
+      "notGradedBecause": "retired surfaces are refreshed from commit 485e65987b21d6e453d16fb15a665ba750487756 and remain historical evidence; current-interface staleness is proved by the rail and rail-bell captures instead"
     }
   ]
 }

@@ -1,13 +1,14 @@
 /**
  * Screenshot harness.
  *
- * Captures the real built app through Playwright's Electron driver, so every image is the
- * actual shipped artifact rather than a mockup, a design file, or a hand-edited picture.
+ * Captures the real built app through Playwright attached over CDP to the one app cheap
+ * Lowlevel launched on an off-screen Win32 desktop, so every image is the actual shipped
+ * artifact rather than a mockup, a design file, or a hand-edited picture.
  * This is the only sanctioned way to produce a capture for an issue comment or a release:
  * if a surface cannot be captured here, the honest report is that it has no capture yet.
  *
- * Runs in CI under xvfb. Output lands in `screenshots/` and is uploaded as a build
- * artifact.
+ * Runs only after Worldlens has been launched through the cheap Lowlevel hidden-desktop
+ * route. Output lands in `screenshots/`; the caller may publish that directory as evidence.
  *
  * ## The map is local, and the harness cannot reach the internet
  *
@@ -16,7 +17,7 @@
  * It now serves its own map over loopback - a world `packages/worldgen` generated and
  * upstream's BlueMap engine rendered, both in the same CI run - and a network guard
  * refuses and records anything that is not loopback, so the old behaviour cannot come
- * back by accident. See `captureTarget.ts` and `networkGuard.ts`.
+ * back by accident. See `captureTarget.ts` and the CDP route installed in `beforeAll`.
  *
  * ## Every capture is captioned
  *
@@ -97,24 +98,24 @@
  * rest of the suite.
  */
 
-import {
-    test,
-    expect,
-    _electron as electron,
-    type ElectronApplication,
-    type Locator,
-    type Page,
-} from "@playwright/test";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { test, expect, chromium, type Browser, type Locator, type Page } from "@playwright/test";
+import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { COLOR_SCHEMES, DARK_SCHEME, LIGHT_SCHEME, type SchemeName } from "@worldlens/shared";
+import {
+    COLOR_SCHEMES,
+    CONTRAST_SCHEME,
+    DARK_SCHEME,
+    LIGHT_SCHEME,
+    type SchemeName,
+} from "@worldlens/shared";
 import { migrationEnvironment, resolveCaptureTarget } from "./captureTarget.js";
 import type { CaptureTarget } from "./captureTarget.js";
+import { CAPTURE_MATRIX, validateCaptureMatrix } from "./captureMatrix.js";
 import {
     appendLedger,
     coverageVerdict,
@@ -122,12 +123,6 @@ import {
     resetLedger,
     type RequiredSurface,
 } from "./captureLedger.js";
-import {
-    describeViolation,
-    installNetworkGuard,
-    networkGuardInstalled,
-    networkViolations,
-} from "./networkGuard.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, "..");
@@ -231,10 +226,12 @@ const SURFACE_TIMEOUT = 300_000;
 /** How long to wait for one element. Short enough that a wrong selector is not a hang. */
 const ELEMENT_TIMEOUT = 45_000;
 
-let app: ElectronApplication;
+let browser: Browser;
 let page: Page;
 let target: CaptureTarget;
 let mapDrew = false;
+let rendererNetworkGuardInstalled = false;
+const rendererNetworkViolations: string[] = [];
 
 /** What the map area of the window holds while a capture is being taken. */
 type MapArea =
@@ -275,6 +272,29 @@ let mapArea: MapArea = "map";
  * the rest of the argument, including why it is JSON Lines rather than one document.
  */
 const LEDGER = join(shotDir, "capture-ledger.jsonl");
+
+const CAPTURE_BY_NAME = new Map(CAPTURE_MATRIX.map((entry) => [entry.name, entry]));
+const CAPTURE_COMMIT = process.env.WORLDLENS_CAPTURE_COMMIT ?? process.env.GITHUB_SHA ?? "";
+
+function resolvedCaptureMetadata(name: string) {
+    const entry = CAPTURE_BY_NAME.get(name);
+    if (entry === undefined) throw new Error(`capture '${name}' is absent from captureMatrix.ts`);
+    if (entry.classification !== "required" || entry.file === null) {
+        throw new Error(`capture '${name}' is classified as a soft skip and cannot write an image`);
+    }
+    if (entry.file !== `${name}.png`) {
+        throw new Error(`capture '${name}' is contracted to write ${entry.file}`);
+    }
+    return {
+        alt: entry.alt,
+        category: entry.category,
+        theme: entry.theme,
+        viewport: entry.viewport,
+        state: entry.state,
+        expectedSurface: entry.expectedSurface,
+        commit: CAPTURE_COMMIT,
+    };
+}
 
 /**
  * A PNG of a single flat colour compresses to almost nothing. The map canvas starting out
@@ -583,6 +603,7 @@ async function parkPointer(): Promise<void> {
 async function shoot(name: string, surface: string, options: ShotOptions = {}): Promise<void> {
     await mkdir(shotDir, { recursive: true });
     await parkPointer();
+    const metadata = resolvedCaptureMetadata(name);
 
     const previousArea = mapArea;
     if (options.mapArea !== undefined) mapArea = options.mapArea;
@@ -616,6 +637,7 @@ async function shoot(name: string, surface: string, options: ShotOptions = {}): 
         file: `${name}.png`,
         surface,
         caption,
+        ...metadata,
         capturedAt: new Date().toISOString(),
     });
 
@@ -790,7 +812,10 @@ async function pointAppAtCaptureTarget(): Promise<void> {
 async function pointAppAtNoMap(): Promise<void> {
     await page.evaluate(
         (seed: { profileKey: string; kidModeKey: string }) => {
-            window.localStorage.setItem(seed.profileKey, JSON.stringify({ profiles: [], activeId: null }));
+            window.localStorage.setItem(
+                seed.profileKey,
+                JSON.stringify({ profiles: [], activeId: null }),
+            );
             window.localStorage.setItem(seed.kidModeKey, "false");
             window.location.hash = "";
         },
@@ -1034,6 +1059,51 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
     }
     await item.click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForTimeout(400);
+}
+
+const CONVERTER_STEP_IDS = [
+    "chunker-step-source",
+    "chunker-step-target",
+    "chunker-step-trim",
+    "chunker-step-blocks",
+    "chunker-step-settings",
+    "chunker-step-review",
+    "chunker-step-run",
+] as const;
+
+type ConverterStepId = (typeof CONVERTER_STEP_IDS)[number];
+
+/**
+ * Opens Convert and walks its own Back/Next controls to one exact step.
+ *
+ * Each capture is isolated in `attempt()`. A failed earlier capture must not leave every later
+ * one on the wrong step, so this reads the step currently rendered and moves from there rather
+ * than assuming the previous capture completed.
+ */
+async function openConverterStep(targetStep: ConverterStepId): Promise<Locator> {
+    await openJob("chunker", /^Convert$/i, "Convert");
+    const chunker = page.locator('[data-test="chunker-screen"]');
+    await chunker.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    const targetIndex = CONVERTER_STEP_IDS.indexOf(targetStep);
+
+    for (let guard = 0; guard < CONVERTER_STEP_IDS.length + 1; guard += 1) {
+        const current = await chunker
+            .locator('section[data-test^="chunker-step-"]:visible')
+            .first()
+            .getAttribute("data-test");
+        const currentIndex = CONVERTER_STEP_IDS.indexOf(current as ConverterStepId);
+        if (current === targetStep) return chunker;
+        if (currentIndex < 0)
+            throw new Error(`Convert exposed an unknown step: ${String(current)}`);
+
+        const direction = currentIndex < targetIndex ? "Next" : "Back";
+        await chunker
+            .locator(".mb-chunker-nav .v-btn", { hasText: direction })
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(150);
+    }
+
+    throw new Error(`Convert did not reach ${targetStep}`);
 }
 
 /** Presses Escape and lets the closing transition finish. */
@@ -1594,59 +1664,70 @@ test.beforeAll(async () => {
      * marked "housekeeping".
      */
     if (test.info().workerIndex === 0) resetLedger(LEDGER);
+    expect(validateCaptureMatrix(CAPTURE_MATRIX), "captureMatrix.ts is incomplete").toEqual([]);
+    expect(
+        CAPTURE_COMMIT,
+        "WORLDLENS_CAPTURE_COMMIT must be the exact lowercase candidate commit",
+    ).toMatch(/^[0-9a-f]{40}$/u);
 
     target = await resolveCaptureTarget();
     console.log(`[harness] capture mode: ${target.mode}`);
     console.log(`[harness] caption: ${target.caption}`);
 
-    // A throwaway profile directory, so the first-run flow is genuinely a first run and
-    // whatever machine this is running on keeps its own settings.
-    const userData = await mkdtemp(join(tmpdir(), "worldlens-capture-"));
-    console.log(`[harness] user data: ${userData}`);
+    /*
+     * The app is already running on a named off-screen Win32 desktop. This harness never
+     * launches it: `.claude/skills/run-worldlens/launch-headless.cmd` is invoked only through
+     * cheap Lowlevel's `launch_on_headless_desktop`, with a fresh profile and a task-scoped CDP
+     * port, then this process attaches to that exact hidden process.
+     *
+     * Failing closed on a missing port is deliberate. The old `_electron.launch()` fallback put
+     * a real window on the user's visible desktop, so a convenience fallback here would turn a
+     * capture command into a focus-stealing privacy defect.
+     */
+    const cdpPort = process.env.WORLDLENS_CDP_PORT;
+    if (cdpPort === undefined || !/^\d{2,5}$/u.test(cdpPort)) {
+        throw new Error(
+            "WORLDLENS_CDP_PORT is required. Launch Worldlens first through cheap Lowlevel " +
+                "launch_on_headless_desktop and the committed run-worldlens launcher; this " +
+                "harness will not open a visible fallback.",
+        );
+    }
 
-    // `--force-prefers-reduced-motion` is not cosmetic here, it is what makes the run
-    // deterministic. The interface animates deliberately now - pages arrive, tabs inside an
-    // expanding group fade in, disclosures open - and Playwright's `click()` waits for an
-    // element to be *stable* before it will press it. On a loaded CI runner that wait can
-    // outlast the timeout, and the failure reads as "the harness could not open Projects",
-    // which is a sentence about a screen that is working perfectly. It also stops captures
-    // catching a half-played frame, which is a photograph of nothing anybody's build
-    // actually looks like. The application honours the media query by removing every
-    // transition and animation, so this is the app's own supported path rather than a
-    // special mode invented for the harness.
-    app = await electron.launch({
-        args: [
-            appRoot,
-            "--no-sandbox",
-            "--disable-gpu",
-            "--force-prefers-reduced-motion",
-            `--user-data-dir=${userData}`,
-        ],
-        env: {
-            ...process.env,
-            // main/index.ts honours --user-data-dir only under this explicit capture
-            // seam. Production launches still pin storage to the immutable product
-            // identity; this throwaway run gets a genuine empty first-run profile.
-            WORLDLENS_SCREENSHOTS: "1",
-        },
-    });
-
-    // Before anything is pointed at a map. The app makes no outbound request until a
-    // server profile is active, and the only thing that activates one is
-    // `pointAppAtCaptureTarget` below, which runs after this.
-    await installNetworkGuard(app, target.allowedOrigins);
+    browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
+    const contexts = browser.contexts();
+    const pages = contexts.flatMap((context) => context.pages());
     expect(
-        await networkGuardInstalled(app),
-        "the offline guard did not install; refusing to capture unguarded",
-    ).toBe(true);
+        pages.length,
+        "the hidden Worldlens CDP endpoint must expose exactly one page target",
+    ).toBe(1);
+    page = pages[0]!;
 
-    // Surface what the renderer is actually doing. A blank window with a silent console is
-    // the hardest failure to diagnose from CI, and the whole point of this harness is to
-    // produce evidence rather than a timeout.
-    app.process().stdout?.on("data", (d) => process.stdout.write(`[main] ${d}`));
-    app.process().stderr?.on("data", (d) => process.stderr.write(`[main] ${d}`));
+    const windowUrl = new URL(page.url());
+    expect(
+        ["127.0.0.1", "localhost", "[::1]"],
+        "the sole CDP page target is not the hidden Worldlens loopback renderer",
+    ).toContain(windowUrl.hostname);
 
-    page = await app.firstWindow();
+    /*
+     * Refuse renderer requests beyond the app's own loopback origin and the explicitly selected
+     * capture target. The old ElectronApplication route installed the same rule through the main
+     * process; CDP owns this hidden renderer instead, so its route is the boundary available here.
+     */
+    const allowedOrigins = new Set([windowUrl.origin, ...target.allowedOrigins]);
+    await page.route("**/*", async (route) => {
+        const requestUrl = new URL(route.request().url());
+        if (
+            (requestUrl.protocol === "http:" || requestUrl.protocol === "https:") &&
+            !allowedOrigins.has(requestUrl.origin)
+        ) {
+            rendererNetworkViolations.push(`${route.request().method()} ${requestUrl.origin}`);
+            await route.abort("blockedbyclient");
+            return;
+        }
+        await route.continue();
+    });
+    rendererNetworkGuardInstalled = true;
+
     page.on("console", (msg) => console.log(`[renderer:${msg.type()}] ${msg.text()}`));
     page.on("pageerror", (err) => console.log(`[renderer:pageerror] ${err.message}`));
     page.on("requestfailed", (req) =>
@@ -1705,7 +1786,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-    await app?.close();
+    await browser?.close();
     await target?.close();
 });
 
@@ -1855,6 +1936,36 @@ test("captures the window's own chrome", async () => {
             { crop: rail, cropped: "the application rail" },
         );
     });
+
+    await attempt("Map empty state", async () => {
+        if (hasLoadedMap()) {
+            skip(
+                "Map empty state",
+                "this invocation loaded a real rendered map, so the empty Map state does not " +
+                    "exist; the paired no-map invocation captures it instead",
+            );
+            return;
+        }
+        await selectDestination("map");
+        const empty = page.locator(".mb-map-state");
+        await empty.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "map-empty-state",
+            "The Map destination with no profile selected: the honest no-map message and the direct route into Make a map",
+            { crop: empty, cropped: "the Map destination's empty state", mapArea: "unavailable" },
+        );
+    });
+
+    await attempt("Work destination", async () => {
+        await selectDestination("work");
+        const work = page.locator(".wl-work");
+        await work.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "work-destination",
+            "The complete Work destination: its browser-style job strip and the active real job surface beneath it",
+            { crop: work, cropped: "the Work destination", mapArea: "covered" },
+        );
+    });
 });
 
 /**
@@ -1956,7 +2067,7 @@ test("captures the Home destination and one of its catalogue pages", async () =>
         await page.waitForTimeout(400);
         await shoot(
             "home-screen",
-            "The landing screen the application opens on, above the catalogues: the weighted \"what would you like to do\" list, with its own search across everything Home can reach",
+            'The landing screen the application opens on, above the catalogues: the weighted "what would you like to do" list, with its own search across everything Home can reach',
             { crop: home, cropped: "the landing screen", mapArea: "covered" },
         );
     });
@@ -2266,7 +2377,7 @@ function surfaceTriple(scheme: SchemeName): string {
  * capture are actually painted from, so a wait that sees it change has seen the thing the
  * photograph is about to record.
  */
-async function chooseColourScheme(scheme: "dark" | "light"): Promise<void> {
+async function chooseColourScheme(scheme: SchemeName): Promise<void> {
     await openSettingsSection("display", "Display and ease of use");
 
     /*
@@ -2278,7 +2389,9 @@ async function chooseColourScheme(scheme: "dark" | "light"): Promise<void> {
      */
     const choices = page.locator(`${APP_SETTINGS} .mb-theme-row__toggle .v-btn`);
     await choices.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-    await choices.nth(scheme === "dark" ? 1 : 2).click({ timeout: ELEMENT_TIMEOUT });
+    await choices
+        .nth(scheme === "dark" ? 1 : scheme === "light" ? 2 : 3)
+        .click({ timeout: ELEMENT_TIMEOUT });
 
     // The settings panel covers the destination this capture is of, so it goes away before the
     // wait rather than after it - the scheme applies to the whole shell either way.
@@ -2362,7 +2475,7 @@ async function dominantRailColour(
     return winner;
 }
 
-test("captures both themes", async () => {
+test("captures light, dark and high-contrast themes", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
     /*
@@ -2394,7 +2507,7 @@ test("captures both themes", async () => {
 
     const painted = new Map<string, string>();
 
-    for (const scheme of ["light", "dark"] as const) {
+    for (const scheme of ["light", "dark", "contrast"] as const) {
         await chooseColourScheme(scheme);
         await shoot(`theme-${scheme}`, `The application shell in the ${scheme} theme`);
 
@@ -2424,8 +2537,16 @@ test("captures both themes", async () => {
         DARK_SCHEME.surface.toUpperCase(),
     );
     expect(
+        painted.get("contrast"),
+        "the high-contrast capture's rail is not the high-contrast scheme's surface",
+    ).toBe(CONTRAST_SCHEME.surface.toUpperCase());
+    expect(
         painted.get("light"),
         "the two colour-scheme captures are the same picture; the scheme reached nothing",
+    ).not.toBe(painted.get("dark"));
+    expect(
+        painted.get("contrast"),
+        "the high-contrast capture is the dark capture under a different filename",
     ).not.toBe(painted.get("dark"));
 
     // Left the way a fresh install opens, so every capture after this one is the shipped default
@@ -2489,7 +2610,7 @@ test("captures every page of the menu", async () => {
         await page.waitForTimeout(400);
         await shoot(
             "marker-studio",
-            "The marker studio, opened from the marker menu's own \"Make your own markers\" button: the panel that lets somebody add markers of their own, kept in a set separate from anything a server or a marker file supplies",
+            'The marker studio, opened from the marker menu\'s own "Make your own markers" button: the panel that lets somebody add markers of their own, kept in a set separate from anything a server or a marker file supplies',
         );
     });
 
@@ -2730,7 +2851,7 @@ async function openSettingsSurface(): Promise<void> {
  * anchor means just open it... no tab is switched, so whichever tab this surface last
  * remembered stays exactly where it was left" - deliberate app behaviour, a settings panel
  * that remembers where you were, not a bug. The "Settings sections" step below drives
- * through all six sections and leaves the last one (Language and tone) active when it
+ * through every registered section and leaves the last one (Diagnostics) active when it
  * finishes; a later step that reopens Settings with the bare FAB and assumes the Mojang
  * consent tab is showing - because that used to be the only tab there was, before every
  * section became its own lazily-mounted tab - reopens on whatever the previous test left
@@ -2803,6 +2924,19 @@ test("captures the settings surface and every section in it", async () => {
             { anchor: "world-folder", title: "World folder" },
             { anchor: "github-account", title: "GitHub account" },
             { anchor: "language-and-tone", title: "Language and tone" },
+            { anchor: "display", title: "Display and ease of use" },
+            { anchor: "kid-mode", title: "Kid Mode and Adult Mode" },
+            { anchor: "surface-placement", title: "Where the panels sit" },
+            { anchor: "render-memory", title: "Render memory" },
+            { anchor: "download-concurrency", title: "Download concurrency" },
+            { anchor: "notification-duration", title: "Notification duration" },
+            { anchor: "system-dependencies", title: "System dependencies" },
+            { anchor: "bluemap-engine", title: "BlueMap engine" },
+            { anchor: "updates", title: "Updates" },
+            { anchor: "vocabulary", title: "Personal vocabulary" },
+            { anchor: "app-logo", title: "App logo" },
+            { anchor: "history", title: "Version history" },
+            { anchor: "diagnostics", title: "Diagnostics" },
         ];
 
         await openSettingsSurface();
@@ -2853,6 +2987,16 @@ test("captures the settings surface and every section in it", async () => {
             "The regex builder anchored to the settings search, showing the pattern, the supported flags, the guided token palette and the live matches against the text on screen",
             { crop: page.locator(".mb-config-regex"), cropped: "the regex builder" },
         );
+        await page.locator(".mb-config-regex__pattern textarea").first().fill("(");
+        await page.locator('.mb-config-regex [role="alert"]').waitFor({
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await shoot(
+            "settings-regex-builder-invalid",
+            "The settings regex builder's real invalid-pattern state: the exact syntax problem and the honest zero-match result stay inside the anchored surface",
+            { crop: page.locator(".mb-config-regex"), cropped: "the regex builder" },
+        );
         await dismiss();
         await page.locator(`${APP_SETTINGS} .mb-settings__search input`).first().fill("");
         await page.waitForTimeout(400);
@@ -2896,6 +3040,19 @@ test("captures the settings surface and every section in it", async () => {
             "and the offline guard refuses every request that is not loopback; the signed-out " +
             "state of the account section is real and is the one captured",
     );
+
+    for (const surface of [
+        "Update banner while downloading",
+        "Update banner ready to restart",
+        "Update banner failure recovery",
+    ] as const) {
+        skip(
+            surface,
+            "the banner is driven by a real installed-build update feed and appears only after " +
+                "that external state occurs. The always-reachable Updates settings tab is captured " +
+                "with the exact status this build reports; no update IPC or feed response is mocked",
+        );
+    }
 
     await dismiss();
     await page.waitForTimeout(500);
@@ -3238,6 +3395,89 @@ test("captures the remaining first-class screens", async () => {
         );
     });
 
+    await attempt("Renders screen", async () => {
+        await openJob("renders", /^Renders(?: \(\d+\))?$/i, "Renders");
+        const renders = page.locator(".mb-renders");
+        await renders.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "renders-screen-empty",
+            "The Renders job in its real fresh-profile empty state, with its search, bulk controls and direct route back to Make a map",
+            { crop: renders, cropped: "the Renders job", mapArea: "covered" },
+        );
+    });
+
+    await attempt("World repository screen", async () => {
+        await openJob("worldrepo", /World repository/i, "World repository");
+        const worldRepository = page.locator(".mb-worldrepo");
+        await worldRepository.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "world-repository-screen",
+            "The World repository job with its guided world, account, owner and repository fields plus the honest fresh-profile blockers",
+            { crop: worldRepository, cropped: "the World repository job", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Local preview screen", async () => {
+        await openJob("preview", /Watch it live/i, "Watch it live");
+        const preview = page.locator(".mb-preview");
+        await preview.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "local-preview-screen",
+            "Watch it live, the local preview job, with its real no-render-yet state and the network disclosure before any server starts",
+            { crop: preview, cropped: "the local preview job", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Offline documentation index", async () => {
+        await openJob("docs", /^Docs$/i, "Docs");
+        const docs = page.locator(".mb-docs");
+        await docs.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "offline-docs-index",
+            "The complete offline documentation index bundled into the installed application, grouped by category with its local search",
+            { crop: docs, cropped: "the offline documentation browser", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Offline documentation search", async () => {
+        await openJob("docs", /^Docs$/i, "Docs");
+        const docs = page.locator(".mb-docs");
+        await docs.locator("input").first().fill("render");
+        const results = docs.locator(".mb-docs__results");
+        await results.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "offline-docs-search",
+            "The offline documentation browser filtered by real article titles and body text, with no network request",
+            { crop: docs, cropped: "the offline documentation browser", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Offline documentation article", async () => {
+        const docs = page.locator(".mb-docs");
+        const firstResult = docs.locator(".mb-docs__results .v-list-item").first();
+        await firstResult.click({ timeout: ELEMENT_TIMEOUT });
+        const article = docs.locator(".mb-docs__article");
+        await article.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "offline-docs-article",
+            "One bundled documentation article rendered as formatted, sanitized prose inside the application rather than raw Markdown",
+            { crop: docs, cropped: "the offline documentation browser", mapArea: "covered" },
+        );
+    });
+
+    skip(
+        "Memory console",
+        "the hand-written job registry marks this job unavailable unless the memory-console " +
+            "capability is present. This build does not expose that capability, so Work filters " +
+            "the tab out and no generic empty substitute is rendered",
+    );
+    skip(
+        "In-app capture gallery and search",
+        "the desktop capture gallery is tracked by open issue #76 and has no mounted application " +
+            "surface in this build. The documentation-site gallery is a separate built surface " +
+            "with its own capture route; this harness does not substitute that page for an app job",
+    );
+
     // Four screens that had a complete component and no page that rendered it, per App.vue's
     // own doc comment on the authenticator, the lock list and the recovery desk: "a full green
     // suite says nothing about it, because a component tested in isolation passes whether or
@@ -3254,6 +3494,35 @@ test("captures the remaining first-class screens", async () => {
             { crop: authenticator, cropped: "the authenticator screen", mapArea: "covered" },
         );
     });
+
+    await attempt("Authenticator registration chooser", async () => {
+        await openJob("authenticator", /^Authenticator$/i, "Authenticator");
+        const authenticator = page.locator('[data-test="authenticator-screen"]');
+        await authenticator
+            .locator('[data-test="authenticator-open-register"]')
+            .click({ timeout: ELEMENT_TIMEOUT });
+        const registration = authenticator.locator('[data-test="authenticator-register-card"]');
+        await registration.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "authenticator-registration",
+            "Authenticator registration before any secret is entered: the link and manual routes, the local-only fields, and the blocked registration action",
+            {
+                crop: registration,
+                cropped: "the Authenticator registration card",
+                mapArea: "covered",
+            },
+        );
+        await registration
+            .locator('[data-test="authenticator-register-cancel"]')
+            .click({ timeout: ELEMENT_TIMEOUT });
+    });
+
+    skip(
+        "Authenticator QR pairing and live code",
+        "that state exists only after a real TOTP secret is supplied; the capture harness never " +
+            "creates, stores, prints or photographs a secret or QR payload. The secret-free " +
+            "registration chooser is captured instead, and nothing is substituted for pairing",
+    );
 
     await attempt("Locks page", async () => {
         await openJob("locks", /^Locks$/i, "Locks");
@@ -3275,6 +3544,24 @@ test("captures the remaining first-class screens", async () => {
         await shoot(
             "support-tickets-screen",
             "The recovery desk, dressed as a support desk: a ticket form and the plain, unstyled line stating that nothing is ever sent anywhere",
+            { crop: support, cropped: "the Support Tickets screen", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Support Tickets local response", async () => {
+        await openJob("support", /Support Tickets/i, "Support Tickets");
+        const support = page.locator('[data-test="support-tickets"]');
+        await support
+            .locator('[data-test="support-description"] textarea')
+            .fill("I forgot the password for a toy lock on this computer.");
+        await support.locator('[data-test="support-submit"]').click({
+            timeout: ELEMENT_TIMEOUT,
+        });
+        const ticket = support.locator('[data-test="support-ticket"]').first();
+        await ticket.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "support-tickets-local-response",
+            "A locally created Support Ticket after submission: its local ticket number, fictional priority, triaged status, canned response and the exact application-data recovery route",
             { crop: support, cropped: "the Support Tickets screen", mapArea: "covered" },
         );
     });
@@ -3315,14 +3602,86 @@ test("captures the remaining first-class screens", async () => {
      * which means a change that emptied any one of them outright would have left this run green.
      */
     await attempt("Chunker page", async () => {
-        await openJob("chunker", /^Convert$/i, "Convert");
-        const chunker = page.locator('[data-test="chunker-screen"]');
-        await chunker.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        const chunker = await openConverterStep("chunker-step-source");
         await page.waitForTimeout(500);
         await shoot(
             "chunker-screen",
             "The world conversion screen, on its own tab in the Work destination: the source and destination fields and the four execution routes a conversion can be run through",
             { crop: chunker, cropped: "the conversion screen", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Converter target step", async () => {
+        const chunker = await openConverterStep("chunker-step-target");
+        const targetStep = chunker.locator('[data-test="chunker-step-target"]');
+        await targetStep.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "converter-target-step",
+            "Convert, target edition: the real edition, version, output-folder and execution-route controls",
+            { crop: chunker, cropped: "the Convert job", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Converter trim step", async () => {
+        const chunker = await openConverterStep("chunker-step-trim");
+        const trimStep = chunker.locator('[data-test="chunker-step-trim"]');
+        await trimStep.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "converter-trim-step",
+            "Convert, trim and dimensions: the boundary and dimension-mapping controls before any conversion runs",
+            { crop: chunker, cropped: "the Convert job", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Converter block-mapping step", async () => {
+        const chunker = await openConverterStep("chunker-step-blocks");
+        const blockStep = chunker.locator('[data-test="chunker-step-blocks"]');
+        await blockStep.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "converter-block-mapping-step",
+            "Convert, block mapping: the searchable override list and the explicit source-to-replacement editor",
+            { crop: chunker, cropped: "the Convert job", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Converter regex builder", async () => {
+        const chunker = await openConverterStep("chunker-step-blocks");
+        const blockStep = chunker.locator('[data-test="chunker-step-blocks"]');
+        await blockStep
+            .locator('[aria-label="Open the regex builder"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        const builder = page.locator(".mb-config-regex").first();
+        await builder.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await builder.locator(".mb-config-regex__pattern textarea").first().fill("stone|dirt");
+        await page.waitForTimeout(400);
+        await shoot(
+            "converter-regex-builder",
+            "The full regex builder anchored to Convert's block-mapping search, with a real pattern and live sample matches",
+            { crop: builder, cropped: "the converter regex builder", mapArea: "covered" },
+        );
+        await dismiss();
+    });
+
+    await attempt("Converter world-settings step", async () => {
+        const chunker = await openConverterStep("chunker-step-settings");
+        const settingsStep = chunker.locator('[data-test="chunker-step-settings"]');
+        await settingsStep.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "converter-world-settings-step",
+            "Convert, world settings: the name, seed, spawn coordinates and game-rule controls",
+            { crop: chunker, cropped: "the Convert job", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Converter review step", async () => {
+        const chunker = await openConverterStep("chunker-step-review");
+        const reviewStep = chunker.locator('[data-test="chunker-step-review"]');
+        await reviewStep.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "converter-review-step",
+            "Convert, review: the exact lossy consequences and the disabled start action before a valid source and destination are supplied",
+            { crop: chunker, cropped: "the Convert job", mapArea: "covered" },
         );
     });
 
@@ -3341,6 +3700,86 @@ test("captures the remaining first-class screens", async () => {
         );
     });
 
+    await attempt("Ollama runtime recovery", async () => {
+        await openJob("ollama", /^Ollama$/i, "Ollama");
+        const runtime = page.locator('[data-test="ollama-runtime-alert"]');
+        await runtime.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "ollama-runtime-recovery",
+            "Ollama's missing-or-stopped runtime recovery surface, naming the detected state and the exact in-app recheck route",
+            { crop: runtime, cropped: "the Ollama runtime recovery alert", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Ollama Model Store", async () => {
+        await openJob("ollama", /^Ollama$/i, "Ollama");
+        const store = page.locator('section[aria-labelledby="ollama-store-heading"]');
+        await store.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "ollama-model-store",
+            "The Ollama Model Store with its model-and-tag search, installed and hardware-fit filters, refresh state and honest no-runtime controls",
+            { crop: store, cropped: "the Ollama Model Store", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Ollama Model Store regex builder", async () => {
+        const store = page.locator('section[aria-labelledby="ollama-store-heading"]');
+        await store
+            .locator('[aria-label="Open the regex builder"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        const builder = page.locator(".mb-config-regex").first();
+        await builder.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await builder.locator(".mb-config-regex__pattern textarea").first().fill("llama|gemma");
+        await shoot(
+            "ollama-model-store-regex-builder",
+            "The full regex builder anchored to the Ollama Model Store's exhaustive model-and-tag search",
+            { crop: builder, cropped: "the Model Store regex builder", mapArea: "covered" },
+        );
+        await dismiss();
+    });
+
+    await attempt("Ollama pull cart", async () => {
+        const cart = page.locator('section[aria-labelledby="ollama-cart-heading"]');
+        await cart.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "ollama-pull-cart",
+            "The Ollama pull cart in its honest empty state, stating plainly that it is a local download queue with no price, checkout, account or payment",
+            { crop: cart, cropped: "the Ollama pull cart", mapArea: "covered" },
+        );
+    });
+
+    await attempt("Ollama chat", async () => {
+        const chat = page.locator('section[aria-labelledby="ollama-chat-heading"]');
+        await chat.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "ollama-chat-disabled",
+            "Ollama chat with its session search, prompt and model controls visible but honestly disabled until a local runtime is ready",
+            { crop: chat, cropped: "the Ollama chat surface", mapArea: "covered" },
+        );
+    });
+
+    for (const [surface, reason] of [
+        [
+            "Ollama ready runtime and exhaustive live catalogue",
+            "it requires a real local Ollama daemon plus the official catalogue refresh; this capture profile has no daemon and nothing was fabricated",
+        ],
+        [
+            "Ollama active pull queue",
+            "it requires a real model transfer and enough storage; the harness does not download a model merely to manufacture progress",
+        ],
+        [
+            "Ollama streaming chat",
+            "it requires a real installed model and local runtime; the disabled real chat surface is captured and no fake response is substituted",
+        ],
+        [
+            "Ollama harness preflight and rollback",
+            "it requires an explicitly registered executable profile and a real launch/health failure; the capture harness does not register or run an arbitrary program",
+        ],
+    ] as const) {
+        skip(surface, reason);
+    }
+
     await attempt("Browser extension downloads page", async () => {
         await openJob("browserExtension", /Browser downloads/i, "Browser downloads");
         const extension = page.locator('[data-test="browser-extension-screen"]');
@@ -3349,9 +3788,27 @@ test("captures the remaining first-class screens", async () => {
         await shoot(
             "browser-extension-screen",
             "The browser-extension downloads screen, with its honest empty state on a throwaway profile where the extension has never handed a download over",
-            { crop: extension, cropped: "the browser extension downloads screen", mapArea: "covered" },
+            {
+                crop: extension,
+                cropped: "the browser extension downloads screen",
+                mapArea: "covered",
+            },
         );
     });
+
+    for (const surface of [
+        "Browser extension Start download dialog",
+        "Browser extension Downloading dialog",
+        "Browser extension Download complete notice",
+    ] as const) {
+        skip(
+            surface,
+            "this state must begin at a real installed browser extension and operate a real " +
+                "transfer through the desktop bridge. This build exposes no extension bridge in " +
+                "the capture profile, so the empty/no-host page is captured and no DOM injection, " +
+                "mocked IPC or simulated progress is substituted",
+        );
+    }
 
     /*
      * The remote hosting panel, which is deliberately not a required surface.
@@ -3535,7 +3992,6 @@ test("captures the rail bell and its notification history", async () => {
         await dismiss();
         await expect(pressedBell).toHaveAttribute("aria-expanded", "false");
     });
-
 });
 
 /* -------------------------------------------------------------------------- */
@@ -3674,6 +4130,32 @@ test("captures the tab strip, its context menu, the tab finder and the bulk-clos
 /* The appearance editor: its context menu, typography and the colour picker  */
 /* -------------------------------------------------------------------------- */
 
+test("captures the per-element lock wizard without creating a credential", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+    await ensureOptionsEditorClosed();
+
+    await attempt("Per-element lock wizard", async () => {
+        const titleBarTarget = page.locator(".mb-appearance-target:has(.mb-titlebar)").first();
+        await titleBarTarget.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await titleBarTarget.click({ button: "right", timeout: ELEMENT_TIMEOUT });
+        const menu = page.locator(".mb-appearance-target__menu").first();
+        await menu.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await menu
+            .locator(".v-list-item", { hasText: "Lock this element" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+
+        const wizard = page.locator('[data-test="lock-wizard"]');
+        await wizard.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "lock-wizard",
+            "The anchored per-element lock wizard for the application title bar: password or authenticator choice, one credential for this element, unlock duration, toy-lock disclosure and recovery route",
+            { crop: wizard, cropped: "the per-element lock wizard", mapArea: "covered" },
+        );
+        await wizard.locator('[data-test="lock-cancel"]').click({ timeout: ELEMENT_TIMEOUT });
+    });
+});
+
 test("captures the appearance editor, its context menu, typography and the infinite colour picker", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
     await ensureOptionsEditorClosed();
@@ -3788,9 +4270,27 @@ test("captures the appearance editor, its context menu, typography and the infin
         await dismiss();
     });
 
-    // Two presses: the first closes the colour picker popover, the second closes the
-    // appearance editor itself and returns focus to the tab that opened it.
-    await dismiss();
+    await attempt("Appearance editor presets tab", async () => {
+        if (!(await visible(".mb-appearance-editor"))) {
+            skip(
+                "Appearance editor presets tab",
+                "the appearance editor did not open in this run, so its Presets tab was never on screen",
+            );
+            return;
+        }
+        await page
+            .locator(".mb-appearance-editor .v-tab", { hasText: "Presets" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "appearance-presets",
+            "The appearance editor's Presets tab: shipped themes, user presets, import and export, and the reset route for the exact element being edited",
+            { crop: page.locator(".mb-appearance-editor"), cropped: "the appearance editor" },
+        );
+    });
+
+    // Closes the appearance editor itself and returns focus to the tab that opened it.
     await dismiss();
 
     await page.setViewportSize(SURFACE_VIEWPORT);
@@ -4006,6 +4506,7 @@ test("captures the make-a-map wizard at every step", async () => {
                 file: `${compactName}.png`,
                 surface: compactSurface,
                 caption: compactCaption,
+                ...resolvedCaptureMetadata(compactName),
                 // Missing here before `LedgerCapture.capturedAt` existed as a declared field -
                 // this is the one other place in the file that appends a capture entry by hand
                 // instead of going through `shoot()`, and it had silently gone without the
@@ -4433,7 +4934,8 @@ test("captures Kid Mode", async () => {
 
     skip(
         "Kid Mode theme variants (light/dark/contrast)",
-        KID_THEME_NOTE + " Not a harness limitation: there is genuinely nothing else to capture " +
+        KID_THEME_NOTE +
+            " Not a harness limitation: there is genuinely nothing else to capture " +
             "here, and the note on the 'Kid Home' capture above says the same thing at the point a " +
             "reader is most likely to be asking why no kid-theme-* pair sits beside " +
             "theme-light.png/theme-dark.png",
@@ -4523,16 +5025,45 @@ test("captures Kid Mode", async () => {
         readonly shipped: string;
         readonly surface: string;
     }[] = [
-        { index: 1, slug: "maps", label: "Your maps", shipped: "Your maps", surface: "Kid catalogue: Your maps" },
-        { index: 2, slug: "share", label: "Show people", shipped: "Share a map", surface: "Kid catalogue: Show people" },
-        { index: 3, slug: "copy", label: "Keep it safe", shipped: "Keep a copy", surface: "Kid catalogue: Keep it safe" },
-        { index: 4, slug: "setup", label: "Buttons & help", shipped: "Set up & help", surface: "Kid catalogue: Buttons & help" },
+        {
+            index: 1,
+            slug: "maps",
+            label: "Your maps",
+            shipped: "Your maps",
+            surface: "Kid catalogue: Your maps",
+        },
+        {
+            index: 2,
+            slug: "share",
+            label: "Show people",
+            shipped: "Share a map",
+            surface: "Kid catalogue: Show people",
+        },
+        {
+            index: 3,
+            slug: "copy",
+            label: "Keep it safe",
+            shipped: "Keep a copy",
+            surface: "Kid catalogue: Keep it safe",
+        },
+        {
+            index: 4,
+            slug: "setup",
+            label: "Buttons & help",
+            shipped: "Set up & help",
+            surface: "Kid catalogue: Buttons & help",
+        },
     ];
     for (const land of REMAINING_KID_CATALOGUES) {
         await attempt(land.surface, async () => {
             await page.locator(".wl-kid-rail__big").first().click({ timeout: ELEMENT_TIMEOUT });
-            await page.locator(".wl-kid-home").waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-            await page.locator(".wl-kid-home__land").nth(land.index).click({ timeout: ELEMENT_TIMEOUT });
+            await page
+                .locator(".wl-kid-home")
+                .waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+            await page
+                .locator(".wl-kid-home__land")
+                .nth(land.index)
+                .click({ timeout: ELEMENT_TIMEOUT });
             const catalogue = page.locator(".wl-kid-cat");
             await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
             await page.waitForTimeout(400);
@@ -4549,7 +5080,10 @@ test("captures Kid Mode", async () => {
     }
 
     await attempt("Kid Explore view", async () => {
-        await page.locator(".wl-kid-rail__big", { hasText: "Explore" }).first().click({ timeout: ELEMENT_TIMEOUT });
+        await page
+            .locator(".wl-kid-rail__big", { hasText: "Explore" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
         const mapView = page.locator(".wl-kid__map");
         await mapView.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(600);
@@ -4568,7 +5102,10 @@ test("captures Kid Mode", async () => {
     });
 
     await attempt("Kid Find (command palette)", async () => {
-        await page.locator('[aria-label="Find anything"]').first().click({ timeout: ELEMENT_TIMEOUT });
+        await page
+            .locator('[aria-label="Find anything"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-palette", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(400);
         await shoot(
@@ -4613,7 +5150,10 @@ test("captures Kid Mode", async () => {
             .locator('.wl-kid-cat__search [aria-label="Open the regex builder"]')
             .first()
             .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".mb-config-regex", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-config-regex", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
         await page.locator(".mb-config-regex__pattern textarea").first().fill("world|render");
         await page.waitForTimeout(700);
         await shoot(
@@ -4623,7 +5163,11 @@ test("captures Kid Mode", async () => {
                 "search already proves above, reused rather than hand-rolled per KidCataloguePage.vue's own doc " +
                 "comment: the pattern, the supported flags, the guided token palette and the live matches " +
                 "against this catalogue's own rows",
-            { crop: page.locator(".mb-config-regex"), cropped: "the regex builder", mapArea: kidMapArea() },
+            {
+                crop: page.locator(".mb-config-regex"),
+                cropped: "the regex builder",
+                mapArea: kidMapArea(),
+            },
         );
         await dismiss();
     });
@@ -4692,7 +5236,7 @@ test("captures Kid Mode", async () => {
         await shoot(
             "kid-catalogue-yue",
             "The first Kid catalogue in Cantonese, reached by the same position-based land click the " +
-                'five-catalogue captures above use rather than an English-text selector - the language mode is ' +
+                "five-catalogue captures above use rather than an English-text selector - the language mode is " +
                 'still seeded to "yue" from the Kid Home capture immediately above this one, since neither this ' +
                 "step nor the click that opened this page reloaded the page in between. Only the rail, the " +
                 "level badge and the search field's own placeholder are actually Cantonese in this picture: the " +
@@ -4880,7 +5424,10 @@ test("captures Kid Mode", async () => {
         await page.reload({ waitUntil: "domcontentloaded" });
         await page.waitForSelector("#app", { timeout: 30_000 });
         await page.waitForSelector(".wl-kid", { state: "visible", timeout: ELEMENT_TIMEOUT });
-        await page.locator(".wl-kid-rail__big", { hasText: "Stickers" }).first().click({ timeout: ELEMENT_TIMEOUT });
+        await page
+            .locator(".wl-kid-rail__big", { hasText: "Stickers" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
         const stickers = page.locator(".wl-kid-stickers");
         await stickers.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(400);
@@ -4908,9 +5455,12 @@ test("captures Kid Mode", async () => {
     // planted state with no effect on anything this file captures after this point, but cleared
     // anyway - the same "leave it the way a fresh install found it" discipline the compact-viewport
     // capture above already states for the profile and location hash it restores.
-    await page.evaluate((keys: readonly string[]) => {
-        for (const key of keys) window.localStorage.removeItem(key);
-    }, [LANGUAGE_MODE_KEY, LANGUAGE_FUNNY_EN_KEY, LANGUAGE_FUNNY_YUE_KEY, KID_PROGRESS_LEDGER_KEY]);
+    await page.evaluate(
+        (keys: readonly string[]) => {
+            for (const key of keys) window.localStorage.removeItem(key);
+        },
+        [LANGUAGE_MODE_KEY, LANGUAGE_FUNNY_EN_KEY, LANGUAGE_FUNNY_YUE_KEY, KID_PROGRESS_LEDGER_KEY],
+    );
 
     // Left the way a fresh install opens, so nothing after this point - including the closing
     // guarantee tests below - has to guess which shell is on screen. This also restores the real
@@ -4932,11 +5482,11 @@ test("captures Kid Mode", async () => {
  * bandwidth again.
  */
 test("reached nothing but the machine it ran on", async () => {
-    expect(await networkGuardInstalled(app), "the offline guard was not installed").toBe(true);
-
-    const violations = await networkViolations(app);
+    expect(rendererNetworkGuardInstalled, "the renderer offline guard was not installed").toBe(
+        true,
+    );
     expect(
-        violations.map(describeViolation),
+        rendererNetworkViolations,
         "the capture tried to reach the network; see captureTarget.ts and issue #17",
     ).toEqual([]);
 });
@@ -4954,8 +5504,8 @@ test("records what was captured", async () => {
     // comment can tell which build and which surface an image came from.
     const manifest = {
         capturedBy: "design/packages/app/test/screenshots.spec.ts",
-        method: "Playwright _electron against the packaged app entry point",
-        commit: process.env.GITHUB_SHA ?? "(local run)",
+        method: "Playwright CDP attached to the exact Worldlens process launched on a cheap Lowlevel hidden desktop",
+        commit: CAPTURE_COMMIT,
         run: process.env.GITHUB_RUN_ID ?? "(local run)",
         captureMode: target.mode,
         mapSource:
@@ -4972,7 +5522,7 @@ test("records what was captured", async () => {
             target.mode === "remote"
                 ? `loopback plus ${target.allowedOrigins.join(", ")}`
                 : "loopback only; every other host is refused and recorded",
-        networkViolations: await networkViolations(app),
+        networkViolations: rendererNetworkViolations,
         viewports: VIEWPORTS.map((v) => v.name),
         compactPhoneViewports: COMPACT_PHONE_VIEWPORTS.map((v) => ({
             name: v.name,
@@ -4985,6 +5535,16 @@ test("records what was captured", async () => {
         caption: target.caption,
         captures,
         skipped,
+        captureMatrix: CAPTURE_MATRIX.map((entry) => ({
+            ...entry,
+            commitProvenance: CAPTURE_COMMIT,
+        })),
+        captureMatrixSummary: {
+            total: CAPTURE_MATRIX.length,
+            required: CAPTURE_MATRIX.filter((entry) => entry.classification === "required").length,
+            softSkips: CAPTURE_MATRIX.filter((entry) => entry.classification === "soft-skip")
+                .length,
+        },
         note:
             "Every image is a capture of the real running app. None is a mockup or a design " +
             "file. Publish each one with its caption from captions.md: the caption is what " +
@@ -5007,7 +5567,7 @@ test("records what was captured", async () => {
         ...captures.flatMap((capture) => [
             `## ${capture.name}`,
             "",
-            `![${capture.surface}](${capture.file})`,
+            `![${capture.alt}](${capture.file})`,
             "",
             capture.caption,
             "",
@@ -5054,6 +5614,10 @@ test("records what was captured", async () => {
  * hole as a rule about well-formed records passing a record that was never written.
  */
 const REQUIRED_SURFACES: readonly RequiredSurface[] = [
+    { surface: "Settings drawer" },
+    { surface: "Settings sections" },
+    { surface: "Settings search" },
+    { surface: "Settings regex builder" },
     { surface: "Options editor" },
     { surface: "Options editor tabs" },
     { surface: "Options editor search" },
@@ -5090,6 +5654,7 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     // between them they are the whole of the shell's own navigation, which is precisely the part
     // that had been silently rewritten under a harness that could not see it.
     { surface: "Application rail" },
+    { surface: "Work destination" },
     { surface: "Home catalogues" },
     { surface: "Home catalogue page" },
     // Hand-written rather than made from COMPACT_PHONE_VIEWPORTS: a loop that accidentally stops
@@ -5123,8 +5688,10 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     // map for the obvious reason, and shares the precondition every other map surface carries.
     { surface: "Rendered map", needsLoadedMap: true },
     { surface: "Authenticator page" },
+    { surface: "Authenticator registration chooser" },
     { surface: "Locks page" },
     { surface: "Support Tickets page" },
+    { surface: "Support Tickets local response" },
     { surface: "Structures page" },
     { surface: "Drop-render zone" },
     { surface: "Personal vocabulary settings row" },
@@ -5141,8 +5708,25 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     // "Remote hosting panel" is deliberately absent. It renders only below a finished render,
     // which a capture profile has none of, so its attempt records an honest gap instead.
     { surface: "Chunker page" },
+    { surface: "Converter target step" },
+    { surface: "Converter trim step" },
+    { surface: "Converter block-mapping step" },
+    { surface: "Converter regex builder" },
+    { surface: "Converter world-settings step" },
+    { surface: "Converter review step" },
     { surface: "Ollama page" },
+    { surface: "Ollama runtime recovery" },
+    { surface: "Ollama Model Store" },
+    { surface: "Ollama Model Store regex builder" },
+    { surface: "Ollama pull cart" },
+    { surface: "Ollama chat" },
     { surface: "Browser extension downloads page" },
+    { surface: "Renders screen" },
+    { surface: "World repository screen" },
+    { surface: "Local preview screen" },
+    { surface: "Offline documentation index" },
+    { surface: "Offline documentation search" },
+    { surface: "Offline documentation article" },
     { surface: "Home screen" },
     { surface: "Notification duration settings row" },
     // A one-in-ten startup draw is not a surface a capture run can reach by waiting, so this
@@ -5150,6 +5734,8 @@ const REQUIRED_SURFACES: readonly RequiredSurface[] = [
     // `DimSumSurprise.vue`'s own doc comment and `DIMSUM_TEST_OVERRIDE_KEY` above for why that
     // is the honest route rather than a weakening of the real chance for anyone else.
     { surface: "Dim sum surprise" },
+    { surface: "Per-element lock wizard" },
+    { surface: "Appearance editor presets tab" },
     // Kid Mode ships on by default (kidMode.ts's own KEY_ENABLED flag) and had no capture of any
     // kind before the "Kid Mode" section above - every one of these needs nothing but the running
     // application, exactly like the surfaces above it. "Grown-up gate, credential configured" and

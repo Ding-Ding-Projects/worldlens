@@ -1,13 +1,7 @@
 #!/usr/bin/env node
 
-import {
-  copyFile,
-  mkdir,
-  readFile,
-  readdir,
-  writeFile,
-} from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
@@ -32,9 +26,9 @@ const run = option("--run");
 const primary = JSON.parse(
   await readFile(join(primaryRoot, "manifest.json"), "utf8"),
 );
-const supplementNames = (await readdir(supplementRoot))
-  .filter((name) => name.endsWith(".caption.txt"))
-  .sort((left, right) => left.localeCompare(right, "en"));
+const supplementManifest = JSON.parse(
+  await readFile(join(supplementRoot, "manifest.json"), "utf8"),
+);
 
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -48,37 +42,35 @@ async function validatePng(path) {
   }
 }
 
-const supplements = [];
-for (const captionName of supplementNames) {
-  const name = captionName.replace(/\.caption\.txt$/, "");
-  const file = `${name}.png`;
-  const caption = (
-    await readFile(join(supplementRoot, captionName), "utf8")
-  ).trim();
-  const marker = ". Real Electron app.";
-  const markerIndex = caption.indexOf(marker);
-  if (markerIndex < 1) {
-    throw new Error(
-      `${captionName}: caption does not contain the expected provenance marker`,
-    );
+const supplements = supplementManifest.captures;
+for (const capture of supplements) {
+  await validatePng(join(supplementRoot, capture.file));
+  for (const field of [
+    "name",
+    "file",
+    "surface",
+    "caption",
+    "capturedAt",
+    "alt",
+    "category",
+    "theme",
+    "viewport",
+    "state",
+    "expectedSurface",
+    "commit",
+  ]) {
+    if (typeof capture[field] !== "string" || capture[field].trim() === "") {
+      throw new Error(
+        `${capture.name ?? "unnamed supplement"}: missing ${field}`,
+      );
+    }
   }
-  await validatePng(join(supplementRoot, file));
-  supplements.push({
-    name,
-    file,
-    surface: caption.slice(0, markerIndex),
-    caption,
-  });
 }
 
 const supplementByName = new Map(
   supplements.map((capture) => [capture.name, capture]),
 );
-const firstRun = supplements.filter((capture) =>
-  capture.name.startsWith("firstrun-"),
-);
 const captures = [
-  ...firstRun,
   ...primary.captures.map(
     (capture) => supplementByName.get(capture.name) ?? capture,
   ),
@@ -100,7 +92,14 @@ if (duplicateNames.length > 0) {
 }
 
 const skipped = primary.skipped
-  .filter((gap) => !(gap.surface === "First-run setup" && firstRun.length > 0))
+  .filter(
+    (gap) =>
+      !supplements.some(
+        (capture) =>
+          capture.expectedSurface === gap.surface ||
+          capture.surface === gap.surface,
+      ),
+  )
   .map((gap) => ({
     surface: stripAnsi(gap.surface),
     reason: stripAnsi(gap.reason),
@@ -119,7 +118,7 @@ const manifest = {
       source: supplementRoot,
       captures: supplements.map((capture) => capture.file),
       reason:
-        "The full run proved every required surface; this targeted fresh-profile run supplied onboarding after its isolation seam was repaired.",
+        "The primary map run proved map-dependent states; the no-map supplement replaced shared captures from the same candidate and supplied states that only exist without a loaded map.",
     },
   ],
   note:
@@ -151,7 +150,7 @@ const lines = [
   ...captures.flatMap((capture) => [
     `## ${capture.name}`,
     "",
-    `![${capture.surface}](${capture.file})`,
+    `![${capture.alt}](${capture.file})`,
     "",
     capture.caption,
     "",

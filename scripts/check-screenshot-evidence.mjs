@@ -250,6 +250,54 @@ export function stalenessComplaints({ groups, actual }) {
   return complaints;
 }
 
+/**
+ * Historical images are refreshed from their exact old source, never exempted from refresh.
+ *
+ * Kept pure so removing one target mapping can be watched turning the Chut red without creating
+ * twenty historical checkouts. The main path additionally proves every recorded commit exists.
+ */
+export function historicalRecaptureComplaints(groups) {
+  const complaints = [];
+  for (const group of groups.filter(
+    (candidate) =>
+      candidate.reproducibility === "historical-exact-commit-hidden-desktop",
+  )) {
+    const commits = group.sourceCommits;
+    if (
+      typeof commits !== "object" ||
+      commits === null ||
+      Array.isArray(commits)
+    ) {
+      complaints.push(`${group.id}: sourceCommits is missing`);
+      continue;
+    }
+    for (const target of group.targets) {
+      const commit = commits[target];
+      if (typeof commit !== "string" || !/^[0-9a-f]{40}$/u.test(commit)) {
+        complaints.push(
+          `${group.id}: ${target} has no exact historical source commit`,
+        );
+      }
+    }
+    for (const target of Object.keys(commits)) {
+      if (!group.targets.includes(target)) {
+        complaints.push(
+          `${group.id}: sourceCommits names unexpected target ${target}`,
+        );
+      }
+    }
+    if (
+      !group.command.includes("cheap Lowlevel") ||
+      !group.command.includes("CDP")
+    ) {
+      complaints.push(
+        `${group.id}: historical recapture command is not the hidden Lowlevel/CDP route`,
+      );
+    }
+  }
+  return complaints;
+}
+
 function main() {
   const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -317,6 +365,29 @@ function main() {
       );
     }
   }
+
+  const historicalComplaints = historicalRecaptureComplaints(inventory.groups);
+  for (const group of inventory.groups.filter(
+    (candidate) =>
+      candidate.reproducibility === "historical-exact-commit-hidden-desktop",
+  )) {
+    for (const commit of Object.values(group.sourceCommits ?? {})) {
+      try {
+        execFileSync("git", ["cat-file", "-e", `${commit}^{commit}`], {
+          cwd: repoRoot,
+          stdio: "ignore",
+        });
+      } catch {
+        historicalComplaints.push(
+          `${group.id}: historical commit ${String(commit)} is unavailable`,
+        );
+      }
+    }
+  }
+  assertEmpty(
+    historicalComplaints,
+    "historical capture recapture contracts are incomplete",
+  );
 
   const listed = inventory.groups.flatMap((group) =>
     group.targets.map(normalise),
@@ -390,6 +461,31 @@ function main() {
     throw new Error(
       "walkthrough inventory must contain exactly one GIF and one PNG per action id",
     );
+  }
+  if (walkthrough.minimumFramesPerId !== 2) {
+    throw new Error(
+      "site-walkthrough-media must require at least two real frames per id",
+    );
+  }
+  const framePlanIds = Object.keys(walkthrough.framePlan ?? {});
+  assertEmpty(
+    difference([...walkthroughIds], framePlanIds),
+    "walkthrough outputs with no hidden-desktop frame plan",
+  );
+  assertEmpty(
+    difference(framePlanIds, [...walkthroughIds]),
+    "walkthrough frame plans with no output pair",
+  );
+  for (const [id, frames] of Object.entries(walkthrough.framePlan ?? {})) {
+    if (
+      !Array.isArray(frames) ||
+      frames.length < walkthrough.minimumFramesPerId ||
+      frames.some((frame) => typeof frame !== "string" || frame.trim() === "")
+    ) {
+      throw new Error(
+        `${id}: walkthrough frame plan needs at least two named real states`,
+      );
+    }
   }
 
   /*

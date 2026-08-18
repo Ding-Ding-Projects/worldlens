@@ -6,10 +6,34 @@ import { test } from "node:test";
 
 import {
   collectInterfaceSources,
+  historicalRecaptureComplaints,
   interfaceSourceDigest,
   shipsInInterface,
   stalenessComplaints,
 } from "./check-screenshot-evidence.mjs";
+
+test("historical recapture mapping turns red when one target loses its exact source commit", () => {
+  const group = {
+    id: "historical",
+    reproducibility: "historical-exact-commit-hidden-desktop",
+    command:
+      "Build the exact commit, then use cheap Lowlevel and one CDP target.",
+    targets: ["before.png", "retired.png"],
+    sourceCommits: {
+      "before.png": "0123456789abcdef0123456789abcdef01234567",
+      "retired.png": "89abcdef0123456789abcdef0123456789abcdef",
+    },
+  };
+  assert.deepEqual(historicalRecaptureComplaints([group]), []);
+
+  const broken = {
+    ...group,
+    sourceCommits: { "before.png": group.sourceCommits["before.png"] },
+  };
+  assert.deepEqual(historicalRecaptureComplaints([broken]), [
+    "historical: retired.png has no exact historical source commit",
+  ]);
+});
 
 /*
  * The failing direction of the staleness guard is otherwise reachable only by editing the

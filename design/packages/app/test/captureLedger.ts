@@ -45,6 +45,13 @@ export interface LedgerCapture {
     readonly file: string;
     readonly surface: string;
     readonly caption: string;
+    readonly alt: string;
+    readonly category: string;
+    readonly theme: string;
+    readonly viewport: string;
+    readonly state: string;
+    readonly expectedSurface: string;
+    readonly commit: string;
     /**
      * ISO-8601, recorded per capture rather than per run - see `shoot()`'s own doc comment on why
      * "how old is this picture" is answered per image instead of by one run-level timestamp that
