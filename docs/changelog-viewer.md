@@ -74,22 +74,18 @@ Regenerate after committing:
 node scripts/build-changelog.mjs
 ```
 
-Prove the committed outputs are current, which is what CI should run:
+Prove the committed outputs are current before pushing:
 
 ```
 node scripts/build-changelog.mjs --check
 ```
 
 `--check` compares both outputs against what the current history produces and exits non-zero with
-the file that is stale. The early workflow-security job runs it before any release can publish. It
-needs the full history: a default `actions/checkout` is a depth-1 clone, so that job uses
-`fetch-depth: 0`.
-
-Branch and pull-request CI run this assertion. A tag-triggered run skips only this one step because
-the tag is created after the commit it names: that commit cannot already contain generated output
-derived from its own future tag. Every other tag-run pre-publication build, test, rendering,
-workflow-security and packaging check still runs; the main-only publisher remains intentionally
-ineligible. The next branch generation incorporates the now-existing release tag.
+the file that is stale. It needs the full history. The current publication workflow does not run
+this command, so it is local pre-push evidence rather than a release condition; release notes link
+the exact committed file without claiming that the workflow proved it fresh. A release tag is
+created after the commit it names, and the next local generation incorporates that now-existing
+tag.
 
 ## Failure modes
 
@@ -205,21 +201,16 @@ Commit 之後重新生成：
 node scripts/build-changelog.mjs
 ```
 
-證明已 commit 嘅輸出係最新，呢句就係 CI 應該行嗰句：
+push 之前證明已 commit 嘅輸出係最新：
 
 ```
 node scripts/build-changelog.mjs --check
 ```
 
 `--check` 會將兩個輸出同當前歷史產生嘅結果比較，唔一致就以非零狀態退出，並指名邊個檔過時咗。
-前期嗰個 workflow-security job 會喺任何 release 發佈之前行佢。佢需要完整歷史：
-預設嘅 `actions/checkout` 係 depth-1 clone，所以嗰個 job 要用 `fetch-depth: 0`。
-
-branch 同 pull request CI 會照行呢個 assertion。tag 觸發嘅 run 淨係 skip 呢一步，因為個 tag
-係指住粒 commit 之後先出世：粒 commit 冇可能預知自己未來個 tag，再生成一份由嗰個 tag
-衍生嘅 output。tag run 其餘發佈前 build、test、render、workflow-security 同 packaging checks
-一步都唔少；本身限 `main` 嘅 publisher 刻意唔會行。下一次 branch generation 會收返嗰個
-已經存在嘅 release tag 入去。
+佢需要完整歷史。依家個 publication workflow 唔會行呢句,所以佢係本機 pre-push 證據,唔係
+release 條件;release notes 會 link 確切 commit 入面嗰份檔案,但唔會聲稱 workflow 驗過佢最新。
+release tag 喺目標 commit 之後先建立,下一次本機生成自然會將嗰個已存在嘅 tag 收返入去。
 
 ### 失敗模式
 

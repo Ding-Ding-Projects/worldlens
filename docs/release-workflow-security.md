@@ -78,13 +78,12 @@ The workflow defaults to `contents: read`; only the release job receives `conten
 checkout in every executable workflow sets `persist-credentials: false`, including the release
 checkout. The catalog
 API may use the configured token for rate limits, but the public asset download never receives it.
-The release job explicitly depends on the workflow-security job, so a failing root guard,
-actionlint run or `build-changelog.mjs --check` blocks publication. It also depends on build,
-typecheck, the full test suite, the real Java round trip, jar build, real test-world render and
-Windows packaging. A failure or skipped fatal dependency means no publish. Application lint runs
-independently as advisory evidence and is deliberately absent from the publisher's dependencies.
-Screenshot capture is also advisory diagnostic evidence with job-level `continue-on-error: true`,
-uploads available images and failure traces, and is deliberately absent from those dependencies.
+The release job depends only on the three jobs that produce what it publishes: Windows packaging,
+the seven BlueMap jars and the rendered test world. Build, typecheck, the full test suite and the
+real Java round trip report their exact attempted, skipped or failed outcomes without withholding
+those artifacts. Workflow lint/security, `build-changelog.mjs --check` and screenshot capture do
+not run in the current workflow; they are local pre-push checks and the release notes state that
+boundary instead of presenting them as publication evidence.
 Pushes on `main` nominate publication automatically; manual dispatch must explicitly retain its
 publish input. The serialized publisher checks existing published releases by exact commit SHA, so
 one intended commit is nominated at most once and an existing exact target is verified rather than
@@ -194,19 +193,15 @@ repository 七條可執行 workflow 入面全部 117 個 external action invocat
 
 所有可執行 workflow 都用明確、受支援嘅 hosted-runner label(`ubuntu-24.04` 或者 `windows-2022`);mutable 嘅 `*-latest`、self-hosted、由 expression derive 嘅同不明嘅 label,由 `cloudRunnerPolicy.test.ts` 入面人手寫嘅 job inventory 拒絕。
 
-workflow 預設 `contents: read`;只有 release job 攞到 `contents: write`。每條可執行 workflow 入面每個 checkout 都設 `persist-credentials: false`,包括 release checkout。catalog API 可以用設定咗嘅 token 換 rate limit,但公開 asset 下載永遠唔會收到 token。release job 明確依賴 workflow-security job,所以 root guard、actionlint run 或者 `build-changelog.mjs --check` fail 咗就 block 發佈。佢亦依賴 build、typecheck、完整 test suite、真嘅 Java round trip、jar build、真 test-world render 同 Windows packaging——任何一個 fail 或者 fatal dependency 被 skip 就冇得 publish。application lint 獨立行，只係 advisory 證據，而且刻意唔喺 publisher 嘅 dependencies 入面。screenshot capture 都係 advisory 嘅診斷證據,job 級 `continue-on-error: true`,上載有嘅圖同失敗 trace,而且刻意唔喺嗰啲 dependencies 入面。push 上 `main` 會自動提名發佈;manual dispatch 就要明確保留佢個 publish input。serialized 嘅 publisher 用確切 commit SHA 檢查已發佈嘅 release,所以一個目標 commit 最多被提名一次,已存在嘅確切 target 係被驗證而唔係再發佈一次。
+workflow 預設 `contents: read`;只有 release job 攞到 `contents: write`。每條可執行 workflow 入面每個 checkout 都設 `persist-credentials: false`,包括 release checkout。catalog API 可以用設定咗嘅 token 換 rate limit,但公開 asset 下載永遠唔會收到 token。release job 只依賴三個真係產生發佈內容嘅 job:Windows packaging、七個 BlueMap jars 同真 test-world render。build、typecheck、完整 test suite 同真 Java round trip 會照實報 attempted、skipped 或 failed 結果,但唔會扣住嗰三批 artifact。依家個 workflow 唔會行 workflow lint/security、`build-changelog.mjs --check` 或 screenshot capture;佢哋係本機 pre-push checks,release notes 會明講呢條界線,唔會扮成發佈證據。push 上 `main` 會自動提名發佈;manual dispatch 就要明確保留佢個 publish input。serialized 嘅 publisher 用確切 commit SHA 檢查已發佈嘅 release,所以一個目標 commit 最多被提名一次,已存在嘅確切 target 係被驗證而唔係再發佈一次。
 
-tag 觸發嘅 run 照樣行所有發佈前 workflow、build、test、Java、packaging 同 security proof，淨係
-**Verify generated changelog is current** 呢一步只會喺 `github.ref_type != 'tag'` 嗰陣行。
-release tag 係指住嗰粒 commit 之後先建立，所以要求粒 commit 預知自己未來個 tag 再寫返入
-changelog，時間線會打晒結。人手 workflow contract 會 pin 呢個 step 所屬嘅 job、condition 同
-確切 body，拒絕 fail-open metadata，仲會點齊所有 job 同 step condition；negative fixtures 會捉
-倒轉、放鬆、重複同搬位嘅 tag guard。branch 同 pull request run 仍然要兩份 generated output
-同完整歷史完全一致先可以發佈；本身只准 `main` 嘅 publisher 刻意唔會喺 tag ref 上面行。
+tag 觸發嘅 run 仍然冇資格行只准 `main` 嘅 publisher。依家個 workflow 喺任何 ref 都唔會行
+generated-changelog freshness command;要證明兩份 generated output 同當前歷史一致,仍然係本機
+行已 commit 嘅 command。release tag 喺目標 commit 之後先建立,下一次生成自然會將佢收返入去。
 
 ### 失敗情況
 
-- workflow-boundary 違規會喺早期嘅 **Lint the workflow files** job fail,去唔到 build 或者發佈。
+- workflow-boundary 違規由本機已 commit 嘅檢查報告;依家個 workflow 唔會行嗰套 lint/security 檢查。
 - catalog metadata 無效或者攞唔到,只 fail 可選嘅 dish-resolution step。release 照出,冇 code name 同公開相片 link,notes 會講明;佢永遠唔會生成、下載、複製、attach 或者用第二張相頂替。
 - Squirrel output 缺失、零 byte、舊、重複或者唔 match,喺 artifact upload 之前就停。
 - 下載返嚟嘅 release asset set 有缺、多、空、重複、size 唔 match 或者 digest 唔 match 嘅檔案,fail readback;target、tag、body 或者 draft 狀態錯,fail metadata readback。

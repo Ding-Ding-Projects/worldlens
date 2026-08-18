@@ -98,11 +98,10 @@ export const changelogViewer: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "Branch and pull-request CI run that assertion. A tag-triggered run skips only this ",
-                        "one check because the tag is created after the commit it names, so the commit cannot ",
-                        "already contain generated output derived from its own future tag. Every other tag-run ",
-                        "pre-publication build, test, rendering, workflow-security and packaging check still ",
-                        "runs; the main-only publisher remains intentionally ineligible.",
+                        "The current publication workflow does not run this command, so it is local pre-push ",
+                        "evidence rather than a release condition. Release notes link the exact committed file ",
+                        "without claiming the workflow proved it fresh. A release tag is created after its target ",
+                        "commit, and the next local generation incorporates that now-existing tag.",
                     ],
                 },
                 {
