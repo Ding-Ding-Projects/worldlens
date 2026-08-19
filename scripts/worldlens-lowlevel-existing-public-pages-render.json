@@ -33,6 +33,7 @@
   { "action": "sleep", "ms": 5000 },
   { "action": "clickUntilVisible", "selector": "[data-test='start']", "attempts": 40 },
   { "action": "waitTextNot", "selector": "[data-test='row']", "nth": 0, "text": "Run ended: failure", "timeout": 300000 },
+  { "action": "waitTextNot", "selector": "[data-test='row'] [data-test='run-label']", "nth": 0, "text": "No run yet", "timeout": 300000 },
   {
     "action": "screenshot",
     "name": "lowlevel-public-pages-render-retry",
