@@ -1999,6 +1999,27 @@ contract articles record the boundary and updated test inventory.
   than faking a screen with nothing on it. History, Projects, the CI-render screen and the
   EULA viewer are the four that now have real capture steps and are in `REQUIRED_SURFACES`.
 
+### Issue #58 — complete render-console history contract
+
+The render console's visible ring remains a bounded presentation surface; it must not be treated
+as the history store. The issue #58 implementation lane owns a versioned, render-id-keyed durable
+stream with incremental crash-safe appends, restore after navigation, reattach and app restart,
+and an explicit interruption annotation for incomplete runs. The dropped-line indicator therefore
+describes only what is outside the viewport. Complete retained history is searchable with plain
+text by default plus the adjacent bounded regex builder, and export preserves UTF-8, schema/version,
+render id, provenance, timestamps, levels, annotations and filter metadata in plain text, Markdown,
+JSON, JSONL, CSV, TSV and HTML. Selection-aware copy/export, bulk export, retention/pruning and
+destructive-confirmed deletion are separate operations; the visible cap never silently prunes
+history. Existing console redaction applies before durable storage/export, and the history remains
+local-only.
+
+The acceptance Chut is not satisfied by source or component tests alone. It requires recovery tests
+for partial writes, storage refusal, Unicode, zero-width regex, large logs, interrupted renders,
+restart/reattach and pruning/deletion, plus a genuine packaged run that restarts the app, reopens a
+completed render, and searches/exports a line outside the visible ring. Until those results are
+recorded against the landed commit, issue #58 remains open and the console's runtime capture gap
+above must not be relabelled as closed.
+
 ### The state of the automated checks, stated exactly
 
 **Superseded by the entry directly below this summary — read that first.** This subsection
