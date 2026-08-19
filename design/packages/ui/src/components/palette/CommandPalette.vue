@@ -214,6 +214,14 @@ const listRef = ref<HTMLElement | null>(null);
 /** Where focus was when the palette opened, so it can be put back where it came from. */
 let cameFrom: HTMLElement | null = null;
 
+function focusableOrigin(value: Element | null): HTMLElement | null {
+    if (!(value instanceof HTMLElement) || value === globalThis.document?.body) return null;
+    if (value.hasAttribute("disabled") || value.getAttribute("aria-disabled") === "true") return null;
+    const tabIndex = value.getAttribute("tabindex");
+    if (tabIndex !== null && Number(tabIndex) < 0) return null;
+    return value;
+}
+
 function searchInput(): HTMLInputElement | null {
     const element = searchRef.value?.$el as HTMLElement | undefined;
     return element?.querySelector("input") ?? null;
@@ -324,7 +332,7 @@ watch(
     (open) => {
         if (open) {
             const active = globalThis.document?.activeElement;
-            cameFrom = active instanceof HTMLElement ? active : null;
+            cameFrom = focusableOrigin(active);
             // A query left over from last time would hide most of the list from somebody who
             // has just pressed the shortcut and expects to see everything.
             query.value = "";
@@ -332,7 +340,14 @@ watch(
             return;
         }
         // Back where it came from, never to `<body>`, or the next keystroke goes nowhere.
-        cameFrom?.focus();
+        if (cameFrom !== null && document.contains(cameFrom)) cameFrom.focus();
+        else {
+            const fallback = document.getElementById("worldlens-main-content");
+            if (fallback instanceof HTMLElement) {
+                fallback.setAttribute("tabindex", "-1");
+                fallback.focus();
+            }
+        }
         cameFrom = null;
     },
 );

@@ -1,5 +1,19 @@
 # Roadmap
 
+## Issue #84 — remote-hosting navigation and wiring boundary (2026-08-19)
+
+- [ ] Integrate and verify the candidate dedicated browser-style `remoteHosting` tab and
+      `RemoteHostingScreen.vue` now present uncommitted in the issue-84 checkout. The existing
+      catalogue's `share.publishing.remote-hosting` entry currently reveals the Pages job rather
+      than proving a dedicated command-palette destination.
+- [ ] Supply real saved-target and completed-map pickers, then preserve publish, refresh, progress,
+      verification, stop, persistence, search/menu/inventory coverage, and focus-return behavior.
+- [ ] Verify publish/refresh/stop from the genuine packaged application against an isolated host
+      through the approved headless route, with real host evidence and captures.
+
+This records-only update ran no tests and took no captures. It records source navigation/wiring facts
+only; issue #84 remains open until the implementation and packaged isolated-host proof exist.
+
 ## Issue #86 — Docker world import against a real daemon
 
 The implementation and source documentation are present for daemon inventory, container and volume

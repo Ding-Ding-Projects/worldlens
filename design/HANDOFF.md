@@ -1,5 +1,17 @@
 # Handoff
 
+## Issue #84 — remote-hosting navigation and wiring records (2026-08-19)
+
+The main/preload `hosting:*` seam is present. A sibling lane has added an uncommitted candidate
+`remoteHosting` tab and `RemoteHostingScreen.vue` with saved-target and completed-render context;
+`WorldScreen.vue` still retains its conditional nested panel mount. The candidate is not tested,
+packaged, captured, or accepted evidence. The existing catalogue item `share.publishing.remote-hosting`
+reveals the Pages job, so a dedicated command-palette destination remains unproven.
+
+This records-only pass intentionally ran no tests and took no captures. No implementation, packaged
+runtime interaction, isolated-host publish/refresh/stop, merge, push, or cleanup was performed. Keep
+issue #84 open until the navigation work and genuine packaged isolated-host evidence are available.
+
 ## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
 
 Issue #85 remains open and `ported-unverified`. The required next evidence is a genuine packaged

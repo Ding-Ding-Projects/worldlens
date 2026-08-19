@@ -1,5 +1,19 @@
 # Handoff
 
+## Issue #84 — remote-hosting navigation and wiring records (2026-08-19)
+
+The main/preload `hosting:*` bridge is present, and the panel retains publish, refresh, verification,
+progress, and super-confirmed stop behavior. During this records pass, a sibling lane added an
+uncommitted candidate `RemoteHostingScreen.vue`/`remoteHosting` tab with saved-target and
+completed-render selection. That candidate is not tested, packaged, captured, or accepted evidence.
+The catalogue entry `share.publishing.remote-hosting` still targets the Pages job with
+`reveal: "remote-hosting"`, so a dedicated command-palette destination is not yet proven.
+
+This records-only lane intentionally ran no tests and took no captures. No implementation, packaged
+application interaction, isolated-host publish/refresh/stop, merge, push, or cleanup was performed.
+Issue #84 remains open until the navigation/wiring work and genuine packaged isolated-host proof are
+available.
+
 ## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
 
 This records-only pass preserves issue #85 as open and unverified. The three feature documents
