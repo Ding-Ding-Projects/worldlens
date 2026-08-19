@@ -503,6 +503,32 @@ async function executeAction(step) {
       }
       break;
     }
+    case "setCheckboxWhenFocused": {
+      if (!UI_ONLY)
+        throw new Error("setCheckboxWhenFocused is reserved for Lowlevel UI-only plans");
+      const target = locate(step);
+      const raw = step.valueEnv ? process.env[String(step.valueEnv)] : step.value;
+      const desired = raw === true || /^(?:1|true|yes|on)$/iu.test(String(raw ?? ""));
+      if ((await target.isChecked()) !== desired) {
+        const attempts = Number(step.attempts || 200);
+        let focused = false;
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+          focused = await target
+            .evaluate((element) => element === document.activeElement)
+            .catch(() => false);
+          if (focused) break;
+          await lowlevelPress("tab");
+        }
+        if (!focused)
+          throw new Error("setCheckboxWhenFocused exhausted its bounded Tab sequence");
+        await lowlevelPress("space");
+      }
+      if ((await target.isChecked()) !== desired)
+        throw new Error(
+          `setCheckboxWhenFocused did not reach ${desired ? "checked" : "unchecked"}`,
+        );
+      break;
+    }
     case "clickPoint":
       if (!UI_ONLY)
         throw new Error("clickPoint is reserved for Lowlevel UI-only plans");

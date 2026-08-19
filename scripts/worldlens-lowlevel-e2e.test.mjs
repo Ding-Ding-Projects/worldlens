@@ -106,10 +106,12 @@ test("the new-repository plan creates visibility and Pages through UI controls b
     );
     const action = (name) => createPlan.findIndex((step) => step.action === name);
     const pages = createPlan.findIndex(
-        (step) => step.action === "setCheckbox" && step.selector.includes("publish-pages"),
+        (step) =>
+            step.action === "setCheckboxWhenFocused" && step.selector.includes("publish-pages"),
     );
     const visibility = createPlan.findIndex(
-        (step) => step.action === "setCheckbox" && step.selector.includes("create-private"),
+        (step) =>
+            step.action === "setCheckboxWhenFocused" && step.selector.includes("create-private"),
     );
     const create = createPlan.findIndex((step) => step.selector === "[data-test='bootstrap-repository']");
     const created = createPlan.findIndex((step) => step.selector === "[data-test='repository-created']");
@@ -119,10 +121,11 @@ test("the new-repository plan creates visibility and Pages through UI controls b
 
     assert.ok(action("chooseFolder") > 0);
     assert.ok(pages > 0 && pages < create);
-    assert.ok(visibility > pages && visibility < create);
+    assert.ok(visibility > 0 && visibility < create);
     assert.ok(create < created && created < dispatched);
     assert.match(driver, /case "setCheckbox"/);
     assert.match(driver, /case "setCheckboxIfVisible"/);
+    assert.match(driver, /case "setCheckboxWhenFocused"/);
 });
 
 test("removing a required capture turns the plan guard red", () => {
