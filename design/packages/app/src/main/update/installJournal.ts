@@ -21,11 +21,11 @@ import {
     mkdirSync,
     openSync,
     readSync,
-    renameSync,
     rmSync,
     writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { replaceFileWithRetrySync } from "../storage/atomicReplace.js";
 import { isStrictlyNewerVersion } from "./version.js";
 
 export const UPDATE_INSTALL_JOURNAL_FILE = ".worldlens-update-install.json";
@@ -142,27 +142,31 @@ export function createFileUpdateInstallJournal(
             }
             mkdirSync(dirname(path), { recursive: true });
             const temporary = `${path}.tmp-${process.pid}-${randomBytes(6).toString("hex")}`;
-            writeFileSync(
-                temporary,
-                `${JSON.stringify(
-                    {
-                        schema: 1,
-                        fromVersion,
-                        targetVersion,
-                        requestedAt: now().toISOString(),
-                    } satisfies UpdateInstallAttempt,
-                    null,
-                    4,
-                )}\n`,
-                { encoding: "utf8", mode: 0o600 },
-            );
-            const handle = openSync(temporary, "r+");
             try {
-                fsyncSync(handle);
+                writeFileSync(
+                    temporary,
+                    `${JSON.stringify(
+                        {
+                            schema: 1,
+                            fromVersion,
+                            targetVersion,
+                            requestedAt: now().toISOString(),
+                        } satisfies UpdateInstallAttempt,
+                        null,
+                        4,
+                    )}\n`,
+                    { encoding: "utf8", mode: 0o600 },
+                );
+                const handle = openSync(temporary, "r+");
+                try {
+                    fsyncSync(handle);
+                } finally {
+                    closeSync(handle);
+                }
+                replaceFileWithRetrySync(temporary, path);
             } finally {
-                closeSync(handle);
+                rmSync(temporary, { force: true });
             }
-            renameSync(temporary, path);
         },
 
         reconcile(actualVersion) {

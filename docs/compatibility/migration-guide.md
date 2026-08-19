@@ -22,6 +22,13 @@ This is a Windows-only contract. The profile paths, atomic cutover, file-lock be
 rollback rules below use Windows filesystem semantics. A non-Windows reader must not claim this
 contract merely because it can parse one of the JSON examples.
 
+Linux desktop support is an explicit follow-up, not a compatibility assumption. Issue [#81](https://github.com/Ding-Ding-Projects/worldlens/issues/81)
+tracks the missing distribution/architecture/display-server, package, updater, credential-store,
+filesystem, external-editor, Docker/SSH, and fresh-environment install/update/uninstall evidence.
+No Linux package or runtime capture is recorded here, so a Linux build of platform-neutral code,
+or a passing Node-level check, must not be described as a supported 1.0 migration path. Until that
+evidence exists, users moving between operating systems remain outside this guide's contract.
+
 ## Upgrade sequencing
 
 An upgrade is a transaction with an explicit order. Do not copy these steps into a script that

@@ -410,6 +410,11 @@ the exact release target, asset hashes, receipt outcome, settings/project/histor
 and returned focus from the N+1 process. The cheap headless capture must come from those real
 installed builds; a mock banner is not evidence.
 
+The executable evidence contract for that future run is [`tools/update-e2e/contract.json`](../tools/update-e2e/contract.json),
+with the operator procedure in [`tools/update-e2e/README.md`](../tools/update-e2e/README.md). The
+contract intentionally remains `unrun` in source control: adding it does not manufacture an
+installed-client result.
+
 Electron's Squirrel `autoUpdater` also exposes no supported API for aborting an in-flight download.
 `dispose()` cancels this controller's timers and ignores late events during shutdown, but that is not
 a user-driven package-download cancellation. That acceptance case remains open rather than being
@@ -580,6 +585,20 @@ Windows 好易令人踩落去。「Back up your folders」會將真正嘅 `Docum
 失敗分類（每條規則同佢哋之間嘅次序）喺 `main/update/failure.test.ts`。Feed 解析、三種拒絕、https 規則同 token 遮蔽喺 `main/update/feed.test.ts`。當前優先嘅 repository fallback、與版本無關嘅 identity-pair 確認同損壞處理喺 `main/update/feedHandoff.test.ts`、`main/update/controller.test.ts` 同 `test/updateFeedRepositoryInjection.test.ts`。準確嘅轉換收據、只認確認先消耗、rollback、mismatch、損壞、有界欄位同有界 bytes 喺 `main/update/installJournal.test.ts`。狀態機（包括「ready 捱得住失敗」同「unsupported 係終局」）喺 `main/update/state.test.ts`。排程（間隔、back-off、上限、下限，同 stage 咗之後停止）喺 `main/update/schedule.test.ts`。冇更新、有更新、下載緊、準備好、準確版本拒絕、重啟日誌、早期檢查保留 rollback、確認失敗、離線、損壞 asset、dispose、render 活動同跨版本交接，全部喺 `main/update/controller.test.ts`。Channel、推送同冇憑證跨過佢哋喺 `main/update/ipc.test.ts`。OneDrive 改指同「用戶叫做 OneDrive」守衛喺 `main/files/documents.test.ts`。Reveal 允許清單（前綴兄弟、連結、相對路徑、缺失 root、檔案對資料夾）喺 `main/files/reveal.test.ts`。記憶體上限（建議值、邊界、持久化、損壞同產生出嚟嘅參數）喺 `main/files/renderMemory.test.ts`。Banner 同設定行當純模型測喺 `ui/components/update/updateModel.test.ts`。三種語言模式、各五個等級，同埋冇任何等級掂到版本或者按鈕，喺 `ui/components/update/updateCopy.test.ts`。實時控制器同 bridge 探測喺 `ui/components/update/useUpdates.test.ts`。Banner mount 測試（被拖住嘅 Restart、撤銷、雙語 `lang`、等級 5 仍然準確版本）喺 `ui/components/update/UpdateBanner.test.ts`。Mount 咗嘅 shell 用真實產生嘅 config workspace 同專案 dirty 訊號喺 bridge 呼叫之前 disable Restart，喺 `ui/App.test.ts` 同 `ui/components/project/ProjectsScreen.test.ts`。
 
 #### 仲要打包實證
+
+#### Records-only status — 2026-08-19
+
+Issue #79 remains open for the real installed-client proof. This documentation update records
+the boundary; it does not promote injected seams, unit tests, or a simulated banner into packaged
+runtime evidence. The required evidence is still two consecutive immutable Squirrel releases
+containing this implementation, a clean-profile install of N followed by a feed-driven N+1
+update, read-back of the installer/feed/hash/version identity, preserved settings/projects/history/
+cache and focus, explicit Later and Restart behaviour, supported cancellation, rollback, and
+genuine cheap-headless captures of each visible update state.
+
+No tests or captures were run for this records-only update. Until that installed flow exists, the
+verification tables above describe local seams only and must not be read as a completed Issue #79
+acceptance result.
 
 **未曾靠實際行過去驗證。** 而家仲未存在一對包含呢套轉換收據同未儲存工作實作嘅 packaged N→N+1。呢個改動之前檢視過嘅兩個最新 release，`v0.1.0-build.828` 同 `v0.1.0-build.862`，兩者透過 GitHub release API 都報告 `immutable: false`，而且兩者都早過呢個實作。佢哋分裂嘅 tag/package 版本身分，亦令所設定嘅服務對較舊嘅已安裝 package 回 HTTP 204。所以佢哋滿足唔到 issue #79 對「兩個連續 immutable build 嘅受測程式碼」嘅要求。
 

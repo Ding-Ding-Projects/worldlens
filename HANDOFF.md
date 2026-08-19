@@ -13,7 +13,7 @@ The current source behavior redacts recognised credential, user-path, private-ad
 private-host shapes; bounds selected console evidence; shows required and optional fields for
 review; allows optional evidence to be edited or cleared; exports Markdown or JSON locally; and
 opens a GitHub new-issue form only after copying a draft. It explicitly marks the draft as not
-submitted automatically. These files are currently uncommitted in this checkout.
+submitted automatically. The source implementation is committed in this issue lane.
 
 Acceptance is not yet proven. The current wiring is visible from the repair panel, while the
 required Help/About and every relevant failure-surface discovery audit remains open. There is no
@@ -22,6 +22,19 @@ application interaction evidence. No tests, checks, or screenshots were run in t
 pass. Do not close Issue #80 until the implementation is committed, the adversarial redaction and
 accessibility/localization checks run, and a genuine packaged capture and disposable submission
 record are available.
+
+## Issue #79 automatic updater evidence — records-only update, 2026-08-19
+
+The public issue thread records the start of a documentation-only lane. The updater
+documentation continues to separate injected-seam and local test evidence from the missing
+packaged runtime proof. Issue #79 remains open: two consecutive immutable Squirrel releases,
+clean-profile N → N+1 installation/update read-back, preserved settings/projects/history/cache
+and focus, explicit Later/Restart behaviour, supported cancellation, rollback, and genuine
+cheap-headless captures are still required.
+
+No tests, captures, installer runs, or runtime verification were performed in this lane. No
+completion claim is made; the next owner must attach evidence from the real installed flow before
+updater acceptance can be closed.
 
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
 

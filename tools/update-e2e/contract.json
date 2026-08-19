@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "name": "worldlens-installed-update-e2e",
+  "status": "unrun",
+  "scope": "Windows-only Squirrel.Windows installed-client transition",
+  "requiredTransitions": [
+    {
+      "id": "n-to-n-plus-one",
+      "from": "release-n",
+      "to": "release-n-plus-one",
+      "requirements": [
+        "immutable release records",
+        "matching package and feed versions",
+        "clean isolated install",
+        "real feed download and hash verification",
+        "receipt reconciliation after restart",
+        "renderer acknowledgement before receipt consumption",
+        "settings/project/history/cache continuity"
+      ]
+    }
+  ],
+  "requiredEvidence": [
+    "release-manifest",
+    "installed-version-before",
+    "feed-observation",
+    "download-and-hash",
+    "ready-banner",
+    "later-action",
+    "restart-action",
+    "receipt-before-restart",
+    "receipt-reconciliation",
+    "renderer-acknowledgement",
+    "installed-version-after",
+    "continuity-check",
+    "next-update-capability",
+    "failure-matrix"
+  ],
+  "allowedReceiptOutcomes": ["installed", "rolled-back", "version-mismatch", "corrupt", "none"],
+  "honestyRules": [
+    "status remains unrun until a real packaged pair is installed and driven",
+    "a unit-test result cannot satisfy installed-version evidence",
+    "a receipt is not consumed before renderer acknowledgement",
+    "unsigned artifacts carry no publisher-authenticity claim",
+    "unsupported cancellation remains an explicit unverified case"
+  ]
+}

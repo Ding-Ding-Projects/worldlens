@@ -48,7 +48,8 @@ export async function replaceFileWithRetry(
     }
 }
 
-function replaceFileWithRetrySync(source: string, destination: string): void {
+/** Synchronous counterpart for callers that must fsync their staged bytes first. */
+export function replaceFileWithRetrySync(source: string, destination: string): void {
     for (let attempt = 0; ; attempt += 1) {
         try {
             renameSync(source, destination);
