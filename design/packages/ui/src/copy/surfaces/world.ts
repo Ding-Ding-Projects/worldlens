@@ -2134,6 +2134,30 @@ export const WORLD_FIXED = {
         en: "Showing {shown} of {total}",
         yue: "顯示緊 {total} 個入面嘅 {shown} 個",
     },
+    "world.resume.recovered": {
+        en: "Recovered {count} interrupted render(s) from disk; {offered} offer(s) are safe to resume.",
+        yue: "由磁碟搵返 {count} 個中斷咗嘅算圖；有 {offered} 個可以安全繼續。",
+    },
+    "world.resume.recoveryUnknown": {
+        en: "The app recovered interrupted render records, but could not confirm which renders are active. The resume offers are withheld until that check succeeds.",
+        yue: "程式搵返中斷咗嘅算圖記錄，但確認唔到邊啲仲運行緊。完成檢查之前，唔會顯示繼續提示。",
+    },
+    "world.resume.skippedActive": {
+        en: " {count} already-running render(s) stayed out of this resume list.",
+        yue: " {count} 個仲運行緊嘅算圖冇放入還原清單。",
+    },
+    "world.resume.recoveredNone": {
+        en: "No interrupted renders were recovered. Completed work is not offered again.",
+        yue: "冇搵返中斷咗嘅算圖。已完成嘅工作唔會再攞出嚟叫你重做。",
+    },
+    "world.resume.resumed": {
+        en: "Render resumed. Tiles already on disk will be skipped; new tiles continue from the saved state.",
+        yue: "算圖已繼續。磁碟上已有嘅圖磚會跳過，新圖磚由已保存嘅狀態接住做。",
+    },
+    "world.resume.dismissed": {
+        en: "This recovery offer was dismissed and will not return unless a new interruption is recorded.",
+        yue: "呢個還原提示已經收起；除非再記錄到新一次中斷，否則唔會返嚟。",
+    },
 
     /* MapIdentityStep.vue */
     "world.identity.customDimension": {

@@ -1,5 +1,19 @@
 # Handoff
 
+## Issue #64 restart recovery acceptance — 2026-08-19
+
+Queue persistence now has a genuine two-process proof: one Node process writes a queued task,
+exits, and a fresh process restores the same task from `tasks.dat`. Cloud dispatch now persists
+its dispatch timestamp and `dispatched` stage before `workflow_dispatch`; after a crash, a fresh
+process adopts the matching GitHub run instead of dispatching a duplicate. Recovery surfaces
+separately report restored records, offers safe to resume, already-running exclusions, refusals,
+dismissals, and an unknown active-state check.
+
+Focused verification passed **5 files / 122 tests**, including 36 CI-sync cases, 4 server queue
+persistence cases, and the recovery UI contracts. Packaged standalone-CLI execution remains a
+separate delivery boundary; the process-restart and crash-order contracts themselves are now
+exercised rather than inferred.
+
 ## Issue #60 — public 1.0 compatibility contract
 
 This lane prepares the public delivery records for a Windows-only 1.0 compatibility contract. The

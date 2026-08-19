@@ -1,5 +1,15 @@
 # Roadmap
 
+## Issue #64 delivery boundary — 2026-08-19
+
+- **Delivery inspection:** the issue-owned checkout at `d004f3ca15d7d7a9121df370e00c955072489098`
+  contains no packaged executable or installer for the standalone CLI, and no runtime receipt for
+  a process restart that reopens `<resolved core.data>/tasks.dat` and resumes queued work.
+- **Honest state:** the 3-file, 29-test focused proof covers storage, schema/version refusal,
+  malformed and unknown entries, terminal exclusion, atomic staging, coalescing, and CLI
+  startup/shutdown wiring. Packaged reachability and real process-restart recovery remain open
+  acceptance evidence; issue #64 is not ready to close.
+
 ## Current verified baseline
 
 - Adult Mode and Kid Mode complete their first-run and round-trip journeys through the committed

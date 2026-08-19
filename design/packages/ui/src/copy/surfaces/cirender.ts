@@ -1188,6 +1188,10 @@ export const CIRENDER_FIXED = {
      */
     "cirender.run.none": { en: "No run yet", yue: "仲未有 run" },
     "cirender.run.going": { en: "Run is {status}", yue: "個 run 而家係 {status}" },
+    "cirender.run.restored": {
+        en: "Persisted run restored; live status has not arrived yet.",
+        yue: "已還原持久化嘅 run；即時狀態仲未返到嚟。",
+    },
     "cirender.run.ended": { en: "Run ended: {conclusion}", yue: "個 run 結束咗：{conclusion}" },
 
     /* The screen, its two cards, and the fields that say what and where. */
