@@ -139,13 +139,18 @@ async function loadDrivers(driverDir, selectedIds) {
     for (const entry of manifest.drivers) {
         if (!selected.has(entry.id)) continue;
         const path = join(driverDir, entry.file);
-        if (!(await exists(path))) throw new Error(`missing ${entry.coordinate} at ${path}`);
-        const hash = createHash("sha256").update(await readFile(path)).digest("hex");
-        if (hash !== entry.sha256) throw new Error(`SHA-256 mismatch for ${entry.coordinate}: expected ${entry.sha256}, got ${hash}`);
+        await verifyDriverArtifact(path, entry);
         result[entry.id] = { ...entry, path };
     }
     for (const id of selected) if (result[id] === undefined) throw new Error(`driver '${id}' is absent from ${DRIVER_MANIFEST}`);
     return result;
+}
+
+async function verifyDriverArtifact(path, entry) {
+    if (!(await exists(path))) throw new Error(`missing ${entry.coordinate} at ${path}`);
+    const hash = createHash("sha256").update(await readFile(path)).digest("hex");
+    if (hash !== entry.sha256) throw new Error(`SHA-256 mismatch for ${entry.coordinate}: expected ${entry.sha256}, got ${hash}`);
+    return hash;
 }
 
 function quote(value) {
@@ -342,11 +347,11 @@ async function openSql(engine, dialect, target) {
     const database = new Database(adapter);
     const storage = new SQLStorage(dialect.engineDialect.createCommandSet(database), Compression.GZIP);
     await storage.initialize();
-    return { adapter, database, storage, compression: Compression };
+    return { storage, compression: Compression };
 }
 
 async function lifecycleProbe(engine, dialect, target) {
-    const opened = await openSql(engine, dialect, target); const { storage, adapter } = opened;
+    const opened = await openSql(engine, dialect, target); const { storage } = opened;
     const lifecycleId = `__oracle_lifecycle_${dialect.id}`;
     const lifecycle = storage.map(lifecycleId);
     const bytes = Uint8Array.from([7, 11, 23, 42]);
@@ -375,11 +380,11 @@ async function lifecycleProbe(engine, dialect, target) {
     const recreated = storage.map(lifecycleId);
     await recreated.settings().write(Uint8Array.from([99]));
     if (!(await recreated.exists())) throw new Error(`${dialect.id}: deleted-row recreation failed`);
-    await storage.close(); await adapter.close();
+    await storage.close();
     const reopened = await openSql(engine, dialect, target);
     if (!(await reopened.storage.map(lifecycleId).settings().exists())) throw new Error(`${dialect.id}: reopen lost recreated row`);
     await reopened.storage.map(lifecycleId).delete();
-    await reopened.storage.close(); await reopened.adapter.close();
+    await reopened.storage.close();
     return { mapIds: ids.length, grids: lifecycleGridCount, pagination: true, purge: true, reopen: true, deletedRowRecreation: true, credentials: dialect.id === "postgresql" ? ["user", "password"] : [] };
 }
 
@@ -393,7 +398,7 @@ async function expectIncompatibleSchema(engine, dialect, target) {
     const { SQLStorage, Compression } = engine; const storage = new SQLStorage(commandSet, Compression.GZIP);
     let failed = false;
     try { await storage.initialize(); await storage.map("incompatible").settings().write(Uint8Array.from([1])); } catch { failed = true; }
-    await storage.close(); await adapter.close();
+    await storage.close();
     if (!failed) throw new Error(`${dialect.id}: incompatible schema was accepted`);
     return { incompatibleSchema: true };
 }
@@ -433,6 +438,16 @@ async function missingDriverLoaderPreflight(dialect) {
     throw new Error(`${dialect.id}: TypeScript missing-driver loader unexpectedly succeeded`);
 }
 
+async function wrongDriverHashPreflight(driver) {
+    try {
+        await verifyDriverArtifact(driver.path, { ...driver, sha256: "0".repeat(64) });
+    } catch (error) {
+        if (error instanceof Error && /SHA-256 mismatch/.test(error.message)) return { wrongDriverHash: true };
+        throw error;
+    }
+    throw new Error(`${driver.id}: wrong-driver hash probe unexpectedly succeeded`);
+}
+
 async function runMissingDriverProbe({ engine, root, dialect, target, driver, worldDirectory, mapId, options }) {
     await missingDriverLoaderPreflight(dialect);
     const configDir = join(root, "missing-driver-config");
@@ -443,11 +458,15 @@ async function runMissingDriverProbe({ engine, root, dialect, target, driver, wo
     // Some upstream CLI distributions bundle a dialect driver in the shadow jar;
     // in that case a missing external driver-jar is intentionally not a failure.
     const javaJarProbe = { exitCode: result.code, externalJarRejected: result.code !== 0 };
-    const wrongClassDir = join(root, "wrong-driver-class-config");
-    await writeSqlConfig({ configDirectory: wrongClassDir, dataDirectory: join(root, "wrong-driver-class-data"), webRoot: join(root, "wrong-driver-class-web"), worldDirectory, mapId, mapName: "Wrong driver class probe", dimension: "minecraft:overworld", renderThreadCount: 1, dialect, target: { ...target, file: target.file ?? join(root, "wrong-driver-class.sqlite") }, driver: { ...driver, class: "com.example.worldlens.NoSuchJdbcDriver" }, serverOnly: false, webserverPort: options.webserverPort });
-    const wrongClass = await run("java", ["-jar", jar, "-c", wrongClassDir, "-r", "-g"], { cwd: root, capture: true, quiet: true });
-    if (wrongClass.code === 0) throw new Error(`${dialect.id}: wrong-driver-class probe unexpectedly succeeded`);
-    return { missingDriver: true, wrongDriverClass: true, observedExitCode: result.code, javaJarProbe };
+    let wrongHashRejected = false;
+    try {
+        await verifyDriverArtifact(driver.path, { ...driver, sha256: "0".repeat(64) });
+    } catch (error) {
+        if (error instanceof Error && /SHA-256 mismatch/.test(error.message)) wrongHashRejected = true;
+        else throw error;
+    }
+    if (!wrongHashRejected) throw new Error(`${dialect.id}: wrong-driver hash probe unexpectedly succeeded`);
+    return { missingDriver: true, wrongDriverHash: true, observedExitCode: result.code, javaJarProbe };
 }
 
 async function runDirection1({ engine, dialect, target, driver, worldDirectory, fileControl, options, root }) {
@@ -471,7 +490,7 @@ async function runDirection1({ engine, dialect, target, driver, worldDirectory, 
         ["assets/oracle-sentinel.json", controlMap.asset("oracle-sentinel.json"), sqlMap.asset("oracle-sentinel.json"), false],
     ]) await compareItem(name, left, right, meta, asJson);
     counters.push(meta);
-    const divergences = printCounters(counters); await subject.storage.close(); await subject.adapter.close();
+    const divergences = printCounters(counters); await subject.storage.close();
     return { elapsedMs: Date.now() - started, counters: counters.map((counter) => ({ label: counter.label, compared: counter.compared, matching: counter.matching, divergences: counter.divergences.length })), divergences, renderStateCompared: true };
 }
 
@@ -531,6 +550,7 @@ export async function main(argv = process.argv.slice(2)) {
             await withTarget(dialect, options, "construction-preflight", async ({ target }) => {
                 await adapterConstructionPreflight(dialect, target);
                 await missingDriverLoaderPreflight(dialect);
+                await wrongDriverHashPreflight(drivers[id]);
             });
         }
         log(`[sql-crosscompat-matrix] preflight reached fixture generation and adapter construction with selected dialects: ${options.dialects.join(", ")}`);

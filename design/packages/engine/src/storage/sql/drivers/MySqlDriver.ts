@@ -104,6 +104,7 @@ export function parseMySqlConnectionOptions(
  */
 class MySqlDriverAdapter implements SqlDriverAdapter {
     private readonly pool: Mysql2Pool;
+    private closed = false;
 
     constructor(pool: Mysql2Pool) {
         this.pool = pool;
@@ -149,6 +150,8 @@ class MySqlDriverAdapter implements SqlDriverAdapter {
     }
 
     async close(): Promise<void> {
+        if (this.closed) return;
+        this.closed = true;
         await this.pool.end();
     }
 }

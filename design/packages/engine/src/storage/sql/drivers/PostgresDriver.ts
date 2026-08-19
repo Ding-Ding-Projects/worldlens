@@ -107,6 +107,7 @@ export function parsePostgresConnectionOptions(
 
 class PostgresDriverAdapter implements SqlDriverAdapter {
     private readonly pool: PgPool;
+    private closed = false;
 
     constructor(pool: PgPool) {
         this.pool = pool;
@@ -156,6 +157,8 @@ class PostgresDriverAdapter implements SqlDriverAdapter {
     }
 
     async close(): Promise<void> {
+        if (this.closed) return;
+        this.closed = true;
         await this.pool.end();
     }
 }
