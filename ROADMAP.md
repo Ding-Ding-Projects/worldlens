@@ -24,9 +24,9 @@
   `.nupkg`, and deltas where produced; an unknown-publisher warning is expected.
 - **Current state:** `build.bat /s` completed successfully after `vendor/BlueMap` initialization;
   no installer package, release, or remote verification was performed.
-- **Next contract work:** complete the public surface inventory, publish reference and migration
-  examples with failure modes, reconcile the site's stale claims, and add the contract inventory
-  or generated proof that prevents exported names, schemas, docs, and examples drifting apart.
+- **Remaining evidence:** the public surface inventory, reference/migration examples, and site
+  summary are present. Executable drift-proof and newcomer installation/first-render/cloud/offline
+  acceptance remain separate follow-up evidence and were intentionally not run in this lane.
 
 ## Open verification work
 

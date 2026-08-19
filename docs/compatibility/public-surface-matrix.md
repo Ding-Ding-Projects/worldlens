@@ -1,6 +1,6 @@
 # Public 1.0 surface matrix
 
-This matrix is the narrow inventory for issue [#60](https://github.com/Ding-Ding-Projects/worldlens/issues/60), “Define and document the public 1.0 compatibility contract.” It names each public-surface category in the issue acceptance checklist, assigns the owning area, and records the intended 1.0 stability boundary. The stability class is a contract target until the detailed API/reference and migration documents define the exact names, fields, versions, and failure semantics.
+This matrix is the narrow inventory for issue [#60](https://github.com/Ding-Ding-Projects/worldlens/issues/60), “Define and document the public 1.0 compatibility contract.” It names each public-surface category in the issue acceptance checklist, assigns the owning area, and records the 1.0 stability boundary. The linked API/reference and migration documents define the exact names, fields, versions, and failure semantics for the documented surfaces.
 
 | Public surface category | Owner | Stability class | Contract reference | Windows-only 1.0 note |
 | --- | --- | --- | --- | --- |
@@ -20,4 +20,4 @@ This matrix is the narrow inventory for issue [#60](https://github.com/Ding-Ding
 
 Stable means a documented consumer may rely on the named surface through 1.0, with additive changes preferred and breaking changes requiring a migration or a major-version boundary. Experimental means the surface may change between builds and must not be used as a compatibility promise. Internal means the surface exists for the product’s own implementation and is not a supported integration boundary. Deprecated means the surface remains temporarily available only with a removal path and migration guidance; no issue-60 row is currently classified as deprecated.
 
-The detailed contract still needs to define the exact semantic-versioning, schema-migration, rollback, supported-version, security-support, and release-channel rules required by issue #60. This matrix deliberately records the inventory and ownership without claiming those unresolved details are already shipped.
+The linked compatibility contract defines the semantic-versioning, schema-migration, rollback, supported-version, security-support, and release-channel rules required by issue #60. Executable drift-proof and newcomer/runtime acceptance remain separate follow-up evidence and are not claimed by this documentation slice.
