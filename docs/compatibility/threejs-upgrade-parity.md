@@ -41,4 +41,4 @@ silent blank surface.
 three.js 升級唔係改 version 然後向 canvas 祈禱。Loader、shader、camera、controls、texture、marker
 同 WebGL lifecycle 都要有真 receipt：同一個 fixture 做 light/dark/reduced-motion 畫面對比，真操作
 camera 同 picking，再量 startup、frame time、memory 同 GPU disposal。`unrun` 就係未跑，唔可以靠
-source diff 冒充 parity；canvas 一片空白亦要當 poke guy，唔可以當成「開咗」。
+source diff 冒充 parity；canvas 一片空白亦要當 failure，唔可以當成「開咗」。
