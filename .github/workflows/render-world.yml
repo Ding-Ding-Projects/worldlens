@@ -1186,7 +1186,11 @@ jobs:
   merge-lowres:
     name: Merge the lowres pyramid
     needs: [plan, merge]
-    if: needs.plan.outputs.single-group != 'true'
+    if: >-
+      ${{ always()
+        && needs.plan.result == 'success'
+        && needs.merge.result == 'success'
+        && needs.plan.outputs.single-group != 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -1262,6 +1266,27 @@ jobs:
             --map-id '${{ needs.plan.outputs.map-id }}' \
             --out "site/maps/${{ needs.plan.outputs.map-id }}" \
             --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Write receipt identity
+        if: success()
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          MAP_ID: ${{ needs.plan.outputs.map-id }}
+          PLAN_FINGERPRINT: ${{ needs.plan.outputs.plan-fingerprint }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const identity = {
+            runId: process.env.RUN_ID,
+            runAttempt: Number(process.env.RUN_ATTEMPT),
+            mapId: process.env.MAP_ID,
+            planFingerprint: process.env.PLAN_FINGERPRINT,
+          };
+          fs.writeFileSync('site/receipt-identity.json', JSON.stringify(identity, null, 2) + '\n');
+          NODE
 
       - name: Say where the map went
         shell: bash
@@ -1352,11 +1377,24 @@ jobs:
           name: render-plan
           path: receipt-input
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        if: always()
+        if: always() && needs.plan.outputs.single-group == 'true'
         continue-on-error: true
         with:
           name: rendered-map
           path: receipt-output
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: always() && needs.plan.outputs.single-group != 'true'
+        continue-on-error: true
+        with:
+          name: map-lowres
+          path: receipt-output
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: always() && needs.plan.outputs.single-group != 'true'
+        continue-on-error: true
+        with:
+          pattern: partial-hires-*
+          path: receipt-output/maps/${{ needs.plan.outputs.map-id }}/tiles/0
+          merge-multiple: false
       - name: Assemble and verify receipt
         shell: bash
         env:
@@ -1368,6 +1406,7 @@ jobs:
           REQUIRED_BYTES: ${{ needs.plan.outputs.required-disk-bytes }}
           MERGE_RESULT: ${{ needs.merge.result }}
           LOWRES_RESULT: ${{ needs.merge-lowres.result }}
+          SINGLE_GROUP: ${{ needs.plan.outputs.single-group }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -1401,9 +1440,42 @@ jobs:
           });
           const outputFiles = fs.existsSync(output) ? fs.readdirSync(output, { recursive: true }).map(String) : [];
           const hires = outputFiles.filter((name) => name.includes('tiles/0/') && name.endsWith('.prbm.gz')).length;
-          const metadata = outputFiles.some((name) => name.endsWith('settings.json')) && outputFiles.some((name) => name.endsWith('textures.json.gz'));
+          const expectedHires = fragments
+            .filter((x) => Number.isInteger(x.wave) && Number.isInteger(x.shard))
+            .reduce((total, x) => total + (Number.isFinite(x.hiresTiles) ? x.hiresTiles : 0), 0);
+          const rootSettingsPath = 'settings.json';
+          const settingsPath = `maps/${env.MAP_ID}/settings.json`;
+          const texturesPath = `maps/${env.MAP_ID}/textures.json.gz`;
+          let rootSettings = null;
+          let mapSettings = null;
+          try {
+            if (outputFiles.includes(rootSettingsPath)) rootSettings = JSON.parse(fs.readFileSync(path.join(output, rootSettingsPath), 'utf8'));
+          } catch {
+            rootSettings = null;
+          }
+          try {
+            if (outputFiles.includes(settingsPath)) mapSettings = JSON.parse(fs.readFileSync(path.join(output, settingsPath), 'utf8'));
+          } catch {
+            mapSettings = null;
+          }
+          const rootMaps = rootSettings !== null && typeof rootSettings === 'object' && !Array.isArray(rootSettings) && Array.isArray(rootSettings.maps)
+            ? rootSettings.maps
+            : [];
+          const rootListsMap = rootMaps.some((entry) => entry === env.MAP_ID || (entry !== null && typeof entry === 'object' && entry.id === env.MAP_ID));
+          const validMapMetadata = mapSettings !== null && typeof mapSettings === 'object' && !Array.isArray(mapSettings);
+          const metadata = rootListsMap && validMapMetadata;
+          const texturesBytes = outputFiles.includes(texturesPath) ? fs.statSync(path.join(output, texturesPath)).size : 0;
+          const texturesVerified = texturesBytes > 0;
+          const lowresRebuilt = env.LOWRES_RESULT === 'success';
+          let receiptIdentity = null;
+          try {
+            receiptIdentity = JSON.parse(fs.readFileSync(path.join(output, 'receipt-identity.json'), 'utf8'));
+          } catch {
+            receiptIdentity = null;
+          }
+          const identityMatches = env.SINGLE_GROUP === 'true' ? identityOk({ runId: env.RUN_ID, runAttempt: env.RUN_ATTEMPT, mapId: env.MAP_ID, planFingerprint: env.PLAN_FINGERPRINT }) : receiptIdentity !== null && identityOk(receiptIdentity);
           const ok = env.MERGE_RESULT === 'success' && waves.every((wave) => wave.outcome === 'success');
-          const receipt = { version: 1, runId: env.RUN_ID, runAttempt: Number(env.RUN_ATTEMPT), mapId: env.MAP_ID, planFingerprint: env.PLAN_FINGERPRINT, waveCount: Number(env.WAVE_COUNT), requiredDiskBytes: Number(env.REQUIRED_BYTES), disk: disks, waves, merge: { startedAt: now, completedAt: now, outcome: ok ? 'success' : 'failed', mergedMapVerified: ok, lowresRebuilt: env.LOWRES_RESULT === 'success' || env.LOWRES_RESULT === 'skipped', publicResult: ok ? 'openable' : 'failed' }, mergedContent: { hiresTileCount: hires, expectedHiresTileCount: hires, metadataPresent: metadata, metadataFingerprintMatches: metadata && identityOk({ runId: env.RUN_ID, runAttempt: env.RUN_ATTEMPT, mapId: env.MAP_ID, planFingerprint: env.PLAN_FINGERPRINT }), texturesVerified: metadata }, cleanup: { intermediateArchivesRemoved: ok, shardStagingRemoved: ok, resumableStatePreserved: true }, failure: { retryable: !ok, enospcObserved: false, noReleaseOnFailure: true }, outcome: ok ? 'success' : 'failed' };
+          const receipt = { version: 1, runId: env.RUN_ID, runAttempt: Number(env.RUN_ATTEMPT), mapId: env.MAP_ID, planFingerprint: env.PLAN_FINGERPRINT, waveCount: Number(env.WAVE_COUNT), requiredDiskBytes: Number(env.REQUIRED_BYTES), disk: disks, waves, merge: { startedAt: now, completedAt: now, outcome: ok ? 'success' : 'failed', mergedMapVerified: ok, lowresRebuilt, publicResult: ok ? 'openable' : 'failed' }, mergedContent: { hiresTileCount: hires, expectedHiresTileCount: expectedHires, metadataPresent: metadata, metadataFingerprintMatches: identityMatches, texturesVerified }, cleanup: { intermediateArchivesRemoved: ok, shardStagingRemoved: ok, resumableStatePreserved: true }, failure: { retryable: !ok, enospcObserved: false, noReleaseOnFailure: true }, outcome: ok ? 'success' : 'failed' };
           fs.writeFileSync('hosted-render-receipt.json', JSON.stringify(receipt, null, 2) + '\n');
           NODE
           node toolchain/design/packages/render-actions/dist/cli.js receipt-verify --receipt hosted-render-receipt.json --summary "$GITHUB_STEP_SUMMARY"

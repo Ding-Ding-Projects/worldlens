@@ -365,6 +365,12 @@ not prove a final map, public result, or hosted-runner disk boundary. Issue #67 
 that rerun and the remaining integrity, ordering, resumability, disk, cleanup, and publication
 evidence. This lane ran no tests, captures, build, or packaged interaction.
 
+The corrected rerun `32299613336` did reach **361/361** shards and **12/12** merge groups, then
+failed receipt validation because the downloader fetched only `rendered-map`. A multi-group render
+publishes `map-lowres` plus `partial-hires-*`, so the assembled receipt recorded `hiresTileCount=0`
+and `metadata=false`. The source repair now downloads `map-lowres` and the partial-hires artifacts
+conditionally; the receipt and final lowres/Pages/cleanup path still require a rerun.
+
 廣東話：`32292039976` 完成 Wave 1 **256/256**、Wave 2 **105/105**，同埋 **12/12** 個 merge
 groups；receipt setup 因為 `actions/setup-node` SHA 無效而失敗，final merge verification、
 lowres、Pages 同 cleanup 跳過。Source 改動只係刪走 SHA 多咗嗰一個 `e`，要 rerun 讀到 receipt

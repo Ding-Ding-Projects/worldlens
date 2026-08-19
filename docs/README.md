@@ -17,6 +17,12 @@ receipt then failed during job setup because one `setup-node` commit pin was inv
 merge, low-resolution output, Pages publication, and cleanup steps were skipped. The workflow
 source correction is present but remains unverified until rerun.
 
+Corrected rerun [32299613336](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32299613336)
+completed **361/361** shards and **12/12** merge groups. Receipt assembly then failed because it
+downloaded only `rendered-map`; multi-group output publishes `map-lowres` plus `partial-hires-*`, so
+the receipt reported `hiresTileCount=0` and `metadata=false`. The source repair now conditionally
+collects those artifacts, but the final low-resolution, Pages, and cleanup proof still requires a rerun.
+
 ## Audits
 
 Not feature documents, so they are listed apart from the two tables below rather than folded into

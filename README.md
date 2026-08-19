@@ -1290,3 +1290,14 @@ accept-download flow. BlueMap's own `resourceExtensions` JSONs are MIT and are b
 Terminal run `32292039976` completed Wave 1 at **256/256**, Wave 2 at **105/105**, and all **12/12 merge groups** successfully. Receipt setup failed because the configured `actions/setup-node` SHA was invalid; final merge, low-resolution rendering, Pages, and cleanup steps were therefore skipped. The exact one-character workflow correction remains source-only until the workflow is rerun.
 
 Issue #67 終端收據：Wave 1 **256/256**、Wave 2 **105/105**，以及 **12/12 merge groups** 全部成功。收據 setup 因為設定嘅 `actions/setup-node` SHA 無效而失敗；最後 merge、low-res、Pages 同 cleanup 步驟因此跳過。嗰個一字元 workflow 修正暫時只留喺 source，等 workflow 重跑先至落地。
+
+The corrected rerun `32299613336` completed **361/361** shards and **12/12** merge groups, but the
+receipt still failed: it downloaded only `rendered-map`, while this multi-group output publishes
+`map-lowres` and `partial-hires-*`. The receipt therefore reported `hiresTileCount=0` and
+`metadata=false`; the conditional artifact-download source fix and final lowres, Pages, and cleanup
+proof remain pending.
+
+修正版 rerun `32299613336` 做晒 **361/361** shards 同 **12/12** merge groups，但 receipt 仲係唔得：
+佢淨係下載 `rendered-map`，而 multi-group output 其實會出 `map-lowres` 同 `partial-hires-*`。
+所以 receipt 寫咗 `hiresTileCount=0` 同 `metadata=false`；conditional artifact download source
+fix、最後 low-res、Pages 同 cleanup proof 仲未完成。

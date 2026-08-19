@@ -729,6 +729,13 @@ runtime proof until a rerun reaches the receipt job and reads back the generated
 remains open pending that rerun and the required integrity, ordering, resumability, disk, cleanup,
 and publication evidence.
 
+The corrected rerun `32299613336` completed **361/361** shard jobs and **12/12** merge groups, but
+its receipt remained a failure: the downloader collected only the single `rendered-map` artifact.
+This multi-group run emits `map-lowres` plus `partial-hires-*`, so the assembled receipt reported
+`hiresTileCount=0` and `metadata=false`. The source repair now conditionally collects
+`map-lowres` and every `partial-hires-*` artifact; final low-resolution output, Pages publication,
+cleanup, and a valid receipt remain unproven until the rerun.
+
 This is a records-only handoff. No tests, captures, build, or packaged interaction was performed
 in this lane. The issue-owned receipt and two-wave helpers, merge/lowres wiring, and workflow
 changes remain source evidence except for the hosted shard and merge counts recorded above.
