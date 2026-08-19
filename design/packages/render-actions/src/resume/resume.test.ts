@@ -361,9 +361,10 @@ describe("cache keys", () => {
     });
 
     it("caches the map directory and the engine data directory", () => {
-        expect(
-            shardCachePaths({ storageRoot: "out/maps", dataDirectory: "bluemap-data" }),
-        ).toEqual(["out/maps", "bluemap-data"]);
+        expect(shardCachePaths({ webRoot: "out", dataDirectory: "bluemap-data" })).toEqual([
+            "out",
+            "bluemap-data",
+        ]);
     });
 });
 
