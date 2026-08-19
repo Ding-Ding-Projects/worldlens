@@ -1,15 +1,57 @@
 # Handoff
 
+## 2026-08-19 — issue #89 patterned-banner artifact proof ledger
+
+**State:** issue #89's typed banner implementation and focused fixture proof
+are landed, but the issue remains open because the artifact-level render proof
+has not been run. The implementation commit is
+`47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b`; the focused acceptance repair is
+`d14203e7e40a2ae4851b8bfe3476450609451570`, with five focused tests covering
+ordered layers, all supported colors, legacy/current fields, malformed entries,
+unknown identifiers, round-trip behavior, and current resource-path lookup.
+
+The remaining evidence is intentionally explicit:
+
+1. Generate one reproducible world containing at least two patterned banners
+   with distinct ordered layers and colors.
+2. Render that world through the supported oracle path and retain the command,
+   world identifier, output manifest, and explicit assertions for layer order
+   and color.
+3. Build the supported packaged viewer from the exact same candidate, open the
+   rendered world, and retain the artifact identity plus a same-world read-back
+   record tying the viewer output to the oracle world.
+
+No artifact render, oracle comparison, packaged-viewer run, or screenshot is
+claimed by this entry. Existing generic world captures are not substitutes for
+the patterned-banner acceptance state. The issue stays open until the three
+records above are attached to its public handoff and independently read back.
+
+### 廣東話同步
+
+Issue #89 嘅 typed banner implementation 同 focused fixture proof 已經落地，
+但 issue 仲未關，因為 artifact-level render proof 仲未行。Implementation
+commit 係 `47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b`，focused acceptance repair
+係 `d14203e7e40a2ae4851b8bfe3476450609451570`，五個 focused tests 覆蓋有次序
+layers、所有支援顏色、legacy/current fields、malformed entries、unknown
+identifiers、round-trip 同 current resource-path lookup。
+
+仲欠嘅證明係：一個可重現、內含至少兩面唔同 layer/color 次序嘅真世界；
+用 supported oracle render 並保留 command、world identifier、manifest 同
+layer/color assertions；再用同一個 candidate 嘅 packaged viewer 打開同一份
+輸出，保留 artifact identity 同 read-back record。呢段冇聲稱 artifact render、
+oracle comparison、packaged viewer run 或 screenshot；普通世界 capture 唔可以代替
+patterned-banner acceptance state。三份記錄未齊之前，issue 繼續保持 open。
+
 ## 2026-08-19 — issue #64 focused acceptance repair
 
-**State:** focused acceptance Chuts are present at `0a3b1d2e` plus the current-main merge
+**State:** focused acceptance gates are present at `0a3b1d2e` plus the current-main merge
 `76e368de`. The three-file focused run passed 29 tests covering real queue-file round trips,
 schema/version and corruption handling, malformed and unknown entries, terminal-task exclusion,
 unique staging and reopen, coalesced non-overlapping saves, CLI startup/shutdown wiring, and an
 exact source-guard mutation that went red when wiring was removed or commented and green again
 after restoration.
 
-No full suite, lint, review, audit, accessibility run, or HuiShot was performed. Remaining issue
+No full suite, lint, review, audit, accessibility run, or screenshot was performed. Remaining issue
 #64 gaps are structured skipped/unknown-task recovery presentation, stale cross-process crash
 ordering, and a real CLI restart that resumes queued work end to end.
 

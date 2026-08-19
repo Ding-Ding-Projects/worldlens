@@ -12,6 +12,8 @@ import {
 import { Key } from "@worldlens/shared";
 import { MCABlockEntity, MCA_BLOCK_ENTITY_FIELDS } from "./MCABlockEntity.js";
 import { KEY_TOKEN } from "../data/KeyDeserializer.js";
+import { ResourcePath } from "../../../resources/ResourcePath.js";
+import type { Texture } from "../../../resources/pack/resourcepack/texture/Texture.js";
 
 export const BANNER_BLOCK_ENTITY_TOKEN: TypeToken<BannerBlockEntity> =
     TypeToken.of("BannerBlockEntity");
@@ -154,6 +156,14 @@ export type BannerColor =
     | KnownBannerColorIdentifier
     | UnknownBannerColorIdentifier;
 
+/** The render-facing layer produced from one ordered NBT pattern entry. */
+export interface BannerRenderLayer {
+    readonly pattern: BannerPatternId;
+    readonly color: BannerColor;
+    readonly texture: ResourcePath<Texture>;
+    readonly tint: readonly [number, number, number];
+}
+
 export const BANNER_COLOR = {
     WHITE: 0,
     ORANGE: 1,
@@ -191,6 +201,65 @@ export const BANNER_COLOR_CURRENT = {
     RED: "minecraft:red",
     BLACK: "minecraft:black",
 } as const satisfies Record<string, KnownBannerColorIdentifier>;
+
+const LEGACY_PATTERN_TO_CURRENT: Readonly<Record<string, string>> = Object.fromEntries(
+    Object.entries(BANNER_PATTERN).map(([name, legacy]) => [legacy, BANNER_PATTERN_CURRENT[name as keyof typeof BANNER_PATTERN_CURRENT]]),
+);
+
+const BANNER_TINTS: Readonly<Record<string, readonly [number, number, number]>> = {
+    "minecraft:white": [0.976, 1, 0.996],
+    "minecraft:orange": [0.976, 0.502, 0.114],
+    "minecraft:magenta": [0.780, 0.306, 0.741],
+    "minecraft:light_blue": [0.227, 0.702, 0.855],
+    "minecraft:yellow": [0.996, 0.847, 0.239],
+    "minecraft:lime": [0.502, 0.780, 0.122],
+    "minecraft:pink": [0.953, 0.545, 0.667],
+    "minecraft:gray": [0.278, 0.310, 0.322],
+    "minecraft:light_gray": [0.616, 0.616, 0.592],
+    "minecraft:cyan": [0.086, 0.612, 0.612],
+    "minecraft:purple": [0.537, 0.196, 0.722],
+    "minecraft:blue": [0.235, 0.267, 0.667],
+    "minecraft:brown": [0.514, 0.329, 0.196],
+    "minecraft:green": [0.369, 0.486, 0.086],
+    "minecraft:red": [0.690, 0.180, 0.149],
+    "minecraft:black": [0.114, 0.114, 0.129],
+};
+
+function currentPatternId(pattern: BannerPatternId): string {
+    return pattern.includes(":") ? pattern : LEGACY_PATTERN_TO_CURRENT[pattern] ?? pattern;
+}
+
+function currentColorId(color: BannerColor): string | null {
+    if (typeof color === "string") return color.includes(":") ? color : `minecraft:${color}`;
+    return Object.values(BANNER_COLOR).includes(color as KnownBannerColor)
+        ? Object.values(BANNER_COLOR_CURRENT)[color as number] ?? null
+        : null;
+}
+
+/**
+ * Resolves the ordered typed layers into the resource-pack paths and tint values
+ * consumed by a banner renderer. Unknown identifiers stay addressable rather than
+ * being replaced by the missing texture or a guessed dye colour.
+ */
+export function bannerRenderLayers(entity: BannerBlockEntity): readonly BannerRenderLayer[] {
+    return entity.getPatterns().map((layer) => {
+        const pattern = layer.getPattern();
+        const patternId = currentPatternId(pattern);
+        const separator = patternId.indexOf(":");
+        const namespace = separator === -1 ? "minecraft" : patternId.slice(0, separator);
+        const value = separator === -1 ? patternId : patternId.slice(separator + 1);
+        const color = layer.getColor();
+        const colorId = currentColorId(color);
+        return {
+            pattern,
+            color,
+            texture: new ResourcePath<Texture>(
+                `${namespace}:entity/banner/${value === "base" ? "banner_base" : value}`,
+            ),
+            tint: BANNER_TINTS[colorId ?? ""] ?? [1, 1, 1],
+        };
+    });
+}
 
 export class Pattern {
     /** Ordered NBT Pattern identifier; future identifiers are retained verbatim. */

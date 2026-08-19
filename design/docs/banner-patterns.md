@@ -112,6 +112,29 @@ those proofs are linked from the issue handoff. It must not be updated to say
 “implemented” on the strength of a type declaration, a fixture filename, or a
 source-only test.
 
+## Artifact-proof ledger (2026-08-19)
+
+The typed implementation and focused fixture proof are now recorded separately
+from the artifact proof:
+
+| Proof item | Current record | State |
+| --- | --- | --- |
+| Typed ordered layers and era aliases | `47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b` | landed |
+| Executable legacy/current fixture and round-trip checks | `d14203e7e40a2ae4851b8bfe3476450609451570`, five focused tests | verified for the focused fixture |
+| Real patterned-banner world generated from the supported world path | no run record for a world containing at least two patterned banners | unrun |
+| Oracle render with visible layer order and colors | no output manifest or explicit layer-order/color assertions | unrun |
+| Packaged viewer opening the same rendered world | no packaged-artifact identity or same-world read-back record | unrun |
+
+The last three rows are deliberately not inferred from the source test or from
+the existing generic world captures. Closure requires one reproducible world
+identifier containing at least two patterned banners, the exact generation and
+render commands, an oracle output manifest with explicit layer-order and color
+assertions, the packaged viewer build and artifact identity, and a same-world
+read-back record showing that the packaged viewer opened that exact patterned-
+banner output. Until those records are attached to the issue
+handoff, this article and the roadmap must continue to describe issue #89 as
+open.
+
 ## 廣東話
 
 ### 資料模型

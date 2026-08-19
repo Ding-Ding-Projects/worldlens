@@ -41,6 +41,7 @@ import {
     renderReference,
 } from "./lib/javaOracle.mjs";
 import { renderWithTypeScriptEngine } from "./lib/tsEngine.mjs";
+import { createPatternedBannerWorld } from "./fixtures/patternedBannerWorld.mjs";
 import { exists, formatDuration, log } from "./lib/util.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -60,6 +61,7 @@ Options:
   --map-id <id>       storage id of the map (default "overworld")
   --map-name <name>   display name of the map (default "Overworld")
   --dimension <key>   dimension to render (default "minecraft:overworld")
+  --fixture <name>    use a checked-in synthetic world fixture (patterned-banner)
   --work <dir>        working directory (default "tools/oracle/out/gate")
   --threads <n>       java render threads (default 4)
   --max-report <n>    how many divergences to print in full (default 5)
@@ -84,6 +86,7 @@ function parseArgs(argv) {
         mapId: "overworld",
         mapName: "Overworld",
         dimension: "minecraft:overworld",
+        fixture: null,
         work: join(REPO_ROOT, "tools", "oracle", "out", "gate"),
         threads: 4,
         maxReport: 5,
@@ -121,6 +124,12 @@ function parseArgs(argv) {
                 break;
             case "--dimension":
                 options.dimension = next();
+                break;
+            case "--fixture":
+                options.fixture = next();
+                if (options.fixture !== "patterned-banner") {
+                    throw new Error(`unknown fixture '${options.fixture}'`);
+                }
                 break;
             case "--work":
                 options.work = resolve(next());
@@ -193,17 +202,25 @@ async function main() {
     // 2. the world
     let worldDirectory;
     try {
-        worldDirectory = await generateWorld({
-            repoRoot: REPO_ROOT,
-            seed: options.seed,
-            size: options.size,
-            out: join(options.work, "worlds"),
-        });
+        worldDirectory = options.fixture === "patterned-banner"
+            ? await createPatternedBannerWorld(join(options.work, "worlds"))
+            : await generateWorld({
+                repoRoot: REPO_ROOT,
+                seed: options.seed,
+                size: options.size,
+                out: join(options.work, "worlds"),
+            });
     } catch (error) {
         log(`[oracle] ${describeError(error)}`);
         return 2;
     }
     report.steps.world = worldDirectory;
+    if (options.fixture !== null) {
+        report.steps.fixture = {
+            name: options.fixture,
+            manifest: join(worldDirectory, "patterned-banner-manifest.json"),
+        };
+    }
 
     // 3. the reference render
     let reference;
