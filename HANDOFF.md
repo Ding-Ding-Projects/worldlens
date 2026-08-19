@@ -1,5 +1,18 @@
 # Handoff
 
+## Issue #79 automatic updater evidence — records-only update, 2026-08-19
+
+The public issue thread records the start of a documentation-only lane. The updater
+documentation continues to separate injected-seam and local test evidence from the missing
+packaged runtime proof. Issue #79 remains open: two consecutive immutable Squirrel releases,
+clean-profile N → N+1 installation/update read-back, preserved settings/projects/history/cache
+and focus, explicit Later/Restart behaviour, supported cancellation, rollback, and genuine
+cheap-headless captures are still required.
+
+No tests, captures, installer runs, or runtime verification were performed in this lane. No
+completion claim is made; the next owner must attach evidence from the real installed flow before
+updater acceptance can be closed.
+
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
 
 This documentation-only lane records the exact adapter matrix from upstream
