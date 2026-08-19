@@ -121,17 +121,23 @@ from the artifact proof:
 | --- | --- | --- |
 | Typed ordered layers and era aliases | `47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b` | landed |
 | Executable legacy/current fixture and round-trip checks | `d14203e7e40a2ae4851b8bfe3476450609451570`, five focused tests | verified for the focused fixture |
-| Real patterned-banner world generated from the supported world path | no run record for a world containing at least two patterned banners | unrun |
-| Oracle render with visible layer order and colors | no output manifest or explicit layer-order/color assertions | unrun |
-| Packaged viewer opening the same rendered world | no packaged-artifact identity or same-world read-back record | unrun |
+| Real patterned-banner world generated from the supported world path | `tools/oracle/out/gate/worlds/patterned-banner-world/patterned-banner-manifest.json` — a 64×64-block, 16-chunk fixture with exactly 3 banners and 10 ordered layers across legacy, current-component, and wall-banner forms | verified |
+| Oracle render with visible layer order and colors | `tools/oracle/out/patterned-banner/issue-89.json` — fixture-scoped validator accepted the expected TypeScript extension: the one hires tile adds exactly 60 vertices and 1 shared overlay material group over Java; every non-hires file matches, including 18 pixel-identical PNG re-encodes and 5 render-state time-only entries | verified |
+| Packaged viewer opening the same rendered world | The expected TypeScript hires response hash (`4d727ce14d1e3cd2b781db0895dbc750b58771eb1abff834a67f877f45d6c078`) and a live WebGL context were observed, but the packaged viewer remained blank; no visible banner read-back exists | attempted, unverified |
 
-The last three rows are deliberately not inferred from the source test or from
-the existing generic world captures. Closure requires one reproducible world
-identifier containing at least two patterned banners, the exact generation and
-render commands, an oracle output manifest with explicit layer-order and color
-assertions, the packaged viewer build and artifact identity, and a same-world
-read-back record showing that the packaged viewer opened that exact patterned-
-banner output. Until those records are attached to the issue
+The oracle result is intentionally not described as byte-identical. Upstream
+Java does not consume the banner block-entity path, so the patterned overlays
+are the expected extension on the TypeScript side. For this fixture, acceptance
+means exactly one hires divergence with `+60` vertices and `+1` shared overlay
+material group, all 10 manifest layers retained in order, and every non-hires
+file matching under the existing comparator.
+
+The remaining packaged-viewer row is deliberately not inferred from an exact
+network response hash or a live WebGL context. Both were observed while the
+packaged surface remained blank, so neither proves that the banner geometry was
+displayed. Closure still requires the packaged viewer build and artifact
+identity plus a same-world visible read-back of the exact patterned-banner
+output. Until that packaged record is attached to the issue
 handoff, this article and the roadmap must continue to describe issue #89 as
 open.
 

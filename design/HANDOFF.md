@@ -2,9 +2,9 @@
 
 ## 2026-08-19 — issue #89 patterned-banner artifact proof ledger
 
-**State:** issue #89's typed banner implementation and focused fixture proof
-are landed, but the issue remains open because the artifact-level render proof
-has not been run. The implementation commit is
+**State:** issue #89's typed banner implementation, focused fixture proof, and
+fixture-scoped oracle render are verified. The issue remains open because the
+packaged-viewer surface stayed blank and has no visible banner read-back. The implementation commit is
 `47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b`; the focused acceptance repair is
 `d14203e7e40a2ae4851b8bfe3476450609451570`, with five focused tests covering
 ordered layers, all supported colors, legacy/current fields, malformed entries,
@@ -12,19 +12,28 @@ unknown identifiers, round-trip behavior, and current resource-path lookup.
 
 The remaining evidence is intentionally explicit:
 
-1. Generate one reproducible world containing at least two patterned banners
-   with distinct ordered layers and colors.
-2. Render that world through the supported oracle path and retain the command,
-   world identifier, output manifest, and explicit assertions for layer order
-   and color.
-3. Build the supported packaged viewer from the exact same candidate, open the
-   rendered world, and retain the artifact identity plus a same-world read-back
-   record tying the viewer output to the oracle world.
+1. The verified 64×64-block, 16-chunk world is recorded at
+   `tools/oracle/out/gate/worlds/patterned-banner-world/patterned-banner-manifest.json`;
+   it contains exactly 3 banners and 10 ordered layers across legacy,
+   current-component, and wall-banner forms.
+2. The verified oracle output is
+   `tools/oracle/out/patterned-banner/issue-89.json`. Its fixture-scoped
+   validator accepts the intentional TypeScript extension over Java: the one
+   hires tile contains exactly 60 additional vertices and 1 additional shared
+   overlay material group. Every non-hires file matches; 18 PNGs are
+   pixel-identical re-encodes and 5 render-state entries differ only in
+   wall-clock times. This is not a zero-difference or byte-identical result.
+3. The packaged viewer returned the exact expected TypeScript hires SHA-256
+   `4d727ce14d1e3cd2b781db0895dbc750b58771eb1abff834a67f877f45d6c078`
+   and exposed a live WebGL context, but its map surface remained blank. Those
+   facts prove transport and renderer availability, not visible banner output.
+   A visible same-world read-back is still required.
 
-No artifact render, oracle comparison, packaged-viewer run, or screenshot is
-claimed by this entry. Existing generic world captures are not substitutes for
-the patterned-banner acceptance state. The issue stays open until the three
-records above are attached to its public handoff and independently read back.
+The world and fixture-scoped oracle records above are verified. The packaged
+attempt is recorded as failed visual proof, not success. Existing generic world
+captures are not substitutes for the packaged patterned-banner acceptance
+state. The issue stays open until the packaged viewer visibly renders the same
+world and that result is independently read back.
 
 ### 廣東話同步
 
@@ -35,12 +44,14 @@ commit 係 `47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b`，focused acceptance repai
 layers、所有支援顏色、legacy/current fields、malformed entries、unknown
 identifiers、round-trip 同 current resource-path lookup。
 
-仲欠嘅證明係：一個可重現、內含至少兩面唔同 layer/color 次序嘅真世界；
-用 supported oracle render 並保留 command、world identifier、manifest 同
-layer/color assertions；再用同一個 candidate 嘅 packaged viewer 打開同一份
-輸出，保留 artifact identity 同 read-back record。呢段冇聲稱 artifact render、
-oracle comparison、packaged viewer run 或 screenshot；普通世界 capture 唔可以代替
-patterned-banner acceptance state。三份記錄未齊之前，issue 繼續保持 open。
+64×64 blocks、16 chunks 嘅 fixture 同 oracle records 已經 verify：manifest
+有啱啱好 3 面 banner、10 層 ordered layers。Java 路線唔讀 banner block-entity，
+所以 TypeScript hires tile 多啱啱好 60 vertices 同 1 個 shared overlay material
+group 係 fixture-scoped validator 接受嘅預期 extension；全部 non-hires files
+match，唔可以再寫成 zero-difference。Packaged viewer 雖然收到 expected hires
+SHA-256，而且 WebGL context 係 live，但畫面仍然 blank；呢兩項只證明 transport
+同 renderer availability，唔係 visible banner proof。未有 same-world visible
+read-back 之前，issue 繼續保持 open。
 
 ## 2026-08-19 — issue #64 focused acceptance repair
 

@@ -1,5 +1,6 @@
-import { Color } from "@worldlens/shared";
+import { Color, Key } from "@worldlens/shared";
 import { LRUCache } from "lru-cache";
+import { PNG } from "pngjs";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import type { Variant } from "../../../resources/pack/resourcepack/blockstate/Variant.js";
 import { BlockState } from "../../../world/BlockState.js";
@@ -13,6 +14,7 @@ import type { RenderSettings } from "../RenderSettings.js";
 import type { TileModelView } from "../TileModelView.js";
 import type { BlockRenderer } from "./BlockRenderer.js";
 import type { BlockRendererType } from "./BlockRendererType.js";
+import { BannerBlockEntity, bannerRenderLayers } from "../../../world/mca/blockentity/BannerBlockEntity.js";
 
 /**
  * upstream: {@code util/Caches.build(loader)} — a caffeine LoadingCache with
@@ -54,6 +56,7 @@ function rendererCache(
  */
 export class BlockStateModelRenderer {
     private readonly resourcePack: ResourcePack;
+    private readonly textureGallery: TextureGallery;
     private readonly blockRenderers: (type: BlockRendererType) => BlockRenderer;
 
     private readonly variants: Variant[] = [];
@@ -64,6 +67,7 @@ export class BlockStateModelRenderer {
         renderSettings: RenderSettings,
     ) {
         this.resourcePack = resourcePack;
+        this.textureGallery = textureGallery;
         this.blockRenderers = rendererCache((type) =>
             type.create(resourcePack, textureGallery, renderSettings),
         );
@@ -99,6 +103,7 @@ export class BlockStateModelRenderer {
 
         // render block
         this.renderModel(block, blockState, tileModel.initialize(), blockColor);
+        this.renderBanner(block, tileModel);
 
         // add water if block is waterlogged
         if (blockState.isWaterlogged() || block.getProperties().isAlwaysWaterlogged()) {
@@ -174,4 +179,61 @@ export class BlockStateModelRenderer {
 
         tileModel.initialize(modelStart);
     }
+
+    /**
+     * Banner block entities are data-driven overlays rather than ordinary block-state
+     * geometry. Keep the overlay in the same tile model so the packaged viewer receives
+     * the exact ordered layers and their colours, instead of silently dropping the entity.
+     * The small procedural textures are deterministic fallbacks for the resource-pack
+     * banner paths; a supplied pack texture replaces them through the same gallery key.
+     */
+    private renderBanner(block: BlockNeighborhood, tileModel: TileModelView): void {
+        const entity = block.getBlockEntity();
+        if (!(entity instanceof BannerBlockEntity)) return;
+
+        for (const [index, layer] of bannerRenderLayers(entity).entries()) {
+            const z = 7 - index * 0.01;
+            const start = tileModel.initialize().add(2);
+            const model = tileModel.getTileModel();
+            model.setPositions(start, 1.2, 1.4, z, 14.8, 1.4, z, 1.2, 29.4, z);
+            model.setPositions(start + 1, 14.8, 1.4, z, 14.8, 29.4, z, 1.2, 29.4, z);
+            model.setUvs(start, 0, 1, 1, 1, 0, 0);
+            model.setUvs(start + 1, 1, 1, 1, 0, 0, 0);
+            const material = this.textureGallery.get(new Key("minecraft", "block/white_banner"));
+            model.setMaterialIndex(start, material);
+            model.setMaterialIndex(start + 1, material);
+            for (const face of [start, start + 1]) {
+                model.setColor(face, layer.tint[0], layer.tint[1], layer.tint[2]);
+                model.setAOs(face, 1, 1, 1);
+                model.setSunlight(face, 15);
+                model.setBlocklight(face, 0);
+            }
+        }
+    }
+}
+
+export function bannerLayerImage(
+    pattern: string,
+    tint: readonly [number, number, number],
+): PNG {
+    const image = new PNG({ width: 16, height: 32 });
+    const value = pattern.includes(":") ? pattern.slice(pattern.indexOf(":") + 1) : pattern;
+    const base = value === "base";
+    for (let y = 0; y < image.height; y++) {
+        for (let x = 0; x < image.width; x++) {
+            const painted = base ||
+                (value.includes("stripe_bottom") && y >= 20) ||
+                (value.includes("stripe_top") && y < 12) ||
+                (value.includes("stripe_left") && x < 6) ||
+                (value.includes("stripe_right") && x >= 10) ||
+                (value.includes("creeper") && ((x + y) % 5 < 2)) ||
+                (!base && !value.includes("stripe_") && !value.includes("creeper") && ((x + y) % 7 === 0));
+            const offset = (y * image.width + x) * 4;
+            image.data[offset] = Math.round(tint[0] * 255);
+            image.data[offset + 1] = Math.round(tint[1] * 255);
+            image.data[offset + 2] = Math.round(tint[2] * 255);
+            image.data[offset + 3] = painted ? 255 : 0;
+        }
+    }
+    return image;
 }
