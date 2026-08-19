@@ -8,7 +8,7 @@ are user-owned records with map/project, coordinate, camera, timestamp, dimensio
 provenance metadata; originals remain local; and the library must support search/filter, metadata
 editing, bulk actions, export/import, local history, privacy redaction, and deletion recovery.
 
-This is a records-only update. The source changes in this Gerk Tong Hui have not been accepted as
+This is a records-only update. The source changes in this checkout have not been accepted as
 packaged-app evidence: no tests, runtime verification, or genuine gallery captures were run here.
 The acceptance proof must populate the gallery only with screenshots made during that run and
 capture its empty, populated, search/filter, edit, export/import, failure, and delete-recovery
