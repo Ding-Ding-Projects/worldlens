@@ -904,9 +904,10 @@ export class CiRenderSync {
     /**
      * Continues a run that this computer already dispatched before the application closed.
      *
-     * The recorded run id is the authorization boundary: this path never fingerprints or
-     * uploads the current world and never dispatches a replacement run. A world edited while
-     * the app was closed therefore cannot silently turn a resume into a second publication.
+     * The recorded dispatch identity is the authorization boundary: this path never
+     * fingerprints or uploads the current world and never dispatches a replacement run. A
+     * world edited while the app was closed therefore cannot silently turn a resume into a
+     * second publication, even when the process died before GitHub returned the numeric run id.
      */
     async resume(syncId: string): Promise<CiSyncResult> {
         const inFlight = this.#resuming.get(syncId);
@@ -928,7 +929,9 @@ export class CiRenderSync {
                 failure("no-such-sync", `There is no CI render recorded under ${syncId}.`),
             );
         }
-        if (state.stage !== "dispatched" || state.runId === null) return await this.check(syncId);
+        if (state.stage !== "dispatched" || (state.runId === null && state.dispatchedAt === null)) {
+            return await this.check(syncId);
+        }
         return await this.sync({
             worldFolder: state.worldFolder,
             owner: state.owner,
@@ -1507,24 +1510,55 @@ export class CiRenderSync {
 
         const workflowFile = this.#options.workflowFile ?? RENDER_WORKFLOW_FILE;
         let runId = state.runId;
+        let dispatchedAt: Date;
 
         if (runId === null) {
-            this.#phase(syncId, "dispatching", route);
-            const ref = await transport.readDefaultBranch(owner, repo);
-            const dispatchedAt = new Date(this.#clock());
-            await transport.dispatchWorkflow(owner, repo, workflowFile, ref, planned.plan.inputs);
-            this.#log(
-                syncId,
-                "info",
-                `Started ${workflowFile} on ${owner}/${repo} against ${ref}.`,
-            );
-            state = {
-                ...state,
-                stage: "dispatched",
-                dispatchedAt: dispatchedAt.toISOString(),
-                updatedAt: this.#timestamp(),
-            };
-            await this.#save(workspace.stateFile, state);
+            if (state.dispatchedAt !== null) {
+                // A previous process may have persisted the dispatch identity and then
+                // vanished before GitHub returned the run id. Adopt the run that belongs
+                // to that durable timestamp; dispatching again would create a duplicate.
+                dispatchedAt = new Date(state.dispatchedAt);
+                this.#log(
+                    syncId,
+                    "info",
+                    `Adopting the ${workflowFile} dispatch recorded before restart; no replacement run will be started.`,
+                );
+            } else {
+                this.#phase(syncId, "dispatching", route);
+                const ref = await transport.readDefaultBranch(owner, repo);
+                dispatchedAt = new Date(this.#clock());
+                // Persist the identity before the external side effect. If this process
+                // crashes during or immediately after dispatch, the next process can
+                // correlate the run instead of dispatching a duplicate.
+                state = {
+                    ...state,
+                    stage: "dispatched",
+                    dispatchedAt: dispatchedAt.toISOString(),
+                    updatedAt: this.#timestamp(),
+                };
+                await this.#save(workspace.stateFile, state);
+                try {
+                    await transport.dispatchWorkflow(owner, repo, workflowFile, ref, planned.plan.inputs);
+                } catch (error) {
+                    // A refused request never created a run. Remove the pre-dispatch
+                    // marker before surfacing the refusal so a later retry may safely
+                    // dispatch once, while a process crash during the call still leaves
+                    // the marker available for adoption.
+                    state = {
+                        ...state,
+                        stage: "uploaded",
+                        dispatchedAt: null,
+                        updatedAt: this.#timestamp(),
+                    };
+                    await this.#save(workspace.stateFile, state);
+                    throw error;
+                }
+                this.#log(
+                    syncId,
+                    "info",
+                    `Started ${workflowFile} on ${owner}/${repo} against ${ref}.`,
+                );
+            }
 
             this.#phase(syncId, "waiting", route);
             const found = await this.#awaitRun(

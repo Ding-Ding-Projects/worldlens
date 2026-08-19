@@ -128,7 +128,8 @@ describe("renders that are going right now", () => {
         await offers.load();
 
         expect(offers.active.value).toEqual([]);
-        expect(offers.offers.value).toHaveLength(1);
+        expect(offers.offers.value).toHaveLength(0);
+        expect(offers.activeState.value).toBe("unknown");
         expect(offers.failure.value).toBeNull();
     });
 

@@ -1,5 +1,20 @@
 # Handoff
 
+## Issue #64 delivery evidence boundary — 2026-08-19
+
+The queue-persistence implementation and focused acceptance record are present at the current
+issue-lane tip `d004f3ca15d7d7a9121df370e00c955072489098`. This delivery-only pass checked the
+issue-owned checkout for a packaged executable or installer containing the standalone CLI and for
+a runtime receipt proving that a fresh process reopened `<resolved core.data>/tasks.dat` and resumed
+queued work. No packaged executable, installer, or runtime receipt was present in this checkout;
+therefore packaged/runtime reachability and end-to-end process-restart evidence remain unverified.
+
+The existing focused record remains the strongest available evidence: 3 files and 29 tests passed
+for queue-file round trips, schema/version and malformed-entry handling, terminal-task exclusion,
+atomic staging, coalesced saves, and CLI startup/shutdown wiring. Those tests do not establish that
+the packaged CLI can be launched, that the process can be restarted, or that a queued task resumes
+through the real runtime. Issue #64 must remain open until that evidence is produced and read back.
+
 ## Cloud-render restart and UI verification — 2026-08-19
 
 The desktop app now restores persisted terminal cloud-render states, removes terminal rows only
