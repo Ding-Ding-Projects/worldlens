@@ -574,10 +574,35 @@ interface SharedSchoolModeBridge {
     reset(): Promise<SharedSchoolModeResult>;
 }
 
+interface DashboardEntry {
+    readonly id: string;
+    readonly source: "profile" | "hosting";
+    readonly label: string;
+    readonly url: string | null;
+    readonly status: "running" | "stopped" | "unknown" | "configured";
+    readonly reachability: "reachable" | "unreachable" | "unknown" | "stale";
+    readonly version: string | null;
+    readonly mapIds: readonly string[];
+    readonly players: number | null;
+    readonly renderState: string | null;
+    readonly lastCheckedAt: string | null;
+    readonly failure: string | null;
+    readonly owner: { readonly kind: "profile" | "hosting"; readonly id: string };
+}
+
+interface DashboardSnapshot {
+    readonly version: 1;
+    readonly generatedAt: string;
+    readonly entries: readonly DashboardEntry[];
+}
+
 interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    dashboardSnapshot(): Promise<DashboardSnapshot>;
+    dashboardRefresh(options?: { readonly concurrency?: number; readonly retries?: number; readonly backoffMs?: number }): Promise<DashboardSnapshot>;
+    dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
     schoolMode?: SharedSchoolModeBridge;
     startup: BlueMapStartupBridge;
 

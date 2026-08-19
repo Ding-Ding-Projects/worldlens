@@ -1,5 +1,26 @@
 # Handoff
 
+## Issue #77 multi-server operations dashboard — 2026-08-19
+
+The issue-owned checkout contains the dashboard implementation for aggregating
+local, Docker, and remote server profiles. The feature record is
+[`docs/multi-server-dashboard.md`](../docs/multi-server-dashboard.md), which
+defines the refresh, stale/unknown, filtering, grouping, bulk-action, teleport,
+persistence, history, and credential requirements.
+
+This is an implementation handoff, not a verification claim. Tests, captures, and
+packaged multi-server interaction were not run in this lane. Mixed routes, offline
+and authentication failures, version skew, large inventories, restart, accessibility,
+localization, and compact-width evidence remain open before issue #77 can close.
+
+### 廣東話 / Cantonese
+
+Issue-owned checkout 入面已經有 local、Docker、remote server profiles aggregate
+dashboard 嘅 implementation。呢度係 implementation handoff，唔係 verification
+claim：今次冇行 tests、captures 或 packaged multi-server interaction；各種混合路徑、
+離線、auth failure、version skew、大 inventory、restart、accessibility、localization
+同窄闊度證據都仲未有。
+
 ## Issue #82 — packaged Java runtime and app-owned render receipt boundary (2026-08-19)
 
 Issue #82 remains open. This records-only lane keeps the active delivery scope **Windows only**:

@@ -46,24 +46,9 @@ function load(): ProfilesState {
     } catch {
         // fall through to defaults
     }
-    // The demo is offered, not opened. `activeId` is deliberately null on a fresh
-    // install: making somebody else's server the active default means every launch of
-    // every copy contacts a machine another person pays for, before the user has asked
-    // for anything. It is one click away in the profile list instead.
-    //
-    // This is also what the capture harness's offline guard catches, because a default
-    // that phones home is indistinguishable from a bug that does.
-    return {
-        profiles: [
-            {
-                id: "demo",
-                name: "BlueMap Demo (bluecolored.de)",
-                url: "https://bluecolored.de/bluemap",
-                trustCustomizations: false,
-            },
-        ],
-        activeId: null,
-    };
+    // A fresh install has no seeded server. `activeId` is deliberately null: contacting
+    // somebody else's machine before the user has asked for it would be an unsafe default.
+    return { profiles: [], activeId: null };
 }
 
 export const profilesStore = reactive<ProfilesState>(load());

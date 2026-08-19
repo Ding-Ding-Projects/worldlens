@@ -1,5 +1,20 @@
 # Roadmap
 
+## Issue #77 multi-server operations dashboard — 2026-08-19
+
+- **Implementation:** The issue-owned checkout adds an aggregate dashboard for
+  local, Docker, and remote server profiles, with bounded refresh, explicit
+  stale/unknown/partial states, filters and regex search, grouping/pinning/reorder,
+  multi-select and truthful bulk actions, exact-surface navigation, and durable
+  layout/history boundaries.
+- **Current status:** Open pending verification. No tests, captures, or packaged
+  multi-server interaction are claimed in this lane.
+- **Remaining evidence:** mixed routes, offline and authentication failures,
+  version skew, large inventories, restart, accessibility, localization, compact
+  widths, and multiple isolated real servers or containers in the packaged app.
+  See [`docs/multi-server-dashboard.md`](../docs/multi-server-dashboard.md) and
+  issue #77.
+
 ## Issue #82 — packaged Java/runtime receipt boundary (2026-08-19)
 
 Issue #82 remains open. The active delivery scope is **Windows only**. Existing real-network

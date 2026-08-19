@@ -1,5 +1,36 @@
 # Handoff
 
+## Issue #77 multi-server operations dashboard — 2026-08-19
+
+Issue #77 remains **open and pending implementation**. The current application has
+individual saved profiles in Maps and servers, while this issue's dashboard work
+aggregates local, Docker, and remote sources with reachability, version, maps,
+players, render/update state, and last-check time.
+
+The direct feature record is [`docs/multi-server-dashboard.md`](docs/multi-server-dashboard.md).
+It records bounded refresh, backoff, cancellation, stale/unknown/partial states,
+search and full regex, filters, grouping/pinning/reorder, multi-select and truthful
+bulk actions, exact-surface teleport, persistence/history, and the credential
+boundary.
+
+The implementation files are present on this issue-owned checkout, but no tests,
+captures, or packaged multi-server interaction are claimed in this handoff. Mixed
+local/Docker/remote, offline, authentication-failure, version-skew, large-
+inventory, restart, accessibility, localization, and compact-width evidence
+remains outstanding. A future pass must prove the feature against multiple
+isolated real servers or containers in the packaged application before issue #77
+can close.
+
+### 廣東話 / Cantonese
+
+Issue #77 仲係 **open，等緊驗證完成**。而家 app 有 Maps and servers 入面一部部
+profile；今次 dashboard implementation 就係要將 local、Docker、remote 來源，
+可達性、版本、maps、players、render/update 狀態同最後檢查時間擺埋一齊。
+
+Implementation files 已經喺 issue-owned checkout，但今次 handoff 冇聲稱 test、
+capture 或 packaged multi-server interaction 已完成。混合路徑、離線、auth failure、
+version skew、大 inventory、restart、accessibility、localization 同窄闊度證據都仲欠住。
+
 ## Issue #80 — privacy-safe in-app issue reporting (2026-08-19)
 
 The isolated Issue #80 checkout contains an in-progress implementation for a reviewed diagnostic

@@ -25,6 +25,7 @@ import type { MenuPage } from "@worldlens/viewer";
 import MapView from "./components/MapView.vue";
 import { HomeScreen } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
+import DashboardScreen from "./components/DashboardScreen.vue";
 import ZoomButtons from "./components/controls/ZoomButtons.vue";
 import FreeFlightMobileControls from "./components/controls/FreeFlightMobileControls.vue";
 import { ControlBar } from "./components/controlbar/index.js";
@@ -1923,7 +1924,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #servers>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
-                            <ProfileManager @close="revealPage(PAGE_MAP)" />
+                            <DashboardScreen
+                                @close="revealPage(PAGE_MAP)"
+                                @open-profile="(id) => { profilesStore.activeId = id; revealPage(PAGE_MAP); }"
+                                @open-hosting="(id) => { localStorage.setItem('worldlens.dashboard.hostingId', id); revealPage(PAGE_REMOTE_HOSTING); }"
+                            />
                         </div>
                     </div>
                 </template>
@@ -2328,7 +2333,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #servers>
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
-                                    <ProfileManager @close="revealPage(PAGE_MAP)" />
+                                    <DashboardScreen
+                                        @close="revealPage(PAGE_MAP)"
+                                        @open-profile="(id) => { profilesStore.activeId = id; revealPage(PAGE_MAP); }"
+                                        @open-hosting="(id) => { localStorage.setItem('worldlens.dashboard.hostingId', id); revealPage(PAGE_REMOTE_HOSTING); }"
+                                    />
                                 </div>
                             </div>
                         </template>

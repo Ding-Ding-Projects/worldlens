@@ -232,3 +232,30 @@ export {
     type RemoteHostingIpc,
     type RemoteHostingIpcOptions,
 } from "./hostingIpc.js";
+
+export {
+    DASHBOARD_DEFAULT_BACKOFF_MS,
+    DASHBOARD_DEFAULT_CONCURRENCY,
+    DASHBOARD_DEFAULT_RETRIES,
+    DASHBOARD_FORMAT_VERSION,
+    createDashboardSnapshot,
+    createHostingDashboardChecker,
+    refreshDashboard,
+    type DashboardChecker,
+    type DashboardEntry,
+    type DashboardProfile,
+    type DashboardReachability,
+    type DashboardRefreshContext,
+    type DashboardRefreshOptions,
+    type DashboardRefreshResult,
+    type DashboardSnapshot,
+    type DashboardSource,
+    type DashboardStatus,
+} from "./dashboard.js";
+
+export {
+    DASHBOARD_CHANNELS,
+    registerDashboardHandlers,
+    type DashboardIpc,
+    type DashboardIpcOptions,
+} from "./dashboardIpc.js";

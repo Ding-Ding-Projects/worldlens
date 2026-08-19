@@ -111,6 +111,16 @@ async function loadRenders(): Promise<void> {
         targets.value = choices.targets;
         renders.value = choices.renders;
         hostingRecords.value = choices.hostingRecords;
+        const dashboardHostingId = readString("worldlens.dashboard.hostingId");
+        const dashboardRecord = dashboardHostingId === null
+            ? null
+            : hostingRecords.value.find((record) => record.hostingId === dashboardHostingId) ?? null;
+        if (dashboardRecord !== null) {
+            selectedTargetId.value = dashboardRecord.target.id;
+            selectedRenderId.value = dashboardRecord.renderId;
+            writeString("worldlens.remote-hosting.target", selectedTargetId.value);
+            writeString("worldlens.remote-hosting.render", selectedRenderId.value);
+        }
         if (selectedRender.value === null) {
             selectedRenderId.value = finishedRenders.value[0]?.renderId ?? null;
             writeString("worldlens.remote-hosting.render", selectedRenderId.value);
