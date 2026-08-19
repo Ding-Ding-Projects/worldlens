@@ -11,4 +11,3 @@ export interface ReleaseLedgerEntry {
 export interface ReleaseLedgerReadout { readonly source: "bridge"; readonly readAt: string; readonly entries: readonly ReleaseLedgerEntry[]; }
 export interface ReleaseLedgerBridge { releaseLedgerRead?: () => Promise<ReleaseLedgerReadout>; writeClipboardText?: (text: string) => Promise<void>; }
 export function resolveReleaseLedgerBridge(): ReleaseLedgerBridge | null { return (globalThis as { worldlens?: ReleaseLedgerBridge }).worldlens ?? null; }
-

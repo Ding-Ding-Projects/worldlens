@@ -62,4 +62,3 @@ function download(): void { const blob = new Blob([markdown()], { type: "text/ma
 .wl-release-ledger__state { display: flex; align-items: center; gap: 10px; margin: 18px 0; padding: 12px; border-radius: 12px; background: rgb(var(--v-theme-surface-container)); } .wl-release-ledger__state--error { color: rgb(var(--v-theme-error)); }
 @media (max-width: 720px) { .wl-release-ledger { padding-inline: 16px; } .wl-release-ledger__header, .wl-release-ledger__row-head { flex-direction: column; } .wl-release-ledger__actions { justify-content: flex-start; } }
 </style>
-
