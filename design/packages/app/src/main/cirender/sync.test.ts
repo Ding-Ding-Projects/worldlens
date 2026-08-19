@@ -693,6 +693,40 @@ describe("an account id a request names drives the credential, not only decorate
 });
 
 describe("a run that is still going is reported as still going", () => {
+    it("persists Stop watching as cancelled and emits no later failed event", async () => {
+        const github = baseRoutes(new RecordingGitHub())
+            .on("GET", /\/actions\/runs\/7$/, {
+                status: 200,
+                json: runJson({ id: 7, status: "in_progress" }),
+            })
+            .on("GET", "/actions/runs/7/jobs", { status: 200, json: { jobs: [] } });
+        const syncId = await seedUploadedState({ runId: 7 });
+        const events: CiSyncEvent[] = [];
+        const sync = new CiRenderSync({
+            storageDir: () => join(workDir, "maps"),
+            account: recordingGhAccountProvider(github),
+            eulaAccepted: () => true,
+            onEvent: (event) => events.push(event),
+            now: () => NOW,
+            sleep: async (_milliseconds, signal) =>
+                await new Promise<void>((_resolve, reject) => {
+                    signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+                }),
+        });
+
+        const resultPromise = sync.resume(syncId);
+        await waitFor(() => events.some((event) => event.type === "run"));
+        expect(sync.cancel(syncId)).toBe(true);
+        const result = await resultPromise;
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("cancelled");
+        expect((await sync.readState(syncId))?.stage).toBe("cancelled");
+        expect(events.filter((event) => event.type === "cancelled")).toHaveLength(1);
+        expect(events.filter((event) => event.type === "failed")).toHaveLength(0);
+    });
+
     it("says which wave a job belongs to, read from its own name", async () => {
         const github = releaseRoute(baseRoutes(new RecordingGitHub()))
             .on("GET", "/actions/workflows/render-world.yml/runs", {

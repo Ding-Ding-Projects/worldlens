@@ -874,10 +874,17 @@ export class CiRenderSync {
             return result;
         } catch (error) {
             if (controller.signal.aborted) {
-                state = { ...state, updatedAt: this.#timestamp() };
+                const cancellation = failure("cancelled", CANCELLED_MESSAGE);
+                state = {
+                    ...state,
+                    stage: "cancelled",
+                    failureCode: cancellation.code,
+                    failureMessage: cancellation.message,
+                    updatedAt: this.#timestamp(),
+                };
                 await this.#save(workspace.stateFile, state);
                 this.emit({ type: "cancelled", syncId, at: this.#timestamp() });
-                return this.#failed(syncId, failure("cancelled", CANCELLED_MESSAGE));
+                return { ok: false, syncId, failure: cancellation };
             }
             const converted = fromError(error);
             state = {
