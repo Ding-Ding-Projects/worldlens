@@ -153,6 +153,10 @@ function labelDialogs(root: ParentNode): void {
     }
 }
 
+function setTextContent(element: HTMLElement | null, value: string): void {
+    if (element && element.textContent !== value) element.textContent = value;
+}
+
 function hydrateReleaseDownloads(root: ParentNode): void {
     const links = [...root.querySelectorAll<HTMLAnchorElement>("[data-worldlens-download-link]")];
     const unavailable = [
@@ -166,10 +170,10 @@ function hydrateReleaseDownloads(root: ParentNode): void {
             link.hidden = true;
         }
         for (const message of unavailable) {
-            message.textContent = downloadCopy.unavailableLead;
+            setTextContent(message, downloadCopy.unavailableLead);
             message.hidden = false;
         }
-        if (summary) summary.textContent = downloadCopy.unavailableHeading;
+        setTextContent(summary, downloadCopy.unavailableHeading);
         return;
     }
 
@@ -183,12 +187,10 @@ function hydrateReleaseDownloads(root: ParentNode): void {
     for (const message of unavailable) message.hidden = true;
 
     const heroLabel = root.querySelector<HTMLElement>('[data-worldlens-download-label="hero"]');
-    if (heroLabel) {
-        heroLabel.textContent = `${downloadButtonLabel(release)} · ${release.version} · ${size}`;
-    }
+    setTextContent(heroLabel, `${downloadButtonLabel(release)} · ${release.version} · ${size}`);
     const latestLabel = root.querySelector<HTMLElement>('[data-worldlens-download-label="latest"]');
-    if (latestLabel) latestLabel.textContent = `${release.installer.assetName} · ${size}`;
-    if (summary) summary.textContent = `${release.version} · ${formatDate(release.publishedAt)}`;
+    setTextContent(latestLabel, `${release.installer.assetName} · ${size}`);
+    setTextContent(summary, `${release.version} · ${formatDate(release.publishedAt)}`);
 }
 
 function enhance(root: ParentNode = document): void {
