@@ -246,9 +246,32 @@ export function coverageVerdict(input: {
     /** Whether this run had a rendered map to serve, from the capture target's own mode. */
     readonly hasLoadedMap: boolean;
 }): CoverageVerdict {
+    const duplicateRequired = input.required
+        .map((entry) => entry.surface)
+        .filter((surface, index, surfaces) => surfaces.indexOf(surface) !== index);
+    if (duplicateRequired.length > 0) {
+        throw new Error(
+            "capture coverage contract repeats required surfaces: " +
+                [...new Set(duplicateRequired)].join(", "),
+        );
+    }
+
     const required = new Map(input.required.map((entry) => [entry.surface, entry]));
     const missing: string[] = [];
     const excusedForNoMap: string[] = [];
+
+    const skipped = new Set(input.ledger.skipped.map((gap) => gap.surface));
+    const completed = new Set(input.ledger.completed.map((step) => step.surface));
+    const contradictory = [...skipped].filter((surface) => completed.has(surface));
+    if (contradictory.length > 0) {
+        missing.push(
+            ...contradictory.map(
+                (surface) =>
+                    `${surface} - the ledger records both a completed capture step and a skip; ` +
+                    "the run must resolve that contradiction before it can claim coverage",
+            ),
+        );
+    }
 
     for (const gap of input.ledger.skipped) {
         const entry = required.get(gap.surface);
@@ -267,10 +290,7 @@ export function coverageVerdict(input: {
      * "nothing was recorded about it" is the precise state the in-memory arrays used to report
      * as success, and the reason a rule about well-formed records is not a rule about coverage.
      */
-    const recorded = new Set([
-        ...input.ledger.skipped.map((gap) => gap.surface),
-        ...input.ledger.completed.map((step) => step.surface),
-    ]);
+    const recorded = new Set([...skipped, ...completed]);
     for (const entry of input.required) {
         if (recorded.has(entry.surface)) continue;
         if (entry.needsLoadedMap === true && !input.hasLoadedMap) {

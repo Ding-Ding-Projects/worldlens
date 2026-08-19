@@ -9,6 +9,7 @@
 
 import { captureProvenance, repoCaptures } from "./captures.js";
 import type { RepoCapture } from "./captures.js";
+import galleryCategoryRegistry from "./gallery-categories.json";
 
 const imageModules = import.meta.glob("../../../../../docs/screenshots/*.png", {
     eager: true,
@@ -29,168 +30,30 @@ const evidenceInventoryModules = import.meta.glob(
     },
 ) as Record<string, unknown>;
 
-export const GALLERY_CATEGORY_IDS = [
-    "getting-started",
-    "shell-navigation",
-    "settings-appearance",
-    "worlds-projects",
-    "configuration",
-    "delivery-runtime",
-    "kid-mode",
-    "site-evidence",
-    "installed-builds",
-    "rendered-maps",
-    "issue-baselines",
-    "historical-retired",
-    "other",
-] as const;
-
-export type GalleryCategoryId = (typeof GALLERY_CATEGORY_IDS)[number];
-
-export interface GalleryCategoryDefinition {
-    readonly id: GalleryCategoryId;
+type GalleryCategoryRegistryEntry = {
+    readonly id: string;
     readonly label: string;
     readonly labelYue: string;
     readonly description: string;
     readonly descriptionYue: string;
     readonly prefixes: readonly string[];
-}
+    readonly evidenceGroups?: readonly string[];
+};
 
-export const GALLERY_CATEGORIES: readonly GalleryCategoryDefinition[] = [
-    {
-        id: "getting-started",
-        label: "Getting started",
-        labelYue: "開始使用",
-        description: "First run, Home, compact Home layouts, and the first runtime choice.",
-        descriptionYue: "首次啟動、主頁、窄版主頁，同第一個執行位置選擇。",
-        prefixes: ["firstrun-", "home-", "redesign-home-", "eula-", "run-location"],
-    },
-    {
-        id: "shell-navigation",
-        label: "Shell and navigation",
-        labelYue: "外殼同導覽",
-        description: "Full windows, title bars, navigation, menus, tabs, palettes, and notices.",
-        descriptionYue: "完整視窗、標題列、導覽、選單、分頁、指令面板同通知。",
-        prefixes: [
-            "shell-",
-            "installed-app-",
-            "titlebar-",
-            "chrome-",
-            "menu-",
-            "tab-",
-            "palette-",
-            "browser-",
-            "notifications-",
-            "lowlevel-adult-",
-            "theme-",
-            "dimsum-",
-        ],
-    },
-    {
-        id: "settings-appearance",
-        label: "Settings and appearance",
-        labelYue: "設定同外觀",
-        description:
-            "Settings, appearance tools, locks, support, authentication, and confirmation states.",
-        descriptionYue: "設定、外觀工具、鎖定、支援、驗證同確認狀態。",
-        prefixes: [
-            "settings-",
-            "appearance-",
-            "infinite-",
-            "lock-",
-            "support-",
-            "authenticator-",
-            "super-confirm-",
-        ],
-    },
-    {
-        id: "worlds-projects",
-        label: "Worlds and projects",
-        labelYue: "世界同專案",
-        description: "Project, profile, backup, import, structure, and map-creation surfaces.",
-        descriptionYue: "專案、設定檔、備份、匯入、結構同建立地圖畫面。",
-        prefixes: ["wizard-", "projects-", "profiles-", "drop-", "structures-", "backups-"],
-    },
-    {
-        id: "configuration",
-        label: "Configuration editor",
-        labelYue: "設定檔編輯器",
-        description: "The complete options editor, its tabs, search, history, and guarded actions.",
-        descriptionYue: "完整選項編輯器、各分頁、搜尋、歷史同受確認保護嘅操作。",
-        prefixes: ["config-"],
-    },
-    {
-        id: "delivery-runtime",
-        label: "Delivery and runtime",
-        labelYue: "發佈同執行環境",
-        description:
-            "Publishing, continuous integration, local model, and large-file runtime surfaces.",
-        descriptionYue: "發佈、持續整合、本機模型同大型檔案執行畫面。",
-        prefixes: ["ci-", "pages-", "ollama-", "chunker-", "lowlevel-ci-"],
-    },
-    {
-        id: "kid-mode",
-        label: "Kid Mode",
-        labelYue: "兒童模式",
-        description:
-            "Kid Mode catalogues, settings, progress, stickers, narrow layouts, and scales.",
-        descriptionYue: "兒童模式目錄、設定、進度、貼紙、窄版畫面同顯示比例。",
-        prefixes: ["kid-", "lowlevel-kid-"],
-    },
-    {
-        id: "site-evidence",
-        label: "Website evidence",
-        labelYue: "網站證據",
-        description:
-            "Compact site proofs, walkthrough frames, tab layouts, and live Pages captures.",
-        descriptionYue: "窄版網站證據、操作示範畫面、分頁版面同真實 Pages 截圖。",
-        prefixes: [],
-    },
-    {
-        id: "installed-builds",
-        label: "Installed builds",
-        labelYue: "已安裝版本",
-        description:
-            "Real installed or packaged application captures driven outside the component test path.",
-        descriptionYue: "喺元件測試路徑以外，實際安裝或封裝版本嘅真實截圖。",
-        prefixes: [],
-    },
-    {
-        id: "rendered-maps",
-        label: "Rendered maps",
-        labelYue: "已渲染地圖",
-        description:
-            "Captures backed by a real rendered world and its recorded rendering provenance.",
-        descriptionYue: "由真實渲染世界同已記錄渲染來源支持嘅截圖。",
-        prefixes: [],
-    },
-    {
-        id: "issue-baselines",
-        label: "Issue baselines",
-        labelYue: "問題基準",
-        description:
-            "Real before-and-after or focused evidence retained for individual reported defects.",
-        descriptionYue: "為個別已報告問題保留嘅真實前後或聚焦證據。",
-        prefixes: [],
-    },
-    {
-        id: "historical-retired",
-        label: "Historical and retired",
-        labelYue: "歷史同已退役",
-        description:
-            "Evidence kept for audit value and labelled so it is not mistaken for the current interface.",
-        descriptionYue: "為審核保留嘅證據，清楚標示避免當成目前介面。",
-        prefixes: [],
-    },
-    {
-        id: "other",
-        label: "Other real captures",
-        labelYue: "其他真實截圖",
-        description: "Manifest-backed captures that do not belong to one of the named sets above.",
-        descriptionYue: "有 manifest 記錄，但唔屬於上面任何一組嘅真實截圖。",
-        prefixes: [],
-    },
-] as const;
+const CATEGORY_REGISTRY = galleryCategoryRegistry as readonly GalleryCategoryRegistryEntry[];
+
+export const GALLERY_CATEGORY_IDS = CATEGORY_REGISTRY.map((category) => category.id) as readonly [
+    string,
+    ...string[],
+];
+
+export type GalleryCategoryId = (typeof GALLERY_CATEGORY_IDS)[number];
+
+export type GalleryCategoryDefinition = GalleryCategoryRegistryEntry & {
+    readonly id: GalleryCategoryId;
+};
+
+export const GALLERY_CATEGORIES: readonly GalleryCategoryDefinition[] = CATEGORY_REGISTRY as readonly GalleryCategoryDefinition[];
 
 export const GALLERY_SEARCH_FIELD_NAMES = [
     "category",
@@ -234,6 +97,21 @@ interface EvidenceRecord {
     readonly authority: string;
     readonly reproducibility: string;
     readonly proofNote: string;
+    readonly sourceCommit: string | null;
+}
+
+/**
+ * The gallery is a view of the evidence ledger, not a second hand-written list.  Keep the
+ * ledger totals available to the Pages surface so a missing image or an unpinned capture run
+ * is visible to readers instead of being mistaken for a complete current gallery.
+ */
+export interface GalleryEvidenceSummary {
+    readonly inventoryVersion: string;
+    readonly inventoryTargetCount: number;
+    readonly galleryTargetCount: number;
+    readonly resolvedGalleryTargetCount: number;
+    readonly missingGalleryTargets: readonly string[];
+    readonly inventoryGroupCount: number;
 }
 
 function imageUrl(file: string): string | null {
@@ -286,6 +164,7 @@ function evidenceRecords(): readonly EvidenceRecord[] {
         const proofNote =
             stringField(group, "uiSourceDigestNote") ?? "No additional proof note is recorded.";
         const targets = group["targets"];
+        const sourceCommits = group["sourceCommits"];
         if (
             groupId === null ||
             authority === null ||
@@ -298,16 +177,66 @@ function evidenceRecords(): readonly EvidenceRecord[] {
             if (typeof target !== "string") continue;
             const match = /^docs\/screenshots\/([^/]+\.png)$/i.exec(target);
             if (match === null) continue;
+            const sourceCommit =
+                typeof sourceCommits === "object" && sourceCommits !== null
+                    ? stringField(sourceCommits as Readonly<Record<string, unknown>>, target)
+                    : null;
             records.push({
                 file: match[1] as string,
                 groupId,
                 authority,
                 reproducibility,
                 proofNote,
+                sourceCommit,
             });
         }
     }
     return records;
+}
+
+function galleryEvidenceSummary(): GalleryEvidenceSummary {
+    const inventory = Object.values(evidenceInventoryModules)[0];
+    if (typeof inventory !== "object" || inventory === null) {
+        return {
+            inventoryVersion: "not recorded",
+            inventoryTargetCount: 0,
+            galleryTargetCount: 0,
+            resolvedGalleryTargetCount: 0,
+            missingGalleryTargets: [],
+            inventoryGroupCount: 0,
+        };
+    }
+
+    const record = inventory as Readonly<Record<string, unknown>>;
+    const groups = Array.isArray(record["groups"]) ? record["groups"] : [];
+    const targets = new Set<string>();
+    for (const value of groups) {
+        if (typeof value !== "object" || value === null) continue;
+        const groupTargets = (value as Readonly<Record<string, unknown>>)["targets"];
+        if (!Array.isArray(groupTargets)) continue;
+        for (const target of groupTargets) {
+            if (typeof target !== "string") continue;
+            const match = /^docs\/screenshots\/([^/]+\.png)$/i.exec(target);
+            if (match !== null) targets.add(match[1] as string);
+        }
+    }
+
+    const missingGalleryTargets = [...targets]
+        .filter((file) => imageUrl(file) === null)
+        .sort((left, right) => left.localeCompare(right));
+    const version = record["version"];
+    const expected = record["expectedTargetCount"];
+    return {
+        inventoryVersion:
+            typeof version === "string" || typeof version === "number"
+                ? String(version)
+                : "not recorded",
+        inventoryTargetCount: typeof expected === "number" ? expected : targets.size,
+        galleryTargetCount: targets.size,
+        resolvedGalleryTargetCount: targets.size - missingGalleryTargets.length,
+        missingGalleryTargets,
+        inventoryGroupCount: groups.length,
+    };
 }
 
 function humanTitle(file: string): string {
@@ -321,26 +250,12 @@ function humanTitle(file: string): string {
 }
 
 function categoryFromEvidenceGroup(groupId: string | undefined): GalleryCategoryId | null {
-    switch (groupId) {
-        case "site-compact-proof":
-        case "site-walkthrough-media":
-        case "live-pages":
-        case "site-tabs-compact-proof":
-            return "site-evidence";
-        case "installed-app-cdp":
-        case "profile-migration-packaged":
-            return "installed-builds";
-        case "app-playwright-map-dependent":
-        case "consent-render":
-            return "rendered-maps";
-        case "issue-baselines":
-            return "issue-baselines";
-        case "historical-site-baseline":
-        case "retired-app-surfaces":
-            return "historical-retired";
-        default:
-            return null;
-    }
+    if (groupId === undefined) return null;
+    return (
+        CATEGORY_REGISTRY.find((category) => category.evidenceGroups?.includes(groupId))?.id as
+            | GalleryCategoryId
+            | undefined
+    ) ?? null;
 }
 
 export function galleryCategory(file: string, evidenceGroupId?: string): GalleryCategoryDefinition {
@@ -349,6 +264,12 @@ export function galleryCategory(file: string, evidenceGroupId?: string): Gallery
         return GALLERY_CATEGORIES.find((category) => category.id === evidenceCategoryId)!;
     }
     const normalized = file.toLowerCase();
+    const registryCategory = CATEGORY_REGISTRY.find((category) =>
+        category.prefixes.some((prefix) => normalized.startsWith(prefix)),
+    );
+    if (registryCategory !== undefined) {
+        return GALLERY_CATEGORIES.find((category) => category.id === registryCategory.id)!;
+    }
     return (
         GALLERY_CATEGORIES.find(
             (category) =>
@@ -397,6 +318,15 @@ function evidenceState(evidence: EvidenceRecord | undefined): string {
     ].join(" ");
 }
 
+function sourceCommitFor(evidence: EvidenceRecord | undefined): string {
+    if (evidence?.sourceCommit !== null && evidence?.sourceCommit !== undefined) {
+        return evidence.sourceCommit;
+    }
+    return /^[0-9a-f]{40}$/i.test(captureProvenance.commit)
+        ? captureProvenance.commit
+        : "Not pinned to a candidate commit";
+}
+
 function fromManifest(
     record: ManifestCaptureRecord,
     known: RepoCapture | undefined,
@@ -416,7 +346,7 @@ function fromManifest(
         categoryId: category.id,
         theme: recordedTheme(record.file, record.surface, record.caption),
         viewport: viewport.label,
-        sourceCommit: captureProvenance.commit,
+        sourceCommit: sourceCommitFor(evidence),
         sourceRun:
             evidence === undefined
                 ? captureProvenance.run
@@ -451,7 +381,7 @@ function fromEvidence(
         categoryId: category.id,
         theme: recordedTheme(evidence.file, known?.configuration ?? "", known?.alt ?? ""),
         viewport: viewport.label,
-        sourceCommit: "See the committed evidence record",
+        sourceCommit: sourceCommitFor(evidence),
         sourceRun: `${evidence.authority}; ${evidence.proofNote}`,
         capturedAt: "Not recorded for this individual capture",
         aspectRatio: known?.aspectRatio ?? viewport.aspectRatio,
@@ -469,7 +399,7 @@ function fromHandWritten(record: RepoCapture): GalleryCapture {
         categoryId: galleryCategory(record.file).id,
         theme: recordedTheme(record.file, record.configuration, record.alt),
         viewport: viewportInfo(record.file, record.configuration).label,
-        sourceCommit: captureProvenance.commit,
+        sourceCommit: sourceCommitFor(undefined),
         sourceRun: captureProvenance.run,
         capturedAt: "Not recorded for this individual capture",
         aspectRatio: record.aspectRatio,
@@ -511,6 +441,9 @@ export const committedCaptureGallery: readonly GalleryCapture[] = [
     ...remainingManifestGallery,
     ...repoCaptures.filter((capture) => !seenFiles.has(capture.file)).map(fromHandWritten),
 ];
+
+/** Current evidence facts shown beside the searchable gallery. */
+export const committedGalleryEvidence: GalleryEvidenceSummary = galleryEvidenceSummary();
 
 export function galleryCategorySearchText(capture: GalleryCapture): string {
     const category = GALLERY_CATEGORIES.find((candidate) => candidate.id === capture.categoryId);

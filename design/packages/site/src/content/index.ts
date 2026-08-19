@@ -80,6 +80,7 @@ export {
     GALLERY_CATEGORY_IDS,
     GALLERY_SEARCH_FIELD_NAMES,
     committedCaptureGallery,
+    committedGalleryEvidence,
     filterGalleryByCategory,
     galleryCategory,
     galleryCategoryCounts,
@@ -90,5 +91,6 @@ export {
     type GalleryCaptureGroup,
     type GalleryCategoryDefinition,
     type GalleryCategoryId,
+    type GalleryEvidenceSummary,
     type GallerySearchField,
 } from "./screenshotGallery.js";
