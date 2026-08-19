@@ -39,6 +39,7 @@ import {
     waveOf,
     wavesExceedWorkflow,
 } from "./resume/waves.js";
+import { verifyHostedRenderReceipt } from "./resume/receipt.js";
 
 const USAGE = `worldlens render-actions
 
@@ -55,6 +56,7 @@ Commands:
   merge           combine the shards' map directories into one map
   merge-lowres    merge only the lowres layers of several merge-group partials
   verify          prove the merged map lost and duplicated nothing
+  receipt-verify  prove the hosted-runner disk and two-wave receipt is complete
   static-host     prepare a merged map to be served as plain files, and say if it can be
   fingerprint     hash a checked-out world folder, cheaply, to tell if it changed
   schedule-due    say whether a scheduled check is due yet, for a chosen cadence
@@ -174,6 +176,16 @@ const VERIFY_USAGE = `verify --plan <plan.json> --shards <dir> --merged <dir> [o
   --merged <dir>         the merged map directory
   --map-id <id>          map id, used to find each shard's map directory
   --summary <path>       append a markdown verification summary here
+`;
+
+const RECEIPT_VERIFY_USAGE = `receipt-verify --receipt <receipt.json> [options]
+
+Checks the machine-readable hosted-runner receipt. It refuses a receipt that does not
+record the disk samples, ordered two-wave completion markers, merge/lowres verification,
+and the honest public-result state required by issue #67.
+
+  --receipt <path>       hosted-render receipt JSON
+  --summary <path>       append a markdown verification table here
 `;
 
 export interface Args {
@@ -939,6 +951,44 @@ async function commandVerify(args: Args): Promise<number> {
     return report.ok ? 0 : 1;
 }
 
+async function commandReceiptVerify(args: Args): Promise<number> {
+    if (args.booleans.has("help")) {
+        process.stdout.write(RECEIPT_VERIFY_USAGE);
+        return 0;
+    }
+
+    const receiptPath = resolve(required(args, "receipt", RECEIPT_VERIFY_USAGE));
+    const receipt = JSON.parse(await readFile(receiptPath, "utf8")) as unknown;
+    const report = verifyHostedRenderReceipt(receipt);
+    for (const check of report.checks)
+        process.stderr.write(
+            (check.ok ? "ok   " : "FAIL ") + check.name + ": " + check.detail + "\n",
+        );
+
+    await appendSummary(
+        args.flags.get("summary"),
+        [
+            "## Hosted runner receipt",
+            "",
+            "| Check | Result | Detail |",
+            "| --- | --- | --- |",
+            ...report.checks.map(
+                (check) =>
+                    "| " +
+                    check.name +
+                    " | " +
+                    (check.ok ? "pass" : "FAIL") +
+                    " | " +
+                    check.detail +
+                    " |",
+            ),
+            "",
+        ].join("\n"),
+    );
+    process.stdout.write(JSON.stringify(report) + "\n");
+    return report.ok ? 0 : 1;
+}
+
 const FINGERPRINT_USAGE = `fingerprint --world <dir> [options]
 
 Hashes a checked-out world folder into one comparable digest - the same function
@@ -1194,6 +1244,8 @@ async function main(argv: readonly string[]): Promise<number> {
             return await commandMergeLowres(args);
         case "verify":
             return await commandVerify(args);
+        case "receipt-verify":
+            return await commandReceiptVerify(args);
         case "static-host":
             return await commandStaticHost(args);
         case "fingerprint":

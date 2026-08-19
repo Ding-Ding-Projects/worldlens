@@ -431,3 +431,23 @@ Open evidence boundaries:
 - The complete workspace build initially found a missing local `vite` link in
   `@worldlens/md3-check`. `pnpm install --frozen-lockfile` restored the declared workspace link
   without lockfile churn, and the subsequent complete build passed all 16 package builds.
+
+## Issue #67 — exact two-wave dispatch record (open, 2026-08-19)
+
+The hosted dispatch record is exact and intentionally narrow: Wave 1 completed **256/256** shards.
+Wave 2 completed **7/105** shards, with **98** cancelled in flight. The two-wave **merge was not
+reached**. No final map, lowres rebuild, merged metadata, public/openable result, or disk-ceiling
+proof is claimed from those counts.
+
+This is a records-only handoff. No new workflow run, test, capture, merge, disk measurement,
+cleanup observation, or release action was performed. Issue #67 remains open until a fresh run
+reaches merge and records the required integrity, ordering, resumability, disk, cleanup, and
+publication evidence.
+
+The issue-owned implementation source is present but unrun: the receipt and two-wave helpers under
+`design/packages/render-actions/src/`, the merge/lowres wiring, and the `.github/workflows/render-
+world.yml` / `render-shard-wave.yml` changes are source evidence only. No workflow execution has
+read back a receipt, exercised the merge, or established that the new path works in the built
+artifact.
+
+廣東話：Wave 1 完成 **256/256** 個 shard；Wave 2 完成 **7/105** 個，剩低 **98** 個喺途中取消；兩波 **merge 未到達**。呢段只係 records-only handoff，冇新 run、tests、captures、merge、disk measurement、cleanup 或 release，唔會由幾個數字扮成 final map 或 disk ceiling proof。

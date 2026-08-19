@@ -150,6 +150,7 @@ export {
     type MergeOptions,
     type MergeReport,
 } from "./merge/mergeMap.js";
+export { buildAtomicOutput } from "./merge/atomicOutput.js";
 export {
     selectBoundaryTiles,
     verifyMerge,

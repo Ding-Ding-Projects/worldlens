@@ -224,3 +224,19 @@ captures. It records gaps only and does not claim any acceptance row is green.
 - Extend the low-level capture producer with the stronger built-artifact, interaction, privacy and
   transaction receipts required by the promotion workflow before replacing published PNGs with new
   raw captures.
+
+## Issue #67 — exact two-wave dispatch record (open, 2026-08-19)
+
+- **Wave 1:** **256/256** shards completed.
+- **Wave 2:** **7/105** shards completed; **98** were cancelled in flight.
+- **Merge:** **not reached**.
+
+These are the complete observed counts from the prior hosted dispatch. They do not prove a final
+map, lowres rebuild, merged metadata, public result, or hosted-runner disk boundary. The next
+acceptance run must reach the real merge and retain its disk, integrity, ordering, resumability,
+cleanup, and publication receipts. This records-only lane ran none of those actions.
+
+Receipt and two-wave implementation source is present under `design/packages/render-actions/src/`,
+with workflow wiring in `.github/workflows/render-world.yml` and
+`.github/workflows/render-shard-wave.yml`; those files have not been executed or read back in this
+lane. Source presence is not runtime or hosted proof.

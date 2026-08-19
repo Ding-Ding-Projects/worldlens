@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { LOD_COUNT, LOD_FACTOR, LOWRES_TILE_SIZE } from "../bluemap.js";
 import { copyInto, exists, listFiles, readIfPresent } from "./files.js";
+import { buildAtomicOutput } from "./atomicOutput.js";
 import { cellKey, gridCellPath, parseCellKey, parseGridCellPath } from "./gridPath.js";
 import { compositeLowresTile, deriveNextLod, LowresTile } from "./lowresTile.js";
 
@@ -157,6 +158,12 @@ export function assertIdenticalTextures(
 }
 
 export async function mergeShardMaps(options: MergeOptions): Promise<MergeReport> {
+    return buildAtomicOutput(options.outputDirectory, (stagingDirectory) =>
+        mergeShardMapsIntoDirectory({ ...options, outputDirectory: stagingDirectory }),
+    );
+}
+
+async function mergeShardMapsIntoDirectory(options: MergeOptions): Promise<MergeReport> {
     const lowresTileSize = options.lowresTileSize ?? LOWRES_TILE_SIZE;
     const lodFactor = options.lodFactor ?? LOD_FACTOR;
     const lodCount = options.lodCount ?? LOD_COUNT;

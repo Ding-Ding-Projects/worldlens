@@ -259,6 +259,33 @@ jobs:
           fi
           echo "hires=$hires" >> "$GITHUB_OUTPUT"
 
+      # A tiny per-shard receipt is the only reliable way for the final verifier to
+      # distinguish a completed marker from an artifact that merely existed. The
+      # fragment carries the exact run/attempt, wave and shard provenance; the final
+      # receipt job combines these fragments without inventing cross-run evidence.
+      - name: Write shard receipt fragment
+        if: always()
+        shell: bash
+        env:
+          RENDER_OUTCOME: ${{ steps.render.outcome || 'skipped' }}
+          RESUME_COMPLETE: ${{ steps.resume.outputs.complete || 'false' }}
+          HIRES: ${{ steps.report.outputs.hires || '0' }}
+        run: |
+          set -euo pipefail
+          mkdir -p receipt-fragments
+          available=$(df --output=avail -B1 . | tail -n1 | tr -d '[:space:]')
+          filesystem=$(df --output=source . | tail -n1 | xargs)
+          node -e 'const [outcome,resume,hires,available,filesystem,wave,shard,run,attempt]=process.argv.slice(1); const now=new Date().toISOString(); require("fs").writeFileSync(`receipt-fragments/wave-${wave}-shard-${shard}.json`, JSON.stringify({runId:run,runAttempt:Number(attempt),wave:Number(wave),shard:Number(shard),outcome,alreadyFinished:resume==="true",hiresTiles:Number(hires),recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$RENDER_OUTCOME" "$RESUME_COMPLETE" "$HIRES" "$available" "$filesystem" '${{ inputs.wave }}' '${{ matrix.shard }}' '${{ github.run_id }}' '${{ github.run_attempt }}'
+
+      - name: Upload shard receipt fragment
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: render-receipt-wave-${{ inputs.wave }}-shard-${{ matrix.shard }}
+          path: receipt-fragments
+          if-no-files-found: warn
+          retention-days: 30
+
       # `continue-on-error` above is right for the case it was written for - a shard that
       # ran out of time has hours of real tiles, and the steps after it are what get them
       # off the runner. It is wrong for a render that failed having produced nothing: that

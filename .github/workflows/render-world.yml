@@ -330,6 +330,17 @@ jobs:
           pnpm --filter "@worldlens/render-actions..." run build
           pnpm --filter "@worldlens/parts" run build
 
+      # Keep the disk reading with the job that made it. A later merge job must not
+      # recreate a plausible number and call it a measurement from this runner.
+      - name: Receipt — disk before fetch
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p receipt-fragments
+          available=$(df --output=avail -B1 . | tail -n1 | tr -d '[:space:]')
+          filesystem=$(df --output=source . | tail -n1 | xargs)
+          node -e 'const [available,filesystem]=process.argv.slice(1); const now=new Date().toISOString(); require("fs").writeFileSync("receipt-fragments/plan-before-fetch.json", JSON.stringify({phase:"before-fetch",recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$available" "$filesystem"
+
       - name: Fetch the world
         id: fetch
         shell: bash
@@ -595,6 +606,14 @@ jobs:
             --github-output "$GITHUB_OUTPUT" \
             --summary "$GITHUB_STEP_SUMMARY"
 
+      - name: Receipt — disk after join and unpack
+        shell: bash
+        run: |
+          set -euo pipefail
+          available=$(df --output=avail -B1 . | tail -n1 | tr -d '[:space:]')
+          filesystem=$(df --output=source . | tail -n1 | xargs)
+          node -e 'const [available,filesystem]=process.argv.slice(1); const now=new Date().toISOString(); require("fs").writeFileSync("receipt-fragments/plan-after-join-unpack.json", JSON.stringify({phase:"after-join-unpack",recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$available" "$filesystem"
+
       # Checked here, once, before any wave is dispatched or the (possibly large) world
       # artifact is uploaded - failing at the plan step with the exact numbers, rather than
       # a shard runner dying mid-render with a bare "no space left on device".
@@ -621,6 +640,15 @@ jobs:
             echo "::error::Not enough disk for this render: the plan needs roughly ${required_gib} GiB free on a job's runner (fetching the world, and separately a shard rendering it, each with a safety margin), and this runner has only ~${free_gib} GiB free. This runner shares its image with the wave jobs this run would dispatch, so they would very likely fail the same way partway through. Render fewer dimensions per run, trim the world, or dispatch this workflow on a runner with more disk."
             exit 1
           fi
+
+      - name: Upload plan receipt fragments
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: render-receipt-plan
+          path: receipt-fragments
+          if-no-files-found: warn
+          retention-days: 30
 
       # The world is uploaded once here rather than re-fetched by every shard, so a
       # thirty-way split does not download the same archive thirty times from someone
@@ -983,6 +1011,27 @@ jobs:
             --out "merged/${{ needs.plan.outputs.map-id }}" \
             ${{ needs.plan.outputs.single-group == 'true' && ' ' || '--lod-count 1' }} \
             --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Receipt — merge peak and group integrity
+        if: always()
+        shell: bash
+        env:
+          GROUP_SHARDS: ${{ steps.group.outputs.group-shards }}
+        run: |
+          set -euo pipefail
+          mkdir -p receipt-fragments
+          available=$(df --output=avail -B1 . | tail -n1 | tr -d '[:space:]')
+          filesystem=$(df --output=source . | tail -n1 | xargs)
+          node -e 'const [available,filesystem,group,run,attempt]=process.argv.slice(1); const now=new Date().toISOString(); require("fs").writeFileSync(`receipt-fragments/merge-group-${group}.json`, JSON.stringify({runId:run,runAttempt:Number(attempt),group:Number(group),phase:"render-merge-peak",recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$available" "$filesystem" '${{ matrix.group }}' '${{ github.run_id }}' '${{ github.run_attempt }}'
+
+      - name: Upload merge receipt fragment
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: render-receipt-merge-${{ matrix.group }}
+          path: receipt-fragments
+          if-no-files-found: warn
+          retention-days: 30
 
       # Only for a single-group render, where this job produced the complete map and the
       # verification has every shard to compare against.

@@ -2164,14 +2164,12 @@ contract articles record the boundary and updated test inventory.
 - **Issue #39's wave dispatch is proven; its merge and its disk ceiling are not, and the
   reasons are specific.** A genuinely large, non-forced 361-region world was dispatched
   through the real hosted `render-world.yml` workflow on 2026-08-05 and needed exactly the
-  two waves the plan predicted: Wave 1 fanned out to and finished all 256 shards, Wave 2
-  then took the remaining 105. That is real, watched evidence, not arithmetic. Two things it
-  does **not** cover: (1) the disk check measured about 6 GiB required against about 84 GiB
-  actually free on that runner — nowhere near the disk ceiling issue #39 was opened over, so
-  a world that actually exhausts a hosted runner's disk has still never been run; and (2)
-  that same run's merge step was never reached — the world was reused for issue #44's
-  staging-time test instead, which is how the hyphenated-map-id bug (issue #47, now fixed)
-  was found. A two-wave merge specifically has still not been watched succeed end to end.
+  two waves the plan predicted: Wave 1 completed **256/256** shards; Wave 2 completed **7/105**
+  shards, with **98** cancelled in flight. That is real, watched evidence, not arithmetic.
+  The two-wave **merge was not reached**. The disk check measured about 6 GiB required against
+  about 84 GiB actually free on that runner — nowhere near the disk ceiling issue #39 was opened
+  over, so a world that actually exhausts a hosted runner's disk has still never been run. A
+  two-wave merge specifically has still not been watched succeed end to end.
 - **Five screenshot categories were closed by giving them a real capture step (issue #34);
   one honest gap is left in that same harness on purpose.** The render console has no
   required capture, because it needs a render genuinely in flight to show anything —
@@ -2784,11 +2782,12 @@ over, including once with a fake local-mode fixture matching CI's real capture m
   the literal, unsanitized string a human typed. One shared `sanitizeMapId` function now
   backs every place that predicts or looks for that directory.
 - **Issue #39's wave dispatch is genuinely proven** — a real 361-region world through the
-  hosted `render-world.yml` workflow needed and used exactly the two waves the plan
-  predicted, watched rather than assumed. It does **not** prove the merge step (never
-  reached in that run) or the disk ceiling (that world needed ~6 GiB against ~84 GiB free,
-  nowhere near the ceiling issue #39 was opened over) — see "What does not work yet" above
-  for why the issue's own remaining gaps stay named rather than implied closed.
+  hosted `render-world.yml` workflow needed exactly the two waves the plan predicted, watched
+  rather than assumed: Wave 1 completed **256/256** shards; Wave 2 completed **7/105** shards,
+  with **98** cancelled in flight. The two-wave **merge was not reached**, and the disk ceiling
+  is not proven (that world needed ~6 GiB against ~84 GiB free, nowhere near the ceiling issue
+  #39 was opened over) — see "What does not work yet" above for why the issue's own remaining
+  gaps stay named rather than implied closed.
 - **Issue #32 (SQL storage cross-compatibility) closed** the same window — see the entry
   directly below this one for the full account; it is unchanged by anything in this entry.
 
@@ -5277,3 +5276,13 @@ build, test, rendering, packaging and release-security check, while the main-onl
 intentionally ineligible. The condition contract also rejects relocation, duplication, alternate
 tag predicates, extra skipped commands and fail-open step metadata. Remote verification remains
 pending until the integrated commit reaches the default branch.
+
+## Issue #67 — exact two-wave dispatch record (open, 2026-08-19)
+
+The current issue-owned evidence is limited to one observed hosted dispatch: Wave 1 completed
+**256/256** shards; Wave 2 completed **7/105**, with **98** cancelled in flight; the two-wave
+**merge was not reached**. The counts are complete observed results, not estimates, and do not
+prove a final map, lowres rebuild, merged metadata, public result, or disk ceiling.
+
+No new workflow, tests, captures, merge, disk measurement, cleanup, or release action was run in
+this records-only lane. Issue #67 remains open pending a fresh run with the required receipts.

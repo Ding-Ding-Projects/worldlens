@@ -205,6 +205,36 @@ have produced are unverified by this pass. Where the disk ceiling actually sits 
 84 GiB free comfortably covered a 5.4 GiB estimate, so this run says nothing about a world close to
 that boundary.
 
+**Issue #67 exact dispatch record:** Wave 1 completed **256/256** shards. Wave 2 completed
+**7/105** shards; the remaining **98** were cancelled in flight. The two-wave **merge was not
+reached**. These counts are the complete observed result of that run, not an estimate and not a
+claim that the final map exists.
+
+**Issue #67 exact dispatch record — 廣東話：** Wave 1 完成 **256/256** 個 shard。Wave 2 完成
+**7/105** 個 shard，剩低 **98** 個喺途中取消；兩波 **merge 未到達**。呢幾個數係嗰次 run
+完整睇到嘅結果，唔係估算，亦唔代表 final map 已經存在。
+
+### Issue #67 evidence boundary: no new hosted proof yet
+
+[Issue #67](https://github.com/Ding-Ding-Projects/worldlens/issues/67) keeps the next acceptance step
+explicit rather than turning the earlier two-wave dispatch into a merge claim. The durable baseline
+is the real 361-region run described above: it planned two waves (256 + 105 shards), measured about
+6 GiB required against about 84 GiB free, and stopped before the merge. The issue record also points
+to baseline `e13777927876a3d7898778f18193e9465bc97cc2` for the imported evidence.
+
+This records-only update adds no new workflow run, `df -h` receipt, shard join, lowres rebuild,
+metadata read-back, public result, cleanup observation, or near-limit refusal. It therefore does
+**not** claim completion of either wave's merge, a final map, a hosted-runner disk boundary, or
+no-release-on-failure behavior. The remaining proof must use a fresh, genuine dispatch and retain
+the before-fetch, join/unpack, merge-peak, cleanup, and completion disk measurements alongside the
+integrity and resumability receipts.
+
+### Issue #67 證據界線：暫時冇新 hosted proof
+
+[Issue #67](https://github.com/Ding-Ding-Projects/worldlens/issues/67) 將下一步 acceptance 寫清楚，唔會將之前嗰次兩波 dispatch 當成已經 merge。現時可靠 baseline 就係上面嗰次真 361-region run：plan 出兩波（256 + 105 shards），量到大約需要 6 GiB、當時約有 84 GiB 空位，但喺 merge 之前停咗。Issue record 亦指向 imported evidence 嘅 baseline `e13777927876a3d7898778f18193e9465bc97cc2`。
+
+呢次 records-only 更新冇新 workflow run、`df -h` receipt、shard join、lowres rebuild、metadata read-back、public result、cleanup observation，亦冇 near-limit refusal。所以**唔可以**話兩波 merge、final map、hosted-runner 磁碟天花板，或者 failure 時唔出 release 已經完成。剩低嘅 proof 要用一次新嘅 genuine dispatch，保留 fetch 前、join/unpack、merge peak、cleanup 同 completion 嘅磁碟量度，連埋 integrity 同 resumability receipts 一齊睇。
+
 ## Publishing one
 
 CI does this on every release, and only when it is actually needed. Before the release is
@@ -354,6 +384,54 @@ re-copied from the first part that disagreed.
   cross-origin redirect to storage, so the token never reaches the CDN.
 
 ## Verification
+
+### Hosted-runner receipt contract (issue #67)
+
+Every large-world workflow leaves one `hosted-render-receipt.json` beside its final artifact.
+The receipt is evidence, not a status flag: it is uploaded even when the run fails and is
+accepted only after `receipt-verify` reads it back. A missing, malformed, truncated, or partial
+receipt keeps the run failed and never permits publication.
+
+The schema is version `1` and records the immutable run id/attempt, sanitized map id, plan
+fingerprint, required free-disk estimate, and these five runner samples in chronological order:
+
+| Phase | What is measured |
+| --- | --- |
+| `before-fetch` | free and available bytes before the world is fetched |
+| `after-join-unpack` | the peak-prone point after split parts are joined and unpacked |
+| `render-merge-peak` | the lowest free space observed while rendering or merging |
+| `after-cleanup` | free space after intermediate archives and shard staging are removed |
+| `completion` | the final free-space reading and timestamp |
+
+For a plan with two or more waves, the receipt has one entry per wave. Each entry lists the
+planned and completed shard ids, marker count, start/end timestamps, and outcome. Wave N is not
+complete unless every planned shard has a matching completion marker, and wave N+1's start must
+be after wave N's completion. The merge section separately records merge verification, lowres
+rebuilding, and whether the public result is `openable` or honestly `not-published`.
+
+The repository's verifier is the `@worldlens/render-actions` `receipt-verify` command:
+
+```sh
+node packages/render-actions/dist/cli.js receipt-verify \
+  --receipt hosted-render-receipt.json \
+  --summary receipt-summary.md
+```
+
+It fails closed on a missing phase, a disk estimate not covered by measured preflight, an
+incomplete or out-of-order wave, a merge without lowres verification, or a successful outcome
+that still has a failed stage. The verifier does not contact GitHub or invent a result from a
+workflow conclusion; the workflow must attach its JSON receipt and run link separately.
+
+The receipt is the durable answer to the disk-boundary question. A run that stays comfortably
+below the estimate is useful two-wave evidence, but it does **not** establish the hosted runner's
+exhaustion boundary. To establish that boundary, record a measured refusal (free bytes, required
+bytes, and the exact safe refusal) before ENOSPC; never deliberately exhaust the runner or delete
+resumable state to manufacture a red run.
+
+廣東話：大型 render 要留低一張真收據，唔係淨係話「workflow green」。要逐階段記 `df`，兩浪
+要逐浪對 completion marker 同時間順序，merge 同 lowres 都要驗完；缺一格就當未證明。6 GiB
+估算對 84 GiB 空位只證明仲有好多位，唔係磁碟天花板。要量到安全拒絕，唔好等 ENOSPC 幫你
+做產品經理。
 
 | What                                                                                                                                                                                                                                                                                                                                                                        | Where                                                                  |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |

@@ -68,3 +68,30 @@ export {
     type LowresMergeOptions,
     type LowresMergeReport,
 } from "./lowresMerge.js";
+
+export {
+    assertTwoWaveDiskBudget,
+    collectTwoWaveConflicts,
+    planTwoWaveMerge,
+    twoWaveDiskBudget,
+    TwoWaveDiskLimitError,
+    TwoWavePlanError,
+    type TwoWave,
+    type TwoWaveConflictEvidence,
+    type TwoWaveDiskBudget,
+    type TwoWaveFileObservation,
+    type TwoWavePlan,
+    type TwoWavePlanOptions,
+} from "./twoWave.js";
+
+export {
+    HOSTED_RENDER_RECEIPT_PHASES,
+    HOSTED_RENDER_RECEIPT_VERSION,
+    verifyHostedRenderReceipt,
+    type HostedRenderDiskSample,
+    type HostedRenderReceipt,
+    type HostedRenderReceiptCheck,
+    type HostedRenderReceiptPhase,
+    type HostedRenderReceiptReport,
+    type HostedRenderWaveReceipt,
+} from "./receipt.js";
