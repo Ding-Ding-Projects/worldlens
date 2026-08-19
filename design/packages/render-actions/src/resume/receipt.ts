@@ -180,12 +180,14 @@ export function verifyHostedRenderReceipt(value: unknown): HostedRenderReceiptRe
         const completedSet = new Set(completed);
         const started = asIso(wave.startedAt);
         const ended = asIso(wave.completedAt);
+        const startedAt = started === null ? null : Date.parse(started);
+        const endedAt = ended === null ? null : Date.parse(ended);
         const markers = asFiniteNumber(wave.completionMarkers);
         const integrity = isObject(wave.shardIntegrity) ? wave.shardIntegrity : null;
         const complete = planned.length > 0 && planned.every((id) => completedSet.has(id)) && markers === planned.length;
         const integrityOk = integrity !== null && integrity.allMarkersPresent === true && integrity.allArtifactsPresent === true && integrity.planFingerprintMatches === true && Array.isArray(integrity.missingShardIds) && integrity.missingShardIds.length === 0 && Array.isArray(integrity.duplicateShardIds) && integrity.duplicateShardIds.length === 0;
-        if (wave.wave !== expected || started === null || ended === null || ended < started || ended < priorCompletedAt || wave.outcome !== "success" || !complete || !integrityOk || plannedSet.size !== planned.length) wavesValid = false;
-        if (ended !== null) priorCompletedAt = Date.parse(ended);
+        if (wave.wave !== expected || startedAt === null || endedAt === null || endedAt < startedAt || endedAt < priorCompletedAt || wave.outcome !== "success" || !complete || !integrityOk || plannedSet.size !== planned.length) wavesValid = false;
+        if (endedAt !== null) priorCompletedAt = endedAt;
     }
     add(checks, "waves completed in order", wavesValid, wavesValid ? "all planned shards have completion markers" : "a wave is incomplete, duplicated, out of order, or not successful");
 
@@ -193,7 +195,9 @@ export function verifyHostedRenderReceipt(value: unknown): HostedRenderReceiptRe
     const mergeValid = merge !== null && asIso(merge.startedAt) !== null && asIso(merge.completedAt) !== null && merge.outcome === "success" && merge.mergedMapVerified === true && merge.lowresRebuilt === true && (merge.publicResult === "openable" || merge.publicResult === "not-published");
     add(checks, "merge and lowres verification", mergeValid, mergeValid ? "merged map and lowres pyramid are verified" : "merge receipt is incomplete or failed");
     const content = isObject(value.mergedContent) ? value.mergedContent : null;
-    const contentValid = content !== null && asFiniteNumber(content.hiresTileCount) !== null && asFiniteNumber(content.expectedHiresTileCount) !== null && content.hiresTileCount > 0 && content.hiresTileCount === content.expectedHiresTileCount && content.metadataPresent === true && content.metadataFingerprintMatches === true && content.texturesVerified === true;
+    const hiresTileCount = content === null ? null : asFiniteNumber(content.hiresTileCount);
+    const expectedHiresTileCount = content === null ? null : asFiniteNumber(content.expectedHiresTileCount);
+    const contentValid = content !== null && hiresTileCount !== null && expectedHiresTileCount !== null && hiresTileCount > 0 && hiresTileCount === expectedHiresTileCount && content.metadataPresent === true && content.metadataFingerprintMatches === true && content.texturesVerified === true;
     add(checks, "merged content and metadata", contentValid, contentValid ? "tile count, metadata and textures agree" : "merged content or metadata evidence is incomplete");
     const cleanup = isObject(value.cleanup) ? value.cleanup : null;
     const cleanupValid = cleanup !== null && cleanup.intermediateArchivesRemoved === true && cleanup.shardStagingRemoved === true && cleanup.resumableStatePreserved === true;
