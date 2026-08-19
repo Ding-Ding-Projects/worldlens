@@ -11,6 +11,11 @@ export interface PlayerMarkerData extends MarkerData {
     playerHead: string;
     rotation: { pitch: number; yaw: number };
     foreign: boolean | undefined;
+    source?: string;
+    dimension?: string;
+    observedAt?: number | string;
+    freshness?: string;
+    stale?: boolean;
 }
 
 export interface PlayerLike {
@@ -19,6 +24,11 @@ export interface PlayerLike {
     foreign?: boolean;
     position?: { x?: number; y?: number; z?: number };
     rotation?: { yaw?: number; pitch?: number; roll?: number };
+    source?: string;
+    dimension?: string;
+    observedAt?: number | string;
+    freshness?: string;
+    stale?: boolean;
 }
 
 export class PlayerMarker extends Marker {
@@ -46,7 +56,7 @@ export class PlayerMarker extends Marker {
         // "playerhead" only makes a screen reader announce the word twice per player.
         this.elementObject = new CSS2DObject(
             htmlToElement(`
-<div id="bm-marker-${this.data.id}" class="bm-marker-${this.data.type}">
+<div id="bm-marker-${this.data.id}" class="bm-marker-${this.data.type}" role="button" tabindex="0" aria-label="Player">
     <img src="${this.data.playerHead}" alt="" draggable="false">
     <div class="bm-player-name"></div>
 </div>
@@ -69,6 +79,12 @@ export class PlayerMarker extends Marker {
             },
             { once: true },
         );
+
+        this.element.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            this.element.click();
+        });
 
         this.add(this.elementObject);
     }
@@ -139,6 +155,22 @@ export class PlayerMarker extends Marker {
 
         // update world
         this.data.foreign = markerData.foreign;
+        this.data.source = markerData.source;
+        this.data.dimension = markerData.dimension;
+        this.data.observedAt = markerData.observedAt;
+        this.data.freshness = markerData.freshness;
+        const observed = typeof markerData.observedAt === "number"
+            ? markerData.observedAt
+            : typeof markerData.observedAt === "string" ? Date.parse(markerData.observedAt) : NaN;
+        const stale = markerData.stale === true || markerData.freshness === "stale" || (Number.isFinite(observed) && Date.now() - observed > 15_000);
+        this.data.stale = stale;
+        const state = stale ? "stale" : markerData.freshness ?? "fresh";
+        const dimension = markerData.dimension ? `, ${markerData.dimension}` : "";
+        const source = markerData.source ? `, source ${markerData.source}` : "";
+        this.element.setAttribute("aria-label", `${name}${dimension} (${state}${source})`);
+        this.element.dataset.source = markerData.source ?? "unknown";
+        this.element.dataset.dimension = markerData.dimension ?? "unknown";
+        this.element.dataset.freshness = state;
     }
 
     override dispose(): void {

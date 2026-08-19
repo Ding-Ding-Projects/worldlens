@@ -1187,7 +1187,9 @@ Structural differences, because a TypeScript port cannot reproduce them one for 
   **all six, plus the CLI, are built from the vendored source and attached to every release** as
   `bluemap-*.jar` (decision D18). They are a separate download and are not needed to install the
   desktop app. Inside the app, live data comes from remote BlueMap servers, or from local
-  `playerdata` and RCON polling, which is a capability beyond upstream.
+  `playerdata` and RCON polling are being developed as an optional capability beyond upstream;
+  the source implementation is present in the issue-owned checkout, but packaged runtime
+  verification remains open.
 - Java jar **addons** are loaded by those adapter jars, not by the desktop application. An
   equivalent JS/ESM addon system against the ported TypeScript API is planned for the app
   itself and has not been built yet.

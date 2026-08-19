@@ -30,6 +30,56 @@ acceptance boundary，唔係話 implementation 或 packaged export 已經驗證�
 browser sessions；packaged proof 仲要逐個 referenced file 驗、普通 static server reopen，同
 fresh browser profile offline reopen genuine packaged export，先可以 close Issue #72。
 
+## Issue #74 local live-player tracking — 2026-08-19
+
+Issue #74 remains **open and unverified**. This issue-owned checkout contains the local live-player
+source implementation in `design/packages/server/src/live/localLiveProvider.ts`, with optional
+mount wiring in `MapStorageHandler` and the CLI server entry point. The direct feature record is
+[`docs/local-live-player-tracking.md`](docs/local-live-player-tracking.md).
+
+The safe empty response remains the default when no local provider is configured; the source path
+does not yet have packaged runtime proof. No tests, real player-data reads, isolated RCON session,
+packaged interaction, or capture were run in this records lane. Acceptance remains open until the
+next owner proves valid and malformed NBT, locked/truncated files, multiple dimensions,
+RCON refusal/timeout/reconnect, credential-store isolation, stale cleanup, and live marker updates
+in the packaged viewer.
+
+### 廣東話 / Cantonese
+
+Issue #74 仲係 **open，未驗證**。呢個 issue-owned checkout 已經有
+`localLiveProvider.ts` source implementation，同 `MapStorageHandler`／CLI server 嘅 optional
+mount wiring；直接 feature record 係 [`docs/local-live-player-tracking.md`](docs/local-live-player-tracking.md)。
+
+冇 configure local provider 時，safe empty response 仍然係 default；但 packaged runtime 仲未
+有 proof。今次 records lane 冇跑 tests、冇讀真 player data、冇開 isolated RCON、冇 packaged
+interaction、冇 capture。要補齊 NBT、RCON、credential-store、stale cleanup 同 packaged marker
+update 證據，先可以收 issue。
+
+## Issue #73 three.js upgrade and parity — records-only update, 2026-08-19
+
+Issue #73 remains **open**. The durable feature record is
+[`docs/threejs-upgrade.md`](docs/threejs-upgrade.md), and the detailed parity article is
+[`docs/compatibility/threejs-upgrade-parity.md`](docs/compatibility/threejs-upgrade-parity.md).
+
+The records define the pending upgrade boundary: inventory changed three.js APIs used by loaders,
+shaders/materials, camera and controls, CSS2D, textures, caches, markers, picking, screenshots,
+and WebGL lifecycle; preserve geometry, transparency, LOD, marker placement, navigation, and
+measured performance; and prove context-loss recovery, unsupported hardware/browser handling, and
+non-silent blank-canvas failure.
+
+This lane is records-only. No runtime code, tests, package builds, viewer launches, screenshots,
+rendered-image comparisons, interaction checks, performance measurements, or packaged-artifact
+proof are claimed here. The implementation changes already present in this task checkout still
+require the focused evidence listed in the issue before Issue #73 can close.
+
+### 廣東話 / Cantonese
+
+Issue #73 仲係 **open**。`docs/threejs-upgrade.md` 同
+`docs/compatibility/threejs-upgrade-parity.md` 已經寫低 API inventory、畫面/操作/performance
+保留、WebGL failure boundary 同 packaged evidence 要求。今次只係 records-only，冇聲稱
+runtime、tests、package、viewer launch、screenshots 或 parity 已經驗證；implementation 仲要
+補齊真 evidence 先可以 close。
+
 ## Issue #75 measurement and waypoints — 2026-08-19
 
 Issue #75 remains **open**. The task-owned checkout contains the bounded measurement and waypoint

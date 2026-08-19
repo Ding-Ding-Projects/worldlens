@@ -606,11 +606,23 @@ export class BlueMapApp {
         });
 
         this.mapEventSource.addEventListener("player", ({ data }) => {
-            this.playerMarkerManager!.updateFromData(JSON.parse(data));
+            try {
+                const parsed: unknown = JSON.parse(data);
+                if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("player SSE payload is not an object");
+                this.playerMarkerManager!.updateFromData(parsed);
+            } catch (error) {
+                alert(this.events, error instanceof Error ? error : String(error), "warning");
+            }
         });
 
         this.mapEventSource.addEventListener("marker", ({ data }) => {
-            this.markerFileManager!.updateFromData(JSON.parse(data));
+            try {
+                const parsed: unknown = JSON.parse(data);
+                if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("marker SSE payload is not an object");
+                this.markerFileManager!.updateFromData(parsed);
+            } catch (error) {
+                alert(this.events, error instanceof Error ? error : String(error), "warning");
+            }
         });
     }
 

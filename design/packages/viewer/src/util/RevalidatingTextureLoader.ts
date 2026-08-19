@@ -43,7 +43,7 @@ export class RevalidatingTextureLoader extends Loader {
      * @param onError - Executed when errors occur.
      * @return The texture.
      */
-    load(
+    override load(
         url: string,
         onLoad?: (texture: Texture) => void,
         onProgress?: (event: ProgressEvent) => void,
@@ -63,7 +63,8 @@ export class RevalidatingTextureLoader extends Loader {
 
             loader
                 .loadAsync(url, onProgress)
-                .then(async (blob: Blob) => {
+                .then(async (loaded: unknown) => {
+                    const blob = loaded as Blob;
                     revalidatedUrls.add(url);
 
                     const imageBitmap = await createImageBitmap(blob, {

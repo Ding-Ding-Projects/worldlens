@@ -14,6 +14,18 @@
   packaged export opens offline in a fresh browser profile. See
   [`docs/static-map-export.md`](docs/static-map-export.md) and Issue #72.
 
+## Issue #74 — local live-player tracking
+
+- **Status:** Source implementation is present in the issue-owned checkout; acceptance remains
+  open and runtime is unverified.
+- **Implementation boundary:** `localLiveProvider.ts` reads bounded local `playerdata` data and
+  can use an explicitly configured RCON endpoint. `MapStorageHandler` and the CLI server expose it
+  as an optional source; the BlueMap-compatible empty response remains the safe default when no
+  source is configured.
+- **Evidence still open:** no tests, real player-data reads, isolated RCON session, packaged
+  interaction, or capture was run in this pass. See [`docs/local-live-player-tracking.md`](docs/local-live-player-tracking.md)
+  and issue #74 for the acceptance boundary.
+
 ## Issue #75 measurement and waypoints — 2026-08-19
 
 - **Status:** Implementation present in the task-owned checkout; acceptance remains open. The

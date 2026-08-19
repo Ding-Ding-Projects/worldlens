@@ -111,7 +111,7 @@ export class RevalidatingFileLoader extends Loader {
      * @param onError - Executed when errors occur.
      * @return The cached resource if available.
      */
-    load(
+    override load(
         url: string,
         onLoad?: (data: unknown) => void,
         onProgress?: (event: ProgressEvent) => void,
@@ -378,7 +378,7 @@ export class RevalidatingFileLoader extends Loader {
      *
      * @return A reference to this instance.
      */
-    abort(): this {
+    override abort(): this {
         this._abortController.abort();
         this._abortController = new AbortController();
 
