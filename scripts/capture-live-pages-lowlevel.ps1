@@ -41,17 +41,25 @@ function Invoke-Lowlevel([string]$Tool, [hashtable]$Arguments) {
 }
 
 function Get-ExactPhaseUrl([string]$RequestedUrl) {
-    $targets = @(Invoke-RestMethod -Uri "http://127.0.0.1:$CdpPort/json/list" -TimeoutSec 5)
-    if ($targets.Count -ne 1 -or $targets[0].type -ne "page") {
-        throw "The isolation proof requires exactly one page target before each capture phase."
-    }
     $requested = [Uri]$RequestedUrl
-    $actual = [Uri]([string]$targets[0].url)
-    if ($actual.GetLeftPart([UriPartial]::Path) -ne $requested.GetLeftPart([UriPartial]::Path) -or
-        $actual.Query -ne $requested.Query) {
-        throw "The page target changed origin, path, or query before capture."
+    $last = $null
+    $stableReads = 0
+    for ($attempt = 0; $attempt -lt 40; $attempt++) {
+        $targets = @(Invoke-RestMethod -Uri "http://127.0.0.1:$CdpPort/json/list" -TimeoutSec 5)
+        if ($targets.Count -ne 1 -or $targets[0].type -ne "page") {
+            throw "The isolation proof requires exactly one page target before each capture phase."
+        }
+        $actual = [Uri]([string]$targets[0].url)
+        if ($actual.GetLeftPart([UriPartial]::Path) -ne $requested.GetLeftPart([UriPartial]::Path) -or
+            $actual.Query -ne $requested.Query) {
+            throw "The page target changed origin, path, or query before capture."
+        }
+        if ($actual.AbsoluteUri -eq $last) { $stableReads++ } else { $stableReads = 1 }
+        $last = $actual.AbsoluteUri
+        if ($stableReads -ge 3) { return $last }
+        Start-Sleep -Milliseconds 250
     }
-    return $actual.AbsoluteUri
+    throw "The page target URL did not settle before capture."
 }
 
 try {
