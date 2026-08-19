@@ -197,6 +197,7 @@ export function defaultStamp(): ProjectStamp {
 }
 
 export const EMPTY_RENDER: ProjectRender = {
+    engine: "typescript",
     route: "local",
     threads: null,
     force: false,
@@ -375,6 +376,7 @@ export function projectFromWizard(
         ...base,
         maps: [map],
         render: {
+            engine: base.render.engine,
             threads: answers.threads ?? null,
             force: answers.force ?? false,
             fixEdges: answers.fixEdges ?? false,
@@ -1237,6 +1239,7 @@ export function projectToRenderRequest(project: ProjectFile, world: string): Ren
 
     return {
         maps,
+        engine: project.render.engine,
         force: project.render.force,
         fixEdges: project.render.fixEdges,
         metrics: project.render.metrics,

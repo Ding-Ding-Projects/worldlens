@@ -50,6 +50,8 @@ export interface RenderMapRequest {
 
 export interface RenderRequest {
     readonly maps: readonly RenderMapRequest[];
+    /** Concrete project engine choice; absent preserves legacy callers. */
+    readonly engine?: "upstream-java" | "typescript";
     /** Where to run the engine. Absent means on this computer. */
     readonly runtime?: "local" | "docker";
     readonly renderId?: string;
