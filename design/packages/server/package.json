@@ -13,6 +13,7 @@
     },
     "dependencies": {
         "@worldlens/engine": "workspace:*",
+        "@worldlens/nbt": "workspace:*",
         "@worldlens/shared": "workspace:*"
     },
     "devDependencies": {

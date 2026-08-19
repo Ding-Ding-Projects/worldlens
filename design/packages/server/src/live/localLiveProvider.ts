@@ -52,7 +52,8 @@ function text(value: unknown): string | null {
     return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-type NbtValue = string | number | NbtValue[] | Record<string, NbtValue>;
+interface NbtCompound { [key: string]: NbtValue }
+type NbtValue = string | number | NbtValue[] | NbtCompound;
 
 function readValue(reader: NBTReader): NbtValue {
     const type = reader.peek();
