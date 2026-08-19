@@ -1,0 +1,136 @@
+[
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-first-run-welcome",
+    "category": "onboarding",
+    "state": "kid-mode-first-run-welcome",
+    "expectedSurface": "Kid Mode first-run welcome",
+    "alt": "Worldlens Kid Mode with the real first-run welcome dialog open on a fresh isolated profile."
+  },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
+  { "action": "windowKey", "key": "PAGEDOWN" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-first-run-licence",
+    "category": "onboarding",
+    "state": "kid-mode-licence-review",
+    "expectedSurface": "First-run licence review",
+    "alt": "Worldlens first-run licence review after a real Lowlevel Page Down input exposed the navigation action."
+  },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-first-run-consent",
+    "category": "onboarding",
+    "state": "kid-mode-download-consent",
+    "expectedSurface": "First-run download consent",
+    "alt": "Worldlens first-run download decision with Accept and Decline shown before the authorized Accept action."
+  },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "ACCEPT" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-first-run-storage",
+    "category": "onboarding",
+    "state": "kid-mode-map-storage",
+    "expectedSurface": "First-run map storage",
+    "alt": "Worldlens first-run map storage step after download consent was accepted through the visible interface."
+  },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "FINISH SETUP" },
+  { "action": "assertText", "selector": ".wl-kid-home", "text": "Make a new map" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-home",
+    "category": "kid-mode",
+    "state": "kid-home-ready",
+    "expectedSurface": "Kid Mode Home",
+    "alt": "Worldlens Kid Mode Home after completing first run entirely through Lowlevel background input."
+  },
+  { "action": "click", "role": "button", "name": "Explore", "exact": true },
+  { "action": "assertText", "selector": ".wl-kid__pane", "text": "No map loaded" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-explore-empty",
+    "category": "kid-mode",
+    "state": "kid-explore-empty",
+    "expectedSurface": "Kid Mode Explore empty state",
+    "alt": "Worldlens Kid Mode Explore showing the honest no-map state reached through a real rail click."
+  },
+  { "action": "click", "selector": ".wl-kid-rail__big", "nth": 2 },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-jobs",
+    "category": "kid-mode",
+    "state": "kid-jobs-default",
+    "expectedSurface": "Kid Mode jobs",
+    "alt": "Worldlens Kid Mode jobs workspace opened through the persistent Kid Mode navigation rail."
+  },
+  { "action": "click", "role": "button", "name": "Stickers", "exact": true },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-stickers",
+    "category": "kid-mode",
+    "state": "kid-stickers-empty",
+    "expectedSurface": "Kid Mode sticker book",
+    "alt": "Worldlens Kid Mode sticker book in its genuine fresh-profile empty-progress state."
+  },
+  { "action": "click", "selector": ".wl-kid-rail__small", "nth": 2 },
+  { "action": "assertText", "selector": ".wl-kid-gate", "text": "No grown-up code is set" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-grown-up-gate",
+    "category": "kid-mode",
+    "state": "grown-up-gate-no-code",
+    "expectedSurface": "Kid Mode grown-up gate",
+    "alt": "Worldlens Kid Mode grown-up gate explaining that no code is configured before switching modes."
+  },
+  { "action": "click", "selector": ".wl-kid-gate__go" },
+  { "action": "assertText", "selector": ".wl-rail", "text": "Map" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-adult-map-empty",
+    "category": "navigation",
+    "state": "adult-mode-after-switch",
+    "expectedSurface": "Adult Mode Map empty state",
+    "alt": "Worldlens Adult Mode immediately after switching from Kid Mode through the visible grown-up gate."
+  },
+  { "action": "click", "selector": ".wl-rail-item[data-destination='home']" },
+  { "action": "assertText", "selector": ".wl-home", "text": "Make a map" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-adult-home",
+    "category": "navigation",
+    "state": "adult-home-ready",
+    "expectedSurface": "Adult Mode Home",
+    "alt": "Worldlens Adult Mode Home reached by a real Lowlevel click on the Adult Mode navigation rail."
+  },
+  { "action": "click", "role": "button", "name": "Settings", "exact": true },
+  { "action": "assertText", "selector": ".mb-settings", "text": "Settings" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-adult-settings",
+    "category": "settings-customization",
+    "state": "adult-settings-open",
+    "expectedSurface": "Adult Mode Settings",
+    "alt": "Worldlens Adult Mode Settings dock opened from the persistent rail through Lowlevel input."
+  },
+  { "action": "click", "role": "tab", "name": "Kid Mode and Adult Mode", "exact": true },
+  { "action": "assertText", "selector": ".wl-kid-row", "text": "Which mode should open" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-adult-kid-mode-settings",
+    "category": "settings-customization",
+    "state": "adult-kid-mode-settings",
+    "expectedSurface": "Kid Mode and Adult Mode settings",
+    "alt": "Worldlens Kid Mode and Adult Mode settings reached through the real settings tab strip."
+  },
+  { "action": "click", "role": "radio", "name": "Kid Mode" },
+  { "action": "assertText", "selector": ".wl-kid-home", "text": "Make a new map" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-kid-returned-from-settings",
+    "category": "kid-mode",
+    "state": "kid-mode-restored-from-settings",
+    "expectedSurface": "Kid Mode restored from Adult settings",
+    "alt": "Worldlens back in Kid Mode after choosing Kid Mode through the real Adult settings control."
+  }
+]

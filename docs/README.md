@@ -120,6 +120,12 @@ map and is not listed here.
 documents refer to. They are taken from the packaged application by the project's own harness;
 nothing there is a mockup or a hand-edited picture.
 
+The `lowlevel-*` set is the UI-only Adult/Kid round trip. Lowlevel MCP launched the real Electron
+application on an off-screen Windows desktop, supplied every state-changing mouse and keyboard
+input, and captured every whole window. See [Kid Mode](./kid-mode.md#real-lowlevel-ui-proof) for
+the interaction sequence and the embedded evidence. The documentation site's Screenshots page
+also includes all fourteen files in its searchable committed-evidence gallery.
+
 ## 廣東話
 
 ### 功能文檔（Feature documentation）

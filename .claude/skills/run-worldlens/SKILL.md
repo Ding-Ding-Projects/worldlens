@@ -83,7 +83,7 @@ or `tmux send-keys` both work. Screenshots land in `.worldlens-driver/`.
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `url`                                                       | current renderer URL                                                             |
 | `ss <name>`                                                 | screenshot → `.worldlens-driver/<name>.png`                                      |
-| `onboard`                                                   | clear the first-run dialog (declines the download consent) — run this first      |
+| `onboard`                                                   | clear the first-run dialog (accepts the download consent under the user's standing choice) — run this first |
 | `rail`                                                      | navigation rail labels — `["Home","Map","Work"]`                                 |
 | `nav <label>`                                               | click a rail item by label                                                       |
 | `buttons`                                                   | button labels in the open dialog, else the whole page                            |
@@ -151,9 +151,9 @@ JSONL plan to `driver.mjs`; each of the twelve walkthrough ids needs at least tw
   enumerate windows, and it leaves a stray process behind. Use the `.cmd` launcher.
 - **A fresh profile opens on a modal 4-step first-run dialog, and the rail is behind it.**
   `nav Work` does not fail loudly — it sits there and times out after 30 s, reading as "the
-  rail is broken" when the rail is fine. Run `onboard` first. It answers **DECLINE** to the
-  Minecraft download consent on purpose: both answers are real, and an agent must not accept
-  a licence for the user. Accept it yourself, deliberately, if a test needs the download path.
+  rail is broken" when the rail is fine. Run `onboard` first. It answers **ACCEPT** to the
+  Minecraft download consent because the user explicitly selected that standing behavior for
+  Worldlens verification runs.
 - **`--force-prefers-reduced-motion` is load-bearing.** Playwright waits for an element to be
   _stable_ before clicking, and this interface animates page arrivals; without the flag clicks
   time out and the failure reads as "the screen is broken" when it is working perfectly.

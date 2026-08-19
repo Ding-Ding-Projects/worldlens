@@ -54,6 +54,75 @@ code name to its existing public photo in
 [`Ding-Ding-Projects/dim-sum-photos`](https://github.com/Ding-Ding-Projects/dim-sum-photos).
 Worldlens never downloads, copies or attaches that catalog photo to its own release.
 
+## Real Lowlevel UI run: Kid Mode and Adult Mode
+
+These images come from one real Electron process on an off-screen Windows desktop. Lowlevel MCP
+performed every click, key press and whole-window capture; the Chrome DevTools Protocol was used
+only to locate visible controls and read assertions. The fresh-profile journey accepted the
+Minecraft download consent under the owner's standing verification choice, exercised Kid Mode, switched to Adult Mode through the grown-up gate,
+opened Adult settings, and switched back to Kid Mode through the visible mode control.
+
+<details>
+<summary><b>Kid Mode and first run</b> — welcome, licence, consent, storage, Home, Explore, jobs, stickers and the grown-up gate</summary>
+
+![Kid Mode first-run welcome on a fresh isolated profile](docs/screenshots/lowlevel-kid-first-run-welcome.png)
+
+![Licence review after a real Page Down key press](docs/screenshots/lowlevel-kid-first-run-licence.png)
+
+![Minecraft download consent before the run chooses Accept](docs/screenshots/lowlevel-kid-first-run-consent.png)
+
+![Map storage step after accepting download consent](docs/screenshots/lowlevel-kid-first-run-storage.png)
+
+![Kid Mode Home reached through Lowlevel input](docs/screenshots/lowlevel-kid-home.png)
+
+![Kid Mode Explore with no map loaded](docs/screenshots/lowlevel-kid-explore-empty.png)
+
+![Kid Mode jobs workspace](docs/screenshots/lowlevel-kid-jobs.png)
+
+![Kid Mode sticker book on a fresh profile](docs/screenshots/lowlevel-kid-stickers.png)
+
+![Kid Mode grown-up gate with no code configured](docs/screenshots/lowlevel-kid-grown-up-gate.png)
+
+</details>
+
+<details>
+<summary><b>Adult Mode and the round trip back</b> — Map, Home, Settings, the mode editor and restored Kid Mode</summary>
+
+![Adult Mode Map immediately after leaving Kid Mode](docs/screenshots/lowlevel-adult-map-empty.png)
+
+![Adult Mode Home reached from the application rail](docs/screenshots/lowlevel-adult-home.png)
+
+![Adult Mode Settings opened from the rail](docs/screenshots/lowlevel-adult-settings.png)
+
+![Kid Mode and Adult Mode settings with Adult Mode selected](docs/screenshots/lowlevel-adult-kid-mode-settings.png)
+
+![Kid Mode restored through the visible settings radio control](docs/screenshots/lowlevel-kid-returned-from-settings.png)
+
+</details>
+
+The repeatable action plan is [`scripts/worldlens-lowlevel-e2e.json`](scripts/worldlens-lowlevel-e2e.json),
+and the complete behavioral explanation is in [Kid Mode](docs/kid-mode.md). The documentation
+site includes the same files in its searchable screenshot gallery rather than maintaining a
+second set of images.
+
+### Failed cloud renders no longer watch forever
+
+A persisted failed cloud render used to reopen as `running / Starting / No run yet`, leaving an
+endless spinner and no way to remove the row. Persisted stages now restore their real terminal
+state. Finished, failed and cancelled rows expose a two-key super-confirmed **Remove from list**
+action that deletes only the local history row; it never deletes the GitHub run, release or files.
+
+![Failed cloud-render rows restored honestly after restart, with Remove from list actions](docs/screenshots/lowlevel-ci-render-history-fixed.png)
+
+<details>
+<summary><b>See the removal itself</b></summary>
+
+![Two-key confirmation explaining the local-only removal boundary](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
+
+![Cloud-render history after one failed local row was removed](docs/screenshots/lowlevel-ci-render-row-removed.png)
+
+</details>
+
 Release-tag pushes still run CI, but skip only the generated-changelog freshness assertion. A tag
 is created after the commit it names, so requiring that commit to contain an entry derived from its
 own future tag is impossible. Branch and pull-request runs remain strict, and tag runs retain every

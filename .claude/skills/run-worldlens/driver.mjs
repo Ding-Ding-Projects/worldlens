@@ -24,8 +24,8 @@
  *   rail                   the navigation rail's labels
  *   nav <label>            click a rail item by its visible label
  *   buttons                visible button labels in the topmost dialog, else the page
- *   onboard                walk the 4-step first-run dialog to the end, DECLINING the
- *                          Minecraft download consent (the safe answer; both are real)
+ *   onboard                walk the 4-step first-run dialog to the end, ACCEPTING the
+ *                          Minecraft download consent under the user's standing choice
  *   text <selector>        innerText of the first match
  *   count <selector>       number of matches
  *   click <selector>       click it, then let the UI settle
@@ -46,7 +46,7 @@
  * route the release-grade matrix uses; it does not launch a second app.
  */
 import { createRequire } from "node:module";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -88,6 +88,88 @@ const SHOTS = resolve(
   process.env.WORLDLENS_DRIVER_OUTPUT || join(REPO, ".worldlens-driver"),
 );
 const PORT = process.argv[2] || "9333";
+const LOWLEVEL_MCP_ENDPOINT = process.env.LOWLEVEL_MCP_ENDPOINT || "";
+const LOWLEVEL_HWND = Number(process.env.WORLDLENS_DRIVER_HWND || 0);
+const UI_ONLY = process.env.WORLDLENS_UI_ONLY === "1";
+
+if (
+  UI_ONLY &&
+  (!LOWLEVEL_MCP_ENDPOINT ||
+    !Number.isInteger(LOWLEVEL_HWND) ||
+    LOWLEVEL_HWND <= 0)
+) {
+  throw new Error(
+    "WORLDLENS_UI_ONLY=1 requires LOWLEVEL_MCP_ENDPOINT and a positive WORLDLENS_DRIVER_HWND",
+  );
+}
+
+let mcpSession = null;
+let mcpId = 1;
+
+async function mcpPost(payload) {
+  const headers = {
+    "content-type": "application/json",
+    accept: "application/json, text/event-stream",
+    "mcp-protocol-version": "2025-03-26",
+  };
+  if (mcpSession) headers["mcp-session-id"] = mcpSession;
+  const response = await fetch(LOWLEVEL_MCP_ENDPOINT, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!response.ok)
+    throw new Error(`Lowlevel MCP returned HTTP ${response.status}`);
+  mcpSession = response.headers.get("mcp-session-id") || mcpSession;
+  const body = await response.text();
+  if (!body.trim()) return [];
+  const messages = response.headers.get("content-type")?.includes("text/event-stream")
+    ? body
+        .split(/\r?\n\r?\n/u)
+        .flatMap((event) => event.split(/\r?\n/u))
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => JSON.parse(line.slice(5).trim()))
+    : [JSON.parse(body)];
+  return messages;
+}
+
+async function mcpRequest(method, params = {}) {
+  const id = mcpId++;
+  const responses = await mcpPost({ jsonrpc: "2.0", id, method, params });
+  const response = responses.find((candidate) => candidate.id === id);
+  if (!response) throw new Error(`Lowlevel MCP omitted response ${id}`);
+  if (response.error)
+    throw new Error(
+      `Lowlevel MCP ${method} failed: ${JSON.stringify(response.error)}`,
+    );
+  return response.result;
+}
+
+async function initializeMcp() {
+  if (!UI_ONLY) return;
+  await mcpRequest("initialize", {
+    protocolVersion: "2025-03-26",
+    capabilities: {},
+    clientInfo: { name: "worldlens-ui-e2e", version: "1" },
+  });
+  await mcpPost({ jsonrpc: "2.0", method: "notifications/initialized" });
+}
+
+async function lowlevelCall(name, params) {
+  const result = await mcpRequest("tools/call", {
+    name,
+    arguments: { params },
+  });
+  const text = result.content?.find((part) => part.type === "text")?.text;
+  const payload = text ? JSON.parse(text) : {};
+  if (result.isError || payload.ok !== true) {
+    throw new Error(
+      `Lowlevel ${name} failed: ${payload.error || "unknown failure"}`,
+    );
+  }
+  return payload;
+}
 
 // Only `@playwright/test` is a dependency in this workspace (bare `playwright` is not
 // installed), and it re-exports the browser types. Resolve it from the app package.
@@ -116,13 +198,143 @@ if (
   process.exit(1);
 }
 out(`attached ${page.url()}`);
+await initializeMcp();
 
 const settle = () => page.waitForTimeout(250);
+let cachedInputHwnd = null;
+
+async function lowlevelInputHwnd() {
+  if (cachedInputHwnd !== null) return cachedInputHwnd;
+  const result = await lowlevelCall("list_child_windows", { hwnd: LOWLEVEL_HWND });
+  const matches = (result.children || []).filter(
+    (child) =>
+      child.class === "Chrome_RenderWidgetHostHWND" &&
+      child.visible === true &&
+      child.width > 0 &&
+      child.height > 0,
+  );
+  if (matches.length !== 1)
+    throw new Error(
+      `expected one visible Chrome_RenderWidgetHostHWND, found ${matches.length}`,
+    );
+  cachedInputHwnd = matches[0].handle;
+  return cachedInputHwnd;
+}
+
+async function lowlevelClick(locator, button = "left") {
+  await locator.waitFor({ state: "visible", timeout: 45_000 });
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("target has no visible bounding box");
+  await lowlevelCall("mouse_click", {
+    hwnd: LOWLEVEL_HWND,
+    x: Math.round(box.x + box.width / 2),
+    y: Math.round(box.y + box.height / 2),
+    button,
+    clicks: 1,
+  });
+  await settle();
+}
+
+async function lowlevelFill(locator, value) {
+  await lowlevelClick(locator);
+  const inputHwnd = await lowlevelInputHwnd();
+  const existing = await locator.inputValue().catch(() => "");
+  for (let index = 0; index < existing.length; index += 1) {
+    await lowlevelCall("win_send_keys", { hwnd: inputHwnd, keys: ["backspace"] });
+  }
+  const text = String(value);
+  if (/^[A-Za-z0-9 _-]+$/u.test(text)) {
+    for (const character of text) {
+      await lowlevelCall("win_send_keys", {
+        hwnd: inputHwnd,
+        keys: [character === " " ? "space" : character.toLowerCase()],
+      });
+    }
+  } else {
+    await lowlevelCall("type_text", { hwnd: inputHwnd, text });
+  }
+  await settle();
+}
+
+async function lowlevelPress(key) {
+  const inputHwnd = await lowlevelInputHwnd();
+  await lowlevelCall("win_send_keys", {
+    hwnd: inputHwnd,
+    keys: [String(key)],
+  });
+  await settle();
+}
+
+async function lowlevelChooseFolder(step) {
+  const value = step.valueEnv
+    ? process.env[String(step.valueEnv)]
+    : step.value;
+  if (typeof value !== "string" || value.trim() === "")
+    throw new Error("chooseFolder needs a non-empty value or valueEnv");
+  await lowlevelClick(locate(step));
+  const desktop = process.env.WORLDLENS_DRIVER_DESKTOP;
+  if (!desktop) throw new Error("chooseFolder requires WORLDLENS_DRIVER_DESKTOP");
+  const deadline = Date.now() + (step.timeout || 30_000);
+  let dialog = null;
+  while (Date.now() < deadline) {
+    const inventory = await lowlevelCall("list_headless_windows", { name: desktop });
+    const matches = (inventory.windows || []).filter(
+      (window) =>
+        window.class === "#32770" &&
+        window.width > 0 &&
+        window.height > 0,
+    );
+    if (matches.length === 1) {
+      dialog = matches[0];
+      break;
+    }
+    if (matches.length > 1)
+      throw new Error(`chooseFolder found ${matches.length} native dialogs`);
+    await page.waitForTimeout(100);
+  }
+  if (!dialog) throw new Error("chooseFolder native dialog did not appear");
+  const children = await lowlevelCall("list_child_windows", { hwnd: dialog.handle });
+  await mkdir(SHOTS, { recursive: true });
+  await writeFile(
+    join(SHOTS, "native-folder-dialog.json"),
+    `${JSON.stringify({ dialog, children: children.children || [] }, null, 2)}\n`,
+    "utf8",
+  );
+  const edits = (children.children || []).filter(
+    (child) => child.class === "Edit" && child.visible === true,
+  );
+  if (edits.length < 1)
+    throw new Error("chooseFolder found no visible native Edit control");
+  await lowlevelCall("win_set_control_text", {
+    hwnd: edits[edits.length - 1].handle,
+    text: value,
+  });
+  const confirm = (children.children || []).find(
+    (child) =>
+      child.class === "Button" &&
+      child.visible === true &&
+      /select folder|choose|open/i.test(child.text || ""),
+  );
+  if (!confirm)
+    throw new Error("chooseFolder found no visible confirmation button");
+  await lowlevelCall("win_send_keys", { hwnd: confirm.handle, keys: ["space"] });
+  const closeDeadline = Date.now() + 15_000;
+  while (Date.now() < closeDeadline) {
+    const inventory = await lowlevelCall("list_headless_windows", { name: desktop });
+    if (!(inventory.windows || []).some((window) => window.handle === dialog.handle)) {
+      await settle();
+      return;
+    }
+    await page.waitForTimeout(100);
+  }
+  throw new Error("chooseFolder native dialog did not close after Enter");
+}
 
 const CAPTURE_COMMIT =
   process.env.WORLDLENS_CAPTURE_COMMIT ||
   process.env.GITHUB_SHA ||
   "(local run)";
+const captureLedger = [];
 
 /** One target description shared by interactive and committed-plan commands. */
 const locate = (step) => {
@@ -149,7 +361,17 @@ async function capture(step, walkthrough = false) {
     : SHOTS;
   await mkdir(directory, { recursive: true });
   const file = join(directory, `${step.name}.png`);
-  if (step.selector || step.role) await locate(step).screenshot({ path: file });
+  let lowlevelShot = null;
+  if (UI_ONLY) {
+    if (step.selector || step.role) {
+      throw new Error(
+        "UI-only captures are whole-window Lowlevel HuiShots; element clipping is not allowed",
+      );
+    }
+    lowlevelShot = await lowlevelCall("screenshot", { hwnd: LOWLEVEL_HWND });
+    await copyFile(lowlevelShot.path, file);
+  } else if (step.selector || step.role)
+    await locate(step).screenshot({ path: file });
   else await page.screenshot({ path: file });
 
   const metadata = {
@@ -160,12 +382,16 @@ async function capture(step, walkthrough = false) {
     theme: step.theme || "current",
     viewport:
       step.viewport ||
-      `${page.viewportSize()?.width ?? "window"}x${page.viewportSize()?.height ?? "window"}`,
+      (lowlevelShot
+        ? `${lowlevelShot.width}x${lowlevelShot.height}`
+        : `${page.viewportSize()?.width ?? "window"}x${page.viewportSize()?.height ?? "window"}`),
     state: step.state || "current",
     expectedSurface: step.expectedSurface || step.alt || step.name,
     commit: step.commit || CAPTURE_COMMIT,
     capturedAt: new Date().toISOString(),
-    source: "cheap Lowlevel hidden desktop + single-target CDP driver",
+    source: UI_ONLY
+      ? "cheap Lowlevel hidden desktop input and window capture + read-only single-target CDP assertions"
+      : "cheap Lowlevel hidden desktop + single-target CDP driver",
     ...(walkthrough
       ? { walkthroughId: step.walkthroughId || "unclassified" }
       : {}),
@@ -175,6 +401,7 @@ async function capture(step, walkthrough = false) {
     `${JSON.stringify(metadata, null, 2)}\n`,
     "utf8",
   );
+  captureLedger.push(metadata);
   return file;
 }
 
@@ -194,19 +421,54 @@ async function executeAction(step) {
       });
       break;
     case "click":
-      await locate(step).click({
+      if (UI_ONLY) await lowlevelClick(locate(step), step.button || "left");
+      else
+        await locate(step).click({
+          button: step.button || "left",
+          timeout: step.timeout || 45_000,
+        });
+      await settle();
+      break;
+    case "clickPoint":
+      if (!UI_ONLY)
+        throw new Error("clickPoint is reserved for Lowlevel UI-only plans");
+      await lowlevelCall("mouse_click", {
+        hwnd: LOWLEVEL_HWND,
+        x: Number(step.x),
+        y: Number(step.y),
         button: step.button || "left",
-        timeout: step.timeout || 45_000,
+        clicks: 1,
       });
       await settle();
       break;
+    case "chooseFolder":
+      if (!UI_ONLY)
+        throw new Error("chooseFolder is reserved for Lowlevel UI-only plans");
+      await lowlevelChooseFolder(step);
+      break;
     case "fill":
-      await locate(step).fill(String(step.value ?? ""));
+      {
+        const value = step.valueEnv
+          ? process.env[String(step.valueEnv)]
+          : step.value;
+        if (step.valueEnv && value === undefined)
+          throw new Error(`missing environment value ${step.valueEnv}`);
+        if (UI_ONLY) await lowlevelFill(locate(step), value ?? "");
+        else await locate(step).fill(String(value ?? ""));
+      }
       await settle();
       break;
     case "press":
-      await locate(step).press(String(step.key));
+      if (UI_ONLY) {
+        await lowlevelClick(locate(step));
+        await lowlevelPress(step.key);
+      } else await locate(step).press(String(step.key));
       await settle();
+      break;
+    case "windowKey":
+      if (!UI_ONLY)
+        throw new Error("windowKey is reserved for Lowlevel UI-only plans");
+      await lowlevelPress(step.key);
       break;
     case "viewport":
       await page.setViewportSize({
@@ -228,6 +490,14 @@ async function executeAction(step) {
       const actual = await locate(step).innerText();
       if (!actual.includes(String(step.text)))
         throw new Error(`expected text not found: ${step.text}`);
+      break;
+    }
+    case "assertCount": {
+      const actual = await page.locator(step.selector).count();
+      if (actual !== Number(step.count))
+        throw new Error(
+          `expected ${step.selector} count ${step.count}, found ${actual}`,
+        );
       break;
     }
     case "screenshot":
@@ -253,7 +523,39 @@ async function runPlan(path) {
         .map((line) => JSON.parse(line));
   if (!Array.isArray(steps))
     throw new Error("capture plan must be a JSON array or JSONL objects");
-  for (const step of steps) await executeAction(step);
+  for (const [index, step] of steps.entries()) {
+    const progress = `plan step ${index + 1}/${steps.length}: ${step.action}${step.name ? ` ${step.name}` : ""}`;
+    out(progress);
+    await mkdir(SHOTS, { recursive: true });
+    await appendFile(join(SHOTS, "progress.log"), `${new Date().toISOString()} ${progress}\n`, "utf8");
+    try {
+      await executeAction(step);
+    } catch (error) {
+      throw new Error(
+        `plan step ${index + 1}/${steps.length} (${step.action}${step.name ? ` ${step.name}` : ""}) failed: ${String(error).split("\n")[0]}`,
+      );
+    }
+  }
+  await mkdir(SHOTS, { recursive: true });
+  await writeFile(
+    join(SHOTS, "manifest.json"),
+    `${JSON.stringify(
+      {
+        version: 1,
+        generatedAt: new Date().toISOString(),
+        commit: CAPTURE_COMMIT,
+        actionCount: steps.length,
+        uiOnly: UI_ONLY,
+        interaction: UI_ONLY
+          ? "Lowlevel MCP background input; CDP read-only assertions"
+          : "Playwright actions",
+        captures: captureLedger,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
   out(`plan complete: ${steps.length} actions`);
 }
 
@@ -289,16 +591,24 @@ const commands = {
   viewport: async (width, height) =>
     executeAction({ action: "viewport", width, height }),
   zoom: async (factor) => executeAction({ action: "zoom", factor }),
-  plan: async (...path) => runPlan(path.join(" ")),
+  plan: async (...path) => {
+    await runPlan(path.join(" "));
+    if (process.env.WORLDLENS_PLAN_EXIT === "1") {
+      await browser.close();
+      out("detached after plan");
+      process.exit(0);
+    }
+  },
   // The rail is this app's own component, not a Vuetify navigation drawer: the labels
   // are `.wl-rail-label`, and `.v-navigation-drawer .v-list-item-title` matches nothing.
   rail: async () =>
     out(JSON.stringify(await page.locator(".wl-rail-label").allInnerTexts())),
   nav: async (...label) => {
-    await page
+    const locator = page
       .locator(".wl-rail-item", { hasText: label.join(" ") })
-      .first()
-      .click();
+      .first();
+    if (UI_ONLY) await lowlevelClick(locator);
+    else await locator.click();
     await settle();
     out("navigated");
   },
@@ -315,27 +625,29 @@ const commands = {
   count: async (...sel) =>
     out(String(await page.locator(sel.join(" ")).count())),
   click: async (...sel) => {
-    await page.locator(sel.join(" ")).first().click();
+    const locator = page.locator(sel.join(" ")).first();
+    if (UI_ONLY) await lowlevelClick(locator);
+    else await locator.click();
     await settle();
     out("clicked");
   },
   // A fresh profile always opens on the 4-step first-run dialog, and it is modal: the
-  // navigation rail is behind it, so `nav` times out until this has run. DECLINE is
-  // chosen deliberately - it is a real, supported answer, and an agent must not accept
-  // a licence on the user's behalf.
+  // navigation rail is behind it, so `nav` times out until this has run. ACCEPT is the
+  // user's explicit standing choice for Worldlens verification runs.
   onboard: async () => {
-    const steps = ["NEXT", "NEXT", "DECLINE", "FINISH SETUP"];
+    const steps = ["NEXT", "NEXT", "ACCEPT", "FINISH SETUP"];
     if ((await page.locator(".v-overlay--active").count()) === 0)
       return out("no dialog open");
     for (const label of steps) {
-      await page
+      const locator = page
         .locator(`.v-overlay--active button:has-text("${label}")`)
-        .first()
-        .click();
+        .first();
+      if (UI_ONLY) await lowlevelClick(locator);
+      else await locator.click();
       await settle();
     }
     out(
-      `onboarded (declined download consent); dialogs open: ${await page.locator(".v-overlay--active").count()}`,
+      `onboarded (accepted download consent); dialogs open: ${await page.locator(".v-overlay--active").count()}`,
     );
   },
   eval: async (...js) =>
@@ -369,5 +681,9 @@ for await (const line of rl) {
     await fn(...args);
   } catch (e) {
     bad(String(e).split("\n")[0]);
+    if (cmd === "plan" && process.env.WORLDLENS_PLAN_EXIT === "1") {
+      await browser.close().catch(() => undefined);
+      process.exit(1);
+    }
   }
 }

@@ -340,6 +340,39 @@ language modes and both per-language funny-level sliders with no separate access
 screen reader in bilingual mode reads Kid Mode's own English and Cantonese exactly as it reads
 anything else this application says.
 
+## Real Lowlevel UI proof
+
+The repository now carries a repeatable UI-only round trip in
+[`scripts/worldlens-lowlevel-e2e.json`](../scripts/worldlens-lowlevel-e2e.json). A fresh isolated
+profile starts in Kid Mode. Lowlevel MCP supplies every mouse click, key press and whole-window
+capture on an off-screen Windows desktop; CDP only identifies the visible target and reads the
+post-action text. The journey completes first run while accepting the Minecraft download consent
+under the repository owner's standing verification choice,
+opens Kid Home, Explore, jobs, stickers and the grown-up gate, switches to Adult Mode, opens Home
+and Settings, selects the **Kid Mode and Adult Mode** tab, and returns through the visible Kid Mode
+radio control. Direct DOM clicks, local-storage seeding and application-state injection are not
+part of this proof.
+
+<details>
+<summary><b>Open the UI evidence</b></summary>
+
+![Kid Mode Home after UI-only first run](./screenshots/lowlevel-kid-home.png)
+
+![Kid Mode grown-up gate before switching to Adult Mode](./screenshots/lowlevel-kid-grown-up-gate.png)
+
+![Adult Mode Home after the grown-up gate](./screenshots/lowlevel-adult-home.png)
+
+![Adult settings on the Kid Mode and Adult Mode tab](./screenshots/lowlevel-adult-kid-mode-settings.png)
+
+![Kid Mode restored through the settings radio control](./screenshots/lowlevel-kid-returned-from-settings.png)
+
+</details>
+
+Run the proof from `design/` with `pnpm ui:e2e:lowlevel`. The harness requires a local checkout of
+the public Lowlevel MCP project with its locked environment installed. Every run uses a unique
+profile, desktop, CDP port and evidence directory, asserts that exactly one application window and
+one CDP page exist, and closes only the process and desktop identities it created.
+
 ## Verification
 
 | Test | What it holds |

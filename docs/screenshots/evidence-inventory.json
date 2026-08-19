@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 208,
+  "expectedTargetCount": 225,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -375,6 +375,35 @@
       ],
       "capturedFromInterfaceSource": false,
       "notGradedBecause": "a packaged-build migration flow captured on an off-screen desktop, which needs a packaged installer rather than a command any change can run"
+    },
+    {
+      "id": "lowlevel-ui-e2e",
+      "authority": "scripts/worldlens-lowlevel-e2e.json driven by .claude/skills/run-worldlens/driver.mjs",
+      "command": "cd design && pnpm ui:e2e:lowlevel",
+      "reproducibility": "current-build-lowlevel-mcp-hidden-desktop-ui-only",
+      "expectedCount": 17,
+      "targets": [
+        "docs/screenshots/lowlevel-adult-home.png",
+        "docs/screenshots/lowlevel-adult-kid-mode-settings.png",
+        "docs/screenshots/lowlevel-adult-map-empty.png",
+        "docs/screenshots/lowlevel-adult-settings.png",
+        "docs/screenshots/lowlevel-ci-render-history-fixed.png",
+        "docs/screenshots/lowlevel-ci-render-remove-confirmation.png",
+        "docs/screenshots/lowlevel-ci-render-row-removed.png",
+        "docs/screenshots/lowlevel-kid-explore-empty.png",
+        "docs/screenshots/lowlevel-kid-first-run-consent.png",
+        "docs/screenshots/lowlevel-kid-first-run-licence.png",
+        "docs/screenshots/lowlevel-kid-first-run-storage.png",
+        "docs/screenshots/lowlevel-kid-first-run-welcome.png",
+        "docs/screenshots/lowlevel-kid-grown-up-gate.png",
+        "docs/screenshots/lowlevel-kid-home.png",
+        "docs/screenshots/lowlevel-kid-jobs.png",
+        "docs/screenshots/lowlevel-kid-returned-from-settings.png",
+        "docs/screenshots/lowlevel-kid-stickers.png"
+      ],
+      "capturedFromInterfaceSource": true,
+      "uiSourceDigest": "1e56d84f354b7a7f9abbc2660cb2ec5b8efd2bed8e04adc8ddc9bf24c2cf8177",
+      "uiSourceDigestNote": "Captured 2026-08-19 from the exact candidate interface whose digest is recorded here. Lowlevel MCP launched the real Electron app on an off-screen Windows desktop, performed 36 Adult/Kid actions plus the cloud-render restart and removal journeys through background Win32 input, and captured every whole-window PNG. CDP was used only to locate visible controls and read assertions."
     },
     {
       "id": "retired-app-surfaces",

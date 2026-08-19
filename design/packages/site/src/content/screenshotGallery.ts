@@ -81,6 +81,7 @@ export const GALLERY_CATEGORIES: readonly GalleryCategoryDefinition[] = [
             "palette-",
             "browser-",
             "notifications-",
+            "lowlevel-adult-",
             "theme-",
             "dimsum-",
         ],
@@ -125,7 +126,7 @@ export const GALLERY_CATEGORIES: readonly GalleryCategoryDefinition[] = [
         description:
             "Publishing, continuous integration, local model, and large-file runtime surfaces.",
         descriptionYue: "發佈、持續整合、本機模型同大型檔案執行畫面。",
-        prefixes: ["ci-", "pages-", "ollama-", "chunker-"],
+        prefixes: ["ci-", "pages-", "ollama-", "chunker-", "lowlevel-ci-"],
     },
     {
         id: "kid-mode",
@@ -134,7 +135,7 @@ export const GALLERY_CATEGORIES: readonly GalleryCategoryDefinition[] = [
         description:
             "Kid Mode catalogues, settings, progress, stickers, narrow layouts, and scales.",
         descriptionYue: "兒童模式目錄、設定、進度、貼紙、窄版畫面同顯示比例。",
-        prefixes: ["kid-"],
+        prefixes: ["kid-", "lowlevel-kid-"],
     },
     {
         id: "site-evidence",

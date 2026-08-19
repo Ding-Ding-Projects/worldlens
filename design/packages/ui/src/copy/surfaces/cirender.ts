@@ -1211,6 +1211,13 @@ export const CIRENDER_FIXED = {
     "cirender.signIn": { en: "Open the GitHub sign-in", yue: "開 GitHub 登入" },
     "cirender.openRun": { en: "Open the run on GitHub", yue: "喺 GitHub 開個 run" },
     "cirender.stop": { en: "Stop watching", yue: "唔再睇住" },
+    "cirender.remove": { en: "Remove from list", yue: "由清單移除" },
+    "cirender.remove.title": { en: "Remove this render from the list", yue: "由清單移除呢次算圖" },
+    "cirender.remove.action": {
+        en: "This deletes only the local history row. The GitHub run, release and rendered files on GitHub are not deleted.",
+        yue: "只會刪除本機歷史記錄。GitHub 上面嘅 run、release 同已渲染檔案全部唔會刪除。",
+    },
+    "cirender.remove.confirm": { en: "Remove from the list", yue: "由清單移除" },
 
     /* The live run: transfer counter, job search, and the job that went wrong. */
     "cirender.transfer.bytes": { en: "{done} of {total}", yue: "{total} 入面嘅 {done}" },

@@ -337,6 +337,7 @@ export interface CiRenders {
     /** True when this build can start a CI render at all. */
     readonly available: boolean;
     readonly canCancel: boolean;
+    readonly canForget: boolean;
     readonly canList: boolean;
     readonly canCheck: boolean;
     /** True when the syncs in flight right now, anywhere, can be asked for. */
@@ -393,6 +394,8 @@ export interface CiRenders {
     start(request: CiSyncRequest): Promise<CiSyncResult | null>;
     poll(syncId: string): Promise<CiSyncResult | null>;
     stop(syncId: string): Promise<boolean>;
+    /** Removes a finished row from local history without touching GitHub. */
+    forget(syncId: string): Promise<boolean>;
     loadKnown(): Promise<void>;
     /**
      * Adopts the ids of syncs already running, anywhere, that `loadKnown()` cannot see yet.
@@ -452,6 +455,66 @@ export interface CiRenders {
 
 function describe(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function persistedRow(state: CiSyncState): CiRow {
+    const terminal = state.stage === "rendered" || state.stage === "failed" || state.stage === "cancelled";
+    const rowState: CiRowState =
+        state.stage === "rendered"
+            ? "rendered"
+            : state.stage === "failed"
+              ? "failed"
+              : state.stage === "cancelled"
+                ? "cancelled"
+                : "running";
+    const conclusion =
+        state.stage === "rendered"
+            ? "success"
+            : state.stage === "failed"
+              ? "failure"
+              : state.stage === "cancelled"
+                ? "cancelled"
+                : null;
+    return {
+        ...blankRow(state.syncId),
+        repository: `${state.owner}/${state.repo}`,
+        mapId: state.mapId,
+        worldFolder: state.worldFolder,
+        state: rowState,
+        route: state.accountId === null ? null : "gh",
+        run:
+            state.runId === null
+                ? null
+                : {
+                      runId: state.runId,
+                      runNumber: state.runNumber ?? state.runId,
+                      htmlUrl: state.runUrl ?? "",
+                      status: terminal ? "completed" : "unknown",
+                      conclusion,
+                      createdAt: state.dispatchedAt ?? state.updatedAt,
+                      updatedAt: state.updatedAt,
+                      headSha: "",
+                      jobs: [],
+                  },
+        failure:
+            state.stage === "failed"
+                ? {
+                      code: state.failureCode ?? "failed",
+                      message: state.failureMessage ?? "The render failed.",
+                      detail: null,
+                      status: null,
+                      needsSignIn: false,
+                      needsEula: false,
+                      route: state.accountId === null ? null : "gh",
+                      run: null,
+                      failingJob: null,
+                      logExcerpt: null,
+                  }
+                : null,
+        startedAt: state.dispatchedAt,
+        finishedAt: terminal ? state.updatedAt : null,
+        live: false,
+    };
 }
 
 export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
@@ -691,6 +754,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
     return {
         available: bridge !== null,
         canCancel: bridge?.canCancel ?? false,
+        canForget: bridge?.canForget ?? false,
         canList: bridge?.canList ?? false,
         canCheck: bridge?.canCheck ?? false,
         canSeeActive: bridge?.canSeeActive ?? false,
@@ -793,6 +857,22 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
             return await bridge.cancelCiRender(syncId);
         },
 
+        async forget(syncId: string): Promise<boolean> {
+            if (
+                bridge === null ||
+                bridge.forgetCiRender === undefined ||
+                rowFor(syncId).state === "running"
+            )
+                return false;
+            const removed = await bridge.forgetCiRender(syncId);
+            if (!removed) return false;
+            const next = { ...byId.value };
+            delete next[syncId];
+            byId.value = next;
+            known.value = known.value.filter((state) => state.syncId !== syncId);
+            return true;
+        },
+
         async loadKnown(): Promise<void> {
             if (bridge === null) return;
             knownFailure.value = null;
@@ -803,7 +883,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     // Adopting the ids puts a sync started in another window, or before
                     // this one was opened, on screen rather than leaving it invisible.
                     for (const state of answer.value) {
-                        if (byId.value[state.syncId] === undefined) put(blankRow(state.syncId));
+                        if (byId.value[state.syncId] === undefined) put(persistedRow(state));
                     }
                 } else {
                     knownFailure.value = answer.message;

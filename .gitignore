@@ -36,6 +36,7 @@ tools/oracle/prbm/out/
 # one predictable place next to the checkout - and never committed: a 157 MB setup in Git
 # history is a repository nobody can clone.
 /installer/
+/artifacts/
 
 # The version build-installer.bat stamps aside while it packages, so it can put the real one
 # back afterwards. It is deleted by that restore step; a copy surviving means a run was

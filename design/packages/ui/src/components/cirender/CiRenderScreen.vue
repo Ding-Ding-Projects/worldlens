@@ -8,6 +8,7 @@ import {
     mdiFolderSearchOutline,
     mdiOpenInNew,
     mdiRefresh,
+    mdiDeleteOutline,
 } from "@mdi/js";
 import {
     VAlert,
@@ -25,6 +26,7 @@ import {
 } from "vuetify/components";
 import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import GhEntityPicker from "../github/GhEntityPicker.vue";
 import { createGhCliAccountsStore, defaultGhCliAccountId } from "../github/ghCliAccountsStore.js";
@@ -2332,6 +2334,32 @@ onBeforeUnmount(() => {
                     >
                         {{ t("cirender.stop", "Stop watching") }}
                     </VBtn>
+
+                    <ConfigSuperConfirm
+                        v-if="row.state !== 'running' && renders.canForget"
+                        :title="t('cirender.remove.title', 'Remove this render from the list')"
+                        :action="
+                            t(
+                                'cirender.remove.action',
+                                'This deletes only the local history row. The GitHub run, release and rendered files on GitHub are not deleted.',
+                            )
+                        "
+                        :affected="[row.repository || row.syncId]"
+                        :confirm-label="t('cirender.remove.confirm', 'Remove from the list')"
+                        @confirm="renders.forget(row.syncId)"
+                    >
+                        <template #activator="{ props: activatorProps }">
+                            <VBtn
+                                v-bind="activatorProps"
+                                :prepend-icon="mdiDeleteOutline"
+                                size="small"
+                                variant="text"
+                                data-test="forget"
+                            >
+                                {{ t('cirender.remove', 'Remove from list') }}
+                            </VBtn>
+                        </template>
+                    </ConfigSuperConfirm>
 
                     <!--
                         Scheduled re-rendering: on or off, one of the four honest cadences,
