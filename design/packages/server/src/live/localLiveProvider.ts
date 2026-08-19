@@ -13,7 +13,6 @@ export interface LocalPlayer {
     readonly source: "playerdata" | "rcon";
     readonly observedAt: number;
 }
-
 export interface PlayerDataOptions {
     readonly now?: () => number;
     readonly maxFiles?: number;
@@ -260,4 +259,3 @@ export class LocalLiveProvider {
 
     asJson(): string { return JSON.stringify(this.snapshot()); }
 }
-
