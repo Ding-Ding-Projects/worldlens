@@ -75,8 +75,17 @@ import {
     RemoteHostingOrchestrator,
     REMOTE_HOSTING_EVENT_CHANNEL,
     registerRemoteHostingHandlers,
+    registerDashboardHandlers,
 } from "./remote/index.js";
-import type { RemoteHostingIpc } from "./remote/index.js";
+import type { DashboardIpc, RemoteHostingIpc } from "./remote/index.js";
+import {
+    MAX_PROFILE_COUNT,
+    MAX_PROFILE_ID_LENGTH,
+    MAX_PROFILE_NAME_LENGTH,
+    readProfilesState,
+    sanitizeProfileUrl,
+    writeProfilesState,
+} from "./profiles/store.js";
 import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
@@ -431,20 +440,41 @@ function registerIpc(): void {
     if (ipcRegistered) return;
     ipcRegistered = true;
 
-    ipcMain.handle("profiles:sync", (_event, profiles: RemoteProfile[]) => {
+    ipcMain.handle("profiles:sync", async (_event, profiles: RemoteProfile[]) => {
+        const saved: { id: string; name: string; url: string }[] = [];
         const known = new Set<string>();
-        for (const profile of profiles) {
-            if (typeof profile.id !== "string" || typeof profile.baseUrl !== "string") continue;
+        for (const profile of Array.isArray(profiles) ? profiles.slice(0, MAX_PROFILE_COUNT) : []) {
+            if (
+                typeof profile.id !== "string" ||
+                profile.id.length === 0 ||
+                profile.id.length > MAX_PROFILE_ID_LENGTH ||
+                typeof profile.name !== "string" ||
+                profile.name.length === 0 ||
+                profile.name.length > MAX_PROFILE_NAME_LENGTH ||
+                /[\u0000-\u001F\u007F]/.test(profile.id) ||
+                /[\u0000-\u001F\u007F]/.test(profile.name)
+            ) continue;
+            const url = sanitizeProfileUrl(profile.baseUrl);
+            if (url === null) continue;
             remoteProxy.setProfile({
                 id: profile.id,
                 name: profile.name,
-                baseUrl: profile.baseUrl,
+                baseUrl: url,
             });
             known.add(profile.id);
+            saved.push({ id: profile.id, name: profile.name, url });
         }
         for (const existing of remoteProxy.getProfiles()) {
             if (!known.has(existing.id)) remoteProxy.removeProfile(existing.id);
         }
+        const previous = await readProfilesState(app.getPath("userData"));
+        await writeProfilesState(app.getPath("userData"), {
+            version: 1,
+            profiles: saved.map((profile) => ({ ...profile, trustCustomizations: false })),
+            activeId: previous.activeId !== null && known.has(previous.activeId) ? previous.activeId : null,
+        }).catch(() => {
+            // Profile sync remains usable if persistence is temporarily unavailable.
+        });
     });
     ipcMain.handle("clipboard:writeText", (_event, text: string) => {
         if (typeof text === "string") clipboard.writeText(text);
@@ -1273,6 +1303,7 @@ let remoteIpc: RemoteIpc | null = null;
  * `remote/hosting.ts`'s own top comment for the shape of that difference.
  */
 let remoteHostingIpc: RemoteHostingIpc | null = null;
+let dashboardIpc: DashboardIpc | null = null;
 
 /**
  * The record that lets a container outlive the application that started it.
@@ -1374,7 +1405,13 @@ function startRemoteHosting(render: RenderIpc): RemoteHostingIpc {
         userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
     });
     remoteHostingIpc = registerRemoteHostingHandlers(ipcMain, { orchestrator });
+    dashboardIpc = registerDashboardHandlers(ipcMain, {
+        orchestrator,
+        readProfiles: () => readProfilesState(app.getPath("userData")),
+        probeProfile: (profileId, signal) => remoteProxy.probe(profileId, signal),
+    });
     app.on("will-quit", () => remoteHostingIpc?.dispose());
+    app.on("will-quit", () => dashboardIpc?.dispose());
     return remoteHostingIpc;
 }
 

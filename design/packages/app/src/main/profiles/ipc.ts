@@ -34,7 +34,17 @@ import {
     type ProfilesHistoryOptions,
 } from "./history.js";
 import { saveProfilesState, type ProfilesSaveResult } from "./save.js";
-import { readProfilesState, type ProfileRecord, type ProfilesState } from "./store.js";
+import {
+    MAX_PROFILE_COUNT,
+    MAX_PROFILE_DATA_ROOT_LENGTH,
+    MAX_PROFILE_ID_LENGTH,
+    MAX_PROFILE_NAME_LENGTH,
+    MAX_PROFILE_URL_LENGTH,
+    readProfilesState,
+    sanitizeProfileUrl,
+    type ProfileRecord,
+    type ProfilesState,
+} from "./store.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
 export const PROFILES_HISTORY_CHANNELS = [
@@ -104,6 +114,9 @@ function checkProfilesInput(value: unknown): { ok: true; state: ProfilesState } 
         return { ok: false, message: "The profile list's `profiles` field has to be an array." };
     }
 
+    if (record.profiles.length > MAX_PROFILE_COUNT) {
+        return { ok: false, message: `A profile list can contain at most ${String(MAX_PROFILE_COUNT)} entries.` };
+    }
     const profiles: ProfileRecord[] = [];
     let bytes = 0;
     for (const entry of record.profiles) {
@@ -111,20 +124,37 @@ function checkProfilesInput(value: unknown): { ok: true; state: ProfilesState } 
             return { ok: false, message: "Every profile has to be an object." };
         }
         const row = entry as Record<string, unknown>;
-        if (typeof row["id"] !== "string" || typeof row["name"] !== "string" || typeof row["url"] !== "string") {
+        if (
+            typeof row["id"] !== "string" ||
+            row["id"].length === 0 ||
+            row["id"].length > MAX_PROFILE_ID_LENGTH ||
+            typeof row["name"] !== "string" ||
+            row["name"].length === 0 ||
+            row["name"].length > MAX_PROFILE_NAME_LENGTH ||
+            typeof row["url"] !== "string" ||
+            row["url"].length > MAX_PROFILE_URL_LENGTH
+        ) {
             return { ok: false, message: "Every profile needs an id, a name and a url, each given as text." };
         }
-        if (row["dataRoot"] !== undefined && typeof row["dataRoot"] !== "string") {
+        if (/[\u0000-\u001F\u007F]/.test(row["id"] as string) || /[\u0000-\u001F\u007F]/.test(row["name"] as string)) {
+            return { ok: false, message: "Profile ids and names cannot contain control characters." };
+        }
+        const url = sanitizeProfileUrl(row["url"] as string);
+        if (url === null) return { ok: false, message: "Profile URLs must be http(s) addresses without embedded credentials." };
+        if (row["dataRoot"] !== undefined && (typeof row["dataRoot"] !== "string" || row["dataRoot"].length > MAX_PROFILE_DATA_ROOT_LENGTH)) {
             return { ok: false, message: "A profile's data root has to be text when it is present." };
         }
-        bytes += row["id"].length + row["name"].length + row["url"].length + (row["dataRoot"]?.toString().length ?? 0);
+        if (typeof row["dataRoot"] === "string" && /[\u0000-\u001F\u007F]/.test(row["dataRoot"])) {
+            return { ok: false, message: "A profile's data root cannot contain control characters." };
+        }
+        bytes += row["id"].length + row["name"].length + url.length + (row["dataRoot"]?.toString().length ?? 0);
         if (bytes > MAX_PROFILES_BYTES) {
             return { ok: false, message: "That is far more text than a profile list holds, so nothing was written." };
         }
         profiles.push({
             id: row["id"],
             name: row["name"],
-            url: row["url"],
+            url,
             trustCustomizations: row["trustCustomizations"] === true,
             ...(typeof row["dataRoot"] === "string" ? { dataRoot: row["dataRoot"] } : {}),
         });
