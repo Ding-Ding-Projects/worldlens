@@ -55,7 +55,17 @@ export const LEGACY_PROJECT_SCHEMA_ID = "material-bluemap.project";
  * rather than guess, because the failure mode of guessing is silently discarding the
  * settings it did not understand the moment it saves.
  */
-export const PROJECT_FORMAT_VERSION = 2;
+export const PROJECT_FORMAT_VERSION = 3;
+
+/** Engines a project may ask the local and remote render routes to use. */
+export const PROJECT_RENDER_ENGINES = ["typescript", "upstream-java"] as const;
+export type ProjectRenderEngine = (typeof PROJECT_RENDER_ENGINES)[number];
+
+/** The app-owned engine is the no-JVM default for projects created by this format. */
+export const DEFAULT_PROJECT_RENDER_ENGINE: ProjectRenderEngine = "typescript";
+
+/** The engine old project files used before the choice was persisted. */
+export const LEGACY_PROJECT_RENDER_ENGINE: ProjectRenderEngine = "upstream-java";
 
 /** ISO 8601, with an offset. Stored as text so a file stays diffable and human-readable. */
 const timestamp = z.string().min(1);
@@ -138,6 +148,8 @@ export type ProjectStorage = z.infer<typeof projectStorageSchema>;
 /** How a render of this project is started. Mirrors the CLI's own options. */
 export const projectRenderSchema = z
     .object({
+        /** The concrete renderer this project asks every route to use. */
+        engine: z.enum(PROJECT_RENDER_ENGINES).default(DEFAULT_PROJECT_RENDER_ENGINE),
         /**
          * Where the render is executed. Older project files omit this field and are treated as
          * local by every reader; new files write the choice explicitly so a project opened on a
@@ -187,6 +199,7 @@ export const projectFileSchema = z
         maps: z.array(projectMapSchema).default([]),
         storages: z.array(projectStorageSchema).default([]),
         render: projectRenderSchema.default({
+            engine: DEFAULT_PROJECT_RENDER_ENGINE,
             route: "local",
             threads: null,
             force: false,
@@ -261,11 +274,7 @@ export function parseProjectFile(text: string): ProjectReadResult {
         raw !== null &&
         !Array.isArray(raw) &&
         (version === 1 || version === 2)
-            ? {
-                  ...(raw as Record<string, unknown>),
-                  version: PROJECT_FORMAT_VERSION,
-                  schema: PROJECT_SCHEMA_ID,
-              }
+            ? migrateProjectRecord(raw as Record<string, unknown>, version)
             : raw;
 
     const parsed = projectFileSchema.safeParse(adapted);
@@ -283,6 +292,33 @@ export function parseProjectFile(text: string): ProjectReadResult {
         };
     }
     return { ok: true, project: parsed.data };
+}
+
+/**
+ * Adapts old project files without changing what opening one used to do.
+ *
+ * Version 2 had no engine selector and every route drove BlueMap's Java CLI.  The new
+ * format defaults *new* projects to the app-owned engine, but an old file must retain the
+ * Java choice when it is read and subsequently saved.  Keeping this distinction here,
+ * before schema defaults run, prevents a migration from looking like a harmless omission.
+ */
+function migrateProjectRecord(raw: Record<string, unknown>, version: number): Record<string, unknown> {
+    const render = raw.render;
+    const oldRender =
+        typeof render === "object" && render !== null && !Array.isArray(render)
+            ? (render as Record<string, unknown>)
+            : {};
+    return {
+        ...raw,
+        version: PROJECT_FORMAT_VERSION,
+        schema: PROJECT_SCHEMA_ID,
+        render: {
+            ...oldRender,
+            ...(version < PROJECT_FORMAT_VERSION && oldRender.engine === undefined
+                ? { engine: LEGACY_PROJECT_RENDER_ENGINE }
+                : {}),
+        },
+    };
 }
 
 /**

@@ -19,6 +19,7 @@ export { default as SettingsSection } from "./SettingsSection.vue";
 export { default as SurfacePlacementRow } from "./SurfacePlacementRow.vue";
 export { default as StorageSettingRow } from "./StorageSettingRow.vue";
 export { default as JavaRuntimeRow } from "./JavaRuntimeRow.vue";
+export { default as EngineChoicePanel } from "./EngineChoicePanel.vue";
 export { default as WorldFolderRow } from "./WorldFolderRow.vue";
 
 export {
@@ -61,6 +62,21 @@ export type { UiSizeLevel } from "./uiSizeSetting.js";
 
 export { THEME_CHOICES, changeTheme, currentTheme } from "./themeSetting.js";
 export type { ThemeChoice } from "./themeSetting.js";
+
+export {
+    ENGINE_CHOICE_STORAGE_KEY,
+    ENGINE_CHOICE_STORAGE_VERSION,
+    RENDER_ENGINE_DESCRIPTORS,
+    currentRenderEngineChoice,
+    descriptorForRenderEngine,
+    exportRenderEngineChoice,
+    globalRenderEngineDefault,
+    importRenderEngineChoice,
+    renderEngineChoiceSearchValues,
+    resolveRenderEngine,
+    setGlobalRenderEngineDefault,
+} from "./engineChoice.js";
+export type { RenderEngineDescriptor, RenderEngineId, RenderEngineSelection, RenderEngineChoiceState } from "./engineChoice.js";
 
 /**
  * Where a docked panel sits, which is a setting and therefore lives here.

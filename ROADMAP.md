@@ -1,5 +1,22 @@
 # Roadmap
 
+## Issue #78 — per-project render-engine choice and no-JVM default (2026-08-19)
+
+**State: source changes are present; current source/build evidence is unrun.** The project now
+stores a canonical per-project render-engine id (`upstream-java` or `typescript`), keeps the
+upstream-Java behavior for legacy projects, and lets the global new-project default choose Java
+only when its live capability is available. The app-owned TypeScript engine is the no-JVM choice.
+
+The package path stages the TypeScript engine bundle and assets, emits a versioned capability
+manifest, and records the staged Java CLI jar's filename, size, and SHA-256 when the jar exists.
+Packaged runtime resolution checks that manifest before accepting the Java artifact, and the
+project editor receives live Java availability instead of a hardcoded unknown state.
+
+No source/build evidence was run for the current Issue #78 edits in this roadmap update. The
+packaged dual-engine proof is still pending: build the real installer, verify both engine assets
+and the manifest from the packaged output, and render the same project once through each engine
+without silently substituting one for the other.
+
 ## Current verified baseline
 
 - Adult Mode and Kid Mode complete their first-run and round-trip journeys through the committed

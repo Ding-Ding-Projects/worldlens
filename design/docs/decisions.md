@@ -402,3 +402,24 @@ call path. It applies only at the interactive trigger call sites that have the u
 priority requirement; ordinary scheduling remains ordinary scheduling. The corresponding
 deviation record names the observable consequence: an interactive refresh can run ahead of queued
 region work while the active task remains protected.
+
+## D22 — Render engine choice is explicit, versioned, and project-scoped
+
+**Decided 2026-08-19 for issue #78.** A project may name BlueMap's original Java engine,
+Worldlens's JVM-free app engine, or **Automatic**. Automatic keeps the original engine when a
+suitable JVM is available and selects the app engine when it is not. The global setting applies
+only to new projects; an existing project with an explicit selection keeps that selection, so
+the UI never silently changes an existing render path.
+
+The settings and project-editor surfaces show the exact engine version, provenance, capabilities,
+and unsupported or conditional settings before rendering. The choice record is versioned as
+`worldlens.render-engine-choice` version 1, persisted locally, mirrored into application-settings
+history, and importable/exportable as a bounded JSON record. Runtime routing and dual-engine
+packaged render proof remain issue #78 acceptance work; this decision does not claim those proofs
+exist yet.
+
+廣東話：每個 project 可以揀 BlueMap 原本個 Java engine、Worldlens 自己個 JVM-free engine，或者
+Automatic。有合適 JVM 就留低原本 engine，冇就用 app engine；全域設定只影響新 project，舊
+project 有明確選擇就唔會靜雞雞轉。設定頁會先講清楚版本、來源、能力同唔支援嘅設定，選擇
+用 version 1 JSON 記錄，仲會入本地 history 同支援匯入匯出。真正 runtime routing 同兩條
+路嘅 packaged render proof，仍然係 issue #78 未完成嘅 acceptance 工作。

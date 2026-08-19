@@ -133,6 +133,7 @@ const BODIES = [
 
 function renderDiffers(before: ProjectFile, after: ProjectFile): boolean {
     return (
+        before.render.engine !== after.render.engine ||
         before.render.threads !== after.render.threads ||
         before.render.force !== after.render.force ||
         before.render.fixEdges !== after.render.fixEdges ||
@@ -199,7 +200,13 @@ export function describeProjectChange(change: ProjectChange): ProjectChangeDescr
         ...maps.changed.map(mapName),
         ...storages.changed.map(storageName),
         ...BODIES.filter(([key]) => before[key] !== after[key]).map(([, name]) => name),
-        ...(renderDiffers(before, after) ? ["the render options"] : []),
+        ...(renderDiffers(before, after)
+            ? [
+                  before.render.engine !== after.render.engine
+                      ? "the render engine and options"
+                      : "the render options",
+              ]
+            : []),
     ];
     if (changedNames.length > 0) clauses.push(clause("Changed", changedNames));
 

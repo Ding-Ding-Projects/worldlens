@@ -82,6 +82,9 @@ module.exports = {
         "!node_modules/**/*",
         // Source maps are build artefacts, not shipping artefacts.
         "!**/*.map",
+        // The generated manifest and TypeScript engine assets are also copied into
+        // extraResources below so packaged and development lookups can share one
+        // capability/version description.
     ],
     // The renderer is a separate workspace package, so it is not under this app's
     // directory and `files` cannot reach it. Without this the packaged app starts,
@@ -109,6 +112,24 @@ module.exports = {
         {
             from: "../../../tools/oracle/out/jars",
             to: "jars",
+            filter: ["**/*"],
+        },
+        {
+            from: "dist/render-engines/manifest.json",
+            to: "render-engines/manifest.json",
+            filter: ["**/*"],
+        },
+        {
+            // The no-JVM adapter is the same standalone driver used by the oracle. Keep
+            // its engine ESM, shared ESM and driver together so the packaged app can launch
+            // it without reaching back into a checkout or a developer's node_modules.
+            from: "dist/render-engines/typescript",
+            to: "render-engines/typescript",
+            filter: ["**/*"],
+        },
+        {
+            from: "dist/render-engines/shared",
+            to: "render-engines/shared",
             filter: ["**/*"],
         },
         // The complete managed workflow set a CI-render bootstrap commits to a repository -

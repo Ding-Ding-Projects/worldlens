@@ -75,6 +75,7 @@ import type {
     RenderRequest,
     ResolvedEngine,
 } from "../render/orchestrator.js";
+import { unsupportedEngineRoute } from "../render/engineChoice.js";
 import type { RenderPhase, RenderSignal, RenderTaskProgress } from "../render/progress.js";
 import { renderIdForWorld, renderWorkspace } from "../render/workspace.js";
 import * as failures from "./failure.js";
@@ -123,7 +124,7 @@ export interface RemoteRenderOrchestratorOptions {
     /** Where renders are written on this computer. A function, because it can be changed. */
     readonly storageDir: string | (() => string);
     /** The engine to send. Only `enginePath` and the versions are used; no JDK is needed here. */
-    readonly resolveEngine: () => Promise<ResolvedEngine>;
+    readonly resolveEngine: (engine: RenderRequest["engine"]) => Promise<ResolvedEngine>;
     /** Whether the Mojang download has been accepted. Read at the moment of the render. */
     readonly hasConsent: () => boolean;
     readonly onEvent?: (event: RenderEvent) => void;
@@ -227,6 +228,11 @@ export class RemoteRenderOrchestrator {
         }
 
         const renderId = request.renderId ?? renderIdForWorld(firstMap.world);
+        const requestedEngine = request.engine ?? "upstream-java";
+        const unsupported = unsupportedEngineRoute(requestedEngine, "docker");
+        if (unsupported !== null) {
+            return this.fail(renderId, failures.invalidTarget(unsupported));
+        }
         if (this.active.has(renderId)) {
             return this.fail(
                 renderId,
@@ -264,9 +270,27 @@ export class RemoteRenderOrchestrator {
 
         let engine: ResolvedEngine;
         try {
-            engine = await this.options.resolveEngine();
+            engine = await this.options.resolveEngine(requestedEngine);
         } catch (error) {
             return this.fail(renderId, failures.invalidTarget(describe(error)));
+        }
+        if (engine.engine !== requestedEngine) {
+            return this.fail(
+                renderId,
+                failures.invalidTarget(
+                    "The resolver returned a different engine than the project selected. " +
+                        "Nothing was uploaded and no fallback was used.",
+                ),
+            );
+        }
+        if (engine.launch !== "java-cli" || engine.enginePath === null) {
+            return this.fail(
+                renderId,
+                failures.invalidTarget(
+                    "The selected render engine has no remote container artifact in this build. " +
+                        "Nothing was uploaded and no other engine was chosen.",
+                ),
+            );
         }
 
         this.emit({

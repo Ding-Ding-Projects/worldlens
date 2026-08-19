@@ -47,7 +47,8 @@
  * path, and finds out otherwise the first time they depend on it.
  */
 
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir, readdir, stat } from "node:fs/promises";
+import { join } from "node:path";
 import { writeEngineConfig } from "../runtime/config.js";
 import { dockerUsable, probeDocker } from "../runtime/docker.js";
 import type { DockerReport, ProbeDockerOptions } from "../runtime/docker.js";
@@ -88,7 +89,8 @@ import {
     writeRenderRecord,
 } from "./provenance.js";
 import type { RenderEngineId, RenderOutcome, RenderRecord } from "./provenance.js";
-import { CliRun } from "./runner.js";
+import { unsupportedEngineRoute } from "./engineChoice.js";
+import { CliRun, TypeScriptRun } from "./runner.js";
 import type { SpawnCli } from "./runner.js";
 import type { RenderSessionStore } from "./session.js";
 import { renderIdForWorld, renderWorkspace } from "./workspace.js";
@@ -103,9 +105,14 @@ export interface ResolvedEngine {
     /** Upstream's git-derived jar version, e.g. `5.22-27`. */
     readonly engineVersion: string;
     /** Absolute path to the jar. */
-    readonly enginePath: string;
-    /** Absolute path to the `java` executable that will run it. */
-    readonly javaExecutable: string;
+    /** The launch adapter that consumes this resolved capability. */
+    readonly launch: "java-cli" | "typescript";
+    /** Standalone driver for a TypeScript launch; absent for the Java CLI. */
+    readonly driverPath?: string | null;
+    /** Absolute path to the engine artifact, or null for an in-process engine. */
+    readonly enginePath: string | null;
+    /** Absolute path to the `java` executable, or null for a no-JVM engine. */
+    readonly javaExecutable: string | null;
     readonly javaVersion: string | null;
 }
 
@@ -121,6 +128,8 @@ export const RENDER_RUNTIME_MODES: readonly RuntimeMode[] = ["local", "docker"];
 
 export interface RenderRequest {
     readonly maps: readonly RenderMapRequest[];
+    /** Concrete project choice. Absent is the legacy Java request shape. */
+    readonly engine?: RenderEngineId;
     /**
      * Where to run the engine. **Absent means local**, which is the point of it being
      * optional: every caller and every stored request written before this field existed
@@ -391,7 +400,8 @@ export interface RenderOrchestratorOptions {
      * current.
      */
     readonly hasConsent: () => boolean;
-    readonly resolveEngine: () => Promise<ResolvedEngine>;
+    /** Resolves exactly the requested engine; it must not substitute another one. */
+    readonly resolveEngine: (engine: RenderEngineId) => Promise<ResolvedEngine>;
     /** Where a finished render is mounted for the viewer. */
     readonly mounts?: LocalMapHandler;
     /**
@@ -504,10 +514,10 @@ export interface RenderOrchestratorOptions {
 
 /** Raised by `resolveEngine` when there is no usable JDK. Carries the explanation. */
 export class EngineUnavailableError extends Error {
-    readonly reason: "java" | "jar";
+    readonly reason: "java" | "jar" | "engine";
     readonly detail: string;
 
-    constructor(reason: "java" | "jar", detail: string) {
+    constructor(reason: "java" | "jar" | "engine", detail: string) {
         super(detail);
         this.name = "EngineUnavailableError";
         this.reason = reason;
@@ -809,6 +819,7 @@ export class RenderOrchestrator {
         // Absent means local, and an unrecognised value is refused rather than rounded
         // down to local: a request that named a mode nobody knows is a request whose
         // author believed something that is not true, and rendering it anyway hides that.
+        const requestedEngine: RenderEngineId = request.engine ?? "upstream-java";
         const mode = runtimeModeOf(request.runtime);
         if (mode === null) {
             return this.fail(
@@ -819,6 +830,11 @@ export class RenderOrchestrator {
                 ),
                 null,
             );
+        }
+
+        const unsupported = unsupportedEngineRoute(requestedEngine, mode);
+        if (unsupported !== null) {
+            return this.fail(renderId, failures.invalidRequest(unsupported), null);
         }
 
         // Before the workspace, before the engine, and never followed by a local render.
@@ -838,13 +854,43 @@ export class RenderOrchestrator {
 
         let engine: ResolvedEngine;
         try {
-            engine = await this.options.resolveEngine();
+            engine = await this.options.resolveEngine(requestedEngine);
         } catch (error) {
             const failure =
                 error instanceof EngineUnavailableError && error.reason === "jar"
                     ? failures.cliJarMissing(error.detail)
-                    : failures.javaUnavailable(describe(error));
+                    : error instanceof EngineUnavailableError && error.reason === "engine"
+                      ? failures.invalidRequest(error.detail)
+                      : failures.javaUnavailable(describe(error));
             return this.fail(renderId, failure, null);
+        }
+
+        if (engine.engine !== requestedEngine) {
+            return this.fail(
+                renderId,
+                failures.invalidRequest(
+                    `The resolver returned ${RENDER_ENGINE_LABELS[engine.engine]} for a project that selected ` +
+                        `${RENDER_ENGINE_LABELS[requestedEngine]}. Nothing was started and no fallback was used.`,
+                ),
+                null,
+            );
+        }
+
+        // A capability resolver may identify a no-JVM engine without handing this
+        // legacy orchestrator a launch adapter yet. Refuse that shape before creating
+        // workspaces or records; never run Java because the selected engine was absent.
+        if (
+            (engine.launch === "java-cli" && (engine.enginePath === null || engine.javaExecutable === null)) ||
+            (engine.launch === "typescript" && (engine.enginePath === null || engine.driverPath === null || engine.driverPath === undefined))
+        ) {
+            return this.fail(
+                renderId,
+                failures.invalidRequest(
+                    `The selected ${RENDER_ENGINE_LABELS[requestedEngine]} has no local launch adapter in this build. ` +
+                        "Nothing was started and the project choice was not changed.",
+                ),
+                null,
+            );
         }
 
         const workspace = renderWorkspace(this.storageDir(), renderId);
@@ -964,10 +1010,26 @@ export class RenderOrchestrator {
         };
 
         const run: RenderRun =
-            launch === null
-                ? new CliRun({
-                      javaExecutable: engine.javaExecutable,
-                      jarPath: engine.enginePath,
+            launch === null && engine.launch === "typescript"
+                ? new TypeScriptRun({
+                      nodeExecutable: process.execPath,
+                      driverPath: engine.driverPath as string,
+                      enginePath: engine.enginePath as string,
+                      world: firstMap.world,
+                      mapId: firstMap.id,
+                      mapName: firstMap.name ?? firstMap.id,
+                      dimension: firstMap.dimension ?? "minecraft:overworld",
+                      storageRoot: workspace.storageRoot,
+                      clientJar: await findRenderDataFile(workspace.dataDir, /^minecraft-client-.*\.jar$/i),
+                      resourceExtensions: await findRenderDataFile(workspace.dataDir, /^resourceExtensions\.zip$/i),
+                      cwd: workspace.root,
+                      ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
+                      onSignal,
+                  })
+                : launch === null
+                  ? new CliRun({
+                      javaExecutable: engine.javaExecutable as string,
+                      jarPath: engine.enginePath as string,
                       configDir: workspace.configDir,
                       // Deliberate, and the whole reason this directory exists: the CLI resolves
                       // relative paths against its working directory, so anything that somehow
@@ -979,8 +1041,8 @@ export class RenderOrchestrator {
                       ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
                       ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
                       onSignal,
-                  })
-                : new EngineProcess({
+                    })
+                  : new EngineProcess({
                       launch,
                       onSignal,
                       ...(this.options.spawnEngine === undefined
@@ -1106,6 +1168,11 @@ export class RenderOrchestrator {
         request: RenderRequest,
         workspace: RenderWorkspace,
     ): EngineLaunch {
+        if (engine.enginePath === null) {
+            throw new Error(
+                `The selected ${RENDER_ENGINE_LABELS[engine.engine]} has no container artifact, so Docker was not started.`,
+            );
+        }
         const home = this.options.home;
         return planDockerLaunch({
             role: "render",
@@ -1433,6 +1500,27 @@ async function isDirectory(path: string): Promise<boolean> {
     } catch {
         return false;
     }
+}
+
+/** Finds an already-cached render resource without downloading or guessing one. */
+async function findRenderDataFile(root: string, pattern: RegExp): Promise<string | null> {
+    const queue: Array<{ readonly path: string; readonly depth: number }> = [{ path: root, depth: 0 }];
+    while (queue.length > 0) {
+        const current = queue.shift();
+        if (current === undefined) break;
+        let entries;
+        try {
+            entries = await readdir(current.path, { withFileTypes: true });
+        } catch {
+            continue;
+        }
+        for (const entry of entries) {
+            const path = join(current.path, entry.name);
+            if (entry.isFile() && pattern.test(entry.name)) return path;
+            if (entry.isDirectory() && current.depth < 3) queue.push({ path, depth: current.depth + 1 });
+        }
+    }
+    return null;
 }
 
 function describe(error: unknown): string {

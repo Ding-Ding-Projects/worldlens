@@ -1,5 +1,23 @@
 # Handoff
 
+## Issue #78 — render-engine choice delivery (2026-08-19)
+
+**Current state: source changes are present; source/build evidence for this state is unrun.**
+The project now has canonical `upstream-java` and `typescript` ids, a per-project choice, a
+global new-project default, and live Java availability in the project editor. Legacy projects
+continue to identify the upstream Java engine rather than being silently migrated.
+
+The delivery path stages the TypeScript engine bundle and assets, writes a versioned capability
+manifest, and records the staged Java CLI jar's filename, size, and SHA-256 when present. Packaged
+runtime resolution consumes that manifest and refuses a missing or mismatched Java artifact; it
+does not silently fall back to another engine.
+
+**Pending proof:** no current source/build evidence is claimed here. The next owner must build the
+real Windows installer, inspect the packaged output for both engine assets and the manifest, and
+render one identical project with each engine. The proof must record the engine id and version for
+both renders, demonstrate the no-JVM TypeScript route, and show that an unavailable explicit Java
+choice is refused rather than substituted.
+
 ## Issue #60 — public 1.0 compatibility contract
 
 This lane prepares the public delivery records for a Windows-only 1.0 compatibility contract. The

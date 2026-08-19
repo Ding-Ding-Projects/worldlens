@@ -60,6 +60,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Local rendering runs on BlueMap's own Java engine, so the app needs a Java runtime. It looks at JAVA_HOME, then java on PATH, then the copy it installed for itself.",
             ),
         },
+        "render-engine-choice": {
+            title: t("settings.engineChoice.title", "Render engine choice"),
+            description: t(
+                "settings.engineChoice.description",
+                "Choose the engine for each project, or set the default for new projects. Automatic keeps the original engine when a suitable JVM exists and uses the app engine when it does not; exact versions, provenance, capabilities and unsupported settings are shown before rendering.",
+            ),
+        },
         "map-storage-directory": {
             title: t("settings.storage.title", "Where rendered maps go"),
             description: t(

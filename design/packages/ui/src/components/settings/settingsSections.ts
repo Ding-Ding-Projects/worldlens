@@ -153,6 +153,7 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  */
 export const SETTINGS_SECTIONS = [
     ...SETTINGS_ANCHORS,
+    "render-engine-choice",
     "github-account",
     "language-and-tone",
     "display",
