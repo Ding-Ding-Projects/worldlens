@@ -33,19 +33,21 @@ See [Rendering engines](#rendering-engines).
 
 **1.0 is the verified public baseline.** It means exactly this, no more: the Material Design 3
 shell rewrite is complete and closed against its own acceptance issues (#126, #134, #123); the
-full workspace suite - 723 test files, 10,512 tests - is green in CI at the released commit;
-the 89-capture screenshot matrix pictures the exact shipped interface and is regraded by CI's
-own capture job; every push to `main` that passes the fatal gates publishes a real, hash-verified
-Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
+full workspace suite - 723 test files, 10,512 tests - is the local verification baseline for the
+released commit; the 89-capture screenshot matrix is diagnostic evidence for the shipped interface;
+every push to `main` whose build, packaging, and artifact provenance complete publishes a real,
+hash-verified Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
 embedded in the project file itself. Versions from here are `1.0.<run>`. What 1.0 does **not**
 claim: the feature programs still open as issues (multi-server dashboard, marker authoring, add-on
 system, static export and friends) are future work, and Windows executables remain intentionally
 unsigned.
 
 Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
-unknown-publisher warning. A publish is allowed only after every required test, security,
-rendering and packaging gate passes. Screenshot capture remains visible diagnostic evidence, but a
-capture failure is advisory and never blocks an otherwise valid release. The packaging job clears
+unknown-publisher warning. A publish is allowed only after the required build, security-boundary,
+rendering-input, and packaging provenance checks complete. Local tests and lint remain available
+before publication but do not run in the workflow or withhold publication. Screenshot capture remains
+visible diagnostic evidence, but a capture failure is advisory and never blocks an otherwise valid
+release. The packaging job clears
 its validated output locations, accepts exactly one fresh
 `Setup.exe`, one full `.nupkg`, optional delta packages and a non-empty matching `RELEASES`, then
 checks every emitted executable is Authenticode `NotSigned`. Release notes identify the exact
@@ -165,14 +167,14 @@ of following yesterday's failure forever.
 
 ![Worldlens showing the UI-created public Bayville repository ready for Pages, with managed workflows current, the public-world disclosure accepted, and one real cloud render active](docs/screenshots/lowlevel-public-pages-render-retry.png)
 
-![A stopped-watching cloud render restored honestly as cancelled after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
+![A failed cloud render restored honestly as failed after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
 
 <details>
 <summary><b>See the removal itself</b></summary>
 
-![Two-key confirmation explaining the local-only removal boundary for a cancelled cloud render](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
+![Two-key confirmation explaining the local-only removal boundary for a failed cloud render](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
 
-![Cloud-render history showing the honest empty state after the cancelled local row was removed](docs/screenshots/lowlevel-ci-render-row-removed.png)
+![Cloud-render history after the failed local row was removed, with the remaining terminal history still honest](docs/screenshots/lowlevel-ci-render-row-removed.png)
 
 </details>
 
@@ -947,6 +949,19 @@ never takes the docs down.
 
 _The tiny probe world, rendered by GitHub's runners and served from
 `dingdingchae.github.io`, loaded in a browser with no BlueMap server anywhere._
+
+<details>
+<summary><b>See the UI-created Bayville repository live on GitHub Pages</b></summary>
+
+![The live Worldlens documentation home published by the UI-created Bayville repository, showing its searchable Material Design documentation shell, tab list, settings destination, and Windows download action](docs/screenshots/bayville-pages-home.png)
+
+![The live Bayville World v10.1 BlueMap published at the repository's map route, showing the complete rendered region with its towns, roads, rivers, forests, snowy eastern district, and southern lake](docs/screenshots/bayville-pages-map.png)
+
+These are anonymous guest-Edge captures of the same deployment produced by
+[workflow run 32246619712](https://github.com/Ding-Ding-Projects/worldlens-bayville-ui-public-20260819-01/actions/runs/32246619712).
+The documentation root and `/map/` both returned HTTP 200 before capture.
+
+</details>
 
 **One detail decides whether this works at all,** and it is invisible until every tile
 returns 404. The engine stores hires tiles gzipped — the file on disk is `0.prbm.gz` — and

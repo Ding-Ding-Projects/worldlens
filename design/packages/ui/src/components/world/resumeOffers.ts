@@ -38,6 +38,16 @@ export interface ResumeOffers {
      */
     readonly active: Ref<readonly string[]>;
     readonly loading: Ref<boolean>;
+    /** Whether the durable session list has been recovered for this screen. */
+    readonly loadState: Ref<"idle" | "loading" | "loaded" | "failed">;
+    /** Number of interrupted sessions read from disk on the last successful load. */
+    readonly recoveredCount: Ref<number>;
+    /** Running sessions deliberately kept out of the resume list. */
+    readonly skippedActiveCount: Ref<number>;
+    /** Whether the active-render query was answered; unknown means offers are withheld. */
+    readonly activeState: Ref<"known" | "unknown">;
+    /** The last user-visible recovery action, if one has happened in this mount. */
+    readonly lastAction: Ref<"resumed" | "refused" | "dismissed" | null>;
     /** A load that did not happen, stated rather than swallowed. */
     readonly failure: Ref<string | null>;
     /** Refusals by render id, so each is shown beside the offer it belongs to. */
@@ -60,6 +70,11 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
     const offers = ref<readonly InterruptedRenderSummary[]>([]);
     const active = ref<readonly string[]>([]);
     const loading = ref(false);
+    const loadState = ref<"idle" | "loading" | "loaded" | "failed">("idle");
+    const recoveredCount = ref(0);
+    const skippedActiveCount = ref(0);
+    const activeState = ref<"known" | "unknown">("known");
+    const lastAction = ref<"resumed" | "refused" | "dismissed" | null>(null);
     const failure = ref<string | null>(null);
     const refusals = ref<Readonly<Record<string, ResumeRefused>>>({});
     const busy = ref<string | null>(null);
@@ -67,15 +82,18 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
     async function load(): Promise<void> {
         if (bridge === null || loading.value) return;
         loading.value = true;
+        loadState.value = "loading";
+        lastAction.value = null;
 
         let running: readonly string[] = [];
+        activeState.value = "known";
         try {
             running = await bridge.activeRenders();
         } catch {
-            // Not knowing what is running is not worth failing the whole load over. The
-            // offers below are still worth showing, and the worst that follows is an
-            // offer to carry on a render that is already going, which the main process
-            // refuses with `already-running` rather than starting twice.
+            // A failed active query is not evidence that nothing is running. Withhold
+            // offers rather than presenting a complete-looking list that could start a
+            // second copy; a later refresh can recover the answer.
+            activeState.value = "unknown";
         }
         active.value = running;
 
@@ -84,10 +102,14 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
             // A render cannot be both, so it is never shown as both. A session file left
             // saying "running" for a render that really is running would otherwise be
             // offered for resuming while it ran.
-            offers.value = interrupted.filter((offer) => !running.includes(offer.renderId));
+            recoveredCount.value = interrupted.length;
+            skippedActiveCount.value = activeState.value === "known" ? interrupted.filter((offer) => running.includes(offer.renderId)).length : 0;
+            offers.value = activeState.value === "known" ? interrupted.filter((offer) => !running.includes(offer.renderId)) : [];
             failure.value = null;
+            loadState.value = "loaded";
         } catch (error) {
             failure.value = describe(error);
+            loadState.value = "failed";
         } finally {
             loading.value = false;
         }
@@ -111,8 +133,10 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
                 const rest: Record<string, ResumeRefused> = { ...refusals.value };
                 delete rest[renderId];
                 refusals.value = rest;
+                lastAction.value = "resumed";
             } else {
                 refusals.value = { ...refusals.value, [renderId]: result.refusal };
+                lastAction.value = "refused";
             }
             return result;
         } catch (error) {
@@ -127,7 +151,10 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
         if (bridge === null) return false;
         try {
             const done = await bridge.dismissResume(renderId);
-            if (done) offers.value = offers.value.filter((offer) => offer.renderId !== renderId);
+            if (done) {
+                offers.value = offers.value.filter((offer) => offer.renderId !== renderId);
+                lastAction.value = "dismissed";
+            }
             return done;
         } catch (error) {
             failure.value = describe(error);
@@ -135,7 +162,23 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
         }
     }
 
-    return { offers, active, loading, failure, refusals, busy, available: bridge !== null, load, resume, dismiss };
+    return {
+        offers,
+        active,
+        loading,
+        loadState,
+        recoveredCount,
+        skippedActiveCount,
+        activeState,
+        lastAction,
+        failure,
+        refusals,
+        busy,
+        available: bridge !== null,
+        load,
+        resume,
+        dismiss,
+    };
 }
 
 /**

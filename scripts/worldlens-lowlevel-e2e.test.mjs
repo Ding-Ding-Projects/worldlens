@@ -72,6 +72,13 @@ test("the driver routes UI-only state changes and captures through Lowlevel MCP"
     assert.match(driver, /CDP read-only assertions/);
 });
 
+test("the onboarding driver declines download consent and never claims a standing choice", () => {
+    const onboard = driver.match(/onboard: async \(\) => \{[\s\S]*?\n  \},/u)?.[0] ?? "";
+    assert.match(onboard, /\["NEXT", "NEXT", "DECLINE", "FINISH SETUP"\]/);
+    assert.match(onboard, /declined download consent/);
+    assert.doesNotMatch(onboard, /ACCEPT|accepted download consent|standing choice/);
+});
+
 test("the real render plan cannot claim dispatch from a pre-existing failed row", async () => {
     const dispatchPlan = JSON.parse(
         await readFile(new URL("./worldlens-lowlevel-ci-render-dispatch.json", import.meta.url), "utf8"),

@@ -8,10 +8,12 @@
  * somebody's trust in every map in the list.
  */
 
+import { spawn } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { packFolder } from "../backup/archive.js";
 import { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { fingerprintWorld } from "./fingerprint.js";
@@ -173,6 +175,27 @@ function request(extra: Partial<CiSyncRequest> = {}): CiSyncRequest {
         acknowledgePublic: true,
         ...extra,
     };
+}
+
+/** Reads the durable dispatch marker from a fresh process, not Vitest's memory. */
+function readStateInFreshProcess(path: string): Promise<{ code: number | null; stdout: string; stderr: string }> {
+    const script = `
+        const { readCiSyncState } = await import("./packages/app/src/main/cirender/state.ts");
+        const state = await readCiSyncState(process.argv[1]);
+        console.log(JSON.stringify({ stage: state?.stage ?? null, runId: state?.runId ?? null, dispatchedAt: state?.dispatchedAt ?? null }));
+    `;
+    return new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", script, "--", path], {
+            cwd: fileURLToPath(new URL("../../../../../", import.meta.url)),
+            stdio: ["ignore", "pipe", "pipe"],
+        });
+        let stdout = "";
+        let stderr = "";
+        child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
+        child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+        child.on("error", reject);
+        child.on("close", (code) => resolve({ code, stdout, stderr }));
+    });
 }
 
 /** Routes every test needs: the repository (for the ref) and the dispatch itself. */
@@ -1043,6 +1066,56 @@ describe("a failed run registers nothing", () => {
 });
 
 describe("a successful run comes back as a map in the list", () => {
+    it("adopts a durable pre-dispatch marker after a process crash without dispatching twice", async () => {
+        const syncId = await seedUploadedState();
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const prior = await readCiSyncState(workspace.stateFile);
+        expect(prior).not.toBeNull();
+        if (prior === null) return;
+        const dispatchedAt = "2026-08-04T10:00:00.000Z";
+        await writeCiSyncState(workspace.stateFile, {
+            ...prior,
+            stage: "dispatched",
+            dispatchedAt,
+            runId: null,
+            runNumber: null,
+            runUrl: null,
+            updatedAt: dispatchedAt,
+        });
+
+        // A separate process can read the marker left before the external dispatch. This
+        // is the crash boundary: the next process must adopt the matching run, not issue
+        // another workflow_dispatch request.
+        const fresh = await readStateInFreshProcess(workspace.stateFile);
+        expect(fresh.code, fresh.stderr).toBe(0);
+        expect(JSON.parse(fresh.stdout.trim())).toEqual({
+            stage: "dispatched",
+            runId: null,
+            dispatchedAt,
+        });
+
+        const github = releaseRoute(baseRoutes(new RecordingGitHub()))
+            .on("GET", "/actions/workflows/render-world.yml/runs", {
+                status: 200,
+                json: {
+                    workflow_runs: [runJson({ id: 17, status: "completed", conclusion: "failure", createdAt: dispatchedAt })],
+                },
+            })
+            .on("GET", /\/actions\/runs\/17$/, {
+                status: 200,
+                json: runJson({ id: 17, status: "completed", conclusion: "failure", createdAt: dispatchedAt }),
+            })
+            .on("GET", "/actions/runs/17/jobs", { status: 200, json: { jobs: [] } });
+        const sync = makeSync({ github });
+        const result = await sync.resume(syncId);
+
+        expect(result.ok).toBe(false);
+        const adopted = await readCiSyncState(workspace.stateFile);
+        expect(adopted?.runId).toBe(17);
+        expect(github.countOf("/dispatches", "POST")).toBe(0);
+        expect(github.countOf(/\/actions\/workflows\/render-world\.yml\/runs/, "GET")).toBe(1);
+    });
+
     it("resumes a dispatched run after restart without uploading a changed world or dispatching again", async () => {
         const site = join(workDir, "resume-site");
         await mkdir(join(site, "maps", MAP_ID, "tiles"), { recursive: true });

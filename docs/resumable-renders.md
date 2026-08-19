@@ -1,5 +1,18 @@
 # Rendering that survives being interrupted
 
+## Process-restart and dispatch adoption proof
+
+The queue file is exercised across two genuine Node processes: the first writes a queued task and
+exits, and the second creates a new persistence instance and restores that task from disk. Cloud
+render dispatch also writes a durable timestamp and `dispatched` marker before the external
+workflow request. If the process stops before GitHub returns a run id, the next process correlates
+and adopts the matching run instead of creating a duplicate.
+
+The recovery UI distinguishes records found on disk from offers that are safe to resume. A failed
+active-run query is shown as unknown and withholds resume offers; it is never treated as an empty
+active set. Restored cloud rows also remain visibly distinct from live rows until current status
+arrives.
+
 A render of a large world takes hours. In that time the application will be closed, the
 machine will sleep, the power will go out, and a CI job will hit its six hour ceiling.
 None of that may cost the work already done.

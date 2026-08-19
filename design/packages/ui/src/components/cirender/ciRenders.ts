@@ -50,7 +50,7 @@ type Translate = (key: string, named: Record<string, unknown>, fallback?: string
 /** `t(key, fallback)` and `t(key, named, fallback)` both, as vue-i18n offers them. */
 type T = ((key: string, fallback: string) => string) & Translate;
 
-export type CiRowState = "running" | "rendered" | "failed" | "cancelled";
+export type CiRowState = "running" | "restored" | "uploaded" | "idle" | "rendered" | "failed" | "cancelled";
 
 export interface CiLogLine {
     readonly id: number;
@@ -112,9 +112,12 @@ export interface CiRow {
 /** Running first, then the endings. Newest first inside each rank. */
 const RANK: Readonly<Record<CiRowState, number>> = {
     running: 0,
-    failed: 1,
-    cancelled: 2,
-    rendered: 3,
+    restored: 1,
+    uploaded: 2,
+    idle: 3,
+    failed: 4,
+    cancelled: 5,
+    rendered: 6,
 };
 
 function blankRow(syncId: string): CiRow {
@@ -173,6 +176,9 @@ export function phaseLabel(phase: CiSyncPhase | null, t: T): string {
  */
 export function runLabel(run: CiRunReport | null, t: T): string {
     if (run === null) return t("cirender.run.none", "No run yet");
+    if (run.status === "unknown") {
+        return t("cirender.run.restored", "Persisted run restored; live status has not arrived yet.");
+    }
     if (run.status !== "completed") {
         return t("cirender.run.going", { status: run.status.replace("_", " ") }, "Run is {status}");
     }
@@ -466,8 +472,12 @@ function persistedRow(state: CiSyncState): CiRow {
             : state.stage === "failed"
               ? "failed"
               : state.stage === "cancelled"
-                ? "cancelled"
-                : "running";
+              ? "cancelled"
+                : state.stage === "dispatched"
+                  ? "restored"
+                  : state.stage === "uploaded"
+                    ? "uploaded"
+                    : "idle";
     const conclusion =
         state.stage === "rendered"
             ? "success"

@@ -860,6 +860,15 @@ It records the browser address and the map viewer after the published URL answer
 
 ![The hosted tiny test world in the BlueMap viewer, served from GitHub Pages: the viewer's own control bar across the top with live x and z readouts both at zero, and the rendered ground a small sand-coloured patch in the lower right of an otherwise empty frame, because the world is deliberately tiny](screenshots/map-hosted-on-github-pages.png)
 
+The UI-created Bayville repository provides the larger end-to-end proof. Its final workflow
+run `32246619712` succeeded through render, merge and Pages deployment. Anonymous requests to
+the documentation root and `/map/` returned HTTP 200, then isolated guest Edge captured each
+live surface through the Lowlevel headless route:
+
+![The live Worldlens documentation home published alongside Bayville, with searchable tabs, navigation, settings and the Windows download action visible](screenshots/bayville-pages-home.png)
+
+![The live Bayville World v10.1 BlueMap at the Pages map route, with the full rendered terrain, towns, roads, rivers, forests, snow and lake visible](screenshots/bayville-pages-map.png)
+
 ## 廣東話
 
 ### 呢個係做咩嘅
