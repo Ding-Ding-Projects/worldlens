@@ -878,6 +878,46 @@ describe("a run that is still going is reported as still going", () => {
 });
 
 describe("a failed run registers nothing", () => {
+    it("dispatches a fresh run when a failed record is retried", async () => {
+        const github = releaseRoute(baseRoutes(new RecordingGitHub()))
+            .on("GET", /\/actions\/workflows\/render-world\.yml\/runs/, {
+                status: 200,
+                json: {
+                    workflow_runs: [
+                        runJson({
+                            id: 8,
+                            status: "queued",
+                            createdAt: "2026-08-04T10:00:01Z",
+                        }),
+                    ],
+                },
+            })
+            .on("GET", /\/actions\/runs\/8$/, {
+                status: 200,
+                json: runJson({ id: 8, status: "queued", createdAt: "2026-08-04T10:00:01Z" }),
+            })
+            .on("GET", "/actions/runs/8/jobs", { status: 200, json: { jobs: [] } });
+        const syncId = await seedUploadedState({ runId: 7 });
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const failed = await readCiSyncState(workspace.stateFile);
+        expect(failed).not.toBeNull();
+        if (failed === null) return;
+        await writeCiSyncState(workspace.stateFile, {
+            ...failed,
+            stage: "failed",
+            failureCode: "run-failure",
+            failureMessage: "Run 7 ended as failure.",
+        });
+        const sync = makeSync({ github });
+
+        const result = await sync.sync(request({ follow: false }));
+
+        expect(result.ok ? result.outcome : result.failure.code).toBe("running");
+        expect(github.countOf("/dispatches", "POST")).toBe(1);
+        expect(github.never(/\/actions\/runs\/7$/)).toBe(true);
+        expect((await readCiSyncState(workspace.stateFile))?.runId).toBe(8);
+    });
+
     it("names the failing job, carries its log, and mounts no map", async () => {
         const github = releaseRoute(baseRoutes(new RecordingGitHub()))
             .on("GET", /\/actions\/runs\/7$/, {

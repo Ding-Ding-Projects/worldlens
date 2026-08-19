@@ -20,7 +20,7 @@ was resolved: `vendor/BlueMap` was not checked out, so the declared vendor/BlueM
 initialized before the build could complete. The build used Electron runtime `v37.10.3`.
 
 No installer package, release, or remote verification was performed. Tests, lint, reviews, audits,
-accessibility checks, and HuiShots remained unrun in this lane. The compatibility contract,
+accessibility checks, and screenshots remained unrun in this lane. The compatibility contract,
 public-surface inventory, reference/migration examples, and directly related site/roadmap records
 are now present; executable drift-proof and newcomer/runtime acceptance remain separate follow-up
 evidence and are not claimed.
