@@ -1,0 +1,77 @@
+{
+  "_metadata": {
+    "supportedEras": [
+      {
+        "era": "legacy-1.12",
+        "identifierForm": "legacy-short",
+        "identifierField": "Pattern"
+      },
+      {
+        "era": "modern-1.15-to-26.1",
+        "identifierForm": "legacy-short",
+        "identifierField": "Pattern"
+      },
+      {
+        "era": "current-namespaced-components",
+        "identifierForm": "namespaced-component",
+        "identifierField": "pattern"
+      }
+    ],
+    "unknownFuture": {
+      "era": "future-identifier-preservation",
+      "identifierForm": "opaque-unknown",
+      "preserveIdentifier": true,
+      "preserveColor": true
+    }
+  },
+  "legacy-1.12": {
+    "Patterns": [
+      { "Pattern": "bs", "Color": 15 },
+      { "Pattern": "cre", "Color": 4 }
+    ]
+  },
+  "modern-1.15": {
+    "Patterns": [
+      { "Pattern": "ls", "Color": 13 },
+      { "Pattern": "flo", "Color": 6 }
+    ]
+  },
+  "modern-1.17": {
+    "Patterns": [
+      { "Pattern": "hhb", "Color": 8 },
+      { "Pattern": "glb", "Color": 11 }
+    ]
+  },
+  "modern-1.20.3": {
+    "Patterns": [
+      { "Pattern": "glb", "Color": 11 },
+      { "Pattern": "pig", "Color": 6 },
+      { "Pattern": "tts", "Color": 0 }
+    ]
+  },
+  "modern-1.21.9": {
+    "Patterns": [
+      { "Pattern": "pig", "Color": 12 },
+      { "Pattern": "bri", "Color": 5 }
+    ]
+  },
+  "modern-26.1": {
+    "Patterns": [
+      { "Pattern": "mr", "Color": 10 },
+      { "Pattern": "cre", "Color": 14 }
+    ]
+  },
+  "current-namespaced-components": {
+    "patterns": [
+      { "pattern": "minecraft:stripe_bottom", "color": 15 },
+      { "pattern": "minecraft:creeper", "color": 4 },
+      { "pattern": "minecraft:triangles_top", "color": 11 }
+    ]
+  },
+  "future-identifier-preservation": {
+    "Patterns": [
+      { "Pattern": "future_minecraft_pattern", "Color": 42 },
+      { "Pattern": "b", "Color": 1 }
+    ]
+  }
+}

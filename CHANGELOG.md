@@ -80,6 +80,7 @@ Tagged at [`93aa69d192`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Documentation
 
+- Issue #89: document the typed, ordered banner compatibility contract across supported Minecraft eras; implementation, fixtures, round-trip proof, and real patterned-banner rendering evidence remain pending. See [`design/docs/banner-patterns.md`](design/docs/banner-patterns.md) and [issue #89](https://github.com/Ding-Ding-Projects/worldlens/issues/89). / Issue #89：記錄支援 Minecraft 年代之 typed、有次序旗幟圖案兼容合約；實作、fixtures、round-trip 證明，以及真實花旗渲染證據仍然待完成。見 [`design/docs/banner-patterns.md`](design/docs/banner-patterns.md) 同 [issue #89](https://github.com/Ding-Ding-Projects/worldlens/issues/89)。
 - Refresh pre-rewrite Pages capture - [`392eca4dfa`](https://github.com/Ding-Ding-Projects/worldlens/commit/392eca4dfa2189a4d313f38fede13f797a6511dc)
 - Recapture issue 107 historical Pages baseline - [`79193123b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/79193123b1f8b0c2d8c099062ffbd0c5284499a6)
 - Refresh issue 107 post-replacement capture - [`2b890a388e`](https://github.com/Ding-Ding-Projects/worldlens/commit/2b890a388ed1440bafac9d4529e2698ff9b4dc1e)
