@@ -166,6 +166,12 @@ The user-facing error must name the affected surface, phase, and recovery action
 expose credential values, tokens, or an absolute user-profile path merely to explain a migration
 failure.
 
+The desktop recovery shell uses the same contract when a profile migration is blocked: it labels
+the state as either `blocked, safe to retry` or `stopped at a safety boundary`, keeps the retained
+legacy profile named as the preserved source, and offers **Restart and retry** after the reported
+problem is corrected. The consent question and recovery copy are bilingual, and neither surface
+claims success while staging, verification, or receipt read-back is still incomplete.
+
 ## Integrator checklist
 
 Before declaring a Windows 1.0 upgrade compatible, confirm that the integration:

@@ -29,6 +29,18 @@ describe("the renderer preference namespace migration", () => {
         expect(host.cells.get("unrelated")).toBe("untouched");
     });
 
+    it("does not treat a longer product-like key as legacy storage", () => {
+        const host = storage({
+            "material-bluemapfoo": "leave-me-alone",
+            "material-bluemap.foo": "migrate-me",
+        });
+
+        expect(migrateLegacyStorage(host)).toEqual({ migrated: 1, retainedCurrent: 0, failed: 0 });
+        expect(host.cells.get("material-bluemapfoo")).toBe("leave-me-alone");
+        expect(host.cells.has("worldlensfoo")).toBe(false);
+        expect(host.cells.get("worldlens.foo")).toBe("migrate-me");
+    });
+
     it("never overwrites an existing Worldlens value and is idempotent", () => {
         const host = storage({
             "material-bluemap-palette": '{"size":"card"}',

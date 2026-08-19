@@ -20,6 +20,8 @@ export const PROFILE_MIGRATION_CONSENT_FILE = ".worldlens-profile-migration-cons
 export const PROFILE_MIGRATION_RECEIPT_FILE = ".worldlens-profile-migration.json";
 export const PROFILE_MIGRATION_TRANSACTION_FILE = ".worldlens-profile-migration-transaction.json";
 const STAGING_NAME = ".worldlens-profile-migration-staging";
+const ATOMIC_RENAME_RETRIES = 4;
+const ATOMIC_RENAME_RETRY_DELAY_MS = 25;
 
 export interface ProfileMigrationPlan {
     readonly legacyDirectory: string;
@@ -206,7 +208,27 @@ async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
     } finally {
         await handle.close();
     }
-    await rename(temp, path);
+    await renameWithRetry(temp, path);
+}
+
+async function renameWithRetry(source: string, target: string): Promise<void> {
+    for (let attempt = 0; ; attempt += 1) {
+        try {
+            await rename(source, target);
+            return;
+        } catch (error) {
+            const code = (error as NodeJS.ErrnoException).code;
+            if (
+                (code !== "EPERM" && code !== "EACCES" && code !== "EBUSY") ||
+                attempt >= ATOMIC_RENAME_RETRIES
+            ) {
+                throw error;
+            }
+            await new Promise<void>((resolveDelay) =>
+                setTimeout(resolveDelay, ATOMIC_RENAME_RETRY_DELAY_MS),
+            );
+        }
+    }
 }
 
 async function readJson(path: string): Promise<unknown | null> {
@@ -232,18 +254,49 @@ function consentRecord(value: unknown): ConsentRecord | null {
     return candidate as ConsentRecord;
 }
 
-function receipt(value: unknown): Receipt | null {
+function receipt(value: unknown, plan?: ProfileMigrationPlan): Receipt | null {
     if (typeof value !== "object" || value === null) return null;
     const candidate = value as Partial<Receipt>;
+    const files = candidate.files;
+    const bytes = candidate.bytes;
     if (
         candidate.version !== PROFILE_MIGRATION_VERSION ||
         candidate.status !== "verified" ||
         candidate.product !== WORLDLENS_IDENTITY.shippedName ||
         candidate.oldProfileRetained !== true ||
-        typeof candidate.manifestSha256 !== "string"
+        typeof candidate.manifestSha256 !== "string" ||
+        !/^[0-9a-f]{64}$/.test(candidate.manifestSha256) ||
+        typeof candidate.source !== "string" ||
+        typeof candidate.target !== "string" ||
+        typeof candidate.completedAt !== "string" ||
+        typeof files !== "number" ||
+        !Number.isSafeInteger(files) ||
+        files < 0 ||
+        typeof bytes !== "number" ||
+        !Number.isSafeInteger(bytes) ||
+        bytes < 0 ||
+        (candidate.preMigrationWorldlensBackup !== null &&
+            typeof candidate.preMigrationWorldlensBackup !== "string")
     ) {
         return null;
     }
+    if (
+        plan !== undefined &&
+        (candidate.source !== plan.legacyDirectory || candidate.target !== plan.worldlensDirectory)
+    ) {
+        return null;
+    }
+    if (
+        plan !== undefined &&
+        candidate.preMigrationWorldlensBackup !== null &&
+        (!inside(resolve(plan.worldlensDirectory, ".."), candidate.preMigrationWorldlensBackup) ||
+            !candidate.preMigrationWorldlensBackup.startsWith(
+                `${plan.worldlensDirectory}.pre-migration-`,
+            ))
+    ) {
+        return null;
+    }
+    if (files === undefined || bytes === undefined) return null;
     return candidate as Receipt;
 }
 
@@ -565,6 +618,7 @@ async function recoverProfileMigrationTransaction(
                 await readJson(
                     join(transaction.worldlensDirectory, PROFILE_MIGRATION_RECEIPT_FILE),
                 ),
+                plan,
             );
             if (storedReceipt === null) throw new Error("Migration receipt read-back failed.");
             transaction = await writeTransaction(path, transaction, "verified");
@@ -602,7 +656,7 @@ export async function migrateWorldlensProfile(
 
         const existingReceipt = await readJson(receiptPath);
         if (existingReceipt !== null) {
-            if (receipt(existingReceipt) === null) {
+            if (receipt(existingReceipt, plan) === null) {
                 return {
                     kind: "corrupt",
                     plan,
@@ -742,7 +796,7 @@ export async function migrateWorldlensProfile(
             await verifyManifest(plan.worldlensDirectory, manifest, trustedRoot);
         }
         await verifyManifest(plan.worldlensDirectory, currentManifest, trustedRoot);
-        if (receipt(await readJson(receiptPath)) === null)
+        if (receipt(await readJson(receiptPath), plan) === null)
             throw new Error("Migration receipt read-back failed.");
         transaction = await writeTransaction(journalPath, transaction, "verified");
         await checkpoint(options, "after-verification");
