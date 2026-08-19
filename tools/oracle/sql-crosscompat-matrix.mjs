@@ -72,6 +72,7 @@ Options:
   --postgres-db <name>    throwaway PostgreSQL database (default bluemap_oracle)
   --driver-dir <dir>      JDBC jar directory (default driver-fetch/build/drivers)
   --webserver-port <port> base port for Java raw-storage server (default 18280)
+  --preflight              validate selected drivers and generate the fixture, then stop
   --json <path>            write machine-readable report
   --help                   this text
 `;
@@ -91,6 +92,7 @@ function parseArgs(argv) {
         postgresDb: "bluemap_oracle",
         driverDir: join(REPO_ROOT, "tools", "oracle", "driver-fetch", "build", "drivers"),
         webserverPort: 18280,
+        preflight: false,
         json: null,
         help: false,
     };
@@ -117,6 +119,7 @@ function parseArgs(argv) {
             case "--postgres-db": options.postgresDb = next(); break;
             case "--driver-dir": options.driverDir = resolve(next()); break;
             case "--webserver-port": options.webserverPort = Number(next()); break;
+            case "--preflight": options.preflight = true; break;
             case "--json": options.json = resolve(next()); break;
             case "--help":
             case "-h": options.help = true; break;
@@ -128,17 +131,20 @@ function parseArgs(argv) {
     return options;
 }
 
-async function loadDrivers(driverDir) {
+async function loadDrivers(driverDir, selectedIds) {
     const manifest = JSON.parse(await readFile(DRIVER_MANIFEST, "utf8"));
     if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.drivers)) throw new Error("invalid JDBC driver manifest");
+    const selected = new Set(selectedIds);
     const result = {};
     for (const entry of manifest.drivers) {
+        if (!selected.has(entry.id)) continue;
         const path = join(driverDir, entry.file);
         if (!(await exists(path))) throw new Error(`missing ${entry.coordinate} at ${path}`);
         const hash = createHash("sha256").update(await readFile(path)).digest("hex");
         if (hash !== entry.sha256) throw new Error(`SHA-256 mismatch for ${entry.coordinate}: expected ${entry.sha256}, got ${hash}`);
         result[entry.id] = { ...entry, path };
     }
+    for (const id of selected) if (result[id] === undefined) throw new Error(`driver '${id}' is absent from ${DRIVER_MANIFEST}`);
     return result;
 }
 
@@ -222,6 +228,14 @@ async function waitForPort(host, port, timeoutMs) {
         await new Promise((resolvePromise) => setTimeout(resolvePromise, 300));
     }
     return false;
+}
+
+async function waitForChildExit(child, timeoutMs = 5000) {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    await Promise.race([
+        new Promise((resolvePromise) => child.once("close", resolvePromise)),
+        new Promise((resolvePromise) => setTimeout(resolvePromise, timeoutMs)),
+    ]);
 }
 
 async function withTarget(dialect, options, label, fn) {
@@ -429,13 +443,14 @@ async function runDirection2({ engine, dialect, target, driver, worldDirectory, 
     const started = Date.now(); const rendered = await run(process.execPath, args, { cwd: REPO_ROOT, capture: true });
     const line = rendered.stdout.trim().split("\n").filter(Boolean).pop(); let parsed = null; try { parsed = line ? JSON.parse(line) : null; } catch { parsed = null; }
     if (parsed?.status !== "rendered") throw new Error(`${dialect.id}: TypeScript SQL render did not report success: ${parsed ? JSON.stringify(parsed) : rendered.stderr.slice(-2000)}`);
-    const subject = await openSql(engine, dialect, target); const tsMap = subject.storage.map(options.mapId);
-    if (!(await subject.storage.mapIds()).includes(options.mapId)) throw new Error(`${dialect.id}: TypeScript-written map id '${options.mapId}' was not visible after reopen`);
-    const cells = { hires: await tsMap.hiresTiles().stream(), lowres: {} }; for (let lod = 1; lod <= 3; lod++) cells.lowres[lod] = await tsMap.lowresTiles(lod).stream();
-    const settings = await tsMap.settings().read(); const textures = await tsMap.textures().read();
+    let subject = null;
     const configDir = join(root, "java-serve-config"); await writeSqlConfig({ configDirectory: configDir, dataDirectory: join(root, "java-serve-data"), webRoot: join(root, "java-serve-web"), worldDirectory: null, mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, renderThreadCount: 1, dialect, target, driver, serverOnly: true, webserverPort: options.webserverPort });
     const child = spawn("java", ["-jar", options.jar, "-c", configDir, "-w", "-b"], { cwd: root, stdio: ["ignore", "pipe", "pipe"] }); let serverLog = ""; child.stdout.on("data", (chunk) => (serverLog += chunk)); child.stderr.on("data", (chunk) => (serverLog += chunk));
     try {
+        subject = await openSql(engine, dialect, target); const tsMap = subject.storage.map(options.mapId);
+        if (!(await subject.storage.mapIds()).includes(options.mapId)) throw new Error(`${dialect.id}: TypeScript-written map id '${options.mapId}' was not visible after reopen`);
+        const cells = { hires: await tsMap.hiresTiles().stream(), lowres: {} }; for (let lod = 1; lod <= 3; lod++) cells.lowres[lod] = await tsMap.lowresTiles(lod).stream();
+        const settings = await tsMap.settings().read(); const textures = await tsMap.textures().read();
         if (!(await waitForPort("127.0.0.1", options.webserverPort, 30000))) throw new Error(`${dialect.id}: Java raw-storage server did not start: ${redact(serverLog.slice(-2000), target)}`);
         const counters = []; const hires = new Counter("hires tiles (via Java webserver)");
         for (const cell of cells.hires) { const x = cell.getX(); const z = cell.getZ(); const stream = await cell.read(); const response = await fetch(`http://127.0.0.1:${options.webserverPort}/maps/${options.mapId}/tiles/0/x${x}z${z}.prbm`, { headers: { "Accept-Encoding": "identity" } }); if (!response.ok) { hires.record(`(${x},${z})`, { kind: "http", message: `Java webserver returned ${response.status}`, detail: [] }); continue; } hires.record(`(${x},${z})`, diffBytes(Buffer.from(await stream.decompress()), Buffer.from(await response.arrayBuffer()))); }
@@ -451,8 +466,12 @@ async function runDirection2({ engine, dialect, target, driver, worldDirectory, 
         ];
         for (const [name, path, stream] of metadataItems) { if (stream === null) { meta.record(name, { kind: "missing", message: "TypeScript wrote no document", detail: [] }); continue; } const response = await fetch(`http://127.0.0.1:${options.webserverPort}/maps/${options.mapId}/${path}`, { headers: { "Accept-Encoding": "identity" } }); if (!response.ok) { meta.record(name, { kind: "http", message: `Java webserver returned ${response.status}`, detail: [] }); continue; } const leftBytes = Buffer.from(await stream.decompress()); const rightBytes = Buffer.from(await response.arrayBuffer()); try { meta.record(name, diffJson(JSON.parse(leftBytes.toString("utf8")), JSON.parse(rightBytes.toString("utf8")))); } catch { meta.record(name, diffBytes(leftBytes, rightBytes)); } }
         counters.push(meta);
-        const divergences = printCounters(counters); await subject.storage.close(); await subject.adapter.close(); return { elapsedMs: Date.now() - started, counters: counters.map((counter) => ({ label: counter.label, compared: counter.compared, matching: counter.matching, divergences: counter.divergences.length })), divergences, renderStateCompared: false, renderStateNote: "The upstream raw-storage HTTP contract exposes tiles and metadata only; deterministic render-state fields are compared in direction 1 through the SQLStorage API." };
-    } finally { if (child.exitCode === null) child.kill(); }
+        const divergences = printCounters(counters); return { elapsedMs: Date.now() - started, counters: counters.map((counter) => ({ label: counter.label, compared: counter.compared, matching: counter.matching, divergences: counter.divergences.length })), divergences, renderStateCompared: false, renderStateNote: "The upstream raw-storage HTTP contract exposes tiles and metadata only; deterministic render-state fields are compared in direction 1 through the SQLStorage API." };
+    } finally {
+        if (child.exitCode === null) child.kill();
+        await waitForChildExit(child);
+        if (subject !== null) await subject.storage.close().catch(() => undefined);
+    }
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -460,9 +479,14 @@ export async function main(argv = process.argv.slice(2)) {
     if (options.help) { process.stdout.write(USAGE); return 0; }
     const startedAt = Date.now(); const report = { schemaVersion: 1, startedAt: new Date(startedAt).toISOString(), options: { ...options }, dialects: {} };
     await mkdir(options.work, { recursive: true });
-    let drivers; try { drivers = await loadDrivers(options.driverDir); } catch (error) { log(`[sql-crosscompat-matrix] ${describeError(error)}`); return 2; }
+    let drivers; try { drivers = await loadDrivers(options.driverDir, options.dialects); } catch (error) { log(`[sql-crosscompat-matrix] ${describeError(error)}`); return 2; }
     const jar = await findCliJar(REPO_ROOT); if (jar === null) { log("[sql-crosscompat-matrix] no reference jar; build it with node tools/build-jars.mjs --only cli"); return 2; } options.jar = jar;
     let world; try { world = await generateWorld({ repoRoot: REPO_ROOT, seed: options.seed, size: options.size, out: join(options.work, "worlds") }); } catch (error) { log(`[sql-crosscompat-matrix] ${describeError(error)}`); return 2; }
+    if (options.preflight) {
+        log(`[sql-crosscompat-matrix] preflight reached fixture generation with selected dialects: ${options.dialects.join(", ")}`);
+        log(`[sql-crosscompat-matrix] verified JDBC drivers: ${Object.keys(drivers).join(", ")}; MariaDB was not required`);
+        return 0;
+    }
     let exitCode = 0;
     for (const id of options.dialects) {
         const dialect = { ...DIALECTS[id], engine: null }; const dialectReport = { driver: drivers[id], directions: null, lifecycle: null, failures: null };
