@@ -62,6 +62,39 @@ same render, with two rules:
 
 `design/packages/app/src/main/render/session.ts` and `resume.ts`.
 
+### Issue #64: the separate render-task queue record
+
+The queue persistence format primitive is owned by the TypeScript engine's `RenderManager`,
+in `design/packages/engine/src/map/rendermanager/serialization/`. It is separate from the
+desktop app's per-render `session.json` records above. The standalone CLI now constructs the
+server package's `RenderQueuePersistence` after map construction, using
+`<resolved core.data>/tasks.dat`, before rendering; the server package exports the helper but
+has no separate construction site. The desktop app's current local Java-render path does not
+own this TypeScript queue.
+
+The storage API accepts a caller-supplied absolute path. The CLI currently supplies
+`<resolved core.data>/tasks.dat`; the server package has no separate construction-site path.
+The focused storage tests use `tasks.dat` in a temporary directory. There is likewise no
+retention history beyond that one current file.
+The on-disk format is schema/version `1`, a BlueNBT `TasksData` object with `version` and
+`render-tasks` fields. `RenderQueuePersistence` is exported by `packages/server` and is
+instantiated by the standalone CLI with a default 30-second save cadence.
+
+Load is deliberately fail-closed at the top level and lenient per task. A missing file
+means an empty queue. An unreadable, truncated, or wrong-version top-level file is reported
+and discarded. An unknown task type or a task whose map is unavailable is skipped without
+discarding valid entries, so the process owner must load only after its map set is ready and
+must expose the skipped/unknown outcome rather than treating it as a successful full restore.
+
+The CLI-used helper requests periodic saves, coalesces requests while one save is active, uses
+a unique `*.staging-<uuid>` sibling before atomic replacement, filters tasks whose
+`hasMoreWork()` is false, and performs a final save during `shutdown()`. The CLI loads after
+maps are built and logs map-build skips; queue entry skips/unknowns are still reported through
+the error callback rather than a structured recovery surface. Retention is one current file,
+not a history. Stale crash ordering, terminal/cancelled non-resurrection, and a real CLI
+restart that resumes queued work end to end remain outstanding acceptance evidence for issue
+#64.
+
 ### The session record
 
 Every render writes `session.json` into its own workspace, beside the provenance record:
@@ -477,6 +510,37 @@ private static final String RENDER_STATE_PATH = "rstate";
 ### 喺桌面
 
 `design/packages/app/src/main/render/session.ts` 同 `resume.ts`。
+
+#### Issue #64：另一份 render-task queue 紀錄
+
+Queue persistence 個 format primitive 由 TypeScript engine 嘅 `RenderManager` 負責，位置係
+`design/packages/engine/src/map/rendermanager/serialization/`；而家
+`packages/server` 仲有個 `RenderQueuePersistence` helper，預設每 30 秒 request 一次 save，
+會 coalesce 同一時間嘅 request、用 unique staging sibling 做 atomic replace、filter 走
+`hasMoreWork()` 已經係 false 嘅 task，同埋喺 `shutdown()` 做最後一次 save。佢由 server
+package export 出嚟，而 standalone CLI 會喺 map build 完成之後 instantiate 佢，將 queue 寫去
+`<resolved core.data>/tasks.dat`，再開始 render。Desktop 個 local Java-render path 唔係呢份
+TypeScript queue 嘅 owner；server package 本身就未有另一個 construction site。
+
+而家 storage API 只收 caller 自己傳入嘅絕對路徑；CLI 會用
+`<resolved core.data>/tasks.dat`，focused storage tests 就喺 temporary directory 用
+`tasks.dat`。Retention 仍然只係一個 current queue file，唔係 history。Disk format 係
+schema/version `1`，一個有 `version` 同 `render-tasks` 欄位嘅 BlueNBT `TasksData` object。
+
+Load 對 top-level 係 fail-closed，對單個 task 就 lenient。冇檔案即係 empty queue；top-level
+讀唔到、截斷或者 version 唔啱，就報出嚟再丟棄。Unknown task type，或者 task 指住一幅而家
+未 available 嘅 map，就淨係 skip 嗰一項，其他 valid entries 照留低。所以真正 process owner
+要等 map set ready 先 load；而家 map-build skip 會寫 log，但 queue entry skipped/unknown
+仲未有 structured recovery UI，唔可以當成完整 restore proof。
+
+Server helper 會喺一個 save 行緊嗰陣 coalesce 下一次 request，用 unique `*.staging-<uuid>`
+sibling 再 atomic replace，filter 走 `hasMoreWork()` 已經係 false 嘅 task，亦會喺
+`shutdown()` 寫最後一次 snapshot；CLI 而家真係用緊呢個 helper。Retention 仍然只係一個
+current `tasks.dat`，唔係 history。CLI 會等 map build 完先 load，map build skip 會寫 log，
+但 queue entry skip/unknown 仍然係 error callback 層面，未有 structured recovery surface。
+仲要證明 stale crash recovery 唔會叫返 terminal/cancelled work，亦唔會用舊 queue 蓋過新
+queue。真正 CLI restart 後接返 queued work 嘅 end-to-end proof，仍然係 issue #64 未完成嘅
+acceptance evidence。
 
 #### Session 紀錄
 

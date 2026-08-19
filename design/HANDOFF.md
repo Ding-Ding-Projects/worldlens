@@ -1,5 +1,37 @@
 # Handoff
 
+## 2026-08-19 — issue #64 queue-persistence implementation handoff
+
+**State:** the CLI queue-persistence wiring and helper are present in the current Gerk Tong Hui.
+This records correction did not run tests, lint, reviews, audits, accessibility checks, or
+screenshot capture. It did not commit, merge, dew, publish, or close issue #64.
+
+The current owner of the queue format is `packages/engine`'s `RenderManager` and its
+`serialization/RenderTaskQueueStorage.ts` helper. `packages/server/src/render/
+RenderQueuePersistence.ts` now provides the process-boundary helper: it defaults to a
+30-second save cadence, coalesces requests, uses a unique staging sibling plus atomic rename,
+filters tasks whose `hasMoreWork()` is false, and performs a final save during `shutdown()`.
+It is exported from `packages/server/src/index.ts`. The standalone CLI now constructs it
+after `buildMaps`, using `<resolved core.data>/tasks.dat`, and starts it before rendering;
+the server package has no separate construction site. The format is version `1`: a BlueNBT
+`TasksData` record with `version` and `render-tasks`.
+
+The storage API still accepts a caller-supplied file path, while the CLI currently chooses
+`<resolved core.data>/tasks.dat`. Retention is one current queue file, not a history. The
+helper's coalescing, atomic staging, terminal-task filter, and shutdown save are implementation
+facts now used by the CLI, but no restart or crash-ordering evidence has been run.
+
+Load behavior is intentionally asymmetric: missing files mean an empty queue; unreadable or
+truncated top-level data and version mismatches are reported and discarded; unknown task types
+and tasks whose map is unavailable are skipped individually so valid entries survive. A
+running process must load only after its map set is available. No runtime proof yet establishes
+that completed or cancelled work cannot be resurrected from a stale queue, that a newer queue
+cannot be overwritten after crash recovery, or that a restart resumes queued work end to end.
+
+The remaining acceptance proof is structured skipped-task UI, crash-ordering protection,
+terminal/cancelled non-resurrection evidence, and a real CLI restart that resumes queued work
+end to end. This entry is an honest boundary record, not a claim that issue #64 is complete.
+
 ## 2026-08-18 — rapid defect pass: twelve source repairs integrated, build and package evidence pending
 
 **State:** twelve bounded source repairs are integrated at
@@ -4900,21 +4932,15 @@ line rather than a queue count — a queue-count assertion was tried first and f
 because the live worker pool drains the task before a count taken after the touch can
 observe it. That race was caught and fixed in this session, not inherited from anywhere.
 
-**Two honest deviations, found and deliberately left alone rather than quietly patched
-over:**
+**Two honest scheduling and porting records:**
 
-1. **Queue priority is not upstream's.** Upstream's `updateAllMapsTask` calls
-   `renderManager.scheduleRenderTasksNext(...)`, which jumps the queue ahead of whatever is
-   already scheduled. This port's periodic timer instead goes through
-   `RenderDriver.triggerUpdate` → `scheduleRenderTask(...)`, a normal tail-enqueue. So
-   upstream's periodic full-refresh jumps ahead of a backlog of pending region updates, and
-   this port's queues behind it instead. This is **not something introduced by this
-   change** — `runRender`'s own initial-render call already has the identical
-   characteristic, and a check of `packages/server` today finds nothing anywhere calling
-   `scheduleRenderTaskNext`/`scheduleRenderTasksNext`, upstream's "jump the queue" API, at
-   all. It is written down here rather than silently carried forward because it needs an
-   actual decision — add a "Next" scheduling path to `RenderDriver`, or accept and document
-   the simplification — and that decision was not this task's to make unilaterally.
+1. **Interactive trigger priority now matches upstream, with active-head protection (issue #68).**
+   The smallest typed `schedule-next` path is used for the interactive `RenderDriver` triggers
+   that have the upstream-equivalent priority requirement. It inserts the new work after the
+   task currently at the active head, so it never displaces or interrupts that task; it may run
+   ahead of queued region work. Ordinary scheduling remains tail-enqueue, and the active task's
+   existing containment, cancellation, and progress semantics remain unchanged. This is an
+   explicit parity decision recorded in D21 and the Server package deviation section.
 2. **Exception granularity is currently unreachable, not wrong.** Upstream distinguishes an
    `IOException` (logged as an error) from an `UnsupportedOperationException` — "not
    supported for the world-type", logged as a _warning_ — when constructing a watcher for a

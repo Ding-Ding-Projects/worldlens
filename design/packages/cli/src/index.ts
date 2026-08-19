@@ -32,6 +32,7 @@ async function shutdown(result: CliResult): Promise<void> {
         result.renderManager.stop();
         await result.renderManager.awaitShutdown();
     }
+    await result.renderQueuePersistence?.shutdown();
 }
 
 async function main(): Promise<void> {

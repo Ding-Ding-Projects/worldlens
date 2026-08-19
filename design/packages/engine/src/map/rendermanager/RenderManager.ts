@@ -532,8 +532,12 @@ export class RenderManager {
      *
      * `maps` is the live map set a saved task may refer to by id; see {@link BmMapAdapter}.
      */
-    async saveRenderTaskQueue(file: string, maps: ReadonlyMap<string, BmMap>): Promise<void> {
-        await saveRenderTaskQueueFile(file, this.getScheduledRenderTasks(), maps);
+    async saveRenderTaskQueue(
+        file: string,
+        maps: ReadonlyMap<string, BmMap>,
+        tasks: readonly RenderTask[] = this.getScheduledRenderTasks(),
+    ): Promise<void> {
+        await saveRenderTaskQueueFile(file, tasks, maps);
     }
 
     /**
@@ -554,7 +558,7 @@ export class RenderManager {
      */
     async loadRenderTaskQueue(file: string, maps: ReadonlyMap<string, BmMap>): Promise<number> {
         const tasks = await loadRenderTaskQueueFile(file, maps, this.#onError);
-        return this.scheduleRenderTasks(...tasks);
+        return this.scheduleRenderTasks(...tasks.filter((task) => task.hasMoreWork()));
     }
 
     // ---------------------------------------------------------------- inspection

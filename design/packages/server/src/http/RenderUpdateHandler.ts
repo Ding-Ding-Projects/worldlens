@@ -63,7 +63,7 @@ export class RenderUpdateHandler implements HttpHandler {
                 return true;
             }
             const force = forceParam === null ? undefined : FORCE_STRATEGIES[forceParam];
-            const result = this.driver.triggerUpdate(map, force);
+            const result = this.driver.triggerUpdate(map, force, "next");
             this.respondJson(res, result, result.scheduled ? 202 : 200);
             return true;
         }
