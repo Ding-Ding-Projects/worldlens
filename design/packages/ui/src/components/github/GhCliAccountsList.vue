@@ -495,6 +495,7 @@ const statusLineText = computed(() => {
 
 const clipboardAvailable = computed(() => canWriteGhCliClipboard(resolveGhCliBridge()));
 const copiedKey = ref<string | null>(null);
+const logoutTarget = ref<GhCliAccountReadout | null>(null);
 
 async function copyValue(value: string, key: string): Promise<void> {
     try {
@@ -561,8 +562,20 @@ async function startLogin(account?: GhCliAccountReadout): Promise<void> {
 }
 
 async function doLogout(account: GhCliAccountReadout): Promise<void> {
+    logoutTarget.value = account;
     await state.logoutAccount(account.host, account.login);
 }
+
+const logoutRecoveryTarget = computed(() => {
+    const target = logoutTarget.value;
+    if (target === null || state.actionFailure.value === null) return null;
+    return target;
+});
+
+const logoutSuccessReport = computed(() => {
+    const report = state.logoutReport.value;
+    return report !== null && report.result.ok ? report : null;
+});
 
 async function cancelLogin(): Promise<void> {
     await state.cancelLogin();
@@ -642,6 +655,50 @@ async function checkAgain(): Promise<void> {
             class="mb-ghcli__alert"
         >
             {{ state.actionFailure.value }}
+            <div v-if="logoutRecoveryTarget !== null" class="mt-2">
+                <v-btn
+                    v-if="supportsDeviceLogin(logoutRecoveryTarget)"
+                    variant="tonal"
+                    size="small"
+                    :prepend-icon="mdiAccountKey"
+                    :disabled="state.loginBusy.value"
+                    @click="startLogin(logoutRecoveryTarget)"
+                >
+                    {{
+                        t(
+                            "settings.github.ghCli.logoutRecoveryDetailed",
+                            "Re-authenticate this account",
+                        )
+                    }}
+                </v-btn>
+                <p class="mb-ghcli__note mt-2">
+                    {{
+                        t(
+                            "settings.github.ghCli.logoutRecoveryNoteDetailed",
+                            "The local credential was not confirmed removed. Re-authenticate here, or use Check again after repairing this account with gh.",
+                        )
+                    }}
+                </p>
+            </div>
+        </v-alert>
+
+        <v-alert
+            v-if="logoutSuccessReport !== null"
+            type="success"
+            variant="tonal"
+            density="comfortable"
+            role="status"
+            class="mb-ghcli__alert"
+        >
+            {{ logoutSuccessReport.result.message }}
+            <p class="mb-ghcli__note mt-2">
+                {{
+                    t(
+                        "settings.github.ghCli.logoutOutcomeDetailed",
+                        "Local credential removal was confirmed. GitHub grant revocation was refused because gh does not support it here; active work finished before removal. Re-authenticate this exact account on this surface if access is needed again.",
+                    )
+                }}
+            </p>
         </v-alert>
 
         <v-alert
@@ -1167,12 +1224,17 @@ async function checkAgain(): Promise<void> {
                                     :title="t('settings.github.ghCli.logoutTitle', 'Sign out this GitHub CLI account')"
                                     :action="
                                         t(
-                                            'settings.github.ghCli.logoutAction',
+                                            'settings.github.ghCli.logoutActionDetailed',
                                             { login: account.login, host: account.host },
-                                            'Remove {login} on {host} from GitHub CLI’s credential store on this computer. Other applications that use gh will lose this sign-in too.',
+                                            'On {host}, remove the {login} credential from gh’s local store. If this host supports it, gh may also attempt to revoke the GitHub grant; this app reports refusal separately and never claims revocation succeeded. Other terminals and applications using gh lose this sign-in, and active or in-flight work using it may fail and must be retried.',
                                         )
                                     "
-                                    :affected="[`${account.login} — ${account.host}`]"
+                                    :affected="[
+                                        `${account.login} — ${account.host}`,
+                                        t('settings.github.ghCli.logoutLocalEffectDetailed', 'Local gh credential: removed only after the command confirms success.'),
+                                        t('settings.github.ghCli.logoutGrantEffectDetailed', 'GitHub grant: revocation is attempted only where gh supports it; refusal is reported separately.'),
+                                        t('settings.github.ghCli.logoutWorkEffectDetailed', 'Active/in-flight work: other terminals and applications may lose access and need re-authentication.'),
+                                    ]"
                                     :confirm-label="t('settings.github.ghCli.logoutConfirm', 'Sign out account')"
                                     :disabled="
                                         !state.canLogout ||

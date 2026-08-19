@@ -1,5 +1,14 @@
 # A world that lives inside Docker
 
+> **Issue #86 acceptance record — 2026-08-19 (documentation-only pass)**
+>
+> The current implementation includes the local Docker inventory, mount inspection, bind-direct,
+> container-copy, and read-only named-volume-copy routes described below. This pass records source
+> state only; it did not run tests, launch a Docker daemon, build/package the desktop application, or
+> capture the packaged flow. No real-container, bind-mount, named-volume, cancellation, retry,
+> destination-safety, `level.dat`/region validation, or render/open evidence is added here. The
+> daemon/package/capture acceptance items therefore remain open and this issue is not closed.
+
 A world does not have to be a folder this computer can already see. It can be sitting inside a
 Minecraft server that already runs in a container — a bind-mounted host folder, a named volume,
 or nothing this machine can read directly at all, only Docker's own view of it. This is the input
@@ -225,6 +234,16 @@ or not — it holds nothing a person asked to keep.
   acceptance into a setting that would silently apply to every world after the first.
 
 ## Verification
+
+### Issue #86 current evidence boundary — 2026-08-19
+
+This documentation-only update does not add runtime evidence. In this records-only pass, tests and
+captures are intentionally unrun. The earlier focused module-level test inventory below remains a
+description of the existing test coverage, not a result from this pass. A real daemon/package run
+is still required to prove throwaway running and stopped containers, bind mounts, named volumes,
+fresh one-shot live-risk acknowledgement, copy progress/cancellation/retry, source read-only
+behaviour, additive destination placement, ordinary wizard validation, and the genuine packaged
+headless capture. Until those receipts exist, issue #86 remains open.
 
 `design/packages/app/src/main/dockerworld/` plus the preload/UI seam have focused tests, none of
 which need a Docker

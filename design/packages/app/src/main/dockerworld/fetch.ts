@@ -63,10 +63,10 @@ export interface DockerWorldFetchRequest {
     /** The local folder the world lands in. Created if it does not exist. */
     readonly destination: string;
     /**
-     * True to fetch a live world anyway, having read {@link DockerWorldCandidate.running}'s
-     * warning. False or omitted refuses - see `failure.ts`'s `liveWorldNotAcknowledged`.
+     * A fresh, caller-generated nonce acknowledging {@link DockerWorldCandidate.running}'s
+     * warning. It is consumed once in this process; omitted refuses.
      */
-    readonly acknowledgeLiveRisk?: boolean;
+    readonly liveRiskAcknowledgement?: string;
     /** The world's dimension, for the post-copy world check. Defaults to the overworld. */
     readonly dimension?: string;
 }
@@ -164,6 +164,7 @@ export interface DockerWorldFetcherOptions {
 export class DockerWorldFetcher {
     private readonly options: DockerWorldFetcherOptions;
     private readonly active = new Map<string, AbortController>();
+    private readonly consumedLiveAcknowledgements = new Set<string>();
 
     constructor(options: DockerWorldFetcherOptions = {}) {
         this.options = options;
@@ -236,7 +237,7 @@ export class DockerWorldFetcher {
         const candidate = resolved.candidate;
 
         const warning = livenessWarning(candidate);
-        if (warning !== null && request.acknowledgeLiveRisk !== true) {
+        if (warning !== null && !this.consumeLiveAcknowledgement(request.liveRiskAcknowledgement)) {
             return this.fail(
                 fetchId,
                 failures.liveWorldNotAcknowledged(candidate.containerName ?? "The container"),
@@ -280,7 +281,17 @@ export class DockerWorldFetcher {
             // Proves the destination is actually a Minecraft world. A `WorldValidationError`
             // here is caught below and reported as `not-a-world` rather than left to surface
             // as an unrelated exception three steps downstream, in the render itself.
+            controller.signal.throwIfAborted();
+            this.indeterminateProgress(
+                fetchId,
+                "validation",
+                "Checking the copied folder for level.dat and region files.",
+            );
+            // locateWorld has no AbortSignal parameter. The checks immediately around it
+            // keep cancellation bounded at this seam and prevent a cancelled copy from being
+            // reported as a validated world.
             await locateWorld(request.destination, request.dimension ?? "overworld");
+            controller.signal.throwIfAborted();
 
             this.emit({
                 type: "finished",
@@ -530,9 +541,39 @@ export class DockerWorldFetcher {
         if (error instanceof CopyFailure) return failures.copyFailed(error.message);
         if (error instanceof WorldValidationError)
             return failures.notAWorld(destination, error.message);
+        const code = errorCode(error);
+        if (
+            code === "EACCES" ||
+            code === "EPERM" ||
+            code === "EISDIR" ||
+            code === "ENOTDIR" ||
+            code === "ENOSPC"
+        ) {
+            return failures.storageUnwritable(destination, errorMessage(error));
+        }
+        if (code === "ENOENT") {
+            return failures.sourceDisappeared(destination, errorMessage(error));
+        }
         const message = error instanceof Error ? error.message : String(error);
         return failures.copyFailed("The copy failed.", message);
     }
+
+    private consumeLiveAcknowledgement(token: string | undefined): boolean {
+        if (token === undefined || token.length < 16 || token.length > 200) return false;
+        if (this.consumedLiveAcknowledgements.has(token)) return false;
+        this.consumedLiveAcknowledgements.add(token);
+        return true;
+    }
+}
+
+function errorCode(error: unknown): string | null {
+    if (typeof error !== "object" || error === null) return null;
+    const code = (error as { readonly code?: unknown }).code;
+    return typeof code === "string" ? code : null;
+}
+
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }
 
 /** A thin `Error` carrying an already-typed {@link DockerWorldFailure}, so `describe` can recover it exactly. */

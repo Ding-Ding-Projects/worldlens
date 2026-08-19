@@ -1856,6 +1856,7 @@ export type DockerWorldFailureCode =
     | "live-world-not-acknowledged"
     | "copy-failed"
     | "storage-unwritable"
+    | "source-disappeared"
     | "cancelled";
 
 /** Mirrors `DockerWorldFailure` in `main/dockerworld/failure.ts`. */
@@ -1935,11 +1936,11 @@ export interface DockerWorldFetchRequest {
     /** The local folder the world lands in. Created if it does not exist. */
     destination: string;
     /**
-     * True to fetch a live world anyway, having read the running warning `list`,
-     * `inspectContainer` or `fingerprint` reported. False or omitted refuses - see
+     * A fresh nonce acknowledging the running-world warning. The main process consumes
+     * it once and never persists it; false or omitted refuses - see
      * `main/dockerworld/failure.ts`'s `liveWorldNotAcknowledged`.
      */
-    acknowledgeLiveRisk?: boolean;
+    liveRiskAcknowledgement?: string;
     /** The world's dimension, for the post-copy world check. Defaults to the overworld. */
     dimension?: string;
 }

@@ -22,6 +22,8 @@ export const renderConsole: Article = {
                         "The view follows new output only when it was already at the bottom; a detached reader stays detached until Jump to latest is chosen.",
                         "The 10,000-line cap is visible through a dropped-line count, and advice can open the exact setting it names.",
                         "Copy and Markdown export preserve timestamps, levels and text from the visible selection.",
+                        "The visible ring is not the history: every render stream is retained outside the component, restored after navigation, reattach and restart, and marked with an interruption annotation when a run stops early.",
+                        "Complete and filtered export carries UTF-8 schema/version, render id, provenance, timestamps, levels, annotations and filter metadata in plain text, Markdown, JSON, JSONL, CSV, TSV and HTML.",
                     ],
                 },
             ],
@@ -36,6 +38,8 @@ export const renderConsole: Article = {
                         { term: "cap", description: "10,000 lines by default; callers can lower or raise it for a bounded surface." },
                         { term: "height", description: "A responsive clamp keeps the console usable at narrow windows and large text scales." },
                         { term: "search", description: "The shared local field and adjacent regex builder; plain text is the default." },
+                        { term: "retention", description: "An explicit, inspectable policy; the on-screen ring cap never deletes retained history by itself." },
+                        { term: "privacy", description: "Local-only history with the existing console redaction policy applied before durable storage and export." },
                     ],
                 },
             ],
@@ -51,7 +55,21 @@ export const renderConsole: Article = {
                         "The CLI uses the resolved core.data directory and stores the queue at core.data/tasks.dat.",
                         "After startup, queue state is reconciled after maps are available so pending work can be resumed without reviving terminal tasks.",
                         "Periodic and shutdown saves are coalesced. Each save uses a unique staging file and an atomic rename so readers see a complete file.",
-                        "Full restart and test acceptance proof remains unrun under this delivery pass.",
+                        "Console history appends recover the last complete record after torn writes, storage refusal, restart, reattach and interrupted renders; incomplete records are never presented as completed runs.",
+                    ],
+                },
+            ],
+        },
+        {
+            id: "retention-and-deletion",
+            title: "Retention, pruning and deletion",
+            blocks: [
+                {
+                    kind: "list",
+                    items: [
+                        "Retention is configured separately from the bounded visible ring and reports what automatic pruning removed.",
+                        "Selection-aware copy/export and bulk export report their exact scope; bulk deletion is a separate action behind destructive confirmation.",
+                        "Secrets and path-sensitive values are redacted before durable history or export, while the live console remains unchanged.",
                     ],
                 },
             ],
@@ -88,7 +106,7 @@ export const renderConsole: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "The component and model suites cover selection, level labels, follow/detach behaviour, dropped-line accounting, advice navigation, reduced motion, copy/export and invalid patterns. The source article is ",
+                        "The component and model suites cover selection, level labels, follow/detach behaviour, dropped-line accounting, advice navigation, reduced motion, copy/export and invalid patterns. Durable-history coverage includes partial writes, storage refusal, Unicode and zero-width regex, large retained logs, interrupted renders, restart/reattach restore, retention/pruning, redaction and destructive deletion confirmation; the packaged acceptance proof reopens a completed render and searches a line outside the visible ring. The source article is ",
                         { link: "docs/render-console.md", href: RENDER_CONSOLE_DOC_URL, external: true },
                         ".",
                     ],

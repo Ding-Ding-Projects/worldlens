@@ -9,6 +9,7 @@ import {
     BANNER_COLOR_CURRENT,
     BANNER_PATTERN_CURRENT,
     BannerBlockEntity,
+    bannerRenderLayers,
     registerBannerBlockEntitySchemas,
 } from "../src/world/mca/blockentity/BannerBlockEntity.js";
 
@@ -182,5 +183,33 @@ describe("BannerBlockEntity typed pattern compatibility", () => {
         expect(resolve()).toBe(resource);
         expect(resolve()).toBe(resource);
         expect(lookups).toBe(1);
+    });
+
+    it("resolves ordered layers to banner resource paths and dye tints", () => {
+        const entity = readBanner(
+            bannerNbt("Patterns", fixture["legacy-1.12"].Patterns),
+        );
+        expect(
+            bannerRenderLayers(entity).map((layer) => [
+                layer.texture.getFormatted(),
+                layer.tint,
+            ]),
+        ).toEqual([
+            ["minecraft:entity/banner/stripe_bottom", [0.114, 0.114, 0.129]],
+            ["minecraft:entity/banner/creeper", [0.996, 0.847, 0.239]],
+        ]);
+    });
+
+    it("keeps unknown future layers addressable without inventing a tint", () => {
+        const entity = readBanner(
+            bannerNbt("Patterns", fixture["future-identifier-preservation"].Patterns),
+        );
+        expect(bannerRenderLayers(entity).map((layer) => [
+            layer.texture.getFormatted(),
+            layer.tint,
+        ])).toEqual([
+            ["minecraft:entity/banner/future_minecraft_pattern", [1, 1, 1]],
+            ["minecraft:entity/banner/banner_base", [0.976, 0.502, 0.114]],
+        ]);
     });
 });

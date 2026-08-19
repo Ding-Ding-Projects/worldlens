@@ -15,9 +15,23 @@ application’s discoverable tab navigation with real saved-target and completed
 combined issue must not be closed until that dependency and its packaged acceptance evidence are
 resolved.
 
-The ultra-speed pass deliberately skipped tests and captures. That is a process boundary, not a
+The records-only pass deliberately skipped tests and captures. That is a process boundary, not a
 verification result; the existing fake-host tests and built-panel evidence retain their prior
 status. No implementation, test, capture, merge, push, or cleanup was performed in this lane.
+
+## Issue #86 Docker world import — 2026-08-19 records-only update
+
+The current checkout contains the Docker world-import implementation and its documented local IPC
+surface: daemon state, container/volume listing and inspection, bind-direct resolution,
+container-copy, read-only named-volume-copy, additive placement, cancellation plumbing, and the
+fresh per-fetch live-world acknowledgement. The implementation documentation is
+[`docs/docker-world-source.md`](docs/docker-world-source.md).
+
+This pass changed records only. Tests and captures were unrun in this records-only pass; no real
+Docker daemon, throwaway container, bind mount, named volume, packaged application, or headless
+capture was exercised. Consequently there is no new runtime/package evidence and issue #86 remains
+open. The next owner must obtain real daemon and packaged-flow receipts before claiming acceptance
+or closure.
 
 ## Issue #52 release host and account routing — 2026-08-19
 
@@ -43,6 +57,19 @@ The current Worldlens baseline also carries the central `gh` process runner and 
 boundary (`2a3684f6`, `eb2663e1`), child-process close handling (`4d511d6c`), and cloud-render
 restart/recovery integration (`f148a538`). The current CI run for `ac46de28` is
 `32257677190` and remains in progress; it is not a completed verdict.
+
+## Issue #87 — GitHub sign-out and token revocation record (2026-08-19)
+
+The records lane updated [`docs/super-confirmation.md`](docs/super-confirmation.md) with the
+acceptance contract for putting GitHub sign-out and attempted grant revocation behind the shared
+native two-key/full-slider gate. The record distinguishes local credential removal from remote
+revocation refusal, timeout, or unsupported-host outcomes and limits the inventory to mutations the
+app actually performs. The `gh` CLI path is local-only: it removes the credential from the CLI
+store and does not attempt remote grant revocation.
+
+This is documentation-only evidence. Tests and captures were unrun under ultra-speed mode, and no
+packaged-artifact interaction proof exists in this lane. Acceptance remains open until the
+implementation supplies the runtime behavior and genuine packaged capture required by issue #87.
 
 ## Issue #78 per-project render engine choice — 2026-08-19
 

@@ -1,5 +1,15 @@
 # Roadmap
 
+## Issue #86 — Docker world import against a real daemon
+
+The implementation and source documentation are present for daemon inventory, container and volume
+inspection, bind-direct resolution, container-copy, read-only named-volume-copy, additive placement,
+and fresh live-world acknowledgement. The 2026-08-19 update is documentation-only. Tests and captures
+were unrun in this records-only pass, and no real daemon, throwaway Docker data, packaged application,
+or headless capture was exercised. Real container/bind/volume copy, failure and cancellation paths,
+ordinary wizard validation, source read-only and destination-safety proof, and packaged-flow capture
+remain open. Do not close issue #86 from this record.
+
 ## Issue #52 release host and account routing — 2026-08-19
 
 - [x] Route release commands with supported `--repo [HOST/]OWNER/REPO` syntax and never
@@ -49,6 +59,18 @@ local render.
   malformed and unknown entries, terminal exclusion, atomic staging, coalescing, and CLI
   startup/shutdown wiring. Packaged reachability and real process-restart recovery remain open
   acceptance evidence; issue #64 is not ready to close.
+
+## Issue #87 — GitHub sign-out super confirmation (2026-08-19)
+
+- [ ] Route each app-managed GitHub account sign-out/revocation mutation through the shared native
+      anchored two-key/full-slider state machine, with exact host/login, local credential removal,
+      attempted remote revocation, active-work effects, Emergency exit/Escape, and focus return.
+- [ ] Keep local removal and remote revocation as separate outcomes, with same-surface recovery and
+      re-authentication when revocation is refused, unavailable, or times out. The `gh` CLI path
+      removes only its local credential and does not attempt remote grant revocation.
+- [ ] Run the focused contract cases and capture the genuine packaged gate through the cheap
+      headless route. Tests and captures are unrun under ultra-speed mode; issue acceptance stays
+      open until those proofs land.
 
 ## Current verified baseline
 

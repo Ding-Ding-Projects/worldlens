@@ -27,6 +27,8 @@ export type DockerWorldFailureCode =
     | "copy-failed"
     /** The destination folder could not be created or written. */
     | "storage-unwritable"
+    /** The resolved Docker source vanished while the daemon was reading it. */
+    | "source-disappeared"
     /** The person cancelled it. */
     | "cancelled";
 
@@ -84,8 +86,8 @@ export function notAWorld(where: string, detail: string): DockerWorldFailure {
  * that opens, because zlib does not notice a chunk written mid-copy, and corrupts a render
  * three layers away from anything that would point back here.
  *
- * This is overridable - the caller can pass `acknowledgeLiveRisk: true` having been shown
- * this exact sentence - but never silently. What has **no** override is a *standing* one:
+ * This is overridable - the caller can pass a fresh `liveRiskAcknowledgement` nonce after
+ * being shown this exact sentence - but never silently. What has **no** override is a *standing* one:
  * there is no setting, no flag defaulting to true, nothing that once accepted applies to
  * every world after the first. Every fetch of a live world is acknowledged fresh. See
  * `dockerworld/`'s own module doc for what a safe unattended route (an RCON `save-off`
@@ -107,6 +109,10 @@ export function copyFailed(message: string, detail: string | null = null): Docke
 
 export function storageUnwritable(directory: string, detail: string): DockerWorldFailure {
     return failure("storage-unwritable", `The destination folder could not be written: ${directory}`, detail);
+}
+
+export function sourceDisappeared(source: string, detail: string | null = null): DockerWorldFailure {
+    return failure("source-disappeared", `The Docker world source disappeared while it was being copied: ${source}`, detail);
 }
 
 export function cancelled(): DockerWorldFailure {

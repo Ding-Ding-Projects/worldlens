@@ -242,6 +242,15 @@ export class GhCredentialBroker {
             return {
                 ok: false,
                 message: "GitHub CLI is not installed in a trusted location.",
+                account: { host, login },
+                localCredential: "not-removed",
+                grantRevocation: {
+                    attempted: false,
+                    refused: true,
+                    reason: "unsupported-by-gh-cli",
+                },
+                inFlightEffect: "none-observed",
+                recovery: "reauthenticate-exact-account",
             };
         }
         return await this.#exclusive(

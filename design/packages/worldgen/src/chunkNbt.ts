@@ -1,7 +1,7 @@
 import { NBTWriter } from "@worldlens/nbt";
 import type { BiomeDefinition } from "./biomes.js";
 import { parseBlockState, type ParsedBlockState } from "./blocks.js";
-import { blockIndex, columnIndex, type ChunkData } from "./chunk.js";
+import { blockIndex, columnIndex, type ChunkBlockEntity, type ChunkData } from "./chunk.js";
 import { blockStateBitWidth, ceilLog2, packPadded } from "./packing.js";
 import {
     BIOMES_PER_SECTION,
@@ -65,9 +65,39 @@ export class ChunkNbtWriter {
         }
         writer.endList();
 
+        if (chunk.blockEntities.length > 0) {
+            writer.name("block_entities");
+            writer.beginList(chunk.blockEntities.length);
+            for (const entity of chunk.blockEntities) this.writeBlockEntity(writer, entity);
+            writer.endList();
+        }
+
         writer.endCompound();
         writer.close();
         return writer.toUint8Array();
+    }
+
+    private writeBlockEntity(writer: NBTWriter, entity: ChunkBlockEntity): void {
+        writer.beginCompound();
+        writer.name("id").valueString(entity.id);
+        writer.name("x").valueInt(entity.x);
+        writer.name("y").valueInt(entity.y);
+        writer.name("z").valueInt(entity.z);
+        if (entity.patterns !== undefined) {
+            const field = entity.patternField ?? "Patterns";
+            writer.name(field);
+            writer.beginList(entity.patterns.length);
+            for (const layer of entity.patterns) {
+                writer.beginCompound();
+                writer.name(field === "Patterns" ? "Pattern" : "pattern").valueString(layer.pattern);
+                writer.name(field === "Patterns" ? "Color" : "color");
+                if (typeof layer.color === "number") writer.valueInt(layer.color);
+                else writer.valueString(layer.color);
+                writer.endCompound();
+            }
+            writer.endList();
+        }
+        writer.endCompound();
     }
 
     private writeHeightmaps(writer: NBTWriter, chunk: ChunkData): void {

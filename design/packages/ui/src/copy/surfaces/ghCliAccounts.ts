@@ -399,6 +399,34 @@ export const GHCLIACCOUNTS_FIXED = {
         en: "Remove {login} on {host} from GitHub CLI's credential store on this computer. Other applications that use gh will lose this sign-in too.",
         yue: "喺呢部電腦嘅 GitHub CLI credential store 移除 {login}（{host}）。其他使用 gh 嘅程式都會失去呢個登入。",
     },
+    "settings.github.ghCli.logoutActionDetailed": {
+        en: "On {host}, remove the {login} credential from gh's local store. If this host supports it, gh may also attempt to revoke the GitHub grant; this app reports refusal separately and never claims revocation succeeded. Other terminals and applications using gh lose this sign-in, and active or in-flight work using it may fail and must be retried.",
+        yue: "喺 {host} 移除 {login} 嘅 gh 本機 credential。呢個 host 如果支援，gh 可能會嘗試 revoke GitHub grant；呢個程式會分開講清楚拒絕，唔會扮成功。其他 terminal 同用緊 gh 嘅程式會失去呢次登入，進行緊嘅工作可能失敗，要再試。",
+    },
+    "settings.github.ghCli.logoutLocalEffectDetailed": {
+        en: "Local gh credential: removed only after the command confirms success.",
+        yue: "本機 gh credential：command 確認成功之後先會移除。",
+    },
+    "settings.github.ghCli.logoutGrantEffectDetailed": {
+        en: "GitHub grant: revocation is attempted only where gh supports it; refusal is reported separately.",
+        yue: "GitHub grant：只會喺 gh 支援嘅地方嘗試 revoke；拒絕會另外報告。",
+    },
+    "settings.github.ghCli.logoutWorkEffectDetailed": {
+        en: "Active/in-flight work: other terminals and applications may lose access and need re-authentication.",
+        yue: "進行緊嘅工作：其他 terminal 同程式可能失去 access，要重新認證。",
+    },
+    "settings.github.ghCli.logoutRecoveryDetailed": {
+        en: "Re-authenticate this account",
+        yue: "重新認證呢個帳戶",
+    },
+    "settings.github.ghCli.logoutRecoveryNoteDetailed": {
+        en: "The local credential was not confirmed removed. Re-authenticate here, or use Check again after repairing this account with gh.",
+        yue: "未確認本機 credential 已移除。可以喺呢度重新認證，或者用 gh 修復帳戶之後再撳重新檢查。",
+    },
+    "settings.github.ghCli.logoutOutcomeDetailed": {
+        en: "Local credential removal was confirmed. GitHub grant revocation was refused because gh does not support it here; active work finished before removal. Re-authenticate this exact account on this surface if access is needed again.",
+        yue: "已確認本機 credential 移除。因為 gh 喺呢度唔支援，GitHub grant revoke 被拒；進行緊嘅工作已經喺移除前完成。之後要用返 access，就喺呢個畫面重新認證同一個帳戶。",
+    },
     "settings.github.ghCli.logoutConfirm": {
         en: "Sign out account",
         yue: "登出帳戶",

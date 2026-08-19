@@ -16,6 +16,7 @@ export type DockerWorldFailureCode =
     | "live-world-not-acknowledged"
     | "copy-failed"
     | "storage-unwritable"
+    | "source-disappeared"
     | "cancelled";
 
 export interface DockerWorldFailure {
@@ -145,7 +146,7 @@ export interface DockerWorldSourceBridge {
     fetch(request: {
         readonly source: DockerSourceRequest;
         readonly destination: string;
-        readonly acknowledgeLiveRisk?: boolean;
+        readonly liveRiskAcknowledgement?: string;
     }): Promise<DockerWorldFetchResult>;
     cancel(fetchId: string): Promise<boolean>;
     active(): Promise<readonly string[]>;
