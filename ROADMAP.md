@@ -10,6 +10,16 @@
   second run. Successful artifacts are downloaded, verified, registered and openable in the map
   viewer.
 
+## SQL storage cross-engine proof — issue #66
+
+The TypeScript SQL storages are independently proven against real MySQL, MariaDB, PostgreSQL,
+and WASM SQLite, and Java↔TypeScript exchange is proven in both directions over MariaDB. The
+PostgreSQL and SQLite cross-engine runs remain open: the exact JDBC inputs, command contract,
+timestamp-aware comparison rule, failure/cleanup behavior, security boundary, and explicit
+**UNRUN / not proven** evidence table are recorded in
+[`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md). Do not
+copy MariaDB counts or timing into the four pending dialect rows.
+
 ## Public 1.0 compatibility contract — issue #60
 
 - **Scope:** Windows-only public compatibility for the desktop application and the standalone

@@ -1,5 +1,19 @@
 # Handoff
 
+## Issue #66 — SQL cross-engine evidence record (2026-08-19)
+
+The current documentation lane records the remaining Java↔TypeScript SQL exchange proof for
+PostgreSQL and SQLite. MariaDB is the only completed cross-engine result; the four new evidence
+rows remain **UNRUN / not proven**. The detailed acceptance record, pinned JDBC coordinates and
+SHA-256 digests, exact command contract, timestamp-aware comparison, failure matrix, cleanup
+behavior, and security boundary are in
+[`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md).
+
+No Java/Gradle/JDBC run, test, lint, type check, review, audit, accessibility pass, or screenshot
+was run in this lane. A later implementation lane must extend the driver-fetch and oracle command
+surface, execute both directions for both dialects, retain JSON reports, and replace `UNRUN` only
+with report-backed counts and timings.
+
 ## Issue #60 — public 1.0 compatibility contract
 
 This lane prepares the public delivery records for a Windows-only 1.0 compatibility contract. The

@@ -1,15 +1,23 @@
 # Handoff
 
+## Issue #66 — SQL cross-engine evidence record (2026-08-19)
+
+The documentation lane for issue [#66](https://github.com/Ding-Ding-Projects/worldlens/issues/66) records the remaining PostgreSQL and SQLite Java↔TypeScript storage proof without claiming that either dialect is proven. MariaDB remains the only completed cross-engine result. See [`docs/sql-cross-engine-compatibility.md`](../docs/sql-cross-engine-compatibility.md) for the acceptance contract, exact JDBC coordinates and SHA-256 digests, command contract, timestamp-aware comparison rule, failure matrix, security boundary, cleanup behavior, and four-row **UNRUN / not proven** evidence table.
+
+Pinned inputs are PostgreSQL JDBC `42.7.13` (`org.postgresql:postgresql`, `org.postgresql.Driver`, SHA-256 `6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93`) and Xerial SQLite JDBC `3.53.2.1` (`org.xerial:sqlite-jdbc`, `org.sqlite.JDBC`, SHA-256 `f55e405ed96d5ffe629e05b7b51b059e1c7d64527c0cc90a972fbac06730ccc1`). The MariaDB control is `org.mariadb.jdbc:mariadb-java-client:3.5.3` (`org.mariadb.jdbc.Driver`, SHA-256 `85c4ba2f221d0dfd439c26affbb294f784960763544263c65aba9c2c76858706`). The vendored upstream source is submodule commit `4c4cbc291b361ceff6ee239448e9f988f9019dbb` (`v5.23`), with Gradle wrapper `9.4.0` and Java toolchain 25.
+
+No Java/Gradle/JDBC run, test, lint, type check, review, audit, accessibility pass, or screenshot was run in this lane. The implementation lane still has to execute `node tools/oracle/sql-crosscompat-matrix.mjs --dialects sqlite,postgresql --driver-dir tools/oracle/driver-fetch/build/drivers --json tools/oracle/out/sql-crosscompat-matrix/issue-66.json`, write reports with `finishedAt`, tested SHA, tool versions, per-direction counts/timings, timestamp-only counts, divergence counts, and cleanup verdict, and omit absolute paths and credentials. Direction 2 must preserve an independently checkable render-state comparison boundary because the raw Java HTTP route exposes tiles and metadata only. No source-code or harness change is claimed here.
+
 ## 2026-08-19 — issue #64 focused acceptance repair
 
-**State:** focused acceptance Chuts are present at `0a3b1d2e` plus the current-main merge
+**State:** focused acceptance checks are present at `0a3b1d2e` plus the current-main merge
 `76e368de`. The three-file focused run passed 29 tests covering real queue-file round trips,
 schema/version and corruption handling, malformed and unknown entries, terminal-task exclusion,
 unique staging and reopen, coalesced non-overlapping saves, CLI startup/shutdown wiring, and an
 exact source-guard mutation that went red when wiring was removed or commented and green again
 after restoration.
 
-No full suite, lint, review, audit, accessibility run, or HuiShot was performed. Remaining issue
+No full suite, lint, review, audit, accessibility run, or screenshot was performed. Remaining issue
 #64 gaps are structured skipped/unknown-task recovery presentation, stale cross-process crash
 ordering, and a real CLI restart that resumes queued work end to end.
 

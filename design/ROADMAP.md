@@ -1006,6 +1006,14 @@ port:**
   equivalent of loading an arbitrary classpath jar at runtime, so `StorageFactory` refuses
   a config that sets either, by name, rather than silently ignoring the setting.
 
+### Issue #66 — PostgreSQL and SQLite cross-engine proof record (unrun)
+
+The MariaDB proof above remains the only completed Java↔TypeScript SQL exchange. Issue [#66](https://github.com/Ding-Ding-Projects/worldlens/issues/66) requires the same two-direction proof for PostgreSQL and SQLite; no row is marked complete until a committed JSON report supplies the counts, timings, commit, driver digest, and cleanup verdict. The detailed acceptance record is [`docs/sql-cross-engine-compatibility.md`](../docs/sql-cross-engine-compatibility.md).
+
+The documentation lane pins PostgreSQL JDBC `org.postgresql:postgresql:42.7.13` (`org.postgresql.Driver`, SHA-256 `6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93`) and Xerial SQLite JDBC `org.xerial:sqlite-jdbc:3.53.2.1` (`org.sqlite.JDBC`, SHA-256 `f55e405ed96d5ffe629e05b7b51b059e1c7d64527c0cc90a972fbac06730ccc1`). The checked-in MariaDB control remains `org.mariadb.jdbc:mariadb-java-client:3.5.3` (`org.mariadb.jdbc.Driver`, SHA-256 `85c4ba2f221d0dfd439c26affbb294f784960763544263c65aba9c2c76858706`). The wrapper is Gradle `9.4.0`, and the upstream source at submodule commit `4c4cbc291b361ceff6ee239448e9f988f9019dbb` requests Java 25.
+
+The future run is `node tools/oracle/sql-crosscompat-matrix.mjs --dialects sqlite,postgresql --driver-dir tools/oracle/driver-fetch/build/drivers --json tools/oracle/out/sql-crosscompat-matrix/issue-66.json`. It must compare every hires/lowres tile, metadata document, map id, grid, pagination result, purge result, reopen, and deleted-row recreation with the shared timestamp-aware `diffRenderState` classifier. Its report must include `finishedAt`, tested SHA, tool versions, relative identifiers only, per-direction counts/timings, timestamp-only counts, divergence counts, and a cleanup verdict; absolute paths and credentials are forbidden. Direction 2's raw Java HTTP route exposes tiles and metadata only, so the deterministic render-state fields need a separate independently checkable comparison before the issue can be marked complete. It must use isolated PostgreSQL databases/containers or SQLite files, remove them and temporary configuration in `finally`, and report failures for missing or mismatched jars, driver classes, credentials/properties, incompatible schemas, server readiness, and cleanup separately. Until those runs happen, the four PostgreSQL/SQLite evidence rows remain **UNRUN / not proven**; MariaDB counts must not be copied into them.
+
 ## Test counts
 
 **Current, from the hosted CI job log itself, not a local re-run: `pnpm test:ci` on
@@ -1184,7 +1192,7 @@ named so it is not lost between passes.
   filtering of tasks whose `hasMoreWork()` is false, and a final shutdown save. The standalone
   CLI constructs it after maps are built, at `<resolved core.data>/tasks.dat`; the server package
   exports the helper but has no separate construction site. Retention is one current queue file,
-  not a history. Focused acceptance Chuts now cover real file/schema/corruption handling,
+  not a history. Focused acceptance checks now cover real file/schema/corruption handling,
   terminal-task exclusion, unique staging and reopen, coalesced saves, and CLI startup/shutdown
   wiring. Remaining proof must cover structured skipped/unknown-task reporting, stale
   cross-process crash ordering, and a real CLI restart that resumes queued work end to end.

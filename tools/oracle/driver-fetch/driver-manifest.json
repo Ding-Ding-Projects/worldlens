@@ -1,0 +1,39 @@
+{
+    "schemaVersion": 1,
+    "repository": "https://repo1.maven.org/maven2",
+    "drivers": [
+        {
+            "id": "mariadb",
+            "group": "org.mariadb.jdbc",
+            "artifact": "mariadb-java-client",
+            "version": "3.5.3",
+            "coordinate": "org.mariadb.jdbc:mariadb-java-client:3.5.3",
+            "file": "mariadb-java-client-3.5.3.jar",
+            "sha256": "85c4ba2f221d0dfd439c26affbb294f784960763544263c65aba9c2c76858706",
+            "bytes": 746140,
+            "class": "org.mariadb.jdbc.Driver"
+        },
+        {
+            "id": "postgresql",
+            "group": "org.postgresql",
+            "artifact": "postgresql",
+            "version": "42.7.13",
+            "coordinate": "org.postgresql:postgresql:42.7.13",
+            "file": "postgresql-42.7.13.jar",
+            "sha256": "6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93",
+            "bytes": 1220948,
+            "class": "org.postgresql.Driver"
+        },
+        {
+            "id": "sqlite",
+            "group": "org.xerial",
+            "artifact": "sqlite-jdbc",
+            "version": "3.53.2.1",
+            "coordinate": "org.xerial:sqlite-jdbc:3.53.2.1",
+            "file": "sqlite-jdbc-3.53.2.1.jar",
+            "sha256": "f55e405ed96d5ffe629e05b7b51b059e1c7d64527c0cc90a972fbac06730ccc1",
+            "bytes": 11982884,
+            "class": "org.sqlite.JDBC"
+        }
+    ]
+}
