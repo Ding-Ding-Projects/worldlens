@@ -39,7 +39,13 @@ import {
     normaliseLevel,
     type ConsoleLine,
 } from "../console/consoleModel.js";
-import { appendConsoleHistoryLine, persistConsoleHistory, readConsoleHistory } from "../console/consoleHistory.js";
+import {
+    appendConsoleHistoryLine,
+    persistConsoleHistory,
+    readConsoleHistory,
+    type ConsoleHistoryRecord,
+    type ConsoleHistoryStorageWarning,
+} from "../console/consoleHistory.js";
 import { NO_ESTIMATE, createEtaTracker } from "../progress/progressModel.js";
 import type {
     ProgressCount,
@@ -446,6 +452,16 @@ export interface RenderRun {
     readonly history: Ref<readonly RenderLogLine[]>;
     /** Honest durable-history status for the console surface. */
     readonly historyWarning: Ref<"" | "storage-unavailable" | "retention-limit" | "storage-limit">;
+    /** Persisted completion state; null means no durable record has been read yet. */
+    readonly historyComplete: Ref<boolean | null>;
+    /** Timestamp from the persisted record, not the live render clock. */
+    readonly historyUpdatedAt: Ref<string | null>;
+    /** Number of retained lines evicted by storage limits. */
+    readonly evictedLines: Ref<number>;
+    /** Number of older render records evicted by storage limits. */
+    readonly evictedRenders: Ref<number>;
+    /** Machine-readable persisted storage warning, separate from storage-unavailable. */
+    readonly storageWarning: Ref<ConsoleHistoryStorageWarning | null>;
     /**
      * How many lines the cap has dropped off the front of this render.
      *
@@ -566,6 +582,11 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
     const log = shallowRef<readonly RenderLogLine[]>([]);
     const history = shallowRef<readonly RenderLogLine[]>([]);
     const historyWarning = ref<"" | "storage-unavailable" | "retention-limit" | "storage-limit">("");
+    const historyComplete = ref<boolean | null>(null);
+    const historyUpdatedAt = ref<string | null>(null);
+    const evictedLines = ref(0);
+    const evictedRenders = ref(0);
+    const storageWarning = ref<ConsoleHistoryStorageWarning | null>(null);
     const logDropped = ref(0);
     const cancelling = ref(false);
     const startedAt = ref<string | null>(null);
@@ -919,8 +940,13 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
             historyWarning.value = "storage-unavailable";
             return;
         }
-        const warning = readConsoleHistory(id)?.storageWarning;
-        historyWarning.value = warning === "storage-limit" || warning === "retention-limit" ? warning : "";
+        const record = readConsoleHistory(id);
+        if (record === null) {
+            clearHistoryMetadata();
+            historyWarning.value = "storage-unavailable";
+            return;
+        }
+        applyHistoryMetadata(record);
     }
 
     function deleteHistory(ids: readonly number[]): boolean {
@@ -941,7 +967,25 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         history.value = record.lines;
         log.value = record.lines.slice(-LOG_LIMIT);
         logDropped.value = record.dropped;
+        applyHistoryMetadata(record);
         for (const line of record.lines) nextLogId = Math.max(nextLogId, line.id + 1);
+    }
+
+    function clearHistoryMetadata(): void {
+        historyComplete.value = null;
+        historyUpdatedAt.value = null;
+        evictedLines.value = 0;
+        evictedRenders.value = 0;
+        storageWarning.value = null;
+    }
+
+    function applyHistoryMetadata(record: ConsoleHistoryRecord): void {
+        historyComplete.value = record.complete;
+        historyUpdatedAt.value = record.updatedAt;
+        evictedLines.value = Math.max(0, Math.trunc(record.evictedLines ?? 0));
+        evictedRenders.value = Math.max(0, Math.trunc(record.evictedRenders ?? 0));
+        storageWarning.value = record.storageWarning ?? null;
+        historyWarning.value = record.storageWarning ?? "";
     }
 
     function push(line: RenderLogLine): void {
@@ -955,8 +999,13 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
             historyWarning.value = "storage-unavailable";
             return;
         }
-        const warning = readConsoleHistory(id)?.storageWarning;
-        historyWarning.value = warning === "storage-limit" || warning === "retention-limit" ? warning : "";
+        const record = readConsoleHistory(id);
+        if (record === null) {
+            clearHistoryMetadata();
+            historyWarning.value = "storage-unavailable";
+            return;
+        }
+        applyHistoryMetadata(record);
     }
 
     /** One line of the engine's own output, annotated as it arrives. */
@@ -1167,6 +1216,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         log.value = [];
         history.value = [];
         historyWarning.value = "";
+        clearHistoryMetadata();
         logDropped.value = 0;
         cancelling.value = false;
         startedAt.value = null;
@@ -1377,6 +1427,11 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         log,
         history,
         historyWarning,
+        historyComplete,
+        historyUpdatedAt,
+        evictedLines,
+        evictedRenders,
+        storageWarning,
         logDropped,
         cancelling,
         startedAt,

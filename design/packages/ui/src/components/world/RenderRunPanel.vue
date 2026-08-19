@@ -361,6 +361,11 @@ function openMap(): void {
                         : run.historyWarning.value === 'retention-limit' || run.historyWarning.value === 'storage-limit'
                           ? t('world.console.retentionWarning', 'Console history reached its retention limit; older lines remain unavailable.')
                           : ''"
+                    :history-complete="run.historyComplete.value"
+                    :history-updated-at="run.historyUpdatedAt.value"
+                    :evicted-lines="run.evictedLines.value"
+                    :evicted-renders="run.evictedRenders.value"
+                    :storage-warning="run.storageWarning.value"
                     :dropped="run.logDropped.value"
                     :cap="LOG_LIMIT"
                     @settings="(target: SettingsTarget) => emit('settings', target)"

@@ -90,10 +90,19 @@ explicit storage/retention warnings, selected-line deletion, and current-render 
 destructive confirmation.
 The direct feature record is [`docs/render-console.md`](docs/render-console.md).
 
+The render path now calls `appendConsoleHistoryLine()` for each line. Version-2 uses injectively
+encoded per-render keys, immutable revisioned generations of 512-line segments and a revisioned
+index. An append updates only the active partial segment or adds the next segment, commits the index,
+then removes superseded generations. Legacy version-1 envelopes migrate to bounded segments with the
+new index committed before the old key is removed. Evicted and cleared segments are also removed only
+after the authoritative index update.
+
 The implementation is deliberately bounded: 24 renders, 200,000 lines per record and an 8 MiB
 encoded envelope. Eviction marks a record incomplete and reports a warning. Those fixed limits are
 not a user retention surface. Multi-render bulk export/delete, retention configuration, pruning
-history/restore, exported/displayed `complete` state and eviction counts remain open. The source
+history/restore remain open. Completion, last-saved time, exact evicted-line/render counts and the
+storage-warning reason reach the mounted console and every export family; structured exports carry
+fields and CSV/TSV use dedicated columns. The source
 redacts drive-letter and UNC absolute paths plus `/Users`, `/home`, `/tmp`, `/var` and `/private`
 roots; relative paths, other roots, URI-shaped paths and edge cases still need comprehensive
 path-sensitive coverage. The source has not been exercised through a real
@@ -113,10 +122,17 @@ TXT/Markdown/JSON/JSONL/CSV/TSV/HTML export、token-shaped redaction、storage/r
 同經 destructive confirmation 嘅 selected-line delete/current-render prune-all；文檔係
 [`docs/render-console.md`](docs/render-console.md)。
 
+Render path 每行會 call `appendConsoleHistoryLine()`。Version-2 用 injective encoded per-render
+keys、immutable revisioned 512-line segment generations 同 revisioned index。Append 只 update
+active partial segment 或加 next segment，先 commit index，再清 superseded generation。Legacy
+version-1 envelope 會 migrate 做 bounded segments，新 index commit 後先移除舊 key；evicted 同
+cleared segments 都係 authoritative index update 後先清。
+
 Implementation 固定最多 24 renders、每個 record 200,000 lines、encoded envelope 8 MiB；
 eviction 會標 incomplete 同出 warning，但呢個唔係 user retention surface。Multi-render
-bulk export/delete、retention config、pruning history/restore、UI/export
-入面嘅 `complete`/eviction counts 仲係 open。Source 會 redact drive-letter、UNC，同
+bulk export/delete、retention config、pruning history/restore 仲係 open。Completion、last-saved
+time、exact evicted-line/render counts 同 storage-warning reason 已經去到 mounted console 同每種
+export；structured formats 有 fields，CSV/TSV 有 dedicated columns。Source 會 redact drive-letter、UNC，同
 `/Users`、`/home`、`/tmp`、`/var`、`/private` absolute paths；relative paths、其他 roots、
 URI-shaped paths 同 edge cases 仲欠 comprehensive path-sensitive coverage。真 process restart、
 completed-run reopening、interrupted-write recovery 都仲係 open。今次冇跑 tests、typecheck、

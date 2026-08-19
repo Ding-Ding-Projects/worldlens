@@ -41,11 +41,19 @@ and rendered text.
 ## Complete render history: current source status
 
 The current issue #58 source keeps a second render-id-keyed line array outside the bounded visible
-ring and writes a version-1 envelope to `localStorage`. Each append updates the retained array and
-uses a temporary key, read-back comparison and final-key replacement. A fresh render controller can
-read the record by render id, and the console searches and exports the retained array instead of the
+ring and persists it through a version-2 index plus immutable revisioned segment generations in
+`localStorage`. Render ids are encoded injectively in segment keys. Each segment holds at most 512
+lines; `appendConsoleHistoryLine()` rewrites only the active partial segment or adds the next segment,
+then commits the new index before removing superseded generations. A fresh render controller reads
+the record through the index, and the console searches and exports the retained array instead of the
 visible ring. This source wiring has not yet been proven by a real application restart or completed-
 run reopening.
+
+Index and segment writes use temporary keys, read-back comparison and monotonic revisions. Readers
+choose the newer valid primary/temporary index or segment after an interrupted replacement. A
+legacy version-1 monolithic envelope is converted into bounded version-2 segments; the new index is
+committed before the legacy key is removed. Superseded, retention-evicted and cleared segment
+generations are removed only after the authoritative index update.
 
 Retention is bounded and loss is explicit rather than silent: the store keeps at most 24 render
 records, 200,000 lines per record and an 8 MiB encoded envelope. When a line, record or byte limit
@@ -61,8 +69,10 @@ origin, message and annotation kinds/tones. Selected retained lines can be delet
 existing destructive super-confirmation surface. A second confirmed action prunes every retained
 line for the current render while allowing a running render to continue appending new lines. The
 current source does not expose multi-render bulk actions, retention configuration or a pruning
-history/restore surface, and it does not display or export the record's persisted `complete` flag
-or eviction counts.
+history/restore surface. It does surface and export the persisted completion state, last-saved time,
+exact evicted-line count, exact evicted-render count and storage-warning reason. JSON/JSONL carry
+that metadata structurally; CSV/TSV include dedicated columns; the plain-text/Markdown header and
+visible details list state the same facts.
 
 Credential-shaped tokens, bearer headers, URL credentials and selected connection-string secrets
 are redacted before persistence and export. Common absolute local paths are redacted too: drive-
@@ -109,7 +119,8 @@ build, packaged interaction or capture was run in this records lane, so their ve
 Issue #58 remains open until focused verification proves incremental append/recovery, partial writes,
 storage refusal, Unicode, zero-width regex, large retained logs, interruption, navigation, restart,
 reattach, completed-run reopening, retention/eviction metadata, selection-aware export,
-multi-render actions, redaction and destructive deletion. The packaged acceptance proof must
+multi-render actions, version-1 migration, segmented generation/index recovery, orphan-generation
+cleanup, redaction and destructive deletion. The packaged acceptance proof must
 restart the real app, reopen a completed render, and search/export a line outside the visible ring.
 `RenderConsole.test.ts` previously documented 27 auto-scroll tests that add
 coverage for the auto-scroll checkbox specifically: on by default with a real accessible name,
@@ -147,11 +158,13 @@ render screen 用一個有上限嘅 console(render console),而唔係一個淨�
 
 ### 完整 render history：而家嘅 source 狀態
 
-Issue #58 而家嘅 source 喺 bounded visible ring 之外保留第二份 render-id-keyed line array，並將 version-1 envelope 寫入 `localStorage`。每次 append 都會更新 retained array，用 temporary key、read-back comparison 同 final-key replacement；新 render controller 可以用 render id 讀返 record，而 console 搜尋同 export 用 retained array，唔係淨係 visible ring。呢啲係 source wiring，未有真 app restart 或 completed-run reopening 證據。
+Issue #58 而家嘅 source 喺 bounded visible ring 之外保留第二份 render-id-keyed line array，並用 version-2 index 加 immutable revisioned segment generations 存入 `localStorage`。Render id 會 injective encode 入 segment key，每個 segment 最多 512 lines。`appendConsoleHistoryLine()` 只 rewrite active partial segment 或加下一個 segment，先 commit 新 index，之後先清 superseded generation。新 render controller 經 index 讀返 record，而 console 搜尋同 export 用 retained array，唔係淨係 visible ring。呢啲係 source wiring，未有真 app restart 或 completed-run reopening 證據。
+
+Index 同 segment write 都用 temporary key、read-back comparison、monotonic revision；read 會揀較新嘅 valid primary/temporary index 或 segment。Legacy version-1 monolithic envelope 會轉成 bounded version-2 segments，先 commit 新 index，之後先移除 legacy key。Superseded、retention-evicted、cleared segment generation 都係 authoritative index update 後先清。
 
 Retention 有硬上限，而且 loss 會講明：最多 24 個 render records、每個 record 200,000 行、encoded envelope 8 MiB。超出 line、record 或 byte limit 時，record 會變成 incomplete，surface 會收到 retention/storage warning。Storage refusal 唔會停 live stream，亦會顯示 history 未儲到。呢啲係固定 implementation limits，唔係 user-configurable retention policy；有 source 唔等於 process crash recovery 已證實。
 
-Surface 有 plain-text-first retained-array search 加旁邊 regex builder、line selection、selected/filtered copy/export，同 TXT、Markdown、JSON、JSONL、CSV、TSV、HTML。Export row 包 schema version、render id、provenance、line id、timestamp、level、origin、message 同 annotation kind/tone。Selected retained lines 要經 destructive super-confirmation 先刪得，另一個 confirmed action 可以 prune 當前 render 所有 retained lines，而 running render 仍可繼續 append。Source 暫時冇 multi-render bulk actions、retention configuration、pruning history/restore surface，亦冇喺 UI 或 export 顯示 persisted `complete` flag 同 eviction counts。
+Surface 有 plain-text-first retained-array search 加旁邊 regex builder、line selection、selected/filtered copy/export，同 TXT、Markdown、JSON、JSONL、CSV、TSV、HTML。Selected retained lines 要經 destructive super-confirmation 先刪得，另一個 confirmed action 可以 prune 當前 render 所有 retained lines。UI 同 export 已經有 persisted completion、last-saved time、exact evicted-line/render counts 同 storage-warning reason；JSON/JSONL 用 structured metadata，CSV/TSV 有 dedicated columns，plain-text/Markdown header 同 visible details list 講返同一批 facts。Multi-render bulk actions、retention configuration 同 pruning history/restore surface 仲係 open。
 
 Credential-shaped token、bearer header、URL credential 同部分 connection-string secret 會喺 persistence/export 前 redaction。Common absolute local paths 都會 redaction，包括 drive-letter、UNC，同 `/Users`、`/home`、`/tmp`、`/var`、`/private` root。Relative paths、其他 roots、URI-shaped paths 同 escaping/quoting edge cases 仲未有 comprehensive coverage。Source 只留本機，冇新增 upload route。
 
@@ -176,7 +189,7 @@ console 文字永遠以 text render,唔會以 HTML,所以 engine 輸出注入唔
 
 ### 驗證
 
-Source 有 `RenderConsole.test.ts`、`annotations.test.ts`、`consoleModel.test.ts` 同 `consoleHistory.test.ts` cases，但呢個 records lane 冇跑 test、typecheck、build、packaged interaction 或 capture，所以 verdict 仍然未驗。Issue #58 要等 focused verification 證明 incremental append/recovery、partial write、storage refusal、Unicode、zero-width regex、大 retained log、interruption、navigation、restart、reattach、completed-run reopening、retention/eviction metadata、selection-aware export、multi-render actions、redaction 同 destructive deletion；packaged acceptance 仲要用真 app restart，重開 completed render，再搜尋同 export visible ring 之外嘅 line。之前文檔記錄 `RenderConsole.test.ts` 有 27 個 auto-scroll tests，呢個數今次冇重跑。
+Source 有 `RenderConsole.test.ts`、`annotations.test.ts`、`consoleModel.test.ts` 同 `consoleHistory.test.ts` cases，但呢個 records lane 冇跑 test、typecheck、build、packaged interaction 或 capture，所以新 version-2 storage verdict 仍然未驗。Issue #58 要等 focused verification 證明 immutable 512-line segment generations、injective render keys、index-before-cleanup ordering、legacy v1 migration、orphan-generation cleanup、partial write、storage refusal、Unicode、zero-width regex、24-render/200,000-line/8 MiB bounds、interruption、restart/reattach/completed-run reopening、exact metadata/export、redaction 同 destructive deletion。Packaged acceptance 仲要用真 app restart，重開 completed render，再搜尋同 export visible ring 之外嘅 line。舊 auto-scroll verification evidence 原樣保留；今次冇重跑或改寫嗰份歷史結果。
 
 ### 建議文章
 

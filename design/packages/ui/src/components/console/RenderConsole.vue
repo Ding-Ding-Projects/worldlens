@@ -77,13 +77,33 @@ const props = withDefaults(
         provenance?: string;
         /** Honest storage/retention status supplied by the history owner. */
         historyWarning?: string;
+        /** Persisted completion metadata; null means the owner has not supplied a verdict. */
+        historyComplete?: boolean | null;
+        /** Persisted retention counters, independent of the bounded live viewport. */
+        evictedLines?: number;
+        evictedRenders?: number;
+        /** Machine-readable persisted warning supplied by the history owner. */
+        storageWarning?: "retention-limit" | "storage-limit" | null;
+        /** Timestamp of the persisted record supplied by the history owner. */
+        historyUpdatedAt?: string | null;
         /** How many lines the cap has dropped off the front of this render. */
         dropped?: number;
         cap: number;
         /** Height of the scrolling area. A caller that has more room can ask for more. */
         height?: string;
     }>(),
-    { dropped: 0, height: "clamp(180px, 34vh, 460px)", renderId: "unknown", provenance: "console", historyWarning: "" },
+    {
+        dropped: 0,
+        height: "clamp(180px, 34vh, 460px)",
+        renderId: "unknown",
+        provenance: "console",
+        historyWarning: "",
+        historyComplete: null,
+        evictedLines: 0,
+        evictedRenders: 0,
+        storageWarning: null,
+        historyUpdatedAt: null,
+    },
 );
 
 const emit = defineEmits<{
@@ -207,6 +227,70 @@ const capLine = computed(() =>
 );
 
 const historyStatus = computed(() => props.historyWarning ?? "");
+function persistedCount(value: number | undefined): number {
+    return Number.isSafeInteger(value) && (value ?? 0) >= 0 ? (value ?? 0) : 0;
+}
+const historyMetadata = computed(() => ({
+    complete: props.historyComplete ?? null,
+    evictedLines: persistedCount(props.evictedLines),
+    evictedRenders: persistedCount(props.evictedRenders),
+    storageWarning: props.storageWarning ?? null,
+    updatedAt: props.historyUpdatedAt ?? null,
+}));
+const historyFacts = computed(() => {
+    const facts = [
+        historyMetadata.value.complete === true
+            ? t(
+                  "world.console.historyComplete",
+                  { retained: historyRows.value.length },
+                  "Complete history: {retained} retained lines.",
+              )
+            : historyMetadata.value.complete === false
+              ? t(
+                    "world.console.historyIncomplete",
+                    {
+                        retained: historyRows.value.length,
+                        reason: t(
+                            "world.console.historyIncompleteReason",
+                            "The render may still be running or was interrupted.",
+                        ),
+                    },
+                    "Incomplete history: {retained} retained lines. {reason}",
+                )
+              : t("world.console.historyUnknown", "Persisted completion state is unavailable."),
+    ];
+    if (historyMetadata.value.evictedLines > 0) {
+        facts.push(
+            t(
+                "world.console.evictedLines",
+                { evictedLines: historyMetadata.value.evictedLines },
+                "Retention removed {evictedLines} older lines.",
+            ),
+        );
+    }
+    if (historyMetadata.value.evictedRenders > 0) {
+        facts.push(
+            t(
+                "world.console.evictedRenders",
+                { evictedRenders: historyMetadata.value.evictedRenders },
+                "Retention removed {evictedRenders} older render histories.",
+            ),
+        );
+    }
+    if (historyMetadata.value.storageWarning !== null) {
+        facts.push(
+            t(
+                "world.console.storageWarningDetail",
+                {
+                    reason: historyMetadata.value.storageWarning,
+                    lastSavedAt: historyMetadata.value.updatedAt ?? "(unknown)",
+                },
+                "Storage warning: {reason} Last successful save: {lastSavedAt}.",
+            ),
+        );
+    }
+    return facts;
+});
 const selectionLabel = computed(() =>
     selected.value.length > 0
         ? t("world.console.clearSelection", "Clear selection")
@@ -280,8 +364,24 @@ function exportHeader(): string {
         },
         "Filter: query={query}; mode={mode}; flags={flags}; levels={levels}.",
     );
+    const persisted = t(
+        "world.console.exportHistoryMetadata",
+        {
+            completion:
+                historyMetadata.value.complete === true
+                    ? "complete"
+                    : historyMetadata.value.complete === false
+                      ? "incomplete"
+                      : "unknown",
+            evictedLines: historyMetadata.value.evictedLines,
+            evictedRenders: historyMetadata.value.evictedRenders,
+            storageWarning: historyMetadata.value.storageWarning ?? "(none)",
+            retained: historyRows.value.length,
+        },
+        "History state={completion}; retained lines={retained}; evicted lines={evictedLines}; evicted renders={evictedRenders}; storage warning={storageWarning}.",
+    );
     if (selected.value.length > 0) {
-        return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${identity}\n# ${t(
+        return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${identity}\n# ${persisted}\n# ${t(
             "world.console.exportSelection",
             { shown: selected.value.length, kept: historyRows.value.length },
             "{shown} selected lines from {kept} retained lines.",
@@ -302,7 +402,7 @@ function exportHeader(): string {
                   " {dropped} earlier lines were already dropped: the console keeps the most recent {cap}.",
               )
             : "";
-    return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${identity}\n# ${scope}${cut}\n# ${filter}`;
+    return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${identity}\n# ${persisted}\n# ${scope}${cut}\n# ${filter}`;
 }
 
 function filterMetadata(): Record<string, unknown> {
@@ -369,6 +469,7 @@ function structuredRecord(row: ConsoleRow): Record<string, unknown> {
             tone: annotation.tone,
             message: redactConsoleText(adviceText(annotation)),
         })),
+        persistedHistory: { ...historyMetadata.value },
         filter: filterMetadata(),
     };
 }
@@ -386,7 +487,7 @@ function exportPayload(): { body: string; extension: string; mime: string } {
             mime: "text/markdown",
         };
     }
-    if (exportFormat.value === "json") return { body: JSON.stringify({ schemaVersion: 1, renderId: props.renderId, provenance: props.provenance, filter: filterMetadata(), rows: rowsToWrite.map(structuredRecord) }, null, 2), extension: "json", mime: "application/json" };
+    if (exportFormat.value === "json") return { body: JSON.stringify({ schemaVersion: 1, renderId: props.renderId, provenance: props.provenance, persistedHistory: { ...historyMetadata.value }, filter: filterMetadata(), rows: rowsToWrite.map(structuredRecord) }, null, 2), extension: "json", mime: "application/json" };
     if (exportFormat.value === "jsonl") return { body: rowsToWrite.map((row) => JSON.stringify(structuredRecord(row))).join("\n"), extension: "jsonl", mime: "application/x-ndjson" };
     if (exportFormat.value === "html") {
         const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -396,11 +497,11 @@ function exportPayload(): { body: string; extension: string; mime: string } {
         }).join("")}</ol>`, extension: "html", mime: "text/html" };
     }
     const separator = exportFormat.value === "csv" ? "," : "\t";
-    const header = ["schemaVersion", "renderId", "provenance", "id", "timestamp", "level", "origin", "message", "annotations", "query", "mode", "flags", "levels", "selected"].join(separator);
+    const header = ["schemaVersion", "renderId", "provenance", "historyComplete", "historyUpdatedAt", "evictedLines", "evictedRenders", "storageWarning", "id", "timestamp", "level", "origin", "message", "annotations", "query", "mode", "flags", "levels", "selected"].join(separator);
     const body = rowsToWrite.map((row) => {
         const record = structuredRecord(row);
         const filter = filterMetadata();
-        return [record.schemaVersion, record.renderId, record.provenance, record.id, record.timestamp, record.level, record.origin, record.message, JSON.stringify(annotationMessages(row)), filter.query, filter.mode, filter.flags, JSON.stringify(filter.levels), filter.selected].map((value) => csvEscape(String(value ?? ""), separator)).join(separator);
+        return [record.schemaVersion, record.renderId, record.provenance, historyMetadata.value.complete, historyMetadata.value.updatedAt, historyMetadata.value.evictedLines, historyMetadata.value.evictedRenders, historyMetadata.value.storageWarning, record.id, record.timestamp, record.level, record.origin, record.message, JSON.stringify(annotationMessages(row)), filter.query, filter.mode, filter.flags, JSON.stringify(filter.levels), filter.selected].map((value) => csvEscape(String(value ?? ""), separator)).join(separator);
     });
     return { body: [header, ...body].join("\n"), extension: exportFormat.value, mime: exportFormat.value === "csv" ? "text/csv" : "text/tab-separated-values" };
 }
@@ -588,6 +689,16 @@ function openSetting(target: SettingsTarget): void {
             <p v-if="historyStatus" class="mb-console__meta mb-console__meta--warning" role="status" aria-live="polite">
                 {{ historyStatus }}
             </p>
+            <section
+                class="mb-console__history-facts"
+                role="status"
+                aria-live="polite"
+                :aria-label="t('world.console.historyFactsTitle', 'Persisted history details')"
+            >
+                <ul>
+                    <li v-for="fact in historyFacts" :key="fact">{{ fact }}</li>
+                </ul>
+            </section>
         </div>
 
         <div class="mb-console__frame">
@@ -800,6 +911,17 @@ function openSetting(target: SettingsTarget): void {
     gap: 0 8px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+.mb-console__history-facts {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(var(--v-theme-on-surface), 0.8);
+}
+
+.mb-console__history-facts ul {
+    margin-block: 4px 8px;
+    padding-inline-start: 22px;
 }
 
 .mb-console__select {

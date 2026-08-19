@@ -402,6 +402,42 @@ export const CONSOLE_FIXED = {
     "world.console.exportFilterMetadata": { en: "Filter: query={query}; mode={mode}; flags={flags}; levels={levels}.", yue: "篩選：查詢={query}；模式={mode}；旗標={flags}；等級={levels}。" },
     "world.console.exportIdentityMetadata": { en: "Render id={renderId}; provenance={provenance}.", yue: "算圖 ID={renderId}；來源={provenance}。" },
     "world.console.showingRecent": { en: "Showing the newest {shown} of {retained} retained lines. Search and filters use the complete history.", yue: "顯示緊保留紀錄入面最新嘅 {shown} 行（總共 {retained} 行）。搜尋同篩選會用完整紀錄。" },
+    "world.console.historyComplete": {
+        en: "Complete history: {retained} retained lines.",
+        yue: "完整紀錄：保留咗 {retained} 行。",
+    },
+    "world.console.historyFactsTitle": {
+        en: "Persisted history details",
+        yue: "已儲存紀錄詳情",
+    },
+    "world.console.historyIncomplete": {
+        en: "Incomplete history: {retained} retained lines. {reason}",
+        yue: "紀錄唔完整：保留咗 {retained} 行。{reason}",
+    },
+    "world.console.historyUnknown": {
+        en: "Persisted completion state is unavailable.",
+        yue: "冇法得知已儲存紀錄嘅完成狀態。",
+    },
+    "world.console.historyIncompleteReason": {
+        en: "The render may still be running or was interrupted.",
+        yue: "算圖可能仲行緊，或者中途停咗。",
+    },
+    "world.console.evictedLines": {
+        en: "Retention removed {evictedLines} older lines.",
+        yue: "保留規則移除咗較早嘅 {evictedLines} 行。",
+    },
+    "world.console.evictedRenders": {
+        en: "Retention removed {evictedRenders} older render histories.",
+        yue: "保留規則移除咗較早嘅 {evictedRenders} 份算圖紀錄。",
+    },
+    "world.console.storageWarningDetail": {
+        en: "Storage warning: {reason} Last successful save: {lastSavedAt}.",
+        yue: "儲存警告：{reason} 上次成功儲存：{lastSavedAt}。",
+    },
+    "world.console.exportHistoryMetadata": {
+        en: "History state={completion}; retained lines={retained}; evicted lines={evictedLines}; evicted renders={evictedRenders}; storage warning={storageWarning}.",
+        yue: "紀錄狀態={completion}；保留行數={retained}；已移除行數={evictedLines}；已移除算圖紀錄={evictedRenders}；儲存警告={storageWarning}。",
+    },
     "world.console.selectRetained": { en: "Select all retained lines", yue: "揀晒全部保留紀錄" },
     "world.console.selectMatches": { en: "Select all retained matches", yue: "揀晒保留紀錄入面配對嘅行" },
     "world.console.clearSelection": { en: "Clear selection", yue: "清除選取" },

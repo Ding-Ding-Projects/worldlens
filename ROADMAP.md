@@ -53,23 +53,28 @@
 ## Issue #58 — complete render-console history
 
 - **Status:** Source implementation is present; Issue #58 remains open and unverified.
-- **Implemented source:** separate retained and visible arrays; version-1 render-id-keyed
-  `localStorage` envelope; temporary-key/read-back/final-key writes; restore-by-render-id;
+- **Implemented source:** separate retained and visible arrays; injectively encoded per-render
+  version-2 segment keys; immutable revisioned 512-line generations; revisioned index;
+  temporary-key/read-back/final-key writes; index commit before old-generation cleanup;
+  restore-by-render-id; per-line `appendConsoleHistoryLine()` calls; legacy version-1 migration;
   plain-text-first retained-history search with adjacent regex builder; selected/filtered
   TXT/Markdown/JSON/JSONL/CSV/TSV/HTML export; credential-shaped redaction; explicit
   storage/retention warnings; selected-line deletion and current-render prune-all behind
   destructive confirmation.
 - **Bounded retention:** 24 renders, 200,000 lines per render and 8 MiB encoded storage. Eviction
   is marked incomplete and warned about; these fixed limits are not user-configurable retention.
+- **Metadata surface:** completion, last-saved time, exact evicted-line/render counts and warning
+  reason are visible and exported; structured formats carry fields and CSV/TSV use columns.
 - **Still open:** multi-render bulk actions, retention configuration, pruning history/restore,
-  displayed/exported `complete` and eviction metadata, comprehensive path-sensitive coverage for
+  comprehensive path-sensitive coverage for
   relative paths, other roots, URI-shaped paths and edge cases (common drive/UNC and
   `/Users`/`/home`/`/tmp`/`/var`/`/private` absolute paths are redacted), real interrupted-write
   recovery, navigation/reattach/completed-run reopening, process
   restart, packaged interaction and a genuine capture.
 - **Evidence boundary:** this records lane ran no tests, typechecks, builds, packaged interaction or
-  captures. See [`docs/render-console.md`](docs/render-console.md); do not close Issue #58 from
-  source presence alone.
+  captures. Focused proof remains required for v1 migration, segment/index interruption, orphan
+  cleanup, bounds, metadata/export, redaction and deletion; packaged proof must restart and reopen a
+  completed render. See [`docs/render-console.md`](docs/render-console.md).
 
 ## Issue #63 — one verified release row per completed phase
 
