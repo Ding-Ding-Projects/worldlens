@@ -1,5 +1,17 @@
 # Handoff
 
+## Issue #86 Docker world import — 2026-08-19 records-only update
+
+The current source includes the Docker world-import routes and UI/preload documentation recorded in
+[`docs/docker-world-source.md`](../docs/docker-world-source.md): daemon state, container and volume
+inventory/inspection, bind-direct, container-copy, read-only named-volume-copy, additive placement,
+cancellation plumbing, and fresh live-world acknowledgement.
+
+This lane updated records only. Tests and captures were unrun in this records-only pass. No real
+Docker daemon, throwaway container or volume, packaged application, or headless capture was used, so
+there is no new runtime or package evidence. Issue #86 remains open pending the real daemon matrix,
+ordinary wizard validation, destination/source safety proof, and genuine packaged-flow capture.
+
 ## Issue #78 per-project render engine choice — 2026-08-19
 
 The schema, UI, local runtime adapter, packaging manifest, resume path, history and provenance use

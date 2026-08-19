@@ -106,12 +106,14 @@ function readFetchRequest(value: unknown): DockerWorldFetchRequest | null {
     const source = readSource(record["source"]);
     const destination = record["destination"];
     if (source === null || typeof destination !== "string" || destination === "") return null;
-    const acknowledgeLiveRisk = record["acknowledgeLiveRisk"];
+    const liveRiskAcknowledgement = record["liveRiskAcknowledgement"];
     const dimension = record["dimension"];
     return {
         source,
         destination,
-        ...(acknowledgeLiveRisk === true ? { acknowledgeLiveRisk: true } : {}),
+        ...(typeof liveRiskAcknowledgement === "string"
+            ? { liveRiskAcknowledgement }
+            : {}),
         ...(typeof dimension === "string" && dimension !== "" ? { dimension } : {}),
     };
 }

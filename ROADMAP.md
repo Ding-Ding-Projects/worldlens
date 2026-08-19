@@ -1,5 +1,15 @@
 # Roadmap
 
+## Issue #86 — Docker world import against a real daemon
+
+The implementation and source documentation are present for daemon inventory, container and volume
+inspection, bind-direct resolution, container-copy, read-only named-volume-copy, additive placement,
+and fresh live-world acknowledgement. The 2026-08-19 update is documentation-only. Tests and captures
+were unrun in this records-only pass, and no real daemon, throwaway Docker data, packaged application,
+or headless capture was exercised. Real container/bind/volume copy, failure and cancellation paths,
+ordinary wizard validation, source read-only and destination-safety proof, and packaged-flow capture
+remain open. Do not close issue #86 from this record.
+
 ## Issue #52 release host and account routing — 2026-08-19
 
 - [x] Route release commands with supported `--repo [HOST/]OWNER/REPO` syntax and never

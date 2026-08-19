@@ -208,8 +208,10 @@ describe("DockerWorldSourcePanel", () => {
         expect(source.fake.fetch).toHaveBeenCalledWith({
             source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
             destination: "C:\\Fetched\\world",
-            acknowledgeLiveRisk: true,
+            liveRiskAcknowledgement: expect.any(String),
         });
+        const request = vi.mocked(source.fake.fetch).mock.calls[0]?.[0];
+        expect(request?.liveRiskAcknowledgement).toMatch(/^[0-9a-f-]{36}$/i);
         expect(wrapper.vm.acknowledgeLiveRisk).toBe(false);
 
         await wrapper.vm.fetchWorld();

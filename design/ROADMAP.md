@@ -1,5 +1,14 @@
 # Roadmap
 
+## Issue #86 — Docker world import against a real daemon
+
+The Docker world-import implementation and its documented IPC/UI routes are present. This
+2026-08-19 record is documentation-only: tests and captures were unrun in this records-only pass,
+and no real daemon, throwaway container/bind/volume data, packaged application, or headless capture
+was exercised. Real daemon source-copy and failure-path receipts, ordinary wizard `level.dat`/region
+validation, source read-only and additive destination proof, and packaged-flow capture remain open;
+issue #86 is not closed.
+
 ## Issue #78 — render engine selection
 
 Source implementation and focused verification are complete. The remaining acceptance record is a

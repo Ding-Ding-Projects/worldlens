@@ -323,8 +323,14 @@ async function fetchWorld(): Promise<void> {
         if (fresh.detail.running && !acknowledged) return;
     }
 
+    // Keep the acknowledgement nonce ephemeral: it is created only for this explicit,
+    // current live-risk confirmation and is consumed once by the main process.
+    const liveRiskAcknowledgement =
+        acknowledged && selected.kind === "container" && container.value?.running === true
+            ? crypto.randomUUID()
+            : undefined;
+
     fetching.value = true;
-    acknowledgeLiveRisk.value = false;
     failure.value = null;
     fetchedFolder.value = null;
     fetchId.value = null;
@@ -335,7 +341,7 @@ async function fetchWorld(): Promise<void> {
         const answer = await bridge.fetch({
             source: selected,
             destination: destination.value.trim(),
-            ...(acknowledged ? { acknowledgeLiveRisk: true } : {}),
+            ...(liveRiskAcknowledgement === undefined ? {} : { liveRiskAcknowledgement }),
         });
         fetchId.value = answer.fetchId || fetchId.value;
         if (!answer.ok) {
@@ -361,6 +367,7 @@ async function fetchWorld(): Promise<void> {
         };
         raiseNotice("error", failure.value.message);
     } finally {
+        acknowledgeLiveRisk.value = false;
         fetching.value = false;
     }
 }

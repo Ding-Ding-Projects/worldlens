@@ -176,9 +176,11 @@ export async function dockerCopyToStaging(
     if (output.ok) return null;
     if (output.spawnError !== null)
         return failures.notInstalled(`There is no '${docker}' command to copy with.`);
-    return failures.copyFailed(
+    return classifyDockerCopyFailure(
         `'docker cp' could not read ${containerPath} from ${containerId}.`,
-        firstLine(output.stderr),
+        `${containerId}:${containerPath}`,
+        stagingPath,
+        output.stderr,
     );
 }
 
@@ -219,10 +221,28 @@ export async function volumeCopyToStaging(
     if (output.ok) return null;
     if (output.spawnError !== null)
         return failures.notInstalled(`There is no '${docker}' command to copy with.`);
-    return failures.copyFailed(
+    return classifyDockerCopyFailure(
         `Copying the volume '${volumeName}' failed.`,
-        firstLine(output.stderr),
+        volumeName,
+        stagingPath,
+        output.stderr,
     );
+}
+
+function classifyDockerCopyFailure(
+    fallback: string,
+    source: string,
+    destination: string,
+    stderr: string,
+): DockerWorldFailure {
+    const detail = firstLine(stderr);
+    if (/permission denied|access is denied|got permission denied while trying to connect/i.test(stderr))
+        return failures.refused(detail ?? fallback);
+    if (/no space left on device|disk quota exceeded|not enough space/i.test(stderr))
+        return failures.storageUnwritable(destination, detail ?? fallback);
+    if (/no such file or directory|not found|does not exist/i.test(stderr))
+        return failures.sourceDisappeared(source, detail);
+    return failures.copyFailed(fallback, detail);
 }
 
 function firstLine(text: string): string | null {

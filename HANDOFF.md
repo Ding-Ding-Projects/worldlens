@@ -1,5 +1,19 @@
 # Handoff
 
+## Issue #86 Docker world import — 2026-08-19 records-only update
+
+The current checkout contains the Docker world-import implementation and its documented local IPC
+surface: daemon state, container/volume listing and inspection, bind-direct resolution,
+container-copy, read-only named-volume-copy, additive placement, cancellation plumbing, and the
+fresh per-fetch live-world acknowledgement. The implementation documentation is
+[`docs/docker-world-source.md`](docs/docker-world-source.md).
+
+This pass changed records only. Tests and captures were unrun in this records-only pass; no real
+Docker daemon, throwaway container, bind mount, named volume, packaged application, or headless
+capture was exercised. Consequently there is no new runtime/package evidence and issue #86 remains
+open. The next owner must obtain real daemon and packaged-flow receipts before claiming acceptance
+or closure.
+
 ## Issue #52 release host and account routing — 2026-08-19
 
 The release transport repair is present on the current default branch through
