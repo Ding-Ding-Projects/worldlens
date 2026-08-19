@@ -1309,7 +1309,7 @@ jobs:
 
   # ---------------------------------------------------------------------------------
   # Two-wave receipt verification. One-wave renders do not need this evidence and must
-  # not be blocked by a two-wave-only Chut; the publish condition below explicitly
+  # not be blocked by a two-wave-only check; the publish condition below explicitly
   # allows the receipt job to be skipped for those runs.
   # ---------------------------------------------------------------------------------
   receipt:
