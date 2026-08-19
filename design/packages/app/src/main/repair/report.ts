@@ -99,7 +99,6 @@ function boundedLines(lines: readonly string[] | undefined): string[] {
     }
     return bounded;
 }
-
 function boundedField(value: unknown): string {
     // Bound hostile input before regex work, then redact before output truncation.
     const raw = String(value ?? "").slice(0, MAX_REPORT_INPUT_CHARS);
