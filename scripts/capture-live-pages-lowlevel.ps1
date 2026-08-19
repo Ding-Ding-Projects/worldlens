@@ -56,7 +56,7 @@ function Get-ExactPhaseUrl([string]$RequestedUrl) {
         }
         if ($actual.AbsoluteUri -eq $last) { $stableReads++ } else { $stableReads = 1 }
         $last = $actual.AbsoluteUri
-        if ($stableReads -ge 3) { return $last }
+        if ($stableReads -ge 12) { return $last }
         Start-Sleep -Milliseconds 250
     }
     throw "The page target URL did not settle before capture."
