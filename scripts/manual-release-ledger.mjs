@@ -8,7 +8,7 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 
 const SHA = /^[0-9a-f]{40}$/;
@@ -22,6 +22,9 @@ const DURATION = /^\d{2}:\d{2}:\d{2}$/;
 const STATES = new Set(["running", "failed", "verified"]);
 const EVIDENCE_KINDS = new Set(["manual", "workflow"]);
 const MAX_BYTES = 1024 * 1024;
+const MAX_INVENTORY_BYTES = 64 * 1024;
+const MAX_INVENTORY_PHASES = 256;
+const DEFAULT_INVENTORY_PATH = fileURLToPath(new URL("../docs/release-phase-inventory.json", import.meta.url));
 
 function fail(message) {
   throw new Error(`manual release ledger failed: ${message}`);
@@ -126,7 +129,35 @@ function validatePhase(phase, index) {
   return phase.phase;
 }
 
-function validateLedger(ledger, { integratedPhases = [] } = {}) {
+function validatePhaseInventory(inventory) {
+  if (!inventory || typeof inventory !== "object" || Array.isArray(inventory)) fail("phase inventory must be an object");
+  if (inventory.schemaVersion !== 1) fail("phase inventory schemaVersion must be 1");
+  if (!Array.isArray(inventory.phases) || inventory.phases.length < 1 || inventory.phases.length > MAX_INVENTORY_PHASES) {
+    fail(`phase inventory phases must contain 1-${MAX_INVENTORY_PHASES} entries`);
+  }
+  const names = new Set();
+  inventory.phases.forEach((name, index) => {
+    string(name, `phase inventory phases[${index}]`, { max: 160 });
+    if (names.has(name)) fail(`phase inventory repeats ${name}`);
+    names.add(name);
+  });
+  return inventory.phases;
+}
+
+function readPhaseInventory(path = DEFAULT_INVENTORY_PATH) {
+  let text;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    fail(`phase inventory cannot be read at ${path}`);
+  }
+  if (Buffer.byteLength(text, "utf8") > MAX_INVENTORY_BYTES) fail("phase inventory exceeds the supported size");
+  let inventory;
+  try { inventory = JSON.parse(text); } catch { fail("phase inventory is not valid JSON"); }
+  return validatePhaseInventory(inventory);
+}
+
+function validateLedgerStructure(ledger) {
   if (!ledger || typeof ledger !== "object" || Array.isArray(ledger)) fail("ledger must be an object");
   if (ledger.schemaVersion !== 1) fail("schemaVersion must be 1");
   if (!Array.isArray(ledger.phases)) fail("phases must be an array");
@@ -143,10 +174,18 @@ function validateLedger(ledger, { integratedPhases = [] } = {}) {
     if (commits.has(phase.integrationCommit)) fail(`integration commit ${phase.integrationCommit} is recorded more than once`);
     commits.add(phase.integrationCommit);
   }
+  return { phaseCount: phases.size, releaseCount: tags.size, phases };
+}
+
+function validateLedger(ledger, options = {}) {
+  if (!Object.hasOwn(options, "integratedPhases")) fail("integratedPhases is required; use validateLedgerStructure for structural-only validation");
+  const { integratedPhases } = options;
+  const result = validateLedgerStructure(ledger);
   if (!Array.isArray(integratedPhases)) fail("integratedPhases must be an array");
-  const missing = integratedPhases.filter((name) => typeof name === "string" && !phases.has(name));
+  validatePhaseInventory({ schemaVersion: 1, phases: integratedPhases });
+  const missing = integratedPhases.filter((name) => !result.phases.has(name));
   if (missing.length) fail(`integrated phases missing from ledger: ${missing.join(", ")}`);
-  return { phaseCount: phases.size, releaseCount: tags.size, missing };
+  return { phaseCount: result.phaseCount, releaseCount: result.releaseCount, missing };
 }
 
 /** Build a record from the exact JSON returned by `gh api repos/.../releases/...`. */
@@ -173,17 +212,17 @@ function recordReleaseEvidence({ phase, integrationCommit, metadata, evidence, t
   return release;
 }
 
-function readLedger(path) {
+function readLedger(path, { inventoryPath = DEFAULT_INVENTORY_PATH } = {}) {
   const text = readFileSync(path, "utf8");
   if (Buffer.byteLength(text, "utf8") > MAX_BYTES) fail("ledger exceeds the supported size");
   let ledger;
   try { ledger = JSON.parse(text); } catch { fail("ledger is not valid JSON"); }
-  validateLedger(ledger);
+  validateLedger(ledger, { integratedPhases: readPhaseInventory(inventoryPath) });
   return ledger;
 }
 
-function writeLedger(path, ledger) {
-  validateLedger(ledger);
+function writeLedger(path, ledger, { inventoryPath = DEFAULT_INVENTORY_PATH } = {}) {
+  validateLedger(ledger, { integratedPhases: readPhaseInventory(inventoryPath) });
   writeFileSync(path, `${JSON.stringify(ledger, null, 2)}\n`, "utf8");
 }
 
@@ -191,14 +230,14 @@ function main() {
   const [, , command, path] = process.argv;
   if (command === "verify") {
     if (!path) fail("verify requires a ledger path");
-    const result = validateLedger(readLedger(path));
+    const result = validateLedgerStructure(readLedger(path));
     process.stdout.write(`verified ${result.phaseCount} phases and ${result.releaseCount} unique releases\n`);
     return;
   }
   fail("command must be verify");
 }
 
-export { readLedger, recordReleaseEvidence, validateLedger, validatePhase, writeLedger };
+export { readLedger, readPhaseInventory, recordReleaseEvidence, validateLedger, validateLedgerStructure, validatePhase, validatePhaseInventory, writeLedger };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try { main(); } catch (error) { process.stderr.write(`${error.message}\n`); process.exitCode = 1; }

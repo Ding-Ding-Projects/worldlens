@@ -105,6 +105,14 @@ module.exports = {
     // does until the jar is built.
     extraResources: [
         {
+            from: "../../../docs/release-ledger.json",
+            to: "release-ledger/release-ledger.json",
+        },
+        {
+            from: "../../../docs/release-phase-inventory.json",
+            to: "release-ledger/release-phase-inventory.json",
+        },
+        {
             from: "../ui/dist",
             to: "ui",
             filter: ["**/*"],

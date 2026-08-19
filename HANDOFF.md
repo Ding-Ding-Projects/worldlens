@@ -179,23 +179,31 @@ default-branch SHA, unique non-draft release identity, workflow or manual build
 receipt, UTC timing, asset names and SHA-256 values, Squirrel/archive evidence,
 line-count and attribution provenance, public bilingual code name, and factual
 `running`/`failed`/`verified` state. A local build never becomes a cloud verdict,
-and a failed phase records no release identity. The ledger's hand-written
-integrated-phase inventory is the completeness boundary: a phase absent from the
-ledger must fail validation rather than disappear silently.
+and a failed phase records no release identity. The ledger's hand-written integrated-phase
+inventory is the completeness boundary. The packaged reader and command-line validator read the
+same bounded hand-written `docs/release-phase-inventory.json`; the reader rejects a schema-shaped
+user-data ledger that omits an inventoried phase, reporting the missing names instead of returning
+a partial readout. A malformed or missing read-only inventory is an error; user-data may override
+the ledger but never the completeness list. Adding a completed phase requires updating the
+inventory and ledger together.
 
-The populated task-owned ledger contains four historical rows: releases 682,
-704, 708, and 731. Each has complete release/target/workflow/timing/asset/hash
+The packaging configuration copies both records into the stable
+`resources/release-ledger/` location, and the reader checks that packaged location before its
+development-checkout fallbacks. Packaged interaction, restart/reopen, and installer proof remain
+unrun in this lane.
+
+The populated task-owned ledger contains four historical rows (releases 682,
+704, 708, and 731) plus the verified build-and-release-only workflow policy row. Each historical row has complete release/target/workflow/timing/asset/hash
 read-back but is intentionally `failed` with `shipped-nonconforming` disposition,
 because the release copied and attached a dim-sum photo. Current policy requires
-linking to the public catalog photo without copying or attaching it. None of the
-four rows is presented as `verified`; issue #51's `.613` evidence remains outside
-this ledger.
+linking to the public catalog photo without copying or attaching it. The workflow-policy row is
+verified from its remote release read-back, while no local packaging or runtime verdict is
+claimed; issue #51's `.613` evidence remains outside this ledger.
 
-This update changes documentation only. No tests, builds, installer runs, runtime
+This update changes the packaged reader and its records. No tests, builds, installer runs, runtime
 sessions, workflow dispatches, or captures were run. No phase is closed from
 source presence or local packaging. Issue #63 stays open until the populated
-ledger has one durable row for every completed phase and the validator is wired
-to the integrated-phase inventory.
+ledger has one durable row for every completed phase and the remote release evidence is complete.
 
 ### 廣東話 / Cantonese
 

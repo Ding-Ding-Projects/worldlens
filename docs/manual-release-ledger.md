@@ -42,9 +42,18 @@ the module refuses a `verified` record when those two facts are conflated.
 
 ## Completeness
 
-The hand-written phase inventory is the caller's `integratedPhases` list. Pass it to
-`validateLedger(ledger, { integratedPhases })` at the release/issue integration point. The check
-fails when an integrated phase is absent, so a phase cannot silently disappear from the ledger.
+The hand-written phase inventory is a bounded, bundled list, not an optional caller argument.
+The command-line validator and packaged reader read the same bounded hand-written
+`docs/release-phase-inventory.json` beside the bundled ledger and check every candidate ledger
+before mapping it to UI entries. The inventory is read-only project data; user-data may override
+the ledger, but never the completeness list. A missing or malformed inventory is an error. If a
+user-data ledger is schema-shaped but omits an inventoried phase,
+the reader reports the missing phase names and stops; it does not fall through to a partial
+ledger or present a smaller success state.
+
+The current inventory contains the five rows below. Adding a completed phase requires updating
+the hand-written inventory, its ledger row, and this boundary together. The check fails when an
+integrated phase is absent, so a phase cannot silently disappear from the ledger.
 The existing `.613` release owned by issue #51 is intentionally not duplicated here; its proof
 remains on that issue and the public release record. The four earlier `v0.1.0-build.*` records in
 the JSON are historical read-backs: their exact tags, targets, release ids, assets, byte sizes,
@@ -52,14 +61,17 @@ SHA-256 values, workflow timing, line-count summaries, and code-name links are r
 their copied photo attachments are explicitly marked shipped-but-nonconforming under the current
 link-only photo policy.
 
-## Current four-row ledger
+## Current five-row ledger
 
-The populated `docs/release-ledger.json` contains four historical release rows.
-All four are deliberately `failed` with `shipped-nonconforming` disposition:
+The populated `docs/release-ledger.json` contains four historical release rows and one current
+workflow-policy row. The four historical rows are deliberately `failed` with
+`shipped-nonconforming` disposition:
 their release, target, workflow, timing, assets, hashes, line-count data, and
 release-note evidence were read back, but each copied and attached a dim-sum
 photo. Current policy requires linking to the public catalog photo without
-copying or attaching it, so none is presented as `verified`.
+copying or attaching it, so those four historical rows are not presented as
+`verified`. The workflow-policy row is independently `verified` from its remote
+release read-back; that verdict does not imply local packaging or runtime proof.
 
 | Phase | Integration commit | Release | Timing | Code name | State |
 | --- | --- | --- | --- | --- | --- |
@@ -67,12 +79,18 @@ copying or attaching it, so none is presented as `verified`.
 | Public-1.0 baseline release 704 | `f727083e5cb60f86aa4c493415d9e7c2b4952864` | [`v0.1.0-build.704`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.0-build.704) | `2026-08-07T05:32:51Z` → `2026-08-07T05:48:57Z` (`00:16:06`) | Sesame Balls · 煎堆 | **failed — copied and attached catalog photo** |
 | Public-1.0 baseline release 708 | `37104b4016491b74619b67b56cafc6f84c19aaa3` | [`v0.1.0-build.708`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.0-build.708) | `2026-08-07T06:09:06Z` → `2026-08-07T06:25:06Z` (`00:16:00`) | Lotus Paste Sesame Balls · 蓮蓉煎堆 | **failed — copied and attached catalog photo** |
 | Public-1.0 baseline release 731 | `ff2a8db67329311357f3ffe858d1d78b25ac7ab1` | [`v0.1.0-build.731`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.0-build.731) | `2026-08-07T12:50:00Z` → `2026-08-07T13:05:26Z` (`00:15:26`) | Peanut Sesame Balls · 花生煎堆 | **failed — copied and attached catalog photo** |
+| Build-and-release-only workflow policy | `86024f0ffeb2599ffd653a09e4fae3d020b7becc` | [`v1.0.1349`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1349) | `2026-08-19T19:06:20Z` → `2026-08-19T19:40:08Z` (`00:33:48`) | Hong Kong Banquet Roast-Garlic Black-Pepper Grouper Head Claypot · 港式宴席蒜子黑椒石斑魚頭煲 | **verified — workflow release read-back; no local build verdict claimed** |
 
 The JSON ledger remains authoritative for each row's full asset/hash table,
 archive-index facts, installer-signature note, line-count breakdown, exclusions,
 workflow URL, and public catalog URL. The article intentionally does not copy or
 recreate issue #51's `.613` proof. It does not promote local packaging, source
 presence, or a release listing to `verified`.
+
+The packaged app copies both `docs/release-ledger.json` and
+`docs/release-phase-inventory.json` into `resources/release-ledger/`; the reader checks that
+read-only packaged location before its development-checkout fallbacks. Packaged interaction and
+restart/reopen proof remain unrun in this lane.
 
 No tests, builds, installer runs, workflow dispatches, runtime sessions, or
 captures were performed for this documentation update.

@@ -129,8 +129,12 @@ the exact integrated commit, unique published tag, workflow/manual receipt, UTC 
 sizes and SHA-256 values, installer/archive evidence, line-count provenance, public dim-sum link,
 and the factual `running`/`failed`/`verified` state together. Drafts, prereleases, duplicate phase
 or release identities, incomplete verified records, and a local-build claim presented as a cloud
-verdict are rejected. The caller supplies the hand-written integrated-phase inventory to
-`validateLedger()` so a completed phase cannot disappear silently.
+verdict are rejected. `verify` reads the bounded, hand-written
+`docs/release-phase-inventory.json` inventory itself; an empty, duplicated, malformed, or missing
+inventory entry fails closed before the ledger is accepted. Library callers must pass an explicit
+`integratedPhases` list to `validateLedger()`, which receives the same bounded duplicate check.
+The separately named `validateLedgerStructure()` export is the only structural-only route; it
+cannot be mistaken for a complete release verification.
 
 ```bash
 node scripts/manual-release-ledger.mjs verify docs/release-ledger.json
