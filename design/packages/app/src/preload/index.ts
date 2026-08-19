@@ -33,6 +33,11 @@ import type {
     PagesTarget,
 } from "../main/pages/index.js";
 import type {
+    StaticMapExportEvent,
+    StaticMapExportReport,
+    StaticMapExportRequest,
+} from "../main/pages/index.js";
+import type {
     PreviewAvailability,
     PreviewEvent,
     PreviewNetworkReadout,
@@ -3056,6 +3061,15 @@ interface WorldlensBridge {
     }): Promise<PagesAnswer<PagesRecord>>;
     onPagesEvent(listener: (event: PagesEvent) => void): () => void;
 
+    /* ---- Exporting a rendered map as a portable static site --------------- */
+    exportStaticMap(request: StaticMapExportRequest): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
+    cancelStaticMapExport(exportId: string): Promise<boolean>;
+    activeStaticMapExports(): Promise<readonly string[]>;
+    issueStaticMapOverwriteToken(): Promise<string>;
+    resumeStaticMapExport(exportId: string): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
+    staticMapExportLedger(): Promise<readonly string[]>;
+    onStaticMapExportEvent(listener: (event: StaticMapExportEvent) => void): () => void;
+
     /* ---- Watching a render live, in a real browser tab -------------------- */
 
     /** Whether this render id can be hosted right now, and why not when it cannot. */
@@ -3564,6 +3578,18 @@ const bridge: WorldlensBridge = {
         return () => {
             ipcRenderer.off("pages:event", forward);
         };
+    },
+
+    exportStaticMap: (request) => ipcRenderer.invoke("map-export:start", request),
+    cancelStaticMapExport: (exportId) => ipcRenderer.invoke("map-export:cancel", exportId),
+    activeStaticMapExports: () => ipcRenderer.invoke("map-export:active"),
+    issueStaticMapOverwriteToken: () => ipcRenderer.invoke("map-export:overwrite-token"),
+    resumeStaticMapExport: (exportId) => ipcRenderer.invoke("map-export:resume", exportId),
+    staticMapExportLedger: () => ipcRenderer.invoke("map-export:ledger"),
+    onStaticMapExportEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: StaticMapExportEvent): void => listener(payload);
+        ipcRenderer.on("map-export:event", forward);
+        return () => { ipcRenderer.off("map-export:event", forward); };
     },
 
     previewAvailability: (renderId) => ipcRenderer.invoke("preview:availability", renderId),

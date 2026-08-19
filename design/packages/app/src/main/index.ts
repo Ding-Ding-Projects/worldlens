@@ -90,8 +90,9 @@ import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
-import { installPagesIpc, PAGES_EVENT_CHANNEL } from "./pages/index.js";
+import { installPagesIpc, PAGES_EVENT_CHANNEL, installStaticMapExportIpc, STATIC_EXPORT_EVENT_CHANNEL } from "./pages/index.js";
 import type { PagesIpc } from "./pages/index.js";
+import type { StaticMapExportIpc } from "./pages/index.js";
 import { installPreviewIpc, PreviewNetworkStore, PREVIEW_EVENT_CHANNEL } from "./preview/index.js";
 import type { PreviewIpc } from "./preview/index.js";
 import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index.js";
@@ -1101,6 +1102,23 @@ function startCiRenders(render: RenderIpc, github: GhCliIpc): CiRenderIpc {
  * never a `.git` inside somebody's rendered map.
  */
 let pagesIpc: PagesIpc | null = null;
+let staticMapExportIpc: StaticMapExportIpc | null = null;
+
+function startStaticMapExport(render: RenderIpc): StaticMapExportIpc {
+    if (staticMapExportIpc !== null) return staticMapExportIpc;
+    staticMapExportIpc = installStaticMapExportIpc({
+        ipcMain,
+        storageDir: () => render.storageDirectory(),
+        ledgerDir: () => join(app.getPath("userData"), "static-map-exports"),
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(STATIC_EXPORT_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    app.on("will-quit", () => staticMapExportIpc?.dispose());
+    return staticMapExportIpc;
+}
 
 function startPagesHosting(render: RenderIpc, github: GhCliIpc): PagesIpc {
     if (pagesIpc !== null) return pagesIpc;
@@ -1703,6 +1721,11 @@ async function createWindow(): Promise<void> {
     if (render !== null && github !== null) {
         await attempt("network", "backups", "Backups are unavailable in this launch", () =>
             startBackups(render, github),
+        );
+    }
+    if (render !== null) {
+        await attempt("initialization", "static-map-export", "Static map export is unavailable in this launch", () =>
+            startStaticMapExport(render),
         );
     }
     const ciRender =

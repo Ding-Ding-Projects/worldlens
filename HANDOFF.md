@@ -1,5 +1,35 @@
 # Handoff
 
+## Issue #72 static map export — records-only boundary (2026-08-19)
+
+Issue #72 remains **open** on the task-owned jer `codex/issue-72-static-map-export`.
+The transferred feature record is [`docs/static-map-export.md`](docs/static-map-export.md).
+This handoff records the acceptance boundary only; it does not claim that the implementation or
+packaged export is verified.
+
+The required surface covers a self-contained static site with client-side decompression and
+base-path handling; folder, ZIP, and configurable 7z outputs; path-traversal protection; a
+versioned manifest with checksums, provenance, renderer/engine versions, settings metadata, and an
+exact omissions statement; filtered and bulk export; progress, cancellation, resume, conflict
+handling, history, and file-manager/Visual Studio Code actions.
+
+At this checkpoint there is no records delta to claim before the implementation lane changes.
+The implementation files and transferred article are present in this task-owned checkout. No
+tests, captures, installer runs, or browser sessions were performed here. Packaged proof remains
+open: validate every referenced file, reopen the result from a plain static server, and open a
+genuine packaged export offline in a fresh browser profile before closing Issue #72.
+
+### 廣東話 / Cantonese
+
+Issue #72 仲係 **open**，屬於 task-owned jer `codex/issue-72-static-map-export`。Transferred
+feature record 係 [`docs/static-map-export.md`](docs/static-map-export.md)。呢份 handoff 只記
+acceptance boundary，唔係話 implementation 或 packaged export 已經驗證。
+
+今個 checkpoint 冇 records delta 可以喺 implementation lane 改之前聲稱。Implementation files
+同 transferred article 已經喺 task-owned checkout。冇行 tests、captures、installer runs 或
+browser sessions；packaged proof 仲要逐個 referenced file 驗、普通 static server reopen，同
+fresh browser profile offline reopen genuine packaged export，先可以 close Issue #72。
+
 ## Issue #74 local live-player tracking — 2026-08-19
 
 Issue #74 remains **open and unverified**. This issue-owned checkout contains the local live-player
