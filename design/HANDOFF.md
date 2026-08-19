@@ -1,10 +1,24 @@
 # Handoff
 
+## 2026-08-19 — issue #64 focused acceptance repair
+
+**State:** focused acceptance Chuts are present at `0a3b1d2e` plus the current-main merge
+`76e368de`. The three-file focused run passed 29 tests covering real queue-file round trips,
+schema/version and corruption handling, malformed and unknown entries, terminal-task exclusion,
+unique staging and reopen, coalesced non-overlapping saves, CLI startup/shutdown wiring, and an
+exact source-guard mutation that went red when wiring was removed or commented and green again
+after restoration.
+
+No full suite, lint, review, audit, accessibility run, or HuiShot was performed. Remaining issue
+#64 gaps are structured skipped/unknown-task recovery presentation, stale cross-process crash
+ordering, and a real CLI restart that resumes queued work end to end.
+
 ## 2026-08-19 — issue #64 queue-persistence implementation handoff
 
 **State:** the CLI queue-persistence wiring and helper are present in the current checkout.
-This records correction did not run tests, lint, reviews, audits, accessibility checks, or
-screenshot capture. It did not commit, merge, dew, publish, or close issue #64.
+The focused acceptance repair is recorded above; full runtime restart and recovery evidence
+remain open. It did not run the full suite, lint, reviews, audits, accessibility checks, or
+screenshot capture, and it did not close issue #64.
 
 The current owner of the queue format is `packages/engine`'s `RenderManager` and its
 `serialization/RenderTaskQueueStorage.ts` helper. `packages/server/src/render/

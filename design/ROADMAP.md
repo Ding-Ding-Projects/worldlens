@@ -1184,9 +1184,10 @@ named so it is not lost between passes.
   filtering of tasks whose `hasMoreWork()` is false, and a final shutdown save. The standalone
   CLI constructs it after maps are built, at `<resolved core.data>/tasks.dat`; the server package
   exports the helper but has no separate construction site. Retention is one current queue file,
-  not a history. Remaining proof must cover structured skipped/unknown-task reporting, stale
-  crash ordering, terminal/cancelled non-resurrection, concurrent-save behavior, and a real CLI
-  restart that resumes queued work end to end.
+  not a history. Focused acceptance Chuts now cover real file/schema/corruption handling,
+  terminal-task exclusion, unique staging and reopen, coalesced saves, and CLI startup/shutdown
+  wiring. Remaining proof must cover structured skipped/unknown-task reporting, stale
+  cross-process crash ordering, and a real CLI restart that resumes queued work end to end.
 - ~~Join `packages/cli`'s `-u`/`--watch` to `packages/server`'s `MapUpdateService`~~ **Done
   (issue #40's CLI half, 2026-08-06).** See "Phase E, what is ported and what is not" above
   for the detail, including two upstream deviations recorded rather than silently fixed:
