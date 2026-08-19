@@ -1506,7 +1506,11 @@ export class CiRenderSync {
         );
 
         const workflowFile = this.#options.workflowFile ?? RENDER_WORKFLOW_FILE;
-        let runId = state.runId;
+        // A recorded run id is resumable only while the record still says that run was
+        // dispatched. Failed, cancelled and collected records describe a completed attempt;
+        // carrying their id into a normal retry merely follows the old terminal run forever
+        // and never dispatches the fresh attempt the user requested.
+        let runId = state.stage === "dispatched" ? state.runId : null;
 
         if (runId === null) {
             this.#phase(syncId, "dispatching", route);
