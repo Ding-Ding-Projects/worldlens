@@ -24,6 +24,7 @@ export { default as DockerStateNote } from "./DockerStateNote.vue";
  * outside this folder could import it, which is why it shipped with no mount at all.
  */
 export { default as RemoteHostingPanel } from "./RemoteHostingPanel.vue";
+export { default as RemoteHostingScreen } from "./RemoteHostingScreen.vue";
 
 export { describeDocker, dockerName, dockerNotProbed } from "./dockerStates.js";
 export type { DockerNote, DockerTone } from "./dockerStates.js";
@@ -58,6 +59,15 @@ export type {
     TrustAnswer,
     ValidateAnswer,
 } from "./remoteBridge.js";
+
+export {
+    filterHostingRenders,
+    filterHostingTargets,
+    hostingMapsForRender,
+    hostingRecordForRender,
+    loadRemoteHostingChoices,
+} from "./hostingModel.js";
+export type { RemoteHostingChoices } from "./hostingModel.js";
 
 export {
     DEFAULT_SSH_PORT,

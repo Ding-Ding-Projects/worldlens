@@ -270,6 +270,13 @@ const PAGE_NOTES: Record<string, { description: [string, string]; keywords: read
         ],
         keywords: ["git", "repository", "sync", "world repo", "adopt", "adoption", "clone", "marker", "incremental"],
     },
+    remoteHosting: {
+        description: [
+            "palette.page.remoteHosting",
+            "Publish a finished rendered map to a saved SSH target running Docker, then verify, republish or stop it.",
+        ],
+        keywords: ["remote hosting", "ssh", "docker", "publish", "republish", "stop hosting", "finished map"],
+    },
 };
 
 /**

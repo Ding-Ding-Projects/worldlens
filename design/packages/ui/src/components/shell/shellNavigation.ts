@@ -116,6 +116,10 @@ export function createShellNavigation(
             return;
         }
         destination.value = next;
+        // A catalogue is a page of Home. Leaving Home must clear its address immediately;
+        // otherwise the rail can report a stale catalogue after Work or Map is selected and
+        // a later Home press appears to do nothing.
+        if (next !== "home") catalogueId.value = null;
     }
 
     function openCatalogue(id: CatalogueId): void {

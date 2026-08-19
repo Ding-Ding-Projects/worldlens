@@ -1,5 +1,15 @@
 # Roadmap
 
+## Issue #84 — remote-hosting navigation and wiring boundary (2026-08-19)
+
+The main/preload `hosting:*` seam is present, and the issue-84 checkout now contains an uncommitted
+candidate `remoteHosting` tab and `RemoteHostingScreen.vue` with saved-target and completed-render
+context. The catalogue entry `share.publishing.remote-hosting` still reveals the Pages job, not a
+proven dedicated remote-hosting command-palette destination. The candidate must preserve the panel's
+publish/refresh/stop behavior and obtain genuine packaged isolated-host evidence before closure.
+
+This records-only pass intentionally ran no tests and took no captures. Issue #84 remains open.
+
 ## Issue #85 — SSH flow acceptance boundary (2026-08-19)
 
 The SSH world-source, remote-render, and remote-hosting implementation remains fake-host and

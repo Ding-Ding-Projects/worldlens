@@ -175,23 +175,28 @@ next thing to verify by hand.
 ### Issue #85 dependency and evidence boundary (2026-08-19)
 
 Issue #85 cannot close the combined SSH flow while this surface remains outside the application’s
-discoverable tab navigation. Issue #84 tracks that prerequisite: the saved-target and completed-
-map pickers, command-palette destination, inventories, persistence, and real packaged publish,
-refresh, and stop path still need to be wired and captured. Until #84 is resolved, the standalone
-panel evidence below is not end-to-end application evidence.
+dedicated discoverable tab navigation. Issue #84 tracks that prerequisite: the saved-target and
+completed-map pickers, a dedicated command-palette destination, inventories, persistence, and real
+ packaged publish, refresh, and stop path still need to be wired and captured. The main/preload
+ `hosting:*` seam is present, and the issue-84 checkout now contains an uncommitted candidate
+ `RemoteHostingScreen.vue`/`remoteHosting` tab with saved-target and completed-render selection.
+ That candidate has not been committed, tested, packaged, or captured, so it is not accepted
+ application evidence. The existing catalogue entry named `share.publishing.remote-hosting` still
+ targets the Pages job with `reveal: "remote-hosting"`, so a dedicated command-palette route is not
+ yet proven. Until #84 is resolved, the panel evidence below is not end-to-end application evidence.
 
 The ultra-speed records pass intentionally ran no tests and took no captures. This note records
 the dependency only; it does not upgrade the existing fake-host evidence or claim a real Linux
 host, public/loopback verification, or cleanup pass.
 
 `RemoteHostingPanel.vue` is a complete, tested, standalone component, reachable through the main
-process's `hosting:*` IPC channels and the preload bridge end to end - but it is **not yet wired
-into the application's own tab navigation**. Mounting it into a discoverable screen, and giving it
-the target-picker and map-list context a real screen would supply, is the next step; wiring it in
-prematurely, in a shared checkout with several other screens under simultaneous construction, risked
-a half-finished integration failing the several package-wide "every surface has X" invariants
-(command palette coverage, tab search, menu coverage) that a genuinely new top-level screen has to
-satisfy in full.
+ process's `hosting:*` IPC channels and the preload bridge end to end. In the issue-84 checkout, a
+ candidate screen now composes saved targets and finished renders, but those source edits are
+ uncommitted and unverified. The existing `WorldScreen.vue` nested mount remains conditional on a
+ live render target, render id, and completed map. The candidate still needs proof of its dedicated
+ command-palette route, complete search/menu/inventory coverage, focus/persistence behavior, and the
+ genuine packaged publish/refresh/stop path. The panel bridge and its publish/refresh/stop behavior
+ must be preserved when that candidate is integrated.
 
 ## 廣東話
 

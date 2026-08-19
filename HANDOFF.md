@@ -10,8 +10,8 @@ The durable record is [`docs/server-adapter-smoke.md`](docs/server-adapter-smoke
 The existing `tools/build-jars.mjs`, `tools/describe-jars.mjs`, and
 `.github/workflows/build-jars.yml` prove build/package structure and release
 traceability. The plan-first `tools/server-adapter-smoke/smoke.mjs` contract
-enumerates the six adapters and required positive/negative cases, but its checked-in
-source-SHA/version matrix is still unpopulated and no `--execute` report exists.
+enumerates the six adapters and required positive/negative cases. Its checked-in
+source-SHA/version matrix is populated, but no `--execute` report exists.
 
 No real server, plugin discovery/startup, config generation, live render/update,
 HTTP endpoint, clean shutdown, restart persistence, negative fixture, test, or
@@ -20,6 +20,19 @@ Issue #83 therefore remains open. The next owner must run the exact published ja
 bytes in isolated disposable server environments, record the release asset hash
 and source SHA beside each result, and retain redacted logs, durations, resource
 measurements, endpoint/render results, restart receipts, and negative-case outcomes.
+
+## Issue #84 — remote-hosting navigation and wiring records (2026-08-19)
+
+The main/preload `hosting:*` bridge is present, and the panel retains publish, refresh, verification,
+progress, and super-confirmed stop behavior. Commit `8e78a95c` added the dedicated
+`RemoteHostingScreen.vue`/`remoteHosting` tab with saved-target and completed-render selection,
+corrected the catalogue route, and registered the command-palette destination. It is not yet
+packaged, captured, or accepted runtime evidence.
+
+This records-only lane intentionally ran no tests and took no captures. No implementation, packaged
+application interaction, isolated-host publish/refresh/stop, merge, push, or cleanup was performed.
+Issue #84 remains open until the navigation/wiring work and genuine packaged isolated-host proof are
+available.
 
 ## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
 
