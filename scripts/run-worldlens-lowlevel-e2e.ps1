@@ -35,6 +35,7 @@ $endpoint = "http://127.0.0.1:$McpPort/mcp"
 $api = "http://127.0.0.1:$McpPort/api/execute"
 $server = $null
 $windowPid = $null
+$observedExecutablePath = $null
 $hwnd = $null
 $captureCommit = $null
 $candidateStatus = $null
@@ -62,7 +63,16 @@ try {
     $candidateStatus = @(git -C $repo status --porcelain --untracked-files=all)
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect candidate worktree status." }
     if ($candidateStatus.Count -gt 0) {
-        throw "The candidate worktree is dirty; release smoke requires a clean exact commit."
+        $dirtySummary = @(
+            $candidateStatus |
+                Select-Object -First 20 |
+                ForEach-Object {
+                    $entry = ($_ -replace '[\x00-\x1f\x7f]', ' ').Trim()
+                    if ($entry.Length -gt 240) { $entry.Substring(0, 240) } else { $entry }
+                }
+        ) -join "; "
+        if ($candidateStatus.Count -gt 20) { $dirtySummary += "; ... and $($candidateStatus.Count - 20) more entries" }
+        throw "The candidate worktree is dirty; release smoke requires a clean exact commit. Status: $dirtySummary"
     }
     $server = Start-Process -FilePath $pythonw -ArgumentList @(
         "-m", "lowlevel_computer_use_mcp.server", "--http", "--legacy-http",
@@ -168,6 +178,14 @@ try {
     "plan $PlanPath" |
         node (Join-Path $repo ".claude\skills\run-worldlens\driver.mjs") $CdpPort
     if ($LASTEXITCODE -ne 0) { throw "The Worldlens Lowlevel UI plan failed." }
+    $expectedExecutablePath = [IO.Path]::GetFullPath(
+        (Join-Path $repo "design\packages\app\release\win-unpacked\Worldlens.exe")
+    )
+    $observedExecutablePath = (Get-Process -Id $windowPid -ErrorAction Stop).Path
+    if ([string]::IsNullOrWhiteSpace($observedExecutablePath) -or
+        -not [StringComparer]::OrdinalIgnoreCase.Equals($observedExecutablePath, $expectedExecutablePath)) {
+        throw "The live Lowlevel process does not resolve to the packaged Worldlens.exe."
+    }
 } finally {
     Remove-Item Env:\LOWLEVEL_MCP_ENDPOINT -ErrorAction SilentlyContinue
     Remove-Item Env:\WORLDLENS_DRIVER_HWND -ErrorAction SilentlyContinue
@@ -224,6 +242,7 @@ node (Join-Path $repo "scripts\write-lowlevel-evidence-receipts.mjs") `
     --packaged-exe (Join-Path $repo "design\packages\app\release\win-unpacked\Worldlens.exe") `
     --app-asar (Join-Path $repo "design\packages\app\release\win-unpacked\resources\app.asar") `
     --launch-pid ([string]$windowPid) `
+    --observed-exe $observedExecutablePath `
     --hwnd ("0x{0:x}" -f $hwnd) `
     --plan $PlanPath
 if ($LASTEXITCODE -ne 0) { throw "Writing the Lowlevel evidence receipts failed." }

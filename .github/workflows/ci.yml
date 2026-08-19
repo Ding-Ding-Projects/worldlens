@@ -53,7 +53,7 @@ jobs:
   #   node scripts/build-changelog.mjs --check
   #   ./actionlint -color   (see the retired job's git history for the pinned download)
   check:
-    name: Lint, build, test
+    name: Build workspace
     runs-on: ubuntu-24.04
     concurrency:
       group: ci-check-${{ github.ref }}
@@ -106,8 +106,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       # The committed gallery is diagnostic evidence, not a correctness gate. Keep a stale
-      # verdict visible in this fast job, but do not let it skip the build, typecheck or tests
-      # that establish whether the application itself is fit to release.
+      # verdict visible in this fast job, but do not let it skip the workspace build.
       - name: Check committed screenshot evidence
         continue-on-error: true
         run: pnpm screenshots:check
@@ -115,72 +114,11 @@ jobs:
       # packaging path took the whole job with it - tests, typecheck, build and the installer
       # behind them - for a style rule. Under the standing policy below, lint no longer runs in
       # any workflow at all (not here, and not as a separate job); `pnpm lint` is a local,
-      # pre-dew command now, exactly like `pnpm typecheck` and `pnpm test:ci` two steps down.
+      # pre-publication command now.
       - run: pnpm build
       # After `build`, never before: a package resolves a sibling `@worldlens/*`
       # through that sibling's emitted `dist/*.d.ts`, so on a clean checkout every
       # cross-package import is a "cannot find module" until the build has run.
-      #
-      # It is a separate step from `build` because building does not type-check
-      # everything: `ui` goes through Vite, which transpiles file by file and never
-      # checks a template, and plain `tsc` cannot read a `.vue` import at all — so that
-      # one package runs `vue-tsc` instead.
-      #
-      # `NODE_OPTIONS` raises Node's default old-space limit for this step alone. The
-      # an earlier constrained runner died here with
-      # `FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of
-      # memory` (exit 134). `vue-tsc` holds the whole `ui` package's type graph in one
-      # process, that package grew a great deal, and a hosted runner's Node was sizing
-      # its heap against a machine with more headroom than this one has to spare.
-      # Scoped to the step rather than the job so nothing else inherits a raised
-      # ceiling it never needed.
-      #
-      # Standing policy: GitHub Actions runs no tests and no lint, in any project, and
-      # nothing in a workflow gates the release - a type-check is exactly that kind of
-      # gate. `continue-on-error: true` keeps it running and its verdict visible right here
-      # (a real type error still shows a warning triangle on this step), but a failure can
-      # no longer fail this job or, downstream of that, withhold a release; `check` has
-      # also been removed from `release`'s `needs:` below for the same reason. Checking
-      # moved to where a human asked for it: `pnpm typecheck` is still the exact local
-      # command to run before pushing.
-      - run: pnpm typecheck
-        continue-on-error: true
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-      # `test:ci`, not `test`: every one of the last several CI runs died the same
-      # way - every test file and every test reported passed, and the only failure
-      # was vitest's own worker-to-main RPC heartbeat (an unhandled error reading
-      # [vitest-worker]: Timeout calling "onTaskUpdate", a 60s deadline hardcoded
-      # in this vitest version with no config knob). scripts/run-tests-ci.mjs runs
-      # the real `vitest run` and retries a clean attempt only on that exact
-      # signature - zero failed files, zero failed tests, that one RPC error -
-      # never on an actual failing test. `pnpm test` (plain `vitest run`) stays
-      # the local/dev command.
-      #
-      # Same heap story as the typecheck step above, and found the same way: with
-      # typecheck fixed, the very next run died here instead with "Ineffective
-      # mark-compacts near heap limit". The suite is over eight thousand tests across
-      # nearly six hundred files; vitest's own config already caps the worker pool at
-      # two forks precisely so this machine is not asked to hold more at once. Raising
-      # the ceiling here lifts the main process and the forks it spawns together,
-      # because a child inherits NODE_OPTIONS.
-      #
-      # This is exactly the situation that made run 31879080680 skip its release: every
-      # one of 770 test files and every test in them reported passed, three separate times
-      # (run-tests-ci.mjs's own retry ceiling), and the job still failed on vitest's
-      # worker-RPC heartbeat flake - a real test failure was never involved. Under the
-      # standing no-tests-gate-the-release policy, `continue-on-error: true` is the fix
-      # that actually reaches the root cause rather than raising MAX_ATTEMPTS again: a test
-      # run, real failure or infrastructure flake alike, can no longer withhold a release
-      # either way. The verdict stays visible on this step; `check` is no longer in
-      # `release`'s `needs:` below. `pnpm test` (plain `vitest run`) is still the local
-      # command to run before pushing, and `pnpm test:ci` remains available to run by hand
-      # too when the retry-on-flake behaviour is wanted.
-      - run: pnpm test:ci
-        continue-on-error: true
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-
   package:
     name: Windows installer
     # Needs `jars` too: the CLI jar downloaded below is what makes local rendering work
@@ -851,6 +789,10 @@ jobs:
       - name: Build the complete workspace
         working-directory: design
         run: pnpm build
+
+      - name: Package the application for Lowlevel smoke
+        working-directory: design/packages/app
+        run: pnpm run package
 
       - name: Install the pinned Lowlevel MCP runtime
         shell: pwsh

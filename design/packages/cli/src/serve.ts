@@ -52,7 +52,12 @@ export async function startWebserver(options: StartWebserverOptions): Promise<Ru
 
     const mapStorageHandler = new MapStorageHandler();
     for (const [mapId, map] of maps) {
-        mapStorageHandler.setMount({ mapId, storage: map.getStorage(), useSSE: webserver["sse-enabled"], localLive });
+        mapStorageHandler.setMount({
+            mapId,
+            storage: map.getStorage(),
+            useSSE: webserver["sse-enabled"],
+            ...(localLive === undefined ? {} : { localLive }),
+        });
     }
 
     const renderDriver = new RenderDriver(renderManager);

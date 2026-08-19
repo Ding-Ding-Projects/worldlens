@@ -97,7 +97,7 @@ test("the real Adult settings plan declines consent and reaches Kid Mode setting
     const kidMode = plan.findIndex(
         (step) =>
             step.action === "click" &&
-            step.selector === ".mb-settings .mb-tabs-strip__sheet:visible .v-list-item" &&
+            step.selector === ".mb-tabs-strip__sheet:visible .v-list-item" &&
             step.hasText === "Kid Mode and Adult Mode",
     );
     assert.ok(overflow >= 0 && kidMode > overflow, "settings tab must be reached via the visible overflow action");
@@ -108,7 +108,7 @@ test("runtime evidence keeps bounded sanitized console and page error messages",
     assert.match(driver, /const pageErrors = \[\];/);
     assert.match(driver, /MAX_RUNTIME_ERRORS = 20/);
     assert.match(driver, /sanitizeRuntimeError/);
-    assert.match(driver, /consoleErrors,\n          pageErrors/);
+    assert.match(driver, /consoleErrors,\r?\n          pageErrors/);
     assert.match(driver, /token\|secret\|password/);
 });
 
