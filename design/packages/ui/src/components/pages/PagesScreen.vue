@@ -45,6 +45,7 @@ import {
 import type { PagesRow } from "./pagesHosting.js";
 import { resolvePagesBridge } from "./pagesBridge.js";
 import type { PagesBridge, PagesCandidate, PagesPreflight, PagesRecord } from "./pagesBridge.js";
+import StaticExportCard from "./StaticExportCard.vue";
 
 /**
  * Putting a map this computer rendered on the internet, at an address somebody else can open.
@@ -416,6 +417,8 @@ onBeforeUnmount(() => {
                 }}
             </p>
         </header>
+
+        <StaticExportCard />
 
         <VAlert v-if="!pages.available" type="info" variant="tonal" class="mb-4">
             {{ t("pages.unsupported", "The desktop application is what publishes a map.") }}

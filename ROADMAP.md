@@ -1,5 +1,19 @@
 # Roadmap
 
+## Issue #72 static map export — open
+
+- **Jer:** `codex/issue-72-static-map-export` in the task-owned checkout.
+- **Contract:** self-contained static output with client-side decompression, configurable base
+  paths, optional `.nojekyll`, and no external runtime dependency; folder, ZIP, and configurable 7z
+  outputs; path safety; portable versioned manifest; checksums, provenance, engine/version and
+  settings metadata; exact omissions; filtered and bulk export; progress, cancellation, resume,
+  conflict handling, history, and file-manager/Visual Studio Code actions.
+- **Evidence boundary:** no records delta is claimed at this checkpoint before the implementation
+  lane changes. No tests or captures were run here. Packaged export remains unverified until every
+  referenced file is validated, the result opens from a plain static server, and a genuine
+  packaged export opens offline in a fresh browser profile. See
+  [`docs/static-map-export.md`](docs/static-map-export.md) and Issue #72.
+
 ## Issue #75 measurement and waypoints — 2026-08-19
 
 - **Status:** Implementation present in the task-owned checkout; acceptance remains open. The
