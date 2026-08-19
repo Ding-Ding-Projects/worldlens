@@ -1903,7 +1903,6 @@ export interface DockerVolumeSummary {
 export interface DockerMount {
     type: string;
     /** The host path for a bind mount, or the mountpoint Docker reports for a volume. */
-    source: string;
     /** The volume's name, when `type` is `"volume"`. Null otherwise. */
     volumeName: string | null;
     /** Where this is mounted inside the container. */
@@ -2311,6 +2310,7 @@ interface WorldlensBridge {
         ): Promise<{ ok: boolean; path: string | null; message: string }>;
         retry(): Promise<{ ok: boolean; message: string }>;
     };
+    addons: AddonsBridge;
 
     /**
      * The window buttons, for the app's own title bar.
@@ -3166,6 +3166,39 @@ interface WorldlensBridge {
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
 
+interface AddonRecord {
+    id: string;
+    name: string;
+    version: string;
+    description: string;
+    apiVersion: string;
+    capabilities: string[];
+    grantedCapabilities: string[];
+    entry: string;
+    enabled: boolean;
+    importedAt: string;
+    error: string | null;
+}
+
+interface AddonMutationResult<T> {
+    ok: boolean;
+    value?: T;
+    code?: string;
+    message?: string;
+}
+
+interface AddonsBridge {
+    list(): Promise<AddonMutationResult<AddonRecord[]>>;
+    importPackage(): Promise<AddonMutationResult<AddonRecord>>;
+    setEnabled(id: string, enabled: boolean): Promise<AddonMutationResult<AddonRecord>>;
+    grant(id: string, capabilities: string[]): Promise<AddonMutationResult<AddonRecord>>;
+    revoke(id: string, capability: string): Promise<AddonMutationResult<AddonRecord>>;
+    remove(id: string): Promise<AddonMutationResult<boolean>>;
+    setSafeMode(enabled: boolean): Promise<AddonMutationResult<boolean>>;
+    safeModeState(): Promise<boolean>;
+    diagnostics(): Promise<Array<{ addonId: string; phase: string; message: string }>>;
+}
+
 const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
@@ -3182,6 +3215,17 @@ const bridge: WorldlensBridge = {
         copy: () => ipcRenderer.invoke("startup:copy"),
         export: (format) => ipcRenderer.invoke("startup:export", format),
         retry: () => ipcRenderer.invoke("startup:retry"),
+    },
+    addons: {
+        list: () => ipcRenderer.invoke("addons:list"),
+        importPackage: () => ipcRenderer.invoke("addons:import"),
+        setEnabled: (id, enabled) => ipcRenderer.invoke("addons:setEnabled", id, enabled),
+        grant: (id, capabilities) => ipcRenderer.invoke("addons:grant", id, capabilities),
+        revoke: (id, capability) => ipcRenderer.invoke("addons:revoke", id, capability),
+        remove: (id) => ipcRenderer.invoke("addons:remove", id),
+        setSafeMode: (enabled) => ipcRenderer.invoke("addons:safeMode", enabled),
+        safeModeState: () => ipcRenderer.invoke("addons:safeModeState"),
+        diagnostics: () => ipcRenderer.invoke("addons:diagnostics"),
     },
 
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),

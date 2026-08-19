@@ -15,6 +15,7 @@ import { schoolModeEnabled } from "../setup/schoolMode.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import DockedSurface from "./DockedSurface.vue";
 import DependencyInstallerPanel from "./DependencyInstallerPanel.vue";
+import AddonManagerPanel from "./AddonManagerPanel.vue";
 import BlueMapSourceRow from "./BlueMapSourceRow.vue";
 import { blueMapSourceSearchValues } from "./bluemapSourceStore.js";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
@@ -176,6 +177,7 @@ const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(nul
 const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const addonsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const blueMapSourceSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const vocabularySection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -416,6 +418,12 @@ const sections = computed<SettingsSectionText[]>(() => {
             description: text["system-dependencies"].description,
             values: ["git", "GitHub CLI", "Docker Desktop", "rsync", "winget", "Chocolatey"],
         },
+        {
+            anchor: "addons",
+            title: text.addons.title,
+            description: text.addons.description,
+            values: ["JavaScript", "ESM", "manifest", "capabilities", "enable", "disable", "import"],
+        },
         // The commit, version and release tag this section is currently showing, so somebody
         // who can see a hash on screen can search for it. Facts rather than the sentences
         // around them, which the title and description already cover.
@@ -566,6 +574,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return noticeDurationSection.value;
         case "system-dependencies":
             return systemDependenciesSection.value;
+        case "addons":
+            return addonsSection.value;
         case "bluemap-engine":
             return blueMapSourceSection.value;
         case "updates":
@@ -1072,6 +1082,17 @@ function onDrawer(value: boolean): void {
                         :description="copy['system-dependencies'].description"
                     >
                         <DependencyInstallerPanel />
+                    </SettingsSection>
+                </template>
+
+                <template #addons>
+                    <SettingsSection
+                        ref="addonsSection"
+                        anchor="addons"
+                        :title="copy.addons.title"
+                        :description="copy.addons.description"
+                    >
+                        <AddonManagerPanel />
                     </SettingsSection>
                 </template>
 

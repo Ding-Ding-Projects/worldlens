@@ -155,6 +155,8 @@ import {
     type StartupIssue,
 } from "./startup/index.js";
 import { handleSquirrelShortcutEvent } from "./squirrelShortcuts.js";
+import { registerAddonHandlers } from "./addons/index.js";
+import type { AddonIpc } from "./addons/index.js";
 
 const squirrelStartupHandled = handleSquirrelShortcutEvent({
     platform: process.platform,
@@ -1487,6 +1489,19 @@ function startBedrockConversion(): BedrockIpc {
  */
 let repairIpc: RepairIpc | null = null;
 
+let addonIpc: AddonIpc | null = null;
+
+function startAddonManager(): AddonIpc {
+    if (addonIpc !== null) return addonIpc;
+    addonIpc = registerAddonHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        dialog,
+        resolveWindow: (event) => BrowserWindow.fromWebContents(event.sender),
+    });
+    app.on("will-quit", () => addonIpc?.dispose());
+    return addonIpc;
+}
+
 function startRepairDiagnostics(): RepairIpc {
     if (repairIpc !== null) return repairIpc;
     repairIpc = registerRepairHandlers(ipcMain);
@@ -1794,6 +1809,7 @@ async function createWindow(): Promise<void> {
             startAppSettingsHistory,
         ],
         ["configuration", "screenshot-gallery", "Screenshot gallery is unavailable", startGallery],
+        ["configuration", "addon-manager", "Add-on management is unavailable", startAddonManager],
         [
             "configuration",
             "bluemap-source",

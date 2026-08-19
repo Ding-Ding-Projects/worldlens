@@ -323,6 +323,27 @@ public-surface inventory, reference/migration examples, and directly related sit
 are now present; executable drift-proof and newcomer/runtime acceptance remain separate follow-up
 evidence and are not claimed.
 
+## Issue #71 — JavaScript and ESM add-ons (open, 2026-08-19)
+
+The current product has Java adapter JARs that load Java add-ons, but it does not yet expose an
+equivalent JavaScript/ESM add-on runtime for the TypeScript application. This gap is carried from
+the imported `material-bluemap` history and its recovered continuation plan; that provenance is
+context, not evidence of a shipped runtime. `README.md`, `packages/cli/src/config.ts`, and the
+issue #60 compatibility records describe this surface as planned, internal, or otherwise not yet
+a 1.0 promise. Issue #60 itself is already closed with its compatibility records and existing
+evidence; issue #71 is the separate implementation lane. The public documentation record is
+[`docs/compatibility/javascript-esm-add-ons.md`](docs/compatibility/javascript-esm-add-ons.md).
+
+The implementation remains open. Required work includes a versioned public API and types,
+lifecycle and compatibility/deprecation rules, searchable add-on management, exact package
+provenance, isolated least-privilege execution, explicit capability consent, deterministic load
+order, dependency/conflict handling, failure isolation, safe mode, rollback, diagnostics, stable
+typed hooks, developer documentation, examples, packaging guidance, and genuine packaged-runtime
+evidence. No packaged runtime, capability-consent flow, sandbox, rollback proof, malicious-package
+verification, tests, or captures are claimed by this handoff entry.
+
+The issue remains open until the implementation and the evidence matrix are complete.
+
 ## Cloud-render restart and UI verification — 2026-08-19
 
 The desktop app now restores persisted terminal cloud-render states, removes terminal rows only
