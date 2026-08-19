@@ -3,6 +3,7 @@ export { default as MarkerRow } from "./MarkerRow.vue";
 export { default as MarkerSetRow } from "./MarkerSetRow.vue";
 export { default as MarkerSearchField } from "./MarkerSearchField.vue";
 export { default as RegexBuilder } from "./RegexBuilder.vue";
+export { default as StudioMarkerLayerHost } from "./StudioMarkerLayerHost.vue";
 
 export {
     MAX_PATTERN_LENGTH,
