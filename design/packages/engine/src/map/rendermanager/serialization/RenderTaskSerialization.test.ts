@@ -684,4 +684,23 @@ describe("RenderManager's own saveRenderTaskQueue / loadRenderTaskQueue", () => 
         // recognised as already queued
         expect(scheduled.filter((t) => t instanceof WorldRegionUpdateTask)).toHaveLength(1);
     });
+
+    it("does not restore a terminal task from a real queue file", async () => {
+        const map = await createMap("overworld");
+        const maps = new Map([[map.getId(), map]]);
+        const manager = new RenderManager();
+        const completed = new MapSaveTask(map);
+        manager.scheduleRenderTask(completed);
+        await completed.doWork();
+        expect(completed.hasMoreWork()).toBe(false);
+
+        const file = join(root, "terminal-queue.dat");
+        await manager.saveRenderTaskQueue(file, maps);
+
+        const restoredManager = new RenderManager();
+        const accepted = await restoredManager.loadRenderTaskQueue(file, maps);
+
+        expect(accepted).toBe(0);
+        expect(restoredManager.getScheduledRenderTasks()).toEqual([]);
+    });
 });
