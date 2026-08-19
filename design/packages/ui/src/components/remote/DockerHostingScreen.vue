@@ -2,12 +2,12 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiRefresh, mdiStopCircleOutline, mdiPlayCircleOutline, mdiRestart, mdiDeleteOutline } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip, VProgressLinear, VTextField } from "vuetify/components";
+import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip, VProgressLinear, VSelect, VTextField } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
-import { resolveDockerHostingBridge, type DockerHostingBridge, type DockerHostingContainer, type DockerHostingEvent, type DockerHostingOperation, type DockerHostingSnapshot } from "./dockerHostingBridge.js";
+import { resolveDockerHostingBridge, type CreateInstanceRequest, type DockerHostingBridge, type DockerHostingContainer, type DockerHostingCreateAnswer, type DockerHostingEvent, type DockerHostingOperation, type DockerHostingSnapshot } from "./dockerHostingBridge.js";
 
 const props = defineProps<{ bridge?: DockerHostingBridge | null }>();
 const { t } = useI18n();
@@ -25,7 +25,65 @@ const progress = ref<{ phase: string; message: string; done: number; total: numb
 const logLines = ref<string[]>([]);
 const cancelBusy = ref(false);
 const selectedIds = ref<string[]>([]);
+const createId = ref("");
+const createName = ref("");
+const createImage = ref("");
+const createImageFree = ref("");
+const createPorts = ref("");
+const createVolumes = ref<string[]>([]);
+const createVolumesFree = ref("");
+const createBusy = ref(false);
+const createResult = ref<string | null>(null);
 let unsubscribe: (() => void) | null = null;
+
+const digestImages = computed(() => (snapshot.value?.images ?? []).filter((image) => /@sha256:[a-f0-9]{64}$/.test(image)));
+
+function splitList(value: string): string[] {
+    if (value.trim() === "") return [];
+    return value.split(",").map((entry) => entry.trim());
+}
+
+function portValues(value: string): number[] | null {
+    const entries = splitList(value);
+    if (entries.length === 0) return [];
+    const values = entries.map((entry) => Number(entry));
+    if (values.some((entry, index) => !/^\d+$/.test(entries[index] ?? "") || !Number.isInteger(entry) || entry < 1 || entry > 65_535)) return null;
+    return new Set(values).size === values.length ? values : null;
+}
+
+function imageError(value: string): string | null {
+    if (value.trim() === "") return t("dockerHosting.create.imageRequired", "Choose a digest-pinned image or enter one below.");
+    return /^(?:[a-zA-Z0-9][a-zA-Z0-9._/@:-]{0,254})@sha256:[a-f0-9]{64}$/.test(value.trim())
+        ? null
+        : t("dockerHosting.create.imageInvalid", "Use an image reference ending in @sha256: followed by 64 lowercase hexadecimal characters.");
+}
+
+const effectiveCreateImage = computed(() => createImageFree.value.trim() || createImage.value.trim());
+const createImageError = computed(() => imageError(effectiveCreateImage.value));
+const createIdError = computed(() => {
+    if (createId.value.trim() === "") return t("dockerHosting.create.idRequired", "Enter a lowercase id beginning with a letter; use only letters, numbers, and hyphens.");
+    return /^[a-z][a-z0-9-]{0,62}$/.test(createId.value.trim()) ? null : t("dockerHosting.create.idInvalid", "The id must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens (1–63 characters).");
+});
+const createNameError = computed(() => {
+    if (createName.value.trim() === "") return t("dockerHosting.create.nameRequired", "Enter a display name for this app-owned container.");
+    return createName.value.length <= 120 && !/[\r\n]/.test(createName.value) ? null : t("dockerHosting.create.nameInvalid", "The display name must be 1–120 characters and cannot contain line breaks.");
+});
+const createPortsError = computed(() => portValues(createPorts.value) === null ? t("dockerHosting.create.portsInvalid", "Use unique loopback ports as comma-separated integers from 1 through 65535.") : null);
+const freeVolumes = computed(() => splitList(createVolumesFree.value));
+const createVolumeValues = computed(() => [...new Set([...createVolumes.value, ...freeVolumes.value])]);
+const createVolumesError = computed(() => {
+    const values = createVolumeValues.value;
+    return values.some((value) => !/^worldlens-[a-z0-9][a-z0-9_.-]{0,120}$/.test(value) || /[\r\n]/.test(value))
+        ? t("dockerHosting.create.volumesInvalid", "Volumes must be installation-owned names beginning with worldlens-; separate names with commas.")
+        : null;
+});
+const createDisabledReason = computed(() => {
+    if (bridge === null) return t("dockerHosting.create.bridgeUnavailable", "The desktop bridge is unavailable, so Docker creation cannot start.");
+    if (snapshot.value === null) return t("dockerHosting.create.snapshotRequired", "Refresh Docker before creating an app-owned container.");
+    if (snapshot.value.daemon !== "ready") return t("dockerHosting.create.daemonNotReady", "Docker is not ready; creation stays disabled until the daemon is ready.");
+    return createIdError.value ?? createNameError.value ?? createImageError.value ?? createPortsError.value ?? createVolumesError.value ?? null;
+});
+const canCreate = computed(() => !createBusy.value && createDisabledReason.value === null);
 
 const owned = computed(() => (snapshot.value?.containers ?? []).filter((container) => container.owned));
 const selected = computed(() => owned.value.filter((container) => selectedIds.value.includes(container.id)));
@@ -64,6 +122,45 @@ async function mutate(container: DockerHostingContainer, kind: DockerHostingOper
     finally { operation.value = null; operationId.value = null; progress.value = null; }
 }
 
+async function createInstance(): Promise<void> {
+    if (!canCreate.value || bridge === null) return;
+    const ports = portValues(createPorts.value);
+    if (ports === null) return;
+    createBusy.value = true;
+    createResult.value = null;
+    error.value = null;
+    try {
+        const request: CreateInstanceRequest = {
+            id: createId.value.trim(),
+            name: createName.value.trim(),
+            image: effectiveCreateImage.value,
+            ports,
+            volumes: createVolumeValues.value,
+        };
+        const answer: DockerHostingCreateAnswer = await bridge.create(request);
+        if (!answer.ok) {
+            error.value = answer.failure.message;
+            return;
+        }
+        await refresh();
+        const refreshError = error.value;
+        createResult.value = refreshError === null
+            ? t("dockerHosting.create.created", "App-owned container created and verified in the refreshed snapshot.")
+            : t("dockerHosting.create.createdRefreshFailed", "Docker accepted the container creation, but refreshing the verified snapshot failed; review the error above before managing it.");
+        createId.value = "";
+        createName.value = "";
+        createImage.value = "";
+        createImageFree.value = "";
+        createPorts.value = "";
+        createVolumes.value = [];
+        createVolumesFree.value = "";
+    } catch (cause) {
+        error.value = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+        createBusy.value = false;
+    }
+}
+
 async function cancel(): Promise<void> { if (bridge === null || operationId.value === null || cancelBusy.value) return; cancelBusy.value = true; try { await bridge.cancel(operationId.value); } finally { cancelBusy.value = false; } }
 function eventReceived(event: DockerHostingEvent): void {
     if (event.type === "started") { operationId.value = event.operationId; operation.value = event.operation; return; }
@@ -77,7 +174,7 @@ function eventReceived(event: DockerHostingEvent): void {
 onMounted(() => { void refresh(); if (bridge !== null) unsubscribe = bridge.onEvent(eventReceived); });
 onBeforeUnmount(() => unsubscribe?.());
 
-defineExpose({ refresh, mutate, cancel, snapshot, progress });
+defineExpose({ refresh, mutate, cancel, createInstance, snapshot, progress, createDisabledReason, createResult });
 
 async function loadLogs(containerId: string): Promise<void> {
     if (bridge === null) return;
@@ -107,6 +204,26 @@ function exportSelection(): void {
                         <v-btn :prepend-icon="mdiRefresh" size="small" variant="text" :loading="loading" @click="refresh">{{ t("dockerHosting.refresh", "Refresh") }}</v-btn>
                     </div>
                     <v-alert v-if="error" type="error" variant="tonal" role="alert">{{ error }}</v-alert>
+                    <v-card class="mb-docker-hosting__create" variant="outlined">
+                        <v-card-title>{{ t("dockerHosting.create.title", "Create an app-owned container") }}</v-card-title>
+                        <v-card-text>
+                            <p class="mb-docker-hosting__create-help">{{ t("dockerHosting.create.help", "Choose real Docker data below. Creation uses a digest-pinned image, loopback-only ports, and installation-owned volumes; no arbitrary shell command is accepted.") }}</p>
+                            <div class="mb-docker-hosting__create-grid">
+                                <v-text-field v-model="createId" :label="t('dockerHosting.create.id', 'Instance id')" :error-messages="createIdError ?? undefined" :disabled="createBusy" autocomplete="off" />
+                                <v-text-field v-model="createName" :label="t('dockerHosting.create.name', 'Display name')" :error-messages="createNameError ?? undefined" :disabled="createBusy" autocomplete="off" />
+                                <v-select v-model="createImage" :items="digestImages" :label="t('dockerHosting.create.imageChoice', 'Digest-pinned image from Docker')" :hint="t('dockerHosting.create.imageChoiceHint', 'Only images ending in a verified sha256 digest are offered.')" persistent-hint clearable :disabled="createBusy || digestImages.length === 0" />
+                                <v-text-field v-model="createImageFree" :label="t('dockerHosting.create.imageFree', 'Or enter an exact digest-pinned image')" :error-messages="createImageError ?? undefined" :disabled="createBusy" autocomplete="off" />
+                                <v-text-field v-model="createPorts" :label="t('dockerHosting.create.ports', 'Loopback ports')" :hint="t('dockerHosting.create.portsHint', 'Optional comma-separated ports; Docker binds each one to 127.0.0.1 only.')" :error-messages="createPortsError ?? undefined" persistent-hint :disabled="createBusy" autocomplete="off" />
+                                <v-select v-model="createVolumes" :items="snapshot?.volumes ?? []" :label="t('dockerHosting.create.volumeChoice', 'Owned Docker volumes')" :hint="t('dockerHosting.create.volumeChoiceHint', 'Choose only volumes reported as owned by this installation.')" persistent-hint multiple chips clearable :disabled="createBusy || (snapshot?.volumes.length ?? 0) === 0" />
+                                <v-text-field v-model="createVolumesFree" :label="t('dockerHosting.create.volumeFree', 'Or enter owned volume names')" :hint="t('dockerHosting.create.volumeFreeHint', 'Optional comma-separated names; each must begin with worldlens-.')" :error-messages="createVolumesError ?? undefined" persistent-hint :disabled="createBusy" autocomplete="off" />
+                            </div>
+                            <v-alert v-if="snapshot && digestImages.length === 0" class="mb-docker-hosting__create-note" type="info" variant="tonal">{{ t("dockerHosting.create.noDigestImages", "Docker reported no digest-pinned images. Enter an exact digest reference to continue; the manager will not guess a tag or pull an image for you.") }}</v-alert>
+                            <p v-if="createDisabledReason" class="mb-docker-hosting__disabled" role="status">{{ t("dockerHosting.create.disabledReason", "Creation disabled: {reason}", { reason: createDisabledReason }) }}</p>
+                            <v-btn class="mb-docker-hosting__create-action" color="primary" :loading="createBusy" :disabled="!canCreate" @click="createInstance">{{ t("dockerHosting.create.action", "Create container") }}</v-btn>
+                            <v-progress-linear v-if="createBusy" class="mb-docker-hosting__create-progress" indeterminate role="progressbar" :aria-label="t('dockerHosting.create.progress', 'Creating app-owned container')" />
+                            <v-alert v-if="createResult" class="mb-docker-hosting__create-result" type="success" variant="tonal" role="status">{{ createResult }}</v-alert>
+                        </v-card-text>
+                    </v-card>
                     <ConfigSearchField v-model="query" v-model:regex="regex" v-model:flags="flags" :label="t('dockerHosting.search', 'Search owned containers')" :sample="owned.map((item) => `${item.name} ${item.image}`).join('\n')" />
                     <p v-if="regexError" class="mb-docker-hosting__regex-error" role="alert">{{ regexError }}</p>
                     <div v-if="selectedIds.length" class="mb-docker-hosting__bulk" role="status">
@@ -138,5 +255,5 @@ function exportSelection(): void {
 </template>
 
 <style scoped>
-.mb-docker-hosting__daemon,.mb-docker-hosting__operation{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-block-end:12px}.mb-docker-hosting__list{display:grid;gap:10px;list-style:none;padding:0}.mb-docker-hosting__row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:12px;border:1px solid rgba(var(--v-theme-on-surface),.12);border-radius:16px}.mb-docker-hosting__identity{display:grid;gap:2px;min-width:0}.mb-docker-hosting__identity span{overflow-wrap:anywhere;color:rgba(var(--v-theme-on-surface),.72);font-size:.8rem}.mb-docker-hosting__actions{grid-column:1/-1;display:flex;gap:4px;flex-wrap:wrap}.mb-docker-hosting__row .v-progress-linear{grid-column:1/-1}.mb-docker-hosting__logs{margin-block-start:12px}.mb-docker-hosting__logs pre{max-height:180px;overflow:auto;white-space:pre-wrap}
+.mb-docker-hosting__daemon,.mb-docker-hosting__operation{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-block-end:12px}.mb-docker-hosting__create{margin-block:16px}.mb-docker-hosting__create-help{margin-block:0 16px;color:rgba(var(--v-theme-on-surface),.72)}.mb-docker-hosting__create-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.mb-docker-hosting__create-note{margin-block-start:12px}.mb-docker-hosting__disabled{margin-block:12px 0;color:rgb(var(--v-theme-error));font-size:.9rem}.mb-docker-hosting__create-action{margin-block-start:12px}.mb-docker-hosting__create-progress{margin-block-start:12px}.mb-docker-hosting__create-result{margin-block-start:12px}.mb-docker-hosting__list{display:grid;gap:10px;list-style:none;padding:0}.mb-docker-hosting__row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:12px;border:1px solid rgba(var(--v-theme-on-surface),.12);border-radius:16px}.mb-docker-hosting__identity{display:grid;gap:2px;min-width:0}.mb-docker-hosting__identity span{overflow-wrap:anywhere;color:rgba(var(--v-theme-on-surface),.72);font-size:.8rem}.mb-docker-hosting__actions{grid-column:1/-1;display:flex;gap:4px;flex-wrap:wrap}.mb-docker-hosting__row .v-progress-linear{grid-column:1/-1}.mb-docker-hosting__logs{margin-block-start:12px}.mb-docker-hosting__logs pre{max-height:180px;overflow:auto;white-space:pre-wrap}@media (max-width:640px){.mb-docker-hosting__create-grid{grid-template-columns:1fr}}
 </style>

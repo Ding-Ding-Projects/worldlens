@@ -159,18 +159,20 @@
 
 ## Issue #69 — Docker hosting instance manager — 2026-08-19
 
-- **Status:** The issue-owned checkout contains the Phase G local Docker hosting manager source,
-  including the main-process manager/IPC in `design/packages/app/src/main/dockerhosting/` and the
-  `DockerHostingScreen.vue` surface. Issue #69 remains open pending verification.
-- **Current boundary:** The implementation is intended to discover daemon state, inventory
-  application-owned containers, plan lifecycle mutations, protect unmanaged workloads, persist
-  targets/history, and expose the tabbed/searchable manager surface. Existing Docker rendering,
-  Docker world import, and remote SSH/Docker hosting remain separate features.
-- **Evidence boundary:** this records-only update ran no tests, contacted no Docker daemon, created
-  no throwaway containers, built no package and took no captures. Real daemon refusal/ownership,
-  lifecycle, cancellation/recovery, restart reattachment, bulk/export, packaged interaction and
-  headless capture evidence remain open. See
-  [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md) and issue #69.
+- **Status:** The issue-owned checkout contains the Phase G manager, bridge and navigation source;
+  Issue #69 remains open pending verification.
+- **Current source:** `design/packages/app/src/main/dockerhosting/{manager.ts,ipc.ts,index.ts}`
+  owns daemon probing, app-label filtering, exact digest-pinned image inventory, persistent records, digest-pinned create validation,
+  named-volume ownership checks, create verification/rollback, start/stop/restart, cancellation,
+  bounded logs and authorization tokens. The preload bridge, `DockerHostingScreen.vue`,
+  `dockerHosting` tab, command-palette catalogue entry and app startup wiring are present.
+- **Still required:** prove missing/stopped/refused/unusable/ready daemon states and ownership
+  isolation against a real disposable daemon; verify create conflict/rollback, retain the explicit
+  transactional-update refusal until a safe recreate plan exists, implement server/map configuration,
+  persistent logs/history, complete
+  multi-row bulk actions, export and Visual Studio Code handoff; then run packaged interaction and
+  headless capture evidence. No tests, daemon, package or captures were run in this records update.
+  See [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md) and issue #69.
 
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
 

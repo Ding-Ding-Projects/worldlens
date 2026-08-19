@@ -4,7 +4,7 @@ import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
 import type { SchoolModeResult } from "../main/schoolMode/index.js";
 import type { VocabularyResult, VocabularySnapshot } from "../main/vocabulary/index.js";
-import type { DockerHostingSnapshot, ManagerAnswer } from "../main/dockerhosting/index.js";
+import type { CreateInstanceRequest, DockerHostingSnapshot, ManagedInstance, ManagerAnswer } from "../main/dockerhosting/index.js";
 import type {
     CiBootstrapEvent,
     CiBootstrapResult,
@@ -2046,6 +2046,7 @@ export interface DockerWorldBridge {
 
 /** Main-process-owned BlueMap container manager. Destructive calls require a one-use token. */
 export interface DockerHostingBridge {
+    create(request: CreateInstanceRequest): Promise<ManagerAnswer<ManagedInstance>>;
     inspect(): Promise<unknown>;
     authorize(request: { readonly operation: "stop"; readonly containerId: string }): Promise<unknown>;
     removeToken(containerId: string): Promise<unknown>;
@@ -2941,6 +2942,7 @@ interface WorldlensBridge {
     dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
     /** Progress and log lines for a hosting run in progress. */
     onRemoteHostingEvent(listener: (event: RemoteHostEvent) => void): () => void;
+    dockerHostingCreate(request: CreateInstanceRequest): Promise<ManagerAnswer<ManagedInstance>>;
     dockerHostingInspect(): Promise<ManagerAnswer<DockerHostingSnapshot>>;
     dockerHostingMutate(request: unknown): Promise<ManagerAnswer<DockerHostingSnapshot>>;
     dockerHostingCancel(operationId: string): Promise<boolean>;
@@ -3510,6 +3512,7 @@ const bridge: WorldlensBridge = {
     },
 
     dockerHosting: {
+        create: (request) => ipcRenderer.invoke("dockerhosting:create", request),
         inspect: () => ipcRenderer.invoke("dockerhosting:inspect"),
         authorize: (request) => ipcRenderer.invoke("dockerhosting:authorize", request),
         removeToken: (containerId) => ipcRenderer.invoke("dockerhosting:removeToken", containerId),
@@ -3563,6 +3566,7 @@ const bridge: WorldlensBridge = {
         };
     },
     dockerHostingInspect: (): Promise<ManagerAnswer<DockerHostingSnapshot>> => ipcRenderer.invoke("dockerhosting:inspect"),
+    dockerHostingCreate: (request): Promise<ManagerAnswer<ManagedInstance>> => ipcRenderer.invoke("dockerhosting:create", request),
     dockerHostingMutate: (request): Promise<ManagerAnswer<DockerHostingSnapshot>> => ipcRenderer.invoke("dockerhosting:mutate", request),
     dockerHostingCancel: (operationId): Promise<boolean> => ipcRenderer.invoke("dockerhosting:cancel", operationId),
     dockerHostingAuthorize: (request): Promise<unknown> => ipcRenderer.invoke("dockerhosting:authorize", request),

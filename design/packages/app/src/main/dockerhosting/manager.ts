@@ -222,12 +222,15 @@ export class DockerHostingManager {
         const listed = await this.list();
         if (!listed.ok) return listed;
         const [images, volumes] = await Promise.all([
-            this.runner(this.docker, ["image", "ls", "--filter", `label=${DOCKER_HOSTING_OWNER_LABEL}=${this.owner}`, "--format", "{{.Repository}}:{{.Tag}}"]),
+            this.runner(this.docker, ["image", "ls", "--digests", "--filter", `label=${DOCKER_HOSTING_OWNER_LABEL}=${this.owner}`, "--format", "{{.Repository}}@{{.Digest}}"]),
             this.runner(this.docker, ["volume", "ls", "--filter", `label=${DOCKER_HOSTING_OWNER_LABEL}=${this.owner}`, "--format", "{{.Name}}"]),
         ]);
-        const asLines = (output: CommandOutput): string[] => output.ok ? output.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, MAX_RECORDS) : [];
+        const asLines = (output: CommandOutput): string[] => output.ok ? [...new Set(output.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean))].slice(0, MAX_RECORDS) : [];
+        const asDigestImages = (output: CommandOutput): string[] => output.ok
+            ? [...new Set(output.stdout.split(/\r?\n/).map((line) => line.trim()).filter((line) => /^.+@sha256:[a-f0-9]{64}$/.test(line) && !line.includes("<none>")))].slice(0, MAX_RECORDS)
+            : [];
         const containers = listed.value.map((entry) => ({ ...entry, status: entry.health ?? entry.state, running: entry.state === "running", owned: true as const, logsAvailable: entry.containerId !== null, mapCount: null, configState: "unknown" as const }));
-        return { ok: true, value: { daemon: "ready", clientVersion: daemon.value.clientVersion, serverVersion: daemon.value.serverVersion, message: daemon.value.message, detail: daemon.value.detail, containers, images: asLines(images), volumes: asLines(volumes), checkedAt: this.now() } };
+        return { ok: true, value: { daemon: "ready", clientVersion: daemon.value.clientVersion, serverVersion: daemon.value.serverVersion, message: daemon.value.message, detail: daemon.value.detail, containers, images: asDigestImages(images), volumes: asLines(volumes), checkedAt: this.now() } };
     }
 
     public async create(request: CreateInstanceRequest): Promise<ManagerAnswer<ManagedInstance>> {

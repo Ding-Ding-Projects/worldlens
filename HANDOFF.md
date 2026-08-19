@@ -384,33 +384,40 @@ version skew、大 inventory、restart、accessibility、localization 同窄闊�
 
 ## Issue #69 — Docker hosting instance manager — 2026-08-19
 
-Issue #69 remains **open and unverified**. The issue-owned checkout contains the local Docker
-hosting manager source in `design/packages/app/src/main/dockerhosting/index.ts`, `ipc.ts`, and
-`manager.ts`, plus the `DockerHostingScreen.vue` UI and its bridge/catalogue wiring. This is a
-separate feature from Docker render execution, Docker world import, and remote SSH/Docker hosting.
-The direct feature record is [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md).
+Issue #69 remains **open and unverified**. The issue-owned checkout contains the local manager in
+`design/packages/app/src/main/dockerhosting/manager.ts`, `ipc.ts` and `index.ts`, the preload
+bridge in `design/packages/app/src/preload/index.ts`, the `DockerHostingScreen.vue` surface and
+`dockerHostingBridge.ts`, plus `main/index.ts` startup wiring, the `dockerHosting` tab, the
+command-palette catalogue entry and feature registration. The direct feature record is
+[`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md).
 
-The source boundary covers daemon discovery, application-owned container inventory, plan-first
-lifecycle operations, unmanaged-workload protection, persistent targets/history, and the tabbed
-manager surface. Acceptance is not proven: no tests, Docker daemon, throwaway container, package,
-runtime interaction, or capture was run in this records-only pass. The next owner must obtain
-isolated real-daemon receipts for missing CLI, stopped daemon, refused socket, unusable response,
-ownership filtering, create/start/stop/restart/update/remove, cancellation, recovery, restart
-reattachment, bulk/export and non-owned-workload protection, then capture the genuine packaged
-surface through the approved headless route.
+The current source discovers daemon state, filters containers/volumes by app-owned labels, inventories
+exact digest-pinned image references,
+persists instance records, validates digest-pinned create requests, checks port conflicts and named
+volume ownership, verifies create results with rollback, and exposes start/stop/restart/remove,
+progress, cancellation, bounded logs, selection/export and native confirmation surfaces. Update is
+explicitly refused until a transactional recreate plan can preserve mounts, ports and ownership;
+actual server/map configuration management, persistent full logs/history, complete multi-row bulk actions and
+Visual Studio Code handoff are not yet complete.
+
+This records update ran no tests, contacted no Docker daemon, created no throwaway container, built
+no package and took no capture. Real daemon state/refusal/ownership/rollback, lifecycle recovery,
+reattachment, update/map/configuration, persistent logs/history, multi-bulk/export, VS Code,
+packaged interaction and headless capture evidence remain open. Preserve this evidence boundary;
+do not close Issue #69 from source presence alone.
 
 ### 廣東話 / Cantonese
 
-Issue #69 仲係 **open，未驗證**。呢個 issue-owned checkout 有本機 Docker hosting manager 嘅
-source：`dockerhosting/index.ts`、`ipc.ts`、`manager.ts`，仲有 `DockerHostingScreen.vue`
-同 bridge/catalogue wiring。呢個同 Docker render、Docker world import、SSH/Docker remote
-hosting 分開；直接 feature record 係 [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md)。
+Issue #69 仲係 **open，未驗證**。Issue-owned checkout 有 manager、IPC/preload bridge、
+`DockerHostingScreen.vue`、`dockerHosting` tab、command-palette entry 同 startup wiring；直接
+feature record 係 [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md)。
 
-Source boundary 已經有 daemon discovery、app-owned container inventory、plan-first lifecycle、
-unmanaged workload protection、targets/history persistence 同 tabbed manager surface；但今次
-只寫 records，冇跑 tests、冇掂真 daemon、冇開 throwaway container、冇 package、冇 runtime
-interaction、冇 capture。下一位 owner 要補真 daemon refusal/ownership/lifecycle/recovery 同
-packaged headless evidence。
+而家 source 會 probe daemon、淨係揀 app-owned labels、保存 instance records、驗 digest-pinned
+create、檢查 port/volume ownership、做 create verification/rollback，仲有 start/stop/restart/
+remove、progress/cancel、bounded logs、selection/export 同 native confirmation。Update 暫時
+明確拒絕，等 transactional recreate plan；map/config、完整 persistent logs/history、multi-bulk
+同 VS Code handoff 仲未齊。今次只寫 records，冇 tests、真 daemon、throwaway container、package
+或者 capture；真 runtime 同 packaged evidence 仍然 open。
 
 ## Issue #80 — privacy-safe in-app issue reporting (2026-08-19)
 

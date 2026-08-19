@@ -625,6 +625,48 @@ interface DashboardSnapshot {
     readonly entries: readonly DashboardEntry[];
 }
 
+/** Exact request accepted by the main-process `dockerhosting:create` handler. */
+interface DockerHostingCreateInstanceRequest {
+    readonly id: string;
+    readonly name: string;
+    readonly image: string;
+    readonly ports?: readonly number[];
+    readonly volumes?: readonly string[];
+    readonly removeToken?: string;
+}
+
+/** Exact managed-instance value returned by `dockerhosting:create`. */
+interface DockerHostingCreatedInstance {
+    readonly id: string;
+    readonly name: string;
+    readonly image: string;
+    readonly containerId: string | null;
+    readonly state: "created" | "running" | "paused" | "exited" | "unknown";
+    readonly ports: readonly number[];
+    readonly volumes: readonly string[];
+    readonly updatedAt: string;
+    readonly health: string | null;
+    readonly fingerprint: string | null;
+}
+
+type DockerHostingCreateAnswer =
+    | { readonly ok: true; readonly value: DockerHostingCreatedInstance }
+    | {
+          readonly ok: false;
+          readonly failure: {
+              readonly code: "invalid-request" | "docker-unavailable" | "not-found" | "not-owned" | "command-failed" | "storage-failed";
+              readonly message: string;
+              readonly detail: string | null;
+          };
+      };
+
+type CreateInstanceRequest = DockerHostingCreateInstanceRequest;
+type CreateInstanceAnswer = DockerHostingCreateAnswer;
+
+interface DockerHostingBridge {
+    create(request: CreateInstanceRequest): Promise<CreateInstanceAnswer>;
+}
+
 interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
@@ -633,6 +675,8 @@ interface WorldlensBridge {
     dashboardSnapshot(): Promise<DashboardSnapshot>;
     dashboardRefresh(options?: { readonly concurrency?: number; readonly retries?: number; readonly backoffMs?: number }): Promise<DashboardSnapshot>;
     dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
+    dockerHosting?: DockerHostingBridge;
+    dockerHostingCreate(request: CreateInstanceRequest): Promise<CreateInstanceAnswer>;
     schoolMode?: SharedSchoolModeBridge;
     vocabulary?: {
         read(): Promise<{ readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string } }>;

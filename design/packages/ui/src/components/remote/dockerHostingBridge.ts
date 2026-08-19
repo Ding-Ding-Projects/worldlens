@@ -37,6 +37,29 @@ export interface DockerHostingSnapshot {
 export interface DockerHostingFailure { readonly code: string; readonly message: string; readonly detail: string | null; }
 export type DockerHostingReadResult = { readonly ok: true; readonly snapshot: DockerHostingSnapshot } | { readonly ok: false; readonly failure: DockerHostingFailure };
 export type DockerHostingMutationResult = { readonly ok: true; readonly snapshot: DockerHostingSnapshot } | { readonly ok: false; readonly failure: DockerHostingFailure };
+export interface CreateInstanceRequest {
+    readonly id: string;
+    readonly name: string;
+    readonly image: string;
+    readonly ports?: readonly number[];
+    readonly volumes?: readonly string[];
+    readonly removeToken?: string;
+}
+export interface DockerHostingManagedInstance {
+    readonly id: string;
+    readonly name: string;
+    readonly image: string;
+    readonly containerId: string | null;
+    readonly state: "created" | "running" | "paused" | "exited" | "unknown";
+    readonly ports: readonly number[];
+    readonly volumes: readonly string[];
+    readonly updatedAt: string;
+    readonly health: string | null;
+    readonly fingerprint: string | null;
+}
+export type DockerHostingCreateAnswer =
+    | { readonly ok: true; readonly value: DockerHostingManagedInstance }
+    | { readonly ok: false; readonly failure: DockerHostingFailure };
 export type DockerHostingOperation = "start" | "stop" | "restart" | "update" | "remove";
 export interface DockerHostingRequest { readonly operation: DockerHostingOperation; readonly containerId: string; readonly image?: string; }
 
@@ -49,6 +72,7 @@ export type DockerHostingEvent =
     | { readonly type: "cancelled"; readonly operationId: string; readonly at: string };
 
 export interface DockerHostingBridge {
+    create(request: CreateInstanceRequest): Promise<DockerHostingCreateAnswer>;
     inspect(): Promise<DockerHostingReadResult>;
     authorize(request: { readonly operation: "stop"; readonly containerId: string }): Promise<{ readonly ok: true; readonly token: string } | { readonly ok: false; readonly failure: DockerHostingFailure }>;
     removeToken(containerId: string): Promise<{ readonly ok: true; readonly token: string } | { readonly ok: false; readonly failure: DockerHostingFailure }>;
@@ -60,6 +84,7 @@ export interface DockerHostingBridge {
 
 type Host = Partial<DockerHostingBridge & {
     dockerHosting?: Partial<DockerHostingBridge>;
+    dockerHostingCreate: (request: CreateInstanceRequest) => Promise<unknown>;
     dockerHostingInspect: () => Promise<unknown>;
     dockerHostingMutate: (request: unknown) => Promise<unknown>;
     dockerHostingCancel: (operationId: string) => Promise<boolean>;
@@ -72,6 +97,7 @@ const isFunction = (value: unknown): value is (...args: never[]) => unknown => t
 export function resolveDockerHostingBridge(): DockerHostingBridge | null {
     const world = (globalThis as { worldlens?: Host }).worldlens;
     const candidate = world?.dockerHosting ?? (world?.dockerHostingInspect === undefined ? undefined : {
+        create: world.dockerHostingCreate,
         inspect: world.dockerHostingInspect,
         authorize: world.dockerHostingAuthorize,
         removeToken: world.dockerHostingRemoveToken,
@@ -80,14 +106,21 @@ export function resolveDockerHostingBridge(): DockerHostingBridge | null {
         cancel: world.dockerHostingCancel,
         onEvent: world.onDockerHostingEvent,
     });
-    if (candidate === undefined || !isFunction(candidate.inspect) || !isFunction(candidate.authorize) || !isFunction(candidate.mutate) || !isFunction(candidate.logs) || !isFunction(candidate.cancel) || !isFunction(candidate.onEvent)) return null;
+    if (candidate === undefined || !isFunction(candidate.create) || !isFunction(candidate.inspect) || !isFunction(candidate.authorize) || !isFunction(candidate.mutate) || !isFunction(candidate.logs) || !isFunction(candidate.cancel) || !isFunction(candidate.onEvent)) return null;
     const normalize = (answer: unknown): DockerHostingReadResult | DockerHostingMutationResult => {
         if (typeof answer === "object" && answer !== null && "ok" in answer && (answer as { ok?: unknown }).ok === true && "value" in answer) {
             return { ok: true, snapshot: (answer as { value: DockerHostingSnapshot }).value };
         }
         return answer as DockerHostingReadResult | DockerHostingMutationResult;
     };
+    const normalizeCreate = (answer: unknown): DockerHostingCreateAnswer => {
+        if (typeof answer === "object" && answer !== null && "ok" in answer && (answer as { ok?: unknown }).ok === true && "value" in answer) {
+            return { ok: true, value: (answer as { value: DockerHostingManagedInstance }).value };
+        }
+        return answer as DockerHostingCreateAnswer;
+    };
     return {
+        create: async (request) => normalizeCreate(await candidate.create!(request)),
         inspect: async () => normalize(await candidate.inspect!()) as DockerHostingReadResult,
         authorize: async (request) => (await candidate.authorize!(request)) as { readonly ok: true; readonly token: string } | { readonly ok: false; readonly failure: DockerHostingFailure },
         removeToken: async (containerId) => {

@@ -2,12 +2,19 @@
 
 ## Behaviour
 
-Issue #69 requests a local Docker hosting manager for BlueMap server instances. This is a
+Issue #69 provides a local Docker hosting manager for BlueMap server instances. This is a
 different surface from rendering a map inside a container, importing a world from a container or
-publishing an already-rendered map to a remote SSH host. The manager is expected to own and manage
-only the application-created workloads.
+publishing an already-rendered map to a remote SSH host. The manager owns and manages only
+workloads carrying this application's ownership labels.
 
-The requested surface must discover the local Docker daemon and distinguish these states:
+The current source is split across `design/packages/app/src/main/dockerhosting/manager.ts`,
+`ipc.ts` and `index.ts`, with the preload bridge in `design/packages/app/src/preload/index.ts` and
+the user-facing surface in `design/packages/ui/src/components/remote/DockerHostingScreen.vue`.
+`main/index.ts` starts it with a user-data record file, `jobRegistry.ts` registers the
+`dockerHosting` destination, `App.vue` mounts the tab, and `catalogues.ts` exposes the command-
+palette/feature-catalogue entry.
+
+The surface discovers the local Docker daemon and distinguishes these states:
 
 | State | Required meaning |
 | --- | --- |
@@ -15,19 +22,24 @@ The requested surface must discover the local Docker daemon and distinguish thes
 | `daemon-unreachable` | The CLI exists, but the daemon socket or service does not answer. |
 | `refused` | The daemon answers, but this account is not permitted to use it. |
 | `unusable` | Docker returned an unrecognised or unusable response. |
-| `ready` | The daemon response is usable for the requested operation. |
+| `ready` / `available` | The daemon response is usable for the requested operation. |
 
-When ready, the manager must list and inspect application-owned containers and images, ports,
-volumes, maps, configuration, health, logs and update state. Create, start, stop, restart, update
-and remove actions must be plan-first operations with explicit conflict and disabled-reason copy.
-Removal is destructive: it must use the app's native two-key/full-slider confirmation and refuse to
-touch workloads that are not recorded as application-owned.
+When ready, the manager lists and inspects application-owned containers and labelled volumes, while
+the image inventory is limited to exact digest-pinned references (`repository@sha256:...`). Create
+validates a digest-pinned image,
+safe id/name, ports and volumes, checks port conflicts, creates owned named volumes when needed,
+labels the container, verifies the created container and loopback mappings, and rolls back when
+verification fails. Start, stop and restart run through the manager IPC with progress, cancellation
+and refresh events. Stop and remove use native confirmation surfaces; remove consumes a short-lived
+one-use authorization token and keeps volumes and unrelated workloads out of scope.
 
-The manager also needs guided image, port, path, volume and resource pickers; persistent targets,
-settings and history; restart reattachment; complete log retention; bulk actions and export; and a
-direct action to open generated files or folders in Visual Studio Code. Its navigation must be
-tabbed, searchable and backed by the project's anchored full regex builder, with the normal
-localization, funny-level, accessibility, responsive-layout and per-element appearance contracts.
+The surface provides a guided create path through validated values, a persistent target record,
+restart reattachment through the saved record file, bounded log display, selection/export for
+owned rows, and a direct tab/command-palette destination. It is tabbed and searchable through the
+anchored regex builder, with per-element appearance targeting and the normal localization,
+funny-level, accessibility, responsive-layout and confirmation contracts. Full image/resource
+pickers, actual server/map configuration editing, generated-file/folder handoff to Visual Studio Code,
+and complete history/bulk-action treatment remain open work.
 
 ## Configuration and ownership boundary
 
@@ -67,18 +79,19 @@ will be affected.
 
 ## Verification status
 
-Issue #69 remains open and unverified. The current checkout contains the existing Docker render,
-Docker world-import and remote-hosting foundations, but no dedicated local Docker hosting
-instance-manager implementation was found in the source inventory. This documentation-only record
-did not run tests, contact a Docker daemon, create throwaway containers, exercise refusal or
-cancellation paths, build the packaged application, or take a headless capture. Those are required
-before any acceptance item can be marked complete.
+Issue #69 remains open and unverified. The current checkout contains the manager implementation,
+bridge, navigation and catalogue wiring described above, alongside the existing Docker render,
+Docker world-import and remote-hosting foundations. This records update did not run tests, contact
+a Docker daemon, create throwaway containers, exercise refusal or cancellation paths, build the
+packaged application, or take a headless capture. Those are required before any acceptance item can
+be marked complete.
 
-The next owner should first add the manager implementation and its feature article/site entry,
-then prove daemon-state handling and ownership isolation against an isolated throwaway Docker
-environment. The packaged application must subsequently exercise plan, mutation, recovery,
-reattachment, bulk and export flows through the approved headless route, with captures of the real
-surface and redacted operation receipts.
+The next owner must prove daemon-state handling and ownership isolation against an isolated
+throwaway Docker environment; create conflict and rollback; start/stop/restart; update refusal
+until transactional recreate exists; map/configuration state; persistent logs/history; multi-row
+bulk actions; export and Visual Studio Code handoff. The packaged application must subsequently
+exercise these flows through the approved headless route, with captures of the real surface and
+redacted operation receipts.
 
 ## Related
 
@@ -92,11 +105,15 @@ surface and redacted operation receipts.
 
 ### 廣東話 / Cantonese
 
-Issue #69 要整嘅係一個本機 Docker hosting manager，專門管理個 app 自己開嘅 BlueMap server
-container；唔係喺 container 入面 render、唔係由 container 攞 world、亦唔係 SSH 去遠端機
-host 已經 render 好嘅地圖。要分清 CLI 唔見、daemon 停咗、socket 被拒、答案唔啱用同 ready，
-再用真資料列 container、image、port、volume、map、config、health、log 同 update 狀態。
+Issue #69 而家有一個本機 Docker hosting manager，專門管理帶住 app ownership labels 嘅
+BlueMap server container；唔係喺 container 入面 render、唔係由 container 攞 world、亦唔係
+SSH 去遠端機 host 已經 render 好嘅地圖。Source 已經有 manager、IPC/preload bridge、
+`dockerHosting` tab、command-palette entry、create validation、label filtering、persistent
+record、progress/cancel、logs、selection/export 同 confirmation surface。要分清 CLI 唔見、
+daemon 停咗、socket 被拒、答案唔啱用同 ready，再用真資料列 container、image、port、volume、
+map、config、health、log 同 update 狀態。
 
 今次只係寫 records，冇跑 tests、冇掂真 daemon、冇開 throwaway container、冇 package、冇
-headless capture。實作、ownership isolation、plan-first mutation、recovery、bulk/export 同
-真 packaged evidence 都仲係下一位 owner 要補嘅工作。
+headless capture。真 daemon ownership/refusal、create rollback、update、map/config state、
+persistent log/history、multi-bulk、VS Code handoff 同 packaged evidence 都仲係下一位 owner
+要補嘅工作。
