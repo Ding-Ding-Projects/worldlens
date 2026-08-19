@@ -62,7 +62,16 @@ try {
     $candidateStatus = @(git -C $repo status --porcelain --untracked-files=all)
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect candidate worktree status." }
     if ($candidateStatus.Count -gt 0) {
-        throw "The candidate worktree is dirty; release smoke requires a clean exact commit."
+        $dirtySummary = @(
+            $candidateStatus |
+                Select-Object -First 20 |
+                ForEach-Object {
+                    $entry = ($_ -replace '[\x00-\x1f\x7f]', ' ').Trim()
+                    if ($entry.Length -gt 240) { $entry.Substring(0, 240) } else { $entry }
+                }
+        ) -join "; "
+        if ($candidateStatus.Count -gt 20) { $dirtySummary += "; ... and $($candidateStatus.Count - 20) more entries" }
+        throw "The candidate worktree is dirty; release smoke requires a clean exact commit. Status: $dirtySummary"
     }
     $server = Start-Process -FilePath $pythonw -ArgumentList @(
         "-m", "lowlevel_computer_use_mcp.server", "--http", "--legacy-http",
