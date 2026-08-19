@@ -427,6 +427,19 @@ produced no tiles as a completed render, so the run is only a success when the e
 
 ## Verification
 
+### Issue #85 real-host boundary (2026-08-19)
+
+The implementation and fake-command matrix remain useful shape evidence, but they do not close
+issue #85. A genuine packaged run against isolated disposable Linux and Windows OpenSSH hosts is
+still required, including host-key review, key-only authentication, Docker and disk failures,
+resumable transfer, disconnect/re-attach, cancellation, cleanup, and redacted logs and captures.
+No real-host command output, transfer measurements, hashes, or packaged capture is asserted here.
+
+This documentation update was made in an ultra-speed records pass with tests and captures
+intentionally skipped. It therefore adds no new verification. The remote-hosting surface also
+depends on issue #84 being mounted into application navigation before the end-to-end combined
+flow can be accepted.
+
 `design/packages/app/src/main/remote/` has 154 tests, and not one of them needs an SSH client, a
 container runtime, a server or a network:
 

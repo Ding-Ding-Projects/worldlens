@@ -67,8 +67,11 @@ import {
     publishBindAddress,
     remoteHostingContainerName,
     remoteHostingTeardownArguments,
+    remoteHostingInspectArguments,
+    REMOTE_HOSTING_MANAGED_VALUE,
     remoteServeDockerRunArguments,
     REMOTE_HOSTING_CONTAINER_PORT,
+    isValidRemoteHostingPublish,
     type RemoteHostingPublish,
 } from "./hostplan.js";
 import { remotePaths, remoteWorldPath, type RemoteRenderPaths } from "./plan.js";
@@ -76,7 +79,7 @@ import { preflight, type PreflightOptions, type PreflightReport } from "./prefli
 import { remoteCommandLine, sshArguments, sshScriptArguments, type SshOptionsInput } from "./ssh.js";
 import { chooseTransfer } from "./rsync.js";
 import { scpTransfer, TransferError, type FileTransfer } from "./transfer.js";
-import { describeTarget, type RemoteTarget } from "./target.js";
+import { describeTarget, validateTarget, type PartialRemoteTarget, type RemoteTarget } from "./target.js";
 
 /* -------------------------------------------------------------------------- */
 /* What crosses                                                               */
@@ -179,6 +182,15 @@ export interface RemoteHostFailureResult {
 }
 
 export type RemoteHostResult = RemoteHostSuccess | RemoteHostFailureResult;
+
+/**
+ * Hosting ids become local record/config directory names and are embedded in remote
+ * container/staging names. Keep them a single path-safe token before they reach either
+ * filesystem or command construction boundary.
+ */
+export function isSafeHostingId(value: string): boolean {
+    return /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value);
+}
 
 export interface RemoteHostStopReport {
     readonly hostingId: string;
@@ -283,6 +295,18 @@ export class RemoteHostingOrchestrator {
         const hostingId = request.hostingId;
         const startedAt = this.clock().getTime();
         const requestedEngine = request.engine ?? "upstream-java";
+
+        if (!isSafeHostingId(hostingId)) {
+            return this.fail(
+                hostingId,
+                failures.invalidTarget(
+                    "The hosting id must be 1-128 characters using letters, numbers, '.', '_' or '-'.",
+                ),
+            );
+        }
+        if (!isValidRemoteHostingPublish(request.publish)) {
+            return this.fail(hostingId, failures.invalidTarget("The published host port and bind mode are invalid."));
+        }
 
         const firstMap = request.maps[0];
         if (request.maps.length === 0 || firstMap === undefined) {
@@ -392,11 +416,20 @@ export class RemoteHostingOrchestrator {
 
             /* replace + serve ------------------------------------------------ */
             this.phase(hostingId, "starting");
-            await this.runCommand(this.options.ssh ?? "ssh", [
-                ...sshArguments(sshOptions),
-                remoteCommandLine(remoteHostingTeardownArguments(target, containerName)),
-            ]);
-
+            const previous = await this.inspectOwnedContainer(target, sshOptions, containerName, hostingId);
+            if (!previous.ok) return this.fail(hostingId, previous.failure);
+            if (!previous.missing) {
+                const removed = await this.runCommand(this.options.ssh ?? "ssh", [
+                    ...sshArguments(sshOptions),
+                    remoteCommandLine(remoteHostingTeardownArguments(target, containerName)),
+                ]);
+                if (!removed.ok && !/No such container/i.test(removed.stderr)) {
+                    return this.fail(
+                        hostingId,
+                        failures.remoteCommandFailed(name, "Replacing the hosted map", removed.exitCode, removed.stderr),
+                    );
+                }
+            }
             const run = remoteServeDockerRunArguments({
                 target,
                 paths,
@@ -463,6 +496,7 @@ export class RemoteHostingOrchestrator {
 
     /** Re-checks whether an already-hosted map still answers, without transferring anything. */
     async refresh(hostingId: string): Promise<RemoteHostingRecord | null> {
+        if (!isSafeHostingId(hostingId)) return null;
         const saved = await this.readRecord(hostingId);
         if (saved === null) return null;
         const sshOptions = this.sshOptions(saved.target);
@@ -488,6 +522,14 @@ export class RemoteHostingOrchestrator {
      * method performs the destructive action, it does not decide whether the person meant it.
      */
     async stopHosting(hostingId: string): Promise<RemoteHostStopResult> {
+        if (!isSafeHostingId(hostingId)) {
+            return {
+                ok: false,
+                failure: failures.invalidTarget(
+                    "The hosting id must be 1-128 characters using letters, numbers, '.', '_' or '-'.",
+                ),
+            };
+        }
         const saved = await this.readRecord(hostingId);
         if (saved === null) {
             return {
@@ -500,23 +542,27 @@ export class RemoteHostingOrchestrator {
         const notes: string[] = [];
         try {
             const sshOptions = this.sshOptions(target);
-            const teardown = await this.runCommand(this.options.ssh ?? "ssh", [
-                ...sshArguments(sshOptions),
-                remoteCommandLine(remoteHostingTeardownArguments(target, saved.containerName)),
-            ]);
-            const containerRemoved = teardown.ok || /No such container/i.test(teardown.stderr);
-            if (!containerRemoved) {
-                return {
-                    ok: false,
-                    failure: failures.remoteCommandFailed(
-                        name,
-                        "Stopping the hosted map",
-                        teardown.exitCode,
-                        teardown.stderr,
-                    ),
-                };
+            const ownership = await this.inspectOwnedContainer(target, sshOptions, saved.containerName, hostingId);
+            if (!ownership.ok) return { ok: false, failure: ownership.failure };
+            let containerRemoved = ownership.missing;
+            if (!ownership.missing) {
+                const teardown = await this.runCommand(this.options.ssh ?? "ssh", [
+                    ...sshArguments(sshOptions),
+                    remoteCommandLine(remoteHostingTeardownArguments(target, saved.containerName)),
+                ]);
+                containerRemoved = teardown.ok || /No such container/i.test(teardown.stderr);
+                if (!containerRemoved) {
+                    return {
+                        ok: false,
+                        failure: failures.remoteCommandFailed(
+                            name,
+                            "Stopping the hosted map",
+                            teardown.exitCode,
+                            teardown.stderr,
+                        ),
+                    };
+                }
             }
-
             let filesRemoved = false;
             if (target.keepRemoteFiles) {
                 notes.push(
@@ -568,10 +614,10 @@ export class RemoteHostingOrchestrator {
     }
 
     async readRecord(hostingId: string): Promise<RemoteHostingRecord | null> {
+        if (!isSafeHostingId(hostingId)) return null;
         try {
             const parsed: unknown = JSON.parse(await readFile(this.recordPath(hostingId), "utf8"));
-            if (typeof parsed !== "object" || parsed === null) return null;
-            return parsed as RemoteHostingRecord;
+            return this.validateStoredRecord(parsed, hostingId);
         } catch {
             return null;
         }
@@ -654,6 +700,77 @@ export class RemoteHostingOrchestrator {
         });
         this.log(hostingId, "INFO", choice.message);
         return choice.transfer;
+    }
+
+    private async inspectOwnedContainer(
+        target: RemoteTarget,
+        sshOptions: SshOptionsInput,
+        containerName: string,
+        hostingId: string,
+    ): Promise<{ readonly ok: true; readonly missing: boolean } | { readonly ok: false; readonly failure: RemoteFailure }> {
+        let inspected;
+        try {
+            inspected = await this.runCommand(this.options.ssh ?? "ssh", [
+                ...sshArguments(sshOptions),
+                remoteCommandLine(remoteHostingInspectArguments(target, containerName)),
+            ]);
+        } catch (error) {
+            return { ok: false, failure: failures.remoteCommandFailed(describeTarget(target), "Inspecting the hosted map", null, sentence(error)) };
+        }
+        if (!inspected.ok) {
+            if (/No such (?:object|container)/i.test(inspected.stderr)) return { ok: true, missing: true };
+            return {
+                ok: false,
+                failure: failures.remoteCommandFailed(
+                    describeTarget(target),
+                    "Inspecting the hosted map",
+                    inspected.exitCode,
+                    inspected.stderr || inspected.stdout,
+                ),
+            };
+        }
+        const expected = `${REMOTE_HOSTING_MANAGED_VALUE}|${hostingId}`;
+        if (inspected.stdout.trim() !== expected) {
+            return {
+                ok: false,
+                failure: failures.invalidTarget(
+                    `The container '${containerName}' exists but is not an app-owned hosted-map container; refusing to remove it.`,
+                ),
+            };
+        }
+        return { ok: true, missing: false };
+    }
+
+    private validateStoredRecord(parsed: unknown, hostingId: string): RemoteHostingRecord | null {
+        if (typeof parsed !== "object" || parsed === null) return null;
+        const value = parsed as Record<string, unknown>;
+        if (value["version"] !== 1 || value["hostingId"] !== hostingId || !isSafeHostingId(hostingId)) return null;
+        if (typeof value["target"] !== "object" || value["target"] === null) return null;
+        const checkedTarget = validateTarget(value["target"] as PartialRemoteTarget);
+        if (!checkedTarget.ok || !isValidRemoteHostingPublish(value["publish"])) return null;
+        if (value["containerName"] !== remoteHostingContainerName(hostingId)) return null;
+        const remoteRoot = value["remoteRoot"];
+        if (
+            typeof remoteRoot !== "string" ||
+            !remoteRoot.startsWith("/") ||
+            /[\u0000-\u001F:\\]/.test(remoteRoot) ||
+            remoteRoot.includes("..") ||
+            !remoteRoot.endsWith(`/host-${hostingId}`)
+        ) return null;
+        if (!Array.isArray(value["mapIds"]) || !value["mapIds"].every((id) => typeof id === "string" && isSafeHostingId(id))) return null;
+        if (typeof value["renderId"] !== "string" || !isSafeHostingId(value["renderId"])) return null;
+        if (typeof value["status"] !== "string" || !["running", "stopped", "unknown"].includes(value["status"])) return null;
+        if (typeof value["verified"] !== "boolean" || typeof value["remoteFilesKept"] !== "boolean") return null;
+        if (value["url"] !== null && typeof value["url"] !== "string") return null;
+        if (value["verifiedVia"] !== null && value["verifiedVia"] !== "network" && value["verifiedVia"] !== "ssh-loopback") return null;
+        if (!Array.isArray(value["notes"]) || !value["notes"].every((note) => typeof note === "string")) return null;
+        if (typeof value["startedAt"] !== "string" || typeof value["lastCheckedAt"] !== "string") return null;
+        return {
+            ...(value as unknown as RemoteHostingRecord),
+            target: checkedTarget.target,
+            containerName: remoteHostingContainerName(hostingId),
+            publish: value["publish"] as RemoteHostingPublish,
+        };
     }
 
     private sshOptions(target: RemoteTarget): SshOptionsInput {

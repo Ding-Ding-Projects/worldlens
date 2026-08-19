@@ -1,5 +1,24 @@
 # Handoff
 
+## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
+
+This records-only pass preserves issue #85 as open and unverified. The three feature documents
+now state the exact missing evidence: an isolated disposable Linux OpenSSH host and an isolated
+disposable Windows OpenSSH host, independently verified fingerprints, key-only authentication,
+world browse/survey/diff/fetch/cancel, `rsync` and `scp` fallback or resume behavior, remote
+render upload/launch/progress/reattach/collect/cancel, remote hosting publish/refresh/stop, and
+redacted logs and captures. No real-host command output, transfer measurements, hashes, or
+packaged captures were produced in this pass.
+
+Remote hosting has an explicit dependency on issue #84: its panel is not yet mounted in the
+application’s discoverable tab navigation with real saved-target and completed-map context. The
+combined issue must not be closed until that dependency and its packaged acceptance evidence are
+resolved.
+
+The ultra-speed pass deliberately skipped tests and captures. That is a process boundary, not a
+verification result; the existing fake-host tests and built-panel evidence retain their prior
+status. No implementation, test, capture, merge, push, or cleanup was performed in this lane.
+
 ## Issue #52 release host and account routing — 2026-08-19
 
 The release transport repair is present on the current default branch through

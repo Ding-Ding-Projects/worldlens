@@ -1,5 +1,17 @@
 # Roadmap
 
+## Issue #85 — SSH flow acceptance boundary (2026-08-19)
+
+The SSH world-source, remote-render, and remote-hosting implementation remains fake-host and
+standalone-panel evidence only. Close-out still needs isolated disposable Linux and Windows
+OpenSSH hosts, independently verified fingerprints, key-only authentication, real transfer and
+resume/cancel behavior, remote render reattach and collection, remote hosting publish/refresh/stop,
+and cheap-headless packaged captures with secrets and unrelated workload data absent.
+
+Issue #84 is a prerequisite for the combined acceptance because remote hosting is not yet mounted
+in application navigation with real saved-target and completed-map context. The ultra-speed
+records pass intentionally ran no tests and took no captures; this entry is not a new verdict.
+
 ## Issue #78 — render engine selection
 
 Source implementation and focused verification are complete. The remaining acceptance record is a

@@ -127,6 +127,20 @@ find out.
 
 ## Verification
 
+### Issue #85 acceptance boundary (2026-08-19)
+
+This issue remains open. The evidence below is fake-host and built-panel evidence only; it is
+not proof of a packaged application completing a real transfer. Acceptance still requires
+isolated disposable Linux and Windows OpenSSH hosts, independently checked fingerprints,
+non-password authentication, POSIX and Windows path handling, `rsync`/`scp` behavior, resume,
+cancel, interrupted-transfer recovery, and redacted logs and captures. No real-host commands,
+versions, byte counts, durations, hashes, or packaged captures are claimed by this record.
+
+The records-only ultra-speed pass that added this note intentionally ran no tests and took no
+captures. That boundary is separate from issue #85 acceptance and must not be read as evidence
+that any matrix row passed. Remote-hosting UI reachability remains a dependency on issue #84;
+that dependency must be resolved before the combined real-host flow can close.
+
 `design/packages/app/src/main/remote/worldsource.ts`, `windowsShell.ts`, and
 `design/packages/app/src/main/worldsource/sshFetcher.ts` / `sshIpc.ts` have **64 main-process
 tests**, all of them against fake SSH and process runners. The reachable wizard path adds
@@ -149,9 +163,9 @@ Run them with `npx vitest run packages/app` from `design/`.
 Windows detection and survey, and the scp fallback — is proven against fakes that answer
 exactly as OpenSSH, PowerShell and `find` are documented to, not against a genuine Windows
 OpenSSH server or a real Linux box. The connection, host-key and transfer _code paths_ are the
-same ones `remote-render.md` already reports verified against a real Linux host; the
-Windows-specific probe and survey scripts in `windowsShell.ts` have not had that same real-host
-pass yet.
+same ones `remote-render.md` also records as unverified against a real host; the
+Windows-specific probe and survey scripts in `windowsShell.ts` have not had a real-host pass
+either.
 
 The desktop application registers this at startup (`startSshWorldSources()` in
 `main/index.ts`) and the map wizard's World step now reaches it through

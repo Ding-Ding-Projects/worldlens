@@ -649,6 +649,7 @@ export class RemoteRenderOrchestrator {
             ...(this.options.ssh === undefined ? {} : { ssh: this.options.ssh }),
             ...(this.options.rsync === undefined ? {} : { rsync: this.options.rsync }),
             ...(this.options.runner === undefined ? {} : { runner: this.options.runner }),
+            signal: this.active.get(renderId)?.value.controller.signal,
             scpTransfer: this.defaultTransfer(target),
             onLine: (line) => this.log(renderId, "WARNING", line),
         });

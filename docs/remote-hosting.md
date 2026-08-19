@@ -172,6 +172,18 @@ next thing to verify by hand.
 
 ## What is deliberately not built yet
 
+### Issue #85 dependency and evidence boundary (2026-08-19)
+
+Issue #85 cannot close the combined SSH flow while this surface remains outside the application’s
+discoverable tab navigation. Issue #84 tracks that prerequisite: the saved-target and completed-
+map pickers, command-palette destination, inventories, persistence, and real packaged publish,
+refresh, and stop path still need to be wired and captured. Until #84 is resolved, the standalone
+panel evidence below is not end-to-end application evidence.
+
+The ultra-speed records pass intentionally ran no tests and took no captures. This note records
+the dependency only; it does not upgrade the existing fake-host evidence or claim a real Linux
+host, public/loopback verification, or cleanup pass.
+
 `RemoteHostingPanel.vue` is a complete, tested, standalone component, reachable through the main
 process's `hosting:*` IPC channels and the preload bridge end to end - but it is **not yet wired
 into the application's own tab navigation**. Mounting it into a discoverable screen, and giving it

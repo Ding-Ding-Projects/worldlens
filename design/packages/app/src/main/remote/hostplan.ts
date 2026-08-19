@@ -28,6 +28,9 @@ import type { RemoteTarget } from "./target.js";
 
 /** The port the engine listens on **inside** the container. Never the host-published one. */
 export const REMOTE_HOSTING_CONTAINER_PORT = 8100;
+export const REMOTE_HOSTING_MANAGED_LABEL = "com.worldlens.managed";
+export const REMOTE_HOSTING_ID_LABEL = "com.worldlens.hosting-id";
+export const REMOTE_HOSTING_MANAGED_VALUE = "worldlens-remote-hosting";
 
 /**
  * Where the docker daemon publishes the port, on the remote host's own interfaces.
@@ -44,6 +47,18 @@ export interface RemoteHostingPublish {
     /** The port on the remote host. Chosen by the person; never invented here. */
     readonly hostPort: number;
     readonly bindMode: RemoteHostingBindMode;
+}
+
+/** Runtime validation for renderer-provided publish settings before command construction. */
+export function isValidRemoteHostingPublish(value: unknown): value is RemoteHostingPublish {
+    if (typeof value !== "object" || value === null) return false;
+    const publish = value as Record<string, unknown>;
+    return (
+        Number.isSafeInteger(publish["hostPort"]) &&
+        Number(publish["hostPort"]) >= 1 &&
+        Number(publish["hostPort"]) <= 65_535 &&
+        (publish["bindMode"] === "loopback" || publish["bindMode"] === "public")
+    );
 }
 
 /** The address `docker run -p` binds to, on the remote host. */
@@ -115,6 +130,10 @@ export function remoteServeDockerRunArguments(options: RemoteServeDockerRunOptio
         "unless-stopped",
         "--name",
         options.containerName,
+        "--label",
+        `${REMOTE_HOSTING_MANAGED_LABEL}=${REMOTE_HOSTING_MANAGED_VALUE}`,
+        "--label",
+        `${REMOTE_HOSTING_ID_LABEL}=${options.containerName.replace(/^worldlens-host-/, "")}`,
     ];
     if (options.memory !== undefined && options.memory !== null && options.memory !== "") {
         args.push("-m", options.memory);
@@ -148,7 +167,24 @@ export function remoteServeDockerRunArguments(options: RemoteServeDockerRunOptio
  * the caller treats that as success rather than a failure to report.
  */
 export function remoteHostingTeardownArguments(target: RemoteTarget, name: string): string[] {
+    if (!/^worldlens-host-[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name)) {
+        throw new Error("Refusing to tear down a container outside the remote-hosting name boundary.");
+    }
     return [target.docker, "rm", "-f", name];
+}
+
+/** Reads ownership labels before a destructive remove. */
+export function remoteHostingInspectArguments(target: RemoteTarget, name: string): string[] {
+    if (!/^worldlens-host-[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name)) {
+        throw new Error("Refusing to inspect a container outside the remote-hosting name boundary.");
+    }
+    return [
+        target.docker,
+        "inspect",
+        "--format",
+        `{{ index .Config.Labels "${REMOTE_HOSTING_MANAGED_LABEL}" }}|{{ index .Config.Labels "${REMOTE_HOSTING_ID_LABEL}" }}`,
+        name,
+    ];
 }
 
 /** `docker ps`, filtered to this one container, so its running state can be read back. */

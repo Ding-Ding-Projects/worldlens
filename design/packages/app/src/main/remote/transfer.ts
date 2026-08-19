@@ -83,7 +83,15 @@ export function scpTransfer(options: ScpTransferOptions): FileTransfer {
 
     const shell = async (script: string, what: string, transfer?: TransferOptions): Promise<void> => {
         transfer?.signal?.throwIfAborted();
-        const output = await runner(ssh, sshScriptArguments(options, script), {});
+        const output = await runner(
+            ssh,
+            sshScriptArguments(options, script),
+            transfer?.signal === undefined ? {} : { signal: transfer.signal },
+        );
+        // A cancelled child may still arrive through the runner callback with a shaped
+        // failure result. Re-check the signal before translating that result so callers
+        // retain the cancellation outcome rather than seeing a generic transfer failure.
+        transfer?.signal?.throwIfAborted();
         report(output, what, transfer);
     };
 
@@ -96,7 +104,13 @@ export function scpTransfer(options: ScpTransferOptions): FileTransfer {
         // `-q` because scp's progress meter is drawn with carriage returns and would fill
         // a log with a single unreadable line. Progress for the person comes from the
         // orchestrator's own events, which know how many things there are to send.
-        const output = await runner(scp, [...scpArguments(options, ["-q", ...args])], {});
+        const output = await runner(
+            scp,
+            [...scpArguments(options, ["-q", ...args])],
+            transfer?.signal === undefined ? {} : { signal: transfer.signal },
+        );
+        // See the shell path above: cancellation is an outcome, not a failed copy.
+        transfer?.signal?.throwIfAborted();
         report(output, what, transfer);
     };
 

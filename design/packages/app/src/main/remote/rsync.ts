@@ -91,6 +91,8 @@ export interface RsyncOptions extends SshOptionsInput {
     readonly rsync?: string;
     readonly ssh?: string;
     readonly runner?: CommandRunner;
+    /** Cancels local and remote rsync capability probes as well as transfers. */
+    readonly signal?: AbortSignal;
 }
 
 /** `rsync --version` prints `rsync  version 3.2.7  protocol version 31` on its first line. */
@@ -156,10 +158,18 @@ export async function probeRsync(options: RsyncOptions): Promise<RsyncSupport> {
     const ssh = options.ssh ?? "ssh";
     const host = `${options.target.user}@${options.target.host}`;
 
-    const local = versionFrom(await runner(rsync, ["--version"], {}));
+    options.signal?.throwIfAborted();
+    const commandOptions = options.signal === undefined ? {} : { signal: options.signal };
+    const local = versionFrom(await runner(rsync, ["--version"], commandOptions));
+    options.signal?.throwIfAborted();
     const remote = versionFrom(
-        await runner(ssh, [...sshArguments(options), remoteCommandLine([rsync, "--version"])], {}),
+        await runner(
+            ssh,
+            [...sshArguments(options), remoteCommandLine([rsync, "--version"])],
+            commandOptions,
+        ),
     );
+    options.signal?.throwIfAborted();
 
     if (local !== null && remote !== null) {
         return {
@@ -221,7 +231,15 @@ export function rsyncTransfer(options: RsyncTransferOptions): FileTransfer {
         transfer?: TransferOptions,
     ): Promise<void> => {
         transfer?.signal?.throwIfAborted();
-        const output = await runner(rsync, [...rsyncArguments(options, args)], {});
+        const output = await runner(
+            rsync,
+            [...rsyncArguments(options, args)],
+            transfer?.signal === undefined ? {} : { signal: transfer.signal },
+        );
+        // Abort can make execFile return a shaped failure before the callback settles. Keep
+        // it as the caller's cancellation rather than letting report() turn it into a
+        // resumable-transfer fallback or a generic transfer error.
+        transfer?.signal?.throwIfAborted();
         report(output, what, transfer);
     };
 
@@ -324,7 +342,9 @@ export interface ChooseTransferOptions extends RsyncOptions {
  * machines where the paths have spaces in them.
  */
 export async function chooseTransfer(options: ChooseTransferOptions): Promise<TransferChoice> {
+    options.signal?.throwIfAborted();
     const support = await (options.probe ?? probeRsync)(options);
+    options.signal?.throwIfAborted();
     if (!support.available) {
         return {
             transfer: options.scpTransfer,
@@ -371,6 +391,7 @@ export function withScpFallback(
         } catch (error) {
             if (signal?.aborted === true) throw error;
             if (isAbort(error)) throw error;
+            if (!isRsyncSpecificFailure(error)) throw error;
             onLine?.(
                 `rsync could not ${what} (${describe(error)}), so scp is being used for it instead. ` +
                     "scp cannot carry a partial file on, so if this one is interrupted it starts " +
@@ -415,6 +436,21 @@ export function withScpFallback(
 /** An abort is the render being cancelled, never a reason to try a different tool. */
 function isAbort(error: unknown): boolean {
     return error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+}
+
+/**
+ * SCP is a safe fallback only when rsync itself is unavailable or cannot speak its
+ * protocol. Permission, quota, disk, and ordinary network failures must remain failures:
+ * retrying those through SCP would hide the cause and can turn a retained partial transfer
+ * into an unbounded restart.
+ */
+function isRsyncSpecificFailure(error: unknown): boolean {
+    if (!(error instanceof TransferError)) return false;
+    if (/could not be started/i.test(error.message)) return true;
+    const detail = `${error.message}\n${error.detail ?? ""}`;
+    return /rsync\s*:\s*(?:.*\b(?:protocol|syntax|unknown option|unsupported option|remote shell)\b|.*(?:not found|command not found))/i.test(
+        detail,
+    );
 }
 
 function describe(error: unknown): string {

@@ -1,5 +1,21 @@
 # Handoff
 
+## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
+
+Issue #85 remains open and `ported-unverified`. The required next evidence is a genuine packaged
+run on isolated disposable Linux and Windows OpenSSH hosts: independently checked fingerprints,
+key-only authentication, world source browse/survey/diff/fetch/cancel, transfer fallback and
+resume, remote render upload/launch/progress/reattach/collect/cancel, remote hosting
+publish/refresh/stop, and redacted logs and captures. Fake-command tests and built-panel proofs
+must not be relabelled as that evidence.
+
+Remote hosting depends on issue #84, which still owns application-navigation reachability and the
+real saved-target/completed-map context. The combined acceptance remains blocked on that separate
+surface work and its packaged proof.
+
+The ultra-speed records pass intentionally skipped tests and captures. No implementation,
+runtime verification, merge, push, or cleanup was performed here.
+
 ## Issue #78 per-project render engine choice — 2026-08-19
 
 The schema, UI, local runtime adapter, packaging manifest, resume path, history and provenance use

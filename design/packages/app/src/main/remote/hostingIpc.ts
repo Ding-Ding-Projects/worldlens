@@ -20,11 +20,13 @@ import * as failures from "./failure.js";
 import type { RemoteFailure } from "./failure.js";
 import {
     RemoteHostingOrchestrator,
+    isSafeHostingId,
     type RemoteHostRequest,
     type RemoteHostResult,
     type RemoteHostStopResult,
     type RemoteHostingRecord,
 } from "./hosting.js";
+import { isValidRemoteHostingPublish } from "./hostplan.js";
 import { validateTarget, type PartialRemoteTarget } from "./target.js";
 
 /** Progress events for a hosting run, broadcast to every window - the same shape `render`'s channel uses. */
@@ -98,13 +100,17 @@ export function registerRemoteHostingHandlers(
     ipcMain.handle(
         "hosting:record",
         async (_event: IpcMainInvokeEvent, hostingId: unknown): Promise<RemoteHostingRecord | null> =>
-            orchestrator === null || typeof hostingId !== "string" ? null : orchestrator.readRecord(hostingId),
+            orchestrator === null || typeof hostingId !== "string" || !isSafeHostingId(hostingId)
+                ? null
+                : orchestrator.readRecord(hostingId),
     );
 
     ipcMain.handle(
         "hosting:refresh",
         async (_event: IpcMainInvokeEvent, hostingId: unknown): Promise<RemoteHostingRecord | null> =>
-            orchestrator === null || typeof hostingId !== "string" ? null : orchestrator.refresh(hostingId),
+            orchestrator === null || typeof hostingId !== "string" || !isSafeHostingId(hostingId)
+                ? null
+                : orchestrator.refresh(hostingId),
     );
 
     /**
@@ -116,7 +122,7 @@ export function registerRemoteHostingHandlers(
         "hosting:stop",
         async (_event: IpcMainInvokeEvent, hostingId: unknown): Promise<RemoteHostStopResult> => {
             if (orchestrator === null) return { ok: false, failure: NOT_CONFIGURED };
-            if (typeof hostingId !== "string" || hostingId.length === 0) {
+            if (typeof hostingId !== "string" || !isSafeHostingId(hostingId)) {
                 return { ok: false, failure: failures.invalidTarget("A hosting id is required to stop it.") };
             }
             try {
@@ -152,7 +158,7 @@ function asRequest(
     if (typeof hostingId !== "string" || hostingId.length === 0) return null;
     if (typeof renderId !== "string" || renderId.length === 0) return null;
     if (!Array.isArray(maps) || maps.length === 0) return null;
-    if (typeof publish !== "object" || publish === null) return null;
+    if (!isValidRemoteHostingPublish(publish)) return null;
 
     const rest = { ...record };
     delete rest["target"];

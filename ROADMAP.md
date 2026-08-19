@@ -91,6 +91,20 @@ for the exact evidence and the remaining factual direction-2 boundary.
   summary are present. Executable drift-proof and newcomer installation/first-render/cloud/offline
   acceptance remain separate follow-up evidence and were intentionally not run in this lane.
 
+## Issue #85 — real SSH flow acceptance boundary (2026-08-19)
+
+- [ ] Run the complete packaged SSH world-source and remote-render matrices against isolated
+  disposable Linux and Windows OpenSSH hosts with independently checked fingerprints and
+  key-only authentication.
+- [ ] Record real command versions, bytes transferred and resumed, durations, hashes, failure
+  states, cleanup results, and cheap-headless captures without exposing credentials, host secrets,
+  or unrelated workloads.
+- [ ] Resolve issue #84 first: remote hosting must be mounted in application navigation with real
+  saved-target and completed-map context before the combined publish/refresh/stop path is accepted.
+
+This entry was updated by an ultra-speed records pass that intentionally ran no tests and took no
+captures. It records gaps only and does not claim any acceptance row is green.
+
 ## Open verification work
 
 - Refresh the 117 broad application captures and 15 map-dependent captures against the current UI

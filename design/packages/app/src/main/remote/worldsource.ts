@@ -485,6 +485,7 @@ export async function fetchRemoteWorld(
             ...(options.rsync === undefined ? {} : { rsync: options.rsync }),
             ...(options.ssh === undefined ? {} : { ssh: options.ssh }),
             ...(options.runner === undefined ? {} : { runner: options.runner }),
+            ...(options.signal === undefined ? {} : { signal: options.signal }),
             scpTransfer: scp,
             ...(options.probeRsync === undefined ? {} : { probe: options.probeRsync }),
             ...(options.onLine === undefined ? {} : { onLine: options.onLine }),
