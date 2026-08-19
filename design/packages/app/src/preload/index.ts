@@ -3,6 +3,7 @@ import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
 import type { SchoolModeResult } from "../main/schoolMode/index.js";
+import type { DockerHostingSnapshot, ManagerAnswer } from "../main/dockerhosting/index.js";
 import type {
     CiBootstrapEvent,
     CiBootstrapResult,
@@ -92,6 +93,7 @@ import type {
     AppSettingsState,
 } from "../main/settings/index.js";
 import type { RestoreResult } from "../main/history/index.js";
+import { RELEASE_LEDGER_CHANNEL, type ReleaseLedgerReadout } from "../main/releaseLedger/index.js";
 import type { StartupDiagnosticsSnapshot, StartupExportFormat } from "../main/startup/index.js";
 import type { GalleryAssetRead, GalleryDraft, GalleryRecord, GalleryRevision, GalleryUpdate } from "../main/gallery/store.js";
 import {
@@ -2041,6 +2043,17 @@ export interface DockerWorldBridge {
     onDockerWorldEvent(listener: (event: DockerWorldEvent) => void): () => void;
 }
 
+/** Main-process-owned BlueMap container manager. Destructive calls require a one-use token. */
+export interface DockerHostingBridge {
+    inspect(): Promise<unknown>;
+    authorize(request: { readonly operation: "stop"; readonly containerId: string }): Promise<unknown>;
+    removeToken(containerId: string): Promise<unknown>;
+    mutate(request: unknown): Promise<unknown>;
+    logs(containerId: string, tail?: number): Promise<unknown>;
+    cancel(operationId: string): Promise<boolean>;
+    onEvent(listener: (event: unknown) => void): () => void;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Where the vendored BlueMap engine came from                               */
 /* -------------------------------------------------------------------------- */
@@ -2293,6 +2306,7 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    releaseLedgerRead(): Promise<ReleaseLedgerReadout>;
     /**
      * The renderer-safe face of the OS application-data School-mode record.  Its snapshot
      * never includes a PIN, password, salt, verifier, file path, or other credential material.
@@ -2806,6 +2820,8 @@ interface WorldlensBridge {
 
     /** Reading a world out of a Docker container or volume. See {@link DockerWorldBridge}. */
     dockerWorld: DockerWorldBridge;
+    /** Managing only this application's labelled BlueMap containers. */
+    dockerHosting: DockerHostingBridge;
 
     /**
      * A world's own record of how it should be rendered, and the history of it.
@@ -2919,6 +2935,12 @@ interface WorldlensBridge {
     dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
     /** Progress and log lines for a hosting run in progress. */
     onRemoteHostingEvent(listener: (event: RemoteHostEvent) => void): () => void;
+    dockerHostingInspect(): Promise<ManagerAnswer<DockerHostingSnapshot>>;
+    dockerHostingMutate(request: unknown): Promise<ManagerAnswer<DockerHostingSnapshot>>;
+    dockerHostingCancel(operationId: string): Promise<boolean>;
+    dockerHostingAuthorize(request: { readonly operation: "stop"; readonly containerId: string }): Promise<unknown>;
+    dockerHostingRemoveToken(instanceId: string): Promise<ManagerAnswer<string>>;
+    onDockerHostingEvent(listener: (event: unknown) => void): () => void;
     /**
      * Lists one folder on the target, for the Explorer-style remote browser.
      *
@@ -3217,6 +3239,7 @@ const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
+    releaseLedgerRead: () => ipcRenderer.invoke(RELEASE_LEDGER_CHANNEL),
     schoolMode: {
         read: () => ipcRenderer.invoke("schoolMode:read"),
         enable: (request) => ipcRenderer.invoke("schoolMode:enable", request),
@@ -3475,6 +3498,20 @@ const bridge: WorldlensBridge = {
         },
     },
 
+    dockerHosting: {
+        inspect: () => ipcRenderer.invoke("dockerhosting:inspect"),
+        authorize: (request) => ipcRenderer.invoke("dockerhosting:authorize", request),
+        removeToken: (containerId) => ipcRenderer.invoke("dockerhosting:removeToken", containerId),
+        mutate: (request) => ipcRenderer.invoke("dockerhosting:mutate", request),
+        logs: (containerId, tail = 200) => ipcRenderer.invoke("dockerhosting:logs", { id: containerId, tail }),
+        cancel: (operationId) => ipcRenderer.invoke("dockerhosting:cancel", operationId),
+        onEvent: (listener) => {
+            const forward = (_event: IpcRendererEvent, payload: unknown): void => listener(payload);
+            ipcRenderer.on("dockerhosting:event", forward);
+            return () => ipcRenderer.off("dockerhosting:event", forward);
+        },
+    },
+
     dockerRuntime: () => ipcRenderer.invoke("runtime:docker"),
     runtimeModes: () => ipcRenderer.invoke("runtime:modes"),
     containerOffers: () => ipcRenderer.invoke("runtime:containers"),
@@ -3513,6 +3550,16 @@ const bridge: WorldlensBridge = {
         return () => {
             ipcRenderer.off("hosting:event", forward);
         };
+    },
+    dockerHostingInspect: (): Promise<ManagerAnswer<DockerHostingSnapshot>> => ipcRenderer.invoke("dockerhosting:inspect"),
+    dockerHostingMutate: (request): Promise<ManagerAnswer<DockerHostingSnapshot>> => ipcRenderer.invoke("dockerhosting:mutate", request),
+    dockerHostingCancel: (operationId): Promise<boolean> => ipcRenderer.invoke("dockerhosting:cancel", operationId),
+    dockerHostingAuthorize: (request): Promise<unknown> => ipcRenderer.invoke("dockerhosting:authorize", request),
+    dockerHostingRemoveToken: (instanceId): Promise<ManagerAnswer<string>> => ipcRenderer.invoke("dockerhosting:removeToken", instanceId),
+    onDockerHostingEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: unknown): void => listener(payload);
+        ipcRenderer.on("dockerhosting:event", forward);
+        return () => ipcRenderer.off("dockerhosting:event", forward);
     },
     browseRemoteDirectory: (target, path) => ipcRenderer.invoke("remote:browse", target, path),
 

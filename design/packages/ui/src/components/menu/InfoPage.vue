@@ -6,6 +6,7 @@ import { sanitizeHtml } from "@worldlens/viewer";
 import type { BlueMapApp } from "@worldlens/viewer";
 import { useBlueMap } from "./useBlueMap";
 import ChangelogViewer from "../changelog/ChangelogViewer.vue";
+import { ReleaseLedgerViewer } from "../releaseLedger/index.js";
 import { onRevealRequested } from "../shell/revealRequests.js";
 import { tutorialCompleted } from "../tutorial/tutorialController.js";
 import { productDisplayName } from "../../stores/productName.js";
@@ -264,6 +265,11 @@ onMounted(() => {
         <summary>{{ t("info.changelog", "Changelog, every released version") }}</summary>
         <ChangelogViewer v-if="changelogOpen" />
     </details>
+
+    <details class="mb-info-page__release-ledger">
+        <summary>{{ t("info.releaseLedger", "Phase release evidence") }}</summary>
+        <ReleaseLedgerViewer />
+    </details>
 </template>
 
 <style>
@@ -325,6 +331,21 @@ onMounted(() => {
 }
 
 .mb-info-page__changelog > summary:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+.mb-info-page__release-ledger > summary {
+    cursor: pointer;
+    padding: 8px 12px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    border-radius: var(--md-sys-shape-corner-md);
+}
+
+.mb-info-page__release-ledger > summary:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
 }

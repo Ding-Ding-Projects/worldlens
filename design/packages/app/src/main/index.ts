@@ -99,6 +99,8 @@ import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index
 import type { WorldRepoIpc } from "./worldrepo/index.js";
 import { DOCKERWORLD_EVENT_CHANNEL, registerDockerWorldHandlers } from "./dockerworld/index.js";
 import type { DockerWorldIpc } from "./dockerworld/index.js";
+import { DockerHostingManager, registerDockerHostingHandlers } from "./dockerhosting/index.js";
+import type { DockerHostingIpc } from "./dockerhosting/index.js";
 import {
     PROJECT_AUTOSAVE_EVENT_CHANNEL,
     registerProjectHandlers,
@@ -109,6 +111,7 @@ import { registerStructureHandlers } from "./structures/index.js";
 import type { StructureIpc } from "./structures/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
 import type { BackupIpc } from "./backup/ipc.js";
+import { registerReleaseLedgerHandlers } from "./releaseLedger/index.js";
 import { openExternalHttps } from "./security/external.js";
 import { registerJavaHandlers, JAVA_PROVISION_EVENT_CHANNEL } from "./java/ipc.js";
 import type { JavaIpc } from "./java/ipc.js";
@@ -483,6 +486,7 @@ function registerIpc(): void {
         if (typeof text === "string") clipboard.writeText(text);
     });
     ipcMain.handle("app:version", () => app.getVersion());
+    registerReleaseLedgerHandlers();
 
     // This record sits under the OS-wide app-data root rather than Worldlens's own userData
     // directory.  Register it before a renderer can load, so preload's initial read is the
@@ -1288,6 +1292,23 @@ function startSshWorldSources(): WorldSourceSshIpc {
  * progress is also broadcast so the wizard never has to invent a percentage while waiting.
  */
 let dockerWorldIpc: DockerWorldIpc | null = null;
+let dockerHostingIpc: DockerHostingIpc | null = null;
+
+function startDockerHosting(): DockerHostingIpc {
+    if (dockerHostingIpc !== null) return dockerHostingIpc;
+    dockerHostingIpc = registerDockerHostingHandlers(ipcMain, {
+        manager: new DockerHostingManager({
+            recordFile: join(app.getPath("userData"), "docker-hosting", "instances.json"),
+            managedRoot: join(app.getPath("userData"), "docker-hosting", "data"),
+            onEvent: (event) => {
+                for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("dockerhosting:event", event);
+            },
+        }),
+    });
+    app.on("will-quit", () => dockerHostingIpc?.dispose());
+    return dockerHostingIpc;
+}
+
 
 function startDockerWorld(): DockerWorldIpc {
     if (dockerWorldIpc !== null) return dockerWorldIpc;
@@ -1792,6 +1813,7 @@ async function createWindow(): Promise<void> {
         ],
         ["network", "ssh-world-source", "SSH world sources are unavailable", startSshWorldSources],
         ["dependency", "docker-world", "Docker world import is unavailable", startDockerWorld],
+        ["dependency", "docker-hosting", "Docker hosting manager is unavailable", startDockerHosting],
         [
             "configuration",
             "world-inspection",

@@ -629,6 +629,7 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    releaseLedgerRead?: () => Promise<unknown>;
     dashboardSnapshot(): Promise<DashboardSnapshot>;
     dashboardRefresh(options?: { readonly concurrency?: number; readonly retries?: number; readonly backoffMs?: number }): Promise<DashboardSnapshot>;
     dashboardCancel(): Promise<{ readonly cancelled: boolean }>;

@@ -1,5 +1,19 @@
 # Roadmap
 
+## Issue #63 — one verified release row per completed phase
+
+- **Status:** Documentation contract is recorded; Issue #63 remains open.
+- **Record:** [`docs/manual-release-ledger.md`](docs/manual-release-ledger.md) describes the
+  schema-backed, append-only ledger in `docs/release-ledger.json` and the validator in
+  `scripts/manual-release-ledger.mjs`.
+- **Evidence boundary:** The task-owned ledger now has four historical rows (releases 682, 704,
+  708, and 731). All are `failed` with `shipped-nonconforming` disposition because the historical
+  releases copied and attached catalog photos, which current policy forbids. This documentation
+  lane ran no tests, builds, installer sessions, workflow dispatches, runtime checks, or captures.
+- **Remaining:** Keep one row for every completed phase, wire `integratedPhases` completeness
+  validation, and keep local-build facts separate from cloud verdicts. Issue #51's `.613` evidence
+  remains outside this ledger; none of these four historical rows is `verified`.
+
 ## Issue #70 — first-class marker authoring editor
 
 - **Status:** Marker-studio source work is present in the issue-owned checkout; Issue #70 remains
@@ -63,6 +77,21 @@
   restart, accessibility, localization, and compact-width verification remain
   open. See [`docs/multi-server-dashboard.md`](docs/multi-server-dashboard.md) and
   issue #77.
+
+## Issue #69 — Docker hosting instance manager — 2026-08-19
+
+- **Status:** The issue-owned checkout contains the Phase G local Docker hosting manager source,
+  including the main-process manager/IPC in `design/packages/app/src/main/dockerhosting/` and the
+  `DockerHostingScreen.vue` surface. Issue #69 remains open pending verification.
+- **Current boundary:** The implementation is intended to discover daemon state, inventory
+  application-owned containers, plan lifecycle mutations, protect unmanaged workloads, persist
+  targets/history, and expose the tabbed/searchable manager surface. Existing Docker rendering,
+  Docker world import, and remote SSH/Docker hosting remain separate features.
+- **Evidence boundary:** this records-only update ran no tests, contacted no Docker daemon, created
+  no throwaway containers, built no package and took no captures. Real daemon refusal/ownership,
+  lifecycle, cancellation/recovery, restart reattachment, bulk/export, packaged interaction and
+  headless capture evidence remain open. See
+  [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md) and issue #69.
 
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
 
