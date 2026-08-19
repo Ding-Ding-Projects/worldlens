@@ -20,6 +20,11 @@
         "@worldlens/server": "workspace:*",
         "@worldlens/shared": "workspace:*"
     },
+    "optionalDependencies": {
+        "mysql2": "^3.23.2",
+        "pg": "^8.22.0",
+        "sql.js": "^1.14.1"
+    },
     "devDependencies": {
         "@worldlens/worldgen": "workspace:*",
         "@types/pngjs": "^6.0.5",

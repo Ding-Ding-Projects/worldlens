@@ -1,5 +1,17 @@
 # Roadmap
 
+## Issue #65 — standalone CLI resource and SQL parity
+
+The standalone CLI parity contract is documented in
+[`docs/compatibility/cli-resource-sql-parity.md`](docs/compatibility/cli-resource-sql-parity.md).
+It covers the high-to-low resource-root order (`config/packs`, enabled `-n/--mods` jars,
+`resourceExtensions.zip`, then the vanilla client jars as fallback), first-writer precedence,
+reverse filename ordering, extension-pack
+layout and SHA-256 evidence, SQL configuration for SQLite/MySQL/MariaDB/PostgreSQL, optional-driver
+failures, credential-safe diagnostics, and checkout/packaged/Docker/installed layouts. Runtime
+acceptance evidence remains attached to issue #65; this record does not claim the filesystem,
+subprocess, SQL-server, Docker, or rendered-tile proofs until their exact runs are recorded.
+
 ## Current verified baseline
 
 - Adult Mode and Kid Mode complete their first-run and round-trip journeys through the committed

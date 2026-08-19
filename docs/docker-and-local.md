@@ -9,6 +9,12 @@ HTTP server serves completed maps; it does not promise a separate local `-w` web
 - **Docker** — the same engine, the same jar and the same arguments, inside a container.
   Opt-in, and only offered when Docker is genuinely usable.
 
+The standalone CLI Docker image has one additional packaging invariant: the deployed engine must
+carry `assets/resourceExtensions/` (or a packaged `resourceExtensions.zip`) and the runtime must
+report its selected path and SHA-256. A missing asset is a failed image/runtime contract, not a
+silent fallback. SQL credentials remain in the mounted configuration boundary and are redacted
+from diagnostics. See [Standalone CLI resource and SQL parity](./compatibility/cli-resource-sql-parity.md).
+
 Everything the local path reports, the Docker path reports identically: phases, per-map
 progress with an estimate, every log line, every warning banner, the outcome, and
 cancellation. That is not a promise kept by writing the same code twice — both modes produce

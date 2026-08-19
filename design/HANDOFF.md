@@ -1,8 +1,25 @@
 # Handoff
 
+## 2026-08-19 — issue #65 standalone CLI resource and SQL parity documentation
+
+**State:** the public contract is now in
+[`docs/compatibility/cli-resource-sql-parity.md`](../docs/compatibility/cli-resource-sql-parity.md),
+with links from the compatibility index and CLI reference. It names the exact high-to-low pack
+precedence, reverse filename ordering for configured packs and mods, mod-scan disable behavior,
+`resourceExtensions.zip` source/package/Docker/installed layouts and SHA-256 evidence, SQL config
+fields and supported dialects, optional-driver and custom-JDBC failures, credential-safe
+diagnostics, and the non-zero failure boundary.
+
+The implementation and acceptance evidence remain owned by issue #65's parent lane. Required
+runtime records are still real filesystem precedence, extension discovery in every supported
+layout, CLI subprocess failure/redaction behavior, SQLite and real server SQL runs, Docker smoke,
+configuration round trips, and rendered tiles/metadata from each storage route. This documentation
+lane did not run tests, lint, reviews, audits, accessibility checks, or captures, and did not
+commit, push, merge, release, or clean up.
+
 ## 2026-08-19 — issue #64 focused acceptance repair
 
-**State:** focused acceptance Chuts are present at `0a3b1d2e` plus the current-main merge
+**State:** focused acceptance checks are present at `0a3b1d2e` plus the current-main merge
 `76e368de`. The three-file focused run passed 29 tests covering real queue-file round trips,
 schema/version and corruption handling, malformed and unknown entries, terminal-task exclusion,
 unique staging and reopen, coalesced non-overlapping saves, CLI startup/shutdown wiring, and an

@@ -35,6 +35,15 @@ failure result. Exit code `2` means required resources are missing. Invalid argu
 configuration errors use the general failure result; callers must read stderr/log output rather
 than infer a finer taxonomy that is not published.
 
+Resource and SQL behavior is part of the CLI contract too. The resolver layers configured packs,
+mod jars, BlueMap's `resourceExtensions.zip`, and the vanilla client jars in a documented
+high-to-low first-writer order; it reports the selected extension-pack path and SHA-256 and fails instead of
+silently dropping a requested root. SQL maps use `storages/<id>.conf`, support SQLite, MySQL,
+MariaDB, and PostgreSQL, and report missing optional drivers, unsupported custom JDBC fields,
+unknown dialects, and connection failures as non-zero errors. See
+[Standalone CLI resource and SQL parity](./cli-resource-sql-parity.md) for the exact layouts,
+configuration fields, precedence, diagnostics, and Docker/installed behavior.
+
 ## Map HTTP surface
 
 The server mounts map data at `/maps/{id}/...`. The documented read routes are:

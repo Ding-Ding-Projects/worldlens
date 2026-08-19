@@ -497,7 +497,8 @@ Not fully ported, and so keeping this phase open:
   and writes the webapp's real `settings.json` (`WebFilesManager.Settings`, field for
   field). Deliberately deferred, and said so out loud where the CLI is asked for it rather
   than silently doing nothing: `-n`/mod-resource scanning, `resourceExtensions.zip`
-  parity and SQL storages in the CLI. Non-box, nested and subtracting render masks closed on
+  parity and SQL storages in the CLI. Issue #65 now owns that remaining parity contract and
+  its standalone proof. Non-box, nested and subtracting render masks closed on
   2026-08-06 with exact local, standalone-CLI and GitHub Actions semantics. (`-u`/`--watch` was deferred
   here too when this paragraph was first written, exiting non-zero and naming issue #40's
   `MapUpdateService` as the still-unwired piece; it closed on 2026-08-06 — see below.)
@@ -885,6 +886,34 @@ engines**; `node tools/oracle/render-1-12-era-matched.mjs --accept-download` —
 2/2 structural checks plus the two era-matrix assertions (grass-family vertices nonzero,
 dirt fraction near the modern-pack control).
 
+## Issue #65, standalone CLI resource and SQL parity
+
+The remaining Phase E work is one contract, not three independent conveniences. The standalone
+CLI must load resources and storage through the same real configuration path in a checkout,
+packaged install, and Docker runtime. Its public behavior is recorded in
+[`docs/compatibility/cli-resource-sql-parity.md`](../docs/compatibility/cli-resource-sql-parity.md).
+
+The resource proof must show the high-to-low root order (`config/packs`, enabled `-n/--mods` jars,
+BlueMap's `resourceExtensions.zip`, then the vanilla client resource/data jars as fallback),
+first-writer duplicate-key winner behavior, reverse filename ordering inside pack and mod folders,
+and a non-zero result when a
+requested root cannot be loaded. The extension-pack proof must identify the exact selected path,
+zip-versus-checkout-source kind, SHA-256 digest, source commit, and the `pack.mcmeta`/overlay
+layout. Packaged and installed layouts require the zip; checkout-source is a development fallback
+and must be labelled as such.
+
+The SQL proof must build a real `SQLStorage` from `storages/<id>.conf` for SQLite, MySQL, MariaDB,
+and PostgreSQL, exercise the optional-driver failure path, reject unsupported `driver-jar` and
+`driver-class` settings rather than dropping them, and keep `connection-properties` out of project
+files and diagnostics. A missing driver, unknown dialect, refused connection, or malformed config
+must remain non-zero and must never fall back to file storage.
+
+The evidence still required before this issue can close is: real filesystem precedence and
+resource-extension discovery, standalone subprocess exit-code and redaction checks, SQL server
+round trips, Docker smoke, configuration round trips, and rendered tiles plus metadata read back
+through each supported storage route. The documentation lane records the contract; it does not
+claim those runtime proofs until their exact run records are attached.
+
 ## Phase H, SQL storages: what is ported and what is not
 
 Ported on 2026-08-05 (issue #32), in `packages/engine/src/storage/sql/`: `SQLStorage`,
@@ -1184,7 +1213,7 @@ named so it is not lost between passes.
   filtering of tasks whose `hasMoreWork()` is false, and a final shutdown save. The standalone
   CLI constructs it after maps are built, at `<resolved core.data>/tasks.dat`; the server package
   exports the helper but has no separate construction site. Retention is one current queue file,
-  not a history. Focused acceptance Chuts now cover real file/schema/corruption handling,
+  not a history. Focused acceptance checks now cover real file/schema/corruption handling,
   terminal-task exclusion, unique staging and reopen, coalesced saves, and CLI startup/shutdown
   wiring. Remaining proof must cover structured skipped/unknown-task reporting, stale
   cross-process crash ordering, and a real CLI restart that resumes queued work end to end.

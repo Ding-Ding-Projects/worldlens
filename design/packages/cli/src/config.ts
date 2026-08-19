@@ -12,20 +12,16 @@
  *
  * - **`plugin.conf` is never written or read.** `BlueMapCLI.main()` builds its config
  *   manager with `usePluginConfig(false)`, so upstream's CLI never touches it either.
- * - **No addon loading.** Upstream's CLI resolves `<config>/packs` and calls
- *   `AddonLoader.tryLoadAddons(packsFolder)` before building the config manager — a
- *   JS/Java addon system that has no port anywhere in this monorepo yet (`ROADMAP.md`
- *   Phase H, "JS addon system", is still Pending). The packs folder is still created, so
- *   a user who drops files there is not met with a missing directory, but nothing in it
- *   is loaded.
- * - **`-n`/`--mods`.** Accepted and validated (must exist), but the folder's contents are
- *   never scanned for bundled resource packs — upstream's mod-resource extraction has no
- *   port either. Recorded as a warning, never silently ignored.
- * - **SQL storages are recognised, never usable.** `storages/sql.conf` is generated and
- *   read like any other file, but `packages/engine`'s storage layer only ports
- *   `FileStorage` (`ROADMAP.md` issue #32: "the whole storage/sql package is unported").
- *   A map that resolves to a SQL-typed storage fails with a message naming exactly that,
- *   the moment something tries to actually use it — never silently treated as file storage.
+ * - **Addon entrypoints are not executed.** Upstream's CLI calls
+ *   `AddonLoader.tryLoadAddons(packsFolder)` for Java addon classes. The standalone port
+ *   intentionally treats the folder's directories and `.zip`/`.jar` files as resource
+ *   packs; executable addon entrypoints remain outside this package's JS boundary.
+ * - **`-n`/`--mods`.** The CLI validates the folder in `cli.ts`; `resources.ts` then scans
+ *   every direct `.jar` through the engine Pack loader, including supported nested jars.
+ * - **SQL storages are constructed by the engine factory.** SQLite, MySQL, MariaDB, and
+ *   PostgreSQL are resolved from the configured dialect and optional driver failures are
+ *   returned to the CLI as non-zero, credential-safe errors rather than being treated as
+ *   file storage.
  */
 
 import { existsSync } from "node:fs";

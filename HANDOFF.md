@@ -1,5 +1,20 @@
 # Handoff
 
+## Issue #65 — standalone CLI resource and SQL parity
+
+The documentation lane added the public contract at
+[`docs/compatibility/cli-resource-sql-parity.md`](docs/compatibility/cli-resource-sql-parity.md)
+and linked it from the compatibility index and CLI reference. It records the exact pack precedence,
+mod-resource scan rules, `resourceExtensions.zip` candidate layouts and digest evidence, SQL
+configuration and optional-driver behavior, credential-safe diagnostics, and the checkout,
+packaged, Docker, and installed runtime boundaries. `design/ROADMAP.md` and the root roadmap now
+point issue #65 at that contract.
+
+The parent implementation lane owns source changes and the acceptance proof. This documentation
+lane did not run tests, lint, type checks, reviews, audits, accessibility checks, or captures, and
+it did not commit, push, merge, release, or clean up. The parent should add the finished commit and
+exact runtime evidence to this handoff before closing issue #65.
+
 ## Issue #60 — public 1.0 compatibility contract
 
 This lane prepares the public delivery records for a Windows-only 1.0 compatibility contract. The

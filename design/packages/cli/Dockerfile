@@ -96,6 +96,22 @@ RUN pnpm --filter "@worldlens/cli..." run build
 # error message names is the direct fix, not a workaround.
 RUN pnpm --filter @worldlens/cli deploy --prod --legacy /app
 
+# The SQL drivers are optional at runtime, but they are direct optional
+# dependencies of the CLI so `pnpm deploy --prod` carries them into the
+# standalone image.  Fail the image build if the deployment ever drops one,
+# or if the bundled BlueMap resource extension pack is absent from the engine
+# package that the CLI actually runs from.
+RUN test -f /app/node_modules/sql.js/package.json \
+    && test -f /app/node_modules/mysql2/package.json \
+    && test -f /app/node_modules/pg/package.json \
+    && test -f /app/node_modules/@worldlens/engine/assets/resourceExtensions/pack.mcmeta \
+    && test -d /app/node_modules/@worldlens/engine/assets/resourceExtensions/assets
+
+# Load every optional adapter and execute a real sql.js WASM-backed query from
+# the deployed tree.  Package metadata alone does not prove that Node can load
+# the adapter or that sql.js can locate its WASM payload.
+RUN cd /app && node --input-type=module -e "const mysql = await import('mysql2/promise'); const pg = await import('pg'); const sqlModule = await import('sql.js'); const initSqlJs = sqlModule.default ?? sqlModule; const SQL = await initSqlJs(); const db = new SQL.Database(); db.run('CREATE TABLE delivery_probe (value INTEGER); INSERT INTO delivery_probe VALUES (65);'); const rows = db.exec('SELECT value FROM delivery_probe'); if (rows[0]?.values[0]?.[0] !== 65) throw new Error('sql.js WASM probe returned the wrong value'); db.close(); void mysql; void pg;"
+
 ###############################################################################
 # Stage 2 — a slim runtime image with nothing but the Node runtime and /app
 ###############################################################################
