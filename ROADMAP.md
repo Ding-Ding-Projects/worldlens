@@ -1,5 +1,19 @@
 # Roadmap
 
+## Issue #63 — one verified release row per completed phase
+
+- **Status:** Documentation contract is recorded; Issue #63 remains open.
+- **Record:** [`docs/manual-release-ledger.md`](docs/manual-release-ledger.md) describes the
+  schema-backed, append-only ledger in `docs/release-ledger.json` and the validator in
+  `scripts/manual-release-ledger.mjs`.
+- **Evidence boundary:** The task-owned ledger now has four historical rows (releases 682, 704,
+  708, and 731). All are `failed` with `shipped-nonconforming` disposition because the historical
+  releases copied and attached catalog photos, which current policy forbids. This documentation
+  lane ran no tests, builds, installer sessions, workflow dispatches, runtime checks, or captures.
+- **Remaining:** Keep one row for every completed phase, wire `integratedPhases` completeness
+  validation, and keep local-build facts separate from cloud verdicts. Issue #51's `.613` evidence
+  remains outside this ledger; none of these four historical rows is `verified`.
+
 ## Issue #70 — first-class marker authoring editor
 
 - **Status:** Marker-studio source work is present in the issue-owned checkout; Issue #70 remains

@@ -111,6 +111,7 @@ import { registerStructureHandlers } from "./structures/index.js";
 import type { StructureIpc } from "./structures/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
 import type { BackupIpc } from "./backup/ipc.js";
+import { registerReleaseLedgerHandlers } from "./releaseLedger/index.js";
 import { openExternalHttps } from "./security/external.js";
 import { registerJavaHandlers, JAVA_PROVISION_EVENT_CHANNEL } from "./java/ipc.js";
 import type { JavaIpc } from "./java/ipc.js";
@@ -485,6 +486,7 @@ function registerIpc(): void {
         if (typeof text === "string") clipboard.writeText(text);
     });
     ipcMain.handle("app:version", () => app.getVersion());
+    registerReleaseLedgerHandlers();
 
     // This record sits under the OS-wide app-data root rather than Worldlens's own userData
     // directory.  Register it before a renderer can load, so preload's initial read is the

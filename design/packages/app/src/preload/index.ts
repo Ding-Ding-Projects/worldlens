@@ -93,6 +93,7 @@ import type {
     AppSettingsState,
 } from "../main/settings/index.js";
 import type { RestoreResult } from "../main/history/index.js";
+import { RELEASE_LEDGER_CHANNEL, type ReleaseLedgerReadout } from "../main/releaseLedger/index.js";
 import type { StartupDiagnosticsSnapshot, StartupExportFormat } from "../main/startup/index.js";
 import type { GalleryAssetRead, GalleryDraft, GalleryRecord, GalleryRevision, GalleryUpdate } from "../main/gallery/store.js";
 import {
@@ -2305,6 +2306,7 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    releaseLedgerRead(): Promise<ReleaseLedgerReadout>;
     /**
      * The renderer-safe face of the OS application-data School-mode record.  Its snapshot
      * never includes a PIN, password, salt, verifier, file path, or other credential material.
@@ -3237,6 +3239,7 @@ const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
+    releaseLedgerRead: () => ipcRenderer.invoke(RELEASE_LEDGER_CHANNEL),
     schoolMode: {
         read: () => ipcRenderer.invoke("schoolMode:read"),
         enable: (request) => ipcRenderer.invoke("schoolMode:enable", request),
