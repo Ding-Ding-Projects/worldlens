@@ -1025,7 +1025,8 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Publish the verified map artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: needs.plan.outputs.single-group == 'true'
         with:
           name: rendered-map
@@ -1043,7 +1044,7 @@ jobs:
           set -euo pipefail
           pnpm install --frozen-lockfile
           pnpm --filter @worldlens/site build
-          node packages/site/scripts/assert-base-path.mjs
+          node packages/site/scripts/assert-base-path.mjs --dist dist --base "/${GITHUB_REPOSITORY#*/}/"
 
       # Pages serves the files that exist, under the names they have. The engine stores
       # hires tiles gzipped as `0.prbm.gz`, and the viewer asks for `0.prbm` unless its
