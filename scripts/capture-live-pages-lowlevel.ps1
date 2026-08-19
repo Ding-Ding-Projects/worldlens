@@ -97,7 +97,7 @@ try {
     $edgeVersion = (Get-Item -LiteralPath $edge).VersionInfo.FileVersion
     $verifier = "C:\Users\cntow\.agents\skills\verify-headless-site\scripts\verify-edge-target.mjs"
     foreach ($phase in @("preflight", "capture")) {
-        $phaseUrl = if ($phase -eq "preflight") { $Url } else { Get-ExactPhaseUrl $Url }
+        $phaseUrl = Get-ExactPhaseUrl $Url
         node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $phaseUrl `
             --run-root $output --edge-executable $edge --edge-sha256 $edgeHash `
             --edge-version $edgeVersion --launch-pid ([string]$edgePid) --phase $phase `
