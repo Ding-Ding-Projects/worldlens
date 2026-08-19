@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, relative, resolve } from "node:path";
 
 function fail(message) {
@@ -30,6 +30,25 @@ const commit = options.commit;
 if (!/^[0-9a-f]{40}$/u.test(commit)) fail("--commit must be a full SHA");
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const fileHash = async (path) => sha256(await readFile(path));
+const treeHash = async (path) => {
+    const info = await stat(path);
+    if (info.isFile()) return fileHash(path);
+    if (!info.isDirectory()) fail(`rendered artifact is not a file or directory: ${path}`);
+    const files = [];
+    const walk = async (directory, prefix = "") => {
+        for (const entry of await readdir(directory, { withFileTypes: true })) {
+            const child = `${directory}/${entry.name}`;
+            const relativePath = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+            if (entry.isDirectory()) await walk(child, relativePath);
+            else if (entry.isFile()) files.push([relativePath, await readFile(child)]);
+        }
+    };
+    await walk(path);
+    files.sort(([a], [b]) => a.localeCompare(b));
+    const hash = createHash("sha256");
+    for (const [name, bytes] of files) hash.update(name).update("\0").update(bytes);
+    return hash.digest("hex");
+};
 
 const artifactPath = resolve(repoRoot, "design/packages/app/dist/main/index.js");
 const artifactBytes = await readFile(artifactPath);
@@ -50,6 +69,35 @@ const runtimeErrors = {
     consoleErrors: Array.isArray(manifest.runtime?.consoleErrors) ? manifest.runtime.consoleErrors : [],
     pageErrors: Array.isArray(manifest.runtime?.pageErrors) ? manifest.runtime.pageErrors : [],
 };
+
+// A local map receipt is only useful when it names the bytes the viewer actually opened.
+// Captions and a renderer label are not provenance. Bind the receipt to the harness's
+// artifact digest, the viewer identity, and the observed level-0 hires-tile count; a
+// manifest that omits any of these facts is an honest refusal rather than a guessed receipt.
+const localMap = manifest.captureMode === "local" && manifest.mapContentPresent === true;
+if (localMap) {
+    const evidence = manifest.renderEvidence;
+    if (!evidence || typeof evidence !== "object") fail("local map manifest has no renderEvidence");
+    const artifact = evidence.renderedArtifact;
+    if (!artifact || typeof artifact.path !== "string" || !/^[0-9a-f]{64}$/u.test(artifact.sha256)) {
+        fail("local map renderEvidence does not bind the rendered artifact digest");
+    }
+    if (!Number.isInteger(evidence.hiresTiles) || evidence.hiresTiles !== 961) {
+        fail("local map renderEvidence must record exactly 961 hires tiles");
+    }
+    const viewer = evidence.viewer;
+    if (!viewer || typeof viewer.dataRoot !== "string" || typeof viewer.mapId !== "string") {
+        fail("local map renderEvidence does not bind the viewer identity");
+    }
+    if (viewer.dataRoot !== "/local/capture" || viewer.mapId.trim() === "") {
+        fail("local map renderEvidence names an unexpected viewer root or empty map id");
+    }
+    const renderedArtifactPath = resolve(runRoot, artifact.path);
+    const actualArtifactSha256 = await treeHash(renderedArtifactPath);
+    if (actualArtifactSha256 !== artifact.sha256) {
+        fail("local map renderEvidence digest does not match the rendered artifact on disk");
+    }
+}
 
 const buildReceipt = {
     version: 1,
@@ -112,6 +160,7 @@ for (const capture of manifest.captures) {
             buildReceiptPath: basename(buildReceiptPath),
             buildReceiptSha256,
             artifactBuiltAt: artifactInfo.mtime.toISOString(),
+            ...(localMap ? { renderedArtifact: manifest.renderEvidence.renderedArtifact } : {}),
         },
         capture: {
             rawPath: capture.file,
@@ -162,6 +211,15 @@ for (const capture of manifest.captures) {
             privacyScanSha256: privacySha256,
             cleanupCompleted: true,
             cleanupOwnedOnly: true,
+            ...(localMap
+                ? {
+                      renderEvidence: {
+                          renderedArtifact: manifest.renderEvidence.renderedArtifact,
+                          hiresTiles: manifest.renderEvidence.hiresTiles,
+                          viewer: manifest.renderEvidence.viewer,
+                      },
+                  }
+                : {}),
         },
         inventory: {
             path: "docs/screenshots/promoted-evidence.json",

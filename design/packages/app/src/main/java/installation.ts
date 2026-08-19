@@ -12,7 +12,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 /** Bumped if the layout or the meaning of the record changes. */
 export const INSTALL_RECORD_VERSION = 1;
@@ -77,6 +77,18 @@ function readString(source: Record<string, unknown>, key: string): string | null
     return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function isInside(root: string, candidate: string): boolean {
+    if (!isAbsolute(candidate)) return false;
+    const remainder = relative(resolve(root), resolve(candidate));
+    return remainder.length > 0 && remainder !== ".." && !remainder.startsWith(`..${sep}`);
+}
+
+function platformForRecord(os: string): NodeJS.Platform {
+    if (os === "windows") return "win32";
+    if (os === "mac") return "darwin";
+    return "linux";
+}
+
 /**
  * Reads the install record.
  *
@@ -105,6 +117,13 @@ export function readInstallRecord(dataDir: string): JavaInstallRecord | null {
     if (home === null || executable === null || archiveUrl === null || archiveSha256 === null) {
         return null;
     }
+    const root = javaRoot(dataDir);
+    const recordOs = readString(parsed, "os") ?? "";
+    if (!isInside(root, home) || !isInside(root, executable)) return null;
+    if (resolve(executable) !== resolve(javaExecutableIn(home, platformForRecord(recordOs)))) return null;
+    if (!/^[0-9a-f]{64}$/i.test(archiveSha256)) return null;
+    if (!/^\d+(?:\.\d+)?/.test(readString(parsed, "version") ?? "")) return null;
+    if (!String(readString(parsed, "version") ?? "").startsWith(`${String(feature)}.`)) return null;
 
     return {
         recordVersion: INSTALL_RECORD_VERSION,

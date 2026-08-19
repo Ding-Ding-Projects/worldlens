@@ -560,7 +560,7 @@ current `tasks.dat`，唔係 history。CLI 會等 map build 完先 load，map bu
 但 queue entry skip/unknown 仍然係 error callback 層面，未有 structured recovery surface。
 仲要證明 stale crash recovery 唔會用舊 queue 蓋過新 queue。真正 CLI restart 後接返 queued
 work 嘅 end-to-end proof，仍然係 issue #64 未完成嘅
-acceptance evidence。Focused acceptance Chuts 而家已經證明真實 queue-file round trip、schema/version
+acceptance evidence。Focused acceptance checks 而家已經證明真實 queue-file round trip、schema/version
 refusal、malformed/unknown entry、terminal-task exclusion、unique staging/reopen、coalesced
 non-overlapping save，同 CLI startup/shutdown wiring；三個 focused files 合共 29 個 test，
 包括故意拆走或 comment 條 wiring 後變紅、還原後變返綠嘅 exact source guard。Structured

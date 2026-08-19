@@ -145,6 +145,38 @@ already found nothing usable.
 
 ## Verification
 
+### Issue #82 packaged-proof boundary (2026-08-19)
+
+The source and focused contract descriptions above do not constitute the Phase J packaged
+acceptance proof. The current delivery scope is **Windows only**. The real-network records prove
+Adoptium metadata resolution, a Temurin `jdk-25.0.4+7` archive download, SHA-256 verification,
+staged extraction, and execution of the extracted `java` binary on Windows, but they do not prove
+that a packaged desktop user can press **Download Java** and receive the same receipt.
+
+The remaining receipt contract is deliberately explicit: the packaged app must record the exact
+managed JDK version, vendor, operating system, architecture, archive URL, verified SHA-256, and
+installation time; the render request must then identify that managed runtime and carry its
+provenance into the render record. A mismatched or corrupt archive must be refused and removed,
+and a resumed transfer must retain the same verified end state. These are acceptance facts to be
+read from the packaged flow, not inferred from source or unit-test doubles.
+
+No tests, packaged runtime interaction, or cheap-headless capture was run in this records-only
+update. Issue #82 therefore remains open. In particular, there is no new evidence for the
+packaged **Download Java** button, the app-owned render receipt, the 961-tile app-orchestrated
+render, non-Windows behavior, or the cancellation/offline/disk/recovery matrix.
+
+#### 廣東話同步
+
+Issue #82 嘅 packaged-proof 仲未收口，現時 delivery scope 係 **Windows only**。真網絡紀錄有
+Adoptium metadata、Temurin `jdk-25.0.4+7`、SHA-256、staged extraction 同 extracted `java`
+喺 Windows 行到，但唔等於 packaged desktop 真係撳 **Download Java** 就完成並有同一張 receipt。
+
+要補嘅 receipt 要列 managed JDK version、vendor、OS、architecture、archive URL、verified
+SHA-256 同 install time；render receipt 仲要由 generated config、Java process、progress/console
+一路帶 provenance 去 tiles 同 viewer。今次只改 records，冇跑 tests、冇 packaged runtime
+interaction、冇 cheap-headless capture；961-tile app orchestrator、非 Windows、cancel/offline/
+disk/recovery matrix 都仍然冇新證據，issue 繼續 open。
+
 `design/packages/app/src/main/java/` carries a large passing suite across the layer this document
 describes, plus three real-network proofs gated behind `MBM_REAL_JDK_DOWNLOAD=1` (skipped by
 default so ordinary CI runs do not depend on Adoptium's availability, and never download ~140 MB on

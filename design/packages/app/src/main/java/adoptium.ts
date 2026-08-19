@@ -143,7 +143,13 @@ export async function resolveTemurinRelease(
     const fetchText = options.fetchText ?? ((url: string) => globalThis.fetch(url));
     const url = assetsLatestUrl(feature, target, options.apiBase ?? ADOPTIUM_API_BASE);
 
-    const response = await fetchText(url);
+    let response: HttpTextResponse;
+    try {
+        response = await fetchText(url);
+    } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new Error(`Could not reach Adoptium at ${url}: ${detail}`);
+    }
     if (!response.ok) {
         throw new Error(
             `Adoptium returned HTTP ${String(response.status)}${

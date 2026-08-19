@@ -36,15 +36,11 @@ for (const entry of index.receipts) {
     if (image === null || image[1]?.trim() === "") {
         fail(`${receipt.id} has no exact README image link with non-empty alt text`);
     }
-    receipt.privacy.expectedSurfaceOnly = true;
-    receipt.privacy.sensitiveDataReviewed = true;
-    receipt.inspection = {
-        decoded: true,
-        pixelsInspected: true,
-        targetVisible: true,
-        expectedStateVisible: true,
-        reviewer: options.reviewer,
-    };
+    // A README image link proves documentation wiring only. It does not prove that the
+    // bytes decoded, that pixels were inspected, or that the expected state was visible;
+    // promoting those claims here turned a filename/alt-text check into fake visual review.
+    // Leave the capture inspection facts at their recorded values until a real reviewer
+    // records them through the approved visual-review route.
     receipt.documentation = [{ path: "README.md", alt: image[1] }];
     const finalName = `${receipt.id}.receipt.json`;
     await writeFile(resolve(runRoot, finalName), `${JSON.stringify(receipt, null, 2)}\n`, "utf8");

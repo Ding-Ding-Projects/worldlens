@@ -5515,6 +5515,7 @@ test("records what was captured", async () => {
         renderedBy: target.provenance?.renderer ?? null,
         world: target.provenance?.world ?? null,
         renderedAt: target.provenance?.renderedAt ?? null,
+        renderEvidence: target.renderEvidence,
         fixtureRequestsServed: target.servedRequests(),
         offlineGuard:
             target.mode === "remote"

@@ -140,6 +140,24 @@ describe("downloadVerified", () => {
         expect(readFileSync(target)).toEqual(ARCHIVE);
     });
 
+    it("does not reuse a digest-matching file whose published size is stale", async () => {
+        const directory = temporaryDirectory();
+        const target = join(directory, "jdk.zip");
+        writeFileSync(target, ARCHIVE);
+        const { fetchBinary, requests } = rangeServer(ARCHIVE);
+
+        await expect(downloadVerified({
+            url: "https://example.invalid/jdk.zip",
+            sha256: ARCHIVE_SHA256,
+            target,
+            expectedSize: ARCHIVE.length + 1,
+            fetchBinary,
+        })).rejects.toThrow(/Size mismatch/);
+
+        expect(requests[0]?.range).toBeNull();
+        expect(existsSync(target)).toBe(false);
+    });
+
     it("resumes from a part file instead of starting again", async () => {
         const directory = temporaryDirectory();
         const target = join(directory, "jdk.zip");
@@ -251,6 +269,26 @@ describe("downloadVerified", () => {
 
         expect(existsSync(target)).toBe(false);
         // The bad bytes are deleted rather than left for a resume to append onto.
+        expect(existsSync(`${target}.part`)).toBe(false);
+        expect(existsSync(`${target}.part.json`)).toBe(false);
+    });
+
+    it("refuses a response whose byte count differs from release metadata", async () => {
+        const directory = temporaryDirectory();
+        const target = join(directory, "jdk.zip");
+        const { fetchBinary } = rangeServer(ARCHIVE);
+
+        await expect(
+            downloadVerified({
+                url: "https://example.invalid/jdk.zip",
+                sha256: ARCHIVE_SHA256,
+                target,
+                expectedSize: ARCHIVE.length + 1,
+                fetchBinary,
+            }),
+        ).rejects.toThrow(/Size mismatch.*Nothing was installed/);
+
+        expect(existsSync(target)).toBe(false);
         expect(existsSync(`${target}.part`)).toBe(false);
         expect(existsSync(`${target}.part.json`)).toBe(false);
     });

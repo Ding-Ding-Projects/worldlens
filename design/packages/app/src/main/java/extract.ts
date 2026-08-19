@@ -182,7 +182,12 @@ export function sweepStagingDirectories(destination: string): string[] {
     for (const entry of entries) {
         if (!entry.startsWith(prefix)) continue;
         const path = join(parent, entry);
-        rmSync(path, { recursive: true, force: true });
+        try {
+            rmSync(path, { recursive: true, force: true });
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            throw new Error(`Unable to clean stale Java staging directory ${path}: ${detail}`);
+        }
         removed.push(path);
     }
     return removed;
@@ -231,12 +236,30 @@ export async function installArchive(
             );
         }
 
-        // Removing the old install is the one destructive moment, and it is deliberately
-        // as late as possible: everything that could fail has already succeeded, so the
-        // window in which neither the old nor the new install exists is a single rename.
-        rmSync(destination, { recursive: true, force: true });
+        // Keep the previous install recoverable until the replacement is visible.  A
+        // direct remove followed by rename loses a working JDK when userData becomes
+        // unwritable between those two calls (or when an antivirus briefly holds the
+        // destination).  Moving aside is reversible; only the successful replacement
+        // makes the old tree eligible for cleanup.
+        const previous = `${destination}.previous-${randomBytes(6).toString("hex")}`;
+        let movedPrevious = false;
         mkdirSync(dirname(destination), { recursive: true });
-        renameSync(home, destination);
+        try {
+            if (existsSync(destination)) {
+                renameSync(destination, previous);
+                movedPrevious = true;
+            }
+            renameSync(home, destination);
+            if (movedPrevious) rmSync(previous, { recursive: true, force: true });
+        } catch (error) {
+            // If the new tree could not be made visible, restore the old one before
+            // surfacing the original filesystem error.  Never leave a record pointing
+            // at a removed or half-renamed install.
+            if (movedPrevious && !existsSync(destination) && existsSync(previous)) {
+                renameSync(previous, destination);
+            }
+            throw error;
+        }
 
         return { home: destination, sweptStaging };
     } finally {

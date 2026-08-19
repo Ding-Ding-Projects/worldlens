@@ -1,5 +1,33 @@
 # Roadmap
 
+## Issue #82 — packaged Java/runtime receipt boundary (2026-08-19)
+
+Issue #82 remains open. The active delivery scope is **Windows only**. Existing real-network
+records prove Adoptium metadata resolution, a Temurin `jdk-25.0.4+7` archive, SHA-256
+verification, staged extraction, and execution of the extracted `java` binary on Windows. They
+do not prove the packaged desktop **Download Java** button or an app-owned render receipt.
+
+The remaining acceptance record must show the managed JDK version, vendor, OS, architecture,
+archive URL, verified digest, and install time, then carry that provenance through generated
+config, the Java child process, progress/console, output tiles, and viewer opening. The corrupt /
+mismatched archive refusal, resumable transfer final state, and the 1000×1000 / 961-hires-tile
+render must be demonstrated from the app orchestrator. Non-Windows behavior is explicitly outside
+the current delivery scope; cancellation, offline, no-disk, unwritable user-data, stale-JDK, and
+safe-cleanup cases remain open.
+
+This 2026-08-19 update is documentation-only: no tests, packaged runtime interaction, or
+cheap-headless capture was run, and no new runtime verdict is claimed.
+
+### 廣東話同步
+
+Issue #82 仲係 open，現時 delivery scope 係 **Windows only**。已有真網絡紀錄證明 Adoptium
+metadata、Temurin `jdk-25.0.4+7`、SHA-256、staged extraction 同 extracted `java` 喺 Windows
+行到，但未證明 packaged desktop **Download Java** 掣或者 app-owned render receipt。
+
+仲要補 managed JDK 同 render provenance receipt、mismatched bytes refusal、resume 最終狀態，
+再由 app orchestrator 真係做 1000×1000 / 961-hires-tile render 去 viewer。今次淨係改文檔，
+冇跑 tests、冇 packaged runtime interaction、冇 cheap-headless capture，唔當有新 verdict。
+
 ## Issue #85 — SSH flow acceptance boundary (2026-08-19)
 
 The SSH world-source, remote-render, and remote-hosting implementation remains fake-host and

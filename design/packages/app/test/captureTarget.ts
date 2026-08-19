@@ -30,7 +30,8 @@
  *            names the server and says the tiles are theirs.
  */
 
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { isAbsolute, join, resolve } from "node:path";
 import { HttpServer } from "@worldlens/server";
 import type { HttpHandler } from "@worldlens/server";
@@ -63,6 +64,12 @@ export interface CaptureProvenance {
     readonly renderedAt?: string;
     readonly commit?: string;
     readonly run?: string;
+    /** The map artifact handed to the viewer, with a digest of its bytes. */
+    readonly renderedArtifact?: { readonly path: string; readonly sha256: string };
+    /** The viewer identity the render is expected to open. */
+    readonly viewer?: { readonly dataRoot: string; readonly mapId: string };
+    /** Number of level-0 hires tiles in the rendered artifact. */
+    readonly hiresTiles?: number;
     /** Set when no map was rendered, saying why in plain words. */
     readonly unavailable?: string;
 }
@@ -81,6 +88,12 @@ export interface CaptureTarget {
     /** `#map:x:y:z:...`, so the camera is the same in every run. Empty when unknown. */
     readonly locationHash: string;
     readonly provenance: CaptureProvenance | null;
+    /** Facts read from the rendered artifact, never inferred from the caption. */
+    readonly renderEvidence: {
+        readonly renderedArtifact: { readonly path: string; readonly sha256: string } | null;
+        readonly hiresTiles: number | null;
+        readonly viewer: { readonly dataRoot: string; readonly mapId: string } | null;
+    };
     /** Origins the app is allowed to talk to. Loopback is added by the guard itself. */
     readonly allowedOrigins: string[];
     /** One sentence naming what rendered the map, for every caption. */
@@ -232,11 +245,49 @@ function noTarget(caption: string, provenance: CaptureProvenance | null): Captur
         profile: null,
         locationHash: "",
         provenance,
+        renderEvidence: { renderedArtifact: null, hiresTiles: null, viewer: null },
         allowedOrigins: [],
         caption,
         servedRequests: () => 0,
         close: () => Promise.resolve(),
     };
+}
+
+async function countHiresTiles(webRoot: string, mapId: string): Promise<number> {
+    const root = join(webRoot, "maps", mapId, "tiles", "0");
+    let total = 0;
+    async function walk(path: string): Promise<void> {
+        let entries;
+        try {
+            entries = await readdir(path, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const entry of entries) {
+            const child = join(path, entry.name);
+            if (entry.isDirectory()) await walk(child);
+            else if (/\.prbm(?:\.gz)?$/u.test(entry.name)) total += 1;
+        }
+    }
+    await walk(root);
+    return total;
+}
+
+async function hashTree(root: string): Promise<string> {
+    const entries: Array<[string, Buffer]> = [];
+    const walk = async (directory: string, prefix = ""): Promise<void> => {
+        for (const entry of await readdir(directory, { withFileTypes: true })) {
+            const child = join(directory, entry.name);
+            const relativePath = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+            if (entry.isDirectory()) await walk(child, relativePath);
+            else if (entry.isFile()) entries.push([relativePath, await readFile(child)]);
+        }
+    };
+    await walk(root);
+    entries.sort(([a], [b]) => a.localeCompare(b));
+    const hash = createHash("sha256");
+    for (const [name, bytes] of entries) hash.update(name).update("\0").update(bytes);
+    return hash.digest("hex");
 }
 
 /**
@@ -351,6 +402,29 @@ export async function resolveCaptureTarget(): Promise<CaptureTarget> {
     const baseUrl = `http://127.0.0.1:${address.port}${LocalMapHandler.dataRoot(FIXTURE_RENDER_ID)}`;
 
     const mapId = provenance?.mapId ?? mapIds[0]!;
+    const hiresTiles = await countHiresTiles(webRoot, mapId);
+    if (provenance?.hiresTiles !== undefined && provenance.hiresTiles !== hiresTiles) {
+        throw new Error(
+            `capture provenance says ${String(provenance.hiresTiles)} hires tiles, but the rendered artifact contains ${String(hiresTiles)}`,
+        );
+    }
+    if (provenance?.viewer !== undefined && provenance.viewer.mapId !== mapId) {
+        throw new Error(
+            `capture provenance names viewer map '${provenance.viewer.mapId}', but settings.json names '${mapId}'`,
+        );
+    }
+    const viewer = provenance?.viewer ?? { dataRoot: LocalMapHandler.dataRoot(FIXTURE_RENDER_ID), mapId };
+    const computedArtifact = {
+        path: webRoot,
+        sha256: await hashTree(webRoot),
+    };
+    if (
+        provenance?.renderedArtifact !== undefined &&
+        provenance.renderedArtifact.sha256 !== computedArtifact.sha256
+    ) {
+        throw new Error("capture provenance rendered-artifact digest does not match the artifact served to the viewer");
+    }
+    const renderedArtifact = provenance?.renderedArtifact ?? computedArtifact;
     return {
         mode: "local",
         profile: {
@@ -361,6 +435,11 @@ export async function resolveCaptureTarget(): Promise<CaptureTarget> {
         },
         locationHash: locationHashFor(mapId, provenance?.world?.size),
         provenance,
+        renderEvidence: {
+            renderedArtifact,
+            hiresTiles,
+            viewer,
+        },
         allowedOrigins: [new URL(baseUrl).origin],
         caption: captionFor("local", provenance, null),
         servedRequests: () => counting.served,

@@ -35,7 +35,7 @@
   { "action": "scrollUntilInViewport", "selector": "[data-test='ack-public']", "attempts": 24 },
   { "action": "clickUntilVisible", "selector": "[data-test='ack-public']" },
   { "action": "pressWhenFocused", "selector": "[data-test='start']", "key": "space", "attempts": 120 },
-  { "action": "sleep", "ms": 30000 },
+  { "action": "wait", "selector": "[data-test='row'] [data-test='row-state']", "text": "rendered", "timeout": 180000 },
   { "action": "click", "selector": ".wl-rail-item", "hasText": "Map" },
   { "action": "wait", "selector": "#map-container canvas", "timeout": 60000 },
   { "action": "click", "role": "button", "name": "Zoom in", "exact": true },

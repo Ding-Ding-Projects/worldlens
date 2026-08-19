@@ -1,5 +1,36 @@
 # Handoff
 
+## Issue #82 — packaged Java runtime and app-owned render receipt boundary (2026-08-19)
+
+Issue #82 remains open. This records-only lane keeps the active delivery scope **Windows only**:
+the existing real-network JDK evidence covers Adoptium metadata, the Temurin `jdk-25.0.4+7`
+archive, SHA-256 verification, staged extraction, and execution of the extracted binary on
+Windows. It does not prove the same path from a packaged desktop user's **Download Java** action.
+
+The acceptance receipt must name the managed JDK version, vendor, OS, architecture, archive URL,
+verified digest, and install time. A subsequent app-owned render receipt must identify that
+runtime and carry the provenance through generated config, Java process, progress/console, tiles,
+and viewer opening. Corrupt or mismatched bytes must be refused and removed; a resumed download
+must end in the same verified receipt rather than an ambiguous partial state. The 1000×1000 /
+961-hires-tile render must be driven by the app orchestrator, not by a direct jar invocation.
+
+No tests, packaged runtime interaction, cheap-headless capture, or new runtime evidence was run
+in this records-only pass. Non-Windows behavior remains explicitly out of the active delivery
+scope until reopened. Keep issue #82 open pending the packaged provisioning receipt, app-owned
+render receipt, 961-tile viewer read-back, and cancellation/offline/disk/recovery matrix.
+
+### 廣東話同步
+
+Issue #82 仲係 open。今次只做 records：現時 delivery scope 係 **Windows only**。已有真網絡
+JDK 紀錄證明 Adoptium metadata、Temurin `jdk-25.0.4+7` archive、SHA-256、staged extraction
+同 extracted binary 可以喺 Windows 行，但未證明 packaged desktop 真係由 **Download Java**
+掣一路完成。
+
+要補嘅 receipt 要寫明 managed JDK version、vendor、OS、architecture、archive URL、verified
+digest 同 install time；之後 app-owned render receipt 要帶住 runtime provenance 經 generated
+config、Java process、progress/console、tiles 一路去 viewer。今次冇跑 tests、冇 packaged
+runtime interaction、冇 cheap-headless capture，亦冇新 runtime evidence；所以 issue 繼續 open。
+
 ## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
 
 Issue #85 remains open and `ported-unverified`. The required next evidence is a genuine packaged
@@ -2105,7 +2136,7 @@ destructive-confirmed deletion are separate operations; the visible cap never si
 history. Existing console redaction applies before durable storage/export, and the history remains
 local-only.
 
-The acceptance Chut is not satisfied by source or component tests alone. It requires recovery tests
+The acceptance check is not satisfied by source or component tests alone. It requires recovery tests
 for partial writes, storage refusal, Unicode, zero-width regex, large logs, interrupted renders,
 restart/reattach and pruning/deletion, plus a genuine packaged run that restarts the app, reopens a
 completed render, and searches/exports a line outside the visible ring. Until those results are

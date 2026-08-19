@@ -37,6 +37,7 @@ export interface HttpBinaryResponse {
 
 export interface FetchBinaryInit {
     readonly headers: Record<string, string>;
+    readonly signal?: AbortSignal;
 }
 
 export type FetchBinary = (url: string, init: FetchBinaryInit) => Promise<HttpBinaryResponse>;
@@ -79,7 +80,7 @@ interface PartMetadata {
 }
 
 const defaultFetchBinary: FetchBinary = (url, init) =>
-    globalThis.fetch(url, { headers: init.headers, redirect: "follow" });
+    globalThis.fetch(url, { headers: init.headers, redirect: "follow", ...(init.signal === undefined ? {} : { signal: init.signal }) });
 
 /** SHA-256 of a file on disk, streamed so a 200 MB archive is not held in memory. */
 export async function sha256File(path: string): Promise<string> {
@@ -145,7 +146,13 @@ export async function downloadVerified(options: DownloadOptions): Promise<Downlo
     // because it matches, not because it exists.
     const existing = await sizeOf(target);
     if (existing > 0) {
-        if ((await sha256File(target)) === expected) {
+        // The API's byte count is part of the release identity too.  A digest is
+        // still the authority for the bytes, but refusing a file whose size does
+        // not match the signed metadata makes a stale/truncated managed binary
+        // visible even when a caller accidentally supplied the wrong digest.
+        const sizeMatches =
+            options.expectedSize === undefined || options.expectedSize <= 0 || existing === options.expectedSize;
+        if (sizeMatches && (await sha256File(target)) === expected) {
             return { path: target, bytes: existing, reused: true, resumedFrom: 0 };
         }
         // Present but wrong: a truncated copy from an older version of this code, or
@@ -165,7 +172,8 @@ export async function downloadVerified(options: DownloadOptions): Promise<Downlo
     const headers: Record<string, string> = { accept: "application/octet-stream" };
     if (resumeFrom > 0) headers["range"] = `bytes=${String(resumeFrom)}-`;
 
-    let response = await fetchBinary(url, { headers });
+    const requestInit = options.signal === undefined ? { headers } : { headers, signal: options.signal };
+    let response = await fetchBinary(url, requestInit);
 
     // 416 means the part file is at or past the artefact's length, which happens when
     // a previous run wrote the last byte and then died before verifying. Start over
@@ -173,7 +181,11 @@ export async function downloadVerified(options: DownloadOptions): Promise<Downlo
     if (response.status === 416 && resumeFrom > 0) {
         await rm(partFile, { force: true });
         resumeFrom = 0;
-        response = await fetchBinary(url, { headers: { accept: "application/octet-stream" } });
+        const restartInit =
+            options.signal === undefined
+                ? { headers: { accept: "application/octet-stream" } }
+                : { headers: { accept: "application/octet-stream" }, signal: options.signal };
+        response = await fetchBinary(url, restartInit);
     }
 
     if (!response.ok) {
@@ -243,6 +255,19 @@ export async function downloadVerified(options: DownloadOptions): Promise<Downlo
         await rm(metaFile, { force: true });
         throw new Error(
             `Checksum mismatch for ${url}: expected SHA-256 ${expected}, got ${digest}. Nothing was installed.`,
+        );
+    }
+
+    if (
+        options.expectedSize !== undefined &&
+        options.expectedSize > 0 &&
+        received !== options.expectedSize
+    ) {
+        await rm(partFile, { force: true });
+        await rm(metaFile, { force: true });
+        throw new Error(
+            `Size mismatch for ${url}: expected ${String(options.expectedSize)} bytes, ` +
+                `received ${String(received)} bytes. Nothing was installed.`,
         );
     }
 

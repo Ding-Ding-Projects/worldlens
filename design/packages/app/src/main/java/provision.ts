@@ -31,7 +31,14 @@ import { downloadVerified } from "./download.js";
 import type { InstallArchiveOptions } from "./extract.js";
 import { installArchive } from "./extract.js";
 import type { JavaInstallRecord } from "./installation.js";
-import { INSTALL_RECORD_VERSION, javaExecutableIn, javaHomePath, javaRoot, writeInstallRecord } from "./installation.js";
+import {
+    INSTALL_RECORD_VERSION,
+    javaExecutableIn,
+    javaHomePath,
+    javaRoot,
+    readInstallRecord,
+    writeInstallRecord,
+} from "./installation.js";
 import { REQUIRED_JAVA_FEATURE } from "./version.js";
 
 export type ProvisionStage =
@@ -162,6 +169,7 @@ export async function provisionJava(options: ProvisionJavaOptions): Promise<Java
         total: null,
     });
     const home = javaHomePath(options.dataDir, feature);
+    const previousRecord = readInstallRecord(options.dataDir);
     const extractOptions: InstallArchiveOptions = { platform, ...(options.extract ?? {}) };
     const installed = await installArchive(archivePath, home, extractOptions);
 
@@ -176,20 +184,39 @@ export async function provisionJava(options: ProvisionJavaOptions): Promise<Java
         await rm(archivePath, { force: true });
     }
 
-    const record = writeInstallRecord(options.dataDir, {
-        recordVersion: INSTALL_RECORD_VERSION,
-        feature,
-        version: release.version,
-        releaseName: release.releaseName,
-        vendor: "eclipse-temurin",
-        os: release.os,
-        architecture: release.architecture,
-        home: installed.home,
-        executable: javaExecutableIn(installed.home, platform),
-        archiveUrl: release.url,
-        archiveSha256: release.sha256,
-        installedAt: new Date().toISOString(),
-    });
+    let record: JavaInstallRecord;
+    try {
+        record = writeInstallRecord(options.dataDir, {
+            recordVersion: INSTALL_RECORD_VERSION,
+            feature,
+            version: release.version,
+            releaseName: release.releaseName,
+            vendor: "eclipse-temurin",
+            os: release.os,
+            architecture: release.architecture,
+            home: installed.home,
+            executable: javaExecutableIn(installed.home, platform),
+            archiveUrl: release.url,
+            archiveSha256: release.sha256,
+            installedAt: new Date().toISOString(),
+        });
+    } catch (error) {
+        // A record write can fail after extraction (for example, a directory ACL
+        // changing while the archive was unpacked).  Keep the previous valid record
+        // if one existed so an already-working managed JDK remains discoverable;
+        // never report the new install as provenance-complete when this write failed.
+        if (previousRecord !== null) {
+            try {
+                writeInstallRecord(options.dataDir, previousRecord);
+            } catch {
+                // The original record normally remains in place because writes use a
+                // sibling staging file.  If it does not, the outer error is still the
+                // honest result and discovery will fail closed on the next launch.
+            }
+        }
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new Error(`Java ${release.version} was installed, but its provenance record could not be written: ${detail}`);
+    }
 
     emit?.({
         stage: "done",
