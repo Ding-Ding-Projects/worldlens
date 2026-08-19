@@ -97,7 +97,7 @@ test("the real Adult settings plan declines consent and reaches Kid Mode setting
     const kidMode = plan.findIndex(
         (step) =>
             step.action === "click" &&
-            step.selector === ".mb-settings .mb-tabs-strip__sheet:visible .v-list-item" &&
+            step.selector === ".mb-tabs-strip__sheet:visible .v-list-item" &&
             step.hasText === "Kid Mode and Adult Mode",
     );
     assert.ok(overflow >= 0 && kidMode > overflow, "settings tab must be reached via the visible overflow action");

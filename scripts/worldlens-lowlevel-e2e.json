@@ -119,7 +119,7 @@
   },
   {
     "action": "click",
-    "selector": ".mb-settings .mb-tabs-strip__sheet:visible .v-list-item",
+    "selector": ".mb-tabs-strip__sheet:visible .v-list-item",
     "hasText": "Kid Mode and Adult Mode"
   },
   { "action": "assertText", "selector": ".wl-kid-row", "text": "Which mode should open" },
