@@ -7,9 +7,62 @@ The implementation must reuse the native anchored two-key/full-slider state mach
 host/login and both local and remote effects, and keep revocation refusal separate from successful
 local credential removal. Recovery and re-authentication stay on the same surface.
 
-Tests and captures are unrun under ultra-speed mode. The issue remains open until the focused
+Tests and captures are unrun in this records-only pass. The issue remains open until the focused
 contract cases and a genuine packaged-app capture through the cheap headless route are available;
 this handoff makes no runtime or packaged-artifact claim.
+
+## 2026-08-19 — issue #89 patterned-banner artifact proof ledger
+
+**State:** issue #89's typed banner implementation, focused fixture proof, and
+fixture-scoped oracle render are verified. The issue remains open because the
+packaged-viewer surface stayed blank and has no visible banner read-back. The implementation commit is
+`47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b`; the focused acceptance repair is
+`d14203e7e40a2ae4851b8bfe3476450609451570`, with five focused tests covering
+ordered layers, all supported colors, legacy/current fields, malformed entries,
+unknown identifiers, round-trip behavior, and current resource-path lookup.
+
+The remaining evidence is intentionally explicit:
+
+1. The verified 64×64-block, 16-chunk world is recorded at
+   `tools/oracle/out/gate/worlds/patterned-banner-world/patterned-banner-manifest.json`;
+   it contains exactly 3 banners and 10 ordered layers across legacy,
+   current-component, and wall-banner forms.
+2. The verified oracle output is
+   `tools/oracle/out/patterned-banner/issue-89.json`. Its fixture-scoped
+   validator accepts the intentional TypeScript extension over Java: the one
+   hires tile contains exactly 60 additional vertices and 1 additional shared
+   overlay material group. Every non-hires file matches; 18 PNGs are
+   pixel-identical re-encodes and 5 render-state entries differ only in
+   wall-clock times. This is not a zero-difference or byte-identical result.
+3. The packaged viewer returned the exact expected TypeScript hires SHA-256
+   `4d727ce14d1e3cd2b781db0895dbc750b58771eb1abff834a67f877f45d6c078`
+   and exposed a live WebGL context, but its map surface remained blank. Those
+   facts prove transport and renderer availability, not visible banner output.
+   A visible same-world read-back is still required.
+
+The world and fixture-scoped oracle records above are verified. The packaged
+attempt is recorded as failed visual proof, not success. Existing generic world
+captures are not substitutes for the packaged patterned-banner acceptance
+state. The issue stays open until the packaged viewer visibly renders the same
+world and that result is independently read back.
+
+### 廣東話同步
+
+Issue #89 嘅 typed banner implementation 同 focused fixture proof 已經落地，
+但 issue 仲未關，因為 artifact-level render proof 仲未行。Implementation
+commit 係 `47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b`，focused acceptance repair
+係 `d14203e7e40a2ae4851b8bfe3476450609451570`，五個 focused tests 覆蓋有次序
+layers、所有支援顏色、legacy/current fields、malformed entries、unknown
+identifiers、round-trip 同 current resource-path lookup。
+
+64×64 blocks、16 chunks 嘅 fixture 同 oracle records 已經 verify：manifest
+有啱啱好 3 面 banner、10 層 ordered layers。Java 路線唔讀 banner block-entity，
+所以 TypeScript hires tile 多啱啱好 60 vertices 同 1 個 shared overlay material
+group 係 fixture-scoped validator 接受嘅預期 extension；全部 non-hires files
+match，唔可以再寫成 zero-difference。Packaged viewer 雖然收到 expected hires
+SHA-256，而且 WebGL context 係 live，但畫面仍然 blank；呢兩項只證明 transport
+同 renderer availability，唔係 visible banner proof。未有 same-world visible
+read-back 之前，issue 繼續保持 open。
 
 ## Issue #78 per-project render engine choice — 2026-08-19
 
@@ -47,7 +100,7 @@ No additional test, lint, type check, review, audit, accessibility pass, or scre
 
 ## 2026-08-19 — issue #64 focused acceptance repair
 
-**State:** focused acceptance checks are present at `0a3b1d2e` plus the current-main merge
+ **State:** focused acceptance checks are present at `0a3b1d2e` plus the current-main merge
 `76e368de`. The three-file focused run passed 29 tests covering real queue-file round trips,
 schema/version and corruption handling, malformed and unknown entries, terminal-task exclusion,
 unique staging and reopen, coalesced non-overlapping saves, CLI startup/shutdown wiring, and an
@@ -2009,6 +2062,27 @@ contract articles record the boundary and updated test inventory.
   `packages/app/test/screenshots.spec.ts` records it as a named runtime-dependent gap rather
   than faking a screen with nothing on it. History, Projects, the CI-render screen and the
   EULA viewer are the four that now have real capture steps and are in `REQUIRED_SURFACES`.
+
+### Issue #58 — complete render-console history contract
+
+The render console's visible ring remains a bounded presentation surface; it must not be treated
+as the history store. The issue #58 implementation lane owns a versioned, render-id-keyed durable
+stream with incremental crash-safe appends, restore after navigation, reattach and app restart,
+and an explicit interruption annotation for incomplete runs. The dropped-line indicator therefore
+describes only what is outside the viewport. Complete retained history is searchable with plain
+text by default plus the adjacent bounded regex builder, and export preserves UTF-8, schema/version,
+render id, provenance, timestamps, levels, annotations and filter metadata in plain text, Markdown,
+JSON, JSONL, CSV, TSV and HTML. Selection-aware copy/export, bulk export, retention/pruning and
+destructive-confirmed deletion are separate operations; the visible cap never silently prunes
+history. Existing console redaction applies before durable storage/export, and the history remains
+local-only.
+
+The acceptance Chut is not satisfied by source or component tests alone. It requires recovery tests
+for partial writes, storage refusal, Unicode, zero-width regex, large logs, interrupted renders,
+restart/reattach and pruning/deletion, plus a genuine packaged run that restarts the app, reopens a
+completed render, and searches/exports a line outside the visible ring. Until those results are
+recorded against the landed commit, issue #58 remains open and the console's runtime capture gap
+above must not be relabelled as closed.
 
 ### The state of the automated checks, stated exactly
 

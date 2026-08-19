@@ -353,9 +353,18 @@ function openMap(): void {
                     v-if="logOpen"
                     id="mb-world-run-log"
                     :lines="run.log.value"
+                    :history="run.history.value"
+                    :render-id="run.renderId.value ?? 'unknown'"
+                    :provenance="run.provenance.value?.engine ?? run.engine.value?.label ?? 'render'"
+                    :history-warning="run.historyWarning.value === 'storage-unavailable'
+                        ? t('world.console.storageUnavailable', 'Console history could not be saved; the live render is unchanged.')
+                        : run.historyWarning.value === 'retention-limit' || run.historyWarning.value === 'storage-limit'
+                          ? t('world.console.retentionWarning', 'Console history reached its retention limit; older lines remain unavailable.')
+                          : ''"
                     :dropped="run.logDropped.value"
                     :cap="LOG_LIMIT"
                     @settings="(target: SettingsTarget) => emit('settings', target)"
+                    @delete-history="(ids: readonly number[]) => run.deleteHistory(ids)"
                 />
             </div>
         </v-card-text>

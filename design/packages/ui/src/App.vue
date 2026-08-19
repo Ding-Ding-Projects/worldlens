@@ -84,6 +84,7 @@ import OllamaScreen from "./components/ollama/OllamaScreen.vue";
 import { structureStore } from "./components/structures/structureStore.js";
 import { createActiveRenders } from "./components/renders/activeRenders.js";
 import type { ConsoleTarget } from "./components/renders/activeRenders.js";
+import { promoteFinishedLocalRenders } from "./components/renders/finishedRenderPromotion.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import type { PaletteConfigTarget, PaletteSettingsTarget } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
@@ -349,6 +350,13 @@ const renderIndicator = createActiveRenders({
 });
 onMounted(() => {
     void renderIndicator.reconcile();
+    const bridge = (globalThis as { worldlens?: { listRenders?: () => Promise<readonly { outcome: "running" | "finished" | "failed" | "cancelled"; dataRoot: string | null; maps: readonly { id: string }[] }[]> } }).worldlens;
+    if (typeof bridge?.listRenders !== "function") return;
+    void bridge.listRenders().then((summaries) => {
+        promoteFinishedLocalRenders(summaries, (dataRoot, mapIds) => {
+            openRenderedMap(dataRoot, mapIds);
+        });
+    });
 });
 onUnmounted(() => {
     renderIndicator.dispose();

@@ -353,7 +353,9 @@ export {
 } from "./world/mca/blockentity/SkullBlockEntity.js";
 export {
     BannerBlockEntity,
+    bannerRenderLayers,
     BANNER_BLOCK_ENTITY_TOKEN,
+    type BannerRenderLayer,
 } from "./world/mca/blockentity/BannerBlockEntity.js";
 export { EntityType } from "./world/mca/entity/EntityType.js";
 export { MCAEntity, MCA_ENTITY_TOKEN } from "./world/mca/entity/MCAEntity.js";
