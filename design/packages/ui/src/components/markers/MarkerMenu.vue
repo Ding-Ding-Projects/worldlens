@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { mdiArrowLeft, mdiClose, mdiFilterVariant, mdiMapMarkerOff, mdiMapMarkerPlusOutline } from "@mdi/js";
+import { mdiArrowLeft, mdiClose, mdiDownload, mdiEyeOff, mdiFilterVariant, mdiMapMarkerOff, mdiMapMarkerPlusOutline } from "@mdi/js";
 import MarkerRow from "./MarkerRow.vue";
 import MarkerSetRow from "./MarkerSetRow.vue";
 import MarkerSearchField from "./MarkerSearchField.vue";
@@ -178,13 +178,24 @@ const search = ref("");
 const order = ref<SortOrder>("default");
 const mode = ref<SearchMode>("text");
 const flags = ref("i");
+const selectedPlayerIds = ref<string[]>([]);
+const hiddenPlayerIds = ref<string[]>(readHiddenPlayers());
+function readHiddenPlayers(): string[] { try { const value = JSON.parse(localStorage.getItem("worldlens.hidden-live-players") ?? "[]"); return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : []; } catch { return []; } }
+function persistHiddenPlayers(): void { try { localStorage.setItem("worldlens.hidden-live-players", JSON.stringify(hiddenPlayerIds.value)); } catch { /* privacy preference remains live */ } }
 
 watch(currentSet, () => {
     search.value = "";
     order.value = "default";
     mode.value = "text";
     flags.value = "i";
+    selectedPlayerIds.value = [];
 });
+watch(() => currentSet.value?.markers, (markers) => {
+    if (!markers) return;
+    const hidden = new Set(hiddenPlayerIds.value);
+    markers.filter((marker) => marker.type === "player").forEach((marker) => { if (hidden.has(marker.id)) marker.visible = false; });
+    selectedPlayerIds.value = selectedPlayerIds.value.filter((id) => markers.some((marker) => marker.id === id));
+}, { deep: true, immediate: true });
 
 const filtersOpen = ref(readFiltersOpen());
 
@@ -237,6 +248,9 @@ const showDivider = computed(() => filteredSets.value.length > 0 && hasMarkerSec
 const isEmpty = computed(() => filteredSets.value.length === 0 && !hasMarkerSection.value);
 
 const filterIsActive = computed(() => search.value.length > 0 || order.value !== "default");
+const playerRows = computed(() => filteredMarkers.value.filter((marker) => marker.type === "player"));
+const selectedPlayers = computed(() => playerRows.value.filter((marker) => selectedPlayerIds.value.includes(marker.id)));
+const allPlayersSelected = computed(() => playerRows.value.length > 0 && playerRows.value.every((marker) => selectedPlayerIds.value.includes(marker.id)));
 
 const activeFilterSummary = computed(() => {
     const parts: string[] = [];
@@ -256,6 +270,16 @@ function clearFilter(): void {
     search.value = "";
     order.value = "default";
     mode.value = "text";
+}
+function togglePlayer(marker: AnyMarkerData): void { selectedPlayerIds.value = selectedPlayerIds.value.includes(marker.id) ? selectedPlayerIds.value.filter((id) => id !== marker.id) : [...selectedPlayerIds.value, marker.id]; }
+function toggleAllPlayers(): void { selectedPlayerIds.value = allPlayersSelected.value ? selectedPlayerIds.value.filter((id) => !playerRows.value.some((marker) => marker.id === id)) : Array.from(new Set([...selectedPlayerIds.value, ...playerRows.value.map((marker) => marker.id)])); }
+function hidePlayer(marker: AnyMarkerData): void { marker.visible = !marker.visible; hiddenPlayerIds.value = marker.visible ? hiddenPlayerIds.value.filter((id) => id !== marker.id) : Array.from(new Set([...hiddenPlayerIds.value, marker.id])); persistHiddenPlayers(); }
+function hideSelectedPlayers(): void { selectedPlayers.value.forEach((marker) => { if (marker.visible) hidePlayer(marker); }); selectedPlayerIds.value = []; }
+function exportPlayers(): void {
+    const payload = selectedPlayers.value.length > 0 ? selectedPlayers.value : playerRows.value;
+    const safe = payload.map((marker) => ({ id: marker.id, name: marker.name ?? marker.id, position: { x: Math.floor(marker.position.x), y: Math.floor(marker.position.y), z: Math.floor(marker.position.z) }, visible: marker.visible }));
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), players: safe }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "worldlens-live-players.json"; anchor.click(); URL.revokeObjectURL(url);
 }
 
 const sortChoices = computed(() => [
@@ -539,6 +563,13 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
                         }}
                     </v-alert>
 
+                    <div v-if="currentSet.id === 'bm-players'" class="mb-marker-menu__player-bulk" role="toolbar" :aria-label="t('players.bulkLabel', 'Live player actions')">
+                        <v-checkbox :model-value="allPlayersSelected" :indeterminate="selectedPlayerIds.length > 0 && !allPlayersSelected" :aria-label="t('players.selectAll', 'Select all visible players')" :label="t('players.selectAll', 'Select all visible players')" hide-details density="compact" @update:model-value="toggleAllPlayers" />
+                        <span class="mb-marker-menu__player-count" role="status">{{ t('players.selected', { count: selectedPlayerIds.length }, '{count} selected') }}</span>
+                        <v-btn size="small" variant="tonal" :prepend-icon="mdiEyeOff" :disabled="selectedPlayers.length === 0" @click="hideSelectedPlayers">{{ t('players.hideSelected', 'Hide selected') }}</v-btn>
+                        <v-btn size="small" variant="text" :prepend-icon="mdiDownload" :disabled="playerRows.length === 0" @click="exportPlayers">{{ t('players.export', 'Export players') }}</v-btn>
+                    </div>
+
                     <v-alert
                         v-if="searchError"
                         type="error"
@@ -568,7 +599,10 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
                             :debug="app?.appState.debug === true"
                             :following-id="followingId"
                             :busy="busyMarkerId === marker.id"
+                            :selected="selectedPlayerIds.includes(marker.id)"
                             @activate="activate"
+                            @toggle="togglePlayer"
+                            @hide="hidePlayer"
                         />
                     </v-list>
 
@@ -721,6 +755,9 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
 .mb-marker-menu__notice {
     margin: 0.5rem 0.75rem;
 }
+
+.mb-marker-menu__player-bulk { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); background: rgb(var(--v-theme-surface)); }
+.mb-marker-menu__player-count { margin-inline-end: auto; color: rgba(var(--v-theme-on-surface), 0.7); font-size: 0.8rem; }
 
 .mb-marker-menu__empty {
     padding: 1.5rem 1rem;

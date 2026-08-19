@@ -55,6 +55,7 @@ import { Compression, type CompressedInputStream, type MapStorage } from "@world
 import type { HttpHandler } from "./HttpServer.js";
 import { LiveDataBroadcaster } from "../live/LiveDataBroadcaster.js";
 import { noLiveMarkers, noLivePlayers } from "../live/liveDataStubs.js";
+import { LocalLiveProvider, type LocalLiveProviderOptions } from "../live/localLiveProvider.js";
 import { SseConnectionManager } from "../live/SseConnectionManager.js";
 
 /** upstream: `api/ContentTypeRegistry` (the api package) — the same suffix table, ported locally. */
@@ -133,6 +134,13 @@ export interface MapStorageMount {
      * "no live players" stub — see `../live/liveDataStubs.js`.
      */
     readonly livePlayers?: () => string;
+    /**
+     * Optional local source. It is deliberately absent by default: no filesystem scan or
+     * network connection occurs unless this field explicitly names a playerdata root or an
+     * RCON endpoint. RCON credentials are supplied by the provider callback at poll time and
+     * are never part of this mount or returned by getMount(s).
+     */
+    readonly localLive?: LocalLiveProviderOptions;
     /** upstream: `MapRequestHandler`'s `liveMarkerDataSupplier`. Defaults to "no marker sets". */
     readonly liveMarkers?: () => string;
     /** upstream: `webserverConfig.isSseEnabled()`. Defaults to `true`. */
@@ -154,6 +162,7 @@ interface ResolvedMount {
     readonly sse: SseConnectionManager;
     readonly players: LiveDataBroadcaster;
     readonly markers: LiveDataBroadcaster;
+    readonly localLive: LocalLiveProvider | null;
 }
 
 export class MapStorageHandler implements HttpHandler {
@@ -164,8 +173,13 @@ export class MapStorageHandler implements HttpHandler {
         this.removeMount(mount.mapId);
 
         const sse = new SseConnectionManager();
+        const localLive = mount.localLive !== undefined &&
+            (mount.localLive.playerdataRoot !== undefined || mount.localLive.rcon !== undefined)
+            ? new LocalLiveProvider(mount.localLive)
+            : null;
+        localLive?.start();
         const players = new LiveDataBroadcaster(
-            mount.livePlayers ?? noLivePlayers,
+            mount.livePlayers ?? localLive?.asJson.bind(localLive) ?? noLivePlayers,
             mount.playersPollIntervalMs ?? PLAYERS_POLL_INTERVAL_MS,
         );
         const markers = new LiveDataBroadcaster(
@@ -190,7 +204,7 @@ export class MapStorageHandler implements HttpHandler {
             });
         }
 
-        this.mounts.set(mount.mapId, { mapId: mount.mapId, storage: mount.storage, useSSE, sse, players, markers });
+        this.mounts.set(mount.mapId, { mapId: mount.mapId, storage: mount.storage, useSSE, sse, players, markers, localLive });
     }
 
     removeMount(mapId: string): void {
@@ -199,6 +213,7 @@ export class MapStorageHandler implements HttpHandler {
         existing.sse.close();
         existing.players.close();
         existing.markers.close();
+        existing.localLive?.stop();
         this.mounts.delete(mapId);
     }
 

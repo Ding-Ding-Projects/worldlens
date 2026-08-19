@@ -4,6 +4,8 @@ import {
     mdiCodeTags,
     mdiCrosshairs,
     mdiCrosshairsGps,
+    mdiEye,
+    mdiEyeOff,
     mdiMapMarker,
     mdiVectorLine,
     mdiVectorPolygon,
@@ -23,9 +25,14 @@ const props = defineProps<{
     followingId: string | null;
     /** True while this row's own navigation (map lookup and switch) is still running. */
     busy: boolean;
+    selected?: boolean;
 }>();
 
-const emit = defineEmits<{ activate: [marker: AnyMarkerData, follow: boolean] }>();
+const emit = defineEmits<{
+    activate: [marker: AnyMarkerData, follow: boolean];
+    toggle: [marker: AnyMarkerData];
+    hide: [marker: AnyMarkerData];
+}>();
 
 const { t, tx } = useMarkerI18n();
 
@@ -81,6 +88,15 @@ const position = computed(() => ({
     y: Math.floor(props.marker.position.y),
     z: Math.floor(props.marker.position.z),
 }));
+const liveState = computed(() => {
+    if (!isPlayer.value) return "";
+    const observed = typeof props.marker.observedAt === "number" ? props.marker.observedAt : typeof props.marker.observedAt === "string" ? Date.parse(props.marker.observedAt) : NaN;
+    const stale = props.marker.stale === true || props.marker.freshness === "stale" || (Number.isFinite(observed) && Date.now() - observed > 15_000);
+    const freshness = stale ? "stale" : props.marker.freshness ?? "fresh";
+    const source = props.marker.source ? ` · ${props.marker.source}` : "";
+    const dimension = props.marker.dimension ? ` · ${props.marker.dimension}` : "";
+    return `${freshness}${source}${dimension}`;
+});
 
 const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name: label.value }));
 </script>
@@ -96,6 +112,16 @@ const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name
         <v-tooltip activator="parent" :text="props.marker.id" location="bottom" open-delay="700" />
 
         <template #prepend>
+            <v-checkbox
+                v-if="isPlayer"
+                :model-value="props.selected === true"
+                :aria-label="tx('markers.selectPlayer', 'Select {name}', { name: label })"
+                hide-details
+                density="compact"
+                class="mb-marker-item__select"
+                @click.stop
+                @update:model-value="emit('toggle', props.marker)"
+            />
             <div class="mb-marker-item__icon">
                 <img
                     v-if="isPlayer"
@@ -119,6 +145,7 @@ const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name
             <span v-if="!props.marker.visible">
                 {{ tx("markers.hiddenMarker", "hidden") }}
             </span>
+            <span v-if="isPlayer">{{ liveState }}</span>
         </v-list-item-subtitle>
 
         <template #append>
@@ -132,6 +159,20 @@ const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name
                     :aria-label="tx('markers.locatingPlayer', 'Looking for the player')"
                 />
                 <template v-else>
+                    <v-btn
+                        v-if="isPlayer"
+                        icon
+                        :color="props.marker.visible ? undefined : 'primary'"
+                        :aria-pressed="props.marker.visible"
+                        :aria-label="props.marker.visible ? tx('markers.hidePlayer', 'Hide {name}', { name: label }) : tx('markers.showPlayer', 'Show {name}', { name: label })"
+                        variant="text"
+                        density="comfortable"
+                        @click.stop="emit('hide', props.marker)"
+                        @keydown.enter.stop
+                        @keydown.space.stop
+                    >
+                        <v-icon :icon="props.marker.visible ? mdiEye : mdiEyeOff" aria-hidden="true" />
+                    </v-btn>
                     <!--
                       The whole row moves the camera as well, but a row is a `listitem`, not
                       a button. This is the properly-roled control for the same action, so
@@ -201,6 +242,8 @@ const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name
     justify-content: center;
     margin-inline-end: 0.75rem;
 }
+
+.mb-marker-item__select { flex: 0 0 auto; margin-inline-end: 0.25rem; }
 
 .mb-marker-item__head {
     width: 2rem;

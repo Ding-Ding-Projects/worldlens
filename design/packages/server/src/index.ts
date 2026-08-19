@@ -6,6 +6,16 @@ export { SseConnectionManager } from "./live/SseConnectionManager.js";
 export { LiveDataBroadcaster } from "./live/LiveDataBroadcaster.js";
 export { noLivePlayers, noLiveMarkers } from "./live/liveDataStubs.js";
 export {
+    LocalLiveProvider,
+    mergePlayers,
+    readPlayerdata,
+    type LocalLiveProviderOptions,
+    type LocalPlayer,
+    type LivePlayersDocument,
+    type PlayerDataOptions,
+    type RconEndpoint,
+} from "./live/localLiveProvider.js";
+export {
     RenderDriver,
     type RenderStatus,
     type UpdateBatchResult,

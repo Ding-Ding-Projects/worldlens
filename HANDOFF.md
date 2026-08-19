@@ -1,5 +1,30 @@
 # Handoff
 
+## Issue #74 local live-player tracking — 2026-08-19
+
+Issue #74 remains **open and unverified**. This issue-owned checkout contains the local live-player
+source implementation in `design/packages/server/src/live/localLiveProvider.ts`, with optional
+mount wiring in `MapStorageHandler` and the CLI server entry point. The direct feature record is
+[`docs/local-live-player-tracking.md`](docs/local-live-player-tracking.md).
+
+The safe empty response remains the default when no local provider is configured; the source path
+does not yet have packaged runtime proof. No tests, real player-data reads, isolated RCON session,
+packaged interaction, or capture were run in this records lane. Acceptance remains open until the
+next owner proves valid and malformed NBT, locked/truncated files, multiple dimensions,
+RCON refusal/timeout/reconnect, credential-store isolation, stale cleanup, and live marker updates
+in the packaged viewer.
+
+### 廣東話 / Cantonese
+
+Issue #74 仲係 **open，未驗證**。呢個 issue-owned checkout 已經有
+`localLiveProvider.ts` source implementation，同 `MapStorageHandler`／CLI server 嘅 optional
+mount wiring；直接 feature record 係 [`docs/local-live-player-tracking.md`](docs/local-live-player-tracking.md)。
+
+冇 configure local provider 時，safe empty response 仍然係 default；但 packaged runtime 仲未
+有 proof。今次 records lane 冇跑 tests、冇讀真 player data、冇開 isolated RCON、冇 packaged
+interaction、冇 capture。要補齊 NBT、RCON、credential-store、stale cleanup 同 packaged marker
+update 證據，先可以收 issue。
+
 ## Issue #75 measurement and waypoints — 2026-08-19
 
 Issue #75 remains **open**. The task-owned checkout contains the bounded measurement and waypoint
