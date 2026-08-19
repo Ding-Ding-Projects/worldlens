@@ -1,0 +1,27 @@
+[
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
+  { "action": "windowKey", "key": "PAGEDOWN" },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "ACCEPT" },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "FINISH SETUP" },
+  { "action": "click", "selector": ".wl-kid-rail__small", "nth": 2 },
+  { "action": "click", "selector": ".wl-kid-gate__go" },
+  { "action": "assertText", "selector": ".wl-rail", "text": "Map" },
+  { "action": "click", "role": "button", "name": "Search everything (Ctrl+Shift+F)", "exact": true },
+  { "action": "fill", "selector": ".mb-palette__search input", "value": "GitHub runners" },
+  { "action": "assertText", "selector": ".mb-palette-row", "text": "GitHub runners" },
+  { "action": "click", "selector": ".mb-palette-row__go", "hasText": "GitHub runners" },
+  { "action": "assertText", "selector": ".ci-render-screen", "text": "Render on GitHub" },
+  { "action": "clickPoint", "x": 1271, "y": 500 },
+  { "action": "chooseFolder", "role": "button", "name": "Browse", "exact": true, "valueEnv": "WORLDLENS_CI_WORLD" },
+  { "action": "sleep", "ms": 1200 },
+  { "action": "clickPoint", "x": 1271, "y": 700 },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-ci-render-world-selected",
+    "category": "delivery-runtime",
+    "state": "world-selected-through-native-dialog",
+    "expectedSurface": "Render on GitHub form",
+    "alt": "Worldlens Render on GitHub form after a generated world was selected through the native folder dialog using Lowlevel input."
+  }
+]

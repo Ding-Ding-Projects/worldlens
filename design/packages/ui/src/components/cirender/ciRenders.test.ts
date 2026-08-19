@@ -31,6 +31,7 @@ import type {
     CiScheduleStatus,
     CiSyncEvent,
     CiSyncResult,
+    CiSyncState,
 } from "./ciRenderBridge.js";
 
 const t = ((key: string, a?: unknown, b?: unknown): string => {
@@ -450,6 +451,57 @@ describe("rows follow the events", () => {
 });
 
 describe("what is already running, elsewhere", () => {
+    it("restores a persisted failed run as failed and lets the user remove its local row", async () => {
+        const failed: CiSyncState = {
+            version: 1,
+            syncId: "failed-after-restart",
+            owner: "o",
+            repo: "r",
+            accountId: "account",
+            worldFolder: "C:\\world",
+            mapId: "overworld",
+            mapName: "Overworld",
+            dimension: "minecraft:overworld",
+            fingerprint: "fingerprint",
+            releaseTag: "worldlens-world-overworld",
+            assetName: "world.zip",
+            archiveBytes: 42,
+            archiveSha256: "abc",
+            runId: 99,
+            runNumber: 12,
+            runUrl: "https://github.test/runs/99",
+            dispatchedAt: "2026-08-19T00:00:00Z",
+            stage: "failed",
+            renderId: null,
+            artifactSha256: null,
+            failureCode: "workflow-failed",
+            failureMessage: "Wave 1 failed.",
+            updatedAt: "2026-08-19T00:05:00Z",
+        };
+        const forgotten: string[] = [];
+        const { bridge: fake } = bridge({
+            listCiRenders: () => Promise.resolve({ ok: true, value: [failed] }),
+            forgetCiRender: (syncId) => {
+                forgotten.push(syncId);
+                return Promise.resolve(true);
+            },
+            canForget: true,
+        });
+        const renders = createCiRenders(fake);
+
+        await renders.loadKnown();
+
+        expect(renders.rows.value).toHaveLength(1);
+        expect(renders.rows.value[0]?.state).toBe("failed");
+        expect(renders.rows.value[0]?.failure?.message).toBe("Wave 1 failed.");
+        expect(renders.rows.value[0]?.run?.conclusion).toBe("failure");
+
+        await expect(renders.forget("failed-after-restart")).resolves.toBe(true);
+        expect(forgotten).toEqual(["failed-after-restart"]);
+        expect(renders.rows.value).toHaveLength(0);
+        renders.dispose();
+    });
+
     it("adopts an id that is already in flight, so a second copy is never started", async () => {
         const { bridge: fake } = bridge({ activeCiRenders: () => Promise.resolve(["elsewhere"]) });
         const renders = createCiRenders(fake);

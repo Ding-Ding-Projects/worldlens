@@ -816,6 +816,70 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  lowlevel-ui-e2e:
+    name: Windows Lowlevel UI end to end
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    continue-on-error: true
+    timeout-minutes: 180
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          package_json_file: design/package.json
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+        with:
+          version: 0.12.2
+
+      - name: Install application dependencies
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the complete workspace
+        working-directory: design
+        run: pnpm build
+
+      - name: Install the pinned Lowlevel MCP runtime
+        shell: pwsh
+        env:
+          LOWLEVEL_COMMIT: a30271e42ada397be567af7e9a2b258ffa3363ef
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'lowlevel-computer-use-mcp'
+          git clone --filter=blob:none https://github.com/Ding-Ding-Projects/lowlevel-computer-use-mcp.git $target
+          git -C $target checkout --detach $env:LOWLEVEL_COMMIT
+          uv sync --frozen --directory $target
+
+      - name: Drive Adult and Kid Mode through Lowlevel MCP
+        shell: pwsh
+        run: |
+          node --test scripts/worldlens-lowlevel-e2e.test.mjs
+          $lowlevel = Join-Path $env:RUNNER_TEMP 'lowlevel-computer-use-mcp'
+          $evidence = Join-Path $env:RUNNER_TEMP 'worldlens-lowlevel-ui-e2e'
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-worldlens-lowlevel-e2e.ps1 `
+            -LowlevelRoot $lowlevel `
+            -OutputDirectory $evidence
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: lowlevel-ui-e2e-${{ github.run_id }}
+          path: ${{ runner.temp }}/worldlens-lowlevel-ui-e2e/
+          if-no-files-found: warn
+          retention-days: 30
+
   release:
     name: Publish release
     # Standing policy: GitHub Actions runs no tests and no lint, in any project, and

@@ -9,6 +9,28 @@ with `df` and checks it against the render's own estimate before dispatching any
 [Disk: measured, not assumed](#disk-measured-not-assumed) below. Your machine uploads the
 world and then waits.
 
+### Reopening a failed run
+
+The application persists cloud-render records so closing the window cannot lose a run that is
+still useful. On restart it now maps the persisted `rendered`, `failed` and `cancelled` stages back
+to those exact visible states. A failed record does not return as a `running` row with an endless
+spinner.
+
+Terminal rows include **Remove from list**, protected by the ordinary two-key and full-slider
+confirmation. This removes only the local history record under the configured map-storage folder.
+It does not cancel or delete the GitHub Actions run, its release, or any remote asset. A row still
+running cannot be removed through this action.
+
+![Failed cloud-render rows restored after restart with their local removal actions](./screenshots/lowlevel-ci-render-history-fixed.png)
+
+![Two-key confirmation stating that GitHub data is not deleted](./screenshots/lowlevel-ci-render-remove-confirmation.png)
+
+![Cloud-render history after one failed local row was removed](./screenshots/lowlevel-ci-render-row-removed.png)
+
+This image is from the real current Electron build on a Lowlevel MCP off-screen Windows desktop.
+The app was reached through its command palette and scrolled through background mouse input; no
+renderer state was injected.
+
 No Java, no BlueMap and no local rendering: start the **Render world** workflow, wait, and
 download the map as an artifact. The desktop app can drive the whole loop for you — see
 [Doing it from the app](#doing-it-from-the-app) — and the map it brings back opens exactly

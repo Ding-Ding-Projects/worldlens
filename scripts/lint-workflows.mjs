@@ -180,11 +180,11 @@ const RELEASE_JOB_FINGERPRINT =
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
-    count: 6,
+    count: 7,
   }),
   "actions/setup-node": Object.freeze({
     sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
-    count: 6,
+    count: 7,
   }),
   "actions/setup-java": Object.freeze({
     sha: "cf277c60eb25467037889841efdb72551f06f6c3",
@@ -192,7 +192,7 @@ const PINNED_ACTIONS = Object.freeze({
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 5,
+    count: 6,
   }),
   "actions/download-artifact": Object.freeze({
     sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
@@ -200,7 +200,11 @@ const PINNED_ACTIONS = Object.freeze({
   }),
   "pnpm/action-setup": Object.freeze({
     sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
-    count: 6,
+    count: 7,
+  }),
+  "astral-sh/setup-uv": Object.freeze({
+    sha: "d0d8abe699bfb85fec6de9f7adb5ae17292296ff",
+    count: 1,
   }),
 });
 
@@ -466,6 +470,15 @@ const EXPECTED_CI_CONDITIONS = Object.freeze([
   Object.freeze({
     scope: "jobs.screenshots.steps.uses:actions/upload-artifact#2",
     expression: "failure()",
+  }),
+  Object.freeze({
+    scope: "jobs.lowlevel-ui-e2e",
+    expression:
+      "github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')",
+  }),
+  Object.freeze({
+    scope: "jobs.lowlevel-ui-e2e.steps.uses:actions/upload-artifact#1",
+    expression: "always()",
   }),
   Object.freeze({
     scope: "jobs.release",

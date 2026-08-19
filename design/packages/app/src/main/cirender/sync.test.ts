@@ -229,6 +229,18 @@ function releaseRoute(github: RecordingGitHub): RecordingGitHub {
 /* -------------------------------------------------------------------------- */
 
 describe("what leaves this computer is said first", () => {
+    it("forgets one finished local record without touching GitHub", async () => {
+        const syncId = await seedUploadedState();
+        const github = new RecordingGitHub();
+        const sync = makeSync({ github });
+
+        await expect(sync.knownSyncIds()).resolves.toContain(syncId);
+        await expect(sync.forget(syncId)).resolves.toBe(true);
+        await expect(sync.knownSyncIds()).resolves.not.toContain(syncId);
+        await expect(sync.forget(syncId)).resolves.toBe(false);
+        expect(github.calls).toHaveLength(0);
+    });
+
     it("reports the PUBLIC warning through preflight, in the backup surface's own words", async () => {
         const github = baseRoutes(new RecordingGitHub(), false);
         const sync = makeSync({ github });

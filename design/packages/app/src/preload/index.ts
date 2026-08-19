@@ -2899,6 +2899,8 @@ interface WorldlensBridge {
         { ok: true; value: readonly CiSyncState[] } | { ok: false; message: string }
     >;
     cancelCiRender(syncId: string): Promise<boolean>;
+    /** Removes one finished local row; the GitHub run and release are untouched. */
+    forgetCiRender(syncId: string): Promise<boolean>;
     /**
      * Syncs this process is actively driving right now, whether or not they have written a
      * record to disk yet. `listCiRenders` alone cannot show a render started moments ago in
@@ -3411,6 +3413,7 @@ const bridge: WorldlensBridge = {
     checkCiRender: (syncId) => ipcRenderer.invoke("cirender:check", syncId),
     listCiRenders: () => ipcRenderer.invoke("cirender:list"),
     cancelCiRender: (syncId) => ipcRenderer.invoke("cirender:cancel", syncId),
+    forgetCiRender: (syncId) => ipcRenderer.invoke("cirender:forget", syncId),
     activeCiRenders: () => ipcRenderer.invoke("cirender:active"),
     onCiRenderEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: CiSyncEvent): void => listener(payload);

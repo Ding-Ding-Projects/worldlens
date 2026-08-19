@@ -42,6 +42,7 @@
  */
 
 import { CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES, inspectBackupSource } from "../backup/index.js";
+import { rm } from "node:fs/promises";
 import type { RepositoryReport } from "../backup/index.js";
 import type { ProjectFile, ProjectMap } from "@worldlens/config";
 import type { LocalMapHandler } from "../render/LocalMapHandler.js";
@@ -485,6 +486,22 @@ export class CiRenderSync {
     /** One sync's record, or null when there is none under that id. */
     async readState(syncId: string): Promise<CiSyncState | null> {
         return await readCiSyncState(ciSyncWorkspace(this.#options.storageDir(), syncId).stateFile);
+    }
+
+    /**
+     * Removes one finished local history row. It never cancels or deletes anything on GitHub.
+     * Membership is proved from the storage directory before resolving the deletion target, and
+     * an actively driven sync is never removable.
+     */
+    async forget(syncId: string): Promise<boolean> {
+        if (this.#running.has(syncId)) return false;
+        const known = await this.knownSyncIds();
+        if (!known.includes(syncId)) return false;
+        await rm(ciSyncWorkspace(this.#options.storageDir(), syncId).root, {
+            recursive: true,
+            force: true,
+        });
+        return !(await this.knownSyncIds()).includes(syncId);
     }
 
     /* ---------------------------------------------------------------------- */

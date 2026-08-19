@@ -73,6 +73,7 @@ export const CIRENDER_CHANNELS = [
     "cirender:check",
     "cirender:list",
     "cirender:cancel",
+    "cirender:forget",
     "cirender:active",
     // The "What, and where" setup card's own data: who could own the repository, a name
     // worth trying, and whether GitHub already has it. Pure additions beside the sync
@@ -241,6 +242,11 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     options.ipcMain.handle("cirender:cancel", (_event: IpcMainInvokeEvent, syncId: unknown) => {
         const id = readText(syncId);
         return id !== null && sync.cancel(id);
+    });
+
+    options.ipcMain.handle("cirender:forget", async (_event: IpcMainInvokeEvent, syncId: unknown) => {
+        const id = readText(syncId);
+        return id !== null && (await sync.forget(id));
     });
 
     // What this process is actively driving right now, independent of what has been

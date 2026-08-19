@@ -1,0 +1,50 @@
+[
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
+  { "action": "windowKey", "key": "PAGEDOWN" },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "ACCEPT" },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "FINISH SETUP" },
+  { "action": "click", "selector": ".wl-kid-rail__small", "nth": 2 },
+  { "action": "click", "selector": ".wl-kid-gate__go" },
+  { "action": "assertText", "selector": ".wl-rail", "text": "Map" },
+  { "action": "click", "role": "button", "name": "Search everything (Ctrl+Shift+F)", "exact": true },
+  { "action": "fill", "selector": ".mb-palette__search input", "value": "GitHub runners" },
+  { "action": "assertText", "selector": ".mb-palette-row", "text": "GitHub runners" },
+  { "action": "click", "selector": ".mb-palette-row__go", "hasText": "GitHub runners" },
+  { "action": "assertText", "selector": ".ci-render-screen", "text": "Render on GitHub" },
+  { "action": "clickPoint", "x": 1271, "y": 700 },
+  { "action": "clickPoint", "x": 1271, "y": 700 },
+  { "action": "clickPoint", "x": 1271, "y": 700 },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-ci-render-history-fixed",
+    "category": "delivery-runtime",
+    "state": "persisted-terminal-runs-after-restart",
+    "expectedSurface": "Render on GitHub history",
+    "alt": "Worldlens Render on GitHub history after restart, with persisted terminal states and local removal controls instead of endless spinners."
+  },
+  { "action": "assertCount", "selector": "[data-test='row']", "count": 3 },
+  { "action": "click", "selector": "[data-test='forget']", "nth": 0 },
+  { "action": "assertText", "selector": ".mb-config-confirm", "text": "Remove this render from the list" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-ci-render-remove-confirmation",
+    "category": "delivery-runtime",
+    "state": "local-row-removal-confirmation",
+    "expectedSurface": "Cloud-render row removal confirmation",
+    "alt": "Worldlens two-key confirmation for removing a failed cloud-render row from local history without deleting anything on GitHub."
+  },
+  { "action": "click", "selector": ".mb-config-confirm__key--one" },
+  { "action": "click", "selector": ".mb-config-confirm__key--two" },
+  { "action": "press", "role": "slider", "name": "Remove from the list", "key": "END" },
+  { "action": "sleep", "ms": 900 },
+  { "action": "assertCount", "selector": "[data-test='row']", "count": 2 },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-ci-render-row-removed",
+    "category": "delivery-runtime",
+    "state": "one-local-row-removed",
+    "expectedSurface": "Cloud-render history after local removal",
+    "alt": "Worldlens cloud-render history after one failed local row was removed through the two-key confirmation; two failed rows remain."
+  }
+]

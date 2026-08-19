@@ -1513,8 +1513,8 @@ async function captureFirstRunStep(surface: string, run: () => Promise<void>): P
  * It has to run before anything else, because it is a blocking dialog over every other
  * surface - which is exactly why the app shows it once, on a fresh profile, and never
  * again. The harness launches with a throwaway user-data directory so it is genuinely a
- * first run, and answers it the way a cautious person would: it declines the Mojang
- * download consent, which is a real answer, is remembered, and downloads nothing.
+ * first run, and follows the repository owner's standing verification choice: it accepts
+ * the Mojang download consent, which is a real answer and is remembered by the throwaway profile.
  */
 async function captureFirstRun(): Promise<void> {
     const appeared = await page
@@ -1580,10 +1580,9 @@ async function captureFirstRun(): Promise<void> {
         );
     });
 
-    // Decline, not accept. It is a real answer, it is remembered, and it leaves the
-    // machine this ran on in the state it was already in rather than recording an
-    // agreement to somebody else's licence on their behalf.
-    await page.locator(".mb-setup-card__answer").nth(1).click({ timeout: ELEMENT_TIMEOUT });
+    // Accept is the repository owner's explicit standing choice for Worldlens verification.
+    // The answer remains confined to this run's throwaway profile.
+    await page.locator(".mb-setup-card__answer").nth(0).click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForSelector(".mb-setup-storage", {
         state: "visible",
         timeout: ELEMENT_TIMEOUT,
@@ -1617,8 +1616,7 @@ async function captureFirstRun(): Promise<void> {
  * same call the flow's own Finish button makes. That is not a fake dismissal: nothing
  * here touches the scrim, the dialog's `visible` state, or any CSS. It is the one honest
  * way left to make "first run is over" true without repeating the same click sequence
- * that just failed for a reason this function does not know - and Mojang's licence stays
- * declined either way, because nothing here calls `acceptDownload`.
+ * that just failed for a reason this function does not know.
  */
 async function ensureFirstRunClosed(): Promise<void> {
     const stillOpen = await page.locator(".mb-setup-card").count();
@@ -1627,7 +1625,7 @@ async function ensureFirstRunClosed(): Promise<void> {
     skip(
         "First-run setup: completion",
         "the flow did not reach Finish in this run; completing it directly through the " +
-            "bridge so the dialog does not reopen, still declined, after the reload that " +
+            "bridge so the dialog does not reopen after the reload that " +
             "follows",
     );
     await page
