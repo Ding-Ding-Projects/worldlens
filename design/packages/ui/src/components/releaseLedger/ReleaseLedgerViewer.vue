@@ -33,7 +33,15 @@ const shown = computed(() => matcher.value === null ? entries.value : entries.va
 function statusLabel(status: ReleaseLedgerVerification): string { return t(`releaseLedger.status.${status}`, { running: "Running", failed: "Failed", verified: "Verified", unverified: "Unverified" }[status]); }
 function statusIcon(status: ReleaseLedgerVerification): string { return status === "verified" ? mdiShieldCheck : status === "running" ? mdiProgressClock : mdiShieldAlert; }
 function bytes(value: number | null): string { return value === null ? t("releaseLedger.notReported", "not reported") : `${new Intl.NumberFormat().format(value)} bytes`; }
-function markdown(): string { return [`# ${t("releaseLedger.title", "Phase release ledger")}`, "", `Read at: ${readout.value?.readAt ?? "unknown"}`, "", ...shown.value.map((entry) => `## ${entry.phase}\n\n- Integration: ${entry.integrationSha}\n- Release: ${entry.releaseTag ?? "not published"}\n- Workflow: ${entry.workflowRun ?? "not reported"} (${entry.workflowState})\n- Timing: ${entry.startedAt ?? "not reported"} → ${entry.completedAt ?? "not reported"} · ${entry.duration ?? "not reported"}\n- Code name: ${entry.codeName ?? "none recorded"}\n- Verification: ${entry.verification}\n- Note: ${entry.verificationNote}\n- Assets: ${entry.assets.map((asset) => `${asset.name} (${bytes(asset.bytes)}${asset.sha256 ? `, SHA-256 ${asset.sha256}` : ""})`).join("; ") || "none"}`)])].join("\n"); }
+function markdown(): string {
+    return [
+        `# ${t("releaseLedger.title", "Phase release ledger")}`,
+        "",
+        `Read at: ${readout.value?.readAt ?? "unknown"}`,
+        "",
+        ...shown.value.map((entry) => `## ${entry.phase}\n\n- Integration: ${entry.integrationSha}\n- Release: ${entry.releaseTag ?? "not published"}\n- Workflow: ${entry.workflowRun ?? "not reported"} (${entry.workflowState})\n- Timing: ${entry.startedAt ?? "not reported"} → ${entry.completedAt ?? "not reported"} · ${entry.duration ?? "not reported"}\n- Code name: ${entry.codeName ?? "none recorded"}\n- Verification: ${entry.verification}\n- Note: ${entry.verificationNote}\n- Assets: ${entry.assets.map((asset) => `${asset.name} (${bytes(asset.bytes)}${asset.sha256 ? `, SHA-256 ${asset.sha256}` : ""})`).join("; ") || "none"}`),
+    ].join("\n");
+}
 async function copy(): Promise<void> { const text = markdown(); if (bridge.value?.writeClipboardText) await bridge.value.writeClipboardText(text); else await navigator.clipboard.writeText(text); }
 function download(): void { const blob = new Blob([markdown()], { type: "text/markdown;charset=utf-8" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "release-ledger.md"; anchor.click(); URL.revokeObjectURL(url); }
 </script>
