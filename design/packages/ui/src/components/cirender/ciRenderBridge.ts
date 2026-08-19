@@ -132,7 +132,12 @@ export interface CiOwnerChoice {
  */
 export type CiOwnerChoicesAnswer =
     | { readonly ok: true; readonly login: string; readonly owners: readonly CiOwnerChoice[] }
-    | { readonly ok: false; readonly signedIn: boolean; readonly message: string };
+    | {
+          readonly ok: false;
+          readonly signedIn: boolean;
+          readonly message: string;
+          readonly needsSignIn?: boolean | undefined;
+      };
 
 /**
  * Whether `owner/repo` is free on GitHub, read live rather than guessed.
@@ -440,7 +445,8 @@ export type CiSyncResult =
 
 /** Every answer the main process gives to a question that can simply fail. */
 export type Answer<T> =
-    { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
+    | { readonly ok: true; readonly value: T }
+    | { readonly ok: false; readonly message: string; readonly needsSignIn?: boolean | undefined };
 
 /* -------------------------------------------------------------------------- */
 /* Scheduled re-rendering: the honest cadence set, and what the workflow found */

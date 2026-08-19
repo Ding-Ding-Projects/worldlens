@@ -573,9 +573,7 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
     return {
         route: "gh",
         describe:
-            options.account === null || options.account === undefined
-                ? "the selected GitHub CLI account"
-                : `the selected GitHub CLI account (${options.account})`,
+            `the selected GitHub CLI account (${options.account ?? options.lease.login} on ${options.lease.host})`,
         canUpload: true,
         readWorkflow: (owner, repo, file) => readWorkflow(owner, repo, file, call),
         readDefaultBranch: (owner, repo) => readDefaultBranch(owner, repo, call),
@@ -666,11 +664,23 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
                 options.signal === undefined ? {} : { signal: options.signal },
             );
             if (!result.started || result.code !== 0) {
+                const status = cliHttpStatus(result.stderr);
+                const detail = result.stderr
+                    .trim()
+                    .split(/\r?\n/u)
+                    .filter((line) => line.trim() !== "")
+                    .slice(-2)
+                    .join(" | ");
                 throw new ActionsCallError(
-                    "GitHub CLI could not upload the release asset.",
-                    cliHttpStatus(result.stderr),
+                    `GitHub CLI could not upload the release asset for ${options.lease.login} on ${options.lease.host}` +
+                        `: GitHub answered ${String(status)}. No release data changed.` +
+                        (detail === "" ? "" : ` ${detail}`) +
+                        (status === 401 || status === 403
+                            ? " Reauthenticate this selected account from GitHub Settings, then try again."
+                            : ""),
+                    status,
                     `${upload.owner}/${upload.repo}#${release.tag}`,
-                    [401, 403].includes(cliHttpStatus(result.stderr)),
+                    [401, 403].includes(status),
                 );
             }
             upload.onProgress?.({ bytesSent: upload.bytes, bytesTotal: upload.bytes });

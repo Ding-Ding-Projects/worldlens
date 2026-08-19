@@ -1002,6 +1002,26 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
         expect(wrapper.find('[data-test="owner-signed-out"]').exists()).toBe(false);
     });
 
+    it("offers account recovery when the owner read is refused by the selected credential", async () => {
+        const bridgeWithOwners: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listCiOwners: () =>
+                Promise.resolve({
+                    ok: false,
+                    signedIn: true,
+                    needsSignIn: true,
+                    message: "release-bot on ghe.example needs reauthentication.",
+                }),
+        };
+        const wrapper = mountScreen(bridgeWithOwners);
+        await flushPromises();
+
+        const recover = wrapper.find('[data-test="owner-reauthenticate"]');
+        expect(recover.exists()).toBe(true);
+        await recover.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
+
     it("announces the signed-out and load-failed owner states to assistive technology", async () => {
         // Both states relied on VAlert's own hardcoded default of role="alert" *regardless
         // of severity* - correct by accident for a real failure, but exactly wrong for the
@@ -1148,6 +1168,13 @@ describe("render as: which stored GitHub account this render authenticates as", 
             props: { disabled: true },
         });
         expect(String(unavailable?.["searchText"])).toContain("reauthentication required");
+        expect(wrapper.find('[data-test="account-reauthentication"]').text()).toContain(
+            "needs reauthentication",
+        );
+        const recover = wrapper.find('[data-test="account-reauthenticate"]');
+        expect(recover.exists()).toBe(true);
+        await recover.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
     });
 
     it("lists every stored account, naming the active one, and defaults the display to it", async () => {
@@ -1365,6 +1392,25 @@ describe("render as: which stored GitHub account this render authenticates as", 
 });
 
 describe("an existing repository, offered because this flow never creates one", () => {
+    it("offers account recovery when the repository list is refused by the selected credential", async () => {
+        const bridge: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listExistingRepositories: () =>
+                Promise.resolve({
+                    ok: false,
+                    needsSignIn: true,
+                    message: "release-bot on ghe.example cannot read repositories.",
+                }),
+        };
+        const wrapper = mountScreen(bridge);
+        await flushPromises();
+
+        const recover = wrapper.find('[data-test="repositories-reauthenticate"]');
+        expect(recover.exists()).toBe(true);
+        await recover.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
+
     it("fills owner and name when one is picked from the account's own repositories", async () => {
         const bridgeWithRepositories: CiRenderBridge = {
             ...fakeBridge(preflight()),

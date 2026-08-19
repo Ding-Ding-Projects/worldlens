@@ -439,12 +439,25 @@ export class GhCredentialBroker {
         if (args[0] === "auth" && args[1] === "status" && !args.includes("--hostname")) {
             return ["auth", "status", "--hostname", host, ...args.slice(2)];
         }
+        const repoOption = args.indexOf("--repo");
+        const repoValue = repoOption >= 0 ? args[repoOption + 1] : undefined;
+        if (
+            repoValue !== undefined &&
+            !repoValue.includes("://") &&
+            repoValue.split("/").length === 2 &&
+            !repoValue.toLowerCase().startsWith(`${host.toLowerCase()}/`)
+        ) {
+            const qualified = [...args];
+            qualified[repoOption + 1] = `${host}/${repoValue}`;
+            return qualified;
+        }
         if (
             args[0] === "repo" &&
             (args[1] === "create" || args[1] === "view") &&
             args[2] !== undefined &&
             !args[2].includes("://") &&
-            args[2].split("/").length === 2
+            args[2].split("/").length === 2 &&
+            !args[2].toLowerCase().startsWith(`${host.toLowerCase()}/`)
         ) {
             return [args[0], args[1], `${host}/${args[2]}`, ...args.slice(3)];
         }
@@ -541,7 +554,7 @@ export class GhCredentialBroker {
             account,
             options.signal,
             async () =>
-                await this.#options.runner.run(executable, args, this.#processOptions(options)),
+                await this.#boundRunner(executable, account).run(executable, args, options),
         );
     }
 
@@ -557,11 +570,11 @@ export class GhCredentialBroker {
             account,
             options.signal,
             async () =>
-                await this.#options.runner.runToFile(
+                await this.#boundRunner(executable, account).runToFile(
                     executable,
                     args,
                     destination,
-                    this.#processOptions(options),
+                    options,
                 ),
         );
     }

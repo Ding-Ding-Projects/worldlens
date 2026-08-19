@@ -132,7 +132,8 @@ export interface CiRenderIpc {
 
 /** Everything a channel answers with, so a rejection never crosses as a raw stack. */
 type Answer<T> =
-    { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
+    | { readonly ok: true; readonly value: T }
+    | { readonly ok: false; readonly message: string; readonly needsSignIn?: boolean | undefined };
 
 export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     const syncOptions: CiRenderSyncOptions = {
@@ -318,6 +319,7 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                         signedIn: false,
                         message:
                             "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                        needsSignIn: true,
                     };
                 }
                 return {
@@ -328,7 +330,14 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
             } catch (error) {
                 // listCiOwnerChoices already turns its own failures into a result rather
                 // than a throw; this is a last resort for anything that got past that.
-                return { ok: false, signedIn: true, message: sentence(error) };
+                return {
+                    ok: false,
+                    signedIn: true,
+                    message: sentence(error),
+                    ...(error instanceof GhCredentialError && error.needsSignIn
+                        ? { needsSignIn: true }
+                        : {}),
+                };
             }
         },
     );
@@ -349,11 +358,18 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                         ok: false,
                         message:
                             "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                        needsSignIn: true,
                     };
                 }
                 return { ok: true, value: await listGhRepositories(lease) };
             } catch (error) {
-                return { ok: false, message: sentence(error) };
+                return {
+                    ok: false,
+                    message: sentence(error),
+                    ...(error instanceof GhCredentialError && error.needsSignIn
+                        ? { needsSignIn: true }
+                        : {}),
+                };
             }
         },
     );
