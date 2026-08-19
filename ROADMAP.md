@@ -1,5 +1,15 @@
 # Roadmap
 
+## Issue #64 delivery boundary — 2026-08-19
+
+- **Delivery inspection:** the issue-owned checkout at `d004f3ca15d7d7a9121df370e00c955072489098`
+  contains no packaged executable or installer for the standalone CLI, and no runtime receipt for
+  a process restart that reopens `<resolved core.data>/tasks.dat` and resumes queued work.
+- **Honest state:** the 3-file, 29-test focused proof covers storage, schema/version refusal,
+  malformed and unknown entries, terminal exclusion, atomic staging, coalescing, and CLI
+  startup/shutdown wiring. Packaged reachability and real process-restart recovery remain open
+  acceptance evidence; issue #64 is not ready to close.
+
 ## Current verified baseline
 
 - Adult Mode and Kid Mode complete their first-run and round-trip journeys through the committed
@@ -9,6 +19,19 @@
 - Dispatched cloud renders resume from their recorded run id without uploading or dispatching a
   second run. Successful artifacts are downloaded, verified, registered and openable in the map
   viewer.
+
+## SQL storage cross-engine proof — issue #66
+
+The TypeScript SQL storages are independently proven against real MySQL, MariaDB, PostgreSQL,
+and WASM SQLite. Issue #66's durable sanitized matrix report
+[`docs/sql-cross-engine-compatibility.report.json`](docs/sql-cross-engine-compatibility.report.json)
+exited `0` after comparing all four PostgreSQL/SQLite directions: each row reports 1 hires tile,
+9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences. Direction 1
+compares six render-state records through `diffRenderState`; direction 2 explicitly does not compare
+render-state through Java's raw HTTP boundary. The report records tested commit, runtime versions,
+relative paths, and `ok=true`, `state=removed`, `workRootRemoved=true` for every direction and
+incompatible-schema probe. See [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md)
+for the exact evidence and the remaining factual direction-2 boundary.
 
 ## Public 1.0 compatibility contract — issue #60
 

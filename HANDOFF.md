@@ -1,5 +1,33 @@
 # Handoff
 
+## Issue #66 — SQL cross-engine evidence record (2026-08-19)
+
+The durable sanitized matrix report is
+[`docs/sql-cross-engine-compatibility.report.json`](docs/sql-cross-engine-compatibility.report.json).
+It started at `2026-08-19T12:28:28.726Z`, finished at `2026-08-19T12:30:20.049Z`, used seed `1`,
+fixture size `64`, `postgres:17.6`, ran for `111323 ms`, exited `0`, and records tested commit
+`f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java `25.0.4`.
+
+All four direction rows report 1 hires tile, 9/4/4 lowres tiles, 5 metadata records, 1003 map
+ids, 1251 grids, and 0 divergences. Direction 1 compares render-state through `diffRenderState`;
+direction 2 records the Java HTTP boundary that exposes tiles and metadata only. Every SQLite and
+PostgreSQL direction and incompatible-schema probe records target removal and work-root removal.
+The report contains relative paths and no credentials.
+
+## Issue #64 restart recovery acceptance — 2026-08-19
+
+Queue persistence now has a genuine two-process proof: one Node process writes a queued task,
+exits, and a fresh process restores the same task from `tasks.dat`. Cloud dispatch now persists
+its dispatch timestamp and `dispatched` stage before `workflow_dispatch`; after a crash, a fresh
+process adopts the matching GitHub run instead of dispatching a duplicate. Recovery surfaces
+separately report restored records, offers safe to resume, already-running exclusions, refusals,
+dismissals, and an unknown active-state check.
+
+Focused verification passed **5 files / 122 tests**, including 36 CI-sync cases, 4 server queue
+persistence cases, and the recovery UI contracts. Packaged standalone-CLI execution remains a
+separate delivery boundary; the process-restart and crash-order contracts themselves are now
+exercised rather than inferred.
+
 ## Issue #60 — public 1.0 compatibility contract
 
 This lane prepares the public delivery records for a Windows-only 1.0 compatibility contract. The

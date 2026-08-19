@@ -897,7 +897,7 @@ export const home: HomeContent = {
             phase: "H",
             scope: "SQL storages, command palette, marker editor, JavaScript addon system, static export, three.js upgrade",
             status: "pending",
-            note: "SQL storages landed early, out of order: ported and proven against real MySQL, MariaDB and PostgreSQL servers, and now proven cross-compatible with the Java engine over a shared database, both directions (issue #32, closed). The command palette landed early too, out of order, alongside the contract work that gave it settings to list. Marker editor, the JavaScript addon system, static export and the three.js upgrade remain untouched.",
+            note: "SQL storages landed early, out of order: ported and proven against real MySQL, MariaDB and PostgreSQL servers. Java↔TypeScript cross-engine exchange is proven in both directions over MariaDB (issue #32, closed); the PostgreSQL and SQLite-specific cross-engine proof remains open under issue #66. The command palette landed early too, out of order, alongside the contract work that gave it settings to list. Marker editor, the JavaScript addon system, static export and the three.js upgrade remain untouched.",
         },
         {
             phase: "I",

@@ -38,6 +38,9 @@ dependencies {
     // proof (issue #32). Also registers the `jdbc:mysql:` prefix as of 3.x, but this
     // project resolves it purely to drive the `mariadb` dialect explicitly.
     jdbcDrivers("org.mariadb.jdbc:mariadb-java-client:3.5.3")
+    // Issue #66: the two JDBC engines that still need a real Java↔TypeScript proof.
+    jdbcDrivers("org.postgresql:postgresql:42.7.13")
+    jdbcDrivers("org.xerial:sqlite-jdbc:3.53.2.1")
 }
 
 tasks.register<Copy>("fetchDrivers") {

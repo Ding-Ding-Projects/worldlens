@@ -111,7 +111,7 @@ function when(iso: string | null): string {
         leave the search bar on screen to be cleared; hiding the section around it would
         take the way back out with it and read as the offers having been lost.
     -->
-    <section v-if="all.length > 0 || offers.failure.value" class="mb-world-resume">
+    <section v-if="offers.loadState?.value === 'loaded' || all.length > 0 || offers.failure.value" class="mb-world-resume">
         <h3 class="mb-world-resume__title">
             <v-icon :icon="mdiRestore" size="20" aria-hidden="true" />
             {{ t("world.resume.title", "Renders that did not finish") }}
@@ -128,6 +128,31 @@ function when(iso: string | null): string {
         <v-alert v-if="offers.failure.value" type="error" density="compact" variant="tonal" class="mb-2" role="alert">
             {{ offers.failure.value }}
         </v-alert>
+
+        <p
+            v-if="offers.loadState?.value === 'loaded' && !offers.failure.value"
+            class="mb-world-resume__recovery"
+            role="status"
+        >
+            <template v-if="offers.activeState?.value === 'unknown'">
+                {{ t("world.resume.recoveryUnknown", "The app recovered interrupted render records, but could not confirm which renders are active. The resume offers are withheld until that check succeeds.") }}
+            </template>
+            <template v-else-if="offers.recoveredCount?.value > 0">
+                {{ t("world.resume.recovered", { count: offers.recoveredCount.value, offered: all.length }, "Recovered {count} interrupted render(s) from disk; {offered} offer(s) are safe to resume.") }}
+                <span v-if="offers.skippedActiveCount?.value > 0">
+                    {{ t("world.resume.skippedActive", { count: offers.skippedActiveCount.value }, " {count} already-running render(s) stayed out of this resume list.") }}
+                </span>
+            </template>
+            <template v-else>
+                {{ t("world.resume.recoveredNone", "No interrupted renders were recovered. Completed work is not offered again.") }}
+            </template>
+        </p>
+        <p v-if="offers.lastAction?.value === 'resumed'" class="mb-world-resume__recovery" role="status">
+            {{ t("world.resume.resumed", "Render resumed. Tiles already on disk will be skipped; new tiles continue from the saved state.") }}
+        </p>
+        <p v-else-if="offers.lastAction?.value === 'dismissed'" class="mb-world-resume__recovery" role="status">
+            {{ t("world.resume.dismissed", "This recovery offer was dismissed and will not return unless a new interruption is recorded.") }}
+        </p>
 
         <div v-if="all.length > 0" class="mb-world-resume__search">
             <ConfigSearchField
@@ -225,10 +250,15 @@ function when(iso: string | null): string {
 }
 
 .mb-world-resume__blurb,
-.mb-world-resume__line--muted {
+.mb-world-resume__line--muted,
+.mb-world-resume__recovery {
     font-size: 0.75rem;
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-world-resume__recovery {
+    margin-block: 8px;
 }
 
 .mb-world-resume__search {

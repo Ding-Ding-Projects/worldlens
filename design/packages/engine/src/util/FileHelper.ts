@@ -13,6 +13,10 @@
 import { mkdir, readdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
 
+const TRANSIENT_RENAME_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+const RENAME_ATTEMPTS = 6;
+const RENAME_DELAY_MS = 50;
+
 /** true if the given error is a "file does not exist" error (upstream: NoSuchFileException) */
 function isNoSuchFile(ex: unknown): boolean {
     return typeof ex === "object" && ex !== null && (ex as { code?: string }).code === "ENOENT";
@@ -25,12 +29,21 @@ function isNoSuchFile(ex: unknown): boolean {
  * non-atomic {@code Files.move} to fall back to, and a copy+delete fallback would not
  * be a move at all. A {@code NoSuchFileException} is ignored exactly as upstream.)
  */
-export async function atomicMove(from: string, to: string): Promise<void> {
-    try {
-        await rename(from, to);
-    } catch (ex) {
-        if (isNoSuchFile(ex)) return;
-        throw ex;
+export async function atomicMove(
+    from: string,
+    to: string,
+    move: (source: string, destination: string) => Promise<void> = rename,
+): Promise<void> {
+    for (let attempt = 1; attempt <= RENAME_ATTEMPTS; attempt++) {
+        try {
+            await move(from, to);
+            return;
+        } catch (ex) {
+            if (isNoSuchFile(ex)) return;
+            const code = typeof ex === "object" && ex !== null ? (ex as { code?: string }).code : undefined;
+            if (!TRANSIENT_RENAME_CODES.has(code ?? "") || attempt === RENAME_ATTEMPTS) throw ex;
+            await new Promise((resolvePromise) => setTimeout(resolvePromise, RENAME_DELAY_MS));
+        }
     }
 }
 
