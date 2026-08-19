@@ -104,6 +104,51 @@ produces the renderer produces them, and a user running a Minecraft server can t
 for their platform from the same release. What was excluded as unusable is now a shipping
 artifact.
 
+## D21 — Retire the unreachable local `WebServer`; `LocalMapHandler` is the serving path
+
+**Decided 2026-08-19.**
+
+The local `packages/app/src/main/runtime/webserver.ts` `WebServer` class is retired. It started
+the upstream engine a second time with `-w`, wrote a web-server configuration, and waited for a
+TCP connection before reporting a URL. It had no production caller: the only local construction
+was in its own test, and renderer/preload exposed no start, stop or status route. The
+`role: "web-server"` plan used by remote hosting is a separate SSH pipeline and is not evidence
+of a local caller.
+
+The existing local route is canonical. The embedded `HttpServer` mounts `LocalMapHandler` at
+`/local/{renderId}/...`; `render/orchestrator.ts` mounts completed output for both local and
+Docker execution. A rendered map is a static web root once the engine has written it, so a
+second JVM, local `-w` port, bind probe, restart/reattach path and repair contract would add
+machinery without adding a reachable product capability. The app therefore makes no local
+promise to start upstream's live web server or report a local `-w` URL.
+
+`WebServer`, its source and tests, and the runtime re-export are removed. Shared launch-planning
+types, Docker publish fields and repair evidence values remain where remote hosting still needs
+them; they are not a reachable local surface. If a future feature needs an upstream live server,
+it must first name a production owner, lifetime, UI/IPC route, restart/repair contract and real
+port-readiness evidence.
+
+**Reference inventory.** Obsolete/local: `runtime/webserver.ts` and its dedicated test, the
+runtime barrel export, the web-server-started annotation and console copy, and local `-w`, port,
+and readiness promises. Preserved remote/shared: `RuntimeRole` and engine `-w` planning types used
+by remote hosting, Docker publish fields, `RepairSubject` `web-server` evidence for remote hosting,
+`remote/hostplan.ts`, `remote/hosting.ts` and their tests, `LocalMapHandler`, and the embedded and
+preview servers.
+
+廣東話：本機 `WebServer` 冇 production caller；local、Docker、remote、IPC 同 preload 都冇真正
+開過佢。Remote hosting 嘅 `role: "web-server"` 係另一條 SSH 路，唔可以當成本機已經有人用。
+現時正路係 embedded `HttpServer` 加 `LocalMapHandler`，render 完就直接當 static web root
+讀，唔使多開 JVM、多守一個 port、或者扮有一個 local `-w` URL 等人驗收。今次刪 class 同
+stale local promise；將來要 live upstream server，就要先有真正 caller、生命週期、UI/IPC、
+診斷同 port-ready 證據。
+
+**參考清單。** 已過時／本機：`runtime/webserver.ts` 同佢專用嘅 test、runtime barrel
+export、web-server-started annotation 同 console copy，仲有本機 `-w`、port 同 readiness
+promise。保留嘅 remote／共用項目：remote hosting 會用到嘅 `RuntimeRole` 同 engine `-w`
+planning types、Docker publish fields、remote hosting 用嘅 `RepairSubject` `web-server`
+evidence、`remote/hostplan.ts`、`remote/hosting.ts` 同佢哋嘅 tests、`LocalMapHandler`，以及
+embedded 同 preview servers。
+
 ## D19 — Project CI moved to self-hosted runners; `pull_request` dropped from `ci.yml`
 
 **Decided 2026-08-05.**

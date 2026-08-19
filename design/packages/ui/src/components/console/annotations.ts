@@ -24,12 +24,11 @@
  * The advice itself is a `vue-i18n` key with an English fallback, so it goes through the
  * language mode and the per-language funny level like every other sentence in this
  * application. The captured values travel as named arguments and are never baked into
- * the string, which is what keeps a level 5 rewrite from losing the address the web
- * server actually bound to.
+ * the string, which is what keeps a level 5 rewrite from losing any diagnostic value.
  *
  * ## The main process keeps its own copy of the table
  *
- * `packages/app/src/main/render/annotate.ts` holds the same five rules. The two packages
+ * `packages/app/src/main/render/annotate.ts` holds the same four rules. The two packages
  * compile under separate roots with no module either can import from the other, exactly
  * as `world/worldBridge.ts` restates the render event types rather than importing them.
  * **A pattern changed here has to be changed there**, and both sides are tested against
@@ -54,12 +53,11 @@ export interface ConsoleText {
     readonly values: Readonly<Record<string, string | number>>;
 }
 
-/** The five things this app knows how to say something useful about. */
+/** The four things this app knows how to say something useful about. */
 export type AnnotationKind =
     | "port-conflict"
     | "render-threads"
     | "no-maps-updating"
-    | "web-server-started"
     | "config-error";
 
 /**
@@ -170,21 +168,6 @@ export const ANNOTATION_RULES: readonly AnnotationRule[] = [
             "success. It nearly always means a map is misconfigured rather than that the world " +
             "is already up to date: check the world folder the map points at, and the dimension " +
             "inside it.",
-    },
-    {
-        // `WebServer bound to /0.0.0.0:8100`. Anchored at the start so `Stopping
-        // WebServer...` and `WebServer is disabled` cannot be read as the server coming
-        // up, which would invite somebody to open a map that is not being served.
-        kind: "web-server-started",
-        pattern: /^WebServer bound to (.+)$/i,
-        tone: "tip",
-        once: false,
-        settings: null,
-        key: "world.console.advice.webServer",
-        fallback:
-            "The web server is up on {address}. The map can be opened now; the rest of it keeps " +
-            "rendering while you look at it.",
-        capture: (match) => ({ address: (match[1] ?? "").trim() }),
     },
     {
         // Upstream's setup banner heading, plus the config load failures it wraps.

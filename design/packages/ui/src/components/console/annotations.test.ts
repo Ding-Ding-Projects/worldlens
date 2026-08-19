@@ -93,23 +93,6 @@ describe("a render that is updating no maps", () => {
     });
 });
 
-describe("the web server coming up", () => {
-    it("captures the address, so the advice can say where the map is", () => {
-        const [annotation] = annotationsFor("WebServer bound to /0.0.0.0:8100");
-
-        expect(annotation?.kind).toBe("web-server-started");
-        expect(annotation?.text.values.address).toBe("/0.0.0.0:8100");
-        // The address travels as a named argument rather than being written into the
-        // string, so a funny level can restyle the sentence without losing it.
-        expect(annotation?.text.fallback).toContain("{address}");
-    });
-
-    it("is not read into the server being disabled or shut down", () => {
-        expect(kinds("WebServer is disabled")).toEqual([]);
-        expect(kinds("Stopping WebServer...")).toEqual([]);
-    });
-});
-
 describe("a configuration problem", () => {
     it("is recognised from the banner heading and from the load failure", () => {
         expect(kinds("There is a problem with your BlueMap setup!")).toEqual(["config-error"]);

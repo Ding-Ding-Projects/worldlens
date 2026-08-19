@@ -60,6 +60,13 @@ Neither is wrong. But "start BlueMap and leave it running" and "render, then loo
 rendered" produce different screens, and several rows below are gaps only if this project
 decides it wants the first behaviour as well as the second.
 
+**Retired local WebServer decision.** The separate local WebServer lifecycle and port used to
+host a completed render is retired. That decision does **not** retire the existing static local
+route: `render/LocalMapHandler.ts` still serves `/local/{renderId}` through the app's
+auth-token-gated local HTTP surface, and the completed map remains an in-app view. WebServer
+configuration and remote-hosting web-server behaviour remain relevant for maps hosted by a
+remote BlueMap server; they are not a reason to restore a second local listener here.
+
 The second structural difference is **when Java is needed**. BlueMapGUI cannot show you a
 project list until Java is configured, because it parses HOCON by shelling out to a bundled
 `HOCONReader.jar`. This repository parses HOCON in TypeScript
@@ -149,7 +156,7 @@ project generates configs from vendored templates rather than by asking the CLI 
 | Feature | BlueMapGUI's behaviour | Status here | Evidence | What it would take |
 |---|---|---|---|---|
 | Open the map | An "Open" button that launches `http://localhost:<port>` in the system browser, enabled only while running. | **deliberate** | This project serves rendered tiles itself at `/local/{renderId}` (`render/LocalMapHandler.ts`) and views them in-app: `App.vue`'s `openRenderedMap()` turns a finished render into an entry in the same list a remote server uses (`ui/src/stores/profiles.ts`), and selecting it opens the map. | Nothing. The in-app route is better: no unauthenticated listener, no browser round trip. |
-| Learn the port | Scrapes it out of the CLI's log line `WebServer bound to …:8100` with a regex, defaulting to 8100 if that fails. | **n/a** | `webserver.conf` is written `enabled: false`. | — |
+| Learn the port | Scrapes it out of the CLI's log line `WebServer bound to …:8100` with a regex, defaulting to 8100 if that fails. | **deliberate** | The separate local WebServer decision is retired: `webserver.conf` is written `enabled: false`, while `render/LocalMapHandler.ts` continues to serve the static `/local/{renderId}` route. Remote-hosting web-server settings remain separate. | — |
 | Celebrate | The Open button scales and glows when the server comes up, damped as soon as the pointer touches it. | **missing** | — | Noted for delight, not for parity. Anything like it here must respect reduced-motion. |
 
 ### Editing configuration
@@ -302,6 +309,12 @@ BlueMapGUI 係另一個包住 BlueMap CLI 嘅桌面程式 (desktop wrapper)。�
 
 兩邊都冇錯。但係「開住 BlueMap 唔閂」同「render 完再睇 render 咗啲乜」會做出唔同嘅畫面，
 下面有幾行只有喺呢個專案決定除咗第二種行為之外仲想要第一種嘅時候，先算得上係差距。
+
+**本機 WebServer 嘅決定已經退休。** 用一個獨立嘅本機 WebServer 同埠去 host 完成咗嘅
+render，呢個 lifecycle 已經唔再係支援方向。不過，呢個唔係刪走現有嘅 static local route：
+`render/LocalMapHandler.ts` 仍然經過 app 自己要 auth token 先入到嘅本機 HTTP surface 提供
+`/local/{renderId}`，完成咗嘅 map 仍然喺 app 入面睇。WebServer config 同 remote BlueMap
+server 嘅 web-server 行為仍然有用；佢哋唔代表要喺呢度恢復第二個本機 listener。
 
 第二個結構性差異係**幾時先要 Java**。BlueMapGUI 喺 Java 未設定好之前連專案清單都show 唔到，
 因為佢係靠 shell out 去一個附帶嘅 `HOCONReader.jar` 嚟 parse HOCON。呢個 repository 用 TypeScript
@@ -500,7 +513,9 @@ BlueMapGUI 嘅「project」係**磁碟上嘅一個資料夾**，入面有 `confi
   變成同遠端 server 共用嗰個清單入面嘅一項（`ui/src/stores/profiles.ts`），揀咗就會打開個地圖。
   乜都唔使做。App 內路線更好：冇未驗證嘅 listener，亦唔使繞去瀏覽器。
 - **知道用邊個埠**：BlueMapGUI 用 regex 由 CLI 嗰句 `WebServer bound to …:8100` 度刮出個埠，失敗就當 8100。
-  呢邊 **n/a**：`webserver.conf` 寫住 `enabled: false`。
+  呢邊係 **deliberate**：獨立嘅本機 WebServer 決定已經退休，`webserver.conf` 寫住
+  `enabled: false`，但 `render/LocalMapHandler.ts` 繼續提供 static `/local/{renderId}` route。
+  Remote-hosting 嘅 web-server settings 仍然係另一回事。
 - **慶祝**：BlueMapGUI 個 Open 掣喺 server 起身嗰陣會放大兼發光，指標一掂到就即刻收斂。呢邊 **missing**。
   記低係為咗趣味，唔係為咗對齊功能。如果呢邊要做類似嘢，就一定要尊重 reduced-motion。
 

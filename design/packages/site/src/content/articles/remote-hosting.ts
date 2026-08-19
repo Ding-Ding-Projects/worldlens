@@ -211,7 +211,7 @@ export const remoteHosting: Article = {
         },
         {
             articleId: "docker-and-local",
-            reason: "The local web server this feature's honesty rule - a URL is reported only after it has been connected to - is carried over from.",
+            reason: "The shared TCP-probe honesty rule: a remote URL is reported only after the published address has been connected to.",
         },
     ],
 

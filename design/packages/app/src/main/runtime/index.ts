@@ -9,7 +9,7 @@
  * ```ts
  * import {
  *     containerName, planDockerLaunch, planLocalLaunch, probeDocker,
- *     writeEngineConfig, EngineProcess, WebServer,
+ *     writeEngineConfig, EngineProcess,
  * } from "./runtime/index.js";
  *
  * const docker = await probeDocker();          // honest about installed vs. not running
@@ -145,13 +145,4 @@ export {
     type WrittenEngineConfig,
 } from "./config.js";
 
-export {
-    READY_POLL_MS,
-    READY_TIMEOUT_MS,
-    WebServer,
-    freePort,
-    tcpPortProbe,
-    type PortProbe,
-    type WebServerOptions,
-    type WebServerStart,
-} from "./webserver.js";
+export { tcpPortProbe, type PortProbe } from "./portProbe.js";
