@@ -1,10 +1,11 @@
 import {
+    IOException,
+    LenientListAdapter,
     NBTReader,
     NBTWriter,
     STRING,
     TagType,
     TypeToken,
-    listOf,
     type BlueNBT,
     type ObjectSchema,
     type TypeAdapter,
@@ -18,6 +19,25 @@ import type { Texture } from "../../../resources/pack/resourcepack/texture/Textu
 export const BANNER_BLOCK_ENTITY_TOKEN: TypeToken<BannerBlockEntity> =
     TypeToken.of("BannerBlockEntity");
 const PATTERN_TOKEN: TypeToken<Pattern> = TypeToken.of("BannerBlockEntity.Pattern");
+
+const BANNER_PATTERN_DIAGNOSTIC_LIMIT = 32;
+const bannerPatternDiagnostics: string[] = [];
+
+function recordBannerPatternDiagnostic(_error: IOException): void {
+    if (bannerPatternDiagnostics.length === BANNER_PATTERN_DIAGNOSTIC_LIMIT)
+        bannerPatternDiagnostics.shift();
+    bannerPatternDiagnostics.push("Dropped one malformed banner pattern layer (IOException).");
+}
+
+/** Returns a copy of the recent payload-free banner parse diagnostics. */
+export function getBannerPatternDiagnostics(): readonly string[] {
+    return [...bannerPatternDiagnostics];
+}
+
+/** Clears the bounded banner parse-diagnostic history. */
+export function clearBannerPatternDiagnostics(): void {
+    bannerPatternDiagnostics.length = 0;
+}
 
 /** upstream: BannerBlockEntity.Pattern */
 export const BANNER_PATTERN = {
@@ -280,7 +300,7 @@ const BANNER_COLOR_ADAPTER: TypeAdapter<BannerColor> = {
     read(reader: NBTReader): BannerColor {
         if (reader.peek() === TagType.INT) return reader.nextInt() as BannerColor;
         if (reader.peek() === TagType.STRING) return reader.nextString() as BannerColor;
-        throw new Error("Expected banner color as an NBT INT or STRING");
+        throw new IOException("Expected banner color as an NBT INT or STRING");
     },
 
     write(value: BannerColor, writer: NBTWriter): void {
@@ -338,7 +358,15 @@ const BANNER_BLOCK_ENTITY_SCHEMA: ObjectSchema<BannerBlockEntity> = {
     fields: {
         ...MCA_BLOCK_ENTITY_FIELDS,
         customName: { names: ["CustomName"], type: STRING },
-        patterns: { names: ["Patterns", "patterns"], type: listOf(PATTERN_TOKEN) },
+        patterns: {
+            names: ["Patterns", "patterns"],
+            type: (nbt) =>
+                new LenientListAdapter<Pattern>(
+                    nbt,
+                    PATTERN_TOKEN,
+                    recordBannerPatternDiagnostic,
+                ),
+        },
     },
 };
 

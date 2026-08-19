@@ -268,6 +268,29 @@ The remaining evidence is intentionally explicit:
    facts prove transport and renderer availability, not visible banner output.
    A visible same-world read-back is still required.
 
+### 2026-08-19 records delta — malformed layers and bounded diagnostics
+
+The compatibility reader now uses the existing lenient per-element list shape:
+each banner layer is consumed before parsing, a malformed layer records one
+bounded parser diagnostic and is skipped, and later valid layers retain their
+original order. Reader-state failures still propagate; no missing or malformed
+field is repaired by inventing a default layer. Diagnostic history is capped at
+32 messages, evicting the oldest entry when another is recorded. The focused
+5/5 evidence above remains the only executable result carried by this records
+delta; no additional tests, builds, packaged interaction, or captures ran here.
+Real NBT worlds, an upstream oracle comparison, and packaged restart/reopen
+render plus diagnostic read-back remain open acceptance work.
+
+### 廣東話同步
+
+今次 records delta 係：每一層 banner 先完整 consume，再逐層 parse；壞 layer
+只會留一條 bounded parser diagnostic 然後跳過，後面啱嘅 layer 照原次序繼續，
+唔會亂加 default。reader state error 仍然照樣報上去；diagnostic 最多 32 條，
+新嘅入場時最舊嗰條出場。之前嗰 5/5 focused evidence 仍然係唯一 executable
+result，今次冇加跑 tests、build、packaged interaction 或 captures。真 NBT world、
+upstream oracle、packaged restart/reopen render 同 diagnostic read-back 仲未驗證，
+所以 issue 繼續 open。
+
 The world and fixture-scoped oracle records above are verified. The packaged
 attempt is recorded as failed visual proof, not success. Existing generic world
 captures are not substitutes for the packaged patterned-banner acceptance

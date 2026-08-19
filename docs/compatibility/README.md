@@ -99,6 +99,7 @@ note explicitly widens it.
 - [Migration guide](./migration-guide.md)
 - [Public surface matrix](./public-surface-matrix.md)
 - [JavaScript and ESM add-ons — issue #71](./javascript-esm-add-ons.md)
+- [Typed banner-pattern compatibility — issue #89](./banner-patterns.md)
 - [Automatic updates](../automatic-updates.md)
 - [Backup and restore](../backup.md)
 
