@@ -22,7 +22,7 @@ import {
     VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
-import { mapIdProblem } from "../project/index.js";
+import { mapIdProblem, worldLeaf } from "../project/index.js";
 import type { CiCloudRenderConfigInput } from "./ciRenderBridge.js";
 
 /**
