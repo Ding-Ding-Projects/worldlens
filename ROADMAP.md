@@ -1,5 +1,39 @@
 # Roadmap
 
+## CI artifact-only workflow update (2026-08-19)
+
+- **Workflow shape:** `.github/workflows/ci.yml` now retains exactly five jobs: `check` (a separate
+  workspace build that uploads no release artifact), `jars` (seven BlueMap jars), `package` (Windows
+  installer), `test-world` (generated world and rendered-map artifacts), and `release` (publication).
+  `release` depends exactly on `[package, jars, test-world]`; `check` is not a release gate.
+- **Removed from this workflow:** the `workflows` lint/static-analysis job, the
+  `config-java-roundtrip` test job, the `screenshots` capture job, the `lowlevel-ui-e2e` Windows UI
+  job, and the screenshot-evidence step inside `check`.
+- **Accepted risk:** this workflow runs no tests, lint, typecheck, static analysis, accessibility,
+  or screenshot/capture checks. Those checks remain outside the release graph; a release may ship
+  from code whose tests would fail.
+- **Evidence boundary:** this records-only pass ran no local validation, build, installer,
+  dispatch, packaged-runtime, or capture work. A new remote workflow run and its published release
+  remain pending exact read-back of the target commit, assets, timing, line count, unsigned state,
+  and public dim-sum code-name link.
+
+### 廣東話 / Cantonese
+
+- **Workflow shape:** `.github/workflows/ci.yml` 而家淨係保留五個 jobs：`check`（獨立 workspace
+  build，唔會 upload release artifact）、`jars`（七個 BlueMap jars）、`package`（Windows
+  installer）、`test-world`（generated world 同 rendered-map artifacts），同 `release`
+  （publication）。`release` 準確依賴 `[package, jars, test-world]`；`check` 唔係 release gate。
+- **移走嘅嘢：** `workflows` lint/static-analysis job、`config-java-roundtrip` test job、
+  `screenshots` capture job、`lowlevel-ui-e2e` Windows UI job，同 `check` 入面 screenshot-evidence
+  step。
+- **接受咗嘅風險：** 呢個 workflow 唔跑 tests、lint、typecheck、static analysis、accessibility
+  或 screenshot/capture checks。呢啲 checks 留喺 release graph 之外，所以 release 有機會由
+  tests 會 fail 嘅 code 發出。
+- **Evidence boundary:** 今次 records-only pass 冇做 local validation、build、installer、
+  dispatch、packaged-runtime 或 capture。新 remote workflow run 同 published release 仲要逐樣
+  read back：target commit、assets、timing、line count、unsigned state 同 public dim-sum
+  code-name link。
+
 ## Issue #59 — safe product migration source and evidence boundary (2026-08-19)
 
 - **Status:** Source implementation is present; Issue #59 remains open and unverified.

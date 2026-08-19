@@ -46,11 +46,15 @@ add-on system, static export and friends) are future work, and Windows executabl
 intentionally unsigned.
 
 Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
-unknown-publisher warning. A publish is allowed only after the required build, security-boundary,
-rendering-input, and packaging provenance checks complete. Local tests and lint remain available
-before publication but do not run in the workflow or withhold publication. Screenshot capture remains
-visible diagnostic evidence, but a capture failure is advisory and never blocks an otherwise valid
-release. The packaging job clears
+unknown-publisher warning. The current CI workflow retains five jobs: `check` is a separate
+workspace build that uploads no release artifact; `jars` builds seven BlueMap jars; `package`
+produces the Windows installer; `test-world` produces generated world and rendered-map artifacts;
+and `release` publishes from exactly `[package, jars, test-world]`. `check` is not a release gate.
+Local tests, lint,
+typechecks, static analysis, accessibility checks, and screenshot/capture checks do not run in this
+workflow or withhold publication; this accepted tradeoff means a release may ship from code whose
+tests would fail. Screenshot capture remains a local diagnostic path rather than a workflow job.
+The packaging job clears
 its validated output locations, accepts exactly one fresh
 `Setup.exe`, one full `.nupkg`, optional delta packages and a non-empty matching `RELEASES`, then
 checks every emitted executable is Authenticode `NotSigned`. Release notes identify the exact
@@ -246,9 +250,11 @@ headless metrics at 360, 390 and 414 CSS pixels plus a desktop viewport. All 18 
 guarded schema that checks scenario identity, ARIA state, focus, both toggle label/state changes and
 complete overflow classification.
 
-Every push to the default branch that passes lint, build and the full test suite publishes a real
-Squirrel.Windows installer with its own uniquely tagged release. Read what it can and cannot do
-before installing it.
+Every push to the default branch whose three release inputs complete publishes a real
+Squirrel.Windows installer with its own uniquely tagged release. The exact remote run, target
+commit, assets, timing, line count, unsigned state, and public dim-sum code-name link still need
+read-back for any new workflow change; this documentation update does not claim that evidence.
+Read what it can and cannot do before installing it.
 
 **What works today.** Rendering a local Minecraft world, and browsing a **remote** BlueMap
 server end to end: the viewer, the three.js scene, markers, the token-gated embedded server and
@@ -1159,7 +1165,7 @@ design/                  the pnpm workspace (all code)
   tools/                 the worker-isolated reference regex builder
   LICENSE, NOTICE        licence and upstream attribution for the ported code
 vendor/BlueMap           upstream Java/JS reference, git submodule @ e664c1a
-.github/workflows/ci.yml lint, build and test on push and pull request
+.github/workflows/ci.yml artifact builds on push and pull request; release publication only on a main push or nominated workflow_dispatch
 ```
 
 `vendor/BlueMap` is a read-only reference. The port reads it file by file; nothing in it is

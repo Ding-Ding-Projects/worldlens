@@ -1,5 +1,48 @@
 # Handoff
 
+## CI artifact-only workflow update (2026-08-19)
+
+The visible workflow diff reduces `.github/workflows/ci.yml` to five retained jobs: `check` is a
+separate workspace build that uploads no release artifact; `jars` builds the seven BlueMap jars;
+`package` produces the Windows installer; `test-world` produces the generated world and
+rendered-map artifacts; and `release` publishes from the three artifact-producing inputs. The
+release dependency graph is exactly `[package, jars, test-world]`; `check` is not a release gate.
+
+The workflow-lint/static-analysis job (`workflows`), the real-Java configuration round-trip test
+job (`config-java-roundtrip`), the screenshot capture job (`screenshots`), and the Windows Lowlevel
+UI end-to-end job (`lowlevel-ui-e2e`) were removed. The screenshot-evidence step was also removed
+from `check`. The workflow now runs no tests, lint, typecheck, static analysis, accessibility
+checks, or screenshot/capture checks. This is an accepted delivery tradeoff: a release may ship
+from code whose tests would fail, and those checks are separate local work rather than release
+conditions.
+
+This records update ran no tests, lint, typechecks, builds, installer sessions, workflow
+dispatches, packaged runtime sessions, or captures. No new release has been verified for this
+workflow change. Pending evidence is a real remote workflow run plus release read-back proving the
+target commit, unique non-draft release, installer and jar/world assets, timing, line-count
+record, unsigned-artifact state, and the public dim-sum code-name link.
+
+### 廣東話 / Cantonese
+
+今次見到嘅 workflow diff 將 `.github/workflows/ci.yml` 收窄到五個保留 jobs：`check` 係獨立
+workspace build，唔會 upload release artifact；`jars` build 七個 BlueMap jars；`package` 產生
+Windows installer；`test-world` 產生 generated world 同 rendered-map artifacts；`release` 就
+由三個產物 inputs 發布 release。Release dependency graph 準確係
+`[package, jars, test-world]`；`check` 唔係 release gate。
+
+Workflow lint/static-analysis job（`workflows`）、real-Java config round-trip test job
+（`config-java-roundtrip`）、screenshot capture job（`screenshots`）同 Windows Lowlevel UI
+end-to-end job（`lowlevel-ui-e2e`）已移除，`check` 入面嘅 screenshot-evidence step 都移走。依家
+workflow 唔跑 tests、lint、typecheck、static analysis、accessibility checks 或
+screenshot/capture checks。呢個係已接受嘅 delivery tradeoff：release 有機會由一份 tests 會
+fail 嘅 code 出發，而呢啲 checks 係 workflow 之外嘅 local work，唔再係 release 條件。
+
+今次 records update 冇跑 tests、lint、typechecks、builds、installer sessions、workflow
+dispatches、packaged runtime sessions 或 captures。仲未有新 release 俾呢個 workflow change
+驗證。仲欠嘅 evidence 係真 remote workflow run 同 release read-back：target commit、唯一
+non-draft release、installer 同 jar/world assets、timing、line-count record、unsigned-artifact
+state，同 public dim-sum code-name link 都要逐樣證實。
+
 ## Issue #59 — safe product migration source and evidence boundary (2026-08-19)
 
 Issue #59 remains **open and unverified**. The current source contains two focused compatibility

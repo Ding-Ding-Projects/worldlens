@@ -1,5 +1,25 @@
 # Handoff
 
+## 2026-08-19 — CI build-and-release-only record
+
+The current `ci.yml` keeps the workspace build, all seven BlueMap jar builds, the Windows
+installer, the generated and rendered test-world artifact, and release publication. It removes
+the Lowlevel UI end-to-end, real-Java configuration round-trip, screenshot/capture, lint, test,
+typecheck, static-analysis, and accessibility jobs from this delivery path.
+
+This pass ran no local checks, builds, or captures. Release proof is pending. The accepted tradeoff
+is explicit: a release may publish from code whose tests would fail, because no test or analysis
+job blocks publication in this workflow.
+
+### 廣東話同步
+
+而家嘅 `ci.yml` 保留 workspace build、七個 BlueMap jar build、Windows installer、generated/rendered
+test-world artifact 同 release publication；Lowlevel UI end-to-end、real-Java config round-trip、
+screenshot/capture、lint、test、typecheck、static-analysis 同 accessibility jobs 就由呢條 delivery
+route 移除。今次冇行 local checks、builds 或 captures，release proof 仲等緊。接受嘅取捨係：release
+可以由一個 tests 會 fail 嘅 code commit 發佈，因為呢條 workflow 冇 test 或 analysis job 阻住
+publication。
+
 ## Issue #59 — safe product migration source boundary (2026-08-19)
 
 The profile-migration source routes journal and receipt writes through the shared atomic
