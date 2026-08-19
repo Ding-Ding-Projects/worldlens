@@ -252,29 +252,31 @@ export async function createPostgresTarget({
             fail(`PostgreSQL container ${name} did not become healthy within ${waitTimeoutMs}ms`);
         },
         async authenticate() {
-            const result = await run(
-                "docker",
-                [
-                    "exec",
-                    "--env",
-                    `PGPASSWORD=${password}`,
-                    name,
-                    "psql",
-                    "--no-password",
-                    "--host",
-                    "127.0.0.1",
-                    "--username",
-                    user,
-                    "--dbname",
-                    database,
-                    "--command",
-                    "SELECT 1",
-                ],
-                { timeoutMs: 15_000 },
-            );
-            if (result.code !== 0)
-                fail(`PostgreSQL credential/property authentication failed for ${name}: ${result.stderr.trim().slice(-1000)}`);
-            return { ok: true, state: "authenticated" };
+            let lastError = "";
+            for (let attempt = 0; attempt < 12; attempt++) {
+                const result = await run(
+                    "docker",
+                    [
+                        "exec",
+                        "--env",
+                        `PGPASSWORD=${password}`,
+                        name,
+                        "psql",
+                        "--no-password",
+                        "--username",
+                        user,
+                        "--dbname",
+                        database,
+                        "--command",
+                        "SELECT 1",
+                    ],
+                    { timeoutMs: 15_000 },
+                );
+                if (result.code === 0) return { ok: true, state: "authenticated" };
+                lastError = result.stderr.trim().slice(-1000);
+                await new Promise((resolvePromise) => setTimeout(resolvePromise, 250));
+            }
+            fail(`PostgreSQL credential/property authentication failed for ${name}: ${lastError}`);
         },
         async dispose() {
             if (disposed) return target.cleanup;

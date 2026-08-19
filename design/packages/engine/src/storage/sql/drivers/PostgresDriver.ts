@@ -74,22 +74,34 @@ export function toPostgresPlaceholders(sql: string): string {
 
 /**
  * `jdbc:postgresql://host:port/database?opt=val` differs from `pg`'s own
- * `postgres(ql)://...` connection string only in its `jdbc:` prefix, so `pg-connection-
- * string` (which `pg` already depends on) parses the rest directly — stripping the
- * prefix is the whole translation needed, unlike MySQL's driver which has no such
- * built-in URL parser to reuse.
+ * `postgres(ql)://...` connection string only in its `jdbc:` prefix. Parse the URL into
+ * a plain client config instead of passing `connectionString` alongside properties:
+ * node-postgres parses `connectionString` *after* merging the object and silently
+ * overwrites an explicitly supplied password with the URL's empty password field.
  */
 export function parsePostgresConnectionOptions(
     options: SqlConnectionOptions,
 ): Record<string, unknown> {
     const connectionString = options.connectionUrl.replace(/^jdbc:/, "");
+    const parsed = new URL(connectionString);
     const config: Record<string, unknown> = {
-        connectionString,
+        host: parsed.hostname,
+        port: parsed.port === "" ? undefined : Number(parsed.port),
+        database: parsed.pathname.length > 1 ? decodeURIComponent(parsed.pathname.slice(1)) : undefined,
         max: options.maxConnections > 0 ? options.maxConnections : 10,
     };
+    if (parsed.username !== "") config.user = decodeURIComponent(parsed.username);
+    if (parsed.password !== "") config.password = decodeURIComponent(parsed.password);
+    for (const [key, value] of parsed.searchParams.entries()) config[key] = value;
     // `connection-properties` (typically user/password) overrides anything embedded in
-    // the connection string, matching the same precedence the MySQL adapter uses.
-    Object.assign(config, options.connectionProperties);
+    // the connection string, matching the same precedence the MySQL adapter uses. The
+    // config file boundary is untyped at runtime, so normalize authentication values to
+    // strings before node-postgres sees them; SCRAM rejects undefined/null/non-string
+    // passwords with a misleading handshake error rather than naming the bad property.
+    const properties = options.connectionProperties;
+    Object.assign(config, properties);
+    if (properties.user !== undefined) config.user = String(properties.user);
+    if (properties.password !== undefined) config.password = String(properties.password);
     return config;
 }
 

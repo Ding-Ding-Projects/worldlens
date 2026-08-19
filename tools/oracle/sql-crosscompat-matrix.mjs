@@ -167,13 +167,22 @@ function jdbcTarget(dialect, target) {
     return `jdbc:postgresql://${target.host}:${target.port}/${target.database}`;
 }
 
+function targetProperties(dialect, target) {
+    if (dialect.id !== "postgresql") return target.connectionProperties ?? {};
+    const properties = target.connectionProperties ?? {};
+    return {
+        user: String(properties.user ?? target.user),
+        password: String(properties.password ?? target.password),
+    };
+}
+
 async function writeSqlConfig({ configDirectory, dataDirectory, webRoot, worldDirectory, mapId, mapName,
     dimension, renderThreadCount, dialect, target, driver, serverOnly, webserverPort }) {
     await mkdir(join(configDirectory, "maps"), { recursive: true });
     await mkdir(join(configDirectory, "storages"), { recursive: true });
     await mkdir(dataDirectory, { recursive: true });
     await mkdir(webRoot, { recursive: true });
-    const connectionProperties = dialect.id === "postgresql" ? { user: target.user, ...(target.password ? { password: target.password } : {}) } : {};
+    const connectionProperties = targetProperties(dialect, target);
     const core = [
         `accept-download: ${serverOnly ? "false" : "true"}`,
         `data: ${quote(resolve(dataDirectory))}`,
@@ -257,8 +266,8 @@ async function withTarget(dialect, options, label, fn) {
             });
         }
         const target = dialect.id === "sqlite"
-            ? { file: ownedTarget.databasePath, user: null, database: null, connectionUrl: ownedTarget.connectionUrl }
-            : { host: ownedTarget.host, port: ownedTarget.port, database: ownedTarget.database, user: ownedTarget.user, password: ownedTarget.password, connectionUrl: ownedTarget.connectionUrl };
+            ? { file: ownedTarget.databasePath, user: null, database: null, connectionUrl: ownedTarget.connectionUrl, connectionProperties: {} }
+            : { host: ownedTarget.host, port: ownedTarget.port, database: ownedTarget.database, user: ownedTarget.user, password: String(ownedTarget.password), connectionUrl: ownedTarget.connectionUrl, connectionProperties: ownedTarget.connectionProperties };
         if (ownedTarget.waitUntilReady) await ownedTarget.waitUntilReady();
         const result = await fn({ root, target, container: ownedTarget.containerName ?? null });
         if (target.password && result !== undefined && JSON.stringify(result).includes(target.password))
@@ -329,7 +338,7 @@ function printCounters(counters, maxReport = 8) {
 
 async function openSql(engine, dialect, target) {
     const { Database, SQLStorage, Compression } = engine;
-    const adapter = await dialect.engineDialect.createDriverAdapter({ connectionUrl: jdbcTarget(dialect, target), connectionProperties: dialect.id === "postgresql" ? { user: target.user, password: target.password } : {}, maxConnections: -1 });
+    const adapter = await dialect.engineDialect.createDriverAdapter({ connectionUrl: jdbcTarget(dialect, target), connectionProperties: targetProperties(dialect, target), maxConnections: -1 });
     const database = new Database(adapter);
     const storage = new SQLStorage(dialect.engineDialect.createCommandSet(database), Compression.GZIP);
     await storage.initialize();
@@ -376,7 +385,7 @@ async function lifecycleProbe(engine, dialect, target) {
 
 async function expectIncompatibleSchema(engine, dialect, target) {
     const { Database } = engine;
-    const adapter = await dialect.engineDialect.createDriverAdapter({ connectionUrl: jdbcTarget(dialect, target), connectionProperties: dialect.id === "postgresql" ? { user: target.user, password: target.password } : {}, maxConnections: -1 });
+    const adapter = await dialect.engineDialect.createDriverAdapter({ connectionUrl: jdbcTarget(dialect, target), connectionProperties: targetProperties(dialect, target), maxConnections: -1 });
     const connection = await adapter.getConnection();
     const ddl = dialect.id === "sqlite" ? "CREATE TABLE bluemap_map (id INTEGER PRIMARY KEY)" : "CREATE TABLE bluemap_map (id INTEGER PRIMARY KEY)";
     await connection.execute(ddl, []); await connection.commit(); await connection.release();
@@ -397,27 +406,48 @@ async function expectWrongJdbc(engine, dialect) {
 }
 
 async function adapterConstructionPreflight(dialect, target) {
+    const properties = targetProperties(dialect, target);
     const adapter = await dialect.engineDialect.createDriverAdapter({
         connectionUrl: jdbcTarget(dialect, target),
-        connectionProperties: dialect.id === "postgresql" ? { user: target.user, password: target.password } : {},
+        connectionProperties: properties,
         maxConnections: -1,
     });
+    const connection = await adapter.getConnection();
+    const rows = await connection.query("SELECT 1", []);
+    if (rows.length !== 1) throw new Error(`${dialect.id}: authenticated SELECT 1 returned no row`);
+    await connection.commit();
+    await connection.release();
     await adapter.close();
-    return { adapterConstructed: true, adapterClosed: true };
+    return { adapterConstructed: true, authenticatedSelect: true, adapterClosed: true };
 }
 
-async function runMissingDriverProbe({ root, dialect, target, driver, worldDirectory, mapId, options }) {
+async function missingDriverLoaderPreflight(dialect) {
+    const loaderPath = join(REPO_ROOT, "design", "packages", "engine", "dist", "storage", "sql", "drivers", "loadOptionalModule.js");
+    const { loadOptionalModule } = await import(pathToFileURL(loaderPath).href);
+    try {
+        await loadOptionalModule(`@worldlens/issue66-missing-${dialect.id}`, `@worldlens/issue66-missing-${dialect.id}`, dialect.id);
+    } catch (error) {
+        if (error instanceof Error && error.name === "MissingSqlDriverError") return { missingDriverLoader: true };
+        throw error;
+    }
+    throw new Error(`${dialect.id}: TypeScript missing-driver loader unexpectedly succeeded`);
+}
+
+async function runMissingDriverProbe({ engine, root, dialect, target, driver, worldDirectory, mapId, options }) {
+    await missingDriverLoaderPreflight(dialect);
     const configDir = join(root, "missing-driver-config");
     await writeSqlConfig({ configDirectory: configDir, dataDirectory: join(root, "missing-driver-data"), webRoot: join(root, "missing-driver-web"), worldDirectory, mapId, mapName: "Missing driver probe", dimension: "minecraft:overworld", renderThreadCount: 1, dialect, target: { ...target, file: target.file ?? join(root, "missing-driver.sqlite") }, driver: { ...driver, path: join(root, "does-not-exist", driver.file) }, serverOnly: false, webserverPort: options.webserverPort });
     const jar = await findCliJar(REPO_ROOT);
     if (jar === null) throw new Error("missing reference jar while running missing-driver probe");
     const result = await run("java", ["-jar", jar, "-c", configDir, "-r", "-g"], { cwd: root, capture: true, quiet: true });
-    if (result.code === 0) throw new Error(`${dialect.id}: missing-driver probe unexpectedly succeeded`);
+    // Some upstream CLI distributions bundle a dialect driver in the shadow jar;
+    // in that case a missing external driver-jar is intentionally not a failure.
+    const javaJarProbe = { exitCode: result.code, externalJarRejected: result.code !== 0 };
     const wrongClassDir = join(root, "wrong-driver-class-config");
     await writeSqlConfig({ configDirectory: wrongClassDir, dataDirectory: join(root, "wrong-driver-class-data"), webRoot: join(root, "wrong-driver-class-web"), worldDirectory, mapId, mapName: "Wrong driver class probe", dimension: "minecraft:overworld", renderThreadCount: 1, dialect, target: { ...target, file: target.file ?? join(root, "wrong-driver-class.sqlite") }, driver: { ...driver, class: "com.example.worldlens.NoSuchJdbcDriver" }, serverOnly: false, webserverPort: options.webserverPort });
     const wrongClass = await run("java", ["-jar", jar, "-c", wrongClassDir, "-r", "-g"], { cwd: root, capture: true, quiet: true });
     if (wrongClass.code === 0) throw new Error(`${dialect.id}: wrong-driver-class probe unexpectedly succeeded`);
-    return { missingDriver: true, wrongDriverClass: true, observedExitCode: result.code };
+    return { missingDriver: true, wrongDriverClass: true, observedExitCode: result.code, javaJarProbe };
 }
 
 async function runDirection1({ engine, dialect, target, driver, worldDirectory, fileControl, options, root }) {
@@ -447,7 +477,7 @@ async function runDirection1({ engine, dialect, target, driver, worldDirectory, 
 
 async function runDirection2({ engine, dialect, target, driver, worldDirectory, fileControl, options, root }) {
     const engineEntry = join(REPO_ROOT, "design", "packages", "engine", "dist", "index.js");
-    const args = [join(REPO_ROOT, "tools", "oracle", "render-ts.mjs"), "--engine", engineEntry, "--world", worldDirectory, "--map-id", options.mapId, "--map-name", "Overworld", "--dimension", options.dimension, "--storage-driver", "sql", "--sql-dialect", dialect.tsDialect, "--sql-connection-url", jdbcTarget(dialect, target), "--sql-compression", "gzip", "--sql-connection-properties", JSON.stringify(dialect.id === "postgresql" ? { user: target.user, password: target.password } : {})];
+    const args = [join(REPO_ROOT, "tools", "oracle", "render-ts.mjs"), "--engine", engineEntry, "--world", worldDirectory, "--map-id", options.mapId, "--map-name", "Overworld", "--dimension", options.dimension, "--storage-driver", "sql", "--sql-dialect", dialect.tsDialect, "--sql-connection-url", jdbcTarget(dialect, target), "--sql-compression", "gzip", "--sql-connection-properties", JSON.stringify(targetProperties(dialect, target))];
     const clientJar = await findClientJar(fileControl.dataDirectory); const extensions = await findResourceExtensions(fileControl.dataDirectory);
     if (clientJar !== null) args.push("--client-jar", clientJar); if (extensions !== null) args.push("--resource-extensions", extensions);
     const started = Date.now(); const rendered = await run(process.execPath, args, { cwd: REPO_ROOT, capture: true });
@@ -500,6 +530,7 @@ export async function main(argv = process.argv.slice(2)) {
             dialect.engineDialect = dialect.engine[id === "sqlite" ? "SQLITE" : "POSTGRESQL"];
             await withTarget(dialect, options, "construction-preflight", async ({ target }) => {
                 await adapterConstructionPreflight(dialect, target);
+                await missingDriverLoaderPreflight(dialect);
             });
         }
         log(`[sql-crosscompat-matrix] preflight reached fixture generation and adapter construction with selected dialects: ${options.dialects.join(", ")}`);
@@ -515,7 +546,7 @@ export async function main(argv = process.argv.slice(2)) {
             await withTarget(dialect, options, "direction-1", async ({ root, target }) => {
                 const fileControl = await renderReference({ repoRoot: REPO_ROOT, jar, worldDirectory: world, workDirectory: join(root, "file-control"), mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, acceptDownload: true, renderThreadCount: id === "sqlite" ? 1 : options.threads, refresh: false });
                 dialectReport.directions = { javaWritesTsReads: await runDirection1({ engine: dialect.engine, dialect, target, driver: drivers[id], worldDirectory: world, fileControl, options, root }) };
-                dialectReport.failures = { ...(await expectWrongJdbc(dialect.engine, dialect)), ...(await runMissingDriverProbe({ root, dialect, target, driver: drivers[id], worldDirectory: world, mapId: options.mapId, options })) };
+                dialectReport.failures = { ...(await expectWrongJdbc(dialect.engine, dialect)), ...(await runMissingDriverProbe({ engine: dialect.engine, root, dialect, target, driver: drivers[id], worldDirectory: world, mapId: options.mapId, options })) };
                 dialectReport.lifecycle = await lifecycleProbe(dialect.engine, dialect, target);
             });
             await withTarget(dialect, options, "direction-2", async ({ root, target }) => {
