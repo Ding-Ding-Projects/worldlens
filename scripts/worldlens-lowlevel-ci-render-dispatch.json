@@ -2,7 +2,7 @@
   { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
   { "action": "windowKey", "key": "PAGEDOWN" },
   { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
-  { "action": "clickIfVisible", "selector": ".v-overlay--active button", "hasText": "ACCEPT", "timeout": 3000 },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "ACCEPT" },
   { "action": "click", "selector": ".v-overlay--active button", "hasText": "FINISH SETUP" },
   { "action": "click", "selector": ".wl-kid-rail__small", "nth": 2 },
   { "action": "click", "selector": ".wl-kid-gate__go" },

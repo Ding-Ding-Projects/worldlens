@@ -126,14 +126,14 @@ successful render, downloaded the `rendered-map` artifact, verified SHA-256
 opened a real viewer canvas. The artifact download uses GitHub CLI's normal JSON API redirect;
 the obsolete `application/octet-stream` override was rejected with HTTP 415 and has been removed.
 
-![Failed cloud-render rows restored honestly after restart, with Remove from list actions](docs/screenshots/lowlevel-ci-render-history-fixed.png)
+![A stopped-watching cloud render restored honestly as cancelled after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
 
 <details>
 <summary><b>See the removal itself</b></summary>
 
-![Two-key confirmation explaining the local-only removal boundary](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
+![Two-key confirmation explaining the local-only removal boundary for a cancelled cloud render](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
 
-![Cloud-render history after one failed local row was removed](docs/screenshots/lowlevel-ci-render-row-removed.png)
+![Cloud-render history showing the honest empty state after the cancelled local row was removed](docs/screenshots/lowlevel-ci-render-row-removed.png)
 
 </details>
 

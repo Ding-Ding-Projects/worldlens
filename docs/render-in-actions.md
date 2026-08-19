@@ -47,11 +47,11 @@ published SHA-256 `354d391bc59bcb428c99a92201d2aca1fdff28c38e2829a0fc695b1c8bf9c
 restored the row as `rendered`, and opened the collected map in the viewer. The test world was a
 generated disposable fixture; no personal world data appears in the repository or documentation.
 
-![Failed cloud-render rows restored after restart with their local removal actions](./screenshots/lowlevel-ci-render-history-fixed.png)
+![A cancelled cloud-render row restored after restart with its local removal action](./screenshots/lowlevel-ci-render-history-fixed.png)
 
-![Two-key confirmation stating that GitHub data is not deleted](./screenshots/lowlevel-ci-render-remove-confirmation.png)
+![Two-key confirmation stating that GitHub data is not deleted for a cancelled row](./screenshots/lowlevel-ci-render-remove-confirmation.png)
 
-![Cloud-render history after one failed local row was removed](./screenshots/lowlevel-ci-render-row-removed.png)
+![Cloud-render history after the cancelled local row was removed](./screenshots/lowlevel-ci-render-row-removed.png)
 
 This image is from the real current Electron build on a Lowlevel MCP off-screen Windows desktop.
 The app was reached through its command palette and scrolled through background mouse input; no
