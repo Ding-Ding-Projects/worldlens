@@ -32,7 +32,7 @@ import FreeFlightMobileControls from "./components/controls/FreeFlightMobileCont
 import { ControlBar } from "./components/controlbar/index.js";
 import { ConfigScreen } from "./components/config/index.js";
 import { MainMenu, provideBlueMap, useBlueMapTheme } from "./components/menu/index.js";
-import { MarkerMenu } from "./components/markers/index.js";
+import { MarkerMenu, StudioMarkerLayerHost } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import {
     AppRail,
@@ -1759,6 +1759,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 time somebody glanced at another tab.
             -->
             <MapView v-if="profilesStore.activeId" :key="profilesStore.activeId" />
+            <StudioMarkerLayerHost />
 
             <!--
                 Kid Mode's own shell: the same three destinations, the same resolved

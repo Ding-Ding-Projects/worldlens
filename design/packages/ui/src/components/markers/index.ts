@@ -34,3 +34,37 @@ export {
 export type { RegexEvaluation, RegexMatch, SupportedFlag } from "./regexEngine.js";
 
 export type { AnyMarkerData, AnyMarkerSetData, Vec3Like } from "./markerTypes.js";
+
+export {
+    DEFAULT_MARKER_COLOUR,
+    MARKER_STUDIO_SET_ID,
+    MARKER_XZ_LIMIT,
+    MARKER_Y_MAX,
+    MARKER_Y_MIN,
+    createMarker,
+    draftFrom,
+    editMarker,
+    emptyDraft,
+    markerProblems,
+    markerSearchText,
+    toMarkerSetData,
+    exportStudioMarkers,
+    filterStudioMarkers,
+    importStudioMarkers,
+    toViewerMarkerData,
+    validateStudioDocument,
+} from "./markerStudio.js";
+export type { MarkerDraft, MarkerPosition, MarkerProblem, MarkerResult, StudioMarker } from "./markerStudio.js";
+export {
+    addMarker,
+    duplicateMarker,
+    exportMarkers,
+    importMarkers,
+    restoreMarkers,
+    markerStudioStore,
+    markersFor,
+    removeMarker,
+    removeMarkers,
+    setMarkerVisible,
+    updateMarker,
+} from "./markerStudioStore.js";

@@ -24,3 +24,8 @@ export {
 export { RenderQueuePersistence, type RenderQueuePersistenceOptions } from "./render/RenderQueuePersistence.js";
 export { RenderUpdateHandler } from "./http/RenderUpdateHandler.js";
 export { MapUpdateService, type MapUpdateServiceOptions } from "./plugin/MapUpdateService.js";
+export { AddonRegistry } from "./addons/registry.js";
+export { SandboxedAddonRuntime } from "./addons/runtime.js";
+export { readInstalledAddon, validateAddonManifest } from "./addons/manifest.js";
+export { appendAddonJournal, renameWithRetry } from "./addons/persistence.js";
+export * from "./addons/types.js";

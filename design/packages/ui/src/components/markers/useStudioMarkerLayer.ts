@@ -27,7 +27,7 @@ export function useStudioMarkerLayer(
         const instance = app.value;
         if (instance === null) return;
 
-        const data = toMarkerSetData(markerStudioStore.markers, mapId.value);
+        const data = toMarkerSetData(markerStudioStore.markers, mapId.value, markerStudioStore.preview);
         // `toMarkerSetData` builds the shape the viewer's own marker-set input expects; the
         // cast is here rather than widening that function's return type, because that
         // function is deliberately kept free of any import from the viewer package.
@@ -49,7 +49,7 @@ export function useStudioMarkerLayer(
     // every map switch, since `toMarkerSetData` filters by map id and a set built for the
     // overworld has no business surviving a jump to the nether.
     watch(
-        [() => JSON.stringify(markerStudioStore.markers), app, mapId],
+      [() => JSON.stringify(markerStudioStore.markers), () => JSON.stringify(markerStudioStore.preview), app, mapId],
         sync,
         { immediate: true },
     );

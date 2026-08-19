@@ -57,3 +57,15 @@ export type {
 
 export { PAGES_CHANNELS, PAGES_EVENT_CHANNEL, installPagesIpc } from "./ipc.js";
 export type { Answer, PagesIpc, PagesIpcOptions } from "./ipc.js";
+
+export { STATIC_EXPORT_CHANNELS, STATIC_EXPORT_EVENT_CHANNEL, installStaticMapExportIpc } from "./staticExportIpc.js";
+export { StaticMapExporter, StaticMapExportCancelled } from "./staticExport.js";
+export type {
+    StaticMapExportEvent,
+    StaticExportFormat,
+    StaticMapExportManifest,
+    StaticMapExportOptions,
+    StaticMapExportReport,
+    StaticMapExportRequest,
+} from "./staticExport.js";
+export type { StaticMapExportIpc, StaticMapExportIpcOptions } from "./staticExportIpc.js";

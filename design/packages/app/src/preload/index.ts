@@ -34,6 +34,11 @@ import type {
     PagesTarget,
 } from "../main/pages/index.js";
 import type {
+    StaticMapExportEvent,
+    StaticMapExportReport,
+    StaticMapExportRequest,
+} from "../main/pages/index.js";
+import type {
     PreviewAvailability,
     PreviewEvent,
     PreviewNetworkReadout,
@@ -1904,7 +1909,6 @@ export interface DockerVolumeSummary {
 export interface DockerMount {
     type: string;
     /** The host path for a bind mount, or the mountpoint Docker reports for a volume. */
-    source: string;
     /** The volume's name, when `type` is `"volume"`. Null otherwise. */
     volumeName: string | null;
     /** Where this is mounted inside the container. */
@@ -2323,6 +2327,7 @@ interface WorldlensBridge {
         ): Promise<{ ok: boolean; path: string | null; message: string }>;
         retry(): Promise<{ ok: boolean; message: string }>;
     };
+    addons: AddonsBridge;
 
     /**
      * The window buttons, for the app's own title bar.
@@ -3076,6 +3081,15 @@ interface WorldlensBridge {
     }): Promise<PagesAnswer<PagesRecord>>;
     onPagesEvent(listener: (event: PagesEvent) => void): () => void;
 
+    /* ---- Exporting a rendered map as a portable static site --------------- */
+    exportStaticMap(request: StaticMapExportRequest): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
+    cancelStaticMapExport(exportId: string): Promise<boolean>;
+    activeStaticMapExports(): Promise<readonly string[]>;
+    issueStaticMapOverwriteToken(): Promise<string>;
+    resumeStaticMapExport(exportId: string): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
+    staticMapExportLedger(): Promise<readonly string[]>;
+    onStaticMapExportEvent(listener: (event: StaticMapExportEvent) => void): () => void;
+
     /* ---- Watching a render live, in a real browser tab -------------------- */
 
     /** Whether this render id can be hosted right now, and why not when it cannot. */
@@ -3186,6 +3200,39 @@ interface WorldlensBridge {
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
 
+interface AddonRecord {
+    id: string;
+    name: string;
+    version: string;
+    description: string;
+    apiVersion: string;
+    capabilities: string[];
+    grantedCapabilities: string[];
+    entry: string;
+    enabled: boolean;
+    importedAt: string;
+    error: string | null;
+}
+
+interface AddonMutationResult<T> {
+    ok: boolean;
+    value?: T;
+    code?: string;
+    message?: string;
+}
+
+interface AddonsBridge {
+    list(): Promise<AddonMutationResult<AddonRecord[]>>;
+    importPackage(): Promise<AddonMutationResult<AddonRecord>>;
+    setEnabled(id: string, enabled: boolean): Promise<AddonMutationResult<AddonRecord>>;
+    grant(id: string, capabilities: string[]): Promise<AddonMutationResult<AddonRecord>>;
+    revoke(id: string, capability: string): Promise<AddonMutationResult<AddonRecord>>;
+    remove(id: string): Promise<AddonMutationResult<boolean>>;
+    setSafeMode(enabled: boolean): Promise<AddonMutationResult<boolean>>;
+    safeModeState(): Promise<boolean>;
+    diagnostics(): Promise<Array<{ addonId: string; phase: string; message: string }>>;
+}
+
 const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
@@ -3202,6 +3249,17 @@ const bridge: WorldlensBridge = {
         copy: () => ipcRenderer.invoke("startup:copy"),
         export: (format) => ipcRenderer.invoke("startup:export", format),
         retry: () => ipcRenderer.invoke("startup:retry"),
+    },
+    addons: {
+        list: () => ipcRenderer.invoke("addons:list"),
+        importPackage: () => ipcRenderer.invoke("addons:import"),
+        setEnabled: (id, enabled) => ipcRenderer.invoke("addons:setEnabled", id, enabled),
+        grant: (id, capabilities) => ipcRenderer.invoke("addons:grant", id, capabilities),
+        revoke: (id, capability) => ipcRenderer.invoke("addons:revoke", id, capability),
+        remove: (id) => ipcRenderer.invoke("addons:remove", id),
+        setSafeMode: (enabled) => ipcRenderer.invoke("addons:safeMode", enabled),
+        safeModeState: () => ipcRenderer.invoke("addons:safeModeState"),
+        diagnostics: () => ipcRenderer.invoke("addons:diagnostics"),
     },
 
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
@@ -3564,6 +3622,18 @@ const bridge: WorldlensBridge = {
         return () => {
             ipcRenderer.off("pages:event", forward);
         };
+    },
+
+    exportStaticMap: (request) => ipcRenderer.invoke("map-export:start", request),
+    cancelStaticMapExport: (exportId) => ipcRenderer.invoke("map-export:cancel", exportId),
+    activeStaticMapExports: () => ipcRenderer.invoke("map-export:active"),
+    issueStaticMapOverwriteToken: () => ipcRenderer.invoke("map-export:overwrite-token"),
+    resumeStaticMapExport: (exportId) => ipcRenderer.invoke("map-export:resume", exportId),
+    staticMapExportLedger: () => ipcRenderer.invoke("map-export:ledger"),
+    onStaticMapExportEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: StaticMapExportEvent): void => listener(payload);
+        ipcRenderer.on("map-export:event", forward);
+        return () => { ipcRenderer.off("map-export:event", forward); };
     },
 
     previewAvailability: (renderId) => ipcRenderer.invoke("preview:availability", renderId),

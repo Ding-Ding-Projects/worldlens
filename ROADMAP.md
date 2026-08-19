@@ -1,5 +1,33 @@
 # Roadmap
 
+## Issue #70 — first-class marker authoring editor
+
+- **Status:** Marker-studio source work is present in the issue-owned checkout; Issue #70 remains
+  open and unverified.
+- **Record:** [`docs/marker-studio.md`](docs/marker-studio.md) states the current POI boundary and
+  the broader acceptance contract.
+- **Evidence still open:** marker-set CRUD and duplication, BlueMap POI/line/shape/extrude
+  authoring, map-aware drawing, complete style/icon/label controls, unknown-field/order
+  preservation, preview-before-save, import/export, local history and undo/restore, VS Code
+  handoff, collision/concurrent-file handling, cross-dimension safeguards, and focused
+  accessibility, localization, reduced-motion, packaged interaction, and per-type capture proof.
+- **Records boundary:** this update ran no tests and took no captures. Do not close Issue #70 from
+  source presence alone.
+
+## Issue #72 static map export — open
+
+- **Jer:** `codex/issue-72-static-map-export` in the task-owned checkout.
+- **Contract:** self-contained static output with client-side decompression, configurable base
+  paths, optional `.nojekyll`, and no external runtime dependency; folder, ZIP, and configurable 7z
+  outputs; path safety; portable versioned manifest; checksums, provenance, engine/version and
+  settings metadata; exact omissions; filtered and bulk export; progress, cancellation, resume,
+  conflict handling, history, and file-manager/Visual Studio Code actions.
+- **Evidence boundary:** no records delta is claimed at this checkpoint before the implementation
+  lane changes. No tests or captures were run here. Packaged export remains unverified until every
+  referenced file is validated, the result opens from a plain static server, and a genuine
+  packaged export opens offline in a fresh browser profile. See
+  [`docs/static-map-export.md`](docs/static-map-export.md) and Issue #72.
+
 ## Issue #74 — local live-player tracking
 
 - **Status:** Source implementation is present in the issue-owned checkout; acceptance remains

@@ -18,7 +18,6 @@ import { useMarkerI18n } from "./i18nHelpers.js";
 import { MenuChoice } from "../menu/index.js";
 import type { MenuChoiceItem } from "../menu/MenuChoice.vue";
 import { useBlueMap } from "../menu/useBlueMap.js";
-import { useStudioMarkerLayer } from "./useStudioMarkerLayer.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import type { SearchMode, SortOrder } from "./markerFilter.js";
 import type {
@@ -96,11 +95,6 @@ const controlsData = computed(() => app.value?.mapViewer.controlsManager.data ??
  * name that says exactly that.
  */
 const studioMapId = computed(() => app.value?.mapViewer.data.map?.id ?? "no-map");
-
-// Keeps a person's own markers drawn on the map itself, not only listed in the studio
-// panel. This is the one call in the whole marker menu that reaches the viewer to draw
-// something rather than only to read camera or map state from it.
-useStudioMarkerLayer(app, studioMapId);
 
 /** The same camera the distance sort already reads, in the plain shape the studio wants. */
 const studioCameraPosition = computed(() => {
