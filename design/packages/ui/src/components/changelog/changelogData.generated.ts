@@ -26,6 +26,38 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "ff2d72f1b635aac7efe0831315919a03461b49b7",
+        shortSha: "ff2d72f1b6",
+        date: "2026-08-19T02:53:27-04:00",
+        subject: "Merge issue #88 LinearRegion timestamp semantics",
+        details: "Epoch seconds keep their real width and v1/v2 filtering stops guessing. The timestamp trapdoor is now labelled, measured, and shut.\n\n廣東話：epoch seconds 保留真正寬度，v1 同 v2 filtering 唔再靠估。個 timestamp 暗門而家有牌、有尺，仲閂實咗。",
+        category: "docs",
+        areas: ["docs", "engine", "site"],
+        files: 7,
+        summarizes: 3,
+    },
+    {
+        sha: "b6300069619fe196513cbcb374e9f13355d210cb",
+        shortSha: "b630006961",
+        date: "2026-08-19T02:49:37-04:00",
+        subject: "Resolve LinearRegion timestamp widths and filtering",
+        details: "LinearRegion now preserves the format's epoch-second widths, keeps v1 region-wide and v2 per-chunk filtering, and carries boundary fixtures and records. The old narrowing was a tiny integer trapdoor; now it stays shut.\n\nLinearRegion 而家照格式保留 epoch-second 嘅寬度，v1 用 region-wide、v2 用逐 chunk filtering，連埋邊界 fixture 同文檔一齊跟上。之前嗰個縮窄位細細粒但好陰濕，而家閂實道門。",
+        category: "docs",
+        areas: ["docs", "engine", "site"],
+        files: 7,
+    },
+    {
+        sha: "2d8fb2193a0b68d63a8dbb2fd295c806066cb780",
+        shortSha: "2d8fb2193a",
+        date: "2026-08-19T02:53:01-04:00",
+        subject: "Merge issue #91 local WebServer retirement",
+        details: "The unreachable local WebServer path leaves the building, while the embedded and remote routes keep their keys. The code no longer maintains a beautifully furnished room nobody can enter.\n\n廣東話：冇人去到嘅本機 WebServer 路線正式退場，embedded 同 remote 正路繼續有鎖匙。唔使再打掃一間從來冇人入到嘅靚房。",
+        category: "shell",
+        areas: ["shell", "docs", "interface", "site"],
+        files: 19,
+        summarizes: 3,
+    },
+    {
         sha: "6a2d6ae87fcf3e9201e877514a5309e1821ae2f1",
         shortSha: "6a2d6ae87f",
         date: "2026-08-19T02:50:06-04:00",

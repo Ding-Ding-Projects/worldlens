@@ -22,7 +22,13 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Merge issue #91 local WebServer retirement - [`2d8fb2193a`](https://github.com/Ding-Ding-Projects/worldlens/commit/2d8fb2193a0b68d63a8dbb2fd295c806066cb780) _(summary of 3 commits, also listed here)_
 - Retire unreachable local WebServer path - [`6a2d6ae87f`](https://github.com/Ding-Ding-Projects/worldlens/commit/6a2d6ae87fcf3e9201e877514a5309e1821ae2f1)
+
+### Documentation
+
+- Merge issue #88 LinearRegion timestamp semantics - [`ff2d72f1b6`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff2d72f1b635aac7efe0831315919a03461b49b7) _(summary of 3 commits, also listed here)_
+- Resolve LinearRegion timestamp widths and filtering - [`b630006961`](https://github.com/Ding-Ding-Projects/worldlens/commit/b6300069619fe196513cbcb374e9f13355d210cb)
 
 ## 1.0.1144 - 2026-08-18
 
