@@ -196,6 +196,35 @@
         "pnpm-lock.yaml, package-lock.json, yarn.lock",
         "bundled data and binary assets held out of the project total"
       ]
+    },
+    {
+      "phase": "Release-ledger completeness enforcement",
+      "integrationCommit": "4a7aad1eda64b24337de2e50d4dd50fb625167ff",
+      "releaseDisposition": "none",
+      "verificationState": "failed",
+      "verificationNote": "The workflow's build, BlueMap jars, and Windows installer jobs succeeded, but the test-world job was cancelled at 79.008%, so the release job was skipped and no release identity or assets exist for this phase.",
+      "timing": {
+        "started": "2026-08-19T19:57:25Z",
+        "completed": "2026-08-19T20:09:48Z",
+        "duration": "00:12:23"
+      },
+      "evidence": {
+        "kind": "workflow",
+        "source": "gh run view 32295874519 --repo Ding-Ding-Projects/worldlens",
+        "buildCommand": "Workflow build, BlueMap jars, Windows installer, and test-world render jobs",
+        "workflowRun": "32295874519",
+        "workflowUrl": "https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32295874519",
+        "localBuildPassed": false,
+        "cloudVerdictVerified": false,
+        "releaseNotesMarkers": [
+          "build succeeded",
+          "BlueMap jars succeeded",
+          "Windows installer succeeded",
+          "test-world cancelled at 79.008%",
+          "release skipped"
+        ]
+      },
+      "assets": []
     }
   ]
 }

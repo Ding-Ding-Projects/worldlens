@@ -80,12 +80,26 @@ release read-back; that verdict does not imply local packaging or runtime proof.
 | Public-1.0 baseline release 708 | `37104b4016491b74619b67b56cafc6f84c19aaa3` | [`v0.1.0-build.708`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.0-build.708) | `2026-08-07T06:09:06Z` → `2026-08-07T06:25:06Z` (`00:16:00`) | Lotus Paste Sesame Balls · 蓮蓉煎堆 | **failed — copied and attached catalog photo** |
 | Public-1.0 baseline release 731 | `ff2a8db67329311357f3ffe858d1d78b25ac7ab1` | [`v0.1.0-build.731`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v0.1.0-build.731) | `2026-08-07T12:50:00Z` → `2026-08-07T13:05:26Z` (`00:15:26`) | Peanut Sesame Balls · 花生煎堆 | **failed — copied and attached catalog photo** |
 | Build-and-release-only workflow policy | `86024f0ffeb2599ffd653a09e4fae3d020b7becc` | [`v1.0.1349`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1349) | `2026-08-19T19:06:20Z` → `2026-08-19T19:40:08Z` (`00:33:48`) | Hong Kong Banquet Roast-Garlic Black-Pepper Grouper Head Claypot · 港式宴席蒜子黑椒石斑魚頭煲 | **verified — workflow release read-back; no local build verdict claimed** |
+| Release-ledger completeness enforcement | `4a7aad1eda64b24337de2e50d4dd50fb625167ff` | **none — no release published** | CI `32295874519`: `2026-08-19T19:57:25Z` → `2026-08-19T20:09:48Z` (`00:12:23`) | — | **failed — test-world render job cancelled; publish skipped; companion run `32295860490` also skipped publication** |
 
-The JSON ledger remains authoritative for each row's full asset/hash table,
+The cancellation was read back from the job record, not inferred from a missing tag: `jars` and
+the Windows package completed successfully, while `Generate and render a test world` was cancelled
+and `Publish release` was skipped. The workflow correction is recorded at its exact boundary:
+`jars`, `package`, `test-world`, and `release` must not cancel an earlier commit; only the
+build-only `check` job may supersede stale work. The release job has no concurrency group, uses
+`always()` to inspect upstream results, and publishes unique run-number tags only after the
+artifact-producing jobs succeed; it does not gate publication on `check` alone. No release
+identity is attached to `4a7aad1e`, and this row is not `verified`.
+
+The JSON ledger remains authoritative for each published row's full asset/hash table,
 archive-index facts, installer-signature note, line-count breakdown, exclusions,
 workflow URL, and public catalog URL. The article intentionally does not copy or
 recreate issue #51's `.613` proof. It does not promote local packaging, source
 presence, or a release listing to `verified`.
+
+The failed `4a7aad1e` attempt below is a no-release phase event: it has no release identity and
+is documented here because a cancelled or superseded workflow is still durable evidence that the
+phase did not publish.
 
 The packaged app copies both `docs/release-ledger.json` and
 `docs/release-phase-inventory.json` into `resources/release-ledger/`; the reader checks that

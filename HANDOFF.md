@@ -200,6 +200,16 @@ linking to the public catalog photo without copying or attaching it. The workflo
 verified from its remote release read-back, while no local packaging or runtime verdict is
 claimed; issue #51's `.613` evidence remains outside this ledger.
 
+The later `4a7aad1e` phase attempt is recorded as failed with no release identity. CI run
+`32295874519` (`2026-08-19T19:57:25Z` → `2026-08-19T20:09:48Z`) completed `jars` and the Windows
+package, then cancelled `Generate and render a test world`; `Publish release` was skipped. A
+companion run for the same SHA (`32295860490`) also skipped publication, so no release was created.
+The workflow correction is explicit: `jars`, `package`, `test-world`, and `release` must not cancel
+earlier commits; only build-only `check` may supersede stale work. `release` has no concurrency
+group, uses `always()` to inspect upstream results, and publishes unique run-number tags only after
+successful artifact-producing jobs; it does not gate on `check` alone. This records a
+failed/no-release boundary, not a verified phase.
+
 This update changes the packaged reader and its records. No tests, builds, installer runs, runtime
 sessions, workflow dispatches, or captures were run. No phase is closed from
 source presence or local packaging. Issue #63 stays open until the populated

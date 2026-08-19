@@ -96,6 +96,13 @@
   row is `verified`.
 - **Packaging boundary:** `electron-builder.config.cjs` copies the ledger and its inventory to
   `resources/release-ledger/`; packaged interaction and restart/reopen proof remain unrun.
+- **Failed/no-release boundary:** Commit `4a7aad1eda64b24337de2e50d4dd50fb625167ff` has no
+  release. Run `32295874519` completed `jars` and `package`, then cancelled `test-world`, so
+  `release` was skipped; companion run `32295860490` also skipped publication. The correction is
+  recorded explicitly: only `check` may supersede stale work, while `jars`, `package`,
+  `test-world`, and `release` must not cancel earlier commits. `release` has no concurrency group,
+  uses `always()`, and publishes unique run-number tags only after successful artifact-producing
+  jobs; it does not gate on `check` alone.
 
 ## Issue #70 — first-class marker authoring editor
 

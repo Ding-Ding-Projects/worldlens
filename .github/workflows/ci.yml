@@ -21,13 +21,12 @@ on:
 # **one** pending run, so a third arrival evicts the queued middle one even with cancellation
 # switched off - avoided the same way, by not sharing a group at all.
 #
-# The `concurrency` blocks below stay scoped per job, never to the whole workflow.
-# A job-level group only supersedes that same job across runs - it can never cancel a
-# *different* job in the *same* run the way a shared workflow-level group would, so jobs
-# meant to run in parallel (`check` and `jars` all start together below) still
-# do. `release` deliberately carries none of these new groups: it already has its own
-# job-level group further down with `cancel-in-progress: false`, for the reason recorded
-# there - a queued publish waits, it is never dropped, and nothing above cancels it either.
+# The only cancellable job below is `check`, whose result is not a release artifact and is
+# intentionally observed through `always()` by its consumers. Every release-producing or
+# release-prerequisite job (`jars`, `package`, `test-world`, and `release`) deliberately has no
+# concurrency group: a later commit must not evict an in-flight or pending producer or publisher.
+# Unique run-number tags keep concurrent publication identities distinct, so the every-push
+# release contract does not need a shared pending slot.
 
 permissions:
   contents: read
@@ -113,9 +112,6 @@ jobs:
     # engine is not installed", which is a broken artifact rather than an ungated one.
     if: always() && needs.jars.result == 'success'
     runs-on: windows-2022
-    concurrency:
-      group: ci-package-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -302,13 +298,6 @@ jobs:
   jars:
     name: BlueMap jars
     uses: ./.github/workflows/build-jars.yml
-    # A job-level group works the same on a job that calls a reusable workflow as on any
-    # other job - see the top-of-file comment for why this is per-job rather than a single
-    # workflow-level group.
-    concurrency:
-      group: ci-jars-${{ github.ref }}
-      cancel-in-progress: true
-
   # packages/config/test/javaRoundTrip.test.ts is the one test that proves the whole
   # point of the HOCON reader/writer: it generates a config set, edits real values
   # through this package's own reader/writer (the same code path the options GUI
@@ -330,9 +319,6 @@ jobs:
     # there is no render to make, so there is genuinely nothing for this job to do.
     if: always() && needs.jars.result == 'success'
     runs-on: ubuntu-24.04
-    concurrency:
-      group: ci-test-world-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -475,11 +461,9 @@ jobs:
       && needs.jars.result == 'success'
       && needs.test-world.result == 'success'
     runs-on: ubuntu-24.04
-    # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like
-    # the other jobs in this file now do (see the top-of-file comment): that pattern
-    # exists to clear a pileup of *stale* work, and a publish already in flight is never
-    # stale. The group below is the one that already existed for a different reason and
-    # is unrelated to runner selection - kept exactly as it was.
+    # This release job deliberately has no concurrency group. Every push and nominated dispatch
+    # must retain its own release attempt; a shared group would keep only one pending job and let
+    # a third nomination evict the middle commit before publication.
     #
     # The tag is the exact Squirrel/app version with a leading `v`:
     # `v<major>.<minor>.<run number>`. The committed resolver supplies that same identity
@@ -487,13 +471,6 @@ jobs:
     # installed app on one monotonic SemVer sequence. The run number also selects the dim
     # sum code name, so neither tag nor dish depends on a deletable live release count.
     #
-    # `cancel-in-progress: false` because a queued publish must wait, never be dropped. A
-    # group holds one pending run, so three publishes racing can still evict the middle;
-    # that is a narrower window than the whole workflow had, and the honest fix for it is
-    # nominating one publisher per intended commit. Recorded rather than papered over.
-    concurrency:
-      group: ci-release-${{ github.ref }}
-      cancel-in-progress: false
     permissions:
       contents: write
     steps:

@@ -6,6 +6,7 @@
     "Public-1.0 baseline release 704",
     "Public-1.0 baseline release 708",
     "Public-1.0 baseline release 731",
-    "Build-and-release-only workflow policy"
+    "Build-and-release-only workflow policy",
+    "Release-ledger completeness enforcement"
   ]
 }
