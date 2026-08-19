@@ -24,8 +24,8 @@
  *   rail                   the navigation rail's labels
  *   nav <label>            click a rail item by its visible label
  *   buttons                visible button labels in the topmost dialog, else the page
- *   onboard                walk the 4-step first-run dialog to the end, ACCEPTING the
- *                          Minecraft download consent under the user's standing choice
+ *   onboard                walk the 4-step first-run dialog to the end, DECLINING the
+ *                          Minecraft download consent so the run never invents consent
  *   text <selector>        innerText of the first match
  *   count <selector>       number of matches
  *   click <selector>       click it, then let the UI settle
@@ -908,10 +908,10 @@ const commands = {
     out("clicked");
   },
   // A fresh profile always opens on the 4-step first-run dialog, and it is modal: the
-  // navigation rail is behind it, so `nav` times out until this has run. ACCEPT is the
-  // user's explicit standing choice for Worldlens verification runs.
+  // navigation rail is behind it, so `nav` times out until this has run. DECLINE is the
+  // only truthful automated choice: an agent cannot provide the user's consent.
   onboard: async () => {
-    const steps = ["NEXT", "NEXT", "ACCEPT", "FINISH SETUP"];
+    const steps = ["NEXT", "NEXT", "DECLINE", "FINISH SETUP"];
     if ((await page.locator(".v-overlay--active").count()) === 0)
       return out("no dialog open");
     for (const label of steps) {
@@ -923,7 +923,7 @@ const commands = {
       await settle();
     }
     out(
-      `onboarded (accepted download consent); dialogs open: ${await page.locator(".v-overlay--active").count()}`,
+      `onboarded (declined download consent); dialogs open: ${await page.locator(".v-overlay--active").count()}`,
     );
   },
   eval: async (...js) =>
