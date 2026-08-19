@@ -42,6 +42,7 @@ const MAX_INVENTORY_BYTES = 64 * 1024;
 const MAX_INVENTORY_PHASES = 256;
 const MAX_PHASE_NAME = 160;
 const SHA = /^[0-9a-f]{40}$/;
+const SHA256 = /^[0-9a-f]{64}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -75,12 +76,28 @@ function missingInventoryPhases(value: unknown, inventory: readonly string[]): r
 function validLedger(value: unknown, inventory: readonly string[]): value is { schemaVersion: 1; phases: readonly Record<string, unknown>[] } {
     if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.phases)) return false;
     if (missingInventoryPhases(value, inventory).length > 0) return false;
+    const phases = new Set<string>();
+    const commits = new Set<string>();
+    const tags = new Set<string>();
     return value.phases.every((phase) => {
         if (!isRecord(phase)) return false;
-        return typeof phase.phase === "string" && phase.phase.length > 0 &&
-            typeof phase.integrationCommit === "string" && SHA.test(phase.integrationCommit) &&
-            ["running", "failed", "verified"].includes(String(phase.verificationState)) &&
-            isRecord(phase.timing) && isRecord(phase.evidence) && Array.isArray(phase.assets);
+        if (typeof phase.phase !== "string" || phase.phase.length < 1 || phase.phase.length > MAX_PHASE_NAME) return false;
+        if (phases.has(phase.phase)) return false;
+        phases.add(phase.phase);
+        if (typeof phase.integrationCommit !== "string" || !SHA.test(phase.integrationCommit) || commits.has(phase.integrationCommit)) return false;
+        commits.add(phase.integrationCommit);
+        if (phase.releaseTag !== undefined && (typeof phase.releaseTag !== "string" || tags.has(phase.releaseTag))) return false;
+        if (typeof phase.releaseTag === "string") tags.add(phase.releaseTag);
+        if (!["none", "shipped-nonconforming", "verified"].includes(String(phase.releaseDisposition))) return false;
+        if (!["running", "failed", "verified"].includes(String(phase.verificationState))) return false;
+        if (typeof phase.verificationNote !== "string" || phase.verificationNote.length < 1 || phase.verificationNote.length > 2000) return false;
+        if (!isRecord(phase.timing) || !isRecord(phase.evidence) || !Array.isArray(phase.assets)) return false;
+        return phase.assets.every((asset) => isRecord(asset) &&
+            typeof asset.name === "string" && asset.name.length > 0 && asset.name.length <= 240 &&
+            Number.isSafeInteger(asset.size) && Number(asset.size) >= 1 &&
+            typeof asset.sha256 === "string" && SHA256.test(asset.sha256) &&
+            (asset.kind === undefined || asset.kind === null || typeof asset.kind === "string")) &&
+            (phase.verificationState !== "verified" || (typeof phase.releaseTag === "string" && phase.assets.length > 0 && isRecord(phase.lineCount)));
     });
 }
 
