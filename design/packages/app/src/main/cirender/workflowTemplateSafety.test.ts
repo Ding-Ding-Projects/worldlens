@@ -197,7 +197,7 @@ describe("findSelfOnlyPathAssumptions", () => {
             "        working-directory: toolchain/design",
             "        run: |",
             "          pnpm --filter @worldlens/site build",
-            "          node packages/site/scripts/assert-base-path.mjs",
+            '          node packages/site/scripts/assert-base-path.mjs --base "/${GITHUB_REPOSITORY#*/}/"',
         ].join("\n");
 
         expect(findSelfOnlyPathAssumptions("test.yml", yaml)).toEqual([]);
@@ -217,9 +217,9 @@ describe("findSelfOnlyPathAssumptions", () => {
 
         const findings = findSelfOnlyPathAssumptions("test.yml", yaml);
 
-        expect(findings.some((finding) => finding.reason.includes("@worldlens/render-actions"))).toBe(
-            true,
-        );
+        expect(
+            findings.some((finding) => finding.reason.includes("@worldlens/render-actions")),
+        ).toBe(true);
     });
 
     it("does not mistake a doc comment naming design/packages/... for a real dependency on it", () => {

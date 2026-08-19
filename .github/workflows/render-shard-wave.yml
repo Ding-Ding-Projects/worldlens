@@ -158,10 +158,10 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
-            bluemap-out/maps
+            bluemap-out
             bluemap-data
-          key: ${{ steps.shard.outputs.cache-key }}
-          restore-keys: ${{ steps.shard.outputs.cache-restore-prefix }}
+          key: webapp-v2-${{ steps.shard.outputs.cache-key }}
+          restore-keys: webapp-v2-${{ steps.shard.outputs.cache-restore-prefix }}
 
       # Only output carrying a completion marker that agrees with what is on disk counts
       # as finished. Anything else is unfinished and is rendered again, continuing from
@@ -229,9 +229,9 @@ jobs:
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
-            bluemap-out/maps
+            bluemap-out
             bluemap-data
-          key: ${{ steps.shard.outputs.cache-key }}
+          key: webapp-v2-${{ steps.shard.outputs.cache-key }}
 
       - name: Report what this shard produced
         id: report

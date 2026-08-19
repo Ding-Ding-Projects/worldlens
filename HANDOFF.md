@@ -1,19 +1,43 @@
 # Handoff
 
-## Issue #64 delivery evidence boundary — 2026-08-19
+## Issue #64 restart recovery acceptance — 2026-08-19
 
-The queue-persistence implementation and focused acceptance record are present at the current
-issue-lane tip `d004f3ca15d7d7a9121df370e00c955072489098`. This delivery-only pass checked the
-issue-owned checkout for a packaged executable or installer containing the standalone CLI and for
-a runtime receipt proving that a fresh process reopened `<resolved core.data>/tasks.dat` and resumed
-queued work. No packaged executable, installer, or runtime receipt was present in this checkout;
-therefore packaged/runtime reachability and end-to-end process-restart evidence remain unverified.
+Queue persistence now has a genuine two-process proof: one Node process writes a queued task,
+exits, and a fresh process restores the same task from `tasks.dat`. Cloud dispatch now persists
+its dispatch timestamp and `dispatched` stage before `workflow_dispatch`; after a crash, a fresh
+process adopts the matching GitHub run instead of dispatching a duplicate. Recovery surfaces
+separately report restored records, offers safe to resume, already-running exclusions, refusals,
+dismissals, and an unknown active-state check.
 
-The existing focused record remains the strongest available evidence: 3 files and 29 tests passed
-for queue-file round trips, schema/version and malformed-entry handling, terminal-task exclusion,
-atomic staging, coalesced saves, and CLI startup/shutdown wiring. Those tests do not establish that
-the packaged CLI can be launched, that the process can be restarted, or that a queued task resumes
-through the real runtime. Issue #64 must remain open until that evidence is produced and read back.
+Focused verification passed **5 files / 122 tests**, including 36 CI-sync cases, 4 server queue
+persistence cases, and the recovery UI contracts. Packaged standalone-CLI execution remains a
+separate delivery boundary; the process-restart and crash-order contracts themselves are now
+exercised rather than inferred.
+
+## Issue #60 — public 1.0 compatibility contract
+
+This lane prepares the public delivery records for a Windows-only 1.0 compatibility contract. The
+intended boundary covers the desktop application and `@worldlens/cli` public surfaces: CLI names
+and exit codes, configuration/project/history schemas, HTTP/SSE and add-on APIs, workflow
+inputs/outputs, environment variables, file layouts, exports, backup pointers, update metadata,
+and accessibility-visible commands. Public surfaces must be labelled stable, experimental,
+internal, or deprecated; stable changes use semantic versioning, and migrations, rollback,
+support boundaries, and intentional 1.0 deferrals must be stated plainly.
+
+The delivery channel remains the versioned `1.0.<run>` Windows release channel. The package shape
+is Squirrel.Windows with unsigned `Setup.exe`, `RELEASES`, a full `.nupkg`, and deltas where
+produced. SmartScreen or the operating system may show an unknown-publisher warning; that is an
+expected consequence of the permanent no-signing policy.
+
+The committed build path `build.bat /s` completed successfully after the initial bootstrap blocker
+was resolved: `vendor/BlueMap` was not checked out, so the declared vendor/BlueMap submodule was
+initialized before the build could complete. The build used Electron runtime `v37.10.3`.
+
+No installer package, release, or remote verification was performed. Tests, lint, reviews, audits,
+accessibility checks, and screenshots remained unrun in this lane. The compatibility contract,
+public-surface inventory, reference/migration examples, and directly related site/roadmap records
+are now present; executable drift-proof and newcomer/runtime acceptance remain separate follow-up
+evidence and are not claimed.
 
 ## Cloud-render restart and UI verification — 2026-08-19
 

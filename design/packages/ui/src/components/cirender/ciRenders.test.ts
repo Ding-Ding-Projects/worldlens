@@ -451,6 +451,41 @@ describe("rows follow the events", () => {
 });
 
 describe("what is already running, elsewhere", () => {
+    it("does not repaint a real running row as failed when a duplicate start is refused", () => {
+        const { bridge: fake, emit } = bridge();
+        const renders = createCiRenders(fake);
+        emit({
+            type: "started",
+            syncId: "same-run",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/world",
+            at: "2026-08-19T00:00:00Z",
+        });
+        emit({
+            type: "failed",
+            syncId: "same-run",
+            failure: {
+                code: "already-running",
+                message: "Watch the one in flight.",
+                detail: null,
+                status: null,
+                needsSignIn: false,
+                needsEula: false,
+                route: null,
+                run: null,
+                failingJob: null,
+                logExcerpt: null,
+            },
+            at: "2026-08-19T00:00:01Z",
+        });
+
+        expect(renders.rows.value[0]?.state).toBe("running");
+        expect(renders.rows.value[0]?.failure).toBeNull();
+        expect(renders.rows.value[0]?.log.at(-1)?.message).toContain("Watch the one in flight");
+        renders.dispose();
+    });
+
     it("resumes one persisted dispatched run on load instead of watching it forever", async () => {
         const dispatched: CiSyncState = {
             version: 1,

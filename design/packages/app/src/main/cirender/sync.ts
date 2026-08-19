@@ -1509,11 +1509,14 @@ export class CiRenderSync {
         );
 
         const workflowFile = this.#options.workflowFile ?? RENDER_WORKFLOW_FILE;
-        let runId = state.runId;
+        // A terminal attempt's run id is never adopted by a new attempt. A dispatched
+        // record without a run id, however, is the durable marker left before the
+        // workflow_dispatch side effect and must be correlated after a restart.
+        let runId = state.stage === "dispatched" ? state.runId : null;
         let dispatchedAt: Date;
 
         if (runId === null) {
-            if (state.dispatchedAt !== null) {
+            if (state.stage === "dispatched" && state.dispatchedAt !== null) {
                 // A previous process may have persisted the dispatch identity and then
                 // vanished before GitHub returned the run id. Adopt the run that belongs
                 // to that durable timestamp; dispatching again would create a duplicate.
@@ -1534,6 +1537,11 @@ export class CiRenderSync {
                     ...state,
                     stage: "dispatched",
                     dispatchedAt: dispatchedAt.toISOString(),
+                    runId: null,
+                    runNumber: null,
+                    runUrl: null,
+                    failureCode: null,
+                    failureMessage: null,
                     updatedAt: this.#timestamp(),
                 };
                 await this.#save(workspace.stateFile, state);
@@ -1548,6 +1556,9 @@ export class CiRenderSync {
                         ...state,
                         stage: "uploaded",
                         dispatchedAt: null,
+                        runId: null,
+                        runNumber: null,
+                        runUrl: null,
                         updatedAt: this.#timestamp(),
                     };
                     await this.#save(workspace.stateFile, state);

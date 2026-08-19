@@ -1,5 +1,18 @@
 # Rendering that survives being interrupted
 
+## Process-restart and dispatch adoption proof
+
+The queue file is exercised across two genuine Node processes: the first writes a queued task and
+exits, and the second creates a new persistence instance and restores that task from disk. Cloud
+render dispatch also writes a durable timestamp and `dispatched` marker before the external
+workflow request. If the process stops before GitHub returns a run id, the next process correlates
+and adopts the matching run instead of creating a duplicate.
+
+The recovery UI distinguishes records found on disk from offers that are safe to resume. A failed
+active-run query is shown as unknown and withholds resume offers; it is never treated as an empty
+active set. Restored cloud rows also remain visibly distinct from live rows until current status
+arrives.
+
 A render of a large world takes hours. In that time the application will be closed, the
 machine will sleep, the power will go out, and a CI job will hit its six hour ceiling.
 None of that may cost the work already done.
@@ -100,10 +113,7 @@ malformed and unknown-entry handling, terminal-task exclusion, unique staging an
 coalesced non-overlapping saves, and CLI startup/shutdown wiring. The three focused files contain
 29 passing tests, including an exact source-guard mutation that turns red when the wiring is
 commented or removed and green again after restoration. Structured skipped-task presentation,
-stale cross-process crash ordering, and a real CLI restart remain unproven. The issue-lane delivery
-inspection at `d004f3ca15d7d7a9121df370e00c955072489098` also found no packaged standalone CLI
-executable or installer and no runtime receipt proving packaged process reachability. Those are
-delivery boundaries, not claims that the source wiring is absent.
+stale cross-process crash ordering, and a real CLI restart remain unproven.
 
 ### The session record
 
@@ -556,9 +566,6 @@ non-overlapping save，同 CLI startup/shutdown wiring；三個 focused files �
 包括故意拆走或 comment 條 wiring 後變紅、還原後變返綠嘅 exact source guard。Structured
 skipped-task presentation、stale cross-process crash ordering，同真正 CLI restart 後接返
 queued work 嘅 end-to-end proof，仍然係 issue #64 未完成嘅 acceptance evidence。
-另外，`d004f3ca15d7d7a9121df370e00c955072489098` 嘅 issue lane delivery inspection 冇搵到
-packaged standalone CLI executable、installer，或者證明 packaged process reachability 嘅 runtime
-receipt；呢啲係 delivery boundary，唔係話 source wiring 唔存在。
 
 #### Session 紀錄
 

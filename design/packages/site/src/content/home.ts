@@ -57,6 +57,7 @@ import {
     TABBED_NAVIGATION_DOC_URL,
     UPSTREAM_URL,
     issue,
+    repoFile,
 } from "./links.js";
 
 export const home: HomeContent = {
@@ -80,6 +81,19 @@ export const home: HomeContent = {
                 { code: "1.0.<run>" },
                 ". What 1.0 does not claim: the feature programs still tracked as open issues are ",
                 "future work, and Windows executables are intentionally and permanently unsigned.",
+            ],
+        },
+        {
+            kind: "callout",
+            tone: "note",
+            title: "Windows 1.0 compatibility contract",
+            content: [
+                "The public 1.0 compatibility contract is Windows-only. It names the supported public surfaces -- CLI commands and exit codes, versioned config/project/history schemas, documented HTTP/SSE endpoints, workflow inputs and outputs, explicitly documented environment variables, file layouts, the update feed, backup pointers, exported formats, and accessibility-visible commands -- and classifies each as stable, experimental, or internal. The companion migration guide requires staged conversion, validation, unknown-field preservation, an atomic cutover, concurrent-change detection, and rollback.",
+                " Those policies are defined in the linked contract documents; this site callout is a summary. Read the ",
+                { link: "public surface matrix", href: repoFile("docs/compatibility/public-surface-matrix.md"), external: true },
+                " and the ",
+                { link: "Windows 1.0 migration guide", href: repoFile("docs/compatibility/migration-guide.md"), external: true },
+                ".",
             ],
         },
         {

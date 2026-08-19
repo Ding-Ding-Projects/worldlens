@@ -676,6 +676,15 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 });
                 break;
             case "failed":
+                if (event.failure.code === "already-running" && row.state === "running") {
+                    put({
+                        ...row,
+                        log: append(row, "warning", event.failure.message, event.at),
+                        stopping: false,
+                        live: true,
+                    });
+                    break;
+                }
                 put({
                     ...row,
                     state: "failed",

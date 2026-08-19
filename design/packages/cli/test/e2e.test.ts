@@ -188,7 +188,7 @@ describe("e2e: runCli renders a real fixture map and serves real routes", () => 
 
         const triggerResponse = await fetchNow("/maps/overworld/update", { method: "POST" });
         expect(triggerResponse.status).toBe(202);
-        expect(await triggerResponse.json()).toEqual({ scheduled: true });
+        expect(await triggerResponse.json()).toEqual({ scheduled: true, priority: "next" });
 
         // an unmounted map id still 404s rather than falling through to the static handler
         expect((await fetchNow("/maps/does-not-exist/settings.json")).status).toBe(404);

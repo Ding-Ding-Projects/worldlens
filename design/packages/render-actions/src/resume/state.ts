@@ -13,9 +13,9 @@ import type { ShardPlan } from "../plan/plan.js";
  *
  * They are not interchangeable and the split is deliberate.
  *
- * **The cache holds the working state**: the shard's map directory *including its
- * `rstate`*, plus BlueMap's data directory with the downloaded client jar and the
- * extracted resources. Cache is right for this because it is keyed and restored
+ * **The cache holds the working state**: the complete BlueMap web root (the shard's map
+ * directory *including its `rstate`*, plus the viewer shell), and BlueMap's data directory
+ * with the downloaded client jar and the extracted resources. Cache is right for this
  * automatically at the start of a job, which is exactly the shape of "start again where
  * you left off". It is also allowed to disappear: an evicted cache costs a full re-render
  * of that shard and nothing else, and a resume path that *cannot* survive its own storage
@@ -62,7 +62,7 @@ import type { ShardPlan } from "../plan/plan.js";
  */
 
 /** Bumped when the cached layout changes, so old caches cannot be restored into it. */
-export const CACHE_FORMAT_VERSION = 1;
+export const CACHE_FORMAT_VERSION = 2;
 
 const CACHE_NAMESPACE = "bluemap-shard-state";
 
@@ -139,10 +139,10 @@ export function shardCacheKey(options: ShardCacheKeyOptions): string {
  * jar from Mojang's servers once per shard per run.
  */
 export function shardCachePaths(options: {
-    readonly storageRoot: string;
+    readonly webRoot: string;
     readonly dataDirectory: string;
 }): string[] {
-    return [options.storageRoot, options.dataDirectory];
+    return [options.webRoot, options.dataDirectory];
 }
 
 export interface ShardCacheDescription {
@@ -154,7 +154,7 @@ export interface ShardCacheDescription {
 }
 
 export function describeShardCache(
-    options: ShardCacheKeyOptions & { readonly storageRoot: string; readonly dataDirectory: string },
+    options: ShardCacheKeyOptions & { readonly webRoot: string; readonly dataDirectory: string },
 ): ShardCacheDescription {
     return {
         key: shardCacheKey(options),
