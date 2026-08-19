@@ -21,7 +21,7 @@ function args(values) {
 }
 
 const options = args(process.argv.slice(2));
-for (const key of ["repo-root", "run-root", "commit", "packaged-exe", "app-asar", "launch-pid", "hwnd", "plan"]) {
+for (const key of ["repo-root", "run-root", "commit", "packaged-exe", "app-asar", "launch-pid", "observed-exe", "hwnd", "plan"]) {
     if (!options[key]) fail(`--${key} is required`);
 }
 
@@ -67,13 +67,9 @@ const packagedExecutableSha256 = sha256(packagedExecutable);
 const packagedAsarSha256 = sha256(packagedAsar);
 const launchPid = Number(options["launch-pid"]);
 if (!Number.isInteger(launchPid) || launchPid <= 0) fail("--launch-pid must be a positive process id");
-const runningPath = execFileSync(
-    "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-Command", `(Get-Process -Id ${launchPid} -ErrorAction Stop).Path`],
-    { encoding: "utf8" },
-).trim();
-if (runningPath.toLowerCase() !== packagedExecutablePath.toLowerCase()) {
-    fail(`running pid ${launchPid} resolves to ${runningPath}, not the packaged executable ${packagedExecutablePath}`);
+const observedExecutablePath = resolve(options["observed-exe"]);
+if (observedExecutablePath.toLowerCase() !== packagedExecutablePath.toLowerCase()) {
+    fail(`observed executable ${observedExecutablePath} is not the packaged executable ${packagedExecutablePath}`);
 }
 
 const manifestPath = resolve(runRoot, "manifest.json");
@@ -132,7 +128,7 @@ const buildReceipt = {
     packagedAsarPath: relative(repoRoot, packagedAsarPath).replaceAll("\\", "/"),
     packagedAsarSha256,
     launchPid,
-    runningExecutablePath: relative(repoRoot, runningPath).replaceAll("\\", "/"),
+    observedExecutablePath: relative(repoRoot, observedExecutablePath).replaceAll("\\", "/"),
 };
 const buildReceiptPath = resolve(runRoot, "build-receipt.json");
 await writeFile(buildReceiptPath, `${JSON.stringify(buildReceipt, null, 2)}\n`, "utf8");
