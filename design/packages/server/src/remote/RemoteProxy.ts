@@ -86,9 +86,10 @@ export class RemoteProxyHandler implements HttpHandler {
         if (body === null) return { reachable: true, version: null, failure: "The profile health response was larger than the bounded limit." };
         try {
             const parsed: unknown = JSON.parse(body);
-            const version = typeof parsed === "object" && parsed !== null && typeof (parsed as Record<string, unknown>)["version"] === "string"
-                ? (parsed as Record<string, string>)["version"]
-                : null;
+            const candidate = typeof parsed === "object" && parsed !== null
+                ? (parsed as Record<string, unknown>)["version"]
+                : undefined;
+            const version = typeof candidate === "string" ? candidate : null;
             return { reachable: true, version, failure: null };
         } catch {
             return { reachable: true, version: null, failure: "The profile answered, but its health response was not JSON." };
