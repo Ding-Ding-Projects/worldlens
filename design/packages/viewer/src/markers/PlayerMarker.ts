@@ -11,10 +11,10 @@ export interface PlayerMarkerData extends MarkerData {
     playerHead: string;
     rotation: { pitch: number; yaw: number };
     foreign: boolean | undefined;
-    source?: string;
-    dimension?: string;
-    observedAt?: number | string;
-    freshness?: string;
+    source?: string | undefined;
+    dimension?: string | undefined;
+    observedAt?: number | string | undefined;
+    freshness?: string | undefined;
     stale?: boolean;
 }
 
