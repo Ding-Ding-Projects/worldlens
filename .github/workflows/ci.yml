@@ -790,6 +790,10 @@ jobs:
         working-directory: design
         run: pnpm build
 
+      - name: Package the application for Lowlevel smoke
+        working-directory: design/packages/app
+        run: pnpm run package
+
       - name: Install the pinned Lowlevel MCP runtime
         shell: pwsh
         env:
