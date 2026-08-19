@@ -821,10 +821,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     continue-on-error: true
     timeout-minutes: 180
-    runs-on:
-      - self-hosted
-      - Windows
-      - X64
+    # The online self-hosted Windows runner executes as NetworkService in Session 0. A live
+    # Lowlevel diagnostic proved that neither Worldlens nor Notepad can create a window on an
+    # off-screen desktop there, so this job uses the supported hosted Windows image instead.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
