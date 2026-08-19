@@ -51,7 +51,7 @@ user-data ledger is schema-shaped but omits an inventoried phase,
 the reader reports the missing phase names and stops; it does not fall through to a partial
 ledger or present a smaller success state.
 
-The current inventory contains the five rows below. Adding a completed phase requires updating
+The current inventory contains the six rows below. Adding a completed phase requires updating
 the hand-written inventory, its ledger row, and this boundary together. The check fails when an
 integrated phase is absent, so a phase cannot silently disappear from the ledger.
 The existing `.613` release owned by issue #51 is intentionally not duplicated here; its proof
@@ -61,10 +61,10 @@ SHA-256 values, workflow timing, line-count summaries, and code-name links are r
 their copied photo attachments are explicitly marked shipped-but-nonconforming under the current
 link-only photo policy.
 
-## Current five-row ledger
+## Current six-row ledger
 
-The populated `docs/release-ledger.json` contains four historical release rows and one current
-workflow-policy row. The four historical rows are deliberately `failed` with
+The populated `docs/release-ledger.json` contains four historical release rows, one current
+workflow-policy row, and one failed completeness-enforcement row. The four historical rows are deliberately `failed` with
 `shipped-nonconforming` disposition:
 their release, target, workflow, timing, assets, hashes, line-count data, and
 release-note evidence were read back, but each copied and attached a dim-sum
@@ -72,6 +72,7 @@ photo. Current policy requires linking to the public catalog photo without
 copying or attaching it, so those four historical rows are not presented as
 `verified`. The workflow-policy row is independently `verified` from its remote
 release read-back; that verdict does not imply local packaging or runtime proof.
+The completeness-enforcement row is a failed/no-release record, not a verified phase.
 
 | Phase | Integration commit | Release | Timing | Code name | State |
 | --- | --- | --- | --- | --- | --- |
