@@ -1,5 +1,18 @@
 # Roadmap
 
+## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
+
+The pinned upstream source is `vendor/BlueMap` `v5.23` at
+`4c4cbc291b361ceff6ee239448e9f988f9019dbb`. The exact supported Minecraft
+versions and loader/API inputs for Fabric, Forge, NeoForge, Paper, Spigot, and
+Sponge are recorded in [`docs/server-adapter-smoke.md`](docs/server-adapter-smoke.md).
+Release `v1.0.1233` provides the published jar names and SHA-256 asset record. A
+plan-first `tools/server-adapter-smoke/smoke.mjs` contract now enumerates the
+required cases, but its checked-in source-SHA/version matrix is still unpopulated
+and no `--execute` report exists. No server boot, plugin discovery, live
+render/update, endpoint, shutdown/restart, negative-case, test, or capture evidence
+was produced in this documentation-only update. Issue #83 remains open.
+
 ## Issue #86 — Docker world import against a real daemon
 
 The implementation and source documentation are present for daemon inventory, container and volume

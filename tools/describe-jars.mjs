@@ -18,10 +18,9 @@
  *   node tools/describe-jars.mjs --stage <in> --out <out> --expect-version 5.22-27
  *
  * The per-implementation prose here is stable product knowledge - a Paper plugin goes
- * in `plugins/`, and that will not change. The supported Minecraft versions are not
- * stable, so they are read out of each implementation's `build.gradle.kts` in the
- * vendored source rather than written down here, where they would silently go stale
- * the first time the submodule pointer moves.
+ * in `plugins/`, and that will not change. The supported Minecraft and loader versions
+ * are not stable, so they are read out of each implementation's `build.gradle.kts` in
+ * the vendored source and recorded beside each artifact rather than hand-maintained.
  *
  * The jars are read, not trusted: each one's zip central directory is parsed, its
  * manifest read, and the class-file version of its first class recorded, so the
@@ -43,6 +42,16 @@ const IMPLEMENTATIONS = ["cli", "fabric", "forge", "neoforge", "paper", "spigot"
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_VENDOR = join(REPO_ROOT, "vendor", "BlueMap");
 const DEFAULT_UPSTREAM_REPOSITORY = "https://github.com/BlueMap-Minecraft/BlueMap";
+
+/** Adapter metadata is source-derived; never hand-edit a release compatibility claim. */
+const ADAPTER_CONTRACTS = {
+    fabric: { loader: "fabric", sourcePath: "implementations/fabric/build.gradle.kts", literals: ["fabricLoaderVersion", "fabricApiVersion"] },
+    forge: { loader: "forge", sourcePath: "implementations/forge/build.gradle.kts", literals: ["forgeVersion"] },
+    neoforge: { loader: "neoforge", sourcePath: "implementations/neoforge/build.gradle.kts", literals: ["neoVersion"] },
+    paper: { loader: "paper", sourcePath: "implementations/paper/build.gradle.kts", literals: ["apiVersion", "paperVersion"], loaderFamily: ["paper", "purpur", "folia"] },
+    spigot: { loader: "spigot", sourcePath: "implementations/spigot/build.gradle.kts", literals: ["apiVersion", "spigotVersion"], loaderFamily: ["spigot", "bukkit", "craftbukkit"] },
+    sponge: { loader: "sponge", sourcePath: "implementations/sponge/build.gradle.kts", calls: ["apiVersion", "version"] },
+};
 
 /**
  * What each jar is and where it goes. Deliberately prose and deliberately static:
@@ -330,6 +339,44 @@ async function readSupportedMinecraftVersions(vendorRoot, implementation) {
     return versions.length === 0 ? null : versions;
 }
 
+function readLiteralDeclaration(source, name) {
+    const line = source.split(/\r?\n/).find((candidate) => new RegExp(`^\\s*(?:val|var)\\s+${name}\\s*=\\s*"([^"]+)"`).test(candidate));
+    if (line === undefined) return null;
+    return new RegExp(`^\\s*(?:val|var)\\s+${name}\\s*=\\s*"([^"]+)"`).exec(line)?.[1] ?? null;
+}
+
+function readCallLiteral(source, name) {
+    const line = source.split(/\r?\n/).find((candidate) => new RegExp(`^\\s*${name}\\("([^"]+)"\\)`).test(candidate));
+    if (line === undefined) return null;
+    return new RegExp(`^\\s*${name}\\("([^"]+)"\\)`).exec(line)?.[1] ?? null;
+}
+
+/** Exact loader/API contract for a server adapter, tied to the source SHA in output. */
+async function readAdapterContract(vendorRoot, implementation) {
+    const contract = ADAPTER_CONTRACTS[implementation];
+    if (contract === undefined) return null;
+    const sourcePath = join(vendorRoot, contract.sourcePath);
+    if (!existsSync(sourcePath)) return null;
+    const source = await readFile(sourcePath, "utf8");
+    const versions = await readSupportedMinecraftVersions(vendorRoot, implementation);
+    const loaderVersions = {};
+    for (const name of contract.literals ?? []) {
+        const value = readLiteralDeclaration(source, name);
+        if (value !== null) loaderVersions[name] = value;
+    }
+    for (const name of contract.calls ?? []) {
+        const value = readCallLiteral(source, name);
+        if (value !== null) loaderVersions[name] = value;
+    }
+    return {
+        loader: contract.loader,
+        loaderFamily: contract.loaderFamily ?? [contract.loader],
+        minecraftVersions: versions,
+        loaderVersions,
+        sourcePath: contract.sourcePath,
+    };
+}
+
 function formatSize(bytes) {
     const mib = bytes / (1024 * 1024);
     return mib >= 1 ? `${mib.toFixed(1)} MiB` : `${(bytes / 1024).toFixed(0)} KiB`;
@@ -390,12 +437,13 @@ function composeMarkdown(jars, upstream, requiredJava) {
         );
         lines.push("");
     }
-    lines.push("| Download | What it is | Runs on | Minecraft |");
-    lines.push("| --- | --- | --- | --- |");
+    lines.push("| Download | What it is | Runs on | Minecraft | Loader/API contract |");
+    lines.push("| --- | --- | --- | --- | --- |");
     for (const jar of jars) {
         const minecraft =
             jar.minecraftVersions === null ? "reads world folders directly" : jar.minecraftVersions.join(", ");
-        lines.push(`| \`${jar.fileName}\` | ${jar.title} | ${jar.platform} | ${minecraft} |`);
+        const loader = jar.adapterContract === null ? "n/a" : `${jar.adapterContract.loader} (${Object.values(jar.adapterContract.loaderVersions).join(", ") || "source-defined"})`;
+        lines.push(`| \`${jar.fileName}\` | ${jar.title} | ${jar.platform} | ${minecraft} | ${loader} |`);
     }
     lines.push("");
     lines.push("<details><summary>How to install each one, and the checksums</summary>");
@@ -410,6 +458,7 @@ function composeMarkdown(jars, upstream, requiredJava) {
         }
         lines.push("");
         lines.push(`\`${jar.sha256}\`  (${formatSize(jar.size)})`);
+        if (jar.source.commit !== null) lines.push(`Source SHA: \`${jar.source.commit}\` (${jar.source.path})`);
         lines.push("");
     }
     lines.push(
@@ -473,6 +522,7 @@ async function main() {
         await writeFile(destination, buffer);
 
         const platform = PLATFORMS[implementation];
+        const adapterContract = await readAdapterContract(options.vendor, implementation);
         described.push({
             implementation,
             fileName,
@@ -481,9 +531,16 @@ async function main() {
             platform: platform.platform,
             install: platform.install,
             note: platform.note,
-            minecraftVersions: await readSupportedMinecraftVersions(options.vendor, implementation),
+            minecraftVersions: adapterContract?.minecraftVersions ?? (await readSupportedMinecraftVersions(options.vendor, implementation)),
+            adapterContract,
             size: buffer.length,
             sha256: createHash("sha256").update(buffer).digest("hex"),
+            artifactSha256: createHash("sha256").update(buffer).digest("hex"),
+            source: {
+                repository: options.upstreamRepository,
+                commit: options.upstreamCommit,
+                path: adapterContract?.sourcePath ?? null,
+            },
             entryCount: inspection.entryCount,
             mainClass: inspection.mainClass,
             classFileMajor: inspection.classFileMajor,
@@ -505,6 +562,7 @@ async function main() {
         repository: options.upstreamRepository,
         version,
         commit: options.upstreamCommit,
+        sourceSha: options.upstreamCommit,
         submodulePath: "vendor/BlueMap",
     };
 
