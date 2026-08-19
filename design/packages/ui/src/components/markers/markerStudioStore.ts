@@ -113,6 +113,11 @@ export function reloadMarkerStudio(): void {
     markerStudioStore.preview = fresh.preview;
 }
 
+/** Updates the transient, unsaved map preview without persisting it. */
+export function setMarkerPreview(preview: StudioMarker | null): void {
+    markerStudioStore.preview = preview;
+}
+
 /** Every marker belonging to one map, newest first. */
 export function markersFor(mapId: string): ComputedRef<readonly StudioMarker[]> {
     return computed(() =>

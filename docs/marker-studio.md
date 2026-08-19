@@ -4,27 +4,31 @@ Markers you make yourself, on a map you rendered yourself.
 
 ## Issue #70 status — authoring is still partial
 
-Issue #70 remains **open and unverified**. The current studio is a useful local POI editor,
-not yet the requested first-class BlueMap marker authoring surface. Source currently covers
-one local `StudioMarker` shape (`label`, `detail`, integer `x/y/z`, colour and visibility),
-map-aware placement from the camera, local persistence, text/regex search, and bulk deletion
-through the existing confirmation surface. The viewer bridge mirrors those POIs into one
-namespaced `worldlens:studio` marker set.
+Issue #70 remains **open and unverified**. The current studio source now models four local
+BlueMap marker kinds: POI, line, shape, and extrude. It validates bounded coordinates and
+geometry, rounds positions, keeps stable ordering and safe unknown fields, supports map-scoped
+create/edit/duplicate/delete, local persistence, versioned JSON import/export, text/regex search,
+visibility, and mutation-history records. The shell-lifetime viewer host mirrors the authored
+records into one namespaced `worldlens:studio` marker set, including an unsaved-preview slot in
+the data path.
 
-The following issue requirements are **not** represented by the current source boundary:
+The following issue requirements remain **open or only partially represented** by the current
+source boundary:
 
-- marker-set create/edit/duplicate/delete, including preservation of unknown fields and order;
-- POI, line, shape, and extrude authoring against the real BlueMap schema;
-- direct map placement and drawing for geometry beyond one camera-position POI;
-- complete style, icon and label controls, preview-before-save, import/export, and VS Code handoff;
-- local version-history records and undo/restore for every mutation;
-- concurrent-file and collision handling, cross-dimension edit safeguards, and the full
-  accessibility/localization/reduced-motion matrix;
+- marker-set create/edit/duplicate/delete beyond the one fixed `worldlens:studio` set;
+- direct map placement and drawing for geometry: non-POI points currently enter through a JSON
+  geometry field rather than a map drawing tool;
+- complete BlueMap style, icon and label controls; the source wires an explicit live
+  unsaved-preview workflow, but that preview remains unverified in the packaged viewer;
+- history browsing and user-facing undo/restore; mutation records are emitted, but this source
+  does not itself provide the history manager;
+- VS Code handoff, concurrent-file/collision handling, and stronger cross-dimension edit
+  safeguards beyond map scoping and import rejection for a different map;
+- the full accessibility, localization, reduced-motion, and destructive/bulk-action matrix;
 - packaged-viewer proof and a real capture for each edited marker type.
 
-This article therefore documents the currently shipped POI studio without treating it as
-completion of Issue #70. No tests, packaged interaction, or captures are claimed by the
-records-only update that added this status section.
+This article therefore documents the current source boundary without treating it as completion
+of Issue #70. No tests, packaged interaction, or captures are claimed by this records update.
 
 Every marker this application could previously show came from somebody else: a BlueMap
 marker file, or a live server's API. It filtered them, searched them and laid them over a
@@ -92,9 +96,9 @@ anywhere.
 | The surface, driven as a person drives it | `MarkerStudio.test.ts` |
 | Markers reaching the actual map | `useStudioMarkerLayer.test.ts` |
 
-The files above are source-level evidence that the current POI studio exists; they are not a
-packaged-artifact verdict. Issue #70 stays open until the broader authoring implementation and
-its focused runtime evidence are supplied.
+The files above are source-level evidence for the model, store, surface, and viewer-layer paths;
+they are not a packaged-artifact verdict. Issue #70 stays open until the remaining authoring
+surfaces and focused runtime evidence are supplied.
 
 ## Suggested articles
 

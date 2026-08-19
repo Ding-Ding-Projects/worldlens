@@ -97,7 +97,7 @@ function safeExtra(value: unknown): Record<string, unknown> | undefined {
     const out: Record<string, unknown> = {};
     for (const [key, entry] of Object.entries(value)) {
         if (unsafeField.test(key) || key.length > 80) continue;
-        if (typeof entry === "string" && (entry.length > 2000 || /<\/?[a-z][^>]*>|javascript:/i.test(entry))) continue;
+        if (typeof entry === "string" && (entry.length > 2000 || /<\/?[a-z][^>]*>|^\s*[a-z][a-z0-9+.-]*:|^[a-z]:[\\/]|^\.\.?[\\/]/i.test(entry))) continue;
         if (typeof entry === "number" || typeof entry === "boolean" || typeof entry === "string" || entry === null) out[key] = entry;
         else if (Array.isArray(entry) && entry.length <= 128 && entry.every((item) => typeof item === "number" || typeof item === "string" || typeof item === "boolean" || item === null)) out[key] = [...entry];
     }

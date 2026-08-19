@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     VAlert,
@@ -19,7 +19,9 @@ import MarkerSearchField from "./MarkerSearchField.vue";
 import { compileSearchPattern, includesCI, type SearchMode } from "./markerFilter.js";
 import {
     DEFAULT_MARKER_COLOUR,
+    createMarker,
     draftFrom,
+    editMarker,
     emptyDraft,
     markerSearchText,
     type MarkerDraft,
@@ -35,6 +37,7 @@ import {
     markersFor,
     removeMarkers,
     setMarkerVisible,
+    setMarkerPreview,
     updateMarker,
 } from "./markerStudioStore.js";
 
@@ -160,6 +163,7 @@ function startEdit(marker: StudioMarker): void {
 function cancel(): void {
     formOpen.value = false;
     problems.value = [];
+    setMarkerPreview(null);
 }
 
 function save(): void {
@@ -176,10 +180,22 @@ function save(): void {
     if (result.ok) {
         formOpen.value = false;
         problems.value = [];
+        setMarkerPreview(null);
         return;
     }
     problems.value = result.problems;
 }
+
+watch(
+    [formOpen, draft, editing],
+    () => {
+        if (!formOpen.value) return setMarkerPreview(null);
+        const source = editing.value === null ? null : all.value.find((marker) => marker.id === editing.value);
+        const result = source ? editMarker(source, draft.value) : createMarker(props.mapId, draft.value);
+        setMarkerPreview(result.ok ? result.marker : null);
+    },
+    { deep: true },
+);
 
 function downloadExport(): void {
     const blob = new Blob([exportMarkers(props.mapId)], { type: "application/json" });
@@ -196,7 +212,6 @@ async function importFile(event: Event): Promise<void> {
     const file = input.files?.[0];
     if (!file) return;
     const result = importMarkers(await file.text(), props.mapId);
-    removedCount.value = null;
     if (result.errors.length) problems.value = [{ field: "geometry", message: result.errors.join(" ") }];
     input.value = "";
 }
@@ -232,6 +247,11 @@ function selectListed(): void {
 function selectNone(): void {
     selected.value = new Set();
 }
+
+watch(() => props.mapId, () => {
+    selected.value = new Set();
+    setMarkerPreview(null);
+});
 
 const removedCount = ref<number | null>(null);
 

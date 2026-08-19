@@ -79,13 +79,19 @@ installer、runtime、workflow dispatch 或 captures。Issue #63 要等每個 co
 
 ## Issue #70 marker authoring — records-only update, 2026-08-19
 
-Issue #70 remains **open and unverified**. The issue-owned checkout contains the marker-studio
-source changes, while the durable feature record is [`docs/marker-studio.md`](docs/marker-studio.md).
-The current records distinguish the local POI authoring path from the broader first-class editor
-contract: marker sets, POI/line/shape/extrude geometry, map-aware drawing, style/icon/label
-controls, unknown-field and ordering preservation, preview-before-save, import/export, local
-history and undo/restore, VS Code handoff, collision/concurrent-file handling, and
-cross-dimension safeguards all require explicit acceptance evidence before closure.
+Issue #70 remains **open and unverified**. The issue-owned checkout contains source for four
+local marker kinds (POI, line, shape, and extrude), bounded geometry validation, map-scoped
+create/edit/duplicate/delete, versioned JSON import/export, unknown-field and ordering retention,
+local persistence, mutation-history records, regex search, and a shell-lifetime viewer-layer host.
+The durable feature record is [`docs/marker-studio.md`](docs/marker-studio.md).
+
+The remaining boundary is marker-set CRUD beyond the fixed studio set, direct map drawing rather
+than JSON geometry entry, complete BlueMap style/icon/label controls, user-facing history
+browsing and undo/restore, VS Code handoff, concurrent-file/collision handling, stronger
+cross-dimension safeguards, and the full accessibility/localization/reduced-motion/destructive-
+action matrix. The source wires live unsaved preview and clears it on cancel/save/map change,
+but that behavior is unverified in the packaged viewer. Packaged interaction and captures for
+every edited marker type are still open.
 
 This pass corrects the public issue timestamp and recreates the issue records in the exact
 issue-owned checkout. No tests, package builds, viewer launches, screenshots, or runtime claims
@@ -94,12 +100,18 @@ for every edited marker type are complete.
 
 ### 廣東話 / Cantonese
 
-Issue #70 仲係 **open，未驗證**。issue-owned checkout 有 marker-studio source changes，直接
-feature record 係 [`docs/marker-studio.md`](docs/marker-studio.md)。而家 records 清楚分開本地
-POI authoring 同完整 first-class editor contract：marker set、POI/line/shape/extrude geometry、
-地圖畫線畫形、style/icon/label、unknown field 同 ordering、save 前 preview、import/export、
-local history/undo/restore、VS Code handoff、collision/concurrent file 同 cross-dimension
-safeguard，都要有獨立 acceptance evidence 先可以 close。
+Issue #70 仲係 **open，未驗證**。issue-owned checkout 有四種 local marker kind（POI、line、
+shape、extrude）、bounded geometry validation、map-scoped create/edit/duplicate/delete、
+versioned JSON import/export、保留 unknown field 同 ordering、local persistence、mutation
+history records、regex search 同 shell-lifetime viewer layer host；直接 feature record 係
+[`docs/marker-studio.md`](docs/marker-studio.md)。
+
+仲欠 marker-set CRUD（唔係淨係固定 studio set）、直接喺地圖畫 geometry（而家係 JSON geometry
+field）、完整 BlueMap style/icon/label、history browse 同 user-facing undo/restore、VS Code
+handoff、concurrent file/collision、強啲嘅 cross-dimension safeguard，同完整
+accessibility/localization/reduced-motion/destructive-action matrix。Source 已經接好 live
+unsaved preview，cancel/save/map change 會清走，但 packaged viewer 仲未驗證。每種 edited marker
+type 嘅 packaged interaction 同 captures 都仲係 open。
 
 今次修正 public issue timestamp，並喺正確 issue-owned checkout 重建 records。冇跑 tests、冇
 build package、冇開 viewer、冇影 screenshots，亦冇聲稱 runtime 已經證實。要等每種 edited
