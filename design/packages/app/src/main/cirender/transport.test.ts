@@ -110,8 +110,47 @@ describe("gh CLI broker transport", () => {
     });
 
     it("describes the main-process lease as a GitHub CLI account", () => {
-        const transport = brokerCliTransport({ lease: fakeGhAccountLease({ login: "octocat" }) });
+        const transport = brokerCliTransport({
+            lease: fakeGhAccountLease({ login: "octocat", host: "ghe.example" }),
+        });
         expect(transport.describe).toContain("GitHub CLI account");
+        expect(transport.describe).toContain("octocat on ghe.example");
         expect(transport.describe).not.toContain("in this application");
+    });
+
+    it("keeps a refused release upload fail-closed and names same-surface account recovery", async () => {
+        const transport = brokerCliTransport({
+            lease: fakeGhAccountLease({
+                host: "ghe.example",
+                login: "release-bot",
+                uploadReleaseAsset: async () => ({
+                    started: true,
+                    code: 1,
+                    stdout: "",
+                    stderr: "gh: Forbidden (HTTP 403)\nmissing workflow permission\n",
+                }),
+            }),
+        });
+
+        const error = await transport
+            .uploadReleaseAsset({
+                release: { id: 7, tag: "backup-2026-08-19", htmlUrl: "https://ghe.example/release/7" },
+                owner: OWNER,
+                repo: REPO,
+                assetName: "backup.zip",
+                filePath: "/tmp/backup.zip",
+                bytes: 12,
+            })
+            .catch((reason: unknown) => reason);
+
+        expect(error).toMatchObject({
+            status: 403,
+            needsSignIn: true,
+            url: `${OWNER}/${REPO}#backup-2026-08-19`,
+        });
+        expect((error as Error).message).toContain("release-bot on ghe.example");
+        expect((error as Error).message).toContain("No release data changed.");
+        expect((error as Error).message).toContain("Reauthenticate this selected account");
+        expect((error as Error).message).toContain("missing workflow permission");
     });
 });

@@ -132,7 +132,12 @@ export interface CiOwnerChoice {
  */
 export type CiOwnerChoicesAnswer =
     | { readonly ok: true; readonly login: string; readonly owners: readonly CiOwnerChoice[] }
-    | { readonly ok: false; readonly signedIn: boolean; readonly message: string };
+    | {
+          readonly ok: false;
+          readonly signedIn: boolean;
+          readonly message: string;
+          readonly needsSignIn?: boolean | undefined;
+      };
 
 /**
  * Whether `owner/repo` is free on GitHub, read live rather than guessed.
@@ -333,6 +338,27 @@ export interface CiSyncRequest {
     readonly accountId?: string;
 }
 
+/** The renderer's guided values; the main process rebuilds and validates the schema. */
+export interface CiCloudRenderConfigInput {
+    readonly projectName?: string;
+    readonly mapId?: string;
+    readonly mapName?: string;
+    readonly dimension?: string;
+    readonly sorting?: number;
+    readonly enabledMapIds?: readonly string[];
+    readonly dataFolder?: string;
+    readonly webroot?: string;
+    readonly outputFolder?: string | null;
+    readonly threads?: number | null;
+    readonly force?: boolean;
+    readonly fixEdges?: boolean;
+    readonly metrics?: boolean;
+}
+
+export type CiCloudRenderConfigResult =
+    | { readonly ok: true; readonly preflight: CiPreflight | null; readonly preflightFailure: CiSyncFailure | null }
+    | { readonly ok: false; readonly failure: { readonly code: string; readonly message: string } };
+
 export type CiSyncEvent =
     | {
           readonly type: "started";
@@ -419,7 +445,8 @@ export type CiSyncResult =
 
 /** Every answer the main process gives to a question that can simply fail. */
 export type Answer<T> =
-    { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
+    | { readonly ok: true; readonly value: T }
+    | { readonly ok: false; readonly message: string; readonly needsSignIn?: boolean | undefined };
 
 /* -------------------------------------------------------------------------- */
 /* Scheduled re-rendering: the honest cadence set, and what the workflow found */
@@ -556,6 +583,14 @@ export interface CiRenderBridge {
      */
     activeCiRenders(): Promise<readonly string[]>;
     onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
+    /** Builds, atomically saves and history-records a missing project through the main process. */
+    createCiCloudConfig?(request: {
+        readonly operationId: string;
+        readonly request: CiSyncRequest;
+        readonly config: CiCloudRenderConfigInput;
+    }): Promise<CiCloudRenderConfigResult>;
+    /** Cancels a still-running cloud-config operation before its atomic write boundary. */
+    cancelCiCloudConfig?(operationId: string): Promise<boolean>;
     /** True when a sync in flight can actually be stopped from here. */
     readonly canCancel: boolean;
     readonly canForget?: boolean;
@@ -639,6 +674,12 @@ type Host = Partial<{
     forgetCiRender: (syncId: string) => Promise<boolean>;
     activeCiRenders: () => Promise<readonly string[]>;
     onCiRenderEvent: (listener: (event: CiSyncEvent) => void) => () => void;
+    createCiCloudConfig: (request: {
+        operationId: string;
+        request: CiSyncRequest;
+        config: CiCloudRenderConfigInput;
+    }) => Promise<CiCloudRenderConfigResult>;
+    cancelCiCloudConfig: (operationId: string) => Promise<boolean>;
     // The preload's real names for the four optional additions above. `listBackupRepositories`
     // is the backup surface's own method, named for what it is there rather than for cirender
     // - reused read-only, the way `backup:repositories` was already built to be reused.
@@ -716,6 +757,12 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
             ? { resumeCiRender: (syncId: string) => host.resumeCiRender!(syncId) }
             : {}),
         onCiRenderEvent: (listener) => onCiRenderEvent(listener),
+        ...(isFunction(host.createCiCloudConfig)
+            ? { createCiCloudConfig: (request) => host.createCiCloudConfig!(request) }
+            : {}),
+        ...(isFunction(host.cancelCiCloudConfig)
+            ? { cancelCiCloudConfig: (operationId: string) => host.cancelCiCloudConfig!(operationId) }
+            : {}),
         checkCiRender: (syncId) =>
             isFunction(host.checkCiRender)
                 ? host.checkCiRender(syncId)

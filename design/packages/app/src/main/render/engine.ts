@@ -17,10 +17,14 @@
  * `resolveEngine`, not a change to the orchestrator - see `engine.test.ts` for the pin.
  */
 
+import { createHash } from "node:crypto";
 import { ensureJava, NoUsableJavaError, resolveCliJar } from "../java/index.js";
 import type { JarLookupOptions } from "../java/index.js";
+import { readFile, stat } from "node:fs/promises";
+import { join, resolve, basename } from "node:path";
 import { EngineUnavailableError } from "./orchestrator.js";
 import type { ResolvedEngine } from "./orchestrator.js";
+import type { RenderEngineId } from "./provenance.js";
 
 export interface UpstreamEngineOptions {
     /** Electron's `userData`. Where a provisioned JDK is looked for and installed. */
@@ -37,6 +41,13 @@ export interface UpstreamEngineOptions {
     readonly jarLookup?: JarLookupOptions;
 }
 
+export interface TypeScriptEngineOptions {
+    /** `process.resourcesPath` in a packaged app; omit in development. */
+    readonly resourcesPath?: string | null;
+    /** Repository root in development; the resolver searches it when provided. */
+    readonly repositoryRoot?: string | null;
+}
+
 /**
  * The engine that renders today: upstream BlueMap's CLI, on a real JVM.
  *
@@ -46,8 +57,15 @@ export interface UpstreamEngineOptions {
  */
 export function upstreamJavaEngine(
     options: UpstreamEngineOptions,
-): () => Promise<ResolvedEngine> {
-    return async (): Promise<ResolvedEngine> => {
+): (engine?: RenderEngineId) => Promise<ResolvedEngine> {
+    return async (engine: RenderEngineId = "upstream-java"): Promise<ResolvedEngine> => {
+        if (engine !== "upstream-java") {
+            throw new EngineUnavailableError(
+                "engine",
+                `The project selected '${engine}', but this build only has the upstream Java ` +
+                    "resolver wired for this route. Nothing was started and no other engine was chosen.",
+            );
+        }
         // The jar first: it is a directory listing, where finding a JVM can mean
         // launching a process or downloading two hundred megabytes. Reporting "the
         // engine is not installed" without having spent that is the better order.
@@ -56,6 +74,13 @@ export function upstreamJavaEngine(
             jar = resolveCliJar(options.jarLookup ?? lookupFrom(options));
         } catch (error) {
             throw new EngineUnavailableError("jar", describe(error));
+        }
+        if (options.resourcesPath !== undefined && options.resourcesPath !== null) {
+            try {
+                await verifyStagedJavaArtifact(options.resourcesPath, jar.path, jar.version);
+            } catch (error) {
+                throw new EngineUnavailableError("jar", describe(error));
+            }
         }
 
         let java;
@@ -76,11 +101,135 @@ export function upstreamJavaEngine(
         return {
             engine: "upstream-java",
             engineVersion: jar.version,
+            launch: "java-cli",
             enginePath: jar.path,
             javaExecutable: java.installation.executable,
             javaVersion: java.installation.version.version,
         };
     };
+}
+
+/** Resolves the packaged or checkout copy of the standalone TypeScript render driver. */
+export function typescriptEngine(
+    options: TypeScriptEngineOptions = {},
+): (engine?: RenderEngineId) => Promise<ResolvedEngine> {
+    return async (engine: RenderEngineId = "typescript"): Promise<ResolvedEngine> => {
+        if (engine !== "typescript") {
+            throw new EngineUnavailableError(
+                "engine",
+                `The project selected '${engine}', but the TypeScript resolver was asked to resolve another engine.`,
+            );
+        }
+        const roots = [
+            options.resourcesPath === undefined || options.resourcesPath === null
+                ? null
+                : join(options.resourcesPath, "render-engines"),
+            options.repositoryRoot === undefined || options.repositoryRoot === null
+                ? null
+                : join(options.repositoryRoot, "design", "packages", "app", "dist", "render-engines"),
+        ].filter((root): root is string => root !== null);
+        for (const root of roots) {
+            const enginePath = join(root, "typescript", "dist", "index.js");
+            const driverPath = join(root, "typescript", "render-ts.mjs");
+            if ((await exists(enginePath)) && (await exists(driverPath))) {
+                const version = await stagedTypeScriptVersion(root);
+                if (version === null) continue;
+                return {
+                    engine: "typescript",
+                    engineVersion: version,
+                    launch: "typescript",
+                    driverPath,
+                    enginePath,
+                    javaExecutable: null,
+                    javaVersion: null,
+                };
+            }
+        }
+        const developmentBases =
+            options.repositoryRoot === undefined || options.repositoryRoot === null
+                ? []
+                : [options.repositoryRoot, resolve(options.repositoryRoot, "..", "..", "..")];
+        for (const base of developmentBases) {
+            const driverPath = join(base, "tools", "oracle", "render-ts.mjs");
+            const enginePath = join(base, "design", "packages", "engine", "dist", "index.js");
+            if ((await exists(enginePath)) && (await exists(driverPath))) {
+                return {
+                    engine: "typescript",
+                    engineVersion: await developmentTypeScriptVersion(base),
+                    launch: "typescript",
+                    driverPath,
+                    enginePath,
+                    javaExecutable: null,
+                    javaVersion: null,
+                };
+            }
+        }
+        throw new EngineUnavailableError(
+            "engine",
+            "The TypeScript engine is not staged in this build. Build the engine bundle before rendering; " +
+                "nothing was started and Java was not selected as a fallback.",
+        );
+    };
+}
+
+interface StagedJavaArtifact {
+    readonly fileName: string;
+    readonly size: number;
+    readonly sha256: string;
+}
+
+async function verifyStagedJavaArtifact(resourcesPath: string, jarPath: string, jarVersion: string): Promise<void> {
+    const raw = await readFile(join(resourcesPath, "render-engines", "manifest.json"), "utf8");
+    const parsed = JSON.parse(raw) as {
+        manifestVersion?: unknown;
+        engines?: { "upstream-java"?: { available?: unknown; version?: unknown; jar?: StagedJavaArtifact | null } };
+    };
+    const java = parsed.engines?.["upstream-java"];
+    if (parsed.manifestVersion !== 1 || java?.available !== true || java.jar === null || java.jar === undefined) {
+        throw new Error("the packaged render-engine manifest does not advertise a usable upstream-java artifact");
+    }
+    if (java.version !== jarVersion || java.jar.fileName !== basename(jarPath)) {
+        throw new Error("the packaged render-engine manifest does not match the staged upstream-java jar");
+    }
+    const bytes = await readFile(jarPath);
+    const digest = createHash("sha256").update(bytes).digest("hex");
+    if (java.jar.size !== bytes.byteLength || java.jar.sha256.toLowerCase() !== digest) {
+        throw new Error("the staged upstream-java jar failed the packaged manifest size or SHA-256 check");
+    }
+}
+
+async function developmentTypeScriptVersion(base: string): Promise<string> {
+    try {
+        const packageJson = JSON.parse(await readFile(join(base, "design", "packages", "engine", "package.json"), "utf8"));
+        return typeof packageJson.version === "string" && packageJson.version.length > 0
+            ? packageJson.version
+            : "unknown";
+    } catch {
+        return "unknown";
+    }
+}
+
+async function stagedTypeScriptVersion(root: string): Promise<string | null> {
+    try {
+        const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8")) as {
+            manifestVersion?: unknown;
+            engines?: { typescript?: { available?: unknown; version?: unknown } };
+        };
+        if (manifest.manifestVersion !== 1 || manifest.engines?.typescript?.available !== true) return null;
+        return typeof manifest.engines?.typescript?.version === "string"
+            ? manifest.engines.typescript.version
+            : "unknown";
+    } catch {
+        return null;
+    }
+}
+
+async function exists(path: string): Promise<boolean> {
+    try {
+        return (await stat(path)).isFile();
+    } catch {
+        return false;
+    }
 }
 
 function lookupFrom(options: UpstreamEngineOptions): JarLookupOptions {

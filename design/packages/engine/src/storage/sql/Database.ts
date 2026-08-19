@@ -112,6 +112,7 @@ const MAX_ATTEMPTS = 2;
 export class Database {
     private readonly driver: SqlDriverAdapter;
     #closed = false;
+    #closePromise: Promise<void> | null = null;
 
     constructor(driver: SqlDriverAdapter) {
         this.driver = driver;
@@ -159,7 +160,12 @@ export class Database {
     }
 
     async close(): Promise<void> {
+        if (this.#closePromise !== null) {
+            await this.#closePromise;
+            return;
+        }
         this.#closed = true;
-        await this.driver.close();
+        this.#closePromise = this.driver.close();
+        await this.#closePromise;
     }
 }

@@ -17,8 +17,8 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VSelect } from "vuetify/components";
-import type { ProjectFile } from "@worldlens/config";
 import CiRenderScreen from "./CiRenderScreen.vue";
+import CloudRenderConfigWizard from "./CloudRenderConfigWizard.vue";
 import ciRenderScreenSource from "./CiRenderScreen.vue?raw";
 import type {
     Answer,
@@ -1002,6 +1002,26 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
         expect(wrapper.find('[data-test="owner-signed-out"]').exists()).toBe(false);
     });
 
+    it("offers account recovery when the owner read is refused by the selected credential", async () => {
+        const bridgeWithOwners: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listCiOwners: () =>
+                Promise.resolve({
+                    ok: false,
+                    signedIn: true,
+                    needsSignIn: true,
+                    message: "release-bot on ghe.example needs reauthentication.",
+                }),
+        };
+        const wrapper = mountScreen(bridgeWithOwners);
+        await flushPromises();
+
+        const recover = wrapper.find('[data-test="owner-reauthenticate"]');
+        expect(recover.exists()).toBe(true);
+        await recover.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
+
     it("announces the signed-out and load-failed owner states to assistive technology", async () => {
         // Both states relied on VAlert's own hardcoded default of role="alert" *regardless
         // of severity* - correct by accident for a real failure, but exactly wrong for the
@@ -1148,6 +1168,13 @@ describe("render as: which stored GitHub account this render authenticates as", 
             props: { disabled: true },
         });
         expect(String(unavailable?.["searchText"])).toContain("reauthentication required");
+        expect(wrapper.find('[data-test="account-reauthentication"]').text()).toContain(
+            "needs reauthentication",
+        );
+        const recover = wrapper.find('[data-test="account-reauthenticate"]');
+        expect(recover.exists()).toBe(true);
+        await recover.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
     });
 
     it("lists every stored account, naming the active one, and defaults the display to it", async () => {
@@ -1365,6 +1392,25 @@ describe("render as: which stored GitHub account this render authenticates as", 
 });
 
 describe("an existing repository, offered because this flow never creates one", () => {
+    it("offers account recovery when the repository list is refused by the selected credential", async () => {
+        const bridge: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listExistingRepositories: () =>
+                Promise.resolve({
+                    ok: false,
+                    needsSignIn: true,
+                    message: "release-bot on ghe.example cannot read repositories.",
+                }),
+        };
+        const wrapper = mountScreen(bridge);
+        await flushPromises();
+
+        const recover = wrapper.find('[data-test="repositories-reauthenticate"]');
+        expect(recover.exists()).toBe(true);
+        await recover.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
+
     it("fills owner and name when one is picked from the account's own repositories", async () => {
         const bridgeWithRepositories: CiRenderBridge = {
             ...fakeBridge(preflight()),
@@ -2598,35 +2644,16 @@ describe("a world nobody has set up yet", () => {
         });
     }
 
-    /** A project host that records what it was asked to write. */
-    function recordingHost(
-        answer: { ok: true; file: string } | { ok: false; message: string } = {
-            ok: true,
-            file: "/world/worldlens.project.json",
-        },
-    ) {
-        const writes: { world: string; project: ProjectFile }[] = [];
-        return {
-            writes,
-            host: {
-                name: "test",
-                canDelete: false,
-                listProjects: async () => ({ projects: [], scanned: 0, problems: [] }),
-                readProject: async () => ({
-                    ok: false as const,
-                    failure: { kind: "absent" as const },
-                }),
-                writeProject: async (world: string, project: ProjectFile) => {
-                    writes.push({ world, project });
-                    return answer;
-                },
-            },
-        };
-    }
-
     it("offers to write the defaults rather than only naming the missing file", async () => {
-        const { host } = recordingHost();
-        const wrapper = mountScreen(fakeBridge(noProject()), { projectHost: host });
+        const wrapper = mountScreen(
+            fakeBridge(noProject(), [], {
+                createCiCloudConfig: async () => ({
+                    ok: true,
+                    preflight: null,
+                    preflightFailure: null,
+                }),
+            }),
+        );
         await check(wrapper);
 
         expect(wrapper.find('[data-test="default-project"]').exists()).toBe(true);
@@ -2634,7 +2661,6 @@ describe("a world nobody has set up yet", () => {
     });
 
     it("stays out of the way when the refusal is a different one entirely", async () => {
-        const { host } = recordingHost();
         const wrapper = mountScreen(
             fakeBridge(
                 preflight({
@@ -2643,7 +2669,6 @@ describe("a world nobody has set up yet", () => {
                     planFailureCode: "no-such-map",
                 }),
             ),
-            { projectHost: host },
         );
         await check(wrapper);
 
@@ -2652,50 +2677,129 @@ describe("a world nobody has set up yet", () => {
         expect(wrapper.find('[data-test="default-project"]').exists()).toBe(false);
     });
 
-    it("writes BlueMap's generated defaults into the chosen world and re-checks", async () => {
-        const { host, writes } = recordingHost();
-        const bridge = fakeBridge(noProject());
-        const wrapper = mountScreen(bridge, { projectHost: host });
+    it("sends canonical cloud values with the preserved preflight request", async () => {
+        const requests: unknown[] = [];
+        const bridge = fakeBridge(noProject(), [], {
+            createCiCloudConfig: async (request) => {
+                requests.push(request);
+                return { ok: true, preflight: null, preflightFailure: null };
+            },
+        });
+        const wrapper = mountScreen(bridge);
         await check(wrapper);
 
         await wrapper.find('[data-test="default-project-create"]').trigger("click");
         await flushPromises();
 
-        expect(writes).toHaveLength(1);
-        expect(writes[0]?.world).toBe("/world");
-        // The real generated set, not a sparse record claiming to follow defaults.
-        expect(writes[0]?.project.maps.map((map) => map.id)).toEqual([
-            "overworld",
-            "nether",
-            "end",
-        ]);
-        expect(writes[0]?.project.core).not.toBeNull();
-        expect(wrapper.find('[data-test="default-project-written"]').text()).toContain(
-            "/world/worldlens.project.json",
-        );
+        const wizard = wrapper.findComponent(CloudRenderConfigWizard);
+        expect(wizard.exists()).toBe(true);
+        for (let index = 0; index < 3; index += 1) {
+            const next = wizard.findAll("button").find((button) => button.text().includes("Next"));
+            expect(next?.exists()).toBe(true);
+            await next!.trigger("click");
+            await flushPromises();
+        }
+        const save = wizard.findAll("button").find((button) => button.text().includes("Write and return"));
+        expect(save?.exists()).toBe(true);
+        await save!.trigger("click");
+        await flushPromises();
+
+        expect(requests).toHaveLength(1);
+        expect(requests[0]).toMatchObject({
+            request: { worldFolder: "/world", owner: "o", repo: "r" },
+            config: {
+                projectName: "world",
+                mapId: "overworld",
+                dimension: "minecraft:overworld",
+                enabledMapIds: ["overworld", "nether", "end"],
+                dataFolder: "data",
+                webroot: "web",
+                threads: null,
+                force: false,
+                fixEdges: false,
+                metrics: false,
+            },
+        });
+        expect((requests[0] as { operationId: unknown }).operationId).toEqual(expect.any(String));
+        expect(wrapper.find('[data-test="default-project-written"]').text()).toContain("local history");
     });
 
-    it("reports a refused write instead of claiming the world is now set up", async () => {
-        const { host } = recordingHost({ ok: false, message: "The world folder is read-only." });
-        const wrapper = mountScreen(fakeBridge(noProject()), { projectHost: host });
+    it("reports a refused cloud-config result instead of claiming the world is now set up", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(noProject(), [], {
+                createCiCloudConfig: async () => ({
+                    ok: false,
+                    failure: { code: "write-failed", message: "The world folder is read-only." },
+                }),
+            }),
+        );
         await check(wrapper);
 
         await wrapper.find('[data-test="default-project-create"]').trigger("click");
+        await flushPromises();
+
+        const wizard = wrapper.findComponent(CloudRenderConfigWizard);
+        for (let index = 0; index < 3; index += 1) {
+            const next = wizard.findAll("button").find((button) => button.text().includes("Next"));
+            await next!.trigger("click");
+            await flushPromises();
+        }
+        const save = wizard.findAll("button").find((button) => button.text().includes("Write and return"));
+        await save!.trigger("click");
         await flushPromises();
 
         expect(wrapper.find('[data-test="default-project-failure"]').text()).toContain("read-only");
         expect(wrapper.find('[data-test="default-project-written"]').exists()).toBe(false);
     });
 
+    it("cancels an in-flight cloud-config operation with the same operation id", async () => {
+        let operationId: string | null = null;
+        let resolveCreate: ((result: { ok: false; failure: { code: string; message: string } }) => void) | null = null;
+        const cancelled: string[] = [];
+        const wrapper = mountScreen(
+            fakeBridge(noProject(), [], {
+                createCiCloudConfig: async (request) => {
+                    operationId = request.operationId;
+                    return await new Promise((resolve) => {
+                        resolveCreate = resolve;
+                    });
+                },
+                cancelCiCloudConfig: async (id) => {
+                    cancelled.push(id);
+                    return true;
+                },
+            }),
+        );
+        await check(wrapper);
+        await wrapper.find('[data-test="default-project-create"]').trigger("click");
+        await flushPromises();
+        const wizard = wrapper.findComponent(CloudRenderConfigWizard);
+        for (let index = 0; index < 3; index += 1) {
+            const next = wizard.findAll("button").find((button) => button.text().includes("Next"));
+            await next!.trigger("click");
+            await flushPromises();
+        }
+        const save = wizard.findAll("button").find((button) => button.text().includes("Write and return"));
+        await save!.trigger("click");
+        await flushPromises();
+        expect(operationId).toEqual(expect.any(String));
+
+        const cancel = wizard.findAll("button").find((button) => button.text() === "Cancel");
+        await cancel!.trigger("click");
+        expect(cancelled).toEqual([operationId]);
+        resolveCreate?.({ ok: false, failure: { code: "cancelled", message: "cancelled" } });
+        await flushPromises();
+    });
+
     it("says why the button is dead on a build with no project layer at all", async () => {
-        const wrapper = mountScreen(fakeBridge(noProject()), { projectHost: null });
+        const wrapper = mountScreen(fakeBridge(noProject()));
         await check(wrapper);
 
         expect(
             wrapper.find('[data-test="default-project-create"]').attributes("disabled"),
         ).toBeDefined();
         expect(wrapper.find('[data-test="default-project-unavailable"]').text()).toContain(
-            "Projects screen or the map wizard",
+            "desktop bridge",
         );
     });
 });

@@ -5,7 +5,7 @@
  * Java source: `implementations/cli/src/main/java/de/bluecolored/bluemap/cli/BlueMapCLI.java`
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { RenderManager, type BmMap } from "@worldlens/engine";
 import { resolveCliActions, parseCliArgs, type ResolvedCliActions } from "@worldlens/config";
@@ -62,11 +62,21 @@ export async function runCli(argv: readonly string[], appVersion: string): Promi
 
     const configFolder = invocation.configFolder ?? DEFAULT_CONFIG_FOLDER;
     if (invocation.modsFolder !== null) {
+        let modsIsDirectory = false;
+        try {
+            modsIsDirectory = statSync(invocation.modsFolder).isDirectory();
+        } catch {
+            modsIsDirectory = false;
+        }
         if (!existsSync(invocation.modsFolder)) {
             logger.error(`Mods folder does not exist: ${invocation.modsFolder}`);
             return { exitCode: EXIT.GENERAL, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
         }
-        logger.warn("-n/--mods was given, but this port does not scan mod jars for bundled resource packs. See config.ts.");
+        if (!modsIsDirectory) {
+            logger.error(`Mods path is not a directory: ${invocation.modsFolder}`);
+            return { exitCode: EXIT.GENERAL, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
+        }
+        logger.info("-n/--mods enabled; direct mod jars will be scanned for bundled resource packs.");
     }
 
     const actions = resolveCliActions(invocation);
@@ -111,6 +121,7 @@ export async function runCli(argv: readonly string[], appVersion: string): Promi
                 core: loaded.core,
                 packsFolder: loaded.packsFolder,
                 dataFolder: resolveConfigPath(loaded.core.data),
+                modsFolder: invocation.modsFolder,
                 minecraftVersion: invocation.minecraftVersion,
                 logger,
             });

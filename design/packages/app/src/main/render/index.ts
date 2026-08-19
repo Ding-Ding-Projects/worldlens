@@ -80,9 +80,12 @@ export {
 export {
     CANCEL_GRACE_MS,
     CliRun,
+    TypeScriptRun,
     type CliRunOptions,
     type CliRunResult,
     type SpawnCli,
+    type TypeScriptRunOptions,
+    type TypeScriptRunResult,
 } from "./runner.js";
 
 export {
@@ -108,19 +111,36 @@ export {
     type ResolvedEngine,
 } from "./orchestrator.js";
 
-export { upstreamJavaEngine, type UpstreamEngineOptions } from "./engine.js";
+export {
+    typescriptEngine,
+    upstreamJavaEngine,
+    type TypeScriptEngineOptions,
+    type UpstreamEngineOptions,
+} from "./engine.js";
 
 export {
+    RENDER_ENGINE_CAPABILITIES,
     RENDER_ENGINE_LABELS,
     RENDER_RECORD_VERSION,
     describeEngine,
     readRenderRecord,
     writeRenderRecord,
     type RenderEngineId,
+    type RenderEngineCapability,
     type RenderOutcome,
     type RenderRecord,
     type RenderedMapRecord,
 } from "./provenance.js";
+
+export {
+    GLOBAL_RENDER_ENGINE_DEFAULT_KEY,
+    chooseNewProjectEngine,
+    engineCapability,
+    readGlobalRenderEngineDefault,
+    unsupportedEngineRoute,
+    type GlobalRenderEngineDefault,
+    type RenderEngineAvailability,
+} from "./engineChoice.js";
 
 export {
     RENDER_SESSION_FILE,

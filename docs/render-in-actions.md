@@ -92,6 +92,7 @@ quietly incorrect.
 <summary><b>Contents</b></summary>
 
 - [Running it](#running-it)
+- [Cloud-first project setup](#cloud-first-project-setup)
 - [`map-id` accepts anything; BlueMap sanitizes it before using it as a path](#map-id-accepts-anything-bluemap-sanitizes-it-before-using-it-as-a-path)
 - [Doing it from the app](#doing-it-from-the-app)
 - [Mojang's EULA](#mojangs-eula)
@@ -107,6 +108,45 @@ quietly incorrect.
 - [Running the pieces locally](#running-the-pieces-locally)
 
 </details>
+
+## Cloud-first project setup
+
+The desktop app can now create the project's render configuration before the first local
+render. When preflight finds a world with no `worldlens.project.json` (or legacy
+`material-bluemap.project.json`), it offers **Create cloud render configuration** instead of
+requiring Java, BlueMap, or a local render first.
+
+The guided form starts from the same configuration generator used by the rest of the project
+editor. It collects the project and map names, map id, supported dimension, map order and
+enabled maps, storage and web paths, render threads, output, edge fixing, force rendering and
+metrics. Defaults are real values: the selected world name, an `overworld` map, the three
+vanilla dimensions, file storage, `data` and `web` paths, automatic thread selection, and the
+ordinary cloud-render options. The generated file is the normal versioned project schema, with
+the complete map and storage configuration rather than a small subset of fields.
+
+The form validates before writing. The world must be an existing absolute folder; map ids must
+use lower-case letters, digits, hyphens and underscores; the dimension must be one of the three
+workflow choices; render threads must be empty or a positive whole number; at least one generated
+map must remain enabled; and data or web paths may not contain `..` or a null character. A world
+that already has a readable project is left unchanged. A project that exists but is unreadable,
+or was written by a newer format, is also left alone and reported as a separate failure rather
+than being replaced silently.
+
+Saving is atomic: the new text is written to a unique sibling temporary file and moved into
+place with bounded retries for transient Windows sharing failures. The save is then recorded in
+the per-world local Git history kept beside the app's data, and the travelling history bundle is
+embedded in the project file. A history failure does not undo a successful file save; the result
+identifies that the project is saved but its new history entry could not be recorded.
+
+Cancellation is available while the operation is preparing. Cancelling before the atomic save
+returns a cancellation result and writes nothing. A cancellation that races the write boundary
+is not reported as though the file vanished: the atomic save completes and the returned result
+describes the project that was actually saved.
+
+After a successful save, the app returns to the same CI-render preflight with the original
+repository, account, world and map request. The user does not re-enter those values, and the
+preflight now reads the project that was just created before any archive upload or workflow
+dispatch begins.
 
 ## Running it
 
@@ -546,6 +586,12 @@ out **byte for byte identical** to the same tiles from an unsharded render. That
 property the whole hires merge rests on, and it is measured below.
 
 ## Texture ordinals: the trap, and the evidence
+
+The standalone CLI uses the same fixed-resource principle: its pack roots are ordered
+high-to-low, configured packs and enabled mod jars win first, `resourceExtensions.zip` supplies
+the compatibility layer, and the vanilla client jar is fallback. Keep the exact selected asset
+path and SHA-256 beside any shard or render evidence; see
+[Standalone CLI resource and SQL parity](./compatibility/cli-resource-sql-parity.md).
 
 Rendered tiles do not name their textures. They store an **ordinal** into the map's
 `textures.json`, which is a bare array indexed by that ordinal. If two shards number

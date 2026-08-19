@@ -53,9 +53,43 @@ SHA-256，而且 WebGL context 係 live，但畫面仍然 blank；呢兩項只�
 同 renderer availability，唔係 visible banner proof。未有 same-world visible
 read-back 之前，issue 繼續保持 open。
 
+## Issue #78 per-project render engine choice — 2026-08-19
+
+The schema, UI, local runtime adapter, packaging manifest, resume path, history and provenance use
+canonical engine ids. Builds and focused suites pass; packaged dual-engine artifact proof remains
+open.
+
+## Issue #65 standalone CLI parity — 2026-08-19
+
+Resource-root precedence, installed extension assets, SQL adapter selection, credential-safe
+failure, and generated SQL-field recognition are implemented. Focused config/storage verification
+passed 17 tests and the CLI workspace build passed. Final artifact proof is now recorded: Docker
+image `worldlens-cli-issue65:proof` built with `mysql2`, `pg`, and `sql.js`, executed a real sql.js
+WASM query, and verified the deployed resource-extension tree; the no-action Docker CLI bootstrap
+exited `1` with zero SQL-field warnings. A real CLI marker run against throwaway `postgres:17.6`
+exited `0`, loaded client resources, selected packaged resource-extension digest prefix `e6069b…`,
+and registered `overworld`. Database readback found six tables, one map, and payloads of 2 bytes
+for `bluemap:markers`, 339 bytes for `settings`, and 1,371,129 bytes for `textures`. The throwaway
+database container and network were removed after readback.
+
+## Issue #57 cloud-first configuration — 2026-08-19
+
+`CloudRenderConfigWizard.vue` sends canonical values through the packaged preload bridge to the
+main-process `cloudConfig.ts` validator/save path. Atomic project writing, embedded/local history,
+bounded cancellation, and preserved preflight inputs are implemented. Focused verification passed
+134 tests; a real hosted dispatch from the packaged flow remains open evidence.
+
+## Issue #66 — SQL cross-engine evidence record (2026-08-19)
+
+The durable sanitized issue-#66 matrix report is [`docs/sql-cross-engine-compatibility.report.json`](../docs/sql-cross-engine-compatibility.report.json), started at `2026-08-19T12:28:28.726Z`, finished at `2026-08-19T12:30:20.049Z`, with seed `1`, fixture size `64`, `postgres:17.6`, total `111323 ms`, exit code `0`, tested commit `f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java `25.0.4`. All four direction counters are comparison-green: 1 hires tile, 9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences per row. Direction 1 compares six render-state records through `diffRenderState`; direction 2 explicitly does not compare render-state through the Java HTTP boundary. All direction-1, direction-2, and incompatible-schema cleanup targets report `ok=true`, `state=removed`, and `workRootRemoved=true`. See [`docs/sql-cross-engine-compatibility.md`](../docs/sql-cross-engine-compatibility.md) for the exact evidence table and acceptance boundaries.
+
+Pinned inputs are PostgreSQL JDBC `42.7.13` (`org.postgresql:postgresql`, `org.postgresql.Driver`, SHA-256 `6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93`) and Xerial SQLite JDBC `3.53.2.1` (`org.xerial:sqlite-jdbc`, `org.sqlite.JDBC`, SHA-256 `f55e405ed96d5ffe629e05b7b51b059e1c7d64527c0cc90a972fbac06730ccc1`). The sanitized report uses relative paths and records cleanup for both directions and the incompatible-schema probe. The vendored upstream source is submodule commit `4c4cbc291b361ceff6ee239448e9f988f9019dbb` (`v5.23`), with Gradle wrapper `9.4.0` and Java toolchain 25.
+
+No additional test, lint, type check, review, audit, accessibility pass, or screenshot was run in this documentation update. The matrix comparison exited `0`, but the missing report provenance fields, absolute paths, retained target directories, live PostgreSQL container, and direction-2 render-state boundary remain open evidence gaps. No source-code or harness change is claimed here.
+
 ## 2026-08-19 — issue #64 focused acceptance repair
 
-**State:** focused acceptance gates are present at `0a3b1d2e` plus the current-main merge
+ **State:** focused acceptance checks are present at `0a3b1d2e` plus the current-main merge
 `76e368de`. The three-file focused run passed 29 tests covering real queue-file round trips,
 schema/version and corruption handling, malformed and unknown entries, terminal-task exclusion,
 unique staging and reopen, coalesced non-overlapping saves, CLI startup/shutdown wiring, and an
@@ -2017,6 +2051,27 @@ contract articles record the boundary and updated test inventory.
   `packages/app/test/screenshots.spec.ts` records it as a named runtime-dependent gap rather
   than faking a screen with nothing on it. History, Projects, the CI-render screen and the
   EULA viewer are the four that now have real capture steps and are in `REQUIRED_SURFACES`.
+
+### Issue #58 — complete render-console history contract
+
+The render console's visible ring remains a bounded presentation surface; it must not be treated
+as the history store. The issue #58 implementation lane owns a versioned, render-id-keyed durable
+stream with incremental crash-safe appends, restore after navigation, reattach and app restart,
+and an explicit interruption annotation for incomplete runs. The dropped-line indicator therefore
+describes only what is outside the viewport. Complete retained history is searchable with plain
+text by default plus the adjacent bounded regex builder, and export preserves UTF-8, schema/version,
+render id, provenance, timestamps, levels, annotations and filter metadata in plain text, Markdown,
+JSON, JSONL, CSV, TSV and HTML. Selection-aware copy/export, bulk export, retention/pruning and
+destructive-confirmed deletion are separate operations; the visible cap never silently prunes
+history. Existing console redaction applies before durable storage/export, and the history remains
+local-only.
+
+The acceptance Chut is not satisfied by source or component tests alone. It requires recovery tests
+for partial writes, storage refusal, Unicode, zero-width regex, large logs, interrupted renders,
+restart/reattach and pruning/deletion, plus a genuine packaged run that restarts the app, reopens a
+completed render, and searches/exports a line outside the visible ring. Until those results are
+recorded against the landed commit, issue #58 remains open and the console's runtime capture gap
+above must not be relabelled as closed.
 
 ### The state of the automated checks, stated exactly
 

@@ -197,6 +197,30 @@ export type {
     ProjectAtResult,
 } from "./plan.js";
 
+// Cloud-first creation writes the same complete project schema a local editor would,
+// without launching Java or a local render.  The save path is atomic and history-backed;
+// callers can hand the unchanged CI request straight back to `preflight` afterwards.
+export {
+    CLOUD_CONFIG_DEFAULT_DATA_FOLDER,
+    CLOUD_CONFIG_DEFAULT_DIMENSION,
+    CLOUD_CONFIG_DEFAULT_MAP_ID,
+    CLOUD_CONFIG_DEFAULT_MAP_NAME,
+    CLOUD_CONFIG_DEFAULT_WEBROOT,
+    buildCloudRenderProject,
+    cloudRenderConfigDefaults,
+    saveCloudRenderConfig,
+} from "./cloudConfig.js";
+export type {
+    CloudRenderConfigBuildResult,
+    CloudRenderConfigDefaults,
+    CloudRenderConfigFailure,
+    CloudRenderConfigFailureCode,
+    CloudRenderConfigInput,
+    CloudRenderConfigSaveResult,
+    CloudRenderConfigStamp,
+    SaveCloudRenderConfigOptions,
+} from "./cloudConfig.js";
+
 export {
     CI_SYNC_DIRECTORY,
     CI_SYNC_STATE_VERSION,

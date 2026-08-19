@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { atomicMove, createDirectories } from "../../../util/FileHelper.js";
 import { fileExists } from "../../file/FileItemStorage.js";
@@ -152,9 +153,13 @@ class SqliteDriverAdapter implements SqlDriverAdapter {
         if (this.filePath === null) return; // `:memory:` — nothing to persist
         const folder = dirname(this.filePath);
         await createDirectories(folder);
-        const partFile = this.filePath + TEMP_SUFFIX;
-        await writeFile(partFile, this.db.export());
-        await atomicMove(partFile, this.filePath);
+        const partFile = `${this.filePath}.${randomUUID()}${TEMP_SUFFIX}`;
+        try {
+            await writeFile(partFile, this.db.export());
+            await atomicMove(partFile, this.filePath);
+        } finally {
+            await rm(partFile, { force: true });
+        }
     }
 
     async close(): Promise<void> {

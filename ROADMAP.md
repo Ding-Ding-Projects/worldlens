@@ -1,5 +1,45 @@
 # Roadmap
 
+## Issue #52 release host and account routing — 2026-08-19
+
+- [x] Route release commands with supported `--repo [HOST/]OWNER/REPO` syntax and never
+      pass the unsupported release-level `--hostname` flag.
+- [x] Re-read the selected account from the live `gh` inventory, switch it when inactive,
+      and verify the effective login before every release mutation.
+- [x] Fail closed for missing accounts, refused switches, and identity mismatches, with
+      account recovery on the same release surface.
+- [x] Record the computer-wide account-switch side effect and leave the selected account
+      active after the operation.
+- [x] Preserve regression evidence: focused transport, sync, CI-render screen, and
+      backup-run-card suites passed **148/148**; app/UI typechecks, build, and lint passed
+      in the implementation lane.
+- [x] Carry the later central `gh` runner/`runToFile` fixes (`2a3684f6`, `eb2663e1`),
+      child-process close handling (`4d511d6c`), and cloud-render restart/recovery
+      integration (`f148a538`) in the current Worldlens baseline.
+- [ ] Capture the repaired state from the genuine packaged application through the cheap
+      headless route. The route is currently unavailable, so the issue stays open and no
+      fake bridge capture is accepted as evidence.
+
+## Issue #78 — per-project render engine choice
+
+Implementation and focused verification are complete. Remaining before closure: package both
+engines, render the same genuine project through each, and compare output/provenance.
+
+## Issue #65 — standalone CLI mod/resource/SQL parity
+
+Implementation, generated-config parsing, workspace build, SQLite initialization, Docker image,
+and external PostgreSQL CLI/readback proof are complete. Docker image `worldlens-cli-issue65:proof`
+retained the SQL adapters and verified the deployed resource-extension tree; the real marker run
+against throwaway `postgres:17.6` exited `0`, registered `overworld`, and read back six tables, one
+map, `bluemap:markers` at 2 bytes, `settings` at 339 bytes, and `textures` at 1,371,129 bytes.
+The throwaway container and network were removed after verification.
+
+## Issue #57 — cloud-first project configuration
+
+Implementation and focused verification are complete and integrated. Remaining before closure:
+exercise the packaged wizard against a real cloud dispatch and read the result back without a prior
+local render.
+
 ## Issue #64 delivery boundary — 2026-08-19
 
 - **Delivery inspection:** the issue-owned checkout at `d004f3ca15d7d7a9121df370e00c955072489098`
@@ -19,6 +59,19 @@
 - Dispatched cloud renders resume from their recorded run id without uploading or dispatching a
   second run. Successful artifacts are downloaded, verified, registered and openable in the map
   viewer.
+
+## SQL storage cross-engine proof — issue #66
+
+The TypeScript SQL storages are independently proven against real MySQL, MariaDB, PostgreSQL,
+and WASM SQLite. Issue #66's durable sanitized matrix report
+[`docs/sql-cross-engine-compatibility.report.json`](docs/sql-cross-engine-compatibility.report.json)
+exited `0` after comparing all four PostgreSQL/SQLite directions: each row reports 1 hires tile,
+9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences. Direction 1
+compares six render-state records through `diffRenderState`; direction 2 explicitly does not compare
+render-state through Java's raw HTTP boundary. The report records tested commit, runtime versions,
+relative paths, and `ok=true`, `state=removed`, `workRootRemoved=true` for every direction and
+incompatible-schema probe. See [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md)
+for the exact evidence and the remaining factual direction-2 boundary.
 
 ## Public 1.0 compatibility contract — issue #60
 

@@ -55,6 +55,7 @@ import ProductDisplayNameRow from "./ProductDisplayNameRow.vue";
 const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "mojang-download-consent": "Mojang download consent",
     "java-runtime": "Java runtime",
+    "render-engine-choice": "Render engine choice",
     "map-storage-directory": "Where rendered maps go",
     "world-folder": "World folder",
     "github-account": "GitHub account",

@@ -23,20 +23,16 @@ import {
     VSelect,
     VSwitch,
     VTextField,
+    VDialog,
 } from "vuetify/components";
 import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
+import CloudRenderConfigWizard from "./CloudRenderConfigWizard.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import GhEntityPicker from "../github/GhEntityPicker.vue";
 import { createGhCliAccountsStore, defaultGhCliAccountId } from "../github/ghCliAccountsStore.js";
 import type { GhCliBridge } from "../github/ghCliBridge.js";
-import {
-    createProjectFromGeneratedDefaults,
-    resolveProjectHost,
-    worldLeaf,
-    type ProjectHost,
-} from "../project/index.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
 import { resolveWorldCatalogBridge } from "../world/worldCatalog.js";
 import type { WorldCatalogBridge } from "../world/worldCatalog.js";
@@ -55,6 +51,7 @@ import {
 import type { CiRow } from "./ciRenders.js";
 import { resolveCiRenderBridge } from "./ciRenderBridge.js";
 import type {
+    CiCloudRenderConfigInput,
     CiBootstrapEvent,
     CiBootstrapFailureCode,
     CiBootstrapFileOutcome,
@@ -137,13 +134,6 @@ const props = withDefaults(
          * one bridge and not the other.
          */
         accountsBridge?: GhCliBridge | null | undefined;
-        /**
-         * What can write a project file into a world folder, behind "Set this world up with the
-         * defaults". Probed exactly like the bridges above: `undefined` probes the Electron
-         * preload, an explicit `null` means there is deliberately none and the button says so
-         * rather than appearing and throwing when pressed.
-         */
-        projectHost?: ProjectHost | null | undefined;
         /** True when the shell can open settings at a row. */
         canOpenSettings?: boolean | undefined;
     }>(),
@@ -344,6 +334,9 @@ const accountItems = computed(() =>
         };
     }),
 );
+const unhealthyAccount = computed(() =>
+    accountOrdered.value.find((account) => !account.healthy) ?? null,
+);
 
 /**
  * Why the picker cannot be used to choose anything, or null when a real choice exists.
@@ -417,6 +410,11 @@ const ownerSignedOut = computed(() => {
 const ownerLoadFailed = computed(() => {
     const answer = renders.owners.value;
     return answer !== null && !answer.ok && answer.signedIn;
+});
+
+const ownerNeedsReauthentication = computed(() => {
+    const answer = renders.owners.value;
+    return answer !== null && !answer.ok && answer.needsSignIn === true;
 });
 
 const ownerFailureMessage = computed(() => {
@@ -894,10 +892,6 @@ const showGhAccountRecovery = computed(
  * same project host - so it lands in the project history like any other save and can be
  * opened and edited in full afterwards.
  */
-const projectHost = computed<ProjectHost | null>(() =>
-    props.projectHost === undefined ? resolveProjectHost() : props.projectHost,
-);
-
 /** True for the one refusal this screen can fix: the world has no project file at all. */
 const needsDefaultProject = computed(
     () => preflight.value !== null && preflight.value.planFailureCode === "no-project",
@@ -907,13 +901,17 @@ const creatingDefaultProject = ref(false);
 /** What writing the defaults did or could not do. Never a spinner that hides a refusal. */
 const defaultProjectFailure = ref<string | null>(null);
 const defaultProjectMessage = ref<string | null>(null);
+const cloudConfigOpen = ref(false);
+const cloudConfigOperationId = ref<string | null>(null);
+
+const canCreateCloudConfig = computed(() => bridge?.createCiCloudConfig !== undefined);
 
 /** Why the button is dead on this build, or null when it works. */
 const defaultProjectUnavailableBecause = computed<string | null>(() => {
-    if (projectHost.value !== null) return null;
+    if (canCreateCloudConfig.value) return null;
     return t(
         "cirender.defaultProject.unavailable",
-        "This build cannot write a project file, so the world has to be set up from the Projects screen or the map wizard.",
+        "This build cannot create a cloud configuration through the desktop bridge, so this world stays on the existing preflight path.",
     );
 });
 
@@ -924,38 +922,66 @@ const defaultProjectUnavailableBecause = computed<string | null>(() => {
  * render, not to own a file, so a successful write puts them on the next real decision
  * rather than back in front of the same grey button with a green tick beside it.
  */
-async function createDefaultProject(): Promise<void> {
+function openCloudConfig(): void {
     if (creatingDefaultProject.value) return;
-    const host = projectHost.value;
+    defaultProjectFailure.value = null;
+    defaultProjectMessage.value = null;
+    cloudConfigOpen.value = true;
+}
+
+/** Sends guided values to the canonical main-process builder and keeps the preflight context. */
+async function saveCloudConfig(config: CiCloudRenderConfigInput): Promise<void> {
+    if (creatingDefaultProject.value) return;
+    const cloudBridge = bridge;
     const world = worldFolder.value.trim();
-    if (host === null || world === "") return;
+    if (cloudBridge?.createCiCloudConfig === undefined || world === "") return;
 
     creatingDefaultProject.value = true;
     defaultProjectFailure.value = null;
     defaultProjectMessage.value = null;
     try {
-        const project = createProjectFromGeneratedDefaults(worldLeaf(world), {
-            world,
-            // The world's own path says which spelling this machine uses; a project written
-            // with the wrong one carries HOCON paths that read as another platform's.
-            separator: world.includes("\\") ? "\\" : "/",
+        const operationId =
+            typeof globalThis.crypto?.randomUUID === "function"
+                ? globalThis.crypto.randomUUID()
+                : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+        cloudConfigOperationId.value = operationId;
+        const result = await cloudBridge.createCiCloudConfig({
+            operationId,
+            request: {
+                worldFolder: world,
+                owner: owner.value.trim(),
+                repo: repo.value.trim(),
+                ...(effectiveAccountId.value === undefined
+                    ? {}
+                    : { accountId: effectiveAccountId.value }),
+            },
+            config,
         });
-        const written = await host.writeProject(world, project);
-        if (!written.ok) {
-            defaultProjectFailure.value = written.message;
+        if (!result.ok) {
+            defaultProjectFailure.value = result.failure.message;
             return;
         }
         defaultProjectMessage.value = t(
-            "cirender.defaultProject.written",
-            { file: written.file },
-            "Wrote {file} with BlueMap's generated defaults: an overworld, a nether and an end map. Open it from Projects to change anything.",
+            "cirender.cloudConfig.written",
+            "Wrote the cloud project through local history. Returning to the same cloud preflight now; your world, account and repository choices stay filled in.",
         );
+        cloudConfigOpen.value = false;
         await check();
     } catch (error) {
         defaultProjectFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
+        cloudConfigOperationId.value = null;
         creatingDefaultProject.value = false;
     }
+}
+
+function cancelCloudConfig(): void {
+    const operationId = cloudConfigOperationId.value;
+    if (operationId !== null && bridge?.cancelCiCloudConfig !== undefined) {
+        void bridge.cancelCiCloudConfig(operationId);
+    }
+    cloudConfigOperationId.value = null;
+    cloudConfigOpen.value = false;
 }
 
 /**
@@ -1379,6 +1405,36 @@ onBeforeUnmount(() => {
                                 data-test-base="cirender-account-picker"
                                 @update:model-value="chooseAccount"
                             />
+                            <VAlert
+                                v-if="unhealthyAccount !== null"
+                                type="warning"
+                                variant="tonal"
+                                density="compact"
+                                class="mt-2"
+                                data-test="account-reauthentication"
+                                role="alert"
+                            >
+                                {{
+                                    t(
+                                        "cirender.account.unhealthy",
+                                        {
+                                            login: unhealthyAccount.login,
+                                            host: unhealthyAccount.host,
+                                        },
+                                        "{login} on {host} needs reauthentication before it can render.",
+                                    )
+                                }}
+                                <VBtn
+                                    v-if="props.canOpenSettings"
+                                    size="small"
+                                    variant="text"
+                                    class="mt-1"
+                                    data-test="account-reauthenticate"
+                                    @click="emit('signIn')"
+                                >
+                                    {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
+                                </VBtn>
+                            </VAlert>
                         </template>
                     </div>
 
@@ -1478,10 +1534,20 @@ onBeforeUnmount(() => {
                         class="mt-4 mb-2"
                         data-test="owner-load-failed"
                         role="alert"
-                    >
-                        {{ ownerFailureMessage }}
-                        <VBtn
-                            size="small"
+                        >
+                            {{ ownerFailureMessage }}
+                            <VBtn
+                                v-if="ownerNeedsReauthentication && props.canOpenSettings"
+                                size="small"
+                                variant="tonal"
+                                class="mt-1"
+                                data-test="owner-reauthenticate"
+                                @click="emit('signIn')"
+                            >
+                                {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
+                            </VBtn>
+                            <VBtn
+                                size="small"
                             variant="text"
                             class="mt-1"
                             @click="renders.loadOwners(effectiveAccountId)"
@@ -1558,6 +1624,16 @@ onBeforeUnmount(() => {
                         data-test="repositories-failure"
                     >
                         {{ renders.repositoriesFailure.value }}
+                        <VBtn
+                            v-if="renders.repositoriesNeedsSignIn.value && props.canOpenSettings"
+                            size="small"
+                            variant="tonal"
+                            class="mt-1"
+                            data-test="repositories-reauthenticate"
+                            @click="emit('signIn')"
+                        >
+                            {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
+                        </VBtn>
                     </VAlert>
 
                     <div class="d-flex ga-2 flex-wrap">
@@ -2037,27 +2113,34 @@ onBeforeUnmount(() => {
                         <VBtn
                             :prepend-icon="mdiFileDocumentPlusOutline"
                             :disabled="defaultProjectUnavailableBecause !== null"
-                            :loading="creatingDefaultProject"
                             :title="defaultProjectUnavailableBecause ?? undefined"
                             variant="tonal"
                             data-test="default-project-create"
-                            @click="createDefaultProject"
+                            @click="openCloudConfig"
                         >
                             {{
                                 t(
-                                    "cirender.defaultProject.create",
-                                    "Set this world up with the defaults",
+                                    "cirender.cloudConfig.open",
+                                    "Create cloud render configuration",
                                 )
                             }}
                         </VBtn>
                         <p class="text-caption text-medium-emphasis mt-2">
                             {{
                                 t(
-                                    "cirender.defaultProject.explain",
-                                    "Writes a project file into the world holding BlueMap's own generated settings and an overworld, nether and end map. Nothing else in the world is touched, and everything in it stays editable from the Projects screen.",
+                                    "cirender.cloudConfig.explain",
+                                    "A guided cloud-first path collects map, storage and render values with the generated defaults visible beside each field. It writes the complete project through local history, without Java or a local render, then returns here without asking for the world, account or repository again.",
                                 )
                             }}
                         </p>
+                        <VDialog v-model="cloudConfigOpen" max-width="960" scrollable>
+                            <CloudRenderConfigWizard
+                                :world="worldFolder"
+                                :separator="worldFolder.includes('\\') ? '\\' : '/'"
+                                @cancel="cancelCloudConfig"
+                                @save="saveCloudConfig"
+                            />
+                        </VDialog>
                         <p
                             v-if="defaultProjectUnavailableBecause !== null"
                             class="text-medium-emphasis mt-1"

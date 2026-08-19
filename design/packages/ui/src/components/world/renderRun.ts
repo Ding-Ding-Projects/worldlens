@@ -39,6 +39,7 @@ import {
     normaliseLevel,
     type ConsoleLine,
 } from "../console/consoleModel.js";
+import { persistConsoleHistory, readConsoleHistory } from "../console/consoleHistory.js";
 import { NO_ESTIMATE, createEtaTracker } from "../progress/progressModel.js";
 import type {
     ProgressCount,
@@ -441,6 +442,10 @@ export interface RenderRun {
     readonly durationMs: Ref<number | null>;
     readonly failure: Ref<RenderFailure | null>;
     readonly log: Ref<readonly RenderLogLine[]>;
+    /** The complete retained stream; `log` remains the bounded on-screen ring. */
+    readonly history: Ref<readonly RenderLogLine[]>;
+    /** Honest durable-history status for the console surface. */
+    readonly historyWarning: Ref<"" | "storage-unavailable" | "retention-limit" | "storage-limit">;
     /**
      * How many lines the cap has dropped off the front of this render.
      *
@@ -481,6 +486,8 @@ export interface RenderRun {
     /** Applies a final result, for a render whose events said nothing at all. */
     settle(result: RenderResult): void;
     cancel(): Promise<boolean>;
+    /** Deletes selected retained console lines without stopping or restarting the render. */
+    deleteHistory(ids: readonly number[]): boolean;
     /**
      * Changes this render's speed while it is running, applying whatever its route can
      * genuinely change right now. `null` when there is no render to address at all -
@@ -557,6 +564,8 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
      * shallow ref reports exactly that.
      */
     const log = shallowRef<readonly RenderLogLine[]>([]);
+    const history = shallowRef<readonly RenderLogLine[]>([]);
+    const historyWarning = ref<"" | "storage-unavailable" | "retention-limit" | "storage-limit">("");
     const logDropped = ref(0);
     const cancelling = ref(false);
     const startedAt = ref<string | null>(null);
@@ -897,10 +906,50 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         return event.renderId === renderId.value;
     }
 
+    function persistHistory(complete: boolean): void {
+        const id = renderId.value;
+        if (id === null) return;
+        const persisted = persistConsoleHistory({
+            renderId: id,
+            lines: history.value,
+            dropped: logDropped.value,
+            complete,
+        });
+        if (!persisted) {
+            historyWarning.value = "storage-unavailable";
+            return;
+        }
+        const warning = readConsoleHistory(id)?.storageWarning;
+        historyWarning.value = warning === "storage-limit" || warning === "retention-limit" ? warning : "";
+    }
+
+    function deleteHistory(ids: readonly number[]): boolean {
+        const requested = new Set(ids);
+        if (requested.size === 0) return false;
+        const nextHistory = history.value.filter((line) => !requested.has(line.id));
+        if (nextHistory.length === history.value.length) return false;
+        history.value = nextHistory;
+        log.value = log.value.filter((line) => !requested.has(line.id));
+        const terminal = state.value === "finished" || state.value === "failed" || state.value === "cancelled";
+        persistHistory(terminal);
+        return true;
+    }
+
+    function restoreHistory(id: string): void {
+        const record = readConsoleHistory(id);
+        if (record === null) return;
+        history.value = record.lines;
+        log.value = record.lines.slice(-LOG_LIMIT);
+        logDropped.value = record.dropped;
+        for (const line of record.lines) nextLogId = Math.max(nextLogId, line.id + 1);
+    }
+
     function push(line: RenderLogLine): void {
+        history.value = [...history.value, line];
         const result = appendLine(log.value, line, LOG_LIMIT);
         log.value = result.lines;
         logDropped.value += result.dropped;
+        persistHistory(false);
     }
 
     /** One line of the engine's own output, annotated as it arrives. */
@@ -999,6 +1048,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
                 startedAt.value = event.at;
                 startedAtMs.value = at;
                 phase.value = "starting";
+                if (history.value.length === 0) restoreHistory(event.renderId);
                 // The rate of whatever ran before says nothing about this one, and a single
                 // leftover sample from a fast render would make a slow one report an
                 // absurdly short time remaining.
@@ -1073,6 +1123,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
                 // number a person would look for in a terminal is the one it exited with.
                 noteEnd(stoppedWithCode(0));
                 void loadProvenance();
+                persistHistory(true);
                 break;
             case "failed":
                 state.value = "failed";
@@ -1080,12 +1131,14 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
                 cancelling.value = false;
                 noteEnd(endedByFailure(event.failure));
                 void loadProvenance();
+                persistHistory(true);
                 break;
             case "cancelled":
                 state.value = "cancelled";
                 cancelling.value = false;
                 noteEnd(SIGNALS.cancelled);
                 void loadProvenance();
+                persistHistory(true);
                 break;
         }
     }
@@ -1105,6 +1158,8 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         durationMs.value = null;
         failure.value = null;
         log.value = [];
+        history.value = [];
+        historyWarning.value = "";
         logDropped.value = 0;
         cancelling.value = false;
         startedAt.value = null;
@@ -1129,6 +1184,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         if (active.value) return;
         reset();
         renderId.value = id;
+        restoreHistory(id);
         state.value = "starting";
         // The clock starts when this surface starts watching, which is honest about what it
         // measures: a render adopted from another window has been going for longer than
@@ -1148,6 +1204,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
      */
     function settle(result: RenderResult): void {
         renderId.value = result.renderId;
+        if (history.value.length === 0) restoreHistory(result.renderId);
 
         if (result.ok) {
             if (state.value === "finished") return;
@@ -1168,6 +1225,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
 
         cancelling.value = false;
         void loadProvenance();
+        persistHistory(true);
     }
 
     async function start(request: RenderRequest): Promise<RenderResult | null> {
@@ -1310,6 +1368,8 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         durationMs,
         failure,
         log,
+        history,
+        historyWarning,
         logDropped,
         cancelling,
         startedAt,
@@ -1321,6 +1381,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         expect,
         settle,
         cancel,
+        deleteHistory,
         adjustSpeed,
         restartWithLevel,
         reset,

@@ -19,10 +19,13 @@ Target world versions: Minecraft **1.12.2 through 26.x**.
 
 **How rendering works.** Local world rendering runs upstream BlueMap's own Java renderer, built
 from the vendored source and driven by the app, so a world can be rendered today rather than
-after the TypeScript mesher is finished. The TypeScript mesher now produces output identical to
-that renderer on the project's fixture worlds, but it is not yet what runs: switching over is a
-separate, separately verified change. Everything around the renderer — the viewer, the world
-reading layer, the resource-pack pipeline, the server and the whole interface — is TypeScript.
+after the TypeScript mesher is finished. Existing projects preserve that upstream-Java behavior;
+new projects can choose the upstream Java engine or the app-owned TypeScript engine, and the
+global automatic choice uses Java only when its capability is available. The TypeScript mesher
+now produces output identical to that renderer on the project's fixture worlds, but the packaged
+dual-engine proof and a real packaged render with each choice remain pending. Everything around
+the renderer — the viewer, the world reading layer, the resource-pack pipeline, the server and
+the whole interface — is TypeScript.
 See [Rendering engines](#rendering-engines).
 
 ## Status: 1.0 — released, verified, and honest about what remains
@@ -33,19 +36,21 @@ See [Rendering engines](#rendering-engines).
 
 **1.0 is the verified public baseline.** It means exactly this, no more: the Material Design 3
 shell rewrite is complete and closed against its own acceptance issues (#126, #134, #123); the
-full workspace suite - 723 test files, 10,512 tests - is green in CI at the released commit;
-the 89-capture screenshot matrix pictures the exact shipped interface and is regraded by CI's
-own capture job; every push to `main` that passes the fatal gates publishes a real, hash-verified
-Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
+full workspace suite - 723 test files, 10,512 tests - is the local verification baseline for the
+released commit; the 89-capture screenshot matrix is diagnostic evidence for the shipped interface;
+every push to `main` whose build, packaging, and artifact provenance complete publishes a real,
+hash-verified Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
 embedded in the project file itself. Versions from here are `1.0.<run>`. What 1.0 does **not**
 claim: the feature programs still open as issues (multi-server dashboard, marker authoring, add-on
 system, static export and friends) are future work, and Windows executables remain intentionally
 unsigned.
 
 Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
-unknown-publisher warning. A publish is allowed only after every required test, security,
-rendering and packaging gate passes. Screenshot capture remains visible diagnostic evidence, but a
-capture failure is advisory and never blocks an otherwise valid release. The packaging job clears
+unknown-publisher warning. A publish is allowed only after the required build, security-boundary,
+rendering-input, and packaging provenance checks complete. Local tests and lint remain available
+before publication but do not run in the workflow or withhold publication. Screenshot capture remains
+visible diagnostic evidence, but a capture failure is advisory and never blocks an otherwise valid
+release. The packaging job clears
 its validated output locations, accepts exactly one fresh
 `Setup.exe`, one full `.nupkg`, optional delta packages and a non-empty matching `RELEASES`, then
 checks every emitted executable is Authenticode `NotSigned`. Release notes identify the exact
@@ -176,6 +181,26 @@ of following yesterday's failure forever.
 
 </details>
 
+### Cloud rendering can be configured before the first local render
+
+When a world has no project file, the cloud-render preflight now offers a guided **Create cloud
+render configuration** path. It writes the normal versioned project schema with generated map,
+storage, web and render defaults, while allowing the user to review names, dimensions, enabled
+maps, paths, threads and render options. The path does not start Java, download a JDK or client,
+or perform a local render.
+
+The generated project is validated before saving. Existing readable projects remain unchanged;
+unreadable or newer-format projects are reported rather than overwritten. The write uses a unique
+temporary sibling and an atomic replacement with bounded transient-sharing retries, then records
+the save in the isolated per-world local history. If history recording fails, the saved project is
+kept and the result says that its history entry is unavailable. Cancellation before the write
+leaves the world untouched, while cancellation at the write boundary reports the actual saved
+outcome. After saving, the app returns to the same preflight with the original world, repository,
+account and map choices, so those values are not entered twice.
+
+The source implementation and preload reachability are present in the issue #57 lane. Packaged
+application and real hosted-workflow evidence remain to be recorded before the issue is closed.
+
 Release-tag pushes still run CI, but skip only the generated-changelog freshness assertion. A tag
 is created after the commit it names, so requiring that commit to contain an entry derived from its
 own future tag is impossible. Branch and pull-request runs remain strict, and tag runs retain every
@@ -239,11 +264,17 @@ parity, live blockstate resolution, 1.12.2 legacy-jar loading) all passed on 202
 #31, closed). Phase E is part done: its worker pool, render-task layer, watch-driven re-render
 (`MapUpdateService`), full HTTP routes with SSE, and a standalone server CLI plus Dockerfile are
 all ported, and the CLI's own `--watch` flag is now wired to `MapUpdateService` too (issue #40's
-CLI half, closed 2026-08-06); what remains open in Phase E is `-n`/mod-resource scanning,
-`resourceExtensions.zip` parity and SQL storages in the CLI. Every render-mask shape, ordered
+CLI half, closed 2026-08-06). Issue #65's resource/SQL parity contract is now implemented and
+verified: `-n`/mod-resource scanning, deployed `resourceExtensions` discovery and digest evidence,
+and SQL storages from CLI config. The exact precedence, runtime layouts, credential-safe
+diagnostics, and failure meanings are documented in [`docs/compatibility/cli-resource-sql-parity.md`](docs/compatibility/cli-resource-sql-parity.md);
+Docker image `worldlens-cli-issue65:proof` and a real `postgres:17.6` marker run provide the final
+runtime evidence. Every render-mask shape, ordered
 combination and subtraction now has matching local, standalone-CLI and GitHub Actions semantics. F
 is reachable and in use. G is pending; H is part done (SQL storages proven against real
-MySQL/MariaDB/PostgreSQL, cross-verified against upstream's own Java engine, and the command
+MySQL/MariaDB/PostgreSQL, with the issue-#66 Java↔TypeScript matrix now comparison-green for
+PostgreSQL and SQLite in both directions; direction 2's raw HTTP path does not expose render-state
+grids, so that boundary remains explicit in [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md), and the command
 palette shipped early); I is part done (the update checker and packaging shipped early). See
 [Phase status](#phase-status).
 
@@ -1049,6 +1080,15 @@ verification, and it has not been made. Until it is, the JDK requirement stands.
 
 The app tells you which engine rendered a map. It does not silently switch.
 
+**Issue #78 delivery status (2026-08-19).** The source now carries a per-project engine choice,
+a global default for new projects, canonical engine ids (`upstream-java` and `typescript`), and
+packaging metadata for both engines. The package path stages the TypeScript engine assets and a
+manifest that records capability flags and the staged Java CLI artifact's size and SHA-256 when
+present. Source/build evidence for the current Issue #78 state was not run in this documentation
+pass, and the packaged dual-engine proof remains pending: the next owner must build the real
+installer, verify both artifacts from the packaged output, and render one project through each
+engine without silent fallback.
+
 </details>
 
 <details id="phase-status">
@@ -1065,10 +1105,10 @@ carries the reasoning behind every "part done" below.
 | C         | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, `textures.json`)                                               | **Done.** Exit criteria run 2026-08-05 (issue #31, closed): textures.json parity, live blockstate resolution and 1.12.2 legacy-jar loading all pass                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | J         | Java render path (toolchain discovery and provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving)           | Built; driven by hand on one Windows machine                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | D         | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks                                                                          | **Done, and the gate is closed** — both engines produced identical output on a 1000x1000 world                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| E         | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile                                          | **Part done.** The worker pool, render-task hierarchy and config schema (all issued earlier), watch-driven re-render (`MapUpdateService`, issue #40), full HTTP routes with SSE (issue #41), and the standalone CLI plus Dockerfile (issue #42) are ported, and `RenderDriver` now drives a real `RenderManager` end to end. The CLI's own `--watch` flag is wired to `MapUpdateService` too, closed 2026-08-06 (issue #40's CLI half); every render-mask shape and ordered/subtracted combination is now ported with local/CLI/Actions parity; still open in this phase: `-n`/mod-resource scanning, `resourceExtensions.zip` parity and SQL storages in the CLI |
+| E         | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile                                          | **Part done, issue #65 parity verified.** The worker pool, render-task hierarchy and config schema (all issued earlier), watch-driven re-render (`MapUpdateService`, issue #40), full HTTP routes with SSE (issue #41), standalone CLI plus Dockerfile (issue #42), and the issue #65 mod-resource/resource-extension/SQL parity contract are implemented. Docker image `worldlens-cli-issue65:proof` and the throwaway `postgres:17.6` marker run provide runtime proof; see [`docs/compatibility/cli-resource-sql-parity.md`](docs/compatibility/cli-resource-sql-parity.md) |
 | F         | Full options GUI (all settings, map wizard, storage editors, config import)                                                                                         | Reachable and in use; eight tabs over BlueMap's own configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | G         | Docker hosting GUI (dockerode instance manager)                                                                                                                     | Pending. Rendering _in_ a container landed separately — see [`docs/docker-and-local.md`](docs/docker-and-local.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| H         | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade                                                                      | **Part done.** SQL storages proven against real MySQL/MariaDB/PostgreSQL and, over a shared MariaDB database, cross-compatible with upstream's own Java engine in both directions (issue #32, closed); the command palette shipped early. Marker editor, JS addon system, static export and the three.js upgrade remain pending                                                                                                                                                                                                                                                                                                                                   |
+| H         | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade                                                                      | **Part done.** SQL storages are proven against real MySQL/MariaDB/PostgreSQL and, over a shared MariaDB database, cross-compatible with upstream's own Java engine in both directions (issue #32, closed). Issue #66's PostgreSQL and SQLite matrix is comparison-green in both directions with cleanup evidence; direction 2's raw HTTP path does not expose render-state grids, so that boundary remains explicitly documented in [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md). The command palette shipped early. Marker editor, JS addon system, static export and the three.js upgrade remain pending                                                                                                                                                                                                                                                                                                                                   |
 | I         | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging                                                   | **Part done, landed early, out of order.** The update checker is built and wired into the main process, and packaging shipped early too. Local live players and measurement/waypoints/gallery/scheduler/dashboard remain pending                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Contracts | The five product contracts in [`design/docs/contracts/`](design/docs/contracts/README.md)                                                                           | **Shipped.** Issues #6 to #13 are closed, each with its evidence on the issue                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Delivery  | Sign-in, private worlds, split archives, resumable renders, Actions rendering, remote and container rendering, world sources, updates, projects, packaging pipeline | **Landed.** Not a plan phase; see `design/ROADMAP.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |

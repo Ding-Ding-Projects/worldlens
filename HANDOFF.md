@@ -1,5 +1,76 @@
 # Handoff
 
+## Issue #52 release host and account routing — 2026-08-19
+
+The release transport repair is present on the current default branch through
+`f4a3b6c9`, with the handoff and roadmap records from `c6093b39` and the generated
+changelog refresh from `215307ac`. `gh release create` and `gh release upload` now receive
+the supported `[HOST/]OWNER/REPO` target through `--repo`; they never receive the
+unsupported release-level `--hostname` flag. Before each release read, create, or upload,
+the selected signed-in account is re-read from the live `gh` inventory, switched when
+necessary, and verified with `gh api --hostname HOST user --jq .login`. Missing accounts,
+refused switches, and identity mismatches stop before release mutation and expose the
+same-surface account recovery action.
+
+The focused transport, sync, CI-render screen, and backup-run-card suites passed **148/148**;
+app and UI typechecks, workspace build, and lint passed in the original repair lane. The
+tests use fake process boundaries and did not create a repository, upload release data, or
+run the original multi-gigabyte backup again. A genuine fixed-state packaged-app capture
+remains open because the required cheap headless route is unavailable; a bridge-injected
+image would not prove the repaired runtime seam. Issue #52 therefore remains open until
+that capture evidence exists.
+
+The current Worldlens baseline also carries the central `gh` process runner and `runToFile`
+boundary (`2a3684f6`, `eb2663e1`), child-process close handling (`4d511d6c`), and cloud-render
+restart/recovery integration (`f148a538`). The current CI run for `ac46de28` is
+`32257677190` and remains in progress; it is not a completed verdict.
+
+## Issue #78 per-project render engine choice — 2026-08-19
+
+Projects persist canonical `typescript` or `upstream-java` intent. New projects default to the
+no-JVM TypeScript route; legacy files migrate to Java behavior. Local desktop rendering has a real
+TypeScript launch adapter, resume/provenance carry the engine, and explicit choices never silently
+fall back. The relevant workspace build and focused render/project/settings suites pass. Packaged
+same-project comparison across both engines remains the final issue-specific acceptance step.
+
+## Issue #65 standalone CLI parity — 2026-08-19
+
+The standalone CLI now uses upstream resource precedence, scans direct mod jars, resolves
+`resourceExtensions` in checkout/package/Docker layouts, and selects SQLite, MySQL/MariaDB, or
+PostgreSQL without silent file-storage fallback. Generated SQL config parses with zero provisional
+warnings. Focused config/storage verification passed 17 tests and the CLI workspace build passed.
+
+Final acceptance evidence is recorded: Docker image `worldlens-cli-issue65:proof` built with
+`mysql2`, `pg`, and `sql.js`; a real sql.js WASM query ran; the deployed resource-extension tree
+was verified; and the no-action Docker CLI bootstrap exited `1` with zero SQL-field warnings. A
+real CLI marker run against throwaway `postgres:17.6` exited `0`, loaded client resources, selected
+the packaged resource-extension asset with SHA-256 prefix `e6069b…`, and registered `overworld`.
+Readback found six tables, one map, and item payloads of 2 bytes for `bluemap:markers`, 339 bytes
+for `settings`, and 1,371,129 bytes for `textures`. The throwaway database container and network
+were removed after verification.
+
+## Issue #57 cloud-first configuration — 2026-08-19
+
+The desktop now creates a complete `worldlens.project.json` for cloud rendering before any local
+render. The guided UI uses the main-process validation, atomic save and local history path, exposes
+bounded cancellation, and returns to the existing preflight with the account/repository/world
+request preserved. The app workspace build passed and the focused contract passed 4 files / 134
+tests. A real hosted dispatch from this new wizard remains the final issue-specific acceptance step.
+
+## Issue #66 — SQL cross-engine evidence record (2026-08-19)
+
+The durable sanitized matrix report is
+[`docs/sql-cross-engine-compatibility.report.json`](docs/sql-cross-engine-compatibility.report.json).
+It started at `2026-08-19T12:28:28.726Z`, finished at `2026-08-19T12:30:20.049Z`, used seed `1`,
+fixture size `64`, `postgres:17.6`, ran for `111323 ms`, exited `0`, and records tested commit
+`f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java `25.0.4`.
+
+All four direction rows report 1 hires tile, 9/4/4 lowres tiles, 5 metadata records, 1003 map
+ids, 1251 grids, and 0 divergences. Direction 1 compares render-state through `diffRenderState`;
+direction 2 records the Java HTTP boundary that exposes tiles and metadata only. Every SQLite and
+PostgreSQL direction and incompatible-schema probe records target removal and work-root removal.
+The report contains relative paths and no credentials.
+
 ## Issue #64 restart recovery acceptance — 2026-08-19
 
 Queue persistence now has a genuine two-process proof: one Node process writes a queued task,

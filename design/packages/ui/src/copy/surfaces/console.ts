@@ -231,6 +231,22 @@ export const CONSOLE_VOICED = {
             "已經將 {shown} 行匯出做純文字，前面有個標頭講明係邊啲，可以直接擺入 bug report，唔使人問返你少咗啲乜。",
         ],
     },
+    "world.console.exportedFormat": {
+        en: [
+            "Exported {shown} lines as {format}.",
+            "Exported {shown} lines as {format}.",
+            "Exported {shown} lines as {format}, with the scope header intact.",
+            "Exported {shown} lines as {format}; the file keeps its schema and filter scope.",
+            "Exported {shown} lines as {format}; the file keeps its schema, provenance, and honest filter scope.",
+        ],
+        yue: [
+            "已經將 {shown} 行匯出做 {format}。",
+            "已經將 {shown} 行匯出做 {format}。",
+            "已經將 {shown} 行匯出做 {format}，範圍標頭都仲喺度。",
+            "已經將 {shown} 行匯出做 {format}；檔案保留 schema 同篩選範圍。",
+            "已經將 {shown} 行匯出做 {format}；檔案保留 schema、來源同老實嘅篩選範圍。",
+        ],
+    },
 
     /* ---------------------------------------------------------------- */
     /* Searching, filtering, and the empty states                        */
@@ -380,7 +396,18 @@ export const CONSOLE_FIXED = {
     "world.console.search": { en: "Search the console", yue: "搜尋主控台" },
     "world.console.filter": { en: "Show only these levels", yue: "只顯示呢啲等級" },
     "world.console.copy": { en: "Copy what is shown", yue: "複製畫面上嘅嘢" },
-    "world.console.export": { en: "Export as plain text", yue: "匯出做純文字" },
+    "world.console.export": { en: "Export selected or visible lines", yue: "匯出選取或者畫面上嘅行" },
+    "world.console.exportFormat": { en: "Export format", yue: "匯出格式" },
+    "world.console.exportSelection": { en: "{shown} selected lines from {kept} retained lines.", yue: "由留住嘅 {kept} 行入面選取咗 {shown} 行。" },
+    "world.console.selectVisible": { en: "Select visible", yue: "揀晒畫面上嘅" },
+    "world.console.clearSelection": { en: "Clear selection", yue: "清除選取" },
+    "world.console.selectLine": { en: "Select line {id}", yue: "選取第 {id} 行" },
+    "world.console.deleteTitle": { en: "Delete retained console history", yue: "刪除保留嘅主控台紀錄" },
+    "world.console.deleteAction": { en: "Delete the selected retained console lines. This cannot be undone.", yue: "刪除選取嘅主控台紀錄，呢個動作冇得還原。" },
+    "world.console.deleteConfirm": { en: "Confirm deletion", yue: "確認刪除" },
+    "world.console.deleteSelected": { en: "Delete selected", yue: "刪除選取項目" },
+    "world.console.storageUnavailable": { en: "Console history could not be saved; the live render is unchanged.", yue: "主控台紀錄儲存唔到；即時算圖冇受影響。" },
+    "world.console.retentionWarning": { en: "Console history reached its retention limit; older lines remain unavailable.", yue: "主控台紀錄去到保留上限；較早嘅行仍然搵唔返。" },
     "world.console.output": { en: "The engine's output", yue: "引擎嘅輸出" },
     /*
      * Who is speaking when a line carries this app's advice. It is the product's name, so
@@ -429,6 +456,10 @@ export const CONSOLE_FACTS = {
     "world.console.exported": {
         en: ["{shown}", "plain text", "header"],
         yue: ["{shown}", "純文字", "標頭"],
+    },
+    "world.console.exportedFormat": {
+        en: ["{shown}", "{format}", "schema", "provenance"],
+        yue: ["{shown}", "{format}", "schema", "來源"],
     },
 
     // The advice is searchable too, which is the half of the hint a shorter level drops.

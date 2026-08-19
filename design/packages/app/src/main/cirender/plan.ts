@@ -51,6 +51,8 @@ export interface CiRenderPlan {
     readonly mapId: string;
     readonly mapName: string;
     readonly dimension: string;
+    /** Concrete project choice, transported with the plan so a workflow cannot choose silently. */
+    readonly engine: "upstream-java" | "typescript";
     /** Every `workflow_dispatch` input, as the strings GitHub takes. */
     readonly inputs: Readonly<Record<string, string>>;
     readonly configuration: {
@@ -67,7 +69,8 @@ export type CiPlanRefusal =
     | { readonly code: "unreadable-project"; readonly message: string }
     | { readonly code: "no-maps"; readonly message: string }
     | { readonly code: "no-such-map"; readonly message: string }
-    | { readonly code: "unsupported-dimension"; readonly message: string };
+    | { readonly code: "unsupported-dimension"; readonly message: string }
+    | { readonly code: "unsupported-engine"; readonly message: string };
 
 export type CiPlanResult =
     | { readonly ok: true; readonly plan: CiRenderPlan }
@@ -108,8 +111,9 @@ export async function readProjectAt(worldFolder: string): Promise<ProjectAtResul
                     code: "no-project",
                     message:
                         `There is no ${PROJECT_FILE_NAME} or ${LEGACY_PROJECT_FILE_NAME} at the root of ${worldFolder}, ` +
-                        "so this world has no maps set up yet. Render it once in the app, or run the map wizard, and " +
-                        "the project file that produces is what a CI render repeats.",
+                        "so this world has no maps set up yet. Create a cloud render configuration to write the " +
+                        "complete project defaults without Java, a local render, or a downloaded client; the file " +
+                        "it produces is what a CI render repeats.",
                 },
             };
         }
@@ -231,6 +235,19 @@ export function planCiRender(input: PlanInput): CiPlanResult {
     if (!picked.ok) return { ok: false, failure: picked.failure };
     const chosen = picked.map;
 
+    if (input.project.render.engine !== "upstream-java") {
+        return {
+            ok: false,
+            failure: {
+                code: "unsupported-engine",
+                message:
+                    `The project selected ${input.project.render.engine}, but the GitHub Actions ` +
+                    "render route has only the upstream Java launch adapter. Nothing was dispatched " +
+                    "and no other engine was chosen.",
+            },
+        };
+    }
+
     const budget = positiveInteger(input.budgetMinutes, DEFAULT_BUDGET_MINUTES);
     const maxJobs = positiveInteger(input.maxJobs, DEFAULT_MAX_JOBS);
 
@@ -240,6 +257,7 @@ export function planCiRender(input: PlanInput): CiPlanResult {
             mapId: chosen.id,
             mapName: chosen.name,
             dimension: chosen.dimension,
+            engine: input.project.render.engine,
             configuration: {
                 route: "project-archive",
                 complete: true,

@@ -8,6 +8,7 @@
     "main": "./dist/main/index.js",
     "scripts": {
         "brand:build": "node scripts/build-brand-assets.mjs",
+        "stage:render-engines": "node scripts/stage-render-engines.mjs",
         "build": "node scripts/build-brand-assets.mjs --check && node build.mjs",
         "start": "electron .",
         "test": "vitest run",
@@ -29,6 +30,7 @@
     },
     "dependencies": {
         "@worldlens/config": "workspace:*",
+        "@worldlens/engine": "workspace:*",
         "@worldlens/nbt": "workspace:*",
         "@worldlens/parts": "workspace:*",
         "@worldlens/render-actions": "workspace:*",

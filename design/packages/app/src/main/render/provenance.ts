@@ -17,12 +17,26 @@
 
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { ProjectRenderEngine } from "@worldlens/config";
 import type { RuntimeMode } from "../runtime/plan.js";
 
 /** Bumped when the shape below changes incompatibly. */
 export const RENDER_RECORD_VERSION = 1;
 
-export type RenderEngineId = "upstream-java" | "typescript";
+export type RenderEngineId = ProjectRenderEngine;
+
+/** Capability facts shared by project settings, local routing and remote hand-offs. */
+export interface RenderEngineCapability {
+    readonly id: RenderEngineId;
+    readonly label: string;
+    readonly requiresJvm: boolean;
+    readonly supportsLocal: boolean;
+    readonly supportsDocker: boolean;
+    readonly supportsCli: boolean;
+    readonly supportsRestart: boolean;
+    /** Settings the engine does not consume; callers must show these before rendering. */
+    readonly unsupportedSettings: readonly string[];
+}
 
 /**
  * What to call each engine on screen.
@@ -34,6 +48,30 @@ export type RenderEngineId = "upstream-java" | "typescript";
 export const RENDER_ENGINE_LABELS: Readonly<Record<RenderEngineId, string>> = {
     "upstream-java": "BlueMap engine (Java)",
     typescript: "Worldlens engine (TypeScript)",
+};
+
+/** Static route capabilities. Availability and version are resolved at runtime. */
+export const RENDER_ENGINE_CAPABILITIES: Readonly<Record<RenderEngineId, RenderEngineCapability>> = {
+    "upstream-java": {
+        id: "upstream-java",
+        label: RENDER_ENGINE_LABELS["upstream-java"],
+        requiresJvm: true,
+        supportsLocal: true,
+        supportsDocker: true,
+        supportsCli: true,
+        supportsRestart: true,
+        unsupportedSettings: [],
+    },
+    typescript: {
+        id: "typescript",
+        label: RENDER_ENGINE_LABELS.typescript,
+        requiresJvm: false,
+        supportsLocal: true,
+        supportsDocker: false,
+        supportsCli: false,
+        supportsRestart: true,
+        unsupportedSettings: ["BlueMap JVM flags", "BlueMap CLI-only diagnostics"],
+    },
 };
 
 export type RenderOutcome = "running" | "finished" | "failed" | "cancelled";

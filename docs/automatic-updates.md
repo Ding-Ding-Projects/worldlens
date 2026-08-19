@@ -44,6 +44,23 @@ the GitHub release **tag** as SemVer. The former split (`0.1.862` in the package
 correctly returned HTTP 204 even though a newer package was attached. The release manifest now
 rejects that split tag shape and accepts only `v<major>.<minor>.<run>`.
 
+### Public release continuity check
+
+The renamed public repository and its feed are now reachable under the Worldlens identity. The
+published `v1.0.1227` release is non-draft and carries the complete Squirrel set: `RELEASES`,
+`Worldlens-1.0.1227-full.nupkg`, and `Worldlens-1.0.1227-Setup.exe`. Its release target is
+`8cbf12be33b890e0eace0d9a566689b1050b9491`. The public feed returns that same release for both
+the current Worldlens repository path and the former repository path, proving that the rename did
+not strand feed lookup:
+
+```text
+https://update.electronjs.org/Ding-Ding-Projects/worldlens/win32-x64/1.0.1226 -> 200, Worldlens v1.0.1227
+https://update.electronjs.org/Ding-Ding-Projects/material-bluemap/win32-x64/1.0.1172 -> 200, Worldlens v1.0.1227
+```
+
+This is public feed and asset evidence only. It does not replace the required installed-client
+bridge → Worldlens → next Worldlens update exercise, which remains an external runtime gate.
+
 ### The banner
 
 When an installer is downloaded, checked against the feed hash and staged, a persistent, non-blocking banner

@@ -3,6 +3,25 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const renameFaults = vi.hoisted(() => ({ remaining: 0, attempts: 0 }));
+vi.mock("node:fs/promises", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("node:fs/promises")>();
+    return {
+        ...actual,
+        rename: async (...args: Parameters<typeof actual.rename>) => {
+            renameFaults.attempts += 1;
+            if (renameFaults.remaining > 0) {
+                renameFaults.remaining -= 1;
+                const error = Object.assign(new Error("simulated transient rename lock"), {
+                    code: "EPERM",
+                });
+                throw error;
+            }
+            return actual.rename(...args);
+        },
+    };
+});
 import {
     PROFILE_MIGRATION_CONSENT_FILE,
     PROFILE_MIGRATION_RECEIPT_FILE,
@@ -23,6 +42,8 @@ function root(): string {
 
 afterEach(() => {
     for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
+    renameFaults.remaining = 0;
+    renameFaults.attempts = 0;
 });
 
 async function put(path: string, text: string): Promise<void> {
@@ -42,6 +63,25 @@ async function exists(path: string): Promise<boolean> {
 }
 
 describe("Worldlens profile migration", () => {
+    it("retries transient atomic receipt and journal rename locks", async () => {
+        const appData = root();
+        const plan = profileMigrationPlan(appData);
+        await put(plan.legacyDirectory, "legacy");
+        renameFaults.remaining = 2;
+
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent: async () => "accept",
+            now,
+        });
+
+        expect(outcome.kind).toBe("migrated");
+        expect(renameFaults.attempts).toBeGreaterThanOrEqual(3);
+        expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe(
+            "legacy",
+        );
+    });
+
     it("accepts absolute profile children on POSIX instead of mistaking the leading slash for an escape", () => {
         if (process.platform === "win32") return;
         const plan = profileMigrationPlan("/tmp/worldlens-profile-containment-regression");
@@ -367,6 +407,42 @@ describe("Worldlens profile migration", () => {
                 now,
             }),
         ).toMatchObject({ kind: "corrupt" });
+    });
+
+    it("rejects a receipt that claims a different source or target", async () => {
+        const appData = root();
+        const plan = profileMigrationPlan(appData);
+        await put(plan.legacyDirectory, "legacy");
+        await put(plan.worldlensDirectory, "current");
+        await writeFile(
+            join(plan.worldlensDirectory, PROFILE_MIGRATION_RECEIPT_FILE),
+            JSON.stringify({
+                version: 1,
+                status: "verified",
+                product: "Worldlens",
+                source: join(appData, "some-other-legacy-root"),
+                target: join(appData, "some-other-worldlens-root"),
+                completedAt: now().toISOString(),
+                oldProfileRetained: true,
+                files: 1,
+                bytes: 1,
+                manifestSha256: "a".repeat(64),
+                preMigrationWorldlensBackup: null,
+            }),
+            "utf8",
+        );
+
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent: async () => "accept",
+            now,
+        });
+
+        expect(outcome).toMatchObject({ kind: "corrupt" });
+        expect(await readFile(join(plan.legacyDirectory, "settings.json"), "utf8")).toBe("legacy");
+        expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe(
+            "current",
+        );
     });
 
     it("refuses a corrupt transaction journal before touching either profile", async () => {

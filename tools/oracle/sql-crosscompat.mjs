@@ -1011,4 +1011,12 @@ async function main() {
     return exitCode;
 }
 
-process.exitCode = await main();
+// Issue #66 extends this entry point with the SQLite/PostgreSQL matrix. Keeping the
+// MariaDB runner as the no-flag default preserves issue #32's existing invocation;
+// the explicit --dialects switch makes the newer proof impossible to miss in logs.
+if (process.argv.includes("--dialects")) {
+    const { main: matrixMain } = await import("./sql-crosscompat-matrix.mjs");
+    process.exitCode = await matrixMain(process.argv.slice(2));
+} else {
+    process.exitCode = await main();
+}

@@ -24,8 +24,8 @@
  *   rail                   the navigation rail's labels
  *   nav <label>            click a rail item by its visible label
  *   buttons                visible button labels in the topmost dialog, else the page
- *   onboard                walk the 4-step first-run dialog to the end, ACCEPTING the
- *                          Minecraft download consent under the user's standing choice
+ *   onboard                walk the 4-step first-run dialog to the end, DECLINING the
+ *                          Minecraft download consent so the run never invents consent
  *   text <selector>        innerText of the first match
  *   count <selector>       number of matches
  *   click <selector>       click it, then let the UI settle
@@ -201,11 +201,24 @@ const page = pages[0];
 const runStartedAt = new Date().toISOString();
 let consoleErrorCount = 0;
 let pageErrorCount = 0;
+const consoleErrors = [];
+const pageErrors = [];
+const MAX_RUNTIME_ERRORS = 20;
+const sanitizeRuntimeError = (value) =>
+  String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/gu, " ")
+    .replace(/([?&](?:token|secret|password|passwd|authorization|auth|key)=)[^&\s]*/giu, "$1[REDACTED]")
+    .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/giu, "$1[REDACTED]")
+    .slice(0, 512);
 page.on("console", (message) => {
-  if (message.type() === "error") consoleErrorCount += 1;
+  if (message.type() === "error") {
+    consoleErrorCount += 1;
+    if (consoleErrors.length < MAX_RUNTIME_ERRORS) consoleErrors.push(sanitizeRuntimeError(message.text()));
+  }
 });
-page.on("pageerror", () => {
+page.on("pageerror", (error) => {
   pageErrorCount += 1;
+  if (pageErrors.length < MAX_RUNTIME_ERRORS) pageErrors.push(sanitizeRuntimeError(error?.message ?? error));
 });
 const targetUrl = new URL(page.url());
 if (
@@ -824,6 +837,8 @@ async function runPlan(path) {
           startedAt: runStartedAt,
           consoleErrorCount,
           pageErrorCount,
+          consoleErrors,
+          pageErrors,
         },
         captures: captureLedger,
       },
@@ -908,10 +923,10 @@ const commands = {
     out("clicked");
   },
   // A fresh profile always opens on the 4-step first-run dialog, and it is modal: the
-  // navigation rail is behind it, so `nav` times out until this has run. ACCEPT is the
-  // user's explicit standing choice for Worldlens verification runs.
+  // navigation rail is behind it, so `nav` times out until this has run. DECLINE is the
+  // only truthful automated choice: an agent cannot provide the user's consent.
   onboard: async () => {
-    const steps = ["NEXT", "NEXT", "ACCEPT", "FINISH SETUP"];
+    const steps = ["NEXT", "NEXT", "DECLINE", "FINISH SETUP"];
     if ((await page.locator(".v-overlay--active").count()) === 0)
       return out("no dialog open");
     for (const label of steps) {
@@ -923,7 +938,7 @@ const commands = {
       await settle();
     }
     out(
-      `onboarded (accepted download consent); dialogs open: ${await page.locator(".v-overlay--active").count()}`,
+      `onboarded (declined download consent); dialogs open: ${await page.locator(".v-overlay--active").count()}`,
     );
   },
   eval: async (...js) =>

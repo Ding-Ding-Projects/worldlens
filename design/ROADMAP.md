@@ -1,5 +1,23 @@
 # Roadmap
 
+## Issue #78 — render engine selection
+
+Source implementation and focused verification are complete. The remaining acceptance record is a
+same-project packaged Java/TypeScript output and provenance comparison.
+
+## Issue #57 — cloud-first project configuration (implementation in progress)
+
+The cloud-render setup now has a guided path for a world without a project file. It generates the
+complete versioned project schema from the shared defaults, validates the world and render values,
+does not start Java or perform a local render, saves through the atomic project writer, records
+local project history, and returns to CI preflight with the original request intact. Cancellation
+before the write boundary leaves the world untouched, and existing unreadable or newer-format
+projects are not replaced silently.
+
+The source implementation and preload route are present, but this is not packaged or hosted-run
+evidence. A real packaged-app interaction and a real cloud workflow dispatch remain open before
+issue #57 is complete.
+
 ## CI failed on a fully green test suite, and the real Kid Mode feature count (2026-08-15)
 
 **State: no source change; this entry records the current verified status.** CI run 31879080680 on
@@ -486,8 +504,8 @@ Ported on 2026-08-04, in `packages/engine/src/map/rendermanager/`:
 
 Not fully ported, and so keeping this phase open:
 
-- **The standalone server CLI and its Dockerfile — built on 2026-08-05 (issue #42), still
-  short of what upstream's CLI does.** `packages/cli` was a one-line stub with no tests; it
+- **The standalone server CLI and its Dockerfile — built on 2026-08-05 (issue #42), with issue
+  #65 parity now verified.** `packages/cli` was a one-line stub with no tests; it
   now mirrors `BlueMapCLI.main()`'s real branching (reusing `@worldlens/config`'s
   `cli/flags.ts` model, not a second copy of it), loads a real config folder the way
   `BlueMapConfigManager` does — writing upstream's own per-file/per-folder defaults, never
@@ -495,9 +513,9 @@ Not fully ported, and so keeping this phase open:
   consent-gated download, builds real `BmMap`s over `MCAWorld`/`FileStorage`, drives real
   renders through `RenderDriver`, serves real routes through `packages/server`'s handlers,
   and writes the webapp's real `settings.json` (`WebFilesManager.Settings`, field for
-  field). Deliberately deferred, and said so out loud where the CLI is asked for it rather
-  than silently doing nothing: `-n`/mod-resource scanning, `resourceExtensions.zip`
-  parity and SQL storages in the CLI. Non-box, nested and subtracting render masks closed on
+  field). The issue #65 parity work now covers `-n`/mod-resource scanning, deployed
+  `resourceExtensions` assets, and SQL storages in the CLI, with Docker and throwaway
+  PostgreSQL runtime evidence recorded below. Non-box, nested and subtracting render masks closed on
   2026-08-06 with exact local, standalone-CLI and GitHub Actions semantics. (`-u`/`--watch` was deferred
   here too when this paragraph was first written, exiting non-zero and naming issue #40's
   `MapUpdateService` as the still-unwired piece; it closed on 2026-08-06 — see below.)
@@ -748,7 +766,7 @@ runtime capture, both of which are stated separately below.
 | **Action-specific artwork**                          | Five selected high-impact actions now have five unique bundled local PNGs: cloud render setup, local render speed, restart-to-install, repository backup publication, and the config write/delete review. `ActionArtwork.test.ts` is the hand-written mapping from action to owner, unique filename and semantic alt text; it fails on a missing file, reuse, or an unwired owner. Production build and 143 focused owner/copy tests passed; see `docs/action-artwork.md`.                                                                                                    |
 | **Projects**                                         | `f4d3abd`, `packages/ui/src/components/project/` and `packages/app/src/main/project/`. A project is the document the app edits — its maps, its storages, its settings — and the wizard is the quick way to make one rather than the only way in. Project saves are snapshotted by the same version history the config folders use, under their own repository root. `92c392f` fixed a projects-list adapter that read a result union as if it were the payload                                                                                                                |
 | **EULA and dock placement**                          | `80369ec`, `docs/eula-and-consent.md`. The licence is presented at first run and stays available afterwards in a tabbed viewer with search and export. Separately, each surface's dock position is a persisted per-surface choice                                                                                                                                                                                                                                                                                                                                             |
-| **The render console**                               | `897ecad`, `packages/ui/src/components/console/`, `docs/render-console.md`. Annotated engine output rather than a raw log. It is also the cause of the last red CI run: `f4d3abd` committed the _import_ of `../console/annotations.js` into `renderRun.ts` while the console files themselves stayed untracked until `897ecad`, three commits later, so the hosted checkout at `80369ec` had an importer and no file to import                                                                                                                                               |
+| **The render console**                               | `897ecad`, `packages/ui/src/components/console/`, `docs/render-console.md`. Annotated engine output rather than a raw log. The visible ring is bounded, while issue #58 extends it with render-id-keyed durable history, crash-safe incremental recovery, restart/reattach restore, complete-stream search and faithful text/structured export. Retention/pruning is explicit and separate from the UI cap; redaction applies before local persistence/export. Acceptance still requires recovery tests and a genuine packaged restart proof before the issue can close                                                                                                                                               |
 
 ## Phase J, what is built and what is proven
 
@@ -885,6 +903,37 @@ engines**; `node tools/oracle/render-1-12-era-matched.mjs --accept-download` —
 2/2 structural checks plus the two era-matrix assertions (grass-family vertices nonzero,
 dirt fraction near the modern-pack control).
 
+## Issue #65, standalone CLI resource and SQL parity
+
+The remaining Phase E work is one contract, not three independent conveniences. The standalone
+CLI must load resources and storage through the same real configuration path in a checkout,
+packaged install, and Docker runtime. Its public behavior is recorded in
+[`docs/compatibility/cli-resource-sql-parity.md`](../docs/compatibility/cli-resource-sql-parity.md).
+
+The resource proof must show the high-to-low root order (`config/packs`, enabled `-n/--mods` jars,
+BlueMap's `resourceExtensions.zip`, then the vanilla client resource/data jars as fallback),
+first-writer duplicate-key winner behavior, reverse filename ordering inside pack and mod folders,
+and a non-zero result when a
+requested root cannot be loaded. The extension-pack proof must identify the exact selected path,
+zip-versus-checkout-source kind, SHA-256 digest, source commit, and the `pack.mcmeta`/overlay
+layout. Packaged and installed layouts require the zip; checkout-source is a development fallback
+and must be labelled as such.
+
+The SQL proof must build a real `SQLStorage` from `storages/<id>.conf` for SQLite, MySQL, MariaDB,
+and PostgreSQL, exercise the optional-driver failure path, reject unsupported `driver-jar` and
+`driver-class` settings rather than dropping them, and keep `connection-properties` out of project
+files and diagnostics. A missing driver, unknown dialect, refused connection, or malformed config
+must remain non-zero and must never fall back to file storage.
+
+The acceptance evidence is now recorded: Docker image `worldlens-cli-issue65:proof` built with
+`mysql2`, `pg`, and `sql.js`, executed a real sql.js WASM query, and verified the deployed
+resource-extension tree; the no-action Docker CLI bootstrap exited `1` with zero SQL-field
+warnings. A real CLI marker run against throwaway `postgres:17.6` exited `0`, loaded client
+resources, selected packaged resource-extension digest prefix `e6069b…`, and registered
+`overworld`. Database readback found six tables, one map, and payloads of 2 bytes for
+`bluemap:markers`, 339 bytes for `settings`, and 1,371,129 bytes for `textures`. The throwaway
+database container and network were removed after readback.
+
 ## Phase H, SQL storages: what is ported and what is not
 
 Ported on 2026-08-05 (issue #32), in `packages/engine/src/storage/sql/`: `SQLStorage`,
@@ -1005,6 +1054,14 @@ port:**
 - **`driver-jar`/`driver-class`** (a custom JDBC driver jar): there is no javascript
   equivalent of loading an arbitrary classpath jar at runtime, so `StorageFactory` refuses
   a config that sets either, by name, rather than silently ignoring the setting.
+
+### Issue #66 — PostgreSQL and SQLite cross-engine proof record (unrun)
+
+Issue [#66](https://github.com/Ding-Ding-Projects/worldlens/issues/66) now has a durable sanitized matrix report at [`docs/sql-cross-engine-compatibility.report.json`](../docs/sql-cross-engine-compatibility.report.json), started `2026-08-19T12:28:28.726Z`, finished `2026-08-19T12:30:20.049Z`, fixture seed `1`, size `64`, `postgres:17.6`, total `111323 ms`, exit `0`, tested commit `f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java `25.0.4`. The detailed acceptance record is [`docs/sql-cross-engine-compatibility.md`](../docs/sql-cross-engine-compatibility.md). The comparison counters are verified for all four directions: each has 1 hires tile, 9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences; direction 1 compares six render-state records through `diffRenderState`, while direction 2 explicitly does not compare render-state through the Java HTTP boundary. All direction-1, direction-2, and incompatible-schema cleanup targets report `ok=true`, `state=removed`, and `workRootRemoved=true`.
+
+The documentation lane pins PostgreSQL JDBC `org.postgresql:postgresql:42.7.13` (`org.postgresql.Driver`, SHA-256 `6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93`) and Xerial SQLite JDBC `org.xerial:sqlite-jdbc:3.53.2.1` (`org.sqlite.JDBC`, SHA-256 `f55e405ed96d5ffe629e05b7b51b059e1c7d64527c0cc90a972fbac06730ccc1`). The checked-in MariaDB control remains `org.mariadb.jdbc:mariadb-java-client:3.5.3` (`org.mariadb.jdbc.Driver`, SHA-256 `85c4ba2f221d0dfd439c26affbb294f784960763544263c65aba9c2c76858706`). The wrapper is Gradle `9.4.0`, and the upstream source at submodule commit `4c4cbc291b361ceff6ee239448e9f988f9019dbb` requests Java 25.
+
+The matrix command was `node tools/oracle/sql-crosscompat-matrix.mjs --dialects sqlite,postgresql --driver-dir tools/oracle/driver-fetch/build/drivers --json docs/sql-cross-engine-compatibility.report.json`. Its driver versions are PostgreSQL JDBC `42.7.13` and SQLite JDBC `3.53.2.1`; the sanitized report uses relative paths and records the cleanup verdict for every direction and the incompatible-schema probe. Direction 2's raw Java HTTP route exposes tiles and metadata only, so its render-state boundary remains explicitly documented rather than overstated.
 
 ## Test counts
 
@@ -1184,7 +1241,7 @@ named so it is not lost between passes.
   filtering of tasks whose `hasMoreWork()` is false, and a final shutdown save. The standalone
   CLI constructs it after maps are built, at `<resolved core.data>/tasks.dat`; the server package
   exports the helper but has no separate construction site. Retention is one current queue file,
-  not a history. Focused acceptance gates now cover real file/schema/corruption handling,
+  not a history. Focused acceptance checks now cover real file/schema/corruption handling,
   terminal-task exclusion, unique staging and reopen, coalesced saves, and CLI startup/shutdown
   wiring. Remaining proof must cover structured skipped/unknown-task reporting, stale
   cross-process crash ordering, and a real CLI restart that resumes queued work end to end.
@@ -1194,12 +1251,12 @@ named so it is not lost between passes.
   the periodic full-refresh tail-enqueues instead of jumping the queue like upstream's does,
   and a watcher-construction exception path that is upstream-only-distinguished but
   currently unreachable in this port.
-- **Prove SQLite and PostgreSQL cross-compatibility with upstream's real Java engine
-  specifically.** Issue #32 itself is closed: MariaDB has the real cross-engine proof, both
-  directions, and MySQL/MariaDB/PostgreSQL are independently proven against real same-engine
-  Docker servers. What has not been done is the Java-CLI-vs-TS-port cross-engine run for
-  SQLite or PostgreSQL specifically — SQLite needs the same `driver-jar`/`driver-class`
-  treatment MariaDB got here, since upstream ships no bundled SQLite JDBC driver either.
+- ~~**Prove SQLite and PostgreSQL cross-compatibility with upstream's real Java engine
+  specifically.**~~ **Comparison and cleanup evidence verified, 2026-08-19 (issue #66).** The
+  durable sanitized report records both directions for SQLite and PostgreSQL, all lifecycle and
+  incompatible-schema probes, relative-path provenance, and target/work-root removal. Direction 1
+  compares render-state records through `diffRenderState`; direction 2's raw Java HTTP path
+  exposes tiles and metadata only, so its render-state boundary remains explicitly documented.
 - **Run a two-wave merge, and a world large enough to actually pressure a hosted runner's
   disk, through `render-world.yml`.** Issue #39's own wave-dispatch checklist item is now
   genuinely proven (a real 361-region world used exactly the two waves planned, watched, not

@@ -1,15 +1,16 @@
 /**
  * Turns a config folder's `maps/*.conf` (already validated by `config.ts`) into real
- * `BmMap`s: a real `MCAWorld` loaded off disk, a real `FileMapStorage`, the real
+ * `BmMap`s: a real `MCAWorld` loaded off disk, a real file or SQL map storage, the real
  * `ResourcePack`/`DataPack` `resources.ts` resolved, assembled through `BmMap.create`
  * exactly as `BlueMapService#getOrLoadMaps`/`getOrLoadWorld`/`getOrLoadStorage` do.
  *
  * Java source: `common/src/main/java/de/bluecolored/bluemap/common/BlueMapService.java`
  *
- * A map that cannot be built (unknown storage id, a SQL-typed storage, a loader other than
- * `bluemap:anvil`, a missing `world`/`dimension`) is skipped with an exact, named reason
- * rather than silently dropped or allowed to crash the whole run — every other map still
- * builds. `render.ts` decides whether a skip is fatal for the run as a whole.
+ * A map that cannot be built (unknown storage id, a loader other than `bluemap:anvil`, a
+ * missing `world`/`dimension`) is skipped with an exact, named reason rather than silently
+ * dropped. A requested storage that cannot be constructed is different: it is a fatal CLI
+ * configuration error, so `runCli` returns non-zero instead of claiming that the map was
+ * handled while leaving its requested storage unused.
  */
 
 import { resolve as resolvePath } from "node:path";
@@ -18,9 +19,7 @@ import {
     BlurMask,
     BoxMask,
     CombinedMask,
-    Compression,
     EllipseMask,
-    FileStorage,
     Mask,
     MapSettings,
     MCAWorld,
@@ -28,6 +27,8 @@ import {
     type BmMap as BmMapType,
     type DataPack,
     type ResourcePack,
+    storageFromConfig,
+    type Storage,
     type Shape,
 } from "@worldlens/engine";
 import { Key, Vector2d, Vector2i, Vector3i } from "@worldlens/shared";
@@ -39,16 +40,6 @@ export interface BuiltMaps {
     readonly maps: ReadonlyMap<string, BmMapType>;
     /** map id -> exactly why it was not built. */
     readonly skipped: ReadonlyMap<string, string>;
-}
-
-function compressionFor(storage: StorageEntry & { kind: "file" }): Compression {
-    const key = Key.parse(storage.config.compression, "bluemap");
-    const compression = Compression.REGISTRY.get(key);
-    if (compression === null)
-        throw new Error(
-            `Storage '${storage.id}' names an unknown compression '${storage.config.compression}'`,
-        );
-    return compression;
 }
 
 function degenerateMask(message: string): never {
@@ -195,6 +186,30 @@ export interface BuildMapsOptions {
     readonly mapFilter?: readonly string[] | null;
 }
 
+class CliStorageInitializationError extends Error {
+    constructor(message: string, options?: ErrorOptions) {
+        super(message, options);
+        this.name = "CliStorageInitializationError";
+    }
+}
+
+function redactSqlFailure(error: unknown, config: Extract<StorageEntry, { kind: "sql" }>["config"]): string {
+    let message = error instanceof Error ? error.message : String(error);
+    const properties = config["connection-properties"];
+    for (const [key, value] of Object.entries(properties)) {
+        if (/(?:pass|secret|token|credential|pwd)/i.test(key) && value.length > 0) {
+            message = message.split(value).join("<redacted>");
+        }
+    }
+    const rawUrl = config["connection-url"];
+    const redactedUrl = rawUrl.replace(/(jdbc:[^:]+:\/\/[^/@:]+):[^@/]+@/i, "$1:<redacted>@");
+    if (redactedUrl !== rawUrl) message = message.split(rawUrl).join(redactedUrl);
+    for (const value of [rawUrl, ...Object.values(properties)]) {
+        if (value.length > 0 && value !== redactedUrl) message = message.split(value).join("<redacted>");
+    }
+    return message;
+}
+
 /** Resolves `mapConfig.world`/`storage.root` against the CWD, exactly as upstream's own `Path.of(x)` would. */
 export function resolveConfigPath(value: string): string {
     return resolvePath(process.cwd(), value);
@@ -205,7 +220,7 @@ export async function buildMaps(options: BuildMapsOptions): Promise<BuiltMaps> {
     const maps = new Map<string, BmMapType>();
     const skipped = new Map<string, string>();
 
-    const storageCache = new Map<string, FileStorage>();
+    const storageCache = new Map<string, Storage>();
 
     for (const [mapId, mapConfig] of loaded.maps) {
         if (mapFilter != null && mapFilter.length > 0 && !mapFilter.includes(mapId)) continue;
@@ -232,22 +247,32 @@ export async function buildMaps(options: BuildMapsOptions): Promise<BuiltMaps> {
                 skipped.set(mapId, `references unknown storage '${mapConfig.storage}'`);
                 continue;
             }
-            if (storageEntry.kind === "sql") {
-                skipped.set(
-                    mapId,
-                    `storage '${mapConfig.storage}' is a SQL storage, which packages/engine does not port (issue #32)`,
-                );
-                continue;
-            }
-
             let storage = storageCache.get(storageEntry.id);
             if (storage === undefined) {
-                storage = new FileStorage(
-                    resolveConfigPath(storageEntry.config.root),
-                    compressionFor(storageEntry),
-                    storageEntry.config.atomic,
-                );
-                await storage.initialize();
+                try {
+                    const config = storageEntry.kind === "file"
+                        ? { ...storageEntry.config, root: resolveConfigPath(storageEntry.config.root) }
+                        : storageEntry.config;
+                    const candidateStorage = await storageFromConfig(config);
+                    try {
+                        await candidateStorage.initialize();
+                    } catch (error) {
+                        // SQL initialization may already have opened a pooled connection.
+                        // Close the candidate before surfacing the original failure so a
+                        // refused CLI run does not leave a live driver keeping the process open.
+                        await candidateStorage.close().catch(() => undefined);
+                        throw error;
+                    }
+                    storage = candidateStorage;
+                } catch (error) {
+                    if (storageEntry.kind === "sql") {
+                        throw new CliStorageInitializationError(
+                            `SQL storage '${storageEntry.id}' could not be initialized: ${redactSqlFailure(error, storageEntry.config)}`,
+                            { cause: error },
+                        );
+                    }
+                    throw error;
+                }
                 storageCache.set(storageEntry.id, storage);
             }
 
@@ -277,6 +302,7 @@ export async function buildMaps(options: BuildMapsOptions): Promise<BuiltMaps> {
             );
             maps.set(mapId, map);
         } catch (error) {
+            if (error instanceof CliStorageInitializationError) throw error;
             skipped.set(mapId, error instanceof Error ? error.message : String(error));
         }
     }

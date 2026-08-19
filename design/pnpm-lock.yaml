@@ -41,6 +41,9 @@ importers:
       '@worldlens/config':
         specifier: workspace:*
         version: link:../config
+      '@worldlens/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@worldlens/nbt':
         specifier: workspace:*
         version: link:../nbt
@@ -118,6 +121,16 @@ importers:
       pngjs:
         specifier: ^7.0.0
         version: 7.0.0
+    optionalDependencies:
+      mysql2:
+        specifier: ^3.23.2
+        version: 3.23.2(@types/node@22.20.1)
+      pg:
+        specifier: ^8.22.0
+        version: 8.22.0
+      sql.js:
+        specifier: ^1.14.1
+        version: 1.14.1
 
   packages/config:
     dependencies:
