@@ -24,12 +24,19 @@ full message for the in-app changelog viewer.
 
 - Add focused render-queue acceptance coverage - [`0a3b1d2e3f`](https://github.com/Ding-Ding-Projects/worldlens/commit/0a3b1d2e3fbaa516e270079dfef4d7e30e76846a)
 
+### Server, CLI and configuration
+
+- Merge issue #68 queue-priority proof - [`d652512fae`](https://github.com/Ding-Ding-Projects/worldlens/commit/d652512fae211b858583442b80c9dc0c80922f75) _(summary of 2 commits, also listed here)_
+- Test RenderDriver queue priority at caller boundary - [`497eb61bfb`](https://github.com/Ding-Ding-Projects/worldlens/commit/497eb61bfbb9cdeba22cd8d1772fe45c4f32c566)
+
 ### Desktop shell
 
 - Isolate and receipt Lowlevel UI captures - [`8ca5782bf6`](https://github.com/Ding-Ding-Projects/worldlens/commit/8ca5782bf6c8cc193e984ee64b892c4e390ff082)
 
 ### Build, release and tooling
 
+- Merge remote-tracking branch 'origin/main' into codex/issue-64-render-queue-persistence - [`538575a4e4`](https://github.com/Ding-Ding-Projects/worldlens/commit/538575a4e49c29de38a96c2ca621c78e5cdcc038) _(summary of 5 commits, also listed here)_
+- Click the visible private render action directly - [`8fa04b7819`](https://github.com/Ding-Ding-Projects/worldlens/commit/8fa04b7819054c22af2032cd92fef5c17f9f1884)
 - Merge remote-tracking branch 'origin/main' into codex/issue-64-render-queue-persistence - [`76e368de58`](https://github.com/Ding-Ding-Projects/worldlens/commit/76e368de58f40ca6abe1b4e24f306c6fba9f92b2) _(summary of 2 commits, also listed here)_
 - Capture live Pages failures and private render setup - [`53af78ae93`](https://github.com/Ding-Ding-Projects/worldlens/commit/53af78ae93b33a006320e36e4d2d791b4631f0d4)
 - Target repository visibility controls by keyboard - [`17cbf0a66b`](https://github.com/Ding-Ding-Projects/worldlens/commit/17cbf0a66b1bac95147d08eae69c13c0aa0040df)
