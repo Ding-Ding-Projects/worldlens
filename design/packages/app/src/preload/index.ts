@@ -40,7 +40,11 @@ import type {
     PreviewStartRequest,
     PreviewStatusAnswer,
 } from "../main/preview/index.js";
-import type { RemoteHostEvent } from "../main/remote/index.js";
+import type {
+    DashboardRefreshOptions,
+    DashboardSnapshot,
+    RemoteHostEvent,
+} from "../main/remote/index.js";
 import type {
     DownloadConcurrencyReadout,
     DownloadConcurrencyWriteResult,
@@ -2891,6 +2895,9 @@ interface WorldlensBridge {
      * super-confirmation gate before ever calling it.
      */
     stopRemoteHosting(hostingId: string): Promise<unknown>;
+    dashboardSnapshot(): Promise<DashboardSnapshot>;
+    dashboardRefresh(options?: DashboardRefreshOptions): Promise<DashboardSnapshot>;
+    dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
     /** Progress and log lines for a hosting run in progress. */
     onRemoteHostingEvent(listener: (event: RemoteHostEvent) => void): () => void;
     /**
@@ -3423,6 +3430,10 @@ const bridge: WorldlensBridge = {
     remoteHostingRecord: (hostingId) => ipcRenderer.invoke("hosting:record", hostingId),
     refreshRemoteHosting: (hostingId) => ipcRenderer.invoke("hosting:refresh", hostingId),
     stopRemoteHosting: (hostingId) => ipcRenderer.invoke("hosting:stop", hostingId),
+    dashboardSnapshot: (): Promise<DashboardSnapshot> => ipcRenderer.invoke("dashboard:snapshot"),
+    dashboardRefresh: (options?: DashboardRefreshOptions): Promise<DashboardSnapshot> =>
+        ipcRenderer.invoke("dashboard:refresh", options ?? {}),
+    dashboardCancel: (): Promise<{ readonly cancelled: boolean }> => ipcRenderer.invoke("dashboard:cancel"),
     onRemoteHostingEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: RemoteHostEvent): void =>
             listener(payload);

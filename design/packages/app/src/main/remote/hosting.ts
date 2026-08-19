@@ -230,7 +230,7 @@ export interface RemoteHostingOrchestratorOptions {
      * Verifies a loopback bind by asking the remote host itself, over the SSH connection
      * already open. Overridable so no test opens a socket or spawns a real `ssh`.
      */
-    readonly probeLoopback?: (target: RemoteTarget, sshOptions: SshOptionsInput, port: number) => Promise<boolean>;
+    readonly probeLoopback?: (target: RemoteTarget, sshOptions: SshOptionsInput, port: number, signal?: AbortSignal) => Promise<boolean>;
     readonly now?: () => Date;
 }
 
@@ -262,9 +262,10 @@ async function defaultProbeLoopback(
     port: number,
     runner: CommandRunner,
     ssh: string,
+    signal?: AbortSignal,
 ): Promise<boolean> {
     const script = `timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/${String(port)}' 2>/dev/null`;
-    const result = await runner(ssh, sshScriptArguments(sshOptions, script), {});
+    const result = await runner(ssh, sshScriptArguments(sshOptions, script), { signal });
     return result.ok;
 }
 
@@ -495,12 +496,12 @@ export class RemoteHostingOrchestrator {
     }
 
     /** Re-checks whether an already-hosted map still answers, without transferring anything. */
-    async refresh(hostingId: string): Promise<RemoteHostingRecord | null> {
+    async refresh(hostingId: string, signal?: AbortSignal): Promise<RemoteHostingRecord | null> {
         if (!isSafeHostingId(hostingId)) return null;
         const saved = await this.readRecord(hostingId);
         if (saved === null) return null;
         const sshOptions = this.sshOptions(saved.target);
-        const verification = await this.verify(saved.target, sshOptions, saved.publish);
+        const verification = await this.verify(saved.target, sshOptions, saved.publish, signal);
         const refreshed: RemoteHostingRecord = {
             ...saved,
             status: verification.verified ? "running" : "unknown",
@@ -631,11 +632,12 @@ export class RemoteHostingOrchestrator {
         target: RemoteTarget,
         sshOptions: SshOptionsInput,
         publish: RemoteHostingPublish,
+        signal?: AbortSignal,
     ): Promise<{ verified: boolean; url: string | null; via: "network" | "ssh-loopback" | null; notes: string[] }> {
         const notes: string[] = [];
         if (publish.bindMode === "public") {
             const probe = this.options.probe ?? tcpPortProbe;
-            const answered = await probe(target.host, publish.hostPort, 5_000);
+            const answered = await probe(target.host, publish.hostPort, 5_000, signal);
             if (answered) {
                 return {
                     verified: true,
@@ -654,7 +656,7 @@ export class RemoteHostingOrchestrator {
 
         const bindAddress = publishBindAddress(publish);
         const probeLoopback = this.options.probeLoopback ?? this.defaultLoopbackProbe();
-        const answered = await probeLoopback(target, sshOptions, publish.hostPort);
+        const answered = await probeLoopback(target, sshOptions, publish.hostPort, signal);
         if (answered) {
             notes.push(
                 `${target.host} answered on its own loopback (${bindAddress}:${String(publish.hostPort)}), ` +
@@ -672,10 +674,10 @@ export class RemoteHostingOrchestrator {
         return { verified: false, url: null, via: null, notes };
     }
 
-    private defaultLoopbackProbe(): (target: RemoteTarget, sshOptions: SshOptionsInput, port: number) => Promise<boolean> {
+    private defaultLoopbackProbe(): (target: RemoteTarget, sshOptions: SshOptionsInput, port: number, signal?: AbortSignal) => Promise<boolean> {
         const runner = this.options.runner ?? execFileCommandRunner;
         const ssh = this.options.ssh ?? "ssh";
-        return (_target, sshOptions, port) => defaultProbeLoopback(sshOptions, port, runner, ssh);
+        return (_target, sshOptions, port, signal) => defaultProbeLoopback(sshOptions, port, runner, ssh, signal);
     }
 
     /* ------------------------------------------------------------------ */

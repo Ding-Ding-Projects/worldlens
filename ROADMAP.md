@@ -9,6 +9,21 @@
   pass. The feature is not described as runtime-verified or shipped. See
   [`docs/measurement-and-waypoints.md`](docs/measurement-and-waypoints.md) and issue #75.
 
+## Issue #77 multi-server operations dashboard — 2026-08-19
+
+- **Status:** Implementation is present on the issue-owned checkout; the issue
+  remains open pending verification. The dashboard combines local, Docker, and
+  remote profiles with health, maps, players, render/update, and last-check data.
+- **Contract:** bounded concurrent refresh with backoff/cancellation;
+  stale/unknown/partial reporting; search and full regex, filters, grouping,
+  pinning, reorder, multi-select, truthful bulk actions, exact-surface teleport,
+  persistent layout/appearance, and credential-free local history.
+- **Evidence boundary:** no tests, captures, or packaged multi-server interaction
+  are claimed. Mixed-route, offline, auth-failure, version-skew, large-inventory,
+  restart, accessibility, localization, and compact-width verification remain
+  open. See [`docs/multi-server-dashboard.md`](docs/multi-server-dashboard.md) and
+  issue #77.
+
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
 
 The pinned upstream source is `vendor/BlueMap` `v5.23` at
