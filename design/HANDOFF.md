@@ -39,6 +39,36 @@ state；selected host/login 要經真實 `gh` account inventory 同 `gh api user
 或 captures；issue #139 要等 fresh hosted run 真係到 merge，並補齊其餘 acceptance evidence
 先可以關。
 
+## Issue #144 — release-grade smoke and screenshot gallery evidence boundary (2026-08-19)
+
+This issue-owned checkout records the public acceptance boundary for the release-grade smoke,
+complete screenshot refresh, and searchable Pages gallery. The feature record is
+[`docs/release-smoke-gallery.md`](../docs/release-smoke-gallery.md). It requires one exact
+candidate commit across the local release-grade suite inventory, unsigned Squirrel.Windows
+installer set, packaged-app smoke pass, and every refreshed capture; it also requires gallery
+metadata, plain-text search by default, the adjacent full regex builder, category filtering,
+responsive and accessible interaction, and an honest no-match state.
+
+This is a records-only update. No tests, installer build, packaged-app interaction, approved
+headless capture, screenshot replacement, release publication, merge, push, or cleanup was run or
+performed in this checkout. Source-level gallery files and Pages workflow results must not be
+relabelled as packaged-artifact evidence. Issue #144 remains open until the exact candidate,
+installer assets, smoke read-back, complete replacement matrix, and remote release verdict are
+independently verified.
+
+### 廣東話同步
+
+呢個 issue-owned checkout 只係記錄 issue #144 嘅公開 acceptance boundary：release-grade smoke、
+全部 screenshot refresh 同 searchable Pages gallery。所有 suite、unsigned installer、packaged
+smoke 同新 capture 要用同一個 exact candidate；gallery 仲要有 metadata、plain-text search、
+旁邊嘅 full regex builder、category filter、responsive/accessibility interaction 同真 no-match。
+
+今次係 records-only update，冇行 tests、冇 build installer、冇 packaged interaction、冇 approved
+headless capture、冇 screenshot replacement、冇 release、merge、push 或 cleanup。Source-level
+gallery 同 Pages workflow 結果唔可以當 packaged-artifact evidence；issue #144 繼續 open，直到
+exact candidate、installer assets、smoke read-back、complete replacement matrix 同 remote release
+verdict 全部獨立 verify。
+
 ## Issue #76 screenshot gallery — 2026-08-19
 
 The issue-owned source lane now contains an in-progress screenshot-gallery surface. Its product

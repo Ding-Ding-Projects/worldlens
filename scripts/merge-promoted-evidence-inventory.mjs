@@ -14,6 +14,7 @@ const repoRoot = resolve(values["repo-root"]);
 const runRoot = resolve(values["run-root"]);
 const target = resolve(repoRoot, "docs/screenshots/promoted-evidence.json");
 const index = JSON.parse(await readFile(resolve(runRoot, "reviewed-receipt-index.json"), "utf8"));
+const independentReview = typeof index.reviewer === "string" && index.reviewer.trim() !== "" && index.reviewer !== "pending";
 let inventory = { version: 1, records: [] };
 try {
     inventory = JSON.parse(await readFile(target, "utf8"));
@@ -24,6 +25,16 @@ const retained = inventory.records.filter((record) => !ids.has(record.id));
 const added = [];
 for (const entry of index.receipts) {
     const receipt = JSON.parse(await readFile(resolve(runRoot, entry.receipt), "utf8"));
+    const inspection = receipt.inspection;
+    const independentlyReviewed =
+        independentReview &&
+        inspection &&
+        inspection.reviewer &&
+        inspection.reviewer !== "pending" &&
+        inspection.decoded === true &&
+        inspection.pixelsInspected === true &&
+        inspection.targetVisible === true &&
+        inspection.expectedStateVisible === true;
     added.push({
         id: receipt.id,
         active: true,
@@ -39,7 +50,10 @@ for (const entry of index.receipts) {
         scale: receipt.state.viewport.scale,
         interactionProofId: receipt.runtime.interactionProofId,
         interactionReceiptSha256: receipt.runtime.interactionReceiptSha256,
-        inspectionStatus: "inspected",
+        // A README link and a receipt index prove wiring only. Keep this pending until an
+        // independent reviewer records decoded pixels and the expected state in the reviewed
+        // receipt; promotion must never mint visual inspection from caller metadata.
+        inspectionStatus: independentlyReviewed ? "inspected" : "pending",
     });
 }
 inventory.records = [...retained, ...added].sort((left, right) => left.id.localeCompare(right.id));

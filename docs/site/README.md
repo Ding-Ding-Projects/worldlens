@@ -15,3 +15,16 @@ The site has no HTTP API of its own, so a Postman collection is not applicable. 
 sources are read-only browser requests documented in their own article; they do not turn this
 static site into an API server.
 
+## Committed capture gallery
+
+The Screenshots page is a repository-backed verification gallery, separate from the app-owned
+screenshot library. It joins `docs/screenshots/manifest.json` with
+`docs/screenshots/evidence-inventory.json`; every resolved PNG is searchable by title,
+description, category, state, theme, viewport and source commit. Missing or unavailable workflow
+captures remain explicit evidence status rather than placeholder cards.
+
+The page also renders the evidence-ledger summary beside the gallery: inventory target count,
+screenshot-target count, resolved count, missing filenames, and whether capture provenance is
+pinned to a candidate commit. This keeps “complete for the checked-in files” distinct from
+“fresh release-smoke proof”; the former may be true while the latter is honestly still pending.
+

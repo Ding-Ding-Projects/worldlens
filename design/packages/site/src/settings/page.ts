@@ -1094,15 +1094,6 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                  * the whole discriminator, and it cannot misfire on a settings file because an
                  * array can never carry the `values` record `store.import` reads.
                  */
-                if (Array.isArray(parsed)) {
-                    const loaded = vocabulary.load(text);
-                    status.textContent = loaded.ok
-                        ? t("vocab.installedCount", { count: loaded.count })
-                        : t(`vocab.refused.${loaded.reason}`);
-                    announce(status.textContent);
-                    refresh();
-                    return;
-                }
                 // Wrapped so the history records one `imported` entry rather than a burst of
                 // indistinguishable `changed` ones: a visitor undoing an import wants the
                 // import back out, not forty separate undos.

@@ -40,6 +40,8 @@ export const MAX_VOCABULARY_BYTES = 64 * 1024;
 
 /** A ceiling on the number of replacements, for the same reason the byte ceiling exists. */
 export const MAX_VOCABULARY_ENTRIES = 500;
+export const VOCABULARY_SCHEMA_VERSION = 1 as const;
+export const MAX_VOCABULARY_DEPTH = 2;
 
 /** A ceiling on one term, chosen so a "term" cannot smuggle in a paragraph of markup. */
 export const MAX_TERM_LENGTH = 120;
@@ -66,7 +68,9 @@ export type VocabularyLoad =
  * Codes rather than sentences here so the module stays free of user-facing English, which
  * would otherwise have to live in a public string table beside the vocabulary machinery.
  */
-export type VocabularyRefusal = "too-large" | "not-json" | "wrong-shape" | "empty" | "too-many";
+export type VocabularyRefusal =
+    | "too-large" | "not-json" | "wrong-shape" | "empty" | "too-many"
+    | "unknown-version" | "duplicate-key" | "unsafe-key" | "too-deeply-nested";
 
 /**
  * Tokens this module refuses to touch however the visitor's file is written.
@@ -90,21 +94,87 @@ function isLiteralToken(token: string): boolean {
     );
 }
 
+const UNSAFE_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+const CONTROL_CHARACTER = /[\u0000-\u001F\u007F-\u009F]/u;
+
+function hasDuplicateJsonObjectKey(source: string): boolean {
+    let cursor = 0;
+    let duplicate = false;
+    const skip = (): void => { while (/\s/u.test(source[cursor] ?? "")) cursor += 1; };
+    const stringValue = (): string => {
+        const start = cursor++;
+        while (cursor < source.length) {
+            const c = source[cursor++];
+            if (c === "\\") cursor += 1;
+            else if (c === '"') return JSON.parse(source.slice(start, cursor)) as string;
+        }
+        return "";
+    };
+    const scan = (): void => {
+        skip();
+        const c = source[cursor];
+        if (c === "{") {
+            cursor += 1; const keys = new Set<string>(); skip();
+            if (source[cursor] === "}") { cursor += 1; return; }
+            while (cursor < source.length) {
+                skip(); const key = stringValue(); if (keys.has(key)) duplicate = true; keys.add(key);
+                skip(); cursor += 1; scan(); skip();
+                if (source[cursor] === "}") { cursor += 1; return; } cursor += 1;
+            }
+            return;
+        }
+        if (c === "[") {
+            cursor += 1; skip(); if (source[cursor] === "]") { cursor += 1; return; }
+            while (cursor < source.length) { scan(); skip(); if (source[cursor] === "]") { cursor += 1; return; } cursor += 1; }
+            return;
+        }
+        if (c === '"') { stringValue(); return; }
+        while (cursor < source.length && !/[\s,}\]]/u.test(source[cursor] as string)) cursor += 1;
+    };
+    scan();
+    return duplicate;
+}
+
+function exceedsDepth(value: unknown): boolean {
+    const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+    while (pending.length > 0) {
+        const current = pending.pop() as { value: unknown; depth: number };
+        if (current.value === null || typeof current.value !== "object") continue;
+        const depth = current.depth + 1;
+        if (depth > MAX_VOCABULARY_DEPTH) return true;
+        for (const child of Object.values(current.value as Record<string, unknown>)) pending.push({ value: child, depth });
+    }
+    return false;
+}
+
 function validate(parsed: unknown): readonly VocabularyEntry[] | null {
-    if (!Array.isArray(parsed)) return null;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+    const record = parsed as Record<string, unknown>;
+    if (record.schemaVersion !== VOCABULARY_SCHEMA_VERSION) return null;
+    if (typeof record.entries !== "object" || record.entries === null || Array.isArray(record.entries)) return null;
     const entries: VocabularyEntry[] = [];
-    for (const raw of parsed) {
-        if (typeof raw !== "object" || raw === null) return null;
-        const record = raw as Record<string, unknown>;
-        const from = record["from"];
-        const to = record["to"];
-        if (typeof from !== "string" || typeof to !== "string") return null;
-        const trimmed = from.trim();
-        if (trimmed === "" || trimmed.length > MAX_TERM_LENGTH) return null;
-        if (to.length > MAX_TERM_LENGTH) return null;
-        entries.push({ from: trimmed, to });
+    for (const [from, rawTo] of Object.entries(record.entries as Record<string, unknown>)) {
+        if (UNSAFE_KEYS.has(from) || from.trim() === "" || from.length > MAX_TERM_LENGTH) return null;
+        if (CONTROL_CHARACTER.test(from) || typeof rawTo !== "string" || rawTo.length > MAX_TERM_LENGTH) return null;
+        if (CONTROL_CHARACTER.test(rawTo)) return null;
+        entries.push({ from: from.trim(), to: rawTo });
     }
     return entries;
+}
+
+function validateText(text: string): VocabularyLoad {
+    if (text.length > MAX_VOCABULARY_BYTES) return { ok: false, reason: "too-large" };
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { return { ok: false, reason: "not-json" }; }
+    if (hasDuplicateJsonObjectKey(text)) return { ok: false, reason: "duplicate-key" };
+    if (exceedsDepth(parsed)) return { ok: false, reason: "too-deeply-nested" };
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return { ok: false, reason: "wrong-shape" };
+    if ((parsed as Record<string, unknown>).schemaVersion !== VOCABULARY_SCHEMA_VERSION) return { ok: false, reason: "unknown-version" };
+    const entries = validate(parsed);
+    if (entries === null) return { ok: false, reason: "wrong-shape" };
+    if (entries.length === 0) return { ok: false, reason: "empty" };
+    if (entries.length > MAX_VOCABULARY_ENTRIES) return { ok: false, reason: "too-many" };
+    return { ok: true, count: entries.length };
 }
 
 export type VocabularyListener = () => void;
@@ -148,18 +218,11 @@ export class PersonalVocabulary {
      * boundary would reach a `catch` that can only say "something failed".
      */
     load(text: string): VocabularyLoad {
-        if (text.length > MAX_VOCABULARY_BYTES) return { ok: false, reason: "too-large" };
-        let parsed: unknown;
-        try {
-            parsed = JSON.parse(text);
-        } catch {
-            return { ok: false, reason: "not-json" };
-        }
-        const entries = validate(parsed);
-        if (entries === null) return { ok: false, reason: "wrong-shape" };
-        if (entries.length === 0) return { ok: false, reason: "empty" };
-        if (entries.length > MAX_VOCABULARY_ENTRIES) return { ok: false, reason: "too-many" };
-        this.prefs.writeJson(RECORD_KEY, entries);
+        const result = validateText(text);
+        if (!result.ok) return result;
+        const parsed = JSON.parse(text) as { entries: Record<string, string> };
+        this.prefs.writeJson(RECORD_KEY, parsed);
+        const entries = Object.entries(parsed.entries).map(([from, to]) => ({ from, to }));
         this.compiled = entries;
         this.emit();
         return { ok: true, count: entries.length };

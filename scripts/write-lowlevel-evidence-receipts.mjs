@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, relative, resolve } from "node:path";
 
@@ -20,7 +21,7 @@ function args(values) {
 }
 
 const options = args(process.argv.slice(2));
-for (const key of ["repo-root", "run-root", "commit", "launch-pid", "hwnd", "plan"]) {
+for (const key of ["repo-root", "run-root", "commit", "packaged-exe", "app-asar", "launch-pid", "hwnd", "plan"]) {
     if (!options[key]) fail(`--${key} is required`);
 }
 
@@ -28,6 +29,10 @@ const repoRoot = resolve(options["repo-root"]);
 const runRoot = resolve(options["run-root"]);
 const commit = options.commit;
 if (!/^[0-9a-f]{40}$/u.test(commit)) fail("--commit must be a full SHA");
+const resolvedCommit = execFileSync("git", ["-C", repoRoot, "rev-parse", "--verify", "HEAD"], { encoding: "utf8" }).trim();
+if (resolvedCommit !== commit) fail(`candidate HEAD ${resolvedCommit} does not equal requested commit ${commit}`);
+const status = execFileSync("git", ["-C", repoRoot, "status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" });
+if (status.trim() !== "") fail("candidate worktree is dirty; evidence must name a clean exact commit");
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const fileHash = async (path) => sha256(await readFile(path));
 const treeHash = async (path) => {
@@ -54,6 +59,22 @@ const artifactPath = resolve(repoRoot, "design/packages/app/dist/main/index.js")
 const artifactBytes = await readFile(artifactPath);
 const artifactSha256 = sha256(artifactBytes);
 const artifactInfo = await stat(artifactPath);
+const packagedExecutablePath = resolve(options["packaged-exe"]);
+const packagedAsarPath = resolve(options["app-asar"]);
+const packagedExecutable = await readFile(packagedExecutablePath);
+const packagedAsar = await readFile(packagedAsarPath);
+const packagedExecutableSha256 = sha256(packagedExecutable);
+const packagedAsarSha256 = sha256(packagedAsar);
+const launchPid = Number(options["launch-pid"]);
+if (!Number.isInteger(launchPid) || launchPid <= 0) fail("--launch-pid must be a positive process id");
+const runningPath = execFileSync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", `(Get-Process -Id ${launchPid} -ErrorAction Stop).Path`],
+    { encoding: "utf8" },
+).trim();
+if (runningPath.toLowerCase() !== packagedExecutablePath.toLowerCase()) {
+    fail(`running pid ${launchPid} resolves to ${runningPath}, not the packaged executable ${packagedExecutablePath}`);
+}
 
 const manifestPath = resolve(runRoot, "manifest.json");
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
@@ -106,6 +127,12 @@ const buildReceipt = {
     artifactSha256,
     artifactBytes: artifactBytes.length,
     artifactBuiltAt: artifactInfo.mtime.toISOString(),
+    packagedExecutablePath: relative(repoRoot, packagedExecutablePath).replaceAll("\\", "/"),
+    packagedExecutableSha256,
+    packagedAsarPath: relative(repoRoot, packagedAsarPath).replaceAll("\\", "/"),
+    packagedAsarSha256,
+    launchPid,
+    runningExecutablePath: relative(repoRoot, runningPath).replaceAll("\\", "/"),
 };
 const buildReceiptPath = resolve(runRoot, "build-receipt.json");
 await writeFile(buildReceiptPath, `${JSON.stringify(buildReceipt, null, 2)}\n`, "utf8");
@@ -122,17 +149,32 @@ const interaction = {
 const interactionPath = resolve(runRoot, "interaction.json");
 await writeFile(interactionPath, `${JSON.stringify(interaction, null, 2)}\n`, "utf8");
 
-const privacyScan = {
-    version: 1,
-    targetCount: 1,
-    targetType: "page",
-    loopbackOnly: true,
-    unrelatedTargetsObserved: false,
-    visibleDesktopUntouched: true,
-    taskProfileOwned: true,
-};
 const privacyPath = resolve(runRoot, "privacy-scan.json");
-await writeFile(privacyPath, `${JSON.stringify(privacyScan, null, 2)}\n`, "utf8");
+let privacyScan;
+try {
+    privacyScan = JSON.parse(await readFile(privacyPath, "utf8"));
+} catch {
+    fail("privacy-scan.json is missing; privacy must come from the driver, not receipt defaults");
+}
+if (
+    privacyScan?.version !== 1 ||
+    privacyScan.targetCount !== 1 ||
+    privacyScan.targetType !== "page" ||
+    privacyScan.loopbackOnly !== true ||
+    privacyScan.unrelatedTargetsObserved !== false ||
+    privacyScan.visibleDesktopUntouched !== true ||
+    privacyScan.taskProfileOwned !== true
+) fail("privacy-scan.json does not prove the actual single-target hidden-desktop route");
+const cleanupPath = resolve(runRoot, "cleanup.json");
+let cleanup;
+try {
+    cleanup = JSON.parse(await readFile(cleanupPath, "utf8"));
+} catch {
+    fail("cleanup.json is missing; cleanup must come from the driver result");
+}
+if (cleanup?.appProcessStopped !== true || cleanup.hiddenDesktopClosed !== true || cleanup.driverServerStopped !== true) {
+    fail("cleanup.json does not prove the owned process, desktop, and driver server were stopped");
+}
 
 const buildReceiptSha256 = await fileHash(buildReceiptPath);
 const interactionSha256 = await fileHash(interactionPath);
@@ -182,12 +224,12 @@ for (const capture of manifest.captures) {
             captureKind: "page",
         },
         privacy: {
-            visibleDesktopUntouched: true,
-            expectedSurfaceOnly: false,
-            sensitiveDataReviewed: false,
-            unrelatedTargetsObserved: false,
-            mocked: false,
-            handEdited: false,
+            visibleDesktopUntouched: privacyScan.visibleDesktopUntouched,
+            expectedSurfaceOnly: privacyScan.expectedSurfaceOnly === true,
+            sensitiveDataReviewed: privacyScan.sensitiveDataReviewed === true,
+            unrelatedTargetsObserved: privacyScan.unrelatedTargetsObserved,
+            mocked: privacyScan.mocked === true,
+            handEdited: privacyScan.handEdited === true,
         },
         inspection: {
             decoded: false,
@@ -197,7 +239,7 @@ for (const capture of manifest.captures) {
             reviewer: "pending",
         },
         runtime: {
-            launchPid: Number(options["launch-pid"]),
+            launchPid,
             hwnd: options.hwnd,
             hwndResolvedLive: true,
             consoleErrorCount: manifest.runtime.consoleErrorCount,
@@ -209,8 +251,8 @@ for (const capture of manifest.captures) {
             interactionReceiptSha256: interactionSha256,
             privacyScanPath: basename(privacyPath),
             privacyScanSha256: privacySha256,
-            cleanupCompleted: true,
-            cleanupOwnedOnly: true,
+            cleanupCompleted: cleanup.appProcessStopped && cleanup.hiddenDesktopClosed && cleanup.driverServerStopped,
+            cleanupOwnedOnly: cleanup.cleanupOwnedOnly === true,
             ...(localMap
                 ? {
                       renderEvidence: {

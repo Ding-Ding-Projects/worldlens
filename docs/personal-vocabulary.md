@@ -60,6 +60,29 @@ open application without sending the data anywhere.
 Bounds, malformed input, duplicate keys, partial-application refusal, persistence, replace,
 clear, no-network behaviour, and absence from every export and log path.
 
+## Issue #141 acceptance boundary
+
+This article is the public compatibility record for the local upload contract. It does not
+constitute packaged-runtime evidence. The implementation still needs focused verification in
+the built application for the empty control, valid load, invalid and over-limit refusal,
+replace, clear/reset, restart persistence, cache corruption, no-network behavior, and private
+accessible-name handling. The evidence must come from the real packaged artifact and must not
+contain vocabulary values, source paths, or payloads.
+
+Issue #141 remains open until that implementation evidence is recorded. This records-only lane
+does not claim tests, builds, runtime interaction, screenshots, captures, or release
+verification.
+
+### 廣東話 / Cantonese
+
+呢篇係 Issue #141 本地 upload contract 嘅 public compatibility record，唔係 packaged runtime
+evidence。Implementation 仲要喺真正 built app 驗 empty control、valid load、invalid/over-limit
+拒絕、replace、clear/reset、restart persistence、cache corruption、no-network 同 private
+accessible-name；evidence 唔可以帶 vocabulary value、source path 或 payload。
+
+Issue #141 要等 implementation evidence 齊先可以 close。今次 records-only lane 冇聲稱 tests、
+builds、runtime interaction、screenshots、captures 或 release verification 已完成。
+
 ## Suggested articles
 
 - [Language modes and funny levels](language-and-tone.md) - the layer this sits on top of

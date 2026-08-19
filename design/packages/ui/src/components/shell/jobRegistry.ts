@@ -41,6 +41,7 @@ import {
     mdiShieldKeyOutline,
     mdiSourceRepository,
     mdiWeb,
+    mdiImageMultipleOutline,
 } from "@mdi/js";
 import type { Component } from "vue";
 
@@ -64,7 +65,8 @@ export type CoreJobId =
     | "docs"
     | "ollama"
     | "remoteHosting"
-    | "dockerHosting";
+    | "dockerHosting"
+    | "screenshots";
 
 /**
  * Jobs that exist only where a sanitized public contract for them is in this checkout.
@@ -106,6 +108,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     ollama: "ollama",
     remoteHosting: "remoteHosting",
     dockerHosting: "dockerHosting",
+    screenshots: "screenshots",
     browserExtension: "browserExtension",
 } as const satisfies Record<string, JobId>;
 
@@ -365,6 +368,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelFallback: "Docker hosting",
         icon: mdiServerNetwork,
         seedGroup: "finished",
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "screenshots",
+        semanticName: "screenshots",
+        labelKey: "tabs.page.screenshots",
+        labelFallback: "Screenshots",
+        icon: mdiImageMultipleOutline,
+        seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },
     {
