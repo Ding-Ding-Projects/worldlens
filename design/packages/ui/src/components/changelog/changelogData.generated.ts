@@ -26,6 +26,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "b526739446cae2906631f83c041aa7b7ff247139",
+        shortSha: "b526739446",
+        date: "2026-08-19T05:58:22-04:00",
+        subject: "Record render-queue acceptance evidence",
+        details: "The queue no longer has to wave at the test suite from across the room: the handoff and roadmap now record the 29 focused proofs, while the real restart and structured recovery gaps stay plainly open.\n\n條 queue 唔使再隔住個 test suite 揮手：handoff 同 roadmap 而家記低 29 個 focused proof，真正 restart 同 structured recovery 嘅缺口照樣企喺度，冇扮收工。",
+        category: "docs",
+        areas: ["docs"],
+        files: 3,
+    },
+    {
+        sha: "c439b3a1fd44fbab8666c4f57ec0941dfce2a69b",
+        shortSha: "c439b3a1fd",
+        date: "2026-08-19T05:58:22-04:00",
+        subject: "Add focused render-queue acceptance coverage",
+        details: "The queue already had a memory and a file format; the acceptance layer now makes it show up for inspection: real disk round trips, terminal filtering, coalesced writes, and CLI wiring guards. The source-mutation probe removes the wiring on purpose, so a green guard has earned its lunch.\n\n條 queue 本身有記憶同檔案格式，而家 acceptance 層叫佢出嚟驗身：真實落碟 round trip、terminal filter、coalesce 寫檔，同 CLI wiring guard。source mutation probe 會故意拆走條線，等個綠燈真係食得落飯。",
+        category: "engine",
+        areas: ["engine", "services"],
+        files: 4,
+    },
+    {
         sha: "6b5c39ec120795acc2e58ad3786eb09ffef22863",
         shortSha: "6b5c39ec12",
         date: "2026-08-19T05:54:26-04:00",

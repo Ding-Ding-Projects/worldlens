@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Rendering and world data
 
+- Add focused render-queue acceptance coverage - [`c439b3a1fd`](https://github.com/Ding-Ding-Projects/worldlens/commit/c439b3a1fd44fbab8666c4f57ec0941dfce2a69b)
 - Merge remote-tracking branch 'origin/main' into codex/issue-91-retire-local-webserver - [`bee28ea506`](https://github.com/Ding-Ding-Projects/worldlens/commit/bee28ea506b97d3dc9931303159a98de88e8ddda) _(summary of 4 commits, also listed here)_
 - Merge issue #89 banner compatibility proof - [`e7810cf0b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7810cf0b1d4b22964ef83ccccaf55f55261a837) _(summary of 2 commits, also listed here)_
 - Add focused banner compatibility acceptance tests - [`d14203e7e4`](https://github.com/Ding-Ding-Projects/worldlens/commit/d14203e7e40a2ae4851b8bfe3476450609451570)
@@ -48,6 +49,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Record render-queue acceptance evidence - [`b526739446`](https://github.com/Ding-Ding-Projects/worldlens/commit/b526739446cae2906631f83c041aa7b7ff247139)
 - Complete receipt-backed Lowlevel recovery evidence - [`e7502bca52`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7502bca522cb88b0f2cb0535b87c1e522188073)
 - Promote privacy-clean Lowlevel captures - [`2dda8f9cb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/2dda8f9cb692a2bbcc1bd085cec450cf0f6df092)
 
