@@ -11,6 +11,7 @@ import {
     type RepairDiagnosis,
     type RepairResult,
 } from "./repairBridge.js";
+import IssueReportPanel from "./IssueReportPanel.vue";
 
 /**
  * Diagnosing and, when a local coding agent is switched on, repairing why a render or the
@@ -178,6 +179,12 @@ function subjectLabel(failure: FailureSummary): string {
                             {{ t("repair.run", "Diagnose and repair") }}
                         </v-btn>
                     </div>
+
+                    <IssueReportPanel
+                        :failure="failure"
+                        :diagnoses="diagnoses[failure.id]"
+                        :result="results[failure.id]"
+                    />
 
                     <v-alert v-if="diagnosisError[failure.id]" type="error" density="compact" variant="tonal" class="mt-2">
                         {{ diagnosisError[failure.id] }}

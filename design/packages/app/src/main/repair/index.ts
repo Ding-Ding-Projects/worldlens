@@ -107,3 +107,17 @@ export {
     type RepairIpc,
     type RepairIpcOptions,
 } from "./ipc.js";
+
+export {
+    MAX_REPORT_LOG_CHARS,
+    MAX_REPORT_LOG_LINES,
+    REPORT_REDACTED,
+    createDiagnosticReport,
+    exportDiagnosticReportJson,
+    exportDiagnosticReportMarkdown,
+    prepareIssueDraft,
+    redactDiagnosticText,
+    type DiagnosticReport,
+    type DiagnosticReportInput,
+    type IssueDraft,
+} from "./report.js";

@@ -1,5 +1,27 @@
 # Automatic repair when a render or hosting operation fails
 
+## Privacy-safe issue report drafts (Issue #80)
+
+The repair surface now has an in-progress `Report a problem` draft path. The report builder keeps
+the app/build, engine, platform, failure category, timing, exit code, diagnosis, repair result,
+reproduction steps, and selected console evidence as separate fields. Recognised credential
+assignments, user-bearing paths, private addresses, and private host names are redacted before
+the draft is displayed or exported, and console evidence is bounded before it is included.
+
+The user can review every visible field, edit or clear optional evidence, copy the Markdown draft,
+export Markdown or JSON locally, or copy the draft and open a GitHub new-issue form. Opening that
+form does not submit anything automatically; the draft body remains on the user's computer until
+the user chooses what to paste. The main-process report builder also exposes an explicit
+`autoSubmitted: false` result so collection cannot silently become submission.
+
+This documentation records source-level progress, not acceptance. The current wiring is present
+on the repair panel, but Help/About discovery and every relevant failure-surface entry point have
+not been audited. No disposable-target submission proof, offline/not-signed-in production flow,
+packaged application evidence, or issue-specific test result is recorded yet. The next owner must
+run adversarial redaction, bounded-log, Unicode, empty-diagnostics, cancellation, accessibility,
+localization, and funny-level checks, then verify a genuine packaged flow and a disposable issue
+target before closing Issue #80.
+
 When a run fails, the app collects what was actually observed and tries to say why. It does that
 in two halves, and the order between them is the whole safety of the feature:
 

@@ -1,5 +1,28 @@
 # Handoff
 
+## Issue #80 — privacy-safe in-app issue reporting (2026-08-19)
+
+The isolated Issue #80 checkout contains an in-progress implementation for a reviewed diagnostic
+report draft. The main-process report builder is in
+`design/packages/app/src/main/repair/report.ts`; the repair surface wires a `Report a problem`
+panel through `redesign/ui/src/components/repair/RepairPanel.vue`, with field assembly and
+Markdown/JSON export in `redesign/ui/src/components/repair/issueReport.ts` and the panel in
+`redesign/ui/src/components/repair/IssueReportPanel.vue`.
+
+The current source behavior redacts recognised credential, user-path, private-address, and
+private-host shapes; bounds selected console evidence; shows required and optional fields for
+review; allows optional evidence to be edited or cleared; exports Markdown or JSON locally; and
+opens a GitHub new-issue form only after copying a draft. It explicitly marks the draft as not
+submitted automatically. These files are currently uncommitted in this checkout.
+
+Acceptance is not yet proven. The current wiring is visible from the repair panel, while the
+required Help/About and every relevant failure-surface discovery audit remains open. There is no
+verified production submission flow, no disposable-target submission proof, and no packaged
+application interaction evidence. No tests, checks, or screenshots were run in this records-only
+pass. Do not close Issue #80 until the implementation is committed, the adversarial redaction and
+accessibility/localization checks run, and a genuine packaged capture and disposable submission
+record are available.
+
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
 
 This documentation-only lane records the exact adapter matrix from upstream
