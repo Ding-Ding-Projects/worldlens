@@ -41,7 +41,7 @@
     "alt": "Worldlens ready to upload Bayville to an existing repository with the GitHub Pages option checked and every required acknowledgement applied."
   },
   { "action": "rememberCount", "selector": "[data-test='row']", "key": "render-rows" },
-  { "action": "pressWhenFocused", "selector": "[data-test='start']", "key": "space", "attempts": 200 },
+  { "action": "clickUntilVisible", "selector": "[data-test='start']", "attempts": 40 },
   { "action": "waitForCountGreaterThanRemembered", "selector": "[data-test='row']", "key": "render-rows", "timeout": 300000 },
   { "action": "waitTextNot", "selector": "[data-test='row'] [data-test='run-label']", "nth": 0, "text": "No run yet", "timeout": 300000 },
   {

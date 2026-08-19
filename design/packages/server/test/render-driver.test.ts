@@ -337,6 +337,83 @@ describe("RenderDriver: drives the real RenderManager end to end", () => {
         expect(manager.getScheduledRenderTaskCount()).toBe(2);
     });
 
+    it("puts an interactive trigger immediately behind the active head while ordinary triggers keep tail order", async () => {
+        const map = await buildMap();
+        const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
+        const driver = new RenderDriver(manager);
+
+        driver.triggerUpdate(map);
+        driver.triggerUpdate(map);
+        driver.triggerUpdate(map);
+        const [head, ordinaryTail, ordinaryTailTwo] = manager.getScheduledRenderTasks();
+        expect(head).toBeDefined();
+        expect(ordinaryTail).toBeDefined();
+        expect(ordinaryTailTwo).toBeDefined();
+
+        manager.start(1);
+        try {
+            // Scheduling is synchronous, so this call observes the same head that the
+            // worker has just started and cannot race the worker's first microtask turn.
+            const interactive = driver.triggerUpdate(map, undefined, "next");
+            expect(interactive.scheduled).toBe(true);
+            expect(manager.getScheduledRenderTasks()).toEqual([
+                head,
+                expect.anything(),
+                ordinaryTail,
+                ordinaryTailTwo,
+            ]);
+
+            const status = driver.getStatus();
+            expect(status.running).toBe(true);
+            expect(status.queuedTaskCount).toBe(4);
+            expect(status.currentTaskDescription).toBe(head?.getDescription());
+            expect(status.currentTaskDetail).toBe(head?.getDetail());
+            expect(status.currentTaskProgress).toBe(head?.estimateProgress());
+            expect(status.estimatedTimeRemainingMs).toBe(
+                manager.estimateCurrentRenderTaskTimeRemaining(),
+            );
+        } finally {
+            manager.stop();
+            await manager.awaitShutdown();
+        }
+    });
+
+    it("documents newest-first interactive bursts and the resulting tail-starvation boundary", async () => {
+        const map = await buildMap();
+        const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
+        const driver = new RenderDriver(manager);
+
+        driver.triggerUpdate(map);
+        driver.triggerUpdate(map);
+        const [head, ordinaryTail] = manager.getScheduledRenderTasks();
+        expect(head).toBeDefined();
+        expect(ordinaryTail).toBeDefined();
+
+        manager.start(1);
+        try {
+            driver.triggerUpdate(map, undefined, "next");
+            const firstInteractive = manager.getScheduledRenderTasks()[1];
+            driver.triggerUpdate(map, undefined, "next");
+            const secondInteractive = manager.getScheduledRenderTasks()[1];
+            driver.triggerUpdate(map, undefined, "next");
+            const thirdInteractive = manager.getScheduledRenderTasks()[1];
+
+            // Each interactive arrival is inserted at index 1: a finite burst is
+            // drained before the ordinary tail, but a continuous stream can starve it.
+            expect(manager.getScheduledRenderTasks()).toEqual([
+                head,
+                thirdInteractive,
+                secondInteractive,
+                firstInteractive,
+                ordinaryTail,
+            ]);
+            expect(manager.getScheduledRenderTaskCount()).toBe(5);
+        } finally {
+            manager.stop();
+            await manager.awaitShutdown();
+        }
+    });
+
     it("reports status from the real RenderManager, not invented data", async () => {
         const map = await buildMap();
         const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });

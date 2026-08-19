@@ -141,7 +141,9 @@ test("the existing-repository plan checks Pages and upload acknowledgement befor
     const upload = existingPlan.findIndex(
         (step) => step.action === "setCheckboxWhenFocused" && step.selector.includes("ack-upload"),
     );
-    const start = existingPlan.findIndex((step) => step.action === "pressWhenFocused");
+    const start = existingPlan.findIndex(
+        (step) => step.action === "clickUntilVisible" && step.selector === "[data-test='start']",
+    );
     const dispatched = existingPlan.findIndex(
         (step) => step.name === "lowlevel-existing-repository-render-dispatched",
     );
