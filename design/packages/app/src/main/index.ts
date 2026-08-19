@@ -129,7 +129,8 @@ import type { GhCliIpc } from "./ghcli/ipc.js";
 import { GhCredentialBroker } from "./ghcli/credentialBroker.js";
 import { nodeProcessRunner } from "./cirender/gh.js";
 import { LEGACY_MATERIAL_BLUEMAP_IDENTITY, WORLDLENS_IDENTITY } from "@worldlens/shared";
-import { migrateWorldlensProfile } from "./migration/index.js";
+import { migrateWorldlensProfile, profileMigrationPlan } from "./migration/index.js";
+import { profileMigrationConsentCopy } from "./migration/copy.js";
 import {
     attemptStartupStep,
     errorDetail,
@@ -231,16 +232,13 @@ async function showRecovery(issues: readonly StartupIssue[]): Promise<void> {
 }
 
 async function requestProfileMigrationConsent(): Promise<"accept" | "deny"> {
+    const copy = profileMigrationConsentCopy("bilingual", profileMigrationPlan(applicationDataDirectory));
     const answer = await dialog.showMessageBox({
         type: "question",
-        title: "Bring your existing profile to Worldlens?",
-        message: "Worldlens found data from Material BlueMap.",
-        detail:
-            "Copy and verify your consent record, settings, GitHub credential references, projects, histories, " +
-            "cache and maps for Worldlens. The old profile stays in place so this can be retried or rolled back.\n\n" +
-            `Legacy profile folder: ${LEGACY_MATERIAL_BLUEMAP_IDENTITY.dataDirectorySegments.join("\\")}\n` +
-            `Worldlens profile folder: ${WORLDLENS_IDENTITY.dataDirectoryName}`,
-        buttons: ["Copy and verify", "Not now"],
+        title: copy.title,
+        message: copy.message,
+        detail: copy.detail,
+        buttons: copy.buttons,
         defaultId: 0,
         cancelId: 1,
         noLink: true,
@@ -290,18 +288,19 @@ async function prepareWorldlensProfile(): Promise<StartupIssue | null> {
 
     const detail =
         outcome.kind === "collision"
-            ? `Both profiles contain different versions of: ${outcome.paths.join(", ")}. Neither profile was changed.`
+            ? `Both profiles contain different versions of: ${outcome.paths.join(", ")}. Neither profile was changed. Review the named relative paths, then restart Worldlens to retry.`
             : outcome.message;
     console.error(`[worldlens] profile migration ${outcome.kind}: ${detail}`);
     return startupStore.record({
         category: "profile-migration",
         phase: "profile-migration",
-        title: "Worldlens kept the existing profile safe",
+        title: "Worldlens kept the existing profile safe / Worldlens 保住咗現有 profile",
         message:
             `${detail} The Material BlueMap profile remains intact. ` +
-            "Correct the reported problem, then restart Worldlens.",
+            "Correct the reported problem, then choose Restart and retry. No partial Worldlens profile is treated as usable. / " +
+            "Material BlueMap profile 仍然完整。修正問題後，揀「Restart and retry」再試；半份 Worldlens profile 唔會當成可用。",
         detail,
-        recoverable: false,
+        recoverable: outcome.kind !== "failed" || !detail.includes("Recovery also failed"),
         securityBoundary: true,
     });
 }
