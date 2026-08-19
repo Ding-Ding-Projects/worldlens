@@ -137,7 +137,7 @@ env:
   # a change to design/packages/render-actions or design/packages/site lands on this
   # project's own main branch, update this value to that commit in the same change - a
   # toolchain that silently changed between runs is a render nobody could reproduce.
-  WORLDLENS_TOOLCHAIN_COMMIT: 2f02d6544769add2ee048c9cc5e394bdae98b127
+  WORLDLENS_TOOLCHAIN_COMMIT: 9f52322cdfe284553499486bb1a8ffd2916331e3
 
 jobs:
   # ---------------------------------------------------------------------------------
