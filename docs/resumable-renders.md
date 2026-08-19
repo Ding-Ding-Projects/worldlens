@@ -91,9 +91,16 @@ a unique `*.staging-<uuid>` sibling before atomic replacement, filters tasks who
 `hasMoreWork()` is false, and performs a final save during `shutdown()`. The CLI loads after
 maps are built and logs map-build skips; queue entry skips/unknowns are still reported through
 the error callback rather than a structured recovery surface. Retention is one current file,
-not a history. Stale crash ordering, terminal/cancelled non-resurrection, and a real CLI
-restart that resumes queued work end to end remain outstanding acceptance evidence for issue
+not a history. Stale crash ordering and a real CLI restart that resumes queued work end to end
+remain outstanding acceptance evidence for issue
 #64.
+
+Focused acceptance coverage now proves the real queue-file round trip, schema/version refusal,
+malformed and unknown-entry handling, terminal-task exclusion, unique staging and reopen,
+coalesced non-overlapping saves, and CLI startup/shutdown wiring. The three focused files contain
+29 passing tests, including an exact source-guard mutation that turns red when the wiring is
+commented or removed and green again after restoration. Structured skipped-task presentation,
+stale cross-process crash ordering, and a real CLI restart remain unproven.
 
 ### The session record
 
@@ -538,9 +545,14 @@ sibling 再 atomic replace，filter 走 `hasMoreWork()` 已經係 false 嘅 task
 `shutdown()` 寫最後一次 snapshot；CLI 而家真係用緊呢個 helper。Retention 仍然只係一個
 current `tasks.dat`，唔係 history。CLI 會等 map build 完先 load，map build skip 會寫 log，
 但 queue entry skip/unknown 仍然係 error callback 層面，未有 structured recovery surface。
-仲要證明 stale crash recovery 唔會叫返 terminal/cancelled work，亦唔會用舊 queue 蓋過新
-queue。真正 CLI restart 後接返 queued work 嘅 end-to-end proof，仍然係 issue #64 未完成嘅
-acceptance evidence。
+仲要證明 stale crash recovery 唔會用舊 queue 蓋過新 queue。真正 CLI restart 後接返 queued
+work 嘅 end-to-end proof，仍然係 issue #64 未完成嘅
+acceptance evidence。Focused acceptance Chuts 而家已經證明真實 queue-file round trip、schema/version
+refusal、malformed/unknown entry、terminal-task exclusion、unique staging/reopen、coalesced
+non-overlapping save，同 CLI startup/shutdown wiring；三個 focused files 合共 29 個 test，
+包括故意拆走或 comment 條 wiring 後變紅、還原後變返綠嘅 exact source guard。Structured
+skipped-task presentation、stale cross-process crash ordering，同真正 CLI restart 後接返
+queued work 嘅 end-to-end proof，仍然係 issue #64 未完成嘅 acceptance evidence。
 
 #### Session 紀錄
 

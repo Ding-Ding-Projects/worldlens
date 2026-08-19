@@ -68,7 +68,7 @@ on:
           release-asset and git only. owner/name of the repository the world lives in.
           Blank means this repository (release-asset only - git always needs one named).
         type: string
-        default: ''
+        default: ""
       dimension:
         description: Dimension to render
         type: choice
@@ -95,15 +95,15 @@ on:
       budget-minutes:
         description: Rendering minutes one job may spend before the world is split
         type: string
-        default: '240'
+        default: "240"
       max-jobs:
         description: Cap on parallel render jobs (GitHub itself refuses more than 256)
         type: string
-        default: '64'
+        default: "64"
       force-shards:
         description: Optional. Use exactly this many shards and skip the estimate.
         type: string
-        default: ''
+        default: ""
 
 permissions:
   contents: read
@@ -201,7 +201,7 @@ jobs:
         with:
           distribution: temurin
           # Matches `build-jars.yml`, which compiles at 25. See render-shard-wave.yml.
-          java-version: '25'
+          java-version: "25"
 
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
         if: steps.restore.outputs.cache-hit != 'true'
@@ -855,7 +855,22 @@ jobs:
   # ---------------------------------------------------------------------------------
   merge:
     name: Merge group ${{ matrix.group }}
-    needs: [plan, wave1, wave2, wave3, wave4, wave5, wave6, wave7, wave8, wave9, wave10, wave11, wave12]
+    needs:
+      [
+        plan,
+        wave1,
+        wave2,
+        wave3,
+        wave4,
+        wave5,
+        wave6,
+        wave7,
+        wave8,
+        wave9,
+        wave10,
+        wave11,
+        wave12,
+      ]
     # `always()` because most runs skip most wave jobs, and a skipped `needs` would
     # otherwise skip this too. The wave results are checked explicitly instead, so a
     # failed wave still stops the merge rather than publishing a map with a hole in it.
@@ -1043,7 +1058,8 @@ jobs:
           set -euo pipefail
           pnpm install --frozen-lockfile
           pnpm --filter @worldlens/site build
-          node packages/site/scripts/assert-base-path.mjs
+          node packages/site/scripts/assert-base-path.mjs \
+            --base "/${GITHUB_REPOSITORY#*/}/"
 
       # Pages serves the files that exist, under the names they have. The engine stores
       # hires tiles gzipped as `0.prbm.gz`, and the viewer asks for `0.prbm` unless its

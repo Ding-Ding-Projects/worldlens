@@ -25,6 +25,43 @@ full message for the in-app changelog viewer.
 - Prepare the Windows-only public 1.0 compatibility-contract records for issue #60. The branch-local
   records were built successfully, but were not packaged, published, or released.
 
+### Rendering and world data
+
+- Add focused render-queue acceptance coverage - [`c439b3a1fd`](https://github.com/Ding-Ding-Projects/worldlens/commit/c439b3a1fd44fbab8666c4f57ec0941dfce2a69b)
+- Merge remote-tracking branch 'origin/main' into codex/issue-91-retire-local-webserver - [`bee28ea506`](https://github.com/Ding-Ding-Projects/worldlens/commit/bee28ea506b97d3dc9931303159a98de88e8ddda) _(summary of 4 commits, also listed here)_
+- Merge issue #89 banner compatibility proof - [`e7810cf0b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7810cf0b1d4b22964ef83ccccaf55f55261a837) _(summary of 2 commits, also listed here)_
+- Add focused banner compatibility acceptance tests - [`d14203e7e4`](https://github.com/Ding-Ding-Projects/worldlens/commit/d14203e7e40a2ae4851b8bfe3476450609451570)
+
+### Server, CLI and configuration
+
+- Merge issue #68 queue-priority proof - [`d652512fae`](https://github.com/Ding-Ding-Projects/worldlens/commit/d652512fae211b858583442b80c9dc0c80922f75) _(summary of 2 commits, also listed here)_
+- Test RenderDriver queue priority at caller boundary - [`497eb61bfb`](https://github.com/Ding-Ding-Projects/worldlens/commit/497eb61bfbb9cdeba22cd8d1772fe45c4f32c566)
+
+### Desktop shell
+
+- Merge issue #91 runtime reachability proof - [`9176799e27`](https://github.com/Ding-Ding-Projects/worldlens/commit/9176799e273d75eeb10772940390ab4b494b8c88) _(summary of 3 commits, also listed here)_
+- Add runtime reachability guard - [`e3e95d7c2c`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3e95d7c2cd5a6cd6da9b30fe7a6842c435e657e)
+- Isolate and receipt Lowlevel UI captures - [`8ca5782bf6`](https://github.com/Ding-Ding-Projects/worldlens/commit/8ca5782bf6c8cc193e984ee64b892c4e390ff082)
+
+### Build, release and tooling
+
+- Merge current main before runtime proof delivery - [`6b5c39ec12`](https://github.com/Ding-Ding-Projects/worldlens/commit/6b5c39ec120795acc2e58ad3786eb09ffef22863) _(summary of 2 commits, also listed here)_
+- Capture private Pages refusal before render fallback - [`55f8aada78`](https://github.com/Ding-Ding-Projects/worldlens/commit/55f8aada785ad0aac6ee6b7d1752d5e5663b9097)
+- Click the visible private render action directly - [`8fa04b7819`](https://github.com/Ding-Ding-Projects/worldlens/commit/8fa04b7819054c22af2032cd92fef5c17f9f1884)
+- Capture live Pages failures and private render setup - [`53af78ae93`](https://github.com/Ding-Ding-Projects/worldlens/commit/53af78ae93b33a006320e36e4d2d791b4631f0d4)
+- Target repository visibility controls by keyboard - [`17cbf0a66b`](https://github.com/Ding-Ding-Projects/worldlens/commit/17cbf0a66b1bac95147d08eae69c13c0aa0040df)
+- Make cloud-render recovery evidence deterministic - [`f729c8ce45`](https://github.com/Ding-Ding-Projects/worldlens/commit/f729c8ce45bef1859de06b5dfa3503ba860ea6dd)
+
+### Documentation
+
+- Record render-queue acceptance evidence - [`b526739446`](https://github.com/Ding-Ding-Projects/worldlens/commit/b526739446cae2906631f83c041aa7b7ff247139)
+- Complete receipt-backed Lowlevel recovery evidence - [`e7502bca52`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7502bca522cb88b0f2cb0535b87c1e522188073)
+- Promote privacy-clean Lowlevel captures - [`2dda8f9cb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/2dda8f9cb692a2bbcc1bd085cec450cf0f6df092)
+
+## 1.0.1163 - 2026-08-19
+
+Tagged at [`11d7ccb2be`](https://github.com/Ding-Ding-Projects/worldlens/commit/11d7ccb2bee8a5eae68f93a1e80e0443e1c289c2).
+
 ### Desktop shell
 
 - Resume cloud renders after app restart - [`a558bef666`](https://github.com/Ding-Ding-Projects/worldlens/commit/a558bef66619648e21ef77bfeb67f59d099783a1)
