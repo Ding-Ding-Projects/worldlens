@@ -59,6 +59,12 @@ export const worldReading: Article = {
                             ],
                         },
                         {
+                            term: "Linear timestamps",
+                            description: [
+                                "The .linear reader treats timestamps as Unix epoch seconds. Version 1 uses one unsigned 64-bit region timestamp for every populated chunk; version 2 uses unsigned 32-bit timestamps from the inner table. Filtering happens before payload loading, and the boundary fixtures include values beyond signed 32-bit range so 2038/wrap drift cannot silently change which chunks are read.",
+                            ],
+                        },
+                        {
                             term: "Chunk decoders",
                             description:
                                 "Five decoders, picked by the chunk's own DataVersion field. Block states, biomes, light, block entities and entities all move between versions, and each decoder knows one era.",
@@ -96,6 +102,13 @@ export const worldReading: Article = {
                         "connections, stair shapes, door hinges, double chests, redstone wire, snowy grass, fire ",
                         "and tripwire are all derived from surrounding blocks at decode time.",
                     ],
+                },
+                {
+                    kind: "callout",
+                    tone: "note",
+                    title: "Linear v1 and v2",
+                    content:
+                        "The .linear format is read as one zstd stream. Version 1 exposes the region timestamp to every populated chunk; version 2 exposes the timestamp stored beside each chunk. Both are epoch seconds, and the reader preserves the unsigned on-disk widths before applying the caller's filter.",
                 },
             ],
         },

@@ -51,8 +51,8 @@ async function buildLinearFile(
     const payloads: Buffer[] = [];
     for (const chunk of chunks) {
         const index = (chunk.z & 0b11111) * 32 + (chunk.x & 0b11111);
-        innerHeader.writeInt32BE(chunk.payload.length, index * 8);
-        innerHeader.writeInt32BE(chunk.timestamp, index * 8 + 4);
+        innerHeader.writeUInt32BE(chunk.payload.length, index * 8);
+        innerHeader.writeUInt32BE(chunk.timestamp, index * 8 + 4);
     }
     // payload-order follows the z-major header-order
     for (const chunk of [...chunks].sort(
@@ -66,7 +66,7 @@ async function buildLinearFile(
     const file = Buffer.alloc(32 + data.length + 8);
     file.writeBigUInt64BE(MAGIC, 0);
     file.writeInt8(version, 8);
-    file.writeBigInt64BE(newestTimestamp, 9);
+    file.writeBigUInt64BE(newestTimestamp, 9);
     file.writeInt8(3, 17); // compression level
     file.writeInt16BE(chunks.length, 18); // chunk count
     file.writeInt32BE(data.length, 20); // data-length
@@ -81,7 +81,7 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 const TEST_CHUNKS: TestChunk[] = [
     { x: 0, z: 0, timestamp: 100, payload: Buffer.from("linear-0-0") },
-    { x: 1, z: 0, timestamp: 2000, payload: Buffer.from("linear-1-0") },
+    { x: 1, z: 0, timestamp: 0x80000000, payload: Buffer.from("linear-1-0") },
     { x: 0, z: 2, timestamp: 300, payload: Buffer.from("linear-0-2") },
 ];
 
@@ -106,7 +106,7 @@ describe("LinearRegion", () => {
         );
         expect(listed).toEqual([
             [0, 0, 100],
-            [1, 0, 2000],
+            [1, 0, 0x80000000],
             [0, 2, 300],
         ]);
 
@@ -139,11 +139,26 @@ describe("LinearRegion", () => {
         expect(accepted).toEqual([[0, 2, "linear-0-2"]]);
     });
 
+    it("filters v2 timestamps as unsigned epoch seconds across the 2038 boundary", async () => {
+        const file = join(dir, "r.0.0.v2-boundary.linear");
+        writeFileSync(file, await buildLinearFile(TEST_CHUNKS));
+
+        const accepted: [number, number, string][] = [];
+        await new LinearRegion(new StubChunkLoader(), file).iterateAllChunks({
+            filter: (_x, _z, timestamp) => timestamp >= 0x80000000,
+            accept: (x, z, chunk) => accepted.push([x, z, chunk]),
+        });
+        expect(accepted).toEqual([[1, 0, "linear-1-0"]]);
+    });
+
     it("falls back to the region-timestamp for v1 files", async () => {
         const file = join(dir, "r.0.0.v1.linear");
         writeFileSync(
             file,
-            await buildLinearFile(TEST_CHUNKS, { version: 1, newestTimestamp: 1234567890n }),
+            await buildLinearFile(TEST_CHUNKS, {
+                version: 1,
+                newestTimestamp: 0x100000000n + 123n,
+            }),
         );
 
         const region = new LinearRegion(new StubChunkLoader(), file);
@@ -151,7 +166,29 @@ describe("LinearRegion", () => {
         await region.iterateAllChunks(
             ChunkConsumer.listOnly((_x, _z, lastModified) => listed.push(lastModified)),
         );
-        expect(listed).toEqual([1234567890, 1234567890, 1234567890]);
+        expect(listed).toEqual([0x100000000 + 123, 0x100000000 + 123, 0x100000000 + 123]);
+    });
+
+    it("filters v1 timestamps above the 32-bit range", async () => {
+        const file = join(dir, "r.0.0.v1-boundary.linear");
+        writeFileSync(
+            file,
+            await buildLinearFile(TEST_CHUNKS, {
+                version: 1,
+                newestTimestamp: 0x100000000n + 123n,
+            }),
+        );
+
+        const accepted: [number, number, string][] = [];
+        await new LinearRegion(new StubChunkLoader(), file).iterateAllChunks({
+            filter: (_x, _z, timestamp) => timestamp >= 0x100000000 + 123,
+            accept: (x, z, chunk) => accepted.push([x, z, chunk]),
+        });
+        expect(accepted).toEqual([
+            [0, 0, "linear-0-0"],
+            [1, 0, "linear-1-0"],
+            [0, 2, "linear-0-2"],
+        ]);
     });
 
     it("supports the default loadChunk through iterateAllChunks", async () => {
