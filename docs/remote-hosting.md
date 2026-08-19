@@ -105,7 +105,7 @@ report has to say which one did.
 
 - **Public bind**: this application makes a real TCP connection from *this* computer to
   `<host>:<port>`, the same way anybody else would reach it, using the same `tcpPortProbe` the
-  local web server already proves itself with (`runtime/webserver.ts`). Only once that connection
+  shared TCP probe (`runtime/portProbe.ts`). Only once that connection
   succeeds does the record carry a URL and `verified: true`.
 - **Loopback bind**: this computer cannot reach `127.0.0.1` on somebody else's server at all -
   that is the whole point of choosing it. So the check instead runs **on the remote host itself**,
@@ -225,7 +225,7 @@ container 入面 engine 自己嘅 listen 地址永遠係 `0.0.0.0` — container
 
 remote hosting 有一個本地伺服器永遠冇嘅皺摺:兩個唔同嘅網絡都可以 fail,報告要講明係邊一個。
 
-- **Public bind**:呢個 app 由*呢部*電腦向 `<host>:<port>` 開一條真 TCP 連線,同任何其他人接觸佢嘅方式一樣,用嘅係本地 web server 自證用開嘅同一個 `tcpPortProbe`(`runtime/webserver.ts`)。連線成功咗,個紀錄先會帶 URL 同 `verified: true`。
+- **Public bind**:呢個 app 由*呢部*電腦向 `<host>:<port>` 開一條真 TCP 連線,同任何其他人接觸佢嘅方式一樣,用嘅係共用嘅 `tcpPortProbe`(`runtime/portProbe.ts`)。連線成功咗,個紀錄先會帶 URL 同 `verified: true`。
 - **Loopback bind**:呢部電腦根本掂唔到人哋伺服器嘅 `127.0.0.1` — 揀佢就係為咗咁。所以個檢查改為**喺遠端主機自己度行**,行喺本身已經為其他嘢開咗嘅 SSH 連線上面:一段細細嘅 `bash`/`/dev/tcp` script 問嗰部機自己個 kernel,loopback port 有冇嘢聽緊,答案經已信任嘅通道傳返嚟。呢度嘅 `verified: true` 永遠唔會帶公開 URL — 只有一句 note,寫住可以開 tunnel 嘅確切 `ssh -L` 命令。
 
 無論邊條路,一幅冇回應嘅 hosted 地圖就照直報成咁:`verified: false`、冇 URL、note 講明行咗邊個檢查同埋冇攞到答案 — 唔會因為個 container 啱好啟動咗就當佢係 live。

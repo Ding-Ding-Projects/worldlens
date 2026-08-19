@@ -1,6 +1,7 @@
 # Running the engine on this computer, or in a container
 
-Rendering and the map web server each run one of two ways, and the choice is the user's:
+Rendering can run on this machine or in Docker, and the choice is the user's. The app's embedded
+HTTP server serves completed maps; it does not promise a separate local `-w` web server.
 
 - **Local** — the BlueMap engine runs as a program on this computer, on the Java runtime the
   app found or installed. This is the default and nothing needs to be installed for it beyond
@@ -92,16 +93,22 @@ contents name container paths (`/worlds/overworld`, `/bluemap/web`), and mounts 
 are this machine's — creating `/bluemap/web/maps` on a Windows host silently produces
 `C:\bluemap\web\maps`, and a render then reports an empty output folder nobody can find.
 
-## The web server
+## Serving a rendered map (and the local web server that does not run)
 
-For the web-server role the engine is started with upstream's `-w`, and `webserver.conf` is
-written with `enabled: true` and a port. The two modes differ in exactly one setting and one
-argument:
+The completed render is served through `LocalMapHandler` on the app's embedded HTTP server at
+`/local/{renderId}/...` for both local and Docker execution. The old local `WebServer` class
+started upstream with `-w` and waited for a TCP connection before reporting a URL, but no
+production path ever called it. It is removed with its tests and runtime export; see D21 in
+`design/docs/decisions.md`.
 
-- **Local**: the engine binds `127.0.0.1:<port>`. The URL is `http://127.0.0.1:<port>/`.
-- **Docker**: the engine binds `0.0.0.0:<containerPort>` *inside the container*, and the port is
-  published with `-p 127.0.0.1:<hostPort>:<containerPort>`. The URL is
-  `http://127.0.0.1:<hostPort>/`.
+The launch-planning types for `RuntimeRole: "web-server"` remain because remote hosting over SSH
+still uses that separate plan. They do not create a local promise or a local reachable route.
+If a future feature genuinely needs upstream's live web server, it must add a real owner,
+lifetime, UI/IPC route, restart/repair contract and port-readiness evidence first.
+
+The separate remote-hosting plan binds `0.0.0.0:<containerPort>` inside its container and
+publishes it with `-p 127.0.0.1:<hostPort>:<containerPort>`. That plan is not a local serving
+route and does not change the embedded static-map path described above.
 
 Binding `0.0.0.0` inside a container is not a wider exposure than binding loopback locally,
 because the publish rule is what decides who can reach it, and it publishes to this machine's
@@ -109,7 +116,7 @@ loopback only. Binding `127.0.0.1` *inside* the container would be the container
 — unreachable from the host even with the port published, which is the most common way a
 containerised server "starts fine" and answers nothing.
 
-**A URL is only reported after it has been connected to.** Upstream logs `Starting webserver …`
+**For that separate remote plan, a URL is only reported after it has been connected to.** Upstream logs `Starting webserver …`
 before it binds and reports a bind failure afterwards, so neither the log line nor a
 still-running process is evidence. The app opens a TCP connection to the address a person would
 type, from this machine, and reports the URL only once that succeeds. The three other outcomes —
@@ -243,7 +250,7 @@ worse than losing a render is telling somebody it is on their disk when it is no
 
 ## Verification
 
-`design/packages/app/src/main/runtime/` carries 126 tests, none of which need Docker installed:
+`design/packages/app/src/main/runtime/` carries focused runtime coverage, none of which needs Docker installed:
 
 - `docker.test.ts` — every state of the probe, including both platforms' wordings for an
   unreachable daemon, a permission refusal, output that is not the JSON it asked for, and a
@@ -259,8 +266,6 @@ worse than losing a render is telling somebody it is on their disk when it is no
   for a local run, and that a failed stop never leaves the caller waiting.
 - `config.test.ts` — container paths written into the files while the files are written here, and
   that the engine's own directories are never created on this machine.
-- `webserver.test.ts` — that a URL is reported only after a successful connection, that the
-  container case probes the published host port, and the three ways a start can honestly fail.
 - `handoff.test.ts` — a record round-trips everything a reattach needs; a truncated, version-bumped
   or name-less one reads as **absent** rather than as a guess; a remote record whose host will not
   parse is refused rather than degraded to a local one, so `docker stop` is never sent to this
@@ -284,7 +289,7 @@ worse than losing a render is telling somebody it is on their disk when it is no
 - [Automatic dependency provisioning](./dependency-provisioning.md) — the Download Java button that
   gets a machine with no JVM ready for the local route this article describes, without needing
   Docker at all.
-- [Automatic repair when a render or the web server fails to start](./automatic-repair.md) — what
+- [Automatic repair when a render or hosting operation fails](./automatic-repair.md) — what
   happens next when one of these runs does not start.
 - [Renders that survive being interrupted](./resumable-renders.md) — what a cancelled or crashed
   render leaves behind, and how the next one resumes.
@@ -342,16 +347,21 @@ Windows 同 Linux 兩邊講「daemon 掂唔到」嘅寫法都認得（`open //./
 
 Container 用唔到本機 run 嗰份 config：`C:\Users\me\saves\world` 喺入面根本唔存在。所以 containerised 嘅 run 會喺呢部機度寫**第二個 config 資料夾**，入面啲內容寫嘅係 container 路徑（`/worlds/overworld`、`/bluemap/web`），然後將佢 mount 去 `/bluemap/config`。目錄淨係喺本機 run 嗰陣先會建立，因為嗰陣引擎啲路徑真係呢部機嘅路徑 — 喺 Windows 主機上面整 `/bluemap/web/maps` 會靜靜雞整咗個 `C:\bluemap\web\maps` 出嚟，然後次 render 就會報一個冇人搵得返嘅空輸出資料夾。
 
-### Web server
+### Serving a rendered map（同埋唔會行嘅本機 web server）
 
-做 web-server 呢個角色嗰陣，引擎係用 upstream 嘅 `-w` 啟動，而 `webserver.conf` 會寫住 `enabled: true` 同一個 port。兩種模式淨係差一個設定同一個參數：
-
-- **Local**：引擎綁 `127.0.0.1:<port>`，URL 係 `http://127.0.0.1:<port>/`。
-- **Docker**：引擎喺 *container 入面*綁 `0.0.0.0:<containerPort>`，個 port 用 `-p 127.0.0.1:<hostPort>:<containerPort>` 發佈出嚟，URL 係 `http://127.0.0.1:<hostPort>/`。
+完成咗嘅 render 由 app 自己個 embedded HTTP server 經 `LocalMapHandler` 喺
+`/local/{renderId}/...` 提供，local 同 Docker 都係同一條路。本機嗰個 `WebServer` class
+以前用 `-w` 開多次 upstream engine，等 TCP 連線成功先報 URL，但由頭到尾冇 production
+path 真係叫過佢；而家連 class、test 同 runtime export 都移除，詳情見
+`design/docs/decisions.md` 嘅 D21。Remote hosting 嘅 `role: "web-server"` 係另一條 SSH
+計劃，唔係本機 route，亦唔會製造本機 promise。將來真係要 live web server，就要先有
+真正 owner、lifetime、UI/IPC、restart/repair 同 port-ready 證據。
 
 喺 container 入面綁 `0.0.0.0` 唔會比本機綁 loopback 暴露得更廣，因為決定邊個掂到佢嘅係嗰條 publish 規則，而佢淨係發佈去呢部機嘅 loopback。反而喺 container *入面*綁 `127.0.0.1` 係綁咗 container 自己嗰個 loopback — 就算個 port 發佈咗，喺 host 都掂唔到，而呢個正正係一個 containerised server 「明明開得好地地」但乜都唔應嘅最常見原因。
 
-**一定要真係連得通咗先會報個 URL。** Upstream 喺未 bind 之前就 log 咗 `Starting webserver …`，bind 失敗係之後先報，所以嗰行 log 同一個仲行緊嘅 process 都唔算證據。個 app 會由呢部機開一條 TCP 連線去人真係會打嗰個地址，成功咗先報個 URL。另外三種結果 — process 先行退出咗、個 port 一直唔應、根本冇 port 可以發佈 — 都會照佢哋本身嚟報，連引擎自己嘅 exit code 同最後幾句說話。
+Remote hosting 先會有 web-server URL；本機 static serving 唔會起第二個 JVM、唔會守第二個
+port，亦冇 local URL readiness promise。Remote 路線仍然要等真正 TCP 連線成功先報 URL，
+唔可以淨係信 `Starting webserver …` 嗰行 log 或者一個仲行緊嘅 process。
 
 ### 取消
 
@@ -417,7 +427,6 @@ Docker 冇裝：Docker 會標示為不可用兼講明原因，本機路線照樣
 - `plan.test.ts` — 確切嘅 mount 清單、邊啲 mount 係唯讀、container 入面嘅參數、`--init`、publish 規則，同埋拒絕規劃一次會 mount 家目錄嘅 launch。
 - `process.test.ts` — 同一份輸出之下，本機 run 同 containerised run 產生**完全一樣**嘅訊號流；取消嗰陣 containerised 會問 daemon 攞 container 而本機 run 唔會；以及一次失敗嘅 stop 永遠唔會令 caller 等埋一世。
 - `config.test.ts` — 檔案喺呢邊寫嘅同時，入面寫嘅係 container 路徑；以及引擎自己啲目錄永遠唔會喺呢部機建立。
-- `webserver.test.ts` — 一定要連線成功咗先報 URL、container 情況探測嘅係已發佈嘅 host port，同埋一次啟動可以老實失敗嘅三種方式。
 - `handoff.test.ts` — 一份紀錄 round-trip 得返 reattach 需要嘅所有嘢；一份被截斷、version 升咗或者冇名嘅紀錄會讀成**唔存在**而唔係當估計；一份 host 解析唔到嘅遠端紀錄會被拒絕而唔係降級當本機處理，所以 `docker stop` 永遠唔會帶住一個淨係另一部機先有嘅名發去呢部電腦；紀錄畀人接手嗰陣會取得擁有權，所以第二次 reattach 攞唔到佢；以及一份寫唔到嘅紀錄永遠唔會令次 render 失敗。
 - `attach.test.ts` — 狀態同 exit code 係喺**同一次**呼叫入面問，所以佢哋描述同一刻；`--tail all`；檢查嘅每個狀態，包括一個冧咗嘅 daemon 永遠唔會讀成一個冇咗嘅 container；以及每個決定產生嗰句說話。
 - `reattach.test.ts` — **app 啟動時仲行緊嘅 container**，會用同樣嘅事件同同樣嘅百分比報返；**喺 app 離開期間完咗嗰個**，佢嘅輸出會收集而唔會掉；**daemon 已經冇咗嗰個**，會直接講明；**一次去到 reattach container 嘅取消**，會問 daemon 並且報做取消而唔係失敗；一個引擎未完成就結束嘅 log 會報做失敗；一次乜都搵唔到嘅收集會報做失敗；一個突然唔出聲嘅 daemon 會令紀錄原封不動；以及一個冇紀錄嘅 container 會被點名而唔會被停。
@@ -426,7 +435,7 @@ Docker 冇裝：Docker 會標示為不可用兼講明原因，本機路線照樣
 ### 推薦文章
 
 - [Automatic dependency provisioning](./dependency-provisioning.md) — 嗰粒 Download Java 掣，令一部冇 JVM 嘅機準備好行本文講嘅本機路線，完全唔使 Docker。
-- [Automatic repair when a render or the web server fails to start](./automatic-repair.md) — 呢啲 run 開唔到嗰陣，之後會點。
+- [Automatic repair when a render or hosting operation fails](./automatic-repair.md) — 呢啲 run 或 hosting 開唔到嗰陣，之後會點。
 - [Renders that survive being interrupted](./resumable-renders.md) — 一次被取消或者 crash 咗嘅 render 留低啲乜，下次點續。
 - [Rendering on a remote host](./remote-render.md) — 同一個 container 問題，不過經 SSH，仲加埋一個可以中斷再續嘅世界上載。
 - [Rendering a world in GitHub Actions](./render-in-actions.md) — 引擎喺呢部電腦以外行嘅另一個地方。

@@ -5,17 +5,29 @@ export const dockerAndLocal: Article = {
     id: "docker-and-local",
     title: "Choosing where the engine runs: this machine, or a container",
     summary:
-        "Rendering and the map web server can run as a program on this computer, or the same jar and the same arguments inside a Docker container, with identical reporting either way.",
+        "Rendering can run on this computer or inside a Docker container; the embedded HTTP server serves completed maps, without a separate local -w web-server promise.",
     category: "application",
     status: "shipped",
     statusNote:
-        "The probe, the mount planning, the process handling, the config writer, the web server binding and the reattachment machinery are built and covered by 126 tests in design/packages/app/src/main/runtime/, none of which need Docker installed. Nobody has run a real render against a real Docker daemon from a packaged build, so that end-to-end path is unverified even though every piece of it is.",
+        "The probe, mount planning, process handling, config writer and reattachment machinery are covered by the runtime suite; the embedded static serving path is separate. Nobody has run a real render against a real Docker daemon from a packaged build, so that end-to-end path remains unverified.",
 
     sections: [
         {
             id: "behaviour",
             title: "Behaviour",
             blocks: [
+                {
+                    kind: "paragraph",
+                    content: [
+                        "A completed render is served through the app's embedded HTTP server by ",
+                        { code: "LocalMapHandler" },
+                        " at ",
+                        { code: "/local/{renderId}/..." },
+                        " in both Local and Docker modes. The app does not keep a second JVM alive for a local ",
+                        { code: "-w" },
+                        " server, and it does not report a local web-server URL or readiness promise.",
+                    ],
+                },
                 {
                     kind: "paragraph",
                     content: [
@@ -126,17 +138,21 @@ export const dockerAndLocal: Article = {
                             ],
                         },
                         {
-                            term: "The web server",
+                            term: "The completed-map serving path",
                             description: [
-                                "Local binds ",
-                                { code: "127.0.0.1:<port>" },
-                                " directly. Docker binds ",
+                                "The embedded server mounts ",
+                                { code: "LocalMapHandler" },
+                                " at ",
+                                { code: "/local/{renderId}/..." },
+                                " for local and Docker renders. The retired local ",
+                                { code: "WebServer" },
+                                " class and its local URL/readiness promise are not a reachable feature. Remote ",
+                                { code: "RuntimeRole: \"web-server\"" },
+                                " planning remains a separate SSH-hosting concern. Docker binds ",
                                 { code: "0.0.0.0:<containerPort>" },
                                 " inside the container and publishes it with ",
                                 { code: "-p 127.0.0.1:<hostPort>:<containerPort>" },
-                                ", so the address reachable from outside is loopback either way. A URL is ",
-                                "reported only after the app has opened a real connection to it, never from ",
-                                "a log line or a still-running process alone.",
+                                ", and its remote plan reports a URL only after a real connection, never from a log line or a still-running process alone.",
                             ],
                         },
                         {
