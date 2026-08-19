@@ -385,17 +385,20 @@ captures. It records gaps only and does not claim any acceptance row is green.
 - **Receipt:** setup failed because the configured `actions/setup-node` SHA was invalid.
 - **Skipped:** final merge verification, lowres rebuild, Pages publication, and cleanup.
 
-The exact source correction removes one stray `e` from that SHA. It remains source-only until a
-rerun reaches receipt verification and reads back the generated receipt. The run therefore does
-not prove a final map, public result, or hosted-runner disk boundary. Issue #67 remains open for
-that rerun and the remaining integrity, ordering, resumability, disk, cleanup, and publication
-evidence. This lane ran no tests, captures, build, or packaged interaction.
+The exact source correction removes one stray `e` from that SHA. That historical run remains a
+failed receipt setup and does not provide terminal proof. Issue #67 remains open for the still-
+unverified Pages publication and near-limit refusal boundary. This lane ran no tests, captures, build,
+or packaged interaction.
 
 The corrected rerun `32299613336` did reach **361/361** shards and **12/12** merge groups, then
 failed receipt validation because the downloader fetched only `rendered-map`. A multi-group render
 publishes `map-lowres` plus `partial-hires-*`, so the assembled receipt recorded `hiresTileCount=0`
-and `metadata=false`. The source repair now downloads `map-lowres` and the partial-hires artifacts
-conditionally; the receipt and final lowres/Pages/cleanup path still require a rerun.
+and `metadata=false`. The source repair conditionally downloads `map-lowres` and the partial-hires
+artifacts. Its terminal rerun is now [32309098236](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32309098236):
+**361/361** shards, **12/12** merge groups, a successful hosted receipt, `91,809/91,809` hires
+tiles, matching metadata, verified textures, `publicResult=openable`, and cleanup with resumable state
+preserved. The artifact-only dispatch skipped Pages publication; the receipt proves positive disk fit
+and cleanup, not a near-limit refusal test.
 
 廣東話：`32292039976` 完成 Wave 1 **256/256**、Wave 2 **105/105**，同埋 **12/12** 個 merge
 groups；receipt setup 因為 `actions/setup-node` SHA 無效而失敗，final merge verification、
