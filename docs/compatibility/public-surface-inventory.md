@@ -60,6 +60,7 @@ or callable for migration, but new integrations must use the replacement.
 
 - Non-Windows installers, operating-system data layouts, architectures, and deployment targets are
   outside the Windows-only 1.0 contract.
+- **Linux desktop packaging and support (issue [#81](https://github.com/Ding-Ding-Projects/worldlens/issues/81)) are explicitly deferred and unverified.** The current release records contain no Linux package, fresh-environment install/uninstall/update run, Linux credential-store integration proof, display-server proof, or headless-capture proof. Platform-neutral TypeScript execution and Node-level checks must not be interpreted as Linux desktop support. Until a separately scoped Linux workstream supplies the issue's distribution, architecture, display-server, package, updater, credential-store, filesystem, external-editor, Docker/SSH, and runtime evidence, the public 1.0 promise remains Windows x64 only.
 - Undocumented JavaScript exports, preload/IPC channel names, private HTTP routes, workflow job/step
   IDs, cache keys, temporary files, DOM selectors, and CSS classes remain Internal.
 - Add-on compatibility is not implied by the existence of TypeScript package exports. It becomes a
