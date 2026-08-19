@@ -27,6 +27,8 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Merge issue #89 typed banner data - [`025d68f017`](https://github.com/Ding-Ding-Projects/worldlens/commit/025d68f017c5426b8ec02098f8f6213bd818bb7b) _(summary of 2 commits, also listed here)_
+- Type banner pattern and color data across Minecraft eras - [`47c3f8a523`](https://github.com/Ding-Ding-Projects/worldlens/commit/47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b)
 - Merge issue #88 LinearRegion timestamp semantics - [`ff2d72f1b6`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff2d72f1b635aac7efe0831315919a03461b49b7) _(summary of 3 commits, also listed here)_
 - Resolve LinearRegion timestamp widths and filtering - [`b630006961`](https://github.com/Ding-Ding-Projects/worldlens/commit/b6300069619fe196513cbcb374e9f13355d210cb)
 
@@ -80,7 +82,6 @@ Tagged at [`93aa69d192`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Documentation
 
-- Issue #89: document the typed, ordered banner compatibility contract across supported Minecraft eras; implementation, fixtures, round-trip proof, and real patterned-banner rendering evidence remain pending. See [`design/docs/banner-patterns.md`](design/docs/banner-patterns.md) and [issue #89](https://github.com/Ding-Ding-Projects/worldlens/issues/89). / Issue #89：記錄支援 Minecraft 年代之 typed、有次序旗幟圖案兼容合約；實作、fixtures、round-trip 證明，以及真實花旗渲染證據仍然待完成。見 [`design/docs/banner-patterns.md`](design/docs/banner-patterns.md) 同 [issue #89](https://github.com/Ding-Ding-Projects/worldlens/issues/89)。
 - Refresh pre-rewrite Pages capture - [`392eca4dfa`](https://github.com/Ding-Ding-Projects/worldlens/commit/392eca4dfa2189a4d313f38fede13f797a6511dc)
 - Recapture issue 107 historical Pages baseline - [`79193123b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/79193123b1f8b0c2d8c099062ffbd0c5284499a6)
 - Refresh issue 107 post-replacement capture - [`2b890a388e`](https://github.com/Ding-Ding-Projects/worldlens/commit/2b890a388ed1440bafac9d4529e2698ff9b4dc1e)

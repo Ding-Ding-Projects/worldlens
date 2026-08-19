@@ -26,6 +26,27 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "025d68f017c5426b8ec02098f8f6213bd818bb7b",
+        shortSha: "025d68f017",
+        date: "2026-08-19T02:54:21-04:00",
+        subject: "Merge issue #89 typed banner data",
+        details: "Banner layers keep their order, colors, and era-specific identities without repainting unknown future values. The banner can wave; the parser no longer waves away the details.\n\n廣東話：banner layers 保留次序、顏色同年代身份，未知未來值唔會畀人亂油過。面旗可以揮，parser 唔可以再揮走啲細節。",
+        category: "docs",
+        areas: ["docs", "engine"],
+        files: 5,
+        summarizes: 2,
+    },
+    {
+        sha: "47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b",
+        shortSha: "47c3f8a523",
+        date: "2026-08-19T02:49:54-04:00",
+        subject: "Type banner pattern and color data across Minecraft eras",
+        details: "Banner layers now keep their order while legacy compact tokens and current namespaced identifiers travel through typed NBT fields, with unknown future values kept intact instead of being dressed up as defaults. The compatibility article and fixtures keep the acceptance boundary visible, so the banner cannot quietly wave a white flag and call the job done.\n\n旗幟圖案而家有正式 typed 顏色同 pattern 資料，legacy 同 current 名稱各行各路，未知未來值照樣原封不動保留，唔會亂咁變白色扮冇事。Compatibility docs 同 fixtures 一齊寫低條界線，等面旗唔可以揮住白旗就話自己驗收完。",
+        category: "docs",
+        areas: ["docs", "engine"],
+        files: 5,
+    },
+    {
         sha: "ff2d72f1b635aac7efe0831315919a03461b49b7",
         shortSha: "ff2d72f1b6",
         date: "2026-08-19T02:53:27-04:00",
