@@ -1124,6 +1124,25 @@ carries the reasoning behind every "part done" below.
 | Contracts | The five product contracts in [`design/docs/contracts/`](design/docs/contracts/README.md)                                                                           | **Shipped.** Issues #6 to #13 are closed, each with its evidence on the issue                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Delivery  | Sign-in, private worlds, split archives, resumable renders, Actions rendering, remote and container rendering, world sources, updates, projects, packaging pipeline | **Landed.** Not a plan phase; see `design/ROADMAP.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
+### Issue #89 — typed banner pattern compatibility
+
+The typed banner reader preserves ordered legacy/current and unknown values.
+Malformed list elements are skipped individually after one bounded diagnostic,
+later valid layers keep their order, and diagnostic history is capped at 32;
+reader-state failures still propagate. The focused acceptance record remains
+5/5. This records update ran no new tests, builds, packaged interactions, or
+captures. Real NBT/oracle comparison and packaged same-world render,
+restart/reopen, and diagnostic read-back remain open, so the issue is not closed.
+
+### 廣東話同步
+
+Typed banner reader 會保留有次序嘅 legacy/current 同未知值；壞 list element
+逐層跳過、留一條 bounded diagnostic，後面 valid layer 唔會亂次序，diagnostics
+最多 32 條，reader state error 繼續報。Focused acceptance 仍然係 5/5。今次
+records update 冇加跑 tests、build、packaged interaction 或 captures；真 NBT/
+oracle、packaged same-world render、restart/reopen 同 diagnostic read-back 仲未
+齊，所以 issue 未關。
+
 Deferred verification flag: the lz4-java block-framing constants get oracle validation against
 upstream's own CLI, which now happens on every local render rather than only when someone runs
 the harness. That is recorded in

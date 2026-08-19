@@ -1,5 +1,26 @@
 # Handoff
 
+## Issue #89 — typed banner patterns: lenient malformed-layer boundary
+
+The typed banner reader preserves ordered legacy/current and unknown pattern and
+colour data. A malformed list element is consumed, recorded as one bounded
+diagnostic, skipped without inventing a default, and later valid layers continue
+in order. Diagnostic history retains at most 32 messages and reader-state errors
+still propagate. The previously recorded focused acceptance result remains 5/5;
+this records update ran no new tests, builds, packaged interaction, or captures.
+Real NBT/oracle comparison and packaged same-world render, restart/reopen, and
+diagnostic read-back evidence remain open, so Issue #89 stays open.
+
+### 廣東話同步
+
+Typed banner reader 會保留 legacy/current 同未知 pattern、colour 嘅次序同資料。
+壞咗嘅 list element 會 consume 完、留一條 bounded diagnostic、跳過而唔亂估
+default；後面啱嘅 layer 照次序行。Diagnostic 最多 32 條，reader state error
+仍然會報。之前 focused acceptance 仍然係 5/5；今次 records update 冇加跑
+tests、build、packaged interaction 或 captures。真 NBT/oracle、same-world
+packaged render、restart/reopen 同 diagnostic read-back 仲未有，所以 Issue #89
+繼續 open。
+
 ## CI artifact-only workflow update (2026-08-19)
 
 The visible workflow diff reduces `.github/workflows/ci.yml` to five retained jobs: `check` is a

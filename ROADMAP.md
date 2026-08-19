@@ -1,5 +1,25 @@
 # Roadmap
 
+## Issue #89 — typed banner patterns
+
+- **Status:** Typed ordered layers and focused 5/5 acceptance remain recorded;
+  Issue #89 is open pending real-world and packaged proof.
+- **Malformed-layer boundary:** The lenient list adapter skips only the malformed
+  element after recording one parser diagnostic; later valid layers retain order,
+  reader-state failures propagate, and diagnostic history is bounded at 32.
+- **Evidence boundary:** This records-only update ran no new tests, builds,
+  packaged interactions, or captures. Real NBT worlds, oracle comparison,
+  packaged same-world render, restart/reopen, and diagnostic read-back remain open.
+
+### 廣東話同步
+
+Issue #89 嘅 typed ordered layers 同 focused 5/5 acceptance 仍然有 records，
+但 real-world 同 packaged proof 未齊，issue 仲係 open。Lenient adapter 只會跳過
+壞嗰一層，留一條 parser diagnostic，後面 valid layer 保持次序；reader state
+error 繼續 propagate，diagnostics 最多 32 條。今次 records-only update 冇加跑
+tests、build、packaged interaction 或 captures；真 NBT、oracle、packaged
+same-world render、restart/reopen 同 diagnostic read-back 仲未有。
+
 ## CI artifact-only workflow update (2026-08-19)
 
 - **Workflow shape:** `.github/workflows/ci.yml` now retains exactly five jobs: `check` (a separate
