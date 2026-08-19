@@ -6,6 +6,7 @@ import type { SchoolModeResult } from "../main/schoolMode/index.js";
 import type {
     CiBootstrapEvent,
     CiBootstrapResult,
+    CiSyncFailure,
     CiOwnerChoicesAnswer,
     CiPreflight,
     CiRepositoryNameAvailability,
@@ -15,6 +16,8 @@ import type {
     CiSyncRequest,
     CiSyncResult,
     CiSyncState,
+    CloudRenderConfigInput,
+    CloudRenderConfigSaveResult,
 } from "../main/cirender/index.js";
 import type { GhRepositoryChoice, GhRepositoryCreateResult } from "../main/ghcli/repositories.js";
 import type {
@@ -2255,6 +2258,17 @@ interface BackupSourceReport {
     readonly skipped: readonly { readonly name: string; readonly reason: string }[];
 }
 
+type CiCloudRenderConfigInput = Omit<CloudRenderConfigInput, "worldFolder">;
+
+type CiCloudRenderConfigResult =
+    | {
+          readonly ok: true;
+          readonly saved: Extract<CloudRenderConfigSaveResult, { readonly ok: true }>;
+          readonly preflight: CiPreflight | null;
+          readonly preflightFailure: CiSyncFailure | null;
+      }
+    | { readonly ok: false; readonly failure: { readonly code: string; readonly message: string } };
+
 interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
@@ -2912,6 +2926,14 @@ interface WorldlensBridge {
      */
     activeCiRenders(): Promise<readonly string[]>;
     onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
+    /** Builds, atomically saves and history-records a missing project through the main process. */
+    createCiCloudConfig(request: {
+        readonly operationId: string;
+        readonly request: CiSyncRequest;
+        readonly config: CiCloudRenderConfigInput;
+    }): Promise<CiCloudRenderConfigResult>;
+    /** Cancels a cloud-config operation before its atomic write boundary. */
+    cancelCiCloudConfig(operationId: string): Promise<boolean>;
 
     /**
      * The signed-in login plus every organisation, for the setup card's owner field.
@@ -3425,6 +3447,10 @@ const bridge: WorldlensBridge = {
             ipcRenderer.off("cirender:event", forward);
         };
     },
+    createCiCloudConfig: (request) =>
+        ipcRenderer.invoke("cirender:createCloudConfig", request),
+    cancelCiCloudConfig: (operationId) =>
+        ipcRenderer.invoke("cirender:cancelCloudConfig", operationId),
 
     ciRenderOwners: (accountId) =>
         ipcRenderer.invoke("cirender:owners", accountId === undefined ? undefined : { accountId }),

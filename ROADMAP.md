@@ -1,5 +1,11 @@
 # Roadmap
 
+## Issue #57 — cloud-first project configuration
+
+Implementation and focused verification are complete and integrated. Remaining before closure:
+exercise the packaged wizard against a real cloud dispatch and read the result back without a prior
+local render.
+
 ## Issue #64 delivery boundary — 2026-08-19
 
 - **Delivery inspection:** the issue-owned checkout at `d004f3ca15d7d7a9121df370e00c955072489098`

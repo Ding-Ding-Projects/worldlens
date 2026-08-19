@@ -1,5 +1,13 @@
 # Handoff
 
+## Issue #57 cloud-first configuration — 2026-08-19
+
+The desktop now creates a complete `worldlens.project.json` for cloud rendering before any local
+render. The guided UI uses the main-process validation, atomic save and local history path, exposes
+bounded cancellation, and returns to the existing preflight with the account/repository/world
+request preserved. The app workspace build passed and the focused contract passed 4 files / 134
+tests. A real hosted dispatch from this new wizard remains the final issue-specific acceptance step.
+
 ## Issue #66 — SQL cross-engine evidence record (2026-08-19)
 
 The durable sanitized matrix report is

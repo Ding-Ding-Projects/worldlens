@@ -1,5 +1,12 @@
 # Handoff
 
+## Issue #57 cloud-first configuration — 2026-08-19
+
+`CloudRenderConfigWizard.vue` sends canonical values through the packaged preload bridge to the
+main-process `cloudConfig.ts` validator/save path. Atomic project writing, embedded/local history,
+bounded cancellation, and preserved preflight inputs are implemented. Focused verification passed
+134 tests; a real hosted dispatch from the packaged flow remains open evidence.
+
 ## Issue #66 — SQL cross-engine evidence record (2026-08-19)
 
 The durable sanitized issue-#66 matrix report is [`docs/sql-cross-engine-compatibility.report.json`](../docs/sql-cross-engine-compatibility.report.json), started at `2026-08-19T12:28:28.726Z`, finished at `2026-08-19T12:30:20.049Z`, with seed `1`, fixture size `64`, `postgres:17.6`, total `111323 ms`, exit code `0`, tested commit `f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java `25.0.4`. All four direction counters are comparison-green: 1 hires tile, 9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences per row. Direction 1 compares six render-state records through `diffRenderState`; direction 2 explicitly does not compare render-state through the Java HTTP boundary. All direction-1, direction-2, and incompatible-schema cleanup targets report `ok=true`, `state=removed`, and `workRootRemoved=true`. See [`docs/sql-cross-engine-compatibility.md`](../docs/sql-cross-engine-compatibility.md) for the exact evidence table and acceptance boundaries.

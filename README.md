@@ -178,6 +178,26 @@ of following yesterday's failure forever.
 
 </details>
 
+### Cloud rendering can be configured before the first local render
+
+When a world has no project file, the cloud-render preflight now offers a guided **Create cloud
+render configuration** path. It writes the normal versioned project schema with generated map,
+storage, web and render defaults, while allowing the user to review names, dimensions, enabled
+maps, paths, threads and render options. The path does not start Java, download a JDK or client,
+or perform a local render.
+
+The generated project is validated before saving. Existing readable projects remain unchanged;
+unreadable or newer-format projects are reported rather than overwritten. The write uses a unique
+temporary sibling and an atomic replacement with bounded transient-sharing retries, then records
+the save in the isolated per-world local history. If history recording fails, the saved project is
+kept and the result says that its history entry is unavailable. Cancellation before the write
+leaves the world untouched, while cancellation at the write boundary reports the actual saved
+outcome. After saving, the app returns to the same preflight with the original world, repository,
+account and map choices, so those values are not entered twice.
+
+The source implementation and preload reachability are present in the issue #57 lane. Packaged
+application and real hosted-workflow evidence remain to be recorded before the issue is closed.
+
 Release-tag pushes still run CI, but skip only the generated-changelog freshness assertion. A tag
 is created after the commit it names, so requiring that commit to contain an entry derived from its
 own future tag is impossible. Branch and pull-request runs remain strict, and tag runs retain every
