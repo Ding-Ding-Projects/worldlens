@@ -9,7 +9,9 @@ import {
     type ObjectSchema,
     type TypeAdapter,
 } from "@worldlens/nbt";
+import { Key } from "@worldlens/shared";
 import { MCABlockEntity, MCA_BLOCK_ENTITY_FIELDS } from "./MCABlockEntity.js";
+import { KEY_TOKEN } from "../data/KeyDeserializer.js";
 
 export const BANNER_BLOCK_ENTITY_TOKEN: TypeToken<BannerBlockEntity> =
     TypeToken.of("BannerBlockEntity");
@@ -218,6 +220,16 @@ const BANNER_COLOR_ADAPTER: TypeAdapter<BannerColor> = {
     },
 };
 
+const BANNER_KEY_ADAPTER: TypeAdapter<Key> = {
+    read(reader: NBTReader): Key {
+        return Key.parse(reader.nextString(), Key.MINECRAFT_NAMESPACE);
+    },
+
+    write(value: Key, writer: NBTWriter): void {
+        writer.valueString(value.getFormatted());
+    },
+};
+
 /*
 public enum Color {
     WHITE, ORANGE, MAGENTA, LIGHT_BLUE, YELLOW, LIME, PINK, GRAY, LIGHT_GRAY, CYAN, PURPLE, BLUE, BROWN, GREEN,
@@ -262,6 +274,7 @@ const BANNER_BLOCK_ENTITY_SCHEMA: ObjectSchema<BannerBlockEntity> = {
 };
 
 export function registerBannerBlockEntitySchemas(nbt: BlueNBT): void {
+    nbt.register(KEY_TOKEN, BANNER_KEY_ADAPTER);
     nbt.register(PATTERN_TOKEN, PATTERN_SCHEMA);
     nbt.register(BANNER_BLOCK_ENTITY_TOKEN, BANNER_BLOCK_ENTITY_SCHEMA);
 }

@@ -20,6 +20,11 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Rendering and world data
+
+- Merge issue #89 banner compatibility proof - [`e7810cf0b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7810cf0b1d4b22964ef83ccccaf55f55261a837) _(summary of 2 commits, also listed here)_
+- Add focused banner compatibility acceptance tests - [`d14203e7e4`](https://github.com/Ding-Ding-Projects/worldlens/commit/d14203e7e40a2ae4851b8bfe3476450609451570)
+
 ### Server, CLI and configuration
 
 - Merge issue #68 queue-priority proof - [`d652512fae`](https://github.com/Ding-Ding-Projects/worldlens/commit/d652512fae211b858583442b80c9dc0c80922f75) _(summary of 2 commits, also listed here)_
@@ -31,6 +36,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Click the visible private render action directly - [`8fa04b7819`](https://github.com/Ding-Ding-Projects/worldlens/commit/8fa04b7819054c22af2032cd92fef5c17f9f1884)
 - Capture live Pages failures and private render setup - [`53af78ae93`](https://github.com/Ding-Ding-Projects/worldlens/commit/53af78ae93b33a006320e36e4d2d791b4631f0d4)
 - Target repository visibility controls by keyboard - [`17cbf0a66b`](https://github.com/Ding-Ding-Projects/worldlens/commit/17cbf0a66b1bac95147d08eae69c13c0aa0040df)
 - Make cloud-render recovery evidence deterministic - [`f729c8ce45`](https://github.com/Ding-Ding-Projects/worldlens/commit/f729c8ce45bef1859de06b5dfa3503ba860ea6dd)

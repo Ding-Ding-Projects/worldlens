@@ -26,6 +26,37 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "e7810cf0b1d4b22964ef83ccccaf55f55261a837",
+        shortSha: "e7810cf0b1",
+        date: "2026-08-19T05:48:40-04:00",
+        subject: "Merge issue #89 banner compatibility proof",
+        details: "Executable fixtures now cover ordered layers, every colour, legacy and current NBT shapes, malformed entries, unknown future identifiers, and round-trip encoding. The banner can keep waving, but it can no longer hand-wave the data.\n\n廣東話：可執行 fixture 而家覆蓋 layer 次序、全部顏色、legacy 同 current NBT、壞資料、未知未來 identifier 同 round-trip。面旗照樣可以揮，但資料唔可以再靠揮手扮過關。",
+        category: "engine",
+        areas: ["engine"],
+        files: 2,
+        summarizes: 2,
+    },
+    {
+        sha: "d14203e7e40a2ae4851b8bfe3476450609451570",
+        shortSha: "d14203e7e4",
+        date: "2026-08-19T05:46:22-04:00",
+        subject: "Add focused banner compatibility acceptance tests",
+        details: "The banner fixture now has a small executable witness: ordered layers, sixteen colors, legacy and current field names, opaque future values, malformed-tag rejection, and resource-path caching all get a seat at the test table. A standalone banner schema also registers its key adapter, so the round trip does not trip over the furniture before reaching the flag.\n\n旗幟 fixture 而家有細細個但真係郁得嘅 acceptance witness：layer 次序、十六色、legacy/current 欄位名、未知未來值、壞 tag 拒絕，同 resource path cache 全部有位坐。Standalone banner schema 亦註冊埋 key adapter，round-trip 唔會未掂到旗就先俾 null 家具絆倒。",
+        category: "engine",
+        areas: ["engine"],
+        files: 2,
+    },
+    {
+        sha: "8fa04b7819054c22af2032cd92fef5c17f9f1884",
+        shortSha: "8fa04b7819",
+        date: "2026-08-19T05:45:53-04:00",
+        subject: "Click the visible private render action directly",
+        details: "The existing-repository plan now activates the in-frame Render on GitHub button with Lowlevel mouse input and still refuses to pass until a new row appears. Synthetic Space had the focus ring and none of the courage.\n\n現有 repository 計劃而家用 Lowlevel 滑鼠直接撳畫面內嘅 Render on GitHub，冇新 row 就絕對唔當成功。之前粒 Space 有焦點圈，但係冇膽量真係開工。",
+        category: "build",
+        areas: ["build"],
+        files: 2,
+    },
+    {
         sha: "d652512fae211b858583442b80c9dc0c80922f75",
         shortSha: "d652512fae",
         date: "2026-08-19T05:43:48-04:00",
