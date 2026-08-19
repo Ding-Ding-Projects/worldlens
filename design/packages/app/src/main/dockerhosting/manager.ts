@@ -248,7 +248,7 @@ export class DockerHostingManager {
             const created = inspected.ok ? inspected : await this.runner(this.docker, ["volume", "create", "--label", `${DOCKER_HOSTING_LABEL}=true`, "--label", `${DOCKER_HOSTING_OWNER_LABEL}=${this.owner}`, volume]);
             if (!created.ok) return { ok: false, failure: failure("command-failed", `Docker could not create owned volume '${volume}'.`, outputDetail(created)) };
         }
-        const args = ["create", "--label", `${DOCKER_HOSTING_LABEL}=true`, "--label", `${DOCKER_HOSTING_OWNER_LABEL}=${this.owner}`, "--label", `${DOCKER_HOSTING_INSTANCE_LABEL}=${request.id}`, "--label", `${DOCKER_HOSTING_NAME_LABEL}=${request.name}`, "--label", `${DOCKER_HOSTING_VERSION_LABEL}=1`, "--label", `com.worldlens.fingerprint=${fingerprint}`, ...this.portArgs(ports), ...this.volumeArgs(request.volumes ?? []), request.image, "sleep", "infinity"];
+        const args = ["create", "--label", `${DOCKER_HOSTING_LABEL}=true`, "--label", `${DOCKER_HOSTING_OWNER_LABEL}=${this.owner}`, "--label", `${DOCKER_HOSTING_INSTANCE_LABEL}=${request.id}`, "--label", `${DOCKER_HOSTING_NAME_LABEL}=${request.name}`, "--label", `${DOCKER_HOSTING_VERSION_LABEL}=1`, "--label", `com.worldlens.fingerprint=${fingerprint}`, ...this.portArgs(ports), ...this.volumeArgs(request.volumes ?? []), request.image];
         const output = await this.runner(this.docker, args);
         if (!output.ok) return { ok: false, failure: failure("command-failed", "Docker could not create this app-owned instance.", outputDetail(output)) };
         const refreshed = await this.inspectById(request.id);

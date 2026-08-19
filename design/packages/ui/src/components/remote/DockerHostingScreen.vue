@@ -207,7 +207,7 @@ function exportSelection(): void {
                     <v-card class="mb-docker-hosting__create" variant="outlined">
                         <v-card-title>{{ t("dockerHosting.create.title", "Create an app-owned container") }}</v-card-title>
                         <v-card-text>
-                            <p class="mb-docker-hosting__create-help">{{ t("dockerHosting.create.help", "Choose real Docker data below. Creation uses a digest-pinned image, loopback-only ports, and installation-owned volumes; no arbitrary shell command is accepted.") }}</p>
+                            <p class="mb-docker-hosting__create-help">{{ t("dockerHosting.create.help", "Choose real Docker data below. Creation uses the selected image's declared ENTRYPOINT/CMD, a digest-pinned image, loopback-only ports, and installation-owned volumes; Create runs no arbitrary command and does not start the container. Use Start explicitly.") }}</p>
                             <div class="mb-docker-hosting__create-grid">
                                 <v-text-field v-model="createId" :label="t('dockerHosting.create.id', 'Instance id')" :error-messages="createIdError ?? undefined" :disabled="createBusy" autocomplete="off" />
                                 <v-text-field v-model="createName" :label="t('dockerHosting.create.name', 'Display name')" :error-messages="createNameError ?? undefined" :disabled="createBusy" autocomplete="off" />

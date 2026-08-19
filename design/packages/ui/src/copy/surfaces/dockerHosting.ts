@@ -19,8 +19,8 @@ export const DOCKERHOSTING_FIXED = {
         yue: "建立一個由呢個程式擁有嘅 container",
     },
     "dockerHosting.create.help": {
-        en: "Choose real Docker data below. Creation uses a digest-pinned image, loopback-only ports, and installation-owned volumes; no arbitrary shell command is accepted.",
-        yue: "喺下面揀真實 Docker 資料。建立時會用 digest 鎖定嘅 image、只限 loopback 嘅 ports，同由呢個安裝擁有嘅 volumes；唔接受任意 shell 指令。",
+        en: "Choose real Docker data below. Creation uses the selected image's declared ENTRYPOINT/CMD, a digest-pinned image, loopback-only ports, and installation-owned volumes; Create runs no arbitrary command and does not start the container. Use Start explicitly.",
+        yue: "喺下面揀真實 Docker 資料。建立時會用所選 image 聲明嘅 ENTRYPOINT/CMD、digest 鎖定嘅 image、只限 loopback 嘅 ports，同由呢個安裝擁有嘅 volumes；Create 唔會執行任意指令，亦唔會啟動 container。要明確撳 Start。",
     },
     "dockerHosting.create.id": { en: "Instance id", yue: "實例 id" },
     "dockerHosting.create.name": { en: "Display name", yue: "顯示名稱" },

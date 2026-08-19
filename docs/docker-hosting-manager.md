@@ -28,8 +28,10 @@ When ready, the manager lists and inspects application-owned containers and labe
 the image inventory is limited to exact digest-pinned references (`repository@sha256:...`). Create
 validates a digest-pinned image,
 safe id/name, ports and volumes, checks port conflicts, creates owned named volumes when needed,
-labels the container, verifies the created container and loopback mappings, and rolls back when
-verification fails. Start, stop and restart run through the manager IPC with progress, cancellation
+labels the container, preserves the digest-pinned image's own `ENTRYPOINT` and `CMD`, verifies the
+created container and loopback mappings, and rolls back when verification fails. Create does not
+start the container: Create and Start remain separate explicit operations. Start, stop and restart
+run through the manager IPC with progress, cancellation
 and refresh events. Stop and remove use native confirmation surfaces; remove consumes a short-lived
 one-use authorization token and keeps volumes and unrelated workloads out of scope.
 

@@ -170,7 +170,8 @@
   Issue #69 remains open pending verification.
 - **Current source:** `design/packages/app/src/main/dockerhosting/{manager.ts,ipc.ts,index.ts}`
   owns daemon probing, app-label filtering, exact digest-pinned image inventory, persistent records, digest-pinned create validation,
-  named-volume ownership checks, create verification/rollback, start/stop/restart, cancellation,
+  named-volume ownership checks, image `ENTRYPOINT`/`CMD` preservation, create verification/rollback,
+  separate Create and Start operations, stop/restart, cancellation,
   bounded logs and authorization tokens. The preload bridge, `DockerHostingScreen.vue`,
   `dockerHosting` tab, command-palette catalogue entry and app startup wiring are present.
 - **Still required:** prove missing/stopped/refused/unusable/ready daemon states and ownership

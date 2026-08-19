@@ -402,7 +402,8 @@ command-palette catalogue entry and feature registration. The direct feature rec
 The current source discovers daemon state, filters containers/volumes by app-owned labels, inventories
 exact digest-pinned image references,
 persists instance records, validates digest-pinned create requests, checks port conflicts and named
-volume ownership, verifies create results with rollback, and exposes start/stop/restart/remove,
+volume ownership, preserves the selected image's own `ENTRYPOINT`/`CMD`, verifies create results
+with rollback, and exposes separate explicit Create and Start operations plus stop/restart/remove,
 progress, cancellation, bounded logs, selection/export and native confirmation surfaces. Update is
 explicitly refused until a transactional recreate plan can preserve mounts, ports and ownership;
 actual server/map configuration management, persistent full logs/history, complete multi-row bulk actions and
