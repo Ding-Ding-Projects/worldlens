@@ -20,6 +20,31 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Server, CLI and configuration
+
+- Wire runtime render-queue persistence into the CLI - [`0a710e4345`](https://github.com/Ding-Ding-Projects/worldlens/commit/0a710e4345d395f1f8ae6ef6597d37721ef4d973)
+
+## 1.0.1144 - 2026-08-18
+
+Tagged at [`3b2486cea6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b2486cea65055ae07c31eb8822c3513001c09ca).
+
+### Interface
+
+- Fix Pages setup and extend vocabulary coverage - [`3b2486cea6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b2486cea65055ae07c31eb8822c3513001c09ca)
+
+## 1.0.1141 - 2026-08-18
+
+Tagged at [`41ba2dea3d`](https://github.com/Ding-Ding-Projects/worldlens/commit/41ba2dea3df13e0d2811b255769cda18738d25cd).
+
+### Interface
+
+- Make safe-keeper earnable, and correct two counts that had drifted - [`41ba2dea3d`](https://github.com/Ding-Ding-Projects/worldlens/commit/41ba2dea3df13e0d2811b255769cda18738d25cd)
+- Repair import and dialog policy guards - [`7c3edbc16a`](https://github.com/Ding-Ding-Projects/worldlens/commit/7c3edbc16a01dafeaff00de41899d414645cbe0f)
+
+## 1.0.1139 - 2026-08-18
+
+Tagged at [`93aa69d192`](https://github.com/Ding-Ding-Projects/worldlens/commit/93aa69d192713c06564c6d4e2e7e0670300915ed).
+
 ### Interface
 
 - Fix UI navigation and unsaved-close routing - [`4a4187c553`](https://github.com/Ding-Ding-Projects/worldlens/commit/4a4187c5533d3c760bc95baa575c141ad8557629)
