@@ -4,6 +4,10 @@ param(
     [Parameter(Mandatory = $true)][string]$OutputDirectory,
     [int]$McpPort = 18767,
     [int]$CdpPort = 19441,
+    [string]$CaptureName = "pages-live",
+    [string]$PromotedPath = "docs/screenshots/pages-live.png",
+    [string]$ExpectedSurface = "Live GitHub Pages site",
+    [string]$CaptureState = "published",
     [string]$LowlevelRoot = ""
 )
 
@@ -32,12 +36,41 @@ $api = "http://127.0.0.1:$McpPort/api/execute"
 $server = $null
 $edgePid = $null
 $hwnd = $null
+$startedAt = (Get-Date).ToUniversalTime().ToString("o")
+$capturedAt = $null
+$commit = (git -C $repo rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') { throw "Could not bind the capture to the repository commit." }
+$response = Invoke-WebRequest -Uri $Url -MaximumRedirection 3 -TimeoutSec 30
+if ([int]$response.StatusCode -ne 200) { throw "The live Pages response was not HTTP 200." }
+[IO.File]::WriteAllText((Join-Path $output "live-response.html"), [string]$response.Content, [Text.UTF8Encoding]::new($false))
 
 function Invoke-Lowlevel([string]$Tool, [hashtable]$Arguments) {
     $body = @{ tool = $Tool; arguments = $Arguments } | ConvertTo-Json -Depth 12 -Compress
     $answer = Invoke-RestMethod -Method Post -Uri $api -ContentType "application/json" -Body $body -TimeoutSec 60
     if ($answer.ok -ne $true) { throw "Lowlevel $Tool failed: $($answer.error)" }
     return $answer
+}
+
+function Get-ExactPhaseUrl([string]$RequestedUrl) {
+    $requested = [Uri]$RequestedUrl
+    $last = $null
+    $stableReads = 0
+    for ($attempt = 0; $attempt -lt 40; $attempt++) {
+        $targets = @(Invoke-RestMethod -Uri "http://127.0.0.1:$CdpPort/json/list" -TimeoutSec 5)
+        if ($targets.Count -ne 1 -or $targets[0].type -ne "page") {
+            throw "The isolation proof requires exactly one page target before each capture phase."
+        }
+        $actual = [Uri]([string]$targets[0].url)
+        if ($actual.GetLeftPart([UriPartial]::Path) -ne $requested.GetLeftPart([UriPartial]::Path) -or
+            $actual.Query -ne $requested.Query) {
+            throw "The page target changed origin, path, or query before capture."
+        }
+        if ($actual.AbsoluteUri -eq $last) { $stableReads++ } else { $stableReads = 1 }
+        $last = $actual.AbsoluteUri
+        if ($stableReads -ge 12) { return $last }
+        Start-Sleep -Milliseconds 250
+    }
+    throw "The page target URL did not settle before capture."
 }
 
 try {
@@ -83,7 +116,8 @@ try {
     $edgeVersion = (Get-Item -LiteralPath $edge).VersionInfo.FileVersion
     $verifier = "C:\Users\cntow\.agents\skills\verify-headless-site\scripts\verify-edge-target.mjs"
     foreach ($phase in @("preflight", "capture")) {
-        node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $Url `
+        $phaseUrl = Get-ExactPhaseUrl $Url
+        node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $phaseUrl `
             --run-root $output --edge-executable $edge --edge-sha256 $edgeHash `
             --edge-version $edgeVersion --launch-pid ([string]$edgePid) --phase $phase `
             --output (Join-Path $output "target-$phase.json")
@@ -91,7 +125,9 @@ try {
     }
     $shot = Invoke-Lowlevel "screenshot" @{ hwnd = $hwnd }
     Copy-Item -LiteralPath $shot.path -Destination (Join-Path $output "pages-live.png") -Force
-    node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $Url `
+    $capturedAt = (Get-Date).ToUniversalTime().ToString("o")
+    $finalUrl = Get-ExactPhaseUrl $Url
+    node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $finalUrl `
         --run-root $output --edge-executable $edge --edge-sha256 $edgeHash `
         --edge-version $edgeVersion --launch-pid ([string]$edgePid) --phase final `
         --output (Join-Path $output "target-final.json")
@@ -110,4 +146,11 @@ try {
     }
 }
 
+if (-not $capturedAt) { throw "The live Pages capture did not complete." }
+node (Join-Path $repo "scripts\write-live-pages-evidence-receipt.mjs") `
+    --run-root $output --commit $commit --capture-name $CaptureName `
+    --promoted-path $PromotedPath --expected-surface $ExpectedSurface `
+    --state $CaptureState --url $Url --launch-pid ([string]$edgePid) `
+    --hwnd ([string]$hwnd) --started-at $startedAt --captured-at $capturedAt
+if ($LASTEXITCODE -ne 0) { throw "The live Pages evidence receipt could not be written." }
 Write-Output "Live Pages Lowlevel evidence: $output"

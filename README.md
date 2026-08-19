@@ -149,6 +149,22 @@ successful render, downloaded the `rendered-map` artifact, verified SHA-256
 opened a real viewer canvas. The artifact download uses GitHub CLI's normal JSON API redirect;
 the obsolete `application/octet-stream` override was rejected with HTTP 415 and has been removed.
 
+A second UI-only Bayville pass created both public and private repositories from inside the app.
+The public flow installed all three managed workflows, enabled Actions, configured workflow-based
+Pages, accepted the public-world disclosure, reused the unchanged archive, and dispatched a fresh
+run after two deliberately retained failures exposed real workflow defects. The private flow
+captured the exact Pages `422`, disabled Pages in the same form, and dispatched successfully; its
+jobs were then refused before execution by the account's billing or spending-limit state. That is
+an external execution blocker, not a renderer result.
+
+The two public failures closed gaps that ordinary happy-path rendering did not reach: the Pages
+base-path assertion now derives the app-created repository name, and a resumed shard caches the
+complete BlueMap web root so its `webapp` artifact survives beside the restored tiles. Retrying a
+terminal cloud run also clears its previous run metadata and dispatches a fresh workflow instead
+of following yesterday's failure forever.
+
+![Worldlens showing the UI-created public Bayville repository ready for Pages, with managed workflows current, the public-world disclosure accepted, and one real cloud render active](docs/screenshots/lowlevel-public-pages-render-retry.png)
+
 ![A stopped-watching cloud render restored honestly as cancelled after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
 
 <details>
