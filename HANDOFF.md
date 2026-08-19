@@ -5,9 +5,16 @@
 The standalone CLI now uses upstream resource precedence, scans direct mod jars, resolves
 `resourceExtensions` in checkout/package/Docker layouts, and selects SQLite, MySQL/MariaDB, or
 PostgreSQL without silent file-storage fallback. Generated SQL config parses with zero provisional
-warnings. Focused config/storage verification passed 17 tests, the CLI workspace build passed, and
-the direct SQLite initialization smoke returned an empty map list. Real Docker and external SQL
-server end-to-end evidence remains the final acceptance boundary.
+warnings. Focused config/storage verification passed 17 tests and the CLI workspace build passed.
+
+Final acceptance evidence is recorded: Docker image `worldlens-cli-issue65:proof` built with
+`mysql2`, `pg`, and `sql.js`; a real sql.js WASM query ran; the deployed resource-extension tree
+was verified; and the no-action Docker CLI bootstrap exited `1` with zero SQL-field warnings. A
+real CLI marker run against throwaway `postgres:17.6` exited `0`, loaded client resources, selected
+the packaged resource-extension asset with SHA-256 prefix `e6069b…`, and registered `overworld`.
+Readback found six tables, one map, and item payloads of 2 bytes for `bluemap:markers`, 339 bytes
+for `settings`, and 1,371,129 bytes for `textures`. The throwaway database container and network
+were removed after verification.
 
 ## Issue #57 cloud-first configuration — 2026-08-19
 

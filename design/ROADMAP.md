@@ -499,8 +499,8 @@ Ported on 2026-08-04, in `packages/engine/src/map/rendermanager/`:
 
 Not fully ported, and so keeping this phase open:
 
-- **The standalone server CLI and its Dockerfile — built on 2026-08-05 (issue #42), still
-  short of what upstream's CLI does.** `packages/cli` was a one-line stub with no tests; it
+- **The standalone server CLI and its Dockerfile — built on 2026-08-05 (issue #42), with issue
+  #65 parity now verified.** `packages/cli` was a one-line stub with no tests; it
   now mirrors `BlueMapCLI.main()`'s real branching (reusing `@worldlens/config`'s
   `cli/flags.ts` model, not a second copy of it), loads a real config folder the way
   `BlueMapConfigManager` does — writing upstream's own per-file/per-folder defaults, never
@@ -508,10 +508,9 @@ Not fully ported, and so keeping this phase open:
   consent-gated download, builds real `BmMap`s over `MCAWorld`/`FileStorage`, drives real
   renders through `RenderDriver`, serves real routes through `packages/server`'s handlers,
   and writes the webapp's real `settings.json` (`WebFilesManager.Settings`, field for
-  field). Deliberately deferred, and said so out loud where the CLI is asked for it rather
-  than silently doing nothing: `-n`/mod-resource scanning, `resourceExtensions.zip`
-  parity and SQL storages in the CLI. Issue #65 now owns that remaining parity contract and
-  its standalone proof. Non-box, nested and subtracting render masks closed on
+  field). The issue #65 parity work now covers `-n`/mod-resource scanning, deployed
+  `resourceExtensions` assets, and SQL storages in the CLI, with Docker and throwaway
+  PostgreSQL runtime evidence recorded below. Non-box, nested and subtracting render masks closed on
   2026-08-06 with exact local, standalone-CLI and GitHub Actions semantics. (`-u`/`--watch` was deferred
   here too when this paragraph was first written, exiting non-zero and naming issue #40's
   `MapUpdateService` as the still-unwired piece; it closed on 2026-08-06 — see below.)
@@ -921,11 +920,14 @@ and PostgreSQL, exercise the optional-driver failure path, reject unsupported `d
 files and diagnostics. A missing driver, unknown dialect, refused connection, or malformed config
 must remain non-zero and must never fall back to file storage.
 
-The evidence still required before this issue can close is: real filesystem precedence and
-resource-extension discovery, standalone subprocess exit-code and redaction checks, SQL server
-round trips, Docker smoke, configuration round trips, and rendered tiles plus metadata read back
-through each supported storage route. The documentation lane records the contract; it does not
-claim those runtime proofs until their exact run records are attached.
+The acceptance evidence is now recorded: Docker image `worldlens-cli-issue65:proof` built with
+`mysql2`, `pg`, and `sql.js`, executed a real sql.js WASM query, and verified the deployed
+resource-extension tree; the no-action Docker CLI bootstrap exited `1` with zero SQL-field
+warnings. A real CLI marker run against throwaway `postgres:17.6` exited `0`, loaded client
+resources, selected packaged resource-extension digest prefix `e6069b…`, and registered
+`overworld`. Database readback found six tables, one map, and payloads of 2 bytes for
+`bluemap:markers`, 339 bytes for `settings`, and 1,371,129 bytes for `textures`. The throwaway
+database container and network were removed after readback.
 
 ## Phase H, SQL storages: what is ported and what is not
 

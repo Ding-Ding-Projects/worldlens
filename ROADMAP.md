@@ -2,9 +2,12 @@
 
 ## Issue #65 — standalone CLI mod/resource/SQL parity
 
-Implementation, generated-config parsing, workspace build, and SQLite initialization smoke are
-complete. Remaining before closure: run the final image and external SQL server round trips with
-rendered tile/metadata read-back.
+Implementation, generated-config parsing, workspace build, SQLite initialization, Docker image,
+and external PostgreSQL CLI/readback proof are complete. Docker image `worldlens-cli-issue65:proof`
+retained the SQL adapters and verified the deployed resource-extension tree; the real marker run
+against throwaway `postgres:17.6` exited `0`, registered `overworld`, and read back six tables, one
+map, `bluemap:markers` at 2 bytes, `settings` at 339 bytes, and `textures` at 1,371,129 bytes.
+The throwaway container and network were removed after verification.
 
 ## Issue #57 — cloud-first project configuration
 

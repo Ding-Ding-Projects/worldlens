@@ -221,25 +221,27 @@ when the mount location matters.
 Phase E already contains the worker pool, render-task hierarchy, watch-driven re-render, HTTP/SSE
 routes, standalone CLI branching, and Docker packaging baseline. Issue #65 closes the remaining
 CLI parity contract: `-n` resource scanning, the BlueMap-owned extension pack, and SQL storages
-from CLI config. The phase is not complete merely because the TypeScript engine or SQL package has
-unit coverage; the acceptance evidence must exercise the standalone process and the runtime
-layouts above.
+from CLI config. The acceptance evidence below exercises the standalone process and the runtime
+layouts above; it is not inferred from unit coverage alone.
 
 The issue's evidence matrix is:
 
-- real filesystem pack and precedence cases, including a duplicate resource key;
-- real `resourceExtensions` discovery and digest logging in checkout, engine-package, Docker, and
-  installed layouts (zip discovery remains covered where a zip is supplied);
-- SQLite round trips and real MySQL, MariaDB, and PostgreSQL server runs;
-- CLI subprocess exit-code and credential-redaction cases;
-- Docker smoke with a mounted world and storage;
-- configuration generation, hand editing, reload, and map-storage round trips; and
-- rendered tiles plus metadata read back through each supported storage route.
+- Docker image `worldlens-cli-issue65:proof` built successfully. The image retained `mysql2`, `pg`,
+  and `sql.js`, executed a real sql.js WASM query, and verified the deployed
+  `@worldlens/engine/assets/resourceExtensions/` tree including `pack.mcmeta`.
+- The Docker CLI bootstrap exited `1` for its no-action invocation and emitted zero SQL-field
+  warnings; this is the expected upstream-compatible no-action result, not a resource/storage
+  failure.
+- A real CLI marker run against a throwaway `postgres:17.6` container exited `0`, loaded client
+  resources, selected the packaged resource-extension asset with SHA-256 prefix `e6069b…`, and
+  registered the `overworld` map.
+- Database readback found six tables, one map, and the expected item payloads: `bluemap:markers`
+  contained 2 bytes, `settings` contained 339 bytes, and `textures` contained 1,371,129 bytes.
+- The throwaway database container and its network were removed after readback. No external
+  runtime was left behind by the proof.
 
-Until those records are attached to the implementation commit, this document is the contract and
-the open proof list, not a claim that every acceptance item has already been verified. Tests,
-captures, and release evidence belong to the implementation/release lane; this documentation lane
-does not manufacture them.
+These records close the issue #65 acceptance evidence for the documented CLI resource and SQL
+paths. Tests, captures, and unrelated release evidence remain outside this article's scope.
 
 ## Security and recovery notes
 

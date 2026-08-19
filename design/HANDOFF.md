@@ -4,8 +4,14 @@
 
 Resource-root precedence, installed extension assets, SQL adapter selection, credential-safe
 failure, and generated SQL-field recognition are implemented. Focused config/storage verification
-passed 17 tests and the SQLite smoke initialized successfully. Final Docker/external-server
-artifact proof remains open.
+passed 17 tests and the CLI workspace build passed. Final artifact proof is now recorded: Docker
+image `worldlens-cli-issue65:proof` built with `mysql2`, `pg`, and `sql.js`, executed a real sql.js
+WASM query, and verified the deployed resource-extension tree; the no-action Docker CLI bootstrap
+exited `1` with zero SQL-field warnings. A real CLI marker run against throwaway `postgres:17.6`
+exited `0`, loaded client resources, selected packaged resource-extension digest prefix `e6069b…`,
+and registered `overworld`. Database readback found six tables, one map, and payloads of 2 bytes
+for `bluemap:markers`, 339 bytes for `settings`, and 1,371,129 bytes for `textures`. The throwaway
+database container and network were removed after readback.
 
 ## Issue #57 cloud-first configuration — 2026-08-19
 
