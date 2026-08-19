@@ -1245,7 +1245,16 @@ jobs:
   publish:
     name: Publish to Pages
     needs: [plan, merge]
-    if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
+    # `always()` is required even though the direct `merge` need succeeded: that matrix
+    # job itself depends on wave jobs which are deliberately skipped when the plan needs
+    # fewer waves, and GitHub otherwise propagates the skip through this job without ever
+    # evaluating the Pages condition. Require both direct jobs to have genuinely succeeded.
+    if: >-
+      ${{ always()
+        && needs.plan.result == 'success'
+        && needs.merge.result == 'success'
+        && inputs.output == 'artifact-and-pages'
+        && needs.plan.outputs.single-group == 'true' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read

@@ -289,6 +289,23 @@
       "interactionProofId": "scripts/worldlens-lowlevel-e2e.json:lowlevel-kid-stickers",
       "interactionReceiptSha256": "34b49b5c9db7cc1e58201dc78ebd152c7f7a9d701ebd91ea01e11a8ac1a63c37",
       "inspectionStatus": "inspected"
+    },
+    {
+      "id": "lowlevel-public-pages-render-retry",
+      "active": true,
+      "path": "docs/screenshots/lowlevel-public-pages-render-retry.png",
+      "sourceCommit": "7070f6fd5409846f39d11a4c7c51d9b385b70234",
+      "artifactSha256": "b54eea81a64bceddf6b5fc213d9e9f3c9c5e9abae83560fcb56ac0a81703481e",
+      "captureSha256": "48f874314b1f5dd032c4ab7d41cd6bde7cef7917f9ce738537f7e66a07036876",
+      "screen": "Render on GitHub running row after the Pages-path repair",
+      "state": "existing-public-repository-bayville-pages-retry",
+      "theme": "current",
+      "viewportWidth": 1280,
+      "viewportHeight": 800,
+      "scale": 1,
+      "interactionProofId": "scripts/worldlens-lowlevel-existing-public-pages-render.json:lowlevel-public-pages-render-retry",
+      "interactionReceiptSha256": "63e4ef01dde72e55d5ec9d7713a40c9fd948e20ec50c1750803b3660d164fd81",
+      "inspectionStatus": "inspected"
     }
   ]
 }
