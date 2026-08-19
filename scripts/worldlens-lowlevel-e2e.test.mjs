@@ -128,6 +128,28 @@ test("the new-repository plan creates visibility and Pages through UI controls b
     assert.match(driver, /case "setCheckboxWhenFocused"/);
 });
 
+test("the existing-repository plan checks Pages and upload acknowledgement before dispatch", async () => {
+    const existingPlan = JSON.parse(
+        await readFile(
+            new URL("./worldlens-lowlevel-existing-ci-repository-render.json", import.meta.url),
+            "utf8",
+        ),
+    );
+    const pages = existingPlan.findIndex(
+        (step) => step.action === "setCheckboxWhenFocused" && step.selector.includes("publish-pages"),
+    );
+    const upload = existingPlan.findIndex(
+        (step) => step.action === "setCheckboxWhenFocused" && step.selector.includes("ack-upload"),
+    );
+    const start = existingPlan.findIndex((step) => step.action === "pressWhenFocused");
+    const dispatched = existingPlan.findIndex(
+        (step) => step.name === "lowlevel-existing-repository-render-dispatched",
+    );
+    assert.ok(pages > 0 && pages < start);
+    assert.ok(upload > pages && upload < start);
+    assert.ok(start < dispatched);
+});
+
 test("removing a required capture turns the plan guard red", () => {
     const broken = plan.filter((step) => step.name !== "lowlevel-adult-home");
     assert.throws(() => planComplaints(broken), /hand-written capture order/);
