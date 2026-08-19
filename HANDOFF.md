@@ -1,5 +1,42 @@
 # Handoff
 
+## Issue #59 — safe product migration source and evidence boundary (2026-08-19)
+
+Issue #59 remains **open and unverified**. The current source contains two focused compatibility
+fixes: profile-migration JSON writes use the shared bounded retrying atomic replacement helper and
+clean up their unique temporary file, while UI and documentation-site storage migration accepts
+the exact legacy `material-bluemap` namespace key plus its hyphen and dot forms without accepting
+longer names. The implementation records are in
+[`design/packages/app/src/main/migration/profileMigration.ts`](design/packages/app/src/main/migration/profileMigration.ts),
+[`design/packages/ui/src/legacyStorageMigration.ts`](design/packages/ui/src/legacyStorageMigration.ts),
+and [`design/packages/site/src/legacyStorageMigration.ts`](design/packages/site/src/legacyStorageMigration.ts).
+
+This records update ran no tests, typechecks, builds, installer sessions, packaged runtime
+sessions, or captures. It therefore claims source implementation only, not migration acceptance.
+The broader evidence still required is an installed old identity → bridging release → Worldlens →
+next Worldlens update with retained settings, projects, histories, caches, credential references,
+and update state; interrupted migration, collision, downgrade/rollback, and uninstall/reinstall
+against real installed builds; and final repository, Pages, wiki, documentation, release,
+installer, redirect, base-path, and other public-URL read-back. A redirect alone is not proof.
+
+### 廣東話 / Cantonese
+
+Issue #59 仲係 **open，未驗證**。而家 source 有兩個針對性兼容修正：profile migration 嘅
+JSON 寫入用共用、有界重試嘅 atomic replacement helper，並且清走每次獨有嘅 temporary file；
+UI 同 documentation-site storage migration 就接受準確嘅 legacy `material-bluemap` namespace
+key，同埋 hyphen、dot 形式，但唔接受更長嘅名稱。Implementation record 喺
+[`design/packages/app/src/main/migration/profileMigration.ts`](design/packages/app/src/main/migration/profileMigration.ts)、
+[`design/packages/ui/src/legacyStorageMigration.ts`](design/packages/ui/src/legacyStorageMigration.ts)
+同 [`design/packages/site/src/legacyStorageMigration.ts`](design/packages/site/src/legacyStorageMigration.ts)。
+
+今次 records update 冇跑 tests、typechecks、build、installer session、packaged runtime session
+或 captures，所以只記 source implementation，唔係 migration acceptance。仲要補嘅 evidence 係：
+舊 identity installed build → bridging release → Worldlens → 下一個 Worldlens update，同時
+保留 settings、projects、histories、caches、credential references 同 update state；喺真
+installed builds 度行 interrupted migration、collision、downgrade/rollback 同
+uninstall/reinstall；以及喺真正 public URL 度 read back repository、Pages、wiki、documentation、
+release、installer、redirect、base-path 同其他 public-link continuity。淨係 redirect 唔算 proof。
+
 ## Issue #58 — render-console history source boundary (2026-08-19)
 
 Issue #58 remains **open and unverified**. The current source adds a render-id-keyed version-1

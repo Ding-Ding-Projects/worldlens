@@ -6,12 +6,20 @@ export interface SiteStorageMigrationHost {
     setItem(key: string, value: string): void;
 }
 
+function isLegacySiteStorageKey(key: string): boolean {
+    return (
+        key === "material-bluemap" ||
+        key.startsWith("material-bluemap-") ||
+        key.startsWith("material-bluemap.")
+    );
+}
+
 export function migrateLegacySiteStorage(storage: SiteStorageMigrationHost): number {
     const legacyKeys: string[] = [];
     try {
         for (let index = 0; index < storage.length; index += 1) {
             const key = storage.key(index);
-            if (key?.startsWith("material-bluemap")) legacyKeys.push(key);
+            if (key !== null && isLegacySiteStorageKey(key)) legacyKeys.push(key);
         }
     } catch {
         return 0;

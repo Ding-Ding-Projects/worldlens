@@ -1,5 +1,28 @@
 # Handoff
 
+## Issue #59 — safe product migration source boundary (2026-08-19)
+
+The profile-migration source routes journal and receipt writes through the shared atomic
+replacement helper. Each write uses a unique temporary sibling, calls `fsync` before replacement,
+and retries replacement only for `EPERM`, `EACCES`, or `EBUSY` within the helper's bounded policy.
+Temporary-file cleanup never masks the original write or replacement error.
+
+This is a source-boundary record only. Tests, builds, packaged migration interaction, and captures
+were not run in this ultra-speed pass. The broader installed-migration proof gap remains open:
+the packaged application still needs independent evidence from installation through receipt
+read-back and recovery.
+
+### 廣東話同步
+
+Issue #59 嘅 migration source boundary 已經記錄：profile-migration journal 同 receipt writes
+經 shared atomic replacement helper；每次用 unique temporary sibling，replacement 前先做
+`fsync`；只會對 `EPERM`、`EACCES` 或 `EBUSY` 做 bounded retry。Temporary-file cleanup 唔會
+遮住原本 write 或 replacement error。
+
+今次只係 source-boundary record；ultra-speed pass 冇跑 tests、builds、packaged migration
+interaction 或 captures。Broader installed-migration proof gap 仲開住，仲要獨立證明 packaged
+application 由 installation 到 receipt read-back 同 recovery 嘅完整路徑。
+
 ## Issue #139 — GitHub reachability and two-wave dispatch record (2026-08-19)
 
 Issue #139 is recorded here as an implementation handoff, not as a completed acceptance run.

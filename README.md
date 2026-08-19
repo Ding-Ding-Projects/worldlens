@@ -220,6 +220,11 @@ with static reduced-motion fallbacks. See the
 > and the former release feed remain readable only through explicit compatibility adapters. See
 > [Migrating to Worldlens](docs/worldlens-migration.md).
 
+Issue #59 source update (2026-08-19): profile migration now uses bounded retrying atomic profile
+writes with temporary-file cleanup, and UI/site storage migration now recognizes the exact legacy
+prefix forms; this records pass ran no tests, builds, packaged runtime sessions, or captures.
+The full installed update and rollback chain remains open.
+
 The documentation site is a Material 3 tabbed application, not a plain scroll: `Search` owns
 independent regex-builder-backed searches for documentation, settings, tabs, groups and bulk
 close; `Changelog` reads the committed release history with date filters and export; `Settings`

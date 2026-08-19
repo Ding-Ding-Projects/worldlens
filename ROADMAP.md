@@ -1,5 +1,21 @@
 # Roadmap
 
+## Issue #59 — safe product migration source and evidence boundary (2026-08-19)
+
+- **Status:** Source implementation is present; Issue #59 remains open and unverified.
+- **Implemented source:** profile-migration JSON writes now use the shared bounded retrying atomic
+  replacement helper and clean up their unique temporary file. UI and documentation-site storage
+  migration now recognizes the exact legacy `material-bluemap` namespace key plus its hyphen and
+  dot forms, without treating longer names as legacy. See
+  [`docs/worldlens-migration.md`](docs/worldlens-migration.md).
+- **Evidence boundary:** This records update ran no tests, typechecks, builds, installer sessions,
+  packaged runtime sessions, or captures. Source presence is not migration acceptance.
+- **Still open:** prove old installed identity → bridging release → Worldlens → subsequent Worldlens
+  update with retained user state; exercise interrupted migration, collision, downgrade/rollback,
+  and uninstall/reinstall on real installed builds; and verify final repository, Pages, wiki,
+  documentation, release, installer, redirect, base-path, and public URL continuity from their
+  actual public addresses. A redirect alone is not proof.
+
 ## Issue #58 — complete render-console history
 
 - **Status:** Source implementation is present; Issue #58 remains open and unverified.

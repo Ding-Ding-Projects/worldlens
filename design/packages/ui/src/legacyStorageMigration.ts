@@ -27,6 +27,14 @@ function currentKey(legacyKey: string): string {
     return `${WORLDLENS_STORAGE_PREFIX}${legacyKey.slice(LEGACY_STORAGE_PREFIX.length)}`;
 }
 
+function isLegacyStorageKey(key: string): boolean {
+    return (
+        key === LEGACY_STORAGE_PREFIX ||
+        key.startsWith(`${LEGACY_STORAGE_PREFIX}-`) ||
+        key.startsWith(`${LEGACY_STORAGE_PREFIX}.`)
+    );
+}
+
 function migrateValue(key: string, value: string): string {
     if (key !== `${LEGACY_STORAGE_PREFIX}-appearance`) return value;
     try {
@@ -53,7 +61,7 @@ export function migrateLegacyStorage(storage: StorageMigrationHost): StorageMigr
     try {
         for (let index = 0; index < storage.length; index += 1) {
             const key = storage.key(index);
-            if (key?.startsWith(LEGACY_STORAGE_PREFIX)) legacyKeys.push(key);
+            if (key !== null && isLegacyStorageKey(key)) legacyKeys.push(key);
         }
     } catch {
         return { migrated: 0, retainedCurrent: 0, failed: 1 };
