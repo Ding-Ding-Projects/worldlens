@@ -105,6 +105,12 @@ const emit = defineEmits<{
     signIn: [];
     /** Open a URL in the system browser. */
     open: [url: string];
+    /**
+     * One backup reached `finished`. Emitted once per backup id, from the row state the
+     * controller sets on the bridge's own `finished` event - not from `start()` returning,
+     * which only means the upload was accepted and says nothing about it completing.
+     */
+    backupFinished: [backupId: string];
 }>();
 
 const { t } = useI18n();
@@ -152,6 +158,27 @@ async function inspect(): Promise<void> {
 // Changing what kind of thing is being backed up invalidates whatever was read about the
 // folder: the same path is a world or is not, and a stale "4,821 files" beside a refusal
 // is worse than nothing.
+/**
+ * Announce each backup that genuinely finishes, exactly once.
+ *
+ * `announcedFinished` is the whole correctness of this: rows are re-put on every subsequent
+ * event, and the listing reload re-reads the same ids, so a plain "state === finished" watcher
+ * would fire repeatedly for one backup. The set is keyed by backup id rather than by row
+ * identity because a row object is replaced, not mutated, each time the controller updates it.
+ */
+const announcedFinished = new Set<string>();
+watch(
+    () => backups.rows.value.filter((row) => row.state === "finished").map((row) => row.backupId),
+    (finishedIds) => {
+        for (const backupId of finishedIds) {
+            if (announcedFinished.has(backupId)) continue;
+            announcedFinished.add(backupId);
+            emit("backupFinished", backupId);
+        }
+    },
+    { immediate: true },
+);
+
 watch(kind, () => {
     source.value = null;
     sourceFailure.value = null;

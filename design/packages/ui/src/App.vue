@@ -1925,6 +1925,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 @sign-in="openSettings('github-account')"
                                 @open="openInBrowser"
                                 @restore="revealBackupRestore"
+                                @backup-finished="awardKidSticker('safe-keeper')"
                             />
                         </div>
                     </div>
@@ -2332,6 +2333,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         @sign-in="openSettings('github-account')"
                                         @open="openInBrowser"
                                         @restore="revealBackupRestore"
+                                        @backup-finished="awardKidSticker('safe-keeper')"
                                     />
                                 </div>
                             </div>

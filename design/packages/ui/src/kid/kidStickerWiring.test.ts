@@ -305,6 +305,41 @@ describe("world-finder is earned from the guide, never from adopting a repositor
     });
 });
 
+describe("safe-keeper is earned when a backup actually finishes", () => {
+    it("stays unearned while a backup is merely started, and is earned on the finished event", async () => {
+        cells.set(KID_MODE_ENABLED_KEY, "true");
+        shell();
+
+        await revealKidJob("backups");
+        const backups = wrapper?.findComponent(BackupScreen);
+        expect(backups?.exists(), "Kid Mode's Work view never mounted BackupScreen").toBe(true);
+
+        // Every other emit this screen has is a different event, and none of them means a backup
+        // completed. `open` in particular opens an unrelated link.
+        await backups?.vm.$emit("open", "https://github.com/example/example");
+        await backups?.vm.$emit("signIn");
+        await settle();
+        expect(wonStickers()).not.toContain("safe-keeper");
+
+        await backups?.vm.$emit("backupFinished", "backup-1");
+        await settle();
+        expect(wonStickers()).toContain("safe-keeper");
+    });
+
+    it("is earned once even when several backups finish", async () => {
+        cells.set(KID_MODE_ENABLED_KEY, "true");
+        shell();
+
+        await revealKidJob("backups");
+        const backups = wrapper?.findComponent(BackupScreen);
+        await backups?.vm.$emit("backupFinished", "backup-1");
+        await backups?.vm.$emit("backupFinished", "backup-2");
+        await settle();
+
+        expect(wonStickers().filter((id) => id === "safe-keeper")).toHaveLength(1);
+    });
+});
+
 describe("sharer is earned only from PagesScreen's own already-published open", () => {
     it("stays unearned when an unrelated screen opens a link, and is earned when the Pages site is opened", async () => {
         cells.set(KID_MODE_ENABLED_KEY, "true");

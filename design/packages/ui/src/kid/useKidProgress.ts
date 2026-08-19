@@ -37,15 +37,22 @@ const XP_PER_LEVEL = 500;
  * finishing, **world-finder** on the guide handing back a project for a world it found, and
  * **sharer** on opening an already-published GitHub Pages site.
  *
- * The remaining four - **pin-dropper**, **safe-keeper**, **fixer**, **time-traveller** - stay in
- * this list because they name real, shipped features, not because anything can earn them yet.
- * `MarkerMenu.vue` has no "a pin was placed" emit, `BackupScreen.vue` has no "a backup finished"
- * emit, nothing surfaces "automatic repair applied a fix" outside the render-repair flow itself,
+ * **safe-keeper** joins them: `BackupScreen.vue` now emits `backupFinished` when a row reaches the
+ * controller's `finished` state - the bridge's own completion event, never `start()` returning,
+ * which only means an upload was accepted. It is emitted once per backup id because rows are
+ * re-put on every later event and the listing reload re-reads the same ids.
+ *
+ * The remaining three - **pin-dropper**, **fixer**, **time-traveller** - stay in this list because
+ * they name real, shipped features, not because anything can earn them yet. Each needs an emit
+ * *chain* rather than the single emit an earlier note here estimated: markers are placed in
+ * `MarkerStudio.vue`, which `MarkerMenu.vue` hosts, and `HistoryPanel.vue` sits inside
+ * `ConfigScreen.vue` - so both must bubble through their parent before `App.vue` can bind them.
+ * Nothing surfaces "automatic repair applied a fix" outside the render-repair flow itself,
  * and `HistoryPanel.vue` restores a revision and raises a notice without ever telling its parent
- * it happened. Each needs one small emit added to a file this kid-mode wiring pass does not own,
+ * it happened. Each needs a real emit added to files this kid-mode wiring pass does not own,
  * not a fabricated signal here - awarding one of these off some other event would be the
  * wrong-event mistake `award()`'s own doc comment warns against, which is worse than leaving it
- * unearned. Until that emit exists, these four sit in the sticker book exactly as any other
+ * unearned. Until those emits exist, these three sit in the sticker book exactly as any other
  * not-yet-earned sticker does: visibly present, honestly never won.
  */
 export const STICKER_DEFINITIONS = [

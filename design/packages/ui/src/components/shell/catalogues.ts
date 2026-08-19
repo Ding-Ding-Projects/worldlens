@@ -1,5 +1,9 @@
 /**
- * The five catalogues, and every one of the eighty-five features underneath them.
+ * The five catalogues, and every one of the eighty-four features underneath them.
+ *
+ * `catalogues.test.ts` asserts that count against `ALL_CATALOGUE_FEATURES.length`, so the test is
+ * the authority and these prose mentions are a restatement of it. They said eighty-five for a
+ * while after a row was removed, which is the failure mode of writing a number in three places.
  *
  * This is the approved information architecture as typed data. Home renders five cards from it,
  * each catalogue page renders its own grouped list from it, Home's search indexes it, and the
@@ -27,7 +31,7 @@
  * ### Keys are not targets
  *
  * Eight rows open `renders`, six open `projects`, and eleven open the settings drawer at
- * different sections. Keying by destination would collapse eighty-five rows to about a dozen, so
+ * different sections. Keying by destination would collapse eighty-four rows to about a dozen, so
  * every row carries its own globally unique `key` and the destination is a separate field.
  * `catalogues.test.ts` asserts uniqueness, because a duplicate key silently drops a row from a
  * `v-for` rather than failing loudly.
@@ -167,7 +171,7 @@ const GROUPS = {
 type GroupName = keyof typeof GROUPS;
 
 /**
- * Builds one row, so eighty-five literals do not each repeat the group-key plumbing.
+ * Builds one row, so eighty-four literals do not each repeat the group-key plumbing.
  *
  * Deliberately not a class or a fluent builder: the manifest reads best as data, and this is the
  * smallest thing that removes the repetition without hiding what a row actually contains.
