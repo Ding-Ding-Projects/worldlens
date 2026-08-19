@@ -747,21 +747,28 @@ the configured `actions/setup-node` SHA was invalid. Consequently the final merg
 lowres pyramid rebuild, Pages publication, and cleanup steps were skipped. No final map, public
 openable result, or hosted-runner disk-ceiling proof is claimed.
 
-The source-only correction removes one stray `e` from that `actions/setup-node` SHA. It is not
-runtime proof until a rerun reaches the receipt job and reads back the generated receipt. Issue #67
-remains open pending that rerun and the required integrity, ordering, resumability, disk, cleanup,
-and publication evidence.
+The source-only correction removes one stray `e` from that `actions/setup-node` SHA. That historical
+run remains a failed receipt setup; the terminal rerun below supplies the receipt evidence. Issue #67
+remains open for the still-unverified Pages publication and near-limit refusal boundary.
 
 The corrected rerun `32299613336` completed **361/361** shard jobs and **12/12** merge groups, but
 its receipt remained a failure: the downloader collected only the single `rendered-map` artifact.
 This multi-group run emits `map-lowres` plus `partial-hires-*`, so the assembled receipt reported
-`hiresTileCount=0` and `metadata=false`. The source repair now conditionally collects
-`map-lowres` and every `partial-hires-*` artifact; final low-resolution output, Pages publication,
-cleanup, and a valid receipt remain unproven until the rerun.
+`hiresTileCount=0` and `metadata=false`. The source repair conditionally collects `map-lowres` and
+every `partial-hires-*` artifact. Its terminal rerun is [32309098236](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32309098236),
+successful on commit [`82a723bba0fc671e9880334c669086f2e07dc8b2`](https://github.com/Ding-Ding-Projects/worldlens/commit/82a723bba0fc671e9880334c669086f2e07dc8b2).
+The receipt verifies **361/361** shards, **12/12** merge groups, `mergedMapVerified=true`,
+`lowresRebuilt=true`, `publicResult=openable`, **91,809/91,809** hires tiles, matching metadata,
+verified textures, and cleanup with resumable state preserved. Disk evidence records
+`5,825,668,056` required bytes, `91,864,993,792` free before fetch, `90,347,483,136` after
+join/unpack, `90,250,326,016` at merge peak, and `88,018,407,424` after cleanup/completion;
+`enospcObserved=false` and `noReleaseOnFailure=true`. The artifact-only dispatch skipped Pages
+publication, so Pages remains unverified. This proves positive fit and cleanup, not a near-limit
+refusal test.
 
-This is a records-only handoff. No tests, captures, build, or packaged interaction was performed
-in this lane. The issue-owned receipt and two-wave helpers, merge/lowres wiring, and workflow
-changes remain source evidence except for the hosted shard and merge counts recorded above.
+This remains a records-only handoff: no tests, captures, build, or packaged interaction was performed
+in this lane. The terminal hosted receipt is independently linked above; Issue #67 remains open for
+the still-unverified Pages publication and near-limit refusal boundary.
 
 廣東話：Hosted run `32292039976` 完成兩波 render：Wave 1 係 **256/256** 個 shard，Wave 2 係
 **105/105** 個，**12/12** 個 merge group 都成功；但 receipt verifier 喺 job setup 因為

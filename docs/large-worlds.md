@@ -214,26 +214,38 @@ claim that the final map exists.
 **7/105** 個 shard，剩低 **98** 個喺途中取消；兩波 **merge 未到達**。呢幾個數係嗰次 run
 完整睇到嘅結果，唔係估算，亦唔代表 final map 已經存在。
 
-### Issue #67 evidence boundary: no new hosted proof yet
+### Issue #67 terminal hosted proof: run 32309098236
 
-[Issue #67](https://github.com/Ding-Ding-Projects/worldlens/issues/67) keeps the next acceptance step
-explicit rather than turning the earlier two-wave dispatch into a merge claim. The durable baseline
-is the real 361-region run described above: it planned two waves (256 + 105 shards), measured about
-6 GiB required against about 84 GiB free, and stopped before the merge. The issue record also points
-to baseline `e13777927876a3d7898778f18193e9465bc97cc2` for the imported evidence.
+[Issue #67](https://github.com/Ding-Ding-Projects/worldlens/issues/67) retains the earlier dispatch as
+historical evidence rather than conflating it with the terminal proof below. That baseline planned two
+waves (256 + 105 shards), measured about 6 GiB required against about 84 GiB free, and stopped before
+the merge. The issue record also points to baseline `e13777927876a3d7898778f18193e9465bc97cc2` for
+the imported evidence.
 
-This records-only update adds no new workflow run, `df -h` receipt, shard join, lowres rebuild,
-metadata read-back, public result, cleanup observation, or near-limit refusal. It therefore does
-**not** claim completion of either wave's merge, a final map, a hosted-runner disk boundary, or
-no-release-on-failure behavior. The remaining proof must use a fresh, genuine dispatch and retain
-the before-fetch, join/unpack, merge-peak, cleanup, and completion disk measurements alongside the
-integrity and resumability receipts.
+The terminal hosted receipt is [run `32309098236`](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32309098236),
+successful on commit [`82a723bba0fc671e9880334c669086f2e07dc8b2`](https://github.com/Ding-Ding-Projects/worldlens/commit/82a723bba0fc671e9880334c669086f2e07dc8b2).
+It reports two waves (**256/256** and **105/105** shards), all shard markers and artifacts present
+with matching fingerprints, no missing or duplicate shard ids, and **12/12** merge groups complete.
+`mergedMapVerified`, `lowresRebuilt`, and `publicResult=openable` are true; the merged result has
+**91,809/91,809** expected hires tiles, matching metadata, and verified textures. Cleanup removed
+intermediate archives and shard staging while preserving resumable state.
 
-### Issue #67 證據界線：暫時冇新 hosted proof
+Disk evidence is retained in the receipt: **5,825,668,056 bytes** required; **91,864,993,792** free
+before fetch; **90,347,483,136** after join/unpack; **90,250,326,016** at render-merge peak; and
+**88,018,407,424** after cleanup/completion. `enospcObserved=false` and `noReleaseOnFailure=true`.
+This proves positive fit and cleanup, not a near-limit refusal test. The artifact-only dispatch skipped
+Pages publication, so no Pages publication is claimed.
 
-[Issue #67](https://github.com/Ding-Ding-Projects/worldlens/issues/67) 將下一步 acceptance 寫清楚，唔會將之前嗰次兩波 dispatch 當成已經 merge。現時可靠 baseline 就係上面嗰次真 361-region run：plan 出兩波（256 + 105 shards），量到大約需要 6 GiB、當時約有 84 GiB 空位，但喺 merge 之前停咗。Issue record 亦指向 imported evidence 嘅 baseline `e13777927876a3d7898778f18193e9465bc97cc2`。
+### Issue #67 終局 hosted proof：run 32309098236
 
-呢次 records-only 更新冇新 workflow run、`df -h` receipt、shard join、lowres rebuild、metadata read-back、public result、cleanup observation，亦冇 near-limit refusal。所以**唔可以**話兩波 merge、final map、hosted-runner 磁碟天花板，或者 failure 時唔出 release 已經完成。剩低嘅 proof 要用一次新嘅 genuine dispatch，保留 fetch 前、join/unpack、merge peak、cleanup 同 completion 嘅磁碟量度，連埋 integrity 同 resumability receipts 一齊睇。
+[Issue #67](https://github.com/Ding-Ding-Projects/worldlens/issues/67) 保留之前嗰次 dispatch 做 historical evidence，唔會同下面 terminal proof 撈亂。嗰次 baseline plan 出兩波（256 + 105 shards），量到大約需要 6 GiB、當時約有 84 GiB 空位，但喺 merge 之前停咗。Issue record 亦指向 imported evidence 嘅 baseline `e13777927876a3d7898778f18193e9465bc97cc2`。
+
+Run `32309098236` 已經 terminal success：兩個 wave 全部完成，**12/12** 個 merge group 成功，
+final result openable，**91,809/91,809** hires tiles、metadata 同 textures 都 verified。Receipt
+保留咗 fetch 前、join/unpack、merge peak、cleanup/completion 嘅 disk 量度，cleanup 清走 staging
+但保留 resumable state；`enospcObserved=false` 同 `noReleaseOnFailure=true`。呢個係 positive fit
+同 cleanup evidence，唔係 near-limit refusal test。Artifact-only dispatch 令 Pages publication
+skipped，唔會當 Pages 已 publish。
 
 ## Publishing one
 
