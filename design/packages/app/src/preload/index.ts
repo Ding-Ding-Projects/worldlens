@@ -3,6 +3,7 @@ import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
 import type { SchoolModeResult } from "../main/schoolMode/index.js";
+import type { VocabularyResult, VocabularySnapshot } from "../main/vocabulary/index.js";
 import type { DockerHostingSnapshot, ManagerAnswer } from "../main/dockerhosting/index.js";
 import type {
     CiBootstrapEvent,
@@ -2321,6 +2322,11 @@ interface WorldlensBridge {
         disable(credential: string): Promise<SchoolModeResult>;
         reset(): Promise<SchoolModeResult>;
     };
+    vocabulary: {
+        read(): Promise<VocabularySnapshot>;
+        load(raw: string): Promise<VocabularyResult>;
+        clear(): Promise<VocabularyResult>;
+    };
     startup: {
         read(): Promise<StartupDiagnosticsSnapshot>;
         copy(): Promise<{ ok: boolean; message: string }>;
@@ -3246,6 +3252,11 @@ const bridge: WorldlensBridge = {
         rename: (name) => ipcRenderer.invoke("schoolMode:rename", name),
         disable: (credential) => ipcRenderer.invoke("schoolMode:disable", credential),
         reset: () => ipcRenderer.invoke("schoolMode:reset"),
+    },
+    vocabulary: {
+        read: () => ipcRenderer.invoke("vocabulary:read"),
+        load: (raw) => ipcRenderer.invoke("vocabulary:load", raw),
+        clear: () => ipcRenderer.invoke("vocabulary:clear"),
     },
     startup: {
         read: () => ipcRenderer.invoke("startup:read"),

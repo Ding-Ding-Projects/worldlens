@@ -456,7 +456,13 @@ const sections = computed<SettingsSectionText[]>(() => {
             anchor: "vocabulary",
             title: text.vocabulary.title,
             description: text.vocabulary.description,
-            values: [String(Object.keys(vocabularyStore.entries).length), vocabularyStore.status],
+            values: [
+                String(Object.keys(vocabularyStore.entries).length),
+                vocabularyStore.status,
+                t("vocabulary.upload.chooseFile", "Choose a vocabulary file..."),
+                t("vocabulary.upload.replaceFile", "Replace the vocabulary file..."),
+                t("vocabulary.upload.clear", "Clear"),
+            ],
         },
         // Which mark is active right now - shipped preset id or "custom" plus its format -
         // so the same "search what is on screen" rule every other section follows applies
@@ -483,7 +489,11 @@ const sections = computed<SettingsSectionText[]>(() => {
             values: [],
         },
     ];
-    return rows.filter((section) => !schoolModeEnabled() || section.anchor !== "vocabulary");
+    return rows.filter(
+        (section) =>
+            !schoolModeEnabled() ||
+            (section.anchor !== "vocabulary" && section.anchor !== "language-and-tone"),
+    );
 });
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
@@ -531,7 +541,11 @@ const searchSummary = computed(() => {
 
 /** One tab per section, in the surface's own order, labelled from the live copy. */
 const settingsPages = computed<TabPage[]>(() =>
-    SETTINGS_SECTIONS.filter((anchor) => !schoolModeEnabled() || anchor !== "vocabulary").map(
+    SETTINGS_SECTIONS.filter(
+        (anchor) =>
+            !schoolModeEnabled() ||
+            (anchor !== "vocabulary" && anchor !== "language-and-tone"),
+    ).map(
         (anchor) => ({
             id: anchor,
             label: copy.value[anchor].title,
