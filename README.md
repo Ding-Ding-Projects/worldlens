@@ -33,19 +33,21 @@ See [Rendering engines](#rendering-engines).
 
 **1.0 is the verified public baseline.** It means exactly this, no more: the Material Design 3
 shell rewrite is complete and closed against its own acceptance issues (#126, #134, #123); the
-full workspace suite - 723 test files, 10,512 tests - is green in CI at the released commit;
-the 89-capture screenshot matrix pictures the exact shipped interface and is regraded by CI's
-own capture job; every push to `main` that passes the fatal gates publishes a real, hash-verified
-Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
+full workspace suite - 723 test files, 10,512 tests - is the local verification baseline for the
+released commit; the 89-capture screenshot matrix is diagnostic evidence for the shipped interface;
+every push to `main` whose build, packaging, and artifact provenance complete publishes a real,
+hash-verified Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
 embedded in the project file itself. Versions from here are `1.0.<run>`. What 1.0 does **not**
 claim: the feature programs still open as issues (multi-server dashboard, marker authoring, add-on
 system, static export and friends) are future work, and Windows executables remain intentionally
 unsigned.
 
 Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
-unknown-publisher warning. A publish is allowed only after every required test, security,
-rendering and packaging gate passes. Screenshot capture remains visible diagnostic evidence, but a
-capture failure is advisory and never blocks an otherwise valid release. The packaging job clears
+unknown-publisher warning. A publish is allowed only after the required build, security-boundary,
+rendering-input, and packaging provenance checks complete. Local tests and lint remain available
+before publication but do not run in the workflow or withhold publication. Screenshot capture remains
+visible diagnostic evidence, but a capture failure is advisory and never blocks an otherwise valid
+release. The packaging job clears
 its validated output locations, accepts exactly one fresh
 `Setup.exe`, one full `.nupkg`, optional delta packages and a non-empty matching `RELEASES`, then
 checks every emitted executable is Authenticode `NotSigned`. Release notes identify the exact
