@@ -14,6 +14,24 @@ Acceptance copies through a staging directory, verifies every legacy file by SHA
 receipt, activates `%APPDATA%\Worldlens`, and verifies it again. The legacy profile is retained.
 Declining is remembered without nagging; retry remains an explicit action.
 
+### What the user sees while the migration is pending or blocked
+
+The consent surface is a real decision boundary, not a progress-shaped decoration. Before either
+button is chosen it states that no profile file has been changed, names the stable legacy and
+Worldlens profile-folder names, and explains both outcomes in English and Cantonese:
+
+- **Copy and verify / 複製同驗證** stages a copy, hashes it, verifies the receipt and only then
+  activates the Worldlens profile. The old profile remains available for retry or rollback.
+- **Not now / 而家唔做** leaves the old profile untouched, records the decision, and does not ask
+  again until the user explicitly retries.
+
+If migration cannot complete, the recovery shell reports a bilingual status (`blocked, safe to
+retry` or `stopped at a safety boundary`), the affected phase and relative collision paths, and
+the next action: correct the named problem and choose **Restart and retry**. It explicitly says
+that the retained legacy profile was not discarded and that an incomplete Worldlens profile will
+not be opened as verified. The recovery shell keeps copy and export actions available so the user
+can preserve diagnostics without exposing credential values or absolute profile paths.
+
 Before the existing Worldlens root can be renamed, migration writes and flushes
 `%APPDATA%\.worldlens-profile-migration-transaction.json`. The journal records the exact source,
 staging, current, backup and failed paths; both source and pre-existing-current manifests; and the durable phase. Every
