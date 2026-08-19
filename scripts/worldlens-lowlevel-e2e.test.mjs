@@ -79,6 +79,15 @@ test("the onboarding driver declines download consent and never claims a standin
     assert.doesNotMatch(onboard, /ACCEPT|accepted download consent|standing choice/);
 });
 
+test("runtime evidence keeps bounded sanitized console and page error messages", () => {
+    assert.match(driver, /const consoleErrors = \[\];/);
+    assert.match(driver, /const pageErrors = \[\];/);
+    assert.match(driver, /MAX_RUNTIME_ERRORS = 20/);
+    assert.match(driver, /sanitizeRuntimeError/);
+    assert.match(driver, /consoleErrors,\n          pageErrors/);
+    assert.match(driver, /token\|secret\|password/);
+});
+
 test("the real render plan cannot claim dispatch from a pre-existing failed row", async () => {
     const dispatchPlan = JSON.parse(
         await readFile(new URL("./worldlens-lowlevel-ci-render-dispatch.json", import.meta.url), "utf8"),

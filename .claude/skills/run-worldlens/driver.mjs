@@ -201,11 +201,24 @@ const page = pages[0];
 const runStartedAt = new Date().toISOString();
 let consoleErrorCount = 0;
 let pageErrorCount = 0;
+const consoleErrors = [];
+const pageErrors = [];
+const MAX_RUNTIME_ERRORS = 20;
+const sanitizeRuntimeError = (value) =>
+  String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/gu, " ")
+    .replace(/([?&](?:token|secret|password|passwd|authorization|auth|key)=)[^&\s]*/giu, "$1[REDACTED]")
+    .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/giu, "$1[REDACTED]")
+    .slice(0, 512);
 page.on("console", (message) => {
-  if (message.type() === "error") consoleErrorCount += 1;
+  if (message.type() === "error") {
+    consoleErrorCount += 1;
+    if (consoleErrors.length < MAX_RUNTIME_ERRORS) consoleErrors.push(sanitizeRuntimeError(message.text()));
+  }
 });
-page.on("pageerror", () => {
+page.on("pageerror", (error) => {
   pageErrorCount += 1;
+  if (pageErrors.length < MAX_RUNTIME_ERRORS) pageErrors.push(sanitizeRuntimeError(error?.message ?? error));
 });
 const targetUrl = new URL(page.url());
 if (
@@ -824,6 +837,8 @@ async function runPlan(path) {
           startedAt: runStartedAt,
           consoleErrorCount,
           pageErrorCount,
+          consoleErrors,
+          pageErrors,
         },
         captures: captureLedger,
       },

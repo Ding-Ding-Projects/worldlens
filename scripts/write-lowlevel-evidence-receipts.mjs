@@ -46,6 +46,10 @@ if (manifest.runtime?.consoleErrorCount !== 0 || manifest.runtime?.pageErrorCoun
         `runtime reported ${manifest.runtime?.consoleErrorCount ?? "unknown"} console and ${manifest.runtime?.pageErrorCount ?? "unknown"} page errors`,
     );
 }
+const runtimeErrors = {
+    consoleErrors: Array.isArray(manifest.runtime?.consoleErrors) ? manifest.runtime.consoleErrors : [],
+    pageErrors: Array.isArray(manifest.runtime?.pageErrors) ? manifest.runtime.pageErrors : [],
+};
 
 const buildReceipt = {
     version: 1,
@@ -149,6 +153,8 @@ for (const capture of manifest.captures) {
             hwndResolvedLive: true,
             consoleErrorCount: manifest.runtime.consoleErrorCount,
             pageErrorCount: manifest.runtime.pageErrorCount,
+            consoleErrors: runtimeErrors.consoleErrors,
+            pageErrors: runtimeErrors.pageErrors,
             interactionProofId: `${options.plan}:${capture.name}`,
             interactionReceiptPath: basename(interactionPath),
             interactionReceiptSha256: interactionSha256,
@@ -170,7 +176,18 @@ for (const capture of manifest.captures) {
 
 await writeFile(
     resolve(runRoot, "receipt-index.json"),
-    `${JSON.stringify({ version: 1, commit, artifactSha256, receipts }, null, 2)}\n`,
+    `${JSON.stringify({
+        version: 1,
+        commit,
+        artifactSha256,
+        runtime: {
+            consoleErrorCount: manifest.runtime.consoleErrorCount,
+            pageErrorCount: manifest.runtime.pageErrorCount,
+            consoleErrors: runtimeErrors.consoleErrors,
+            pageErrors: runtimeErrors.pageErrors,
+        },
+        receipts,
+    }, null, 2)}\n`,
     "utf8",
 );
 process.stdout.write(`wrote ${receipts.length} draft Lowlevel evidence receipt(s)\n`);
