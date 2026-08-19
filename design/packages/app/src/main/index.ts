@@ -98,6 +98,8 @@ import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index
 import type { WorldRepoIpc } from "./worldrepo/index.js";
 import { DOCKERWORLD_EVENT_CHANNEL, registerDockerWorldHandlers } from "./dockerworld/index.js";
 import type { DockerWorldIpc } from "./dockerworld/index.js";
+import { DockerHostingManager, registerDockerHostingHandlers } from "./dockerhosting/index.js";
+import type { DockerHostingIpc } from "./dockerhosting/index.js";
 import {
     PROJECT_AUTOSAVE_EVENT_CHANNEL,
     registerProjectHandlers,
@@ -1268,6 +1270,23 @@ function startSshWorldSources(): WorldSourceSshIpc {
  * progress is also broadcast so the wizard never has to invent a percentage while waiting.
  */
 let dockerWorldIpc: DockerWorldIpc | null = null;
+let dockerHostingIpc: DockerHostingIpc | null = null;
+
+function startDockerHosting(): DockerHostingIpc {
+    if (dockerHostingIpc !== null) return dockerHostingIpc;
+    dockerHostingIpc = registerDockerHostingHandlers(ipcMain, {
+        manager: new DockerHostingManager({
+            recordFile: join(app.getPath("userData"), "docker-hosting", "instances.json"),
+            managedRoot: join(app.getPath("userData"), "docker-hosting", "data"),
+            onEvent: (event) => {
+                for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("dockerhosting:event", event);
+            },
+        }),
+    });
+    app.on("will-quit", () => dockerHostingIpc?.dispose());
+    return dockerHostingIpc;
+}
+
 
 function startDockerWorld(): DockerWorldIpc {
     if (dockerWorldIpc !== null) return dockerWorldIpc;
@@ -1754,6 +1773,7 @@ async function createWindow(): Promise<void> {
         ],
         ["network", "ssh-world-source", "SSH world sources are unavailable", startSshWorldSources],
         ["dependency", "docker-world", "Docker world import is unavailable", startDockerWorld],
+        ["dependency", "docker-hosting", "Docker hosting manager is unavailable", startDockerHosting],
         [
             "configuration",
             "world-inspection",

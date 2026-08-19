@@ -106,7 +106,7 @@ import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensi
 import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScreen.vue";
 import { resolveLockHost } from "./components/locks/useLocks.js";
 import SupportTickets from "./components/locks/SupportTickets.vue";
-import { RemoteHostingScreen } from "./components/remote/index.js";
+import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
 import {
     dropRenderHostMissingReason,
     useDropRenderHost,
@@ -337,6 +337,7 @@ const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
 const PAGE_OLLAMA = "ollama";
 const PAGE_REMOTE_HOSTING = "remoteHosting";
+const PAGE_DOCKER_HOSTING = "dockerHosting";
 const PAGE_SCREENSHOTS = "screenshots";
 
 /**
@@ -502,6 +503,7 @@ const pages = computed<TabPage[]>(() => [
     // and Structures earned their own tabs above for the same reason.
     { id: PAGE_OLLAMA, label: t("ollama.title", "Ollama"), icon: mdiRobotOutline },
     { id: PAGE_REMOTE_HOSTING, label: t("tabs.page.remoteHosting", "Remote hosting"), icon: mdiCloudUploadOutline },
+    { id: PAGE_DOCKER_HOSTING, label: t("tabs.page.dockerHosting", "Docker hosting"), icon: mdiServerNetwork },
     { id: PAGE_SCREENSHOTS, label: t("tabs.page.screenshots", "Screenshots"), icon: mdiImageMultipleOutline },
 ]);
 
@@ -2001,6 +2003,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     <RemoteHostingScreen />
                 </template>
 
+                <template #dockerHosting>
+                    <DockerHostingScreen />
+                </template>
+
                 <template #memory>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
@@ -2446,6 +2452,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                         <template #remoteHosting>
                             <RemoteHostingScreen />
+                        </template>
+
+                        <template #dockerHosting>
+                            <DockerHostingScreen />
                         </template>
 
                         <!--

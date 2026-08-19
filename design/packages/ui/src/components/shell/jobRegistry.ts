@@ -63,7 +63,8 @@ export type CoreJobId =
     | "worldrepo"
     | "docs"
     | "ollama"
-    | "remoteHosting";
+    | "remoteHosting"
+    | "dockerHosting";
 
 /**
  * Jobs that exist only where a sanitized public contract for them is in this checkout.
@@ -104,6 +105,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     memory: "memory",
     ollama: "ollama",
     remoteHosting: "remoteHosting",
+    dockerHosting: "dockerHosting",
     browserExtension: "browserExtension",
 } as const satisfies Record<string, JobId>;
 
@@ -353,6 +355,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.remoteHosting",
         labelFallback: "Remote hosting",
         icon: mdiCloudUploadOutline,
+        seedGroup: "finished",
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "dockerHosting",
+        semanticName: "dockerHosting",
+        labelKey: "tabs.page.dockerHosting",
+        labelFallback: "Docker hosting",
+        icon: mdiServerNetwork,
         seedGroup: "finished",
         pinnedOnFreshWorkspace: false,
     },

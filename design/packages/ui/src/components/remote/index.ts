@@ -25,6 +25,19 @@ export { default as DockerStateNote } from "./DockerStateNote.vue";
  */
 export { default as RemoteHostingPanel } from "./RemoteHostingPanel.vue";
 export { default as RemoteHostingScreen } from "./RemoteHostingScreen.vue";
+export { default as DockerHostingScreen } from "./DockerHostingScreen.vue";
+export { resolveDockerHostingBridge } from "./dockerHostingBridge.js";
+export type {
+    DockerHostingBridge,
+    DockerHostingContainer,
+    DockerHostingDaemonState,
+    DockerHostingEvent,
+    DockerHostingFailure,
+    DockerHostingMutationResult,
+    DockerHostingReadResult,
+    DockerHostingRequest,
+    DockerHostingSnapshot,
+} from "./dockerHostingBridge.js";
 
 export { describeDocker, dockerName, dockerNotProbed } from "./dockerStates.js";
 export type { DockerNote, DockerTone } from "./dockerStates.js";

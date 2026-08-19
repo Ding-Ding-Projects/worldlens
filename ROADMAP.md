@@ -36,6 +36,21 @@
   open. See [`docs/multi-server-dashboard.md`](docs/multi-server-dashboard.md) and
   issue #77.
 
+## Issue #69 — Docker hosting instance manager — 2026-08-19
+
+- **Status:** The issue-owned checkout contains the Phase G local Docker hosting manager source,
+  including the main-process manager/IPC in `design/packages/app/src/main/dockerhosting/` and the
+  `DockerHostingScreen.vue` surface. Issue #69 remains open pending verification.
+- **Current boundary:** The implementation is intended to discover daemon state, inventory
+  application-owned containers, plan lifecycle mutations, protect unmanaged workloads, persist
+  targets/history, and expose the tabbed/searchable manager surface. Existing Docker rendering,
+  Docker world import, and remote SSH/Docker hosting remain separate features.
+- **Evidence boundary:** this records-only update ran no tests, contacted no Docker daemon, created
+  no throwaway containers, built no package and took no captures. Real daemon refusal/ownership,
+  lifecycle, cancellation/recovery, restart reattachment, bulk/export, packaged interaction and
+  headless capture evidence remain open. See
+  [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md) and issue #69.
+
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
 
 The pinned upstream source is `vendor/BlueMap` `v5.23` at
