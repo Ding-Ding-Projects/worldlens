@@ -203,6 +203,37 @@ places the map **underneath it at `/map/`**, so both survive. It refuses outrigh
 documentation site already publishes something at `/map/`, rather than overwriting it. The
 two workflows share the `pages` concurrency group, so they queue instead of racing.
 
+#### Creating a repository from the app, and retrying honestly
+
+The desktop app can create a public or private repository, install the managed workflows,
+enable Actions, configure workflow-based Pages, and dispatch the selected world without
+leaving the rendered flow. The public path requires both the upload disclosure (when an
+upload is needed) and the stronger public-world disclosure. The Pages checkbox stays an
+explicit choice.
+
+The repository name is not assumed to be `worldlens`. The site build and its base-path
+assertion both derive `/<repository>/` from the repository that dispatched the workflow.
+This matters for app-created repositories: a build can emit the correct new prefix and still
+be rejected by a verifier that checks the old project name.
+
+A failed run is terminal evidence, not a run to follow forever. Pressing **Render on GitHub**
+again reuses a verified unchanged world archive, clears the terminal run id, and dispatches a
+fresh workflow run. Only a record still at `dispatched` may resume its existing run after an
+application restart. The dispatch state clears the old id, URL, number and failure in the same
+durable write, so a restart while GitHub is still listing the new run cannot reattach to the
+previous failure.
+
+Resumed shards cache the complete `bluemap-out` web root, not only `bluemap-out/maps`.
+The viewer shell is part of the merge input: restoring completed tiles without it produces no
+`webapp` artifact and makes the merge fail even though rendering succeeded. Cache layout v2
+uses a separate namespace so a map-only v1 cache cannot be accepted as complete.
+
+Private repository creation and private workflow execution are separate facts. Pages setup may
+be refused by the account or plan; the app keeps the exact provider response on the same screen
+and allows Pages to be turned off before dispatch. A private workflow can also be refused before
+any job starts when account billing or spending limits block Actions. That is an external run
+state, not proof that the renderer ran or failed.
+
 #### Why a map that works locally can load to an empty sky
 
 The engine stores hires tiles gzipped: the file on disk is `0.prbm.gz`, and the map's
@@ -891,6 +922,18 @@ Java 呢度個 `\W` 係 _預設_ 嘅、只認 ASCII 嘅 word class（呢條 call
 `artifact-and-pages` 除咗照樣出一份可下載嘅 artifact 之外，仲會將完成咗嘅地圖 host 喺呢個 repository 嘅 GitHub Pages 站上面。喺 app 入面，CI render 畫面用一個剔格提供呢個選項，預設係熄嘅 —— render 一個世界喺有人講明之前都係一件私人嘅事，而 Pages 係公開嘅，唔理個 repository 係咪公開。
 
 一個 repository 只有一個 Pages 站，而 documentation workflow 都係發佈去同一個。為咗唔好互相拆對方台，merge job 會重新 build 份 documentation 站，再將幅地圖放喺**佢下面嘅 `/map/`**，咁兩邊都生存到。如果份 documentation 站本身已經喺 `/map/` 發佈緊嘢，佢會直接拒絕，唔會蓋過去。兩個 workflow 共用 `pages` 呢個 concurrency group，所以佢哋會排隊，唔會撞埋一齊。
+
+#### 由 app 建立 repository，同埋老實 retry
+
+Desktop app 可以喺同一個 rendered flow 入面建立 public 或 private repository、安裝 managed workflows、啟用 Actions、設定 workflow-based Pages，再 dispatch 揀好嘅 world。Public 路線喺需要 upload 時一定要確認 upload disclosure，亦一定要另外確認更強嘅 public-world disclosure；Pages checkbox 永遠係明確選擇。
+
+Repository 名唔會假設一定係 `worldlens`。Site build 同 base-path assertion 都會由實際 dispatch workflow 嘅 repository 推導 `/<repository>/`。呢點對 app 新建嘅 repository 特別重要：build 可以正確輸出新 prefix，但如果 verifier 仲檢查舊 project 名，一樣會錯手拒絕。
+
+Failed run 係 terminal evidence，唔係永遠跟住睇嘅 run。再撳 **Render on GitHub** 會重用已驗證而且冇改變嘅 world archive，清走 terminal run id，再 dispatch 一個新 workflow run。只有仍然係 `dispatched` 嘅 record 先可以喺 app restart 後 resume 原有 run。Dispatch state 會喺同一個 durable write 清走舊 id、URL、number 同 failure，避免 GitHub 仲未列出新 run 時重開 app 又黐返舊 failure。
+
+Resumed shard 會 cache 完整 `bluemap-out` web root，唔係淨係 `bluemap-out/maps`。Viewer shell 都係 merge input 一部分：淨係 restore 完成 tiles 而冇佢，就唔會有 `webapp` artifact，render 明明成功都會喺 merge 失敗。Cache layout v2 用獨立 namespace，舊 map-only v1 cache 唔可以扮完整。
+
+Private repository 建立成功，同 private workflow 真係執行到，係兩件事。Pages setup 可以因帳戶或者 plan 被拒；app 會喺同一畫面保留 provider 原文，亦容許 dispatch 前關掉 Pages。Account billing 或 spending limit 亦可能喺任何 job 開始前拒絕 private workflow；嗰個係外部 run state，唔代表 renderer 跑過或者 render 失敗。
 
 #### 點解一幅喺本機行得嘅地圖，上到去會載出一片空天
 
