@@ -51,6 +51,7 @@ import type { CiScheduleStatus, CiScheduleWriteResult } from "./schedule.js";
 import { CiRenderSync } from "./sync.js";
 import type {
     CiPreflight,
+    CiSyncFailure,
     CiSyncEvent,
     CiSyncRequest,
     CiSyncResult,
@@ -62,6 +63,8 @@ import type { CiTransport, RouteReport } from "./transport.js";
 import { suggestCiRepositoryName } from "./setup.js";
 import type { CiOwnerChoicesAnswer, CiRepositoryNameAvailability } from "./setup.js";
 import { CiWorkflowTemplateError, loadCiWorkflowTemplates } from "./workflowTemplates.js";
+import { saveCloudRenderConfig } from "./cloudConfig.js";
+import type { CloudRenderConfigInput, CloudRenderConfigSaveResult } from "./cloudConfig.js";
 
 /** The channel every phase, log, run-state and outcome event arrives on. */
 export const CIRENDER_EVENT_CHANNEL = "cirender:event";
@@ -91,6 +94,8 @@ export const CIRENDER_CHANNELS = [
     // Preparing a repository that has never had the render workflow committed to it. A
     // truly empty repository gets an actionable starter-commit refusal - see `bootstrap.ts`.
     "cirender:bootstrap",
+    "cirender:createCloudConfig",
+    "cirender:cancelCloudConfig",
 ] as const;
 
 /** Every `CiBootstrapEvent` a bootstrap in progress emits arrives on this channel. */
@@ -100,6 +105,8 @@ export interface CiRenderIpcOptions {
     readonly ipcMain: IpcMain;
     /** Where maps and sync records live. A function, so a moved storage folder takes effect. */
     readonly storageDir: () => string;
+    /** The application's own data root for project history; old callers fall back to storageDir. */
+    readonly historyDataDir?: (() => string) | undefined;
     /** Secret-free gh command lease for account, owner and repository routing. */
     readonly account: GhCliAccountProvider;
     /** Whether Mojang's EULA has been accepted here. Read only; never set from a channel. */
@@ -143,6 +150,7 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     };
     const sync = new CiRenderSync(syncOptions);
     const scheduleWrites = new Set<string>();
+    const cloudConfigCancels = new Map<string, AbortController>();
 
     const acquireAccount = async (
         accountId: string | undefined,
@@ -611,9 +619,94 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         },
     );
 
+    // A missing project is a guided creation opportunity, not a request to render once
+    // locally. The unchanged CI request is handed back to preflight after the atomic save,
+    // retaining the chosen account, owner, repository, map and world without a second form.
+    options.ipcMain.handle(
+        "cirender:createCloudConfig",
+        async (_event: IpcMainInvokeEvent, value: unknown): Promise<CloudRenderConfigIpcResult> => {
+            const outer = objectRecord(value);
+            const operationId = readText(outer?.operationId);
+            if (operationId === null) {
+                return {
+                    ok: false,
+                    failure: { code: "invalid-request", message: "A cloud configuration operation id is required." },
+                };
+            }
+            if (cloudConfigCancels.has(operationId)) {
+                return {
+                    ok: false,
+                    failure: { code: "invalid-request", message: "That cloud configuration operation is already running." },
+                };
+            }
+            const request = readRequest(outer?.request);
+            if (request === null) {
+                return {
+                    ok: false,
+                    failure: {
+                        code: "invalid-request",
+                        message: "A world folder, repository owner and name are required.",
+                    },
+                };
+            }
+            const source = objectRecord(outer?.config) ?? {};
+            const config: CloudRenderConfigInput = {
+                worldFolder: request.worldFolder,
+                ...optionalText(source, "projectName"),
+                ...optionalText(source, "mapId"),
+                ...optionalText(source, "mapName"),
+                ...optionalText(source, "dimension"),
+                ...optionalText(source, "dataFolder"),
+                ...optionalText(source, "webroot"),
+                ...(typeof source["sorting"] === "number" ? { sorting: source["sorting"] } : {}),
+                ...optionalStringArray(source, "enabledMapIds"),
+                ...(source["outputFolder"] === null
+                    ? { outputFolder: null }
+                    : optionalText(source, "outputFolder")),
+                ...(source["threads"] === null || typeof source["threads"] === "number"
+                    ? { threads: source["threads"] as number | null | undefined }
+                    : {}),
+                ...(typeof source["force"] === "boolean" ? { force: source["force"] } : {}),
+                ...(typeof source["fixEdges"] === "boolean" ? { fixEdges: source["fixEdges"] } : {}),
+                ...(typeof source["metrics"] === "boolean" ? { metrics: source["metrics"] } : {}),
+            };
+            const controller = new AbortController();
+            cloudConfigCancels.set(operationId, controller);
+            try {
+                const saved = await saveCloudRenderConfig(
+                    {
+                        dataDir: options.historyDataDir?.() ?? options.storageDir(),
+                        appVersion: options.appVersion,
+                        signal: controller.signal,
+                    },
+                    config,
+                );
+                if (!saved.ok) return saved;
+                const preflight = await sync.preflight(request);
+                return preflight.ok
+                    ? { ok: true, saved, preflight: preflight.preflight, preflightFailure: null }
+                    : { ok: true, saved, preflight: null, preflightFailure: preflight.failure };
+            } catch (error) {
+                return { ok: false, failure: { code: "write-failed", message: sentence(error) } };
+            } finally {
+                cloudConfigCancels.delete(operationId);
+            }
+        },
+    );
+
+    options.ipcMain.handle("cirender:cancelCloudConfig", (_event: IpcMainInvokeEvent, value: unknown) => {
+        const operationId = readText(value);
+        if (operationId === null) return false;
+        const controller = cloudConfigCancels.get(operationId);
+        if (controller === undefined) return false;
+        controller.abort();
+        return true;
+    });
+
     return {
         sync,
         dispose(): void {
+            for (const controller of cloudConfigCancels.values()) controller.abort();
             for (const channel of CIRENDER_CHANNELS) options.ipcMain.removeHandler(channel);
         },
     };
@@ -624,6 +717,32 @@ export interface CiBootstrapIpcRequest {
     readonly repo: string;
     readonly accountId: string | null;
     readonly publishToPages: boolean;
+}
+
+export type CloudRenderConfigIpcResult =
+    | {
+          readonly ok: true;
+          readonly saved: Extract<CloudRenderConfigSaveResult, { readonly ok: true }>;
+          readonly preflight: CiPreflight | null;
+          readonly preflightFailure: CiSyncFailure | null;
+      }
+    | { readonly ok: false; readonly failure: { readonly code: string; readonly message: string } };
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null;
+}
+
+function optionalText(record: Record<string, unknown>, key: string): Record<string, string> {
+    const value = readText(record[key]);
+    return value === null ? {} : { [key]: value };
+}
+
+function optionalStringArray(record: Record<string, unknown>, key: string): { enabledMapIds?: readonly string[] } {
+    const value = record[key];
+    if (!Array.isArray(value) || !value.every((item): item is string => typeof item === "string")) return {};
+    return { enabledMapIds: value };
 }
 
 /** Renderer input widened field by field; strings such as `"true"` never become consent. */

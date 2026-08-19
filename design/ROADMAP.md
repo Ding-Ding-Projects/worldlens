@@ -1,5 +1,18 @@
 # Roadmap
 
+## Issue #57 — cloud-first project configuration (implementation in progress)
+
+The cloud-render setup now has a guided path for a world without a project file. It generates the
+complete versioned project schema from the shared defaults, validates the world and render values,
+does not start Java or perform a local render, saves through the atomic project writer, records
+local project history, and returns to CI preflight with the original request intact. Cancellation
+before the write boundary leaves the world untouched, and existing unreadable or newer-format
+projects are not replaced silently.
+
+The source implementation and preload route are present, but this is not packaged or hosted-run
+evidence. A real packaged-app interaction and a real cloud workflow dispatch remain open before
+issue #57 is complete.
+
 ## CI failed on a fully green test suite, and the real Kid Mode feature count (2026-08-15)
 
 **State: no source change; this entry records the current verified status.** CI run 31879080680 on
@@ -1184,7 +1197,7 @@ named so it is not lost between passes.
   filtering of tasks whose `hasMoreWork()` is false, and a final shutdown save. The standalone
   CLI constructs it after maps are built, at `<resolved core.data>/tasks.dat`; the server package
   exports the helper but has no separate construction site. Retention is one current queue file,
-  not a history. Focused acceptance Chuts now cover real file/schema/corruption handling,
+  not a history. Focused acceptance checks now cover real file/schema/corruption handling,
   terminal-task exclusion, unique staging and reopen, coalesced saves, and CLI startup/shutdown
   wiring. Remaining proof must cover structured skipped/unknown-task reporting, stale
   cross-process crash ordering, and a real CLI restart that resumes queued work end to end.

@@ -1,5 +1,26 @@
 # Handoff
 
+## 2026-08-19 — issue #57 cloud-first project configuration
+
+The cloud-render path now has a guided configuration route for worlds without a project file.
+The route builds the normal versioned project schema from the shared configuration defaults,
+does not start Java, download a runtime or client, and does not perform a local render. It
+validates the world path, map ids, dimensions, enabled maps, render threads and generated paths
+before writing.
+
+The project is written through the existing unique-temporary-file and atomic-replacement path,
+then recorded in the isolated per-world local history with the travelling history bundle enabled.
+Existing readable projects remain unchanged, unreadable or newer-format projects are not replaced,
+and a history failure does not undo a successful file write. Cancellation before the atomic
+boundary leaves the world untouched; cancellation at that boundary reports the actual saved
+result. After saving, the original CI request returns to preflight without asking for the world,
+repository, account or map values again. The preload now exposes the create and cancellation
+channels to the renderer.
+
+This is a source-level implementation record for issue #57. No commit SHA is available yet, and
+the packaged-application and real hosted-workflow evidence remain open. The direct implementation
+lane did not run tests, lint, type checks, reviews, audits, accessibility checks or screenshots.
+
 ## Issue #60 — public 1.0 compatibility contract
 
 This lane prepares the public delivery records for a Windows-only 1.0 compatibility contract. The

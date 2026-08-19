@@ -1,15 +1,33 @@
 # Handoff
 
+## 2026-08-19 — issue #57 cloud-first project configuration
+
+The issue #57 implementation adds a guided project-creation path for cloud rendering when a
+world has no project file. It builds the ordinary versioned project schema from the shared config
+generator, validates the world path, map choices, dimensions, enabled maps, threads and generated
+paths, and never starts Java, downloads a runtime or client, or performs a local render.
+
+The save uses the existing atomic project writer and then records the result in the isolated
+per-world local history, including the travelling history bundle. Existing readable projects are
+left unchanged, unreadable or newer-format projects are not overwritten, and a history failure
+does not undo a successful write. Cancellation before the atomic boundary writes nothing; a race
+at the boundary reports the file that was actually saved. The unchanged CI request is returned to
+preflight after saving, and the preload now exposes create and cancellation for the renderer.
+
+This is a source-level handoff only. No commit SHA is available yet; packaged-app interaction and
+real hosted-workflow evidence remain open. The implementation lane did not run tests, lint, type
+checks, reviews, audits, accessibility checks or screenshot capture.
+
 ## 2026-08-19 — issue #64 focused acceptance repair
 
-**State:** focused acceptance Chuts are present at `0a3b1d2e` plus the current-main merge
+**State:** focused acceptance checks are present at `0a3b1d2e` plus the current-main merge
 `76e368de`. The three-file focused run passed 29 tests covering real queue-file round trips,
 schema/version and corruption handling, malformed and unknown entries, terminal-task exclusion,
 unique staging and reopen, coalesced non-overlapping saves, CLI startup/shutdown wiring, and an
 exact source-guard mutation that went red when wiring was removed or commented and green again
 after restoration.
 
-No full suite, lint, review, audit, accessibility run, or HuiShot was performed. Remaining issue
+No full suite, lint, review, audit, accessibility run, or screenshot capture was performed. Remaining issue
 #64 gaps are structured skipped/unknown-task recovery presentation, stale cross-process crash
 ordering, and a real CLI restart that resumes queued work end to end.
 

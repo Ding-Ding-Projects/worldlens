@@ -10,6 +10,18 @@
   second run. Successful artifacts are downloaded, verified, registered and openable in the map
   viewer.
 
+## Issue #57 — cloud-first project configuration (implementation in progress)
+
+When a world has no project file, the desktop app now offers a guided cloud-render configuration
+path instead of requiring one local render first. It generates the complete versioned project
+schema from shared defaults, validates the world and render choices, performs no Java or local
+render work, saves atomically, records local project history, and returns to the existing CI
+preflight with the original request values. Cancellation before the write leaves the world alone;
+an existing, unreadable or newer-format project is never silently overwritten.
+
+The implementation is source-level only at this point. The packaged-app interaction and a real
+hosted-workflow dispatch remain open evidence before issue #57 can be closed.
+
 ## Public 1.0 compatibility contract — issue #60
 
 - **Scope:** Windows-only public compatibility for the desktop application and the standalone
