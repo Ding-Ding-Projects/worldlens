@@ -511,11 +511,21 @@ function startRendering(): RenderIpc {
     // Windows has moved Documents there, with the reason carried alongside so the move is
     // explained rather than discovered. Only a profile that has never chosen a folder is
     // affected, so an existing install keeps its maps exactly where they are.
-    const windowsDefault = windowsMapStorageDefault({
-        reported: app.getPath("documents"),
-        home: app.getPath("home"),
-    });
-    const storageDir = windowsDefault?.directory ?? defaultStorageDirectory(userData);
+    const screenshotStorage =
+        process.env.WORLDLENS_SCREENSHOTS === "1"
+            ? process.env.WORLDLENS_SCREENSHOT_STORAGE?.trim()
+            : undefined;
+    const windowsDefault =
+        screenshotStorage === undefined || screenshotStorage === ""
+            ? windowsMapStorageDefault({
+                  reported: app.getPath("documents"),
+                  home: app.getPath("home"),
+              })
+            : null;
+    const storageDir =
+        screenshotStorage === undefined || screenshotStorage === ""
+            ? (windowsDefault?.directory ?? defaultStorageDirectory(userData))
+            : screenshotStorage;
     const render = installRenderIpc({
         storageDir,
         defaultStorageDir: storageDir,
@@ -624,9 +634,28 @@ function startWorldInspection(): WorldIpc {
     // executable's own directory is where a portable installation would put its
     // `.minecraft`. Both are passed in rather than read inside `world/`, so the whole
     // directory still runs, and is still tested, with no Electron and no real machine.
+    const screenshotHome =
+        process.env.WORLDLENS_SCREENSHOTS === "1"
+            ? process.env.WORLDLENS_SCREENSHOT_HOME?.trim()
+            : undefined;
+    const screenshotEnvironment =
+        screenshotHome === undefined || screenshotHome === ""
+            ? undefined
+            : {
+                  ...process.env,
+                  APPDATA: screenshotHome,
+                  LOCALAPPDATA: screenshotHome,
+                  USERPROFILE: screenshotHome,
+                  HOME: screenshotHome,
+              };
     worldIpc = registerWorldHandlers(ipcMain, {
         userDataDirectory: app.getPath("userData"),
-        executableDirectory: path.dirname(process.execPath),
+        executableDirectory:
+            screenshotHome === undefined || screenshotHome === ""
+                ? path.dirname(process.execPath)
+                : screenshotHome,
+        ...(screenshotEnvironment === undefined ? {} : { env: screenshotEnvironment }),
+        ...(screenshotHome === undefined || screenshotHome === "" ? {} : { home: screenshotHome }),
     });
     return worldIpc;
 }

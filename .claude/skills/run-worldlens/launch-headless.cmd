@@ -31,6 +31,8 @@ if not exist "%APP%\node_modules\electron\dist\electron.exe" (
 REM The seam that makes the app honour --user-data-dir. Without it, production identity
 REM wins and this run would write to the user's own settings.
 set "WORLDLENS_SCREENSHOTS=1"
+set "WORLDLENS_SCREENSHOT_HOME=C:\Worldlens-Capture"
+set "WORLDLENS_SCREENSHOT_STORAGE=C:\Worldlens-Capture\maps"
 
 "%APP%\node_modules\electron\dist\electron.exe" "%APP%" ^
   --no-sandbox --disable-gpu --force-prefers-reduced-motion ^

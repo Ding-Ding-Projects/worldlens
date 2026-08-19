@@ -198,6 +198,15 @@ if (pages.length !== 1) {
   process.exit(1);
 }
 const page = pages[0];
+const runStartedAt = new Date().toISOString();
+let consoleErrorCount = 0;
+let pageErrorCount = 0;
+page.on("console", (message) => {
+  if (message.type() === "error") consoleErrorCount += 1;
+});
+page.on("pageerror", () => {
+  pageErrorCount += 1;
+});
 const targetUrl = new URL(page.url());
 if (
   !["127.0.0.1", "localhost", "[::1]"].includes(targetUrl.hostname) ||
@@ -409,6 +418,7 @@ async function capture(step, walkthrough = false) {
     expectedSurface: step.expectedSurface || step.alt || step.name,
     commit: step.commit || CAPTURE_COMMIT,
     capturedAt: new Date().toISOString(),
+    startedAt: runStartedAt,
     source: UI_ONLY
       ? "cheap Lowlevel hidden desktop input and window capture + read-only single-target CDP assertions"
       : "cheap Lowlevel hidden desktop + single-target CDP driver",
@@ -753,6 +763,11 @@ async function runPlan(path) {
         interaction: UI_ONLY
           ? "Lowlevel MCP background input; CDP read-only assertions"
           : "Playwright actions",
+        runtime: {
+          startedAt: runStartedAt,
+          consoleErrorCount,
+          pageErrorCount,
+        },
         captures: captureLedger,
       },
       null,

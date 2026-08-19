@@ -36,6 +36,7 @@ $api = "http://127.0.0.1:$McpPort/api/execute"
 $server = $null
 $windowPid = $null
 $hwnd = $null
+$captureCommit = $null
 
 function Invoke-Lowlevel([string]$Tool, [hashtable]$Arguments) {
     $body = @{ tool = $Tool; arguments = $Arguments } | ConvertTo-Json -Depth 12 -Compress
@@ -144,7 +145,8 @@ try {
     $env:WORLDLENS_PLAN_EXIT = "1"
     $env:WORLDLENS_DRIVER_DESKTOP = $desktop
     $env:WORLDLENS_DRIVER_OUTPUT = $output
-    $env:WORLDLENS_CAPTURE_COMMIT = (git -C $repo rev-parse HEAD).Trim()
+    $captureCommit = (git -C $repo rev-parse HEAD).Trim()
+    $env:WORLDLENS_CAPTURE_COMMIT = $captureCommit
     if (-not [string]::IsNullOrWhiteSpace($WorldFolder)) {
         $env:WORLDLENS_CI_WORLD = [IO.Path]::GetFullPath($WorldFolder)
     }
@@ -183,5 +185,14 @@ try {
         Remove-Item -LiteralPath $resolvedRunRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
+
+node (Join-Path $repo "scripts\write-lowlevel-evidence-receipts.mjs") `
+    --repo-root $repo `
+    --run-root $output `
+    --commit $captureCommit `
+    --launch-pid ([string]$windowPid) `
+    --hwnd ("0x{0:x}" -f $hwnd) `
+    --plan $PlanPath
+if ($LASTEXITCODE -ne 0) { throw "Writing the Lowlevel evidence receipts failed." }
 
 Write-Output "Worldlens Lowlevel UI-only evidence: $output"
