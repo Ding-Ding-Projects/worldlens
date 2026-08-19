@@ -161,6 +161,7 @@ import {
 import { handleSquirrelShortcutEvent } from "./squirrelShortcuts.js";
 import { registerAddonHandlers } from "./addons/index.js";
 import type { AddonIpc } from "./addons/index.js";
+import { registerVocabularyHandlers } from "./vocabulary/index.js";
 
 const squirrelStartupHandled = handleSquirrelShortcutEvent({
     platform: process.platform,
@@ -492,6 +493,7 @@ function registerIpc(): void {
     // directory.  Register it before a renderer can load, so preload's initial read is the
     // shared state rather than a renderer-local guess.
     registerSchoolModeHandlers(ipcMain, { applicationDataDirectory });
+    registerVocabularyHandlers(ipcMain, { applicationDataDirectory });
 
     // Mojang's licence, fetched and cached so it can be read inside the app rather than
     // taken on trust. A reader only: the acceptance itself stays in `consent.ts`.

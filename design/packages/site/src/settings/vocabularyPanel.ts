@@ -1,18 +1,10 @@
 /**
- * The panel that only exists once a private wording file has been supplied.
+ * The always-present private wording picker. It reports an honest empty state before a file
+ * exists, while keeping the replacement feature itself inactive until validation succeeds.
  *
  * This is the unusual half of the vocabulary rule made concrete: with no file installed the
- * factory returns an element that renders **nothing**, and the settings page skips it
- * entirely, so a visitor who has never supplied a file sees no vocabulary control, no empty
- * list, no explanatory placeholder and no search result. A disabled control would have
- * advertised a capability the visitor is not using; an empty one would have implied they had
- * misconfigured something. Absence is the specified state and absence is what this renders.
- *
- * There is consequently no "add a vocabulary" button anywhere. The file arrives through the
- * settings import picker that already exists for settings files, which is a generic file
- * intake rather than a vocabulary feature — the distinction the rule turns on. Once a file has
- * been accepted, this panel appears and offers the two things a visitor with one installed
- * actually needs: how many replacements are live, and how to take them away again.
+ * The file input is local-only and accepts only the shared object payload; no private mapping is
+ * bundled here.
  *
  * Nothing about the file's contents is rendered here, and nothing about its shape is described
  * in copy. That is deliberate and it is why this file is safe to publish: the mechanism is
@@ -48,6 +40,25 @@ export function createVocabularyPanel(options: VocabularyPanelOptions): Vocabula
     });
     const note = el("p", { class: "md-field__help mb-help" });
     const removeHelp = el("p", { class: "md-field__help mb-help" });
+    const status = el("p", { class: "md-field__help mb-help", attrs: { role: "status", "aria-live": "polite" } });
+    const picker = el("input", { class: "mb-vocabulary-file", attrs: { type: "file", accept: "application/json,.json" } }) as HTMLInputElement;
+    const choose = el("button", { class: "md-button md-button--tonal", attrs: { type: "button" } });
+    choose.addEventListener("click", () => picker.click());
+    picker.addEventListener("change", () => {
+        const file = picker.files?.[0];
+        picker.value = "";
+        if (file === undefined) return;
+        void file.text().then((text) => {
+            const loaded = vocabulary.load(text);
+            status.textContent = loaded.ok ? t("vocab.installedCount", { count: loaded.count }) : t("vocab.refused.wrong-shape");
+            announce(status.textContent);
+            refresh();
+            options.onChange();
+        }).catch(() => {
+            status.textContent = t("vocab.refused.not-json");
+            announce(status.textContent);
+        });
+    });
     const remove = el("button", {
         class: "md-button md-button--outlined md-button--danger",
         attrs: { type: "button" },
@@ -64,8 +75,10 @@ export function createVocabularyPanel(options: VocabularyPanelOptions): Vocabula
     });
 
     wrapper.append(
-        el("div", { class: "mb-property-row" }, label, remove),
+        el("div", { class: "mb-property-row" }, label, choose, remove),
+        picker,
         count,
+        status,
         removeHelp,
         note,
     );
@@ -75,8 +88,17 @@ export function createVocabularyPanel(options: VocabularyPanelOptions): Vocabula
         // in place and simply stops existing for a visitor and for assistive technology alike.
         // Rebuilding the group on every change would move focus out from under anyone who was
         // using a neighbouring control at the time.
-        wrapper.hidden = !vocabulary.installed;
-        if (!vocabulary.installed) return;
+        wrapper.hidden = false;
+        choose.textContent = vocabulary.installed ? t("vocab.replaceFile") : t("vocab.chooseFile");
+        choose.setAttribute("aria-label", choose.textContent);
+        remove.hidden = !vocabulary.installed;
+        label.textContent = t("vocab.installedLabel");
+        if (!vocabulary.installed) {
+            count.textContent = t("vocab.empty");
+            note.textContent = t("vocab.note");
+            removeHelp.textContent = "";
+            return;
+        }
         fillPhrase(label, "vocab.installedLabel");
         fillPhrase(count, "vocab.installedCount", { count: vocabulary.entryCount });
         fillPhrase(note, "vocab.note");

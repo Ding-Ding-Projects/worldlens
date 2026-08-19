@@ -100,6 +100,12 @@ const statusMessage = computed(() => {
             "The saved vocabulary could not be read back, so original wording is in effect. Upload it again to restore it.",
         );
     }
+    if (vocabularyStore.persistenceError !== undefined) {
+        return t(
+            "vocabulary.upload.cacheUnreadable",
+            "The new vocabulary could not be saved. The last valid cached vocabulary remains active; try again or clear it.",
+        );
+    }
     if (vocabularyStore.status === "loaded") {
         return t(
             "vocabulary.upload.loaded",
@@ -116,6 +122,7 @@ const statusMessage = computed(() => {
 const statusSeverity = computed<"success" | "warning" | "info">(() => {
     if (rejection.value !== null) return "warning";
     if (vocabularyStore.status === "cache-unreadable") return "warning";
+    if (vocabularyStore.persistenceError !== undefined) return "warning";
     if (vocabularyStore.status === "loaded") return "success";
     return "info";
 });

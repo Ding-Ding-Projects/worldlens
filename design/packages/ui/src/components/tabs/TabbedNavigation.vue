@@ -301,6 +301,26 @@ watch(
 
 const strip = computed<TabStripState>(() => workspace.value.strips[0] ?? seedStrip());
 
+// Hosts may remove pages at runtime (School mode is the canonical example). Prune their
+// persisted tabs and select the first remaining page in the same update so the shell never
+// leaves an active tab pointing at a page that no longer exists.
+watch(
+    () => props.pages.map((page) => page.id),
+    (pageIds) => {
+        const allowed = new Set(pageIds);
+        const unavailable = strip.value.tabs
+            .filter((tab) => !allowed.has(tab.pageId))
+            .map((tab) => tab.id);
+        let next = unavailable.length > 0 ? closeTabs(strip.value, unavailable) : strip.value;
+        if (next.activeTabId === null) {
+            const survivor = next.tabs.find((tab) => allowed.has(tab.pageId));
+            if (survivor !== undefined) next = setActiveTab(next, survivor.id);
+        }
+        if (next !== strip.value) update(next);
+    },
+    { immediate: true, flush: "post" },
+);
+
 /** Replaces one strip, leaving every other strip in the workspace untouched. */
 function update(next: TabStripState): void {
     workspace.value = {

@@ -634,6 +634,11 @@ interface WorldlensBridge {
     dashboardRefresh(options?: { readonly concurrency?: number; readonly retries?: number; readonly backoffMs?: number }): Promise<DashboardSnapshot>;
     dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
     schoolMode?: SharedSchoolModeBridge;
+    vocabulary?: {
+        read(): Promise<{ readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string } }>;
+        load(raw: string): Promise<{ readonly ok: boolean; readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string }; readonly reason?: string }>;
+        clear(): Promise<{ readonly ok: boolean; readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string }; readonly reason?: string }>;
+    };
     startup: BlueMapStartupBridge;
     addons: AddonsBridge;
     /** User-owned screenshots stored under the app-data directory, never in renderer storage. */

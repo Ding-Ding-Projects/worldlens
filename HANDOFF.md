@@ -1,5 +1,34 @@
 # Handoff
 
+## Issue #141 — personal vocabulary upload compatibility records (2026-08-19)
+
+Issue #141 remains **open and unverified**. The public feature record is
+[`docs/personal-vocabulary.md`](docs/personal-vocabulary.md). It defines the local JSON upload,
+the versioned neutral contract, fail-closed validation, replacement boundary, persistence and
+privacy rules without copying any private vocabulary values into the product.
+
+This is a documentation-only handoff on `codex/issue-141-vocabulary-upload`. It records the
+acceptance boundary but does not claim implementation or packaged-runtime proof. No tests,
+builds, installer runs, runtime sessions, screenshots, or captures were performed in this lane;
+no commit or dew is claimed here. Before Issue #141 can close, the next owner must verify the
+real built artifact for empty, valid, invalid, over-limit, replace, clear/reset, persistence,
+cache-corruption, no-network, export/log redaction, and accessible-name states, while retaining
+the evidence boundary that excludes vocabulary values, source paths, and payloads.
+
+### 廣東話 / Cantonese
+
+Issue #141 仲係 **open，未驗證**。Public feature record 係
+[`docs/personal-vocabulary.md`](docs/personal-vocabulary.md)，入面寫清楚 local JSON upload、
+versioned neutral contract、fail-closed validation、replacement、persistence 同 privacy，亦
+唔會將任何私人詞彙 value 放入 product。
+
+呢次係 `codex/issue-141-vocabulary-upload` 嘅 documentation-only handoff，只記 acceptance
+boundary，唔係 implementation 或 packaged runtime proof。今次冇 tests、builds、installer、
+runtime sessions、screenshots 或 captures，亦冇 commit 或 dew。下一位 owner 要喺真正 built
+artifact 驗 empty、valid、invalid、over-limit、replace、clear/reset、persistence、cache
+corruption、no-network、export/log redaction 同 accessible-name states，同時保留唔記錄
+vocabulary values、source paths、payloads 嘅 evidence boundary。
+
 ## Issue #63 manual release ledger — records-only documentation boundary (2026-08-19)
 
 Issue #63 remains **open**. The feature record is

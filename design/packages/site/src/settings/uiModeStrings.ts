@@ -103,6 +103,9 @@ export const SCHOOL_MODE_STRINGS: StringTable = {
 };
 
 export const VOCABULARY_STRINGS: StringTable = {
+    "vocab.chooseFile": { en: "Choose a vocabulary JSON file", yue: "揀個詞彙 JSON 檔案" },
+    "vocab.replaceFile": { en: "Replace the vocabulary JSON file", yue: "換個詞彙 JSON 檔案" },
+    "vocab.empty": { en: "No file supplied. Original wording is in effect.", yue: "未有檔案，依家用返原本寫法。" },
     "vocab.installedLabel": { en: "Your own wording", yue: "你自己嘅用詞" },
     "vocab.installedCount": {
         en: "{count} replacements are in force from the file you supplied.",
