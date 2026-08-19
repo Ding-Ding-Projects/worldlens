@@ -20,6 +20,11 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Server, CLI and configuration
+
+- Merge issue #64 render-queue persistence - [`3b71f4c08b`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b71f4c08bf4dae54fbdf8b8393c1eaae2318c95) _(summary of 3 commits, also listed here)_
+- Wire runtime render-queue persistence into the CLI - [`0a710e4345`](https://github.com/Ding-Ding-Projects/worldlens/commit/0a710e4345d395f1f8ae6ef6597d37721ef4d973)
+
 ### Desktop shell
 
 - Merge issue #91 local WebServer retirement - [`2d8fb2193a`](https://github.com/Ding-Ding-Projects/worldlens/commit/2d8fb2193a0b68d63a8dbb2fd295c806066cb780) _(summary of 3 commits, also listed here)_
@@ -27,6 +32,8 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Merge latest main before issue delivery - [`a7455e787e`](https://github.com/Ding-Ding-Projects/worldlens/commit/a7455e787e674a3b247fe96332099dea0fdf15d4) _(summary of 2 commits, also listed here)_
+- Add hidden-desktop UI verification and recover failed cloud renders - [`f0150dfbca`](https://github.com/Ding-Ding-Projects/worldlens/commit/f0150dfbca02b355feea32f3dbc7c6290cb5f3a0)
 - Merge issue #89 typed banner data - [`025d68f017`](https://github.com/Ding-Ding-Projects/worldlens/commit/025d68f017c5426b8ec02098f8f6213bd818bb7b) _(summary of 2 commits, also listed here)_
 - Type banner pattern and color data across Minecraft eras - [`47c3f8a523`](https://github.com/Ding-Ding-Projects/worldlens/commit/47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b)
 - Merge issue #88 LinearRegion timestamp semantics - [`ff2d72f1b6`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff2d72f1b635aac7efe0831315919a03461b49b7) _(summary of 3 commits, also listed here)_
