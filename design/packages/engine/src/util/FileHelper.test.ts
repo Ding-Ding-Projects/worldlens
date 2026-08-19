@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -58,6 +59,27 @@ describe("FileHelper.atomicMove", () => {
         const root = tempDir();
         await expect(atomicMove(join(root, "nope"), join(root, "target"))).resolves.toBeUndefined();
         expect(existsSync(join(root, "target"))).toBe(false);
+    });
+
+    it("retries transient Windows rename failures and succeeds without weakening atomicity", async () => {
+        const root = tempDir();
+        const from = join(root, "retry-source");
+        const to = join(root, "retry-target");
+        writeFileSync(from, "retry-payload");
+        let attempts = 0;
+
+        await atomicMove(from, to, async (source, destination) => {
+            attempts++;
+            if (attempts < 3) {
+                const error = Object.assign(new Error("destination temporarily held"), { code: "EPERM" });
+                throw error;
+            }
+            await rename(source, destination);
+        });
+
+        expect(attempts).toBe(3);
+        expect(readFileSync(to, "utf-8")).toBe("retry-payload");
+        expect(existsSync(from)).toBe(false);
     });
 });
 

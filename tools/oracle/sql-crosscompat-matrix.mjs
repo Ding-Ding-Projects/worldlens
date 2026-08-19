@@ -73,6 +73,7 @@ Options:
   --driver-dir <dir>      JDBC jar directory (default driver-fetch/build/drivers)
   --webserver-port <port> base port for Java raw-storage server (default 18280)
   --preflight              validate selected drivers and generate the fixture, then stop
+  --sentinel-preflight     also write an asset through TS and read it through Java HTTP
   --json <path>            write machine-readable report
   --help                   this text
 `;
@@ -93,6 +94,7 @@ function parseArgs(argv) {
         driverDir: join(REPO_ROOT, "tools", "oracle", "driver-fetch", "build", "drivers"),
         webserverPort: 18280,
         preflight: false,
+        sentinelPreflight: false,
         json: null,
         help: false,
     };
@@ -120,6 +122,7 @@ function parseArgs(argv) {
             case "--driver-dir": options.driverDir = resolve(next()); break;
             case "--webserver-port": options.webserverPort = Number(next()); break;
             case "--preflight": options.preflight = true; break;
+            case "--sentinel-preflight": options.sentinelPreflight = true; break;
             case "--json": options.json = resolve(next()); break;
             case "--help":
             case "-h": options.help = true; break;
@@ -508,6 +511,7 @@ async function runDirection2({ engine, dialect, target, driver, worldDirectory, 
     try {
         subject = await openSql(engine, dialect, target); const tsMap = subject.storage.map(options.mapId);
         if (!(await subject.storage.mapIds()).includes(options.mapId)) throw new Error(`${dialect.id}: TypeScript-written map id '${options.mapId}' was not visible after reopen`);
+        await tsMap.asset("oracle-sentinel.json").write(Buffer.from('{"oracle":"issue-66"}\n', "utf8"));
         const cells = { hires: await tsMap.hiresTiles().stream(), lowres: {} }; for (let lod = 1; lod <= 3; lod++) cells.lowres[lod] = await tsMap.lowresTiles(lod).stream();
         const settings = await tsMap.settings().read(); const textures = await tsMap.textures().read();
         if (!(await waitForPort("127.0.0.1", options.webserverPort, 30000))) throw new Error(`${dialect.id}: Java raw-storage server did not start: ${redact(serverLog.slice(-2000), target)}`);
@@ -533,6 +537,69 @@ async function runDirection2({ engine, dialect, target, driver, worldDirectory, 
     }
 }
 
+async function sentinelPreflight({ engine, dialect, target, driver, options, root }) {
+    const mapId = "__oracle_sentinel_preflight";
+    const expected = Buffer.from('{"oracle":"issue-66-sentinel"}\n', "utf8");
+    const subject = await openSql(engine, dialect, target);
+    try {
+        const map = subject.storage.map(mapId);
+        await map.asset("oracle-sentinel.json").write(expected);
+        const stored = await map.asset("oracle-sentinel.json").read();
+        if (stored === null || !Buffer.from(await stored.decompress()).equals(expected))
+            throw new Error(`${dialect.id}: TypeScript sentinel asset write/read did not round-trip`);
+        await subject.storage.close();
+    } catch (error) {
+        await subject.storage.close().catch(() => undefined);
+        throw error;
+    }
+
+    const port = options.webserverPort;
+    const configDir = join(root, "sentinel-serve-config");
+    await writeSqlConfig({
+        configDirectory: configDir,
+        dataDirectory: join(root, "sentinel-serve-data"),
+        webRoot: join(root, "sentinel-serve-web"),
+        worldDirectory: null,
+        mapId,
+        mapName: "Sentinel preflight",
+        dimension: options.dimension,
+        renderThreadCount: 1,
+        dialect,
+        target,
+        driver,
+        serverOnly: true,
+        webserverPort: port,
+    });
+    const child = spawn("java", ["-jar", options.jar, "-c", configDir, "-w", "-b"], {
+        cwd: root,
+        stdio: ["ignore", "pipe", "pipe"],
+    });
+    const startupError = new Promise((resolvePromise) => child.once("error", (error) => resolvePromise(error)));
+    let serverLog = "";
+    child.stdout.on("data", (chunk) => (serverLog += chunk));
+    child.stderr.on("data", (chunk) => (serverLog += chunk));
+    try {
+        const startup = await Promise.race([
+            waitForPort("127.0.0.1", port, 30000).then((ready) => ({ ready })),
+            startupError.then((error) => ({ error })),
+        ]);
+        if ("error" in startup)
+            throw new Error(`${dialect.id}: Java sentinel server could not start: ${startup.error instanceof Error ? startup.error.message : String(startup.error)}`);
+        if (!startup.ready)
+            throw new Error(`${dialect.id}: sentinel Java server did not start: ${redact(serverLog.slice(-2000), target)}`);
+        const response = await fetch(`http://127.0.0.1:${port}/maps/${mapId}/assets/oracle-sentinel.json`, {
+            headers: { "Accept-Encoding": "identity" },
+        });
+        if (!response.ok) throw new Error(`${dialect.id}: Java sentinel server returned ${response.status}`);
+        const received = Buffer.from(await response.arrayBuffer());
+        if (!received.equals(expected)) throw new Error(`${dialect.id}: Java sentinel response differed from TypeScript asset`);
+        return { sentinelWrittenByTypeScript: true, sentinelReadByJava: true };
+    } finally {
+        if (child.exitCode === null) child.kill();
+        await waitForChildExit(child);
+    }
+}
+
 export async function main(argv = process.argv.slice(2)) {
     let options; try { options = parseArgs(argv); } catch (error) { process.stderr.write(`${describeError(error)}\n\n${USAGE}`); return 2; }
     if (options.help) { process.stdout.write(USAGE); return 0; }
@@ -542,15 +609,16 @@ export async function main(argv = process.argv.slice(2)) {
     const jar = await findCliJar(REPO_ROOT); if (jar === null) { log("[sql-crosscompat-matrix] no reference jar; build it with node tools/build-jars.mjs --only cli"); return 2; } options.jar = jar;
     let world; try { world = await generateWorld({ repoRoot: REPO_ROOT, seed: options.seed, size: options.size, out: join(options.work, "worlds") }); } catch (error) { log(`[sql-crosscompat-matrix] ${describeError(error)}`); return 2; }
     if (options.preflight) {
-        for (const id of options.dialects) {
+        for (const [index, id] of options.dialects.entries()) {
             const dialect = { ...DIALECTS[id], engine: null, engineDialect: null };
             const engineEntry = join(REPO_ROOT, "design", "packages", "engine", "dist", "index.js");
             dialect.engine = await import(pathToFileURL(engineEntry).href);
             dialect.engineDialect = dialect.engine[id === "sqlite" ? "SQLITE" : "POSTGRESQL"];
-            await withTarget(dialect, options, "construction-preflight", async ({ target }) => {
+            await withTarget(dialect, options, "construction-preflight", async ({ root, target }) => {
                 await adapterConstructionPreflight(dialect, target);
                 await missingDriverLoaderPreflight(dialect);
                 await wrongDriverHashPreflight(drivers[id]);
+                if (options.sentinelPreflight) await sentinelPreflight({ engine: dialect.engine, dialect, target, driver: drivers[id], options: { ...options, webserverPort: options.webserverPort + index }, root });
             });
         }
         log(`[sql-crosscompat-matrix] preflight reached fixture generation and adapter construction with selected dialects: ${options.dialects.join(", ")}`);
