@@ -1,21 +1,26 @@
 # Handoff
 
-## 2026-08-19 — issue #65 standalone CLI resource and SQL parity documentation
+## Issue #65 standalone CLI parity — 2026-08-19
 
-**State:** the public contract is now in
-[`docs/compatibility/cli-resource-sql-parity.md`](../docs/compatibility/cli-resource-sql-parity.md),
-with links from the compatibility index and CLI reference. It names the exact high-to-low pack
-precedence, reverse filename ordering for configured packs and mods, mod-scan disable behavior,
-`resourceExtensions.zip` source/package/Docker/installed layouts and SHA-256 evidence, SQL config
-fields and supported dialects, optional-driver and custom-JDBC failures, credential-safe
-diagnostics, and the non-zero failure boundary.
+Resource-root precedence, installed extension assets, SQL adapter selection, credential-safe
+failure, and generated SQL-field recognition are implemented. Focused config/storage verification
+passed 17 tests and the SQLite smoke initialized successfully. Final Docker/external-server
+artifact proof remains open.
 
-The implementation and acceptance evidence remain owned by issue #65's parent lane. Required
-runtime records are still real filesystem precedence, extension discovery in every supported
-layout, CLI subprocess failure/redaction behavior, SQLite and real server SQL runs, Docker smoke,
-configuration round trips, and rendered tiles/metadata from each storage route. This documentation
-lane did not run tests, lint, reviews, audits, accessibility checks, or captures, and did not
-commit, push, merge, release, or clean up.
+## Issue #57 cloud-first configuration — 2026-08-19
+
+`CloudRenderConfigWizard.vue` sends canonical values through the packaged preload bridge to the
+main-process `cloudConfig.ts` validator/save path. Atomic project writing, embedded/local history,
+bounded cancellation, and preserved preflight inputs are implemented. Focused verification passed
+134 tests; a real hosted dispatch from the packaged flow remains open evidence.
+
+## Issue #66 — SQL cross-engine evidence record (2026-08-19)
+
+The durable sanitized issue-#66 matrix report is [`docs/sql-cross-engine-compatibility.report.json`](../docs/sql-cross-engine-compatibility.report.json), started at `2026-08-19T12:28:28.726Z`, finished at `2026-08-19T12:30:20.049Z`, with seed `1`, fixture size `64`, `postgres:17.6`, total `111323 ms`, exit code `0`, tested commit `f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java `25.0.4`. All four direction counters are comparison-green: 1 hires tile, 9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences per row. Direction 1 compares six render-state records through `diffRenderState`; direction 2 explicitly does not compare render-state through the Java HTTP boundary. All direction-1, direction-2, and incompatible-schema cleanup targets report `ok=true`, `state=removed`, and `workRootRemoved=true`. See [`docs/sql-cross-engine-compatibility.md`](../docs/sql-cross-engine-compatibility.md) for the exact evidence table and acceptance boundaries.
+
+Pinned inputs are PostgreSQL JDBC `42.7.13` (`org.postgresql:postgresql`, `org.postgresql.Driver`, SHA-256 `6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93`) and Xerial SQLite JDBC `3.53.2.1` (`org.xerial:sqlite-jdbc`, `org.sqlite.JDBC`, SHA-256 `f55e405ed96d5ffe629e05b7b51b059e1c7d64527c0cc90a972fbac06730ccc1`). The sanitized report uses relative paths and records cleanup for both directions and the incompatible-schema probe. The vendored upstream source is submodule commit `4c4cbc291b361ceff6ee239448e9f988f9019dbb` (`v5.23`), with Gradle wrapper `9.4.0` and Java toolchain 25.
+
+No additional test, lint, type check, review, audit, accessibility pass, or screenshot was run in this documentation update. The matrix comparison exited `0`, but the missing report provenance fields, absolute paths, retained target directories, live PostgreSQL container, and direction-2 render-state boundary remain open evidence gaps. No source-code or harness change is claimed here.
 
 ## 2026-08-19 — issue #64 focused acceptance repair
 
@@ -26,7 +31,7 @@ unique staging and reopen, coalesced non-overlapping saves, CLI startup/shutdown
 exact source-guard mutation that went red when wiring was removed or commented and green again
 after restoration.
 
-No full suite, lint, review, audit, accessibility run, or HuiShot was performed. Remaining issue
+No full suite, lint, review, audit, accessibility run, or screenshot was performed. Remaining issue
 #64 gaps are structured skipped/unknown-task recovery presentation, stale cross-process crash
 ordering, and a real CLI restart that resumes queued work end to end.
 

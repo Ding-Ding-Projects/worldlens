@@ -36,13 +36,14 @@ $api = "http://127.0.0.1:$McpPort/api/execute"
 $server = $null
 $edgePid = $null
 $hwnd = $null
-$startedAt = (Get-Date).ToUniversalTime().ToString("o")
+$startedAt = $null
 $capturedAt = $null
 $commit = (git -C $repo rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') { throw "Could not bind the capture to the repository commit." }
 $response = Invoke-WebRequest -Uri $Url -MaximumRedirection 3 -TimeoutSec 30
 if ([int]$response.StatusCode -ne 200) { throw "The live Pages response was not HTTP 200." }
 [IO.File]::WriteAllText((Join-Path $output "live-response.html"), [string]$response.Content, [Text.UTF8Encoding]::new($false))
+$startedAt = (Get-Date).ToUniversalTime().ToString("o")
 
 function Invoke-Lowlevel([string]$Tool, [hashtable]$Arguments) {
     $body = @{ tool = $Tool; arguments = $Arguments } | ConvertTo-Json -Depth 12 -Compress

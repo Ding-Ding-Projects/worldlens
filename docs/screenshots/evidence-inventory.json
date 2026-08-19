@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 225,
+  "expectedTargetCount": 228,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -260,12 +260,14 @@
     },
     {
       "id": "live-pages",
-      "authority": "real headless Chromium against the two published proof sites documented in design/HANDOFF.md",
-      "command": "Verify each proof repository reports Pages status built and HTTP 200, then capture the live page with a fresh single-window headless Chromium profile.",
+      "authority": "real cheap-Lowlevel guest Edge captures against published proof sites documented in design/HANDOFF.md and docs/render-in-actions.md",
+      "command": "Verify each proof repository reports Pages status built and HTTP 200, launch a fresh guest Edge profile on a named off-screen desktop, require one exact settled page target, then capture through Lowlevel.",
       "reproducibility": "blocked-on-external-hosted-state",
       "blocker": "These are deployment evidence, so a local site or mock cannot replace them. The named proof sites and their current content must still exist and be authorized for this run.",
-      "expectedCount": 2,
+      "expectedCount": 4,
       "targets": [
+        "docs/screenshots/bayville-pages-home.png",
+        "docs/screenshots/bayville-pages-map.png",
         "docs/screenshots/map-hosted-on-github-pages.png",
         "docs/screenshots/pages-published-by-the-app.png"
       ],
@@ -381,7 +383,7 @@
       "authority": "scripts/worldlens-lowlevel-e2e.json driven by .claude/skills/run-worldlens/driver.mjs",
       "command": "cd design && pnpm ui:e2e:lowlevel",
       "reproducibility": "current-build-lowlevel-mcp-hidden-desktop-ui-only",
-      "expectedCount": 17,
+      "expectedCount": 18,
       "targets": [
         "docs/screenshots/lowlevel-adult-home.png",
         "docs/screenshots/lowlevel-adult-kid-mode-settings.png",
@@ -399,11 +401,12 @@
         "docs/screenshots/lowlevel-kid-home.png",
         "docs/screenshots/lowlevel-kid-jobs.png",
         "docs/screenshots/lowlevel-kid-returned-from-settings.png",
-        "docs/screenshots/lowlevel-kid-stickers.png"
+        "docs/screenshots/lowlevel-kid-stickers.png",
+        "docs/screenshots/lowlevel-public-pages-render-retry.png"
       ],
       "capturedFromInterfaceSource": true,
-      "uiSourceDigest": "be9f0613003efd0f5b434c2e3d1192037047e9707e70b8bb0bf9ab0d54441fed",
-      "uiSourceDigestNote": "Recaptured 2026-08-19 from the exact interface digest recorded here. Cheap Lowlevel launched the real Electron app on a named off-screen Windows desktop and performed the 36-action Adult/Kid journey plus a real dispatch, Stop watching, durable cancellation and full local-row removal journey. All 17 whole-window PNGs were decoded and visually inspected. The capture-only home and map-storage paths prevented host worlds, render records and profile paths from entering the pixels. Each promoted image has an exact source commit, built main-process artifact hash, interaction ledger, single-target privacy record, zero console/page errors, cleanup proof, byte-preserving transaction and active record in promoted-evidence.json. CDP only located visible controls and read assertions; every state change used Lowlevel input."
+      "uiSourceDigest": "10e21e51523d90099ddf5f8d57761aa17510016d08ee2221a930edfd0492374c",
+      "uiSourceDigestNote": "Recaptured 2026-08-19 from the exact interface digest recorded here. Cheap Lowlevel launched the real Electron app on a named off-screen Windows desktop and performed the 36-action Adult/Kid journey plus the persisted failed-run removal journey. All 17 whole-window PNGs were decoded and visually inspected. The failed private workflow row restored as failed, exposed Remove from list, passed the two-key full-slider confirmation, and disappeared without removing the unrelated cancelled public row. Capture-only home and map-storage paths prevented host worlds, render records and profile paths from entering the pixels. Each promoted image has an exact source commit, built main-process artifact hash, interaction ledger, single-target privacy record, zero console/page errors, cleanup proof, byte-preserving transaction and active record in promoted-evidence.json. CDP only located visible controls and read assertions; every state change used Lowlevel input."
     },
     {
       "id": "retired-app-surfaces",

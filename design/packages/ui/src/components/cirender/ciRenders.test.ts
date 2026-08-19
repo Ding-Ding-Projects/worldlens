@@ -531,7 +531,7 @@ describe("what is already running, elsewhere", () => {
         await renders.loadKnown();
 
         expect(calls).toEqual(["resume-after-restart"]);
-        expect(renders.rows.value[0]?.state).toBe("running");
+        expect(renders.rows.value[0]?.state).toBe("restored");
         release.current?.({
             ok: true,
             syncId: "resume-after-restart",

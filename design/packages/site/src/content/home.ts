@@ -74,9 +74,10 @@ export const home: HomeContent = {
             title: "1.0 is out, and here is exactly what that claims",
             content: [
                 "The Material Design 3 shell rewrite is complete and closed against its acceptance ",
-                "issues, the full workspace suite of 10,512 tests is green in CI at the released ",
-                "commit, the committed screenshot matrix pictures that exact tree, and every push to ",
-                "the default branch that passes the fatal gates publishes a hash-verified Windows ",
+                "issues, the full workspace suite of 10,512 tests is the local verification baseline ",
+                "for the released commit, the committed screenshot matrix is diagnostic evidence, and ",
+                "every push to the default branch whose build, packaging, and artifact provenance ",
+                "complete publishes a hash-verified Windows ",
                 "release by itself. Versions are ",
                 { code: "1.0.<run>" },
                 ". What 1.0 does not claim: the feature programs still tracked as open issues are ",
@@ -768,10 +769,10 @@ export const home: HomeContent = {
             features: [
                 {
                     title: "Releases that carry their own evidence",
-                    body: "Every passing push publishes a uniquely tagged release with a real Windows installer. CI counts the project's lines at the tagged commit, attributes them per surviving line rather than by summing a changelog, and publishes that table beside the installer.",
+                    body: "Every push whose build, packaging, and artifact provenance complete publishes a uniquely tagged release with a real Windows installer. CI counts the project's lines at the tagged commit, attributes them per surviving line rather than by summing a changelog, and publishes that table beside the installer. Local tests and lint remain available before publication but do not run in the workflow or withhold publication.",
                     status: "shipped",
                     statusNote:
-                        "Running on every push to the default branch. A failed test publishes no release.",
+                        "Running on every push to the default branch. A build or packaging failure publishes no release; local test and lint results are not workflow gates.",
                     articleId: "release-pipeline",
                 },
                 {
@@ -896,7 +897,7 @@ export const home: HomeContent = {
             phase: "H",
             scope: "SQL storages, command palette, marker editor, JavaScript addon system, static export, three.js upgrade",
             status: "pending",
-            note: "SQL storages landed early, out of order: ported and proven against real MySQL, MariaDB and PostgreSQL servers, and now proven cross-compatible with the Java engine over a shared database, both directions (issue #32, closed). The command palette landed early too, out of order, alongside the contract work that gave it settings to list. Marker editor, the JavaScript addon system, static export and the three.js upgrade remain untouched.",
+            note: "SQL storages landed early, out of order: ported and proven against real MySQL, MariaDB and PostgreSQL servers. Java↔TypeScript cross-engine exchange is proven in both directions over MariaDB (issue #32, closed); the PostgreSQL and SQLite-specific cross-engine proof remains open under issue #66. The command palette landed early too, out of order, alongside the contract work that gave it settings to list. Marker editor, the JavaScript addon system, static export and the three.js upgrade remain untouched.",
         },
         {
             phase: "I",

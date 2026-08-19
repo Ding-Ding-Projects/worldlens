@@ -64,11 +64,9 @@ export async function runRender(
     }
 
     logger.info(`Start updating ${String(targets.length)} map(s) ...`);
-    let triggered = 0;
-    for (const map of targets) {
-        const result = driver.triggerUpdate(map, force);
-        if (result.scheduled) triggered++;
-    }
+    // Use the manager's batch-next primitive so the initial map order survives
+    // insertion behind the active head; repeated single-task next calls reverse it.
+    const triggered = driver.triggerUpdates(targets, force, "next").scheduled;
 
     renderManager.start(options.renderThreadCount, options.renderThreadPriority);
 
@@ -148,11 +146,34 @@ export function startWatchers(options: StartWatchersOptions): RunningWatch {
     }
 
     let fullUpdateTimer: ReturnType<typeof setInterval> | null = null;
+    let closed = false;
+    let refreshInFlight = false;
+    let refreshGeneration = 0;
     if (fullUpdateIntervalMinutes > 0) {
         const intervalMs = fullUpdateIntervalMinutes * 60_000;
         fullUpdateTimer = setInterval(() => {
+            const generation = refreshGeneration;
+            if (closed || generation !== refreshGeneration) return;
+            if (refreshInFlight) {
+                logger.warn("Skipping overlapping periodic refresh; the previous batch is still active.");
+                return;
+            }
+            refreshInFlight = true;
             logger.info(`Start updating ${String(targets.length)} map(s) ...`);
-            for (const map of targets) driver.triggerUpdate(map, TileUpdateStrategy.FORCE_NONE);
+            try {
+                if (closed || generation !== refreshGeneration) return;
+                const result = driver.triggerUpdates(targets, TileUpdateStrategy.FORCE_NONE, "next");
+                const status = driver.getStatus();
+                const eta = status.estimatedTimeRemainingMs === null
+                    ? "unknown"
+                    : formatDuration(status.estimatedTimeRemainingMs);
+                logger.info(
+                    `Periodic refresh queued ${String(result.scheduled)}/${String(result.requested)} map(s) ` +
+                    `(priority=${result.priority}, queued=${String(status.queuedTaskCount)}, eta=${eta})`,
+                );
+            } finally {
+                refreshInFlight = false;
+            }
         }, intervalMs);
         if (typeof fullUpdateTimer === "object" && typeof (fullUpdateTimer as { unref?: () => void }).unref === "function") {
             (fullUpdateTimer as unknown as { unref: () => void }).unref();
@@ -163,8 +184,10 @@ export function startWatchers(options: StartWatchersOptions): RunningWatch {
         services,
         fullUpdateTimer,
         async close(): Promise<void> {
-            await Promise.all(services.map((service) => service.close()));
+            closed = true;
+            refreshGeneration++;
             if (fullUpdateTimer !== null) clearInterval(fullUpdateTimer);
+            await Promise.all(services.map((service) => service.close()));
         },
     };
 }

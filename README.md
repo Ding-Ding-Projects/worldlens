@@ -33,19 +33,21 @@ See [Rendering engines](#rendering-engines).
 
 **1.0 is the verified public baseline.** It means exactly this, no more: the Material Design 3
 shell rewrite is complete and closed against its own acceptance issues (#126, #134, #123); the
-full workspace suite - 723 test files, 10,512 tests - is green in CI at the released commit;
-the 89-capture screenshot matrix pictures the exact shipped interface and is regraded by CI's
-own capture job; every push to `main` that passes the fatal gates publishes a real, hash-verified
-Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
+full workspace suite - 723 test files, 10,512 tests - is the local verification baseline for the
+released commit; the 89-capture screenshot matrix is diagnostic evidence for the shipped interface;
+every push to `main` whose build, packaging, and artifact provenance complete publishes a real,
+hash-verified Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
 embedded in the project file itself. Versions from here are `1.0.<run>`. What 1.0 does **not**
 claim: the feature programs still open as issues (multi-server dashboard, marker authoring, add-on
 system, static export and friends) are future work, and Windows executables remain intentionally
 unsigned.
 
 Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
-unknown-publisher warning. A publish is allowed only after every required test, security,
-rendering and packaging gate passes. Screenshot capture remains visible diagnostic evidence, but a
-capture failure is advisory and never blocks an otherwise valid release. The packaging job clears
+unknown-publisher warning. A publish is allowed only after the required build, security-boundary,
+rendering-input, and packaging provenance checks complete. Local tests and lint remain available
+before publication but do not run in the workflow or withhold publication. Screenshot capture remains
+visible diagnostic evidence, but a capture failure is advisory and never blocks an otherwise valid
+release. The packaging job clears
 its validated output locations, accepts exactly one fresh
 `Setup.exe`, one full `.nupkg`, optional delta packages and a non-empty matching `RELEASES`, then
 checks every emitted executable is Authenticode `NotSigned`. Release notes identify the exact
@@ -165,16 +167,36 @@ of following yesterday's failure forever.
 
 ![Worldlens showing the UI-created public Bayville repository ready for Pages, with managed workflows current, the public-world disclosure accepted, and one real cloud render active](docs/screenshots/lowlevel-public-pages-render-retry.png)
 
-![A stopped-watching cloud render restored honestly as cancelled after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
+![A failed cloud render restored honestly as failed after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
 
 <details>
 <summary><b>See the removal itself</b></summary>
 
-![Two-key confirmation explaining the local-only removal boundary for a cancelled cloud render](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
+![Two-key confirmation explaining the local-only removal boundary for a failed cloud render](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
 
-![Cloud-render history showing the honest empty state after the cancelled local row was removed](docs/screenshots/lowlevel-ci-render-row-removed.png)
+![Cloud-render history after the failed local row was removed, with the remaining terminal history still honest](docs/screenshots/lowlevel-ci-render-row-removed.png)
 
 </details>
+
+### Cloud rendering can be configured before the first local render
+
+When a world has no project file, the cloud-render preflight now offers a guided **Create cloud
+render configuration** path. It writes the normal versioned project schema with generated map,
+storage, web and render defaults, while allowing the user to review names, dimensions, enabled
+maps, paths, threads and render options. The path does not start Java, download a JDK or client,
+or perform a local render.
+
+The generated project is validated before saving. Existing readable projects remain unchanged;
+unreadable or newer-format projects are reported rather than overwritten. The write uses a unique
+temporary sibling and an atomic replacement with bounded transient-sharing retries, then records
+the save in the isolated per-world local history. If history recording fails, the saved project is
+kept and the result says that its history entry is unavailable. Cancellation before the write
+leaves the world untouched, while cancellation at the write boundary reports the actual saved
+outcome. After saving, the app returns to the same preflight with the original world, repository,
+account and map choices, so those values are not entered twice.
+
+The source implementation and preload reachability are present in the issue #57 lane. Packaged
+application and real hosted-workflow evidence remain to be recorded before the issue is closed.
 
 Release-tag pushes still run CI, but skip only the generated-changelog freshness assertion. A tag
 is created after the commit it names, so requiring that commit to contain an entry derived from its
@@ -246,7 +268,9 @@ failure meanings are documented in [`docs/compatibility/cli-resource-sql-parity.
 the implementation and standalone proof remain tied to that issue's acceptance evidence. Every render-mask shape, ordered
 combination and subtraction now has matching local, standalone-CLI and GitHub Actions semantics. F
 is reachable and in use. G is pending; H is part done (SQL storages proven against real
-MySQL/MariaDB/PostgreSQL, cross-verified against upstream's own Java engine, and the command
+MySQL/MariaDB/PostgreSQL, with the issue-#66 Java↔TypeScript matrix now comparison-green for
+PostgreSQL and SQLite in both directions; direction 2's raw HTTP path does not expose render-state
+grids, so that boundary remains explicit in [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md), and the command
 palette shipped early); I is part done (the update checker and packaging shipped early). See
 [Phase status](#phase-status).
 
@@ -949,6 +973,19 @@ never takes the docs down.
 _The tiny probe world, rendered by GitHub's runners and served from
 `dingdingchae.github.io`, loaded in a browser with no BlueMap server anywhere._
 
+<details>
+<summary><b>See the UI-created Bayville repository live on GitHub Pages</b></summary>
+
+![The live Worldlens documentation home published by the UI-created Bayville repository, showing its searchable Material Design documentation shell, tab list, settings destination, and Windows download action](docs/screenshots/bayville-pages-home.png)
+
+![The live Bayville World v10.1 BlueMap published at the repository's map route, showing the complete rendered region with its towns, roads, rivers, forests, snowy eastern district, and southern lake](docs/screenshots/bayville-pages-map.png)
+
+These are anonymous guest-Edge captures of the same deployment produced by
+[workflow run 32246619712](https://github.com/Ding-Ding-Projects/worldlens-bayville-ui-public-20260819-01/actions/runs/32246619712).
+The documentation root and `/map/` both returned HTTP 200 before capture.
+
+</details>
+
 **One detail decides whether this works at all,** and it is invisible until every tile
 returns 404. The engine stores hires tiles gzipped — the file on disk is `0.prbm.gz` — and
 the viewer asks for `0.prbm` unless its `settings.json` says `clientDecompression: true`.
@@ -1058,7 +1095,7 @@ carries the reasoning behind every "part done" below.
 | E         | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile                                          | **Part done.** The worker pool, render-task hierarchy and config schema (all issued earlier), watch-driven re-render (`MapUpdateService`, issue #40), full HTTP routes with SSE (issue #41), and the standalone CLI plus Dockerfile (issue #42) are ported, and `RenderDriver` now drives a real `RenderManager` end to end. The CLI's own `--watch` flag is wired to `MapUpdateService` too, closed 2026-08-06 (issue #40's CLI half); every render-mask shape and ordered/subtracted combination is now ported with local/CLI/Actions parity. Issue #65 carries the remaining resource/SQL parity work and its proof contract; see [`docs/compatibility/cli-resource-sql-parity.md`](docs/compatibility/cli-resource-sql-parity.md) |
 | F         | Full options GUI (all settings, map wizard, storage editors, config import)                                                                                         | Reachable and in use; eight tabs over BlueMap's own configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | G         | Docker hosting GUI (dockerode instance manager)                                                                                                                     | Pending. Rendering _in_ a container landed separately — see [`docs/docker-and-local.md`](docs/docker-and-local.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| H         | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade                                                                      | **Part done.** SQL storages proven against real MySQL/MariaDB/PostgreSQL and, over a shared MariaDB database, cross-compatible with upstream's own Java engine in both directions (issue #32, closed); the command palette shipped early. Marker editor, JS addon system, static export and the three.js upgrade remain pending                                                                                                                                                                                                                                                                                                                                   |
+| H         | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade                                                                      | **Part done.** SQL storages are proven against real MySQL/MariaDB/PostgreSQL and, over a shared MariaDB database, cross-compatible with upstream's own Java engine in both directions (issue #32, closed). Issue #66's PostgreSQL and SQLite matrix is comparison-green in both directions with cleanup evidence; direction 2's raw HTTP path does not expose render-state grids, so that boundary remains explicitly documented in [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md). The command palette shipped early. Marker editor, JS addon system, static export and the three.js upgrade remain pending                                                                                                                                                                                                                                                                                                                                   |
 | I         | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging                                                   | **Part done, landed early, out of order.** The update checker is built and wired into the main process, and packaging shipped early too. Local live players and measurement/waypoints/gallery/scheduler/dashboard remain pending                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Contracts | The five product contracts in [`design/docs/contracts/`](design/docs/contracts/README.md)                                                                           | **Shipped.** Issues #6 to #13 are closed, each with its evidence on the issue                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Delivery  | Sign-in, private worlds, split archives, resumable renders, Actions rendering, remote and container rendering, world sources, updates, projects, packaging pipeline | **Landed.** Not a plan phase; see `design/ROADMAP.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |

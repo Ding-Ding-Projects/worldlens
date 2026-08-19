@@ -1,16 +1,26 @@
 # Roadmap
 
-## Issue #65 — standalone CLI resource and SQL parity
+## Issue #65 — standalone CLI mod/resource/SQL parity
 
-The standalone CLI parity contract is documented in
-[`docs/compatibility/cli-resource-sql-parity.md`](docs/compatibility/cli-resource-sql-parity.md).
-It covers the high-to-low resource-root order (`config/packs`, enabled `-n/--mods` jars,
-`resourceExtensions.zip`, then the vanilla client jars as fallback), first-writer precedence,
-reverse filename ordering, extension-pack
-layout and SHA-256 evidence, SQL configuration for SQLite/MySQL/MariaDB/PostgreSQL, optional-driver
-failures, credential-safe diagnostics, and checkout/packaged/Docker/installed layouts. Runtime
-acceptance evidence remains attached to issue #65; this record does not claim the filesystem,
-subprocess, SQL-server, Docker, or rendered-tile proofs until their exact runs are recorded.
+Implementation, generated-config parsing, workspace build, and SQLite initialization smoke are
+complete. Remaining before closure: run the final image and external SQL server round trips with
+rendered tile/metadata read-back.
+
+## Issue #57 — cloud-first project configuration
+
+Implementation and focused verification are complete and integrated. Remaining before closure:
+exercise the packaged wizard against a real cloud dispatch and read the result back without a prior
+local render.
+
+## Issue #64 delivery boundary — 2026-08-19
+
+- **Delivery inspection:** the issue-owned checkout at `d004f3ca15d7d7a9121df370e00c955072489098`
+  contains no packaged executable or installer for the standalone CLI, and no runtime receipt for
+  a process restart that reopens `<resolved core.data>/tasks.dat` and resumes queued work.
+- **Honest state:** the 3-file, 29-test focused proof covers storage, schema/version refusal,
+  malformed and unknown entries, terminal exclusion, atomic staging, coalescing, and CLI
+  startup/shutdown wiring. Packaged reachability and real process-restart recovery remain open
+  acceptance evidence; issue #64 is not ready to close.
 
 ## Current verified baseline
 
@@ -21,6 +31,19 @@ subprocess, SQL-server, Docker, or rendered-tile proofs until their exact runs a
 - Dispatched cloud renders resume from their recorded run id without uploading or dispatching a
   second run. Successful artifacts are downloaded, verified, registered and openable in the map
   viewer.
+
+## SQL storage cross-engine proof — issue #66
+
+The TypeScript SQL storages are independently proven against real MySQL, MariaDB, PostgreSQL,
+and WASM SQLite. Issue #66's durable sanitized matrix report
+[`docs/sql-cross-engine-compatibility.report.json`](docs/sql-cross-engine-compatibility.report.json)
+exited `0` after comparing all four PostgreSQL/SQLite directions: each row reports 1 hires tile,
+9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences. Direction 1
+compares six render-state records through `diffRenderState`; direction 2 explicitly does not compare
+render-state through Java's raw HTTP boundary. The report records tested commit, runtime versions,
+relative paths, and `ok=true`, `state=removed`, `workRootRemoved=true` for every direction and
+incompatible-schema probe. See [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md)
+for the exact evidence and the remaining factual direction-2 boundary.
 
 ## Public 1.0 compatibility contract — issue #60
 

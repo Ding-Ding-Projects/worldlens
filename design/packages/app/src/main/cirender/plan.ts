@@ -108,8 +108,9 @@ export async function readProjectAt(worldFolder: string): Promise<ProjectAtResul
                     code: "no-project",
                     message:
                         `There is no ${PROJECT_FILE_NAME} or ${LEGACY_PROJECT_FILE_NAME} at the root of ${worldFolder}, ` +
-                        "so this world has no maps set up yet. Render it once in the app, or run the map wizard, and " +
-                        "the project file that produces is what a CI render repeats.",
+                        "so this world has no maps set up yet. Create a cloud render configuration to write the " +
+                        "complete project defaults without Java, a local render, or a downloaded client; the file " +
+                        "it produces is what a CI render repeats.",
                 },
             };
         }

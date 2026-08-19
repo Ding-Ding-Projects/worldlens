@@ -41,6 +41,14 @@ export interface UpdateRequestResult {
      * active head while placing accepted work ahead of the remaining queue.
      */
     readonly scheduled: boolean;
+    /** The queue position requested by this call, exposed so callers can narrate it honestly. */
+    readonly priority: RenderTriggerPriority;
+}
+
+export interface UpdateBatchResult {
+    readonly requested: number;
+    readonly scheduled: number;
+    readonly priority: RenderTriggerPriority;
 }
 
 export type RenderTriggerPriority = "tail" | "next";
@@ -67,11 +75,35 @@ export class RenderDriver {
                 : MapUpdatePreparationTask.updateMap(map, force, this.renderManager);
 
         return {
+            priority,
             scheduled:
                 priority === "next"
                     ? this.renderManager.scheduleRenderTaskNext(preparation)
                     : this.renderManager.scheduleRenderTask(preparation),
         };
+    }
+
+    /**
+     * Schedules a map batch with one call to the manager's batch primitive. The
+     * next scheduler inserts each accepted task behind the active head while
+     * retaining the caller's map order; repeatedly calling triggerUpdate would
+     * reverse that order because every task targets the same index 1.
+     */
+    triggerUpdates(
+        maps: readonly BmMap[],
+        force?: TileUpdateStrategy,
+        priority: RenderTriggerPriority = "tail",
+    ): UpdateBatchResult {
+        const preparations = maps.map((map) =>
+            force === undefined
+                ? MapUpdatePreparationTask.updateMap(map, this.renderManager)
+                : MapUpdatePreparationTask.updateMap(map, force, this.renderManager),
+        );
+        const scheduled =
+            priority === "next"
+                ? this.renderManager.scheduleRenderTasksNext(...preparations)
+                : this.renderManager.scheduleRenderTasks(...preparations);
+        return { requested: maps.length, scheduled, priority };
     }
 
     /**
