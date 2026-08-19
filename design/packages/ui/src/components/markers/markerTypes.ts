@@ -21,6 +21,11 @@ export interface AnyMarkerData extends MarkerData {
      */
     playerHead?: string;
     foreign?: boolean;
+    source?: string;
+    dimension?: string;
+    observedAt?: number | string;
+    freshness?: string;
+    stale?: boolean;
 }
 
 /** {@link MarkerSetData} with its children widened to {@link AnyMarkerData}. */

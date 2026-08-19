@@ -46,6 +46,11 @@ export const PROFILES_FILE = "profiles.json";
 
 /** Current shape of {@link PROFILES_FILE}, so a future change can migrate rather than guess. */
 export const PROFILES_FORMAT_VERSION = 1;
+export const MAX_PROFILE_COUNT = 256;
+export const MAX_PROFILE_ID_LENGTH = 128;
+export const MAX_PROFILE_NAME_LENGTH = 256;
+export const MAX_PROFILE_URL_LENGTH = 2048;
+export const MAX_PROFILE_DATA_ROOT_LENGTH = 4096;
 
 /** One server or rendered map, exactly as `packages/ui/src/stores/profiles.ts` defines it. */
 export interface ProfileRecord {
@@ -63,6 +68,26 @@ export interface ProfilesState {
     readonly version: number;
     readonly profiles: readonly ProfileRecord[];
     readonly activeId: string | null;
+}
+
+/** Accept only ordinary HTTP(S) profile roots; credentials and control characters never persist. */
+export function sanitizeProfileUrl(value: string): string | null {
+    if (value.length === 0 || value.length > MAX_PROFILE_URL_LENGTH || /[\u0000-\u001F\u007F]/.test(value)) return null;
+    let parsed: URL;
+    try {
+        parsed = new URL(value);
+    } catch {
+        return null;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    if (parsed.username !== "" || parsed.password !== "") return null;
+    parsed.hash = "";
+    return parsed.toString().replace(/\/$/, "");
+}
+
+function boundedText(value: unknown, max: number): string | null {
+    if (typeof value !== "string" || value.length === 0 || value.length > max) return null;
+    return /[\u0000-\u001F\u007F]/.test(value) ? null : value;
 }
 
 /** Where the live profiles file lives. Pure: it creates nothing. */
@@ -96,20 +121,20 @@ export function parseProfilesState(text: string): ProfilesState | null {
     if (!Array.isArray(record.profiles)) return null;
 
     const profiles: ProfileRecord[] = [];
-    for (const entry of record.profiles) {
+    for (const entry of record.profiles.slice(0, MAX_PROFILE_COUNT)) {
         if (typeof entry !== "object" || entry === null) continue;
         const row = entry as Record<string, unknown>;
-        const id = typeof row["id"] === "string" ? row["id"] : null;
-        const name = typeof row["name"] === "string" ? row["name"] : null;
-        const url = typeof row["url"] === "string" ? row["url"] : null;
+        const id = boundedText(row["id"], MAX_PROFILE_ID_LENGTH);
+        const name = boundedText(row["name"], MAX_PROFILE_NAME_LENGTH);
+        const url = typeof row["url"] === "string" ? sanitizeProfileUrl(row["url"]) : null;
         if (id === null || name === null || url === null) continue;
-        const dataRoot = typeof row["dataRoot"] === "string" ? row["dataRoot"] : undefined;
+        const dataRoot = typeof row["dataRoot"] === "string" ? boundedText(row["dataRoot"], MAX_PROFILE_DATA_ROOT_LENGTH) : undefined;
         profiles.push({
             id,
             name,
             url,
             trustCustomizations: row["trustCustomizations"] === true,
-            ...(dataRoot === undefined ? {} : { dataRoot }),
+            ...(dataRoot === null || dataRoot === undefined ? {} : { dataRoot }),
         });
     }
 

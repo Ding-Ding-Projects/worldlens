@@ -121,7 +121,10 @@ export class LowresTileLoader {
                                 ),
                             },
                             textureSize: {
-                                value: new Vector2(texture.image.width, texture.image.height),
+                                value: new Vector2(
+                                    (texture.image as ImageBitmap | HTMLImageElement).width,
+                                    (texture.image as ImageBitmap | HTMLImageElement).height,
+                                ),
                             },
                             textureImage: {
                                 type: "t",

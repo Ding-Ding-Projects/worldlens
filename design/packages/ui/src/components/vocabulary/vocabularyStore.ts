@@ -44,6 +44,8 @@ export type VocabularyStatus =
 interface VocabularyState {
     status: VocabularyStatus;
     entries: Readonly<Record<string, string>>;
+    metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string };
+    persistenceError?: string;
 }
 
 function readCache(): VocabularyState {
@@ -53,18 +55,39 @@ function readCache(): VocabularyState {
     } catch {
         // A refused localStorage read (private browsing, disabled storage) fails closed
         // to shipped wording exactly the same way a corrupt cache does.
-        return { status: "cache-unreadable", entries: {} };
+        return { status: "cache-unreadable", entries: {}, persistenceError: "cache-unreadable" };
     }
     if (raw === null) return { status: "no-file", entries: {} };
 
     const validated = validateVocabularyPayload(raw);
-    if (!validated.ok) return { status: "cache-unreadable", entries: {} };
+    if (!validated.ok) return { status: "cache-unreadable", entries: {}, persistenceError: "cache-unreadable" };
     return { status: "loaded", entries: validated.payload.entries };
 }
 
 export const vocabularyStore = reactive<VocabularyState>(readCache());
 
+const hostVocabulary = typeof window === "undefined" ? undefined : window.worldlens?.vocabulary;
+
 let persisting = true;
+
+/** Desktop startup reads the app-data cache through the main-process bridge. Browser and
+ * static-site hosts keep the existing localStorage fallback, with no network route. */
+export function initialiseVocabularyStore(): void {
+    if (hostVocabulary === undefined) return;
+    persisting = false;
+    void hostVocabulary.read().then((snapshot) => {
+        vocabularyStore.status = snapshot.status;
+        vocabularyStore.entries = snapshot.entries;
+        vocabularyStore.metadata = snapshot.metadata;
+        vocabularyStore.persistenceError = undefined;
+    }).catch(() => {
+        vocabularyStore.status = "cache-unreadable";
+        vocabularyStore.entries = {};
+        vocabularyStore.persistenceError = "cache-unreadable";
+    });
+}
+
+initialiseVocabularyStore();
 
 /** Stops persistence while a test rearranges the store, so one test cannot write another's. */
 export function setVocabularyPersistence(on: boolean): void {
@@ -76,6 +99,8 @@ export function reloadVocabularyStore(): void {
     const fresh = readCache();
     vocabularyStore.status = fresh.status;
     vocabularyStore.entries = fresh.entries;
+    vocabularyStore.metadata = fresh.metadata;
+    vocabularyStore.persistenceError = fresh.persistenceError;
 }
 
 watch(
@@ -111,8 +136,26 @@ export function loadVocabularyFile(bytes: string): VocabularyLoadResult {
     const validated = validateVocabularyPayload(bytes);
     if (!validated.ok) return { ok: false, reason: validated.reason };
 
-    vocabularyStore.status = "loaded";
-    vocabularyStore.entries = validated.payload.entries;
+    if (hostVocabulary !== undefined) {
+        void hostVocabulary.load(bytes).then((result) => {
+            if (result.ok) {
+                vocabularyStore.status = result.status;
+                vocabularyStore.entries = result.entries;
+                vocabularyStore.metadata = result.metadata;
+                vocabularyStore.persistenceError = undefined;
+            } else {
+                vocabularyStore.status = result.status;
+                vocabularyStore.entries = result.entries;
+                vocabularyStore.metadata = result.metadata;
+                vocabularyStore.persistenceError = result.reason ?? "write-failed";
+            }
+        }).catch(() => {
+            vocabularyStore.persistenceError = "write-failed";
+        });
+    } else {
+        vocabularyStore.status = "loaded";
+        vocabularyStore.entries = validated.payload.entries;
+    }
     return { ok: true };
 }
 
@@ -125,6 +168,14 @@ export function loadVocabularyFile(bytes: string): VocabularyLoadResult {
 export function clearVocabulary(): void {
     vocabularyStore.status = "no-file";
     vocabularyStore.entries = {};
+    vocabularyStore.metadata = undefined;
+    vocabularyStore.persistenceError = undefined;
+    if (hostVocabulary !== undefined) {
+        void hostVocabulary.clear().catch(() => {
+            vocabularyStore.persistenceError = "clear-failed";
+        });
+        return;
+    }
     if (!persisting) return;
     try {
         localStorage.removeItem(VOCABULARY_STORAGE_KEY);

@@ -39,12 +39,13 @@ node scripts/ensure-electron-binary.mjs
 
 ## Build
 
-The driver launches the app from source output, so `design/packages/app/dist` and
-`design/packages/ui/dist` must exist and be current. The renderer is built by **`packages/ui`**,
-not `packages/app` — an app-only rebuild leaves you driving the previous interface.
+The driver launches the packaged executable, so `design/packages/app/release/win-unpacked/Worldlens.exe`
+and its `resources/app.asar` must exist and be current. Build the UI and app before packaging;
+launching the source Electron binary is not release smoke evidence because it can exercise a
+different tree from the installer.
 
 ```bash
-cd design && pnpm build
+cd design && pnpm build && pnpm --filter @worldlens/app package
 ```
 
 ## Run (agent path)

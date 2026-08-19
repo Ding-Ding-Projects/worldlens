@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "feature": "threejs-upgrade-parity",
+  "currentVersion": "0.147.0",
+  "targetVersion": "0.180.0",
+  "allowedStatuses": ["unrun", "verified", "failed"],
+  "requiredEvidence": [
+    "dependency-inventory",
+    "api-inventory",
+    "visual-parity-light",
+    "visual-parity-dark",
+    "visual-parity-reduced-motion",
+    "interaction-map-navigation",
+    "interaction-marker-picking",
+    "performance-before",
+    "performance-after",
+    "resource-disposal",
+    "context-loss-recovery",
+    "unsupported-gpu-message",
+    "blank-canvas-negative",
+    "packaged-viewer"
+  ],
+  "visualStates": ["light", "dark", "reduced-motion"],
+  "interactionIds": ["map-navigation", "marker-picking"],
+  "performanceBudgets": {
+    "startupMs": 5000,
+    "p95FrameTimeMs": 33.4,
+    "peakMemoryMb": 768,
+    "gpuResourceLeakCount": 0
+  },
+  "receiptRules": {
+    "sourceCommit": "full-sha",
+    "artifactSha256": "sha256",
+    "captureSha256": "sha256",
+    "statusUnrunMeansNoClaim": true,
+    "verifiedRequiresEveryEvidence": true
+  }
+}

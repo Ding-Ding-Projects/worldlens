@@ -53,6 +53,21 @@ value wins when both namespaces exist; otherwise the legacy value is copied to t
 cells remain for rollback. Legacy appearance files remain importable, while new exports use only
 the Worldlens format.
 
+### Source implementation record — 2026-08-19
+
+The current source contains two focused compatibility fixes. Profile-migration JSON writes now use
+the shared retrying atomic replacement helper and always clean up their unique temporary file;
+renderer and documentation-site storage migration now recognize the exact legacy
+`material-bluemap` key as well as the documented hyphen and dot forms, without treating longer
+names as legacy keys. The relevant source is
+[`design/packages/app/src/main/migration/profileMigration.ts`](../design/packages/app/src/main/migration/profileMigration.ts),
+[`design/packages/ui/src/legacyStorageMigration.ts`](../design/packages/ui/src/legacyStorageMigration.ts),
+and [`design/packages/site/src/legacyStorageMigration.ts`](../design/packages/site/src/legacyStorageMigration.ts).
+
+This is a source-implementation record only. This update ran no tests, typechecks, builds,
+installer sessions, packaged runtime sessions, or captures, so it does not promote either fix to
+verified acceptance.
+
 World/project repository adapters read both generations during the compatibility window:
 
 | Surface                 | Current write                                                  | Legacy read                                             |
@@ -201,6 +216,12 @@ Worldlens 第一次啟動會喺 `%APPDATA%\@material-bluemap\app` 度搵舊嘅 W
 Desktop process 喺 migration 開始之前已經揸住 single-instance lock。Migration 亦會拒絕本身係 symbolic link、junction、reparse indirection，或者 resolve 出 application-data root 以外嘅 legacy 或者 current root。Collision key 用 Windows 唔分大小寫嘅語義，連 cross-platform test 都係，所以 `Settings.json` 同 `settings.json` 會喺任何一個 root 改變之前就停低。準確嘅 current manifest 會喺 staging 之後、atomic rename 之前即刻再檢查一次；任何同時發生嘅加、減或者內容改動都會 abort 個 cutover，keep 住改咗嘅 current root 做 active，保留 legacy root，並且將 staging 隔離畀人檢查。
 
 Renderer 同 documentation-site 嘅 preference 會喺啲 store hydrate 之前遷移。兩個 namespace 都有值嗰陣，current Worldlens 嗰個贏；唔係嘅話，legacy 值會複製去新 key。舊 cell 留低方便 rollback。舊 appearance 檔照樣 import 到，但係新 export 淨係用 Worldlens 格式。
+
+### Source 實作紀錄 — 2026-08-19
+
+而家 source 有兩個針對性兼容修正：profile migration 嘅 JSON 寫入改用共用、會重試嘅 atomic replacement helper，並且每次都清走獨有嘅 temporary file；renderer 同 documentation-site storage migration 就識得讀準確嘅 legacy `material-bluemap` key，同埋文件講明嘅 hyphen、dot 形式，但唔會將更長嘅名稱誤當 legacy key。相關 source 係 [`design/packages/app/src/main/migration/profileMigration.ts`](../design/packages/app/src/main/migration/profileMigration.ts)、[`design/packages/ui/src/legacyStorageMigration.ts`](../design/packages/ui/src/legacyStorageMigration.ts) 同 [`design/packages/site/src/legacyStorageMigration.ts`](../design/packages/site/src/legacyStorageMigration.ts)。
+
+呢段只係 source implementation record。今次冇跑 tests、typechecks、build、installer session、packaged runtime session 或 captures，所以唔可以當成 verified acceptance。
 
 World/project repository adapter 喺兼容期內兩代都讀。四個 surface 各有 current write 同 legacy read：project file 而家寫 `worldlens.project.json`（schema `worldlens.project`，format 2），舊嘅係 `material-bluemap.project.json`（format 1）；CI ownership marker 而家係 `.worldlens-ci.json`（tool `worldlens`），舊嘅係 `.material-bluemap-ci.json`（tool `material-bluemap`）；world-repository marker 而家係 `.worldlens-world.json`，舊嘅係 `.material-bluemap-world.json`；published-map marker 而家係 `.worldlens-map.json`，舊嘅係 `.material-bluemap-map.json`。未識嘅 project field 經 parse 同 serialize 都會保留。新寫嘅嘢淨係用 current identifier。
 

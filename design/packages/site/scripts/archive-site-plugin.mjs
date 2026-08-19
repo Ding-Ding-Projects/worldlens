@@ -18,56 +18,9 @@ const MIME_TYPES = {
     ".txt": "text/plain; charset=utf-8",
 };
 
-const SCREENSHOT_CATEGORIES = [
-    ["Getting started", ["firstrun-", "home-", "redesign-home-", "eula-", "run-location"]],
-    [
-        "Shell and navigation",
-        [
-            "shell-",
-            "chrome-",
-            "menu-",
-            "tab-",
-            "palette-",
-            "browser-",
-            "notifications-",
-            "theme-",
-            "dimsum-",
-        ],
-    ],
-    [
-        "Settings and appearance",
-        [
-            "settings-",
-            "appearance-",
-            "infinite-",
-            "lock-",
-            "support-",
-            "authenticator-",
-            "super-confirm-",
-        ],
-    ],
-    [
-        "Worlds and projects",
-        ["wizard-", "projects-", "profiles-", "drop-", "structures-", "backups-"],
-    ],
-    ["Configuration editor", ["config-"]],
-    ["Delivery and runtime", ["ci-", "pages-", "ollama-", "chunker-"]],
-    ["Kid Mode", ["kid-"]],
-];
-
-const EVIDENCE_CATEGORIES = {
-    "site-compact-proof": "Website evidence",
-    "site-walkthrough-media": "Website evidence",
-    "live-pages": "Website evidence",
-    "site-tabs-compact-proof": "Website evidence",
-    "installed-app-cdp": "Installed builds",
-    "profile-migration-packaged": "Installed builds",
-    "app-playwright-map-dependent": "Rendered maps",
-    "consent-render": "Rendered maps",
-    "issue-baselines": "Issue baselines",
-    "historical-site-baseline": "Historical and retired",
-    "retired-app-surfaces": "Historical and retired",
-};
+const GALLERY_CATEGORY_REGISTRY = JSON.parse(
+    readFileSync(new URL("../src/content/gallery-categories.json", import.meta.url), "utf8"),
+);
 
 function humanScreenshotTitle(file) {
     const stem = file.replace(/\.png$/iu, "").replaceAll("_", ".");
@@ -76,12 +29,15 @@ function humanScreenshotTitle(file) {
 }
 
 function screenshotCategory(file, groupId) {
-    if (EVIDENCE_CATEGORIES[groupId]) return EVIDENCE_CATEGORIES[groupId];
-    const lower = file.toLowerCase();
-    const semantic = SCREENSHOT_CATEGORIES.find(([, prefixes]) =>
-        prefixes.some((prefix) => lower.startsWith(prefix)),
+    const byEvidence = GALLERY_CATEGORY_REGISTRY.find((category) =>
+        Array.isArray(category.evidenceGroups) && category.evidenceGroups.includes(groupId),
     );
-    return semantic ? semantic[0] : "Other real captures";
+    if (byEvidence) return byEvidence.label;
+    const lower = file.toLowerCase();
+    const semantic = GALLERY_CATEGORY_REGISTRY.find((category) =>
+        Array.isArray(category.prefixes) && category.prefixes.some((prefix) => lower.startsWith(prefix)),
+    );
+    return semantic?.label || GALLERY_CATEGORY_REGISTRY.at(-1)?.label || "Other real captures";
 }
 
 function screenshotViewport(...values) {
@@ -142,6 +98,14 @@ export function buildScreenshotCatalog(packageRoot) {
             const proof = String(
                 group.uiSourceDigestNote || "No additional proof note is recorded.",
             );
+            const exactSourceCommit =
+                group.sourceCommits && typeof group.sourceCommits === "object"
+                    ? group.sourceCommits[target]
+                    : null;
+            const manifestCommit =
+                typeof manifest.commit === "string" && /^[0-9a-f]{40}$/iu.test(manifest.commit)
+                    ? manifest.commit
+                    : null;
             records.push({
                 cat: category,
                 src: `assets/captures/${file}`,
@@ -153,7 +117,7 @@ export function buildScreenshotCatalog(packageRoot) {
                 alt: description,
                 theme: screenshotTheme(file, description, state),
                 viewport: screenshotViewport(file, description, state),
-                commit: `${manifest.commit || "Commit not recorded"}; ${group.authority}; ${proof}`,
+                commit: `${typeof exactSourceCommit === "string" && /^[0-9a-f]{40}$/iu.test(exactSourceCommit) ? exactSourceCommit : manifestCommit || "Not pinned to a candidate commit"}; ${group.authority}; ${proof}`,
                 capturedAt: String(
                     source?.capturedAt || "Not recorded for this individual capture",
                 ),

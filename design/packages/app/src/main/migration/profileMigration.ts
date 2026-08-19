@@ -14,14 +14,13 @@ import {
 } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { LEGACY_MATERIAL_BLUEMAP_IDENTITY, WORLDLENS_IDENTITY } from "@worldlens/shared";
+import { replaceFileWithRetry } from "../storage/atomicReplace.js";
 
 export const PROFILE_MIGRATION_VERSION = 1;
 export const PROFILE_MIGRATION_CONSENT_FILE = ".worldlens-profile-migration-consent.json";
 export const PROFILE_MIGRATION_RECEIPT_FILE = ".worldlens-profile-migration.json";
 export const PROFILE_MIGRATION_TRANSACTION_FILE = ".worldlens-profile-migration-transaction.json";
 const STAGING_NAME = ".worldlens-profile-migration-staging";
-const ATOMIC_RENAME_RETRIES = 4;
-const ATOMIC_RENAME_RETRY_DELAY_MS = 25;
 
 export interface ProfileMigrationPlan {
     readonly legacyDirectory: string;
@@ -199,35 +198,21 @@ async function assertSafeDirectoryRoot(path: string, trustedRoot: string): Promi
 async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
     await mkdir(dirname(path), { recursive: true });
     const temp = `${path}.tmp-${process.pid}-${randomBytes(6).toString("hex")}`;
-    await writeFile(temp, `${JSON.stringify(value, null, 4)}\n`, "utf8");
-    // Windows refuses fsync on a read-only file handle even though Unix accepts it.
-    // `r+` changes no bytes; it only requests the handle capability both platforms need.
-    const handle = await open(temp, "r+");
     try {
-        await handle.sync();
-    } finally {
-        await handle.close();
-    }
-    await renameWithRetry(temp, path);
-}
-
-async function renameWithRetry(source: string, target: string): Promise<void> {
-    for (let attempt = 0; ; attempt += 1) {
+        await writeFile(temp, `${JSON.stringify(value, null, 4)}\n`, "utf8");
+        // Windows refuses fsync on a read-only file handle even though Unix accepts it.
+        // `r+` changes no bytes; it only requests the handle capability both platforms need.
+        const handle = await open(temp, "r+");
         try {
-            await rename(source, target);
-            return;
-        } catch (error) {
-            const code = (error as NodeJS.ErrnoException).code;
-            if (
-                (code !== "EPERM" && code !== "EACCES" && code !== "EBUSY") ||
-                attempt >= ATOMIC_RENAME_RETRIES
-            ) {
-                throw error;
-            }
-            await new Promise<void>((resolveDelay) =>
-                setTimeout(resolveDelay, ATOMIC_RENAME_RETRY_DELAY_MS),
-            );
+            await handle.sync();
+        } finally {
+            await handle.close();
         }
+        await replaceFileWithRetry(temp, path);
+    } finally {
+        // The source is unique to this attempt. Cleanup must never hide the write or
+        // replacement error that caused the caller to enter migration recovery.
+        await rm(temp, { force: true }).catch(() => undefined);
     }
 }
 

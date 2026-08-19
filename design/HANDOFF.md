@@ -1,5 +1,163 @@
 # Handoff
 
+## 2026-08-19 — CI build-and-release-only record
+
+The current `ci.yml` keeps the workspace build, all seven BlueMap jar builds, the Windows
+installer, the generated and rendered test-world artifact, and release publication. It removes
+the Lowlevel UI end-to-end, real-Java configuration round-trip, screenshot/capture, lint, test,
+typecheck, static-analysis, and accessibility jobs from this delivery path.
+
+This pass ran no local checks, builds, or captures. Release proof is pending. The accepted tradeoff
+is explicit: a release may publish from code whose tests would fail, because no test or analysis
+job blocks publication in this workflow.
+
+### 廣東話同步
+
+而家嘅 `ci.yml` 保留 workspace build、七個 BlueMap jar build、Windows installer、generated/rendered
+test-world artifact 同 release publication；Lowlevel UI end-to-end、real-Java config round-trip、
+screenshot/capture、lint、test、typecheck、static-analysis 同 accessibility jobs 就由呢條 delivery
+route 移除。今次冇行 local checks、builds 或 captures，release proof 仲等緊。接受嘅取捨係：release
+可以由一個 tests 會 fail 嘅 code commit 發佈，因為呢條 workflow 冇 test 或 analysis job 阻住
+publication。
+
+## Issue #59 — safe product migration source boundary (2026-08-19)
+
+The profile-migration source routes journal and receipt writes through the shared atomic
+replacement helper. Each write uses a unique temporary sibling, calls `fsync` before replacement,
+and retries replacement only for `EPERM`, `EACCES`, or `EBUSY` within the helper's bounded policy.
+Temporary-file cleanup never masks the original write or replacement error.
+
+This is a source-boundary record only. Tests, builds, packaged migration interaction, and captures
+were not run in this ultra-speed pass. The broader installed-migration proof gap remains open:
+the packaged application still needs independent evidence from installation through receipt
+read-back and recovery.
+
+### 廣東話同步
+
+Issue #59 嘅 migration source boundary 已經記錄：profile-migration journal 同 receipt writes
+經 shared atomic replacement helper；每次用 unique temporary sibling，replacement 前先做
+`fsync`；只會對 `EPERM`、`EACCES` 或 `EBUSY` 做 bounded retry。Temporary-file cleanup 唔會
+遮住原本 write 或 replacement error。
+
+今次只係 source-boundary record；ultra-speed pass 冇跑 tests、builds、packaged migration
+interaction 或 captures。Broader installed-migration proof gap 仲開住，仲要獨立證明 packaged
+application 由 installation 到 receipt read-back 同 recovery 嘅完整路徑。
+
+## Issue #139 — GitHub reachability and two-wave dispatch record (2026-08-19)
+
+Issue #139 is recorded here as an implementation handoff, not as a completed acceptance run.
+The hosted two-wave baseline is precise: Wave 1 completed **256/256** shards; Wave 2 completed
+**7/105** shards; the remaining **98** Wave 2 shards were cancelled in flight. The two-wave
+merge was not reached. This is dispatch and cancellation evidence only; it is not evidence of a
+merged map, publication, cleanup, retry/ENOSPC handling, or a successful release.
+
+The reachability changes make the GitHub Actions route usable outside this repository: the
+workflow template resolves the caller's repository rather than assuming the source checkout,
+uses the caller's dependency/cache context, and keeps the render action's repository and ref
+inputs explicit. The application-side safety record keeps the `gh` fallback honest: `gh` is a
+declared dependency, its installed/authenticated state is checked before use, and the selected
+host/login is verified through the real `gh` account inventory and `gh api user` before any
+release operation. An unavailable or unauthenticated `gh` path remains an explicit failure, not
+an implied success.
+
+No tests, packaged-artifact interaction, runtime verification, or captures were run for this
+records-only handoff. Issue #139 remains open until a fresh hosted run reaches and independently
+records the two-wave merge and the remaining acceptance evidence.
+
+### 廣東話同步
+
+Issue #139 呢度只係 implementation handoff，唔係 completed acceptance run。Hosted two-wave
+baseline 寫實數：Wave 1 完成 **256/256** 個 shard；Wave 2 完成 **7/105** 個 shard；剩低 **98**
+個 Wave 2 shard 喺飛行中取消；two-wave merge 未到。呢啲只係 dispatch 同 cancellation
+evidence，唔代表 merged map、publication、cleanup、retry/ENOSPC 或 successful release。
+
+Reachability changes 令 GitHub Actions route 可以喺唔同 repository 用：workflow template
+唔再假設 source checkout，而係 resolve caller repository；dependency/cache context 跟 caller
+走；render action 嘅 repository 同 ref inputs 亦保持 explicit。App-side safety record
+亦保持 `gh` fallback 誠實：`gh` 係 declared dependency，使用前會檢查 installed/authenticated
+state；selected host/login 要經真實 `gh` account inventory 同 `gh api user` verify，先可以
+做 release operation。`gh` unavailable 或未 authenticated 就明確報 failure，唔會扮成功。
+
+今次 records-only handoff 冇跑 tests、packaged-artifact interaction、runtime verification
+或 captures；issue #139 要等 fresh hosted run 真係到 merge，並補齊其餘 acceptance evidence
+先可以關。
+
+## Issue #144 — release-grade smoke and screenshot gallery evidence boundary (2026-08-19)
+
+This issue-owned checkout records the public acceptance boundary for the release-grade smoke,
+complete screenshot refresh, and searchable Pages gallery. The feature record is
+[`docs/release-smoke-gallery.md`](../docs/release-smoke-gallery.md). It requires one exact
+candidate commit across the local release-grade suite inventory, unsigned Squirrel.Windows
+installer set, packaged-app smoke pass, and every refreshed capture; it also requires gallery
+metadata, plain-text search by default, the adjacent full regex builder, category filtering,
+responsive and accessible interaction, and an honest no-match state.
+
+This is a records-only update. No tests, installer build, packaged-app interaction, approved
+headless capture, screenshot replacement, release publication, merge, push, or cleanup was run or
+performed in this checkout. Source-level gallery files and Pages workflow results must not be
+relabelled as packaged-artifact evidence. Issue #144 remains open until the exact candidate,
+installer assets, smoke read-back, complete replacement matrix, and remote release verdict are
+independently verified.
+
+### 廣東話同步
+
+呢個 issue-owned checkout 只係記錄 issue #144 嘅公開 acceptance boundary：release-grade smoke、
+全部 screenshot refresh 同 searchable Pages gallery。所有 suite、unsigned installer、packaged
+smoke 同新 capture 要用同一個 exact candidate；gallery 仲要有 metadata、plain-text search、
+旁邊嘅 full regex builder、category filter、responsive/accessibility interaction 同真 no-match。
+
+今次係 records-only update，冇行 tests、冇 build installer、冇 packaged interaction、冇 approved
+headless capture、冇 screenshot replacement、冇 release、merge、push 或 cleanup。Source-level
+gallery 同 Pages workflow 結果唔可以當 packaged-artifact evidence；issue #144 繼續 open，直到
+exact candidate、installer assets、smoke read-back、complete replacement matrix 同 remote release
+verdict 全部獨立 verify。
+
+## Issue #76 screenshot gallery — 2026-08-19
+
+The issue-owned source lane now contains an in-progress screenshot-gallery surface. Its product
+contract is documented in [`docs/screenshot-gallery.md`](../docs/screenshot-gallery.md): screenshots
+are user-owned records with map/project, coordinate, camera, timestamp, dimensions, version, and
+provenance metadata; originals remain local; and the library must support search/filter, metadata
+editing, bulk actions, export/import, local history, privacy redaction, and deletion recovery.
+
+This is a records-only update. The source changes in this checkout have not been accepted as
+packaged-app evidence: no tests, runtime verification, or genuine gallery captures were run here.
+The acceptance proof must populate the gallery only with screenshots made during that run and
+capture its empty, populated, search/filter, edit, export/import, failure, and delete-recovery
+states. Issue #76 remains open until those checks and captures exist.
+
+## 2026-08-19 — issue #75 measurement and waypoint records
+
+The task-owned checkout contains the issue #75 measurement and waypoint model, including bounded
+coordinate validation, Nether conversion, measurement calculations, waypoint editing, local
+storage, search, and complete-payload import/export. This record intentionally does not claim
+tests, packaged-artifact interaction, or a real capture; those are the remaining acceptance steps.
+
+The public feature article is [`docs/measurement-and-waypoints.md`](../docs/measurement-and-waypoints.md).
+The implementation files were not edited by this documentation-only pass.
+
+
+## Issue #77 multi-server operations dashboard — 2026-08-19
+
+The issue-owned checkout contains the dashboard implementation for aggregating
+local, Docker, and remote server profiles. The feature record is
+[`docs/multi-server-dashboard.md`](../docs/multi-server-dashboard.md), which
+defines the refresh, stale/unknown, filtering, grouping, bulk-action, teleport,
+persistence, history, and credential requirements.
+
+This is an implementation handoff, not a verification claim. Tests, captures, and
+packaged multi-server interaction were not run in this lane. Mixed routes, offline
+and authentication failures, version skew, large inventories, restart, accessibility,
+localization, and compact-width evidence remain open before issue #77 can close.
+
+### 廣東話 / Cantonese
+
+Issue-owned checkout 入面已經有 local、Docker、remote server profiles aggregate
+dashboard 嘅 implementation。呢度係 implementation handoff，唔係 verification
+claim：今次冇行 tests、captures 或 packaged multi-server interaction；各種混合路徑、
+離線、auth failure、version skew、大 inventory、restart、accessibility、localization
+同窄闊度證據都仲未有。
+
 ## Issue #82 — packaged Java runtime and app-owned render receipt boundary (2026-08-19)
 
 Issue #82 remains open. This records-only lane keeps the active delivery scope **Windows only**:
@@ -109,6 +267,29 @@ The remaining evidence is intentionally explicit:
    and exposed a live WebGL context, but its map surface remained blank. Those
    facts prove transport and renderer availability, not visible banner output.
    A visible same-world read-back is still required.
+
+### 2026-08-19 records delta — malformed layers and bounded diagnostics
+
+The compatibility reader now uses the existing lenient per-element list shape:
+each banner layer is consumed before parsing, a malformed layer records one
+bounded parser diagnostic and is skipped, and later valid layers retain their
+original order. Reader-state failures still propagate; no missing or malformed
+field is repaired by inventing a default layer. Diagnostic history is capped at
+32 messages, evicting the oldest entry when another is recorded. The focused
+5/5 evidence above remains the only executable result carried by this records
+delta; no additional tests, builds, packaged interaction, or captures ran here.
+Real NBT worlds, an upstream oracle comparison, and packaged restart/reopen
+render plus diagnostic read-back remain open acceptance work.
+
+### 廣東話同步
+
+今次 records delta 係：每一層 banner 先完整 consume，再逐層 parse；壞 layer
+只會留一條 bounded parser diagnostic 然後跳過，後面啱嘅 layer 照原次序繼續，
+唔會亂加 default。reader state error 仍然照樣報上去；diagnostic 最多 32 條，
+新嘅入場時最舊嗰條出場。之前嗰 5/5 focused evidence 仍然係唯一 executable
+result，今次冇加跑 tests、build、packaged interaction 或 captures。真 NBT world、
+upstream oracle、packaged restart/reopen render 同 diagnostic read-back 仲未驗證，
+所以 issue 繼續 open。
 
 The world and fixture-scoped oracle records above are verified. The packaged
 attempt is recorded as failed visual proof, not success. Existing generic world
@@ -2118,14 +2299,12 @@ contract articles record the boundary and updated test inventory.
 - **Issue #39's wave dispatch is proven; its merge and its disk ceiling are not, and the
   reasons are specific.** A genuinely large, non-forced 361-region world was dispatched
   through the real hosted `render-world.yml` workflow on 2026-08-05 and needed exactly the
-  two waves the plan predicted: Wave 1 fanned out to and finished all 256 shards, Wave 2
-  then took the remaining 105. That is real, watched evidence, not arithmetic. Two things it
-  does **not** cover: (1) the disk check measured about 6 GiB required against about 84 GiB
-  actually free on that runner — nowhere near the disk ceiling issue #39 was opened over, so
-  a world that actually exhausts a hosted runner's disk has still never been run; and (2)
-  that same run's merge step was never reached — the world was reused for issue #44's
-  staging-time test instead, which is how the hyphenated-map-id bug (issue #47, now fixed)
-  was found. A two-wave merge specifically has still not been watched succeed end to end.
+  two waves the plan predicted: Wave 1 completed **256/256** shards; Wave 2 completed **7/105**
+  shards, with **98** cancelled in flight. That is real, watched evidence, not arithmetic.
+  The two-wave **merge was not reached**. The disk check measured about 6 GiB required against
+  about 84 GiB actually free on that runner — nowhere near the disk ceiling issue #39 was opened
+  over, so a world that actually exhausts a hosted runner's disk has still never been run. A
+  two-wave merge specifically has still not been watched succeed end to end.
 - **Five screenshot categories were closed by giving them a real capture step (issue #34);
   one honest gap is left in that same harness on purpose.** The render console has no
   required capture, because it needs a render genuinely in flight to show anything —
@@ -2738,11 +2917,12 @@ over, including once with a fake local-mode fixture matching CI's real capture m
   the literal, unsanitized string a human typed. One shared `sanitizeMapId` function now
   backs every place that predicts or looks for that directory.
 - **Issue #39's wave dispatch is genuinely proven** — a real 361-region world through the
-  hosted `render-world.yml` workflow needed and used exactly the two waves the plan
-  predicted, watched rather than assumed. It does **not** prove the merge step (never
-  reached in that run) or the disk ceiling (that world needed ~6 GiB against ~84 GiB free,
-  nowhere near the ceiling issue #39 was opened over) — see "What does not work yet" above
-  for why the issue's own remaining gaps stay named rather than implied closed.
+  hosted `render-world.yml` workflow needed exactly the two waves the plan predicted, watched
+  rather than assumed: Wave 1 completed **256/256** shards; Wave 2 completed **7/105** shards,
+  with **98** cancelled in flight. The two-wave **merge was not reached**, and the disk ceiling
+  is not proven (that world needed ~6 GiB against ~84 GiB free, nowhere near the ceiling issue
+  #39 was opened over) — see "What does not work yet" above for why the issue's own remaining
+  gaps stay named rather than implied closed.
 - **Issue #32 (SQL storage cross-compatibility) closed** the same window — see the entry
   directly below this one for the full account; it is unchanged by anything in this entry.
 
@@ -5231,3 +5411,13 @@ build, test, rendering, packaging and release-security check, while the main-onl
 intentionally ineligible. The condition contract also rejects relocation, duplication, alternate
 tag predicates, extra skipped commands and fail-open step metadata. Remote verification remains
 pending until the integrated commit reaches the default branch.
+
+## Issue #67 — exact two-wave dispatch record (open, 2026-08-19)
+
+The current issue-owned evidence is limited to one observed hosted dispatch: Wave 1 completed
+**256/256** shards; Wave 2 completed **7/105**, with **98** cancelled in flight; the two-wave
+**merge was not reached**. The counts are complete observed results, not estimates, and do not
+prove a final map, lowres rebuild, merged metadata, public result, or disk ceiling.
+
+No new workflow, tests, captures, merge, disk measurement, cleanup, or release action was run in
+this records-only lane. Issue #67 remains open pending a fresh run with the required receipts.

@@ -45,7 +45,9 @@ for the full port plan and `docs/` for design decisions.
   the ported TS API replaces them.
 - The six Minecraft-server **platform adapters** (paper/spigot/fabric/forge/neoforge/sponge)
   embed BlueMap inside a server JVM and have no desktop equivalent; live data comes from
-  remote BlueMap servers, or (beyond upstream) from local `playerdata` / RCON polling.
+  remote BlueMap servers. Optional local `playerdata` / RCON polling is being developed beyond
+  upstream; the source implementation exists in the issue-owned checkout, but packaged runtime
+  verification remains open.
 - The Java **BlueMapAPI artifact** is not shipped; its wire formats and API surface are
   ported to TypeScript.
 - **Metrics** are opt-in (upstream defaults opt-out).

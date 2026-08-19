@@ -24,6 +24,7 @@
 import type { BmMap, RenderManager } from "@worldlens/engine";
 import type { WebserverConfig } from "@worldlens/config";
 import { HttpServer, MapStorageHandler, RenderDriver, RenderUpdateHandler, StaticHandler } from "@worldlens/server";
+import type { LocalLiveProviderOptions } from "@worldlens/server";
 import type { Logger } from "./logger.js";
 
 export interface RunningServer {
@@ -39,17 +40,24 @@ export interface StartWebserverOptions {
     readonly maps: ReadonlyMap<string, BmMap>;
     readonly renderManager: RenderManager;
     readonly logger: Logger;
+    /** Optional per-map local live source; omitted means the honest empty-player stub. */
+    readonly localLive?: LocalLiveProviderOptions;
 }
 
 export async function startWebserver(options: StartWebserverOptions): Promise<RunningServer> {
-    const { webserver, webroot, maps, renderManager, logger } = options;
+    const { webserver, webroot, maps, renderManager, logger, localLive } = options;
     logger.info("Starting webserver ...");
 
     const server = new HttpServer({ host: webserver.ip, port: webserver.port });
 
     const mapStorageHandler = new MapStorageHandler();
     for (const [mapId, map] of maps) {
-        mapStorageHandler.setMount({ mapId, storage: map.getStorage(), useSSE: webserver["sse-enabled"] });
+        mapStorageHandler.setMount({
+            mapId,
+            storage: map.getStorage(),
+            useSSE: webserver["sse-enabled"],
+            ...(localLive === undefined ? {} : { localLive }),
+        });
     }
 
     const renderDriver = new RenderDriver(renderManager);

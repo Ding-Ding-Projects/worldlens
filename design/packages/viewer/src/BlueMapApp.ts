@@ -11,6 +11,7 @@ import type { Animation } from "./util/Utils";
 import { MainMenu } from "./MainMenu";
 import { PopupMarker } from "./PopupMarker";
 import { MarkerSet } from "./markers/MarkerSet";
+import type { MarkerSetDataInput } from "./markers/MarkerSet";
 import { getLocalStorage, round, setLocalStorage } from "./Utils";
 import { RevalidatingFileLoader } from "./util/RevalidatingFileLoader";
 import { i18n, setLanguage } from "./util/i18n";
@@ -387,6 +388,15 @@ export class BlueMapApp {
 
         await this.mapViewer.switchMap(map);
 
+        // Measurement and waypoint records are scoped to the profile's data root, map id,
+        // and dimension identity. The map runtime stores world coordinates; the shell reprojects
+        // them on each camera/map change rather than persisting screen pixels.
+        this.materialShell.setMeasurementScope({
+            profileId: this.dataRoot || "default-profile",
+            mapId: map.data.id,
+            dimension: map.data.id,
+        });
+
         if (resetCamera || !this.mapViewer.map!.hasView(this.appState.controls.state))
             this.resetCamera();
 
@@ -597,11 +607,23 @@ export class BlueMapApp {
         });
 
         this.mapEventSource.addEventListener("player", ({ data }) => {
-            this.playerMarkerManager!.updateFromData(JSON.parse(data));
+            try {
+                const parsed: unknown = JSON.parse(data);
+                if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("player SSE payload is not an object");
+                this.playerMarkerManager!.updateFromData(parsed);
+            } catch (error) {
+                alert(this.events, error instanceof Error ? error : String(error), "warning");
+            }
         });
 
         this.mapEventSource.addEventListener("marker", ({ data }) => {
-            this.markerFileManager!.updateFromData(JSON.parse(data));
+            try {
+                const parsed: unknown = JSON.parse(data);
+                if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("marker SSE payload is not an object");
+                this.markerFileManager!.updateFromData(parsed as Record<string, MarkerSetDataInput>);
+            } catch (error) {
+                alert(this.events, error instanceof Error ? error : String(error), "warning");
+            }
         });
     }
 

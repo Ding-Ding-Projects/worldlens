@@ -31,6 +31,7 @@ import {
     captureCaption,
     captureProvenance,
     committedCaptureGallery,
+    committedGalleryEvidence,
     contentPages,
     downloadAccessibleName,
     downloadButtonLabel,
@@ -969,6 +970,33 @@ function renderProvenance(host: HTMLElement): void {
     where.appendChild(document.createTextNode(`${screenshotsCopy.committedDirectoryLabel} `));
     where.appendChild(externalLink(captureProvenance.directory));
     host.appendChild(where);
+
+    const evidence = el("details", "mb-capture-gallery__evidence");
+    const summary = el("summary", undefined, screenshotsCopy.committedEvidenceLabel);
+    evidence.appendChild(summary);
+    const resolved = screenshotsCopy.committedEvidenceComplete
+        .replace("{resolved}", String(committedGalleryEvidence.resolvedGalleryTargetCount))
+        .replace("{gallery}", String(committedGalleryEvidence.galleryTargetCount))
+        .replace("{inventory}", String(committedGalleryEvidence.inventoryTargetCount))
+        .replace("{groups}", String(committedGalleryEvidence.inventoryGroupCount));
+    evidence.appendChild(el("p", "mb-prose-p", resolved));
+    if (committedGalleryEvidence.missingGalleryTargets.length > 0) {
+        const missing = screenshotsCopy.committedEvidenceMissing
+            .replace("{missing}", String(committedGalleryEvidence.missingGalleryTargets.length))
+            .replace("{files}", committedGalleryEvidence.missingGalleryTargets.join(", "));
+        evidence.appendChild(el("p", "mb-note", missing));
+    }
+    const commit = captureProvenance.commit;
+    if (/^\((?:local run|unknown)\)$/i.test(commit) || /not recorded/i.test(commit)) {
+        evidence.appendChild(
+            el(
+                "p",
+                "mb-note",
+                screenshotsCopy.committedEvidenceUnpinned.replace("{commit}", commit),
+            ),
+        );
+    }
+    host.appendChild(evidence);
 }
 
 function renderScreenshots(host: HTMLElement, i18n: I18n, lightbox: Lightbox): void {

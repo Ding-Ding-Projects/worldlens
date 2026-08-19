@@ -125,6 +125,21 @@ const REACHABLE_SURFACES: readonly {
         reachedBy: "PAGE_BROWSER_EXTENSION",
         why: "The whole browser-extension capture flow: Start download, Downloading, and the completion notice.",
     },
+    {
+        component: "ScreenshotGalleryScreen",
+        reachedBy: "PAGE_SCREENSHOTS",
+        why: "The searchable local capture gallery. A gallery route that is only a component import is not evidence that a person can open it.",
+    },
+    {
+        component: "RemoteHostingScreen",
+        reachedBy: "PAGE_REMOTE_HOSTING",
+        why: "The remote-host publication surface. Its bridge is optional at runtime, but the page itself must remain discoverable when the host is unavailable.",
+    },
+    {
+        component: "DockerHostingScreen",
+        reachedBy: "PAGE_DOCKER_HOSTING",
+        why: "The Docker-host publication surface. Missing Docker is a truthful runtime state, not a reason to remove the route.",
+    },
     /*
      * The pages that were reachable and unwatched. Every one of them agreed across all three
      * files already, which is exactly why they were easy to leave off this list: nothing was

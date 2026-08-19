@@ -3,6 +3,8 @@ import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
 import type { SchoolModeResult } from "../main/schoolMode/index.js";
+import type { VocabularyResult, VocabularySnapshot } from "../main/vocabulary/index.js";
+import type { CreateInstanceRequest, DockerHostingSnapshot, ManagedInstance, ManagerAnswer } from "../main/dockerhosting/index.js";
 import type {
     CiBootstrapEvent,
     CiBootstrapResult,
@@ -33,6 +35,11 @@ import type {
     PagesTarget,
 } from "../main/pages/index.js";
 import type {
+    StaticMapExportEvent,
+    StaticMapExportReport,
+    StaticMapExportRequest,
+} from "../main/pages/index.js";
+import type {
     PreviewAvailability,
     PreviewEvent,
     PreviewNetworkReadout,
@@ -40,7 +47,11 @@ import type {
     PreviewStartRequest,
     PreviewStatusAnswer,
 } from "../main/preview/index.js";
-import type { RemoteHostEvent } from "../main/remote/index.js";
+import type {
+    DashboardRefreshOptions,
+    DashboardSnapshot,
+    RemoteHostEvent,
+} from "../main/remote/index.js";
 import type {
     DownloadConcurrencyReadout,
     DownloadConcurrencyWriteResult,
@@ -83,7 +94,9 @@ import type {
     AppSettingsState,
 } from "../main/settings/index.js";
 import type { RestoreResult } from "../main/history/index.js";
+import { RELEASE_LEDGER_CHANNEL, type ReleaseLedgerReadout } from "../main/releaseLedger/index.js";
 import type { StartupDiagnosticsSnapshot, StartupExportFormat } from "../main/startup/index.js";
+import type { GalleryAssetRead, GalleryDraft, GalleryRecord, GalleryRevision, GalleryUpdate } from "../main/gallery/store.js";
 import {
     toBridgeCoordinates,
     toBridgeDiscoveryResult,
@@ -104,6 +117,16 @@ export interface ConsentRecord {
 export interface FirstRunState {
     completed: boolean;
     completedAt: string | null;
+}
+
+export interface GalleryBridge {
+    list(): Promise<{ readonly records: readonly GalleryRecord[]; readonly history: readonly GalleryRevision[] }>;
+    readAsset(id: string): Promise<GalleryAssetRead>;
+    add(draft: GalleryDraft): Promise<GalleryRecord>;
+    importRecords(drafts: readonly GalleryDraft[]): Promise<readonly GalleryRecord[]>;
+    update(id: string, changes: GalleryUpdate): Promise<GalleryRecord>;
+    delete(ids: readonly string[]): Promise<number>;
+    export(format: "json" | "markdown"): Promise<{ readonly format: string; readonly filename: string; readonly content: string }>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1888,7 +1911,6 @@ export interface DockerVolumeSummary {
 export interface DockerMount {
     type: string;
     /** The host path for a bind mount, or the mountpoint Docker reports for a volume. */
-    source: string;
     /** The volume's name, when `type` is `"volume"`. Null otherwise. */
     volumeName: string | null;
     /** Where this is mounted inside the container. */
@@ -2020,6 +2042,18 @@ export interface DockerWorldBridge {
     fingerprintsEqual(a: DockerWorldFingerprint, b: DockerWorldFingerprint): Promise<boolean>;
     /** Real fetch phase/progress events; returns the exact unsubscribe function. */
     onDockerWorldEvent(listener: (event: DockerWorldEvent) => void): () => void;
+}
+
+/** Main-process-owned BlueMap container manager. Destructive calls require a one-use token. */
+export interface DockerHostingBridge {
+    create(request: CreateInstanceRequest): Promise<ManagerAnswer<ManagedInstance>>;
+    inspect(): Promise<unknown>;
+    authorize(request: { readonly operation: "stop"; readonly containerId: string }): Promise<unknown>;
+    removeToken(containerId: string): Promise<unknown>;
+    mutate(request: unknown): Promise<unknown>;
+    logs(containerId: string, tail?: number): Promise<unknown>;
+    cancel(operationId: string): Promise<boolean>;
+    onEvent(listener: (event: unknown) => void): () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2274,6 +2308,7 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    releaseLedgerRead(): Promise<ReleaseLedgerReadout>;
     /**
      * The renderer-safe face of the OS application-data School-mode record.  Its snapshot
      * never includes a PIN, password, salt, verifier, file path, or other credential material.
@@ -2288,6 +2323,11 @@ interface WorldlensBridge {
         disable(credential: string): Promise<SchoolModeResult>;
         reset(): Promise<SchoolModeResult>;
     };
+    vocabulary: {
+        read(): Promise<VocabularySnapshot>;
+        load(raw: string): Promise<VocabularyResult>;
+        clear(): Promise<VocabularyResult>;
+    };
     startup: {
         read(): Promise<StartupDiagnosticsSnapshot>;
         copy(): Promise<{ ok: boolean; message: string }>;
@@ -2296,6 +2336,7 @@ interface WorldlensBridge {
         ): Promise<{ ok: boolean; path: string | null; message: string }>;
         retry(): Promise<{ ok: boolean; message: string }>;
     };
+    addons: AddonsBridge;
 
     /**
      * The window buttons, for the app's own title bar.
@@ -2760,6 +2801,9 @@ interface WorldlensBridge {
     /** The application settings' own version history. Same shape and reason as {@link profilesHistory}. */
     appSettingsHistory: AppSettingsHistoryBridge;
 
+    /** App-data-backed user screenshot gallery. Image bytes never enter renderer storage. */
+    gallery: GalleryBridge;
+
     /** Which BlueMap this installation's engine was built from. See {@link BlueMapSourceBridge}. */
     bluemapSource: BlueMapSourceBridge;
 
@@ -2783,6 +2827,8 @@ interface WorldlensBridge {
 
     /** Reading a world out of a Docker container or volume. See {@link DockerWorldBridge}. */
     dockerWorld: DockerWorldBridge;
+    /** Managing only this application's labelled BlueMap containers. */
+    dockerHosting: DockerHostingBridge;
 
     /**
      * A world's own record of how it should be rendered, and the history of it.
@@ -2891,8 +2937,18 @@ interface WorldlensBridge {
      * super-confirmation gate before ever calling it.
      */
     stopRemoteHosting(hostingId: string): Promise<unknown>;
+    dashboardSnapshot(): Promise<DashboardSnapshot>;
+    dashboardRefresh(options?: DashboardRefreshOptions): Promise<DashboardSnapshot>;
+    dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
     /** Progress and log lines for a hosting run in progress. */
     onRemoteHostingEvent(listener: (event: RemoteHostEvent) => void): () => void;
+    dockerHostingCreate(request: CreateInstanceRequest): Promise<ManagerAnswer<ManagedInstance>>;
+    dockerHostingInspect(): Promise<ManagerAnswer<DockerHostingSnapshot>>;
+    dockerHostingMutate(request: unknown): Promise<ManagerAnswer<DockerHostingSnapshot>>;
+    dockerHostingCancel(operationId: string): Promise<boolean>;
+    dockerHostingAuthorize(request: { readonly operation: "stop"; readonly containerId: string }): Promise<unknown>;
+    dockerHostingRemoveToken(instanceId: string): Promise<ManagerAnswer<string>>;
+    onDockerHostingEvent(listener: (event: unknown) => void): () => void;
     /**
      * Lists one folder on the target, for the Explorer-style remote browser.
      *
@@ -3035,6 +3091,15 @@ interface WorldlensBridge {
     }): Promise<PagesAnswer<PagesRecord>>;
     onPagesEvent(listener: (event: PagesEvent) => void): () => void;
 
+    /* ---- Exporting a rendered map as a portable static site --------------- */
+    exportStaticMap(request: StaticMapExportRequest): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
+    cancelStaticMapExport(exportId: string): Promise<boolean>;
+    activeStaticMapExports(): Promise<readonly string[]>;
+    issueStaticMapOverwriteToken(): Promise<string>;
+    resumeStaticMapExport(exportId: string): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
+    staticMapExportLedger(): Promise<readonly string[]>;
+    onStaticMapExportEvent(listener: (event: StaticMapExportEvent) => void): () => void;
+
     /* ---- Watching a render live, in a real browser tab -------------------- */
 
     /** Whether this render id can be hosted right now, and why not when it cannot. */
@@ -3145,10 +3210,44 @@ interface WorldlensBridge {
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
 
+interface AddonRecord {
+    id: string;
+    name: string;
+    version: string;
+    description: string;
+    apiVersion: string;
+    capabilities: string[];
+    grantedCapabilities: string[];
+    entry: string;
+    enabled: boolean;
+    importedAt: string;
+    error: string | null;
+}
+
+interface AddonMutationResult<T> {
+    ok: boolean;
+    value?: T;
+    code?: string;
+    message?: string;
+}
+
+interface AddonsBridge {
+    list(): Promise<AddonMutationResult<AddonRecord[]>>;
+    importPackage(): Promise<AddonMutationResult<AddonRecord>>;
+    setEnabled(id: string, enabled: boolean): Promise<AddonMutationResult<AddonRecord>>;
+    grant(id: string, capabilities: string[]): Promise<AddonMutationResult<AddonRecord>>;
+    revoke(id: string, capability: string): Promise<AddonMutationResult<AddonRecord>>;
+    remove(id: string): Promise<AddonMutationResult<boolean>>;
+    setSafeMode(enabled: boolean): Promise<AddonMutationResult<boolean>>;
+    safeModeState(): Promise<boolean>;
+    diagnostics(): Promise<Array<{ addonId: string; phase: string; message: string }>>;
+}
+
 const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
+    releaseLedgerRead: () => ipcRenderer.invoke(RELEASE_LEDGER_CHANNEL),
     schoolMode: {
         read: () => ipcRenderer.invoke("schoolMode:read"),
         enable: (request) => ipcRenderer.invoke("schoolMode:enable", request),
@@ -3156,11 +3255,27 @@ const bridge: WorldlensBridge = {
         disable: (credential) => ipcRenderer.invoke("schoolMode:disable", credential),
         reset: () => ipcRenderer.invoke("schoolMode:reset"),
     },
+    vocabulary: {
+        read: () => ipcRenderer.invoke("vocabulary:read"),
+        load: (raw) => ipcRenderer.invoke("vocabulary:load", raw),
+        clear: () => ipcRenderer.invoke("vocabulary:clear"),
+    },
     startup: {
         read: () => ipcRenderer.invoke("startup:read"),
         copy: () => ipcRenderer.invoke("startup:copy"),
         export: (format) => ipcRenderer.invoke("startup:export", format),
         retry: () => ipcRenderer.invoke("startup:retry"),
+    },
+    addons: {
+        list: () => ipcRenderer.invoke("addons:list"),
+        importPackage: () => ipcRenderer.invoke("addons:import"),
+        setEnabled: (id, enabled) => ipcRenderer.invoke("addons:setEnabled", id, enabled),
+        grant: (id, capabilities) => ipcRenderer.invoke("addons:grant", id, capabilities),
+        revoke: (id, capability) => ipcRenderer.invoke("addons:revoke", id, capability),
+        remove: (id) => ipcRenderer.invoke("addons:remove", id),
+        setSafeMode: (enabled) => ipcRenderer.invoke("addons:safeMode", enabled),
+        safeModeState: () => ipcRenderer.invoke("addons:safeModeState"),
+        diagnostics: () => ipcRenderer.invoke("addons:diagnostics"),
     },
 
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
@@ -3396,6 +3511,21 @@ const bridge: WorldlensBridge = {
         },
     },
 
+    dockerHosting: {
+        create: (request) => ipcRenderer.invoke("dockerhosting:create", request),
+        inspect: () => ipcRenderer.invoke("dockerhosting:inspect"),
+        authorize: (request) => ipcRenderer.invoke("dockerhosting:authorize", request),
+        removeToken: (containerId) => ipcRenderer.invoke("dockerhosting:removeToken", containerId),
+        mutate: (request) => ipcRenderer.invoke("dockerhosting:mutate", request),
+        logs: (containerId, tail = 200) => ipcRenderer.invoke("dockerhosting:logs", { id: containerId, tail }),
+        cancel: (operationId) => ipcRenderer.invoke("dockerhosting:cancel", operationId),
+        onEvent: (listener) => {
+            const forward = (_event: IpcRendererEvent, payload: unknown): void => listener(payload);
+            ipcRenderer.on("dockerhosting:event", forward);
+            return () => ipcRenderer.off("dockerhosting:event", forward);
+        },
+    },
+
     dockerRuntime: () => ipcRenderer.invoke("runtime:docker"),
     runtimeModes: () => ipcRenderer.invoke("runtime:modes"),
     containerOffers: () => ipcRenderer.invoke("runtime:containers"),
@@ -3423,6 +3553,10 @@ const bridge: WorldlensBridge = {
     remoteHostingRecord: (hostingId) => ipcRenderer.invoke("hosting:record", hostingId),
     refreshRemoteHosting: (hostingId) => ipcRenderer.invoke("hosting:refresh", hostingId),
     stopRemoteHosting: (hostingId) => ipcRenderer.invoke("hosting:stop", hostingId),
+    dashboardSnapshot: (): Promise<DashboardSnapshot> => ipcRenderer.invoke("dashboard:snapshot"),
+    dashboardRefresh: (options?: DashboardRefreshOptions): Promise<DashboardSnapshot> =>
+        ipcRenderer.invoke("dashboard:refresh", options ?? {}),
+    dashboardCancel: (): Promise<{ readonly cancelled: boolean }> => ipcRenderer.invoke("dashboard:cancel"),
     onRemoteHostingEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: RemoteHostEvent): void =>
             listener(payload);
@@ -3430,6 +3564,17 @@ const bridge: WorldlensBridge = {
         return () => {
             ipcRenderer.off("hosting:event", forward);
         };
+    },
+    dockerHostingInspect: (): Promise<ManagerAnswer<DockerHostingSnapshot>> => ipcRenderer.invoke("dockerhosting:inspect"),
+    dockerHostingCreate: (request): Promise<ManagerAnswer<ManagedInstance>> => ipcRenderer.invoke("dockerhosting:create", request),
+    dockerHostingMutate: (request): Promise<ManagerAnswer<DockerHostingSnapshot>> => ipcRenderer.invoke("dockerhosting:mutate", request),
+    dockerHostingCancel: (operationId): Promise<boolean> => ipcRenderer.invoke("dockerhosting:cancel", operationId),
+    dockerHostingAuthorize: (request): Promise<unknown> => ipcRenderer.invoke("dockerhosting:authorize", request),
+    dockerHostingRemoveToken: (instanceId): Promise<ManagerAnswer<string>> => ipcRenderer.invoke("dockerhosting:removeToken", instanceId),
+    onDockerHostingEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: unknown): void => listener(payload);
+        ipcRenderer.on("dockerhosting:event", forward);
+        return () => ipcRenderer.off("dockerhosting:event", forward);
     },
     browseRemoteDirectory: (target, path) => ipcRenderer.invoke("remote:browse", target, path),
 
@@ -3495,6 +3640,18 @@ const bridge: WorldlensBridge = {
         return () => {
             ipcRenderer.off("pages:event", forward);
         };
+    },
+
+    exportStaticMap: (request) => ipcRenderer.invoke("map-export:start", request),
+    cancelStaticMapExport: (exportId) => ipcRenderer.invoke("map-export:cancel", exportId),
+    activeStaticMapExports: () => ipcRenderer.invoke("map-export:active"),
+    issueStaticMapOverwriteToken: () => ipcRenderer.invoke("map-export:overwrite-token"),
+    resumeStaticMapExport: (exportId) => ipcRenderer.invoke("map-export:resume", exportId),
+    staticMapExportLedger: () => ipcRenderer.invoke("map-export:ledger"),
+    onStaticMapExportEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: StaticMapExportEvent): void => listener(payload);
+        ipcRenderer.on("map-export:event", forward);
+        return () => { ipcRenderer.off("map-export:event", forward); };
     },
 
     previewAvailability: (renderId) => ipcRenderer.invoke("preview:availability", renderId),
@@ -3684,6 +3841,16 @@ const bridge: WorldlensBridge = {
         list: (limit) => ipcRenderer.invoke("settingsHistory:list", limit),
         restore: (id) => ipcRenderer.invoke("settingsHistory:restore", id),
         discardOlderRevisions: (keep) => ipcRenderer.invoke("settingsHistory:discardOlder", keep),
+    },
+
+    gallery: {
+        list: () => ipcRenderer.invoke("gallery:list"),
+        readAsset: (id) => ipcRenderer.invoke("gallery:readAsset", id),
+        add: (draft) => ipcRenderer.invoke("gallery:add", draft),
+        importRecords: (drafts) => ipcRenderer.invoke("gallery:import", drafts),
+        update: (id, changes) => ipcRenderer.invoke("gallery:update", id, changes),
+        delete: (ids) => ipcRenderer.invoke("gallery:delete", ids),
+        export: (format) => ipcRenderer.invoke("gallery:export", format),
     },
 
     bluemapSource: {

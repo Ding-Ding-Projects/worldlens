@@ -198,6 +198,26 @@ if (pages.length !== 1) {
   process.exit(1);
 }
 const page = pages[0];
+const pageUrl = new URL(page.url());
+const privacyScan = {
+  version: 1,
+  targetCount: pages.length,
+  targetType: "page",
+  targetUrl: pageUrl.href,
+  loopbackOnly: ["127.0.0.1", "localhost", "[::1]"].includes(pageUrl.hostname),
+  unrelatedTargetsObserved: pages.length !== 1,
+  visibleDesktopUntouched: UI_ONLY && LOWLEVEL_MCP_ENDPOINT !== "" && LOWLEVEL_HWND > 0,
+  taskProfileOwned: Boolean(process.env.WORLDLENS_DRIVER_OUTPUT),
+  expectedSurfaceOnly: false,
+  sensitiveDataReviewed: false,
+  mocked: false,
+  handEdited: false,
+};
+if (!privacyScan.loopbackOnly) {
+  throw new Error(`the sole CDP target is not a loopback Worldlens page: ${pageUrl.href}`);
+}
+await mkdir(SHOTS, { recursive: true });
+await writeFile(join(SHOTS, "privacy-scan.json"), `${JSON.stringify(privacyScan, null, 2)}\n`, "utf8");
 const runStartedAt = new Date().toISOString();
 let consoleErrorCount = 0;
 let pageErrorCount = 0;

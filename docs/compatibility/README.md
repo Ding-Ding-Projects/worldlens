@@ -95,8 +95,11 @@ note explicitly widens it.
 - [Schemas and migrations](./schemas-and-migrations.md)
 - [API and reference](./api-reference.md)
 - [Standalone CLI resource and SQL parity](./cli-resource-sql-parity.md)
+- [Three.js upgrade parity and evidence contract](./threejs-upgrade-parity.md)
 - [Migration guide](./migration-guide.md)
 - [Public surface matrix](./public-surface-matrix.md)
+- [JavaScript and ESM add-ons — issue #71](./javascript-esm-add-ons.md)
+- [Typed banner-pattern compatibility — issue #89](./banner-patterns.md)
 - [Automatic updates](../automatic-updates.md)
 - [Backup and restore](../backup.md)
 

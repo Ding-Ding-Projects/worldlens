@@ -607,6 +607,16 @@ const SHARE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         target: { kind: "job", jobId: "remoteHosting" },
     }),
     feature("publishing", {
+        key: "share.publishing.docker-hosting-manager",
+        icon: mdiDocker,
+        nameKey: "catalogue.share.dockerHosting.name",
+        nameFallback: "Docker hosting manager",
+        blurbKey: "catalogue.share.dockerHosting.blurb",
+        blurbFallback:
+            "Inspect and operate only this app's BlueMap server containers, with live progress, cancellation, and safe stop or remove confirmation.",
+        target: { kind: "job", jobId: "dockerHosting" },
+    }),
+    feature("publishing", {
         key: "share.publishing.pages-feature-parity",
         icon: mdiCheckDecagramOutline,
         nameKey: "catalogue.share.parity.name",

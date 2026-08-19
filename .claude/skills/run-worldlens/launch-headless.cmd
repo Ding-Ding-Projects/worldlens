@@ -22,9 +22,16 @@ set "REPO=%~3"
 if "%REPO%"=="" set "REPO=%WORLDLENS_REPO%"
 if "%REPO%"=="" set "REPO=%~dp0..\..\.."
 set "APP=%REPO%\design\packages\app"
-if not exist "%APP%\node_modules\electron\dist\electron.exe" (
-  echo [launch-headless] no Electron binary under "%APP%".
-  echo [launch-headless] Pass the Worldlens checkout as argument 3, or set WORLDLENS_REPO.
+set "PACKAGED=%APP%\release\win-unpacked\Worldlens.exe"
+set "ASAR=%APP%\release\win-unpacked\resources\app.asar"
+if not exist "%PACKAGED%" (
+  echo [launch-headless] no packaged Worldlens executable under "%APP%\release\win-unpacked".
+  echo [launch-headless] Build the unsigned packaged app before launching this driver.
+  exit /b 1
+)
+if not exist "%ASAR%" (
+  echo [launch-headless] packaged app.asar is missing from "%APP%\release\win-unpacked\resources".
+  echo [launch-headless] Refusing to launch a source or partial build.
   exit /b 1
 )
 
@@ -33,7 +40,9 @@ REM wins and this run would write to the user's own settings.
 set "WORLDLENS_SCREENSHOTS=1"
 set "WORLDLENS_SCREENSHOT_HOME=C:\Worldlens-Capture"
 set "WORLDLENS_SCREENSHOT_STORAGE=C:\Worldlens-Capture\maps"
+set "WORLDLENS_PACKAGED_EXE=%PACKAGED%"
+set "WORLDLENS_PACKAGED_ASAR=%ASAR%"
 
-"%APP%\node_modules\electron\dist\electron.exe" "%APP%" ^
+"%PACKAGED%" ^
   --no-sandbox --disable-gpu --force-prefers-reduced-motion ^
   --remote-debugging-port=%PORT% "--user-data-dir=%PROFILE%"

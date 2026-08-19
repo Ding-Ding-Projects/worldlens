@@ -77,13 +77,33 @@ const props = withDefaults(
         provenance?: string;
         /** Honest storage/retention status supplied by the history owner. */
         historyWarning?: string;
+        /** Persisted completion metadata; null means the owner has not supplied a verdict. */
+        historyComplete?: boolean | null;
+        /** Persisted retention counters, independent of the bounded live viewport. */
+        evictedLines?: number;
+        evictedRenders?: number;
+        /** Machine-readable persisted warning supplied by the history owner. */
+        storageWarning?: "retention-limit" | "storage-limit" | null;
+        /** Timestamp of the persisted record supplied by the history owner. */
+        historyUpdatedAt?: string | null;
         /** How many lines the cap has dropped off the front of this render. */
         dropped?: number;
         cap: number;
         /** Height of the scrolling area. A caller that has more room can ask for more. */
         height?: string;
     }>(),
-    { dropped: 0, height: "clamp(180px, 34vh, 460px)", renderId: "unknown", provenance: "console", historyWarning: "" },
+    {
+        dropped: 0,
+        height: "clamp(180px, 34vh, 460px)",
+        renderId: "unknown",
+        provenance: "console",
+        historyWarning: "",
+        historyComplete: null,
+        evictedLines: 0,
+        evictedRenders: 0,
+        storageWarning: null,
+        historyUpdatedAt: null,
+    },
 );
 
 const emit = defineEmits<{
@@ -151,13 +171,17 @@ const matcher = computed(() => createSettingMatcher(query.value, regex.value, fl
 
 const levelSet = computed(() => new Set(chosenLevels.value));
 
-const visible = computed(() => selectRows(rows.value, levelSet.value, matcher.value.test, adviceText));
 const matchingHistory = computed(() => selectRows(historyRows.value, levelSet.value, matcher.value.test, adviceText));
+const visibleRing = computed(() => selectRows(rows.value, levelSet.value, matcher.value.test, adviceText));
+const searchActive = computed(() => query.value.trim().length > 0);
+const filtersActive = computed(() => searchActive.value || chosenLevels.value.length > 0);
+/** A search reads the complete retained stream; the unfiltered live view stays bounded. */
+const visible = computed(() => (filtersActive.value ? matchingHistory.value : visibleRing.value));
 const selected = computed(() => matchingHistory.value.filter((row) => selectedIds.value.has(row.line.id)));
 /** Export the complete retained history by default; an explicit selection narrows it. */
 const exportRows = computed(() => (selected.value.length > 0 ? selected.value : matchingHistory.value));
 
-const counts = computed(() => countByLevel(props.lines));
+const counts = computed(() => countByLevel(props.history ?? props.lines));
 
 const slice = computed(() =>
     describeSlice(matchingHistory.value.length, historyRows.value.length, props.dropped, props.cap),
@@ -170,7 +194,13 @@ const slice = computed(() =>
  * lines" answer two different questions and a reader who sees neither has to count.
  */
 const summary = computed(() =>
-    slice.value.filtered
+    !filtersActive.value && historyRows.value.length > props.lines.length
+        ? t(
+              "world.console.showingRecent",
+              { shown: props.lines.length, retained: historyRows.value.length },
+              "Showing the newest {shown} of {retained} retained lines. Search and filters use the complete history.",
+          )
+        : slice.value.filtered
         ? t(
               "world.console.showingSome",
               { shown: slice.value.shown, kept: slice.value.kept },
@@ -181,7 +211,13 @@ const summary = computed(() =>
 
 /** What the console is holding, and what it has already let go of. */
 const capLine = computed(() =>
-    props.dropped > 0
+    historyRows.value.length > props.lines.length
+        ? t(
+              "world.console.capRetained",
+              { shown: props.lines.length, retained: historyRows.value.length },
+              "The live view keeps the newest {shown} lines. Search, copy, selection, and export use all {retained} retained lines.",
+          )
+        : props.dropped > 0
         ? t(
               "world.console.capDropped",
               { cap: props.cap, dropped: props.dropped },
@@ -191,10 +227,96 @@ const capLine = computed(() =>
 );
 
 const historyStatus = computed(() => props.historyWarning ?? "");
+function persistedCount(value: number | undefined): number {
+    return Number.isSafeInteger(value) && (value ?? 0) >= 0 ? (value ?? 0) : 0;
+}
+const historyMetadata = computed(() => ({
+    complete: props.historyComplete ?? null,
+    evictedLines: persistedCount(props.evictedLines),
+    evictedRenders: persistedCount(props.evictedRenders),
+    storageWarning: props.storageWarning ?? null,
+    updatedAt: props.historyUpdatedAt ?? null,
+}));
+const historyFacts = computed(() => {
+    const facts = [
+        historyMetadata.value.complete === true
+            ? t(
+                  "world.console.historyComplete",
+                  { retained: historyRows.value.length },
+                  "Complete history: {retained} retained lines.",
+              )
+            : historyMetadata.value.complete === false
+              ? t(
+                    "world.console.historyIncomplete",
+                    {
+                        retained: historyRows.value.length,
+                        reason: t(
+                            "world.console.historyIncompleteReason",
+                            "The render may still be running or was interrupted.",
+                        ),
+                    },
+                    "Incomplete history: {retained} retained lines. {reason}",
+                )
+              : t("world.console.historyUnknown", "Persisted completion state is unavailable."),
+    ];
+    if (historyMetadata.value.evictedLines > 0) {
+        facts.push(
+            t(
+                "world.console.evictedLines",
+                { evictedLines: historyMetadata.value.evictedLines },
+                "Retention removed {evictedLines} older lines.",
+            ),
+        );
+    }
+    if (historyMetadata.value.evictedRenders > 0) {
+        facts.push(
+            t(
+                "world.console.evictedRenders",
+                { evictedRenders: historyMetadata.value.evictedRenders },
+                "Retention removed {evictedRenders} older render histories.",
+            ),
+        );
+    }
+    if (historyMetadata.value.storageWarning !== null) {
+        facts.push(
+            t(
+                "world.console.storageWarningDetail",
+                {
+                    reason: historyMetadata.value.storageWarning,
+                    lastSavedAt: historyMetadata.value.updatedAt ?? "(unknown)",
+                },
+                "Storage warning: {reason} Last successful save: {lastSavedAt}.",
+            ),
+        );
+    }
+    return facts;
+});
+const selectionLabel = computed(() =>
+    selected.value.length > 0
+        ? t("world.console.clearSelection", "Clear selection")
+        : filtersActive.value
+          ? t("world.console.selectMatches", "Select all retained matches")
+          : t("world.console.selectRetained", "Select all retained lines"),
+);
+const selectedAffected = computed(() => {
+    const preview = selected.value.slice(0, 8).map((row) => `${row.line.id}: ${redactConsoleText(row.text)}`);
+    const remaining = selected.value.length - preview.length;
+    if (remaining > 0) {
+        preview.push(t("world.console.affectedMore", { count: remaining }, "and {count} more retained lines"));
+    }
+    return preview;
+});
+const pruneAffected = computed(() => [
+    t(
+        "world.console.pruneCount",
+        { count: historyRows.value.length },
+        "All {count} retained lines for this render",
+    ),
+]);
 
 /** Real text for the builder to preview against, rather than an invented sample. */
 const sample = computed(() =>
-    rows.value
+    historyRows.value
         .slice(-40)
         .map((row) => row.text)
         .join("\n"),
@@ -227,12 +349,43 @@ onMounted(() => autoScroll.scrollToBottom());
  * absence that is an artefact of a filter they cannot see.
  */
 function exportHeader(): string {
+    const identity = t(
+        "world.console.exportIdentityMetadata",
+        { renderId: props.renderId, provenance: props.provenance },
+        "Render id={renderId}; provenance={provenance}.",
+    );
+    const filter = t(
+        "world.console.exportFilterMetadata",
+        {
+            query: query.value === "" ? "(none)" : query.value,
+            mode: regex.value ? "regex" : "plain text",
+            flags: regex.value ? flags.value : "(none)",
+            levels: chosenLevels.value.length === 0 ? "(all)" : chosenLevels.value.join(", "),
+        },
+        "Filter: query={query}; mode={mode}; flags={flags}; levels={levels}.",
+    );
+    const persisted = t(
+        "world.console.exportHistoryMetadata",
+        {
+            completion:
+                historyMetadata.value.complete === true
+                    ? "complete"
+                    : historyMetadata.value.complete === false
+                      ? "incomplete"
+                      : "unknown",
+            evictedLines: historyMetadata.value.evictedLines,
+            evictedRenders: historyMetadata.value.evictedRenders,
+            storageWarning: historyMetadata.value.storageWarning ?? "(none)",
+            retained: historyRows.value.length,
+        },
+        "History state={completion}; retained lines={retained}; evicted lines={evictedLines}; evicted renders={evictedRenders}; storage warning={storageWarning}.",
+    );
     if (selected.value.length > 0) {
-        return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${t(
+        return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${identity}\n# ${persisted}\n# ${t(
             "world.console.exportSelection",
             { shown: selected.value.length, kept: historyRows.value.length },
             "{shown} selected lines from {kept} retained lines.",
-        )}`;
+        )}\n# ${filter}`;
     }
     const scope = slice.value.filtered
         ? t(
@@ -242,14 +395,24 @@ function exportHeader(): string {
           )
         : t("world.console.exportAll", { kept: slice.value.kept }, "All {kept} lines the console was holding.");
     const cut =
-        props.dropped > 0
+        props.dropped > 0 && historyRows.value.length <= props.lines.length
             ? t(
                   "world.console.exportDropped",
                   { dropped: props.dropped, cap: props.cap },
                   " {dropped} earlier lines were already dropped: the console keeps the most recent {cap}.",
               )
             : "";
-    return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${scope}${cut}`;
+    return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${identity}\n# ${persisted}\n# ${scope}${cut}\n# ${filter}`;
+}
+
+function filterMetadata(): Record<string, unknown> {
+    return {
+        query: query.value,
+        mode: regex.value ? "regex" : "plain-text",
+        flags: regex.value ? flags.value : "",
+        levels: [...chosenLevels.value],
+        selected: selected.value.length > 0,
+    };
 }
 
 function currentText(rowsToWrite = exportRows.value): string {
@@ -265,7 +428,7 @@ async function copyAll(): Promise<void> {
         await navigator.clipboard.writeText(currentText());
         copyState.value = t(
             "world.console.copied",
-            { shown: slice.value.shown },
+            { shown: exportRows.value.length },
             "Copied {shown} lines, with a header saying which ones.",
         );
     } catch {
@@ -287,6 +450,10 @@ function csvEscape(value: string, separator: "," | "\t"): string {
         : escaped;
 }
 
+function annotationMessages(row: ConsoleRow): readonly string[] {
+    return row.line.annotations.map((annotation) => redactConsoleText(adviceText(annotation)));
+}
+
 function structuredRecord(row: ConsoleRow): Record<string, unknown> {
     return {
         schemaVersion: 1,
@@ -297,7 +464,13 @@ function structuredRecord(row: ConsoleRow): Record<string, unknown> {
         level: row.line.level,
         origin: row.line.origin,
         message: redactConsoleText(row.text),
-        annotations: row.line.annotations.map((annotation) => ({ kind: annotation.kind, tone: annotation.tone })),
+        annotations: row.line.annotations.map((annotation) => ({
+            kind: annotation.kind,
+            tone: annotation.tone,
+            message: redactConsoleText(adviceText(annotation)),
+        })),
+        persistedHistory: { ...historyMetadata.value },
+        filter: filterMetadata(),
     };
 }
 
@@ -306,22 +479,29 @@ function exportPayload(): { body: string; extension: string; mime: string } {
     if (exportFormat.value === "txt") return { body: currentText(rowsToWrite), extension: "txt", mime: "text/plain" };
     if (exportFormat.value === "md") {
         return {
-            body: `${exportHeader()}\n\n${rowsToWrite.map((row) => `- **${LEVEL_TAGS[row.line.level]}** \`${row.line.at}\` ${redactConsoleText(row.text)}`).join("\n")}`,
+            body: `${exportHeader()}\n\n${rowsToWrite.map((row) => {
+                const annotations = annotationMessages(row).map((message) => `  - Worldlens: ${message}`).join("\n");
+                return `- **${LEVEL_TAGS[row.line.level]}** \`${row.line.at}\` ${redactConsoleText(row.text)}${annotations === "" ? "" : `\n${annotations}`}`;
+            }).join("\n")}`,
             extension: "md",
             mime: "text/markdown",
         };
     }
-    if (exportFormat.value === "json") return { body: JSON.stringify({ schemaVersion: 1, renderId: props.renderId, provenance: props.provenance, rows: rowsToWrite.map(structuredRecord) }, null, 2), extension: "json", mime: "application/json" };
+    if (exportFormat.value === "json") return { body: JSON.stringify({ schemaVersion: 1, renderId: props.renderId, provenance: props.provenance, persistedHistory: { ...historyMetadata.value }, filter: filterMetadata(), rows: rowsToWrite.map(structuredRecord) }, null, 2), extension: "json", mime: "application/json" };
     if (exportFormat.value === "jsonl") return { body: rowsToWrite.map((row) => JSON.stringify(structuredRecord(row))).join("\n"), extension: "jsonl", mime: "application/x-ndjson" };
     if (exportFormat.value === "html") {
         const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-        return { body: `<!doctype html><meta charset="utf-8"><title>Worldlens render console</title><ol>${rowsToWrite.map((row) => `<li data-level="${escape(row.line.level)}"><time>${escape(row.line.at)}</time> <strong>${escape(LEVEL_TAGS[row.line.level])}</strong> ${escape(redactConsoleText(row.text))}</li>`).join("")}</ol>`, extension: "html", mime: "text/html" };
+        return { body: `<!doctype html><meta charset="utf-8"><title>Worldlens render console</title><header><pre>${escape(exportHeader())}</pre></header><ol>${rowsToWrite.map((row) => {
+            const annotations = annotationMessages(row).map((message) => `<li>${escape(message)}</li>`).join("");
+            return `<li data-level="${escape(row.line.level)}"><time>${escape(row.line.at)}</time> <strong>${escape(LEVEL_TAGS[row.line.level])}</strong> ${escape(redactConsoleText(row.text))}${annotations === "" ? "" : `<ul aria-label="Worldlens annotations">${annotations}</ul>`}</li>`;
+        }).join("")}</ol>`, extension: "html", mime: "text/html" };
     }
     const separator = exportFormat.value === "csv" ? "," : "\t";
-    const header = ["schemaVersion", "renderId", "provenance", "id", "timestamp", "level", "origin", "message"].join(separator);
+    const header = ["schemaVersion", "renderId", "provenance", "historyComplete", "historyUpdatedAt", "evictedLines", "evictedRenders", "storageWarning", "id", "timestamp", "level", "origin", "message", "annotations", "query", "mode", "flags", "levels", "selected"].join(separator);
     const body = rowsToWrite.map((row) => {
         const record = structuredRecord(row);
-        return [record.schemaVersion, record.renderId, record.provenance, record.id, record.timestamp, record.level, record.origin, record.message].map((value) => csvEscape(String(value ?? ""), separator)).join(separator);
+        const filter = filterMetadata();
+        return [record.schemaVersion, record.renderId, record.provenance, historyMetadata.value.complete, historyMetadata.value.updatedAt, historyMetadata.value.evictedLines, historyMetadata.value.evictedRenders, historyMetadata.value.storageWarning, record.id, record.timestamp, record.level, record.origin, record.message, JSON.stringify(annotationMessages(row)), filter.query, filter.mode, filter.flags, JSON.stringify(filter.levels), filter.selected].map((value) => csvEscape(String(value ?? ""), separator)).join(separator);
     });
     return { body: [header, ...body].join("\n"), extension: exportFormat.value, mime: exportFormat.value === "csv" ? "text/csv" : "text/tab-separated-values" };
 }
@@ -355,10 +535,9 @@ function toggleSelection(id: number): void {
     selectedIds.value = next;
 }
 
-function selectVisible(): void {
-    // The action is named for the current view, but its selection predicate belongs to
-    // complete retained history. Lines outside the bounded viewport are still part of
-    // the filtered result and must be selectable/exportable/deletable.
+function selectRetainedMatches(): void {
+    // Lines outside the bounded viewport are still part of the filtered result and must
+    // remain selectable, exportable, and deletable.
     selectedIds.value = new Set(matchingHistory.value.map((row) => row.line.id));
 }
 
@@ -368,6 +547,13 @@ function clearSelection(): void {
 
 function deleteSelected(): void {
     const ids = [...selectedIds.value];
+    if (ids.length === 0) return;
+    emit("deleteHistory", ids);
+    clearSelection();
+}
+
+function pruneHistory(): void {
+    const ids = historyRows.value.map((row) => row.line.id);
     if (ids.length === 0) return;
     emit("deleteHistory", ids);
     clearSelection();
@@ -440,15 +626,15 @@ function openSetting(target: SettingsTarget): void {
                     />
                 </v-checkbox>
                 <v-btn :prepend-icon="mdiContentCopy" size="small" variant="text" density="comfortable" @click="copyAll">
-                    {{ t("world.console.copy", "Copy what is shown") }}
+                    {{ t("world.console.copy", "Copy selected or retained matches") }}
                 </v-btn>
-                <v-btn size="small" variant="text" density="comfortable" @click="selected.length > 0 ? clearSelection() : selectVisible()">
-                    {{ selected.length > 0 ? t("world.console.clearSelection", "Clear selection") : t("world.console.selectVisible", "Select visible") }}
+                <v-btn size="small" variant="text" density="comfortable" @click="selected.length > 0 ? clearSelection() : selectRetainedMatches()">
+                    {{ selectionLabel }}
                 </v-btn>
                 <ConfigSuperConfirm
                     :title="t('world.console.deleteTitle', 'Delete retained console history')"
                     :action="t('world.console.deleteAction', 'Delete the selected retained console lines. This cannot be undone.')"
-                    :affected="selected.map((row) => `${row.line.id}: ${redactConsoleText(row.text)}`)"
+                    :affected="selectedAffected"
                     :confirm-label="t('world.console.deleteConfirm', 'Confirm deletion')"
                     :disabled="selected.length === 0"
                     @confirm="deleteSelected"
@@ -456,6 +642,20 @@ function openSetting(target: SettingsTarget): void {
                     <template #activator="{ props: activatorProps }">
                         <v-btn v-bind="activatorProps" size="small" variant="text" density="comfortable">
                             {{ t("world.console.deleteSelected", "Delete selected") }}
+                        </v-btn>
+                    </template>
+                </ConfigSuperConfirm>
+                <ConfigSuperConfirm
+                    :title="t('world.console.pruneTitle', 'Prune retained console history')"
+                    :action="t('world.console.pruneAction', 'Delete every retained console line for this render. The running render, if any, continues and new lines can still arrive. This cannot be undone.')"
+                    :affected="pruneAffected"
+                    :confirm-label="t('world.console.pruneConfirm', 'Confirm retained-history pruning')"
+                    :disabled="historyRows.length === 0"
+                    @confirm="pruneHistory"
+                >
+                    <template #activator="{ props: activatorProps }">
+                        <v-btn v-bind="activatorProps" size="small" variant="text" density="comfortable">
+                            {{ t("world.console.prune", "Prune retained history") }}
                         </v-btn>
                     </template>
                 </ConfigSuperConfirm>
@@ -482,13 +682,23 @@ function openSetting(target: SettingsTarget): void {
                     density="comfortable"
                     @click="exportAll"
                 >
-                    {{ t("world.console.export", "Export selected or visible lines") }}
+                    {{ t("world.console.export", "Export selected or retained matches") }}
                 </v-btn>
             </div>
             <p class="mb-console__meta" role="status" aria-live="polite">{{ copyState }}</p>
             <p v-if="historyStatus" class="mb-console__meta mb-console__meta--warning" role="status" aria-live="polite">
                 {{ historyStatus }}
             </p>
+            <section
+                class="mb-console__history-facts"
+                role="status"
+                aria-live="polite"
+                :aria-label="t('world.console.historyFactsTitle', 'Persisted history details')"
+            >
+                <ul>
+                    <li v-for="fact in historyFacts" :key="fact">{{ fact }}</li>
+                </ul>
+            </section>
         </div>
 
         <div class="mb-console__frame">
@@ -560,11 +770,11 @@ function openSetting(target: SettingsTarget): void {
 
                 <li v-if="visible.length === 0" class="mb-console__empty">
                     {{
-                        lines.length === 0
+                        historyRows.length === 0
                             ? t("world.console.emptyLog", "The engine has not printed anything yet.")
                             : t(
                                   "world.console.emptyMatch",
-                                  { kept: lines.length },
+                                  { kept: historyRows.length },
                                   "None of the {kept} lines match the level filter and the search.",
                               )
                     }}
@@ -701,6 +911,17 @@ function openSetting(target: SettingsTarget): void {
     gap: 0 8px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+.mb-console__history-facts {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(var(--v-theme-on-surface), 0.8);
+}
+
+.mb-console__history-facts ul {
+    margin-block: 4px 8px;
+    padding-inline-start: 22px;
 }
 
 .mb-console__select {

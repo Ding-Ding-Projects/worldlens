@@ -12,6 +12,35 @@ interface FirstRunState {
     completedAt: string | null;
 }
 
+interface GalleryRecord {
+    id: string;
+    name: string;
+    asset: string;
+    tags: string[];
+    notes: string;
+    metadata: Record<string, unknown>;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface GalleryRevision {
+    id: string;
+    action: string;
+    screenshotId: string;
+    at: string;
+    record: GalleryRecord | null;
+}
+
+interface GalleryBridge {
+    list(): Promise<{ records: GalleryRecord[]; history: GalleryRevision[] }>;
+    readAsset(id: string): Promise<{ mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp"; bytes: Uint8Array }>;
+    add(draft: Record<string, unknown>): Promise<GalleryRecord>;
+    importRecords(drafts: Record<string, unknown>[]): Promise<GalleryRecord[]>;
+    update(id: string, changes: Record<string, unknown>): Promise<GalleryRecord>;
+    delete(ids: string[]): Promise<number>;
+    export(format: "json" | "markdown"): Promise<{ format: string; filename: string; content: string }>;
+}
+
 /**
  * Reading and writing a BlueMap config folder.
  *
@@ -574,12 +603,90 @@ interface SharedSchoolModeBridge {
     reset(): Promise<SharedSchoolModeResult>;
 }
 
+interface DashboardEntry {
+    readonly id: string;
+    readonly source: "profile" | "hosting";
+    readonly label: string;
+    readonly url: string | null;
+    readonly status: "running" | "stopped" | "unknown" | "configured";
+    readonly reachability: "reachable" | "unreachable" | "unknown" | "stale";
+    readonly version: string | null;
+    readonly mapIds: readonly string[];
+    readonly players: number | null;
+    readonly renderState: string | null;
+    readonly lastCheckedAt: string | null;
+    readonly failure: string | null;
+    readonly owner: { readonly kind: "profile" | "hosting"; readonly id: string };
+}
+
+interface DashboardSnapshot {
+    readonly version: 1;
+    readonly generatedAt: string;
+    readonly entries: readonly DashboardEntry[];
+}
+
+/** Exact request accepted by the main-process `dockerhosting:create` handler. */
+interface DockerHostingCreateInstanceRequest {
+    readonly id: string;
+    readonly name: string;
+    readonly image: string;
+    readonly ports?: readonly number[];
+    readonly volumes?: readonly string[];
+    readonly removeToken?: string;
+}
+
+/** Exact managed-instance value returned by `dockerhosting:create`. */
+interface DockerHostingCreatedInstance {
+    readonly id: string;
+    readonly name: string;
+    readonly image: string;
+    readonly containerId: string | null;
+    readonly state: "created" | "running" | "paused" | "exited" | "unknown";
+    readonly ports: readonly number[];
+    readonly volumes: readonly string[];
+    readonly updatedAt: string;
+    readonly health: string | null;
+    readonly fingerprint: string | null;
+}
+
+type DockerHostingCreateAnswer =
+    | { readonly ok: true; readonly value: DockerHostingCreatedInstance }
+    | {
+          readonly ok: false;
+          readonly failure: {
+              readonly code: "invalid-request" | "docker-unavailable" | "not-found" | "not-owned" | "command-failed" | "storage-failed";
+              readonly message: string;
+              readonly detail: string | null;
+          };
+      };
+
+type CreateInstanceRequest = DockerHostingCreateInstanceRequest;
+type CreateInstanceAnswer = DockerHostingCreateAnswer;
+
+interface DockerHostingBridge {
+    create(request: CreateInstanceRequest): Promise<CreateInstanceAnswer>;
+}
+
 interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    releaseLedgerRead?: () => Promise<unknown>;
+    dashboardSnapshot(): Promise<DashboardSnapshot>;
+    dashboardRefresh(options?: { readonly concurrency?: number; readonly retries?: number; readonly backoffMs?: number }): Promise<DashboardSnapshot>;
+    dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
+    dockerHosting?: DockerHostingBridge;
+    dockerHostingCreate(request: CreateInstanceRequest): Promise<CreateInstanceAnswer>;
     schoolMode?: SharedSchoolModeBridge;
+    vocabulary?: {
+        read(): Promise<{ readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string } }>;
+        load(raw: string): Promise<{ readonly ok: boolean; readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string }; readonly reason?: string }>;
+        clear(): Promise<{ readonly ok: boolean; readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string }; readonly reason?: string }>;
+    };
     startup: BlueMapStartupBridge;
+    addons: AddonsBridge;
+    /** User-owned screenshots stored under the app-data directory, never in renderer storage. */
+    gallery: GalleryBridge;
 
     /**
      * Mojang download consent, asked once during first-run setup and remembered.
@@ -773,6 +880,39 @@ interface WorldlensBridge {
     cancelBackup(backupId: string): Promise<boolean>;
     activeBackups(): Promise<readonly string[]>;
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
+}
+
+interface AddonRecord {
+    id: string;
+    name: string;
+    version: string;
+    description: string;
+    apiVersion: string;
+    capabilities: string[];
+    grantedCapabilities: string[];
+    entry: string;
+    enabled: boolean;
+    importedAt: string;
+    error: string | null;
+}
+
+interface AddonMutationResult<T> {
+    ok: boolean;
+    value?: T;
+    code?: string;
+    message?: string;
+}
+
+interface AddonsBridge {
+    list(): Promise<AddonMutationResult<AddonRecord[]>>;
+    importPackage(): Promise<AddonMutationResult<AddonRecord>>;
+    setEnabled(id: string, enabled: boolean): Promise<AddonMutationResult<AddonRecord>>;
+    grant(id: string, capabilities: string[]): Promise<AddonMutationResult<AddonRecord>>;
+    revoke(id: string, capability: string): Promise<AddonMutationResult<AddonRecord>>;
+    remove(id: string): Promise<AddonMutationResult<boolean>>;
+    setSafeMode(enabled: boolean): Promise<AddonMutationResult<boolean>>;
+    safeModeState(): Promise<boolean>;
+    diagnostics(): Promise<Array<{ addonId: string; phase: string; message: string }>>;
 }
 
 /* -------------------------------------------------------------------------- */

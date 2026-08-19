@@ -8,6 +8,7 @@ import {
     mdiCloudUploadOutline,
     mdiEye,
     mdiFileDocumentOutline,
+    mdiImageMultipleOutline,
     mdiCubeOutline,
     mdiSwapHorizontal,
     mdiLifebuoy,
@@ -25,12 +26,13 @@ import type { MenuPage } from "@worldlens/viewer";
 import MapView from "./components/MapView.vue";
 import { HomeScreen } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
+import DashboardScreen from "./components/DashboardScreen.vue";
 import ZoomButtons from "./components/controls/ZoomButtons.vue";
 import FreeFlightMobileControls from "./components/controls/FreeFlightMobileControls.vue";
 import { ControlBar } from "./components/controlbar/index.js";
 import { ConfigScreen } from "./components/config/index.js";
 import { MainMenu, provideBlueMap, useBlueMapTheme } from "./components/menu/index.js";
-import { MarkerMenu } from "./components/markers/index.js";
+import { MarkerMenu, StudioMarkerLayerHost } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import {
     AppRail,
@@ -101,9 +103,10 @@ import { DimSumSurprise } from "./components/dimsum/index.js";
 import AuthenticatorScreen from "./components/authenticator/AuthenticatorScreen.vue";
 import LockList from "./components/locks/LockList.vue";
 import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensionScreen.vue";
+import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScreen.vue";
 import { resolveLockHost } from "./components/locks/useLocks.js";
 import SupportTickets from "./components/locks/SupportTickets.vue";
-import { RemoteHostingScreen } from "./components/remote/index.js";
+import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
 import {
     dropRenderHostMissingReason,
     useDropRenderHost,
@@ -334,6 +337,8 @@ const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
 const PAGE_OLLAMA = "ollama";
 const PAGE_REMOTE_HOSTING = "remoteHosting";
+const PAGE_DOCKER_HOSTING = "dockerHosting";
+const PAGE_SCREENSHOTS = "screenshots";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -498,6 +503,8 @@ const pages = computed<TabPage[]>(() => [
     // and Structures earned their own tabs above for the same reason.
     { id: PAGE_OLLAMA, label: t("ollama.title", "Ollama"), icon: mdiRobotOutline },
     { id: PAGE_REMOTE_HOSTING, label: t("tabs.page.remoteHosting", "Remote hosting"), icon: mdiCloudUploadOutline },
+    { id: PAGE_DOCKER_HOSTING, label: t("tabs.page.dockerHosting", "Docker hosting"), icon: mdiServerNetwork },
+    { id: PAGE_SCREENSHOTS, label: t("tabs.page.screenshots", "Screenshots"), icon: mdiImageMultipleOutline },
 ]);
 
 /**
@@ -1752,6 +1759,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 time somebody glanced at another tab.
             -->
             <MapView v-if="profilesStore.activeId" :key="profilesStore.activeId" />
+            <StudioMarkerLayerHost />
 
             <!--
                 Kid Mode's own shell: the same three destinations, the same resolved
@@ -1923,7 +1931,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #servers>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
-                            <ProfileManager @close="revealPage(PAGE_MAP)" />
+                            <DashboardScreen
+                                @close="revealPage(PAGE_MAP)"
+                                @open-profile="(id) => { profilesStore.activeId = id; revealPage(PAGE_MAP); }"
+                                @open-hosting="(id) => { localStorage.setItem('worldlens.dashboard.hostingId', id); revealPage(PAGE_REMOTE_HOSTING); }"
+                            />
                         </div>
                     </div>
                 </template>
@@ -1976,6 +1988,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     </div>
                 </template>
 
+                <template #screenshots>
+                    <div class="mb-world-host mb-interactive">
+                        <ScreenshotGalleryScreen />
+                    </div>
+                </template>
+
                 <template #ollama>
                     <div class="mb-world-host mb-interactive">
                         <OllamaScreen />
@@ -1984,6 +2002,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                 <template #remoteHosting>
                     <RemoteHostingScreen />
+                </template>
+
+                <template #dockerHosting>
+                    <DockerHostingScreen />
                 </template>
 
                 <template #memory>
@@ -2328,7 +2350,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #servers>
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
-                                    <ProfileManager @close="revealPage(PAGE_MAP)" />
+                                    <DashboardScreen
+                                        @close="revealPage(PAGE_MAP)"
+                                        @open-profile="(id) => { profilesStore.activeId = id; revealPage(PAGE_MAP); }"
+                                        @open-hosting="(id) => { localStorage.setItem('worldlens.dashboard.hostingId', id); revealPage(PAGE_REMOTE_HOSTING); }"
+                                    />
                                 </div>
                             </div>
                         </template>
@@ -2408,6 +2434,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             </div>
                         </template>
 
+                        <template #screenshots>
+                            <div class="mb-world-host mb-interactive">
+                                <ScreenshotGalleryScreen />
+                            </div>
+                        </template>
+
                         <!--
                             The local Ollama suite manager: runtime health, the Model Store,
                             the pull cart and streaming chat, all talking to the documented
@@ -2421,6 +2453,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                         <template #remoteHosting>
                             <RemoteHostingScreen />
+                        </template>
+
+                        <template #dockerHosting>
+                            <DockerHostingScreen />
                         </template>
 
                         <!--

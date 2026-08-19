@@ -11,6 +11,12 @@ export interface RemoteProfile {
     headers?: Record<string, string>;
 }
 
+export interface RemoteProfileProbe {
+    readonly reachable: boolean;
+    readonly version: string | null;
+    readonly failure: string | null;
+}
+
 /**
  * Request headers forwarded to the remote (conditional requests). accept-encoding is
  * deliberately NOT forwarded: undici negotiates and transparently decompresses, so the
@@ -47,6 +53,47 @@ export class RemoteProxyHandler implements HttpHandler {
 
     getProfiles(): RemoteProfile[] {
         return [...this.profiles.values()];
+    }
+
+    /**
+     * Checks a configured profile through the same validated proxy configuration used by
+     * map requests. Redirects are not followed, response bytes are bounded, and callers
+     * receive only health facts - never headers or profile credentials.
+     */
+    async probe(profileId: string, signal?: AbortSignal): Promise<RemoteProfileProbe> {
+        const profile = this.profiles.get(profileId);
+        if (profile === undefined) return { reachable: false, version: null, failure: "The profile is not configured." };
+        const base = profile.baseUrl.endsWith("/") ? profile.baseUrl : `${profile.baseUrl}/`;
+        const target = new URL("settings.json", base);
+        let response: Response;
+        try {
+            const timeout = AbortSignal.timeout(5_000);
+            const probeSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
+            response = await fetch(target, {
+                method: "GET",
+                headers: { accept: "application/json" },
+                redirect: "manual",
+                signal: probeSignal,
+            });
+        } catch (error) {
+            if (signal?.aborted) throw error;
+            return { reachable: false, version: null, failure: "The profile did not answer its health check." };
+        }
+        if (response.status < 200 || response.status >= 300) {
+            return { reachable: false, version: null, failure: `The profile health check returned HTTP ${String(response.status)}.` };
+        }
+        const body = await readBoundedBody(response, 64 * 1024);
+        if (body === null) return { reachable: true, version: null, failure: "The profile health response was larger than the bounded limit." };
+        try {
+            const parsed: unknown = JSON.parse(body);
+            const candidate = typeof parsed === "object" && parsed !== null
+                ? (parsed as Record<string, unknown>)["version"]
+                : undefined;
+            const version = typeof candidate === "string" ? candidate : null;
+            return { reachable: true, version, failure: null };
+        } catch {
+            return { reachable: true, version: null, failure: "The profile answered, but its health response was not JSON." };
+        }
     }
 
     async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<boolean> {
@@ -86,12 +133,17 @@ export class RemoteProxyHandler implements HttpHandler {
             upstream = await fetch(target, {
                 method: req.method,
                 headers,
-                redirect: "follow",
+                redirect: "manual",
                 signal: AbortSignal.timeout(rest?.endsWith("live/sse") ? 24 * 60 * 60_000 : 60_000),
             });
         } catch {
             res.writeHead(502, { "content-type": "text/plain" });
             res.end("Bad Gateway");
+            return true;
+        }
+        if (upstream.status >= 300 && upstream.status < 400) {
+            res.writeHead(502, { "content-type": "text/plain" });
+            res.end("Remote redirect refused");
             return true;
         }
 
@@ -119,4 +171,34 @@ export class RemoteProxyHandler implements HttpHandler {
         }
         return true;
     }
+}
+
+async function readBoundedBody(response: Response, limit: number): Promise<string | null> {
+    const declared = Number(response.headers.get("content-length") ?? "0");
+    if (declared > limit) return null;
+    if (response.body === null) return "";
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+        while (true) {
+            const part = await reader.read();
+            if (part.done) break;
+            size += part.value.byteLength;
+            if (size > limit) {
+                await reader.cancel();
+                return null;
+            }
+            chunks.push(part.value);
+        }
+    } finally {
+        reader.releaseLock();
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return new TextDecoder().decode(bytes);
 }

@@ -13,4 +13,9 @@ states behaviour, configuration, failure modes, security considerations, and ver
 | [Tab and group appearance](tab-appearance-editors.md)                        | Edit tab and group appearance from normal or Shift+right-click menus                                                              |
 | [Startup recovery and brand identity](startup-recovery.md)                   | The shared local Worldlens mark, its accessible Home action, and the documentation-site article for the desktop recovery boundary |
 
+The site's existing screenshot gallery is a repository-backed verification gallery. It must not
+be described as the user-owned in-app screenshot library tracked by issue #76; that product
+surface, its local record metadata, and its packaged-runtime evidence remain open. The canonical
+issue record is [the screenshot-gallery feature article](../../../docs/screenshot-gallery.md).
+
 The site has no HTTP API; a Postman collection is not applicable to this category.

@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "ledgerPolicy": "Current policy requires a link to the public dim-sum catalog photo; these historical releases copied and attached the photo asset. They are retained as shipped-but-nonconforming evidence and are not presented as verified.",
+  "phases": [
+    {
+      "phase": "Public-1.0 baseline release 682",
+      "integrationCommit": "e13777927876a3d7898778f18193e9465bc97cc2",
+      "releaseTag": "v0.1.0-build.682",
+      "releaseId": "366510298",
+      "releaseDisposition": "shipped-nonconforming",
+      "verificationState": "failed",
+      "verificationNote": "Published release evidence is complete, but this phase is failed under the current link-only dim-sum policy: the release attached a copied catalog photo asset. Historical release notes also identify the run as material-bluemap rather than this Oak Kay.",
+      "timing": {
+        "started": "2026-08-07T03:41:20Z",
+        "completed": "2026-08-07T03:57:46Z",
+        "duration": "00:16:26"
+      },
+      "evidence": {
+        "kind": "workflow",
+        "source": "gh api repos/Ding-Ding-Projects/worldlens/releases/tags/v0.1.0-build.682",
+        "buildCommand": "node scripts/count-lines.mjs --format=markdown",
+        "workflowRun": "31145108097",
+        "workflowUrl": "https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31145108097",
+        "localBuildPassed": true,
+        "cloudVerdictVerified": true,
+        "releaseNotesMarkers": ["exact commit", "changelog link", "workflow timing", "line-count table", "unsigned warning", "public catalog photo link"]
+      },
+      "codeName": {
+        "en": "Shrimp Glutinous Rice Dumplings",
+        "zhHant": "鮮蝦鹹水角",
+        "photoUrl": "https://github.com/Ding-Ding-Projects/material-bluemap/releases/download/v0.1.0-build.682/hk-dish-0109-shrimp-glutinous-rice-dumplings.png",
+        "catalogUrl": "https://raw.githubusercontent.com/Ding-Ding-Projects/dim-sum-photos/main/catalog/index.json",
+        "photoPolicy": "copied-release-asset-nonconforming"
+      },
+      "assets": [
+        {"name":"bluemap-server-plugins-5.22-27.zip","size":39331587,"sha256":"8d57ec0ae2a32001a4c253cd1ecd664c0ab852f1c7ca88fcd260fd537cf84b27","kind":"server-plugins-archive"},
+        {"name":"hk-dish-0109-shrimp-glutinous-rice-dumplings.png","size":2395713,"sha256":"e4acf15d63f1618f5347e14130d9d28ff9c713c2c1ae5dd629ca694d96b9d3f1","kind":"copied-dim-sum-photo"},
+        {"name":"material-bluemap-v0.1.0-build.682-extras.zip","size":170215622,"sha256":"0f40327edf773d3beb79db44d9e90499f8d9e280e58b53bcdbf2c47137d8c137","kind":"extras-archive"},
+        {"name":"MaterialBlueMap-0.1.682-full.nupkg","size":154769759,"sha256":"695e8ea2ae96db52601611ee99fb77733b8e43f012ef8d31cecd9b9457aa7c1a","kind":"squirrel-full-package"},
+        {"name":"MaterialBlueMap-0.1.682-Setup.exe","size":155495424,"sha256":"e165abc3227afc1badad3803eb7ed1256490e8b558ebbe84b9044c22cc714f19","kind":"squirrel-installer"},
+        {"name":"RELEASES","size":88,"sha256":"b93a71fe407844c3aa7898bcd04365f147f0d57fc9f4c4fb79e60819e262fcc3","kind":"squirrel-index"}
+      ],
+      "archiveIndexes": {"RELEASES":"present; 88 bytes", "fullNupkg":"present; 154769759 bytes"},
+      "installerSignature": {"status":"not independently recorded in the release notes", "expected":"NotSigned"},
+      "lineCount": {"source":280476,"tests":172097,"stylesMarkup":79479,"configBuild":15199,"docs":25315,"total":573015,"nonBlank":514124,"command":"node scripts/count-lines.mjs --format=markdown","attribution":"git blame --line-porcelain; agent-written 483136 project lines plus 21485 held-out lines"},
+      "exclusions": ["vendor/ git submodule", "node_modules/", "dist/, out/, release/, .vite/", "coverage/", "lockfiles", "bundled data and binary assets held out of project total"]
+    },
+    {
+      "phase": "Public-1.0 baseline release 704",
+      "integrationCommit": "f727083e5cb60f86aa4c493415d9e7c2b4952864",
+      "releaseTag": "v0.1.0-build.704",
+      "releaseId": "366545169",
+      "releaseDisposition": "shipped-nonconforming",
+      "verificationState": "failed",
+      "verificationNote": "Published asset and target evidence read back successfully, but the release copied and attached the catalog photo instead of linking to the public catalog asset. Retained as shipped-but-nonconforming.",
+      "timing": {"started":"2026-08-07T05:32:51Z","completed":"2026-08-07T05:48:57Z","duration":"00:16:06"},
+      "evidence": {"kind":"workflow","source":"gh api repos/Ding-Ding-Projects/worldlens/releases/tags/v0.1.0-build.704","buildCommand":"node scripts/count-lines.mjs --format=markdown","workflowRun":"31150938432","workflowUrl":"https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31150938432","localBuildPassed":true,"cloudVerdictVerified":true,"releaseNotesMarkers":["exact commit","changelog link","workflow timing","line-count table","NotSigned installer warning","public catalog photo link"]},
+      "codeName": {"en":"Sesame Balls","zhHant":"煎堆","photoUrl":"https://github.com/Ding-Ding-Projects/material-bluemap/releases/download/v0.1.0-build.704/hk-dish-0111-sesame-balls.png","catalogUrl":"https://raw.githubusercontent.com/Ding-Ding-Projects/dim-sum-photos/main/catalog/index.json","photoPolicy":"copied-release-asset-nonconforming"},
+      "assets": [
+        {"name":"bluemap-server-plugins-5.22-27.zip","size":39331593,"sha256":"7e388c97c4bd760327685c9ef737a305caf8cd798fdc1d1b954b8fa66f95637d","kind":"server-plugins-archive"},
+        {"name":"hk-dish-0111-sesame-balls.png","size":2575531,"sha256":"84d60fe8ed4dc163364e9311105d82ce6d01e59405dd1bc209d2c4b02031468b","kind":"copied-dim-sum-photo"},
+        {"name":"material-bluemap-v0.1.0-build.704-extras.zip","size":172316419,"sha256":"82f58b70715ce6fad96f47bf5035b915183e354fc1adedc722b8f7df2b71d3e2","kind":"extras-archive"},
+        {"name":"MaterialBlueMap-0.1.704-full.nupkg","size":154781650,"sha256":"d5a2883e880b89aa7e5b3ef3c816667f1ad0169847fc8e1ca442adf08d282561","kind":"squirrel-full-package"},
+        {"name":"MaterialBlueMap-0.1.704-Setup.exe","size":155507200,"sha256":"27d1d86573de1f0a8e79fc52e5653a42da641f29724bd964f709ced1cc31153d","kind":"squirrel-installer"},
+        {"name":"RELEASES","size":88,"sha256":"1f905201514d49331ff22be151eab65198a27204ae686a3124809456938c86a7","kind":"squirrel-index"}
+      ],
+      "archiveIndexes":{"RELEASES":"present; 88 bytes","fullNupkg":"present; 154781650 bytes"},
+      "installerSignature":{"status":"NotSigned (stated in release notes)","expected":"NotSigned"},
+      "lineCount":{"source":281752,"tests":172793,"stylesMarkup":79479,"configBuild":15304,"docs":25600,"total":575377,"nonBlank":516318,"command":"node scripts/count-lines.mjs --format=markdown","attribution":"git blame --line-porcelain; agent-written 482892 project lines plus 21485 held-out lines"},
+      "exclusions":["vendor/ git submodule","node_modules/","dist/, out/, release/, .vite/","coverage/","lockfiles","bundled data and binary assets held out of project total"]
+    },
+    {
+      "phase": "Public-1.0 baseline release 708",
+      "integrationCommit": "37104b4016491b74619b67b56cafc6f84c19aaa3",
+      "releaseTag": "v0.1.0-build.708",
+      "releaseId": "366557990",
+      "releaseDisposition": "shipped-nonconforming",
+      "verificationState": "failed",
+      "verificationNote": "Published asset and target evidence read back successfully, but the release copied and attached the catalog photo instead of linking to the public catalog asset. Retained as shipped-but-nonconforming.",
+      "timing":{"started":"2026-08-07T06:09:06Z","completed":"2026-08-07T06:25:06Z","duration":"00:16:00"},
+      "evidence":{"kind":"workflow","source":"gh api repos/Ding-Ding-Projects/worldlens/releases/tags/v0.1.0-build.708","buildCommand":"node scripts/count-lines.mjs --format=markdown","workflowRun":"31152955010","workflowUrl":"https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31152955010","localBuildPassed":true,"cloudVerdictVerified":true,"releaseNotesMarkers":["exact commit","changelog link","workflow timing","line-count table","NotSigned installer evidence","public catalog photo link"]},
+      "codeName":{"en":"Lotus Paste Sesame Balls","zhHant":"蓮蓉煎堆","photoUrl":"https://github.com/Ding-Ding-Projects/material-bluemap/releases/download/v0.1.0-build.708/hk-dish-0112-lotus-paste-sesame-balls.png","catalogUrl":"https://raw.githubusercontent.com/Ding-Ding-Projects/dim-sum-photos/main/catalog/index.json","photoPolicy":"copied-release-asset-nonconforming"},
+      "assets":[
+        {"name":"bluemap-server-plugins-5.22-27.zip","size":39331592,"sha256":"4dc6ea835cdac6afe012e077ca12435aadecd54f35bc17223672139010164f7b","kind":"server-plugins-archive"},
+        {"name":"hk-dish-0112-lotus-paste-sesame-balls.png","size":2611361,"sha256":"8a7bf0ba5187ee0aa33c03a7957b6d9a5ce3497baee826a8c808801519b4718b","kind":"copied-dim-sum-photo"},
+        {"name":"material-bluemap-v0.1.0-build.708-extras.zip","size":168119207,"sha256":"9a2a4aaa1b7bdd98f5132e874eac955ab46749ab51ba569b52be65d2d09957d7","kind":"extras-archive"},
+        {"name":"MaterialBlueMap-0.1.708-full.nupkg","size":154781818,"sha256":"13716d4cf2252d99cc3048d88cb54f133573883c70fe22d51f470fe6d5e62307","kind":"squirrel-full-package"},
+        {"name":"MaterialBlueMap-0.1.708-Setup.exe","size":155507200,"sha256":"c355d6f2c17b4f0598343f9620de2a7a158af3c12f1eb0e170bc685d756aced3","kind":"squirrel-installer"},
+        {"name":"RELEASES","size":88,"sha256":"6efd475f8c564144aea4ddaeb441ceba82043f8c6bd2e77d74a7a1e49e698d69","kind":"squirrel-index"}
+      ],
+      "archiveIndexes":{"RELEASES":"present; 88 bytes","fullNupkg":"present; 154781818 bytes"},
+      "installerSignature":{"status":"NotSigned (independent verification stated in release notes)","expected":"NotSigned"},
+      "lineCount":{"source":281762,"tests":172793,"stylesMarkup":79479,"configBuild":15304,"docs":25601,"total":575388,"nonBlank":516329,"command":"node scripts/count-lines.mjs --format=markdown","attribution":"git blame --line-porcelain; agent-written 482892 project lines plus 21485 held-out lines"},
+      "exclusions":["vendor/ git submodule","node_modules/","dist/, out/, release/, .vite/","coverage/","lockfiles","bundled data and binary assets held out of project total"]
+    },
+    {
+      "phase": "Public-1.0 baseline release 731",
+      "integrationCommit": "ff2a8db67329311357f3ffe858d1d78b25ac7ab1",
+      "releaseTag": "v0.1.0-build.731",
+      "releaseId": "366753356",
+      "releaseDisposition": "shipped-nonconforming",
+      "verificationState": "failed",
+      "verificationNote": "Published asset and target evidence read back successfully, but the release copied and attached the catalog photo instead of linking to the public catalog asset. Retained as shipped-but-nonconforming.",
+      "timing":{"started":"2026-08-07T12:50:00Z","completed":"2026-08-07T13:05:26Z","duration":"00:15:26"},
+      "evidence":{"kind":"workflow","source":"gh api repos/Ding-Ding-Projects/worldlens/releases/tags/v0.1.0-build.731","buildCommand":"node scripts/count-lines.mjs --format=markdown","workflowRun":"31179870088","workflowUrl":"https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31179870088","localBuildPassed":true,"cloudVerdictVerified":true,"releaseNotesMarkers":["exact commit","changelog link","workflow timing","line-count table","unsigned warning","public catalog photo link"]},
+      "codeName":{"en":"Peanut Sesame Balls","zhHant":"花生煎堆","photoUrl":"https://github.com/Ding-Ding-Projects/material-bluemap/releases/download/v0.1.0-build.731/hk-dish-0114-peanut-sesame-balls.png","catalogUrl":"https://raw.githubusercontent.com/Ding-Ding-Projects/dim-sum-photos/main/catalog/index.json","photoPolicy":"copied-release-asset-nonconforming"},
+      "assets":[
+        {"name":"bluemap-jars.sha256.txt","size":648,"sha256":"b9c826cbcbd5fab480c81b1d8940d008014045e31b876fc00333c4cf88ba0577","kind":"jar-manifest"},
+        {"name":"bluemap-server-plugins-5.22-27.zip","size":39331592,"sha256":"6b36d517fba3dcb0612097ab65b25768f2e7e3859cd562edffde12450875efa2","kind":"server-plugins-archive"},
+        {"name":"hk-dish-0114-peanut-sesame-balls.png","size":2607540,"sha256":"ad9a1268abbe5bbd4faa4c578e639567daa535137cec6135ae30599fe2132320","kind":"copied-dim-sum-photo"},
+        {"name":"RELEASES","size":82,"sha256":"7d28f7008e4b51d2e85baaadc777101b14cff35baf2ea733fc255cfbfe0a4455","kind":"squirrel-index"},
+        {"name":"Worldlens-0.1.731-full.nupkg","size":154816861,"sha256":"b4dd5d3079a00c38f1969995afa9209fcb4ae939e25046fb3cca706218364c30","kind":"squirrel-full-package"},
+        {"name":"Worldlens-0.1.731-Setup.exe","size":155542016,"sha256":"5d401356d5f3e9a624536b6a2a3720937d8b039872af845cf3ca56b0b2052232","kind":"squirrel-installer"},
+        {"name":"worldlens-v0.1.0-build.731-extras.zip","size":169212225,"sha256":"4c580289df62e9f7701ef0b981432b6f1634ed690a161df6adcf7c81068c384b","kind":"extras-archive"}
+      ],
+      "archiveIndexes":{"RELEASES":"present; 82 bytes","fullNupkg":"present; 154816861 bytes"},
+      "installerSignature":{"status":"unsigned warning stated in release notes; no independent NotSigned digest recorded","expected":"NotSigned"},
+      "lineCount":{"source":284344,"tests":175044,"stylesMarkup":79581,"configBuild":15368,"docs":26007,"total":580793,"nonBlank":521322,"command":"node scripts/count-lines.mjs --format=markdown","attribution":"git blame --line-porcelain; agent-written 480096 project lines plus 21482 held-out lines"},
+      "exclusions":["vendor/ git submodule","node_modules/","dist/, out/, release/, .vite/","coverage/","lockfiles","bundled data and binary assets held out of project total"]
+    },
+    {
+      "phase": "Build-and-release-only workflow policy",
+      "integrationCommit": "86024f0ffeb2599ffd653a09e4fae3d020b7becc",
+      "releaseTag": "v1.0.1349",
+      "releaseId": "373306902",
+      "releaseDisposition": "verified",
+      "verificationState": "verified",
+      "verificationNote": "The published non-draft, non-prerelease release targets the exact integrated commit and its successful workflow run. Release notes and the workflow readback provide the six published assets with byte counts and SHA-256 values, RELEASES/full-package index evidence, the successful unsigned-executable check, end-to-end timing, line-count tables, attribution/exclusions, and the public catalog photo link. This workflow intentionally omits tests, lint, typecheck, static analysis, accessibility, and capture checks; no such verdict is claimed here.",
+      "timing": {
+        "started": "2026-08-19T19:06:20Z",
+        "completed": "2026-08-19T19:40:08Z",
+        "duration": "00:33:48"
+      },
+      "evidence": {
+        "kind": "workflow",
+        "source": "gh api repos/Ding-Ding-Projects/worldlens/releases/tags/v1.0.1349",
+        "buildCommand": "design: pnpm build; design/packages/app: pnpm run make; node scripts/count-lines.mjs --format=markdown",
+        "workflowRun": "32291148256",
+        "workflowUrl": "https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32291148256",
+        "localBuildPassed": false,
+        "cloudVerdictVerified": true,
+        "releaseNotesMarkers": [
+          "exact integration commit and workflow run",
+          "workflow timing",
+          "line-count table",
+          "release asset SHA-256 table",
+          "RELEASES and full .nupkg indexes",
+          "permanently unsigned installer warning",
+          "public catalog photo link without copied photo",
+          "changelog commit link"
+        ]
+      },
+      "codeName": {
+        "en": "Hong Kong Banquet Roast-Garlic Black-Pepper Grouper Head Claypot",
+        "zhHant": "港式宴席蒜子黑椒石斑魚頭煲",
+        "photoUrl": "https://github.com/Ding-Ding-Projects/dim-sum-photos/releases/download/catalog-v1-part-002/hk-dish-1349-hong-kong-banquet-roast-garlic-black-pepper-grouper-head-claypot.png",
+        "catalogUrl": "https://raw.githubusercontent.com/Ding-Ding-Projects/dim-sum-photos/main/catalog/index.json",
+        "photoPolicy": "public-catalog-release-asset-linked; not copied or attached"
+      },
+      "assets": [
+        {"name":"bluemap-jars.sha256.txt","size":627,"sha256":"a5a621ca3a7ac3d7d8c96d21c9b0c7d7366c2d10205809b7a50d89571ac70943","kind":"jar-manifest"},
+        {"name":"bluemap-server-plugins-5.23.zip","size":39355932,"sha256":"1eff5284bc503ac9deacd3c398a43d55a52b070b3aa9b1763fb0ae4c17bb96a3","kind":"server-plugins-archive"},
+        {"name":"RELEASES","size":83,"sha256":"f3dd869805a0d6f267f481cc4f205688908bbc8bed6b92d5535eb990a8e192e5","kind":"squirrel-index"},
+        {"name":"Worldlens-1.0.1349-full.nupkg","size":160265970,"sha256":"e6104a482aaf6c0f594d62c72675852b9f691658fd3e88053f20f6d8408d9b69","kind":"squirrel-full-package"},
+        {"name":"Worldlens-1.0.1349-Setup.exe","size":160450048,"sha256":"cd4bbf4d6f04e35b0ff2184fd1eacc17cc636bd8c0a5c73d6227172c5bdec27a","kind":"squirrel-installer"},
+        {"name":"worldlens-v1.0.1349-extras.zip","size":175769106,"sha256":"a35caaedd6c20453c4a83ca96183350854df0f3387ed6a5842c467252216d2b7","kind":"extras-archive"}
+      ],
+      "archiveIndexes": {
+        "RELEASES": "present; 83 bytes; SHA-256 f3dd869805a0d6f267f481cc4f205688908bbc8bed6b92d5535eb990a8e192e5",
+        "fullNupkg": "present; 160265970 bytes; SHA-256 e6104a482aaf6c0f594d62c72675852b9f691658fd3e88053f20f6d8408d9b69",
+        "jarSha256Manifest": "present; 627 bytes; SHA-256 a5a621ca3a7ac3d7d8c96d21c9b0c7d7366c2d10205809b7a50d89571ac70943"
+      },
+      "installerSignature": {
+        "status": "NotSigned (successful workflow unsigned-executable check; release notes disclose permanent unsigned state)",
+        "expected": "NotSigned"
+      },
+      "lineCount": {
+        "source": 456217,
+        "tests": 297813,
+        "stylesMarkup": 204480,
+        "configBuild": 56487,
+        "docs": 49998,
+        "otherTrackedText": 1809,
+        "total": 1066804,
+        "nonBlank": 967303,
+        "grandTotal": 1093439,
+        "grandNonBlank": 993749,
+        "command": "node scripts/count-lines.mjs --format=markdown",
+        "attribution": "git blame --line-porcelain over surviving lines; agent-written 906314 project lines plus 26632 held-out lines; human-written 160490 project lines plus 3 held-out lines"
+      },
+      "exclusions": [
+        "vendor/ git submodule",
+        "node_modules/",
+        "dist/, out/, release/, .vite/",
+        "coverage/",
+        "pnpm-lock.yaml, package-lock.json, yarn.lock",
+        "bundled data and binary assets held out of the project total"
+      ]
+    },
+    {
+      "phase": "Release-ledger completeness enforcement",
+      "integrationCommit": "4a7aad1eda64b24337de2e50d4dd50fb625167ff",
+      "releaseDisposition": "none",
+      "verificationState": "failed",
+      "verificationNote": "The workflow's build, BlueMap jars, and Windows installer jobs succeeded, but the test-world job was cancelled at 79.008%, so the release job was skipped and no release identity or assets exist for this phase.",
+      "timing": {
+        "started": "2026-08-19T19:57:25Z",
+        "completed": "2026-08-19T20:09:48Z",
+        "duration": "00:12:23"
+      },
+      "evidence": {
+        "kind": "workflow",
+        "source": "gh run view 32295874519 --repo Ding-Ding-Projects/worldlens",
+        "buildCommand": "Workflow build, BlueMap jars, Windows installer, and test-world render jobs",
+        "workflowRun": "32295874519",
+        "workflowUrl": "https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32295874519",
+        "localBuildPassed": false,
+        "cloudVerdictVerified": false,
+        "releaseNotesMarkers": [
+          "build succeeded",
+          "BlueMap jars succeeded",
+          "Windows installer succeeded",
+          "test-world cancelled at 79.008%",
+          "release skipped"
+        ]
+      },
+      "assets": []
+    }
+  ]
+}

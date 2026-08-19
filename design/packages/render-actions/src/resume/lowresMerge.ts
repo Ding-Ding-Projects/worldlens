@@ -6,6 +6,7 @@ import { exists, listFiles, readIfPresent } from "../merge/files.js";
 import { cellKey, gridCellPath, parseCellKey, parseGridCellPath } from "../merge/gridPath.js";
 import { compositeLowresTile, deriveNextLod, LowresTile } from "../merge/lowresTile.js";
 import { assertIdenticalTextures, MergeError } from "../merge/mergeMap.js";
+import { buildAtomicOutput } from "../merge/atomicOutput.js";
 
 /**
  * The last level of the merge tree: the lowres pyramid, and nothing else.
@@ -62,6 +63,14 @@ async function readTextures(mapDirectory: string): Promise<Buffer> {
 }
 
 export async function mergeLowresLayers(
+    options: LowresMergeOptions,
+): Promise<LowresMergeReport> {
+    return buildAtomicOutput(options.outputDirectory, (stagingDirectory) =>
+        mergeLowresLayersIntoDirectory({ ...options, outputDirectory: stagingDirectory }),
+    );
+}
+
+async function mergeLowresLayersIntoDirectory(
     options: LowresMergeOptions,
 ): Promise<LowresMergeReport> {
     const lowresTileSize = options.lowresTileSize ?? LOWRES_TILE_SIZE;

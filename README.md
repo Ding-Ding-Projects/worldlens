@@ -41,16 +41,20 @@ released commit; the 89-capture screenshot matrix is diagnostic evidence for the
 every push to `main` whose build, packaging, and artifact provenance complete publishes a real,
 hash-verified Squirrel.Windows release automatically; and projects auto-save with an unlimited-undo git history
 embedded in the project file itself. Versions from here are `1.0.<run>`. What 1.0 does **not**
-claim: the feature programs still open as issues (multi-server dashboard, marker authoring, add-on
-system, static export and friends) are future work, and Windows executables remain intentionally
-unsigned.
+claim: the feature programs still open as issues (multi-server dashboard, partial marker authoring,
+add-on system, static export and friends) are future work, and Windows executables remain
+intentionally unsigned.
 
 Windows releases are intentionally and permanently unsigned, so SmartScreen may show an
-unknown-publisher warning. A publish is allowed only after the required build, security-boundary,
-rendering-input, and packaging provenance checks complete. Local tests and lint remain available
-before publication but do not run in the workflow or withhold publication. Screenshot capture remains
-visible diagnostic evidence, but a capture failure is advisory and never blocks an otherwise valid
-release. The packaging job clears
+unknown-publisher warning. The current CI workflow retains five jobs: `check` is a separate
+workspace build that uploads no release artifact; `jars` builds seven BlueMap jars; `package`
+produces the Windows installer; `test-world` produces generated world and rendered-map artifacts;
+and `release` publishes from exactly `[package, jars, test-world]`. `check` is not a release gate.
+Local tests, lint,
+typechecks, static analysis, accessibility checks, and screenshot/capture checks do not run in this
+workflow or withhold publication; this accepted tradeoff means a release may ship from code whose
+tests would fail. Screenshot capture remains a local diagnostic path rather than a workflow job.
+The packaging job clears
 its validated output locations, accepts exactly one fresh
 `Setup.exe`, one full `.nupkg`, optional delta packages and a non-empty matching `RELEASES`, then
 checks every emitted executable is Authenticode `NotSigned`. Release notes identify the exact
@@ -220,6 +224,11 @@ with static reduced-motion fallbacks. See the
 > and the former release feed remain readable only through explicit compatibility adapters. See
 > [Migrating to Worldlens](docs/worldlens-migration.md).
 
+Issue #59 source update (2026-08-19): profile migration now uses bounded retrying atomic profile
+writes with temporary-file cleanup, and UI/site storage migration now recognizes the exact legacy
+prefix forms; this records pass ran no tests, builds, packaged runtime sessions, or captures.
+The full installed update and rollback chain remains open.
+
 The documentation site is a Material 3 tabbed application, not a plain scroll: `Search` owns
 independent regex-builder-backed searches for documentation, settings, tabs, groups and bulk
 close; `Changelog` reads the committed release history with date filters and export; `Settings`
@@ -241,9 +250,11 @@ headless metrics at 360, 390 and 414 CSS pixels plus a desktop viewport. All 18 
 guarded schema that checks scenario identity, ARIA state, focus, both toggle label/state changes and
 complete overflow classification.
 
-Every push to the default branch that passes lint, build and the full test suite publishes a real
-Squirrel.Windows installer with its own uniquely tagged release. Read what it can and cannot do
-before installing it.
+Every push to the default branch whose three release inputs complete publishes a real
+Squirrel.Windows installer with its own uniquely tagged release. The exact remote run, target
+commit, assets, timing, line count, unsigned state, and public dim-sum code-name link still need
+read-back for any new workflow change; this documentation update does not claim that evidence.
+Read what it can and cannot do before installing it.
 
 **What works today.** Rendering a local Minecraft world, and browsing a **remote** BlueMap
 server end to end: the viewer, the three.js scene, markers, the token-gated embedded server and
@@ -299,7 +310,7 @@ fixture 世界上面已經同 Java 引擎輸出逐 byte 一樣,但佢仲未係�
 嗰棵介面樹,CI 自己嘅截圖工序會重新評分;每次推上 `main` 通過晒致命關卡,就會自動發佈一個
 真實、經 hash 驗證嘅 Squirrel.Windows release;項目仲會自動儲存,無限復原嘅 git 歷史直接嵌
 喺項目檔案入面。由呢度開始,版本號係 `1.0.<run>`。1.0 **冇**聲稱嘅嘢:仲開緊嘅功能計劃
-(多伺服器儀表板、marker 編輯器、add-on 系統、靜態匯出等等)係未來工作,而 Windows 執行檔
+(多伺服器儀表板、部分 marker 編輯器、add-on 系統、靜態匯出等等)係未來工作,而 Windows 執行檔
 係刻意、永久唔簽名嘅 - 所以 SmartScreen 可能會出「不明發行者」警告。
 
 **今日已經做到嘅嘢。** 渲染本機 Minecraft 世界,同埋由頭到尾瀏覽一個**遠端** BlueMap 伺服器:
@@ -350,7 +361,7 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Render-mask drawing**                    | Draws every BlueMap mask shape over measured region bounds and the real overworld spawn, with identical local, CLI and Actions semantics                                                  | [`docs/render-mask-drawing.md`](docs/render-mask-drawing.md)                                                                                                         |
 | **The options editor**                     | Eight tabs over every BlueMap configuration file, with a search across all of them                                                                                                        | —                                                                                                                                                                    |
 | **Local version history**                  | An append-only git history per config folder and per project, kept beside the app's data — never inside your folder                                                                       | [`docs/config-history.md`](docs/config-history.md)                                                                                                                   |
-| **The render console**                     | Annotated engine output rather than a raw log                                                                                                                                             | [`docs/render-console.md`](docs/render-console.md)                                                                                                                   |
+| **The render console**                     | Annotated live output plus bounded version-2 retained history in immutable revisioned 512-line per-render segments, an index committed before old-generation cleanup, version-1 migration, complete-array search, structured export, exact completion/eviction facts, selected-line deletion and current-render prune-all; focused and packaged restart/reopen proof plus multi-render/configurable-retention controls remain open | [`docs/render-console.md`](docs/render-console.md)                                                                                                                   |
 | **Automatic repair**                       | Diagnoses a failed render and proposes an edit, behind guardrails, showing its evidence                                                                                                   | [`docs/automatic-repair.md`](docs/automatic-repair.md)                                                                                                               |
 | **Docker or this machine**                 | One render plan that resolves to a container or to the local runtime                                                                                                                      | [`docs/docker-and-local.md`](docs/docker-and-local.md)                                                                                                               |
 | **Remote rendering over SSH**              | Runs the render on another machine, with host-key handling and a preflight                                                                                                                | [`docs/remote-render.md`](docs/remote-render.md)                                                                                                                     |
@@ -1107,11 +1118,30 @@ carries the reasoning behind every "part done" below.
 | D         | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks                                                                          | **Done, and the gate is closed** — both engines produced identical output on a 1000x1000 world                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | E         | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile                                          | **Part done, issue #65 parity verified.** The worker pool, render-task hierarchy and config schema (all issued earlier), watch-driven re-render (`MapUpdateService`, issue #40), full HTTP routes with SSE (issue #41), standalone CLI plus Dockerfile (issue #42), and the issue #65 mod-resource/resource-extension/SQL parity contract are implemented. Docker image `worldlens-cli-issue65:proof` and the throwaway `postgres:17.6` marker run provide runtime proof; see [`docs/compatibility/cli-resource-sql-parity.md`](docs/compatibility/cli-resource-sql-parity.md) |
 | F         | Full options GUI (all settings, map wizard, storage editors, config import)                                                                                         | Reachable and in use; eight tabs over BlueMap's own configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| G         | Docker hosting GUI (dockerode instance manager)                                                                                                                     | Pending. Rendering _in_ a container landed separately — see [`docs/docker-and-local.md`](docs/docker-and-local.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| H         | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade                                                                      | **Part done.** SQL storages are proven against real MySQL/MariaDB/PostgreSQL and, over a shared MariaDB database, cross-compatible with upstream's own Java engine in both directions (issue #32, closed). Issue #66's PostgreSQL and SQLite matrix is comparison-green in both directions with cleanup evidence; direction 2's raw HTTP path does not expose render-state grids, so that boundary remains explicitly documented in [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md). The command palette shipped early. Marker editor, JS addon system, static export and the three.js upgrade remain pending                                                                                                                                                                                                                                                                                                                                   |
+| G         | Docker hosting GUI (local app-owned instance manager)                                                                                                               | **Source present; acceptance open.** The manager discovers Docker state, filters by app ownership labels, inventories exact digest-pinned image refs, persists records, validates guided digest-pinned create requests while preserving the image's own `ENTRYPOINT`/`CMD`, and keeps Create separate from Start. It exposes lifecycle IPC, progress/cancellation, bounded logs, selection/export, a tab and command-palette destination, and native stop/remove confirmations. Actual server/map configuration is not implemented; transactional image update remains refused. Real daemon ownership/refusal/rollback, persistent history, complete bulk actions, VS Code handoff, packaged interaction and headless captures remain open; rendering _in_ a container is separate — see [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md) and [`docs/docker-and-local.md`](docs/docker-and-local.md) |
+| H         | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade                                                                      | **Part done.** SQL storages are proven against real MySQL/MariaDB/PostgreSQL and, over a shared MariaDB database, cross-compatible with upstream's own Java engine in both directions (issue #32, closed). Issue #66's PostgreSQL and SQLite matrix is comparison-green in both directions with cleanup evidence; direction 2's raw HTTP path does not expose render-state grids, so that boundary remains explicitly documented in [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md). The command palette shipped early. Issue #70's source now covers POI/line/shape/extrude records, bounded geometry, duplicate/import/export, and a viewer layer host; marker-set CRUD beyond the fixed set, direct map drawing, full controls, history UI, and packaged proof remain open. JS addon system, static export and the three.js upgrade remain pending                                                                                                                                                                                                                                                                                                                                   |
 | I         | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging                                                   | **Part done, landed early, out of order.** The update checker is built and wired into the main process, and packaging shipped early too. Local live players and measurement/waypoints/gallery/scheduler/dashboard remain pending                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Contracts | The five product contracts in [`design/docs/contracts/`](design/docs/contracts/README.md)                                                                           | **Shipped.** Issues #6 to #13 are closed, each with its evidence on the issue                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Delivery  | Sign-in, private worlds, split archives, resumable renders, Actions rendering, remote and container rendering, world sources, updates, projects, packaging pipeline | **Landed.** Not a plan phase; see `design/ROADMAP.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+
+### Issue #89 — typed banner pattern compatibility
+
+The typed banner reader preserves ordered legacy/current and unknown values.
+Malformed list elements are skipped individually after one bounded diagnostic,
+later valid layers keep their order, and diagnostic history is capped at 32;
+reader-state failures still propagate. The focused acceptance record remains
+5/5. This records update ran no new tests, builds, packaged interactions, or
+captures. Real NBT/oracle comparison and packaged same-world render,
+restart/reopen, and diagnostic read-back remain open, so the issue is not closed.
+
+### 廣東話同步
+
+Typed banner reader 會保留有次序嘅 legacy/current 同未知值；壞 list element
+逐層跳過、留一條 bounded diagnostic，後面 valid layer 唔會亂次序，diagnostics
+最多 32 條，reader state error 繼續報。Focused acceptance 仍然係 5/5。今次
+records update 冇加跑 tests、build、packaged interaction 或 captures；真 NBT/
+oracle、packaged same-world render、restart/reopen 同 diagnostic read-back 仲未
+齊，所以 issue 未關。
 
 Deferred verification flag: the lz4-java block-framing constants get oracle validation against
 upstream's own CLI, which now happens on every local render rather than only when someone runs
@@ -1154,7 +1184,7 @@ design/                  the pnpm workspace (all code)
   tools/                 the worker-isolated reference regex builder
   LICENSE, NOTICE        licence and upstream attribution for the ported code
 vendor/BlueMap           upstream Java/JS reference, git submodule @ e664c1a
-.github/workflows/ci.yml lint, build and test on push and pull request
+.github/workflows/ci.yml artifact builds on push and pull request; release publication only on a main push or nominated workflow_dispatch
 ```
 
 `vendor/BlueMap` is a read-only reference. The port reads it file by file; nothing in it is
@@ -1187,7 +1217,9 @@ Structural differences, because a TypeScript port cannot reproduce them one for 
   **all six, plus the CLI, are built from the vendored source and attached to every release** as
   `bluemap-*.jar` (decision D18). They are a separate download and are not needed to install the
   desktop app. Inside the app, live data comes from remote BlueMap servers, or from local
-  `playerdata` and RCON polling, which is a capability beyond upstream.
+  `playerdata` and RCON polling are being developed as an optional capability beyond upstream;
+  the source implementation is present in the issue-owned checkout, but packaged runtime
+  verification remains open.
 - Java jar **addons** are loaded by those adapter jars, not by the desktop application. An
   equivalent JS/ESM addon system against the ported TypeScript API is planned for the app
   itself and has not been built yet.
@@ -1272,3 +1304,19 @@ servers at runtime, only after explicit user consent, mirroring upstream BlueMap
 accept-download flow. BlueMap's own `resourceExtensions` JSONs are MIT and are bundled.
 
 </details>
+## Issue #67 terminal receipt
+
+Terminal run `32292039976` completed Wave 1 at **256/256**, Wave 2 at **105/105**, and all **12/12 merge groups** successfully. Receipt setup failed because the configured `actions/setup-node` SHA was invalid; final merge, low-resolution rendering, Pages, and cleanup steps were therefore skipped. The exact one-character workflow correction remains source-only until the workflow is rerun.
+
+Issue #67 終端收據：Wave 1 **256/256**、Wave 2 **105/105**，以及 **12/12 merge groups** 全部成功。收據 setup 因為設定嘅 `actions/setup-node` SHA 無效而失敗；最後 merge、low-res、Pages 同 cleanup 步驟因此跳過。嗰個一字元 workflow 修正暫時只留喺 source，等 workflow 重跑先至落地。
+
+The corrected rerun `32299613336` completed **361/361** shards and **12/12** merge groups, but the
+receipt still failed: it downloaded only `rendered-map`, while this multi-group output publishes
+`map-lowres` and `partial-hires-*`. The receipt therefore reported `hiresTileCount=0` and
+`metadata=false`; the conditional artifact-download source fix and final lowres, Pages, and cleanup
+proof remain pending.
+
+修正版 rerun `32299613336` 做晒 **361/361** shards 同 **12/12** merge groups，但 receipt 仲係唔得：
+佢淨係下載 `rendered-map`，而 multi-group output 其實會出 `map-lowres` 同 `partial-hires-*`。
+所以 receipt 寫咗 `hiresTileCount=0` 同 `metadata=false`；conditional artifact download source
+fix、最後 low-res、Pages 同 cleanup proof 仲未完成。

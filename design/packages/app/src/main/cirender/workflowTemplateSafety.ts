@@ -272,7 +272,13 @@ export function findSelfOnlyPathAssumptions(fileName: string, yaml: string): Sel
     const findings: SelfOnlyPathFinding[] = [];
 
     for (const job of splitJobs(yaml)) {
-        if (SUBMODULES_KEY.test(job.text)) {
+        // Establishment evidence must come from executable workflow content. A comment that
+        // says "git clone ... toolchain" is documentation, not a directory this job created;
+        // scanning raw text here would let a commented-out clone make a bare self-only path
+        // look reachable.
+        const executableJobText = blankCommentLines(job.text);
+
+        if (SUBMODULES_KEY.test(executableJobText)) {
             findings.push({
                 file: fileName,
                 job: job.name,
@@ -280,8 +286,8 @@ export function findSelfOnlyPathAssumptions(fileName: string, yaml: string): Sel
             });
         }
 
-        const vendorPaths = job.text.match(VENDOR_PATH) ?? [];
-        if (vendorPaths.length > 0 && !ESTABLISHES_VENDOR.test(job.text)) {
+        const vendorPaths = executableJobText.match(VENDOR_PATH) ?? [];
+        if (vendorPaths.length > 0 && !ESTABLISHES_VENDOR.test(executableJobText)) {
             findings.push({
                 file: fileName,
                 job: job.name,
@@ -291,7 +297,7 @@ export function findSelfOnlyPathAssumptions(fileName: string, yaml: string): Sel
             });
         }
 
-        const dests = findCloneDests(job.text);
+        const dests = findCloneDests(executableJobText);
         const selfOnlyDirMatches: string[] = [];
         const workspaceFilterMatches: string[] = [];
 

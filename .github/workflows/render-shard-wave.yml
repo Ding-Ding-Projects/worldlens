@@ -61,7 +61,7 @@ env:
   # A `workflow_call` reusable workflow does not inherit the caller's `env:` block, so this
   # is duplicated from render-world.yml rather than shared - keep the two values equal, and
   # advance both in the same commit the same way render-world.yml's copy is advanced.
-  WORLDLENS_TOOLCHAIN_COMMIT: 2f02d6544769add2ee048c9cc5e394bdae98b127
+  WORLDLENS_TOOLCHAIN_COMMIT: 9f52322cdfe284553499486bb1a8ffd2916331e3
 
 jobs:
   render:
@@ -258,6 +258,33 @@ jobs:
             echo "::warning::Shard ${{ matrix.shard }} did not finish. Its state is cached; re-dispatch this workflow to carry it on."
           fi
           echo "hires=$hires" >> "$GITHUB_OUTPUT"
+
+      # A tiny per-shard receipt is the only reliable way for the final verifier to
+      # distinguish a completed marker from an artifact that merely existed. The
+      # fragment carries the exact run/attempt, wave and shard provenance; the final
+      # receipt job combines these fragments without inventing cross-run evidence.
+      - name: Write shard receipt fragment
+        if: always()
+        shell: bash
+        env:
+          RENDER_OUTCOME: ${{ steps.render.outcome || 'skipped' }}
+          RESUME_COMPLETE: ${{ steps.resume.outputs.complete || 'false' }}
+          HIRES: ${{ steps.report.outputs.hires || '0' }}
+        run: |
+          set -euo pipefail
+          mkdir -p receipt-fragments
+          available=$(df --output=avail -B1 . | tail -n1 | tr -d '[:space:]')
+          filesystem=$(df --output=source . | tail -n1 | xargs)
+          node -e 'const [outcome,resume,hires,available,filesystem,wave,shard,run,attempt]=process.argv.slice(1); const fs=require("fs"); const identity=JSON.parse(fs.readFileSync("receipt-fragments/plan-identity.json","utf8")); const now=new Date().toISOString(); fs.writeFileSync(`receipt-fragments/wave-${wave}-shard-${shard}.json`, JSON.stringify({phase:"render-merge-peak",...identity,wave:Number(wave),shard:Number(shard),artifactName:`wave-${wave}-shard-${shard}.json`,outcome,alreadyFinished:resume==="true",hiresTiles:Number(hires),recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$RENDER_OUTCOME" "$RESUME_COMPLETE" "$HIRES" "$available" "$filesystem" '${{ inputs.wave }}' '${{ matrix.shard }}' '${{ github.run_id }}' '${{ github.run_attempt }}'
+
+      - name: Upload shard receipt fragment
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: render-receipt-wave-${{ inputs.wave }}-shard-${{ matrix.shard }}
+          path: receipt-fragments
+          if-no-files-found: warn
+          retention-days: 30
 
       # `continue-on-error` above is right for the case it was written for - a shard that
       # ran out of time has hours of real tiles, and the steps after it are what get them

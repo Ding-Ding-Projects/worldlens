@@ -75,20 +75,32 @@ import {
     RemoteHostingOrchestrator,
     REMOTE_HOSTING_EVENT_CHANNEL,
     registerRemoteHostingHandlers,
+    registerDashboardHandlers,
 } from "./remote/index.js";
-import type { RemoteHostingIpc } from "./remote/index.js";
+import type { DashboardIpc, RemoteHostingIpc } from "./remote/index.js";
+import {
+    MAX_PROFILE_COUNT,
+    MAX_PROFILE_ID_LENGTH,
+    MAX_PROFILE_NAME_LENGTH,
+    readProfilesState,
+    sanitizeProfileUrl,
+    writeProfilesState,
+} from "./profiles/store.js";
 import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
-import { installPagesIpc, PAGES_EVENT_CHANNEL } from "./pages/index.js";
+import { installPagesIpc, PAGES_EVENT_CHANNEL, installStaticMapExportIpc, STATIC_EXPORT_EVENT_CHANNEL } from "./pages/index.js";
 import type { PagesIpc } from "./pages/index.js";
+import type { StaticMapExportIpc } from "./pages/index.js";
 import { installPreviewIpc, PreviewNetworkStore, PREVIEW_EVENT_CHANNEL } from "./preview/index.js";
 import type { PreviewIpc } from "./preview/index.js";
 import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index.js";
 import type { WorldRepoIpc } from "./worldrepo/index.js";
 import { DOCKERWORLD_EVENT_CHANNEL, registerDockerWorldHandlers } from "./dockerworld/index.js";
 import type { DockerWorldIpc } from "./dockerworld/index.js";
+import { DockerHostingManager, registerDockerHostingHandlers } from "./dockerhosting/index.js";
+import type { DockerHostingIpc } from "./dockerhosting/index.js";
 import {
     PROJECT_AUTOSAVE_EVENT_CHANNEL,
     registerProjectHandlers,
@@ -99,6 +111,7 @@ import { registerStructureHandlers } from "./structures/index.js";
 import type { StructureIpc } from "./structures/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
 import type { BackupIpc } from "./backup/ipc.js";
+import { registerReleaseLedgerHandlers } from "./releaseLedger/index.js";
 import { openExternalHttps } from "./security/external.js";
 import { registerJavaHandlers, JAVA_PROVISION_EVENT_CHANNEL } from "./java/ipc.js";
 import type { JavaIpc } from "./java/ipc.js";
@@ -110,6 +123,8 @@ import { registerProfilesHistoryHandlers } from "./profiles/index.js";
 import type { ProfilesHistoryIpc } from "./profiles/index.js";
 import { registerAppSettingsHistoryHandlers } from "./settings/index.js";
 import type { AppSettingsHistoryIpc } from "./settings/index.js";
+import { registerGalleryHandlers } from "./gallery/index.js";
+import type { GalleryIpc } from "./gallery/index.js";
 import { registerBlueMapSourceHandlers } from "./bluemap/index.js";
 import type { BlueMapSourceIpc } from "./bluemap/index.js";
 import { registerWorldHandlers } from "./world/index.js";
@@ -144,6 +159,9 @@ import {
     type StartupIssue,
 } from "./startup/index.js";
 import { handleSquirrelShortcutEvent } from "./squirrelShortcuts.js";
+import { registerAddonHandlers } from "./addons/index.js";
+import type { AddonIpc } from "./addons/index.js";
+import { registerVocabularyHandlers } from "./vocabulary/index.js";
 
 const squirrelStartupHandled = handleSquirrelShortcutEvent({
     platform: process.platform,
@@ -429,30 +447,53 @@ function registerIpc(): void {
     if (ipcRegistered) return;
     ipcRegistered = true;
 
-    ipcMain.handle("profiles:sync", (_event, profiles: RemoteProfile[]) => {
+    ipcMain.handle("profiles:sync", async (_event, profiles: RemoteProfile[]) => {
+        const saved: { id: string; name: string; url: string }[] = [];
         const known = new Set<string>();
-        for (const profile of profiles) {
-            if (typeof profile.id !== "string" || typeof profile.baseUrl !== "string") continue;
+        for (const profile of Array.isArray(profiles) ? profiles.slice(0, MAX_PROFILE_COUNT) : []) {
+            if (
+                typeof profile.id !== "string" ||
+                profile.id.length === 0 ||
+                profile.id.length > MAX_PROFILE_ID_LENGTH ||
+                typeof profile.name !== "string" ||
+                profile.name.length === 0 ||
+                profile.name.length > MAX_PROFILE_NAME_LENGTH ||
+                /[\u0000-\u001F\u007F]/.test(profile.id) ||
+                /[\u0000-\u001F\u007F]/.test(profile.name)
+            ) continue;
+            const url = sanitizeProfileUrl(profile.baseUrl);
+            if (url === null) continue;
             remoteProxy.setProfile({
                 id: profile.id,
                 name: profile.name,
-                baseUrl: profile.baseUrl,
+                baseUrl: url,
             });
             known.add(profile.id);
+            saved.push({ id: profile.id, name: profile.name, url });
         }
         for (const existing of remoteProxy.getProfiles()) {
             if (!known.has(existing.id)) remoteProxy.removeProfile(existing.id);
         }
+        const previous = await readProfilesState(app.getPath("userData"));
+        await writeProfilesState(app.getPath("userData"), {
+            version: 1,
+            profiles: saved.map((profile) => ({ ...profile, trustCustomizations: false })),
+            activeId: previous.activeId !== null && known.has(previous.activeId) ? previous.activeId : null,
+        }).catch(() => {
+            // Profile sync remains usable if persistence is temporarily unavailable.
+        });
     });
     ipcMain.handle("clipboard:writeText", (_event, text: string) => {
         if (typeof text === "string") clipboard.writeText(text);
     });
     ipcMain.handle("app:version", () => app.getVersion());
+    registerReleaseLedgerHandlers();
 
     // This record sits under the OS-wide app-data root rather than Worldlens's own userData
     // directory.  Register it before a renderer can load, so preload's initial read is the
     // shared state rather than a renderer-local guess.
     registerSchoolModeHandlers(ipcMain, { applicationDataDirectory });
+    registerVocabularyHandlers(ipcMain, { applicationDataDirectory });
 
     // Mojang's licence, fetched and cached so it can be read inside the app rather than
     // taken on trust. A reader only: the acceptance itself stays in `consent.ts`.
@@ -857,6 +898,13 @@ function startStructures(): StructureIpc {
  */
 let profilesHistoryIpc: ProfilesHistoryIpc | null = null;
 let appSettingsHistoryIpc: AppSettingsHistoryIpc | null = null;
+let galleryIpc: GalleryIpc | null = null;
+
+function startGallery(): GalleryIpc {
+    if (galleryIpc !== null) return galleryIpc;
+    galleryIpc = registerGalleryHandlers(ipcMain, app.getPath("userData"));
+    return galleryIpc;
+}
 
 function startProfilesHistory(): ProfilesHistoryIpc {
     if (profilesHistoryIpc !== null) return profilesHistoryIpc;
@@ -1060,6 +1108,23 @@ function startCiRenders(render: RenderIpc, github: GhCliIpc): CiRenderIpc {
  * never a `.git` inside somebody's rendered map.
  */
 let pagesIpc: PagesIpc | null = null;
+let staticMapExportIpc: StaticMapExportIpc | null = null;
+
+function startStaticMapExport(render: RenderIpc): StaticMapExportIpc {
+    if (staticMapExportIpc !== null) return staticMapExportIpc;
+    staticMapExportIpc = installStaticMapExportIpc({
+        ipcMain,
+        storageDir: () => render.storageDirectory(),
+        ledgerDir: () => join(app.getPath("userData"), "static-map-exports"),
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(STATIC_EXPORT_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    app.on("will-quit", () => staticMapExportIpc?.dispose());
+    return staticMapExportIpc;
+}
 
 function startPagesHosting(render: RenderIpc, github: GhCliIpc): PagesIpc {
     if (pagesIpc !== null) return pagesIpc;
@@ -1229,6 +1294,23 @@ function startSshWorldSources(): WorldSourceSshIpc {
  * progress is also broadcast so the wizard never has to invent a percentage while waiting.
  */
 let dockerWorldIpc: DockerWorldIpc | null = null;
+let dockerHostingIpc: DockerHostingIpc | null = null;
+
+function startDockerHosting(): DockerHostingIpc {
+    if (dockerHostingIpc !== null) return dockerHostingIpc;
+    dockerHostingIpc = registerDockerHostingHandlers(ipcMain, {
+        manager: new DockerHostingManager({
+            recordFile: join(app.getPath("userData"), "docker-hosting", "instances.json"),
+            managedRoot: join(app.getPath("userData"), "docker-hosting", "data"),
+            onEvent: (event) => {
+                for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("dockerhosting:event", event);
+            },
+        }),
+    });
+    app.on("will-quit", () => dockerHostingIpc?.dispose());
+    return dockerHostingIpc;
+}
+
 
 function startDockerWorld(): DockerWorldIpc {
     if (dockerWorldIpc !== null) return dockerWorldIpc;
@@ -1264,6 +1346,7 @@ let remoteIpc: RemoteIpc | null = null;
  * `remote/hosting.ts`'s own top comment for the shape of that difference.
  */
 let remoteHostingIpc: RemoteHostingIpc | null = null;
+let dashboardIpc: DashboardIpc | null = null;
 
 /**
  * The record that lets a container outlive the application that started it.
@@ -1365,7 +1448,13 @@ function startRemoteHosting(render: RenderIpc): RemoteHostingIpc {
         userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
     });
     remoteHostingIpc = registerRemoteHostingHandlers(ipcMain, { orchestrator });
+    dashboardIpc = registerDashboardHandlers(ipcMain, {
+        orchestrator,
+        readProfiles: () => readProfilesState(app.getPath("userData")),
+        probeProfile: (profileId, signal) => remoteProxy.probe(profileId, signal),
+    });
     app.on("will-quit", () => remoteHostingIpc?.dispose());
+    app.on("will-quit", () => dashboardIpc?.dispose());
     return remoteHostingIpc;
 }
 
@@ -1440,6 +1529,19 @@ function startBedrockConversion(): BedrockIpc {
  * until something can actually turn it on is the safe default, not a gap.
  */
 let repairIpc: RepairIpc | null = null;
+
+let addonIpc: AddonIpc | null = null;
+
+function startAddonManager(): AddonIpc {
+    if (addonIpc !== null) return addonIpc;
+    addonIpc = registerAddonHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        dialog,
+        resolveWindow: (event) => BrowserWindow.fromWebContents(event.sender),
+    });
+    app.on("will-quit", () => addonIpc?.dispose());
+    return addonIpc;
+}
 
 function startRepairDiagnostics(): RepairIpc {
     if (repairIpc !== null) return repairIpc;
@@ -1644,6 +1746,11 @@ async function createWindow(): Promise<void> {
             startBackups(render, github),
         );
     }
+    if (render !== null) {
+        await attempt("initialization", "static-map-export", "Static map export is unavailable in this launch", () =>
+            startStaticMapExport(render),
+        );
+    }
     const ciRender =
         render !== null && github !== null
             ? await attempt(
@@ -1708,6 +1815,7 @@ async function createWindow(): Promise<void> {
         ],
         ["network", "ssh-world-source", "SSH world sources are unavailable", startSshWorldSources],
         ["dependency", "docker-world", "Docker world import is unavailable", startDockerWorld],
+        ["dependency", "docker-hosting", "Docker hosting manager is unavailable", startDockerHosting],
         [
             "configuration",
             "world-inspection",
@@ -1747,6 +1855,8 @@ async function createWindow(): Promise<void> {
             "Settings history is unavailable",
             startAppSettingsHistory,
         ],
+        ["configuration", "screenshot-gallery", "Screenshot gallery is unavailable", startGallery],
+        ["configuration", "addon-manager", "Add-on management is unavailable", startAddonManager],
         [
             "configuration",
             "bluemap-source",

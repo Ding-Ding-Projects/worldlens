@@ -26,6 +26,10 @@ export const screenshotsCopy = {
     committedCommitLabel: "Commit",
     committedRunLabel: "Workflow run",
     committedDirectoryLabel: "The files live in",
+    committedEvidenceLabel: "Evidence ledger",
+    committedEvidenceComplete: "{resolved} of {gallery} screenshot targets resolve; inventory {inventory} targets across {groups} evidence groups.",
+    committedEvidenceMissing: "{missing} screenshot targets are recorded in the ledger but are not present in this checkout: {files}.",
+    committedEvidenceUnpinned: "Capture provenance is not pinned to a candidate commit yet ({commit}); this gallery is current for the checked-in files, not release-grade smoke proof.",
     ciHeading: "Collected from a recent workflow run",
     ciLead: "Downloaded from the newest workflow run that still had an unexpired screenshot artifact when this site was built. Artifacts expire, so this set changes and the committed set above does not.",
     ciNoAdditional:

@@ -500,6 +500,23 @@ sequencing was confirmed. See
 [large-worlds.md's "Measured: a real two-wave hosted dispatch"](large-worlds.md#measured-a-real-two-wave-hosted-dispatch)
 for the full numbers and the run link.
 
+#### Issue #67 receipt evidence
+
+Run [32292039976](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32292039976)
+completed all **361/361 shard jobs** and all **12/12 merge groups**. Its receipt step then
+failed during job setup because one `setup-node` action commit pin was invalid. The final
+merge, low-resolution verification, Pages publication, and cleanup stages were therefore
+skipped; this run is evidence for shard and merge-group completion, not for a published map.
+The corresponding workflow pin correction is present but remains unverified until rerun.
+
+The corrected rerun [32299613336](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32299613336)
+completed **361/361** shards and **12/12** merge groups, but receipt assembly still failed because the
+downloader collected only `rendered-map`. A multi-group render publishes `map-lowres` and
+`partial-hires-*`; the receipt consequently reported `hiresTileCount=0` and `metadata=false`. The
+source correction now conditionally collects `map-lowres` and all `partial-hires-*` artifacts. The
+final low-resolution verification, Pages publication, cleanup, and a valid receipt remain unproven
+until the rerun.
+
 ### Disk: measured, not assumed
 
 A GitHub standard runner's published spec has already been caught understating its real

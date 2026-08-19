@@ -5,6 +5,7 @@ import {
     schemeToCustomProperties,
 } from "@worldlens/shared";
 import type { MapInteractionEventDetail } from "./MapViewer";
+import { MeasurementWaypointModel, measurementValue, type MeasurementKind, type MeasurementWaypointScope } from "./measurementWaypointModel";
 import {
     materialShellCopy,
     type MaterialShellCopyKey,
@@ -17,20 +18,10 @@ import {
     type ViewerPresentationLanguage,
 } from "./presentationPolicy";
 
-type Pin = {
-    id: string;
-    x: number;
-    y: number;
-    z: number;
-    label: string;
-    screenX?: number;
-    screenY?: number;
-};
-
 type ThemeName = "dark" | "light" | "contrast";
 type SearchScopeName = "map-controls" | "command-palette";
 type SearchActionId =
-    "map-menu" | "appearance" | "command-palette" | "map-search" | "notification-history";
+    "map-menu" | "appearance" | "command-palette" | "map-search" | "notification-history" | "measurement-tools";
 
 type ViewerNoticeLevel = "status" | "alert";
 
@@ -187,8 +178,8 @@ ${SHELL_CONTRAST}
 .bm-m3-coordinates{display:grid;grid-template-columns:repeat(2,minmax(68px,1fr));flex:0 1 160px;gap:4px;min-width:0}.bm-m3-coordinate{display:flex;align-items:center;min-height:48px;padding:0 10px;border:1px solid var(--bm-outline-variant);border-radius:12px;background:var(--bm-surface);font-family:ui-monospace,"Roboto Mono",monospace;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .bm-m3-menu{position:fixed;z-index:40;box-sizing:border-box;width:min(280px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow-y:auto;padding:8px;border-radius:16px;background:var(--bm-surface);box-shadow:var(--bm-shadow);border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent)}.bm-m3-menu[hidden],.bm-m3-map-menu[hidden],.bm-m3-settings[hidden],.bm-m3-notification-history[hidden]{display:none}.bm-m3-menu button,.bm-m3-map-menu button,.bm-m3-settings button,.bm-m3-notification-history button{display:block;box-sizing:border-box;width:100%;min-height:48px;border:0;background:transparent;color:inherit;text-align:left;padding:11px 12px;border-radius:12px;cursor:pointer}.bm-m3-menu button:hover,.bm-m3-menu button:focus-visible,.bm-m3-map-menu button:hover,.bm-m3-map-menu button:focus-visible,.bm-m3-settings button:hover,.bm-m3-settings button:focus-visible,.bm-m3-notification-history button:hover,.bm-m3-notification-history button:focus-visible{background:var(--bm-surface-container-high);outline:2px solid var(--bm-primary);outline-offset:-2px}
 .bm-m3-map-menu{position:fixed;z-index:41;left:18px;top:76px;bottom:18px;display:flex;box-sizing:border-box;width:min(340px,calc(100vw - 36px));max-height:calc(100dvh - 94px);flex-direction:column;border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent);border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-map-menu__header{display:flex;align-items:center;gap:8px;padding:10px 10px 8px 16px;border-bottom:1px solid var(--bm-surface-container)}.bm-m3-map-menu__header h2{flex:1;margin:0;font-size:18px}.bm-m3-map-menu__header button{width:auto;min-width:48px}.bm-m3-map-menu__body{overflow-y:auto;padding:8px}
+.bm-m3-tools{position:fixed;z-index:42;right:18px;top:76px;box-sizing:border-box;width:min(460px,calc(100vw - 36px));max-height:calc(100dvh - 94px);overflow-y:auto;padding:16px;border:1px solid var(--bm-outline-variant);border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-tools[hidden]{display:none}.bm-m3-tools__header,.bm-m3-tools__actions,.bm-m3-tools__tabs{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.bm-m3-tools__header h2{flex:1;margin:0}.bm-m3-tools__tabs button[aria-selected=true]{background:var(--bm-primary-container);color:var(--bm-on-primary-container)}.bm-m3-tools button,.bm-m3-tools input,.bm-m3-tools select{min-height:44px}.bm-m3-tools button{border:1px solid var(--bm-outline-variant);border-radius:12px;background:var(--bm-surface-container);color:inherit;padding:8px 12px;cursor:pointer}.bm-m3-tools button:focus-visible,.bm-m3-tools input:focus-visible,.bm-m3-tools select:focus-visible{outline:2px solid var(--bm-primary);outline-offset:2px}.bm-m3-tools input,.bm-m3-tools select{box-sizing:border-box;border:1px solid var(--bm-outline);border-radius:10px;background:var(--bm-surface);color:inherit;padding:8px}.bm-m3-tools__search{display:flex;gap:4px;margin:12px 0}.bm-m3-tools__search input{flex:1;min-width:0}.bm-m3-tools__list{display:grid;gap:8px;list-style:none;padding:0;margin:8px 0}.bm-m3-tools__row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;padding:10px;border-radius:12px;background:var(--bm-surface-container-low)}.bm-m3-tools__row p{margin:0}.bm-m3-tools__meta{display:block;color:var(--bm-on-surface-variant);font-size:12px}.bm-m3-tools__empty{color:var(--bm-on-surface-variant)}.bm-m3-tools__form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.bm-m3-tools__form label{display:grid;gap:4px;font-size:12px}.bm-m3-tools__form label:first-child{grid-column:1/-1}.bm-m3-tools__notice{min-height:1.4em;color:var(--bm-on-surface-variant)}
 .bm-m3-settings{position:fixed;z-index:42;right:18px;top:76px;box-sizing:border-box;width:min(340px,calc(100vw - 36px));max-height:calc(100dvh - 94px);overflow-y:auto;padding:16px;border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow);border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent)}.bm-m3-settings__header{display:flex;align-items:center;gap:8px;margin:0 0 12px}.bm-m3-settings__header h2{flex:1;margin:0;font-size:18px;overflow-wrap:anywhere}.bm-m3-settings__header button{width:auto;min-width:48px}.bm-m3-settings__subheading{margin:18px 0 0;font-size:14px}.bm-m3-setting{display:grid;gap:6px;margin:12px 0}.bm-m3-setting select,.bm-m3-setting input[type=range]{width:100%;min-height:48px}.bm-m3-setting select{padding:9px;border-radius:10px;border:1px solid var(--bm-outline);background:var(--bm-surface);color:inherit}.bm-m3-settings small{overflow-wrap:anywhere}
-.bm-m3-pin{position:fixed;z-index:25;transform:translate(-50%,-100%);padding:7px 10px;border-radius:12px;background:var(--bm-primary);color:var(--bm-on-primary);box-shadow:var(--bm-shadow);font-size:12px;pointer-events:none}.bm-m3-pin::after{content:"";position:absolute;left:50%;bottom:-7px;border:7px solid transparent;border-top-color:var(--bm-primary);border-bottom:0;transform:translateX(-50%)}
 .bm-m3-notification-history{position:fixed;z-index:42;right:18px;top:76px;box-sizing:border-box;width:min(360px,calc(100vw - 36px));max-height:calc(100dvh - 94px);overflow-y:auto;padding:10px;border:1px solid color-mix(in srgb,var(--bm-outline) 35%,transparent);border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-notification-history__header{display:flex;align-items:center;gap:8px;padding:0 0 8px 6px;border-bottom:1px solid var(--bm-surface-container)}.bm-m3-notification-history__header h2{flex:1;margin:0;font-size:18px}.bm-m3-notification-history__header button{width:auto;min-width:48px}.bm-m3-notification-history__empty{margin:14px 6px;color:var(--bm-on-surface-variant)}.bm-m3-notification-history__list{display:grid;gap:8px;margin:10px 0 0;padding:0;list-style:none}.bm-m3-notification-history__item{padding:10px;border-radius:14px;background:var(--bm-surface-container-low)}.bm-m3-notification-history__item[data-level="alert"]{border-left:4px solid var(--bm-error)}.bm-m3-notification-history__item p{margin:0}.bm-m3-notification-history__meta{display:block;margin-top:4px;color:var(--bm-on-surface-variant);font-size:12px}.bm-m3-notification-announcer{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
 .bm-m3-shell[data-theme="contrast"] .bm-m3-appbar{background:var(--bm-surface);backdrop-filter:none}.bm-m3-subtitle{color:var(--bm-on-surface-variant);opacity:1}.bm-m3-search-wrap{display:flex;align-items:stretch;flex:0 1 min(32vw,340px);min-width:13rem}.bm-m3-search-wrap .bm-m3-search{flex:1 1 auto;min-width:0;border-radius:24px 0 0 24px}.bm-m3-regex-button{display:grid;place-items:center;min-width:48px;min-height:48px;border:1px solid var(--bm-outline);border-left:0;background:var(--bm-surface);color:var(--bm-on-surface);cursor:pointer}.bm-m3-regex-button:last-child{border-radius:0 24px 24px 0}.bm-m3-regex-button:focus-visible,.bm-m3-regex-button[aria-pressed="true"]{outline:2px solid var(--bm-primary);outline-offset:-2px;background:var(--bm-primary-container);color:var(--bm-on-primary-container)}.bm-m3-search-results{position:fixed;z-index:43;top:76px;right:12px;box-sizing:border-box;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 96px);overflow-y:auto;padding:8px;border:1px solid var(--bm-outline-variant);border-radius:16px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-search-results[hidden],.bm-m3-regex-builder[hidden],.bm-m3-command-palette[hidden]{display:none}.bm-m3-search-results__summary{margin:4px 8px 8px;color:var(--bm-on-surface-variant);font-size:12px}.bm-m3-search-results button{display:block;box-sizing:border-box;width:100%;min-height:48px;border:0;border-radius:12px;background:transparent;color:var(--bm-on-surface);cursor:pointer;text-align:left;padding:11px 12px}.bm-m3-search-results button:hover,.bm-m3-search-results button:focus-visible{background:var(--bm-surface-container-high);outline:2px solid var(--bm-primary);outline-offset:-2px}.bm-m3-regex-builder{position:fixed;z-index:44;top:76px;right:12px;box-sizing:border-box;width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 96px);overflow-y:auto;padding:16px;border:1px solid var(--bm-outline-variant);border-radius:20px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-regex-builder h3{margin:0 0 6px}.bm-m3-regex-builder p{margin:0 0 12px;color:var(--bm-on-surface-variant);font-size:12px}.bm-m3-regex-builder label,.bm-m3-regex-builder legend{display:block;color:var(--bm-on-surface);font-size:13px}.bm-m3-regex-builder textarea{box-sizing:border-box;width:100%;min-height:72px;margin:4px 0 10px;padding:8px;border:1px solid var(--bm-outline);border-radius:12px;background:var(--bm-surface-container-low);color:var(--bm-on-surface);font:inherit}.bm-m3-regex-builder fieldset{margin:0 0 10px;border:0;padding:0}.bm-m3-regex-builder__flags{display:flex;flex-wrap:wrap;gap:8px}.bm-m3-regex-builder__tokens{display:flex;flex-wrap:wrap;gap:6px}.bm-m3-regex-builder button{min-height:40px;border:1px solid var(--bm-outline-variant);border-radius:20px;background:var(--bm-surface-container);color:var(--bm-on-surface);cursor:pointer;padding:6px 10px}.bm-m3-regex-builder button:hover,.bm-m3-regex-builder button:focus-visible{background:var(--bm-primary-container);color:var(--bm-on-primary-container);outline:2px solid var(--bm-primary);outline-offset:2px}.bm-m3-regex-builder__feedback{margin:8px 0;white-space:pre-wrap;color:var(--bm-on-surface-variant)}.bm-m3-regex-builder__feedback[data-state="error"]{color:var(--bm-error)}.bm-m3-regex-builder__actions{display:flex;flex-wrap:wrap;gap:8px}.bm-m3-command-palette{position:fixed;z-index:45;inset:0;display:grid;place-items:start center;box-sizing:border-box;padding:clamp(8px,10dvh,80px) 12px 12px;background:color-mix(in srgb,var(--bm-scrim) 48%,transparent)}.bm-m3-command-palette__card{box-sizing:border-box;width:min(680px,100%);max-height:calc(100dvh - 24px);overflow-y:auto;padding:20px;border:1px solid var(--bm-outline-variant);border-radius:28px;background:var(--bm-surface);box-shadow:var(--bm-shadow)}.bm-m3-command-palette__heading{display:flex;align-items:center;gap:8px;margin-bottom:12px}.bm-m3-command-palette__heading h2{flex:1;margin:0;font-size:22px}.bm-m3-command-palette__heading button{min-width:48px;min-height:48px;border:0;border-radius:50%;background:transparent;color:var(--bm-on-surface);cursor:pointer}.bm-m3-command-palette .bm-m3-search-wrap{width:100%;max-width:none}.bm-m3-command-palette .bm-m3-search-results{position:static;width:auto;max-height:none;margin-top:8px;box-shadow:none}.bm-m3-command-palette .bm-m3-regex-builder{position:static;width:auto;max-height:none;margin-top:8px;box-shadow:none}
 @media(max-width:${SERVED_COMPACT_LAYOUT_MAX_WIDTH}px){.bm-m3-control-bar{inset:8px 8px auto 8px;display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:8px;padding:8px;border-radius:20px}.bm-m3-map-rail{grid-column:1}.bm-m3-brand-group{grid-column:2}.bm-m3-subtitle,.bm-m3-command,.bm-m3-settings-control{display:none}.bm-m3-notification-control{grid-column:3}.bm-m3-search{grid-column:1/-1;width:100%;min-width:0}.bm-m3-coordinates{grid-column:1/-1;width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}.bm-m3-map-menu{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-width:none;max-height:min(70dvh,calc(100dvh - 16px));border-radius:24px 24px 16px 16px}.bm-m3-settings{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:calc(100dvh - 16px)}.bm-m3-notification-history{left:8px;right:8px;top:166px;width:auto;max-height:calc(100dvh - 174px)}}
@@ -202,6 +193,8 @@ export class MaterialShell {
     private readonly mapMenu: HTMLElement;
     private readonly mapMenuButton: HTMLButtonElement;
     private readonly settings: HTMLDivElement;
+    private readonly tools: HTMLElement;
+    private measurementModel: MeasurementWaypointModel;
     private readonly settingsButton: HTMLButtonElement;
     private readonly search: HTMLInputElement;
     private readonly mapSearch: SearchScope;
@@ -212,10 +205,7 @@ export class MaterialShell {
     private readonly notificationHistory: HTMLElement;
     private readonly notificationAnnouncer: HTMLElement;
     private readonly coordinates: HTMLDivElement;
-    private readonly pinsLayer: HTMLDivElement;
     private unsubscribePresentation: (() => void) | null = null;
-    private pins: Pin[] = [];
-    private pinCounter = 0;
     private notices: ViewerNotice[] = [];
     private nextNoticeId = 1;
     private reviewedNoticeId = 0;
@@ -246,6 +236,7 @@ export class MaterialShell {
         this.presentationPolicy = presentationPolicy;
         this.embedded = options.chrome === "embedded";
         this.root.classList.add("bm-m3-shell");
+        this.measurementModel = new MeasurementWaypointModel();
         if (options.chrome === "embedded") this.root.classList.add("bm-m3-shell--embedded");
         if (!document.getElementById("bm-m3-style")) {
             const style = document.createElement("style");
@@ -253,7 +244,6 @@ export class MaterialShell {
             style.textContent = STYLE;
             document.head.appendChild(style);
         }
-        this.pins = this.readPins();
         const bar = document.createElement("header");
         bar.className = "bm-m3-appbar bm-m3-control-bar";
         bar.innerHTML = `<nav class="bm-m3-map-rail" data-copy-aria-label="mapNavigation"><button class="bm-m3-rail-menu" type="button" data-action="map-menu" data-copy-aria-label="openMapMenu" data-copy-title="openMapMenu" aria-controls="bm-m3-map-menu" aria-expanded="false" title="Open map menu">☰</button></nav><div class="bm-m3-brand-group"><div class="bm-m3-brand">BlueMap</div><div class="bm-m3-subtitle" data-copy="materialMapServer">Material map server</div></div><div class="bm-m3-search-wrap" role="search" data-search-scope="map-controls"><input class="bm-m3-search" type="search" data-copy-aria-label="searchMapControls" data-copy-placeholder="searchControlsPlaceholder" autocomplete="off" spellcheck="false"><button class="bm-m3-regex-button" type="button" data-search-action="toggle-regex" data-copy-aria-label="regexSearch" aria-pressed="false">Regex</button><button class="bm-m3-regex-button" type="button" data-search-action="builder" data-copy-aria-label="openMapRegexBuilder" aria-expanded="false">.*</button></div><div class="bm-m3-coordinates" role="status" data-copy-aria-label="currentMapCoordinates"><output class="bm-m3-coordinate" data-coordinate="x">x —</output><output class="bm-m3-coordinate" data-coordinate="z">z —</output></div><button class="bm-m3-icon bm-m3-notification-control" type="button" data-action="notifications" aria-controls="bm-m3-notification-history" aria-expanded="false">🔔</button><button class="bm-m3-icon bm-m3-settings-control" type="button" data-action="settings" data-copy-aria-label="openSettings" aria-controls="bm-m3-settings" aria-expanded="false">⚙</button><button class="bm-m3-icon bm-m3-command" type="button" data-action="command" data-copy-aria-label="openCommandPalette" title="Ctrl+Shift+F">⌘</button>`;
@@ -288,7 +278,7 @@ export class MaterialShell {
         this.menu.dataset.copyAriaLabel = "terrainActions";
         this.menu.innerHTML = `<button type="button" role="menuitem" data-action="pin">📍 <span data-copy="addPinpoint">Add pinpoint here</span></button><button type="button" role="menuitem" data-action="copy" data-copy="copyCoordinates">Copy coordinates</button><button type="button" role="menuitem" data-action="cancel" data-copy="cancel">Cancel</button>`;
         this.root.appendChild(this.menu);
-        this.menu.addEventListener("click", (event) => this.handleMenuClick(event));
+        this.menu.addEventListener("click", (event) => void this.handleMenuClick(event));
         this.menu.addEventListener("keydown", this.handleContextMenuKeydown);
 
         this.mapMenu = document.createElement("aside");
@@ -297,9 +287,20 @@ export class MaterialShell {
         this.mapMenu.hidden = true;
         this.mapMenu.dataset.copyAriaLabel = "mapMenu";
         this.mapMenu.setAttribute("data-presentation", "side-sheet");
-        this.mapMenu.innerHTML = `<div class="bm-m3-map-menu__header"><h2 data-copy="mapMenu">Map menu</h2><button type="button" data-map-action="close" data-copy="close" data-copy-aria-label="closeMapMenu">Close</button></div><div class="bm-m3-map-menu__body"><button type="button" data-map-action="search" data-copy="searchMapControls">Search map controls</button><button type="button" data-map-action="appearance" data-copy="mapAppearance">Map appearance</button><button type="button" data-map-action="notifications" data-copy="notificationHistory">Notification history</button><button type="button" data-map-action="palette" data-copy="openCommandPalette">Open command palette</button></div>`;
+        this.mapMenu.innerHTML = `<div class="bm-m3-map-menu__header"><h2 data-copy="mapMenu">Map menu</h2><button type="button" data-map-action="close" data-copy="close" data-copy-aria-label="closeMapMenu">Close</button></div><div class="bm-m3-map-menu__body"><button type="button" data-map-action="tools">Measurement and waypoints</button><button type="button" data-map-action="search" data-copy="searchMapControls">Search map controls</button><button type="button" data-map-action="appearance" data-copy="mapAppearance">Map appearance</button><button type="button" data-map-action="notifications" data-copy="notificationHistory">Notification history</button><button type="button" data-map-action="palette" data-copy="openCommandPalette">Open command palette</button></div>`;
         this.root.appendChild(this.mapMenu);
         this.mapMenu.addEventListener("click", (event) => this.handleMapMenuClick(event));
+
+        this.tools = document.createElement("aside");
+        this.tools.id = "bm-m3-measurement-tools";
+        this.tools.className = "bm-m3-tools";
+        this.tools.hidden = true;
+        this.tools.setAttribute("role", "dialog");
+        this.tools.setAttribute("aria-modal", "false");
+        this.root.appendChild(this.tools);
+        this.renderMeasurementTools();
+        this.tools.addEventListener("click", (event) => this.handleToolsClick(event));
+        this.tools.addEventListener("input", () => this.renderMeasurementTools());
 
         this.notificationHistory = document.createElement("aside");
         this.notificationHistory.id = "bm-m3-notification-history";
@@ -371,10 +372,6 @@ export class MaterialShell {
             if (action === "close") this.closeCommandPalette();
         });
 
-        this.pinsLayer = document.createElement("div");
-        this.pinsLayer.dataset.copyAriaLabel = "savedPinpoints";
-        this.root.appendChild(this.pinsLayer);
-        this.renderPins();
         this.setTheme(localStorage.getItem("bluemap-theme") || "dark");
         this.syncViewportLayout();
         document.addEventListener("click", this.dismiss);
@@ -387,6 +384,12 @@ export class MaterialShell {
             this.refreshPresentation(),
         );
         this.refreshPresentation();
+    }
+
+    /** Keeps annotations isolated to the active profile/map/dimension; records remain world-space. */
+    setMeasurementScope(scope: MeasurementWaypointScope): void {
+        this.measurementModel = new MeasurementWaypointModel(scope);
+        this.renderMeasurementTools();
     }
 
     /** Re-renders host-restricted controls without coupling this standalone shell to a UI package. */
@@ -687,6 +690,7 @@ export class MaterialShell {
             label: this.copy("actionNotifications"),
             keywords: this.copy("actionNotificationsKeywords"),
         },
+        { id: "measurement-tools", label: "Measurement and waypoints", keywords: "distance polyline area coordinates bookmarks markers" },
     ];
 
     private searchableActionText(): string {
@@ -951,6 +955,9 @@ export class MaterialShell {
             case "notification-history":
                 this.openNotificationHistory();
                 break;
+            case "measurement-tools":
+                this.openMeasurementTools(this.search);
+                break;
         }
     }
 
@@ -1036,6 +1043,11 @@ export class MaterialShell {
             this.closeSettings();
             return;
         }
+        if (!this.tools.hidden) {
+            event.preventDefault();
+            this.closeMeasurementTools();
+            return;
+        }
         if (!this.mapSearch.builder.hidden) {
             event.preventDefault();
             this.closeRegexBuilder(this.mapSearch);
@@ -1059,6 +1071,8 @@ export class MaterialShell {
             !this.settingsButton.contains(event.target as Node)
         )
             this.closeSettings(false);
+        if (!this.tools.contains(event.target as Node) && !this.mapMenu.contains(event.target as Node))
+            this.closeMeasurementTools(false);
     };
 
     private readonly dismissMapMenuWithEscape = (event: KeyboardEvent): void => {
@@ -1108,6 +1122,78 @@ export class MaterialShell {
             return;
         }
         this.closeMapMenu();
+    }
+
+    private openMeasurementTools(invoker: HTMLElement): void {
+        this.closeMapMenu();
+        this.closeSettings(false);
+        this.closeNotificationHistory(false);
+        this.closeCommandPalette(false);
+        this.tools.hidden = false;
+        this.tools.dataset.tab = this.tools.dataset.tab || "waypoints";
+        this.renderMeasurementTools();
+        this.tools.querySelector<HTMLInputElement>("[data-tools-search]")?.focus();
+        this.tools.dataset.invoker = invoker === this.mapMenuButton ? "map-menu" : "search";
+    }
+
+    private closeMeasurementTools(restoreFocus = true): void {
+        if (this.tools.hidden) return;
+        this.tools.hidden = true;
+        if (restoreFocus && this.tools.dataset.invoker === "map-menu") this.mapMenuButton.focus();
+    }
+
+    private renderMeasurementTools(): void {
+        const tab = this.tools.dataset.tab === "measure" ? "measure" : "waypoints";
+        const dimension = this.measurementModel.currentScope.dimension;
+        const query = this.tools.querySelector<HTMLInputElement>("[data-tools-search]")?.value ?? "";
+        const regex = this.tools.querySelector<HTMLInputElement>("[data-tools-regex]")?.checked ?? false;
+        const records = this.measurementModel.search(query, regex);
+        const selected = new Set([...this.tools.querySelectorAll<HTMLInputElement>("[data-tools-select]:checked")].map((field) => field.value));
+        const rows = records.map((item) => {
+            const waypoint = "name" in item;
+            const title = waypoint ? item.name : item.kind;
+            const detail = waypoint ? `${item.coordinate.x}, ${item.coordinate.y}, ${item.coordinate.z} · ${item.dimension}` : `${measurementValue(item)?.toFixed(2) ?? "—"} blocks · ${item.points.length} points · ${item.dimension}`;
+            return `<li class="bm-m3-tools__row"><input type="checkbox" data-tools-select value="${item.id}" aria-label="Select ${title}" ${selected.has(item.id) ? "checked" : ""}><div><p>${title}</p><span class="bm-m3-tools__meta">${detail} · ${dimension}</span></div><button type="button" data-tools-focus="${item.id}">Focus</button></li>`;
+        }).join("");
+        this.tools.innerHTML = `<div class="bm-m3-tools__header"><h2 id="bm-m3-tools-title">Map tools</h2><button type="button" data-tools-action="close" aria-label="Close map tools">Close</button></div><div class="bm-m3-tools__tabs" role="tablist" aria-label="Map tools"><button type="button" role="tab" aria-selected="${tab === "measure"}" data-tools-tab="measure">Measure</button><button type="button" role="tab" aria-selected="${tab === "waypoints"}" data-tools-tab="waypoints">Waypoints</button></div><div class="bm-m3-tools__search" role="search"><input type="search" data-tools-search placeholder="Search tools and waypoints" aria-label="Search tools and waypoints"><label><input type="checkbox" data-tools-regex ${regex ? "checked" : ""}> Regex</label></div>${tab === "measure" ? `<div class="bm-m3-tools__form"><label>Tool<select data-tools-kind><option value="distance">Distance</option><option value="polyline">Polyline (3 points)</option><option value="horizontal">Horizontal delta</option><option value="vertical">Vertical delta</option><option value="area">Area (3 points)</option></select></label><label>X1<input data-tools-x1 type="number" step="any" value="0"></label><label>Y1<input data-tools-y1 type="number" step="any" value="0"></label><label>Z1<input data-tools-z1 type="number" step="any" value="0"></label><label>X2<input data-tools-x2 type="number" step="any" value="0"></label><label>Y2<input data-tools-y2 type="number" step="any" value="0"></label><label>Z2<input data-tools-z2 type="number" step="any" value="0"></label></div><div class="bm-m3-tools__actions"><button type="button" data-tools-action="measure-current">Add measurement</button></div>` : `<div class="bm-m3-tools__form"><label>Name<input data-tools-name placeholder="Waypoint name"></label><label>X<input data-tools-x type="number" step="any" value="0"></label><label>Y<input data-tools-y type="number" step="any" value="0"></label><label>Z<input data-tools-z type="number" step="any" value="0"></label><label>Group<input data-tools-group value="General"></label><label>Tags<input data-tools-tags placeholder="base, portal"></label></div><div class="bm-m3-tools__actions"><button type="button" data-tools-action="waypoint-current">Save waypoint</button></div>`}<div class="bm-m3-tools__actions"><button type="button" data-tools-action="select-all">Select all</button><button type="button" data-tools-action="invert">Invert selection</button><button type="button" data-tools-action="delete" ${selected.size ? "" : "disabled"}>Delete selected</button><button type="button" data-tools-action="export">Export JSON</button></div><p class="bm-m3-tools__notice" aria-live="polite">${records.length} matching item${records.length === 1 ? "" : "s"}; ${selected.size} selected.</p><ul class="bm-m3-tools__list" aria-label="Map tool results">${rows || `<li class="bm-m3-tools__empty">No measurements or waypoints match this search.</li>`}</ul>`;
+        const searchField = this.tools.querySelector<HTMLInputElement>("[data-tools-search]")!;
+        searchField.value = query;
+        this.tools.querySelector<HTMLSelectElement>("[data-tools-kind]")?.setAttribute("aria-label", "Measurement type");
+    }
+
+    private handleToolsClick(event: Event): void {
+        const target = event.target as HTMLElement;
+        const action = target.closest<HTMLElement>("[data-tools-action]")?.dataset.toolsAction;
+        const tab = target.closest<HTMLElement>("[data-tools-tab]")?.dataset.toolsTab;
+        if (tab) { this.tools.dataset.tab = tab; this.renderMeasurementTools(); return; }
+        if (action === "close") { this.closeMeasurementTools(); return; }
+        if (action === "select-all" || action === "invert") {
+            const fields = [...this.tools.querySelectorAll<HTMLInputElement>("[data-tools-select]")];
+            fields.forEach((field) => { field.checked = action === "select-all" ? true : !field.checked; });
+            this.renderMeasurementTools(); return;
+        }
+        if (action === "delete") {
+            const ids = [...this.tools.querySelectorAll<HTMLInputElement>("[data-tools-select]:checked")].map((field) => field.value);
+            this.measurementModel.remove(ids); this.renderMeasurementTools(); this.recordNotice("externalAlert", "status", { message: `Deleted ${ids.length} map tool item(s).` }); return;
+        }
+        if (action === "export") {
+            const link = document.createElement("a"); const href = URL.createObjectURL(new Blob([this.measurementModel.exportJson()], { type: "application/json" }));
+            link.href = href; link.download = "bluemap-measurements-waypoints.json"; link.click(); URL.revokeObjectURL(href); return;
+        }
+        if (action === "waypoint-current") {
+            const value = (name: string) => this.tools.querySelector<HTMLInputElement>(`[data-tools-${name}]`)?.value ?? "";
+            try { this.measurementModel.addWaypoint({ name: value("name") || "Waypoint", coordinate: { x: Number(value("x")), y: Number(value("y")), z: Number(value("z")) }, dimension: this.measurementModel.currentDimension, group: value("group") || "General", tags: value("tags").split(",").map((tag) => tag.trim()).filter(Boolean) }); this.renderMeasurementTools(); }
+            catch (error) { this.recordNotice("externalAlert", "alert", { message: String(error) }); }
+            return;
+        }
+        if (action === "measure-current") {
+            const value = (name: string) => Number(this.tools.querySelector<HTMLInputElement>(`[data-tools-${name}]`)?.value ?? 0);
+            const kind = (this.tools.querySelector<HTMLSelectElement>("[data-tools-kind]")?.value ?? "distance") as MeasurementKind;
+            const points = [{ x: value("x1"), y: value("y1"), z: value("z1") }, { x: value("x2"), y: value("y2"), z: value("z2") }];
+            if (kind === "polyline" || kind === "area") { this.recordNotice("externalAlert", "alert", { message: "Polyline and area measurements require at least three world-coordinate points." }); return; }
+            try { this.measurementModel.addMeasurement({ kind, points, dimension: this.measurementModel.currentDimension }); this.renderMeasurementTools(); }
+            catch (error) { this.recordNotice("externalAlert", "alert", { message: String(error) }); }
+        }
     }
 
     private closeMapMenu(): void {
@@ -1279,6 +1365,10 @@ export class MaterialShell {
             this.openSettings(this.mapMenuButton);
             return;
         }
+        if (action === "tools") {
+            this.openMeasurementTools(this.mapMenuButton);
+            return;
+        }
         if (action === "notifications") {
             this.closeMapMenu();
             this.openNotificationHistory();
@@ -1313,32 +1403,33 @@ export class MaterialShell {
             this.menu.querySelector<HTMLButtonElement>('button[role="menuitem"]')?.focus();
     }
 
-    private handleMenuClick(event: Event): void {
+    private async handleMenuClick(event: Event): Promise<void> {
         const action = (event.target as HTMLElement).dataset.action;
         if (action === "cancel") this.closeContextMenu();
         if (action === "copy") {
             const coords = `${this.menu.dataset.x}, ${this.menu.dataset.y}, ${this.menu.dataset.z}`;
-            void navigator.clipboard?.writeText(coords);
-            this.recordNotice("coordinatesCopied", "status", { coordinates: coords });
+            try {
+                if (!navigator.clipboard?.writeText) throw new Error("Clipboard access is unavailable.");
+                await navigator.clipboard.writeText(coords);
+                this.recordNotice("coordinatesCopied", "status", { coordinates: coords });
+            } catch (error) {
+                this.recordNotice("externalAlert", "alert", { message: `Could not copy coordinates: ${String(error)}` });
+            }
             this.closeContextMenu();
         }
         if (action === "pin") {
-            const pin: Pin = {
-                id: `pin-${++this.pinCounter}`,
-                x: Number(this.menu.dataset.x),
-                y: Number(this.menu.dataset.y),
-                z: Number(this.menu.dataset.z),
-                label: this.copy("pinpoint", { count: this.pinCounter }),
-                screenX: Number(this.menu.style.left.replace("px", "")),
-                screenY: Number(this.menu.style.top.replace("px", "")),
-            };
-            this.pins.push(pin);
-            this.writePins();
+            const waypoint = this.measurementModel.addWaypoint({
+                name: this.copy("pinpoint", { count: this.measurementModel.waypoints.length + 1 }),
+                coordinate: { x: Number(this.menu.dataset.x), y: Number(this.menu.dataset.y), z: Number(this.menu.dataset.z) },
+                dimension: this.measurementModel.currentDimension,
+                group: "General",
+                tags: ["pinpoint"],
+            });
             this.recordNotice("pinSaved", "status", {
-                label: pin.label,
-                x: pin.x.toFixed(0),
-                y: pin.y.toFixed(0),
-                z: pin.z.toFixed(0),
+                label: waypoint.name,
+                x: waypoint.coordinate.x.toFixed(0),
+                y: waypoint.coordinate.y.toFixed(0),
+                z: waypoint.coordinate.z.toFixed(0),
             });
             this.closeContextMenu();
         }
@@ -1350,35 +1441,6 @@ export class MaterialShell {
         this.contextMenuInvoker = null;
     }
 
-    private renderPins(): void {
-        this.pinsLayer.replaceChildren(
-            ...this.pins.map((pin) => {
-                const el = document.createElement("div");
-                el.className = "bm-m3-pin";
-                el.textContent = `${pin.label} · ${pin.x.toFixed(0)}, ${pin.y.toFixed(0)}, ${pin.z.toFixed(0)}`;
-                el.dataset.x = String(pin.x);
-                el.dataset.z = String(pin.z);
-                if (pin.screenX !== undefined && pin.screenY !== undefined) {
-                    el.style.left = `${pin.screenX}px`;
-                    el.style.top = `${pin.screenY}px`;
-                } else el.hidden = true;
-                return el;
-            }),
-        );
-    }
-
-    private readPins(): Pin[] {
-        try {
-            return JSON.parse(localStorage.getItem("bluemap-pinpoints") || "[]") as Pin[];
-        } catch {
-            return [];
-        }
-    }
-    private writePins(): void {
-        localStorage.setItem("bluemap-pinpoints", JSON.stringify(this.pins));
-        this.renderPins();
-    }
-
     /** Releases document, window, host-copy, and BlueMap-alert subscriptions for discarded maps. */
     dispose(): void {
         document.removeEventListener("click", this.dismiss);
@@ -1386,6 +1448,7 @@ export class MaterialShell {
         document.removeEventListener("keydown", this.dismissContextMenuWithEscape);
         document.removeEventListener("keydown", this.handleGlobalShortcut);
         window.removeEventListener("resize", this.syncViewportLayout);
+        this.closeMeasurementTools(false);
         this.root.removeEventListener("bluemapAlert", this.handleBlueMapAlert as EventListener);
         this.unsubscribePresentation?.();
         this.unsubscribePresentation = null;

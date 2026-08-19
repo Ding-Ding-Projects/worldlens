@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     VAlert,
@@ -8,28 +8,36 @@ import {
     VChip,
     VList,
     VListItem,
+    VSelect,
     VTextField,
     VTextarea,
 } from "vuetify/components";
-import { mdiMapMarkerPlusOutline, mdiPencilOutline } from "@mdi/js";
+import { mdiContentCopy, mdiMapMarkerPlusOutline, mdiPencilOutline } from "@mdi/js";
 
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import MarkerSearchField from "./MarkerSearchField.vue";
 import { compileSearchPattern, includesCI, type SearchMode } from "./markerFilter.js";
 import {
     DEFAULT_MARKER_COLOUR,
+    createMarker,
     draftFrom,
+    editMarker,
     emptyDraft,
     markerSearchText,
     type MarkerDraft,
+    type StudioMarkerKind,
     type StudioMarker,
 } from "./markerStudio.js";
 import {
     addMarker,
+    duplicateMarker,
+    exportMarkers,
+    importMarkers,
     markerStudioStore,
     markersFor,
     removeMarkers,
     setMarkerVisible,
+    setMarkerPreview,
     updateMarker,
 } from "./markerStudioStore.js";
 
@@ -115,6 +123,13 @@ const editing = ref<string | null>(null);
 const formOpen = ref(false);
 const draft = ref<MarkerDraft>(emptyDraft());
 const problems = ref<readonly { field: string; message: string }[]>([]);
+const pointsText = ref("");
+const kindItems: readonly { value: StudioMarkerKind; title: string }[] = [
+    { value: "poi", title: "Point of interest" },
+    { value: "line", title: "Line" },
+    { value: "shape", title: "Shape" },
+    { value: "extrude", title: "Extrude" },
+];
 
 /**
  * The message for one field, or null.
@@ -132,6 +147,7 @@ function startNew(): void {
     // Where the camera is, because that is where "add a marker" means when somebody is
     // looking at a place. Falls back to the origin only when nothing knows better.
     draft.value = emptyDraft(props.cameraPosition ?? undefined);
+    pointsText.value = "";
     problems.value = [];
     formOpen.value = true;
 }
@@ -139,6 +155,7 @@ function startNew(): void {
 function startEdit(marker: StudioMarker): void {
     editing.value = marker.id;
     draft.value = draftFrom(marker);
+    pointsText.value = JSON.stringify(draft.value.points ?? [], null, 2);
     problems.value = [];
     formOpen.value = true;
 }
@@ -146,9 +163,16 @@ function startEdit(marker: StudioMarker): void {
 function cancel(): void {
     formOpen.value = false;
     problems.value = [];
+    setMarkerPreview(null);
 }
 
 function save(): void {
+    try {
+        draft.value.points = pointsText.value.trim() === "" ? undefined : JSON.parse(pointsText.value);
+    } catch {
+        problems.value = [{ field: "geometry", message: "Geometry must be valid JSON points." }];
+        return;
+    }
     const result =
         editing.value === null
             ? addMarker(props.mapId, draft.value)
@@ -156,9 +180,45 @@ function save(): void {
     if (result.ok) {
         formOpen.value = false;
         problems.value = [];
+        setMarkerPreview(null);
         return;
     }
     problems.value = result.problems;
+}
+
+watch(
+    [formOpen, draft, editing],
+    () => {
+        if (!formOpen.value) return setMarkerPreview(null);
+        const source = editing.value === null ? null : all.value.find((marker) => marker.id === editing.value);
+        const result = source ? editMarker(source, draft.value) : createMarker(props.mapId, draft.value);
+        setMarkerPreview(result.ok ? result.marker : null);
+    },
+    { deep: true },
+);
+
+function downloadExport(): void {
+    const blob = new Blob([exportMarkers(props.mapId)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `worldlens-markers-${props.mapId}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+}
+
+async function importFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const result = importMarkers(await file.text(), props.mapId);
+    if (result.errors.length) problems.value = [{ field: "geometry", message: result.errors.join(" ") }];
+    input.value = "";
+}
+
+function duplicate(marker: StudioMarker): void {
+    const result = duplicateMarker(marker.id);
+    if (!result.ok) problems.value = result.problems;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -188,6 +248,11 @@ function selectNone(): void {
     selected.value = new Set();
 }
 
+watch(() => props.mapId, () => {
+    selected.value = new Set();
+    setMarkerPreview(null);
+});
+
 const removedCount = ref<number | null>(null);
 
 function removeSelected(): void {
@@ -216,6 +281,11 @@ function positionText(marker: StudioMarker): string {
             >
                 {{ t("markers.studio.add", "Add a marker") }}
             </VBtn>
+            <VBtn size="small" variant="text" @click="downloadExport">Export</VBtn>
+            <label class="mb-marker-studio__import">
+                <VBtn size="small" variant="text" tag="span">Import</VBtn>
+                <input type="file" accept="application/json,.json" @change="importFile" />
+            </label>
         </div>
 
         <p class="mb-marker-studio__lede">
@@ -280,6 +350,8 @@ function positionText(marker: StudioMarker): string {
                     data-test="marker-z"
                 />
             </div>
+            <VSelect v-model="draft.kind" :items="kindItems" item-title="title" item-value="value" label="Marker type" density="compact" data-test="marker-kind" />
+            <VTextarea v-if="draft.kind !== 'poi'" v-model="pointsText" label="Geometry points (JSON)" rows="3" density="compact" data-test="marker-points" />
             <p
                 v-if="problemFor('position')"
                 class="text-error mb-2"
@@ -457,6 +529,15 @@ function positionText(marker: StudioMarker): string {
                             <VBtn
                                 size="small"
                                 variant="text"
+                                :prepend-icon="mdiContentCopy"
+                                data-test="marker-duplicate"
+                                @click="duplicate(marker)"
+                            >
+                                {{ t("markers.studio.duplicate", "Duplicate") }}
+                            </VBtn>
+                            <VBtn
+                                size="small"
+                                variant="text"
                                 data-test="marker-toggle-visible"
                                 @click="setMarkerVisible(marker.id, !marker.visible)"
                             >
@@ -506,5 +587,18 @@ function positionText(marker: StudioMarker): string {
 .mb-marker-studio__coord {
     flex: 1 1 5rem;
     min-width: 4.5rem;
+}
+
+.mb-marker-studio__import {
+    display: inline-flex;
+    position: relative;
+    overflow: hidden;
+}
+
+.mb-marker-studio__import input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
 }
 </style>

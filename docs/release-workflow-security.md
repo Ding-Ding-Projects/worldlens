@@ -7,6 +7,18 @@ data-only consumers; no Actions expression is inserted into executable script te
 
 ## Behaviour
 
+### Delivery contract
+
+GitHub Actions is a delivery pipeline, not a test pipeline. Its responsibility is limited to
+building the production application, packaging the installable artifacts, and publishing the
+release. It does **not** run tests, lint, typecheck, static analysis, accessibility checks, or
+screenshot/capture checks. Those checks are separate local work and run only when explicitly
+requested; their results are not silently represented as Actions or release evidence.
+
+This boundary is an accepted trade-off: a release may ship from a commit whose tests would fail.
+That outcome is not a claim that the code is tested or correct; it is the deliberate cost of
+keeping delivery independent from optional local verification.
+
 Six steps form the watched boundary: **Resolve release tag**, **Verify nominated release already
 exists**, **Resolve dim sum code name**, **Prepare release payload and hash manifest**, **Compose
 release notes**, and **Publish**. `scripts/lint-workflows.mjs` names each step, every environment
@@ -78,19 +90,19 @@ The workflow defaults to `contents: read`; only the release job receives `conten
 checkout in every executable workflow sets `persist-credentials: false`, including the release
 checkout. The catalog
 API may use the configured token for rate limits, but the public asset download never receives it.
-The release job depends only on the three jobs that produce what it publishes: Windows packaging,
-the seven BlueMap jars and the rendered test world. Build, typecheck, the full test suite and the
-real Java round trip report their exact attempted, skipped or failed outcomes without withholding
-those artifacts. Workflow lint/security, `build-changelog.mjs --check` and screenshot capture do
-not run in the current workflow; they are local pre-push checks and the release notes state that
-boundary instead of presenting them as publication evidence.
+The release job depends exactly on three artifact-producing jobs: `package`, `jars`, and
+`test-world`. The `package` and `test-world` jobs each build the workspace themselves. `check` is a
+separate build job with no uploaded artifact and is not a release dependency. No test, lint,
+typecheck, static-analysis, accessibility, or screenshot/capture job is part of that dependency
+chain. If a local check is requested, it runs separately from Actions and its result is recorded as
+local evidence rather than as a release gate. The release notes state this boundary plainly; they
+never present a missing local check as publication evidence.
 Pushes on `main` nominate publication automatically; manual dispatch must explicitly retain its
 publish input. The serialized publisher checks existing published releases by exact commit SHA, so
 one intended commit is nominated at most once and an existing exact target is verified rather than
 published again.
 
-Tag-triggered runs keep the same pre-publication workflow, build, test, Java, packaging and security
-coverage, but
+Tag-triggered runs keep the same build, packaging and publication-only contract, but
 the **Verify generated changelog is current** step runs only when `github.ref_type != 'tag'`. A
 release tag is created after the commit it points at, so that commit cannot already contain a
 changelog entry discovered from its own future tag. The hand-written workflow contract pins the
@@ -101,7 +113,8 @@ history before publication. The main-only publisher remains intentionally inelig
 
 ## Failure modes
 
-- A workflow-boundary violation fails the early **Lint the workflow files** job before build or
+- A workflow-boundary violation is a local preflight concern when that check is explicitly
+  requested; GitHub Actions does not run a lint or security-analysis job before build or
   publication.
 - Invalid or unavailable catalog metadata fails only the optional dish-resolution step. The release
   continues without a code name or public photo link and says so in its notes; it never generates,
@@ -136,6 +149,12 @@ producer job, pinned action code, repository source, vendored source and hosted 
 trust boundary.
 
 ## Verification
+
+The commands below are **local-only** checks. They are separate from GitHub Actions and must be
+run only when explicitly requested; they never imply that Actions ran them, and they never change
+the build/package/publish-only release contract. Consequently, a release can still ship when a
+locally requested test would fail, with that failure reported honestly rather than disguised as a
+workflow verdict.
 
 ```bash
 node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
@@ -173,6 +192,16 @@ release job 將 repository state、之前 job 嘅 outputs 同公開 dim-sum cata
 
 ### 行為
 
+### 發佈交付合約 (Delivery contract)
+
+GitHub Actions 係交付 pipeline，唔係 test pipeline。佢只負責 build production application、
+package 可安裝 artifacts，同 publish release。佢**唔會**行 tests、lint、typecheck、static
+analysis、accessibility checks，或者 screenshot/capture checks。呢啲 checks 係獨立嘅本機工作，
+只喺有人明確要求嗰陣先行；佢哋嘅結果唔會偷偷當成 Actions 或 release evidence。
+
+呢個界線係一個接受咗嘅取捨：一個 release 可以由一個 tests 本身會 fail 嘅 commit 發佈。
+呢個唔係話段 code 已經測過或者一定正確，而係刻意令交付唔依賴 optional 嘅本機 verification。
+
 被睇實嘅邊界係六個 step:**Resolve release tag**、**Verify nominated release already exists**、**Resolve dim sum code name**、**Prepare release payload and hash manifest**、**Compose release notes** 同 **Publish**。`scripts/lint-workflows.mjs` 逐個 step 點名、列明每個佢接受嘅 environment variable,同埋可以供應嗰個變數嘅確切 Actions expression。佢亦 pin 咗每個完整 normalized `env` 同 `run` block 嘅 SHA-256 fingerprint。以下全部會被拒:step 缺咗或者重複、provenance 改咗、script 文字入面有直接或者跨行嘅 expression、YAML anchor/alias 兜路、冇引號嘅讀取,同**任何** reviewed-block 改動。整 block fingerprint 係 fail-closed 嘅邊界:佢捉到 `printenv` 之類嘅間接讀取、parameter indirection 同新加嘅行,而唔使扮一張「危險 shell 寫法」清單可以寫得齊。
 
 個 guard 仲會掃 release job 入面每一個可執行嘅 `run:` 或者 `script:` 區域,唔理佢個 display name 叫乜,並且 pin 成個 normalized release job 嘅 SHA-256 fingerprint。所以三個(六個之中)有名嘅邊界唔係一張周圍有窿嘅 allowlist:插入或者改名一個相鄰嘅 shell step 會 fail,而嗰個 step 入面嘅直接 Actions expression 有自己嘅 diagnostic。
@@ -193,15 +222,16 @@ repository 七條可執行 workflow 入面全部 117 個 external action invocat
 
 所有可執行 workflow 都用明確、受支援嘅 hosted-runner label(`ubuntu-24.04` 或者 `windows-2022`);mutable 嘅 `*-latest`、self-hosted、由 expression derive 嘅同不明嘅 label,由 `cloudRunnerPolicy.test.ts` 入面人手寫嘅 job inventory 拒絕。
 
-workflow 預設 `contents: read`;只有 release job 攞到 `contents: write`。每條可執行 workflow 入面每個 checkout 都設 `persist-credentials: false`,包括 release checkout。catalog API 可以用設定咗嘅 token 換 rate limit,但公開 asset 下載永遠唔會收到 token。release job 只依賴三個真係產生發佈內容嘅 job:Windows packaging、七個 BlueMap jars 同真 test-world render。build、typecheck、完整 test suite 同真 Java round trip 會照實報 attempted、skipped 或 failed 結果,但唔會扣住嗰三批 artifact。依家個 workflow 唔會行 workflow lint/security、`build-changelog.mjs --check` 或 screenshot capture;佢哋係本機 pre-push checks,release notes 會明講呢條界線,唔會扮成發佈證據。push 上 `main` 會自動提名發佈;manual dispatch 就要明確保留佢個 publish input。serialized 嘅 publisher 用確切 commit SHA 檢查已發佈嘅 release,所以一個目標 commit 最多被提名一次,已存在嘅確切 target 係被驗證而唔係再發佈一次。
+workflow 預設 `contents: read`;只有 release job 攞到 `contents: write`。每條可執行 workflow 入面每個 checkout 都設 `persist-credentials: false`,包括 release checkout。catalog API 可以用設定咗嘅 token 換 rate limit,但公開 asset 下載永遠唔會收到 token。release job 精確依賴三個 artifact-producing jobs：`package`、`jars` 同 `test-world`。`package` 同 `test-world` job 各自 build workspace；`check` 係獨立嘅 build job，冇 uploaded artifact，亦唔係 release dependency。冇任何 test、lint、typecheck、static-analysis、accessibility 或 screenshot/capture job 會落入呢條 dependency chain。有人明確要求本機 check 嗰陣，佢會喺 Actions 之外獨立行，結果係 local evidence，唔係 release gate。release notes 會清楚講明呢條界線，唔會將冇行過嘅 local check 當成 publication evidence。push 上 `main` 會自動提名發佈;manual dispatch 就要明確保留佢個 publish input。serialized 嘅 publisher 用確切 commit SHA 檢查已發佈嘅 release,所以一個目標 commit 最多被提名一次,已存在嘅確切 target 係被驗證而唔係再發佈一次。
 
-tag 觸發嘅 run 仍然冇資格行只准 `main` 嘅 publisher。依家個 workflow 喺任何 ref 都唔會行
+tag 觸發嘅 run 仍然冇資格行只准 `main` 嘅 publisher。依家個 workflow 喺任何 ref 都遵守
+build、package、publish-only 嘅合約，亦都唔會行
 generated-changelog freshness command;要證明兩份 generated output 同當前歷史一致,仍然係本機
 行已 commit 嘅 command。release tag 喺目標 commit 之後先建立,下一次生成自然會將佢收返入去。
 
 ### 失敗情況
 
-- workflow-boundary 違規由本機已 commit 嘅檢查報告;依家個 workflow 唔會行嗰套 lint/security 檢查。
+- workflow-boundary 違規只有喺有人明確要求嗰陣先由本機已 commit 嘅檢查報告;依家個 workflow 唔會行嗰套 lint/security 檢查。
 - catalog metadata 無效或者攞唔到,只 fail 可選嘅 dish-resolution step。release 照出,冇 code name 同公開相片 link,notes 會講明;佢永遠唔會生成、下載、複製、attach 或者用第二張相頂替。
 - Squirrel output 缺失、零 byte、舊、重複或者唔 match,喺 artifact upload 之前就停。
 - 下載返嚟嘅 release asset set 有缺、多、空、重複、size 唔 match 或者 digest 唔 match 嘅檔案,fail readback;target、tag、body 或者 draft 狀態錯,fail metadata readback。
@@ -216,6 +246,10 @@ picker 只 emit workflow 消費嗰四個 output:英文同繁體中文名、英�
 packaged CLI jar、完整 Squirrel installer set 同 test-world archive 帶住喺佢哋自己 job 產生嘅 SHA-256 記錄,same-run artifact 下載之後會再check。release notes 包括:確切 commit、changelog SHA、workflow 開始/完成/歷時、可重現嘅 line-count 表、每個 asset 嘅 byte count 同 SHA-256、永久嘅 unsigned 警告,同(catalog 解到嘅話)雙語 code name 加公開相片 link。呢啲檢查證明 bytes 經傳輸冇變。佢哋**唔**證明一個被攻陷嘅 producer 出咗好嘅 bytes:producer job、pin 咗嘅 action code、repository source、vendored source 同 hosted runner 仍然係 trust boundary。
 
 ### 驗證
+
+下面啲 command 係**只限本機**嘅 checks，獨立於 GitHub Actions，而且只喺有人明確要求嗰陣先行；
+佢哋唔代表 Actions 行過同一套嘢，亦唔會改變 build/package/publish-only 嘅 release 合約。
+所以就算有人要求行嘅 test fail，release 仍然可以出街；要照實報個 failure，唔可以扮成 workflow verdict。
 
 ```bash
 node --test scripts/bootstrap.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs

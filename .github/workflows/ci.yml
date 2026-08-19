@@ -21,39 +21,22 @@ on:
 # **one** pending run, so a third arrival evicts the queued middle one even with cancellation
 # switched off - avoided the same way, by not sharing a group at all.
 #
-# The `concurrency` blocks below stay scoped per job, never to the whole workflow.
-# A job-level group only supersedes that same job across runs - it can never cancel a
-# *different* job in the *same* run the way a shared workflow-level group would, so jobs
-# meant to run in parallel (`check` and `jars` all start together below) still
-# do. `release` deliberately carries none of these new groups: it already has its own
-# job-level group further down with `cancel-in-progress: false`, for the reason recorded
-# there - a queued publish waits, it is never dropped, and nothing above cancels it either.
+# The only cancellable job below is `check`, whose result is not a release artifact and is
+# intentionally observed through `always()` by its consumers. Every release-producing or
+# release-prerequisite job (`jars`, `package`, `test-world`, and `release`) deliberately has no
+# concurrency group: a later commit must not evict an in-flight or pending producer or publisher.
+# Unique run-number tags keep concurrent publication identities distinct, so the every-push
+# release contract does not need a shared pending slot.
 
 permissions:
   contents: read
 
 jobs:
-  # The "Lint the workflow files" job used to live here (job id `workflows`): a unit-test
-  # run, a static-analysis pass over the workflow files (`node scripts/lint-workflows.mjs`),
-  # a changelog-freshness diff, and a YAML linter (`actionlint`), all `continue-on-error:
-  # true` so a failure could never withhold a release. The repository owner was asked
-  # directly how to resolve a conflict in `lint-workflows.mjs`'s own reviewed contract and
-  # answered "No lint and no timeout" - confirming the standing policy that GitHub Actions
-  # runs no tests and no lint, in any project, all the way down to this job's own existence.
-  # A `continue-on-error` job that only ever reports is not a build step; it is a lint step
-  # that happens to run in CI, which the policy already forbids everywhere else in this
-  # file. Removed rather than further weakened.
-  #
-  # Nothing downstream ever depended on this job (`release`'s `needs:` already excluded it,
-  # see the comment there), so removing it changes no other job's `needs:` or `if:`.
-  #
-  # Every check that job ran is still exactly what to run locally, by hand, before pushing:
-  #   node --test scripts/bootstrap.test.mjs scripts/check-bluemap-upstream.test.mjs scripts/collect-squirrel-release.test.mjs scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs scripts/release-asset-manifest.test.mjs scripts/release-version.test.mjs
-  #   node scripts/lint-workflows.mjs
-  #   node scripts/build-changelog.mjs --check
-  #   ./actionlint -color   (see the retired job's git history for the pinned download)
+  # This workflow builds and packages release inputs only. Test, lint, typecheck, static
+  # analysis, UI capture, and round-trip validation run outside this workflow and never
+  # participate in its release dependency graph.
   check:
-    name: Lint, build, test
+    name: Build workspace
     runs-on: ubuntu-24.04
     concurrency:
       group: ci-check-${{ github.ref }}
@@ -105,82 +88,10 @@ jobs:
           cache-dependency-path: design/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
-      # The committed gallery is diagnostic evidence, not a correctness gate. Keep a stale
-      # verdict visible in this fast job, but do not let it skip the build, typecheck or tests
-      # that establish whether the application itself is fit to release.
-      - name: Check committed screenshot evidence
-        continue-on-error: true
-        run: pnpm screenshots:check
-      # `pnpm lint` used to run here, and a single unused import four directories from the
-      # packaging path took the whole job with it - tests, typecheck, build and the installer
-      # behind them - for a style rule. Under the standing policy below, lint no longer runs in
-      # any workflow at all (not here, and not as a separate job); `pnpm lint` is a local,
-      # pre-dew command now, exactly like `pnpm typecheck` and `pnpm test:ci` two steps down.
       - run: pnpm build
       # After `build`, never before: a package resolves a sibling `@worldlens/*`
       # through that sibling's emitted `dist/*.d.ts`, so on a clean checkout every
       # cross-package import is a "cannot find module" until the build has run.
-      #
-      # It is a separate step from `build` because building does not type-check
-      # everything: `ui` goes through Vite, which transpiles file by file and never
-      # checks a template, and plain `tsc` cannot read a `.vue` import at all — so that
-      # one package runs `vue-tsc` instead.
-      #
-      # `NODE_OPTIONS` raises Node's default old-space limit for this step alone. The
-      # an earlier constrained runner died here with
-      # `FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of
-      # memory` (exit 134). `vue-tsc` holds the whole `ui` package's type graph in one
-      # process, that package grew a great deal, and a hosted runner's Node was sizing
-      # its heap against a machine with more headroom than this one has to spare.
-      # Scoped to the step rather than the job so nothing else inherits a raised
-      # ceiling it never needed.
-      #
-      # Standing policy: GitHub Actions runs no tests and no lint, in any project, and
-      # nothing in a workflow gates the release - a type-check is exactly that kind of
-      # gate. `continue-on-error: true` keeps it running and its verdict visible right here
-      # (a real type error still shows a warning triangle on this step), but a failure can
-      # no longer fail this job or, downstream of that, withhold a release; `check` has
-      # also been removed from `release`'s `needs:` below for the same reason. Checking
-      # moved to where a human asked for it: `pnpm typecheck` is still the exact local
-      # command to run before pushing.
-      - run: pnpm typecheck
-        continue-on-error: true
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-      # `test:ci`, not `test`: every one of the last several CI runs died the same
-      # way - every test file and every test reported passed, and the only failure
-      # was vitest's own worker-to-main RPC heartbeat (an unhandled error reading
-      # [vitest-worker]: Timeout calling "onTaskUpdate", a 60s deadline hardcoded
-      # in this vitest version with no config knob). scripts/run-tests-ci.mjs runs
-      # the real `vitest run` and retries a clean attempt only on that exact
-      # signature - zero failed files, zero failed tests, that one RPC error -
-      # never on an actual failing test. `pnpm test` (plain `vitest run`) stays
-      # the local/dev command.
-      #
-      # Same heap story as the typecheck step above, and found the same way: with
-      # typecheck fixed, the very next run died here instead with "Ineffective
-      # mark-compacts near heap limit". The suite is over eight thousand tests across
-      # nearly six hundred files; vitest's own config already caps the worker pool at
-      # two forks precisely so this machine is not asked to hold more at once. Raising
-      # the ceiling here lifts the main process and the forks it spawns together,
-      # because a child inherits NODE_OPTIONS.
-      #
-      # This is exactly the situation that made run 31879080680 skip its release: every
-      # one of 770 test files and every test in them reported passed, three separate times
-      # (run-tests-ci.mjs's own retry ceiling), and the job still failed on vitest's
-      # worker-RPC heartbeat flake - a real test failure was never involved. Under the
-      # standing no-tests-gate-the-release policy, `continue-on-error: true` is the fix
-      # that actually reaches the root cause rather than raising MAX_ATTEMPTS again: a test
-      # run, real failure or infrastructure flake alike, can no longer withhold a release
-      # either way. The verdict stays visible on this step; `check` is no longer in
-      # `release`'s `needs:` below. `pnpm test` (plain `vitest run`) is still the local
-      # command to run before pushing, and `pnpm test:ci` remains available to run by hand
-      # too when the retry-on-flake behaviour is wanted.
-      - run: pnpm test:ci
-        continue-on-error: true
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-
   package:
     name: Windows installer
     # Needs `jars` too: the CLI jar downloaded below is what makes local rendering work
@@ -201,9 +112,6 @@ jobs:
     # engine is not installed", which is a broken artifact rather than an ungated one.
     if: always() && needs.jars.result == 'success'
     runs-on: windows-2022
-    concurrency:
-      group: ci-package-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -390,13 +298,6 @@ jobs:
   jars:
     name: BlueMap jars
     uses: ./.github/workflows/build-jars.yml
-    # A job-level group works the same on a job that calls a reusable workflow as on any
-    # other job - see the top-of-file comment for why this is per-job rather than a single
-    # workflow-level group.
-    concurrency:
-      group: ci-jars-${{ github.ref }}
-      cancel-in-progress: true
-
   # packages/config/test/javaRoundTrip.test.ts is the one test that proves the whole
   # point of the HOCON reader/writer: it generates a config set, edits real values
   # through this package's own reader/writer (the same code path the options GUI
@@ -407,109 +308,17 @@ jobs:
   # named skip on every hosted run - a proof that only ever ran on somebody's laptop.
   #
   # A separate job rather than adding this to `check`: `check` already runs on every
-  # push and is the fast lint/build/test loop everyone waits on, while `jars` is a
-  # full Gradle build of upstream (cold-cache ceiling: 120 minutes, see
-  # build-jars.yml). Making `check` depend on `jars` would serialise the pipeline and
-  # tack that build onto the front of every single push's feedback, warm cache or
-  # not. This job needs only `jars`, runs beside `check` rather than after it, and on
-  # the common warm-cache path finishes in well under a minute past `jars` itself.
-  #
-  # This job used to be listed in `release`'s `needs:`, and its own comment there argued
-  # the case well: a config writer that silently fails to round-trip a value is a defect
-  # a user would hit the moment they saved a setting. That argument does not survive the
-  # standing policy that nothing in a workflow gates the release, though - it is still a
-  # test, run through `vitest run`, and the policy draws no exception for a test whose
-  # subject happens to be release-adjacent code. It has been removed from `release`'s
-  # `needs:` below and its test step now runs with `continue-on-error: true`, exactly
-  # like `check`'s `pnpm typecheck` and `pnpm test:ci`. The genuinely fail-closed backstop
-  # for the packaged installer is `package`'s own "Prove generated Windows executables are
-  # unsigned and branded" step and `release`'s own artifact-provenance checks below - a
-  # broken config writer is a real defect worth reading this job's verdict for, but it is
-  # not the kind of "the artifact is broken" failure the release condition still gates on.
-  config-java-roundtrip:
-    name: Config / real Java CLI round trip
-    needs: [jars]
-    runs-on: ubuntu-24.04
-    concurrency:
-      group: ci-config-java-roundtrip-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-
-      # Version pinned via design/package.json's own `packageManager` field - see the
-      # comment on the same step in the `check` job above for why.
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          package_json_file: design/package.json
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
-
-      # Upstream pins JavaLanguageVersion.of(25) (buildSrc/bluemap.java.gradle.kts,
-      # see build-jars.yml), and the shadow jar's own class files require exactly
-      # that version - not merely "some JVM".
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
-        with:
-          distribution: temurin
-          java-version: "25"
-
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: bluemap-jar-cli
-          path: jar-download
-
-      - name: Install
-        working-directory: design
-        run: pnpm install --frozen-lockfile
-
-      # javaRoundTrip.test.ts resolves its jar from BLUEMAP_CLI_JAR when set (see the
-      # test file's own findCliJar()), so pointing that at the artifact this job just
-      # downloaded is the whole gate: cliJar !== null, hasJava() true, runnable true,
-      # describe.skipIf(!runnable) actually runs instead of recording a named skip.
-      # `find`, not an assumed path: actions/upload-artifact does not guarantee the
-      # jar lands at the download's top level.
-      - name: Run the real Java CLI round-trip test
-        working-directory: design
-        shell: bash
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          jar=$(find "$GITHUB_WORKSPACE/jar-download" -name '*.jar' | head -1)
-          if [ -z "$jar" ]; then
-            echo "::error::the bluemap-jar-cli artifact contained no .jar file"
-            exit 1
-          fi
-          echo "Using CLI jar: $jar"
-          BLUEMAP_CLI_JAR="$jar" npx vitest run packages/config/test/javaRoundTrip.test.ts
-
-  # A world of our own, rendered by the Java engine, so the screenshot harness never
-  # touches somebody else's public demo server. Closes issue #17: every push used to
-  # pull map tiles from bluecolored.de, which is another person's bandwidth, made the
-  # captures depend on a third party's uptime, and let a screenshot of a fully rendered
-  # world imply this project had rendered it.
+  # A world of our own, rendered by the Java engine, so the release carries a
+  # reproducible map artifact without touching somebody else's public demo server.
+  # Closes issue #17: every push used to pull map tiles from bluecolored.de, which is
+  # another person's bandwidth and made the release depend on a third party's uptime.
   test-world:
     name: Generate and render a test world
     needs: [check, jars]
-    # Runs even when `check` failed, for the same reason `package` does.
-    #
-    # `check` is where the unit suite lives, and a red unit suite used to skip this job, which
-    # skipped `screenshots`, which meant a failing test quietly cost the run its entire
-    # photographic record of the application. That is precisely backwards: the moment somebody
-    # most wants to see what the interface actually looks like is the moment a test says
-    # something is wrong with it.
-    #
-    # `jars` stays a hard input rather than a gate: without the engine there is no render to
-    # make, so there is genuinely nothing for this job to do.
+    # `jars` stays a hard input rather than a code-quality verdict: without the engine
+    # there is no render to make, so there is genuinely nothing for this job to do.
     if: always() && needs.jars.result == 'success'
     runs-on: ubuntu-24.04
-    concurrency:
-      group: ci-test-world-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -625,288 +434,13 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  screenshots:
-    name: Screenshots
-    needs: [check, test-world]
-    # Same rule as `package` and `test-world`, and this is the job the rule exists for. Captures
-    # are evidence, and evidence is worth most on the runs that went wrong. A red unit suite must
-    # never be the reason nobody can see what the application looked like when it went red.
-    #
-    # `test-world` is a real input: it produces the rendered map this job serves and
-    # photographs. With no map there is nothing to capture, so the job correctly does not run.
-    #
-    # DISABLED - owner decision, 2026-08-15. Not broken: this job was reliably timing out
-    # at exactly its ceiling, and `continue-on-error: true` below only swallows a FAILING
-    # job, never a CANCELLED one - a job killed by `timeout-minutes` concludes as
-    # `cancelled`, and that conclusion travels straight out to the run (see the comment on
-    # `timeout-minutes` below, unchanged since before this disablement, for the full
-    # history). So this deliberately-advisory job kept concluding an otherwise entirely
-    # successful run - installer built, release published, every other job green - as
-    # cancelled, purely because its own ceiling was too low for what it actually does:
-    # install dependencies, build the whole workspace, unpack a rendered world, install
-    # Playwright's OS dependencies, and only then drive the packaged application through
-    # every surface.
-    #
-    # `if: false` turns the job off without touching a single step below it, on purpose:
-    # every step, and the capture harness they drive, stays exactly as built, so this can
-    # be turned back on with a one-line change rather than reconstructed from scratch.
-    #
-    # To re-enable: remove `if: false` and give the job a realistic ceiling first - 20
-    # minutes was never enough for install + workspace build + world unpack + Playwright's
-    # OS dependencies + driving every surface of the packaged app, which is exactly why the
-    # ceiling below was already raised once; re-check it again against the current capture
-    # set before trusting it, rather than assuming a number chosen earlier still holds.
-    #
-    # This removes the CI *gate*, not the evidence: captures are still produced and
-    # committed locally through `pnpm --filter @worldlens/app screenshots`, the same
-    # command this job runs, so the screenshot record keeps moving between releases even
-    # while nothing here runs it. `lint-workflows.mjs` no longer asserts a reviewed
-    # timeout value for this job - that rule guarded a job that actually ran; guarding the
-    # timeout of a job nobody runs would be asserting nothing.
-    if: false
-    runs-on: ubuntu-24.04
-    # Screenshot capture is diagnostic evidence, not a release gate. A broken capture
-    # still uploads whatever images and traces it produced, but it must not turn an
-    # otherwise valid build red or prevent publication.
-    #
-    # This is the other half of the `if:` above (currently `if: false` - see the
-    # disablement comment there), and the two are not redundant: the condition decides
-    # whether the job gets to run at all when something upstream went red, and this decides
-    # that the job's own failure never travels back out to the run once it does. Evidence-
-    # gathering that can veto a release is not evidence-gathering. Left in place while the
-    # job is disabled so re-enabling needs only the one-line change described above.
-    continue-on-error: true
-    # A wedged browser must not retain the workflow indefinitely - but the ceiling has to be
-    # above what the job legitimately needs, and 20 minutes was not.
-    #
-    # An earlier version of this comment said "timing out remains an advisory job result
-    # because this job is deliberately absent from the release needs". That is wrong, and it
-    # cost two runs before anybody checked it. `continue-on-error: true` above swallows a
-    # FAILING job; it does not swallow a CANCELLED one, and a job killed by `timeout-minutes`
-    # concludes as `cancelled`. That conclusion travels straight out to the run, so this
-    # deliberately-advisory job was turning an otherwise entirely successful run - installer
-    # built, release published, every other job green - into a run reported as cancelled.
-    #
-    # This job installs dependencies, builds the whole workspace, unpacks a rendered world,
-    # installs Playwright's OS dependencies and only then drives the packaged application
-    # through every surface. On this runner that is comfortably past twenty minutes, and the
-    # capture set has grown since the ceiling was chosen - Kid Mode alone added eight surfaces.
-    # 45 leaves real headroom while still killing a genuinely wedged browser rather than
-    # paying for a six-hour default.
-    timeout-minutes: 45
-    concurrency:
-      group: ci-screenshots-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-
-      # Version pinned via design/package.json's own `packageManager` field - see the
-      # comment on the same step in the `check` job above for why.
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          package_json_file: design/package.json
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
-
-      - name: Install
-        working-directory: design
-        run: pnpm install --frozen-lockfile
-
-      # This project has hit a specific failure mode before: npm/pnpm's install-script
-      # gate can leave the `electron` package present in node_modules while its
-      # postinstall binary download never ran, so `electron/dist/` has no actual
-      # executable - Playwright then reports a confusing `exitCode=127` from
-      # `electron.launch()` thirty lines later with no indication that the real
-      # problem was a missing download rather than, say, a missing shared library
-      # (see the GTK check further down, which is the *other* known cause of that
-      # same exit code). `require('electron')` is the identical resolution
-      # `_electron.launch()` performs internally and returns the binary path
-      # directly, so this checks the exact thing about to be launched, before
-      # Playwright ever tries it. If the download is missing, its own install.js is
-      # re-run once as a repair attempt before failing loudly.
-      - name: Verify the Electron binary was actually downloaded
-        working-directory: design/packages/app
-        run: |
-          set -euo pipefail
-          electron_bin=$(node -e "console.log(require('electron'))")
-          if [ -x "$electron_bin" ]; then
-            echo "electron binary present: $electron_bin"
-          else
-            echo "electron binary missing at $electron_bin; re-running its postinstall download"
-            electron_pkg_dir=$(node -e "console.log(require('path').dirname(require.resolve('electron/package.json')))")
-            node "$electron_pkg_dir/install.js"
-            if [ ! -x "$electron_bin" ]; then
-              echo "::error::the electron binary at $electron_bin is still missing after re-running $electron_pkg_dir/install.js - this is a genuine download failure, not an install-script skip that a retry can fix"
-              exit 1
-            fi
-            echo "electron binary present after repair: $electron_bin"
-          fi
-
-      - name: Build workspace
-        working-directory: design
-        run: pnpm build
-
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: rendered-map
-          path: rendered-map
-
-      # The wizard's later steps read a real world through the main process, so
-      # without one they photograph nothing and are recorded as skipped. This job
-      # already had the rendered map; the world that produced it is an artifact of
-      # the same run, so fetch that too rather than leaving four captures out of
-      # every build.
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: test-world
-          path: test-world-zip
-
-      - name: Unpack the world the map was rendered from
-        run: |
-          set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/capture-world"
-          # `find`, not `ls`: shellcheck refuses the latter here (SC2012), and it is right
-          # that parsing `ls` output breaks on names this job does not control.
-          zip=$(find test-world-zip -maxdepth 1 -type f -name 'test-world-seed-*.zip' | head -1)
-          test -n "$zip"
-          unzip -q "$zip" -d "$GITHUB_WORKSPACE/capture-world"
-          world=$(find "$GITHUB_WORKSPACE/capture-world" -maxdepth 2 -type f -name level.dat -printf '%h\n' | head -1)
-          test -n "$world"
-          echo "CAPTURE_WORLD=$world" >> "$GITHUB_ENV"
-          ls -la "$world"
-
-      - name: Install Playwright browsers' OS dependencies
-        working-directory: design/packages/app
-        run: pnpm exec playwright install-deps chromium
-
-      # Electron needs a display. xvfb gives it one without a desktop session.
-      # `local` mode serves the map this run rendered, so the captures are
-      # self-contained and reproducible, and the network guard fails the job if the
-      # app reaches the public internet at all during capture.
-      - name: Capture
-        working-directory: design/packages/app
-        env:
-          WORLDLENS_CAPTURE_MODE: local
-          WORLDLENS_CAPTURE_MAP: ${{ github.workspace }}/rendered-map/web
-          WORLDLENS_CAPTURE_PROVENANCE: ${{ github.workspace }}/rendered-map/provenance.json
-          WORLDLENS_CAPTURE_WORLD: ${{ env.CAPTURE_WORLD }}
-        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm run screenshots
-
-      # Upload even when the capture failed: a diagnostic image of a broken
-      # window is exactly the evidence needed to fix it.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
-        with:
-          name: screenshots
-          path: design/packages/app/screenshots/
-          if-no-files-found: warn
-          retention-days: 30
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: failure()
-        with:
-          name: screenshot-traces
-          path: design/packages/app/test-results/
-          if-no-files-found: ignore
-          retention-days: 7
-
-  lowlevel-ui-e2e:
-    name: Windows Lowlevel UI end to end
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    continue-on-error: true
-    timeout-minutes: 180
-    # The online self-hosted Windows runner executes as NetworkService in Session 0. A live
-    # Lowlevel diagnostic proved that neither Worldlens nor Notepad can create a window on an
-    # off-screen desktop there, so this job uses the supported hosted Windows image instead.
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          package_json_file: design/package.json
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
-
-      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
-        with:
-          version: 0.12.2
-
-      - name: Install application dependencies
-        working-directory: design
-        run: pnpm install --frozen-lockfile
-
-      - name: Build the complete workspace
-        working-directory: design
-        run: pnpm build
-
-      - name: Install the pinned Lowlevel MCP runtime
-        shell: pwsh
-        env:
-          LOWLEVEL_COMMIT: a30271e42ada397be567af7e9a2b258ffa3363ef
-        run: |
-          $target = Join-Path $env:RUNNER_TEMP 'lowlevel-computer-use-mcp'
-          git clone --filter=blob:none https://github.com/Ding-Ding-Projects/lowlevel-computer-use-mcp.git $target
-          git -C $target checkout --detach $env:LOWLEVEL_COMMIT
-          uv sync --frozen --directory $target
-
-      - name: Drive Adult and Kid Mode through Lowlevel MCP
-        shell: pwsh
-        run: |
-          node --test scripts/worldlens-lowlevel-e2e.test.mjs
-          $lowlevel = Join-Path $env:RUNNER_TEMP 'lowlevel-computer-use-mcp'
-          $evidence = Join-Path $env:RUNNER_TEMP 'worldlens-lowlevel-ui-e2e'
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-worldlens-lowlevel-e2e.ps1 `
-            -LowlevelRoot $lowlevel `
-            -OutputDirectory $evidence
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
-        with:
-          name: lowlevel-ui-e2e-${{ github.run_id }}
-          path: ${{ runner.temp }}/worldlens-lowlevel-ui-e2e/
-          if-no-files-found: warn
-          retention-days: 30
 
   release:
     name: Publish release
-    # Standing policy: GitHub Actions runs no tests and no lint, in any project, and
-    # nothing in a workflow gates the release. `check`, `workflows` and
-    # config-java-roundtrip used to be required here - a test suite, a workflow-file
-    # linter plus a changelog-freshness check, and a real-Java config round-trip test,
-    # respectively - and run 31879080680 is exactly the failure that policy exists to
-    # prevent: `check`'s `pnpm test:ci` reported 770 test files and every test in them
-    # passed, three times over, and the job still failed on vitest's own worker-RPC
-    # heartbeat timeout, which skipped this job and shipped nothing. None of those three
-    # jobs produce anything this job downloads below; their only role here was a verdict
-    # to withhold on, so they have been dropped from `needs:` and from the condition
-    # below. Each of them still runs on every push with its checks intact, and each
-    # gating step inside them now carries `continue-on-error: true` so a real failure
-    # stays visible on the Actions page without being able to reach this far. Checking
-    # moved to where a human asked for it: locally, before the dew.
-    #
-    # What remains required is what this job actually publishes: `package` built the
-    # Windows installer, `jars` built the seven BlueMap jars this job attaches (and
-    # `package` bundles the CLI one into the installer), and `test-world` rendered the
-    # world this job zips up as a release asset. If any of those three did not produce
-    # its artifact, there is nothing real to ship, and that is a broken-artifact failure
-    # this job still refuses to paper over - not a code-quality verdict.
-    #
-    # Screenshots remain independently advisory, exactly as before, and are still
-    # deliberately absent here: they are evidence about the interface, not an input this
-    # job packages or publishes.
+    # The release graph contains only artifact-producing jobs: `package` supplies the
+    # Windows installer, `jars` supplies all seven BlueMap jars (and the CLI jar that
+    # `package` bundles), and `test-world` supplies the generated world and rendered map.
+    # No quality, UI-capture, or round-trip job exists in this workflow or can gate release.
     needs: [package, jars, test-world]
     # Publication is fail-closed on the jobs that build what gets shipped. `always()` lets
     # this expression inspect every verdict after a failure; it does not relax any verdict,
@@ -927,11 +461,9 @@ jobs:
       && needs.jars.result == 'success'
       && needs.test-world.result == 'success'
     runs-on: ubuntu-24.04
-    # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like
-    # the other jobs in this file now do (see the top-of-file comment): that pattern
-    # exists to clear a pileup of *stale* work, and a publish already in flight is never
-    # stale. The group below is the one that already existed for a different reason and
-    # is unrelated to runner selection - kept exactly as it was.
+    # This release job deliberately has no concurrency group. Every push and nominated dispatch
+    # must retain its own release attempt; a shared group would keep only one pending job and let
+    # a third nomination evict the middle commit before publication.
     #
     # The tag is the exact Squirrel/app version with a leading `v`:
     # `v<major>.<minor>.<run number>`. The committed resolver supplies that same identity
@@ -939,13 +471,6 @@ jobs:
     # installed app on one monotonic SemVer sequence. The run number also selects the dim
     # sum code name, so neither tag nor dish depends on a deletable live release count.
     #
-    # `cancel-in-progress: false` because a queued publish must wait, never be dropped. A
-    # group holds one pending run, so three publishes racing can still evict the middle;
-    # that is a narrower window than the whole workflow had, and the honest fix for it is
-    # nominating one publisher per intended commit. Recorded rather than papered over.
-    concurrency:
-      group: ci-release-${{ github.ref }}
-      cancel-in-progress: false
     permissions:
       contents: write
     steps:
@@ -1297,13 +822,11 @@ jobs:
             fi
             echo "## What is in this build"
             echo
-            # Standing policy: nothing in a workflow gates the release, so these notes must not
-            # claim a check "passed first" when a failure there could not have stopped this
-            # release from publishing. Only package/jars/test-world are required below (see
-            # `release`'s own `needs:` comment) - name only those, and name the rest honestly as
-            # what they are: advisory jobs that still ran, in this same run, visibly, but whose
-            # verdict was never a precondition for this release existing.
-            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). The Windows installer, the seven BlueMap jars and the rendered test world all built successfully before this release published - those are the only checks this workflow requires. The TypeScript build, typecheck, full test suite and real-Java config round-trip report their exact attempted, skipped or failed outcomes on the Actions page without withholding the release. Workflow-file lint/security checks and screenshot capture are intentionally not run by this workflow. Checking that kind of correctness happens locally, before code is pushed."
+            # Only artifact-producing jobs participate in publication. This workflow does not
+            # run tests, lint, typecheck, static analysis, accessibility checks, or screenshot /
+            # capture checks. Local checks are separate when explicitly requested; the accepted
+            # tradeoff is that a release may ship from code whose tests would fail.
+            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). The Windows installer, the seven BlueMap jars, and the rendered test world were produced before this release published. This workflow does not run tests, lint, typecheck, static analysis, accessibility checks, or screenshot / capture checks; local checks are separate when explicitly requested, and a release may therefore ship from code whose tests would fail."
             echo
             node scripts/count-lines.mjs --format=markdown
             echo

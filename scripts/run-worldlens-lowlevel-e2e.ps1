@@ -35,8 +35,16 @@ $endpoint = "http://127.0.0.1:$McpPort/mcp"
 $api = "http://127.0.0.1:$McpPort/api/execute"
 $server = $null
 $windowPid = $null
+$observedExecutablePath = $null
 $hwnd = $null
 $captureCommit = $null
+$candidateStatus = $null
+$cleanupResult = @{
+    appProcessStopped = $false
+    hiddenDesktopClosed = $false
+    driverServerStopped = $false
+    cleanupOwnedOnly = $false
+}
 
 function Invoke-Lowlevel([string]$Tool, [hashtable]$Arguments) {
     $body = @{ tool = $Tool; arguments = $Arguments } | ConvertTo-Json -Depth 12 -Compress
@@ -48,6 +56,24 @@ function Invoke-Lowlevel([string]$Tool, [hashtable]$Arguments) {
 }
 
 try {
+    $captureCommit = (git -C $repo rev-parse --verify HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or $captureCommit -notmatch '^[0-9a-f]{40}$') {
+        throw "Could not resolve the exact candidate commit before launching the packaged app."
+    }
+    $candidateStatus = @(git -C $repo status --porcelain --untracked-files=all)
+    if ($LASTEXITCODE -ne 0) { throw "Could not inspect candidate worktree status." }
+    if ($candidateStatus.Count -gt 0) {
+        $dirtySummary = @(
+            $candidateStatus |
+                Select-Object -First 20 |
+                ForEach-Object {
+                    $entry = ($_ -replace '[\x00-\x1f\x7f]', ' ').Trim()
+                    if ($entry.Length -gt 240) { $entry.Substring(0, 240) } else { $entry }
+                }
+        ) -join "; "
+        if ($candidateStatus.Count -gt 20) { $dirtySummary += "; ... and $($candidateStatus.Count - 20) more entries" }
+        throw "The candidate worktree is dirty; release smoke requires a clean exact commit. Status: $dirtySummary"
+    }
     $server = Start-Process -FilePath $pythonw -ArgumentList @(
         "-m", "lowlevel_computer_use_mcp.server", "--http", "--legacy-http",
         "--host", "127.0.0.1", "--port", [string]$McpPort
@@ -145,7 +171,6 @@ try {
     $env:WORLDLENS_PLAN_EXIT = "1"
     $env:WORLDLENS_DRIVER_DESKTOP = $desktop
     $env:WORLDLENS_DRIVER_OUTPUT = $output
-    $captureCommit = (git -C $repo rev-parse HEAD).Trim()
     $env:WORLDLENS_CAPTURE_COMMIT = $captureCommit
     if (-not [string]::IsNullOrWhiteSpace($WorldFolder)) {
         $env:WORLDLENS_CI_WORLD = [IO.Path]::GetFullPath($WorldFolder)
@@ -153,6 +178,14 @@ try {
     "plan $PlanPath" |
         node (Join-Path $repo ".claude\skills\run-worldlens\driver.mjs") $CdpPort
     if ($LASTEXITCODE -ne 0) { throw "The Worldlens Lowlevel UI plan failed." }
+    $expectedExecutablePath = [IO.Path]::GetFullPath(
+        (Join-Path $repo "design\packages\app\release\win-unpacked\Worldlens.exe")
+    )
+    $observedExecutablePath = (Get-Process -Id $windowPid -ErrorAction Stop).Path
+    if ([string]::IsNullOrWhiteSpace($observedExecutablePath) -or
+        -not [StringComparer]::OrdinalIgnoreCase.Equals($observedExecutablePath, $expectedExecutablePath)) {
+        throw "The live Lowlevel process does not resolve to the packaged Worldlens.exe."
+    }
 } finally {
     Remove-Item Env:\LOWLEVEL_MCP_ENDPOINT -ErrorAction SilentlyContinue
     Remove-Item Env:\WORLDLENS_DRIVER_HWND -ErrorAction SilentlyContinue
@@ -169,15 +202,31 @@ try {
         Start-Sleep -Milliseconds 750
     }
     if ($windowPid -and (Get-Process -Id $windowPid -ErrorAction SilentlyContinue)) {
-        try { Invoke-Lowlevel "kill_process" @{ pid = $windowPid; force = $true } | Out-Null } catch {}
+        try {
+            Invoke-Lowlevel "kill_process" @{ pid = $windowPid; force = $true } | Out-Null
+            Start-Sleep -Milliseconds 500
+            $cleanupResult.appProcessStopped = $null -eq (Get-Process -Id $windowPid -ErrorAction SilentlyContinue)
+        } catch {}
     }
-    try { Invoke-Lowlevel "close_headless_desktop" @{ name = $desktop } | Out-Null } catch {}
+    try {
+        Invoke-Lowlevel "close_headless_desktop" @{ name = $desktop } | Out-Null
+        $cleanupResult.hiddenDesktopClosed = $true
+    } catch {}
     if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
+    $cleanupResult.driverServerStopped = $null -eq $server -or $server.HasExited
+    $cleanupResult.cleanupOwnedOnly =
+        $windowPid -gt 0 -and
+        $desktop.StartsWith("WorldlensE2E-", [StringComparison]::Ordinal) -and
+        $output.StartsWith($outputBase, [StringComparison]::OrdinalIgnoreCase)
     if (Test-Path -LiteralPath $logs -PathType Container) {
         Get-ChildItem -LiteralPath $logs -File | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $output $_.Name) -Force
         }
     }
+    [IO.File]::WriteAllText(
+        (Join-Path $output "cleanup.json"),
+        (($cleanupResult | ConvertTo-Json -Depth 8) + [Environment]::NewLine)
+    )
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd("\")
     $resolvedRunRoot = [IO.Path]::GetFullPath($runRoot)
     if ($resolvedRunRoot.StartsWith($tempRoot + "\", [StringComparison]::OrdinalIgnoreCase) -and
@@ -190,7 +239,10 @@ node (Join-Path $repo "scripts\write-lowlevel-evidence-receipts.mjs") `
     --repo-root $repo `
     --run-root $output `
     --commit $captureCommit `
+    --packaged-exe (Join-Path $repo "design\packages\app\release\win-unpacked\Worldlens.exe") `
+    --app-asar (Join-Path $repo "design\packages\app\release\win-unpacked\resources\app.asar") `
     --launch-pid ([string]$windowPid) `
+    --observed-exe $observedExecutablePath `
     --hwnd ("0x{0:x}" -f $hwnd) `
     --plan $PlanPath
 if ($LASTEXITCODE -ne 0) { throw "Writing the Lowlevel evidence receipts failed." }

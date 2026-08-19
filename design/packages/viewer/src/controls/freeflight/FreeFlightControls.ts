@@ -8,7 +8,6 @@ import { MouseAngleControls } from "./mouse/MouseAngleControls";
 import { KeyHeightControls } from "./keyboard/KeyHeightControls";
 import { TouchPanControls } from "./touch/TouchPanControls";
 import { makeReactive } from "../../util/reactivity";
-import { DEG2RAD } from "three/src/math/MathUtils";
 import type { ControlsManager } from "../ControlsManager";
 import type { Map } from "../../map/Map";
 
@@ -128,8 +127,8 @@ export class FreeFlightControls {
         // follow player marker
         if (this.data.followingPlayer) {
             this.manager!.position.copy(this.data.followingPlayer.position);
-            this.manager!.rotation = (this.data.followingPlayer.rotation.yaw - 180) * DEG2RAD;
-            this.manager!.angle = -(this.data.followingPlayer.rotation.pitch - 90) * DEG2RAD;
+            this.manager!.rotation = (this.data.followingPlayer.rotation.yaw - 180) * MathUtils.DEG2RAD;
+            this.manager!.angle = -(this.data.followingPlayer.rotation.pitch - 90) * MathUtils.DEG2RAD;
         }
 
         this.manager!.angle = MathUtils.clamp(this.manager!.angle, 0, Math.PI);

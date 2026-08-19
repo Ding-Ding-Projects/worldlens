@@ -355,6 +355,15 @@
         transform: translate(-50%, -50%);
         /* One shadow for the head and its name tag together. */
         filter: var(--md-sys-elevation-level1);
+        cursor: pointer;
+
+        &:focus-visible {
+            outline: 3px solid var(--md-sys-color-primary);
+            outline-offset: 4px;
+            border-radius: 0.5rem;
+        }
+
+        &[data-freshness="stale"] { opacity: 0.72; }
 
         img {
             width: 32px;

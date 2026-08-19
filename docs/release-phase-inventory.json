@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Explicit integrated phase names required by the manual release ledger.",
+  "phases": [
+    "Public-1.0 baseline release 682",
+    "Public-1.0 baseline release 704",
+    "Public-1.0 baseline release 708",
+    "Public-1.0 baseline release 731",
+    "Build-and-release-only workflow policy",
+    "Release-ledger completeness enforcement"
+  ]
+}
