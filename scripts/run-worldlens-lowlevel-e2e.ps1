@@ -79,7 +79,13 @@ try {
         if ($matches.Count -gt 1) { throw "More than one Worldlens application window matched." }
         Start-Sleep -Milliseconds 250
     } while ((Get-Date) -lt $deadline)
-    if ($matches.Count -ne 1) { throw "Worldlens application window did not appear within 45 seconds." }
+    if ($matches.Count -ne 1) {
+        [IO.File]::WriteAllText(
+            (Join-Path $output "window-timeout-inventory.json"),
+            (($inventory | ConvertTo-Json -Depth 12) + [Environment]::NewLine)
+        )
+        throw "Worldlens application window did not appear within 45 seconds."
+    }
     $hwnd = [int64]$matches[0].handle
     $windowPid = [int]$matches[0].process_id
 
@@ -126,6 +132,11 @@ try {
     }
     try { Invoke-Lowlevel "close_headless_desktop" @{ name = $desktop } | Out-Null } catch {}
     if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
+    if (Test-Path -LiteralPath $logs -PathType Container) {
+        Get-ChildItem -LiteralPath $logs -File | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $output $_.Name) -Force
+        }
+    }
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd("\")
     $resolvedRunRoot = [IO.Path]::GetFullPath($runRoot)
     if ($resolvedRunRoot.StartsWith($tempRoot + "\", [StringComparison]::OrdinalIgnoreCase) -and

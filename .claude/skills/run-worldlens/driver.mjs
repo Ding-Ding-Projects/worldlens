@@ -162,7 +162,14 @@ async function lowlevelCall(name, params) {
     arguments: { params },
   });
   const text = result.content?.find((part) => part.type === "text")?.text;
-  const payload = text ? JSON.parse(text) : {};
+  let payload = {};
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      throw new Error(`Lowlevel ${name} returned non-JSON: ${text.slice(0, 500)}`);
+    }
+  }
   if (result.isError || payload.ok !== true) {
     throw new Error(
       `Lowlevel ${name} failed: ${payload.error || "unknown failure"}`,
@@ -293,15 +300,31 @@ async function lowlevelChooseFolder(step) {
     await page.waitForTimeout(100);
   }
   if (!dialog) throw new Error("chooseFolder native dialog did not appear");
-  const children = await lowlevelCall("list_child_windows", { hwnd: dialog.handle });
+  let children = null;
+  let edits = [];
+  let confirm = null;
+  const controlsDeadline = Date.now() + 5_000;
+  while (Date.now() < controlsDeadline) {
+    children = await lowlevelCall("list_child_windows", { hwnd: dialog.handle });
+    edits = (children.children || []).filter(
+      (child) => child.class === "Edit" && child.visible === true,
+    );
+    confirm = (children.children || []).find(
+      (child) =>
+        child.class === "Button" &&
+        child.visible === true &&
+        /select folder|choose|open/i.test(child.text || ""),
+    );
+    if (edits.length > 0 && confirm) break;
+    await page.waitForTimeout(100);
+  }
+  if (!children)
+    throw new Error("chooseFolder could not enumerate native dialog controls");
   await mkdir(SHOTS, { recursive: true });
   await writeFile(
     join(SHOTS, "native-folder-dialog.json"),
     `${JSON.stringify({ dialog, children: children.children || [] }, null, 2)}\n`,
     "utf8",
-  );
-  const edits = (children.children || []).filter(
-    (child) => child.class === "Edit" && child.visible === true,
   );
   if (edits.length < 1)
     throw new Error("chooseFolder found no visible native Edit control");
@@ -309,12 +332,6 @@ async function lowlevelChooseFolder(step) {
     hwnd: edits[edits.length - 1].handle,
     text: value,
   });
-  const confirm = (children.children || []).find(
-    (child) =>
-      child.class === "Button" &&
-      child.visible === true &&
-      /select folder|choose|open/i.test(child.text || ""),
-  );
   if (!confirm)
     throw new Error("chooseFolder found no visible confirmation button");
   await lowlevelCall("win_send_keys", { hwnd: confirm.handle, keys: ["space"] });
@@ -441,6 +458,29 @@ async function executeAction(step) {
       });
       await settle();
       break;
+    case "clickUntilVisible": {
+      if (!UI_ONLY)
+        throw new Error("clickUntilVisible is reserved for Lowlevel UI-only plans");
+      const target = locate(step);
+      const attempts = Number(step.attempts || 12);
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        if (await target.isVisible()) {
+          await lowlevelClick(target, step.button || "left");
+          break;
+        }
+        await lowlevelCall("mouse_click", {
+          hwnd: LOWLEVEL_HWND,
+          x: Number(step.scrollX || 1271),
+          y: Number(step.scrollY || 700),
+          button: "left",
+          clicks: 1,
+        });
+        await settle();
+      }
+      if (!(await target.isVisible()))
+        throw new Error("clickUntilVisible exhausted its bounded scroll attempts");
+      break;
+    }
     case "chooseFolder":
       if (!UI_ONLY)
         throw new Error("chooseFolder is reserved for Lowlevel UI-only plans");
@@ -532,7 +572,7 @@ async function runPlan(path) {
       await executeAction(step);
     } catch (error) {
       throw new Error(
-        `plan step ${index + 1}/${steps.length} (${step.action}${step.name ? ` ${step.name}` : ""}) failed: ${String(error).split("\n")[0]}`,
+        `plan step ${index + 1}/${steps.length} (${step.action}${step.name ? ` ${step.name}` : ""}) failed: ${String(error).replace(/\s*\r?\n\s*/gu, " | ")}`,
       );
     }
   }

@@ -32,6 +32,6 @@ REM The seam that makes the app honour --user-data-dir. Without it, production i
 REM wins and this run would write to the user's own settings.
 set "WORLDLENS_SCREENSHOTS=1"
 
-start "" "%APP%\node_modules\electron\dist\electron.exe" "%APP%" ^
+"%APP%\node_modules\electron\dist\electron.exe" "%APP%" ^
   --no-sandbox --disable-gpu --force-prefers-reduced-motion ^
   --remote-debugging-port=%PORT% "--user-data-dir=%PROFILE%"

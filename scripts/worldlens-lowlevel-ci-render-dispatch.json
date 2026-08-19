@@ -15,13 +15,20 @@
   { "action": "clickPoint", "x": 1271, "y": 500 },
   { "action": "chooseFolder", "role": "button", "name": "Browse", "exact": true, "valueEnv": "WORLDLENS_CI_WORLD" },
   { "action": "sleep", "ms": 1200 },
-  { "action": "clickPoint", "x": 1271, "y": 700 },
+  { "action": "clickUntilVisible", "selector": "[data-test='cirender-owner-picker-select']" },
+  { "action": "click", "selector": ".v-overlay--active .v-list-item", "hasText": "Ding-Ding-Projects (organization)" },
+  { "action": "sleep", "ms": 1200 },
+  { "action": "clickUntilVisible", "selector": "[data-test='cirender-repository-picker-select']" },
+  { "action": "click", "selector": ".v-overlay--active .v-list-item", "hasText": "Ding-Ding-Projects/worldlens (PUBLIC)" },
+  { "action": "sleep", "ms": 800 },
+  { "action": "clickUntilVisible", "selector": ".ci-render-screen button", "hasText": "Check before anything is sent" },
+  { "action": "sleep", "ms": 3000 },
   {
     "action": "screenshot",
-    "name": "lowlevel-ci-render-world-selected",
+    "name": "lowlevel-ci-render-preflight",
     "category": "delivery-runtime",
-    "state": "world-selected-through-native-dialog",
+    "state": "world-repository-selected-and-checked",
     "expectedSurface": "Render on GitHub form",
-    "alt": "Worldlens Render on GitHub form after a generated world was selected through the native folder dialog using Lowlevel input."
+    "alt": "Worldlens Render on GitHub preflight after a generated world and the current repository were selected through Lowlevel input."
   }
 ]
