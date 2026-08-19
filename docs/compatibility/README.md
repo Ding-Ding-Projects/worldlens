@@ -98,6 +98,7 @@ note explicitly widens it.
 - [Three.js upgrade parity and evidence contract](./threejs-upgrade-parity.md)
 - [Migration guide](./migration-guide.md)
 - [Public surface matrix](./public-surface-matrix.md)
+- [JavaScript and ESM add-ons — issue #71](./javascript-esm-add-ons.md)
 - [Automatic updates](../automatic-updates.md)
 - [Backup and restore](../backup.md)
 

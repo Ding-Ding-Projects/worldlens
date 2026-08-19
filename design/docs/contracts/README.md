@@ -52,3 +52,6 @@ cannot tell it is stale.
 - [`../porting-conventions.md`](../porting-conventions.md) governs the ported code these
   contracts sit on top of. The contracts are additions beyond upstream BlueMap, so anything they
   change about ported behaviour belongs in [`../deviations.md`](../deviations.md).
+# Contracts
+
+- [JavaScript/ESM add-ons](./addons.md): manifest, capability consent, deterministic registry and worker sandbox.

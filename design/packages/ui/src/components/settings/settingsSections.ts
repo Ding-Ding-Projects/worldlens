@@ -163,6 +163,7 @@ export const SETTINGS_SECTIONS = [
     "download-concurrency",
     "notification-duration",
     "system-dependencies",
+    "addons",
     "bluemap-engine",
     "updates",
     "vocabulary",

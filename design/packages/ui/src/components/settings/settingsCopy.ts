@@ -155,6 +155,10 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Install git, the GitHub CLI, Docker Desktop and rsync through Windows's own package managers, winget or Chocolatey. Each one is real system software, not a private copy for this app alone, so most of them will ask Windows for administrator permission - always disclosed here before the button is pressed.",
             ),
         },
+        "addons": {
+            title: t("settings.addons.title", "Design add-ons"),
+            description: t("settings.addons.description", "Import local JavaScript or ESM add-on manifests, review their requested capabilities, and enable or disable them without granting app or credential access."),
+        },
         "bluemap-engine": {
             title: t("settings.bluemapSource.title", "BlueMap engine"),
             description: t(

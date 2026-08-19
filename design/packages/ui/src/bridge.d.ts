@@ -634,6 +634,7 @@ interface WorldlensBridge {
     dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
     schoolMode?: SharedSchoolModeBridge;
     startup: BlueMapStartupBridge;
+    addons: AddonsBridge;
     /** User-owned screenshots stored under the app-data directory, never in renderer storage. */
     gallery: GalleryBridge;
 
@@ -829,6 +830,39 @@ interface WorldlensBridge {
     cancelBackup(backupId: string): Promise<boolean>;
     activeBackups(): Promise<readonly string[]>;
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
+}
+
+interface AddonRecord {
+    id: string;
+    name: string;
+    version: string;
+    description: string;
+    apiVersion: string;
+    capabilities: string[];
+    grantedCapabilities: string[];
+    entry: string;
+    enabled: boolean;
+    importedAt: string;
+    error: string | null;
+}
+
+interface AddonMutationResult<T> {
+    ok: boolean;
+    value?: T;
+    code?: string;
+    message?: string;
+}
+
+interface AddonsBridge {
+    list(): Promise<AddonMutationResult<AddonRecord[]>>;
+    importPackage(): Promise<AddonMutationResult<AddonRecord>>;
+    setEnabled(id: string, enabled: boolean): Promise<AddonMutationResult<AddonRecord>>;
+    grant(id: string, capabilities: string[]): Promise<AddonMutationResult<AddonRecord>>;
+    revoke(id: string, capability: string): Promise<AddonMutationResult<AddonRecord>>;
+    remove(id: string): Promise<AddonMutationResult<boolean>>;
+    setSafeMode(enabled: boolean): Promise<AddonMutationResult<boolean>>;
+    safeModeState(): Promise<boolean>;
+    diagnostics(): Promise<Array<{ addonId: string; phase: string; message: string }>>;
 }
 
 /* -------------------------------------------------------------------------- */

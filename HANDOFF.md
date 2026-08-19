@@ -28,6 +28,36 @@ safeguard，都要有獨立 acceptance evidence 先可以 close。
 build package、冇開 viewer、冇影 screenshots，亦冇聲稱 runtime 已經證實。要等每種 edited
 marker type 嘅 packaged evidence 齊晒先可以 close Issue #70。
 
+## Issue #72 static map export — records-only boundary (2026-08-19)
+
+Issue #72 remains **open** on the task-owned jer `codex/issue-72-static-map-export`.
+The transferred feature record is [`docs/static-map-export.md`](docs/static-map-export.md).
+This handoff records the acceptance boundary only; it does not claim that the implementation or
+packaged export is verified.
+
+The required surface covers a self-contained static site with client-side decompression and
+base-path handling; folder, ZIP, and configurable 7z outputs; path-traversal protection; a
+versioned manifest with checksums, provenance, renderer/engine versions, settings metadata, and an
+exact omissions statement; filtered and bulk export; progress, cancellation, resume, conflict
+handling, history, and file-manager/Visual Studio Code actions.
+
+At this checkpoint there is no records delta to claim before the implementation lane changes.
+The implementation files and transferred article are present in this task-owned checkout. No
+tests, captures, installer runs, or browser sessions were performed here. Packaged proof remains
+open: validate every referenced file, reopen the result from a plain static server, and open a
+genuine packaged export offline in a fresh browser profile before closing Issue #72.
+
+### 廣東話 / Cantonese
+
+Issue #72 仲係 **open**，屬於 task-owned jer `codex/issue-72-static-map-export`。Transferred
+feature record 係 [`docs/static-map-export.md`](docs/static-map-export.md)。呢份 handoff 只記
+acceptance boundary，唔係話 implementation 或 packaged export 已經驗證。
+
+今個 checkpoint 冇 records delta 可以喺 implementation lane 改之前聲稱。Implementation files
+同 transferred article 已經喺 task-owned checkout。冇行 tests、captures、installer runs 或
+browser sessions；packaged proof 仲要逐個 referenced file 驗、普通 static server reopen，同
+fresh browser profile offline reopen genuine packaged export，先可以 close Issue #72。
+
 ## Issue #74 local live-player tracking — 2026-08-19
 
 Issue #74 remains **open and unverified**. This issue-owned checkout contains the local live-player
@@ -350,6 +380,27 @@ accessibility checks, and screenshots remained unrun in this lane. The compatibi
 public-surface inventory, reference/migration examples, and directly related site/roadmap records
 are now present; executable drift-proof and newcomer/runtime acceptance remain separate follow-up
 evidence and are not claimed.
+
+## Issue #71 — JavaScript and ESM add-ons (open, 2026-08-19)
+
+The current product has Java adapter JARs that load Java add-ons, but it does not yet expose an
+equivalent JavaScript/ESM add-on runtime for the TypeScript application. This gap is carried from
+the imported `material-bluemap` history and its recovered continuation plan; that provenance is
+context, not evidence of a shipped runtime. `README.md`, `packages/cli/src/config.ts`, and the
+issue #60 compatibility records describe this surface as planned, internal, or otherwise not yet
+a 1.0 promise. Issue #60 itself is already closed with its compatibility records and existing
+evidence; issue #71 is the separate implementation lane. The public documentation record is
+[`docs/compatibility/javascript-esm-add-ons.md`](docs/compatibility/javascript-esm-add-ons.md).
+
+The implementation remains open. Required work includes a versioned public API and types,
+lifecycle and compatibility/deprecation rules, searchable add-on management, exact package
+provenance, isolated least-privilege execution, explicit capability consent, deterministic load
+order, dependency/conflict handling, failure isolation, safe mode, rollback, diagnostics, stable
+typed hooks, developer documentation, examples, packaging guidance, and genuine packaged-runtime
+evidence. No packaged runtime, capability-consent flow, sandbox, rollback proof, malicious-package
+verification, tests, or captures are claimed by this handoff entry.
+
+The issue remains open until the implementation and the evidence matrix are complete.
 
 ## Cloud-render restart and UI verification — 2026-08-19
 
