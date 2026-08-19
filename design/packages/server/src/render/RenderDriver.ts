@@ -30,15 +30,20 @@ import {
 
 export interface UpdateRequestResult {
     /**
-     * `RenderManager.scheduleRenderTask`'s own return value, relayed exactly. Verified,
-     * not assumed: neither `MapUpdatePreparationTask` nor `MapUpdateTask` overrides
-     * `equals` (only `WorldRegionUpdateTask` does, by map id/region/strategy), and
-     * `RenderManager`'s queue-containment check explicitly exempts the head of the queue —
-     * so in practice two triggers for the same map each get `scheduled: true` and each
-     * queue their own preparation pass. This is not a "the map was already stale" flag.
+     * The exact boolean returned by the selected `RenderManager` scheduler, relayed
+     * exactly: `triggerUpdate` defaults to `scheduleRenderTask` (tail enqueue), while an
+     * explicit `"next"` priority selects `scheduleRenderTaskNext`. Verified, not assumed:
+     * neither `MapUpdatePreparationTask` nor `MapUpdateTask` overrides `equals` (only
+     * `WorldRegionUpdateTask` does, by map id/region/strategy), and `RenderManager`'s
+     * queue-containment check explicitly exempts the active head of the queue. Thus two
+     * independently-built preparation passes for the same map can each be scheduled; this
+     * is not a "the map was already stale" flag, and the next scheduler preserves the
+     * active head while placing accepted work ahead of the remaining queue.
      */
     readonly scheduled: boolean;
 }
+
+export type RenderTriggerPriority = "tail" | "next";
 
 export class RenderDriver {
     constructor(private readonly renderManager: RenderManager) {}
@@ -51,13 +56,22 @@ export class RenderDriver {
      * upstream: `MapUpdatePreparationTask.updateMap(BmMap, RenderManager)` (or the
      * `TileUpdateStrategy` overload), called exactly as a plugin command would call it.
      */
-    triggerUpdate(map: BmMap, force?: TileUpdateStrategy): UpdateRequestResult {
+    triggerUpdate(
+        map: BmMap,
+        force?: TileUpdateStrategy,
+        priority: RenderTriggerPriority = "tail",
+    ): UpdateRequestResult {
         const preparation =
             force === undefined
                 ? MapUpdatePreparationTask.updateMap(map, this.renderManager)
                 : MapUpdatePreparationTask.updateMap(map, force, this.renderManager);
 
-        return { scheduled: this.renderManager.scheduleRenderTask(preparation) };
+        return {
+            scheduled:
+                priority === "next"
+                    ? this.renderManager.scheduleRenderTaskNext(preparation)
+                    : this.renderManager.scheduleRenderTask(preparation),
+        };
     }
 
     /**

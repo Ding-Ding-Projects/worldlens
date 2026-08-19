@@ -575,16 +575,14 @@ configFolder, "-u"])` renders, exits 0, returns a non-null `watch`, then a real 
 update for region-file:"` log line rather than a queue count, since the live worker pool
   drains the task before a count taken after the touch can observe it (a race found and
   fixed in this session).
-- **Two honest deviations, found and left alone rather than silently patched:**
-    1. **Queue priority is not upstream's.** Upstream's `updateAllMapsTask` calls
-       `renderManager.scheduleRenderTasksNext(...)`, jumping the queue; this port's periodic
-       timer goes through `RenderDriver.triggerUpdate` → `scheduleRenderTask(...)`, a normal
-       tail-enqueue. Upstream's periodic full-refresh therefore jumps ahead of a backlog of
-       pending region updates; this port's queues behind it. **Pre-existing, not introduced
-       here** — `runRender`'s own initial-render call has the identical characteristic, and
-       nothing in `packages/server` calls `scheduleRenderTaskNext`/`scheduleRenderTasksNext`
-       anywhere today. Needs a decision (add a "Next" path to `RenderDriver`, or document the
-       simplification), recorded rather than picked unilaterally.
+  - **Two honest deviations, found and left alone rather than silently patched:**
+     1. **Queue priority is now explicit upstream parity for interactive triggers (issue #68).**
+        The smallest typed `schedule-next` path is used at the interactive `RenderDriver` call
+        sites that require upstream priority. It inserts work after the active head, never
+        displacing the task already being processed, so an interactive refresh can run ahead of
+        queued region work without interrupting it. Ordinary scheduling remains tail-enqueue;
+        containment, cancellation, and progress semantics are unchanged. See the D21 decision
+        and the Server package deviation record.
     2. **Exception granularity, currently unreachable.** Upstream distinguishes `IOException`
        (logged as an error) from `UnsupportedOperationException` ("not supported for the
        world-type", logged as a warning) when a watcher fails to construct; `startWatchers`

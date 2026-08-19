@@ -388,3 +388,17 @@ exact allowed hosted label, plus 13 reusable calls with an exact checked-in targ
 a workflow or job appears without inventory, when an executable job lacks a standard label, when
 a call job grows an illegal label, or when self-hosted/bootstrap wiring returns. See
 `docs/cloud-runners.md` for behaviour, configuration, failure modes, security, and verification.
+
+## D21 — Interactive RenderDriver triggers use upstream queue-priority parity
+
+**Decided 2026-08-19 for issue #68.** Interactive `RenderDriver` triggers use the smallest typed
+`schedule-next` path needed to match upstream's queue priority. The path inserts the newly
+scheduled work after the currently active head, so it never displaces or interrupts the task
+already being processed; queued work retains the existing containment, cancellation, and progress
+semantics.
+
+This is an explicit parity choice, not an accidental consequence of the existing tail-enqueue
+call path. It applies only at the interactive trigger call sites that have the upstream-equivalent
+priority requirement; ordinary scheduling remains ordinary scheduling. The corresponding
+deviation record names the observable consequence: an interactive refresh can run ahead of queued
+region work while the active task remains protected.
