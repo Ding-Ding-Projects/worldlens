@@ -3,13 +3,13 @@ import { AUTOMATIC_REPAIR_DOC_URL, CONFIG_HISTORY_DOC_URL, repoFile } from "../l
 
 export const automaticRepair: Article = {
     id: "automatic-repair",
-    title: "Automatic repair when a render or the web server fails to start",
+    title: "Automatic repair when a render or hosting operation fails",
     summary:
         "A failed run is diagnosed rather than guessed at, by a repeatable deterministic pass first and a narrowly guardrailed local coding agent only for what that pass cannot explain.",
     category: "application",
     status: "shipped",
     statusNote:
-        "The deterministic diagnosis, the guardrails and the agent path are built and unit-tested on the default branch, and the panel is mounted as a Diagnostics tab in the application's settings. Render failures are wired to file evidence automatically; the web server's own failure path is not yet wired the same way. Nobody has run the coding-agent half against a real installed copy of opencode, and there is no committed capture of the panel with a failure on record.",
+        "The deterministic diagnosis, the guardrails and the agent path are built and unit-tested on the default branch, and the panel is mounted as a Diagnostics tab in the application's settings. Render failures are wired to file evidence automatically; remote hosting failures are diagnosed from their own evidence path. Nobody has run the coding-agent half against a real installed copy of opencode, and there is no committed capture of the panel with a failure on record.",
     sections: [
         {
             id: "behaviour",
@@ -188,8 +188,8 @@ export const automaticRepair: Article = {
                     title: "What the tests do not show",
                     content: [
                         "Every test in this suite runs without opencode installed. Nobody has driven the ",
-                        "agent path against a real installed copy of it, the web server's own failure path ",
-                        "is not yet wired to file evidence the way a render's is, and there is no committed ",
+                        "agent path against a real installed copy of it, remote hosting failures are not yet ",
+                        "wired to file evidence the way a render's is, and there is no committed ",
                         "capture of the Diagnostics panel with a failure on record.",
                     ],
                 },

@@ -28,7 +28,7 @@
  *
  * ## The renderer keeps its own copy of the table
  *
- * `packages/ui/src/components/console/annotations.ts` holds the same five rules, because
+ * `packages/ui/src/components/console/annotations.ts` holds the same four rules, because
  * `packages/ui` and `packages/app` compile under separate `rootDir`s with no module
  * either can import from the other, exactly as `ui/.../world/worldBridge.ts` restates the
  * failure and event types rather than importing them. **A pattern changed here has to be
@@ -39,12 +39,11 @@
 
 import type { SettingsTarget } from "./failure.js";
 
-/** The five things this app knows how to say something useful about. */
+/** The four things this app knows how to say something useful about. */
 export type RenderAdviceKind =
     | "port-conflict"
     | "render-threads"
     | "no-maps-updating"
-    | "web-server-started"
     | "config-error";
 
 export interface RenderAdvice {
@@ -131,16 +130,6 @@ export const ADVICE_RULES: readonly AdviceRule[] = [
         // nothing to do, and each of those really is a separate occasion worth seeing.
         once: false,
         settings: WORLD_SETTING,
-    },
-    {
-        // `WebServer bound to /0.0.0.0:8100`. Anchored at the start so `Stopping
-        // WebServer...` and `WebServer is disabled` cannot be read as the server coming
-        // up, which would invite somebody to open a map that is not being served.
-        kind: "web-server-started",
-        pattern: /^WebServer bound to (.+)$/i,
-        once: false,
-        settings: null,
-        capture: (match) => ({ address: (match[1] ?? "").trim() }),
     },
     {
         // Upstream's setup banner heading, plus the config load failures it wraps.

@@ -71,19 +71,6 @@ describe("a render that is updating no maps", () => {
     });
 });
 
-describe("the web server coming up", () => {
-    it("captures the address, so the advice can say where the map is", () => {
-        const [advice] = adviseOnLine("WebServer bound to /0.0.0.0:8100");
-        expect(advice?.kind).toBe("web-server-started");
-        expect(advice?.values.address).toBe("/0.0.0.0:8100");
-    });
-
-    it("is not read into the server being disabled or shut down", () => {
-        expect(kinds("WebServer is disabled")).toEqual([]);
-        expect(kinds("Stopping WebServer...")).toEqual([]);
-    });
-});
-
 describe("a configuration problem", () => {
     it("is recognised from the banner heading and from the load failure", () => {
         expect(kinds("There is a problem with your BlueMap setup!")).toEqual(["config-error"]);

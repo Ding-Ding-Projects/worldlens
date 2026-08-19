@@ -1,4 +1,4 @@
-# Automatic repair when a render or the web server fails to start
+# Automatic repair when a render or hosting operation fails
 
 When a run fails, the app collects what was actually observed and tries to say why. It does that
 in two halves, and the order between them is the whole safety of the feature:
@@ -22,7 +22,7 @@ Assembled at the moment of the failure, because most of it stops being true afte
 - **the config that was in force then**, not after somebody edited it
 - which Java ran it and which feature version this app requires
 - what Docker was doing, when the run was containerised
-- the port a web server tried to bind, the output folder, and each world folder
+- the port a local embedded or remote-hosted service tried to bind, the output folder, and each world folder
 - the exact command and arguments
 
 ### Credentials never leave that record intact
@@ -85,7 +85,7 @@ built from one constant so they cannot drift:
   force-push, or history rewriting of any kind.
 - **No sending the config, logs or paths anywhere**: no HTTP request, upload, paste service,
   issue or telemetry.
-- No installing or removing software; no starting or stopping the app, a render, the web server,
+- No installing or removing software; no starting or stopping the app, a render, a hosted service,
   Docker or a container.
 - **No inventing a cause.** If the evidence does not say why, the answer is "I do not know".
 

@@ -56,7 +56,7 @@ import { join } from "node:path";
 import { CONTAINER_DATA_DIR, CONTAINER_WEB_ROOT } from "../runtime/mounts.js";
 import { execFileCommandRunner, type CommandRunner } from "../runtime/command.js";
 import { writeEngineConfig } from "../runtime/config.js";
-import { tcpPortProbe, type PortProbe } from "../runtime/webserver.js";
+import { tcpPortProbe, type PortProbe } from "../runtime/portProbe.js";
 import type { RenderMapRequest } from "../render/config.js";
 import type { ResolvedEngine } from "../render/orchestrator.js";
 import { renderWorkspace } from "../render/workspace.js";

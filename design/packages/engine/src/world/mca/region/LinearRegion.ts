@@ -115,7 +115,7 @@ export class LinearRegion<T> extends Region<T> {
 
         // read the header
         this.version = view.getInt8(8);
-        this.newestTimestamp = view.getBigInt64(9);
+        this.newestTimestamp = view.getBigUint64(9);
         this.compressionLevel = view.getInt8(17);
         this.chunkCount = view.getInt16(18);
         this.dataLength = view.getInt32(20);
@@ -152,11 +152,11 @@ export class LinearRegion<T> extends Region<T> {
         const data = await Compression.ZSTD.decompress(this.compressedData);
         const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
 
-        const chunkDataLengths = new Int32Array(1024);
-        const chunkTimestamps = new Int32Array(1024);
+        const chunkDataLengths = new Uint32Array(1024);
+        const chunkTimestamps = new Uint32Array(1024);
         for (let i = 0; i < 1024; i++) {
-            chunkDataLengths[i] = view.getInt32(i * 8);
-            chunkTimestamps[i] = view.getInt32(i * 8 + 4);
+            chunkDataLengths[i] = view.getUint32(i * 8);
+            chunkTimestamps[i] = view.getUint32(i * 8 + 4);
         }
 
         let i = 0;
@@ -168,10 +168,17 @@ export class LinearRegion<T> extends Region<T> {
                 if (length > 0) {
                     const chunkX = chunkStartX + x;
                     const chunkZ = chunkStartZ + z;
+                    // LinearRegionFileFormatTools stores Unix epoch seconds. Version 1
+                    // stores one unsigned 64-bit region timestamp and applies it to every
+                    // populated chunk; version 2 stores each chunk timestamp as an unsigned
+                    // 32-bit value. Keep both widths and unsigned interpretations intact
+                    // before the consumer's filter sees them. The consumer contract is
+                    // number-based; filesystem epoch seconds remain safely representable at
+                    // this boundary for real-world dates.
                     const timestamp =
                         this.version === 2
                             ? chunkTimestamps[i]!
-                            : Number(BigInt.asIntN(32, this.newestTimestamp)); // TODO: check if in seconds or milliseconds
+                            : Number(this.newestTimestamp);
 
                     if (
                         consumer.filter === undefined ||

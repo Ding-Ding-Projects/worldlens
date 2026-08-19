@@ -20,6 +20,39 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Desktop shell
+
+- Merge issue #91 local WebServer retirement - [`2d8fb2193a`](https://github.com/Ding-Ding-Projects/worldlens/commit/2d8fb2193a0b68d63a8dbb2fd295c806066cb780) _(summary of 3 commits, also listed here)_
+- Retire unreachable local WebServer path - [`6a2d6ae87f`](https://github.com/Ding-Ding-Projects/worldlens/commit/6a2d6ae87fcf3e9201e877514a5309e1821ae2f1)
+
+### Documentation
+
+- Merge issue #89 typed banner data - [`025d68f017`](https://github.com/Ding-Ding-Projects/worldlens/commit/025d68f017c5426b8ec02098f8f6213bd818bb7b) _(summary of 2 commits, also listed here)_
+- Type banner pattern and color data across Minecraft eras - [`47c3f8a523`](https://github.com/Ding-Ding-Projects/worldlens/commit/47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b)
+- Merge issue #88 LinearRegion timestamp semantics - [`ff2d72f1b6`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff2d72f1b635aac7efe0831315919a03461b49b7) _(summary of 3 commits, also listed here)_
+- Resolve LinearRegion timestamp widths and filtering - [`b630006961`](https://github.com/Ding-Ding-Projects/worldlens/commit/b6300069619fe196513cbcb374e9f13355d210cb)
+
+## 1.0.1144 - 2026-08-18
+
+Tagged at [`3b2486cea6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b2486cea65055ae07c31eb8822c3513001c09ca).
+
+### Interface
+
+- Fix Pages setup and extend vocabulary coverage - [`3b2486cea6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b2486cea65055ae07c31eb8822c3513001c09ca)
+
+## 1.0.1141 - 2026-08-18
+
+Tagged at [`41ba2dea3d`](https://github.com/Ding-Ding-Projects/worldlens/commit/41ba2dea3df13e0d2811b255769cda18738d25cd).
+
+### Interface
+
+- Make safe-keeper earnable, and correct two counts that had drifted - [`41ba2dea3d`](https://github.com/Ding-Ding-Projects/worldlens/commit/41ba2dea3df13e0d2811b255769cda18738d25cd)
+- Repair import and dialog policy guards - [`7c3edbc16a`](https://github.com/Ding-Ding-Projects/worldlens/commit/7c3edbc16a01dafeaff00de41899d414645cbe0f)
+
+## 1.0.1139 - 2026-08-18
+
+Tagged at [`93aa69d192`](https://github.com/Ding-Ding-Projects/worldlens/commit/93aa69d192713c06564c6d4e2e7e0670300915ed).
+
 ### Interface
 
 - Fix UI navigation and unsaved-close routing - [`4a4187c553`](https://github.com/Ding-Ding-Projects/worldlens/commit/4a4187c5533d3c760bc95baa575c141ad8557629)
