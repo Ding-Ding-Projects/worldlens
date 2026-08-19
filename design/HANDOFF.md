@@ -1,5 +1,37 @@
 # Handoff
 
+## 2026-08-19 — issue #64 queue-persistence implementation handoff
+
+**State:** the CLI queue-persistence wiring and helper are present in the current Gerk Tong Hui.
+This records correction did not run tests, lint, reviews, audits, accessibility checks, or
+screenshot capture. It did not commit, merge, dew, publish, or close issue #64.
+
+The current owner of the queue format is `packages/engine`'s `RenderManager` and its
+`serialization/RenderTaskQueueStorage.ts` helper. `packages/server/src/render/
+RenderQueuePersistence.ts` now provides the process-boundary helper: it defaults to a
+30-second save cadence, coalesces requests, uses a unique staging sibling plus atomic rename,
+filters tasks whose `hasMoreWork()` is false, and performs a final save during `shutdown()`.
+It is exported from `packages/server/src/index.ts`. The standalone CLI now constructs it
+after `buildMaps`, using `<resolved core.data>/tasks.dat`, and starts it before rendering;
+the server package has no separate construction site. The format is version `1`: a BlueNBT
+`TasksData` record with `version` and `render-tasks`.
+
+The storage API still accepts a caller-supplied file path, while the CLI currently chooses
+`<resolved core.data>/tasks.dat`. Retention is one current queue file, not a history. The
+helper's coalescing, atomic staging, terminal-task filter, and shutdown save are implementation
+facts now used by the CLI, but no restart or crash-ordering evidence has been run.
+
+Load behavior is intentionally asymmetric: missing files mean an empty queue; unreadable or
+truncated top-level data and version mismatches are reported and discarded; unknown task types
+and tasks whose map is unavailable are skipped individually so valid entries survive. A
+running process must load only after its map set is available. No runtime proof yet establishes
+that completed or cancelled work cannot be resurrected from a stale queue, that a newer queue
+cannot be overwritten after crash recovery, or that a restart resumes queued work end to end.
+
+The remaining acceptance proof is structured skipped-task UI, crash-ordering protection,
+terminal/cancelled non-resurrection evidence, and a real CLI restart that resumes queued work
+end to end. This entry is an honest boundary record, not a claim that issue #64 is complete.
+
 ## 2026-08-18 — rapid defect pass: twelve source repairs integrated, build and package evidence pending
 
 **State:** twelve bounded source repairs are integrated at

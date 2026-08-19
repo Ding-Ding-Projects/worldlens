@@ -41,6 +41,22 @@ export const renderConsole: Article = {
             ],
         },
         {
+            id: "queue-persistence",
+            title: "Render-task queue persistence",
+            blocks: [
+                {
+                    kind: "list",
+                    items: [
+                        "The engine owns a versioned persistence schema; schema version 1 stores the server and CLI render-task queue durably.",
+                        "The CLI uses the resolved core.data directory and stores the queue at core.data/tasks.dat.",
+                        "After startup, queue state is reconciled after maps are available so pending work can be resumed without reviving terminal tasks.",
+                        "Periodic and shutdown saves are coalesced. Each save uses a unique staging file and an atomic rename so readers see a complete file.",
+                        "Full restart and test acceptance proof remains unrun under this delivery pass.",
+                    ],
+                },
+            ],
+        },
+        {
             id: "failure-modes",
             title: "Failure modes",
             blocks: [

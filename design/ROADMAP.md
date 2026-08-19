@@ -1174,13 +1174,20 @@ closed now. See the 2026-08-05 HANDOFF.md entry for the evidence behind each.
 
 ## Open going into the next pass
 
-The GitHub issue board is at **zero open issues** as of this writing (37 closed in total,
-`#3` through `#47`, with gaps where a number was never opened as an issue). Nothing below is
-tracked by an open issue; each item is named here so it is not lost between passes.
+The GitHub issue board is not at zero open issues as of this writing: issue **#64** remains
+open. The list below mixes that tracked item with older untracked follow-ups; each item is
+named so it is not lost between passes.
 
-- **Wire `RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue` into something that
-  actually calls them** — a periodic-save timer and load-on-startup, in `packages/server`
-  or `packages/cli` (issue #30's own follow-on, not closed by it).
+- **Issue #64 — finish the running-process proof for `RenderManager.saveRenderTaskQueue`/
+  `.loadRenderTaskQueue`.** The engine remains the format owner (queue schema version 1), and
+  `packages/server/src/render/RenderQueuePersistence.ts` now provides the process policy:
+  default 30-second save requests, coalescing, unique staging plus atomic replacement,
+  filtering of tasks whose `hasMoreWork()` is false, and a final shutdown save. The standalone
+  CLI constructs it after maps are built, at `<resolved core.data>/tasks.dat`; the server package
+  exports the helper but has no separate construction site. Retention is one current queue file,
+  not a history. Remaining proof must cover structured skipped/unknown-task reporting, stale
+  crash ordering, terminal/cancelled non-resurrection, concurrent-save behavior, and a real CLI
+  restart that resumes queued work end to end.
 - ~~Join `packages/cli`'s `-u`/`--watch` to `packages/server`'s `MapUpdateService`~~ **Done
   (issue #40's CLI half, 2026-08-06).** See "Phase E, what is ported and what is not" above
   for the detail, including two upstream deviations recorded rather than silently fixed:

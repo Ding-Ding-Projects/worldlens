@@ -15,6 +15,7 @@ export { WorldLoaderType } from "./world/WorldLoaderType.js";
 // util
 export { Tristate } from "./util/Tristate.js";
 export { WatchService } from "./util/WatchService.js";
+export { atomicMove, createDirectories } from "./util/FileHelper.js";
 export {
     InstancePool,
     type InstanceCreator,
