@@ -218,7 +218,7 @@ export async function saveRenderTaskQueue(
     // the file instead of merely omitting an entry.
     const data = new TasksData();
     data.version = RENDER_TASK_QUEUE_FORMAT_VERSION;
-    data.renderTasks = tasks.filter(isRenderTaskSerializable);
+    data.renderTasks = tasks.filter((task) => task.hasMoreWork()).filter(isRenderTaskSerializable);
 
     const bytes = blueNBT.writeToBytes(data, TASKS_DATA_TOKEN);
 
