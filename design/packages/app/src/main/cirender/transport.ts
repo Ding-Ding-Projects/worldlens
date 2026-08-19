@@ -597,8 +597,14 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
                 },
             );
             if (!result.started || result.code !== 0) {
+                const detail = result.stderr
+                    .trim()
+                    .split(/\r?\n/u)
+                    .filter((line) => line.trim() !== "")
+                    .slice(-3)
+                    .join(" | ");
                 throw new ActionsCallError(
-                    "GitHub CLI could not download the workflow artifact.",
+                    `GitHub CLI could not download the workflow artifact${detail === "" ? "." : `: ${detail}`}`,
                     cliHttpStatus(result.stderr),
                     artifact.archiveDownloadUrl,
                     [401, 403].includes(cliHttpStatus(result.stderr)),

@@ -72,17 +72,45 @@ test("the driver routes UI-only state changes and captures through Lowlevel MCP"
     assert.match(driver, /CDP read-only assertions/);
 });
 
-test("removing a required capture turns the plan Chut red", () => {
+test("the real render plan cannot claim dispatch from a pre-existing failed row", async () => {
+    const dispatchPlan = JSON.parse(
+        await readFile(new URL("./worldlens-lowlevel-ci-render-dispatch.json", import.meta.url), "utf8"),
+    );
+    const remembered = dispatchPlan.findIndex((step) => step.action === "rememberCount");
+    const started = dispatchPlan.findIndex((step) => step.action === "pressWhenFocused");
+    const advanced = dispatchPlan.findIndex(
+        (step) => step.action === "waitForCountGreaterThanRemembered",
+    );
+    const acquiredRun = dispatchPlan.findIndex(
+        (step) =>
+            step.action === "waitTextNot" &&
+            step.selector === "[data-test='row'] [data-test='run-label']",
+    );
+    const captured = dispatchPlan.findIndex(
+        (step) => step.name === "lowlevel-ci-render-dispatched",
+    );
+
+    assert.ok(remembered >= 0 && remembered < started);
+    assert.ok(started < advanced && advanced < acquiredRun && acquiredRun < captured);
+    assert.match(driver, /rememberedCounts\.set/);
+    assert.match(driver, /actual > remembered/);
+    assert.match(driver, /actual < remembered/);
+    assert.match(driver, /scrollUntilInViewport/);
+    assert.match(driver, /x: Math\.max\(0, LOWLEVEL_WINDOW_WIDTH - 9\)/);
+    assert.match(driver, /box !== null && centerY < 0/);
+});
+
+test("removing a required capture turns the plan guard red", () => {
     const broken = plan.filter((step) => step.name !== "lowlevel-adult-home");
     assert.throws(() => planComplaints(broken), /hand-written capture order/);
 });
 
-test("introducing direct evaluation turns the plan Chut red", () => {
+test("introducing direct evaluation turns the plan guard red", () => {
     const broken = plan.map((step, index) => (index === 1 ? { action: "eval", js: "localStorage.clear()" } : step));
     assert.match(planComplaints(broken).join("\n"), /forbidden action eval/);
 });
 
-test("removing capture metadata turns the plan Chut red", () => {
+test("removing capture metadata turns the plan guard red", () => {
     const broken = plan.map((step) =>
         step.name === "lowlevel-kid-home" ? { ...step, alt: "" } : step,
     );

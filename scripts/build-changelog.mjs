@@ -210,44 +210,37 @@ function stripTrailers(body) {
 }
 
 /**
- * Commit messages are private project history, but the generated changelog is a public
- * product surface. Keep the repository's conversational shorthand out of that surface while
- * preserving the factual sentence around it. This is intentionally a presentation filter,
- * not a history rewrite: the commit link and the original commit remain untouched.
+ * Historical messages that cannot be copied to a public changelog verbatim.
+ *
+ * The public source records only immutable commit identities, never the private strings that
+ * caused the redaction. New commits are required to use publication-safe wording before they
+ * land; this list exists only for history that cannot be rewritten safely.
  */
-function publicText(text) {
-    return text
-        .replace(/I am dewing hui/gi, "I am following the shared instructions")
-        .replace(/dewing hui/gi, "pushing to the remote")
-        .replace(/dewed hui/gi, "pushed to the remote")
-        .replace(/dew hui/gi, "push to the remote")
-        .replace(/Day Teet Hui/gi, "GitHub Pages")
-        .replace(/Gerk Tong Hui/gi, "linked worktree")
-        .replace(/Lap Sap Tong/gi, "Git stash")
-        .replace(/dum lap sap/gi, "stashing commit")
-        .replace(/poke guy/gi, "error")
-        // The list above covered the terms that had actually reached a commit subject by the time
-        // it was written, which is why `huipoint` walked straight through it and into the
-        // generated changelog data this script publishes. These close that gap: a term is added
-        // here when it exists, not after it has already been published. Longest-first, and all of
-        // them ahead of the bare `hui` rule below, so a compound is never half-rewritten.
-        .replace(/Herng Ha App/gi, "Electron app")
-        .replace(/Chong Leung/gi, "guardrail")
-        .replace(/Der Machine/gi, "GitHub Actions")
-        .replace(/Gay Hay/gi, "GitHub Actions runner")
-        .replace(/HuiFlare/gi, "Cloudflare")
-        .replace(/HuiShot/gi, "screenshot")
-        .replace(/huipoint/gi, "checkpoint")
-        .replace(/GitHui/gi, "GitHub")
-        .replace(/Oak Kay/gi, "repository")
-        .replace(/See Fut/gi, "dependency")
-        .replace(/Cup Chun/gi, "cleanup")
-        .replace(/Tow Fat/gi, "submodule")
-        .replace(/Deen No/gi, "Windows")
-        .replace(/lat tat/gi, "dirty")
-        .replace(/\bjer\b/gi, "branch")
-        .replace(/\bChut\b/gi, "gate")
-        .replace(/\bhui\b/gi, "remote");
+const REDACTED_COMMIT_MESSAGES = new Set([
+    "12432939aec0a423693303b1f35719a3a18027ed",
+    "1930a6c914dfcbdcb877ecb4255cbe1d6130b8f6",
+    "324e21d07bceabf69131250c42f6cf3c104b0500",
+    "39b869e16da9b1b1a7e717023ddc77c6d2054d03",
+    "3e35525aaf372ea674a18f4cbfb870511d58d8dd",
+    "4b8d21076338f701cd798ad0516367ba2986b1e9",
+    "4dcdbeb18ad60df242bb50e7f8740e558349a799",
+    "5070dcd37ddcadf65bd36a698cb2c5921fff963f",
+    "57a32d6437861d62105722f369d19b2b961c84a5",
+    "59057c15d282de0047254fc0937d63148280972b",
+    "5ba8093571bab80eed3ec24fa60327747daeaf38",
+    "79b286f959bbb55ef4434d12c110eae3af1e9195",
+    "924e7fdfb642a516f7d29a5d926486f3f4f1ab78",
+    "abfabf38463954ae37add62d09abfc4894166e3d",
+    "cbc135cbe79f6f0adad8fbbe69d1a03c2a37a8a6",
+    "d3c5e9be38c56904b70edae240e1da2e817d12f5",
+    "e3782366879bc380462a6ce9b99e2aeebb443dc1",
+]);
+
+function publicText(text, sha, kind) {
+    if (!REDACTED_COMMIT_MESSAGES.has(sha)) return text;
+    return kind === "subject"
+        ? "Internal maintenance message omitted from the public changelog"
+        : "";
 }
 
 /**
@@ -370,8 +363,8 @@ function toEntry(commit) {
         sha: commit.sha,
         shortSha: commit.sha.slice(0, SHORT_SHA_LENGTH),
         date: commit.date,
-        subject: publicText(commit.subject),
-        details: publicText(commit.details),
+        subject: publicText(commit.subject, commit.sha, "subject"),
+        details: publicText(commit.details, commit.sha, "details"),
         category,
         areas,
         files: commit.files.length,

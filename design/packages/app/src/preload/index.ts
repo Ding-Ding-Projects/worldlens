@@ -2893,6 +2893,8 @@ interface WorldlensBridge {
         request: CiSyncRequest,
     ): Promise<{ ok: true; value: CiPreflight } | { ok: false; message: string }>;
     startCiRender(request: CiSyncRequest): Promise<CiSyncResult>;
+    /** Continues one already-dispatched recorded run without uploading or dispatching again. */
+    resumeCiRender(syncId: string): Promise<CiSyncResult>;
     /** Polls a recorded run without starting anything. Resuming and starting are one call. */
     checkCiRender(syncId: string): Promise<CiSyncResult>;
     listCiRenders(): Promise<
@@ -3410,6 +3412,7 @@ const bridge: WorldlensBridge = {
 
     ciRenderPreflight: (request) => ipcRenderer.invoke("cirender:preflight", request),
     startCiRender: (request) => ipcRenderer.invoke("cirender:start", request),
+    resumeCiRender: (syncId) => ipcRenderer.invoke("cirender:resume", syncId),
     checkCiRender: (syncId) => ipcRenderer.invoke("cirender:check", syncId),
     listCiRenders: () => ipcRenderer.invoke("cirender:list"),
     cancelCiRender: (syncId) => ipcRenderer.invoke("cirender:cancel", syncId),

@@ -542,6 +542,8 @@ export type CiBootstrapEvent =
 export interface CiRenderBridge {
     ciRenderPreflight(request: CiSyncRequest): Promise<Answer<CiPreflight>>;
     startCiRender(request: CiSyncRequest): Promise<CiSyncResult>;
+    /** Continues an already-dispatched row after the desktop application restarts. */
+    resumeCiRender?(syncId: string): Promise<CiSyncResult>;
     checkCiRender(syncId: string): Promise<CiSyncResult>;
     listCiRenders(): Promise<Answer<readonly CiSyncState[]>>;
     cancelCiRender(syncId: string): Promise<boolean>;
@@ -630,6 +632,7 @@ export interface CiRenderBridge {
 type Host = Partial<{
     ciRenderPreflight: (request: CiSyncRequest) => Promise<Answer<CiPreflight>>;
     startCiRender: (request: CiSyncRequest) => Promise<CiSyncResult>;
+    resumeCiRender: (syncId: string) => Promise<CiSyncResult>;
     checkCiRender: (syncId: string) => Promise<CiSyncResult>;
     listCiRenders: () => Promise<Answer<readonly CiSyncState[]>>;
     cancelCiRender: (syncId: string) => Promise<boolean>;
@@ -709,6 +712,9 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
     return {
         ciRenderPreflight: (request) => ciRenderPreflight(request),
         startCiRender: (request) => startCiRender(request),
+        ...(isFunction(host.resumeCiRender)
+            ? { resumeCiRender: (syncId: string) => host.resumeCiRender!(syncId) }
+            : {}),
         onCiRenderEvent: (listener) => onCiRenderEvent(listener),
         checkCiRender: (syncId) =>
             isFunction(host.checkCiRender)

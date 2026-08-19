@@ -8,10 +8,7 @@ import type {
     ProcessRunner,
     ProcessToFileResult,
 } from "../cirender/gh.js";
-import {
-    GH_CLI_AUTH_ENVIRONMENT,
-    GIT_CREDENTIAL_DIAGNOSTIC_ENVIRONMENT,
-} from "./environment.js";
+import { GH_CLI_AUTH_ENVIRONMENT, GIT_CREDENTIAL_DIAGNOSTIC_ENVIRONMENT } from "./environment.js";
 import {
     listGhCliAccounts,
     logoutGhCliAccount,
@@ -50,7 +47,10 @@ export interface GhCliAccountLease {
      * the account that was active on the same host. This is for operations that combine gh
      * and git; no credential is returned to the callback.
      */
-    withAccount<T>(operation: (runner: ProcessRunner) => Promise<T>, signal?: AbortSignal): Promise<T>;
+    withAccount<T>(
+        operation: (runner: ProcessRunner) => Promise<T>,
+        signal?: AbortSignal,
+    ): Promise<T>;
     run(args: readonly string[], options?: ProcessRunOptions): Promise<ProcessResult>;
     runToFile(
         args: readonly string[],
@@ -78,7 +78,9 @@ export interface GhCliAccountLease {
 
 /** REST base paired with a selected gh host; GitHub Enterprise uses its `/api/v3` root. */
 export function ghApiBaseForHost(host: string): string {
-    return host.toLowerCase() === "github.com" ? "https://api.github.com" : `https://${host}/api/v3`;
+    return host.toLowerCase() === "github.com"
+        ? "https://api.github.com"
+        : `https://${host}/api/v3`;
 }
 
 export type GhCliAccountProvider = (
@@ -100,12 +102,7 @@ export class GhCredentialError extends Error {
     readonly code: GhCredentialErrorCode;
     readonly needsSignIn: boolean;
 
-    constructor(
-        code: GhCredentialErrorCode,
-        message: string,
-        needsSignIn = true,
-        cause?: unknown,
-    ) {
+    constructor(code: GhCredentialErrorCode, message: string, needsSignIn = true, cause?: unknown) {
         super(message, { cause });
         this.name = "GhCredentialError";
         this.code = code;
@@ -198,7 +195,11 @@ export class GhCredentialBroker {
         });
     }
 
-    async switchAccount(host: string, login: string, signal?: AbortSignal): Promise<GhCliSwitchResult> {
+    async switchAccount(
+        host: string,
+        login: string,
+        signal?: AbortSignal,
+    ): Promise<GhCliSwitchResult> {
         const executable = await this.#executable;
         if (executable === null) {
             return {
@@ -231,7 +232,11 @@ export class GhCredentialBroker {
         return await this.#exclusive(work);
     }
 
-    async logoutAccount(host: string, login: string, signal?: AbortSignal): Promise<GhCliLogoutResult> {
+    async logoutAccount(
+        host: string,
+        login: string,
+        signal?: AbortSignal,
+    ): Promise<GhCliLogoutResult> {
         const executable = await this.#executable;
         if (executable === null) {
             return {
@@ -303,8 +308,7 @@ export class GhCredentialBroker {
                 await this.#runAs(executable, selected, args, options),
             runToFile: async (args, destination, options = {}) =>
                 await this.#runToFileAs(executable, selected, args, destination, options),
-            api: async (url, options = {}) =>
-                await this.#apiAs(executable, selected, url, options),
+            api: async (url, options = {}) => await this.#apiAs(executable, selected, url, options),
             downloadApi: async (url, destination, options = {}) =>
                 await this.#downloadApiAs(executable, selected, url, destination, options),
             uploadReleaseAsset: async (owner, repo, tag, assetName, filePath, options = {}) =>
@@ -358,10 +362,7 @@ export class GhCredentialBroker {
         }
     }
 
-    #processOptions(
-        options: ProcessRunOptions,
-        credentialBoundGit = false,
-    ): ProcessRunOptions {
+    #processOptions(options: ProcessRunOptions, credentialBoundGit = false): ProcessRunOptions {
         const omitted = new Map<string, string>();
         for (const name of [
             ...GH_CLI_AUTH_ENVIRONMENT,
@@ -380,7 +381,10 @@ export class GhCredentialBroker {
 
     #boundRunner(executable: string, account: GhCliAccountSummary): ProcessRunner {
         const transform = (command: string, args: readonly string[]) => {
-            if (basename(command).toLowerCase() === "gh" || basename(command).toLowerCase() === "gh.exe") {
+            if (
+                basename(command).toLowerCase() === "gh" ||
+                basename(command).toLowerCase() === "gh.exe"
+            ) {
                 return {
                     command: executable,
                     args: this.#hostQualifiedGhArgs(args, account.host),
@@ -397,10 +401,7 @@ export class GhCredentialBroker {
                     ? credentialHelperFor(executable)
                     : account.host.toLowerCase() === "github.com"
                       ? argument
-                      : argument.replace(
-                            /^https:\/\/github\.com\//i,
-                            `https://${account.host}/`,
-                        ),
+                      : argument.replace(/^https:\/\/github\.com\//i, `https://${account.host}/`),
             );
             return {
                 command,
@@ -535,8 +536,12 @@ export class GhCredentialBroker {
         args: readonly string[],
         options: ProcessRunOptions,
     ): Promise<ProcessResult> {
-        return await this.#withSelectedAccount(executable, account, options.signal, async () =>
-            await this.#options.runner.run(executable, args, this.#processOptions(options)),
+        return await this.#withSelectedAccount(
+            executable,
+            account,
+            options.signal,
+            async () =>
+                await this.#options.runner.run(executable, args, this.#processOptions(options)),
         );
     }
 
@@ -547,13 +552,17 @@ export class GhCredentialBroker {
         destination: string,
         options: ProcessRunOptions,
     ): Promise<ProcessToFileResult> {
-        return await this.#withSelectedAccount(executable, account, options.signal, async () =>
-            await this.#options.runner.runToFile(
-                executable,
-                args,
-                destination,
-                this.#processOptions(options),
-            ),
+        return await this.#withSelectedAccount(
+            executable,
+            account,
+            options.signal,
+            async () =>
+                await this.#options.runner.runToFile(
+                    executable,
+                    args,
+                    destination,
+                    this.#processOptions(options),
+                ),
         );
     }
 
@@ -567,7 +576,13 @@ export class GhCredentialBroker {
         const method = (init.method ?? "GET").toUpperCase();
         const args = ["api", "--hostname", account.host, "-X", method];
         const headers = new Headers(init.headers);
-        for (const forbidden of ["authorization", "proxy-authorization", "cookie", "host", "content-length"]) {
+        for (const forbidden of [
+            "authorization",
+            "proxy-authorization",
+            "cookie",
+            "host",
+            "content-length",
+        ]) {
             headers.delete(forbidden);
         }
         if (!headers.has("accept")) headers.set("accept", "application/vnd.github+json");
@@ -576,7 +591,10 @@ export class GhCredentialBroker {
         let input: string | undefined;
         if (init.body !== undefined && init.body !== null) {
             if (typeof init.body !== "string") {
-                return jsonResponse(400, "Worldlens refused a non-text API body before starting GitHub CLI.");
+                return jsonResponse(
+                    400,
+                    "Worldlens refused a non-text API body before starting GitHub CLI.",
+                );
             }
             input = init.body;
             args.push("--input", "-");
@@ -590,7 +608,8 @@ export class GhCredentialBroker {
         if (result.code !== 0) {
             return jsonResponse(httpStatus(result.stderr), "GitHub CLI refused the request.");
         }
-        if (method === "DELETE" && result.stdout.trim() === "") return new Response(null, { status: 204 });
+        if (method === "DELETE" && result.stdout.trim() === "")
+            return new Response(null, { status: 204 });
         return new Response(result.stdout, {
             status: 200,
             headers: { "content-type": "application/json" },
@@ -607,14 +626,7 @@ export class GhCredentialBroker {
         return await this.#runToFileAs(
             executable,
             account,
-            [
-                "api",
-                "--hostname",
-                account.host,
-                "-H",
-                "Accept: application/octet-stream",
-                apiEndpoint(url, account.host),
-            ],
+            ["api", "--hostname", account.host, apiEndpoint(url, account.host)],
             destination,
             options,
         );
@@ -641,14 +653,7 @@ export class GhCredentialBroker {
         return await this.#runAs(
             executable,
             account,
-            [
-                "release",
-                "upload",
-                tag,
-                filePath,
-                "--repo",
-                `${account.host}/${owner}/${repo}`,
-            ],
+            ["release", "upload", tag, filePath, "--repo", `${account.host}/${owner}/${repo}`],
             options,
         );
     }

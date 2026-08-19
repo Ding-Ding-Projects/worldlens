@@ -253,7 +253,7 @@ export function stalenessComplaints({ groups, actual }) {
 /**
  * Historical images are refreshed from their exact old source, never exempted from refresh.
  *
- * Kept pure so removing one target mapping can be watched turning the Chut red without creating
+ * Kept pure so removing one target mapping can be watched turning the guard red without creating
  * twenty historical checkouts. The main path additionally proves every recorded commit exists.
  */
 export function historicalRecaptureComplaints(groups) {

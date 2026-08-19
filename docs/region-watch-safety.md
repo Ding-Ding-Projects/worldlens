@@ -40,7 +40,7 @@ arbitrary paths. Polling is bounded and local; it adds no network route or exter
 
 ## Verification
 
-The focused watcher Chut covers runtime selection, event coalescing, irrelevant-file filtering,
+The focused watcher guard covers runtime selection, event coalescing, irrelevant-file filtering,
 late folder creation, close cleanup, and watcher readiness. `MapUpdateService` and CLI watcher
 tests cover real region changes, deduplication, cooldown spacing, error reporting, per-map
 isolation, periodic updates, and idempotent shutdown.

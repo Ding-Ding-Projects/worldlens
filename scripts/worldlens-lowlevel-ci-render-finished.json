@@ -1,0 +1,45 @@
+[
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
+  { "action": "windowKey", "key": "PAGEDOWN" },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "NEXT" },
+  { "action": "clickIfVisible", "selector": ".v-overlay--active button", "hasText": "ACCEPT", "timeout": 3000 },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "FINISH SETUP" },
+  { "action": "click", "selector": ".wl-kid-rail__small", "nth": 2 },
+  { "action": "click", "selector": ".wl-kid-gate__go" },
+  { "action": "assertText", "selector": ".wl-rail", "text": "Map" },
+  { "action": "click", "role": "button", "name": "Search everything (Ctrl+Shift+F)", "exact": true },
+  { "action": "fill", "selector": ".mb-palette__search input", "value": "GitHub runners" },
+  { "action": "assertText", "selector": ".mb-palette-row", "text": "GitHub runners" },
+  { "action": "click", "selector": ".mb-palette-row__go", "hasText": "GitHub runners" },
+  { "action": "assertText", "selector": ".ci-render-screen", "text": "Render on GitHub" },
+  { "action": "assertText", "selector": "[data-test='row']:has-text('Ding-Ding-Projects/worldlens-bayville-example')", "text": "Ding-Ding-Projects/worldlens-bayville-example" },
+  { "action": "waitTextNot", "selector": "[data-test='row']:visible:has-text('Ding-Ding-Projects/worldlens-bayville-example') [data-test='row-state']", "text": "running", "timeout": 180000 },
+  { "action": "scrollUntilInViewport", "selector": "[data-test='row']:visible:has-text('Ding-Ding-Projects/worldlens-bayville-example')", "attempts": 40 },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-ci-render-resume-terminal",
+    "category": "delivery-runtime",
+    "state": "persisted-rendered-row-after-fresh-restart",
+    "expectedSurface": "Render on GitHub persisted rendered row",
+    "alt": "Worldlens cloud-render row after a fresh restart, durably restored as rendered with no endless spinner or active Stop watching action."
+  },
+  { "action": "assertText", "selector": "[data-test='row']:visible:has-text('Ding-Ding-Projects/worldlens-bayville-example') [data-test='row-state']", "text": "rendered" },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-ci-render-finished",
+    "category": "delivery-runtime",
+    "state": "real-workflow-rendered-collected-after-restart",
+    "expectedSurface": "Render on GitHub completed row",
+    "alt": "Worldlens reopened after a successful GitHub render, downloaded and registered the verified result, and restored the persisted row as rendered."
+  },
+  { "action": "click", "selector": ".wl-rail-item", "hasText": "Map" },
+  { "action": "wait", "selector": "#map-container canvas", "timeout": 60000 },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-ci-render-map-open",
+    "category": "delivery-runtime",
+    "state": "real-cloud-render-open-in-map-viewer",
+    "expectedSurface": "Map viewer showing the collected GitHub render",
+    "alt": "Worldlens Map viewer showing the map collected from the successful GitHub render rather than a mock or local substitute."
+  }
+]

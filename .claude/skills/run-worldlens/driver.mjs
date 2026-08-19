@@ -354,6 +354,7 @@ const CAPTURE_COMMIT =
   process.env.GITHUB_SHA ||
   "(local run)";
 const captureLedger = [];
+const rememberedCounts = new Map();
 
 /** One target description shared by interactive and committed-plan commands. */
 const locate = (step) => {
@@ -384,7 +385,7 @@ async function capture(step, walkthrough = false) {
   if (UI_ONLY) {
     if (step.selector || step.role) {
       throw new Error(
-        "UI-only captures are whole-window Lowlevel HuiShots; element clipping is not allowed",
+        "UI-only captures are whole-window Lowlevel screenshots; element clipping is not allowed",
       );
     }
     lowlevelShot = await lowlevelCall("screenshot", { hwnd: LOWLEVEL_HWND });
@@ -515,6 +516,45 @@ async function executeAction(step) {
         throw new Error("clickUntilVisible exhausted its bounded scroll attempts");
       break;
     }
+    case "scrollUntilInViewport": {
+      if (!UI_ONLY)
+        throw new Error("scrollUntilInViewport is reserved for Lowlevel UI-only plans");
+      const target = locate(step);
+      const attempts = Number(step.attempts || 24);
+      let box = null;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        box = await target.boundingBox().catch(() => null);
+        const centerY = box === null ? -1 : box.y + box.height / 2;
+        if (
+          box !== null &&
+          centerY >= Number(step.topMargin || 110) &&
+          (LOWLEVEL_WINDOW_HEIGHT <= 0 ||
+            centerY < LOWLEVEL_WINDOW_HEIGHT - Number(step.bottomMargin || 40))
+        )
+          break;
+        await lowlevelCall("mouse_click", {
+          hwnd: LOWLEVEL_HWND,
+          x: Math.max(0, LOWLEVEL_WINDOW_WIDTH - 9),
+          y:
+            box !== null && centerY < 0
+              ? Number(step.scrollUpY || 150)
+              : Math.max(0, LOWLEVEL_WINDOW_HEIGHT - Number(step.scrollBottomInset || 100)),
+          button: "left",
+          clicks: 1,
+        });
+        await settle();
+      }
+      box = await target.boundingBox().catch(() => null);
+      const centerY = box === null ? -1 : box.y + box.height / 2;
+      if (
+        box === null ||
+        centerY < Number(step.topMargin || 110) ||
+        (LOWLEVEL_WINDOW_HEIGHT > 0 &&
+          centerY >= LOWLEVEL_WINDOW_HEIGHT - Number(step.bottomMargin || 40))
+      )
+        throw new Error("scrollUntilInViewport exhausted its bounded Lowlevel key attempts");
+      break;
+    }
     case "chooseFolder":
       if (!UI_ONLY)
         throw new Error("chooseFolder is reserved for Lowlevel UI-only plans");
@@ -604,6 +644,47 @@ async function executeAction(step) {
       if (actual !== expected)
         throw new Error(
           `expected ${step.selector} count ${expected} before timeout, found ${actual}`,
+        );
+      break;
+    }
+    case "rememberCount": {
+      const key = String(step.key || "default");
+      rememberedCounts.set(key, await page.locator(step.selector).count());
+      break;
+    }
+    case "waitForCountGreaterThanRemembered": {
+      const key = String(step.key || "default");
+      const remembered = rememberedCounts.get(key);
+      if (remembered === undefined)
+        throw new Error(`no remembered count exists for ${JSON.stringify(key)}`);
+      const deadline = Date.now() + Number(step.timeout || 45_000);
+      let actual = -1;
+      while (Date.now() < deadline) {
+        actual = await page.locator(step.selector).count();
+        if (actual > remembered) break;
+        await page.waitForTimeout(250);
+      }
+      if (actual <= remembered)
+        throw new Error(
+          `expected ${step.selector} count above remembered ${remembered} before timeout, found ${actual}`,
+        );
+      break;
+    }
+    case "waitForCountLessThanRemembered": {
+      const key = String(step.key || "default");
+      const remembered = rememberedCounts.get(key);
+      if (remembered === undefined)
+        throw new Error(`no remembered count exists for ${JSON.stringify(key)}`);
+      const deadline = Date.now() + Number(step.timeout || 45_000);
+      let actual = -1;
+      while (Date.now() < deadline) {
+        actual = await page.locator(step.selector).count();
+        if (actual < remembered) break;
+        await page.waitForTimeout(250);
+      }
+      if (actual >= remembered)
+        throw new Error(
+          `expected ${step.selector} count below remembered ${remembered} before timeout, found ${actual}`,
         );
       break;
     }

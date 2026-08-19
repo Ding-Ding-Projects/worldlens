@@ -451,6 +451,63 @@ describe("rows follow the events", () => {
 });
 
 describe("what is already running, elsewhere", () => {
+    it("resumes one persisted dispatched run on load instead of watching it forever", async () => {
+        const dispatched: CiSyncState = {
+            version: 1,
+            syncId: "resume-after-restart",
+            owner: "o",
+            repo: "r",
+            accountId: "account",
+            worldFolder: "C:\\world",
+            mapId: "overworld",
+            mapName: "Overworld",
+            dimension: "minecraft:overworld",
+            fingerprint: "fingerprint",
+            releaseTag: "worldlens-world-overworld",
+            assetName: "world.zip",
+            archiveBytes: 42,
+            archiveSha256: "abc",
+            runId: 99,
+            runNumber: 12,
+            runUrl: "https://github.test/runs/99",
+            dispatchedAt: "2026-08-19T00:00:00Z",
+            stage: "dispatched",
+            renderId: null,
+            artifactSha256: null,
+            failureCode: null,
+            failureMessage: null,
+            updatedAt: "2026-08-19T00:05:00Z",
+        };
+        const release: { current: ((value: CiSyncResult) => void) | null } = { current: null };
+        const resumed = new Promise<CiSyncResult>((resolve) => {
+            release.current = resolve;
+        });
+        const calls: string[] = [];
+        const { bridge: fake } = bridge({
+            listCiRenders: () => Promise.resolve({ ok: true, value: [dispatched] }),
+            resumeCiRender: (syncId) => {
+                calls.push(syncId);
+                return resumed;
+            },
+        });
+        const renders = createCiRenders(fake);
+
+        await renders.loadKnown();
+        await renders.loadKnown();
+
+        expect(calls).toEqual(["resume-after-restart"]);
+        expect(renders.rows.value[0]?.state).toBe("running");
+        release.current?.({
+            ok: true,
+            syncId: "resume-after-restart",
+            outcome: "running",
+            run: null,
+            state: dispatched,
+        });
+        await resumed;
+        renders.dispose();
+    });
+
     it("restores a persisted failed run as failed and lets the user remove its local row", async () => {
         const failed: CiSyncState = {
             version: 1,
@@ -657,10 +714,14 @@ describe("who could own it: the signed-in login and its organisations", () => {
     it("keeps the newest account's owners when an older request finishes last", async () => {
         let resolveFirst!: (answer: CiOwnerChoicesAnswer) => void;
         let resolveSecond!: (answer: CiOwnerChoicesAnswer) => void;
-        const first = new Promise<CiOwnerChoicesAnswer>((resolve) => { resolveFirst = resolve; });
-        const second = new Promise<CiOwnerChoicesAnswer>((resolve) => { resolveSecond = resolve; });
+        const first = new Promise<CiOwnerChoicesAnswer>((resolve) => {
+            resolveFirst = resolve;
+        });
+        const second = new Promise<CiOwnerChoicesAnswer>((resolve) => {
+            resolveSecond = resolve;
+        });
         const { bridge: host } = bridge({
-            listCiOwners: (accountId) => accountId === "first" ? first : second,
+            listCiOwners: (accountId) => (accountId === "first" ? first : second),
         });
         const renders = createCiRenders(host);
 
@@ -974,14 +1035,22 @@ describe("an existing repository, picked instead of typed", () => {
     });
 
     it("keeps the newest account's repositories when an older request finishes last", async () => {
-        let resolveFirst!: (answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>) => void;
-        let resolveSecond!: (answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>) => void;
-        const first = new Promise<Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>>(
-            (resolve) => { resolveFirst = resolve; },
-        );
-        const second = new Promise<Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>>(
-            (resolve) => { resolveSecond = resolve; },
-        );
+        let resolveFirst!: (
+            answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>,
+        ) => void;
+        let resolveSecond!: (
+            answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>,
+        ) => void;
+        const first = new Promise<
+            Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>
+        >((resolve) => {
+            resolveFirst = resolve;
+        });
+        const second = new Promise<
+            Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>
+        >((resolve) => {
+            resolveSecond = resolve;
+        });
         const repository = (owner: string): CiRepositoryChoice => ({
             owner,
             name: "maps",
@@ -991,7 +1060,7 @@ describe("an existing repository, picked instead of typed", () => {
             htmlUrl: `https://github.test/${owner}/maps`,
         });
         const { bridge: host } = bridge({
-            listExistingRepositories: (accountId) => accountId === "first" ? first : second,
+            listExistingRepositories: (accountId) => (accountId === "first" ? first : second),
         });
         const renders = createCiRenders(host);
 

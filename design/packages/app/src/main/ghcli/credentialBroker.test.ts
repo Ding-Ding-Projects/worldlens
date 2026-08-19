@@ -13,7 +13,9 @@ afterEach(async () => {
 });
 
 async function executable(withSpaces = false): Promise<string> {
-    const root = await mkdtemp(join(tmpdir(), withSpaces ? "worldlens gh broker " : "worldlens-gh-broker-"));
+    const root = await mkdtemp(
+        join(tmpdir(), withSpaces ? "worldlens gh broker " : "worldlens-gh-broker-"),
+    );
     roots.push(root);
     const path = join(root, process.platform === "win32" ? "gh.exe" : "gh");
     await writeFile(path, "test executable placeholder", "utf8");
@@ -38,7 +40,8 @@ function mainRunner(
     const runner: ProcessRunner = {
         run: (command, args, options) => {
             calls.push({ command, args, options });
-            if (args[0] === "--version") return Promise.resolve(processResult("gh version 2.97.0\n"));
+            if (args[0] === "--version")
+                return Promise.resolve(processResult("gh version 2.97.0\n"));
             if (args.join(" ") === "auth status --json hosts") {
                 const hosts = Object.fromEntries(
                     [...new Set(current.map((account) => account.host))].map((host) => [
@@ -52,9 +55,13 @@ function mainRunner(
                             })),
                     ]),
                 );
-                return Promise.resolve(processResult(JSON.stringify({
-                    hosts,
-                })));
+                return Promise.resolve(
+                    processResult(
+                        JSON.stringify({
+                            hosts,
+                        }),
+                    ),
+                );
             }
             if (args[0] === "auth" && args[1] === "switch") {
                 const host = args[args.indexOf("--hostname") + 1];
@@ -84,15 +91,23 @@ function mainRunner(
             if (args[0] === "api" && args.at(-1) === "user") {
                 const active = current.find((account) => account.active);
                 const login = identityOverride ?? active?.login;
-                return Promise.resolve(login === undefined ? processResult("", 1) : processResult(`${login}\n`));
+                return Promise.resolve(
+                    login === undefined ? processResult("", 1) : processResult(`${login}\n`),
+                );
             }
-            if (args[0] === "api") return Promise.resolve(processResult(JSON.stringify({ ok: true })));
+            if (args[0] === "api")
+                return Promise.resolve(processResult(JSON.stringify({ ok: true })));
             if (args[0] === "repo" && args[1] === "view") {
-                return Promise.resolve(processResult(JSON.stringify({ nameWithOwner: args[2], isPrivate: true })));
+                return Promise.resolve(
+                    processResult(JSON.stringify({ nameWithOwner: args[2], isPrivate: true })),
+                );
             }
             return Promise.resolve(processResult("", 1));
         },
-        runToFile: () => Promise.resolve({ started: true, code: 0, bytes: 12, stderr: "" }),
+        runToFile: (command, args, _destination, options) => {
+            calls.push({ command, args, options });
+            return Promise.resolve({ started: true, code: 0, bytes: 12, stderr: "" });
+        },
     };
     return { runner, calls };
 }
@@ -114,8 +129,12 @@ describe("GhCredentialBroker", () => {
         });
 
         expect(response.ok).toBe(true);
-        expect(main.calls.some((call) => call.args[0] === "auth" && call.args[1] === "token")).toBe(false);
-        expect(main.calls.flatMap((call) => call.args).join(" ")).not.toContain("must-not-reach-gh");
+        expect(main.calls.some((call) => call.args[0] === "auth" && call.args[1] === "token")).toBe(
+            false,
+        );
+        expect(main.calls.flatMap((call) => call.args).join(" ")).not.toContain(
+            "must-not-reach-gh",
+        );
         expect(lease).toMatchObject({
             accountId: selected,
             login: "monalisa",
@@ -124,12 +143,43 @@ describe("GhCredentialBroker", () => {
         });
     });
 
+    it("downloads an Actions artifact through gh's normal JSON API redirect without the refused binary Accept header", async () => {
+        const path = await executable();
+        const main = mainRunner([{ host: "github.com", login: "octocat", active: true }]);
+        const broker = new GhCredentialBroker({ runner: main.runner, candidates: [path] });
+        const lease = await broker.account(undefined, "read");
+
+        await lease!.downloadApi(
+            "https://api.github.com/repos/o/r/actions/artifacts/9/zip",
+            join(tmpdir(), "worldlens-artifact-test.zip"),
+        );
+
+        const call = main.calls.find(
+            (candidate) =>
+                candidate.args[0] === "api" &&
+                candidate.args.includes("repos/o/r/actions/artifacts/9/zip"),
+        );
+        expect(call?.args).toEqual([
+            "api",
+            "--hostname",
+            "github.com",
+            "repos/o/r/actions/artifacts/9/zip",
+        ]);
+        expect(call?.args.join(" ")).not.toContain("application/octet-stream");
+    });
+
     it("revalidates the selected identity through gh api before a write", async () => {
         const path = await executable();
         const main = mainRunner([{ host: "github.com", login: "octocat", active: true }]);
         const broker = new GhCredentialBroker({ runner: main.runner, candidates: [path] });
-        await expect(broker.account(undefined, "write")).resolves.toMatchObject({ login: "octocat" });
-        expect(main.calls.some((call) => call.args.join(" ").includes("api --hostname github.com --jq .login user"))).toBe(true);
+        await expect(broker.account(undefined, "write")).resolves.toMatchObject({
+            login: "octocat",
+        });
+        expect(
+            main.calls.some((call) =>
+                call.args.join(" ").includes("api --hostname github.com --jq .login user"),
+            ),
+        ).toBe(true);
     });
 
     it("fails a write closed on identity mismatch", async () => {
@@ -165,18 +215,20 @@ describe("GhCredentialBroker", () => {
         );
 
         expect(response.ok).toBe(true);
-        expect(main.calls).toContainEqual(expect.objectContaining({
-            args: [
-                "api",
-                "--hostname",
-                "ghe.example",
-                "-X",
-                "GET",
-                "-H",
-                "accept: application/vnd.github+json",
-                "repos/octocat/maps/actions/workflows/render.yml?ref=main",
-            ],
-        }));
+        expect(main.calls).toContainEqual(
+            expect.objectContaining({
+                args: [
+                    "api",
+                    "--hostname",
+                    "ghe.example",
+                    "-X",
+                    "GET",
+                    "-H",
+                    "accept: application/vnd.github+json",
+                    "repos/octocat/maps/actions/workflows/render.yml?ref=main",
+                ],
+            }),
+        );
         expect(main.calls.flatMap((call) => call.args).join(" ")).not.toContain("api/v3/api/v3");
     });
 
@@ -188,13 +240,14 @@ describe("GhCredentialBroker", () => {
         const trustedExecutable = await broker.executable();
         expect(trustedExecutable).not.toBeNull();
 
-        await lease!.withAccount(async (runner) =>
-            await runner.run("git", [
-                "-c",
-                "credential.helper=!gh auth git-credential",
-                "push",
-                "https://github.com/octocat/maps.git",
-            ]),
+        await lease!.withAccount(
+            async (runner) =>
+                await runner.run("git", [
+                    "-c",
+                    "credential.helper=!gh auth git-credential",
+                    "push",
+                    "https://github.com/octocat/maps.git",
+                ]),
         );
 
         const push = main.calls.find((call) => call.command === "git");
@@ -234,7 +287,9 @@ describe("GhCredentialBroker", () => {
         const broker = new GhCredentialBroker({ runner, candidates: [path] });
         const lease = await broker.account(ghAccountId("github.com", "monalisa"));
 
-        const error = await lease!.run(["repo", "view", "monalisa/maps"]).catch((reason: unknown) => reason);
+        const error = await lease!
+            .run(["repo", "view", "monalisa/maps"])
+            .catch((reason: unknown) => reason);
 
         expect(error).toMatchObject({
             code: "account-restore-failed",
@@ -253,8 +308,12 @@ describe("GhCredentialBroker", () => {
         const lease = await broker.account(ghAccountId("github.com", "monalisa"));
         let enter!: () => void;
         let release!: () => void;
-        const entered = new Promise<void>((resolve) => { enter = resolve; });
-        const gate = new Promise<void>((resolve) => { release = resolve; });
+        const entered = new Promise<void>((resolve) => {
+            enter = resolve;
+        });
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
         const operation = lease!.withAccount(async () => {
             enter();
             await gate;
@@ -283,8 +342,12 @@ describe("GhCredentialBroker", () => {
         const lease = await broker.account();
         let enter!: () => void;
         let release!: () => void;
-        const entered = new Promise<void>((resolve) => { enter = resolve; });
-        const gate = new Promise<void>((resolve) => { release = resolve; });
+        const entered = new Promise<void>((resolve) => {
+            enter = resolve;
+        });
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
         const operation = lease!.withAccount(async () => {
             enter();
             await gate;
@@ -315,8 +378,12 @@ describe("GhCredentialBroker", () => {
         const lease = await broker.account(ghAccountId("github.com", "monalisa"));
         let enter!: () => void;
         let release!: () => void;
-        const entered = new Promise<void>((resolve) => { enter = resolve; });
-        const gate = new Promise<void>((resolve) => { release = resolve; });
+        const entered = new Promise<void>((resolve) => {
+            enter = resolve;
+        });
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
         const operation = lease!.withAccount(async () => {
             enter();
             await gate;

@@ -21,6 +21,32 @@ confirmation. This removes only the local history record under the configured ma
 It does not cancel or delete the GitHub Actions run, its release, or any remote asset. A row still
 running cannot be removed through this action.
 
+### Reopening a run that was still going
+
+A record at `dispatched` with a real run id is resumed automatically when this screen loads. The
+resume path is deliberately narrower than starting again:
+
+- it follows only the run id already stored in the local record;
+- it does not fingerprint or upload the current world;
+- it cannot dispatch a replacement workflow;
+- simultaneous requests from multiple mounted copies of the screen share one main-process
+  operation instead of turning the second request into a false `already-running` failure; and
+- an unexpected exception is persisted as a terminal failure, so the next restart does not repeat
+  an endless spinner with no explanation.
+
+The artifact endpoint must be called through GitHub CLI's normal JSON API redirect. Supplying
+`Accept: application/octet-stream` is rejected by current GitHub CLI with HTTP 415 before any bytes
+are downloaded. Worldlens therefore uses the CLI's normal vendor JSON Accept header and streams the
+redirected zip into the bounded destination file.
+
+The complete UI path was verified on 2026-08-19 with
+[run 32229964127](https://github.com/Ding-Ding-Projects/worldlens-bayville-example/actions/runs/32229964127).
+The workflow planned one shard, rendered it, merged and verified the result, and published a
+1,865,207-byte `rendered-map` artifact. Worldlens downloaded it after restart, matched GitHub's
+published SHA-256 `354d391bc59bcb428c99a92201d2aca1fdff28c38e2829a0fc695b1c8bf9cdc6`, wrote the render record,
+restored the row as `rendered`, and opened the collected map in the viewer. The test world was a
+generated disposable fixture; no personal world data appears in the repository or documentation.
+
 ![Failed cloud-render rows restored after restart with their local removal actions](./screenshots/lowlevel-ci-render-history-fixed.png)
 
 ![Two-key confirmation stating that GitHub data is not deleted](./screenshots/lowlevel-ci-render-remove-confirmation.png)

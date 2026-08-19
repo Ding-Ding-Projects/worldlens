@@ -112,6 +112,20 @@ endless spinner and no way to remove the row. Persisted stages now restore their
 state. Finished, failed and cancelled rows expose a two-key super-confirmed **Remove from list**
 action that deletes only the local history row; it never deletes the GitHub run, release or files.
 
+An interrupted row at the `dispatched` stage now resumes automatically when the app reopens. The
+main process deduplicates simultaneous resume requests from multiple mounted shells, follows the
+already-recorded run, and never uploads the current world or dispatches a replacement during that
+resume. Unexpected resume failures are persisted as terminal failures instead of returning as an
+endless spinner on every restart.
+
+This path was exercised end to end through the real UI against
+[workflow run 32229964127](https://github.com/Ding-Ding-Projects/worldlens-bayville-example/actions/runs/32229964127):
+the app uploaded a generated world, dispatched the workflow, survived a restart, followed the
+successful render, downloaded the `rendered-map` artifact, verified SHA-256
+`354d391bc59bcb428c99a92201d2aca1fdff28c38e2829a0fc695b1c8bf9cdc6`, registered the map, and
+opened a real viewer canvas. The artifact download uses GitHub CLI's normal JSON API redirect;
+the obsolete `application/octet-stream` override was rejected with HTTP 415 and has been removed.
+
 ![Failed cloud-render rows restored honestly after restart, with Remove from list actions](docs/screenshots/lowlevel-ci-render-history-fixed.png)
 
 <details>

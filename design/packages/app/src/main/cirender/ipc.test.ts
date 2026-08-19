@@ -192,6 +192,18 @@ describe("registration", () => {
 });
 
 describe("what crosses", () => {
+    it("refuses a resume without an exact recorded sync id", async () => {
+        const { ipcMain, github } = install();
+        const result = (await (ipcMain.handlers.get("cirender:resume") as Handler)(
+            noEvent,
+            "   ",
+        )) as { ok: false; failure: { code: string } };
+
+        expect(result.ok).toBe(false);
+        expect(result.failure.code).toBe("invalid-request");
+        expect(github.calls).toHaveLength(0);
+    });
+
     it("carries the Pages choice only for the literal boolean true on bootstrap", () => {
         expect(
             readCiBootstrapIpcRequest({

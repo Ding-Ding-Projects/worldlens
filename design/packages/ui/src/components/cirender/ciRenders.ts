@@ -458,7 +458,8 @@ function describe(error: unknown): string {
 }
 
 function persistedRow(state: CiSyncState): CiRow {
-    const terminal = state.stage === "rendered" || state.stage === "failed" || state.stage === "cancelled";
+    const terminal =
+        state.stage === "rendered" || state.stage === "failed" || state.stage === "cancelled";
     const rowState: CiRowState =
         state.stage === "rendered"
             ? "rendered"
@@ -547,6 +548,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
     let repositoriesLoadToken = 0;
     let preflightLoadToken = 0;
     let scheduleLoadToken = 0;
+    const resuming = new Set<string>();
     // Bumped on every checkRepoName/clearNameAvailability call so a slow, out-of-order
     // availability answer can tell it has been superseded and drop itself instead of
     // overwriting a newer check's result. See checkRepoName below.
@@ -884,6 +886,17 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     // this one was opened, on screen rather than leaving it invisible.
                     for (const state of answer.value) {
                         if (byId.value[state.syncId] === undefined) put(persistedRow(state));
+                        if (
+                            state.stage === "dispatched" &&
+                            state.runId !== null &&
+                            bridge.resumeCiRender !== undefined &&
+                            !resuming.has(state.syncId)
+                        ) {
+                            resuming.add(state.syncId);
+                            void bridge.resumeCiRender(state.syncId).finally(() => {
+                                resuming.delete(state.syncId);
+                            });
+                        }
                     }
                 } else {
                     knownFailure.value = answer.message;

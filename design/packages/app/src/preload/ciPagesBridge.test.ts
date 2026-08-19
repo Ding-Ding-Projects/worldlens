@@ -21,3 +21,21 @@ describe("the preload CI Pages bootstrap bridge", () => {
         );
     });
 });
+
+describe("the preload CI render resume bridge", () => {
+    it("sends only the recorded sync id to the dedicated resume channel", () => {
+        expect(source).toMatch(
+            /resumeCiRender:\s*\(syncId\)\s*=>\s*ipcRenderer\.invoke\("cirender:resume", syncId\)/,
+        );
+    });
+
+    it("turns red when resume is accidentally wired back to start", () => {
+        const broken = source.replace(
+            'ipcRenderer.invoke("cirender:resume", syncId)',
+            'ipcRenderer.invoke("cirender:start", syncId)',
+        );
+        expect(broken).not.toMatch(
+            /resumeCiRender:\s*\(syncId\)\s*=>\s*ipcRenderer\.invoke\("cirender:resume", syncId\)/,
+        );
+    });
+});

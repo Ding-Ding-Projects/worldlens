@@ -342,6 +342,9 @@ export interface CiSyncRequest {
     readonly follow?: boolean | undefined;
 }
 
+/** Main-process-only continuation marker. `readRequest` never accepts it from IPC. */
+type CiSyncRunRequest = CiSyncRequest & { readonly resumeRecordedRun?: boolean };
+
 export type CiSyncResult =
     | {
           readonly ok: true;
@@ -447,6 +450,7 @@ export interface CiRenderSyncOptions {
 export class CiRenderSync {
     readonly #options: CiRenderSyncOptions;
     readonly #running = new Map<string, AbortController>();
+    readonly #resuming = new Map<string, Promise<CiSyncResult>>();
 
     constructor(options: CiRenderSyncOptions) {
         this.#options = options;
@@ -454,7 +458,7 @@ export class CiRenderSync {
 
     /** The ids of syncs this process is actively driving right now. */
     activeSyncIds(): string[] {
-        return [...this.#running.keys()];
+        return [...new Set([...this.#running.keys(), ...this.#resuming.keys()])];
     }
 
     /**
@@ -726,8 +730,7 @@ export class CiRenderSync {
         if (transport === null) {
             return {
                 report: null,
-                appFailure:
-                    noTransportReason ?? "No GitHub CLI credential lease was available.",
+                appFailure: noTransportReason ?? "No GitHub CLI credential lease was available.",
                 routeFailure: null,
             };
         }
@@ -831,7 +834,13 @@ export class CiRenderSync {
             // Choosing per operation would let a sync dispatch on one sign-in and download
             // on another, which works on a machine where both are authorised and fails
             // halfway through on one where only one is.
-            const routed = await this.#resolveRoute(owner, repo, request, controller.signal, "write");
+            const routed = await this.#resolveRoute(
+                owner,
+                repo,
+                request,
+                controller.signal,
+                "write",
+            );
             if (routed.transport === null || !routed.report.ready) {
                 return this.#failed(
                     syncId,
@@ -846,7 +855,7 @@ export class CiRenderSync {
             this.#log(syncId, "info", routed.report.describe);
 
             const result = await this.#run({
-                request,
+                request: request as CiSyncRunRequest,
                 owner,
                 repo,
                 transport: routed.transport,
@@ -857,6 +866,10 @@ export class CiRenderSync {
                 project: project.project,
                 signal: controller.signal,
                 startedAt,
+                resumeRecordedRun:
+                    (request as CiSyncRunRequest).resumeRecordedRun === true &&
+                    state.stage === "dispatched" &&
+                    state.runId !== null,
             });
             return result;
         } catch (error) {
@@ -866,10 +879,58 @@ export class CiRenderSync {
                 this.emit({ type: "cancelled", syncId, at: this.#timestamp() });
                 return this.#failed(syncId, failure("cancelled", CANCELLED_MESSAGE));
             }
-            return this.#failed(syncId, fromError(error));
+            const converted = fromError(error);
+            state = {
+                ...state,
+                stage: "failed",
+                failureCode: converted.code,
+                failureMessage: converted.message,
+                updatedAt: this.#timestamp(),
+            };
+            await this.#save(workspace.stateFile, state);
+            return this.#failed(syncId, converted);
         } finally {
             this.#running.delete(syncId);
         }
+    }
+
+    /**
+     * Continues a run that this computer already dispatched before the application closed.
+     *
+     * The recorded run id is the authorization boundary: this path never fingerprints or
+     * uploads the current world and never dispatches a replacement run. A world edited while
+     * the app was closed therefore cannot silently turn a resume into a second publication.
+     */
+    async resume(syncId: string): Promise<CiSyncResult> {
+        const inFlight = this.#resuming.get(syncId);
+        if (inFlight !== undefined) return await inFlight;
+        const task = this.#resumeOnce(syncId);
+        this.#resuming.set(syncId, task);
+        try {
+            return await task;
+        } finally {
+            if (this.#resuming.get(syncId) === task) this.#resuming.delete(syncId);
+        }
+    }
+
+    async #resumeOnce(syncId: string): Promise<CiSyncResult> {
+        const state = await this.readState(syncId);
+        if (state === null) {
+            return this.#failed(
+                syncId,
+                failure("no-such-sync", `There is no CI render recorded under ${syncId}.`),
+            );
+        }
+        if (state.stage !== "dispatched" || state.runId === null) return await this.check(syncId);
+        return await this.sync({
+            worldFolder: state.worldFolder,
+            owner: state.owner,
+            repo: state.repo,
+            mapId: state.mapId,
+            ...(state.accountId === null ? {} : { accountId: state.accountId }),
+            follow: true,
+            resumeRecordedRun: true,
+        } as CiSyncRunRequest);
     }
 
     /**
@@ -909,12 +970,7 @@ export class CiRenderSync {
         }
 
         try {
-            const run = await this.#readRunReport(
-                routed.transport,
-                state.owner,
-                state.repo,
-                runId,
-            );
+            const run = await this.#readRunReport(routed.transport, state.owner, state.repo, runId);
             this.emit({ type: "run", syncId, run, at: this.#timestamp() });
             return { ok: true, syncId, outcome: "running", run, state };
         } catch (error) {
@@ -924,8 +980,168 @@ export class CiRenderSync {
 
     /* ---------------------------------------------------------------------- */
 
+    /** Follows and collects one already-recorded run without any upload or dispatch path. */
+    async #finishRecordedRun(context: {
+        owner: string;
+        repo: string;
+        syncId: string;
+        workspace: ReturnType<typeof ciSyncWorkspace>;
+        signal: AbortSignal;
+        transport: CiTransport;
+        route: CiRoute;
+        state: CiSyncState;
+        startedAt: number;
+    }): Promise<CiSyncResult> {
+        const { owner, repo, syncId, workspace, signal, transport, route } = context;
+        let state = context.state;
+        const runId = state.runId;
+        const releaseTag = state.releaseTag;
+        const assetName = state.assetName;
+        if (runId === null || releaseTag === null || assetName === null) {
+            return this.#failed(
+                syncId,
+                failure(
+                    "resume-record-incomplete",
+                    "This recorded render does not contain its run and uploaded-world identity, so it cannot be resumed safely.",
+                    { route },
+                ),
+            );
+        }
+
+        this.#log(
+            syncId,
+            "info",
+            `Carrying on with run ${String(runId)}, which this world was already sent to.`,
+        );
+        this.#phase(syncId, "rendering", route);
+        let report = await this.#readRunReport(transport, owner, repo, runId);
+        this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
+        while (report.status !== "completed") {
+            signal.throwIfAborted();
+            await this.#sleep(this.#options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, signal);
+            report = await this.#readRunReport(transport, owner, repo, runId);
+            this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
+        }
+
+        if (report.conclusion !== "success") {
+            const failing = firstUnsuccessfulJob(report.jobs);
+            const excerpt =
+                failing === null || failing.id <= 0
+                    ? null
+                    : await transport.readJobLogTail(owner, repo, failing.id);
+            state = {
+                ...state,
+                stage: report.conclusion === "cancelled" ? "cancelled" : "failed",
+                failureCode: `run-${report.conclusion ?? "unknown"}`,
+                failureMessage: `Run ${String(runId)} ended as ${report.conclusion ?? "an unrecognised state"}.`,
+                updatedAt: this.#timestamp(),
+            };
+            await this.#save(workspace.stateFile, state);
+            return this.#failed(
+                syncId,
+                failure(
+                    `run-${report.conclusion ?? "unknown"}`,
+                    `The render on GitHub ended as ${report.conclusion ?? "an unrecognised state"}` +
+                        (failing === null ? "" : `, in the job "${failing.name}"`) +
+                        ". No map was downloaded and nothing was added to the map list. The run is at " +
+                        `${report.htmlUrl}.`,
+                    {
+                        route,
+                        run: report,
+                        failingJob: failing?.name ?? null,
+                        logExcerpt: excerpt,
+                        detail: report.htmlUrl,
+                    },
+                ),
+            );
+        }
+
+        this.#phase(syncId, "downloading", route);
+        const renderId = ciRenderIdFor(syncId);
+        const collected = await collectRenderedMap(owner, repo, runId, {
+            transport,
+            signal,
+            storageDir: this.#options.storageDir(),
+            artifactFile: workspace.artifactFile,
+            renderId,
+            mapId: state.mapId,
+            mapName: state.mapName,
+            dimension: state.dimension,
+            worldFolder: state.worldFolder,
+            headSha: report.headSha,
+            repository: `${owner}/${repo}`,
+            ...(this.#options.mounts === undefined ? {} : { mounts: this.#options.mounts }),
+            ...(this.#options.appVersion === undefined
+                ? {}
+                : { appVersion: this.#options.appVersion }),
+            startedAt: report.createdAt,
+        });
+        if (!collected.ok) {
+            state = {
+                ...state,
+                stage: "failed",
+                failureCode: collected.failure.code,
+                failureMessage: collected.failure.message,
+                updatedAt: this.#timestamp(),
+            };
+            await this.#save(workspace.stateFile, state);
+            return this.#failed(
+                syncId,
+                failure(collected.failure.code, collected.failure.message, {
+                    route,
+                    run: report,
+                    detail: report.htmlUrl,
+                }),
+            );
+        }
+
+        this.#phase(syncId, "registering", route);
+        if (!collected.verified) {
+            this.#log(
+                syncId,
+                "info",
+                "GitHub published no checksum for this artifact, so its SHA-256 was recorded rather " +
+                    `than verified: ${collected.sha256}.`,
+            );
+        }
+        state = {
+            ...state,
+            stage: "rendered",
+            renderId: collected.renderId,
+            artifactSha256: collected.sha256,
+            failureCode: null,
+            failureMessage: null,
+            updatedAt: this.#timestamp(),
+        };
+        await this.#save(workspace.stateFile, state);
+
+        this.#phase(syncId, "finished", route);
+        const summary: CiSyncSummary = {
+            syncId,
+            repository: `${owner}/${repo}`,
+            releaseTag,
+            assetName,
+            runId,
+            runUrl: report.htmlUrl,
+            renderId: collected.renderId,
+            dataRoot: collected.dataRoot,
+            mapId: state.mapId,
+            mapName: state.mapName,
+            route,
+            uploaded: false,
+            artifactBytes: collected.bytes,
+            artifactSha256: collected.sha256,
+            verified: collected.verified,
+        };
+        const durationMs = this.#clock() - context.startedAt;
+        this.emit({ type: "finished", syncId, summary, durationMs, at: this.#timestamp() });
+        return { ok: true, syncId, outcome: "rendered", summary, durationMs };
+    }
+
+    /* ---------------------------------------------------------------------- */
+
     async #run(context: {
-        request: CiSyncRequest;
+        request: CiSyncRunRequest;
         owner: string;
         repo: string;
         transport: CiTransport;
@@ -936,6 +1152,7 @@ export class CiRenderSync {
         project: ProjectFile;
         signal: AbortSignal;
         startedAt: number;
+        resumeRecordedRun: boolean;
     }): Promise<CiSyncResult> {
         const { owner, repo, syncId, workspace, signal, transport } = context;
         const route = transport.route;
@@ -976,6 +1193,20 @@ export class CiRenderSync {
                     { route },
                 ),
             );
+        }
+
+        if (context.resumeRecordedRun && state.runId !== null) {
+            return await this.#finishRecordedRun({
+                owner,
+                repo,
+                syncId,
+                workspace,
+                signal,
+                transport,
+                route,
+                state,
+                startedAt: context.startedAt,
+            });
         }
 
         if (!repository.private && context.request.acknowledgePublic !== true) {
@@ -1730,8 +1961,7 @@ function fromError(error: unknown, route: CiRoute | null = null): CiSyncFailure 
             {
                 detail: error.url === "" ? null : error.url,
                 status: error.status,
-                needsSignIn:
-                    error.needsSignIn || error.status === 401 || error.status === 403,
+                needsSignIn: error.needsSignIn || error.status === 401 || error.status === 403,
                 route,
             },
         );

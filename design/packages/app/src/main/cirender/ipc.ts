@@ -70,6 +70,7 @@ export const CIRENDER_EVENT_CHANNEL = "cirender:event";
 export const CIRENDER_CHANNELS = [
     "cirender:preflight",
     "cirender:start",
+    "cirender:resume",
     "cirender:check",
     "cirender:list",
     "cirender:cancel",
@@ -222,6 +223,32 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         },
     );
 
+    options.ipcMain.handle(
+        "cirender:resume",
+        async (_event: IpcMainInvokeEvent, syncId: unknown): Promise<CiSyncResult> => {
+            const id = readText(syncId);
+            if (id === null) {
+                return {
+                    ok: false,
+                    syncId: "nowhere",
+                    failure: {
+                        code: "invalid-request",
+                        message: "A sync id is required to resume a recorded render.",
+                        detail: null,
+                        status: null,
+                        needsSignIn: false,
+                        needsEula: false,
+                        route: null,
+                        run: null,
+                        failingJob: null,
+                        logExcerpt: null,
+                    },
+                };
+            }
+            return await sync.resume(id);
+        },
+    );
+
     options.ipcMain.handle("cirender:list", async (): Promise<Answer<readonly CiSyncState[]>> => {
         try {
             const ids = await sync.knownSyncIds();
@@ -244,10 +271,13 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         return id !== null && sync.cancel(id);
     });
 
-    options.ipcMain.handle("cirender:forget", async (_event: IpcMainInvokeEvent, syncId: unknown) => {
-        const id = readText(syncId);
-        return id !== null && (await sync.forget(id));
-    });
+    options.ipcMain.handle(
+        "cirender:forget",
+        async (_event: IpcMainInvokeEvent, syncId: unknown) => {
+            const id = readText(syncId);
+            return id !== null && (await sync.forget(id));
+        },
+    );
 
     // What this process is actively driving right now, independent of what has been
     // persisted to disk. `cirender:list` answers "every sync this computer has a record

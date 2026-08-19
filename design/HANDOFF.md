@@ -2,7 +2,7 @@
 
 ## 2026-08-19 — issue #64 queue-persistence implementation handoff
 
-**State:** the CLI queue-persistence wiring and helper are present in the current Gerk Tong Hui.
+**State:** the CLI queue-persistence wiring and helper are present in the current checkout.
 This records correction did not run tests, lint, reviews, audits, accessibility checks, or
 screenshot capture. It did not commit, merge, dew, publish, or close issue #64.
 

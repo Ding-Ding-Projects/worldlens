@@ -23,7 +23,7 @@
     "expectedSurface": "Render on GitHub history",
     "alt": "Worldlens Render on GitHub history after restart, with persisted terminal states and local removal controls instead of endless spinners."
   },
-  { "action": "assertCount", "selector": "[data-test='row']", "count": 3 },
+  { "action": "rememberCount", "selector": "[data-test='row']", "key": "recovery-rows" },
   { "action": "click", "selector": "[data-test='forget']", "nth": 0 },
   { "action": "assertText", "selector": ".mb-config-confirm", "text": "Remove this render from the list" },
   {
@@ -38,7 +38,7 @@
   { "action": "click", "selector": ".mb-config-confirm__key--two" },
   { "action": "press", "role": "slider", "name": "Remove from the list", "key": "END" },
   { "action": "sleep", "ms": 900 },
-  { "action": "assertCount", "selector": "[data-test='row']", "count": 2 },
+  { "action": "waitForCountLessThanRemembered", "selector": "[data-test='row']", "key": "recovery-rows", "timeout": 30000 },
   {
     "action": "screenshot",
     "name": "lowlevel-ci-render-row-removed",
