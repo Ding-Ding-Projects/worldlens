@@ -1,5 +1,33 @@
 # Handoff
 
+## Issue #70 marker authoring — records-only update, 2026-08-19
+
+Issue #70 remains **open and unverified**. The issue-owned checkout contains the marker-studio
+source changes, while the durable feature record is [`docs/marker-studio.md`](docs/marker-studio.md).
+The current records distinguish the local POI authoring path from the broader first-class editor
+contract: marker sets, POI/line/shape/extrude geometry, map-aware drawing, style/icon/label
+controls, unknown-field and ordering preservation, preview-before-save, import/export, local
+history and undo/restore, VS Code handoff, collision/concurrent-file handling, and
+cross-dimension safeguards all require explicit acceptance evidence before closure.
+
+This pass corrects the public issue timestamp and recreates the issue records in the exact
+issue-owned checkout. No tests, package builds, viewer launches, screenshots, or runtime claims
+are made here. Keep Issue #70 open until the implementation and the focused packaged evidence
+for every edited marker type are complete.
+
+### 廣東話 / Cantonese
+
+Issue #70 仲係 **open，未驗證**。issue-owned checkout 有 marker-studio source changes，直接
+feature record 係 [`docs/marker-studio.md`](docs/marker-studio.md)。而家 records 清楚分開本地
+POI authoring 同完整 first-class editor contract：marker set、POI/line/shape/extrude geometry、
+地圖畫線畫形、style/icon/label、unknown field 同 ordering、save 前 preview、import/export、
+local history/undo/restore、VS Code handoff、collision/concurrent file 同 cross-dimension
+safeguard，都要有獨立 acceptance evidence 先可以 close。
+
+今次修正 public issue timestamp，並喺正確 issue-owned checkout 重建 records。冇跑 tests、冇
+build package、冇開 viewer、冇影 screenshots，亦冇聲稱 runtime 已經證實。要等每種 edited
+marker type 嘅 packaged evidence 齊晒先可以 close Issue #70。
+
 ## Issue #74 local live-player tracking — 2026-08-19
 
 Issue #74 remains **open and unverified**. This issue-owned checkout contains the local live-player

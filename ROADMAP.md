@@ -1,5 +1,19 @@
 # Roadmap
 
+## Issue #70 — first-class marker authoring editor
+
+- **Status:** Marker-studio source work is present in the issue-owned checkout; Issue #70 remains
+  open and unverified.
+- **Record:** [`docs/marker-studio.md`](docs/marker-studio.md) states the current POI boundary and
+  the broader acceptance contract.
+- **Evidence still open:** marker-set CRUD and duplication, BlueMap POI/line/shape/extrude
+  authoring, map-aware drawing, complete style/icon/label controls, unknown-field/order
+  preservation, preview-before-save, import/export, local history and undo/restore, VS Code
+  handoff, collision/concurrent-file handling, cross-dimension safeguards, and focused
+  accessibility, localization, reduced-motion, packaged interaction, and per-type capture proof.
+- **Records boundary:** this update ran no tests and took no captures. Do not close Issue #70 from
+  source presence alone.
+
 ## Issue #74 — local live-player tracking
 
 - **Status:** Source implementation is present in the issue-owned checkout; acceptance remains

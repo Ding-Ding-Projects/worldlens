@@ -111,6 +111,7 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "remoteTargets", owner: "components/remote/remoteTargets.ts" },
     { key: "eulaTabs", owner: "components/eula/eulaStorage.ts" },
     { key: "markerFiltersOpen", owner: "components/markers/MarkerMenu.vue" },
+    { key: "markerStudio", owner: "components/markers/markerStudioStore.ts" },
     { key: "mapStorageDir", owner: "components/setup/mapStorage.ts" },
     { key: "languageMode", owner: "components/setup/setupI18n.ts" },
     { key: "funnyLevelEn", owner: "components/setup/setupI18n.ts" },
