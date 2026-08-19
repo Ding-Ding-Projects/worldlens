@@ -1,5 +1,30 @@
 # Handoff
 
+## Issue #52 release host and account routing — 2026-08-19
+
+The release transport repair is present on the current default branch through
+`f4a3b6c9`, with the handoff and roadmap records from `c6093b39` and the generated
+changelog refresh from `215307ac`. `gh release create` and `gh release upload` now receive
+the supported `[HOST/]OWNER/REPO` target through `--repo`; they never receive the
+unsupported release-level `--hostname` flag. Before each release read, create, or upload,
+the selected signed-in account is re-read from the live `gh` inventory, switched when
+necessary, and verified with `gh api --hostname HOST user --jq .login`. Missing accounts,
+refused switches, and identity mismatches stop before release mutation and expose the
+same-surface account recovery action.
+
+The focused transport, sync, CI-render screen, and backup-run-card suites passed **148/148**;
+app and UI typechecks, workspace build, and lint passed in the original repair lane. The
+tests use fake process boundaries and did not create a repository, upload release data, or
+run the original multi-gigabyte backup again. A genuine fixed-state packaged-app capture
+remains open because the required cheap headless route is unavailable; a bridge-injected
+image would not prove the repaired runtime seam. Issue #52 therefore remains open until
+that capture evidence exists.
+
+The current Worldlens baseline also carries the central `gh` process runner and `runToFile`
+boundary (`2a3684f6`, `eb2663e1`), child-process close handling (`4d511d6c`), and cloud-render
+restart/recovery integration (`f148a538`). The current CI run for `ac46de28` is
+`32257677190` and remains in progress; it is not a completed verdict.
+
 ## Issue #78 per-project render engine choice — 2026-08-19
 
 Projects persist canonical `typescript` or `upstream-java` intent. New projects default to the

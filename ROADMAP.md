@@ -1,5 +1,25 @@
 # Roadmap
 
+## Issue #52 release host and account routing — 2026-08-19
+
+- [x] Route release commands with supported `--repo [HOST/]OWNER/REPO` syntax and never
+      pass the unsupported release-level `--hostname` flag.
+- [x] Re-read the selected account from the live `gh` inventory, switch it when inactive,
+      and verify the effective login before every release mutation.
+- [x] Fail closed for missing accounts, refused switches, and identity mismatches, with
+      account recovery on the same release surface.
+- [x] Record the computer-wide account-switch side effect and leave the selected account
+      active after the operation.
+- [x] Preserve regression evidence: focused transport, sync, CI-render screen, and
+      backup-run-card suites passed **148/148**; app/UI typechecks, build, and lint passed
+      in the implementation lane.
+- [x] Carry the later central `gh` runner/`runToFile` fixes (`2a3684f6`, `eb2663e1`),
+      child-process close handling (`4d511d6c`), and cloud-render restart/recovery
+      integration (`f148a538`) in the current Worldlens baseline.
+- [ ] Capture the repaired state from the genuine packaged application through the cheap
+      headless route. The route is currently unavailable, so the issue stays open and no
+      fake bridge capture is accepted as evidence.
+
 ## Issue #78 — per-project render engine choice
 
 Implementation and focused verification are complete. Remaining before closure: package both

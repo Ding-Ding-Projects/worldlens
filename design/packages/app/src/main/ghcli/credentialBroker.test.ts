@@ -232,6 +232,112 @@ describe("GhCredentialBroker", () => {
         expect(main.calls.flatMap((call) => call.args).join(" ")).not.toContain("api/v3/api/v3");
     });
 
+    it("routes enterprise release uploads with a host-qualified repository and no hostname flag", async () => {
+        const path = await executable();
+        const main = mainRunner([
+            { host: "ghe.example", login: "octocat", active: true },
+            { host: "ghe.example", login: "release-bot", active: false },
+        ]);
+        const runner: ProcessRunner = {
+            ...main.runner,
+            run: async (command, args, options) => {
+                if (args[0] === "release" && args[1] === "upload") {
+                    main.calls.push({ command, args, options });
+                    return processResult();
+                }
+                return await main.runner.run(command, args, options);
+            },
+        };
+        const broker = new GhCredentialBroker({ runner, candidates: [path] });
+        const lease = await broker.account(ghAccountId("ghe.example", "release-bot"), "write");
+
+        await expect(
+            lease!.uploadReleaseAsset(
+                "maps-owner",
+                "maps-repo",
+                "backup-2026-08-19",
+                "backup.zip",
+                "/tmp/backup.zip",
+            ),
+        ).resolves.toMatchObject({ started: true, code: 0 });
+
+        const upload = main.calls.find(
+            (call) => call.args[0] === "release" && call.args[1] === "upload",
+        );
+        expect(upload?.args).toEqual([
+            "release",
+            "upload",
+            "backup-2026-08-19",
+            "/tmp/backup.zip",
+            "--repo",
+            "ghe.example/maps-owner/maps-repo",
+        ]);
+        expect(upload?.args).not.toContain("--hostname");
+    });
+
+    it("host-qualifies direct release commands exposed by a lease", async () => {
+        const path = await executable();
+        const main = mainRunner([{ host: "ghe.example", login: "octocat", active: true }]);
+        const runner: ProcessRunner = {
+            ...main.runner,
+            run: async (command, args, options) => {
+                if (args[0] === "release") {
+                    main.calls.push({ command, args, options });
+                    return processResult();
+                }
+                return await main.runner.run(command, args, options);
+            },
+        };
+        const broker = new GhCredentialBroker({ runner, candidates: [path] });
+        const lease = await broker.account(ghAccountId("ghe.example", "octocat"));
+
+        await expect(
+            lease!.run(["release", "view", "backup-tag", "--repo", "owner/repository"]),
+        ).resolves.toMatchObject({ started: true, code: 0 });
+
+        expect(main.calls.at(-1)?.args).toEqual([
+            "release",
+            "view",
+            "backup-tag",
+            "--repo",
+            "ghe.example/owner/repository",
+        ]);
+        expect(main.calls.at(-1)?.args).not.toContain("--hostname");
+    });
+
+    it("host-qualifies direct file-output release commands exposed by a lease", async () => {
+        const path = await executable();
+        const main = mainRunner([{ host: "ghe.example", login: "octocat", active: true }]);
+        const runner: ProcessRunner = {
+            ...main.runner,
+            runToFile: async (command, args, destination, options) => {
+                if (args[0] === "release") {
+                    main.calls.push({ command, args, options });
+                    return { started: true, code: 0, bytes: 7, stderr: "" };
+                }
+                return await main.runner.runToFile(command, args, destination, options);
+            },
+        };
+        const broker = new GhCredentialBroker({ runner, candidates: [path] });
+        const lease = await broker.account(ghAccountId("ghe.example", "octocat"));
+
+        await expect(
+            lease!.runToFile(
+                ["release", "download", "backup-tag", "--repo", "owner/repository"],
+                "/tmp/backup.zip",
+            ),
+        ).resolves.toMatchObject({ started: true, code: 0, bytes: 7 });
+
+        expect(main.calls.at(-1)?.args).toEqual([
+            "release",
+            "download",
+            "backup-tag",
+            "--repo",
+            "ghe.example/owner/repository",
+        ]);
+        expect(main.calls.at(-1)?.args).not.toContain("--hostname");
+    });
+
     it("pins nested git credential helpers to the trusted gh executable, including a spaced path", async () => {
         const path = await executable(true);
         const main = mainRunner([{ host: "ghe.example", login: "octocat", active: true }]);

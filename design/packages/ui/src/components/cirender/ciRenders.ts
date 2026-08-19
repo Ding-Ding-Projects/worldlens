@@ -377,6 +377,7 @@ export interface CiRenders {
     readonly repositories: Ref<readonly CiRepositoryChoice[]>;
     readonly loadingRepositories: Ref<boolean>;
     readonly repositoriesFailure: Ref<string | null>;
+    readonly repositoriesNeedsSignIn: Ref<boolean>;
     readonly nameAvailability: Ref<CiRepositoryNameAvailability | null>;
     readonly checkingName: Ref<boolean>;
     readonly canListOwners: boolean;
@@ -543,6 +544,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
     const repositories = ref<readonly CiRepositoryChoice[]>([]);
     const loadingRepositories = ref(false);
     const repositoriesFailure = ref<string | null>(null);
+    const repositoriesNeedsSignIn = ref(false);
     const nameAvailability = ref<CiRepositoryNameAvailability | null>(null);
     const checkingName = ref(false);
 
@@ -794,6 +796,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         repositories,
         loadingRepositories,
         repositoriesFailure,
+        repositoriesNeedsSignIn,
         nameAvailability,
         checkingName,
         canListOwners: bridge?.listCiOwners !== undefined,
@@ -956,14 +959,21 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
             loadingRepositories.value = true;
             repositories.value = [];
             repositoriesFailure.value = null;
+            repositoriesNeedsSignIn.value = false;
             try {
                 const answer = await bridge.listExistingRepositories(accountId);
                 if (token === repositoriesLoadToken) {
                     if (answer.ok) repositories.value = answer.value;
-                    else repositoriesFailure.value = answer.message;
+                    else {
+                        repositoriesFailure.value = answer.message;
+                        repositoriesNeedsSignIn.value = answer.needsSignIn === true;
+                    }
                 }
             } catch (error) {
-                if (token === repositoriesLoadToken) repositoriesFailure.value = describe(error);
+                if (token === repositoriesLoadToken) {
+                    repositoriesFailure.value = describe(error);
+                    repositoriesNeedsSignIn.value = false;
+                }
             } finally {
                 if (token === repositoriesLoadToken) loadingRepositories.value = false;
             }

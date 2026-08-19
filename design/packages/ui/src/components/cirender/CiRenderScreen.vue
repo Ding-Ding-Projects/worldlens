@@ -334,6 +334,9 @@ const accountItems = computed(() =>
         };
     }),
 );
+const unhealthyAccount = computed(() =>
+    accountOrdered.value.find((account) => !account.healthy) ?? null,
+);
 
 /**
  * Why the picker cannot be used to choose anything, or null when a real choice exists.
@@ -407,6 +410,11 @@ const ownerSignedOut = computed(() => {
 const ownerLoadFailed = computed(() => {
     const answer = renders.owners.value;
     return answer !== null && !answer.ok && answer.signedIn;
+});
+
+const ownerNeedsReauthentication = computed(() => {
+    const answer = renders.owners.value;
+    return answer !== null && !answer.ok && answer.needsSignIn === true;
 });
 
 const ownerFailureMessage = computed(() => {
@@ -1397,6 +1405,36 @@ onBeforeUnmount(() => {
                                 data-test-base="cirender-account-picker"
                                 @update:model-value="chooseAccount"
                             />
+                            <VAlert
+                                v-if="unhealthyAccount !== null"
+                                type="warning"
+                                variant="tonal"
+                                density="compact"
+                                class="mt-2"
+                                data-test="account-reauthentication"
+                                role="alert"
+                            >
+                                {{
+                                    t(
+                                        "cirender.account.unhealthy",
+                                        {
+                                            login: unhealthyAccount.login,
+                                            host: unhealthyAccount.host,
+                                        },
+                                        "{login} on {host} needs reauthentication before it can render.",
+                                    )
+                                }}
+                                <VBtn
+                                    v-if="props.canOpenSettings"
+                                    size="small"
+                                    variant="text"
+                                    class="mt-1"
+                                    data-test="account-reauthenticate"
+                                    @click="emit('signIn')"
+                                >
+                                    {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
+                                </VBtn>
+                            </VAlert>
                         </template>
                     </div>
 
@@ -1496,10 +1534,20 @@ onBeforeUnmount(() => {
                         class="mt-4 mb-2"
                         data-test="owner-load-failed"
                         role="alert"
-                    >
-                        {{ ownerFailureMessage }}
-                        <VBtn
-                            size="small"
+                        >
+                            {{ ownerFailureMessage }}
+                            <VBtn
+                                v-if="ownerNeedsReauthentication && props.canOpenSettings"
+                                size="small"
+                                variant="tonal"
+                                class="mt-1"
+                                data-test="owner-reauthenticate"
+                                @click="emit('signIn')"
+                            >
+                                {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
+                            </VBtn>
+                            <VBtn
+                                size="small"
                             variant="text"
                             class="mt-1"
                             @click="renders.loadOwners(effectiveAccountId)"
@@ -1576,6 +1624,16 @@ onBeforeUnmount(() => {
                         data-test="repositories-failure"
                     >
                         {{ renders.repositoriesFailure.value }}
+                        <VBtn
+                            v-if="renders.repositoriesNeedsSignIn.value && props.canOpenSettings"
+                            size="small"
+                            variant="tonal"
+                            class="mt-1"
+                            data-test="repositories-reauthenticate"
+                            @click="emit('signIn')"
+                        >
+                            {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
+                        </VBtn>
                     </VAlert>
 
                     <div class="d-flex ga-2 flex-wrap">
