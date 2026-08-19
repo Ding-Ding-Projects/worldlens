@@ -165,14 +165,14 @@ of following yesterday's failure forever.
 
 ![Worldlens showing the UI-created public Bayville repository ready for Pages, with managed workflows current, the public-world disclosure accepted, and one real cloud render active](docs/screenshots/lowlevel-public-pages-render-retry.png)
 
-![A stopped-watching cloud render restored honestly as cancelled after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
+![A failed cloud render restored honestly as failed after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
 
 <details>
 <summary><b>See the removal itself</b></summary>
 
-![Two-key confirmation explaining the local-only removal boundary for a cancelled cloud render](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
+![Two-key confirmation explaining the local-only removal boundary for a failed cloud render](docs/screenshots/lowlevel-ci-render-remove-confirmation.png)
 
-![Cloud-render history showing the honest empty state after the cancelled local row was removed](docs/screenshots/lowlevel-ci-render-row-removed.png)
+![Cloud-render history after the failed local row was removed, with the remaining terminal history still honest](docs/screenshots/lowlevel-ci-render-row-removed.png)
 
 </details>
 
@@ -945,6 +945,19 @@ never takes the docs down.
 
 _The tiny probe world, rendered by GitHub's runners and served from
 `dingdingchae.github.io`, loaded in a browser with no BlueMap server anywhere._
+
+<details>
+<summary><b>See the UI-created Bayville repository live on GitHub Pages</b></summary>
+
+![The live Worldlens documentation home published by the UI-created Bayville repository, showing its searchable Material Design documentation shell, tab list, settings destination, and Windows download action](docs/screenshots/bayville-pages-home.png)
+
+![The live Bayville World v10.1 BlueMap published at the repository's map route, showing the complete rendered region with its towns, roads, rivers, forests, snowy eastern district, and southern lake](docs/screenshots/bayville-pages-map.png)
+
+These are anonymous guest-Edge captures of the same deployment produced by
+[workflow run 32246619712](https://github.com/Ding-Ding-Projects/worldlens-bayville-ui-public-20260819-01/actions/runs/32246619712).
+The documentation root and `/map/` both returned HTTP 200 before capture.
+
+</details>
 
 **One detail decides whether this works at all,** and it is invisible until every tile
 returns 404. The engine stores hires tiles gzipped — the file on disk is `0.prbm.gz` — and
