@@ -107,6 +107,18 @@ try {
             (Join-Path $output "window-timeout-profile.json"),
             (($profileFiles | ConvertTo-Json -Depth 8) + [Environment]::NewLine)
         )
+        $probeDesktop = $desktop + "-notepad-probe"
+        $probeLaunch = Invoke-Lowlevel "launch_on_headless_desktop" @{ name = $probeDesktop; command = "notepad.exe" }
+        Start-Sleep -Seconds 2
+        $probeWindows = Invoke-Lowlevel "list_headless_windows" @{ name = $probeDesktop }
+        [IO.File]::WriteAllText(
+            (Join-Path $output "window-timeout-notepad-probe.json"),
+            ((@{ launch = $probeLaunch; windows = $probeWindows } | ConvertTo-Json -Depth 12) + [Environment]::NewLine)
+        )
+        if ($probeLaunch.pid -and (Get-Process -Id ([int]$probeLaunch.pid) -ErrorAction SilentlyContinue)) {
+            try { Invoke-Lowlevel "kill_process" @{ pid = [int]$probeLaunch.pid; force = $true } | Out-Null } catch {}
+        }
+        try { Invoke-Lowlevel "close_headless_desktop" @{ name = $probeDesktop } | Out-Null } catch {}
         throw "Worldlens application window did not appear within 45 seconds."
     }
     $hwnd = [int64]$matches[0].handle
