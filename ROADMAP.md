@@ -102,18 +102,19 @@ same-world render、restart/reopen 同 diagnostic read-back 仲未有。
 - **Record:** [`docs/manual-release-ledger.md`](docs/manual-release-ledger.md) describes the
   schema-backed, append-only ledger in `docs/release-ledger.json` and the validator in
   `scripts/manual-release-ledger.mjs`.
-- **Evidence boundary:** The task-owned ledger now has four historical rows (releases 682, 704,
-  708, and 731) plus the verified build-and-release-only workflow policy row. The four historical
-  rows are `failed` with `shipped-nonconforming` disposition because those releases copied and
-  attached catalog photos, which current policy forbids. The workflow-policy row is verified from
-  remote release read-back and does not claim local packaging or runtime evidence. This lane ran
+- **Evidence boundary:** The task-owned ledger now has six inventory phases: four historical rows
+  (releases 682, 704, 708, and 731), the verified build-and-release-only workflow policy row, and
+  the failed/no-release completeness-enforcement row. The four historical rows are `failed` with
+  `shipped-nonconforming` disposition because those releases copied and attached catalog photos,
+  which current policy forbids. The workflow-policy row is verified from remote release read-back
+  and does not claim local packaging or runtime evidence. This lane ran
   no tests, builds, installer sessions, workflow dispatches, runtime checks, or captures.
 - **Remaining:** Keep one row for every completed phase and update the single bundled hand-written
   `docs/release-phase-inventory.json` with each new phase. The packaged reader now rejects an
   incomplete schema-shaped ledger with the missing phase names instead of returning a partial
   readout; missing or malformed inventory is an error, and local-build facts remain separate from
   cloud verdicts. Issue #51's `.613` evidence remains outside this ledger; only the workflow-policy
-  row is `verified`.
+  row is `verified`; the completeness-enforcement row is not.
 - **Packaging boundary:** `electron-builder.config.cjs` copies the ledger and its inventory to
   `resources/release-ledger/`; packaged interaction and restart/reopen proof remain unrun.
 - **Failed/no-release boundary:** Commit `4a7aad1eda64b24337de2e50d4dd50fb625167ff` has no

@@ -213,13 +213,15 @@ The packaging configuration copies both records into the stable
 development-checkout fallbacks. Packaged interaction, restart/reopen, and installer proof remain
 unrun in this lane.
 
-The populated task-owned ledger contains four historical rows (releases 682,
-704, 708, and 731) plus the verified build-and-release-only workflow policy row. Each historical row has complete release/target/workflow/timing/asset/hash
+The populated task-owned ledger contains six inventory phases: four historical rows (releases
+682, 704, 708, and 731), the verified build-and-release-only workflow policy row, and the failed
+no-release completeness-enforcement row. Each historical row has complete release/target/workflow/timing/asset/hash
 read-back but is intentionally `failed` with `shipped-nonconforming` disposition,
 because the release copied and attached a dim-sum photo. Current policy requires
 linking to the public catalog photo without copying or attaching it. The workflow-policy row is
 verified from its remote release read-back, while no local packaging or runtime verdict is
-claimed; issue #51's `.613` evidence remains outside this ledger.
+claimed. The completeness-enforcement row remains failed with no release identity; issue #51's
+`.613` evidence remains outside this ledger.
 
 The later `4a7aad1e` phase attempt is recorded as failed with no release identity. CI run
 `32295874519` (`2026-08-19T19:57:25Z` → `2026-08-19T20:09:48Z`) completed `jars` and the Windows
