@@ -65,8 +65,9 @@ try {
     if (-not $health) { throw "Lowlevel MCP did not become healthy within 45 seconds." }
 
     $launcher = Join-Path $repo ".claude\skills\run-worldlens\launch-headless.cmd"
-    $command = ('"{0}" {1} "{2}" "{3}"' -f $launcher, $CdpPort, $profile, $repo)
-    Invoke-Lowlevel "launch_on_headless_desktop" @{ name = $desktop; command = $command } | Out-Null
+    $launcherLog = Join-Path $logs "launcher.log"
+    $command = ('"{0}" {1} "{2}" "{3}" > "{4}" 2>&1' -f $launcher, $CdpPort, $profile, $repo, $launcherLog)
+    $launchResult = Invoke-Lowlevel "launch_on_headless_desktop" @{ name = $desktop; command = $command }
 
     $deadline = (Get-Date).AddSeconds(45)
     do {
@@ -83,6 +84,28 @@ try {
         [IO.File]::WriteAllText(
             (Join-Path $output "window-timeout-inventory.json"),
             (($inventory | ConvertTo-Json -Depth 12) + [Environment]::NewLine)
+        )
+        $processes = @(Get-CimInstance Win32_Process)
+        $ownedIds = [Collections.Generic.HashSet[int]]::new()
+        [void]$ownedIds.Add([int]$launchResult.pid)
+        do {
+            $added = $false
+            foreach ($process in $processes) {
+                if ($ownedIds.Contains([int]$process.ParentProcessId) -and -not $ownedIds.Contains([int]$process.ProcessId)) {
+                    [void]$ownedIds.Add([int]$process.ProcessId)
+                    $added = $true
+                }
+            }
+        } while ($added)
+        $snapshot = @($processes | Where-Object { $ownedIds.Contains([int]$_.ProcessId) } | Select-Object ProcessId, ParentProcessId, Name, CreationDate, ExecutablePath, CommandLine)
+        [IO.File]::WriteAllText(
+            (Join-Path $output "window-timeout-processes.json"),
+            (($snapshot | ConvertTo-Json -Depth 8) + [Environment]::NewLine)
+        )
+        $profileFiles = @(Get-ChildItem -LiteralPath $profile -Force -ErrorAction SilentlyContinue | Select-Object Name, Length, LastWriteTime)
+        [IO.File]::WriteAllText(
+            (Join-Path $output "window-timeout-profile.json"),
+            (($profileFiles | ConvertTo-Json -Depth 8) + [Environment]::NewLine)
         )
         throw "Worldlens application window did not appear within 45 seconds."
     }
@@ -103,6 +126,8 @@ try {
 
     $env:LOWLEVEL_MCP_ENDPOINT = $endpoint
     $env:WORLDLENS_DRIVER_HWND = [string]$hwnd
+    $env:WORLDLENS_DRIVER_WIDTH = [string]$matches[0].width
+    $env:WORLDLENS_DRIVER_HEIGHT = [string]$matches[0].height
     $env:WORLDLENS_UI_ONLY = "1"
     $env:WORLDLENS_PLAN_EXIT = "1"
     $env:WORLDLENS_DRIVER_DESKTOP = $desktop
@@ -117,6 +142,8 @@ try {
 } finally {
     Remove-Item Env:\LOWLEVEL_MCP_ENDPOINT -ErrorAction SilentlyContinue
     Remove-Item Env:\WORLDLENS_DRIVER_HWND -ErrorAction SilentlyContinue
+    Remove-Item Env:\WORLDLENS_DRIVER_WIDTH -ErrorAction SilentlyContinue
+    Remove-Item Env:\WORLDLENS_DRIVER_HEIGHT -ErrorAction SilentlyContinue
     Remove-Item Env:\WORLDLENS_UI_ONLY -ErrorAction SilentlyContinue
     Remove-Item Env:\WORLDLENS_PLAN_EXIT -ErrorAction SilentlyContinue
     Remove-Item Env:\WORLDLENS_DRIVER_DESKTOP -ErrorAction SilentlyContinue

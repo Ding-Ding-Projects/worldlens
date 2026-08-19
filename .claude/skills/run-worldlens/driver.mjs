@@ -90,6 +90,8 @@ const SHOTS = resolve(
 const PORT = process.argv[2] || "9333";
 const LOWLEVEL_MCP_ENDPOINT = process.env.LOWLEVEL_MCP_ENDPOINT || "";
 const LOWLEVEL_HWND = Number(process.env.WORLDLENS_DRIVER_HWND || 0);
+const LOWLEVEL_WINDOW_WIDTH = Number(process.env.WORLDLENS_DRIVER_WIDTH || 0);
+const LOWLEVEL_WINDOW_HEIGHT = Number(process.env.WORLDLENS_DRIVER_HEIGHT || 0);
 const UI_ONLY = process.env.WORLDLENS_UI_ONLY === "1";
 
 if (
@@ -446,6 +448,19 @@ async function executeAction(step) {
         });
       await settle();
       break;
+    case "clickIfVisible": {
+      const target = locate(step);
+      const visible = await target
+        .waitFor({ state: "visible", timeout: Number(step.timeout || 2_000) })
+        .then(() => true)
+        .catch(() => false);
+      if (visible) {
+        if (UI_ONLY) await lowlevelClick(target, step.button || "left");
+        else await target.click({ button: step.button || "left" });
+      }
+      await settle();
+      break;
+    }
     case "clickPoint":
       if (!UI_ONLY)
         throw new Error("clickPoint is reserved for Lowlevel UI-only plans");
@@ -464,20 +479,39 @@ async function executeAction(step) {
       const target = locate(step);
       const attempts = Number(step.attempts || 12);
       for (let attempt = 0; attempt < attempts; attempt += 1) {
-        if (await target.isVisible()) {
+        const box = await target.boundingBox().catch(() => null);
+        const centerX = box === null ? -1 : box.x + box.width / 2;
+        const centerY = box === null ? -1 : box.y + box.height / 2;
+        const inWindow =
+          box !== null &&
+          centerX >= 0 &&
+          centerY >= 0 &&
+          (LOWLEVEL_WINDOW_WIDTH <= 0 || centerX < LOWLEVEL_WINDOW_WIDTH) &&
+          (LOWLEVEL_WINDOW_HEIGHT <= 0 || centerY < LOWLEVEL_WINDOW_HEIGHT);
+        if ((await target.isVisible()) && inWindow) {
           await lowlevelClick(target, step.button || "left");
           break;
         }
         await lowlevelCall("mouse_click", {
           hwnd: LOWLEVEL_HWND,
           x: Number(step.scrollX || 1271),
-          y: Number(step.scrollY || 700),
+          y: Number(
+            step.scrollY ||
+              (box !== null && box.y + box.height / 2 < 0 ? 150 : 700),
+          ),
           button: "left",
           clicks: 1,
         });
         await settle();
       }
-      if (!(await target.isVisible()))
+      const finalBox = await target.boundingBox().catch(() => null);
+      if (
+        !(await target.isVisible()) ||
+        finalBox === null ||
+        finalBox.y + finalBox.height / 2 < 0 ||
+        (LOWLEVEL_WINDOW_HEIGHT > 0 &&
+          finalBox.y + finalBox.height / 2 >= LOWLEVEL_WINDOW_HEIGHT)
+      )
         throw new Error("clickUntilVisible exhausted its bounded scroll attempts");
       break;
     }
@@ -486,6 +520,24 @@ async function executeAction(step) {
         throw new Error("chooseFolder is reserved for Lowlevel UI-only plans");
       await lowlevelChooseFolder(step);
       break;
+    case "pressWhenFocused": {
+      if (!UI_ONLY)
+        throw new Error("pressWhenFocused is reserved for Lowlevel UI-only plans");
+      const target = locate(step);
+      const attempts = Number(step.attempts || 100);
+      let focused = false;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        focused = await target
+          .evaluate((element) => element === document.activeElement)
+          .catch(() => false);
+        if (focused) break;
+        await lowlevelPress("tab");
+      }
+      if (!focused)
+        throw new Error("pressWhenFocused exhausted its bounded Tab sequence");
+      await lowlevelPress(step.key || "space");
+      break;
+    }
     case "fill":
       {
         const value = step.valueEnv
@@ -537,6 +589,37 @@ async function executeAction(step) {
       if (actual !== Number(step.count))
         throw new Error(
           `expected ${step.selector} count ${step.count}, found ${actual}`,
+        );
+      break;
+    }
+    case "waitForCount": {
+      const expected = Number(step.count);
+      const deadline = Date.now() + Number(step.timeout || 45_000);
+      let actual = -1;
+      while (Date.now() < deadline) {
+        actual = await page.locator(step.selector).count();
+        if (actual === expected) break;
+        await page.waitForTimeout(250);
+      }
+      if (actual !== expected)
+        throw new Error(
+          `expected ${step.selector} count ${expected} before timeout, found ${actual}`,
+        );
+      break;
+    }
+    case "waitTextNot": {
+      const target = locate(step);
+      const forbidden = String(step.text);
+      const deadline = Date.now() + Number(step.timeout || 45_000);
+      let actual = "";
+      while (Date.now() < deadline) {
+        actual = await target.innerText().catch(() => "");
+        if (actual !== "" && !actual.includes(forbidden)) break;
+        await page.waitForTimeout(250);
+      }
+      if (actual === "" || actual.includes(forbidden))
+        throw new Error(
+          `expected text without ${JSON.stringify(forbidden)} before timeout, found ${JSON.stringify(actual)}`,
         );
       break;
     }
