@@ -9,6 +9,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { RenderManager, type BmMap } from "@worldlens/engine";
 import { resolveCliActions, parseCliArgs, type ResolvedCliActions } from "@worldlens/config";
+import { RenderQueuePersistence } from "@worldlens/server";
 import { formatHelp, formatVersion } from "./args.js";
 import { bootstrapConfig, DEFAULT_CONFIG_FOLDER, type LoadedConfig } from "./config.js";
 import { createLogger, type Logger } from "./logger.js";
@@ -26,6 +27,7 @@ export interface CliResult {
     /** Non-null only when `-w` (or a combination that starts the webserver) left it running. */
     readonly server: RunningServer | null;
     readonly renderManager: RenderManager | null;
+    readonly renderQueuePersistence: RenderQueuePersistence | null;
     /** Non-null only when `-u`/`--watch` left region-file watchers (and the full-update timer) running. */
     readonly watch: RunningWatch | null;
 }
@@ -46,23 +48,23 @@ export async function runCli(argv: readonly string[], appVersion: string): Promi
     if (issues.length > 0) {
         for (const issue of issues) logger.error(`Failed to parse provided arguments! ${issue.argument}: ${issue.message}`);
         console.log(formatHelp());
-        return { exitCode: EXIT.GENERAL, server: null, renderManager: null, watch: null };
+        return { exitCode: EXIT.GENERAL, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
     }
 
     if (invocation.help) {
         console.log(formatHelp());
-        return { exitCode: EXIT.OK, server: null, renderManager: null, watch: null };
+        return { exitCode: EXIT.OK, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
     }
     if (invocation.version) {
         console.log(formatVersion(appVersion, process.env["BLUEMAP_GIT_HASH"] ?? "unknown"));
-        return { exitCode: EXIT.OK, server: null, renderManager: null, watch: null };
+        return { exitCode: EXIT.OK, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
     }
 
     const configFolder = invocation.configFolder ?? DEFAULT_CONFIG_FOLDER;
     if (invocation.modsFolder !== null) {
         if (!existsSync(invocation.modsFolder)) {
             logger.error(`Mods folder does not exist: ${invocation.modsFolder}`);
-            return { exitCode: EXIT.GENERAL, server: null, renderManager: null, watch: null };
+            return { exitCode: EXIT.GENERAL, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
         }
         logger.warn("-n/--mods was given, but this port does not scan mod jars for bundled resource packs. See config.ts.");
     }
@@ -75,13 +77,13 @@ export async function runCli(argv: readonly string[], appVersion: string): Promi
         loaded = await bootstrapConfig({ configFolder, minecraftVersion: invocation.minecraftVersion, appVersion, logger });
     } catch (error) {
         logger.error("Failed to load configuration", error);
-        return { exitCode: EXIT.GENERAL, server: null, renderManager: null, watch: null };
+        return { exitCode: EXIT.GENERAL, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
     }
 
     if (actions.noActions) {
         logger.info(`Generated default config files for you, here: ${resolveConfigPath(configFolder)}`);
         console.log(formatHelp());
-        return { exitCode: EXIT.GENERAL, server: null, renderManager: null, watch: null };
+        return { exitCode: EXIT.GENERAL, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
     }
 
     const webroot = resolveConfigPath(loaded.webapp.webroot);
@@ -101,6 +103,7 @@ export async function runCli(argv: readonly string[], appVersion: string): Promi
         const needsMaps = actions.render !== null || actions.updateMarkers !== null || actions.startWebserver !== null;
         let maps: ReadonlyMap<string, BmMap> = new Map();
         let renderManager: RenderManager | null = null;
+        let renderQueuePersistence: RenderQueuePersistence | null = null;
 
         if (needsMaps) {
             const mapFilter = actions.render?.maps ?? actions.updateMarkers?.maps ?? null;
@@ -120,6 +123,16 @@ export async function runCli(argv: readonly string[], appVersion: string): Promi
             if (maps.size === 0) {
                 logger.warn("No maps were successfully loaded; render/markers/webserver actions will have nothing to do.");
             }
+
+            if (actions.render !== null || actions.startWebserver !== null) {
+                renderManager = new RenderManager();
+                renderQueuePersistence = new RenderQueuePersistence(renderManager, {
+                    file: join(resolveConfigPath(loaded.core.data), "tasks.dat"),
+                    maps,
+                    onError: (message, error) => logger.error(message, error),
+                });
+                await renderQueuePersistence.start();
+            }
         }
 
         let watch: RunningWatch | null = null;
@@ -127,7 +140,9 @@ export async function runCli(argv: readonly string[], appVersion: string): Promi
         if (actions.render !== null) {
             if (loaded.webapp.enabled) await runCreateOrUpdateWebApp(loaded, webroot, actions.render.forceGenerateWebapp, appVersion, logger);
 
-            renderManager = new RenderManager();
+            if (renderManager === null || renderQueuePersistence === null) {
+                throw new Error("Render queue persistence was not initialized before rendering");
+            }
             const rendered = await runRender(actions.render, {
                 maps,
                 renderManager,
@@ -161,25 +176,33 @@ export async function runCli(argv: readonly string[], appVersion: string): Promi
             // exactly that hang — would wait forever for a render that can never run.
             if (renderManager === null) {
                 renderManager = new RenderManager();
+                renderQueuePersistence = new RenderQueuePersistence(renderManager, {
+                    file: join(resolveConfigPath(loaded.core.data), "tasks.dat"),
+                    maps,
+                    onError: (message, error) => logger.error(message, error),
+                });
+                await renderQueuePersistence.start();
+            }
+            if (!renderManager.isRunning()) {
                 renderManager.start(loaded.core["render-thread-count"], loaded.core["render-thread-priority"]);
             }
             server = await startWebserver({ webserver: loaded.webserver, webroot, maps, renderManager, logger });
         }
 
-        return { exitCode: EXIT.OK, server, renderManager, watch };
+        return { exitCode: EXIT.OK, server, renderManager, renderQueuePersistence, watch };
     } catch (error) {
         if (error instanceof MissingResourcesError) {
             logger.warn("BlueMap is missing important resources!");
             logger.warn("You must accept the required file download in order for BlueMap to work!");
             logger.warn(error.message);
-            return { exitCode: EXIT.MISSING_RESOURCES, server: null, renderManager: null, watch: null };
+            return { exitCode: EXIT.MISSING_RESOURCES, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
         }
         if (error instanceof WebappSourceNotFoundError) {
             logger.error(error.message);
-            return { exitCode: EXIT.GENERAL, server: null, renderManager: null, watch: null };
+            return { exitCode: EXIT.GENERAL, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
         }
         logger.error("An unexpected error occurred!", error);
-        return { exitCode: EXIT.GENERAL, server: null, renderManager: null, watch: null };
+        return { exitCode: EXIT.GENERAL, server: null, renderManager: null, renderQueuePersistence: null, watch: null };
     }
 }
 

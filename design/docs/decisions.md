@@ -33,6 +33,33 @@ Decisions locked during planning (see `../../plan.md` for full context):
 - **D16 — Docker hosting**: `dockerode`; instance = container + managed volumes + ports;
   image selectable (ported image default, upstream `ghcr.io/bluemap-minecraft/bluemap` supported).
 
+## D20 — Keep render-queue persistence engine-owned until a process owner is wired
+
+**Recorded 2026-08-19 for issue #64.** `RenderManager` in `packages/engine` owns the
+serialisation boundary (`saveRenderTaskQueue` / `loadRenderTaskQueue`). The
+`packages/server` `RenderQueuePersistence` helper owns the process-boundary policy when
+constructed: 30-second periodic requests by default, coalesced saves, unique staging names,
+atomic replacement, terminal-task filtering, and a final shutdown save. The standalone CLI
+now constructs it after maps are built, using `<resolved core.data>/tasks.dat`; the server
+package exports the helper but has no separate construction site. The desktop app's local
+Java-render path is not an owner of this TypeScript queue.
+
+The current API accepts a caller-supplied absolute queue-file path. The CLI supplies
+`<resolved core.data>/tasks.dat`; the focused storage tests use a file named `tasks.dat` in a
+temporary directory. The queue format is version `1`, a BlueNBT `TasksData` object with
+`version` and `render-tasks` fields. Unknown versions
+or an unreadable top-level file are refused and discarded; an unknown task type or missing
+map drops only that entry and preserves the other valid entries.
+
+The storage primitive writes through a sibling `.filepart` and atomic move; the server helper
+adds a unique `*.staging-<uuid>` path and prevents overlapping helper saves by scheduling one
+follow-up pass. It filters tasks whose `hasMoreWork()` is false before saving, which is the
+current terminal-task non-resurrection measure, but it is not yet a proof against every stale
+queue or crash-ordering race. There is no retention history beyond the CLI's one current
+`tasks.dat` file. The CLI loads after map construction and logs map-build skips, while queue
+entry failures use the error callback; a structured skipped-task/recovery surface is not yet
+proven. A real restart proof remains outstanding.
+
 ## D17 — Java engine first for local rendering, TypeScript mesher as its replacement
 
 **Decided 2026-08-03, superseding the pure-TypeScript renderer position in D5.**
