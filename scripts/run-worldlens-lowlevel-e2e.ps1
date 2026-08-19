@@ -177,6 +177,16 @@ try {
     "plan $PlanPath" |
         node (Join-Path $repo ".claude\skills\run-worldlens\driver.mjs") $CdpPort
     if ($LASTEXITCODE -ne 0) { throw "The Worldlens Lowlevel UI plan failed." }
+    node (Join-Path $repo "scripts\write-lowlevel-evidence-receipts.mjs") `
+        --repo-root $repo `
+        --run-root $output `
+        --commit $captureCommit `
+        --packaged-exe (Join-Path $repo "design\packages\app\release\win-unpacked\Worldlens.exe") `
+        --app-asar (Join-Path $repo "design\packages\app\release\win-unpacked\resources\app.asar") `
+        --launch-pid ([string]$windowPid) `
+        --hwnd ("0x{0:x}" -f $hwnd) `
+        --plan $PlanPath
+    if ($LASTEXITCODE -ne 0) { throw "Writing the Lowlevel evidence receipts failed." }
 } finally {
     Remove-Item Env:\LOWLEVEL_MCP_ENDPOINT -ErrorAction SilentlyContinue
     Remove-Item Env:\WORLDLENS_DRIVER_HWND -ErrorAction SilentlyContinue
@@ -225,16 +235,5 @@ try {
         Remove-Item -LiteralPath $resolvedRunRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
-
-node (Join-Path $repo "scripts\write-lowlevel-evidence-receipts.mjs") `
-    --repo-root $repo `
-    --run-root $output `
-    --commit $captureCommit `
-    --packaged-exe (Join-Path $repo "design\packages\app\release\win-unpacked\Worldlens.exe") `
-    --app-asar (Join-Path $repo "design\packages\app\release\win-unpacked\resources\app.asar") `
-    --launch-pid ([string]$windowPid) `
-    --hwnd ("0x{0:x}" -f $hwnd) `
-    --plan $PlanPath
-if ($LASTEXITCODE -ne 0) { throw "Writing the Lowlevel evidence receipts failed." }
 
 Write-Output "Worldlens Lowlevel UI-only evidence: $output"
