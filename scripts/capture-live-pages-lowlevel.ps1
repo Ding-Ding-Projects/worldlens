@@ -40,6 +40,20 @@ function Invoke-Lowlevel([string]$Tool, [hashtable]$Arguments) {
     return $answer
 }
 
+function Get-ExactPhaseUrl([string]$RequestedUrl) {
+    $targets = @(Invoke-RestMethod -Uri "http://127.0.0.1:$CdpPort/json/list" -TimeoutSec 5)
+    if ($targets.Count -ne 1 -or $targets[0].type -ne "page") {
+        throw "The isolation proof requires exactly one page target before each capture phase."
+    }
+    $requested = [Uri]$RequestedUrl
+    $actual = [Uri]([string]$targets[0].url)
+    if ($actual.GetLeftPart([UriPartial]::Path) -ne $requested.GetLeftPart([UriPartial]::Path) -or
+        $actual.Query -ne $requested.Query) {
+        throw "The page target changed origin, path, or query before capture."
+    }
+    return $actual.AbsoluteUri
+}
+
 try {
     $server = Start-Process -FilePath $pythonw -ArgumentList @(
         "-m", "lowlevel_computer_use_mcp.server", "--http", "--legacy-http",
@@ -83,7 +97,8 @@ try {
     $edgeVersion = (Get-Item -LiteralPath $edge).VersionInfo.FileVersion
     $verifier = "C:\Users\cntow\.agents\skills\verify-headless-site\scripts\verify-edge-target.mjs"
     foreach ($phase in @("preflight", "capture")) {
-        node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $Url `
+        $phaseUrl = if ($phase -eq "preflight") { $Url } else { Get-ExactPhaseUrl $Url }
+        node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $phaseUrl `
             --run-root $output --edge-executable $edge --edge-sha256 $edgeHash `
             --edge-version $edgeVersion --launch-pid ([string]$edgePid) --phase $phase `
             --output (Join-Path $output "target-$phase.json")
@@ -91,7 +106,8 @@ try {
     }
     $shot = Invoke-Lowlevel "screenshot" @{ hwnd = $hwnd }
     Copy-Item -LiteralPath $shot.path -Destination (Join-Path $output "pages-live.png") -Force
-    node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $Url `
+    $finalUrl = Get-ExactPhaseUrl $Url
+    node $verifier --endpoint "http://127.0.0.1:$CdpPort/json/list" --expected-url $finalUrl `
         --run-root $output --edge-executable $edge --edge-sha256 $edgeHash `
         --edge-version $edgeVersion --launch-pid ([string]$edgePid) --phase final `
         --output (Join-Path $output "target-final.json")
