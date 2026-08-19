@@ -462,6 +462,16 @@ describe("the workflow's wave jobs stay in sync with RENDER_WAVE_SLOTS", () => {
             .map((token) => Number(token.trim().replace("wave", "")));
         expect(waveNumbers).toEqual(expectedSlots);
     });
+
+    it("evaluates Pages publication after deliberately skipped wave jobs", () => {
+        const publish = /  publish:\r?\n([\s\S]*?)\r?\n    runs-on:/u.exec(workflow)?.[1] ?? "";
+        expect(publish).toContain("needs: [plan, merge]");
+        expect(publish).toContain("${{ always()");
+        expect(publish).toContain("needs.plan.result == 'success'");
+        expect(publish).toContain("needs.merge.result == 'success'");
+        expect(publish).toContain("inputs.output == 'artifact-and-pages'");
+        expect(publish).toContain("needs.plan.outputs.single-group == 'true'");
+    });
 });
 
 /* -------------------------------------------------------------------------- */
