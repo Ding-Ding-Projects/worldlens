@@ -54,6 +54,29 @@ code name to its existing public photo in
 [`Ding-Ding-Projects/dim-sum-photos`](https://github.com/Ding-Ding-Projects/dim-sum-photos).
 Worldlens never downloads, copies or attaches that catalog photo to its own release.
 
+### Public 1.0 compatibility contract (issue #60)
+
+The public 1.0 contract is Windows-only. It describes the compatibility boundary for the shipped
+desktop application, the standalone `@worldlens/cli` package, saved project/config/history data,
+HTTP/SSE and add-on surfaces, workflow inputs and outputs, environment variables, file layouts,
+update metadata, backup pointers, exported formats, and accessibility-visible commands. Each
+surface is classified as stable, experimental, internal, or deprecated; stable names and schemas
+follow semantic versioning, while migration and rollback rules are documented before a breaking
+change.
+
+The supported delivery channel is the versioned `1.0.<run>` Windows release channel. Packaging is
+Squirrel.Windows and the intended release set is an unsigned `Setup.exe`, `RELEASES`, one full
+`.nupkg`, and delta packages where produced. An unsigned artifact may trigger an unknown-publisher
+warning. The documentation lane did not publish a release. Its committed build path completed
+successfully after initializing the declared `vendor/BlueMap` submodule; no compatibility claim
+here should be read as evidence that this lane packaged or shipped a new candidate.
+
+The contract remains explicit about what is outside 1.0: future feature work is not silently
+promoted to a compatibility promise, and any unsupported OS, architecture, runtime, Minecraft,
+BlueMap, API, schema, or release-channel combination is reported as unsupported rather than
+accepted by implication. The documentation site carries the detailed contract article and its
+known evidence boundaries.
+
 ## Real Lowlevel UI run: Kid Mode and Adult Mode
 
 These images come from one real Electron process on an off-screen Windows desktop. Lowlevel MCP

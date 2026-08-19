@@ -10,6 +10,24 @@
   second run. Successful artifacts are downloaded, verified, registered and openable in the map
   viewer.
 
+## Public 1.0 compatibility contract — issue #60
+
+- **Scope:** Windows-only public compatibility for the desktop application and the standalone
+  `@worldlens/cli` delivery surfaces, including CLI names and exit codes, configuration/project/
+  history schemas, HTTP/SSE and add-on APIs, workflow inputs/outputs, environment variables, file
+  layouts, exports, backup pointers, update metadata, and accessibility-visible commands.
+- **Policy:** stable, experimental, internal, and deprecated surfaces are named explicitly;
+  stable changes follow semantic versioning; schema migration, rollback, support boundaries, and
+  intentional 1.0 deferrals are documented rather than inferred.
+- **Delivery facts:** the supported channel is versioned `1.0.<run>` Windows releases packaged
+  with Squirrel.Windows. The intended artifacts are unsigned `Setup.exe`, `RELEASES`, a full
+  `.nupkg`, and deltas where produced; an unknown-publisher warning is expected.
+- **Current state:** `build.bat /s` completed successfully after `vendor/BlueMap` initialization;
+  no installer package, release, or remote verification was performed.
+- **Next contract work:** complete the public surface inventory, publish reference and migration
+  examples with failure modes, reconcile the site's stale claims, and add the contract inventory
+  or generated proof that prevents exported names, schemas, docs, and examples drifting apart.
+
 ## Open verification work
 
 - Refresh the 117 broad application captures and 15 map-dependent captures against the current UI

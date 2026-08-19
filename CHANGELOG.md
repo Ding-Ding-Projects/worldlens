@@ -20,6 +20,11 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Documentation
+
+- Prepare the Windows-only public 1.0 compatibility-contract records for issue #60. The branch-local
+  records were built successfully, but were not packaged, published, or released.
+
 ### Desktop shell
 
 - Resume cloud renders after app restart - [`a558bef666`](https://github.com/Ding-Ding-Projects/worldlens/commit/a558bef66619648e21ef77bfeb67f59d099783a1)

@@ -1,5 +1,30 @@
 # Handoff
 
+## Issue #60 — public 1.0 compatibility contract
+
+This lane prepares the public delivery records for a Windows-only 1.0 compatibility contract. The
+intended boundary covers the desktop application and `@worldlens/cli` public surfaces: CLI names
+and exit codes, configuration/project/history schemas, HTTP/SSE and add-on APIs, workflow
+inputs/outputs, environment variables, file layouts, exports, backup pointers, update metadata,
+and accessibility-visible commands. Public surfaces must be labelled stable, experimental,
+internal, or deprecated; stable changes use semantic versioning, and migrations, rollback,
+support boundaries, and intentional 1.0 deferrals must be stated plainly.
+
+The delivery channel remains the versioned `1.0.<run>` Windows release channel. The package shape
+is Squirrel.Windows with unsigned `Setup.exe`, `RELEASES`, a full `.nupkg`, and deltas where
+produced. SmartScreen or the operating system may show an unknown-publisher warning; that is an
+expected consequence of the permanent no-signing policy.
+
+The committed build path `build.bat /s` completed successfully after the initial bootstrap blocker
+was resolved: `vendor/BlueMap` was not checked out, so the declared vendor/BlueMap submodule was
+initialized before the build could complete. The build used Electron runtime `v37.10.3`.
+
+No installer package, release, or remote verification was performed. Tests, lint, reviews, audits,
+accessibility checks, and HuiShots remained unrun in this lane. The remaining issue-60 work is the
+complete public surface inventory, reference and migration examples with failure modes, stale
+site/roadmap reconciliation, and an executable inventory or generated proof that keeps public
+names, schemas, documentation, and examples aligned.
+
 ## Cloud-render restart and UI verification — 2026-08-19
 
 The desktop app now restores persisted terminal cloud-render states, removes terminal rows only
