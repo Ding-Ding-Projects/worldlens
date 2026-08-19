@@ -13,7 +13,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { diffBytes, diffJson, describeError } from "./lib/diff.mjs";
@@ -149,6 +149,44 @@ async function loadDrivers(driverDir, selectedIds) {
     return result;
 }
 
+function portablePath(path) {
+    const relativePath = relative(REPO_ROOT, path);
+    return relativePath === "" ? "." : relativePath.split(sep).join("/");
+}
+
+function reportDriver(driver) {
+    return { ...driver, path: portablePath(driver.path) };
+}
+
+async function runtimeProvenance() {
+    const git = await run("git", ["rev-parse", "HEAD"], { cwd: REPO_ROOT, capture: true, quiet: true }).catch(() => ({ code: -1, stdout: "", stderr: "" }));
+    const java = await run("java", ["-version"], { cwd: REPO_ROOT, capture: true, quiet: true }).catch((error) => ({ code: -1, stdout: "", stderr: error instanceof Error ? error.message : String(error) }));
+    return {
+        testedCommit: git.code === 0 ? git.stdout.trim() : null,
+        node: process.version,
+        java: java.code === 0 ? (java.stderr.split("\n").find((line) => line.includes("version")) ?? "available") : null,
+    };
+}
+
+async function writeReport(report, options, exitCode) {
+    report.finishedAt = new Date().toISOString();
+    report.durationMs = Date.parse(report.finishedAt) - Date.parse(report.startedAt);
+    report.exitCode = exitCode;
+    const serialized = JSON.stringify(report);
+    if (report.finishedAt === null || !/^[0-9a-f]{40}$/.test(report.provenance.testedCommit ?? "") || typeof report.provenance.node !== "string")
+        throw new Error("oracle report contract: terminal time or provenance is missing");
+    for (const [id, dialectReport] of Object.entries(report.dialects)) {
+        if (!dialectReport.cleanup || Object.values(dialectReport.cleanup).some((cleanup) => cleanup.workRootRemoved !== true))
+            throw new Error(`oracle report contract: ${id} cleanup verdict is missing or failed`);
+    }
+    if (/[A-Za-z]:\\/.test(serialized)) throw new Error("oracle report contract: absolute filesystem path leaked into report");
+    if (options.json !== null) {
+        await mkdir(dirname(options.json), { recursive: true });
+        await writeFile(options.json, JSON.stringify(report, null, 2) + "\n", "utf8");
+        log(`[sql-crosscompat-matrix] report written to ${portablePath(options.json)}`);
+    }
+}
+
 async function verifyDriverArtifact(path, entry) {
     if (!(await exists(path))) throw new Error(`missing ${entry.coordinate} at ${path}`);
     const hash = createHash("sha256").update(await readFile(path)).digest("hex");
@@ -255,7 +293,7 @@ async function waitForChildExit(child, timeoutMs = 5000) {
     ]);
 }
 
-async function withTarget(dialect, options, label, fn) {
+async function withTarget(dialect, options, label, fn, cleanupRecord = {}) {
     const root = join(options.work, dialect.id, label);
     await rm(root, { recursive: true, force: true });
     await mkdir(root, { recursive: true });
@@ -282,8 +320,14 @@ async function withTarget(dialect, options, label, fn) {
             throw new Error(`${dialect.id}: credential leaked into the oracle result`);
         return result;
     } finally {
-        if (ownedTarget !== undefined) await ownedTarget.dispose();
-        await rm(root, { recursive: true, force: true });
+        if (ownedTarget !== undefined) cleanupRecord.target = await ownedTarget.dispose();
+        try {
+            await rm(root, { recursive: true, force: true });
+            cleanupRecord.workRootRemoved = true;
+        } catch (error) {
+            cleanupRecord.workRootRemoved = false;
+            cleanupRecord.workRootError = error instanceof Error ? error.message : String(error);
+        }
     }
 }
 
@@ -603,7 +647,7 @@ async function sentinelPreflight({ engine, dialect, target, driver, options, roo
 export async function main(argv = process.argv.slice(2)) {
     let options; try { options = parseArgs(argv); } catch (error) { process.stderr.write(`${describeError(error)}\n\n${USAGE}`); return 2; }
     if (options.help) { process.stdout.write(USAGE); return 0; }
-    const startedAt = Date.now(); const report = { schemaVersion: 1, startedAt: new Date(startedAt).toISOString(), options: { ...options }, dialects: {} };
+    const startedAt = Date.now(); const report = { schemaVersion: 1, startedAt: new Date(startedAt).toISOString(), finishedAt: null, options: { ...options, work: portablePath(options.work), driverDir: portablePath(options.driverDir), json: options.json === null ? null : portablePath(options.json) }, provenance: await runtimeProvenance(), dialects: {} };
     await mkdir(options.work, { recursive: true });
     let drivers; try { drivers = await loadDrivers(options.driverDir, options.dialects); } catch (error) { log(`[sql-crosscompat-matrix] ${describeError(error)}`); return 2; }
     const jar = await findCliJar(REPO_ROOT); if (jar === null) { log("[sql-crosscompat-matrix] no reference jar; build it with node tools/build-jars.mjs --only cli"); return 2; } options.jar = jar;
@@ -611,6 +655,8 @@ export async function main(argv = process.argv.slice(2)) {
     if (options.preflight) {
         for (const [index, id] of options.dialects.entries()) {
             const dialect = { ...DIALECTS[id], engine: null, engineDialect: null };
+            const cleanup = {};
+            report.dialects[id] = { driver: reportDriver(drivers[id]), cleanup: { construction: cleanup } };
             const engineEntry = join(REPO_ROOT, "design", "packages", "engine", "dist", "index.js");
             dialect.engine = await import(pathToFileURL(engineEntry).href);
             dialect.engineDialect = dialect.engine[id === "sqlite" ? "SQLITE" : "POSTGRESQL"];
@@ -619,34 +665,40 @@ export async function main(argv = process.argv.slice(2)) {
                 await missingDriverLoaderPreflight(dialect);
                 await wrongDriverHashPreflight(drivers[id]);
                 if (options.sentinelPreflight) await sentinelPreflight({ engine: dialect.engine, dialect, target, driver: drivers[id], options: { ...options, webserverPort: options.webserverPort + index }, root });
-            });
+            }, cleanup);
         }
+        await writeReport(report, options, 0);
         log(`[sql-crosscompat-matrix] preflight reached fixture generation and adapter construction with selected dialects: ${options.dialects.join(", ")}`);
         log(`[sql-crosscompat-matrix] verified JDBC drivers: ${Object.keys(drivers).join(", ")}; MariaDB was not required`);
         return 0;
     }
     let exitCode = 0;
     for (const id of options.dialects) {
-        const dialect = { ...DIALECTS[id], engine: null, engineDialect: null }; const dialectReport = { driver: drivers[id], directions: null, lifecycle: null, failures: null };
+        const dialect = { ...DIALECTS[id], engine: null, engineDialect: null }; const dialectReport = { driver: reportDriver(drivers[id]), directions: null, lifecycle: null, failures: null, cleanup: {} };
         report.dialects[id] = dialectReport;
         try {
             const engineEntry = join(REPO_ROOT, "design", "packages", "engine", "dist", "index.js"); dialect.engine = await import(pathToFileURL(engineEntry).href); dialect.engineDialect = dialect.engine[id === "sqlite" ? "SQLITE" : "POSTGRESQL"];
+            const cleanup1 = {};
+            dialectReport.cleanup.direction1 = cleanup1;
             await withTarget(dialect, options, "direction-1", async ({ root, target }) => {
                 const fileControl = await renderReference({ repoRoot: REPO_ROOT, jar, worldDirectory: world, workDirectory: join(root, "file-control"), mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, acceptDownload: true, renderThreadCount: id === "sqlite" ? 1 : options.threads, refresh: false });
                 dialectReport.directions = { javaWritesTsReads: await runDirection1({ engine: dialect.engine, dialect, target, driver: drivers[id], worldDirectory: world, fileControl, options, root }) };
                 dialectReport.failures = { ...(await expectWrongJdbc(dialect.engine, dialect)), ...(await runMissingDriverProbe({ engine: dialect.engine, root, dialect, target, driver: drivers[id], worldDirectory: world, mapId: options.mapId, options })) };
                 dialectReport.lifecycle = await lifecycleProbe(dialect.engine, dialect, target);
-            });
+            }, cleanup1);
+            const cleanup2 = {};
+            dialectReport.cleanup.direction2 = cleanup2;
             await withTarget(dialect, options, "direction-2", async ({ root, target }) => {
                 const fileControl = await renderReference({ repoRoot: REPO_ROOT, jar, worldDirectory: world, workDirectory: join(options.work, dialect.id, "direction-1", "file-control"), mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, acceptDownload: true, renderThreadCount: id === "sqlite" ? 1 : options.threads, refresh: false });
                 dialectReport.directions.tsWritesJavaReads = await runDirection2({ engine: dialect.engine, dialect, target, driver: drivers[id], worldDirectory: world, fileControl, options: { ...options, webserverPort: options.webserverPort + Object.keys(report.dialects).indexOf(id) }, root });
-            });
-            await withTarget(dialect, options, "incompatible-schema", async ({ target }) => { dialectReport.failures = { ...(dialectReport.failures ?? {}), ...(await expectIncompatibleSchema(dialect.engine, dialect, target)) }; });
+            }, cleanup2);
+            const cleanup3 = {};
+            dialectReport.cleanup.incompatibleSchema = cleanup3;
+            await withTarget(dialect, options, "incompatible-schema", async ({ target }) => { dialectReport.failures = { ...(dialectReport.failures ?? {}), ...(await expectIncompatibleSchema(dialect.engine, dialect, target)) }; }, cleanup3);
             if (dialectReport.directions.javaWritesTsReads.divergences || dialectReport.directions.tsWritesJavaReads.divergences) exitCode = 1;
         } catch (error) { dialectReport.error = describeError(error); log(`[sql-crosscompat-matrix] ${id}: ${dialectReport.error}`); exitCode = 2; }
     }
-    report.durationMs = Date.now() - startedAt; report.exitCode = exitCode;
-    if (options.json !== null) { await mkdir(dirname(options.json), { recursive: true }); await writeFile(options.json, JSON.stringify(report, null, 2) + "\n", "utf8"); log(`[sql-crosscompat-matrix] report written to ${options.json}`); }
+    await writeReport(report, options, exitCode);
     log(`[sql-crosscompat-matrix] finished in ${formatDuration(report.durationMs)} with exit code ${exitCode}`); return exitCode;
 }
 
