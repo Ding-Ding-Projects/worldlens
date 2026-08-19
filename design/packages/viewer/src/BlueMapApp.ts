@@ -11,6 +11,7 @@ import type { Animation } from "./util/Utils";
 import { MainMenu } from "./MainMenu";
 import { PopupMarker } from "./PopupMarker";
 import { MarkerSet } from "./markers/MarkerSet";
+import type { MarkerSetDataInput } from "./markers/MarkerSet";
 import { getLocalStorage, round, setLocalStorage } from "./Utils";
 import { RevalidatingFileLoader } from "./util/RevalidatingFileLoader";
 import { i18n, setLanguage } from "./util/i18n";
@@ -619,7 +620,7 @@ export class BlueMapApp {
             try {
                 const parsed: unknown = JSON.parse(data);
                 if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("marker SSE payload is not an object");
-                this.markerFileManager!.updateFromData(parsed);
+                this.markerFileManager!.updateFromData(parsed as Record<string, MarkerSetDataInput>);
             } catch (error) {
                 alert(this.events, error instanceof Error ? error : String(error), "warning");
             }
