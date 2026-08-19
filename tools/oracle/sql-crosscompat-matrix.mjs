@@ -261,7 +261,7 @@ async function withTarget(dialect, options, label, fn) {
             : { host: ownedTarget.host, port: ownedTarget.port, database: ownedTarget.database, user: ownedTarget.user, password: ownedTarget.password, connectionUrl: ownedTarget.connectionUrl };
         if (ownedTarget.waitUntilReady) await ownedTarget.waitUntilReady();
         const result = await fn({ root, target, container: ownedTarget.containerName ?? null });
-        if (target.password && JSON.stringify(result).includes(target.password))
+        if (target.password && result !== undefined && JSON.stringify(result).includes(target.password))
             throw new Error(`${dialect.id}: credential leaked into the oracle result`);
         return result;
     } finally {
@@ -329,9 +329,9 @@ function printCounters(counters, maxReport = 8) {
 
 async function openSql(engine, dialect, target) {
     const { Database, SQLStorage, Compression } = engine;
-    const adapter = await dialect.engine.createDriverAdapter({ connectionUrl: jdbcTarget(dialect, target), connectionProperties: dialect.id === "postgresql" ? { user: target.user, password: target.password } : {}, maxConnections: -1 });
+    const adapter = await dialect.engineDialect.createDriverAdapter({ connectionUrl: jdbcTarget(dialect, target), connectionProperties: dialect.id === "postgresql" ? { user: target.user, password: target.password } : {}, maxConnections: -1 });
     const database = new Database(adapter);
-    const storage = new SQLStorage(dialect.engine.createCommandSet(database), Compression.GZIP);
+    const storage = new SQLStorage(dialect.engineDialect.createCommandSet(database), Compression.GZIP);
     await storage.initialize();
     return { adapter, database, storage, compression: Compression };
 }
@@ -376,11 +376,11 @@ async function lifecycleProbe(engine, dialect, target) {
 
 async function expectIncompatibleSchema(engine, dialect, target) {
     const { Database } = engine;
-    const adapter = await dialect.engine.createDriverAdapter({ connectionUrl: jdbcTarget(dialect, target), connectionProperties: dialect.id === "postgresql" ? { user: target.user, password: target.password } : {}, maxConnections: -1 });
+    const adapter = await dialect.engineDialect.createDriverAdapter({ connectionUrl: jdbcTarget(dialect, target), connectionProperties: dialect.id === "postgresql" ? { user: target.user, password: target.password } : {}, maxConnections: -1 });
     const connection = await adapter.getConnection();
     const ddl = dialect.id === "sqlite" ? "CREATE TABLE bluemap_map (id INTEGER PRIMARY KEY)" : "CREATE TABLE bluemap_map (id INTEGER PRIMARY KEY)";
     await connection.execute(ddl, []); await connection.commit(); await connection.release();
-    const database = new Database(adapter); const commandSet = dialect.engine.createCommandSet(database);
+    const database = new Database(adapter); const commandSet = dialect.engineDialect.createCommandSet(database);
     const { SQLStorage, Compression } = engine; const storage = new SQLStorage(commandSet, Compression.GZIP);
     let failed = false;
     try { await storage.initialize(); await storage.map("incompatible").settings().write(Uint8Array.from([1])); } catch { failed = true; }
@@ -394,6 +394,16 @@ async function expectWrongJdbc(engine, dialect) {
     try { engine.resolveDialect(null, "jdbc:not-a-real-dialect://throwaway"); } catch { failed = true; }
     if (!failed) throw new Error(`${dialect.id}: unknown JDBC protocol was accepted`);
     return { wrongJdbcProtocol: true, passwordRedacted: true };
+}
+
+async function adapterConstructionPreflight(dialect, target) {
+    const adapter = await dialect.engineDialect.createDriverAdapter({
+        connectionUrl: jdbcTarget(dialect, target),
+        connectionProperties: dialect.id === "postgresql" ? { user: target.user, password: target.password } : {},
+        maxConnections: -1,
+    });
+    await adapter.close();
+    return { adapterConstructed: true, adapterClosed: true };
 }
 
 async function runMissingDriverProbe({ root, dialect, target, driver, worldDirectory, mapId, options }) {
@@ -412,7 +422,7 @@ async function runMissingDriverProbe({ root, dialect, target, driver, worldDirec
 
 async function runDirection1({ engine, dialect, target, driver, worldDirectory, fileControl, options, root }) {
     const configDir = join(root, "java-write-config");
-    await writeSqlConfig({ configDirectory: configDir, dataDirectory: join(root, "java-write-data"), webRoot: join(root, "java-write-web"), worldDirectory, mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, renderThreadCount: options.threads, dialect, target, driver, serverOnly: false, webserverPort: options.webserverPort });
+    await writeSqlConfig({ configDirectory: configDir, dataDirectory: join(root, "java-write-data"), webRoot: join(root, "java-write-web"), worldDirectory, mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, renderThreadCount: dialect.id === "sqlite" ? 1 : options.threads, dialect, target, driver, serverOnly: false, webserverPort: options.webserverPort });
     const started = Date.now(); const result = await run("java", ["-jar", options.jar, "-c", configDir, "-r", "-g"], { cwd: root, capture: true });
     if (result.code !== 0) throw new Error(`${dialect.id}: Java SQL render exited ${result.code}`);
     const subject = await openSql(engine, dialect, target); const sqlMap = subject.storage.map(options.mapId);
@@ -483,24 +493,33 @@ export async function main(argv = process.argv.slice(2)) {
     const jar = await findCliJar(REPO_ROOT); if (jar === null) { log("[sql-crosscompat-matrix] no reference jar; build it with node tools/build-jars.mjs --only cli"); return 2; } options.jar = jar;
     let world; try { world = await generateWorld({ repoRoot: REPO_ROOT, seed: options.seed, size: options.size, out: join(options.work, "worlds") }); } catch (error) { log(`[sql-crosscompat-matrix] ${describeError(error)}`); return 2; }
     if (options.preflight) {
-        log(`[sql-crosscompat-matrix] preflight reached fixture generation with selected dialects: ${options.dialects.join(", ")}`);
+        for (const id of options.dialects) {
+            const dialect = { ...DIALECTS[id], engine: null, engineDialect: null };
+            const engineEntry = join(REPO_ROOT, "design", "packages", "engine", "dist", "index.js");
+            dialect.engine = await import(pathToFileURL(engineEntry).href);
+            dialect.engineDialect = dialect.engine[id === "sqlite" ? "SQLITE" : "POSTGRESQL"];
+            await withTarget(dialect, options, "construction-preflight", async ({ target }) => {
+                await adapterConstructionPreflight(dialect, target);
+            });
+        }
+        log(`[sql-crosscompat-matrix] preflight reached fixture generation and adapter construction with selected dialects: ${options.dialects.join(", ")}`);
         log(`[sql-crosscompat-matrix] verified JDBC drivers: ${Object.keys(drivers).join(", ")}; MariaDB was not required`);
         return 0;
     }
     let exitCode = 0;
     for (const id of options.dialects) {
-        const dialect = { ...DIALECTS[id], engine: null }; const dialectReport = { driver: drivers[id], directions: null, lifecycle: null, failures: null };
+        const dialect = { ...DIALECTS[id], engine: null, engineDialect: null }; const dialectReport = { driver: drivers[id], directions: null, lifecycle: null, failures: null };
         report.dialects[id] = dialectReport;
         try {
-            const engineEntry = join(REPO_ROOT, "design", "packages", "engine", "dist", "index.js"); dialect.engine = await import(pathToFileURL(engineEntry).href);
+            const engineEntry = join(REPO_ROOT, "design", "packages", "engine", "dist", "index.js"); dialect.engine = await import(pathToFileURL(engineEntry).href); dialect.engineDialect = dialect.engine[id === "sqlite" ? "SQLITE" : "POSTGRESQL"];
             await withTarget(dialect, options, "direction-1", async ({ root, target }) => {
-                const fileControl = await renderReference({ repoRoot: REPO_ROOT, jar, worldDirectory: world, workDirectory: join(root, "file-control"), mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, acceptDownload: true, renderThreadCount: options.threads, refresh: false });
+                const fileControl = await renderReference({ repoRoot: REPO_ROOT, jar, worldDirectory: world, workDirectory: join(root, "file-control"), mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, acceptDownload: true, renderThreadCount: id === "sqlite" ? 1 : options.threads, refresh: false });
                 dialectReport.directions = { javaWritesTsReads: await runDirection1({ engine: dialect.engine, dialect, target, driver: drivers[id], worldDirectory: world, fileControl, options, root }) };
                 dialectReport.failures = { ...(await expectWrongJdbc(dialect.engine, dialect)), ...(await runMissingDriverProbe({ root, dialect, target, driver: drivers[id], worldDirectory: world, mapId: options.mapId, options })) };
                 dialectReport.lifecycle = await lifecycleProbe(dialect.engine, dialect, target);
             });
             await withTarget(dialect, options, "direction-2", async ({ root, target }) => {
-                const fileControl = await renderReference({ repoRoot: REPO_ROOT, jar, worldDirectory: world, workDirectory: join(options.work, dialect.id, "direction-1", "file-control"), mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, acceptDownload: true, renderThreadCount: options.threads, refresh: false });
+                const fileControl = await renderReference({ repoRoot: REPO_ROOT, jar, worldDirectory: world, workDirectory: join(options.work, dialect.id, "direction-1", "file-control"), mapId: options.mapId, mapName: "Overworld", dimension: options.dimension, acceptDownload: true, renderThreadCount: id === "sqlite" ? 1 : options.threads, refresh: false });
                 dialectReport.directions.tsWritesJavaReads = await runDirection2({ engine: dialect.engine, dialect, target, driver: drivers[id], worldDirectory: world, fileControl, options: { ...options, webserverPort: options.webserverPort + Object.keys(report.dialects).indexOf(id) }, root });
             });
             await withTarget(dialect, options, "incompatible-schema", async ({ target }) => { dialectReport.failures = { ...(dialectReport.failures ?? {}), ...(await expectIncompatibleSchema(dialect.engine, dialect, target)) }; });
