@@ -1,5 +1,14 @@
 # Roadmap
 
+## Issue #75 measurement and waypoints — 2026-08-19
+
+- **Status:** Implementation present in the task-owned checkout; acceptance remains open. The
+  model covers distance, polyline, horizontal/vertical delta, area, coordinate validation and
+  Nether conversion, plus waypoint and measurement persistence, search, import, and export.
+- **Evidence boundary:** No tests, packaged interaction, or real capture were run in this records
+  pass. The feature is not described as runtime-verified or shipped. See
+  [`docs/measurement-and-waypoints.md`](docs/measurement-and-waypoints.md) and issue #75.
+
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
 
 The pinned upstream source is `vendor/BlueMap` `v5.23` at

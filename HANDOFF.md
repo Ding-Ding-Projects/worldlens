@@ -1,5 +1,21 @@
 # Handoff
 
+## Issue #75 measurement and waypoints — 2026-08-19
+
+Issue #75 remains **open**. The task-owned checkout contains the bounded measurement and waypoint
+model changes, but this lane has not run tests, packaged interaction, or a real capture, so no
+runtime or release claim is made. The direct feature record is
+[`docs/measurement-and-waypoints.md`](docs/measurement-and-waypoints.md).
+
+The record covers point-to-point and polyline distance, horizontal/vertical deltas, area,
+coordinates, Nether scaling, editable/grouped/tagged/searchable waypoints, local persistence,
+complete import validation, export, and the failure boundary. Remaining acceptance work is to
+exercise the implementation in the packaged viewer and add the issue's focused proof before
+calling the feature complete.
+
+This is a documentation-only records pass. The implementation files already present in this
+checkout were not edited here.
+
 ## Issue #80 — privacy-safe in-app issue reporting (2026-08-19)
 
 The isolated Issue #80 checkout contains an in-progress implementation for a reviewed diagnostic

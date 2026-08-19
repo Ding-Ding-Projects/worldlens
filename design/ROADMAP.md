@@ -1,5 +1,12 @@
 # Roadmap
 
+## Issue #75 measurement and waypoints — 2026-08-19
+
+Issue #75's model implementation is present in the task-owned checkout. The roadmap status remains
+open because this lane has no test, packaged-viewer, or capture evidence. The implementation covers
+the numeric measurement and waypoint data boundary; acceptance must still prove it through the real
+viewer before completion is claimed.
+
 ## Issue #82 — packaged Java/runtime receipt boundary (2026-08-19)
 
 Issue #82 remains open. The active delivery scope is **Windows only**. Existing real-network

@@ -387,6 +387,15 @@ export class BlueMapApp {
 
         await this.mapViewer.switchMap(map);
 
+        // Measurement and waypoint records are scoped to the profile's data root, map id,
+        // and dimension identity. The map runtime stores world coordinates; the shell reprojects
+        // them on each camera/map change rather than persisting screen pixels.
+        this.materialShell.setMeasurementScope({
+            profileId: this.dataRoot || "default-profile",
+            mapId: map.data.id,
+            dimension: map.data.id,
+        });
+
         if (resetCamera || !this.mapViewer.map!.hasView(this.appState.controls.state))
             this.resetCamera();
 

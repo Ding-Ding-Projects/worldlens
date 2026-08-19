@@ -1,5 +1,16 @@
 # Handoff
 
+## 2026-08-19 — issue #75 measurement and waypoint records
+
+The task-owned checkout contains the issue #75 measurement and waypoint model, including bounded
+coordinate validation, Nether conversion, measurement calculations, waypoint editing, local
+storage, search, and complete-payload import/export. This record intentionally does not claim
+tests, packaged-artifact interaction, or a real capture; those are the remaining acceptance steps.
+
+The public feature article is [`docs/measurement-and-waypoints.md`](../docs/measurement-and-waypoints.md).
+The implementation files were not edited by this documentation-only pass.
+
+
 ## Issue #82 — packaged Java runtime and app-owned render receipt boundary (2026-08-19)
 
 Issue #82 remains open. This records-only lane keeps the active delivery scope **Windows only**:
