@@ -352,16 +352,20 @@ captures. It records gaps only and does not claim any acceptance row is green.
 
 ## Issue #67 — exact two-wave dispatch record (open, 2026-08-19)
 
+- **Run:** `32292039976` completed Wave 1 and Wave 2 shard work.
 - **Wave 1:** **256/256** shards completed.
-- **Wave 2:** **7/105** shards completed; **98** were cancelled in flight.
-- **Merge:** **not reached**.
+- **Wave 2:** **105/105** shards completed.
+- **Merge groups:** **12/12** completed successfully.
+- **Receipt:** setup failed because the configured `actions/setup-node` SHA was invalid.
+- **Skipped:** final merge verification, lowres rebuild, Pages publication, and cleanup.
 
-These are the complete observed counts from the prior hosted dispatch. They do not prove a final
-map, lowres rebuild, merged metadata, public result, or hosted-runner disk boundary. The next
-acceptance run must reach the real merge and retain its disk, integrity, ordering, resumability,
-cleanup, and publication receipts. This records-only lane ran none of those actions.
+The exact source correction removes one stray `e` from that SHA. It remains source-only until a
+rerun reaches receipt verification and reads back the generated receipt. The run therefore does
+not prove a final map, public result, or hosted-runner disk boundary. Issue #67 remains open for
+that rerun and the remaining integrity, ordering, resumability, disk, cleanup, and publication
+evidence. This lane ran no tests, captures, build, or packaged interaction.
 
-Receipt and two-wave implementation source is present under `design/packages/render-actions/src/`,
-with workflow wiring in `.github/workflows/render-world.yml` and
-`.github/workflows/render-shard-wave.yml`; those files have not been executed or read back in this
-lane. Source presence is not runtime or hosted proof.
+廣東話：`32292039976` 完成 Wave 1 **256/256**、Wave 2 **105/105**，同埋 **12/12** 個 merge
+groups；receipt setup 因為 `actions/setup-node` SHA 無效而失敗，final merge verification、
+lowres、Pages 同 cleanup 跳過。Source 改動只係刪走 SHA 多咗嗰一個 `e`，要 rerun 讀到 receipt
+先有 runtime proof；所以而家未算 final map、public result 或 disk boundary。

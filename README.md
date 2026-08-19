@@ -1285,3 +1285,8 @@ servers at runtime, only after explicit user consent, mirroring upstream BlueMap
 accept-download flow. BlueMap's own `resourceExtensions` JSONs are MIT and are bundled.
 
 </details>
+## Issue #67 terminal receipt
+
+Terminal run `32292039976` completed Wave 1 at **256/256**, Wave 2 at **105/105**, and all **12/12 merge groups** successfully. Receipt setup failed because the configured `actions/setup-node` SHA was invalid; final merge, low-resolution rendering, Pages, and cleanup steps were therefore skipped. The exact one-character workflow correction remains source-only until the workflow is rerun.
+
+Issue #67 終端收據：Wave 1 **256/256**、Wave 2 **105/105**，以及 **12/12 merge groups** 全部成功。收據 setup 因為設定嘅 `actions/setup-node` SHA 無效而失敗；最後 merge、low-res、Pages 同 cleanup 步驟因此跳過。嗰個一字元 workflow 修正暫時只留喺 source，等 workflow 重跑先至落地。

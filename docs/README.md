@@ -10,6 +10,13 @@ otherwise be read as a guarantee. The site under `design/packages/site/` carries
 feature as well; the articles summarise and link back here rather than duplicating these files,
 because two copies of one explanation drift apart and only one of them gets edited.
 
+## Issue #67 receipt
+
+Run `32292039976` completed all `361/361` shards and all `12/12` merge groups successfully. The
+receipt then failed during job setup because one `setup-node` commit pin was invalid. The final
+merge, low-resolution output, Pages publication, and cleanup steps were skipped. The workflow
+source correction is present but remains unverified until rerun.
+
 ## Audits
 
 Not feature documents, so they are listed apart from the two tables below rather than folded into
