@@ -102,6 +102,12 @@ The failed `4a7aad1e` attempt below is a no-release phase event: it has no relea
 is documented here because a cancelled or superseded workflow is still durable evidence that the
 phase did not publish.
 
+The records-only reconciliation commit `873eb0eae7c5b9208c3570a15cf81cf9704a29c7` was later
+published as [`v1.0.1373`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1373).
+That release publishes the documentation correction itself; it is not a seventh implementation
+phase and must not be borrowed as the release identity for another inventory row. The six named
+inventory phases above remain the completeness boundary.
+
 The packaged app copies both `docs/release-ledger.json` and
 `docs/release-phase-inventory.json` into `resources/release-ledger/`; the reader checks that
 read-only packaged location before its development-checkout fallbacks. Packaged interaction and
