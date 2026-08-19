@@ -139,7 +139,7 @@ export function measurementValue(measurement: Measurement): number | null {
     if (measurement.kind === "area") {
         return horizontalArea(measurement.points);
     }
-    return rest.length > 0 ? rest.reduce((sum, point, index) => sum + distance(index === 0 ? first : rest[index - 1], point), 0) : null;
+    return rest.length > 0 ? rest.reduce((sum, point, index) => sum + distance(index === 0 ? first : rest[index - 1]!, point), 0) : null;
 }
 
 export class MeasurementWaypointModel {
@@ -251,7 +251,7 @@ export class MeasurementWaypointModel {
             for (const measurement of parsed.measurements) { if (measurement.points.length > MAX_POLYLINE_POINTS) throw new Error(`A measurement may contain at most ${MAX_POLYLINE_POINTS} points.`); measurement.points.forEach(assertCoordinate); }
             parsed.waypoints.forEach(validateWaypoint); parsed.measurements.forEach(validateMeasurement);
             if (parsed.waypoints.some((waypoint) => waypoint.dimension !== this.scope.dimension) || parsed.measurements.some((measurement) => measurement.dimension !== this.scope.dimension)) throw new Error("Annotation dimension does not match its storage scope.");
-            this.withPersistence(() => { this.waypoints.splice(0, this.waypoints.length, ...parsed.waypoints); this.measurements.splice(0, this.measurements.length, ...parsed.measurements); });
+            this.withPersistence(() => { this.waypoints.splice(0, this.waypoints.length, ...parsed.waypoints!); this.measurements.splice(0, this.measurements.length, ...parsed.measurements!); });
             return { ok: true };
         } catch (error) {
             return { ok: false, message: error instanceof Error ? error.message : "Invalid annotation file." };
