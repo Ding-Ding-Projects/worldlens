@@ -1,5 +1,47 @@
 # Handoff
 
+## Issue #58 — render-console history source boundary (2026-08-19)
+
+Issue #58 remains **open and unverified**. The current source adds a render-id-keyed version-1
+`localStorage` envelope, a retained line array separate from the 10,000-line visible ring,
+temporary-key/read-back/final-key persistence, restore-by-render-id wiring, retained-array search,
+selection-aware copy/export in TXT/Markdown/JSON/JSONL/CSV/TSV/HTML, token-shaped redaction,
+explicit storage/retention warnings, selected-line deletion, and current-render prune-all through
+destructive confirmation.
+The direct feature record is [`docs/render-console.md`](docs/render-console.md).
+
+The implementation is deliberately bounded: 24 renders, 200,000 lines per record and an 8 MiB
+encoded envelope. Eviction marks a record incomplete and reports a warning. Those fixed limits are
+not a user retention surface. Multi-render bulk export/delete, retention configuration, pruning
+history/restore, exported/displayed `complete` state and eviction counts remain open. The source
+redacts drive-letter and UNC absolute paths plus `/Users`, `/home`, `/tmp`, `/var` and `/private`
+roots; relative paths, other roots, URI-shaped paths and edge cases still need comprehensive
+path-sensitive coverage. The source has not been exercised through a real
+process restart, completed-run reopening or interrupted-write recovery.
+
+This records lane ran no tests, typechecks, builds, packaged interaction, runtime sessions or
+captures. Do not treat source presence, existing test files or the branch being aligned with main
+as verification. Closure requires focused storage/surface verification plus a genuine packaged
+restart that reopens a completed render and searches/exports a line outside the visible ring.
+
+### 廣東話 / Cantonese
+
+Issue #58 仲係 **open，未驗證**。而家 source 有 render-id-keyed version-1 `localStorage`
+envelope、同 10,000-line visible ring 分開嘅 retained array、temporary-key/read-back/final-key
+persistence、按 render id restore、完整 retained-array search、selection-aware
+TXT/Markdown/JSON/JSONL/CSV/TSV/HTML export、token-shaped redaction、storage/retention warning，
+同經 destructive confirmation 嘅 selected-line delete/current-render prune-all；文檔係
+[`docs/render-console.md`](docs/render-console.md)。
+
+Implementation 固定最多 24 renders、每個 record 200,000 lines、encoded envelope 8 MiB；
+eviction 會標 incomplete 同出 warning，但呢個唔係 user retention surface。Multi-render
+bulk export/delete、retention config、pruning history/restore、UI/export
+入面嘅 `complete`/eviction counts 仲係 open。Source 會 redact drive-letter、UNC，同
+`/Users`、`/home`、`/tmp`、`/var`、`/private` absolute paths；relative paths、其他 roots、
+URI-shaped paths 同 edge cases 仲欠 comprehensive path-sensitive coverage。真 process restart、
+completed-run reopening、interrupted-write recovery 都仲係 open。今次冇跑 tests、typecheck、
+build、packaged interaction、runtime 或 captures，唔可以由 source presence 當驗證完成。
+
 ## Issue #141 — personal vocabulary upload compatibility records (2026-08-19)
 
 Issue #141 remains **open and unverified**. The public feature record is
@@ -10,7 +52,7 @@ privacy rules without copying any private vocabulary values into the product.
 This is a documentation-only handoff on `codex/issue-141-vocabulary-upload`. It records the
 acceptance boundary but does not claim implementation or packaged-runtime proof. No tests,
 builds, installer runs, runtime sessions, screenshots, or captures were performed in this lane;
-no commit or dew is claimed here. Before Issue #141 can close, the next owner must verify the
+no commit or push is claimed here. Before Issue #141 can close, the next owner must verify the
 real built artifact for empty, valid, invalid, over-limit, replace, clear/reset, persistence,
 cache-corruption, no-network, export/log redaction, and accessible-name states, while retaining
 the evidence boundary that excludes vocabulary values, source paths, and payloads.
@@ -24,7 +66,7 @@ versioned neutral contract、fail-closed validation、replacement、persistence 
 
 呢次係 `codex/issue-141-vocabulary-upload` 嘅 documentation-only handoff，只記 acceptance
 boundary，唔係 implementation 或 packaged runtime proof。今次冇 tests、builds、installer、
-runtime sessions、screenshots 或 captures，亦冇 commit 或 dew。下一位 owner 要喺真正 built
+runtime sessions、screenshots 或 captures，亦冇 commit 或 push。下一位 owner 要喺真正 built
 artifact 驗 empty、valid、invalid、over-limit、replace、clear/reset、persistence、cache
 corruption、no-network、export/log redaction 同 accessible-name states，同時保留唔記錄
 vocabulary values、source paths、payloads 嘅 evidence boundary。
@@ -119,7 +161,7 @@ marker type 嘅 packaged evidence 齊晒先可以 close Issue #70。
 
 ## Issue #72 static map export — records-only boundary (2026-08-19)
 
-Issue #72 remains **open** on the task-owned jer `codex/issue-72-static-map-export`.
+Issue #72 remains **open** on the task-owned branch `codex/issue-72-static-map-export`.
 The transferred feature record is [`docs/static-map-export.md`](docs/static-map-export.md).
 This handoff records the acceptance boundary only; it does not claim that the implementation or
 packaged export is verified.
@@ -138,7 +180,7 @@ genuine packaged export offline in a fresh browser profile before closing Issue 
 
 ### 廣東話 / Cantonese
 
-Issue #72 仲係 **open**，屬於 task-owned jer `codex/issue-72-static-map-export`。Transferred
+Issue #72 仲係 **open**，屬於 task-owned branch `codex/issue-72-static-map-export`。Transferred
 feature record 係 [`docs/static-map-export.md`](docs/static-map-export.md)。呢份 handoff 只記
 acceptance boundary，唔係話 implementation 或 packaged export 已經驗證。
 

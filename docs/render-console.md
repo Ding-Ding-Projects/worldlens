@@ -38,34 +38,37 @@ visible slice is the whole log. Advice rows can point to the exact settings targ
 attention. Copy and Markdown export use the current selection and preserve the level, timestamp
 and rendered text.
 
-## Complete render history
+## Complete render history: current source status
 
-The visible ring is only a rendering limit. Every render has a durable, versioned console record
-outside the Vue component, keyed by render id and retained independently of tab navigation. Lines
-are appended incrementally through a crash-safe staging path; a partial write is ignored on restore
-and the last complete record remains readable. Reopening the render tab, reattaching to a completed
-run, or restarting the app restores the retained stream rather than recreating it from the bounded
-on-screen ring. An interrupted run keeps the lines written before interruption and records the
-interruption as an annotation instead of pretending the run completed.
+The current issue #58 source keeps a second render-id-keyed line array outside the bounded visible
+ring and writes a version-1 envelope to `localStorage`. Each append updates the retained array and
+uses a temporary key, read-back comparison and final-key replacement. A fresh render controller can
+read the record by render id, and the console searches and exports the retained array instead of the
+visible ring. This source wiring has not yet been proven by a real application restart or completed-
+run reopening.
 
-The UI may still show only the newest bounded lines. Its dropped-line indicator describes what is
-outside the viewport, not what was deleted from history. Search runs over the complete retained
-stream, with plain text as the default and the adjacent full regex builder as an explicit opt-in;
-pattern, flags and evaluation size are bounded, and an invalid pattern produces an honest no-match
-state. Search results retain render id, timestamp, level and annotation context.
+Retention is bounded and loss is explicit rather than silent: the store keeps at most 24 render
+records, 200,000 lines per record and an 8 MiB encoded envelope. When a line, record or byte limit
+evicts data, the record becomes incomplete and the surface receives a retention/storage warning.
+Storage refusal leaves the live stream running and produces an unsaved-history warning. These are
+fixed implementation limits, not a user-configurable retention policy, and source presence is not
+proof that recovery works after a process crash.
 
-Complete and filtered export preserve UTF-8, schema/version, render id, provenance, timestamps,
-levels, annotations and filter metadata. The supported faithful forms are plain text, Markdown,
-JSON, JSONL, CSV, TSV and HTML. Selection-aware copy/export acts on selected records; bulk export
-reports exactly which records were included. Bulk deletion is separate from pruning and requires
-the app's destructive-action super confirmation. Retention is explicit and inspectable: automatic
-pruning removes only records outside the configured policy, reports what was pruned, and never
-turns the visible ring's cap into a history-retention policy.
+The surface supports plain-text-first complete-array search with the adjacent regex builder, line
+selection, selected or filtered copy/export, and TXT, Markdown, JSON, JSONL, CSV, TSV and HTML
+output. Export rows include schema version, render id, provenance, line id, timestamp, level,
+origin, message and annotation kinds/tones. Selected retained lines can be deleted only through the
+existing destructive super-confirmation surface. A second confirmed action prunes every retained
+line for the current render while allowing a running render to continue appending new lines. The
+current source does not expose multi-render bulk actions, retention configuration or a pruning
+history/restore surface, and it does not display or export the record's persisted `complete` flag
+or eviction counts.
 
-Secrets and path-sensitive values pass through the existing console redaction policy before they
-enter durable history or an export. Redaction changes only the persisted/copyable representation;
-the live source line remains available in the running console. History is local-only: no log line,
-render path, credential, token, or private source is uploaded.
+Credential-shaped tokens, bearer headers, URL credentials and selected connection-string secrets
+are redacted before persistence and export. Common absolute local paths are redacted too: drive-
+letter and UNC paths, plus paths rooted under `/Users`, `/home`, `/tmp`, `/var` and `/private`.
+Comprehensive path-sensitive coverage remains open for relative paths, other roots, URI-shaped
+paths and escaping/quoting edge cases. The source is local-only and does not add an upload route.
 
 ## Configuration
 
@@ -87,10 +90,10 @@ too - the checkbox's own tooltip is voiced at all five levels in both languages.
   opened.
 - A refused or full history store leaves the live console usable, reports the persistence failure,
   and marks the affected record unpersisted rather than claiming it was retained.
-- A torn append, truncated file, invalid schema, or interrupted render is recovered as the last
-  complete record plus an explicit recovery annotation; it is never parsed as a successful run.
-- Pruning and bulk deletion show their scope and count before acting, and deletion cannot proceed
-  without the destructive confirmation.
+- An invalid envelope or schema is ignored rather than applied partially. A genuine process-crash
+  and interrupted-write recovery result has not been run.
+- Selected-line deletion and current-render prune-all each show their exact scope through
+  destructive confirmation. Multi-render bulk deletion and configurable retention remain absent.
 
 ## Security considerations
 
@@ -100,14 +103,15 @@ limits as every other settings field.
 
 ## Verification
 
-`RenderConsole.test.ts`, `annotations.test.ts` and `consoleModel.test.ts` cover line-level
-selection, level labels, follow/detach behaviour, dropped-line accounting, advice navigation,
-reduced motion, copy/export and invalid/regex search. Durable-history tests cover incremental
-append/recovery, partial writes, storage refusal, Unicode, zero-width regex, large retained logs,
-interrupted renders, restart/reattach restore, retention/pruning, selection-aware and bulk export,
-redaction, and destructive deletion confirmation. The packaged acceptance proof reopens a completed
-render after a real app restart and verifies that a line outside the visible ring is still searchable
-and exportable. `RenderConsole.test.ts` (27 tests) adds
+The source includes `RenderConsole.test.ts`, `annotations.test.ts`, `consoleModel.test.ts` and
+`consoleHistory.test.ts` cases for the component, model and storage helpers. No test, typecheck,
+build, packaged interaction or capture was run in this records lane, so their verdict is unverified.
+Issue #58 remains open until focused verification proves incremental append/recovery, partial writes,
+storage refusal, Unicode, zero-width regex, large retained logs, interruption, navigation, restart,
+reattach, completed-run reopening, retention/eviction metadata, selection-aware export,
+multi-render actions, redaction and destructive deletion. The packaged acceptance proof must
+restart the real app, reopen a completed render, and search/export a line outside the visible ring.
+`RenderConsole.test.ts` previously documented 27 auto-scroll tests that add
 coverage for the auto-scroll checkbox specifically: on by default with a real accessible name,
 following new output while checked, not moving the view once unchecked, pausing without
 unticking the checkbox on a manual scroll, resuming on scrolling back to the bottom, the jump
@@ -141,15 +145,15 @@ render screen 用一個有上限嘅 console(render console),而唔係一個淨�
 
 個上限係講明嘅:UI 會報告 drop 咗幾多早期行,而唔係暗示見到嗰截就係成份 log。advice row 可以指去需要注意嘅確切 settings target。Copy 同 Markdown export 用當前 selection,保留 level、timestamp 同 rendered text。
 
-### 完整 render history
+### 完整 render history：而家嘅 source 狀態
 
-畫面個 ring 只係顯示上限,唔係歷史上限。每次 render 都會喺 Vue component 之外有一份有版本嘅 durable console record,用 render id 分開,唔會因為轉 tab 而消失。每行會 incremental 咁寫入 crash-safe staging path;如果寫到一半撞斷,重開只會採用最後一份完整 record。重開 render tab、reattach 已完成嘅 run,或者重啟 app,都會恢復完整保留嘅 stream; interrupted run 會保留已寫入嘅行,再加一個 interruption annotation,唔會扮成成功完成。
+Issue #58 而家嘅 source 喺 bounded visible ring 之外保留第二份 render-id-keyed line array，並將 version-1 envelope 寫入 `localStorage`。每次 append 都會更新 retained array，用 temporary key、read-back comparison 同 final-key replacement；新 render controller 可以用 render id 讀返 record，而 console 搜尋同 export 用 retained array，唔係淨係 visible ring。呢啲係 source wiring，未有真 app restart 或 completed-run reopening 證據。
 
-UI 仍然可以只顯示最近一截 bounded lines。dropped-line indicator 講緊畫面外面有幾多行,唔係話 history 被刪走。搜尋係對完整 retained stream 做,預設 plain text,旁邊有完整 regex builder 俾人 opt-in; pattern、flags 同 evaluation size 有上限,invalid pattern 會老實顯示 no-match。搜尋結果會保留 render id、timestamp、level 同 annotation context。
+Retention 有硬上限，而且 loss 會講明：最多 24 個 render records、每個 record 200,000 行、encoded envelope 8 MiB。超出 line、record 或 byte limit 時，record 會變成 incomplete，surface 會收到 retention/storage warning。Storage refusal 唔會停 live stream，亦會顯示 history 未儲到。呢啲係固定 implementation limits，唔係 user-configurable retention policy；有 source 唔等於 process crash recovery 已證實。
 
-完整或 filtered export 會保留 UTF-8、schema/version、render id、provenance、timestamps、levels、annotations 同 filter metadata。支援嘅 faithful formats 係 plain text、Markdown、JSON、JSONL、CSV、TSV 同 HTML。Selection-aware copy/export 只處理揀咗嘅 records; bulk export 會講清楚包括咗邊啲。Bulk deletion 同 pruning 分開,而且要經 app 嘅 destructive-action super confirmation。Retention 係明確同可檢查嘅 policy: automatic pruning 只清走 policy 以外嘅 records,會報清楚清走咗乜,唔會將畫面 cap 偷換成 history retention policy。
+Surface 有 plain-text-first retained-array search 加旁邊 regex builder、line selection、selected/filtered copy/export，同 TXT、Markdown、JSON、JSONL、CSV、TSV、HTML。Export row 包 schema version、render id、provenance、line id、timestamp、level、origin、message 同 annotation kind/tone。Selected retained lines 要經 destructive super-confirmation 先刪得，另一個 confirmed action 可以 prune 當前 render 所有 retained lines，而 running render 仍可繼續 append。Source 暫時冇 multi-render bulk actions、retention configuration、pruning history/restore surface，亦冇喺 UI 或 export 顯示 persisted `complete` flag 同 eviction counts。
 
-Secrets 同 path-sensitive values 會喺落 durable history 或 export 前行現有 console redaction policy。Redaction 只改持久化/可 copy 嘅版本;live console 仍然保留使用者有權睇嘅 source line。History 只留本機,log line、render path、credential、token 同 private source 都唔會 upload。
+Credential-shaped token、bearer header、URL credential 同部分 connection-string secret 會喺 persistence/export 前 redaction。Common absolute local paths 都會 redaction，包括 drive-letter、UNC，同 `/Users`、`/home`、`/tmp`、`/var`、`/private` root。Relative paths、其他 roots、URI-shaped paths 同 escaping/quoting edge cases 仲未有 comprehensive coverage。Source 只留本機，冇新增 upload route。
 
 ### 設定 (Configuration)
 
@@ -163,8 +167,8 @@ console 由 render screen 接收 line stream、dropped-line count、cap 同 heig
 - copy/export 失敗會報一個 non-blocking notice,console 照用得。
 - 一個已經唔再 mount 嘅 setting target 會報 unavailable,唔會扮開到。
 - history store 被拒絕或者爆滿時,live console 照樣用得,會報 persistence failure,而受影響 record 會標示 unpersisted,唔會扮話已經 retain。
-- torn append、truncated file、invalid schema 或 interrupted render 只會恢復最後一份完整 record,再加明確 recovery annotation,唔會當成功 run 解析。
-- pruning 同 bulk deletion 行之前會顯示 scope 同 count,冇 destructive confirmation 就唔會刪。
+- invalid envelope/schema 會被忽略，唔會 partial apply；但真 process-crash 同 interrupted-write recovery 未跑。
+- selected-line delete 同 current-render prune-all 都有 destructive confirmation 同 exact scope；multi-render bulk delete 同 configurable retention 仲未做。
 
 ### 安全考量
 
@@ -172,7 +176,7 @@ console 文字永遠以 text render,唔會以 HTML,所以 engine 輸出注入唔
 
 ### 驗證
 
-`RenderConsole.test.ts`、`annotations.test.ts` 同 `consoleModel.test.ts` 覆蓋 line-level selection、level label、follow/detach 行為、dropped-line 計數、advice navigation、reduced motion、copy/export 同 invalid/regex 搜尋。Durable-history tests 會覆蓋 incremental append/recovery、partial write、storage refusal、Unicode、zero-width regex、大 log、interrupted render、restart/reattach restore、retention/pruning、selection-aware 同 bulk export、redaction、同 destructive deletion confirmation。Packaged acceptance proof 會用真 app restart 重開完成咗嘅 render,再證明 ring 以外嘅一行仲可以搜尋同匯出。`RenderConsole.test.ts`(27 個測試)專為 auto-scroll checkbox 加覆蓋:預設開而且有真 accessible name、剔住嗰陣跟新輸出、除咗剔之後唔郁 view、手動捲動時暫停但唔除剔、捲返落底恢復、jump 控制只喺暫停時出現、唔會捲走一個 active 文字選取、永不郁鍵盤 focus、偏好捱得過一次 fresh mount。`components/scroll/` 自己嘅 `stickyScroll.test.ts`(16 個)同 `autoScrollPrefs.test.ts`(17 個)直接證共用機制,包括 reduced motion 同 storage-failure path。
+Source 有 `RenderConsole.test.ts`、`annotations.test.ts`、`consoleModel.test.ts` 同 `consoleHistory.test.ts` cases，但呢個 records lane 冇跑 test、typecheck、build、packaged interaction 或 capture，所以 verdict 仍然未驗。Issue #58 要等 focused verification 證明 incremental append/recovery、partial write、storage refusal、Unicode、zero-width regex、大 retained log、interruption、navigation、restart、reattach、completed-run reopening、retention/eviction metadata、selection-aware export、multi-render actions、redaction 同 destructive deletion；packaged acceptance 仲要用真 app restart，重開 completed render，再搜尋同 export visible ring 之外嘅 line。之前文檔記錄 `RenderConsole.test.ts` 有 27 個 auto-scroll tests，呢個數今次冇重跑。
 
 ### 建議文章
 

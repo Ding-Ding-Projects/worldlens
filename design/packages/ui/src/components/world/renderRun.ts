@@ -39,7 +39,7 @@ import {
     normaliseLevel,
     type ConsoleLine,
 } from "../console/consoleModel.js";
-import { persistConsoleHistory, readConsoleHistory } from "../console/consoleHistory.js";
+import { appendConsoleHistoryLine, persistConsoleHistory, readConsoleHistory } from "../console/consoleHistory.js";
 import { NO_ESTIMATE, createEtaTracker } from "../progress/progressModel.js";
 import type {
     ProgressCount,
@@ -949,7 +949,14 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         const result = appendLine(log.value, line, LOG_LIMIT);
         log.value = result.lines;
         logDropped.value += result.dropped;
-        persistHistory(false);
+        const id = renderId.value;
+        if (id === null) return;
+        if (!appendConsoleHistoryLine(id, line)) {
+            historyWarning.value = "storage-unavailable";
+            return;
+        }
+        const warning = readConsoleHistory(id)?.storageWarning;
+        historyWarning.value = warning === "storage-limit" || warning === "retention-limit" ? warning : "";
     }
 
     /** One line of the engine's own output, annotated as it arrives. */

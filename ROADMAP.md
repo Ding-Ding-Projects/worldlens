@@ -1,5 +1,26 @@
 # Roadmap
 
+## Issue #58 — complete render-console history
+
+- **Status:** Source implementation is present; Issue #58 remains open and unverified.
+- **Implemented source:** separate retained and visible arrays; version-1 render-id-keyed
+  `localStorage` envelope; temporary-key/read-back/final-key writes; restore-by-render-id;
+  plain-text-first retained-history search with adjacent regex builder; selected/filtered
+  TXT/Markdown/JSON/JSONL/CSV/TSV/HTML export; credential-shaped redaction; explicit
+  storage/retention warnings; selected-line deletion and current-render prune-all behind
+  destructive confirmation.
+- **Bounded retention:** 24 renders, 200,000 lines per render and 8 MiB encoded storage. Eviction
+  is marked incomplete and warned about; these fixed limits are not user-configurable retention.
+- **Still open:** multi-render bulk actions, retention configuration, pruning history/restore,
+  displayed/exported `complete` and eviction metadata, comprehensive path-sensitive coverage for
+  relative paths, other roots, URI-shaped paths and edge cases (common drive/UNC and
+  `/Users`/`/home`/`/tmp`/`/var`/`/private` absolute paths are redacted), real interrupted-write
+  recovery, navigation/reattach/completed-run reopening, process
+  restart, packaged interaction and a genuine capture.
+- **Evidence boundary:** this records lane ran no tests, typechecks, builds, packaged interaction or
+  captures. See [`docs/render-console.md`](docs/render-console.md); do not close Issue #58 from
+  source presence alone.
+
 ## Issue #63 — one verified release row per completed phase
 
 - **Status:** Documentation contract is recorded; Issue #63 remains open.
