@@ -20,6 +20,11 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Documentation
+
+- Prepare the Windows-only public 1.0 compatibility-contract records for issue #60. The branch-local
+  records were built successfully, but were not packaged, published, or released.
+
 ### Rendering and world data
 
 - Add focused render-queue acceptance coverage - [`c439b3a1fd`](https://github.com/Ding-Ding-Projects/worldlens/commit/c439b3a1fd44fbab8666c4f57ec0941dfce2a69b)
