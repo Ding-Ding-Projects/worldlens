@@ -8,6 +8,7 @@ import {
     mdiCloudUploadOutline,
     mdiEye,
     mdiFileDocumentOutline,
+    mdiImageMultipleOutline,
     mdiCubeOutline,
     mdiSwapHorizontal,
     mdiLifebuoy,
@@ -101,6 +102,7 @@ import { DimSumSurprise } from "./components/dimsum/index.js";
 import AuthenticatorScreen from "./components/authenticator/AuthenticatorScreen.vue";
 import LockList from "./components/locks/LockList.vue";
 import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensionScreen.vue";
+import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScreen.vue";
 import { resolveLockHost } from "./components/locks/useLocks.js";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import { RemoteHostingScreen } from "./components/remote/index.js";
@@ -334,6 +336,7 @@ const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
 const PAGE_OLLAMA = "ollama";
 const PAGE_REMOTE_HOSTING = "remoteHosting";
+const PAGE_SCREENSHOTS = "screenshots";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -498,6 +501,7 @@ const pages = computed<TabPage[]>(() => [
     // and Structures earned their own tabs above for the same reason.
     { id: PAGE_OLLAMA, label: t("ollama.title", "Ollama"), icon: mdiRobotOutline },
     { id: PAGE_REMOTE_HOSTING, label: t("tabs.page.remoteHosting", "Remote hosting"), icon: mdiCloudUploadOutline },
+    { id: PAGE_SCREENSHOTS, label: t("tabs.page.screenshots", "Screenshots"), icon: mdiImageMultipleOutline },
 ]);
 
 /**
@@ -1976,6 +1980,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     </div>
                 </template>
 
+                <template #screenshots>
+                    <div class="mb-world-host mb-interactive">
+                        <ScreenshotGalleryScreen />
+                    </div>
+                </template>
+
                 <template #ollama>
                     <div class="mb-world-host mb-interactive">
                         <OllamaScreen />
@@ -2405,6 +2415,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #docs>
                             <div class="mb-world-host mb-interactive">
                                 <DocsPage />
+                            </div>
+                        </template>
+
+                        <template #screenshots>
+                            <div class="mb-world-host mb-interactive">
+                                <ScreenshotGalleryScreen />
                             </div>
                         </template>
 

@@ -110,6 +110,8 @@ import { registerProfilesHistoryHandlers } from "./profiles/index.js";
 import type { ProfilesHistoryIpc } from "./profiles/index.js";
 import { registerAppSettingsHistoryHandlers } from "./settings/index.js";
 import type { AppSettingsHistoryIpc } from "./settings/index.js";
+import { registerGalleryHandlers } from "./gallery/index.js";
+import type { GalleryIpc } from "./gallery/index.js";
 import { registerBlueMapSourceHandlers } from "./bluemap/index.js";
 import type { BlueMapSourceIpc } from "./bluemap/index.js";
 import { registerWorldHandlers } from "./world/index.js";
@@ -857,6 +859,13 @@ function startStructures(): StructureIpc {
  */
 let profilesHistoryIpc: ProfilesHistoryIpc | null = null;
 let appSettingsHistoryIpc: AppSettingsHistoryIpc | null = null;
+let galleryIpc: GalleryIpc | null = null;
+
+function startGallery(): GalleryIpc {
+    if (galleryIpc !== null) return galleryIpc;
+    galleryIpc = registerGalleryHandlers(ipcMain, app.getPath("userData"));
+    return galleryIpc;
+}
 
 function startProfilesHistory(): ProfilesHistoryIpc {
     if (profilesHistoryIpc !== null) return profilesHistoryIpc;
@@ -1747,6 +1756,7 @@ async function createWindow(): Promise<void> {
             "Settings history is unavailable",
             startAppSettingsHistory,
         ],
+        ["configuration", "screenshot-gallery", "Screenshot gallery is unavailable", startGallery],
         [
             "configuration",
             "bluemap-source",

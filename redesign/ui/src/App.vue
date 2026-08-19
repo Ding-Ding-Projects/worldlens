@@ -7,6 +7,7 @@ import {
     mdiCloudUploadOutline,
     mdiEye,
     mdiFileDocumentOutline,
+    mdiImageMultipleOutline,
     mdiFolderMultipleOutline,
     mdiMapPlus,
     mdiProgressClock,
@@ -75,6 +76,7 @@ import PagesScreen from "./components/pages/PagesScreen.vue";
 import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
 import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { DocsPage } from "./components/docs/index.js";
+import ScreenshotGallery from "./components/gallery/ScreenshotGallery.vue";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
@@ -156,6 +158,7 @@ const PAGE_PAGES = "pages";
 const PAGE_WORLDREPO = "worldrepo";
 const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
+const PAGE_SCREENSHOTS = "screenshots";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -274,6 +277,7 @@ const pages = computed<TabPage[]>(() => [
     // changelog this is a browsable, searchable set of 25-odd articles that deserves the
     // same reach as every other destination in the strip.
     { id: PAGE_DOCS, label: t("tabs.page.docs", "Docs"), icon: mdiFileDocumentOutline },
+    { id: PAGE_SCREENSHOTS, label: t("tabs.page.screenshots", "Screenshots"), icon: mdiImageMultipleOutline },
 ]);
 
 /**
@@ -1465,6 +1469,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #docs>
                             <div class="mb-world-host mb-interactive">
                                 <DocsPage />
+                            </div>
+                        </template>
+                        <template #screenshots>
+                            <div class="mb-world-host mb-interactive">
+                                <ScreenshotGallery />
                             </div>
                         </template>
                         </WorkPane>

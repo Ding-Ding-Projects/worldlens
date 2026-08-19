@@ -84,6 +84,7 @@ import type {
 } from "../main/settings/index.js";
 import type { RestoreResult } from "../main/history/index.js";
 import type { StartupDiagnosticsSnapshot, StartupExportFormat } from "../main/startup/index.js";
+import type { GalleryAssetRead, GalleryDraft, GalleryRecord, GalleryRevision, GalleryUpdate } from "../main/gallery/store.js";
 import {
     toBridgeCoordinates,
     toBridgeDiscoveryResult,
@@ -104,6 +105,16 @@ export interface ConsentRecord {
 export interface FirstRunState {
     completed: boolean;
     completedAt: string | null;
+}
+
+export interface GalleryBridge {
+    list(): Promise<{ readonly records: readonly GalleryRecord[]; readonly history: readonly GalleryRevision[] }>;
+    readAsset(id: string): Promise<GalleryAssetRead>;
+    add(draft: GalleryDraft): Promise<GalleryRecord>;
+    importRecords(drafts: readonly GalleryDraft[]): Promise<readonly GalleryRecord[]>;
+    update(id: string, changes: GalleryUpdate): Promise<GalleryRecord>;
+    delete(ids: readonly string[]): Promise<number>;
+    export(format: "json" | "markdown"): Promise<{ readonly format: string; readonly filename: string; readonly content: string }>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2760,6 +2771,9 @@ interface WorldlensBridge {
     /** The application settings' own version history. Same shape and reason as {@link profilesHistory}. */
     appSettingsHistory: AppSettingsHistoryBridge;
 
+    /** App-data-backed user screenshot gallery. Image bytes never enter renderer storage. */
+    gallery: GalleryBridge;
+
     /** Which BlueMap this installation's engine was built from. See {@link BlueMapSourceBridge}. */
     bluemapSource: BlueMapSourceBridge;
 
@@ -3684,6 +3698,16 @@ const bridge: WorldlensBridge = {
         list: (limit) => ipcRenderer.invoke("settingsHistory:list", limit),
         restore: (id) => ipcRenderer.invoke("settingsHistory:restore", id),
         discardOlderRevisions: (keep) => ipcRenderer.invoke("settingsHistory:discardOlder", keep),
+    },
+
+    gallery: {
+        list: () => ipcRenderer.invoke("gallery:list"),
+        readAsset: (id) => ipcRenderer.invoke("gallery:readAsset", id),
+        add: (draft) => ipcRenderer.invoke("gallery:add", draft),
+        importRecords: (drafts) => ipcRenderer.invoke("gallery:import", drafts),
+        update: (id, changes) => ipcRenderer.invoke("gallery:update", id, changes),
+        delete: (ids) => ipcRenderer.invoke("gallery:delete", ids),
+        export: (format) => ipcRenderer.invoke("gallery:export", format),
     },
 
     bluemapSource: {

@@ -1,5 +1,19 @@
 # Handoff
 
+## Issue #76 screenshot gallery — 2026-08-19
+
+The issue-owned source lane now contains an in-progress screenshot-gallery surface. Its product
+contract is documented in [`docs/screenshot-gallery.md`](../docs/screenshot-gallery.md): screenshots
+are user-owned records with map/project, coordinate, camera, timestamp, dimensions, version, and
+provenance metadata; originals remain local; and the library must support search/filter, metadata
+editing, bulk actions, export/import, local history, privacy redaction, and deletion recovery.
+
+This is a records-only update. The source changes in this Gerk Tong Hui have not been accepted as
+packaged-app evidence: no tests, runtime verification, or genuine gallery captures were run here.
+The acceptance proof must populate the gallery only with screenshots made during that run and
+capture its empty, populated, search/filter, edit, export/import, failure, and delete-recovery
+states. Issue #76 remains open until those checks and captures exist.
+
 ## Issue #82 — packaged Java runtime and app-owned render receipt boundary (2026-08-19)
 
 Issue #82 remains open. This records-only lane keeps the active delivery scope **Windows only**:

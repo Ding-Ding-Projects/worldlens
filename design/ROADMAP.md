@@ -1,5 +1,17 @@
 # Roadmap
 
+## Screenshot gallery — issue #76
+
+- **Source state:** An in-progress gallery surface and its article are present in this issue-owned
+  checkout. That source state is not a packaged-runtime verdict.
+- **Required contract:** capture map/project, coordinate, camera, timestamp, dimensions, version,
+  and provenance; keep originals local; provide safe thumbnails, search/filter, metadata editing,
+  complete bulk actions, faithful export/import, local history, privacy redaction, and deletion
+  recovery.
+- **Evidence still open:** no tests, runtime interaction, or packaged captures were run in this
+  records-only update. The proof run must create its own screenshots and capture empty, populated,
+  search/filter, edit, export/import, failure, and delete-recovery states.
+
 ## Issue #82 — packaged Java/runtime receipt boundary (2026-08-19)
 
 Issue #82 remains open. The active delivery scope is **Windows only**. Existing real-network

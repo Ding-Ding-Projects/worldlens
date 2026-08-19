@@ -12,6 +12,35 @@ interface FirstRunState {
     completedAt: string | null;
 }
 
+interface GalleryRecord {
+    id: string;
+    name: string;
+    asset: string;
+    tags: string[];
+    notes: string;
+    metadata: Record<string, unknown>;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface GalleryRevision {
+    id: string;
+    action: string;
+    screenshotId: string;
+    at: string;
+    record: GalleryRecord | null;
+}
+
+interface GalleryBridge {
+    list(): Promise<{ records: GalleryRecord[]; history: GalleryRevision[] }>;
+    readAsset(id: string): Promise<{ mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp"; bytes: Uint8Array }>;
+    add(draft: Record<string, unknown>): Promise<GalleryRecord>;
+    importRecords(drafts: Record<string, unknown>[]): Promise<GalleryRecord[]>;
+    update(id: string, changes: Record<string, unknown>): Promise<GalleryRecord>;
+    delete(ids: string[]): Promise<number>;
+    export(format: "json" | "markdown"): Promise<{ format: string; filename: string; content: string }>;
+}
+
 /**
  * Reading and writing a BlueMap config folder.
  *
@@ -580,6 +609,8 @@ interface WorldlensBridge {
     getVersion(): Promise<string>;
     schoolMode?: SharedSchoolModeBridge;
     startup: BlueMapStartupBridge;
+    /** User-owned screenshots stored under the app-data directory, never in renderer storage. */
+    gallery: GalleryBridge;
 
     /**
      * Mojang download consent, asked once during first-run setup and remembered.
