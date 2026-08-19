@@ -300,6 +300,15 @@ repeated here):
 
 ### world/mca decoders
 
+- **LinearRegion timestamp widths and versions** — the upstream BlueMap change
+  [`b9dbb100e4ed8cbc0ef09297c2701bda8680883b`](https://github.com/BlueMap-Minecraft/BlueMap/commit/b9dbb100e4ed8cbc0ef09297c2701bda8680883b)
+  defines v1 as one region timestamp and v2 as per-chunk timestamps, with the
+  filter applied before loading chunk payloads. The published LinearRegion format
+  tool's big-endian layout (`>QBQbhIQ` for the outer header and `>II` for each
+  inner entry) establishes Unix epoch seconds with unsigned 64-bit/32-bit timestamp
+  fields. The TypeScript port therefore uses `getBigUint64` and `getUint32` rather
+  than narrowing values through signed 32-bit views; this keeps the format's 2038
+  and wrap-boundary values observable at the consumer boundary.
 - **Chunk_1_12 (not in upstream e664c1a)** — the pre-flattening chunk-format is
   combined back from the legacy `ChunkAnvil112` (`v0.10.3-mc1.12`) into the modern
   chunk-architecture (Chunk_1_13-style section array instead of the legacy fixed
