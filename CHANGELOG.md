@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Rendering and world data
 
+- Merge remote-tracking branch 'origin/main' into codex/issue-91-retire-local-webserver - [`bee28ea506`](https://github.com/Ding-Ding-Projects/worldlens/commit/bee28ea506b97d3dc9931303159a98de88e8ddda) _(summary of 4 commits, also listed here)_
 - Merge issue #89 banner compatibility proof - [`e7810cf0b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7810cf0b1d4b22964ef83ccccaf55f55261a837) _(summary of 2 commits, also listed here)_
 - Add focused banner compatibility acceptance tests - [`d14203e7e4`](https://github.com/Ding-Ding-Projects/worldlens/commit/d14203e7e40a2ae4851b8bfe3476450609451570)
 
@@ -32,10 +33,14 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Merge issue #91 runtime reachability proof - [`9176799e27`](https://github.com/Ding-Ding-Projects/worldlens/commit/9176799e273d75eeb10772940390ab4b494b8c88) _(summary of 3 commits, also listed here)_
+- Add runtime reachability guard - [`e3e95d7c2c`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3e95d7c2cd5a6cd6da9b30fe7a6842c435e657e)
 - Isolate and receipt Lowlevel UI captures - [`8ca5782bf6`](https://github.com/Ding-Ding-Projects/worldlens/commit/8ca5782bf6c8cc193e984ee64b892c4e390ff082)
 
 ### Build, release and tooling
 
+- Merge current main before runtime proof delivery - [`6b5c39ec12`](https://github.com/Ding-Ding-Projects/worldlens/commit/6b5c39ec120795acc2e58ad3786eb09ffef22863) _(summary of 2 commits, also listed here)_
+- Capture private Pages refusal before render fallback - [`55f8aada78`](https://github.com/Ding-Ding-Projects/worldlens/commit/55f8aada785ad0aac6ee6b7d1752d5e5663b9097)
 - Click the visible private render action directly - [`8fa04b7819`](https://github.com/Ding-Ding-Projects/worldlens/commit/8fa04b7819054c22af2032cd92fef5c17f9f1884)
 - Capture live Pages failures and private render setup - [`53af78ae93`](https://github.com/Ding-Ding-Projects/worldlens/commit/53af78ae93b33a006320e36e4d2d791b4631f0d4)
 - Target repository visibility controls by keyboard - [`17cbf0a66b`](https://github.com/Ding-Ding-Projects/worldlens/commit/17cbf0a66b1bac95147d08eae69c13c0aa0040df)
