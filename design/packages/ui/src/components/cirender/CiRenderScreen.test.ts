@@ -319,9 +319,7 @@ function fakeCatalogBridge(
 }
 
 /** A secret-free gh account readout, filled with sane defaults. */
-function ghAccount(
-    overrides: Partial<GhCliAccountReadout> = {},
-): GhCliAccountReadout {
+function ghAccount(overrides: Partial<GhCliAccountReadout> = {}): GhCliAccountReadout {
     return {
         id: "acct",
         login: "octocat",
@@ -338,10 +336,7 @@ function ghAccount(
     };
 }
 
-async function selectOwner(
-    wrapper: ReturnType<typeof mountScreen>,
-    login: string,
-): Promise<void> {
+async function selectOwner(wrapper: ReturnType<typeof mountScreen>, login: string): Promise<void> {
     await flushPromises();
     const select = wrapper
         .findAllComponents(VSelect)
@@ -519,12 +514,7 @@ describe("which credential is in play is on screen before the button", () => {
     });
 
     it.each([
-        [
-            "not-installed" as const,
-            null,
-            "is not available",
-            "Install it from cli.github.com",
-        ],
+        ["not-installed" as const, null, "is not available", "Install it from cli.github.com"],
         ["signed-out" as const, null, "signed out", "GitHub Settings"],
         ["ready" as const, "ghuser", "signed in as ghuser", "github.com"],
     ])(
@@ -617,13 +607,16 @@ describe("which credential is in play is on screen before the button", () => {
                         route: null,
                         ready: false,
                         canUpload: false,
-                        describe: "The selected GitHub CLI account cannot start a render: gh is not on PATH.",
+                        describe:
+                            "The selected GitHub CLI account cannot start a render: gh is not on PATH.",
                     }),
                 }),
             ),
         );
         await check(wrapper);
-        expect(wrapper.find('[data-test="blocked"]').text()).toContain("selected GitHub CLI account");
+        expect(wrapper.find('[data-test="blocked"]').text()).toContain(
+            "selected GitHub CLI account",
+        );
     });
 
     it("offers the gh account recovery action on the same card as an identity refusal", async () => {
@@ -787,7 +780,9 @@ describe("a running row shows the real numbers the main process actually sends",
             at: "2026-08-04T10:00:01Z",
         });
         await flushPromises();
-        expect(wrapper.find('[data-test="row-route"]').text()).toContain("selected GitHub CLI account");
+        expect(wrapper.find('[data-test="row-route"]').text()).toContain(
+            "selected GitHub CLI account",
+        );
     });
 
     it("shows the upload's own item count beside the bytes, not only the bytes", async () => {
@@ -1122,9 +1117,7 @@ describe("render as: which stored GitHub account this render authenticates as", 
         expect(select?.props("disabled")).toBe(true);
         expect(
             wrapper.find('[data-test="cirender-account-picker-disabled-reason"]').text(),
-        ).toContain(
-            "Only one GitHub account is signed in",
-        );
+        ).toContain("Only one GitHub account is signed in");
         expect(wrapper.find('[data-test="gh-auto-switch-warning"]').exists()).toBe(false);
     });
 
@@ -1587,7 +1580,8 @@ describe("a repository that is not ready says why, without reading as a hard blo
                     },
                     routeReport: routeReport({
                         ready: false,
-                        describe: "The selected GitHub CLI account cannot start a render on this repository.",
+                        describe:
+                            "The selected GitHub CLI account cannot start a render on this repository.",
                     }),
                 }),
             ),
@@ -1611,7 +1605,8 @@ describe("a repository that is not ready says why, without reading as a hard blo
                     repositoryFailure: "GitHub answered 404.",
                     routeReport: routeReport({
                         ready: false,
-                        describe: "The selected GitHub CLI account cannot start a render on this repository.",
+                        describe:
+                            "The selected GitHub CLI account cannot start a render on this repository.",
                     }),
                 }),
             ),
@@ -1749,7 +1744,8 @@ describe("a repository that is not ready says why, without reading as a hard blo
                     repositoryFailure: "GitHub answered 404.",
                     routeReport: routeReport({
                         ready: false,
-                        describe: "The selected GitHub CLI account cannot start a render on this repository.",
+                        describe:
+                            "The selected GitHub CLI account cannot start a render on this repository.",
                     }),
                 }),
             ),
@@ -1777,7 +1773,8 @@ describe("preparing a repository automatically, rather than sending somebody to 
             },
             routeReport: routeReport({
                 ready: false,
-                describe: "The selected GitHub CLI account cannot start a render on this repository.",
+                describe:
+                    "The selected GitHub CLI account cannot start a render on this repository.",
             }),
         });
     }
@@ -1812,9 +1809,10 @@ describe("preparing a repository automatically, rather than sending somebody to 
                     value: calls === 1 ? existingUnpreparedPreflight() : readyPreflight,
                 });
             },
-            bootstrapCiRepository: (owner, repo) => {
+            bootstrapCiRepository: (owner, repo, _accountId, publishToPages) => {
                 expect(owner).toBe("o");
                 expect(repo).toBe("r");
+                expect(publishToPages).toBe(true);
                 listener?.({ type: "phase", phase: "writing-files", at: "now" });
                 return Promise.resolve({
                     ok: true,
@@ -1822,8 +1820,7 @@ describe("preparing a repository automatically, rather than sending somebody to 
                         owner: "o",
                         repo: "r",
                         route: "gh",
-                        credentialDescribe:
-                            "Using the selected GitHub CLI account (octocat).",
+                        credentialDescribe: "Using the selected GitHub CLI account (octocat).",
                         files: [
                             {
                                 path: ".github/workflows/render-world.yml",
@@ -1859,6 +1856,7 @@ describe("preparing a repository automatically, rather than sending somebody to 
         const wrapper = mountScreen(bridge);
         await check(wrapper);
 
+        await wrapper.find('[data-test="publish-pages"] input').setValue(true);
         await wrapper.find('[data-test="bootstrap-repository"]').trigger("click");
         await flushPromises();
 
@@ -1908,8 +1906,7 @@ describe("preparing a repository automatically, rather than sending somebody to 
                         owner: "o",
                         repo: "r",
                         route: "gh",
-                        credentialDescribe:
-                            "Using the selected GitHub CLI account (octocat).",
+                        credentialDescribe: "Using the selected GitHub CLI account (octocat).",
                         files: [
                             {
                                 path: ".github/workflows/render-world.yml",
@@ -1960,8 +1957,7 @@ describe("preparing a repository automatically, rather than sending somebody to 
                         owner: "o",
                         repo: "r",
                         route: "gh",
-                        credentialDescribe:
-                            "Using the selected GitHub CLI account (octocat).",
+                        credentialDescribe: "Using the selected GitHub CLI account (octocat).",
                         files: [
                             {
                                 path: ".github/workflows/render-world.yml",
@@ -2018,6 +2014,59 @@ describe("preparing a repository automatically, rather than sending somebody to 
 
         expect(order).toEqual(["bootstrap", "dispatch"]);
         expect(started).toHaveLength(1);
+    });
+
+    it("forwards the checked Pages choice into bootstrap and shows GitHub's exact homepage URL as a link", async () => {
+        const started: CiSyncResult[] = [];
+        let requestedPages: boolean | undefined;
+        const url = "https://octocat.github.io/a-map/";
+        const bridge = fakeBridge(
+            preflight({ uploadNeeded: false, worldChanged: false }),
+            started,
+            {
+                bootstrapCiRepository: (_owner, _repo, _accountId, publishToPages) => {
+                    requestedPages = publishToPages;
+                    return Promise.resolve({
+                        ok: true,
+                        report: {
+                            owner: "o",
+                            repo: "r",
+                            route: "gh",
+                            credentialDescribe: "Using the selected GitHub CLI account (octocat).",
+                            files: [],
+                            markerWritten: false,
+                            actionsEnabled: true,
+                            actionsMessage: "GitHub Actions is enabled for this repository.",
+                            pages: {
+                                url,
+                                buildType: "workflow",
+                                created: true,
+                                homepageUpdated: true,
+                            },
+                            ready: true,
+                            notes: [],
+                        },
+                    });
+                },
+                onCiBootstrapEvent: () => () => {},
+            },
+        );
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        await wrapper.find('[data-test="publish-pages"] input').setValue(true);
+        await wrapper.find('[data-test="start"]').trigger("click");
+        await flushPromises();
+
+        expect(requestedPages).toBe(true);
+        expect(started).toHaveLength(1);
+        const ready = wrapper.get('[data-test="pages-homepage-ready"]');
+        expect(ready.text()).toContain("configured for workflow publishing");
+        expect(ready.text()).toContain("first successful Pages render");
+        const link = ready.get("a");
+        expect(link.attributes("href")).toBe(url);
+        await link.trigger("click");
+        expect(wrapper.emitted("open")).toContainEqual([url]);
     });
 
     it("refuses start re-entry while the pre-dispatch bootstrap is still running", async () => {
@@ -2524,7 +2573,9 @@ describe("a render row's title, which turns its <v-card-title> into a flex row",
 
         // The template actually wires the classes onto the title and the span, not just the
         // stylesheet declaring them in isolation.
-        expect(ciRenderScreenSource).toMatch(/VCardTitle class="d-flex align-center ga-2 ci-row__title"/);
+        expect(ciRenderScreenSource).toMatch(
+            /VCardTitle class="d-flex align-center ga-2 ci-row__title"/,
+        );
         expect(ciRenderScreenSource).toMatch(
             /<span class="ci-row__name">\{\{ row\.repository \|\| row\.syncId \}\}<\/span>/,
         );
@@ -2632,9 +2683,7 @@ describe("a world nobody has set up yet", () => {
         await wrapper.find('[data-test="default-project-create"]').trigger("click");
         await flushPromises();
 
-        expect(wrapper.find('[data-test="default-project-failure"]').text()).toContain(
-            "read-only",
-        );
+        expect(wrapper.find('[data-test="default-project-failure"]').text()).toContain("read-only");
         expect(wrapper.find('[data-test="default-project-written"]').exists()).toBe(false);
     });
 

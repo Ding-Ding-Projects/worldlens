@@ -30,6 +30,7 @@ import {
 import { readInt, readOneOf, setupStorage } from "./setupPrefs.js";
 import { effectiveSchoolModeFunnyLevel, effectiveSchoolModeLanguage } from "./schoolMode.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
+import { applyVocabularyTemplate } from "../vocabulary/applyVocabulary.js";
 
 export const LANGUAGE_MODES = ["en", "yue", "bilingual"] as const;
 export type LanguageMode = (typeof LANGUAGE_MODES)[number];
@@ -143,12 +144,13 @@ function raw(key: StringKey, language: "en" | "yue"): string {
         const entry = VOICED[key];
         const level = funnyLevel(language);
         const strings = language === "en" ? entry.en : entry.yue;
-        return strings[level - 1] ?? strings[2];
+        return applyVocabularyTemplate(strings[level - 1] ?? strings[2]);
     }
-    const fixed = Object.prototype.hasOwnProperty.call(FIXED, key)
-        ? FIXED[key as FixedKey]
-        : EXACT[key as keyof typeof EXACT];
-    return fixed[language];
+    if (Object.prototype.hasOwnProperty.call(FIXED, key)) {
+        return applyVocabularyTemplate(FIXED[key as FixedKey][language]);
+    }
+    // Legal/consent facts in EXACT are not vocabulary: their wording stays literal.
+    return EXACT[key as keyof typeof EXACT][language];
 }
 
 /** The English string at the current English level, whatever the mode is. */

@@ -1101,6 +1101,14 @@ export const CIRENDER_FIXED = {
         en: "GitHub CLI created and verified {name}. Preparing its render workflow now.",
         yue: "GitHub CLI 建立並核實咗 {name}。而家準備緊佢嘅算圖 workflow。",
     },
+    "cirender.bootstrap.pagesReadyLead": {
+        en: "GitHub Pages is configured for workflow publishing at",
+        yue: "GitHub Pages 已設定用 workflow 發佈，網址係",
+    },
+    "cirender.bootstrap.pagesReadyHomepage": {
+        en: "The repository homepage now points to this exact URL. The first successful Pages render publishes the site.",
+        yue: "Repository homepage 而家指向呢條同一網址。第一次成功嘅 Pages 算圖先會真正發佈個網站。",
+    },
     "cirender.owner.empty": {
         en: "No owners were returned by GitHub CLI.",
         yue: "GitHub CLI 冇回傳任何擁有者。",
@@ -1342,6 +1350,10 @@ export const CIRENDER_FIXED = {
      * literal at every setting.
      */
     "cirender.bootstrap.action": { en: "Set this repository up", yue: "幫呢個倉庫設定好" },
+    "cirender.bootstrap.phase.resolvingCredential": {
+        en: "Selecting the GitHub account...",
+        yue: "揀緊 GitHub 帳戶...",
+    },
     "cirender.bootstrap.phase.checkingScopes": {
         en: "Checking sign-in permissions...",
         yue: "檢查緊登入權限...",
@@ -1357,6 +1369,10 @@ export const CIRENDER_FIXED = {
     "cirender.bootstrap.phase.checkingActions": {
         en: "Checking whether GitHub Actions is enabled...",
         yue: "檢查緊 GitHub Actions 開咗未...",
+    },
+    "cirender.bootstrap.phase.configuringPages": {
+        en: "Enabling GitHub Pages and verifying the repository homepage...",
+        yue: "開緊 GitHub Pages，同埋核實 repository homepage...",
     },
     "cirender.bootstrap.phase.finished": { en: "Done.", yue: "搞掂。" },
     "cirender.bootstrap.file.created": { en: "Added {path}", yue: "加咗 {path}" },

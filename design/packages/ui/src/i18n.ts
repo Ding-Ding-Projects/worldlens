@@ -3,6 +3,10 @@ import { getLocalStorage } from "@worldlens/viewer";
 import { createI18n, type I18n } from "vue-i18n";
 import { installAppVoice, mergeVoiceInto } from "./copy/appVoice.js";
 import { languageMode } from "./components/setup/setupI18n.js";
+import {
+    applyVocabularyMessageTree,
+    applyVocabularyTemplate,
+} from "./components/vocabulary/applyVocabulary.js";
 // The one stylesheet the copy layer owns: it makes the newline in a bilingual message
 // render as a line break, and lets the containers it lands in grow instead of clipping the
 // second language away. Every rule in it is gated on `html[data-language-mode="bilingual"]`.
@@ -33,6 +37,32 @@ export const i18nModule = createI18n({
     messages: {},
 });
 
+const vocabularyTranslationBoundaries = new WeakSet<object>();
+
+/**
+ * Covers application-owned `t(key, fallback)` messages that have not joined a catalogue
+ * yet. Only fallback template strings are transformed; the lookup key and named/list
+ * values remain untouched, so runtime paths, URLs, identifiers and user data interpolate
+ * after replacement and stay exact.
+ */
+export function installVocabularyTranslationBoundary(i18n: I18n<Record<string, unknown>>): void {
+    const composer = i18n.global as unknown as { t: (...args: unknown[]) => unknown };
+    if (vocabularyTranslationBoundaries.has(composer)) return;
+    const translate = composer.t.bind(composer);
+    composer.t = (...args: unknown[]): unknown => {
+        if (args.length <= 1) return translate(...args);
+        const transformed = args.map((argument, index) =>
+            index > 0 && typeof argument === "string"
+                ? applyVocabularyTemplate(argument)
+                : argument,
+        );
+        return translate(...transformed);
+    };
+    vocabularyTranslationBoundaries.add(composer);
+}
+
+installVocabularyTranslationBoundary(i18nModule);
+
 interface LanguageInfo {
     locale: string;
     name: string;
@@ -40,6 +70,15 @@ interface LanguageInfo {
 
 export let languages: LanguageInfo[] = [];
 export let defaultLanguage = "en";
+
+/** Untouched locale payloads, kept so upload replacement and clear are both lossless. */
+const localeSources = new Map<string, Record<string, unknown>>();
+
+function installLocaleSource(i18n: I18n<Record<string, unknown>>, locale: string): void {
+    const source = localeSources.get(locale);
+    if (source === undefined) return;
+    i18n.global.setLocaleMessage(locale, applyVocabularyMessageTree(source));
+}
 
 /**
  * `parseHocon` is the port's own dependency-free parser. The `hocon-parser` package this
@@ -75,7 +114,8 @@ export async function setLanguage(
 ): Promise<void> {
     try {
         const messages = await fetchHocon(`./lang/${lang}.conf`);
-        i18n.global.setLocaleMessage(lang, messages);
+        localeSources.set(lang, messages);
+        installLocaleSource(i18n, lang);
         // Straight after `setLocaleMessage` and before the locale is switched onto it, so
         // no frame ever renders this locale with the application's own keys missing. A
         // switch first would show a flash of English fallbacks in Cantonese mode.
@@ -123,5 +163,5 @@ export async function loadLanguage(i18n: I18n<Record<string, unknown>>): Promise
     // into. From here the sliders and the mode radio move the whole application's copy
     // without anything else being told to re-render: `mergeLocaleMessage` writes into
     // vue-i18n's reactive message store, and every `t()` in every component re-resolves.
-    installAppVoice(i18n, currentLocale);
+    installAppVoice(i18n, currentLocale, (locale) => installLocaleSource(i18n, locale));
 }

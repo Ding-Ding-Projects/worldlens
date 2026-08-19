@@ -309,8 +309,7 @@ const MAKE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameKey: "catalogue.make.scheduledRender.name",
         nameFallback: "Scheduled render",
         blurbKey: "catalogue.make.scheduledRender.blurb",
-        blurbFallback:
-            "Runs a project again on a timetable, by date, time, weekday and timezone.",
+        blurbFallback: "Runs a project again on a timetable, by date, time, weekday and timezone.",
         target: { kind: "job", jobId: "projects", reveal: "render-schedule" },
     }),
 
@@ -907,11 +906,11 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Personal vocabulary",
         blurbKey: "catalogue.setup.personalVocabulary.blurb",
         blurbFallback:
-            "Applied only from a private file the user supplies, with no upload control, no share control and nothing ever collected.",
+            "Load a validated local JSON file to replace app-owned interface terms without uploading or sharing the file.",
         target: {
             kind: "conditional",
             capability: "personal-vocabulary",
-            target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
+            target: { kind: "overlay", overlay: "settings", reveal: "vocabulary" },
         },
         hideInRestrictedMode: true,
     }),
@@ -1231,8 +1230,7 @@ export function findFeature(key: string): CatalogueFeatureDefinition | null {
 /** Which catalogue a feature belongs to, or null for a key nothing declares. */
 export function catalogueForFeature(key: string): CatalogueDefinition | null {
     return (
-        CATALOGUES.find((catalogue) =>
-            catalogue.features.some((entry) => entry.key === key),
-        ) ?? null
+        CATALOGUES.find((catalogue) => catalogue.features.some((entry) => entry.key === key)) ??
+        null
     );
 }

@@ -200,6 +200,7 @@ export function mergeVoiceInto(
 export function installAppVoice(
     i18n: I18n<Record<string, unknown>>,
     localeOf: () => string,
+    resetLocaleMessages?: ((locale: string) => void) | undefined,
 ): WatchStopHandle {
     return watch(
         () => {
@@ -215,6 +216,10 @@ export function installAppVoice(
             ] as const;
         },
         ([locale, mode]) => {
+            // Rebuild the untouched upstream catalogue first. Personal-vocabulary changes
+            // must be reversible on clear/replace, not layered repeatedly over yesterday's
+            // already-replaced strings.
+            resetLocaleMessages?.(locale);
             mergeVoiceInto(i18n, locale);
             applyLanguageMode(mode);
         },

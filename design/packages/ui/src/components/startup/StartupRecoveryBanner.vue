@@ -104,7 +104,9 @@ onMounted(async () => {
     >
         <template #title>
             {{ t("startup.openedAnyway", "Worldlens opened, but part of startup failed") }}
-            <span class="mb-startup-recovery__secondary">Worldlens 照開咗，不過部分啟動失敗</span>
+            <span class="mb-startup-recovery__secondary">
+                {{ t("startup.openedAnyway.yue", "Worldlens 照開咗，不過部分啟動失敗") }}
+            </span>
         </template>
         <p>
             {{
@@ -120,7 +122,12 @@ onMounted(async () => {
             }}
         </p>
         <p class="mb-startup-recovery__secondary">
-            出事嗰條路已停用，資料同安全紅線冇被夾硬跨過；其他可用部分照常開工。
+            {{
+                t(
+                    "startup.boundary.yue",
+                    "出事嗰條路已停用，資料同安全紅線冇被夾硬跨過；其他可用部分照常開工。",
+                )
+            }}
         </p>
 
         <details class="mb-startup-recovery__details">
@@ -132,7 +139,14 @@ onMounted(async () => {
                         "Inspect {count} startup issues",
                     )
                 }}
-                / 睇清楚 {{ issues.length }} 個啟動問題
+                /
+                {{
+                    t(
+                        "startup.details.yue",
+                        { count: String(issues.length) },
+                        "睇清楚 {count} 個啟動問題",
+                    )
+                }}
             </summary>
             <article v-for="issue in issues" :key="issue.id" class="mb-startup-recovery__issue">
                 <strong>{{ issue.title }}</strong>
@@ -151,7 +165,8 @@ onMounted(async () => {
                 :disabled="busy"
                 @click="run((bridge) => bridge.copy())"
             >
-                {{ t("startup.copy", "Copy details") }} / 複製詳情
+                {{ t("startup.copy", "Copy details") }} /
+                {{ t("startup.copy.yue", "複製詳情") }}
             </VBtn>
             <VBtn
                 data-test="startup-export-json"
@@ -178,7 +193,8 @@ onMounted(async () => {
                 :loading="busy"
                 @click="run((bridge) => bridge.retry())"
             >
-                {{ t("startup.restart", "Restart and retry") }} / 重開再試
+                {{ t("startup.restart", "Restart and retry") }} /
+                {{ t("startup.restart.yue", "重開再試") }}
             </VBtn>
         </div>
         <p class="mb-startup-recovery__status" role="status" aria-live="polite">{{ status }}</p>

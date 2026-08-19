@@ -1,7 +1,21 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip, VDivider, VList, VListItem, VProgressLinear, VSelect, VSwitch, VTextField } from "vuetify/components";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VCardTitle,
+    VChip,
+    VDivider,
+    VList,
+    VListItem,
+    VProgressLinear,
+    VSelect,
+    VSwitch,
+    VTextField,
+} from "vuetify/components";
 
 import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -159,7 +173,10 @@ const editionChoices = computed(() => [
 ]);
 
 const versionChoices = computed(() =>
-    versionsFor(targetEdition.value).map((version) => ({ value: version.id, title: version.label })),
+    versionsFor(targetEdition.value).map((version) => ({
+        value: version.id,
+        title: version.label,
+    })),
 );
 
 function onEditionChange(value: Edition): void {
@@ -220,17 +237,21 @@ const blockQuery = ref("");
 const blockRegex = ref(false);
 const blockFlags = ref("i");
 
-const blockMatcher = computed(() => createSettingMatcher(blockQuery.value, blockRegex.value, blockFlags.value));
+const blockMatcher = computed(() =>
+    createSettingMatcher(blockQuery.value, blockRegex.value, blockFlags.value),
+);
 
 const visibleOverrides = computed(() =>
-    overrides.value.filter((override) => blockMatcher.value.test(blockOverrideSearchText(override))),
+    overrides.value.filter((override) =>
+        blockMatcher.value.test(blockOverrideSearchText(override)),
+    ),
 );
 
 /** Every override on one line, which is the corpus the regex builder previews against. */
 const overrideSample = computed(() => overrides.value.map(blockOverrideSearchText).join("\n"));
 
-const overrideSummary = computed(() =>
-    `${visibleOverrides.value.length} / ${overrides.value.length}`,
+const overrideSummary = computed(
+    () => `${visibleOverrides.value.length} / ${overrides.value.length}`,
 );
 
 function addOverride(): void {
@@ -418,7 +439,12 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
 
             <VAlert v-if="bridge === null" type="warning" variant="tonal" class="mt-4">
                 <span data-test="chunker-no-bridge">
-                    {{ t("chunker.noBridge", "This build has no converter, so nothing on this page can run.") }}
+                    {{
+                        t(
+                            "chunker.noBridge",
+                            "This build has no converter, so nothing on this page can run.",
+                        )
+                    }}
                 </span>
             </VAlert>
 
@@ -427,7 +453,11 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 1: source world -->
             <section v-if="step === 'source'" data-test="chunker-step-source">
                 <h3>{{ t("chunker.step.source", "Source world") }}</h3>
-                <MinecraftWorldList :model-value="sourceFolder" :bridge="catalog" @choose="chooseWorld" />
+                <MinecraftWorldList
+                    :model-value="sourceFolder"
+                    :bridge="catalog"
+                    @choose="chooseWorld"
+                />
                 <PathField
                     v-model="sourceFolder"
                     field="world folder"
@@ -488,7 +518,10 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                     density="compact"
                 />
 
-                <ChunkerRoutePicker :route="route" @update:route="(value: ChunkerRoute) => (route = value)" />
+                <ChunkerRoutePicker
+                    :route="route"
+                    @update:route="(value: ChunkerRoute) => (route = value)"
+                />
             </section>
 
             <!-- Step 3: trimming and dimensions -->
@@ -500,18 +533,48 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                     density="compact"
                 />
                 <div v-if="trimEnabled" class="mb-chunker-bounds">
-                    <VTextField v-model.number="minX" type="number" :label="t('chunker.minX', 'Minimum X')" density="compact" />
-                    <VTextField v-model.number="maxX" type="number" :label="t('chunker.maxX', 'Maximum X')" density="compact" />
-                    <VTextField v-model.number="minZ" type="number" :label="t('chunker.minZ', 'Minimum Z')" density="compact" />
-                    <VTextField v-model.number="maxZ" type="number" :label="t('chunker.maxZ', 'Maximum Z')" density="compact" />
+                    <VTextField
+                        v-model.number="minX"
+                        type="number"
+                        :label="t('chunker.minX', 'Minimum X')"
+                        density="compact"
+                    />
+                    <VTextField
+                        v-model.number="maxX"
+                        type="number"
+                        :label="t('chunker.maxX', 'Maximum X')"
+                        density="compact"
+                    />
+                    <VTextField
+                        v-model.number="minZ"
+                        type="number"
+                        :label="t('chunker.minZ', 'Minimum Z')"
+                        density="compact"
+                    />
+                    <VTextField
+                        v-model.number="maxZ"
+                        type="number"
+                        :label="t('chunker.maxZ', 'Maximum Z')"
+                        density="compact"
+                    />
                 </div>
                 <p v-if="trimEnabled" data-test="chunker-prune-summary">
-                    {{ t("chunker.pruneSummary", "Chunks outside the boundary are dropped from the converted copy.") }}
+                    {{
+                        t(
+                            "chunker.pruneSummary",
+                            "Chunks outside the boundary are dropped from the converted copy.",
+                        )
+                    }}
                     ({{ keptChunks }})
                 </p>
                 <VAlert v-if="boundsBackwards" type="error" variant="tonal">
                     <span data-test="chunker-bounds-backwards">
-                        The maximum is lower than the minimum, so this boundary keeps nothing.
+                        {{
+                            t(
+                                "chunker.boundsBackwards",
+                                "The maximum is lower than the minimum, so this boundary keeps nothing.",
+                            )
+                        }}
                     </span>
                 </VAlert>
 
@@ -539,12 +602,27 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                     :summary="overrideSummary"
                 />
                 <div class="mb-chunker-override-entry">
-                    <VTextField v-model="overrideFrom" :label="t('chunker.blockFrom', 'Source block')" density="compact" />
-                    <VTextField v-model="overrideTo" :label="t('chunker.blockTo', 'Replacement block')" density="compact" />
-                    <VBtn size="small" @click="addOverride">{{ t("chunker.blockAdd", "Add override") }}</VBtn>
+                    <VTextField
+                        v-model="overrideFrom"
+                        :label="t('chunker.blockFrom', 'Source block')"
+                        density="compact"
+                    />
+                    <VTextField
+                        v-model="overrideTo"
+                        :label="t('chunker.blockTo', 'Replacement block')"
+                        density="compact"
+                    />
+                    <VBtn size="small" @click="addOverride">{{
+                        t("chunker.blockAdd", "Add override")
+                    }}</VBtn>
                 </div>
                 <p v-if="overrides.length === 0" data-test="chunker-no-overrides">
-                    {{ t("chunker.blockNone", "No overrides. Chunker's own mapping is used for every block.") }}
+                    {{
+                        t(
+                            "chunker.blockNone",
+                            "No overrides. Chunker's own mapping is used for every block.",
+                        )
+                    }}
                 </p>
                 <VList v-else density="compact">
                     <VListItem v-for="override in visibleOverrides" :key="override.id">
@@ -559,12 +637,31 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 5: world settings -->
             <section v-else-if="step === 'settings'" data-test="chunker-step-settings">
                 <h3>{{ t("chunker.step.settings", "World settings") }}</h3>
-                <VTextField v-model="worldName" :label="t('chunker.worldName', 'World name')" density="compact" />
+                <VTextField
+                    v-model="worldName"
+                    :label="t('chunker.worldName', 'World name')"
+                    density="compact"
+                />
                 <VTextField v-model="seed" :label="t('chunker.seed', 'Seed')" density="compact" />
                 <div class="mb-chunker-bounds">
-                    <VTextField v-model="spawnX" type="number" :label="t('chunker.spawnX', 'Spawn X')" density="compact" />
-                    <VTextField v-model="spawnY" type="number" :label="t('chunker.spawnY', 'Spawn Y')" density="compact" />
-                    <VTextField v-model="spawnZ" type="number" :label="t('chunker.spawnZ', 'Spawn Z')" density="compact" />
+                    <VTextField
+                        v-model="spawnX"
+                        type="number"
+                        :label="t('chunker.spawnX', 'Spawn X')"
+                        density="compact"
+                    />
+                    <VTextField
+                        v-model="spawnY"
+                        type="number"
+                        :label="t('chunker.spawnY', 'Spawn Y')"
+                        density="compact"
+                    />
+                    <VTextField
+                        v-model="spawnZ"
+                        type="number"
+                        :label="t('chunker.spawnZ', 'Spawn Z')"
+                        density="compact"
+                    />
                 </div>
                 <h4>{{ t("chunker.gameRules", "Game rules") }}</h4>
                 <VSwitch
@@ -573,7 +670,9 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                     :model-value="gameRuleValues[rule] === true"
                     :label="rule"
                     density="compact"
-                    @update:model-value="(value: boolean | null) => setGameRule(rule, value === true)"
+                    @update:model-value="
+                        (value: boolean | null) => setGameRule(rule, value === true)
+                    "
                 />
             </section>
 
@@ -589,7 +688,9 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                     }}
                 </p>
                 <VList density="compact" data-test="chunker-consequences">
-                    <VListItem v-for="note in consequences" :key="note.id">{{ note.detail }}</VListItem>
+                    <VListItem v-for="note in consequences" :key="note.id">{{
+                        note.detail
+                    }}</VListItem>
                 </VList>
 
                 <ConfigSuperConfirm
@@ -636,7 +737,12 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                         }}
                     </span>
                 </VAlert>
-                <VAlert v-else-if="outcome !== null && !succeeded" type="error" variant="tonal" class="mt-3">
+                <VAlert
+                    v-else-if="outcome !== null && !succeeded"
+                    type="error"
+                    variant="tonal"
+                    class="mt-3"
+                >
                     <span data-test="chunker-failed">
                         {{
                             t(

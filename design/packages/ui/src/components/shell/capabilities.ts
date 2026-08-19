@@ -19,10 +19,8 @@
  *    policy under Settings, but this checkout still has no reader for the shared application-data
  *    record or privileged credential verifier. Calling the local policy universal here would be
  *    a false capability claim.
- *  - `personal-vocabulary` - **absent**, and absent is its correct default: the contract says the
- *    feature exists only when the user supplies an explicit private file, and that without one an
- *    app "exposes no vocabulary feature at all". A surface that collected one would be the exact
- *    thing the rule forbids.
+ *  - `personal-vocabulary` - **present.** Settings always exposes the local JSON picker; the
+ *    replacement data itself remains absent until the user supplies a valid private file.
  *  - `narrator` - **absent.** `docs/contracts/localization.md` specifies it; no settings row
  *    implements it yet. The row stays in the manifest and stays out of the interface until one
  *    does, rather than routing to a settings section that is not there.
@@ -68,10 +66,7 @@ const RESOLVERS: Record<string, () => CapabilityState> = {
         absent(
             "A renderer-local School-mode policy exists in Settings, but the shared application-data record and privileged credential verifier are not exposed here, so the universal restricted-mode route remains unavailable.",
         ),
-    "personal-vocabulary": () =>
-        absent(
-            "Personal vocabulary exists only from a private file the user supplies. Without one, the correct behaviour is to expose no vocabulary surface at all rather than a control that collects one.",
-        ),
+    "personal-vocabulary": () => PRESENT,
     narrator: () =>
         absent(
             "The spoken narrator is specified in the localization contract and has no settings row yet. The row stays out of the interface until one exists rather than routing to a section that is not there.",

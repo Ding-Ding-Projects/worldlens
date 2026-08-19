@@ -27,10 +27,7 @@ import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import GhEntityPicker from "../github/GhEntityPicker.vue";
-import {
-    createGhCliAccountsStore,
-    defaultGhCliAccountId,
-} from "../github/ghCliAccountsStore.js";
+import { createGhCliAccountsStore, defaultGhCliAccountId } from "../github/ghCliAccountsStore.js";
 import type { GhCliBridge } from "../github/ghCliBridge.js";
 import {
     createProjectFromGeneratedDefaults,
@@ -394,14 +391,14 @@ function chooseAccount(value: unknown): void {
 const ownerItems = computed(() => {
     const answer = renders.owners.value;
     if (answer === null || !answer.ok) return [];
-        return answer.owners.map((choice) => ({
+    return answer.owners.map((choice) => ({
         title:
             choice.kind === "organization"
                 ? t("cirender.owner.asOrg", { login: choice.login }, "{login} (organization)")
                 : t("cirender.owner.asYou", { login: choice.login }, "{login} (you)"),
-            value: choice.login,
-            searchText: `${choice.login} ${choice.kind}`,
-        }));
+        value: choice.login,
+        searchText: `${choice.login} ${choice.kind}`,
+    }));
 });
 
 function chooseOwner(value: unknown): void {
@@ -689,6 +686,11 @@ function bootstrapFileOutcomeText(outcome: {
 
 function bootstrapPhaseLabel(phase: CiBootstrapPhase): string {
     switch (phase) {
+        case "resolving-credential":
+            return t(
+                "cirender.bootstrap.phase.resolvingCredential",
+                "Selecting the GitHub account...",
+            );
         case "checking-scopes":
             return t("cirender.bootstrap.phase.checkingScopes", "Checking sign-in permissions...");
         case "reading-repository":
@@ -699,6 +701,11 @@ function bootstrapPhaseLabel(phase: CiBootstrapPhase): string {
             return t(
                 "cirender.bootstrap.phase.checkingActions",
                 "Checking whether GitHub Actions is enabled...",
+            );
+        case "configuring-pages":
+            return t(
+                "cirender.bootstrap.phase.configuringPages",
+                "Enabling GitHub Pages and verifying the repository homepage...",
             );
         case "finished":
             return t("cirender.bootstrap.phase.finished", "Done.");
@@ -780,6 +787,7 @@ async function setupRepositoryAutomatically(): Promise<boolean> {
             targetOwner,
             targetRepo,
             effectiveAccountId.value,
+            publishToPages.value,
         );
         if (result.ok) {
             bootstrapReport.value = result.report;
@@ -1232,7 +1240,8 @@ onMounted(() => {
         void accountsList.load().then(() => {
             accountsLoaded.value = true;
             if (renders.canListOwners) void renders.loadOwners(effectiveAccountId.value);
-            if (renders.canListRepositories) void renders.loadRepositories(effectiveAccountId.value);
+            if (renders.canListRepositories)
+                void renders.loadRepositories(effectiveAccountId.value);
         });
     } else {
         if (renders.canListOwners) void renders.loadOwners();
@@ -1340,11 +1349,23 @@ onBeforeUnmount(() => {
                             <GhEntityPicker
                                 :items="accountItems"
                                 :model-value="effectiveAccountId"
-                                :search-label="t('cirender.account.search', 'Search signed-in accounts')"
+                                :search-label="
+                                    t('cirender.account.search', 'Search signed-in accounts')
+                                "
                                 :select-label="t('cirender.account.pick', 'Render as')"
                                 :selected-label="t('cirender.account.selected', 'Selected account')"
-                                :empty-message="t('cirender.account.empty', 'No GitHub CLI accounts are signed in.')"
-                                :no-match-message="t('cirender.account.noMatch', 'No signed-in account matches that search.')"
+                                :empty-message="
+                                    t(
+                                        'cirender.account.empty',
+                                        'No GitHub CLI accounts are signed in.',
+                                    )
+                                "
+                                :no-match-message="
+                                    t(
+                                        'cirender.account.noMatch',
+                                        'No signed-in account matches that search.',
+                                    )
+                                "
                                 :hint="
                                     t(
                                         'cirender.account.help',
@@ -1471,12 +1492,23 @@ onBeforeUnmount(() => {
                         v-if="ownerItems.length > 0"
                         :items="ownerItems"
                         :model-value="owner || null"
-                        :search-label="t('cirender.owner.search', 'Search personal and organization owners')"
+                        :search-label="
+                            t('cirender.owner.search', 'Search personal and organization owners')
+                        "
                         :select-label="t('cirender.owner.pick', 'Choose an owner')"
                         :selected-label="t('cirender.owner.selected', 'Selected owner')"
-                        :empty-message="t('cirender.owner.empty', 'No owners were returned by GitHub CLI.')"
-                        :no-match-message="t('cirender.owner.noMatch', 'No real owner matches that search.')"
-                        :hint="t('cirender.owner.help', 'Owners are read through GitHub CLI for the selected account and revalidated before a repository is created.')"
+                        :empty-message="
+                            t('cirender.owner.empty', 'No owners were returned by GitHub CLI.')
+                        "
+                        :no-match-message="
+                            t('cirender.owner.noMatch', 'No real owner matches that search.')
+                        "
+                        :hint="
+                            t(
+                                'cirender.owner.help',
+                                'Owners are read through GitHub CLI for the selected account and revalidated before a repository is created.',
+                            )
+                        "
                         class="mb-2"
                         data-test-base="cirender-owner-picker"
                         @update:model-value="chooseOwner"
@@ -1489,9 +1521,21 @@ onBeforeUnmount(() => {
                         :search-label="t('cirender.repo.search', 'Search your repositories')"
                         :select-label="t('cirender.repo.pick', 'One of your repositories')"
                         :selected-label="t('cirender.repo.selectedLabel', 'Selected repository')"
-                        :empty-message="t('cirender.repo.empty', 'No writable repositories were returned by GitHub CLI.')"
-                        :no-match-message="t('cirender.repo.noMatch', 'No real repository matches that search.')"
-                        :hint="t('cirender.repo.loadedHint', 'Most recently active first, up to 300 real repositories returned by GitHub CLI.')"
+                        :empty-message="
+                            t(
+                                'cirender.repo.empty',
+                                'No writable repositories were returned by GitHub CLI.',
+                            )
+                        "
+                        :no-match-message="
+                            t('cirender.repo.noMatch', 'No real repository matches that search.')
+                        "
+                        :hint="
+                            t(
+                                'cirender.repo.loadedHint',
+                                'Most recently active first, up to 300 real repositories returned by GitHub CLI.',
+                            )
+                        "
                         class="mb-2"
                         data-test-base="cirender-repository-picker"
                         @update:model-value="chooseRepository"
@@ -1676,7 +1720,12 @@ onBeforeUnmount(() => {
                             <VSwitch
                                 v-if="readinessNeedsSetup === 'missing'"
                                 v-model="createPrivate"
-                                :label="t('cirender.bootstrap.private', 'Create as a private repository')"
+                                :label="
+                                    t(
+                                        'cirender.bootstrap.private',
+                                        'Create as a private repository',
+                                    )
+                                "
                                 color="primary"
                                 hide-details="auto"
                                 class="mt-2"
@@ -1698,10 +1747,7 @@ onBeforeUnmount(() => {
                                               "cirender.bootstrap.createAction",
                                               "Create and set this repository up",
                                           )
-                                        : t(
-                                              "cirender.bootstrap.action",
-                                              "Set this repository up",
-                                          )
+                                        : t("cirender.bootstrap.action", "Set this repository up")
                                 }}
                             </VBtn>
                             <p
@@ -1756,6 +1802,30 @@ onBeforeUnmount(() => {
                             </li>
                         </ul>
                         <p class="mt-2">{{ bootstrapReport.actionsMessage }}</p>
+                        <p
+                            v-if="bootstrapReport.pages !== undefined"
+                            class="mt-2"
+                            data-test="pages-homepage-ready"
+                        >
+                            {{
+                                t(
+                                    "cirender.bootstrap.pagesReadyLead",
+                                    "GitHub Pages is configured for workflow publishing at",
+                                )
+                            }}
+                            <a
+                                :href="bootstrapReport.pages.url"
+                                @click.prevent="emit('open', bootstrapReport.pages.url)"
+                            >
+                                {{ bootstrapReport.pages.url }}
+                            </a>
+                            {{
+                                t(
+                                    "cirender.bootstrap.pagesReadyHomepage",
+                                    "The repository homepage now points to this exact URL. The first successful Pages render publishes the site.",
+                                )
+                            }}
+                        </p>
                         <p
                             v-for="note in bootstrapReport.notes"
                             :key="note"

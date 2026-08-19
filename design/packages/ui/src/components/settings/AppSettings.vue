@@ -5,10 +5,7 @@ import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import GhCliAccountsList from "../github/GhCliAccountsList.vue";
 import LegacyCredentialCleanup from "../github/LegacyCredentialCleanup.vue";
-import {
-    createGhCliAccountsStore,
-    ghCliAccountSearchText,
-} from "../github/ghCliAccountsStore.js";
+import { createGhCliAccountsStore, ghCliAccountSearchText } from "../github/ghCliAccountsStore.js";
 import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
 import LanguageSettingsRow from "../setup/LanguageSettingsRow.vue";
 import { consentSearchLabels } from "../setup/consentSearch.js";
@@ -262,7 +259,7 @@ const sections = computed<SettingsSectionText[]>(() => {
         github.canList ? "" : githubCopy.unsupported,
     ];
 
-    return [
+    const rows: SettingsSectionText[] = [
         {
             anchor: "mojang-download-consent",
             title: text["mojang-download-consent"].title,
@@ -444,9 +441,7 @@ const sections = computed<SettingsSectionText[]>(() => {
             anchor: "app-logo",
             title: text["app-logo"].title,
             description: text["app-logo"].description,
-            values: [
-                logoStore.custom !== null ? logoStore.custom.format : logoStore.presetId,
-            ],
+            values: [logoStore.custom !== null ? logoStore.custom.format : logoStore.presetId],
         },
         // The two headings this tab actually renders, so typing "profiles" or "application
         // settings" finds the version-history tab, the same "search what is on screen"
@@ -464,6 +459,7 @@ const sections = computed<SettingsSectionText[]>(() => {
             values: [],
         },
     ];
+    return rows.filter((section) => !schoolModeEnabled() || section.anchor !== "vocabulary");
 });
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
@@ -511,11 +507,13 @@ const searchSummary = computed(() => {
 
 /** One tab per section, in the surface's own order, labelled from the live copy. */
 const settingsPages = computed<TabPage[]>(() =>
-    SETTINGS_SECTIONS.map((anchor) => ({
-        id: anchor,
-        label: copy.value[anchor].title,
-        icon: null,
-    })),
+    SETTINGS_SECTIONS.filter((anchor) => !schoolModeEnabled() || anchor !== "vocabulary").map(
+        (anchor) => ({
+            id: anchor,
+            label: copy.value[anchor].title,
+            icon: null,
+        }),
+    ),
 );
 
 /* -------------------------------------------------------------------------- */

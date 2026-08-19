@@ -54,7 +54,7 @@ import { createHash } from "node:crypto";
 import type { GhCliAccountLease } from "../ghcli/credentialBroker.js";
 import { ActionsCallError, RENDER_WORKFLOW_FILE } from "./actions.js";
 import { CiAtomicCommitConflictError, resolveTransport } from "./transport.js";
-import type { CiRoute, CiTransport } from "./transport.js";
+import type { CiPagesSetupReport, CiRoute, CiTransport } from "./transport.js";
 
 /** The file that says a path belongs to this application, and which paths those are. */
 export const CI_BOOTSTRAP_MARKER_FILE = ".worldlens-ci.json";
@@ -119,6 +119,8 @@ export interface CiBootstrapReport {
     /** Null when this could not be determined - see `CiTransport.readActionsPolicy`. */
     readonly actionsEnabled: boolean | null;
     readonly actionsMessage: string;
+    /** Present only when the user asked this setup pass to prepare GitHub Pages. */
+    readonly pages?: CiPagesSetupReport | undefined;
     /** True only when every file landed and Actions is not known to be disabled. */
     readonly ready: boolean;
     readonly notes: readonly string[];
@@ -135,6 +137,7 @@ export type CiBootstrapFailureCode =
     | "newer-marker-version"
     | "newer-template-version"
     | "concurrent-update"
+    | "pages-configuration"
     | "http-error";
 
 export interface CiBootstrapFailure {
@@ -154,6 +157,7 @@ export type CiBootstrapPhase =
     | "reading-repository"
     | "writing-files"
     | "checking-actions"
+    | "configuring-pages"
     | "finished";
 
 export type CiBootstrapEvent =
@@ -181,6 +185,8 @@ export type CiBootstrapEvent =
 export interface CiBootstrapRequest {
     readonly owner: string;
     readonly repo: string;
+    /** The renderer's explicit Pages choice; omitted and false leave Pages untouched. */
+    readonly publishToPages?: boolean | undefined;
 }
 
 export interface CiBootstrapOptions {
@@ -523,6 +529,31 @@ export async function bootstrapCiRepository(
         return fail(toHttpFailure(error));
     }
 
+    let pages: CiPagesSetupReport | undefined;
+    if (request.publishToPages === true) {
+        emit({ type: "phase", phase: "configuring-pages", at: stamp() });
+        if (transport.configurePagesForWorkflow === undefined) {
+            return fail({
+                code: "pages-configuration",
+                message:
+                    `${transport.describe} cannot configure workflow-backed GitHub Pages, so the ` +
+                    "requested site and repository homepage were not prepared.",
+                missingScopes: null,
+            });
+        }
+        try {
+            pages = await transport.configurePagesForWorkflow(owner, repo);
+        } catch (error) {
+            const detail =
+                error instanceof Error && error.message.length > 0 ? error.message : String(error);
+            return fail({
+                code: "pages-configuration",
+                message: `The managed workflows are prepared, but GitHub Pages or the repository homepage could not be configured. ${detail}`,
+                missingScopes: null,
+            });
+        }
+    }
+
     const report: CiBootstrapReport = {
         owner,
         repo,
@@ -532,6 +563,7 @@ export async function bootstrapCiRepository(
         markerWritten,
         actionsEnabled,
         actionsMessage,
+        ...(pages === undefined ? {} : { pages }),
         ready: actionsEnabled !== false,
         notes,
     };

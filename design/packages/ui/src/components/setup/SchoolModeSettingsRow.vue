@@ -48,7 +48,9 @@ onMounted(() => {
 });
 
 function showResult(result: { readonly ok: boolean; readonly message?: string }): boolean {
-    operationMessage.value = result.ok ? null : (result.message ?? i18n.t("school.hostUnavailable"));
+    operationMessage.value = result.ok
+        ? null
+        : (result.message ?? i18n.t("school.hostUnavailable"));
     return result.ok;
 }
 
@@ -116,7 +118,7 @@ async function retrySharedRecord(): Promise<void> {
         <div class="mb-school-mode__heading">
             <h3>{{ name }}</h3>
             <p role="status" aria-live="polite">
-                <template v-if="!school.ready.value">Loading the shared mode record…</template>
+                <template v-if="!school.ready.value">{{ i18n.t("school.loading") }}</template>
                 <template v-else-if="isFallback">
                     {{
                         school.enabled.value
@@ -138,7 +140,7 @@ async function retrySharedRecord(): Promise<void> {
         </div>
 
         <template v-if="!school.ready.value">
-            <p class="mb-school-mode__lead">Loading before this app reports shared mode state.</p>
+            <p class="mb-school-mode__lead">{{ i18n.t("school.loadingLead") }}</p>
         </template>
 
         <template v-else-if="school.source.value === 'unavailable'">
@@ -171,7 +173,9 @@ async function retrySharedRecord(): Promise<void> {
 
             <template v-if="!school.enabled.value">
                 <p class="mb-school-mode__lead">
-                    <template v-if="isShared">{{ i18n.t("school.beforeEnable", { name }) }}</template>
+                    <template v-if="isShared">{{
+                        i18n.t("school.beforeEnable", { name })
+                    }}</template>
                     <template v-else>{{ i18n.t("school.localFallbackStatus") }}</template>
                 </p>
                 <v-text-field
@@ -190,7 +194,11 @@ async function retrySharedRecord(): Promise<void> {
                     variant="tonal"
                     density="comfortable"
                     :disabled="busy"
-                    :text="isShared ? i18n.t('school.enable', { name }) : i18n.t('school.enableLocal', { name })"
+                    :text="
+                        isShared
+                            ? i18n.t('school.enable', { name })
+                            : i18n.t('school.enableLocal', { name })
+                    "
                     @click="enable"
                 />
             </template>
@@ -214,7 +222,11 @@ async function retrySharedRecord(): Promise<void> {
                     variant="outlined"
                     density="comfortable"
                     :disabled="busy"
-                    :text="isShared ? i18n.t('school.disable', { name }) : i18n.t('school.disableLocal', { name })"
+                    :text="
+                        isShared
+                            ? i18n.t('school.disable', { name })
+                            : i18n.t('school.disableLocal', { name })
+                    "
                     @click="disable"
                 />
             </template>
@@ -229,7 +241,12 @@ async function retrySharedRecord(): Promise<void> {
                 @confirm="resetRecord"
             >
                 <template #activator="{ props: activatorProps }">
-                    <v-btn v-bind="activatorProps" color="error" variant="outlined" density="comfortable">
+                    <v-btn
+                        v-bind="activatorProps"
+                        color="error"
+                        variant="outlined"
+                        density="comfortable"
+                    >
                         {{ i18n.t("school.reset", { name }) }}
                     </v-btn>
                 </template>

@@ -59,7 +59,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "world-folder": "World folder",
     "github-account": "GitHub account",
     "language-and-tone": "Language and tone",
-    "display": "Display and ease of use",
+    display: "Display and ease of use",
     "kid-mode": "Kid Mode and Adult Mode",
     "surface-placement": "Where the panels sit",
     "render-memory": "Render memory",
@@ -67,11 +67,11 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "notification-duration": "Notification duration",
     "system-dependencies": "System dependencies",
     "bluemap-engine": "BlueMap engine",
-    "updates": "Updates",
-    "vocabulary": "Personal vocabulary",
+    updates: "Updates",
+    vocabulary: "Personal vocabulary",
     "app-logo": "App logo",
-    "history": "Version history",
-    "diagnostics": "Diagnostics",
+    history: "Version history",
+    diagnostics: "Diagnostics",
 };
 
 const scrollIntoView = vi.fn();
@@ -208,9 +208,15 @@ type Host = InstanceType<typeof Host>;
 
 let wrapper: VueWrapper<Host> | null = null;
 
-function open(props: { anchor?: SettingsSectionAnchor | null; anchorMissing?: boolean } = {}): VueWrapper<Host> {
+function open(
+    props: { anchor?: SettingsSectionAnchor | null; anchorMissing?: boolean } = {},
+): VueWrapper<Host> {
     wrapper = mount(Host, {
-        props: { open: true, anchor: props.anchor ?? null, anchorMissing: props.anchorMissing ?? false },
+        props: {
+            open: true,
+            anchor: props.anchor ?? null,
+            anchorMissing: props.anchorMissing ?? false,
+        },
         global: { plugins: [vuetify, i18n] },
         attachTo: document.body,
     }) as unknown as VueWrapper<Host>;
@@ -243,7 +249,9 @@ function tabButtons(): HTMLElement[] {
 }
 
 async function clickTab(anchor: SettingsSectionAnchor): Promise<void> {
-    const button = tabButtons().find((candidate) => candidate.textContent?.includes(SECTION_TITLE[anchor]) === true);
+    const button = tabButtons().find(
+        (candidate) => candidate.textContent?.includes(SECTION_TITLE[anchor]) === true,
+    );
     if (button === undefined) throw new Error(`no tab button for ${anchor}`);
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await settle();
@@ -251,13 +259,17 @@ async function clickTab(anchor: SettingsSectionAnchor): Promise<void> {
 
 /** The search result list's entries, in the order they are rendered. */
 function resultTitles(): string[] {
-    return [...document.querySelectorAll(".mb-settings__result-title")].map((el) => el.textContent ?? "");
+    return [...document.querySelectorAll(".mb-settings__result-title")].map(
+        (el) => el.textContent ?? "",
+    );
 }
 
 async function clickResult(anchor: SettingsSectionAnchor): Promise<void> {
     const buttons = [...document.querySelectorAll<HTMLElement>(".mb-settings__result")];
-    const button = buttons.find((candidate) =>
-        candidate.querySelector(".mb-settings__result-title")?.textContent === SECTION_TITLE[anchor],
+    const button = buttons.find(
+        (candidate) =>
+            candidate.querySelector(".mb-settings__result-title")?.textContent ===
+            SECTION_TITLE[anchor],
     );
     if (button === undefined) throw new Error(`no search result for ${anchor}`);
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -389,7 +401,9 @@ describe("the consent setting", () => {
         const row = wrapper?.findComponent(ConsentSettingsRow);
         expect(row?.exists()).toBe(true);
         // Its own element, with its own id, inside this surface's consent section.
-        expect(requireSection("mojang-download-consent").querySelector("#mb-consent-setting")).not.toBeNull();
+        expect(
+            requireSection("mojang-download-consent").querySelector("#mb-consent-setting"),
+        ).not.toBeNull();
         expect(document.querySelectorAll("#mb-consent-setting")).toHaveLength(1);
     });
 
@@ -460,7 +474,9 @@ describe("the storage folder", () => {
         await settle();
 
         expect(readMapStorageDir()).toBe(absolute);
-        expect(document.querySelector(".mb-storage-setting__saved")?.textContent).toContain(absolute);
+        expect(document.querySelector(".mb-storage-setting__saved")?.textContent).toContain(
+            absolute,
+        );
     });
 });
 
@@ -553,7 +569,9 @@ describe("the language and tone setting", () => {
         await settle();
 
         expect(wrapper?.findComponent(SetupLanguagePanel).exists()).toBe(true);
-        expect(requireSection("language-and-tone").querySelector(".mb-setup-language")).not.toBeNull();
+        expect(
+            requireSection("language-and-tone").querySelector(".mb-setup-language"),
+        ).not.toBeNull();
         expect(document.querySelectorAll(".mb-setup-language")).toHaveLength(1);
     });
 
@@ -614,12 +632,19 @@ describe("the language and tone setting", () => {
         await settle();
 
         const element = requireSection("language-and-tone");
-        expect(tabButtons().some((button) => button.textContent?.includes("Quiet study") === true)).toBe(true);
+        expect(
+            tabButtons().some((button) => button.textContent?.includes("Quiet study") === true),
+        ).toBe(true);
         expect(element.textContent).toContain("Quiet study");
         expect(element.textContent).not.toContain("School mode");
         expect(element.textContent).not.toContain("Language and tone");
         expect(element.querySelector(".mb-setup-language")).toBeNull();
         expect(wrapper?.findComponent(ProductDisplayNameRow).exists()).toBe(true);
+        expect(
+            tabButtons().some(
+                (button) => button.textContent?.includes(SECTION_TITLE.vocabulary) === true,
+            ),
+        ).toBe(false);
 
         const field = wrapper?.find(".mb-config-search input");
         await field?.setValue("funny");
@@ -629,7 +654,14 @@ describe("the language and tone setting", () => {
         await field?.setValue("Quiet study");
         await settle();
         expect(resultTitles()).toContain("Quiet study");
-        expect(tabButtons().some((button) => button.textContent?.includes(SECTION_TITLE.display) === true)).toBe(true);
+        await field?.setValue("Personal vocabulary");
+        await settle();
+        expect(resultTitles()).not.toContain(SECTION_TITLE.vocabulary);
+        expect(
+            tabButtons().some(
+                (button) => button.textContent?.includes(SECTION_TITLE.display) === true,
+            ),
+        ).toBe(true);
     });
 });
 
@@ -648,7 +680,13 @@ describe("the display and ease-of-use setting", () => {
         const labels = [...element.querySelectorAll("button")].map(
             (button) => button.textContent ?? "",
         );
-        for (const stop of ["1 · Standard", "2 · Comfortable", "3 · Large", "4 · Extra large", "5 · Largest"]) {
+        for (const stop of [
+            "1 · Standard",
+            "2 · Comfortable",
+            "3 · Large",
+            "4 · Extra large",
+            "5 · Largest",
+        ]) {
             expect(labels.some((label) => label.includes(stop))).toBe(true);
         }
         for (const theme of ["Default (System/Browser)", "Dark", "Light", "Contrast"]) {
@@ -709,7 +747,9 @@ describe("searching this surface", () => {
         // The builder's own activator, which is what `ConfigSearchField` anchors the
         // full `ConfigRegexBuilder` to.
         expect(document.querySelector('[aria-label="Open the regex builder"]')).not.toBeNull();
-        expect(document.querySelector('[aria-label="Search with a regular expression"]')).not.toBeNull();
+        expect(
+            document.querySelector('[aria-label="Search with a regular expression"]'),
+        ).not.toBeNull();
     });
 
     it("lists only the sections that match, as destinations rather than as hidden content", async () => {

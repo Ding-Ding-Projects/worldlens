@@ -1,6 +1,10 @@
 export { default as VocabularyUploadRow } from "./VocabularyUploadRow.vue";
 
-export { applyVocabulary, applyVocabularyTemplate } from "./applyVocabulary.js";
+export {
+    applyVocabulary,
+    applyVocabularyMessageTree,
+    applyVocabularyTemplate,
+} from "./applyVocabulary.js";
 
 export {
     VOCABULARY_MAX_BYTES,

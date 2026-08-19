@@ -230,7 +230,10 @@ export const FIXED = {
         en: "After you rename it, participating apps use only your chosen name.",
         yue: "改咗名之後，有參與嘅程式都淨係會用你揀嗰個名。",
     },
-    "school.status.on": { en: "{name} is on across participating apps", yue: "{name} 已經喺有參與嘅程式度開咗" },
+    "school.status.on": {
+        en: "{name} is on across participating apps",
+        yue: "{name} 已經喺有參與嘅程式度開咗",
+    },
     "school.status.off": { en: "{name} is off", yue: "{name} 未開" },
     "school.enable": { en: "Turn on {name} everywhere", yue: "喺所有有參與嘅程式開啟 {name}" },
     "school.disable": { en: "Turn off {name}", yue: "關閉 {name}" },
@@ -239,7 +242,10 @@ export const FIXED = {
         en: "This shared credential is checked locally when you turn this mode off.",
         yue: "之後關閉呢個模式嗰陣，會喺本機核對呢個共用憑證。",
     },
-    "school.disableCredential": { en: "PIN or password to turn off {name}", yue: "用嚟關閉 {name} 嘅 PIN 或密碼" },
+    "school.disableCredential": {
+        en: "PIN or password to turn off {name}",
+        yue: "用嚟關閉 {name} 嘅 PIN 或密碼",
+    },
     "school.reset": { en: "Reset {name} record", yue: "重設 {name} 記錄" },
     "school.resetTitle": { en: "Reset the shared mode record", yue: "重設共用模式記錄" },
     "school.resetAction": {
@@ -248,12 +254,23 @@ export const FIXED = {
     },
     "school.resetConfirm": { en: "Reset shared record", yue: "重設共用記錄" },
     "school.retry": { en: "Retry shared record", yue: "再試共用記錄" },
+    "school.loading": { en: "Loading the shared mode record...", yue: "載入緊共用模式記錄..." },
+    "school.loadingLead": {
+        en: "Loading before this app reports shared mode state.",
+        yue: "呢個程式會先載入，再報告共用模式狀態。",
+    },
     "school.localFallbackStatus": {
         en: "Local browser fallback only: not shared with another app and no credential is configured.",
         yue: "淨係瀏覽器本機備援：唔會同其他程式共用，亦都冇設定憑證。",
     },
-    "school.localFallbackOn": { en: "{name} is on only in this browser", yue: "{name} 淨係喺呢個瀏覽器開咗" },
-    "school.enableLocal": { en: "Turn on {name} only in this browser", yue: "淨係喺呢個瀏覽器開啟 {name}" },
+    "school.localFallbackOn": {
+        en: "{name} is on only in this browser",
+        yue: "{name} 淨係喺呢個瀏覽器開咗",
+    },
+    "school.enableLocal": {
+        en: "Turn on {name} only in this browser",
+        yue: "淨係喺呢個瀏覽器開啟 {name}",
+    },
     "school.disableLocal": { en: "Turn off local {name}", yue: "關閉本機 {name}" },
     "school.localFallbackBoundary": {
         en: "This browser/test fallback is a local preview, not a shared record or a security boundary. Clearing its local record removes it without an unlock.",

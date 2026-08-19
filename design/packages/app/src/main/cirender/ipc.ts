@@ -32,10 +32,7 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type { RepositoryReport } from "../backup/index.js";
-import type {
-    GhCliAccountProvider,
-    GhCredentialAccess,
-} from "../ghcli/credentialBroker.js";
+import type { GhCliAccountProvider, GhCredentialAccess } from "../ghcli/credentialBroker.js";
 import { GhCredentialError } from "../ghcli/credentialBroker.js";
 import {
     createGhRepository,
@@ -62,9 +59,7 @@ import type {
 import type { CiSyncState } from "./state.js";
 import { resolveTransport } from "./transport.js";
 import type { CiTransport, RouteReport } from "./transport.js";
-import {
-    suggestCiRepositoryName,
-} from "./setup.js";
+import { suggestCiRepositoryName } from "./setup.js";
 import type { CiOwnerChoicesAnswer, CiRepositoryNameAvailability } from "./setup.js";
 import { CiWorkflowTemplateError, loadCiWorkflowTemplates } from "./workflowTemplates.js";
 
@@ -277,7 +272,8 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                     return {
                         ok: false,
                         signedIn: false,
-                        message: "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                        message:
+                            "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
                     };
                 }
                 return {
@@ -300,11 +296,15 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
             request: { accountId?: unknown } | undefined,
         ): Promise<Answer<readonly GhRepositoryChoice[]>> => {
             try {
-                const lease = await acquireAccount(readText(request?.accountId) ?? undefined, "read");
+                const lease = await acquireAccount(
+                    readText(request?.accountId) ?? undefined,
+                    "read",
+                );
                 if (lease === null) {
                     return {
                         ok: false,
-                        message: "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                        message:
+                            "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
                     };
                 }
                 return { ok: true, value: await listGhRepositories(lease) };
@@ -340,7 +340,8 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                         status: "unknown",
                         owner,
                         repo,
-                        message: "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                        message:
+                            "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
                     };
                 }
                 const viewed = await viewGhRepository(lease, owner, repo);
@@ -393,7 +394,8 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                     return {
                         ok: false,
                         code: "cli-failed",
-                        message: "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
+                        message:
+                            "No GitHub CLI account is signed in. Add an account from GitHub Settings.",
                         needsSignIn: true,
                     };
                 }
@@ -521,13 +523,9 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     // and why nothing here can clobber a file it did not itself place there.
     options.ipcMain.handle(
         "cirender:bootstrap",
-        async (
-            _event: IpcMainInvokeEvent,
-            request: { owner?: unknown; repo?: unknown; accountId?: unknown } | undefined,
-        ): Promise<CiBootstrapResult> => {
-            const owner = readText(request?.owner);
-            const repo = readText(request?.repo);
-            if (owner === null || repo === null) {
+        async (_event: IpcMainInvokeEvent, request: unknown): Promise<CiBootstrapResult> => {
+            const parsed = readCiBootstrapIpcRequest(request);
+            if (parsed === null) {
                 return {
                     ok: false,
                     failure: {
@@ -538,7 +536,7 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                     },
                 };
             }
-            const accountId = readText(request?.accountId);
+            const { owner, repo, accountId, publishToPages } = parsed;
 
             let loaded: Awaited<ReturnType<typeof loadCiWorkflowTemplates>>;
             try {
@@ -566,7 +564,7 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
 
             const lease = await acquireAccount(accountId ?? undefined, "write");
             return await bootstrapCiRepository(
-                { owner, repo },
+                { owner, repo, publishToPages },
                 {
                     lease,
                     templates: loaded.templates,
@@ -582,6 +580,28 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         dispose(): void {
             for (const channel of CIRENDER_CHANNELS) options.ipcMain.removeHandler(channel);
         },
+    };
+}
+
+export interface CiBootstrapIpcRequest {
+    readonly owner: string;
+    readonly repo: string;
+    readonly accountId: string | null;
+    readonly publishToPages: boolean;
+}
+
+/** Renderer input widened field by field; strings such as `"true"` never become consent. */
+export function readCiBootstrapIpcRequest(value: unknown): CiBootstrapIpcRequest | null {
+    if (typeof value !== "object" || value === null) return null;
+    const record = value as Record<string, unknown>;
+    const owner = readText(record["owner"]);
+    const repo = readText(record["repo"]);
+    if (owner === null || repo === null) return null;
+    return {
+        owner,
+        repo,
+        accountId: readText(record["accountId"]),
+        publishToPages: record["publishToPages"] === true,
     };
 }
 

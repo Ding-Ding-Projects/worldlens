@@ -216,8 +216,8 @@ export interface RouteReport {
     /**
      * False when the chosen route can start a render but cannot publish a world.
      *
-         * The shipped broker route can, so this is true whenever `ready` is. It stays on the
-         * report because "can start a render" and "can publish a
+     * The shipped broker route can, so this is true whenever `ready` is. It stays on the
+     * report because "can start a render" and "can publish a
      * world" are two capabilities, and the surface has to be able to say which is missing
      * rather than showing a button that fails after an hour of packing.
      */
@@ -473,6 +473,12 @@ export interface CiBootstrapReport {
     /** Null when this could not be determined - not the same as "enabled". */
     readonly actionsEnabled: boolean | null;
     readonly actionsMessage: string;
+    readonly pages?: {
+        readonly url: string;
+        readonly buildType: "workflow";
+        readonly created: boolean;
+        readonly homepageUpdated: boolean;
+    };
     /** True only when every file landed and Actions is not known to be disabled. */
     readonly ready: boolean;
     readonly notes: readonly string[];
@@ -489,6 +495,7 @@ export type CiBootstrapFailureCode =
     | "newer-marker-version"
     | "newer-template-version"
     | "concurrent-update"
+    | "pages-configuration"
     | "http-error";
 
 export interface CiBootstrapFailure {
@@ -502,7 +509,13 @@ export type CiBootstrapResult =
     | { readonly ok: false; readonly failure: CiBootstrapFailure };
 
 export type CiBootstrapPhase =
-    "checking-scopes" | "reading-repository" | "writing-files" | "checking-actions" | "finished";
+    | "resolving-credential"
+    | "checking-scopes"
+    | "reading-repository"
+    | "writing-files"
+    | "checking-actions"
+    | "configuring-pages"
+    | "finished";
 
 export type CiBootstrapEvent =
     | {
@@ -605,6 +618,7 @@ export interface CiRenderBridge {
         owner: string,
         repo: string,
         accountId?: string,
+        publishToPages?: boolean,
     ): Promise<CiBootstrapResult>;
     /** Progress while a repository is being prepared. Present exactly when the above is. */
     onCiBootstrapEvent?(listener: (event: CiBootstrapEvent) => void): () => void;
@@ -629,9 +643,7 @@ type Host = Partial<{
         repo: string;
         accountId?: string;
     }) => Promise<CiRepositoryNameAvailability>;
-    ciRenderRepositories: (
-        accountId?: string,
-    ) => Promise<Answer<readonly CiRepositoryChoice[]>>;
+    ciRenderRepositories: (accountId?: string) => Promise<Answer<readonly CiRepositoryChoice[]>>;
     createCiRepository: (request: {
         accountId?: string;
         ownerLogin: string;
@@ -654,6 +666,7 @@ type Host = Partial<{
         owner: string,
         repo: string,
         accountId?: string,
+        publishToPages?: boolean,
     ) => Promise<CiBootstrapResult>;
     onCiBootstrapEvent: (listener: (event: CiBootstrapEvent) => void) => () => void;
 }>;
@@ -796,7 +809,8 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
                       owner: string,
                       repo: string,
                       accountId?: string,
-                  ) => host.bootstrapCiRepository!(owner, repo, accountId),
+                      publishToPages?: boolean,
+                  ) => host.bootstrapCiRepository!(owner, repo, accountId, publishToPages),
                   onCiBootstrapEvent: (listener: (event: CiBootstrapEvent) => void) =>
                       host.onCiBootstrapEvent!(listener),
               }

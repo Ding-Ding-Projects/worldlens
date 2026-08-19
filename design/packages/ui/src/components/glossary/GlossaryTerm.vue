@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
+import { applyVocabulary } from "../vocabulary/applyVocabulary.js";
 import { mdiInformationOutline } from "@mdi/js";
 import { VBtn, VCard, VCardText, VMenu, VTooltip } from "vuetify/components";
 import { requestDocsArticle } from "../docs/docsLink.js";
@@ -43,7 +44,7 @@ const open = ref(false);
 const definitionId = useId();
 
 const entry = computed(() => GLOSSARY_TERMS[props.term]);
-const displayLabel = computed(() => props.label ?? entry.value.label);
+const displayLabel = computed(() => applyVocabulary(props.label ?? entry.value.label));
 
 /**
  * Resolves the definition through a literal `t("glossary.term.<id>", fallback)` call per
@@ -117,11 +118,27 @@ function openGlossary(): void {
             density="comfortable"
         >
             <v-tooltip activator="parent" location="top" :text="ariaLabel" />
-            <v-menu v-model="open" activator="parent" :close-on-content-click="false" location="bottom start" offset="6">
-                <v-card :id="definitionId" class="mb-glossary-term__card" variant="elevated" max-width="300">
+            <v-menu
+                v-model="open"
+                activator="parent"
+                :close-on-content-click="false"
+                location="bottom start"
+                offset="6"
+            >
+                <v-card
+                    :id="definitionId"
+                    class="mb-glossary-term__card"
+                    variant="elevated"
+                    max-width="300"
+                >
                     <v-card-text>
                         <p class="mb-glossary-term__definition">{{ definitionText }}</p>
-                        <v-btn variant="text" size="small" class="mb-glossary-term__more" @click="openGlossary">
+                        <v-btn
+                            variant="text"
+                            size="small"
+                            class="mb-glossary-term__more"
+                            @click="openGlossary"
+                        >
                             {{ t("glossary.term.more", "Read more in the glossary") }}
                         </v-btn>
                     </v-card-text>

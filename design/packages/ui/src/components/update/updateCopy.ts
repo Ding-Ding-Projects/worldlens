@@ -33,6 +33,7 @@ import {
     type TextPair,
     type TranslationVars,
 } from "../setup/setupI18n.js";
+import { applyVocabularyTemplate } from "../vocabulary/applyVocabulary.js";
 
 /* -------------------------------------------------------------------------- */
 /* Voiced: five levels per language                                           */
@@ -361,12 +362,12 @@ export function updateString(
 
 /** The English string at the current English level, whatever the mode is. */
 export function updateEnglish(key: UpdateCopyKey, vars: TranslationVars = {}): string {
-    return interpolate(updateString(key, "en", funnyLevel("en")), vars);
+    return interpolate(applyVocabularyTemplate(updateString(key, "en", funnyLevel("en"))), vars);
 }
 
 /** The Cantonese string at the current Cantonese level, whatever the mode is. */
 export function updateCantonese(key: UpdateCopyKey, vars: TranslationVars = {}): string {
-    return interpolate(updateString(key, "yue", funnyLevel("yue")), vars);
+    return interpolate(applyVocabularyTemplate(updateString(key, "yue", funnyLevel("yue"))), vars);
 }
 
 /**

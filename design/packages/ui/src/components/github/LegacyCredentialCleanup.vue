@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import { mdiDeleteSweep, mdiRefresh } from "@mdi/js";
 import { VAlert, VBtn } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import { applyVocabulary } from "../vocabulary/applyVocabulary.js";
 import {
     resolveGhCliBridge,
     type GhCliLegacyCredentialRemovalReadout,
@@ -20,9 +21,11 @@ const loading = ref(false);
 const removing = ref(false);
 
 function localized(en: string, yue: string): string {
-    if (locale.value === "yue") return yue;
-    if (locale.value === "bilingual") return `${en} · ${yue}`;
-    return en;
+    if (locale.value === "yue") return applyVocabulary(yue);
+    if (locale.value === "bilingual") {
+        return `${applyVocabulary(en)} · ${applyVocabulary(yue)}`;
+    }
+    return applyVocabulary(en);
 }
 
 const copy = computed(() => ({
@@ -84,19 +87,39 @@ onMounted(() => void load());
 </script>
 
 <template>
-    <section v-if="supported && (status?.present || result !== null || failure !== null)" class="mb-legacy-credentials">
+    <section
+        v-if="supported && (status?.present || result !== null || failure !== null)"
+        class="mb-legacy-credentials"
+    >
         <h4 class="mb-legacy-credentials__title">{{ copy.title }}</h4>
         <p class="mb-legacy-credentials__note">{{ copy.description }}</p>
         <v-alert v-if="status?.present" type="warning" variant="tonal" density="comfortable">
             {{ status.message }} {{ copy.revoke }}
         </v-alert>
-        <v-alert v-if="!hasFreshAccount && status?.present" type="info" variant="tonal" density="comfortable">
+        <v-alert
+            v-if="!hasFreshAccount && status?.present"
+            type="info"
+            variant="tonal"
+            density="comfortable"
+        >
             {{ copy.needsAccount }}
         </v-alert>
-        <v-alert v-if="result !== null" type="success" variant="tonal" density="comfortable" role="status">
+        <v-alert
+            v-if="result !== null"
+            type="success"
+            variant="tonal"
+            density="comfortable"
+            role="status"
+        >
             {{ result.message }}
         </v-alert>
-        <v-alert v-if="failure !== null" type="error" variant="tonal" density="comfortable" role="alert">
+        <v-alert
+            v-if="failure !== null"
+            type="error"
+            variant="tonal"
+            density="comfortable"
+            role="alert"
+        >
             {{ failure }}
         </v-alert>
         <div class="mb-legacy-credentials__actions">

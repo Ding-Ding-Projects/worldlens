@@ -38,6 +38,8 @@ interface FakeRepoOptions {
     readonly scopes?: readonly string[] | null;
     readonly canWrite?: boolean;
     readonly actionsEnabled?: boolean;
+    readonly pagesBuildType?: "workflow" | "legacy" | null;
+    readonly homepage?: string | null;
 }
 
 interface FakeCommit {
@@ -51,9 +53,16 @@ class FakeRepo {
     scopes: readonly string[] | null;
     canWrite: boolean;
     actionsEnabled: boolean;
+    pagesBuildType: "workflow" | "legacy" | null;
+    homepage: string | null;
+    pagesUrl = `https://${OWNER}.github.io/${REPO}/`;
+    rejectPagesCreate = false;
+    rejectHomepageEdit = false;
+    ignoreHomepageEdit = false;
     moveHeadOnSecondRead = false;
     failAt: "blob" | "tree" | "commit" | null = null;
     readonly calls: { method: string; url: string; body: unknown }[] = [];
+    readonly cliCalls: string[][] = [];
     #headReads = 0;
     #counter = 0;
     readonly #blobs = new Map<string, string>();
@@ -66,6 +75,8 @@ class FakeRepo {
         this.scopes = options.scopes === undefined ? ["repo", "workflow"] : options.scopes;
         this.canWrite = options.canWrite ?? true;
         this.actionsEnabled = options.actionsEnabled ?? true;
+        this.pagesBuildType = options.pagesBuildType ?? null;
+        this.homepage = options.homepage ?? null;
     }
 
     #next(prefix: string): string {
@@ -74,8 +85,9 @@ class FakeRepo {
     }
 
     mutationCount(): number {
-        return this.calls.filter((call) => call.method === "POST" || call.method === "PATCH")
-            .length;
+        return this.calls.filter(
+            (call) => call.method === "POST" || call.method === "PUT" || call.method === "PATCH",
+        ).length;
     }
 
     visibleCommitCount(): number {
@@ -117,6 +129,11 @@ class FakeRepo {
             if (this.scopes !== null) headers.set("x-oauth-scopes", this.scopes.join(", "));
             return new Response("{}", { status: 200, headers });
         }
+        if (url === root && method === "PATCH") {
+            const request = body as { homepage?: unknown };
+            this.homepage = typeof request.homepage === "string" ? request.homepage : null;
+            return Response.json({ homepage: this.homepage });
+        }
         if (url === root && method === "GET") {
             return Response.json({
                 full_name: `${OWNER}/${REPO}`,
@@ -125,8 +142,31 @@ class FakeRepo {
                 private: false,
                 permissions: { push: this.canWrite },
                 html_url: `https://github.test/${OWNER}/${REPO}`,
+                homepage: this.homepage,
                 default_branch: "main",
             });
+        }
+        if (url === `${root}/pages` && method === "GET") {
+            return this.pagesBuildType === null
+                ? Response.json({ message: "Not Found" }, { status: 404 })
+                : Response.json({
+                      build_type: this.pagesBuildType,
+                      html_url: this.pagesUrl,
+                  });
+        }
+        if (url === `${root}/pages` && (method === "POST" || method === "PUT")) {
+            if (this.rejectPagesCreate) {
+                return Response.json({ message: "Pages refused" }, { status: 403 });
+            }
+            const request = body as { build_type?: unknown };
+            this.pagesBuildType = request.build_type === "workflow" ? "workflow" : "legacy";
+            return Response.json(
+                {
+                    build_type: this.pagesBuildType,
+                    html_url: this.pagesUrl,
+                },
+                { status: method === "POST" ? 201 : 200 },
+            );
         }
         if (url === `${root}/actions/permissions` && method === "GET") {
             return Response.json({ enabled: this.actionsEnabled });
@@ -200,17 +240,46 @@ class FakeRepo {
         }
         return Response.json({ message: `no fake route for ${method} ${url}` }, { status: 404 });
     };
+
+    readonly run = async (args: readonly string[]) => {
+        this.cliCalls.push([...args]);
+        if (args[0] === "repo" && args[1] === "edit") {
+            if (this.rejectHomepageEdit) {
+                return { started: true, code: 1, stdout: "", stderr: "HTTP 403: refused" } as const;
+            }
+            const homepageIndex = args.indexOf("--homepage");
+            if (!this.ignoreHomepageEdit) {
+                this.homepage = homepageIndex === -1 ? null : (args[homepageIndex + 1] ?? null);
+            }
+            return { started: true, code: 0, stdout: "", stderr: "" } as const;
+        }
+        if (args[0] === "repo" && args[1] === "view") {
+            return {
+                started: true,
+                code: 0,
+                stdout: JSON.stringify({ homepageUrl: this.homepage ?? "" }),
+                stderr: "",
+            } as const;
+        }
+        return {
+            started: true,
+            code: 1,
+            stdout: "",
+            stderr: "unexpected fake gh command",
+        } as const;
+    };
 }
 
-function run(repo: FakeRepo, templateVersion = TEMPLATE_VERSION) {
+function run(repo: FakeRepo, templateVersion = TEMPLATE_VERSION, publishToPages = false) {
     return bootstrapCiRepository(
-        { owner: OWNER, repo: REPO },
+        { owner: OWNER, repo: REPO, publishToPages },
         {
             lease: fakeGhAccountLease({
                 login: OWNER,
                 scopes: repo.scopes ?? [],
                 scopesReported: repo.scopes !== null,
                 api: (url, init) => repo.fetch(url.replace("https://api.github.com", API), init),
+                run: (args) => repo.run(args),
             }),
             templates: TEMPLATES,
             templateVersion,
@@ -224,6 +293,190 @@ function currentFiles(): Record<string, string> {
 }
 
 describe("managed workflow bootstrap transaction", () => {
+    it("enables workflow-backed Pages and verifies its URL as the repository homepage when requested", async () => {
+        const files = currentFiles();
+        const repo = new FakeRepo({ files });
+        repo.seedMarker(files);
+
+        const result = await run(repo, TEMPLATE_VERSION, true);
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.report.pages).toEqual({
+            url: `https://${OWNER}.github.io/${REPO}/`,
+            buildType: "workflow",
+            created: true,
+            homepageUpdated: true,
+        });
+        expect(repo.pagesBuildType).toBe("workflow");
+        expect(repo.homepage).toBe(`https://${OWNER}.github.io/${REPO}/`);
+        expect(repo.calls).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    method: "POST",
+                    url: `${API}/repos/${OWNER}/${REPO}/pages`,
+                }),
+            ]),
+        );
+        expect(repo.cliCalls).toContainEqual([
+            "repo",
+            "edit",
+            `github.com/${OWNER}/${REPO}`,
+            "--homepage",
+            `https://${OWNER}.github.io/${REPO}/`,
+        ]);
+        expect(repo.cliCalls).toContainEqual([
+            "repo",
+            "view",
+            `github.com/${OWNER}/${REPO}`,
+            "--json",
+            "homepageUrl",
+        ]);
+    });
+
+    it("leaves Pages and the repository homepage untouched when the user did not request them", async () => {
+        const files = currentFiles();
+        const repo = new FakeRepo({ files });
+        repo.seedMarker(files);
+
+        const result = await run(repo);
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.report.pages).toBeUndefined();
+        expect(repo.pagesBuildType).toBeNull();
+        expect(repo.homepage).toBeNull();
+        expect(repo.calls.some((call) => call.url.endsWith("/pages"))).toBe(false);
+    });
+
+    it("refuses to replace an existing branch-backed Pages site", async () => {
+        const files = currentFiles();
+        const repo = new FakeRepo({
+            files,
+            pagesBuildType: "legacy",
+            homepage: "https://example.test/existing-site/",
+        });
+        repo.seedMarker(files);
+
+        const result = await run(repo, TEMPLATE_VERSION, true);
+
+        expect(result).toMatchObject({
+            ok: false,
+            failure: { code: "pages-configuration" },
+        });
+        expect(repo.pagesBuildType).toBe("legacy");
+        expect(repo.homepage).toBe("https://example.test/existing-site/");
+        expect(repo.cliCalls).toEqual([]);
+        expect(
+            repo.calls.some((call) => call.url.endsWith("/pages") && call.method !== "GET"),
+        ).toBe(false);
+    });
+
+    it("reads back an existing workflow Pages URL without rewriting an identical homepage", async () => {
+        const files = currentFiles();
+        const url = `https://${OWNER}.github.io/${REPO}/`;
+        const repo = new FakeRepo({ files, pagesBuildType: "workflow", homepage: url });
+        repo.seedMarker(files);
+
+        const result = await run(repo, TEMPLATE_VERSION, true);
+
+        expect(result).toMatchObject({
+            ok: true,
+            report: {
+                pages: { url, buildType: "workflow", created: false, homepageUpdated: false },
+            },
+        });
+        expect(repo.cliCalls.some((args) => args[1] === "edit")).toBe(false);
+    });
+
+    it("refuses a non-HTTPS Pages URL before touching the homepage", async () => {
+        const files = currentFiles();
+        const repo = new FakeRepo({ files, pagesBuildType: "workflow" });
+        repo.pagesUrl = "http://example.test/not-https/";
+        repo.seedMarker(files);
+
+        const result = await run(repo, TEMPLATE_VERSION, true);
+
+        expect(result).toMatchObject({
+            ok: false,
+            failure: { code: "pages-configuration" },
+        });
+        expect(repo.homepage).toBeNull();
+        expect(repo.cliCalls).toEqual([]);
+    });
+
+    it("reports a Pages creation refusal without attempting a homepage mutation", async () => {
+        const files = currentFiles();
+        const repo = new FakeRepo({ files });
+        repo.rejectPagesCreate = true;
+        repo.seedMarker(files);
+
+        const result = await run(repo, TEMPLATE_VERSION, true);
+
+        expect(result).toMatchObject({
+            ok: false,
+            failure: { code: "pages-configuration" },
+        });
+        expect(repo.pagesBuildType).toBeNull();
+        expect(repo.cliCalls).toEqual([]);
+    });
+
+    it("stops before dispatch evidence when gh refuses the homepage edit", async () => {
+        const files = currentFiles();
+        const repo = new FakeRepo({ files });
+        repo.rejectHomepageEdit = true;
+        repo.seedMarker(files);
+
+        const result = await run(repo, TEMPLATE_VERSION, true);
+
+        expect(result).toMatchObject({
+            ok: false,
+            failure: { code: "pages-configuration" },
+        });
+        expect(repo.pagesBuildType).toBe("workflow");
+        expect(repo.homepage).toBeNull();
+    });
+
+    it("fails a homepage read-back mismatch and succeeds on an idempotent retry", async () => {
+        const files = currentFiles();
+        const repo = new FakeRepo({ files });
+        repo.ignoreHomepageEdit = true;
+        repo.seedMarker(files);
+
+        const first = await run(repo, TEMPLATE_VERSION, true);
+        expect(first).toMatchObject({
+            ok: false,
+            failure: { code: "pages-configuration" },
+        });
+        expect(repo.pagesBuildType).toBe("workflow");
+        expect(repo.homepage).toBeNull();
+
+        repo.ignoreHomepageEdit = false;
+        const retried = await run(repo, TEMPLATE_VERSION, true);
+
+        expect(retried).toMatchObject({
+            ok: true,
+            report: {
+                pages: {
+                    buildType: "workflow",
+                    created: false,
+                    homepageUpdated: true,
+                },
+            },
+        });
+        expect(repo.homepage).toBe(`https://${OWNER}.github.io/${REPO}/`);
+        expect(repo.calls.some((call) => call.method === "DELETE")).toBe(false);
+        expect(
+            repo.calls.some(
+                (call) =>
+                    call.url.includes("/git/refs/") &&
+                    typeof call.body === "object" &&
+                    call.body !== null &&
+                    (call.body as { force?: unknown }).force === true,
+            ),
+        ).toBe(false);
+    });
+
     it("performs no write when all three workflow bytes and the marker are current", async () => {
         const files = currentFiles();
         const repo = new FakeRepo({ files });

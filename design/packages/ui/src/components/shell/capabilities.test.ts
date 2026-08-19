@@ -5,6 +5,20 @@ import { capabilityState } from "./capabilities.js";
 import { resolveCatalogues } from "./catalogueSearch.js";
 
 describe("the restricted-mode capability boundary", () => {
+    it("keeps the always-present personal-vocabulary upload reachable outside restricted mode", () => {
+        expect(capabilityState("personal-vocabulary")).toEqual({ available: true, reason: "" });
+
+        const personalVocabulary = CATALOGUES.flatMap((catalogue) => catalogue.features).find(
+            (feature) => feature.key === "setup.language.personal-vocabulary",
+        );
+        expect(personalVocabulary?.target).toEqual({
+            kind: "conditional",
+            capability: "personal-vocabulary",
+            target: { kind: "overlay", overlay: "settings", reveal: "vocabulary" },
+        });
+        expect(personalVocabulary?.hideInRestrictedMode).toBe(true);
+    });
+
     it("does not claim that a renderer-local policy is the universal shared credential route", () => {
         const state = capabilityState("restricted-mode");
 

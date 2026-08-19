@@ -51,6 +51,17 @@ export interface CiRepositoryFacts {
     readonly htmlUrl: string;
 }
 
+/** Workflow-backed Pages state established during repository bootstrap. */
+export interface CiPagesSetupReport {
+    /** The exact HTTPS address GitHub reported for the site; never guessed from owner/repo. */
+    readonly url: string;
+    readonly buildType: "workflow";
+    /** True when the Pages site did not exist before this setup request. */
+    readonly created: boolean;
+    /** True when this operation changed the repository's homepage field. */
+    readonly homepageUpdated: boolean;
+}
+
 /** The exact default-branch tip against which a managed workflow update is planned. */
 export interface CiRepositoryHead {
     readonly branch: string;
@@ -231,6 +242,11 @@ export interface CiTransport {
     /** Whether GitHub will run a workflow here at all, independent of the workflow's own state. */
     readActionsPolicy(owner: string, repo: string): Promise<ActionsPolicy>;
     /**
+     * Enables workflow-backed Pages and writes its verified HTTPS URL into the repository
+     * homepage. Optional because read-only transports must not pretend they can configure it.
+     */
+    configurePagesForWorkflow?: (owner: string, repo: string) => Promise<CiPagesSetupReport>;
+    /**
      * The scopes this credential's token carries, when they can be read at all.
      *
      * Session-only in any meaningful sense: `gh` manages its own token and exposes no way
@@ -280,6 +296,11 @@ interface GitDataApi {
     send(endpoint: string, method: "POST" | "PATCH", body: unknown): Promise<unknown>;
 }
 
+interface RepositoryHomepageCommands {
+    set(url: string): Promise<void>;
+    read(): Promise<string | null>;
+}
+
 function recordOf(value: unknown): Record<string, unknown> {
     return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
@@ -295,6 +316,77 @@ function repositoryPath(owner: string, repo: string): string {
 
 function refPath(branch: string): string {
     return `heads/${branch.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function requiredHttpsUrl(value: unknown, what: string): string {
+    const raw = requiredString(value, what);
+    let parsed: URL;
+    try {
+        parsed = new URL(raw);
+    } catch {
+        throw new ActionsCallError(`GitHub did not answer with a valid ${what}.`, 0, raw);
+    }
+    if (parsed.protocol !== "https:") {
+        throw new ActionsCallError(`GitHub did not answer with an HTTPS ${what}.`, 0, raw);
+    }
+    return parsed.href;
+}
+
+/**
+ * Makes the deployment job's promise true before it is dispatched.
+ *
+ * `actions/deploy-pages` cannot create the repository's Pages configuration. The setup
+ * screen already asked whether the person wanted Pages, so bootstrap establishes the
+ * workflow-backed site here, reads GitHub's own URL back, writes that exact URL to the
+ * repository homepage, then reads both facts back again before reporting success.
+ */
+async function configureWorkflowPagesWithApi(
+    api: GitDataApi,
+    owner: string,
+    repo: string,
+    homepage: RepositoryHomepageCommands,
+): Promise<CiPagesSetupReport> {
+    const root = repositoryPath(owner, repo);
+    const pagesEndpoint = `${root}/pages`;
+    let existing: Record<string, unknown> | null;
+    try {
+        existing = recordOf(await api.get(pagesEndpoint));
+    } catch (error) {
+        if (error instanceof ActionsCallError && error.status === 404) existing = null;
+        else throw error;
+    }
+
+    const created = existing === null;
+    if (existing === null) {
+        await api.send(pagesEndpoint, "POST", { build_type: "workflow" });
+    } else if (existing["build_type"] !== "workflow") {
+        throw new ActionsCallError(
+            `${owner}/${repo} already has a branch-backed GitHub Pages site. It was left unchanged because switching it to workflow deployment could replace somebody else's published site.`,
+            409,
+            pagesEndpoint,
+        );
+    }
+
+    const site = recordOf(await api.get(pagesEndpoint));
+    if (site["build_type"] !== "workflow") {
+        throw new ActionsCallError(
+            `GitHub did not confirm workflow-backed Pages for ${owner}/${repo}.`,
+            0,
+            pagesEndpoint,
+        );
+    }
+    const url = requiredHttpsUrl(site["html_url"], `Pages URL for ${owner}/${repo}`);
+
+    const homepageUpdated = (await homepage.read()) !== url;
+    if (homepageUpdated) await homepage.set(url);
+    if ((await homepage.read()) !== url) {
+        throw new ActionsCallError(
+            `GitHub did not confirm ${url} as the homepage for ${owner}/${repo}.`,
+            0,
+            root,
+        );
+    }
+    return { url, buildType: "workflow", created, homepageUpdated };
 }
 
 async function readHeadWithApi(
@@ -404,6 +496,53 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
         get: (endpoint) => githubApiJson(endpoint, call),
         send: (endpoint, method, body) => githubApiSendJson(endpoint, method, body, call),
     };
+    const homepageCommands = (owner: string, repo: string): RepositoryHomepageCommands => {
+        const selector = `${options.lease.host}/${owner}/${repo}`;
+        const processOptions =
+            options.signal === undefined ? undefined : { signal: options.signal };
+        return {
+            async set(url): Promise<void> {
+                const result = await options.lease.run(
+                    ["repo", "edit", selector, "--homepage", url],
+                    processOptions,
+                );
+                if (!result.started || result.code !== 0) {
+                    const status = cliHttpStatus(result.stderr);
+                    throw new ActionsCallError(
+                        `GitHub CLI could not set ${url} as the repository homepage for ${owner}/${repo}.`,
+                        status,
+                        selector,
+                        status === 401 || status === 403,
+                    );
+                }
+            },
+            async read(): Promise<string | null> {
+                const result = await options.lease.run(
+                    ["repo", "view", selector, "--json", "homepageUrl"],
+                    processOptions,
+                );
+                if (!result.started || result.code !== 0) {
+                    const status = cliHttpStatus(result.stderr);
+                    throw new ActionsCallError(
+                        `GitHub CLI could not read the repository homepage for ${owner}/${repo}.`,
+                        status,
+                        selector,
+                        status === 401 || status === 403,
+                    );
+                }
+                try {
+                    const parsed = recordOf(JSON.parse(result.stdout) as unknown);
+                    return typeof parsed["homepageUrl"] === "string" ? parsed["homepageUrl"] : null;
+                } catch {
+                    throw new ActionsCallError(
+                        `GitHub CLI did not return JSON while reading the repository homepage for ${owner}/${repo}.`,
+                        0,
+                        selector,
+                    );
+                }
+            },
+        };
+    };
 
     /*
      * Named rather than reached for through `this`, because `releaseHasAsset` is defined
@@ -450,9 +589,13 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
             readJobLogTail(owner, repo, jobId, call, maxLines ?? LOG_TAIL_LINES),
         listRunArtifacts: (owner, repo, runId) => listRunArtifacts(owner, repo, runId, call),
         async downloadArtifact(_owner, _repo, artifact, destination, onBytes): Promise<void> {
-            const result = await options.lease.downloadApi(artifact.archiveDownloadUrl, destination, {
-                ...(options.signal === undefined ? {} : { signal: options.signal }),
-            });
+            const result = await options.lease.downloadApi(
+                artifact.archiveDownloadUrl,
+                destination,
+                {
+                    ...(options.signal === undefined ? {} : { signal: options.signal }),
+                },
+            );
             if (!result.started || result.code !== 0) {
                 throw new ActionsCallError(
                     "GitHub CLI could not download the workflow artifact.",
@@ -533,6 +676,8 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
 
         isRepositoryEmpty: (owner, repo) => isRepositoryEmpty(owner, repo, call),
         readActionsPolicy: (owner, repo) => readActionsPolicy(owner, repo, call),
+        configurePagesForWorkflow: (owner, repo) =>
+            configureWorkflowPagesWithApi(gitDataApi, owner, repo, homepageCommands(owner, repo)),
         readTokenScopes: async () => ({
             scopes: options.lease.scopesReported ? options.lease.scopes : null,
         }),

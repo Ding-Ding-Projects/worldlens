@@ -16,10 +16,7 @@ import type {
     CiSyncResult,
     CiSyncState,
 } from "../main/cirender/index.js";
-import type {
-    GhRepositoryChoice,
-    GhRepositoryCreateResult,
-} from "../main/ghcli/repositories.js";
+import type { GhRepositoryChoice, GhRepositoryCreateResult } from "../main/ghcli/repositories.js";
 import type {
     Answer as PagesAnswer,
     PagesCandidate,
@@ -1168,8 +1165,7 @@ export interface ProjectBridge {
  * the same way it narrows any other IPC result it does not have a local type for.
  */
 export type StructureRenderOutcome =
-    | { ok: true; render: unknown }
-    | { ok: false; code: string; message: string; render?: unknown };
+    { ok: true; render: unknown } | { ok: false; code: string; message: string; render?: unknown };
 
 export interface StructuresBridge {
     /** Renders one dropped file, landing it on the same render channel a world render uses. */
@@ -2269,7 +2265,10 @@ interface WorldlensBridge {
      */
     schoolMode: {
         read(): Promise<SchoolModeResult>;
-        enable(request: { readonly name: string | null; readonly credential: string }): Promise<SchoolModeResult>;
+        enable(request: {
+            readonly name: string | null;
+            readonly credential: string;
+        }): Promise<SchoolModeResult>;
         rename(name: string | null): Promise<SchoolModeResult>;
         disable(credential: string): Promise<SchoolModeResult>;
         reset(): Promise<SchoolModeResult>;
@@ -2970,6 +2969,7 @@ interface WorldlensBridge {
         owner: string,
         repo: string,
         accountId?: string,
+        publishToPages?: boolean,
     ): Promise<CiBootstrapResult>;
     onCiBootstrapEvent(listener: (event: CiBootstrapEvent) => void): () => void;
 
@@ -3002,7 +3002,10 @@ interface WorldlensBridge {
     /** Continue a Pages publish whose durable stage marker says it was interrupted. */
     resumePages(request: { renderId: string; accountId?: string }): Promise<PagesResult>;
     /** Re-check GitHub Pages and the published URL for one recorded site. */
-    refreshPagesStatus(request: { renderId: string; accountId?: string }): Promise<PagesAnswer<PagesRecord>>;
+    refreshPagesStatus(request: {
+        renderId: string;
+        accountId?: string;
+    }): Promise<PagesAnswer<PagesRecord>>;
     onPagesEvent(listener: (event: PagesEvent) => void): () => void;
 
     /* ---- Watching a render live, in a real browser tab -------------------- */
@@ -3071,7 +3074,9 @@ interface WorldlensBridge {
     /** Personal and organization owners confirmed for the selected gh account. */
     listBackupOwners(accountId?: string): Promise<CiOwnerChoicesAnswer>;
     /** Repositories the selected gh account can actually write to. */
-    listBackupRepositories(accountId?: string): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
+    listBackupRepositories(
+        accountId?: string,
+    ): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
     /**
      * Creates a brand-new repository for somebody who has none suitable to pick from the
      * list above, and initialises it with one starter commit so a first backup's release
@@ -3430,8 +3435,8 @@ const bridge: WorldlensBridge = {
     ciRenderScheduleWrite: (syncId, enabled, cadence, accountId) =>
         ipcRenderer.invoke("cirender:scheduleWrite", { syncId, enabled, cadence, accountId }),
 
-    bootstrapCiRepository: (owner, repo, accountId) =>
-        ipcRenderer.invoke("cirender:bootstrap", { owner, repo, accountId }),
+    bootstrapCiRepository: (owner, repo, accountId, publishToPages) =>
+        ipcRenderer.invoke("cirender:bootstrap", { owner, repo, accountId, publishToPages }),
     onCiBootstrapEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: CiBootstrapEvent): void =>
             listener(payload);
@@ -3679,8 +3684,7 @@ const bridge: WorldlensBridge = {
     },
 
     listBackupOwners: (accountId) => ipcRenderer.invoke("backup:owners", { accountId }),
-    listBackupRepositories: (accountId) =>
-        ipcRenderer.invoke("backup:repositories", { accountId }),
+    listBackupRepositories: (accountId) => ipcRenderer.invoke("backup:repositories", { accountId }),
     createBackupRepository: (request) => ipcRenderer.invoke("backup:createRepository", request),
     inspectBackupRepository: (request) => ipcRenderer.invoke("backup:inspectRepository", request),
     inspectBackupSource: (request) => ipcRenderer.invoke("backup:inspectSource", request),

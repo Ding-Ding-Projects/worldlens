@@ -43,7 +43,13 @@ import {
 
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import { otpauthUri, parseOtpauthUri, totp, totpSecondsRemaining, TOTP_DEFAULTS } from "../locks/totp.js";
+import {
+    otpauthUri,
+    parseOtpauthUri,
+    totp,
+    totpSecondsRemaining,
+    TOTP_DEFAULTS,
+} from "../locks/totp.js";
 import {
     authenticatorCorpus,
     authenticatorStore,
@@ -77,7 +83,9 @@ const pairingCode = ref("");
 const problem = ref<string | null>(null);
 const busy = ref(false);
 
-const vaultUnavailable = computed<string | null>(() => (vault === null ? authenticatorVaultMissingReason() : null));
+const vaultUnavailable = computed<string | null>(() =>
+    vault === null ? authenticatorVaultMissingReason() : null,
+);
 
 /** The candidate secret and label, from whichever route was used, before it is proven. */
 const candidate = computed(() => {
@@ -111,7 +119,11 @@ const pairing = computed(() => {
         parameters: candidate.value.parameters,
     });
     const encoded = encodeQrSvg(uri);
-    return { uri, svg: encoded.ok ? encoded.svg : null, qrError: encoded.ok ? null : encoded.message };
+    return {
+        uri,
+        svg: encoded.ok ? encoded.svg : null,
+        qrError: encoded.ok ? null : encoded.message,
+    };
 });
 
 const registerBlocked = computed<string | null>(() => {
@@ -119,7 +131,10 @@ const registerBlocked = computed<string | null>(() => {
     if (candidate.value === null) {
         return route.value === "link"
             ? t("authenticator.register.needLink", "Paste an otpauth:// link to begin.")
-            : t("authenticator.register.needFields", "Name the account and enter its secret to begin.");
+            : t(
+                  "authenticator.register.needFields",
+                  "Name the account and enter its secret to begin.",
+              );
     }
     if (pairingCode.value.trim() === "") {
         return t(
@@ -237,7 +252,11 @@ async function refreshCode(): Promise<void> {
     }
     const now = Date.now();
     currentCode.value = await totp(decoded.bytes, now, entry.parameters);
-    nextCode.value = await totp(decoded.bytes, now + entry.parameters.period * 1000, entry.parameters);
+    nextCode.value = await totp(
+        decoded.bytes,
+        now + entry.parameters.period * 1000,
+        entry.parameters,
+    );
     secondsRemaining.value = totpSecondsRemaining(now, entry.parameters.period);
     codeError.value = null;
 }
@@ -280,7 +299,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <section class="mb-authenticator" aria-label="Authenticator" data-test="authenticator-screen">
+    <section
+        class="mb-authenticator"
+        :aria-label="t('authenticator.title', 'Authenticator')"
+        data-test="authenticator-screen"
+    >
         <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-3">
             <h2 class="mb-authenticator__title">
                 {{ t("authenticator.title", "Authenticator") }}
@@ -325,17 +348,31 @@ onBeforeUnmount(() => {
         </VAlert>
 
         <!-- Registration -->
-        <VCard v-if="registering" variant="outlined" class="mb-4" data-test="authenticator-register-card">
+        <VCard
+            v-if="registering"
+            variant="outlined"
+            class="mb-4"
+            data-test="authenticator-register-card"
+        >
             <VCardTitle>{{ t("authenticator.register.title", "Register an account") }}</VCardTitle>
             <VCardText>
-                <VRadioGroup v-model="route" inline :label="t('authenticator.register.route', 'How to add it')">
+                <VRadioGroup
+                    v-model="route"
+                    inline
+                    :label="t('authenticator.register.route', 'How to add it')"
+                >
                     <VRadio
                         :label="t('authenticator.register.routeLink', 'Paste an otpauth:// link')"
                         value="link"
                         data-test="authenticator-route-link"
                     />
                     <VRadio
-                        :label="t('authenticator.register.routeManual', 'Type issuer, account and secret')"
+                        :label="
+                            t(
+                                'authenticator.register.routeManual',
+                                'Type issuer, account and secret',
+                            )
+                        "
                         value="manual"
                         data-test="authenticator-route-manual"
                     />
@@ -375,8 +412,16 @@ onBeforeUnmount(() => {
                     />
                 </template>
 
-                <div v-if="pairing !== null" class="mb-authenticator__pairing" data-test="authenticator-pairing">
-                    <div v-if="pairing.svg !== null" class="mb-authenticator__qr" v-html="pairing.svg" />
+                <div
+                    v-if="pairing !== null"
+                    class="mb-authenticator__pairing"
+                    data-test="authenticator-pairing"
+                >
+                    <div
+                        v-if="pairing.svg !== null"
+                        class="mb-authenticator__qr"
+                        v-html="pairing.svg"
+                    />
                     <VAlert v-else type="warning" variant="tonal" density="compact">
                         {{ pairing.qrError }}
                     </VAlert>
@@ -390,7 +435,12 @@ onBeforeUnmount(() => {
                     </p>
                     <VTextField
                         :model-value="candidate?.secret ?? ''"
-                        :label="t('authenticator.register.secretShown', 'The secret, grouped, in case you are typing it')"
+                        :label="
+                            t(
+                                'authenticator.register.secretShown',
+                                'The secret, grouped, in case you are typing it',
+                            )
+                        "
                         readonly
                         density="compact"
                         data-test="authenticator-secret-display"
@@ -400,7 +450,8 @@ onBeforeUnmount(() => {
                             t(
                                 "authenticator.register.params",
                                 {
-                                    algorithm: candidate?.parameters.algorithm ?? TOTP_DEFAULTS.algorithm,
+                                    algorithm:
+                                        candidate?.parameters.algorithm ?? TOTP_DEFAULTS.algorithm,
                                     digits: candidate?.parameters.digits ?? TOTP_DEFAULTS.digits,
                                     period: candidate?.parameters.period ?? TOTP_DEFAULTS.period,
                                 },
@@ -410,7 +461,12 @@ onBeforeUnmount(() => {
                     </p>
                     <VTextField
                         v-model="pairingCode"
-                        :label="t('authenticator.register.code', 'One current code, to prove the pairing')"
+                        :label="
+                            t(
+                                'authenticator.register.code',
+                                'One current code, to prove the pairing',
+                            )
+                        "
                         inputmode="numeric"
                         autocomplete="one-time-code"
                         density="compact"
@@ -440,11 +496,19 @@ onBeforeUnmount(() => {
                     >
                         {{ t("authenticator.register.submit", "Prove and register") }}
                     </VBtn>
-                    <VBtn variant="text" data-test="authenticator-register-cancel" @click="cancelRegistration">
+                    <VBtn
+                        variant="text"
+                        data-test="authenticator-register-cancel"
+                        @click="cancelRegistration"
+                    >
                         {{ t("authenticator.register.cancel", "Never mind") }}
                     </VBtn>
                 </div>
-                <p v-if="registerBlocked !== null" class="text-medium-emphasis mt-2" data-test="authenticator-register-blocked">
+                <p
+                    v-if="registerBlocked !== null"
+                    class="text-medium-emphasis mt-2"
+                    data-test="authenticator-register-blocked"
+                >
                     {{ registerBlocked }}
                 </p>
             </VCardText>
@@ -461,7 +525,11 @@ onBeforeUnmount(() => {
             @update:flags="(value: string) => (flags = value)"
         />
 
-        <p v-if="orderedEntries.length === 0" class="text-medium-emphasis mt-3" data-test="authenticator-empty">
+        <p
+            v-if="orderedEntries.length === 0"
+            class="text-medium-emphasis mt-3"
+            data-test="authenticator-empty"
+        >
             {{ t("authenticator.empty", "No accounts are registered yet.") }}
         </p>
 
@@ -503,7 +571,13 @@ onBeforeUnmount(() => {
                                 :icon="mdiDelete"
                                 variant="text"
                                 size="small"
-                                :aria-label="t('authenticator.list.remove', { account: entry.account }, 'Remove {account}')"
+                                :aria-label="
+                                    t(
+                                        'authenticator.list.remove',
+                                        { account: entry.account },
+                                        'Remove {account}',
+                                    )
+                                "
                                 data-test="authenticator-entry-remove"
                                 @click.stop
                             />
@@ -513,17 +587,37 @@ onBeforeUnmount(() => {
             </VListItem>
         </VList>
 
-        <p v-if="visibleEntries.length === 0 && orderedEntries.length > 0" class="text-medium-emphasis mt-2" data-test="authenticator-no-match">
+        <p
+            v-if="visibleEntries.length === 0 && orderedEntries.length > 0"
+            class="text-medium-emphasis mt-2"
+            data-test="authenticator-no-match"
+        >
             {{ t("authenticator.search.noMatch", "Nothing here matches that search.") }}
         </p>
 
         <!-- Live code -->
-        <VCard v-if="selectedEntry !== null" variant="outlined" class="mt-4" data-test="authenticator-code-card">
+        <VCard
+            v-if="selectedEntry !== null"
+            variant="outlined"
+            class="mt-4"
+            data-test="authenticator-code-card"
+        >
             <VCardTitle>
-                {{ selectedEntry.issuer ? `${selectedEntry.issuer} · ${selectedEntry.account}` : selectedEntry.account }}
+                {{
+                    selectedEntry.issuer
+                        ? `${selectedEntry.issuer} · ${selectedEntry.account}`
+                        : selectedEntry.account
+                }}
             </VCardTitle>
             <VCardText>
-                <VAlert v-if="clockLooksWrong" type="warning" variant="tonal" density="compact" class="mb-3" data-test="authenticator-clock-warning">
+                <VAlert
+                    v-if="clockLooksWrong"
+                    type="warning"
+                    variant="tonal"
+                    density="compact"
+                    class="mb-3"
+                    data-test="authenticator-clock-warning"
+                >
                     {{
                         t(
                             "authenticator.code.clockWrong",
@@ -531,14 +625,33 @@ onBeforeUnmount(() => {
                         )
                     }}
                 </VAlert>
-                <VAlert v-if="codeError !== null" type="error" variant="tonal" density="compact" class="mb-3" role="alert" data-test="authenticator-code-error">
+                <VAlert
+                    v-if="codeError !== null"
+                    type="error"
+                    variant="tonal"
+                    density="compact"
+                    class="mb-3"
+                    role="alert"
+                    data-test="authenticator-code-error"
+                >
                     {{ codeError }}
                 </VAlert>
 
-                <div v-if="currentCode !== null" class="mb-authenticator__code" data-test="authenticator-current-code" aria-live="polite">
+                <div
+                    v-if="currentCode !== null"
+                    class="mb-authenticator__code"
+                    data-test="authenticator-current-code"
+                    aria-live="polite"
+                >
                     {{ groupDigits(currentCode) }}
                 </div>
-                <VBtn v-if="currentCode !== null" variant="text" :prepend-icon="mdiContentCopy" data-test="authenticator-copy-code" @click="copyCode">
+                <VBtn
+                    v-if="currentCode !== null"
+                    variant="text"
+                    :prepend-icon="mdiContentCopy"
+                    data-test="authenticator-copy-code"
+                    @click="copyCode"
+                >
                     {{ t("authenticator.code.copy", "Copy") }}
                 </VBtn>
 
@@ -549,7 +662,13 @@ onBeforeUnmount(() => {
                     data-test="authenticator-countdown-bar"
                 />
                 <p class="text-medium-emphasis" data-test="authenticator-countdown-text">
-                    {{ t("authenticator.code.seconds", { seconds: secondsRemaining }, "{seconds}s left") }}
+                    {{
+                        t(
+                            "authenticator.code.seconds",
+                            { seconds: secondsRemaining },
+                            "{seconds}s left",
+                        )
+                    }}
                 </p>
 
                 <VDivider class="my-3" />
@@ -557,7 +676,11 @@ onBeforeUnmount(() => {
                 <p class="text-medium-emphasis" data-test="authenticator-next-label">
                     {{ t("authenticator.code.nextLabel", "Next code") }}
                 </p>
-                <div v-if="nextCode !== null" class="mb-authenticator__nextCode" data-test="authenticator-next-code">
+                <div
+                    v-if="nextCode !== null"
+                    class="mb-authenticator__nextCode"
+                    data-test="authenticator-next-code"
+                >
                     {{ groupDigits(nextCode) }}
                 </div>
             </VCardText>

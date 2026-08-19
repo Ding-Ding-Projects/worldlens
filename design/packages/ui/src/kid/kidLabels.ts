@@ -38,6 +38,7 @@
  */
 import type { FixedString } from "../components/setup/setupStrings.js";
 import { languageMode } from "../components/setup/setupI18n.js";
+import { applyVocabulary } from "../components/vocabulary/applyVocabulary.js";
 
 export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
     /* Make a map (28) */
@@ -87,7 +88,7 @@ export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
     "Release workflow security": { en: "Safe publishing rules", yue: "安全公開嘅規矩" },
 
     /* Keep a copy (7) */
-    "Backups": { en: "Make a safe copy", yue: "整份安全副本" },
+    Backups: { en: "Make a safe copy", yue: "整份安全副本" },
     "World git repository": { en: "Copy that grows", yue: "會大嘅副本" },
     "Repository adoption": { en: "Another computer joins", yue: "第二部電腦加入" },
     "World sources": { en: "Get a world", yue: "攞個世界" },
@@ -96,7 +97,7 @@ export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
     "Local version history": { en: "Go back in time", yue: "返去舊時" },
 
     /* Set up & help (37) */
-    "Settings": { en: "All the switches", yue: "全部掣" },
+    Settings: { en: "All the switches", yue: "全部掣" },
     "Options editor": { en: "Engine switches", yue: "引擎嘅掣" },
     "GitHub CLI accounts": { en: "Who we sign in as", yue: "用邊個帳戶" },
     "Tabbed navigation": { en: "My tabs", yue: "我嘅分頁" },
@@ -108,7 +109,7 @@ export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
     "Super confirmation": { en: "Two keys first", yue: "要兩條鎖匙先" },
     "Action-specific artwork": { en: "Picture for big buttons", yue: "大掣嘅圖畫" },
     "Display and ease of use": { en: "Bigger and easier", yue: "大啲易啲" },
-    "Theme": { en: "Day or night colours", yue: "日頭定夜晚顏色" },
+    Theme: { en: "Day or night colours", yue: "日頭定夜晚顏色" },
     "Downloads at once": { en: "How many at once", yue: "一次幾多個" },
     "What this application is called": { en: "What we call this app", yue: "呢個程式叫乜" },
     "Language and tone": { en: "How it talks", yue: "佢點講嘢" },
@@ -125,11 +126,11 @@ export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
     "Shared localization contract": { en: "Shared word rules", yue: "共用文字規矩" },
     "Automatic updates": { en: "New versions", yue: "新版本" },
     "Startup recovery": { en: "If it wakes up poorly", yue: "瞓醒唔妥" },
-    "Migration": { en: "Moving old stuff over", yue: "搬舊嘢過嚟" },
+    Migration: { en: "Moving old stuff over", yue: "搬舊嘢過嚟" },
     "Memory console settings": { en: "Memory desk switches", yue: "記憶檯嘅掣" },
-    "Docs": { en: "Read about it", yue: "睇下資料" },
+    Docs: { en: "Read about it", yue: "睇下資料" },
     "Changelog viewer": { en: "What changed", yue: "改咗乜" },
-    "Glossary": { en: "Word list", yue: "生字表" },
+    Glossary: { en: "Word list", yue: "生字表" },
     "Licence and consent": { en: "The rules", yue: "規矩" },
     "The interactive tour": { en: "Show me around", yue: "帶我行下" },
     "The design system": { en: "How it is drawn", yue: "點畫出嚟" },
@@ -138,22 +139,22 @@ export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
 /** Job label (`jobRegistry.ts` `labelFallback`) → kid label. All eighteen jobs. */
 export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
     "Make a map": { en: "Five questions", yue: "五條問題" },
-    "Projects": { en: "Build room", yue: "砌嘢房" },
+    Projects: { en: "Build room", yue: "砌嘢房" },
     "GitHub runners": { en: "Robot helpers", yue: "機械人幫手" },
-    "Structures": { en: "Things already built", yue: "已經整好嘅嘢" },
-    "Convert": { en: "Change a world's shape", yue: "轉世界形狀" },
-    "Authenticator": { en: "Code keeper", yue: "密碼保管員" },
-    "Locks": { en: "Locks list", yue: "鎖頭清單" },
+    Structures: { en: "Things already built", yue: "已經整好嘅嘢" },
+    Convert: { en: "Change a world's shape", yue: "轉世界形狀" },
+    Authenticator: { en: "Code keeper", yue: "密碼保管員" },
+    Locks: { en: "Locks list", yue: "鎖頭清單" },
     "Support Tickets": { en: "Ask for help", yue: "揾人幫手" },
     "Browser downloads": { en: "Grabbed from the web", yue: "網度攞返嚟" },
-    "Renders": { en: "Being drawn", yue: "畫緊" },
+    Renders: { en: "Being drawn", yue: "畫緊" },
     "Maps and servers": { en: "All my maps", yue: "我全部地圖" },
     "Publish to Pages": { en: "Put it on the web", yue: "擺上網" },
     "Watch it live": { en: "Watch it now", yue: "而家睇" },
-    "Backups": { en: "Safe copies", yue: "安全副本" },
+    Backups: { en: "Safe copies", yue: "安全副本" },
     "World repository": { en: "Copy that grows", yue: "會大嘅副本" },
-    "Docs": { en: "Read about it", yue: "睇下資料" },
-    "Ollama": { en: "Talk to the robot", yue: "同機械人傾偈" },
+    Docs: { en: "Read about it", yue: "睇下資料" },
+    Ollama: { en: "Talk to the robot", yue: "同機械人傾偈" },
     // `jobRegistry.ts`'s Memory job spells its `labelFallback` with a lowercase "console" -
     // `catalogues.ts`'s "Memory Console" catalogue-feature name capitalises it. The two disagree
     // about the same concept, and this table has to match the job registry's spelling exactly or
@@ -169,7 +170,7 @@ export const KID_SETTINGS_LABELS: Readonly<Record<string, FixedString>> = {
     "world-folder": { en: "Where worlds live", yue: "世界住喺邊" },
     "github-account": { en: "Who we sign in as", yue: "用邊個帳戶" },
     "language-and-tone": { en: "How it talks", yue: "佢點講嘢" },
-    "display": { en: "Bigger and easier", yue: "大啲易啲" },
+    display: { en: "Bigger and easier", yue: "大啲易啲" },
     // This is Kid Mode's own settings row - the one a grown-up uses to leave. The kid label
     // names the grown-up's way out ("the grown-up switch") rather than hiding it: this row must
     // never be harder for a grown-up to recognise than the row beside it, in any language.
@@ -186,11 +187,11 @@ export const KID_SETTINGS_LABELS: Readonly<Record<string, FixedString>> = {
     "notification-duration": { en: "How long messages stay", yue: "訊息留幾耐" },
     "system-dependencies": { en: "Get the other bits", yue: "攞埋第啲嘢" },
     "bluemap-engine": { en: "Which engine", yue: "邊個引擎" },
-    "updates": { en: "New versions", yue: "新版本" },
-    "vocabulary": { en: "Our own words", yue: "我哋自己嘅字" },
+    updates: { en: "New versions", yue: "新版本" },
+    vocabulary: { en: "Our own words", yue: "我哋自己嘅字" },
     "app-logo": { en: "Our picture", yue: "我哋嘅圖案" },
-    "history": { en: "Go back in time", yue: "返去舊時" },
-    "diagnostics": { en: "If it wakes up poorly", yue: "瞓醒唔妥" },
+    history: { en: "Go back in time", yue: "返去舊時" },
+    diagnostics: { en: "If it wakes up poorly", yue: "瞓醒唔妥" },
 };
 
 /** The five catalogues, by id. */
@@ -221,9 +222,9 @@ export type KidLabelStyle = "kid-first" | "name-first" | "name-only";
  */
 function kidText(entry: FixedString): string {
     const mode = languageMode();
-    if (mode === "en") return entry.en;
-    if (mode === "yue") return entry.yue;
-    return `${entry.en} / ${entry.yue}`;
+    if (mode === "en") return applyVocabulary(entry.en);
+    if (mode === "yue") return applyVocabulary(entry.yue);
+    return `${applyVocabulary(entry.en)} / ${applyVocabulary(entry.yue)}`;
 }
 
 /**
@@ -240,18 +241,24 @@ export function kidLabel(
     style: KidLabelStyle = "kid-first",
 ): { primary: string; secondary: string | null } {
     const entry = table[shippedName];
-    if (entry === undefined || style === "name-only") return { primary: shippedName, secondary: null };
+    const displayName = applyVocabulary(shippedName);
+    if (entry === undefined || style === "name-only")
+        return { primary: displayName, secondary: null };
     const kid = kidText(entry);
-    if (style === "name-first") return { primary: shippedName, secondary: kid };
-    return { primary: kid, secondary: shippedName };
+    if (style === "name-first") return { primary: displayName, secondary: kid };
+    return { primary: kid, secondary: displayName };
 }
 
 /** The accessible name never drops the shipped name, whatever the label style or language is. */
-export function kidAccessibleName(shippedName: string, table?: Readonly<Record<string, FixedString>>): string {
+export function kidAccessibleName(
+    shippedName: string,
+    table?: Readonly<Record<string, FixedString>>,
+): string {
     const entry = (table ?? KID_FEATURE_LABELS)[shippedName];
     // A plain hyphen, not an em-dash: this project spells em-dashes as ordinary words everywhere
     // else its own copy is checked for one, and a string built here at runtime is no exception.
-    return entry === undefined ? shippedName : `${kidText(entry)} - ${shippedName}`;
+    const displayName = applyVocabulary(shippedName);
+    return entry === undefined ? displayName : `${kidText(entry)} - ${displayName}`;
 }
 
 /**
@@ -264,5 +271,5 @@ export function kidAccessibleName(shippedName: string, table?: Readonly<Record<s
  */
 export function kidCatalogueLabel(catalogueId: string, fallbackTitle: string): string {
     const entry = KID_CATALOGUE_LABELS[catalogueId];
-    return entry === undefined ? fallbackTitle : kidText(entry);
+    return entry === undefined ? applyVocabulary(fallbackTitle) : kidText(entry);
 }
