@@ -270,6 +270,10 @@ export function buildCloudRenderProject(
         storages: [{ id: "file", config: fileStorage }],
         render: {
             route: "github-actions",
+            // Cloud Actions always runs the bundled upstream Java renderer. Persisting the
+            // engine is intentional: preflight must reject a genuinely incompatible choice,
+            // never silently reinterpret a local TypeScript choice as cloud Java.
+            engine: "upstream-java",
             threads: defaults.threads,
             force: defaults.force,
             fixEdges: defaults.fixEdges,
