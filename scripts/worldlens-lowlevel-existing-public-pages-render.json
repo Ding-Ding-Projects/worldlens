@@ -29,12 +29,10 @@
   { "action": "setCheckboxIfVisible", "selector": "[data-test='ack-upload'] input", "value": true, "timeout": 3000 },
   { "action": "setCheckboxWhenFocused", "selector": "[data-test='ack-public'] input", "value": true, "attempts": 240 },
   { "action": "setCheckboxWhenFocused", "selector": "[data-test='publish-pages'] input", "value": true, "attempts": 240 },
-  { "action": "rememberCount", "selector": "[data-test='row']", "key": "render-rows" },
   { "action": "clickUntilVisible", "selector": "[data-test='start']", "attempts": 40 },
   { "action": "sleep", "ms": 5000 },
   { "action": "clickUntilVisible", "selector": "[data-test='start']", "attempts": 40 },
-  { "action": "waitForCountGreaterThanRemembered", "selector": "[data-test='row']", "key": "render-rows", "timeout": 300000 },
-  { "action": "waitTextNot", "selector": "[data-test='row'] [data-test='run-label']", "nth": 0, "text": "No run yet", "timeout": 300000 },
+  { "action": "waitTextNot", "selector": "[data-test='row']", "nth": 0, "text": "Run ended: failure", "timeout": 300000 },
   {
     "action": "screenshot",
     "name": "lowlevel-public-pages-render-retry",

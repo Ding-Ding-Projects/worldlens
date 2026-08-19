@@ -1526,6 +1526,14 @@ export class CiRenderSync {
                 ...state,
                 stage: "dispatched",
                 dispatchedAt: dispatchedAt.toISOString(),
+                // This is a new attempt. Clear the terminal attempt immediately, before
+                // GitHub lists the new run, so a restart in that discovery window cannot
+                // resume yesterday's failed run merely because its id was still durable.
+                runId: null,
+                runNumber: null,
+                runUrl: null,
+                failureCode: null,
+                failureMessage: null,
                 updatedAt: this.#timestamp(),
             };
             await this.#save(workspace.stateFile, state);
