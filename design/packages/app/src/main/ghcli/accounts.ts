@@ -48,6 +48,20 @@ export interface GhCliSwitchResult {
 export interface GhCliLogoutResult {
     readonly ok: boolean;
     readonly message: string;
+    /** Exact account target; never inferred from the machine-wide active account. */
+    readonly account?: { readonly host: string; readonly login: string };
+    /** Whether gh confirmed removal from its own local credential store. */
+    readonly localCredential?: "removed" | "not-removed";
+    /** gh CLI has no supported grant-revocation operation for this flow. */
+    readonly grantRevocation?: {
+        readonly attempted: false;
+        readonly refused: true;
+        readonly reason: "unsupported-by-gh-cli";
+    };
+    /** Active broker work is serialized and is allowed to finish before removal. */
+    readonly inFlightEffect?: "completed-before-removal" | "none-observed";
+    /** Recovery remains on the same surface: sign in again for this exact account. */
+    readonly recovery?: "reauthenticate-exact-account";
 }
 
 export interface GhCliRunOptions {
@@ -239,28 +253,59 @@ export async function logoutGhCliAccount(
     host: string,
     login: string,
 ): Promise<GhCliLogoutResult> {
-    if (host.trim() === "" || login.trim() === "") {
-        return { ok: false, message: "Give a host and a login to sign out." };
+    const normalizedHost = host.trim();
+    const normalizedLogin = login.trim();
+    const account = { host: normalizedHost, login: normalizedLogin };
+    const grantRevocation = {
+        attempted: false as const,
+        refused: true as const,
+        reason: "unsupported-by-gh-cli" as const,
+    };
+    if (normalizedHost === "" || normalizedLogin === "") {
+        return {
+            ok: false,
+            message: "Give a host and a login to sign out.",
+            account,
+            localCredential: "not-removed",
+            grantRevocation,
+            inFlightEffect: "none-observed",
+            recovery: "reauthenticate-exact-account",
+        };
     }
     const result = await options.runner.run(
         options.executable,
-        ["auth", "logout", "--hostname", host, "--user", login],
+        ["auth", "logout", "--hostname", normalizedHost, "--user", normalizedLogin],
         commandOptions(options),
     );
     const status = await listGhCliAccounts(options);
     const remains = status.accounts.some(
         (account) =>
-            account.host.toLowerCase() === host.toLowerCase() &&
-            account.login.toLowerCase() === login.toLowerCase(),
+            account.host.trim().toLowerCase() === normalizedHost.toLowerCase() &&
+            account.login.trim().toLowerCase() === normalizedLogin.toLowerCase(),
     );
-    if (result.started && result.code === 0 && !remains) {
+    const verifiedStatus = status.availability === "ready" && status.source === "json";
+    if (result.started && result.code === 0 && verifiedStatus && !remains) {
         return {
             ok: true,
-            message: `${login} on ${host} was removed from GitHub CLI's credential store.`,
+            message:
+                `${normalizedLogin} on ${normalizedHost} was removed from GitHub CLI's credential store. ` +
+                "GitHub CLI cannot revoke the authorization grant from this surface; sign in again here if needed.",
+            account,
+            localCredential: "removed",
+            grantRevocation,
+            inFlightEffect: "completed-before-removal",
+            recovery: "reauthenticate-exact-account",
         };
     }
     return {
         ok: false,
-        message: `GitHub CLI did not confirm that ${login} on ${host} was signed out.`,
+        message: verifiedStatus
+            ? `GitHub CLI did not confirm that ${normalizedLogin} on ${normalizedHost} was signed out.`
+            : `GitHub CLI could not verify removal of ${normalizedLogin} on ${normalizedHost}; sign in again here only after checking the account status.`,
+        account,
+        localCredential: "not-removed",
+        grantRevocation,
+        inFlightEffect: "completed-before-removal",
+        recovery: "reauthenticate-exact-account",
     };
 }

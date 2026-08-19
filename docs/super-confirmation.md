@@ -103,8 +103,30 @@ a gap that was fixed and left there fails too.
 Signing out of GitHub revokes the stored token and, when GitHub honours the revocation, the grant
 on the account. It is confirmed inline in two steps with focus return, and it is **not** behind the
 two-key gate. Both the row and the primitive behind it are declared as `gap` and are tracked under
-the project's issue for this contract. This document says so because an inventory whose defects are
-invisible is an inventory that has stopped being useful.
+the project's issue for this contract ([issue #87](https://github.com/Ding-Ding-Projects/worldlens/issues/87)).
+This document says so because an inventory whose defects are invisible is an inventory that has
+stopped being useful.
+
+### Issue #87 acceptance record
+
+The sign-out/revocation path remains open until the implementation and its packaged-artifact
+evidence land. The shared native anchored gate must name the exact host and login, the local
+credential that will be removed, the attempted remote grant revocation, and the effect on active or
+in-flight work. It must require two independently operated keys followed by the full-range slider;
+Emergency exit and Escape must cancel, and focus must return to the originating account row.
+
+Local credential removal and remote grant revocation are separate outcomes. A refusal, timeout, or
+unsupported host on the revocation attempt must not be reported as though the local removal failed,
+and a successful local removal must not be reported as proof that the remote grant was revoked. The
+surface must keep the recovery/re-authentication action beside the failure and must describe the
+boundary honestly: app-managed account sign-out may attempt remote revocation only where the app
+actually performs that mutation; the `gh` CLI account path removes the local credential from the
+CLI store and does **not** attempt GitHub grant revocation. The inventory must not imply otherwise.
+
+Acceptance still requires the untouched, one-key, partial-slider, full-slider, cancel, reduced
+motion, localization, keyboard/focus, and runtime success/failure cases, plus a genuine packaged
+capture through the cheap headless route. Tests and captures are intentionally unrun under
+ultra-speed mode; this record does not close the gap or claim that proof.
 
 ## Configuration
 

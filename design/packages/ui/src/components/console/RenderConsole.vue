@@ -9,6 +9,7 @@ import {
     mdiAlertOutline,
 } from "@mdi/js";
 import { VBtn, VCheckbox, VChip, VChipGroup, VIcon, VTooltip } from "vuetify/components";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { useStickyScroll } from "../scroll/stickyScroll.js";
@@ -25,6 +26,7 @@ import {
     type ConsoleLine,
     type ConsoleRow,
 } from "./consoleModel.js";
+import { redactConsoleText } from "./consoleHistory.js";
 import type { SettingsTarget } from "../world/worldBridge.js";
 
 /**
@@ -67,18 +69,27 @@ import type { SettingsTarget } from "../world/worldBridge.js";
 const props = withDefaults(
     defineProps<{
         lines: readonly ConsoleLine[];
+        /** Complete retained history for search/export; `lines` stays the visible ring. */
+        history?: readonly ConsoleLine[];
+        /** Stable render identity carried into structured exports. */
+        renderId?: string;
+        /** Where the retained stream came from (for example local, CI, or reattached). */
+        provenance?: string;
+        /** Honest storage/retention status supplied by the history owner. */
+        historyWarning?: string;
         /** How many lines the cap has dropped off the front of this render. */
         dropped?: number;
         cap: number;
         /** Height of the scrolling area. A caller that has more room can ask for more. */
         height?: string;
     }>(),
-    { dropped: 0, height: "clamp(180px, 34vh, 460px)" },
+    { dropped: 0, height: "clamp(180px, 34vh, 460px)", renderId: "unknown", provenance: "console", historyWarning: "" },
 );
 
 const emit = defineEmits<{
     /** Sends somebody to the setting a piece of advice points at. */
     settings: [target: SettingsTarget];
+    deleteHistory: [ids: readonly number[]];
 }>();
 
 const { t } = useI18n();
@@ -117,6 +128,10 @@ const autoScroll = useStickyScroll({
  */
 const { enabled: autoScrollEnabled, paused: autoScrollPaused } = autoScroll;
 const copyState = ref("");
+const selectedIds = ref<Set<number>>(new Set());
+type ExportFormat = "txt" | "md" | "json" | "jsonl" | "csv" | "tsv" | "html";
+const exportFormat = ref<ExportFormat>("txt");
+const exportFormats: readonly ExportFormat[] = ["txt", "md", "json", "jsonl", "csv", "tsv", "html"];
 
 /** What each line reads as, with this app's own status lines translated. */
 function lineText(line: ConsoleLine): string {
@@ -128,16 +143,25 @@ function adviceText(annotation: ConsoleAnnotation): string {
 }
 
 const rows = computed<ConsoleRow[]>(() => props.lines.map((line) => ({ line, text: lineText(line) })));
+const historyRows = computed<ConsoleRow[]>(() =>
+    (props.history ?? props.lines).map((line) => ({ line, text: lineText(line) })),
+);
 
 const matcher = computed(() => createSettingMatcher(query.value, regex.value, flags.value));
 
 const levelSet = computed(() => new Set(chosenLevels.value));
 
 const visible = computed(() => selectRows(rows.value, levelSet.value, matcher.value.test, adviceText));
+const matchingHistory = computed(() => selectRows(historyRows.value, levelSet.value, matcher.value.test, adviceText));
+const selected = computed(() => matchingHistory.value.filter((row) => selectedIds.value.has(row.line.id)));
+/** Export the complete retained history by default; an explicit selection narrows it. */
+const exportRows = computed(() => (selected.value.length > 0 ? selected.value : matchingHistory.value));
 
 const counts = computed(() => countByLevel(props.lines));
 
-const slice = computed(() => describeSlice(visible.value.length, props.lines.length, props.dropped, props.cap));
+const slice = computed(() =>
+    describeSlice(matchingHistory.value.length, historyRows.value.length, props.dropped, props.cap),
+);
 
 /**
  * The honest "showing X of Y" line under the search field.
@@ -165,6 +189,8 @@ const capLine = computed(() =>
           )
         : t("world.console.capIntact", { cap: props.cap }, "Every line is here. The console keeps up to {cap}."),
 );
+
+const historyStatus = computed(() => props.historyWarning ?? "");
 
 /** Real text for the builder to preview against, rather than an invented sample. */
 const sample = computed(() =>
@@ -201,6 +227,13 @@ onMounted(() => autoScroll.scrollToBottom());
  * absence that is an artefact of a filter they cannot see.
  */
 function exportHeader(): string {
+    if (selected.value.length > 0) {
+        return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${t(
+            "world.console.exportSelection",
+            { shown: selected.value.length, kept: historyRows.value.length },
+            "{shown} selected lines from {kept} retained lines.",
+        )}`;
+    }
     const scope = slice.value.filtered
         ? t(
               "world.console.exportFiltered",
@@ -219,8 +252,12 @@ function exportHeader(): string {
     return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${scope}${cut}`;
 }
 
-function currentText(): string {
-    return consoleText(visible.value, adviceText, exportHeader());
+function currentText(rowsToWrite = exportRows.value): string {
+    return consoleText(
+        rowsToWrite.map((row) => ({ ...row, text: redactConsoleText(row.text) })),
+        (annotation) => redactConsoleText(adviceText(annotation)),
+        exportHeader(),
+    );
 }
 
 async function copyAll(): Promise<void> {
@@ -243,6 +280,52 @@ async function copyAll(): Promise<void> {
  * those wants something that survives being pasted. An object URL is created and given
  * straight back, so nothing is left holding the whole log after the click.
  */
+function csvEscape(value: string, separator: "," | "\t"): string {
+    const escaped = value.replaceAll('"', '""');
+    return escaped.includes(separator) || escaped.includes("\n") || escaped.includes("\r") || escaped.includes('"')
+        ? `"${escaped}"`
+        : escaped;
+}
+
+function structuredRecord(row: ConsoleRow): Record<string, unknown> {
+    return {
+        schemaVersion: 1,
+        renderId: props.renderId,
+        provenance: props.provenance,
+        id: row.line.id,
+        timestamp: row.line.at,
+        level: row.line.level,
+        origin: row.line.origin,
+        message: redactConsoleText(row.text),
+        annotations: row.line.annotations.map((annotation) => ({ kind: annotation.kind, tone: annotation.tone })),
+    };
+}
+
+function exportPayload(): { body: string; extension: string; mime: string } {
+    const rowsToWrite = exportRows.value;
+    if (exportFormat.value === "txt") return { body: currentText(rowsToWrite), extension: "txt", mime: "text/plain" };
+    if (exportFormat.value === "md") {
+        return {
+            body: `${exportHeader()}\n\n${rowsToWrite.map((row) => `- **${LEVEL_TAGS[row.line.level]}** \`${row.line.at}\` ${redactConsoleText(row.text)}`).join("\n")}`,
+            extension: "md",
+            mime: "text/markdown",
+        };
+    }
+    if (exportFormat.value === "json") return { body: JSON.stringify({ schemaVersion: 1, renderId: props.renderId, provenance: props.provenance, rows: rowsToWrite.map(structuredRecord) }, null, 2), extension: "json", mime: "application/json" };
+    if (exportFormat.value === "jsonl") return { body: rowsToWrite.map((row) => JSON.stringify(structuredRecord(row))).join("\n"), extension: "jsonl", mime: "application/x-ndjson" };
+    if (exportFormat.value === "html") {
+        const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+        return { body: `<!doctype html><meta charset="utf-8"><title>Worldlens render console</title><ol>${rowsToWrite.map((row) => `<li data-level="${escape(row.line.level)}"><time>${escape(row.line.at)}</time> <strong>${escape(LEVEL_TAGS[row.line.level])}</strong> ${escape(redactConsoleText(row.text))}</li>`).join("")}</ol>`, extension: "html", mime: "text/html" };
+    }
+    const separator = exportFormat.value === "csv" ? "," : "\t";
+    const header = ["schemaVersion", "renderId", "provenance", "id", "timestamp", "level", "origin", "message"].join(separator);
+    const body = rowsToWrite.map((row) => {
+        const record = structuredRecord(row);
+        return [record.schemaVersion, record.renderId, record.provenance, record.id, record.timestamp, record.level, record.origin, record.message].map((value) => csvEscape(String(value ?? ""), separator)).join(separator);
+    });
+    return { body: [header, ...body].join("\n"), extension: exportFormat.value, mime: exportFormat.value === "csv" ? "text/csv" : "text/tab-separated-values" };
+}
+
 function exportAll(): void {
     const url = globalThis.URL;
     const doc = globalThis.document;
@@ -250,18 +333,44 @@ function exportAll(): void {
         copyState.value = t("world.console.exportUnavailable", "This build cannot write a file from here.");
         return;
     }
-    const blob = new Blob([currentText()], { type: "text/plain;charset=utf-8" });
+    const payload = exportPayload();
+    const blob = new Blob([payload.body], { type: `${payload.mime};charset=utf-8` });
     const href = url.createObjectURL(blob);
     const anchor = doc.createElement("a");
     anchor.href = href;
-    anchor.download = "render-console.txt";
+    anchor.download = `render-console.${payload.extension}`;
     anchor.click();
     url.revokeObjectURL(href);
     copyState.value = t(
-        "world.console.exported",
-        { shown: slice.value.shown },
-        "Exported {shown} lines as plain text, with a header saying which ones.",
+        "world.console.exportedFormat",
+        { shown: exportRows.value.length, format: exportFormat.value },
+        "Exported {shown} lines as {format}.",
     );
+}
+
+function toggleSelection(id: number): void {
+    const next = new Set(selectedIds.value);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selectedIds.value = next;
+}
+
+function selectVisible(): void {
+    // The action is named for the current view, but its selection predicate belongs to
+    // complete retained history. Lines outside the bounded viewport are still part of
+    // the filtered result and must be selectable/exportable/deletable.
+    selectedIds.value = new Set(matchingHistory.value.map((row) => row.line.id));
+}
+
+function clearSelection(): void {
+    selectedIds.value = new Set();
+}
+
+function deleteSelected(): void {
+    const ids = [...selectedIds.value];
+    if (ids.length === 0) return;
+    emit("deleteHistory", ids);
+    clearSelection();
 }
 
 function openSetting(target: SettingsTarget): void {
@@ -333,6 +442,39 @@ function openSetting(target: SettingsTarget): void {
                 <v-btn :prepend-icon="mdiContentCopy" size="small" variant="text" density="comfortable" @click="copyAll">
                     {{ t("world.console.copy", "Copy what is shown") }}
                 </v-btn>
+                <v-btn size="small" variant="text" density="comfortable" @click="selected.length > 0 ? clearSelection() : selectVisible()">
+                    {{ selected.length > 0 ? t("world.console.clearSelection", "Clear selection") : t("world.console.selectVisible", "Select visible") }}
+                </v-btn>
+                <ConfigSuperConfirm
+                    :title="t('world.console.deleteTitle', 'Delete retained console history')"
+                    :action="t('world.console.deleteAction', 'Delete the selected retained console lines. This cannot be undone.')"
+                    :affected="selected.map((row) => `${row.line.id}: ${redactConsoleText(row.text)}`)"
+                    :confirm-label="t('world.console.deleteConfirm', 'Confirm deletion')"
+                    :disabled="selected.length === 0"
+                    @confirm="deleteSelected"
+                >
+                    <template #activator="{ props: activatorProps }">
+                        <v-btn v-bind="activatorProps" size="small" variant="text" density="comfortable">
+                            {{ t("world.console.deleteSelected", "Delete selected") }}
+                        </v-btn>
+                    </template>
+                </ConfigSuperConfirm>
+                <span class="mb-console__format-label" :id="`console-format-label-${props.renderId}`">
+                    {{ t("world.console.exportFormat", "Export format") }}
+                </span>
+                <div class="mb-console__formats" role="group" :aria-labelledby="`console-format-label-${props.renderId}`">
+                    <v-btn
+                        v-for="format in exportFormats"
+                        :key="format"
+                        size="x-small"
+                        :variant="exportFormat === format ? 'tonal' : 'text'"
+                        :aria-pressed="exportFormat === format"
+                        :aria-label="`${t('world.console.exportFormat', 'Export format')}: ${format.toUpperCase()}`"
+                        @click="exportFormat = format"
+                    >
+                        {{ format.toUpperCase() }}
+                    </v-btn>
+                </div>
                 <v-btn
                     :prepend-icon="mdiDownloadOutline"
                     size="small"
@@ -340,10 +482,13 @@ function openSetting(target: SettingsTarget): void {
                     density="comfortable"
                     @click="exportAll"
                 >
-                    {{ t("world.console.export", "Export as plain text") }}
+                    {{ t("world.console.export", "Export selected or visible lines") }}
                 </v-btn>
             </div>
             <p class="mb-console__meta" role="status" aria-live="polite">{{ copyState }}</p>
+            <p v-if="historyStatus" class="mb-console__meta mb-console__meta--warning" role="status" aria-live="polite">
+                {{ historyStatus }}
+            </p>
         </div>
 
         <div class="mb-console__frame">
@@ -370,6 +515,13 @@ function openSetting(target: SettingsTarget): void {
                 @scroll="autoScroll.onScroll"
             >
                 <li v-for="row in visible" :key="row.line.id" :class="`mb-console__line mb-console__line--${row.line.level}`">
+                    <input
+                        class="mb-console__select"
+                        type="checkbox"
+                        :checked="selectedIds.has(row.line.id)"
+                        :aria-label="t('world.console.selectLine', { id: row.line.id }, `Select line ${row.line.id}`)"
+                        @change="toggleSelection(row.line.id)"
+                    />
                     <span class="mb-console__clock">{{ clockText(row.line.at) }}</span>
                     <span class="mb-console__tag" :aria-label="levelLabels[row.line.level]">
                         {{ LEVEL_TAGS[row.line.level] }}
@@ -545,10 +697,29 @@ function openSetting(target: SettingsTarget): void {
 
 .mb-console__line {
     display: grid;
-    grid-template-columns: auto auto 1fr;
+    grid-template-columns: auto auto auto 1fr;
     gap: 0 8px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+.mb-console__select {
+    inline-size: 18px;
+    block-size: 18px;
+    margin-block-start: 2px;
+    accent-color: rgb(var(--v-theme-primary));
+}
+
+.mb-console__format-label {
+    align-self: center;
+    font-size: 0.78rem;
+    color: rgba(var(--v-theme-on-surface), 0.72);
+}
+
+.mb-console__formats {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
 }
 
 .mb-console__clock {
@@ -568,11 +739,11 @@ function openSetting(target: SettingsTarget): void {
 }
 
 .mb-console__text {
-    grid-column: 3;
+    grid-column: 4;
 }
 
 .mb-console__advice {
-    grid-column: 3;
+    grid-column: 4;
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;

@@ -105,6 +105,15 @@ export interface GhCliCancelLoginReadout {
 export interface GhCliLogoutReadout {
     readonly ok: boolean;
     readonly message: string;
+    readonly account?: { readonly host: string; readonly login: string };
+    readonly localCredential?: "removed" | "not-removed";
+    readonly grantRevocation?: {
+        readonly attempted: false;
+        readonly refused: true;
+        readonly reason: "unsupported-by-gh-cli";
+    };
+    readonly inFlightEffect?: "completed-before-removal" | "none-observed";
+    readonly recovery?: "reauthenticate-exact-account";
 }
 
 export interface GhCliLegacyCredentialStatusReadout {

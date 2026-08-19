@@ -262,6 +262,48 @@ describe("narrowing what is shown", () => {
     });
 });
 
+describe("selection-aware structured export", () => {
+    it("selects a visible line and exports it as JSON with provenance fields", async () => {
+        const wrapper = render([engineLine("first"), engineLine("second")]);
+        const checkboxes = wrapper.findAll(".mb-console__select");
+        await checkboxes[1]?.setValue(true);
+        const createObjectURL = vi.fn(() => "blob:console");
+        const revokeObjectURL = vi.fn();
+        Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+        Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
+        const anchorClick = vi.fn();
+        const originalCreate = document.createElement.bind(document);
+        vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
+            if (tag === "a") return { click: anchorClick } as unknown as HTMLAnchorElement;
+            return originalCreate(tag);
+        }) as typeof document.createElement);
+
+        const json = wrapper.findAll("button").find((button) => button.text() === "JSON");
+        await json?.trigger("click");
+        const exportButton = wrapper.findAll("button").find((button) => button.text().includes("Export selected"));
+        await exportButton?.trigger("click");
+
+        expect(createObjectURL).toHaveBeenCalledOnce();
+        const blob = createObjectURL.mock.calls[0]?.[0] as Blob;
+        expect(await blob.text()).toContain('"schemaVersion": 1');
+        expect(await blob.text()).toContain('"message": "second"');
+        expect(await blob.text()).not.toContain('"message": "first"');
+        expect(anchorClick).toHaveBeenCalledOnce();
+        expect(revokeObjectURL).toHaveBeenCalledWith("blob:console");
+        vi.restoreAllMocks();
+        wrapper.unmount();
+    });
+
+    it("offers every faithful text format as an accessible pressed choice", () => {
+        const wrapper = render([engineLine("one")]);
+        const formats = wrapper.findAll(".mb-console__formats button");
+        expect(formats.map((button) => button.text())).toEqual(["TXT", "MD", "JSON", "JSONL", "CSV", "TSV", "HTML"]);
+        expect(formats[0]?.attributes("aria-pressed")).toBe("true");
+        expect(formats[6]?.attributes("aria-label")).toContain("HTML");
+        wrapper.unmount();
+    });
+});
+
 describe("the cap", () => {
     it("says every line is here when nothing has been dropped", () => {
         const wrapper = render([engineLine("Loading resources...")]);

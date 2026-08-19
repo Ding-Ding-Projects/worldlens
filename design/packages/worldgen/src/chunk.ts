@@ -40,6 +40,9 @@ export class ChunkData {
     /** highest non-air, non-water y of each column, or `MIN_Y - 1` */
     readonly floorY: Int32Array;
 
+    /** Optional block entities written alongside this chunk's block states. */
+    readonly blockEntities: ChunkBlockEntity[] = [];
+
     constructor(chunkX: number, chunkZ: number, registry: BlockRegistry) {
         this.chunkX = chunkX;
         this.chunkZ = chunkZ;
@@ -121,4 +124,13 @@ export class ChunkData {
     getBiome(localX: number, localZ: number): BiomeDefinition {
         return this.biomeCells[((localZ & 0xf) >> 2) * 4 + ((localX & 0xf) >> 2)]!;
     }
+}
+
+export interface ChunkBlockEntity {
+    id: string;
+    x: number;
+    y: number;
+    z: number;
+    patterns?: readonly { pattern: string; color: number | string }[];
+    patternField?: "Patterns" | "patterns";
 }
