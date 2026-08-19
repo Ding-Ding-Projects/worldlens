@@ -118,13 +118,14 @@ async function readConfigFile<T>(
     descriptor: ConfigFileDescriptor<T>,
     logger: Logger,
     warnings: string[],
+    emitWarnings = true,
 ): Promise<T> {
     const text = await readFile(path, "utf-8");
     const result = parseConfigText(descriptor, text);
     for (const issue of result.issues) {
         const line = `${path}: ${issue.severity} (${issue.kind}) at "${issue.path || "<root>"}": ${issue.message}`;
         warnings.push(line);
-        if (issue.severity === "warning") logger.warn(line);
+        if (issue.severity === "warning" && emitWarnings) logger.warn(line);
     }
     if (!result.ok || result.value === null) {
         throw new Error(`Failed to load config file:\n${path}\n${result.issues.map((i) => i.message).join("\n")}`);
@@ -198,7 +199,10 @@ export async function bootstrapConfig(options: BootstrapOptions): Promise<Loaded
         // the fully-namespaced `bluemap:sql`, exactly as the generated file does — see
         // storage.ts's own note that SQLConfig inherits the base's `bluemap:file` default —
         // so this compares by parsed Key, not by raw string.
-        const base = await readConfigFile<FileStorageConfig>(path, fileStorageDescriptor, logger, []);
+        // This first pass exists only to read storage-type. SQL-only keys are expected
+        // to be unknown to the file descriptor, so do not emit those provisional warnings;
+        // the selected concrete descriptor below performs the authoritative validation.
+        const base = await readConfigFile<FileStorageConfig>(path, fileStorageDescriptor, logger, [], false);
         const storageType = Key.parse(base["storage-type"], "bluemap");
         if (storageType.getFormatted() === "bluemap:sql") {
             const sql = await readConfigFile<SqlStorageConfig>(path, sqlStorageDescriptor, logger, warnings);
