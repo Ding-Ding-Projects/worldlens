@@ -30,8 +30,16 @@ full message for the in-app changelog viewer.
 - Merge issue #91 local WebServer retirement - [`2d8fb2193a`](https://github.com/Ding-Ding-Projects/worldlens/commit/2d8fb2193a0b68d63a8dbb2fd295c806066cb780) _(summary of 3 commits, also listed here)_
 - Retire unreachable local WebServer path - [`6a2d6ae87f`](https://github.com/Ding-Ding-Projects/worldlens/commit/6a2d6ae87fcf3e9201e877514a5309e1821ae2f1)
 
+### Build, release and tooling
+
+- Merge current main before queue delivery - [`9b9c16608e`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b9c16608e1d662a614205d291d8f13a723156e6) _(summary of 3 commits, also listed here)_
+- Keep headless Electron attached to the Windows runner desktop - [`f013b36f98`](https://github.com/Ding-Ding-Projects/worldlens/commit/f013b36f98520789d6610253cb78473ea41f68c2)
+
 ### Documentation
 
+- Merge issue #68 render-priority parity - [`65cfb6c231`](https://github.com/Ding-Ding-Projects/worldlens/commit/65cfb6c2314a1a872681188a544560fe3f50ac18) _(summary of 3 commits, also listed here)_
+- Match interactive render queue priority with upstream - [`92782c69d9`](https://github.com/Ding-Ding-Projects/worldlens/commit/92782c69d9caa1fb5239237d99a26241d178a410)
+- Merge current main before the headless runner repair - [`f429b5a0da`](https://github.com/Ding-Ding-Projects/worldlens/commit/f429b5a0da5bae78467e4f9eb04d162b50e44d0f) _(summary of 12 commits, also listed here)_
 - Merge latest main before issue delivery - [`a7455e787e`](https://github.com/Ding-Ding-Projects/worldlens/commit/a7455e787e674a3b247fe96332099dea0fdf15d4) _(summary of 2 commits, also listed here)_
 - Add hidden-desktop UI verification and recover failed cloud renders - [`f0150dfbca`](https://github.com/Ding-Ding-Projects/worldlens/commit/f0150dfbca02b355feea32f3dbc7c6290cb5f3a0)
 - Merge issue #89 typed banner data - [`025d68f017`](https://github.com/Ding-Ding-Projects/worldlens/commit/025d68f017c5426b8ec02098f8f6213bd818bb7b) _(summary of 2 commits, also listed here)_
