@@ -20,6 +20,31 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Rendering and world data
+
+- Add focused render-queue acceptance coverage - [`0a3b1d2e3f`](https://github.com/Ding-Ding-Projects/worldlens/commit/0a3b1d2e3fbaa516e270079dfef4d7e30e76846a)
+
+### Desktop shell
+
+- Isolate and receipt Lowlevel UI captures - [`8ca5782bf6`](https://github.com/Ding-Ding-Projects/worldlens/commit/8ca5782bf6c8cc193e984ee64b892c4e390ff082)
+
+### Build, release and tooling
+
+- Merge remote-tracking branch 'origin/main' into codex/issue-64-render-queue-persistence - [`76e368de58`](https://github.com/Ding-Ding-Projects/worldlens/commit/76e368de58f40ca6abe1b4e24f306c6fba9f92b2) _(summary of 2 commits, also listed here)_
+- Capture live Pages failures and private render setup - [`53af78ae93`](https://github.com/Ding-Ding-Projects/worldlens/commit/53af78ae93b33a006320e36e4d2d791b4631f0d4)
+- Target repository visibility controls by keyboard - [`17cbf0a66b`](https://github.com/Ding-Ding-Projects/worldlens/commit/17cbf0a66b1bac95147d08eae69c13c0aa0040df)
+- Make cloud-render recovery evidence deterministic - [`f729c8ce45`](https://github.com/Ding-Ding-Projects/worldlens/commit/f729c8ce45bef1859de06b5dfa3503ba860ea6dd)
+
+### Documentation
+
+- Record render-queue acceptance evidence - [`b6784d9a79`](https://github.com/Ding-Ding-Projects/worldlens/commit/b6784d9a79883ec57c5b4316077454709f3d8c5b)
+- Complete receipt-backed Lowlevel recovery evidence - [`e7502bca52`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7502bca522cb88b0f2cb0535b87c1e522188073)
+- Promote privacy-clean Lowlevel captures - [`2dda8f9cb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/2dda8f9cb692a2bbcc1bd085cec450cf0f6df092)
+
+## 1.0.1163 - 2026-08-19
+
+Tagged at [`11d7ccb2be`](https://github.com/Ding-Ding-Projects/worldlens/commit/11d7ccb2bee8a5eae68f93a1e80e0443e1c289c2).
+
 ### Desktop shell
 
 - Resume cloud renders after app restart - [`a558bef666`](https://github.com/Ding-Ding-Projects/worldlens/commit/a558bef66619648e21ef77bfeb67f59d099783a1)
