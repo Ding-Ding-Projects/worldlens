@@ -1,5 +1,16 @@
 # Handoff
 
+## Issue #87 — GitHub sign-out and token revocation record (2026-08-19)
+
+The records lane documents the missing destructive-action boundary for GitHub account sign-out.
+The implementation must reuse the native anchored two-key/full-slider state machine, name the
+host/login and both local and remote effects, and keep revocation refusal separate from successful
+local credential removal. Recovery and re-authentication stay on the same surface.
+
+Tests and captures are unrun under ultra-speed mode. The issue remains open until the focused
+contract cases and a genuine packaged-app capture through the cheap headless route are available;
+this handoff makes no runtime or packaged-artifact claim.
+
 ## Issue #78 per-project render engine choice — 2026-08-19
 
 The schema, UI, local runtime adapter, packaging manifest, resume path, history and provenance use

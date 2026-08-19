@@ -25,6 +25,19 @@ boundary (`2a3684f6`, `eb2663e1`), child-process close handling (`4d511d6c`), an
 restart/recovery integration (`f148a538`). The current CI run for `ac46de28` is
 `32257677190` and remains in progress; it is not a completed verdict.
 
+## Issue #87 — GitHub sign-out and token revocation record (2026-08-19)
+
+The records lane updated [`docs/super-confirmation.md`](docs/super-confirmation.md) with the
+acceptance contract for putting GitHub sign-out and attempted grant revocation behind the shared
+native two-key/full-slider gate. The record distinguishes local credential removal from remote
+revocation refusal, timeout, or unsupported-host outcomes and limits the inventory to mutations the
+app actually performs. The `gh` CLI path is local-only: it removes the credential from the CLI
+store and does not attempt remote grant revocation.
+
+This is documentation-only evidence. Tests and captures were unrun under ultra-speed mode, and no
+packaged-artifact interaction proof exists in this lane. Acceptance remains open until the
+implementation supplies the runtime behavior and genuine packaged capture required by issue #87.
+
 ## Issue #78 per-project render engine choice — 2026-08-19
 
 Projects persist canonical `typescript` or `upstream-java` intent. New projects default to the

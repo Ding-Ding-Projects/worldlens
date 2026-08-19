@@ -23,6 +23,7 @@ import {
     type GhCliBridge,
     type GhCliLoginResultReadout,
     type GhCliLoginStateReadout,
+    type GhCliLogoutReadout,
     type GhCliSwitchReadout,
 } from "./ghCliBridge.js";
 
@@ -36,6 +37,12 @@ export interface GhCliSwitchReport {
     readonly host: string;
     readonly login: string;
     readonly result: GhCliSwitchReadout;
+}
+
+export interface GhCliLogoutReport {
+    readonly host: string;
+    readonly login: string;
+    readonly result: GhCliLogoutReadout;
 }
 
 export interface GhCliLoginTarget {
@@ -63,6 +70,7 @@ export interface GhCliAccountsStoreState {
     readonly busyKey: Ref<string | null>;
     readonly switchReport: Ref<GhCliSwitchReport | null>;
     readonly actionFailure: Ref<string | null>;
+    readonly logoutReport: Ref<GhCliLogoutReport | null>;
 
     /** Secret-free progress from the main process. */
     readonly loginState: Ref<GhCliLoginStateReadout | null>;
@@ -153,6 +161,7 @@ export function createGhCliAccountsStore(
     const busyKey = ref<string | null>(null);
     const switchReport = ref<GhCliSwitchReport | null>(null);
     const actionFailure = ref<string | null>(null);
+    const logoutReport = ref<GhCliLogoutReport | null>(null);
     const loginState = ref<GhCliLoginStateReadout | null>(null);
     const loginResult = ref<GhCliLoginResultReadout | null>(null);
     const loginInFlight = ref(false);
@@ -209,8 +218,10 @@ export function createGhCliAccountsStore(
         if (typeof logout !== "function" || busyKey.value !== null) return false;
         busyKey.value = busyKeyOf(host, login);
         actionFailure.value = null;
+        logoutReport.value = null;
         try {
             const result = await logout(host, login);
+            logoutReport.value = { host, login, result };
             if (!result.ok) {
                 actionFailure.value = result.message;
                 return false;
@@ -312,6 +323,7 @@ export function createGhCliAccountsStore(
         busyKey,
         switchReport,
         actionFailure,
+        logoutReport,
         loginState,
         loginResult,
         loginBusy,

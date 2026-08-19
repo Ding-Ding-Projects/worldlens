@@ -50,6 +50,18 @@ local render.
   startup/shutdown wiring. Packaged reachability and real process-restart recovery remain open
   acceptance evidence; issue #64 is not ready to close.
 
+## Issue #87 — GitHub sign-out super confirmation (2026-08-19)
+
+- [ ] Route each app-managed GitHub account sign-out/revocation mutation through the shared native
+      anchored two-key/full-slider state machine, with exact host/login, local credential removal,
+      attempted remote revocation, active-work effects, Emergency exit/Escape, and focus return.
+- [ ] Keep local removal and remote revocation as separate outcomes, with same-surface recovery and
+      re-authentication when revocation is refused, unavailable, or times out. The `gh` CLI path
+      removes only its local credential and does not attempt remote grant revocation.
+- [ ] Run the focused contract cases and capture the genuine packaged gate through the cheap
+      headless route. Tests and captures are unrun under ultra-speed mode; issue acceptance stays
+      open until those proofs land.
+
 ## Current verified baseline
 
 - Adult Mode and Kid Mode complete their first-run and round-trip journeys through the committed

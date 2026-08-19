@@ -1,5 +1,16 @@
 # Roadmap
 
+## Issue #87 — GitHub sign-out super confirmation (records, 2026-08-19)
+
+- [ ] Put every app-managed GitHub sign-out/revocation mutation behind the shared native anchored
+      two-key/full-slider state machine. The gate must name host/login, local credential removal,
+      attempted remote revocation, active-work effects, Emergency exit/Escape, and focus return.
+- [ ] Keep local removal and remote revocation as distinct outcomes, with same-surface recovery and
+      re-authentication for refusal, timeout, or unsupported-host cases. The `gh` CLI path removes
+      only its local credential and does not attempt remote grant revocation.
+- [ ] Run focused contract coverage and capture the real packaged gate through the cheap headless
+      route. Tests and captures are unrun under ultra-speed mode, so acceptance remains open.
+
 ## Issue #78 — render engine selection
 
 Source implementation and focused verification are complete. The remaining acceptance record is a
