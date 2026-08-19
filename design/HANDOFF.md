@@ -1,5 +1,44 @@
 # Handoff
 
+## Issue #139 — GitHub reachability and two-wave dispatch record (2026-08-19)
+
+Issue #139 is recorded here as an implementation handoff, not as a completed acceptance run.
+The hosted two-wave baseline is precise: Wave 1 completed **256/256** shards; Wave 2 completed
+**7/105** shards; the remaining **98** Wave 2 shards were cancelled in flight. The two-wave
+merge was not reached. This is dispatch and cancellation evidence only; it is not evidence of a
+merged map, publication, cleanup, retry/ENOSPC handling, or a successful release.
+
+The reachability changes make the GitHub Actions route usable outside this repository: the
+workflow template resolves the caller's repository rather than assuming the source checkout,
+uses the caller's dependency/cache context, and keeps the render action's repository and ref
+inputs explicit. The application-side safety record keeps the `gh` fallback honest: `gh` is a
+declared dependency, its installed/authenticated state is checked before use, and the selected
+host/login is verified through the real `gh` account inventory and `gh api user` before any
+release operation. An unavailable or unauthenticated `gh` path remains an explicit failure, not
+an implied success.
+
+No tests, packaged-artifact interaction, runtime verification, or captures were run for this
+records-only handoff. Issue #139 remains open until a fresh hosted run reaches and independently
+records the two-wave merge and the remaining acceptance evidence.
+
+### 廣東話同步
+
+Issue #139 呢度只係 implementation handoff，唔係 completed acceptance run。Hosted two-wave
+baseline 寫實數：Wave 1 完成 **256/256** 個 shard；Wave 2 完成 **7/105** 個 shard；剩低 **98**
+個 Wave 2 shard 喺飛行中取消；two-wave merge 未到。呢啲只係 dispatch 同 cancellation
+evidence，唔代表 merged map、publication、cleanup、retry/ENOSPC 或 successful release。
+
+Reachability changes 令 GitHub Actions route 可以喺唔同 repository 用：workflow template
+唔再假設 source checkout，而係 resolve caller repository；dependency/cache context 跟 caller
+走；render action 嘅 repository 同 ref inputs 亦保持 explicit。App-side safety record
+亦保持 `gh` fallback 誠實：`gh` 係 declared dependency，使用前會檢查 installed/authenticated
+state；selected host/login 要經真實 `gh` account inventory 同 `gh api user` verify，先可以
+做 release operation。`gh` unavailable 或未 authenticated 就明確報 failure，唔會扮成功。
+
+今次 records-only handoff 冇跑 tests、packaged-artifact interaction、runtime verification
+或 captures；issue #139 要等 fresh hosted run 真係到 merge，並補齊其餘 acceptance evidence
+先可以關。
+
 ## Issue #76 screenshot gallery — 2026-08-19
 
 The issue-owned source lane now contains an in-progress screenshot-gallery surface. Its product

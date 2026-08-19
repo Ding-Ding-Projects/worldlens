@@ -193,7 +193,7 @@ export function verifyHostedRenderReceipt(value: unknown): HostedRenderReceiptRe
     const mergeValid = merge !== null && asIso(merge.startedAt) !== null && asIso(merge.completedAt) !== null && merge.outcome === "success" && merge.mergedMapVerified === true && merge.lowresRebuilt === true && (merge.publicResult === "openable" || merge.publicResult === "not-published");
     add(checks, "merge and lowres verification", mergeValid, mergeValid ? "merged map and lowres pyramid are verified" : "merge receipt is incomplete or failed");
     const content = isObject(value.mergedContent) ? value.mergedContent : null;
-    const contentValid = content !== null && asFiniteNumber(content.hiresTileCount) !== null && asFiniteNumber(content.expectedHiresTileCount) !== null && content.hiresTileCount === content.expectedHiresTileCount && content.metadataPresent === true && content.metadataFingerprintMatches === true && content.texturesVerified === true;
+    const contentValid = content !== null && asFiniteNumber(content.hiresTileCount) !== null && asFiniteNumber(content.expectedHiresTileCount) !== null && content.hiresTileCount > 0 && content.hiresTileCount === content.expectedHiresTileCount && content.metadataPresent === true && content.metadataFingerprintMatches === true && content.texturesVerified === true;
     add(checks, "merged content and metadata", contentValid, contentValid ? "tile count, metadata and textures agree" : "merged content or metadata evidence is incomplete");
     const cleanup = isObject(value.cleanup) ? value.cleanup : null;
     const cleanupValid = cleanup !== null && cleanup.intermediateArchivesRemoved === true && cleanup.shardStagingRemoved === true && cleanup.resumableStatePreserved === true;

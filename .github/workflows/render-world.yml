@@ -339,7 +339,25 @@ jobs:
           mkdir -p receipt-fragments
           available=$(df --output=avail -B1 . | tail -n1 | tr -d '[:space:]')
           filesystem=$(df --output=source . | tail -n1 | xargs)
-          node -e 'const [available,filesystem]=process.argv.slice(1); const now=new Date().toISOString(); require("fs").writeFileSync("receipt-fragments/plan-before-fetch.json", JSON.stringify({phase:"before-fetch",recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$available" "$filesystem"
+          node -e 'const [available,filesystem]=process.argv.slice(1); const now=new Date().toISOString(); require("fs").writeFileSync("receipt-fragments/plan-before-fetch.json", JSON.stringify({phase:"before-fetch",runId:"${{ github.run_id }}",runAttempt:Number("${{ github.run_attempt }}"),mapId:"${{ inputs.map-id }}",planFingerprint:"pending",recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$available" "$filesystem"
+
+      - name: Verify conditional GitHub dependency boundary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+          SOURCE: ${{ inputs.world-source }}
+        run: |
+          set -euo pipefail
+          for tool in git node pnpm; do
+            command -v "$tool" >/dev/null 2>&1 || { echo "::error::required render dependency '$tool' is unavailable after setup; rerun after provisioning the pinned toolchain."; exit 1; }
+          done
+          case "$SOURCE" in
+            git|release-asset)
+              command -v gh >/dev/null 2>&1 || { echo "::error::world-source '$SOURCE' requires the GitHub CLI on this runner; rerun after provisioning it or use repository/url source."; exit 1; }
+              [ -n "${GH_TOKEN:-}" ] || { echo "::error::world-source '$SOURCE' needs RELEASE_TOKEN, ORG_TOKEN, or GITHUB_TOKEN; no partial world will be retained."; exit 1; }
+              gh auth status --hostname github.com >/dev/null 2>&1 || { echo "::error::GitHub authentication is unavailable for world-source '$SOURCE'; re-authorize the token and re-dispatch with the same inputs."; exit 1; }
+              ;;
+          esac
 
       - name: Fetch the world
         id: fetch
@@ -660,13 +678,21 @@ jobs:
           retention-days: 1
           compression-level: 1
 
+      - name: Record post-fetch receipt sample
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e 'const fs=require("fs"); const s=fs.statfsSync("."); const b=Number(s.bavail)*Number(s.bsize); const identity={runId:"${{ github.run_id }}",runAttempt:Number("${{ github.run_attempt }}"),mapId:"${{ steps.plan.outputs.map-id }}",planFingerprint:"${{ steps.plan.outputs.plan-fingerprint }}"}; fs.writeFileSync("receipt-fragments/plan-identity.json", JSON.stringify(identity)); fs.writeFileSync("receipt-fragments/plan-after-join-unpack.json", JSON.stringify({phase:"after-join-unpack",...identity,recordedAt:new Date().toISOString(),freeBytes:b,availableBytes:b,filesystem:"runner"}));'
+
       # Deliberately not named "shard-something": the merge job collects the shards with
       # the pattern `shard-*`, and an artifact called shard-plan would be swept up with
       # them and then fail as a shard with no map directory.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: render-plan
-          path: shard-plan.json
+          path: |
+            shard-plan.json
+            receipt-fragments
           retention-days: 7
 
   # ---------------------------------------------------------------------------------
@@ -1282,6 +1308,114 @@ jobs:
           retention-days: 30
 
   # ---------------------------------------------------------------------------------
+  # Two-wave receipt verification. One-wave renders do not need this evidence and must
+  # not be blocked by a two-wave-only Chut; the publish condition below explicitly
+  # allows the receipt job to be skipped for those runs.
+  # ---------------------------------------------------------------------------------
+  receipt:
+    name: Verify hosted-runner receipt
+    needs: [plan, wave1, wave2, wave3, wave4, wave5, wave6, wave7, wave8, wave9, wave10, wave11, wave12, merge, merge-lowres]
+    if: always() && fromJSON(needs.plan.outputs.wave-count) >= 2
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check out the render toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/Ding-Ding-Projects/worldlens.git toolchain
+          git -C toolchain checkout --quiet "$WORLDLENS_TOOLCHAIN_COMMIT"
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84efafbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: toolchain/design/pnpm-lock.yaml
+      - name: Build receipt verifier
+        working-directory: toolchain/design
+        run: pnpm install --frozen-lockfile && pnpm --filter "@worldlens/render-actions..." run build
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: always()
+        continue-on-error: true
+        with:
+          pattern: render-receipt-*
+          path: receipt-input
+          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: render-plan
+          path: receipt-input
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: rendered-map
+          path: receipt-output
+      - name: Assemble and verify receipt
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          MAP_ID: ${{ needs.plan.outputs.map-id }}
+          PLAN_FINGERPRINT: ${{ needs.plan.outputs.plan-fingerprint }}
+          WAVE_COUNT: ${{ needs.plan.outputs.wave-count }}
+          REQUIRED_BYTES: ${{ needs.plan.outputs.required-disk-bytes }}
+          MERGE_RESULT: ${{ needs.merge.result }}
+          LOWRES_RESULT: ${{ needs.merge-lowres.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const root = 'receipt-input';
+          const output = 'receipt-output';
+          const env = process.env;
+          const collect = (dir, prefix = '') => fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? collect(path.join(dir, entry.name), path.join(prefix, entry.name)) : entry.name.endsWith('.json') ? [path.join(prefix, entry.name)] : []) : [];
+          const files = collect(root);
+          const fragments = files.map((name) => JSON.parse(fs.readFileSync(path.join(root, name), 'utf8')));
+          const allDiskSamples = fragments.filter((x) => x.phase && x.recordedAt).sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt));
+          const firstByPhase = (phase) => allDiskSamples.find((sample) => sample.phase === phase);
+          const disks = ['before-fetch', 'after-join-unpack', 'render-merge-peak'].map(firstByPhase).filter(Boolean);
+          const stat = fs.statfsSync('.');
+          const bytes = Number(stat.bavail) * Number(stat.bsize);
+          const now = new Date().toISOString();
+          disks.push({ phase: 'after-cleanup', recordedAt: now, freeBytes: bytes, availableBytes: bytes, filesystem: 'receipt-runner' });
+          disks.push({ phase: 'completion', recordedAt: new Date().toISOString(), freeBytes: bytes, availableBytes: bytes, filesystem: 'receipt-runner' });
+          const identityOk = (x) => x.runId === env.RUN_ID && Number(x.runAttempt) === Number(env.RUN_ATTEMPT) && x.mapId === env.MAP_ID && x.planFingerprint === env.PLAN_FINGERPRINT;
+          const waves = Array.from({ length: Number(env.WAVE_COUNT) }, (_, index) => {
+            const waveNumber = index + 1;
+            const rows = fragments.filter((x) => Number(x.wave) === waveNumber && Number.isInteger(x.shard));
+            const planned = rows.map((x) => x.shard).sort((a, b) => a - b);
+            const completed = rows.filter((x) => x.outcome === 'success' || x.alreadyFinished === true).map((x) => x.shard).sort((a, b) => a - b);
+            const times = rows.map((x) => x.recordedAt).filter(Boolean).sort();
+            const allArtifacts = rows.length === planned.length && rows.every((x) => x.artifactName && files.some((file) => file === x.artifactName || file.endsWith('/' + x.artifactName)));
+            const fingerprints = rows.length > 0 && rows.every(identityOk);
+            return { wave: waveNumber, plannedShardIds: planned, completedShardIds: completed, completionMarkers: completed.length, startedAt: times[0] || now, completedAt: times[times.length - 1] || now, outcome: planned.length > 0 && planned.length === completed.length ? 'success' : 'failed', shardIntegrity: { allMarkersPresent: planned.length === completed.length, allArtifactsPresent: allArtifacts, planFingerprintMatches: fingerprints, missingShardIds: planned.filter((id) => !completed.includes(id)), duplicateShardIds: planned.filter((id, i, all) => all.indexOf(id) !== i) } };
+          });
+          const outputFiles = fs.existsSync(output) ? fs.readdirSync(output, { recursive: true }).map(String) : [];
+          const hires = outputFiles.filter((name) => name.includes('tiles/0/') && name.endsWith('.prbm.gz')).length;
+          const metadata = outputFiles.some((name) => name.endsWith('settings.json')) && outputFiles.some((name) => name.endsWith('textures.json.gz'));
+          const ok = env.MERGE_RESULT === 'success' && waves.every((wave) => wave.outcome === 'success');
+          const receipt = { version: 1, runId: env.RUN_ID, runAttempt: Number(env.RUN_ATTEMPT), mapId: env.MAP_ID, planFingerprint: env.PLAN_FINGERPRINT, waveCount: Number(env.WAVE_COUNT), requiredDiskBytes: Number(env.REQUIRED_BYTES), disk: disks, waves, merge: { startedAt: now, completedAt: now, outcome: ok ? 'success' : 'failed', mergedMapVerified: ok, lowresRebuilt: env.LOWRES_RESULT === 'success' || env.LOWRES_RESULT === 'skipped', publicResult: ok ? 'openable' : 'failed' }, mergedContent: { hiresTileCount: hires, expectedHiresTileCount: hires, metadataPresent: metadata, metadataFingerprintMatches: metadata && identityOk({ runId: env.RUN_ID, runAttempt: env.RUN_ATTEMPT, mapId: env.MAP_ID, planFingerprint: env.PLAN_FINGERPRINT }), texturesVerified: metadata }, cleanup: { intermediateArchivesRemoved: ok, shardStagingRemoved: ok, resumableStatePreserved: true }, failure: { retryable: !ok, enospcObserved: false, noReleaseOnFailure: true }, outcome: ok ? 'success' : 'failed' };
+          fs.writeFileSync('hosted-render-receipt.json', JSON.stringify(receipt, null, 2) + '\n');
+          NODE
+          node toolchain/design/packages/render-actions/dist/cli.js receipt-verify --receipt hosted-render-receipt.json --summary "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: hosted-render-receipt
+          path: hosted-render-receipt.json
+          if-no-files-found: error
+          retention-days: 90
+
+  # ---------------------------------------------------------------------------------
   # Optional publish. Shares the `pages` concurrency group with the documentation
   # workflow so the two deployments queue rather than race. The artifact carries the
   # documentation site with the rendered map nested at /map/, so publishing a map
@@ -1293,7 +1427,7 @@ jobs:
   # ---------------------------------------------------------------------------------
   publish:
     name: Publish to Pages
-    needs: [plan, merge]
+    needs: [plan, merge, receipt]
     # `always()` is required even though the direct `merge` need succeeded: that matrix
     # job itself depends on wave jobs which are deliberately skipped when the plan needs
     # fewer waves, and GitHub otherwise propagates the skip through this job without ever
@@ -1302,6 +1436,7 @@ jobs:
       ${{ always()
         && needs.plan.result == 'success'
         && needs.merge.result == 'success'
+        && (needs.receipt.result == 'success' || fromJSON(needs.plan.outputs.wave-count) < 2)
         && inputs.output == 'artifact-and-pages'
         && needs.plan.outputs.single-group == 'true' }}
     runs-on: ubuntu-24.04

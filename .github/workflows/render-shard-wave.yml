@@ -275,7 +275,7 @@ jobs:
           mkdir -p receipt-fragments
           available=$(df --output=avail -B1 . | tail -n1 | tr -d '[:space:]')
           filesystem=$(df --output=source . | tail -n1 | xargs)
-          node -e 'const [outcome,resume,hires,available,filesystem,wave,shard,run,attempt]=process.argv.slice(1); const now=new Date().toISOString(); require("fs").writeFileSync(`receipt-fragments/wave-${wave}-shard-${shard}.json`, JSON.stringify({runId:run,runAttempt:Number(attempt),wave:Number(wave),shard:Number(shard),outcome,alreadyFinished:resume==="true",hiresTiles:Number(hires),recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$RENDER_OUTCOME" "$RESUME_COMPLETE" "$HIRES" "$available" "$filesystem" '${{ inputs.wave }}' '${{ matrix.shard }}' '${{ github.run_id }}' '${{ github.run_attempt }}'
+          node -e 'const [outcome,resume,hires,available,filesystem,wave,shard,run,attempt]=process.argv.slice(1); const fs=require("fs"); const identity=JSON.parse(fs.readFileSync("receipt-fragments/plan-identity.json","utf8")); const now=new Date().toISOString(); fs.writeFileSync(`receipt-fragments/wave-${wave}-shard-${shard}.json`, JSON.stringify({phase:"render-merge-peak",...identity,wave:Number(wave),shard:Number(shard),artifactName:`wave-${wave}-shard-${shard}.json`,outcome,alreadyFinished:resume==="true",hiresTiles:Number(hires),recordedAt:now,freeBytes:Number(available),availableBytes:Number(available),filesystem}))' "$RENDER_OUTCOME" "$RESUME_COMPLETE" "$HIRES" "$available" "$filesystem" '${{ inputs.wave }}' '${{ matrix.shard }}' '${{ github.run_id }}' '${{ github.run_attempt }}'
 
       - name: Upload shard receipt fragment
         if: always()
