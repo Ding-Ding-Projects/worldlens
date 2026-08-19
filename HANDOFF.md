@@ -38,10 +38,10 @@ from code whose tests would fail, and those checks are separate local work rathe
 conditions.
 
 This records update ran no tests, lint, typechecks, builds, installer sessions, workflow
-dispatches, packaged runtime sessions, or captures. No new release has been verified for this
-workflow change. Pending evidence is a real remote workflow run plus release read-back proving the
-target commit, unique non-draft release, installer and jar/world assets, timing, line-count
-record, unsigned-artifact state, and the public dim-sum code-name link.
+dispatches, packaged runtime sessions, or captures. The workflow-policy change itself is already
+represented by the verified `v1.0.1349` row in the six-phase ledger; the later records-only
+reconciliation was published as `v1.0.1373` for commit `873eb0eae7c5b9208c3570a15cf81cf9704a29c7`.
+Neither release supplies packaged-reader interaction, restart/reopen, or runtime proof.
 
 ### 廣東話 / Cantonese
 
@@ -59,10 +59,10 @@ screenshot/capture checks。呢個係已接受嘅 delivery tradeoff：release �
 fail 嘅 code 出發，而呢啲 checks 係 workflow 之外嘅 local work，唔再係 release 條件。
 
 今次 records update 冇跑 tests、lint、typechecks、builds、installer sessions、workflow
-dispatches、packaged runtime sessions 或 captures。仲未有新 release 俾呢個 workflow change
-驗證。仲欠嘅 evidence 係真 remote workflow run 同 release read-back：target commit、唯一
-non-draft release、installer 同 jar/world assets、timing、line-count record、unsigned-artifact
-state，同 public dim-sum code-name link 都要逐樣證實。
+dispatches、packaged runtime sessions 或 captures。Workflow policy change 本身已經由六行
+ledger 入面 verified 嘅 `v1.0.1349` row 記錄；之後 records-only reconciliation 就用
+`873eb0eae7c5b9208c3570a15cf81cf9704a29c7` 發布成 `v1.0.1373`。兩個 release 都唔代表
+packaged-reader interaction、restart/reopen 或 runtime proof 已完成。
 
 ## Issue #59 — safe product migration source and evidence boundary (2026-08-19)
 
@@ -223,6 +223,12 @@ verified from its remote release read-back, while no local packaging or runtime 
 claimed. The completeness-enforcement row remains failed with no release identity; issue #51's
 `.613` evidence remains outside this ledger.
 
+The records-only reconciliation commit `873eb0eae7c5b9208c3570a15cf81cf9704a29c7` was published
+as [`v1.0.1373`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1373). That is
+the publication of this documentation correction, not a seventh implementation phase and not a
+replacement release identity for any of the six inventory rows. Packaged reader interaction and
+restart/reopen proof remain unrun.
+
 The later `4a7aad1e` phase attempt is recorded as failed with no release identity. CI run
 `32295874519` (`2026-08-19T19:57:25Z` → `2026-08-19T20:09:48Z`) completed `jars` and the Windows
 package, then cancelled `Generate and render a test world`; `Publish release` was skipped. A
@@ -255,6 +261,11 @@ release/target/workflow/timing/asset/hash read-back，但全部係 `failed` 加
 `.613` evidence 亦唔放入呢份 ledger。今次只改 documentation，冇跑 tests、build、
 installer、runtime、workflow dispatch 或 captures。Issue #63 要等每個 completed phase
 都有 row，同 integrated-phase completeness check 齊先可以 close。
+
+Records-only reconciliation commit `873eb0eae7c5b9208c3570a15cf81cf9704a29c7` 之後以
+[`v1.0.1373`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1373)
+發布；呢個係文件修正嘅 release，唔係第七個 phase，亦唔可以攞嚟冒認六行入面任何一行。
+Packaged reader interaction 同 restart/reopen proof 仲未跑。
 
 ## Issue #70 marker authoring — records-only update, 2026-08-19
 

@@ -109,6 +109,11 @@ same-world render、restart/reopen 同 diagnostic read-back 仲未有。
   which current policy forbids. The workflow-policy row is verified from remote release read-back
   and does not claim local packaging or runtime evidence. This lane ran
   no tests, builds, installer sessions, workflow dispatches, runtime checks, or captures.
+- **Publication note:** The records-only reconciliation commit
+  `873eb0eae7c5b9208c3570a15cf81cf9704a29c7` was published as
+  [`v1.0.1373`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1373). This
+  is the release of the documentation correction, not a seventh implementation phase or a
+  replacement release identity for one of the six inventory rows.
 - **Remaining:** Keep one row for every completed phase and update the single bundled hand-written
   `docs/release-phase-inventory.json` with each new phase. The packaged reader now rejects an
   incomplete schema-shaped ledger with the missing phase names instead of returning a partial
