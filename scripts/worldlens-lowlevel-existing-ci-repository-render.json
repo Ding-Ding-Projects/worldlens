@@ -42,6 +42,18 @@
   },
   { "action": "rememberCount", "selector": "[data-test='row']", "key": "render-rows" },
   { "action": "clickUntilVisible", "selector": "[data-test='start']", "attempts": 40 },
+  { "action": "wait", "selector": "[data-test='bootstrap-failure']", "timeout": 120000 },
+  { "action": "scrollUntilInViewport", "selector": "[data-test='bootstrap-failure']", "attempts": 40 },
+  {
+    "action": "screenshot",
+    "name": "lowlevel-private-pages-unavailable",
+    "category": "delivery-runtime",
+    "state": "private-repository-pages-setup-refused",
+    "expectedSurface": "Render on GitHub private Pages setup failure",
+    "alt": "Worldlens showing the exact GitHub Pages setup refusal for the private repository after the Pages option was checked."
+  },
+  { "action": "setCheckboxWhenFocused", "selector": "[data-test='publish-pages'] input", "value": false, "attempts": 240 },
+  { "action": "clickUntilVisible", "selector": "[data-test='start']", "attempts": 40 },
   { "action": "waitForCountGreaterThanRemembered", "selector": "[data-test='row']", "key": "render-rows", "timeout": 300000 },
   { "action": "waitTextNot", "selector": "[data-test='row'] [data-test='run-label']", "nth": 0, "text": "No run yet", "timeout": 300000 },
   {

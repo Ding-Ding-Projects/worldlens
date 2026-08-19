@@ -141,15 +141,22 @@ test("the existing-repository plan checks Pages and upload acknowledgement befor
     const upload = existingPlan.findIndex(
         (step) => step.action === "setCheckboxWhenFocused" && step.selector.includes("ack-upload"),
     );
-    const start = existingPlan.findIndex(
+    const firstStart = existingPlan.findIndex(
+        (step) => step.action === "clickUntilVisible" && step.selector === "[data-test='start']",
+    );
+    const pagesFailure = existingPlan.findIndex(
+        (step) => step.name === "lowlevel-private-pages-unavailable",
+    );
+    const secondStart = existingPlan.findLastIndex(
         (step) => step.action === "clickUntilVisible" && step.selector === "[data-test='start']",
     );
     const dispatched = existingPlan.findIndex(
         (step) => step.name === "lowlevel-existing-repository-render-dispatched",
     );
-    assert.ok(pages > 0 && pages < start);
-    assert.ok(upload > pages && upload < start);
-    assert.ok(start < dispatched);
+    assert.ok(pages > 0 && pages < firstStart);
+    assert.ok(upload > pages && upload < firstStart);
+    assert.ok(firstStart < pagesFailure && pagesFailure < secondStart);
+    assert.ok(secondStart < dispatched);
 });
 
 test("removing a required capture turns the plan guard red", () => {
