@@ -29,7 +29,7 @@ const ALLOWED_ACTIONS = new Set(["screenshot", "click", "windowKey", "assertText
 function planComplaints(candidate) {
     const complaints = [];
     if (!Array.isArray(candidate)) return ["plan must be an array"];
-    if (candidate.length !== 36) complaints.push(`expected 36 actions, found ${candidate.length}`);
+    if (candidate.length !== 37) complaints.push(`expected 37 actions, found ${candidate.length}`);
     const captures = [];
     for (const [index, step] of candidate.entries()) {
         if (!step || typeof step !== "object") {
@@ -77,6 +77,30 @@ test("the onboarding driver declines download consent and never claims a standin
     assert.match(onboard, /\["NEXT", "NEXT", "DECLINE", "FINISH SETUP"\]/);
     assert.match(onboard, /declined download consent/);
     assert.doesNotMatch(onboard, /ACCEPT|accepted download consent|standing choice/);
+});
+
+test("the real Adult settings plan declines consent and reaches Kid Mode settings through overflow", () => {
+    const consent = plan.find((step) => step.action === "click" && step.hasText === "DECLINE");
+    assert.ok(consent, "the plan must decline download consent");
+    assert.equal(
+        plan.some((step) => step.action === "click" && step.hasText === "ACCEPT"),
+        false,
+        "the plan must not accept download consent",
+    );
+    const overflow = plan.findIndex(
+        (step) =>
+            step.action === "click" &&
+            typeof step.selector === "string" &&
+            step.selector.includes("mb-tabs-strip__controls") &&
+            step.selector.includes("do not fit"),
+    );
+    const kidMode = plan.findIndex(
+        (step) =>
+            step.action === "click" &&
+            step.selector === ".mb-settings .mb-tabs-strip__sheet:visible .v-list-item" &&
+            step.hasText === "Kid Mode and Adult Mode",
+    );
+    assert.ok(overflow >= 0 && kidMode > overflow, "settings tab must be reached via the visible overflow action");
 });
 
 test("runtime evidence keeps bounded sanitized console and page error messages", () => {

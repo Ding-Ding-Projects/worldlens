@@ -24,16 +24,16 @@
     "category": "onboarding",
     "state": "kid-mode-download-consent",
     "expectedSurface": "First-run download consent",
-    "alt": "Worldlens first-run download decision with Accept and Decline shown before the authorized Accept action."
+    "alt": "Worldlens first-run download decision with Accept and Decline shown before the automated Decline action."
   },
-  { "action": "click", "selector": ".v-overlay--active button", "hasText": "ACCEPT" },
+  { "action": "click", "selector": ".v-overlay--active button", "hasText": "DECLINE" },
   {
     "action": "screenshot",
     "name": "lowlevel-kid-first-run-storage",
     "category": "onboarding",
     "state": "kid-mode-map-storage",
     "expectedSurface": "First-run map storage",
-    "alt": "Worldlens first-run map storage step after download consent was accepted through the visible interface."
+    "alt": "Worldlens first-run map storage step after download consent was declined through the visible interface."
   },
   { "action": "click", "selector": ".v-overlay--active button", "hasText": "FINISH SETUP" },
   { "action": "assertText", "selector": ".wl-kid-home", "text": "Make a new map" },
@@ -43,7 +43,7 @@
     "category": "kid-mode",
     "state": "kid-home-ready",
     "expectedSurface": "Kid Mode Home",
-    "alt": "Worldlens Kid Mode Home after completing first run entirely through Lowlevel background input."
+    "alt": "Worldlens Kid Mode Home after completing first run without granting download consent, entirely through Lowlevel background input."
   },
   { "action": "click", "role": "button", "name": "Explore", "exact": true },
   { "action": "assertText", "selector": ".wl-kid__pane", "text": "No map loaded" },
@@ -113,7 +113,15 @@
     "expectedSurface": "Adult Mode Settings",
     "alt": "Worldlens Adult Mode Settings dock opened from the persistent rail through Lowlevel input."
   },
-  { "action": "click", "role": "tab", "name": "Kid Mode and Adult Mode", "exact": true },
+  {
+    "action": "click",
+    "selector": ".mb-settings .mb-tabs-strip__controls [aria-label*='do not fit']"
+  },
+  {
+    "action": "click",
+    "selector": ".mb-settings .mb-tabs-strip__sheet:visible .v-list-item",
+    "hasText": "Kid Mode and Adult Mode"
+  },
   { "action": "assertText", "selector": ".wl-kid-row", "text": "Which mode should open" },
   {
     "action": "screenshot",
