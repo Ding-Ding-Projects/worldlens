@@ -25,6 +25,31 @@ mount wiring；直接 feature record 係 [`docs/local-live-player-tracking.md`](
 interaction、冇 capture。要補齊 NBT、RCON、credential-store、stale cleanup 同 packaged marker
 update 證據，先可以收 issue。
 
+## Issue #73 three.js upgrade and parity — records-only update, 2026-08-19
+
+Issue #73 remains **open**. The durable feature record is
+[`docs/threejs-upgrade.md`](docs/threejs-upgrade.md), and the detailed parity article is
+[`docs/compatibility/threejs-upgrade-parity.md`](docs/compatibility/threejs-upgrade-parity.md).
+
+The records define the pending upgrade boundary: inventory changed three.js APIs used by loaders,
+shaders/materials, camera and controls, CSS2D, textures, caches, markers, picking, screenshots,
+and WebGL lifecycle; preserve geometry, transparency, LOD, marker placement, navigation, and
+measured performance; and prove context-loss recovery, unsupported hardware/browser handling, and
+non-silent blank-canvas failure.
+
+This lane is records-only. No runtime code, tests, package builds, viewer launches, screenshots,
+rendered-image comparisons, interaction checks, performance measurements, or packaged-artifact
+proof are claimed here. The implementation changes already present in this task checkout still
+require the focused evidence listed in the issue before Issue #73 can close.
+
+### 廣東話 / Cantonese
+
+Issue #73 仲係 **open**。`docs/threejs-upgrade.md` 同
+`docs/compatibility/threejs-upgrade-parity.md` 已經寫低 API inventory、畫面/操作/performance
+保留、WebGL failure boundary 同 packaged evidence 要求。今次只係 records-only，冇聲稱
+runtime、tests、package、viewer launch、screenshots 或 parity 已經驗證；implementation 仲要
+補齊真 evidence 先可以 close。
+
 ## Issue #75 measurement and waypoints — 2026-08-19
 
 Issue #75 remains **open**. The task-owned checkout contains the bounded measurement and waypoint

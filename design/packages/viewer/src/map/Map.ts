@@ -452,10 +452,11 @@ export class Map {
                 this.animations.push(animation);
             }
 
-            texture.image.addEventListener("load", () => {
+            const image = texture.image as HTMLImageElement;
+            image.addEventListener("load", () => {
                 texture.needsUpdate = true;
                 if (animation)
-                    animation.init(texture.image.naturalWidth, texture.image.naturalHeight);
+                    animation.init(image.naturalWidth, image.naturalHeight);
             });
 
             this.loadedTextures.push(texture);

@@ -95,6 +95,7 @@ note explicitly widens it.
 - [Schemas and migrations](./schemas-and-migrations.md)
 - [API and reference](./api-reference.md)
 - [Standalone CLI resource and SQL parity](./cli-resource-sql-parity.md)
+- [Three.js upgrade parity and evidence contract](./threejs-upgrade-parity.md)
 - [Migration guide](./migration-guide.md)
 - [Public surface matrix](./public-surface-matrix.md)
 - [Automatic updates](../automatic-updates.md)
