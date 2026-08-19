@@ -38,6 +38,7 @@ import { worldReading } from "./world-reading.js";
 import { worldDiscovery } from "./world-discovery.js";
 import { bedrockWorlds } from "./bedrock-worlds.js";
 import { javaRenderPath } from "./java-render-path.js";
+import { renderEngineChoice } from "./render-engine-choice.js";
 import { resourcePacks } from "./resource-packs.js";
 import { releasePipeline } from "./release-pipeline.js";
 import { renderInActions } from "./render-in-actions.js";
@@ -110,6 +111,7 @@ export const articles: readonly Article[] = [
     legacyWorldSupport,
     bedrockWorlds,
     javaRenderPath,
+    renderEngineChoice,
     dockerAndLocal,
     dockerWorldSource,
     sshWorldSources,

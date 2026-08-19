@@ -1,5 +1,10 @@
 # Roadmap
 
+## Issue #78 — per-project render engine choice
+
+Implementation and focused verification are complete. Remaining before closure: package both
+engines, render the same genuine project through each, and compare output/provenance.
+
 ## Issue #65 — standalone CLI mod/resource/SQL parity
 
 Implementation, generated-config parsing, workspace build, SQLite initialization, Docker image,

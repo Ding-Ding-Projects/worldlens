@@ -9,6 +9,8 @@ export interface ProjectMapConfigResult {
     readonly source: "project" | "defaults";
     readonly config: string | null;
     readonly reason: string;
+    /** The concrete engine recorded by the project; old files are Java by migration rule. */
+    readonly engine: "upstream-java" | "typescript";
 }
 
 /**
@@ -39,6 +41,7 @@ export async function readProjectMapConfig(
                         reason:
                             `${PROJECT_FILE_NAME} and ${LEGACY_PROJECT_FILE_NAME} are absent; ` +
                             "this is a manual workflow render using the documented defaults.",
+                        engine: "upstream-java",
                     };
                 }
                 throw legacyError;
@@ -63,9 +66,25 @@ export async function readProjectMapConfig(
         throw new Error(`${path} is not a project object.`);
     }
     const version = (raw as { version?: unknown }).version;
-    if (typeof version === "number" && version > 2) {
+    if (typeof version === "number" && version > 3) {
         throw new Error(
             `${path} uses project format ${String(version)}, which this workflow cannot read.`,
+        );
+    }
+
+    const render = (raw as { render?: unknown }).render;
+    const engineValue =
+        typeof render === "object" && render !== null && !Array.isArray(render)
+            ? (render as { engine?: unknown }).engine
+            : undefined;
+    const engine: "upstream-java" | "typescript" =
+        version === 3 && (engineValue === "upstream-java" || engineValue === "typescript")
+            ? engineValue
+            : "upstream-java";
+    if (engine !== "upstream-java") {
+        throw new Error(
+            `${path} selects the TypeScript engine, but this CLI config route only has the ` +
+                "upstream Java launch adapter. Nothing was rendered and no fallback was used.",
         );
     }
 
@@ -87,5 +106,6 @@ export async function readProjectMapConfig(
         source: "project",
         config: selected.config,
         reason: `Loaded the complete maps/${mapId}.conf body from ${path.split(/[\\/]/).at(-1) ?? PROJECT_FILE_NAME}.`,
+        engine,
     };
 }

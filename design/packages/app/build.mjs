@@ -3,6 +3,7 @@ import { cpSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { stageRenderEngines } from "./scripts/stage-render-engines.mjs";
 
 /**
  * esbuild bundles every dependency the main process reaches except `electron` -
@@ -201,6 +202,8 @@ async function main() {
     }
     console.log(`app build: current update feed repository = ${repositories.current}`);
     console.log(`app build: legacy update bridge repository = ${repositories.legacy ?? "none"}`);
+
+    await stageRenderEngines();
 
     /** Main process: ESM (Electron ≥28 supports ESM entry points). */
     await build({

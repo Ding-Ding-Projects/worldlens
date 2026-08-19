@@ -19,10 +19,13 @@ Target world versions: Minecraft **1.12.2 through 26.x**.
 
 **How rendering works.** Local world rendering runs upstream BlueMap's own Java renderer, built
 from the vendored source and driven by the app, so a world can be rendered today rather than
-after the TypeScript mesher is finished. The TypeScript mesher now produces output identical to
-that renderer on the project's fixture worlds, but it is not yet what runs: switching over is a
-separate, separately verified change. Everything around the renderer — the viewer, the world
-reading layer, the resource-pack pipeline, the server and the whole interface — is TypeScript.
+after the TypeScript mesher is finished. Existing projects preserve that upstream-Java behavior;
+new projects can choose the upstream Java engine or the app-owned TypeScript engine, and the
+global automatic choice uses Java only when its capability is available. The TypeScript mesher
+now produces output identical to that renderer on the project's fixture worlds, but the packaged
+dual-engine proof and a real packaged render with each choice remain pending. Everything around
+the renderer — the viewer, the world reading layer, the resource-pack pipeline, the server and
+the whole interface — is TypeScript.
 See [Rendering engines](#rendering-engines).
 
 ## Status: 1.0 — released, verified, and honest about what remains
@@ -1076,6 +1079,15 @@ is not the same as switching over: making the mesher the default is its own chan
 verification, and it has not been made. Until it is, the JDK requirement stands.
 
 The app tells you which engine rendered a map. It does not silently switch.
+
+**Issue #78 delivery status (2026-08-19).** The source now carries a per-project engine choice,
+a global default for new projects, canonical engine ids (`upstream-java` and `typescript`), and
+packaging metadata for both engines. The package path stages the TypeScript engine assets and a
+manifest that records capability flags and the staged Java CLI artifact's size and SHA-256 when
+present. Source/build evidence for the current Issue #78 state was not run in this documentation
+pass, and the packaged dual-engine proof remains pending: the next owner must build the real
+installer, verify both artifacts from the packaged output, and render one project through each
+engine without silent fallback.
 
 </details>
 

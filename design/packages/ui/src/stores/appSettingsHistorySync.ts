@@ -121,6 +121,7 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "autoScroll", owner: "components/scroll/autoScrollPrefs.ts" },
     { key: "renderMemory", owner: "components/settings/renderMemorySetting.ts" },
     { key: "downloadConcurrency", owner: "components/settings/downloadConcurrencySetting.ts" },
+    { key: "renderEngineChoice", owner: "components/settings/engineChoice.ts" },
     { key: "uiSize", owner: "components/settings/uiSizeSetting.ts" },
     // The choice itself lives in the viewer's own `bluemap-theme` record (see
     // `themeSetting.ts`'s doc comment on why that record is shared rather than doubled);

@@ -63,6 +63,7 @@ describe("upstreamJavaEngine", () => {
         expect(resolved).toEqual({
             engine: "upstream-java",
             engineVersion: "5.22-27",
+            launch: "java-cli",
             enginePath: "/jars/cli-5.22-27-shadow.jar",
             javaExecutable: "/jdk/bin/java",
             javaVersion: "25.0.3",

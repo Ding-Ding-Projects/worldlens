@@ -28,7 +28,7 @@ import {
     type RemoteProfile,
 } from "@worldlens/server";
 import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
-import { upstreamJavaEngine } from "./render/engine.js";
+import { typescriptEngine, upstreamJavaEngine } from "./render/engine.js";
 import { installRenderIpc } from "./render/ipc.js";
 import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
@@ -526,15 +526,23 @@ function startRendering(): RenderIpc {
         screenshotStorage === undefined || screenshotStorage === ""
             ? (windowsDefault?.directory ?? defaultStorageDirectory(userData))
             : screenshotStorage;
+    const javaResolver = upstreamJavaEngine({
+        dataDir: userData,
+        resourcesPath: app.isPackaged ? process.resourcesPath : null,
+    });
+    const typescriptResolver = typescriptEngine({
+        resourcesPath: app.isPackaged ? process.resourcesPath : null,
+        repositoryRoot: process.cwd(),
+    });
+    const resolveEngine = (choice: "upstream-java" | "typescript") =>
+        choice === "typescript" ? typescriptResolver(choice) : javaResolver(choice);
+
     const render = installRenderIpc({
         storageDir,
         defaultStorageDir: storageDir,
         environment: { home: app.getPath("home"), appData: process.env.APPDATA },
         mounts: localMaps,
-        resolveEngine: upstreamJavaEngine({
-            dataDir: userData,
-            resourcesPath: app.isPackaged ? process.resourcesPath : null,
-        }),
+        resolveEngine,
         appVersion: app.getVersion(),
         // A lazy call to the repair singleton rather than the singleton itself, so this
         // does not care whether `startRepairDiagnostics()` has run yet - it is idempotent

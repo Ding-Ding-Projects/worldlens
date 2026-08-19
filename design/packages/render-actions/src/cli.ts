@@ -527,6 +527,7 @@ async function commandConfig(args: Args): Promise<number> {
         ["world-dir", location.worldDirectory],
         ["map-config-source", written.mapConfigSource],
         ["map-config-reason", written.mapConfigReason],
+        ["render-engine", projectMap.engine],
     ]);
 
     process.stdout.write(JSON.stringify(written) + "\n");

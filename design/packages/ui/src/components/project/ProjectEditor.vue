@@ -30,6 +30,7 @@ import {
     type FieldMeta,
     type PlainValue,
     type ProjectFile,
+    type ProjectRenderEngine,
     type ResolvedCliActions,
 } from "@worldlens/config";
 import PathField from "../PathField.vue";
@@ -44,6 +45,7 @@ import { SimpleHistoryList } from "../history/index.js";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectRenderOption from "./ProjectRenderOption.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
+import EngineChoicePanel from "../settings/EngineChoicePanel.vue";
 import { resolveProjectHistoryHost } from "./projectHost.js";
 import { readNavigatorCollapsed, writeNavigatorCollapsed } from "./navigatorCollapse.js";
 import { editorSettingCount, savePlanFacts } from "./projectFacts.js";
@@ -127,6 +129,9 @@ const props = withDefaults(
         rendering?: boolean;
         /** True when the app's one Mojang-download consent record was accepted. */
         consentAccepted?: boolean;
+        /** Live Java capability discovered by the desktop bridge; null means this build cannot probe it. */
+        javaAvailable?: boolean | null;
+        javaVersion?: string | null;
         separator?: string;
         /** Where the app writes renders, used as the root of a new file storage. */
         defaultRoot?: string;
@@ -145,6 +150,8 @@ const props = withDefaults(
         canRender: false,
         rendering: false,
         consentAccepted: false,
+        javaAvailable: null,
+        javaVersion: null,
         separator: "/",
         defaultRoot: "",
     },
@@ -1016,6 +1023,10 @@ function setRenderRoute(value: "local" | "github-actions" | null): void {
     emit("update:project", withRender(props.project, { route: value }));
 }
 
+function setRenderEngine(value: ProjectRenderEngine): void {
+    emit("update:project", withRender(props.project, { engine: value }));
+}
+
 /* -------------------------------------------------------------------------- */
 /* The complete standalone CLI model                                          */
 /* -------------------------------------------------------------------------- */
@@ -1441,6 +1452,15 @@ const renderButtonLabel = computed(() =>
                                         t("project.render.options", "Render options")
                                     }}</span>
                                 </div>
+
+                                <EngineChoicePanel
+                                    :project-key="plan.file"
+                                    :project-name="project.name"
+                                    :java-available="props.javaAvailable"
+                                    :java-version="props.javaVersion"
+                                    :project-engine="project.render.engine"
+                                    @update:project-engine="setRenderEngine"
+                                />
 
                                 <ProjectRenderOption
                                     v-if="showsRun('route')"

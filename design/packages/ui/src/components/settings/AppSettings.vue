@@ -18,6 +18,7 @@ import DependencyInstallerPanel from "./DependencyInstallerPanel.vue";
 import BlueMapSourceRow from "./BlueMapSourceRow.vue";
 import { blueMapSourceSearchValues } from "./bluemapSourceStore.js";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
+import EngineChoicePanel from "./EngineChoicePanel.vue";
 import SettingsSection from "./SettingsSection.vue";
 import StorageSettingRow from "./StorageSettingRow.vue";
 import SurfacePlacementRow from "./SurfacePlacementRow.vue";
@@ -163,6 +164,7 @@ const tabsNav = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const consentRow = ref<InstanceType<typeof ConsentSettingsRow> | null>(null);
 const consentSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const javaSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const renderEngineChoiceSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const storageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const worldSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const githubSection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -271,6 +273,20 @@ const sections = computed<SettingsSectionText[]>(() => {
             title: text["java-runtime"].title,
             description: text["java-runtime"].description,
             values: javaValues,
+        },
+        {
+            anchor: "render-engine-choice",
+            title: text["render-engine-choice"].title,
+            description: text["render-engine-choice"].description,
+            values: [
+                "BlueMap original engine",
+                "Worldlens app engine",
+                "Automatic",
+                "JVM",
+                "provenance",
+                "capabilities",
+                "unsupported",
+            ],
         },
         {
             anchor: "map-storage-directory",
@@ -526,6 +542,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return consentSection.value;
         case "java-runtime":
             return javaSection.value;
+        case "render-engine-choice":
+            return renderEngineChoiceSection.value;
         case "map-storage-directory":
             return storageSection.value;
         case "world-folder":
@@ -835,6 +853,20 @@ function onDrawer(value: boolean): void {
                         <JavaRuntimeRow
                             :setting="java"
                             :missing="props.anchor === 'java-runtime' && props.anchorMissing"
+                        />
+                    </SettingsSection>
+                </template>
+
+                <template #render-engine-choice>
+                    <SettingsSection
+                        ref="renderEngineChoiceSection"
+                        anchor="render-engine-choice"
+                        :title="copy['render-engine-choice'].title"
+                        :description="copy['render-engine-choice'].description"
+                    >
+                        <EngineChoicePanel
+                            :java-available="java.state.value === 'found'"
+                            :java-version="java.report.value?.installation?.version.version ?? null"
                         />
                     </SettingsSection>
                 </template>

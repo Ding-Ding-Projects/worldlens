@@ -34,6 +34,7 @@ import type {
 import type { SpeedLevelNumber } from "../runtime/speedControl.js";
 import { describeEngine, readRenderRecord } from "./provenance.js";
 import type { RenderRecord } from "./provenance.js";
+import type { RenderEngineId } from "./provenance.js";
 import { findInterruptedRenders, planResume } from "./resume.js";
 import type { InterruptedRenderSummary, ResumeRefused } from "./resume.js";
 import { RenderSessionStore } from "./session.js";
@@ -72,7 +73,7 @@ export interface RenderIpcOptions {
     readonly defaultStorageDir: string;
     /** Home and `%APPDATA%`, for expanding the token form the setup step stores. */
     readonly environment: { readonly home: string; readonly appData?: string | undefined };
-    readonly resolveEngine: () => Promise<ResolvedEngine>;
+    readonly resolveEngine: (engine: RenderEngineId) => Promise<ResolvedEngine>;
     readonly mounts: LocalMapHandler;
     readonly appVersion?: string | null;
     /** Overridable so a test can watch what was broadcast. Defaults to every window. */

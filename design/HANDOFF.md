@@ -1,5 +1,11 @@
 # Handoff
 
+## Issue #78 per-project render engine choice — 2026-08-19
+
+The schema, UI, local runtime adapter, packaging manifest, resume path, history and provenance use
+canonical engine ids. Builds and focused suites pass; packaged dual-engine artifact proof remains
+open.
+
 ## Issue #65 standalone CLI parity — 2026-08-19
 
 Resource-root precedence, installed extension assets, SQL adapter selection, credential-safe

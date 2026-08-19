@@ -1,5 +1,10 @@
 # Roadmap
 
+## Issue #78 — render engine selection
+
+Source implementation and focused verification are complete. The remaining acceptance record is a
+same-project packaged Java/TypeScript output and provenance comparison.
+
 ## Issue #57 — cloud-first project configuration (implementation in progress)
 
 The cloud-render setup now has a guided path for a world without a project file. It generates the

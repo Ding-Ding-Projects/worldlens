@@ -53,6 +53,7 @@ import {
 } from "../config/configHost.js";
 import { provideSettingsOpener } from "../downloads/index.js";
 import { raiseNotice } from "../../stores/notices.js";
+import { createJavaSetting } from "../settings/javaSetting.js";
 
 /**
  * Projects: the list of them, the editor for one, and the render one starts.
@@ -113,6 +114,13 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const java = createJavaSetting();
+const javaAvailable = computed<boolean | null>(() => {
+    if (!java.supported) return null;
+    if (java.state.value === "found") return true;
+    if (java.state.value === "missing") return false;
+    return null;
+});
 
 const host = props.host === undefined ? resolveProjectHost() : props.host;
 const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
@@ -194,6 +202,7 @@ watch(
 onMounted(async () => {
     void reload();
     void refreshConsent(bridge);
+    void java.load();
     try {
         const directory = await readStorageDirectory(optional);
         defaultRoot.value = directory?.current ?? "";
@@ -829,6 +838,8 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :can-render="bridge !== null || projectRenderRoute(openProject) === 'github-actions'"
             :rendering="run.active.value"
             :consent-accepted="consentIsAccepted"
+            :java-available="javaAvailable"
+            :java-version="java.report.value?.installation?.version.version ?? null"
             :separator="separator"
             :default-root="defaultRoot"
             @update:project="(value) => (openProject = value)"

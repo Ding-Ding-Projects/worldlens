@@ -1,5 +1,13 @@
 # Handoff
 
+## Issue #78 per-project render engine choice — 2026-08-19
+
+Projects persist canonical `typescript` or `upstream-java` intent. New projects default to the
+no-JVM TypeScript route; legacy files migrate to Java behavior. Local desktop rendering has a real
+TypeScript launch adapter, resume/provenance carry the engine, and explicit choices never silently
+fall back. The relevant workspace build and focused render/project/settings suites pass. Packaged
+same-project comparison across both engines remains the final issue-specific acceptance step.
+
 ## Issue #65 standalone CLI parity — 2026-08-19
 
 The standalone CLI now uses upstream resource precedence, scans direct mod jars, resolves

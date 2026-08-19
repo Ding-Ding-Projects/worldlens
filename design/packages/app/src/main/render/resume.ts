@@ -246,6 +246,9 @@ export type ResumeDecision = ResumePlan | ResumeRefused;
 export function resumeRequestFor(session: RenderSession): RenderRequest {
     return {
         renderId: session.renderId,
+        // A resume is a continuation of the same engine, never an opportunity to
+        // reinterpret a project default after the app has restarted.
+        engine: session.engine,
         maps: session.maps.map((map) => ({
             id: map.id,
             world: map.world,

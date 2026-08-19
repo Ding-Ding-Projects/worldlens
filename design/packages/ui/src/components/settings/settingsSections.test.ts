@@ -46,6 +46,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: [],
     },
     {
+        anchor: "render-engine-choice",
+        title: "Render engine choice",
+        description: "Choose Automatic, the BlueMap original engine, or the Worldlens app engine.",
+        values: ["Automatic", "upstream-java", "typescript", "JVM", "capabilities"],
+    },
+    {
         anchor: "github-account",
         title: "GitHub account",
         description: "Signing in lets the app reach private repositories.",
@@ -198,6 +204,7 @@ describe("every section the surface renders", () => {
             "java-runtime",
             "map-storage-directory",
             "world-folder",
+            "render-engine-choice",
             "github-account",
             "language-and-tone",
             "display",

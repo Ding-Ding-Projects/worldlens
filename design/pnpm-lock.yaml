@@ -41,6 +41,9 @@ importers:
       '@worldlens/config':
         specifier: workspace:*
         version: link:../config
+      '@worldlens/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@worldlens/nbt':
         specifier: workspace:*
         version: link:../nbt

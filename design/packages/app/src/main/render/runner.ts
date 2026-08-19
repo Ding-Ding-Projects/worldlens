@@ -104,6 +104,37 @@ export interface CliRunResult {
     readonly durationMs: number;
 }
 
+/** Options for the standalone TypeScript engine driver. */
+export interface TypeScriptRunOptions {
+    readonly nodeExecutable: string;
+    readonly driverPath: string;
+    readonly enginePath: string;
+    readonly world: string;
+    readonly mapId: string;
+    readonly mapName: string;
+    readonly dimension: string;
+    readonly storageRoot: string;
+    readonly clientJar?: string | null;
+    readonly resourceExtensions?: string | null;
+    readonly cwd: string;
+    readonly force?: boolean;
+    readonly spawn?: SpawnCli;
+    readonly onSignal?: (signal: RenderSignal, stream: "stdout" | "stderr") => void;
+}
+
+export interface TypeScriptRunResult {
+    readonly exitCode: number | null;
+    readonly signal: NodeJS.Signals | null;
+    readonly cancelled: boolean;
+    readonly upToDate: boolean;
+    readonly mapsScheduled: number | null;
+    readonly consentMissing: boolean;
+    readonly diagnostics: readonly string[];
+    readonly setupProblems: readonly string[];
+    readonly mapsLoaded: readonly string[];
+    readonly durationMs: number;
+}
+
 /** How long a polite stop is given before the process is killed outright. */
 export const CANCEL_GRACE_MS = 8_000;
 
@@ -325,6 +356,172 @@ export class CliRun {
             consentMissing: this.consentMissing,
             setupProblems: [...this.setupProblems],
             diagnostics: [...this.diagnostics],
+            durationMs: Date.now() - startedAt,
+        };
+    }
+}
+
+/**
+ * Runs `tools/oracle/render-ts.mjs` as the desktop app's no-JVM adapter.
+ *
+ * The driver is deliberately a separate process: the engine owns wasm and other module
+ * state, and an interrupted render must not poison Electron's main process. Its JSON result
+ * is converted into the same outcome shape as the Java CLI, while synthetic phase/progress
+ * signals keep the existing render UI truthful during the run.
+ */
+export class TypeScriptRun {
+    private readonly options: TypeScriptRunOptions;
+    private child: CliChildProcess | null = null;
+    private cancelRequested = false;
+    private finished = false;
+
+    constructor(options: TypeScriptRunOptions) {
+        this.options = options;
+    }
+
+    arguments(): string[] {
+        const options = this.options;
+        const args = [
+            options.driverPath,
+            "--engine",
+            options.enginePath,
+            "--world",
+            options.world,
+            "--map-id",
+            options.mapId,
+            "--map-name",
+            options.mapName,
+            "--dimension",
+            options.dimension,
+            "--storage-root",
+            options.storageRoot,
+        ];
+        if (options.clientJar !== undefined && options.clientJar !== null) args.push("--client-jar", options.clientJar);
+        if (options.resourceExtensions !== undefined && options.resourceExtensions !== null)
+            args.push("--resource-extensions", options.resourceExtensions);
+        return args;
+    }
+
+    async start(): Promise<TypeScriptRunResult> {
+        const startedAt = Date.now();
+        if (this.cancelRequested) return this.result(null, null, startedAt, ["The render was cancelled before it started."]);
+
+        const diagnostics: string[] = [];
+        let child: CliChildProcess;
+        try {
+            child = (this.options.spawn ?? defaultSpawn)(this.options.nodeExecutable, this.arguments(), {
+                cwd: this.options.cwd,
+                env: process.env,
+            });
+        } catch (error) {
+            return this.result(null, null, startedAt, [describe(error)]);
+        }
+        this.child = child;
+        this.options.onSignal?.({ kind: "phase", phase: "starting" }, "stdout");
+        this.options.onSignal?.({ kind: "maps-scheduled", count: 1 }, "stdout");
+        this.options.onSignal?.(
+            {
+                kind: "progress",
+                progress: {
+                    kind: "updating-map",
+                    mapId: this.options.mapId,
+                    description: `updating map '${this.options.mapId}'`,
+                    percent: 0,
+                    etaSeconds: null,
+                    etaText: null,
+                },
+            },
+            "stdout",
+        );
+
+        let stdout = "";
+        const read = async (stream: NodeJS.ReadableStream, which: "stdout" | "stderr"): Promise<void> => {
+            stream.setEncoding("utf8");
+            for await (const chunk of stream as AsyncIterable<string>) {
+                if (which === "stdout") stdout += chunk;
+                else {
+                    const text = chunk.trim();
+                    if (text.length > 0) diagnostics.push(text);
+                }
+            }
+        };
+        const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+            child.once("error", (error) => {
+                diagnostics.push(describe(error));
+                resolve({ code: null, signal: null });
+            });
+            child.once("close", (code, signal) => resolve({ code, signal }));
+        });
+        await Promise.all([read(child.stdout, "stdout"), read(child.stderr, "stderr")]);
+        this.finished = true;
+
+        let payload: Record<string, unknown> | null = null;
+        for (const line of stdout.split(/\r?\n/).map((value) => value.trim()).filter(Boolean)) {
+            try {
+                const parsed: unknown = JSON.parse(line);
+                if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) payload = parsed as Record<string, unknown>;
+            } catch {
+                diagnostics.push(line);
+            }
+        }
+        const status = payload?.status;
+        if (status === "rendered") {
+            const tiles = typeof payload.tiles === "number" && Number.isFinite(payload.tiles) ? payload.tiles : 0;
+            this.options.onSignal?.({ kind: "map-loaded", mapId: this.options.mapId }, "stdout");
+            this.options.onSignal?.(
+                {
+                    kind: "progress",
+                    progress: {
+                        kind: "updating-map",
+                        mapId: this.options.mapId,
+                        description: `updating map '${this.options.mapId}'`,
+                        percent: 100,
+                        etaSeconds: 0,
+                        etaText: "0 seconds",
+                    },
+                },
+                "stdout",
+            );
+            this.options.onSignal?.({ kind: "up-to-date" }, "stdout");
+            return {
+                ...this.result(exit.code, exit.signal, startedAt, diagnostics),
+                mapsScheduled: tiles > 0 ? 1 : 0,
+                upToDate: true,
+                mapsLoaded: [this.options.mapId],
+            };
+        }
+        const reason = typeof payload?.reason === "string" ? payload.reason : `The TypeScript engine returned status '${String(status ?? "unknown")}'.`;
+        diagnostics.push(reason);
+        return this.result(exit.code === 0 ? 1 : exit.code, exit.signal, startedAt, diagnostics);
+    }
+
+    cancel(): void {
+        if (this.cancelRequested) return;
+        this.cancelRequested = true;
+        if (this.child !== null && !this.finished && this.child.exitCode === null) this.child.kill("SIGINT");
+    }
+
+    pid(): number | null {
+        if (this.child === null || this.finished || this.child.exitCode !== null) return null;
+        return typeof this.child.pid === "number" ? this.child.pid : null;
+    }
+
+    private result(
+        exitCode: number | null,
+        signal: NodeJS.Signals | null,
+        startedAt: number,
+        diagnostics: readonly string[],
+    ): TypeScriptRunResult {
+        return {
+            exitCode,
+            signal,
+            cancelled: this.cancelRequested,
+            upToDate: false,
+            mapsScheduled: null,
+            consentMissing: false,
+            diagnostics: [...diagnostics],
+            setupProblems: [],
+            mapsLoaded: [],
             durationMs: Date.now() - startedAt,
         };
     }

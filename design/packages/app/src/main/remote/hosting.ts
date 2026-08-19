@@ -59,6 +59,7 @@ import { writeEngineConfig } from "../runtime/config.js";
 import { tcpPortProbe, type PortProbe } from "../runtime/portProbe.js";
 import type { RenderMapRequest } from "../render/config.js";
 import type { ResolvedEngine } from "../render/orchestrator.js";
+import { unsupportedEngineRoute } from "../render/engineChoice.js";
 import { renderWorkspace } from "../render/workspace.js";
 import * as failures from "./failure.js";
 import type { RemoteFailure } from "./failure.js";
@@ -96,6 +97,8 @@ export interface RemoteHostRequest {
      * that was already rendered still needs the world it was rendered from.
      */
     readonly maps: readonly RenderMapRequest[];
+    /** Concrete engine choice; absent preserves the legacy Java route. */
+    readonly engine?: "upstream-java" | "typescript";
     readonly publish: RemoteHostingPublish;
     readonly requiredBytes?: number;
     readonly containerUser?: string | null;
@@ -199,7 +202,7 @@ export interface RemoteHostingOrchestratorOptions {
     /** Where hosting records live. Never inside a render's own folder. */
     readonly workRoot: string | (() => string);
     /** The engine to send. Only `enginePath` is used; no JDK is needed here. */
-    readonly resolveEngine: () => Promise<ResolvedEngine>;
+    readonly resolveEngine: (engine: RemoteHostRequest["engine"]) => Promise<ResolvedEngine>;
     readonly knownHostsFile: string;
     readonly userKnownHostsFile?: string | null;
     readonly ssh?: string;
@@ -279,11 +282,14 @@ export class RemoteHostingOrchestrator {
         const name = describeTarget(target);
         const hostingId = request.hostingId;
         const startedAt = this.clock().getTime();
+        const requestedEngine = request.engine ?? "upstream-java";
 
         const firstMap = request.maps[0];
         if (request.maps.length === 0 || firstMap === undefined) {
             return this.fail(hostingId, failures.invalidTarget("Hosting a map needs at least one map."));
         }
+        const unsupported = unsupportedEngineRoute(requestedEngine, "docker");
+        if (unsupported !== null) return this.fail(hostingId, failures.invalidTarget(unsupported));
 
         this.emit({ type: "started", hostingId, target: name, at: this.stamp() });
         this.phase(hostingId, "preflight");
@@ -305,9 +311,27 @@ export class RemoteHostingOrchestrator {
 
         let engine: ResolvedEngine;
         try {
-            engine = await this.options.resolveEngine();
+            engine = await this.options.resolveEngine(requestedEngine);
         } catch (error) {
             return this.fail(hostingId, failures.invalidTarget(sentence(error)));
+        }
+        if (engine.engine !== requestedEngine) {
+            return this.fail(
+                hostingId,
+                failures.invalidTarget(
+                    "The resolver returned a different engine than the project selected. " +
+                        "Nothing was uploaded and no fallback was used.",
+                ),
+            );
+        }
+        if (engine.launch !== "java-cli" || engine.enginePath === null) {
+            return this.fail(
+                hostingId,
+                failures.invalidTarget(
+                    "The selected render engine has no remote container artifact in this build. " +
+                        "Nothing was uploaded and no other engine was chosen.",
+                ),
+            );
         }
 
         const paths = remotePaths(check.workDir, `host-${hostingId}`);
