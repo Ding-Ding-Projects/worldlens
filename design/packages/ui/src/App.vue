@@ -103,6 +103,7 @@ import LockList from "./components/locks/LockList.vue";
 import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensionScreen.vue";
 import { resolveLockHost } from "./components/locks/useLocks.js";
 import SupportTickets from "./components/locks/SupportTickets.vue";
+import { RemoteHostingScreen } from "./components/remote/index.js";
 import {
     dropRenderHostMissingReason,
     useDropRenderHost,
@@ -332,6 +333,7 @@ const PAGE_WORLDREPO = "worldrepo";
 const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
 const PAGE_OLLAMA = "ollama";
+const PAGE_REMOTE_HOSTING = "remoteHosting";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -495,6 +497,7 @@ const pages = computed<TabPage[]>(() => [
     // chatting and hardware fit are a whole workflow of their own, exactly as GitHub runners
     // and Structures earned their own tabs above for the same reason.
     { id: PAGE_OLLAMA, label: t("ollama.title", "Ollama"), icon: mdiRobotOutline },
+    { id: PAGE_REMOTE_HOSTING, label: t("tabs.page.remoteHosting", "Remote hosting"), icon: mdiCloudUploadOutline },
 ]);
 
 /**
@@ -1979,6 +1982,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     </div>
                 </template>
 
+                <template #remoteHosting>
+                    <RemoteHostingScreen />
+                </template>
+
                 <template #memory>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
@@ -2410,6 +2417,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <div class="mb-world-host mb-interactive">
                                 <OllamaScreen />
                             </div>
+                        </template>
+
+                        <template #remoteHosting>
+                            <RemoteHostingScreen />
                         </template>
 
                         <!--

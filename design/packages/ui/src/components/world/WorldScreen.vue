@@ -538,7 +538,7 @@ async function resume(renderId: string): Promise<void> {
             below the run panel rather than beside the location card above.
         -->
         <RemoteHostingPanel
-            v-if="runTarget !== null && run.renderId.value !== null && lastMaps.length > 0"
+            v-if="run.state.value === 'finished' && runTarget !== null && run.renderId.value !== null && lastMaps.length > 0"
             :target="runTarget"
             :render-id="run.renderId.value"
             :maps="lastMaps"

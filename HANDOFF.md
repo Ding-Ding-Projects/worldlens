@@ -1,5 +1,39 @@
 # Handoff
 
+## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
+
+This documentation-only lane records the exact adapter matrix from upstream
+BlueMap `v5.23`, pinned at `4c4cbc291b361ceff6ee239448e9f988f9019dbb`, and links
+the published jar/hash record in [Worldlens v1.0.1233](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1233).
+The durable record is [`docs/server-adapter-smoke.md`](docs/server-adapter-smoke.md).
+
+The existing `tools/build-jars.mjs`, `tools/describe-jars.mjs`, and
+`.github/workflows/build-jars.yml` prove build/package structure and release
+traceability. The plan-first `tools/server-adapter-smoke/smoke.mjs` contract
+enumerates the six adapters and required positive/negative cases. Its checked-in
+source-SHA/version matrix is populated, but no `--execute` report exists.
+
+No real server, plugin discovery/startup, config generation, live render/update,
+HTTP endpoint, clean shutdown, restart persistence, negative fixture, test, or
+capture was run in this lane. No private server data was accessed or recorded.
+Issue #83 therefore remains open. The next owner must run the exact published jar
+bytes in isolated disposable server environments, record the release asset hash
+and source SHA beside each result, and retain redacted logs, durations, resource
+measurements, endpoint/render results, restart receipts, and negative-case outcomes.
+
+## Issue #84 — remote-hosting navigation and wiring records (2026-08-19)
+
+The main/preload `hosting:*` bridge is present, and the panel retains publish, refresh, verification,
+progress, and super-confirmed stop behavior. Commit `8e78a95c` added the dedicated
+`RemoteHostingScreen.vue`/`remoteHosting` tab with saved-target and completed-render selection,
+corrected the catalogue route, and registered the command-palette destination. It is not yet
+packaged, captured, or accepted runtime evidence.
+
+This records-only lane intentionally ran no tests and took no captures. No implementation, packaged
+application interaction, isolated-host publish/refresh/stop, merge, push, or cleanup was performed.
+Issue #84 remains open until the navigation/wiring work and genuine packaged isolated-host proof are
+available.
+
 ## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
 
 This records-only pass preserves issue #85 as open and unverified. The three feature documents

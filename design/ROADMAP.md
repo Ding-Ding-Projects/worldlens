@@ -28,6 +28,15 @@ metadata、Temurin `jdk-25.0.4+7`、SHA-256、staged extraction 同 extracted `j
 再由 app orchestrator 真係做 1000×1000 / 961-hires-tile render 去 viewer。今次淨係改文檔，
 冇跑 tests、冇 packaged runtime interaction、冇 cheap-headless capture，唔當有新 verdict。
 
+## Issue #84 — remote-hosting navigation and wiring boundary (2026-08-19)
+
+The main/preload `hosting:*` seam is present, and commit `8e78a95c` adds the dedicated
+`remoteHosting` tab, `RemoteHostingScreen.vue`, saved-target and completed-render context,
+corrected catalogue route, and command-palette destination. Genuine packaged isolated-host
+publish/refresh/stop evidence remains required before closure.
+
+This records-only pass intentionally ran no tests and took no captures. Issue #84 remains open.
+
 ## Issue #85 — SSH flow acceptance boundary (2026-08-19)
 
 The SSH world-source, remote-render, and remote-hosting implementation remains fake-host and

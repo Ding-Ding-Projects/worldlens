@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "adapters": {
+    "fabric": {
+      "artifact": "C:/reviewed-artifacts/bluemap-5.22-27-fabric.jar",
+      "server": { "command": "C:/fixtures/fabric/start.bat", "args": ["--port", "${PORT}", "--fixture-root", "C:/fixtures/fabric" ] },
+      "endpoint": { "url": "http://127.0.0.1:${PORT}/", "method": "GET", "expectedStatus": 200 },
+      "markers": { "discovery": "BlueMap", "config": "config/core.conf", "render": "web/maps/test/index.html", "update": "web/maps/test/updated.marker" },
+      "negative": {
+        "missing-dependency": { "remove": ["mods/required-dependency.jar"], "expected": "dependency" },
+        "incompatible-dependency": { "replace": ["mods/required-dependency.jar"], "expected": "incompatible" },
+        "wrong-game-version": { "serverArgs": ["--game-version", "WRONG"], "expected": "version" },
+        "port-conflict": { "occupyEndpoint": true, "expected": "port" },
+        "corrupt-config": { "write": ["config/core.conf"], "contents": "{not-json", "expected": "config" },
+        "permission-failure": { "readOnly": ["config"], "expected": "permission" }
+      }
+    }
+  }
+}

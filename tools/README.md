@@ -24,9 +24,26 @@ not claim to be it. Everything published says so, including the release notes.
 | `spigot` | `bluemap-<version>-spigot.jar` | Spigot, Bukkit and CraftBukkit servers, in `plugins/`. |
 | `sponge` | `bluemap-<version>-sponge.jar` | A Sponge server, in `plugins/`. |
 
-The supported Minecraft versions are **not** written down here. They live in each
-implementation's `build.gradle.kts` in the vendored source and are read from there at
-build time, so they cannot go stale when the submodule pointer moves.
+The exact supported Minecraft versions and loader/API versions are read from each
+implementation's `build.gradle.kts` in the vendored source at build time. For the current
+vendored source, the compatibility contract is:
+
+| Adapter | Minecraft versions | Loader/server contract |
+| --- | --- | --- |
+| Fabric | `26.1`, `26.1.1`, `26.1.2`, `26.2` | Fabric Loader `0.18.4`; Fabric API `0.144.0+26.1`; install in `mods/` |
+| Forge | `26.1`, `26.1.1`, `26.1.2`, `26.2` | Forge `62.0.1`; install in `mods/` |
+| NeoForge | `26.1`, `26.1.1`, `26.1.2`, `26.2` | NeoForge `26.1.0.0-alpha.15+pre-3`; install in `mods/` |
+| Paper | `26.1.1`, `26.1.2`, `26.2` | Paper API `26.1.1`, Paper `26.1.1.build.29-alpha`; Paper/Purpur/Folia; install in `plugins/` |
+| Spigot | `26.1`, `26.1.1`, `26.1.2`, `26.2` | Spigot API `1.16`, Spigot `1.16.5-R0.1-SNAPSHOT`; Spigot/Bukkit/CraftBukkit; install in `plugins/` |
+| Sponge | `26.1`, `26.1.1`, `26.1.2`, `26.2` | Sponge API `17.0.0`, Java plain loader `1.0`; install as a plugin |
+
+The table is explanatory only; the release contract is the generated `bluemap-jars.json`.
+Each adapter record contains `minecraftVersions`, `adapterContract.loaderFamily`, exact
+`loaderVersions`, the vendored source path, the upstream `source.commit` SHA, and both
+`artifactSha256` (the published jar) and `sha256` (legacy alias). A smoke result is valid
+only when its server/game/loader tuple names one of those exact values, its jar hash matches
+the release index, and its source SHA matches `upstream.sourceSha`. Unknown or missing source
+metadata is not a passing compatibility claim.
 
 ### `build-jars.mjs`
 

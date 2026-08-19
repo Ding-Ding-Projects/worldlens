@@ -603,8 +603,8 @@ const SHARE_FEATURES: readonly CatalogueFeatureDefinition[] = [
         nameFallback: "Remote hosting",
         blurbKey: "catalogue.share.remoteHosting.blurb",
         blurbFallback:
-            "Any static host that can serve a folder, with client-side decompression enabled before publishing so compressed tiles resolve.",
-        target: { kind: "job", jobId: "pages", reveal: "remote-hosting" },
+            "Publishes a finished render to a saved SSH target in Docker, verifies the live address, and keeps republish and stop controls together.",
+        target: { kind: "job", jobId: "remoteHosting" },
     }),
     feature("publishing", {
         key: "share.publishing.pages-feature-parity",

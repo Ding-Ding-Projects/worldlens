@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "project": "worldlens",
+  "upstream": {
+    "repository": "https://github.com/BlueMap-Minecraft/BlueMap",
+    "sourceSha": "4c4cbc291b361ceff6ee239448e9f988f9019dbb",
+    "artifactIndex": "../oracle/out/jars/bluemap-jars.json"
+  },
+  "execution": {
+    "default": "plan",
+    "platform": "windows",
+    "requiresExplicitLicenseFile": true,
+    "requiresLocalArtifacts": true,
+    "network": "server-local-only"
+  },
+  "adapters": [
+    {
+      "id": "fabric", "loader": "Fabric", "sourceSha": "4c4cbc291b361ceff6ee239448e9f988f9019dbb", "installDirectory": "mods", "artifact": { "fileName": "bluemap-5.23-fabric.jar", "sha256": "33f171232a1055c6ad6508a1e37f3c8f95c4e56d5f80577a152d007d98c7574b" },
+      "versions": {
+        "game": ["26.1", "26.1.1", "26.1.2", "26.2"],
+        "loader": ["fabric-loader@0.18.4", "fabric-api@0.144.0+26.1"],
+        "server": ["Fabric server / Minecraft 26.1", "Fabric server / Minecraft 26.1.1", "Fabric server / Minecraft 26.1.2", "Fabric server / Minecraft 26.2"]
+      }
+    },
+    {
+      "id": "forge", "loader": "Forge", "sourceSha": "4c4cbc291b361ceff6ee239448e9f988f9019dbb", "installDirectory": "mods", "artifact": { "fileName": "bluemap-5.23-forge.jar", "sha256": "5e2d367acd24711ab5e490e475f6769921e7f99828645df7ad0940c87a3c4b22" },
+      "versions": {
+        "game": ["26.1", "26.1.1", "26.1.2", "26.2"],
+        "loader": ["Forge@62.0.1"],
+        "server": ["Forge server / Minecraft 26.1", "Forge server / Minecraft 26.1.1", "Forge server / Minecraft 26.1.2", "Forge server / Minecraft 26.2"]
+      }
+    },
+    {
+      "id": "neoforge", "loader": "NeoForge", "sourceSha": "4c4cbc291b361ceff6ee239448e9f988f9019dbb", "installDirectory": "mods", "artifact": { "fileName": "bluemap-5.23-neoforge.jar", "sha256": "92b6fd675dd7235b2c2eeee91d4338d865a17f1e0a8dc0449c9849446adb38b2" },
+      "versions": {
+        "game": ["26.1", "26.1.1", "26.1.2", "26.2"],
+        "loader": ["NeoForge@26.1.0.0-alpha.15+pre-3"],
+        "server": ["NeoForge server / Minecraft 26.1", "NeoForge server / Minecraft 26.1.1", "NeoForge server / Minecraft 26.1.2", "NeoForge server / Minecraft 26.2"]
+      }
+    },
+    {
+      "id": "paper", "loader": "Paper", "sourceSha": "4c4cbc291b361ceff6ee239448e9f988f9019dbb", "installDirectory": "plugins", "artifact": { "fileName": "bluemap-5.23-paper.jar", "sha256": "3f3f0e15f074f386ad29e4f217c3c559291d71fbf2aca5c252eaafc93ef481f7" },
+      "versions": {
+        "game": ["26.1.1", "26.1.2", "26.2"],
+        "loader": ["Paper API@26.1.1.build.29-alpha", "plugin API@26.1.1"],
+        "server": ["Paper 26.1.1", "Purpur 26.1.1", "Folia 26.1.1"]
+      }
+    },
+    {
+      "id": "spigot", "loader": "Spigot", "sourceSha": "4c4cbc291b361ceff6ee239448e9f988f9019dbb", "installDirectory": "plugins", "artifact": { "fileName": "bluemap-5.23-spigot.jar", "sha256": "42d169b3ea4b73089d4064bc9f508820adb5d912944f31737f7ab3da92e8bf3d" },
+      "versions": {
+        "game": ["26.1", "26.1.1", "26.1.2", "26.2"],
+        "loader": ["Spigot API@1.16", "Spigot@1.16.5-R0.1-SNAPSHOT"],
+        "server": ["Spigot 26.1", "Bukkit 26.1", "CraftBukkit 26.1", "Spigot 26.1.1", "Bukkit 26.1.1", "CraftBukkit 26.1.1", "Spigot 26.1.2", "Bukkit 26.1.2", "CraftBukkit 26.1.2", "Spigot 26.2", "Bukkit 26.2", "CraftBukkit 26.2"]
+      }
+    },
+    {
+      "id": "sponge", "loader": "Sponge", "sourceSha": "4c4cbc291b361ceff6ee239448e9f988f9019dbb", "installDirectory": "plugins", "artifact": { "fileName": "bluemap-5.23-sponge.jar", "sha256": "c93ad396b7beb9a410913e3079981209f95635ce8fea55844d1dbf1a133916de" },
+      "versions": {
+        "game": ["26.1", "26.1.1", "26.1.2", "26.2"],
+        "loader": ["Sponge API@17.0.0", "Java plain loader@1.0"],
+        "server": ["Sponge server / Minecraft 26.1", "Sponge server / Minecraft 26.1.1", "Sponge server / Minecraft 26.1.2", "Sponge server / Minecraft 26.2"]
+      }
+    }
+  ],
+  "requiredCases": [
+    "startup", "plugin-discovery", "config-generation", "render-update", "http-endpoint",
+    "clean-shutdown", "restart-persistence", "missing-dependency", "incompatible-dependency",
+    "wrong-game-version", "port-conflict", "corrupt-config", "permission-failure"
+  ]
+}

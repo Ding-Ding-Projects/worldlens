@@ -1,5 +1,30 @@
 # Roadmap
 
+## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
+
+The pinned upstream source is `vendor/BlueMap` `v5.23` at
+`4c4cbc291b361ceff6ee239448e9f988f9019dbb`. The exact supported Minecraft
+versions and loader/API inputs for Fabric, Forge, NeoForge, Paper, Spigot, and
+Sponge are recorded in [`docs/server-adapter-smoke.md`](docs/server-adapter-smoke.md).
+Release `v1.0.1233` provides the published jar names and SHA-256 asset record. A
+plan-first `tools/server-adapter-smoke/smoke.mjs` contract now enumerates the
+required cases and its checked-in source-SHA/version matrix is populated, but no
+`--execute` report exists. No server boot, plugin discovery, live
+render/update, endpoint, shutdown/restart, negative-case, test, or capture evidence
+was produced in this documentation-only update. Issue #83 remains open.
+
+## Issue #84 — remote-hosting navigation and wiring boundary (2026-08-19)
+
+- [x] Commit `8e78a95c` integrates the dedicated browser-style `remoteHosting` tab,
+      `RemoteHostingScreen.vue`, corrected catalogue route, and command-palette destination.
+- [ ] Supply real saved-target and completed-map pickers, then preserve publish, refresh, progress,
+      verification, stop, persistence, search/menu/inventory coverage, and focus-return behavior.
+- [ ] Verify publish/refresh/stop from the genuine packaged application against an isolated host
+      through the approved headless route, with real host evidence and captures.
+
+This records-only update ran no tests and took no captures. It records source navigation/wiring facts
+only; issue #84 remains open until the implementation and packaged isolated-host proof exist.
+
 ## Issue #86 — Docker world import against a real daemon
 
 The implementation and source documentation are present for daemon inventory, container and volume

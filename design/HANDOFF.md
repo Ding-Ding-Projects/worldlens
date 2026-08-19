@@ -31,6 +31,17 @@ digest 同 install time；之後 app-owned render receipt 要帶住 runtime prov
 config、Java process、progress/console、tiles 一路去 viewer。今次冇跑 tests、冇 packaged
 runtime interaction、冇 cheap-headless capture，亦冇新 runtime evidence；所以 issue 繼續 open。
 
+## Issue #84 — remote-hosting navigation and wiring records (2026-08-19)
+
+The main/preload `hosting:*` seam is present. Commit `8e78a95c` adds the dedicated
+`remoteHosting` tab and `RemoteHostingScreen.vue` with saved-target and completed-render context,
+gates the nested panel on finished renders, corrects the catalogue item, and registers the
+command-palette destination. It is not yet packaged, captured, or accepted runtime evidence.
+
+This records-only pass intentionally ran no tests and took no captures. No implementation, packaged
+runtime interaction, isolated-host publish/refresh/stop, merge, push, or cleanup was performed. Keep
+issue #84 open until the navigation work and genuine packaged isolated-host evidence are available.
+
 ## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
 
 Issue #85 remains open and `ported-unverified`. The required next evidence is a genuine packaged

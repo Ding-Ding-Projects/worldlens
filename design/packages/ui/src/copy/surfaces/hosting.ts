@@ -52,6 +52,7 @@ export const HOSTING_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const HOSTING_FIXED = {
+    "tabs.page.remoteHosting": { en: "Remote hosting", yue: "遠端寄存" },
     "hosting.title": { en: "Host this map on your own server", yue: "喺自己嘅伺服器度長開呢幅圖" },
     "hosting.start": { en: "Publish", yue: "發布" },
     "hosting.update": { en: "Republish", yue: "重新發布" },

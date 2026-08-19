@@ -21,6 +21,7 @@ application has. The in-app documentation browser groups them the same way, unde
 | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | [BlueMapGUI parity](./bluemapgui-parity.md)                           | A source-code audit of this application against BlueMapGUI, feature by feature, with the verdict and evidence for each. |
 | [SQL storage cross-engine compatibility](./sql-cross-engine-compatibility.md) | The issue-#66 acceptance contract for Java↔TypeScript PostgreSQL and SQLite storage exchange, pinned JDBC inputs, timestamp-aware comparison, cleanup, and the explicit unrun evidence table. |
+| [BlueMap server-adapter smoke evidence](./server-adapter-smoke.md) | Issue #83's pinned six-adapter version matrix, release-asset/source provenance, existing packaging-only harness boundary, and the explicit absence of real-server, test, and capture evidence. |
 
 ## The application
 
