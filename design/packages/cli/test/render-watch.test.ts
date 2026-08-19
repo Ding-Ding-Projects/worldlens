@@ -14,11 +14,12 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RenderManager, WatchService, type BmMap } from "@worldlens/engine";
+import { RenderManager, TileUpdateStrategy, WatchService, type BmMap } from "@worldlens/engine";
 import { MapUpdateService } from "@worldlens/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../src/logger.js";
-import { startWatchers } from "../src/render.js";
+import { runRender, startWatchers } from "../src/render.js";
+import { RenderDriver } from "@worldlens/server";
 import { blockingWatchService, buildFakeMap } from "./fixtures/fakeMap.js";
 
 let root: string;
@@ -136,6 +137,11 @@ describe("startWatchers: the full-update periodic timer (upstream's updateAllMap
         // updateAllMapsTask never forces a full re-render, only an incremental one)
         expect(renderManager.getScheduledRenderTaskCount()).toBe(2);
         expect(logger.infos).toContain("Start updating 2 map(s) ...");
+        expect(logger.infos.some((message) => message.startsWith("Periodic refresh queued 2/2 map(s)"))).toBe(true);
+        expect(renderManager.getScheduledRenderTasks().map((task) => (task as unknown as { getMap: () => BmMap }).getMap())).toEqual([
+            mapA,
+            mapB,
+        ]);
 
         await vi.advanceTimersByTimeAsync(5 * 60_000);
         expect(renderManager.getScheduledRenderTaskCount()).toBe(4);
@@ -161,6 +167,33 @@ describe("startWatchers: the full-update periodic timer (upstream's updateAllMap
         await vi.advanceTimersByTimeAsync(24 * 60 * 60_000);
         expect(renderManager.getScheduledRenderTaskCount()).toBe(0);
 
+        await watch.close();
+    });
+
+    it("skips a re-entrant interval tick while a periodic batch is active", async () => {
+        const map = await buildFakeMap("mapa", root, blockingWatchService);
+        const renderManager = new RenderManager();
+        const logger = recordingLogger();
+        let first = true;
+        const triggerBatchSpy = vi.spyOn(RenderDriver.prototype, "triggerUpdates").mockImplementation((maps, force, priority) => {
+            if (first) {
+                first = false;
+                vi.advanceTimersByTime(60_000);
+            }
+            return { requested: maps.length, scheduled: maps.length, priority };
+        });
+
+        const watch = startWatchers({
+            targets: [map],
+            renderManager,
+            updateCooldownSeconds: 60,
+            fullUpdateIntervalMinutes: 1,
+            logger,
+        });
+
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(triggerBatchSpy).toHaveBeenCalledTimes(1);
+        expect(logger.warns).toContain("Skipping overlapping periodic refresh; the previous batch is still active.");
         await watch.close();
     });
 });
@@ -193,6 +226,39 @@ describe("startWatchers: close()", () => {
         // idempotent: closing again must not throw
         await expect(watch.close()).resolves.toBeUndefined();
     });
+
+    it("clears periodic refresh before awaiting a slow watcher close, and remains idempotent", async () => {
+        vi.useFakeTimers();
+        try {
+            const map = await buildFakeMap("mapa", root, blockingWatchService);
+            const renderManager = new RenderManager();
+            const logger = recordingLogger();
+            const watch = startWatchers({
+                targets: [map],
+                renderManager,
+                updateCooldownSeconds: 60,
+                fullUpdateIntervalMinutes: 1,
+                logger,
+            });
+
+            let release!: () => void;
+            const closeGate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            vi.spyOn(watch.services[0]!, "close").mockReturnValue(closeGate);
+
+            const closing = watch.close();
+            await Promise.resolve();
+            await vi.advanceTimersByTimeAsync(5 * 60_000);
+            expect(renderManager.getScheduledRenderTaskCount()).toBe(0);
+
+            release();
+            await closing;
+            await expect(watch.close()).resolves.toBeUndefined();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });
 
 describe("startWatchers: adversarial — a map already closed/mid-render is not special-cased", () => {
@@ -205,7 +271,7 @@ describe("startWatchers: adversarial — a map already closed/mid-render is not 
         try {
             const map = await buildFakeMap("mapa", root, blockingWatchService);
             const renderManager = new RenderManager();
-            const scheduleSpy = vi.spyOn(renderManager, "scheduleRenderTask");
+            const triggerBatchSpy = vi.spyOn(RenderDriver.prototype, "triggerUpdates");
             const logger = recordingLogger();
 
             const watch = startWatchers({
@@ -218,13 +284,50 @@ describe("startWatchers: adversarial — a map already closed/mid-render is not 
 
             await vi.advanceTimersByTimeAsync(60_000);
 
-            expect(scheduleSpy).toHaveBeenCalledTimes(1);
-            const scheduledTask = scheduleSpy.mock.calls[0]![0] as unknown as { getMap: () => BmMap };
-            expect(scheduledTask.getMap()).toBe(map);
+            expect(triggerBatchSpy).toHaveBeenCalledTimes(1);
+            expect(triggerBatchSpy.mock.calls[0]?.[0]).toEqual([map]);
+            expect(triggerBatchSpy.mock.calls[0]?.[1]).toBe(TileUpdateStrategy.FORCE_NONE);
+            expect(triggerBatchSpy.mock.calls[0]?.[2]).toBe("next");
 
             await watch.close();
         } finally {
             vi.useRealTimers();
+        }
+    });
+});
+
+describe("runRender: initial preparation priority", () => {
+    it("uses the protected-next path before the first worker starts", async () => {
+        const map = await buildFakeMap("initial", root, blockingWatchService);
+        const renderManager = new RenderManager();
+        const logger = recordingLogger();
+        const triggerSpy = vi
+            .spyOn(RenderDriver.prototype, "triggerUpdates")
+            .mockReturnValue({ requested: 1, scheduled: 0, priority: "next" });
+
+        try {
+            const result = await runRender(
+                {
+                    watch: false,
+                    force: "none",
+                    forceGenerateWebapp: false,
+                    maps: null,
+                },
+                {
+                    maps: new Map([[map.getId(), map]]),
+                    renderManager,
+                    renderThreadCount: 1,
+                    renderThreadPriority: 0,
+                    logger,
+                    progressIntervalMs: 60_000,
+                },
+            );
+
+            expect(result.triggered).toBe(0);
+            expect(triggerSpy).toHaveBeenCalledTimes(1);
+            expect(triggerSpy.mock.calls[0]?.[2]).toBe("next");
+        } finally {
+            triggerSpy.mockRestore();
         }
     });
 });

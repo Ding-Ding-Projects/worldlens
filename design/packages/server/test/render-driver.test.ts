@@ -17,6 +17,7 @@ import {
     PackVersion,
     Region,
     RenderManager,
+    MapUpdateTask,
     ResourcePack,
     Tristate,
     type Chunk as ChunkType,
@@ -334,7 +335,73 @@ describe("RenderDriver: drives the real RenderManager end to end", () => {
 
         expect(first.scheduled).toBe(true);
         expect(second.scheduled).toBe(true);
+        expect(first.priority).toBe("tail");
+        expect(second.priority).toBe("tail");
         expect(manager.getScheduledRenderTaskCount()).toBe(2);
+    });
+
+    it("keeps map order when a periodic batch is inserted behind an active head", async () => {
+        const headMap = await buildMap("head");
+        const firstMap = await buildMap("first");
+        const secondMap = await buildMap("second");
+        const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
+        const driver = new RenderDriver(manager);
+        const head = MapUpdateTask.forRegions(headMap, [new Vector2i(0, 0)]);
+
+        expect(manager.scheduleRenderTask(head)).toBe(true);
+        const result = driver.triggerUpdates([firstMap, secondMap], undefined, "next");
+
+        expect(result).toEqual({ requested: 2, scheduled: 2, priority: "next" });
+        const queued = manager.getScheduledRenderTasks();
+        expect(queued[0]).toBe(head);
+        expect((queued[1] as unknown as { getMap: () => BmMap }).getMap()).toBe(firstMap);
+        expect((queued[2] as unknown as { getMap: () => BmMap }).getMap()).toBe(secondMap);
+    });
+
+    it("keeps a large ordinary backlog intact when one interactive task jumps behind the active head", async () => {
+        const map = await buildMap();
+        const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
+        const driver = new RenderDriver(manager);
+        const ordinaryCount = 1_000;
+        const interactiveCount = 100;
+
+        for (let i = 0; i < ordinaryCount; i++) driver.triggerUpdate(map);
+        expect(manager.getScheduledRenderTaskCount()).toBe(ordinaryCount);
+
+        const [head, ...tail] = manager.getScheduledRenderTasks();
+        expect(head).toBeDefined();
+        expect(tail).toHaveLength(ordinaryCount - 1);
+
+        manager.start(1);
+        try {
+            const interactiveTasks: ReturnType<RenderManager["getScheduledRenderTasks"]> = [];
+            for (let i = 0; i < interactiveCount; i++) {
+                const interactive = driver.triggerUpdate(map, undefined, "next");
+                expect(interactive).toEqual({ scheduled: true, priority: "next" });
+                interactiveTasks.push(manager.getScheduledRenderTasks()[1]);
+            }
+            const queued = manager.getScheduledRenderTasks();
+            expect(queued).toHaveLength(ordinaryCount + interactiveCount);
+            expect(queued[0]).toBe(head);
+            expect(queued.slice(1, interactiveCount + 1)).toEqual(interactiveTasks.reverse());
+            expect(queued.slice(interactiveCount + 1)).toEqual(tail);
+
+            // The status snapshot is the progress/console contract: it names the active
+            // task and its real estimate while reporting every queued task, not a guessed
+            // percentage or a silently truncated backlog.
+            const status = driver.getStatus();
+            expect(status.running).toBe(true);
+            expect(status.queuedTaskCount).toBe(ordinaryCount + interactiveCount);
+            expect(status.currentTaskDescription).toBe(head?.getDescription());
+            expect(status.currentTaskDetail).toBe(head?.getDetail());
+            expect(status.currentTaskProgress).toBe(head?.estimateProgress());
+            expect(status.estimatedTimeRemainingMs).toBe(
+                manager.estimateCurrentRenderTaskTimeRemaining(),
+            );
+        } finally {
+            manager.stop();
+            await manager.awaitShutdown();
+        }
     });
 
     it("puts an interactive trigger immediately behind the active head while ordinary triggers keep tail order", async () => {
@@ -414,6 +481,55 @@ describe("RenderDriver: drives the real RenderManager end to end", () => {
         }
     });
 
+    it("cancels a queued interactive update without disturbing the active head or FIFO tail", async () => {
+        const map = await buildMap();
+        const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
+        const head = MapUpdateTask.forRegions(map, [new Vector2i(0, 0)]);
+        const tail = MapUpdateTask.forRegions(map, [new Vector2i(1, 0)]);
+        const interactive = MapUpdateTask.forRegions(map, [new Vector2i(2, 0)]);
+
+        expect(manager.scheduleRenderTask(head)).toBe(true);
+        expect(manager.scheduleRenderTask(tail)).toBe(true);
+        expect(manager.scheduleRenderTaskNext(interactive)).toBe(true);
+        expect(manager.getScheduledRenderTasks()).toEqual([head, interactive, tail]);
+
+        // A queued task is removed, not cancelled in place. The active head remains
+        // owned by RenderManager and the ordinary tail keeps its original position.
+        expect(manager.removeRenderTask(interactive)).toBe(true);
+        expect(manager.getScheduledRenderTasks()).toEqual([head, tail]);
+        expect(manager.removeRenderTask(interactive)).toBe(false);
+    });
+
+    it("keeps priority semantics after a cancelled queue is persisted and resumed", async () => {
+        const map = await buildMap();
+        const file = join(root, "priority-resume.nbt");
+        const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
+        const head = MapUpdateTask.forRegions(map, [new Vector2i(0, 0)]);
+        const tail = MapUpdateTask.forRegions(map, [new Vector2i(1, 0)]);
+        const cancelledInteractive = MapUpdateTask.forRegions(map, [new Vector2i(2, 0)]);
+
+        expect(manager.scheduleRenderTask(head)).toBe(true);
+        expect(manager.scheduleRenderTask(tail)).toBe(true);
+        expect(manager.scheduleRenderTaskNext(cancelledInteractive)).toBe(true);
+        expect(manager.removeRenderTask(cancelledInteractive)).toBe(true);
+        await manager.saveRenderTaskQueue(file, new Map([[map.getId(), map]]));
+
+        const resumed = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
+        const accepted = await resumed.loadRenderTaskQueue(file, new Map([[map.getId(), map]]));
+        expect(accepted).toBe(2);
+        const [resumedHead, resumedTail] = resumed.getScheduledRenderTasks();
+        expect(resumedHead).toBeDefined();
+        expect(resumedTail).toBeDefined();
+
+        const next = MapUpdateTask.forRegions(map, [new Vector2i(3, 0)]);
+        expect(resumed.scheduleRenderTaskNext(next)).toBe(true);
+        expect(resumed.getScheduledRenderTasks()).toEqual([
+            resumedHead,
+            next,
+            resumedTail,
+        ]);
+    });
+
     it("reports status from the real RenderManager, not invented data", async () => {
         const map = await buildMap();
         const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
@@ -470,7 +586,7 @@ describe("RenderUpdateHandler: the HTTP surface over RenderDriver", () => {
 
         const post = await fetch(`${base}/maps/overworld/update`, { method: "POST" });
         expect(post.status).toBe(202);
-        expect(await post.json()).toEqual({ scheduled: true });
+        expect(await post.json()).toEqual({ scheduled: true, priority: "next" });
 
         await manager.awaitIdle();
 
