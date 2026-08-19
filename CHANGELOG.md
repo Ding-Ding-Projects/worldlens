@@ -20,13 +20,13 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
-### Documentation
+### Interface
 
-- Prepare the Windows-only public 1.0 compatibility-contract records for issue #60. The branch-local
-  records were built successfully, but were not packaged, published, or released.
+- Fix generated Pages verification for new repositories - [`3366bfcc5a`](https://github.com/Ding-Ding-Projects/worldlens/commit/3366bfcc5acccb5b22d9225fa8bbc2ce8cb0bb0f)
 
 ### Rendering and world data
 
+- Merge current main into compatibility contract - [`563b7e8240`](https://github.com/Ding-Ding-Projects/worldlens/commit/563b7e8240b9bffe7ad79db66366ba3cbb0cce31) _(summary of 19 commits, also listed here)_
 - Add focused render-queue acceptance coverage - [`c439b3a1fd`](https://github.com/Ding-Ding-Projects/worldlens/commit/c439b3a1fd44fbab8666c4f57ec0941dfce2a69b)
 - Merge remote-tracking branch 'origin/main' into codex/issue-91-retire-local-webserver - [`bee28ea506`](https://github.com/Ding-Ding-Projects/worldlens/commit/bee28ea506b97d3dc9931303159a98de88e8ddda) _(summary of 4 commits, also listed here)_
 - Merge issue #89 banner compatibility proof - [`e7810cf0b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7810cf0b1d4b22964ef83ccccaf55f55261a837) _(summary of 2 commits, also listed here)_
@@ -45,6 +45,9 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Target the mandatory public disclosure directly - [`7abbf94fd7`](https://github.com/Ding-Ding-Projects/worldlens/commit/7abbf94fd77652535a4b2d62b7e941f4ab136c16)
+- Handle unchanged-world retries in the public Pages journey - [`db43392a60`](https://github.com/Ding-Ding-Projects/worldlens/commit/db43392a607a8e08d4ea313905346bc747ac7071)
+- Add Lowlevel public Pages retry journey - [`39c920626a`](https://github.com/Ding-Ding-Projects/worldlens/commit/39c920626a9f900a299ee577d0e0f38e7ed8b31f)
 - Merge current main before runtime proof delivery - [`6b5c39ec12`](https://github.com/Ding-Ding-Projects/worldlens/commit/6b5c39ec120795acc2e58ad3786eb09ffef22863) _(summary of 2 commits, also listed here)_
 - Capture private Pages refusal before render fallback - [`55f8aada78`](https://github.com/Ding-Ding-Projects/worldlens/commit/55f8aada785ad0aac6ee6b7d1752d5e5663b9097)
 - Click the visible private render action directly - [`8fa04b7819`](https://github.com/Ding-Ding-Projects/worldlens/commit/8fa04b7819054c22af2032cd92fef5c17f9f1884)
@@ -54,6 +57,10 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Remove private vocabulary from compatibility handoff - [`e86b0b60b3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e86b0b60b3a551384a7fa8c9dff924e5e2967b59)
+- Merge issue #60 Windows compatibility contract - [`b002286bf1`](https://github.com/Ding-Ding-Projects/worldlens/commit/b002286bf1e345b708ac2ce6f1540f253e2577aa) _(summary of 4 commits, also listed here)_
+- Reconcile compatibility handoff status - [`e4a54b89c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4a54b89c9cf3ef329c2a8f4ebb6cee27fc48acd)
+- Document Windows 1.0 compatibility contract - [`ec7e80011d`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec7e80011da149398731398f8baf372edfbc0926)
 - Record render-queue acceptance evidence - [`b526739446`](https://github.com/Ding-Ding-Projects/worldlens/commit/b526739446cae2906631f83c041aa7b7ff247139)
 - Complete receipt-backed Lowlevel recovery evidence - [`e7502bca52`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7502bca522cb88b0f2cb0535b87c1e522188073)
 - Promote privacy-clean Lowlevel captures - [`2dda8f9cb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/2dda8f9cb692a2bbcc1bd085cec450cf0f6df092)
