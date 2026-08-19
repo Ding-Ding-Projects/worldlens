@@ -5,7 +5,12 @@ export { RemoteProxyHandler, type RemoteProfile } from "./remote/RemoteProxy.js"
 export { SseConnectionManager } from "./live/SseConnectionManager.js";
 export { LiveDataBroadcaster } from "./live/LiveDataBroadcaster.js";
 export { noLivePlayers, noLiveMarkers } from "./live/liveDataStubs.js";
-export { RenderDriver, type RenderStatus, type UpdateRequestResult } from "./render/RenderDriver.js";
+export {
+    RenderDriver,
+    type RenderStatus,
+    type UpdateBatchResult,
+    type UpdateRequestResult,
+} from "./render/RenderDriver.js";
 export { RenderQueuePersistence, type RenderQueuePersistenceOptions } from "./render/RenderQueuePersistence.js";
 export { RenderUpdateHandler } from "./http/RenderUpdateHandler.js";
 export { MapUpdateService, type MapUpdateServiceOptions } from "./plugin/MapUpdateService.js";
