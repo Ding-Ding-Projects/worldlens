@@ -100,6 +100,31 @@ test("the real render plan cannot claim dispatch from a pre-existing failed row"
     assert.match(driver, /box !== null && centerY < 0/);
 });
 
+test("the new-repository plan creates visibility and Pages through UI controls before dispatch", async () => {
+    const createPlan = JSON.parse(
+        await readFile(new URL("./worldlens-lowlevel-create-ci-repository.json", import.meta.url), "utf8"),
+    );
+    const action = (name) => createPlan.findIndex((step) => step.action === name);
+    const pages = createPlan.findIndex(
+        (step) => step.action === "setCheckbox" && step.selector.includes("publish-pages"),
+    );
+    const visibility = createPlan.findIndex(
+        (step) => step.action === "setCheckbox" && step.selector.includes("create-private"),
+    );
+    const create = createPlan.findIndex((step) => step.selector === "[data-test='bootstrap-repository']");
+    const created = createPlan.findIndex((step) => step.selector === "[data-test='repository-created']");
+    const dispatched = createPlan.findIndex(
+        (step) => step.name === "lowlevel-ci-repository-render-dispatched",
+    );
+
+    assert.ok(action("chooseFolder") > 0);
+    assert.ok(pages > 0 && pages < create);
+    assert.ok(visibility > pages && visibility < create);
+    assert.ok(create < created && created < dispatched);
+    assert.match(driver, /case "setCheckbox"/);
+    assert.match(driver, /case "setCheckboxIfVisible"/);
+});
+
 test("removing a required capture turns the plan guard red", () => {
     const broken = plan.filter((step) => step.name !== "lowlevel-adult-home");
     assert.throws(() => planComplaints(broken), /hand-written capture order/);

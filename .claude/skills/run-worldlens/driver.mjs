@@ -472,6 +472,37 @@ async function executeAction(step) {
       await settle();
       break;
     }
+    case "setCheckbox": {
+      if (!UI_ONLY) throw new Error("setCheckbox is reserved for Lowlevel UI-only plans");
+      const target = locate(step);
+      await target.waitFor({ state: "visible", timeout: step.timeout || 45_000 });
+      const raw = step.valueEnv ? process.env[String(step.valueEnv)] : step.value;
+      const desired = raw === true || /^(?:1|true|yes|on)$/iu.test(String(raw ?? ""));
+      const checked = await target.isChecked();
+      if (checked !== desired) await lowlevelClick(target);
+      if ((await target.isChecked()) !== desired)
+        throw new Error(`setCheckbox did not reach ${desired ? "checked" : "unchecked"}`);
+      break;
+    }
+    case "setCheckboxIfVisible": {
+      if (!UI_ONLY)
+        throw new Error("setCheckboxIfVisible is reserved for Lowlevel UI-only plans");
+      const target = locate(step);
+      const visible = await target
+        .waitFor({ state: "visible", timeout: Number(step.timeout || 2_000) })
+        .then(() => true)
+        .catch(() => false);
+      if (visible) {
+        const raw = step.valueEnv ? process.env[String(step.valueEnv)] : step.value;
+        const desired = raw === true || /^(?:1|true|yes|on)$/iu.test(String(raw ?? ""));
+        if ((await target.isChecked()) !== desired) await lowlevelClick(target);
+        if ((await target.isChecked()) !== desired)
+          throw new Error(
+            `setCheckboxIfVisible did not reach ${desired ? "checked" : "unchecked"}`,
+          );
+      }
+      break;
+    }
     case "clickPoint":
       if (!UI_ONLY)
         throw new Error("clickPoint is reserved for Lowlevel UI-only plans");
