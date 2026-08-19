@@ -1384,6 +1384,16 @@ bake every rotated model with — was wrong by ~25 float-ulps at every angle.
   `src/render/RenderDriver.ts`'s module doc-comment. Covered by
   `packages/server/test/render-driver.test.ts`'s `RenderUpdateHandler` describe block.
 
+### Queue-priority parity
+
+- **Interactive trigger priority follows upstream, with active-head protection.** Issue #68
+  selects the smallest typed `schedule-next` path for interactive `RenderDriver` triggers, matching
+  upstream's queue-priority behavior without displacing the task currently at the head. The new
+  work is inserted after the active task and may therefore run before already queued region work;
+  ordinary scheduling remains tail-enqueue. This is an intentional API-visible scheduling choice,
+  not a porting accident, and the active task's existing cancellation, containment, and progress
+  semantics remain in force.
+
 ### Bug fixes / API-visible changes
 
 - **`SseConnectionManager.open()` calls `res.flushHeaders()` before registering the

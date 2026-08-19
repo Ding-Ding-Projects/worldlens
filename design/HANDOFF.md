@@ -4900,21 +4900,15 @@ line rather than a queue count — a queue-count assertion was tried first and f
 because the live worker pool drains the task before a count taken after the touch can
 observe it. That race was caught and fixed in this session, not inherited from anywhere.
 
-**Two honest deviations, found and deliberately left alone rather than quietly patched
-over:**
+**Two honest scheduling and porting records:**
 
-1. **Queue priority is not upstream's.** Upstream's `updateAllMapsTask` calls
-   `renderManager.scheduleRenderTasksNext(...)`, which jumps the queue ahead of whatever is
-   already scheduled. This port's periodic timer instead goes through
-   `RenderDriver.triggerUpdate` → `scheduleRenderTask(...)`, a normal tail-enqueue. So
-   upstream's periodic full-refresh jumps ahead of a backlog of pending region updates, and
-   this port's queues behind it instead. This is **not something introduced by this
-   change** — `runRender`'s own initial-render call already has the identical
-   characteristic, and a check of `packages/server` today finds nothing anywhere calling
-   `scheduleRenderTaskNext`/`scheduleRenderTasksNext`, upstream's "jump the queue" API, at
-   all. It is written down here rather than silently carried forward because it needs an
-   actual decision — add a "Next" scheduling path to `RenderDriver`, or accept and document
-   the simplification — and that decision was not this task's to make unilaterally.
+1. **Interactive trigger priority now matches upstream, with active-head protection (issue #68).**
+   The smallest typed `schedule-next` path is used for the interactive `RenderDriver` triggers
+   that have the upstream-equivalent priority requirement. It inserts the new work after the
+   task currently at the active head, so it never displaces or interrupts that task; it may run
+   ahead of queued region work. Ordinary scheduling remains tail-enqueue, and the active task's
+   existing containment, cancellation, and progress semantics remain unchanged. This is an
+   explicit parity decision recorded in D21 and the Server package deviation section.
 2. **Exception granularity is currently unreachable, not wrong.** Upstream distinguishes an
    `IOException` (logged as an error) from an `UnsupportedOperationException` — "not
    supported for the world-type", logged as a _warning_ — when constructing a watcher for a
