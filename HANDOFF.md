@@ -2,17 +2,21 @@
 
 ## Issue #66 — SQL cross-engine evidence record (2026-08-19)
 
-The current documentation lane records the remaining Java↔TypeScript SQL exchange proof for
-PostgreSQL and SQLite. MariaDB is the only completed cross-engine result; the four new evidence
-rows remain **UNRUN / not proven**. The detailed acceptance record, pinned JDBC coordinates and
-SHA-256 digests, exact command contract, timestamp-aware comparison, failure matrix, cleanup
-behavior, and security boundary are in
+The durable sanitized issue-#66 matrix report is
+[`docs/sql-cross-engine-compatibility.report.json`](docs/sql-cross-engine-compatibility.report.json).
+It started at `2026-08-19T12:28:28.726Z`, finished at `2026-08-19T12:30:20.049Z`, used seed `1`,
+fixture size `64`, `postgres:17.6`, ran for `111323 ms`, exited `0`, and records tested commit
+`f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java `25.0.4`. All four
+direction rows report 1 hires tile, 9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251
+grids, and 0 divergences. Direction 1 compares six render-state records through `diffRenderState`;
+direction 2 explicitly does not compare render-state through the Java HTTP boundary. The detailed acceptance record is in
 [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md).
 
-No Java/Gradle/JDBC run, test, lint, type check, review, audit, accessibility pass, or screenshot
-was run in this lane. A later implementation lane must extend the driver-fetch and oracle command
-surface, execute both directions for both dialects, retain JSON reports, and replace `UNRUN` only
-with report-backed counts and timings.
+The sanitized report uses relative paths and records `ok=true`, `state=removed`, and
+`workRootRemoved=true` for SQLite direction 1/2, PostgreSQL direction 1/2, and both
+incompatible-schema probes. The comparison and cleanup evidence are verified. The direction-2
+render-state boundary remains an explicit factual limitation. No additional test, lint, type check,
+review, audit, accessibility pass, or screenshot was run in this documentation update.
 
 ## Issue #60 — public 1.0 compatibility contract
 

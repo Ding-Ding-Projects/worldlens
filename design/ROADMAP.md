@@ -1008,11 +1008,11 @@ port:**
 
 ### Issue #66 — PostgreSQL and SQLite cross-engine proof record (unrun)
 
-The MariaDB proof above remains the only completed Java↔TypeScript SQL exchange. Issue [#66](https://github.com/Ding-Ding-Projects/worldlens/issues/66) requires the same two-direction proof for PostgreSQL and SQLite; no row is marked complete until a committed JSON report supplies the counts, timings, commit, driver digest, and cleanup verdict. The detailed acceptance record is [`docs/sql-cross-engine-compatibility.md`](../docs/sql-cross-engine-compatibility.md).
+Issue [#66](https://github.com/Ding-Ding-Projects/worldlens/issues/66) now has a durable sanitized matrix report at [`docs/sql-cross-engine-compatibility.report.json`](../docs/sql-cross-engine-compatibility.report.json), started `2026-08-19T12:28:28.726Z`, finished `2026-08-19T12:30:20.049Z`, fixture seed `1`, size `64`, `postgres:17.6`, total `111323 ms`, exit `0`, tested commit `f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java `25.0.4`. The detailed acceptance record is [`docs/sql-cross-engine-compatibility.md`](../docs/sql-cross-engine-compatibility.md). The comparison counters are verified for all four directions: each has 1 hires tile, 9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences; direction 1 compares six render-state records through `diffRenderState`, while direction 2 explicitly does not compare render-state through the Java HTTP boundary. All direction-1, direction-2, and incompatible-schema cleanup targets report `ok=true`, `state=removed`, and `workRootRemoved=true`.
 
 The documentation lane pins PostgreSQL JDBC `org.postgresql:postgresql:42.7.13` (`org.postgresql.Driver`, SHA-256 `6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93`) and Xerial SQLite JDBC `org.xerial:sqlite-jdbc:3.53.2.1` (`org.sqlite.JDBC`, SHA-256 `f55e405ed96d5ffe629e05b7b51b059e1c7d64527c0cc90a972fbac06730ccc1`). The checked-in MariaDB control remains `org.mariadb.jdbc:mariadb-java-client:3.5.3` (`org.mariadb.jdbc.Driver`, SHA-256 `85c4ba2f221d0dfd439c26affbb294f784960763544263c65aba9c2c76858706`). The wrapper is Gradle `9.4.0`, and the upstream source at submodule commit `4c4cbc291b361ceff6ee239448e9f988f9019dbb` requests Java 25.
 
-The future run is `node tools/oracle/sql-crosscompat-matrix.mjs --dialects sqlite,postgresql --driver-dir tools/oracle/driver-fetch/build/drivers --json tools/oracle/out/sql-crosscompat-matrix/issue-66.json`. It must compare every hires/lowres tile, metadata document, map id, grid, pagination result, purge result, reopen, and deleted-row recreation with the shared timestamp-aware `diffRenderState` classifier. Its report must include `finishedAt`, tested SHA, tool versions, relative identifiers only, per-direction counts/timings, timestamp-only counts, divergence counts, and a cleanup verdict; absolute paths and credentials are forbidden. Direction 2's raw Java HTTP route exposes tiles and metadata only, so the deterministic render-state fields need a separate independently checkable comparison before the issue can be marked complete. It must use isolated PostgreSQL databases/containers or SQLite files, remove them and temporary configuration in `finally`, and report failures for missing or mismatched jars, driver classes, credentials/properties, incompatible schemas, server readiness, and cleanup separately. Until those runs happen, the four PostgreSQL/SQLite evidence rows remain **UNRUN / not proven**; MariaDB counts must not be copied into them.
+The matrix command was `node tools/oracle/sql-crosscompat-matrix.mjs --dialects sqlite,postgresql --driver-dir tools/oracle/driver-fetch/build/drivers --json docs/sql-cross-engine-compatibility.report.json`. Its driver versions are PostgreSQL JDBC `42.7.13` and SQLite JDBC `3.53.2.1`; the sanitized report uses relative paths and records the cleanup verdict for every direction and the incompatible-schema probe. Direction 2's raw Java HTTP route exposes tiles and metadata only, so its render-state boundary remains explicitly documented rather than overstated.
 
 ## Test counts
 
@@ -1202,12 +1202,12 @@ named so it is not lost between passes.
   the periodic full-refresh tail-enqueues instead of jumping the queue like upstream's does,
   and a watcher-construction exception path that is upstream-only-distinguished but
   currently unreachable in this port.
-- **Prove SQLite and PostgreSQL cross-compatibility with upstream's real Java engine
-  specifically.** Issue #32 itself is closed: MariaDB has the real cross-engine proof, both
-  directions, and MySQL/MariaDB/PostgreSQL are independently proven against real same-engine
-  Docker servers. What has not been done is the Java-CLI-vs-TS-port cross-engine run for
-  SQLite or PostgreSQL specifically — SQLite needs the same `driver-jar`/`driver-class`
-  treatment MariaDB got here, since upstream ships no bundled SQLite JDBC driver either.
+- ~~**Prove SQLite and PostgreSQL cross-compatibility with upstream's real Java engine
+  specifically.**~~ **Comparison and cleanup evidence verified, 2026-08-19 (issue #66).** The
+  durable sanitized report records both directions for SQLite and PostgreSQL, all lifecycle and
+  incompatible-schema probes, relative-path provenance, and target/work-root removal. Direction 1
+  compares render-state records through `diffRenderState`; direction 2's raw Java HTTP path
+  exposes tiles and metadata only, so its render-state boundary remains explicitly documented.
 - **Run a two-wave merge, and a world large enough to actually pressure a hosted runner's
   disk, through `render-world.yml`.** Issue #39's own wave-dispatch checklist item is now
   genuinely proven (a real 361-region world used exactly the two waves planned, watched, not

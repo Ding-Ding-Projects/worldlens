@@ -50,11 +50,11 @@ $env:GRADLE_USER_HOME = (Resolve-Path 'tools/oracle/.gradle').Path
 vendor/BlueMap/gradlew.bat :cli:shadowJar
 ```
 
-The issue-#66 implementation lane has prepared `tools/oracle/sql-crosscompat-matrix.mjs`. It is not yet part of the default branch in this documentation-only snapshot. Once integrated, it creates a fresh SQLite file or a throwaway `postgres:17.6` container bound to loopback, and the required invocation is:
+The issue-#66 implementation lane has prepared `tools/oracle/sql-crosscompat-matrix.mjs`. It creates a fresh SQLite file or a throwaway `postgres:17.6` container bound to loopback, and the invocation used for the report below was:
 
 ```powershell
-# PostgreSQL and SQLite — required issue-#66 matrix; UNRUN in this lane
-node tools/oracle/sql-crosscompat-matrix.mjs --dialects sqlite,postgresql --driver-dir tools/oracle/driver-fetch/build/drivers --json tools/oracle/out/sql-crosscompat-matrix/issue-66.json
+# PostgreSQL and SQLite — issue-#66 matrix run recorded below
+node tools/oracle/sql-crosscompat-matrix.mjs --dialects sqlite,postgresql --driver-dir tools/oracle/driver-fetch/build/drivers --json docs/sql-cross-engine-compatibility.report.json
 ```
 
 The harness must print these report fields before acceptance: `schemaVersion`, `startedAt`, `finishedAt`, `durationMs`, `testedSha`, Java/Gradle/Node versions, the exact resolved command, selected dialects, fixture seed and size, relative driver filenames plus coordinates and SHA-256 digests, relative database/file identifiers, per-direction counts/timings, timestamp-only counts, divergence counts, failure details, and a `cleanup` object stating whether every temporary process, database/file, configuration directory, and work directory was removed. The JSON report must use repository-relative or redacted identifiers only; it must not contain absolute paths, usernames, passwords, connection strings with credentials, host-specific home directories, or ambient environment values. Passwords and connection strings containing credentials must never appear in logs either. The current implementation's direction-2 HTTP route exposes tiles and metadata; before acceptance, it must also retain an independently checkable comparison for every deterministic render-state field required by this article, or document and repair that gap rather than silently marking the matrix complete.
@@ -93,23 +93,36 @@ The harness must use a `finally` cleanup path. PostgreSQL runs use a throwaway d
 
 ## Verification record
 
-No PostgreSQL or SQLite cross-engine run has been executed in this documentation lane. Counts and timings are intentionally placeholders, not inferred from the MariaDB control:
+The final matrix report is [`docs/sql-cross-engine-compatibility.report.json`](sql-cross-engine-compatibility.report.json). It started at
+`2026-08-19T12:28:28.726Z`, finished at `2026-08-19T12:30:20.049Z`, used seed `1`, fixture size
+`64`, and `postgres:17.6`, exited `0`, and reports `111323` ms total duration. Provenance is
+tested commit `f3c94d2ff74d007249996850e32b16b96b268ce5`, Node `v24.19.0`, and Java
+`25.0.4`; the driver versions and SHA-256 values are in the table above. The final report uses
+repository-relative paths and records cleanup explicitly.
 
-| Dialect | Direction | Hires | Lowres LOD 1/2/3 | Metadata | Map IDs/grids | Time-only fields | Divergences | Elapsed | Status |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| PostgreSQL | Java → TypeScript | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | Not proven |
-| PostgreSQL | TypeScript → Java | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | Not proven |
-| SQLite | Java → TypeScript | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | Not proven |
-| SQLite | TypeScript → Java | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | **UNRUN** | Not proven |
+| Dialect | Direction | Hires | Lowres LOD 1/2/3 | Metadata | Map IDs/grids | Render-state | Divergences | Elapsed | Cleanup verdict | Status |
+| --- | --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- | --- |
+| PostgreSQL | Java → TypeScript | 1 | 9 / 4 / 4 | 5 | 1003 / 1251 | 6 state records compared through `diffRenderState`; 0 divergences; separate time-only count not serialized | 0 | 6743 ms | `direction1.target.ok=true`, `state=removed`; `workRootRemoved=true` | **Verified** |
+| PostgreSQL | TypeScript → Java | 1 | 9 / 4 / 4 | 5 | 1003 / 1251 | Not compared through HTTP; report explicitly records that Java raw storage exposes tiles/metadata only | 0 | 8246 ms | `direction2.target.ok=true`, `state=removed`; `workRootRemoved=true` | **Verified for payloads; D2 render-state boundary documented** |
+| SQLite | Java → TypeScript | 1 | 9 / 4 / 4 | 5 | 1003 / 1251 | 6 state records compared through `diffRenderState`; 0 divergences; separate time-only count not serialized | 0 | 6509 ms | `direction1.target.ok=true`, `state=removed`; `workRootRemoved=true` | **Verified** |
+| SQLite | TypeScript → Java | 1 | 9 / 4 / 4 | 5 | 1003 / 1251 | Not compared through HTTP; report explicitly records that Java raw storage exposes tiles/metadata only | 0 | 8446 ms | `direction2.target.ok=true`, `state=removed`; `workRootRemoved=true` | **Verified for payloads; D2 render-state boundary documented** |
 
-The MariaDB control remains the only completed cross-engine evidence: 961/961 hires tiles, 24/24 low-resolution tiles, both metadata documents, and deterministic render-state fields matched in both directions; timestamp-only fields were excluded by the shared classifier. That result is context, not a substitute for the four issue-#66 rows above. The implementation lane must replace each `UNRUN` cell only from the corresponding committed JSON report and must record the exact run timestamp, commit, versions, command, cleanup verdict, and any dialect-specific deviation.
+For direction 1, all six serialized render-state records (`tileState`, four grid cells as counted
+by the report, `chunkState`, and `regionState`) matched with zero divergences under the shared
+timestamp-aware classifier. The report does not serialize how many matches were wall-clock-only;
+no such count is invented here. For direction 2, the report explicitly sets `renderStateCompared`
+to `false`: its production Java HTTP route returns tiles and metadata only, so direction 2 does
+not independently prove render-state grids. The four payload comparisons and all three lifecycle
+failure probes exited successfully, and every direction/incompatible-schema cleanup target was
+removed with its work root removed. The D2 render-state boundary remains an explicit limitation,
+not a hidden success claim.
 
 ## 廣東話
 
-呢篇文件記錄 issue [#66](https://github.com/Ding-Ding-Projects/worldlens/issues/66) 要做嘅 SQL 跨引擎驗證：上游 Java 引擎同 TypeScript port，要用 PostgreSQL 同 SQLite 互相寫入、互相讀返。MariaDB 嗰次係參考格式；未有真實兩個方向嘅報告之前，唔可以話 PostgreSQL 或 SQLite 已經證明。
+呢篇文件記錄 issue [#66](https://github.com/Ding-Ding-Projects/worldlens/issues/66) 嘅 SQL 跨引擎驗證：上游 Java 引擎同 TypeScript port，用 PostgreSQL 同 SQLite 互相寫入、互相讀返。durable report 喺 `2026-08-19T12:28:28.726Z` 開始、`2026-08-19T12:30:20.049Z` 完成，seed `1`、fixture size `64`、PostgreSQL image `postgres:17.6`，總時間 `111323 ms`，exit code `0`，tested commit 係 `f3c94d2ff74d007249996850e32b16b96b268ce5`，Node `v24.19.0`，Java `25.0.4`。
 
 每個 dialect 要做兩邊：Java 寫入 SQL/file，TypeScript 讀返；TypeScript 寫入，Java 用正式 webserver-only raw-storage 路徑讀返。每粒 hires、三個 lowres LOD、`settings.json`、`textures.json`、map id、grid、pagination、purge、reopen 同 deleted-row recreation 都要對。`tileState` 同 `regionState` 入面有即時 render/update timestamp，兩次獨立 render 唔會一樣，所以一定要重用 `diffRenderState`：deterministic 欄位要完全相同，純 timestamp 差異另行計數，其餘差異就係真 divergence。
 
-今次鎖定嘅 JDBC driver 係 PostgreSQL `42.7.13`（`org.postgresql:postgresql`，`org.postgresql.Driver`）同 Xerial SQLite `3.53.2.1`（`org.xerial:sqlite-jdbc`，`org.sqlite.JDBC`）。SHA-256、Gradle `9.4.0` wrapper、Java 25 toolchain、jar fetch/build 指令、環境隔離同 cleanup 規則全部寫明；但四個 PostgreSQL/SQLite verification row 仍然係 **UNRUN / 未證明**，唔會偷用 MariaDB 嘅數字扮完成。
+今次鎖定嘅 JDBC driver 係 PostgreSQL `42.7.13`（`org.postgresql:postgresql`，`org.postgresql.Driver`）同 Xerial SQLite `3.53.2.1`（`org.xerial:sqlite-jdbc`，`org.sqlite.JDBC`）。四個方向嘅 payload counters 全部 `0` divergence；Java 寫、TypeScript 讀嗰邊用 `diffRenderState` 對咗 state，純 wall-clock 欄位由 classifier 處理，但 report 冇獨立 time-only 數字，所以唔估。TypeScript 寫、Java HTTP 讀嗰邊只對到 tiles 同 metadata，report 明寫 `renderStateCompared: false`，唔可以講成完整 state proof。
 
-JDBC jar 缺失、hash 唔啱、driver class 唔存在、credential/property 失敗、schema 唔合、pagination/purge/reopen/recreate 失敗、webserver 起唔到，同 cleanup 留低垃圾，都要各自報清楚。PostgreSQL database/container 只綁 loopback，SQLite 用全新 temporary file；run 完要停 server、刪 database/file/config/work directory，同埋確認冇 process、file 或 database 留低。密碼唔入 command、log、JSON、capture、issue 或 release，driver 亦唔可以由開發者部機偷偷借返嚟。
+JDBC jar 缺失、hash 唔啱、driver class 唔存在、credential/property 失敗、schema 唔合、pagination/purge/reopen/recreate 失敗、webserver 起唔到，同 cleanup 留低垃圾，都要各自報清楚。今次 durable report 用 relative path，並且 SQLite、PostgreSQL 嘅 direction 1/2 同 incompatible-schema probe 全部記錄 `ok=true`、`state=removed`、`workRootRemoved=true`。四個 row 係 comparison 同 cleanup 都有 evidence；但 direction 2 個 production Java HTTP route 只出 tiles 同 metadata，冇獨立 render-state grid comparison，所以嗰個 boundary 要照實寫，唔可以扮成完整 state proof。

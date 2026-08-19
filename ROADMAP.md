@@ -13,12 +13,15 @@
 ## SQL storage cross-engine proof — issue #66
 
 The TypeScript SQL storages are independently proven against real MySQL, MariaDB, PostgreSQL,
-and WASM SQLite, and Java↔TypeScript exchange is proven in both directions over MariaDB. The
-PostgreSQL and SQLite cross-engine runs remain open: the exact JDBC inputs, command contract,
-timestamp-aware comparison rule, failure/cleanup behavior, security boundary, and explicit
-**UNRUN / not proven** evidence table are recorded in
-[`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md). Do not
-copy MariaDB counts or timing into the four pending dialect rows.
+and WASM SQLite. Issue #66's durable sanitized matrix report
+[`docs/sql-cross-engine-compatibility.report.json`](docs/sql-cross-engine-compatibility.report.json)
+exited `0` after comparing all four PostgreSQL/SQLite directions: each row reports 1 hires tile,
+9/4/4 lowres tiles, 5 metadata records, 1003 map ids, 1251 grids, and 0 divergences. Direction 1
+compares six render-state records through `diffRenderState`; direction 2 explicitly does not compare
+render-state through Java's raw HTTP boundary. The report records tested commit, runtime versions,
+relative paths, and `ok=true`, `state=removed`, `workRootRemoved=true` for every direction and
+incompatible-schema probe. See [`docs/sql-cross-engine-compatibility.md`](docs/sql-cross-engine-compatibility.md)
+for the exact evidence and the remaining factual direction-2 boundary.
 
 ## Public 1.0 compatibility contract — issue #60
 
