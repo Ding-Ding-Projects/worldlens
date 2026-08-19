@@ -587,6 +587,12 @@ property the whole hires merge rests on, and it is measured below.
 
 ## Texture ordinals: the trap, and the evidence
 
+The standalone CLI uses the same fixed-resource principle: its pack roots are ordered
+high-to-low, configured packs and enabled mod jars win first, `resourceExtensions.zip` supplies
+the compatibility layer, and the vanilla client jar is fallback. Keep the exact selected asset
+path and SHA-256 beside any shard or render evidence; see
+[Standalone CLI resource and SQL parity](./compatibility/cli-resource-sql-parity.md).
+
 Rendered tiles do not name their textures. They store an **ordinal** into the map's
 `textures.json`, which is a bare array indexed by that ordinal. If two shards number
 their textures differently, merging their tiles produces a map where blocks render with

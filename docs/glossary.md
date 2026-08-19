@@ -166,6 +166,12 @@ statements BlueMap uses - left unset, BlueMap picks the dialect matching the URL
 and refuses to start if none matches), and an optional **driver jar** plus **driver class** for
 a database whose driver BlueMap does not bundle (`packages/config/src/schema/storage.ts`).
 
+The standalone CLI uses the same `storages/<id>.conf` contract for SQLite, MySQL, MariaDB, and
+PostgreSQL. Credentials belong in `connection-properties`, never in a travelling project file;
+missing optional drivers, unsupported custom JDBC fields, unknown dialects, and connection failures
+remain non-zero failures with credential-safe diagnostics. See
+[Standalone CLI resource and SQL parity](./compatibility/cli-resource-sql-parity.md).
+
 ## GitHub Runners And Actions
 
 [Rendering a world in GitHub Actions](./render-in-actions.md) hands the whole [render](#render)

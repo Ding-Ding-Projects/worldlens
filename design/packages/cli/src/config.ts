@@ -12,20 +12,16 @@
  *
  * - **`plugin.conf` is never written or read.** `BlueMapCLI.main()` builds its config
  *   manager with `usePluginConfig(false)`, so upstream's CLI never touches it either.
- * - **No addon loading.** Upstream's CLI resolves `<config>/packs` and calls
- *   `AddonLoader.tryLoadAddons(packsFolder)` before building the config manager — a
- *   JS/Java addon system that has no port anywhere in this monorepo yet (`ROADMAP.md`
- *   Phase H, "JS addon system", is still Pending). The packs folder is still created, so
- *   a user who drops files there is not met with a missing directory, but nothing in it
- *   is loaded.
- * - **`-n`/`--mods`.** Accepted and validated (must exist), but the folder's contents are
- *   never scanned for bundled resource packs — upstream's mod-resource extraction has no
- *   port either. Recorded as a warning, never silently ignored.
- * - **SQL storages are recognised, never usable.** `storages/sql.conf` is generated and
- *   read like any other file, but `packages/engine`'s storage layer only ports
- *   `FileStorage` (`ROADMAP.md` issue #32: "the whole storage/sql package is unported").
- *   A map that resolves to a SQL-typed storage fails with a message naming exactly that,
- *   the moment something tries to actually use it — never silently treated as file storage.
+ * - **Addon entrypoints are not executed.** Upstream's CLI calls
+ *   `AddonLoader.tryLoadAddons(packsFolder)` for Java addon classes. The standalone port
+ *   intentionally treats the folder's directories and `.zip`/`.jar` files as resource
+ *   packs; executable addon entrypoints remain outside this package's JS boundary.
+ * - **`-n`/`--mods`.** The CLI validates the folder in `cli.ts`; `resources.ts` then scans
+ *   every direct `.jar` through the engine Pack loader, including supported nested jars.
+ * - **SQL storages are constructed by the engine factory.** SQLite, MySQL, MariaDB, and
+ *   PostgreSQL are resolved from the configured dialect and optional driver failures are
+ *   returned to the CLI as non-zero, credential-safe errors rather than being treated as
+ *   file storage.
  */
 
 import { existsSync } from "node:fs";
@@ -122,13 +118,14 @@ async function readConfigFile<T>(
     descriptor: ConfigFileDescriptor<T>,
     logger: Logger,
     warnings: string[],
+    emitWarnings = true,
 ): Promise<T> {
     const text = await readFile(path, "utf-8");
     const result = parseConfigText(descriptor, text);
     for (const issue of result.issues) {
         const line = `${path}: ${issue.severity} (${issue.kind}) at "${issue.path || "<root>"}": ${issue.message}`;
         warnings.push(line);
-        if (issue.severity === "warning") logger.warn(line);
+        if (issue.severity === "warning" && emitWarnings) logger.warn(line);
     }
     if (!result.ok || result.value === null) {
         throw new Error(`Failed to load config file:\n${path}\n${result.issues.map((i) => i.message).join("\n")}`);
@@ -202,7 +199,10 @@ export async function bootstrapConfig(options: BootstrapOptions): Promise<Loaded
         // the fully-namespaced `bluemap:sql`, exactly as the generated file does — see
         // storage.ts's own note that SQLConfig inherits the base's `bluemap:file` default —
         // so this compares by parsed Key, not by raw string.
-        const base = await readConfigFile<FileStorageConfig>(path, fileStorageDescriptor, logger, []);
+        // This first pass exists only to read storage-type. SQL-only keys are expected
+        // to be unknown to the file descriptor, so do not emit those provisional warnings;
+        // the selected concrete descriptor below performs the authoritative validation.
+        const base = await readConfigFile<FileStorageConfig>(path, fileStorageDescriptor, logger, [], false);
         const storageType = Key.parse(base["storage-type"], "bluemap");
         if (storageType.getFormatted() === "bluemap:sql") {
             const sql = await readConfigFile<SqlStorageConfig>(path, sqlStorageDescriptor, logger, warnings);

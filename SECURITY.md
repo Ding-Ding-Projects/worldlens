@@ -93,6 +93,16 @@ user does not run. Treat any bypass of the sanitizer as a real finding.
   upstream BlueMap's accept-download flow. Checksum verification of that download is part of the
   in-progress Phase C work and is not something to rely on yet.
 - BlueMap's own `resourceExtensions` JSONs are MIT licensed and are bundled in the repository.
+- The standalone CLI's `resourceExtensions` asset is treated as a required local input. Packaged,
+  installed, and Docker runs must consume the deployed engine asset or a packaged zip and record
+  its SHA-256; they do not search arbitrary URLs or silently replace a missing asset with a
+  different source. A checkout-source directory is a development-only fallback.
+- SQL storage diagnostics redact `connection-properties`, URL userinfo, passwords, tokens, and
+  raw driver messages that contain them before writing stdout, stderr, log files, HTTP responses,
+  or persisted reports. Missing optional drivers, unsupported custom JDBC settings, unknown
+  dialects, and connection failures remain non-zero errors; the CLI never falls back to file
+  storage after a requested SQL configuration fails. See
+  [`docs/compatibility/cli-resource-sql-parity.md`](docs/compatibility/cli-resource-sql-parity.md).
 - Remote BlueMap servers are reached through a reverse proxy in the server package, configured
   from user-managed profiles. The app makes no other outbound requests, and metrics are opt-in
   (upstream defaults to opt-out).

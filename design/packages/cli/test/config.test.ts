@@ -55,6 +55,12 @@ describe("config: bootstrapConfig against a fresh (empty) folder", () => {
         // fileStorageDescriptor twice and never reaching the real SQL descriptor at all.
         expect(loaded.storages.get("file")?.kind).toBe("file");
         expect(loaded.storages.get("sql")?.kind).toBe("sql");
+        expect(loaded.warnings.filter((warning) => /connection-url|connection-properties|max-connections/.test(warning))).toEqual([]);
+        expect(loaded.storages.get("sql")?.config).toMatchObject({
+            "connection-url": "jdbc:mysql://localhost:3306/bluemap?permitMysqlScheme",
+            "connection-properties": { user: "root", password: "" },
+            "max-connections": -1,
+        });
 
         expect(loaded.packsFolder).toBe(join(configFolder, "packs"));
         expect(existsSync(loaded.packsFolder)).toBe(true);
