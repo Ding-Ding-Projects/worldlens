@@ -108,7 +108,7 @@ test("runtime evidence keeps bounded sanitized console and page error messages",
     assert.match(driver, /const pageErrors = \[\];/);
     assert.match(driver, /MAX_RUNTIME_ERRORS = 20/);
     assert.match(driver, /sanitizeRuntimeError/);
-    assert.match(driver, /consoleErrors,\n          pageErrors/);
+    assert.match(driver, /consoleErrors,\r?\n          pageErrors/);
     assert.match(driver, /token\|secret\|password/);
 });
 
