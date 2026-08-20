@@ -31,6 +31,7 @@ import type {
     CiSyncEvent,
     CiSyncRequest,
     CiSyncResult,
+    CiSyncState,
     RouteReport,
 } from "./ciRenderBridge.js";
 import type { GhCliAccountReadout, GhCliBridge } from "../github/ghCliBridge.js";
@@ -890,6 +891,137 @@ describe("a running row shows the real numbers the main process actually sends",
 
         const jobWaves = wrapper.findAll('[data-test="job-wave"]').map((node) => node.text());
         expect(jobWaves).toEqual(["Wave 1", "Wave 1", "Wave 2"]);
+    });
+});
+
+describe("a recovered map whose optional Pages publication failed", () => {
+    it("shows the warning, the failing step, and a working retry action", async () => {
+        const events = eventBridge(preflight());
+        const requests: CiSyncRequest[] = [];
+        const state: CiSyncState = {
+            version: 2,
+            syncId: "s",
+            owner: "o",
+            repo: "r",
+            accountId: null,
+            worldFolder: "/w",
+            mapId: "bayville-world-v10-1",
+            mapName: "Bayville World v10.1",
+            dimension: "minecraft:overworld",
+            fingerprint: "fingerprint",
+            releaseTag: "world-v1",
+            assetName: "world.zip",
+            archiveBytes: 42,
+            archiveSha256: "a".repeat(64),
+            runId: 7,
+            runNumber: 7,
+            runUrl: "https://github.test/runs/7",
+            dispatchedAt: "2026-08-19T01:00:00Z",
+            stage: "rendered",
+            renderId: "ci-s",
+            artifactSha256: "b".repeat(64),
+            recoveryAttemptedRunId: 7,
+            postRenderWarning: "The Pages build step failed after the verified artifact upload.",
+            failureCode: null,
+            failureMessage: null,
+            updatedAt: "2026-08-19T01:35:46Z",
+        };
+        const bridge: CiRenderBridge = {
+            ...events.bridge,
+            listCiRenders: () => Promise.resolve({ ok: true, value: [state] }),
+            startCiRender: (request) => {
+                requests.push(request);
+                return Promise.resolve({
+                    ok: true,
+                    syncId: "s",
+                    outcome: "running",
+                    run: null,
+                    state,
+                });
+            },
+        };
+        const wrapper = mountScreen(bridge);
+        events.emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "bayville-world-v10-1",
+            worldFolder: "/w",
+            at: "2026-08-19T01:00:00Z",
+        });
+        events.emit({
+            type: "run",
+            syncId: "s",
+            run: {
+                runId: 7,
+                runNumber: 7,
+                htmlUrl: "https://github.test/runs/7",
+                status: "completed",
+                conclusion: "failure",
+                createdAt: "2026-08-19T01:00:00Z",
+                updatedAt: "2026-08-19T01:35:45Z",
+                headSha: "abc",
+                jobs: [],
+            },
+            at: "2026-08-19T01:35:45Z",
+        });
+        events.emit({
+            type: "finished",
+            syncId: "s",
+            summary: {
+                syncId: "s",
+                repository: "o/r",
+                releaseTag: "world-v1",
+                assetName: "world.zip",
+                runId: 7,
+                runUrl: "https://github.test/runs/7",
+                renderId: "ci-s",
+                dataRoot: "/local/ci-s",
+                mapId: "bayville_world_v10_1",
+                mapName: "Bayville World v10.1",
+                route: "gh",
+                uploaded: false,
+                artifactBytes: 42,
+                artifactSha256: "b".repeat(64),
+                verified: true,
+                postRenderWarning: state.postRenderWarning ?? null,
+            },
+            durationMs: 1000,
+            at: "2026-08-19T01:35:46Z",
+        });
+        events.emit({
+            type: "failed",
+            syncId: "another",
+            failure: {
+                code: "run-failure",
+                message: "A different run failed.",
+                detail: null,
+                status: null,
+                needsSignIn: false,
+                needsEula: false,
+                route: "gh",
+                run: null,
+                failingJob: "Merge group 0",
+                failingStep: "Build the documentation site to publish alongside the map",
+                logExcerpt: null,
+            },
+            at: "2026-08-19T01:35:46Z",
+        });
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="post-render-warning"]').text()).toContain(
+            "map is ready locally",
+        );
+        expect(wrapper.find('[data-test="retry-post-render"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="failing-step"]').text()).toContain(
+            "Build the documentation site",
+        );
+
+        await wrapper.find('[data-test="retry-post-render"]').trigger("click");
+        await flushPromises();
+        expect(requests).toHaveLength(1);
+        expect(requests[0]?.output).toBe("artifact-and-pages");
+        expect(requests[0]?.forceUpload).toBe(false);
     });
 });
 

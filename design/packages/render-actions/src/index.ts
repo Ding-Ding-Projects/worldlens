@@ -20,6 +20,7 @@ export {
     rangeLength,
     REGION_BLOCKS,
     regionBlockRange,
+    sanitizeMapId,
     type BlockRange,
     type ClosedRange,
 } from "./bluemap.js";

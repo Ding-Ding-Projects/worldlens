@@ -20,10 +20,11 @@
  *
  * GitHub publishes a `digest` on an artifact when the instance is new enough to have one.
  * When it is there the downloaded bytes are checked against it and a mismatch is a
- * refusal. When it is not, the digest this computer measured is **recorded** and the
- * result says `verified: false`, exactly as `download/downloader.ts` distinguishes the two
- * for a whole asset with no published checksum. Calling a recorded digest a verification
- * would be a claim this code cannot support.
+ * refusal. An ordinary green run without one is recorded as `verified: false`, exactly as
+ * `download/downloader.ts` distinguishes the two for a whole asset with no published
+ * checksum. Recovery from a red run sets `requirePublishedDigest` and refuses before the
+ * download when GitHub supplied none. Calling a recorded digest a verification would be a
+ * claim this code cannot support.
  *
  * ## A map that shipped in parts is refused, not guessed at
  *
@@ -34,9 +35,10 @@
  * a missing download. So it is refused with the reason and the artifacts named.
  */
 
-import { rm, stat } from "node:fs/promises";
+import { rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { sha256File } from "@worldlens/parts";
+import { sanitizeMapId } from "@worldlens/render-actions";
 import { extractZip } from "../download/extract.js";
 import { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { RENDER_RECORD_VERSION, writeRenderRecord } from "../render/provenance.js";
@@ -52,8 +54,10 @@ const LOWRES_ARTIFACT = "map-lowres";
 export interface CollectFailure {
     readonly code:
         | "no-map-artifact"
+        | "ambiguous-map-artifact"
         | "map-shipped-in-parts"
         | "artifact-expired"
+        | "artifact-digest-missing"
         | "digest-mismatch"
         | "artifact-not-a-map"
         | "collect-failed";
@@ -72,9 +76,12 @@ export interface CollectSuccess {
     /** True only when GitHub published a digest and the bytes matched it. */
     readonly verified: boolean;
     readonly artifact: WorkflowArtifact;
+    /** BlueMap's storage id, which may differ from the raw project map id. */
+    readonly mapId: string;
 }
 
-export type CollectResult = CollectSuccess | { readonly ok: false; readonly failure: CollectFailure };
+export type CollectResult =
+    CollectSuccess | { readonly ok: false; readonly failure: CollectFailure };
 
 export interface CollectOptions {
     /** Whichever credential route this sync chose. Never a second one. */
@@ -99,6 +106,8 @@ export interface CollectOptions {
     readonly onBytes?: ((done: number, total: number) => void) | undefined;
     readonly startedAt?: string | undefined;
     readonly durationMs?: number | null | undefined;
+    /** Recovery from a red run is allowed only with GitHub's own published digest. */
+    readonly requirePublishedDigest?: boolean | undefined;
 }
 
 /**
@@ -115,7 +124,8 @@ export async function collectRenderedMap(
     options: CollectOptions,
 ): Promise<CollectResult> {
     const artifacts = await options.transport.listRunArtifacts(owner, repo, runId);
-    const map = artifacts.find((artifact) => artifact.name === RENDERED_MAP_ARTIFACT);
+    const maps = artifacts.filter((artifact) => artifact.name === RENDERED_MAP_ARTIFACT);
+    const map = maps[0];
 
     if (map === undefined) {
         const lowres = artifacts.find((artifact) => artifact.name === LOWRES_ARTIFACT);
@@ -141,6 +151,15 @@ export async function collectRenderedMap(
         );
     }
 
+    if (maps.length !== 1) {
+        return refuse(
+            "ambiguous-map-artifact",
+            `Run ${String(runId)} published ${String(maps.length)} artifacts named ` +
+                `${RENDERED_MAP_ARTIFACT}. Nothing was downloaded because there is no safe way ` +
+                "to choose which one is the finished map.",
+        );
+    }
+
     if (map.expired) {
         return refuse(
             "artifact-expired",
@@ -150,10 +169,25 @@ export async function collectRenderedMap(
         );
     }
 
-    await options.transport.downloadArtifact(owner, repo, map, options.artifactFile, options.onBytes);
+    const published = publishedSha256(map.digest);
+    if (options.requirePublishedDigest === true && published === null) {
+        return refuse(
+            "artifact-digest-missing",
+            `The ${RENDERED_MAP_ARTIFACT} artifact from run ${String(runId)} has no published ` +
+                "SHA-256 digest. Nothing was downloaded because a map recovered from a failed run " +
+                "must be verified against GitHub's own digest.",
+        );
+    }
+
+    await options.transport.downloadArtifact(
+        owner,
+        repo,
+        map,
+        options.artifactFile,
+        options.onBytes,
+    );
 
     const sha256 = await sha256File(options.artifactFile, options.signal);
-    const published = publishedSha256(map.digest);
     if (published !== null && published !== sha256) {
         // Deleted rather than kept. A file that failed its published digest is the one
         // file on disk that must never be reused, and a resumed download would otherwise
@@ -167,20 +201,28 @@ export async function collectRenderedMap(
     }
 
     const workspace = renderWorkspace(options.storageDir, options.renderId);
-    // A previous attempt's half-unpacked tree is never merged into: entries it wrote and
-    // this artifact does not carry would survive as tiles nobody rendered.
-    await rm(workspace.webRoot, { recursive: true, force: true });
-    await extractZip(options.artifactFile, workspace.webRoot, {
+    const storageMapId = sanitizeMapId(options.mapId);
+    const stagedWebRoot = `${workspace.webRoot}.collecting-${String(runId)}`;
+    const previousWebRoot = `${workspace.webRoot}.previous-${String(runId)}`;
+    const stagedRecord = `${workspace.recordFile}.collecting-${String(runId)}`;
+    const previousRecord = `${workspace.recordFile}.previous-${String(runId)}`;
+
+    await recoverInterruptedSwap(workspace.webRoot, previousWebRoot);
+    await recoverInterruptedSwap(workspace.recordFile, previousRecord);
+    await rm(stagedWebRoot, { recursive: true, force: true });
+    await rm(stagedRecord, { force: true });
+    await extractZip(options.artifactFile, stagedWebRoot, {
         ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
 
-    const looksLikeAMap = await isAMap(workspace.webRoot, options.mapId);
+    const looksLikeAMap = await isAMap(stagedWebRoot, storageMapId);
     if (!looksLikeAMap) {
-        await rm(workspace.webRoot, { recursive: true, force: true }).catch(() => undefined);
+        await rm(stagedWebRoot, { recursive: true, force: true }).catch(() => undefined);
         return refuse(
             "artifact-not-a-map",
-            `The ${RENDERED_MAP_ARTIFACT} artifact unpacked without a maps/${options.mapId} folder ` +
-                "and a settings.json beside it, so it is not a map this application can serve. " +
+            `The ${RENDERED_MAP_ARTIFACT} artifact unpacked without a maps/${storageMapId} folder ` +
+                "containing its settings.json and a root settings.json beside it, so it is not a " +
+                "map this application can serve. " +
                 "Nothing was registered.",
         );
     }
@@ -199,7 +241,7 @@ export async function collectRenderedMap(
         javaVersion: "21 (temurin, GitHub Actions runner)",
         maps: [
             {
-                id: options.mapId,
+                id: storageMapId,
                 name: options.mapName,
                 world: options.worldFolder,
                 dimension: options.dimension,
@@ -212,7 +254,15 @@ export async function collectRenderedMap(
         durationMs: options.durationMs ?? null,
         appVersion: options.appVersion ?? null,
     };
-    await writeRenderRecord(workspace.recordFile, record);
+    await writeRenderRecord(stagedRecord, record);
+    await replaceCollectedRender({
+        liveWebRoot: workspace.webRoot,
+        stagedWebRoot,
+        previousWebRoot,
+        liveRecord: workspace.recordFile,
+        stagedRecord,
+        previousRecord,
+    });
 
     options.mounts?.setMount({
         renderId: options.renderId,
@@ -229,7 +279,64 @@ export async function collectRenderedMap(
         sha256,
         verified: published !== null,
         artifact: map,
+        mapId: storageMapId,
     };
+}
+
+async function pathExists(path: string): Promise<boolean> {
+    return (await stat(path).catch(() => null)) !== null;
+}
+
+/** Restores the known-good side of an interrupted prior swap before beginning another. */
+async function recoverInterruptedSwap(live: string, previous: string): Promise<void> {
+    const liveExists = await pathExists(live);
+    const previousExists = await pathExists(previous);
+    if (!liveExists && previousExists) {
+        await rename(previous, live);
+        return;
+    }
+    if (liveExists && previousExists) {
+        await rm(previous, { recursive: true, force: true });
+    }
+}
+
+async function replaceCollectedRender(paths: {
+    readonly liveWebRoot: string;
+    readonly stagedWebRoot: string;
+    readonly previousWebRoot: string;
+    readonly liveRecord: string;
+    readonly stagedRecord: string;
+    readonly previousRecord: string;
+}): Promise<void> {
+    let movedOldWeb = false;
+    let movedOldRecord = false;
+    let movedNewWeb = false;
+    let movedNewRecord = false;
+    try {
+        if (await pathExists(paths.liveWebRoot)) {
+            await rename(paths.liveWebRoot, paths.previousWebRoot);
+            movedOldWeb = true;
+        }
+        if (await pathExists(paths.liveRecord)) {
+            await rename(paths.liveRecord, paths.previousRecord);
+            movedOldRecord = true;
+        }
+        await rename(paths.stagedWebRoot, paths.liveWebRoot);
+        movedNewWeb = true;
+        await rename(paths.stagedRecord, paths.liveRecord);
+        movedNewRecord = true;
+    } catch (error) {
+        if (movedNewRecord) await rm(paths.liveRecord, { force: true }).catch(() => undefined);
+        if (movedOldRecord) await rename(paths.previousRecord, paths.liveRecord);
+        if (movedNewWeb) {
+            await rm(paths.liveWebRoot, { recursive: true, force: true }).catch(() => undefined);
+        }
+        if (movedOldWeb) await rename(paths.previousWebRoot, paths.liveWebRoot);
+        throw error;
+    }
+
+    await rm(paths.previousWebRoot, { recursive: true, force: true });
+    await rm(paths.previousRecord, { force: true });
 }
 
 /** `sha256:<hex>` as GitHub writes it, or null for anything else. */
@@ -250,7 +357,15 @@ function publishedSha256(digest: string | null): string | null {
 async function isAMap(webRoot: string, mapId: string): Promise<boolean> {
     const settings = await stat(join(webRoot, "settings.json")).catch(() => null);
     const map = await stat(join(webRoot, "maps", mapId)).catch(() => null);
-    return settings !== null && settings.isFile() && map !== null && map.isDirectory();
+    const mapSettings = await stat(join(webRoot, "maps", mapId, "settings.json")).catch(() => null);
+    return (
+        settings !== null &&
+        settings.isFile() &&
+        map !== null &&
+        map.isDirectory() &&
+        mapSettings !== null &&
+        mapSettings.isFile()
+    );
 }
 
 function refuse(

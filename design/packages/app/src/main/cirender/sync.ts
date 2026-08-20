@@ -15,9 +15,10 @@
  *
  * - **A run that is still going is reported as still going**, with GitHub's own per-job
  *   statuses. No conclusion is invented for a run that has not reached one.
- * - **A failed run registers nothing.** The failing job is named and the tail of its log
- *   is carried back, because "the render failed" with no evidence is a message somebody
- *   can do nothing with.
+ * - **A failed run registers nothing unless ordered steps prove the map finished first.**
+ *   The narrow exception requires merge verification, assembly and the map-artifact upload
+ *   to succeed before an explicitly Pages-only failure, plus GitHub's published digest.
+ *   Every other failure names the job, step and log tail and mounts nothing.
  * - **An unchanged world is not uploaded again**, and "unchanged" is checked against the
  *   release actually still being there rather than against a note in a local file.
  * - **Nothing leaves this computer without being said first.** Uploading a world is
@@ -70,7 +71,7 @@ import {
     syncIdFor,
     writeCiSyncState,
 } from "./state.js";
-import type { CiSyncState } from "./state.js";
+import type { CiPostRenderWarning, CiSyncState } from "./state.js";
 
 /**
  * The largest world this feature will upload, and why there is a ceiling at all.
@@ -116,6 +117,18 @@ const ZIP_ENTRY_OVERHEAD_BYTES = 256;
  */
 export const CI_UPLOAD_PART_SIZE_BYTES = CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES;
 
+/** The stable name owned by the generated workflow template. */
+export const VERIFIED_MAP_UPLOAD_STEP = "Publish the verified map artifact";
+
+export interface CiStepReport {
+    readonly number: number;
+    readonly name: string;
+    readonly status: RunStatus;
+    readonly conclusion: string | null;
+    readonly startedAt: string | null;
+    readonly completedAt: string | null;
+}
+
 export type CiSyncPhase =
     | "checking"
     | "uploading"
@@ -135,6 +148,9 @@ export interface CiJobReport {
     readonly htmlUrl: string;
     readonly startedAt: string | null;
     readonly completedAt: string | null;
+    /** Ordered exactly as GitHub returned them. */
+    readonly steps: readonly CiStepReport[];
+    readonly stepsComplete: boolean;
     /**
      * Which wave of the render this job belongs to, read from its own name.
      *
@@ -194,6 +210,8 @@ export interface CiSyncFailure {
     /** The run as it stood when this failed, when there was one. */
     readonly run: CiRunReport | null;
     readonly failingJob: string | null;
+    /** The first unsuccessful step inside that job, when GitHub reported one. */
+    readonly failingStep?: string | null;
     readonly logExcerpt: string | null;
 }
 
@@ -217,6 +235,8 @@ export interface CiSyncSummary {
     readonly artifactSha256: string;
     /** True only when GitHub published a digest for the artifact and it matched. */
     readonly verified: boolean;
+    /** Non-null only when the map was recovered but optional Pages publication failed. */
+    readonly postRenderWarning: CiPostRenderWarning | null;
 }
 
 export type CiSyncEvent =
@@ -445,6 +465,8 @@ export interface CiRenderSyncOptions {
     readonly pollIntervalMs?: number | undefined;
     /** How many times the freshly dispatched run is looked for before giving up. */
     readonly runLookupAttempts?: number | undefined;
+    /** Test seam for the state writer; production always uses the atomic writer. */
+    readonly writeState?: typeof writeCiSyncState | undefined;
 }
 
 export class CiRenderSync {
@@ -1167,6 +1189,12 @@ export class CiRenderSync {
         const { owner, repo, syncId, workspace, signal, transport } = context;
         const route = transport.route;
         let state = context.state;
+        const retryingRecoveredPages =
+            state.postRenderWarning !== null &&
+            state.renderId !== null &&
+            state.runId !== null &&
+            context.request.output === "artifact-and-pages" &&
+            context.request.forceUpload !== true;
 
         /* -- what leaves this computer, said before it does ----------------- */
 
@@ -1261,12 +1289,65 @@ export class CiRenderSync {
          * workflow. The transport answers false for anything it could not read, so a
          * network problem costs an upload rather than a wasted run.
          */
-        const reusable =
-            context.request.forceUpload !== true &&
-            isUnchanged(state.fingerprint, fresh) &&
-            state.releaseTag !== null &&
-            state.assetName !== null &&
-            (await transport.releaseHasAsset(owner, repo, state.releaseTag, state.assetName));
+        let reusable: boolean;
+        if (retryingRecoveredPages) {
+            if (!isUnchanged(state.fingerprint, fresh)) {
+                return this.#failed(
+                    syncId,
+                    failure(
+                        "retry-world-changed",
+                        "The local world has changed since the recovered map's source was " +
+                            "uploaded. Nothing was packed, uploaded or dispatched; start a normal " +
+                            "render so the changed world is uploaded rather than rendering the " +
+                            "older release again.",
+                        { route },
+                    ),
+                );
+            }
+            reusable =
+                state.releaseTag !== null &&
+                state.assetName !== null &&
+                (await transport.releaseHasAsset(owner, repo, state.releaseTag, state.assetName));
+            if (!reusable) {
+                return this.#failed(
+                    syncId,
+                    failure(
+                        "retry-source-missing",
+                        "The uploaded world used by the recovered map is no longer present on its " +
+                            "GitHub release. Nothing was packed, uploaded or dispatched; start a " +
+                            "normal render if the world should be uploaded again.",
+                        { route },
+                    ),
+                );
+            }
+
+            // Retrying Pages means dispatching the already-uploaded world through a fresh
+            // run. The recovered local map and warning remain available until that run
+            // reaches a verified outcome; only the old run identity and timestamps move.
+            state = {
+                ...state,
+                stage: "uploaded",
+                runId: null,
+                runNumber: null,
+                runUrl: null,
+                dispatchedAt: null,
+                updatedAt: this.#timestamp(),
+            };
+            await this.#save(workspace.stateFile, state);
+            this.#log(
+                syncId,
+                "info",
+                "Retrying the optional Pages publication with the already-uploaded world; " +
+                    "nothing will be repacked or uploaded.",
+            );
+        } else {
+            reusable =
+                context.request.forceUpload !== true &&
+                isUnchanged(state.fingerprint, fresh) &&
+                state.releaseTag !== null &&
+                state.assetName !== null &&
+                (await transport.releaseHasAsset(owner, repo, state.releaseTag, state.assetName));
+        }
 
         /* -- upload, or say why it was skipped ------------------------------ */
 
@@ -1462,6 +1543,7 @@ export class CiRenderSync {
                 runUrl: null,
                 failureCode: null,
                 failureMessage: null,
+                postRenderWarning: null,
                 updatedAt: this.#timestamp(),
             };
             await this.#save(workspace.stateFile, state);
@@ -1629,40 +1711,68 @@ export class CiRenderSync {
             this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
         }
 
+        let postRenderWarning: CiPostRenderWarning | null = null;
+        let recoveryFailure: PostRenderRecovery | null = null;
         if (report.conclusion !== "success") {
-            const failing = firstUnsuccessfulJob(report.jobs);
-            const excerpt =
-                failing === null || failing.id <= 0
-                    ? null
-                    : await transport.readJobLogTail(owner, repo, failing.id);
+            recoveryFailure = recoverablePostRenderFailure(report);
+            if (recoveryFailure === null || state.recoveryAttemptedRunId === runId) {
+                const failing = firstUnsuccessfulJob(report.jobs);
+                const failingStep = failing === null ? null : firstUnsuccessfulStep(failing);
+                const excerpt =
+                    failing === null || failing.id <= 0
+                        ? null
+                        : await transport.readJobLogTail(owner, repo, failing.id);
+                const alreadyAttempted =
+                    recoveryFailure !== null && state.recoveryAttemptedRunId === runId;
+                state = {
+                    ...state,
+                    stage: report.conclusion === "cancelled" ? "cancelled" : "failed",
+                    failureCode: alreadyAttempted
+                        ? "artifact-recovery-already-attempted"
+                        : `run-${report.conclusion ?? "unknown"}`,
+                    failureMessage: alreadyAttempted
+                        ? `Verified artifact recovery was already attempted for run ${String(runId)}.`
+                        : `Run ${String(runId)} ended as ${report.conclusion ?? "an unrecognised state"}.`,
+                    updatedAt: this.#timestamp(),
+                };
+                await this.#save(workspace.stateFile, state);
+                return this.#failed(
+                    syncId,
+                    failure(
+                        alreadyAttempted
+                            ? "artifact-recovery-already-attempted"
+                            : `run-${report.conclusion ?? "unknown"}`,
+                        alreadyAttempted
+                            ? `Run ${String(runId)} still has a recoverable artifact, but this ` +
+                                  "computer already attempted its one verified recovery. The earlier " +
+                                  "collection result is retained and nothing was downloaded again."
+                            : `The render on GitHub ended as ${report.conclusion ?? "an unrecognised state"}` +
+                                  (failing === null ? "" : `, in the job "${failing.name}"`) +
+                                  ". No map was downloaded and nothing was added to the map list. The run is at " +
+                                  `${report.htmlUrl}.`,
+                        {
+                            route,
+                            run: report,
+                            failingJob: failing?.name ?? null,
+                            failingStep: failingStep?.name ?? null,
+                            logExcerpt: excerpt,
+                            detail: report.htmlUrl,
+                        },
+                    ),
+                );
+            }
+
+            postRenderWarning = recoveryFailure.warning;
             state = {
                 ...state,
-                stage: report.conclusion === "cancelled" ? "cancelled" : "failed",
-                failureCode: `run-${report.conclusion ?? "unknown"}`,
-                failureMessage: `Run ${String(runId)} ended as ${report.conclusion ?? "an unrecognised state"}.`,
+                recoveryAttemptedRunId: runId,
                 updatedAt: this.#timestamp(),
             };
-            await this.#save(workspace.stateFile, state);
-            // Nothing is downloaded and nothing is mounted. A map from a failed run would
-            // be a partial map presented as a finished one, which is the failure this
-            // whole feature is least able to survive.
-            return this.#failed(
-                syncId,
-                failure(
-                    `run-${report.conclusion ?? "unknown"}`,
-                    `The render on GitHub ended as ${report.conclusion ?? "an unrecognised state"}` +
-                        (failing === null ? "" : `, in the job "${failing.name}"`) +
-                        ". No map was downloaded and nothing was added to the map list. The run is at " +
-                        `${report.htmlUrl}.`,
-                    {
-                        route,
-                        run: report,
-                        failingJob: failing?.name ?? null,
-                        logExcerpt: excerpt,
-                        detail: report.htmlUrl,
-                    },
-                ),
-            );
+            // This marker is a safety boundary, unlike ordinary best-effort resume state.
+            // If it is not durable, recovery must stop before listing or downloading the
+            // artifact or a restart could repeat the same red run's attempt.
+            await this.#writeState(workspace.stateFile, state);
+            this.#log(syncId, "warning", describePostRenderWarning(postRenderWarning));
         }
 
         /* -- collect and register -------------------------------------------- */
@@ -1686,6 +1796,7 @@ export class CiRenderSync {
                 ? {}
                 : { appVersion: this.#options.appVersion }),
             startedAt: report.createdAt,
+            requirePublishedDigest: recoveryFailure !== null,
         });
 
         if (!collected.ok) {
@@ -1702,6 +1813,8 @@ export class CiRenderSync {
                 failure(collected.failure.code, collected.failure.message, {
                     route,
                     run: report,
+                    failingJob: recoveryFailure?.failingJob ?? null,
+                    failingStep: recoveryFailure?.failingStep ?? null,
                     detail: report.htmlUrl,
                 }),
             );
@@ -1722,6 +1835,7 @@ export class CiRenderSync {
             stage: "rendered",
             renderId: collected.renderId,
             artifactSha256: collected.sha256,
+            postRenderWarning,
             failureCode: null,
             failureMessage: null,
             updatedAt: this.#timestamp(),
@@ -1738,13 +1852,14 @@ export class CiRenderSync {
             runUrl: report.htmlUrl,
             renderId: collected.renderId,
             dataRoot: collected.dataRoot,
-            mapId: context.map.id,
+            mapId: collected.mapId,
             mapName: context.map.name,
             route,
             uploaded,
             artifactBytes: collected.bytes,
             artifactSha256: collected.sha256,
             verified: collected.verified,
+            postRenderWarning,
         };
         const durationMs = this.#clock() - context.startedAt;
         this.emit({ type: "finished", syncId, summary, durationMs, at: this.#timestamp() });
@@ -1798,6 +1913,15 @@ export class CiRenderSync {
                 htmlUrl: job.htmlUrl,
                 startedAt: job.startedAt,
                 completedAt: job.completedAt,
+                steps: job.steps.map((step) => ({
+                    number: step.number,
+                    name: step.name,
+                    status: step.status,
+                    conclusion: step.conclusion,
+                    startedAt: step.startedAt,
+                    completedAt: step.completedAt,
+                })),
+                stepsComplete: job.stepsComplete,
                 wave: waveOf(job.name),
             })),
         };
@@ -1805,11 +1929,15 @@ export class CiRenderSync {
 
     async #save(path: string, state: CiSyncState): Promise<void> {
         try {
-            await writeCiSyncState(path, state);
+            await this.#writeState(path, state);
         } catch {
             // A record that cannot be written must never fail the sync that produced it.
             // Losing the note costs a resume; losing the render costs the render.
         }
+    }
+
+    async #writeState(path: string, state: CiSyncState): Promise<void> {
+        await (this.#options.writeState ?? writeCiSyncState)(path, state);
     }
 
     async #account(
@@ -1985,6 +2113,184 @@ export function firstUnsuccessfulJob(jobs: readonly CiJobReport[]): CiJobReport 
     );
 }
 
+/** The step worth naming inside a failed job, using the same failure-first rule. */
+export function firstUnsuccessfulStep(job: CiJobReport): CiStepReport | null {
+    const failed = job.steps.find((step) => step.conclusion === "failure");
+    if (failed !== undefined) return failed;
+    return (
+        job.steps.find(
+            (step) =>
+                step.conclusion !== null &&
+                step.conclusion !== "success" &&
+                step.conclusion !== "skipped",
+        ) ?? null
+    );
+}
+
+export interface PostRenderRecovery {
+    readonly failingJob: string;
+    readonly failingStep: string;
+    readonly warning: CiPostRenderWarning;
+}
+
+const VERIFY_MERGE_STEP = "Verify the merge";
+const ASSEMBLE_MAP_STEP = "Assemble the complete map";
+const LEGACY_ARTIFACT_UPLOAD_PREFIX = "Run actions/upload-artifact@";
+const PAGES_JOB = "Publish to Pages";
+const PAGES_ONLY_STEPS = new Set([
+    "Build the documentation site to publish alongside the map",
+    "Make the map servable by a host that only serves files",
+    "Combine the site and the map",
+]);
+
+function succeeded(step: CiStepReport): boolean {
+    return step.status === "completed" && step.conclusion === "success";
+}
+
+function unsuccessful(conclusion: string | null): boolean {
+    return conclusion !== null && conclusion !== "success" && conclusion !== "skipped";
+}
+
+function stepsAreStrictlyOrdered(steps: readonly CiStepReport[]): boolean {
+    return steps.every(
+        (step, index) => index === 0 || step.number > (steps[index - 1]?.number ?? step.number),
+    );
+}
+
+function safeCompletedStep(step: CiStepReport): boolean {
+    return (
+        step.status === "completed" &&
+        (step.conclusion === "success" || step.conclusion === "skipped")
+    );
+}
+
+function pagesOnlyFailure(job: CiJobReport, step: CiStepReport | null): boolean {
+    if (job.name === PAGES_JOB) return true;
+    if (step === null) return false;
+    return (
+        PAGES_ONLY_STEPS.has(step.name) ||
+        step.name.startsWith("Run actions/upload-pages-artifact@") ||
+        step.name.startsWith("Run actions/deploy-pages@")
+    );
+}
+
+/**
+ * Proves that a red run still produced the complete, verified map artifact and that its
+ * first later failure belongs only to optional Pages publication.
+ *
+ * The proof is deliberately based on exact ordered step names. Merely finding an artifact
+ * on a red run is insufficient: a partial merge can publish a plausible zip, and a generic
+ * upload action can belong to a diagnostic artifact. The legacy unnamed upload is accepted
+ * only in the narrow slot between successful assembly and the later explicit Pages failure.
+ */
+export function recoverablePostRenderFailure(report: CiRunReport): PostRenderRecovery | null {
+    if (report.status !== "completed" || report.conclusion !== "failure") return null;
+    if (
+        report.jobs.some(
+            (job) =>
+                !job.stepsComplete ||
+                job.status === "unknown" ||
+                !stepsAreStrictlyOrdered(job.steps),
+        )
+    ) {
+        return null;
+    }
+
+    for (let jobIndex = 0; jobIndex < report.jobs.length; jobIndex += 1) {
+        const job = report.jobs[jobIndex] as CiJobReport;
+        const verifyIndex = job.steps.findIndex(
+            (step) => step.name === VERIFY_MERGE_STEP && succeeded(step),
+        );
+        if (verifyIndex < 0) continue;
+        const assembleIndex = job.steps.findIndex(
+            (step, index) =>
+                index > verifyIndex && step.name === ASSEMBLE_MAP_STEP && succeeded(step),
+        );
+        if (assembleIndex < 0) continue;
+        const stableUploadIndex = job.steps.findIndex(
+            (step, index) =>
+                index > assembleIndex && succeeded(step) && step.name === VERIFIED_MAP_UPLOAD_STEP,
+        );
+        const uploadIndex =
+            stableUploadIndex >= 0
+                ? stableUploadIndex
+                : job.steps.findIndex(
+                      (step, index) =>
+                          index > assembleIndex &&
+                          succeeded(step) &&
+                          step.name.startsWith(LEGACY_ARTIFACT_UPLOAD_PREFIX),
+                  );
+        if (uploadIndex < 0) continue;
+
+        // A failure anywhere before the proof sequence invalidates the artifact, even if
+        // later cleanup or Pages steps happen to have run.
+        const earlierJobFailure = report.jobs
+            .slice(0, jobIndex)
+            .some(
+                (candidate) =>
+                    candidate.conclusion === null ||
+                    unsuccessful(candidate.conclusion) ||
+                    candidate.steps.some((step) => !safeCompletedStep(step)),
+            );
+        const earlierStepFailure = job.steps
+            .slice(0, uploadIndex + 1)
+            .some((step) => !safeCompletedStep(step));
+        if (earlierJobFailure || earlierStepFailure) return null;
+
+        let failingJob: CiJobReport | null = job;
+        let failingStep =
+            job.steps.slice(uploadIndex + 1).find((step) => !safeCompletedStep(step)) ?? null;
+        if (
+            failingStep !== null &&
+            (failingStep.status !== "completed" || failingStep.conclusion === null)
+        ) {
+            return null;
+        }
+
+        if (failingStep === null) {
+            failingJob = null;
+            for (const candidate of report.jobs.slice(jobIndex + 1)) {
+                const candidateStep =
+                    candidate.steps.find((step) => !safeCompletedStep(step)) ?? null;
+                if (
+                    candidateStep !== null &&
+                    (candidateStep.status !== "completed" || candidateStep.conclusion === null)
+                ) {
+                    return null;
+                }
+                if (candidateStep !== null || unsuccessful(candidate.conclusion)) {
+                    failingJob = candidate;
+                    failingStep = candidateStep;
+                    break;
+                }
+                if (candidate.conclusion === null) return null;
+            }
+        }
+
+        if (failingJob === null || !pagesOnlyFailure(failingJob, failingStep)) return null;
+        const failingStepName = failingStep?.name ?? failingJob.name;
+        return {
+            failingJob: failingJob.name,
+            failingStep: failingStepName,
+            warning: {
+                code: "pages-not-published",
+                runId: report.runId,
+                failingJob: failingJob.name,
+                failingStep: failingStepName,
+            },
+        };
+    }
+    return null;
+}
+
+function describePostRenderWarning(warning: CiPostRenderWarning): string {
+    return (
+        `The map artifact from run ${String(warning.runId)} was verified and recovered, but ` +
+        `GitHub Pages was not published because "${warning.failingStep}" failed. The red run ` +
+        "is retained as evidence; retrying starts a fresh run with the already-uploaded world."
+    );
+}
+
 function failure(
     code: string,
     message: string,
@@ -2000,6 +2306,7 @@ function failure(
         route: extra.route ?? null,
         run: extra.run ?? null,
         failingJob: extra.failingJob ?? null,
+        failingStep: extra.failingStep ?? null,
         logExcerpt: extra.logExcerpt ?? null,
     };
 }

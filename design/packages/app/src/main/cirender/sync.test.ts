@@ -32,7 +32,8 @@ import {
     syncIdFor,
     writeCiSyncState,
 } from "./state.js";
-import { CiRenderSync } from "./sync.js";
+import type { CiSyncState } from "./state.js";
+import { CiRenderSync, VERIFIED_MAP_UPLOAD_STEP } from "./sync.js";
 import type { CiSyncEvent, CiSyncRequest } from "./sync.js";
 
 const OWNER = "o";
@@ -149,6 +150,7 @@ function makeSync(options: {
     mounts?: LocalMapHandler;
     eulaAccepted?: boolean;
     events?: CiSyncEvent[];
+    writeState?: ((path: string, state: CiSyncState) => Promise<void>) | undefined;
 }): CiRenderSync {
     return new CiRenderSync({
         storageDir: () => join(workDir, "maps"),
@@ -158,6 +160,7 @@ function makeSync(options: {
         ...(options.events === undefined
             ? {}
             : { onEvent: (event) => options.events?.push(event) }),
+        ...(options.writeState === undefined ? {} : { writeState: options.writeState }),
         now: () => NOW,
         sleep: () => Promise.resolve(),
         pollIntervalMs: 0,
@@ -223,9 +226,10 @@ function baseRoutes(github: RecordingGitHub, isPrivate = true, canWrite = true):
 
 /** Writes the record a previous successful upload would have left. */
 async function seedUploadedState(
-    options: { runId?: number; accountId?: string } = {},
+    options: { runId?: number; accountId?: string; mapId?: string } = {},
 ): Promise<string> {
-    const syncId = syncIdFor(OWNER, REPO, world, MAP_ID);
+    const mapId = options.mapId ?? MAP_ID;
+    const syncId = syncIdFor(OWNER, REPO, world, mapId);
     const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
     const fingerprint = await fingerprintWorld(world);
     await writeCiSyncState(workspace.stateFile, {
@@ -235,7 +239,7 @@ async function seedUploadedState(
             repo: REPO,
             ...(options.accountId === undefined ? {} : { accountId: options.accountId }),
             worldFolder: world,
-            mapId: MAP_ID,
+            mapId,
             mapName: "World",
             dimension: "minecraft:overworld",
             at: "2026-08-03T09:00:00Z",
@@ -254,6 +258,65 @@ async function seedUploadedState(
                 : `https://github.test/runs/${String(options.runId)}`,
     });
     return syncId;
+}
+
+function stepJson(
+    number: number,
+    name: string,
+    conclusion: string | null = "success",
+): Record<string, unknown> {
+    return {
+        number,
+        name,
+        status: "completed",
+        conclusion,
+        started_at: `2026-08-04T10:${String(number).padStart(2, "0")}:00Z`,
+        completed_at: `2026-08-04T10:${String(number).padStart(2, "0")}:01Z`,
+    };
+}
+
+function mergeJobJson(
+    options: {
+        uploadName?: string;
+        failureName?: string;
+        earlierFailure?: boolean;
+    } = {},
+): Record<string, unknown> {
+    return {
+        ...(jobJson({
+            id: 42,
+            name: "Merge group 0",
+            status: "completed",
+            conclusion: "failure",
+        }) as object),
+        steps: [
+            ...(options.earlierFailure === true
+                ? [stepJson(13, "Merge this group's shards", "failure")]
+                : [stepJson(13, "Merge this group's shards")]),
+            stepJson(14, "Verify the merge"),
+            stepJson(15, "Assemble the complete map"),
+            stepJson(16, options.uploadName ?? VERIFIED_MAP_UPLOAD_STEP),
+            stepJson(
+                17,
+                options.failureName ?? "Build the documentation site to publish alongside the map",
+                "failure",
+            ),
+        ],
+    };
+}
+
+async function renderedMapArtifact(mapId = MAP_ID): Promise<{
+    readonly bytes: Uint8Array;
+    readonly sha256: string;
+}> {
+    const site = join(workDir, `site-${mapId}`);
+    await mkdir(join(site, "maps", mapId, "tiles"), { recursive: true });
+    await writeFile(join(site, "settings.json"), JSON.stringify({ maps: [mapId] }), "utf8");
+    await writeFile(join(site, "maps", mapId, "settings.json"), "{}", "utf8");
+    await writeFile(join(site, "maps", mapId, "tiles", "0.prbm"), "tile", "utf8");
+    const archive = join(workDir, `${mapId}-rendered-map.zip`);
+    const packed = await packFolder(site, archive);
+    return { bytes: new Uint8Array(await readFile(archive)), sha256: packed.sha256 };
 }
 
 /** The release the seeded record points at, still holding its asset. */
@@ -957,12 +1020,15 @@ describe("a failed run registers nothing", () => {
                             status: "completed",
                             conclusion: "success",
                         }),
-                        jobJson({
-                            id: 42,
-                            name: "Merge group 0",
-                            status: "completed",
-                            conclusion: "failure",
-                        }),
+                        {
+                            ...(jobJson({
+                                id: 42,
+                                name: "Merge group 0",
+                                status: "completed",
+                                conclusion: "failure",
+                            }) as object),
+                            steps: [stepJson(13, "Merge this group's shards", "failure")],
+                        },
                         jobJson({
                             id: 43,
                             name: "Wave 2",
@@ -986,6 +1052,7 @@ describe("a failed run registers nothing", () => {
         if (result.ok) return;
         expect(result.failure.code).toBe("run-failure");
         expect(result.failure.failingJob).toBe("Merge group 0");
+        expect(result.failure.failingStep).toBe("Merge this group's shards");
         expect(result.failure.logExcerpt).toContain("did not finish");
         expect(result.failure.run?.conclusion).toBe("failure");
         // The three things a failed run must never produce.
@@ -1062,6 +1129,492 @@ describe("a failed run registers nothing", () => {
         expect(result.failure.code).toBe("run-timed_out");
         expect(result.failure.logExcerpt).toBeNull();
         expect(result.failure.message).toContain("timed_out");
+    });
+});
+
+describe("a red run whose first later failure is Pages-only", () => {
+    async function runRecovery(
+        options: {
+            jobs?: unknown[];
+            artifacts?: unknown[];
+            bytes?: Uint8Array;
+            mapId?: string;
+            writeState?: ((path: string, state: CiSyncState) => Promise<void>) | undefined;
+        } = {},
+    ) {
+        const github = releaseRoute(baseRoutes(new RecordingGitHub()))
+            .on("GET", /\/actions\/runs\/7$/, {
+                status: 200,
+                json: runJson({ id: 7, status: "completed", conclusion: "failure" }),
+            })
+            .on("GET", "/actions/runs/7/jobs", {
+                status: 200,
+                json: { jobs: options.jobs ?? [mergeJobJson()] },
+            })
+            .on("GET", "/actions/runs/7/artifacts", {
+                status: 200,
+                json: { artifacts: options.artifacts ?? [] },
+            });
+        if (options.bytes !== undefined) {
+            github.on("GET", "/artifacts/9/zip", { status: 200, bytes: options.bytes });
+        }
+        const syncId = await seedUploadedState({
+            runId: 7,
+            ...(options.mapId === undefined ? {} : { mapId: options.mapId }),
+        });
+        const mounts = new LocalMapHandler();
+        const events: CiSyncEvent[] = [];
+        const sync = makeSync({ github, mounts, events, writeState: options.writeState });
+        const result = await sync.sync(request({ mapId: options.mapId ?? MAP_ID }));
+        return { github, syncId, mounts, events, result, sync };
+    }
+
+    it.each([
+        VERIFIED_MAP_UPLOAD_STEP,
+        "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+    ])(
+        "recovers the verified artifact after %s, while retaining the red run and warning",
+        async (uploadName) => {
+            const artifact = await renderedMapArtifact();
+            const attempt = await runRecovery({
+                jobs: [mergeJobJson({ uploadName })],
+                artifacts: [
+                    artifactJson({
+                        id: 9,
+                        name: "rendered-map",
+                        bytes: artifact.bytes.byteLength,
+                        digest: `sha256:${artifact.sha256}`,
+                    }),
+                ],
+                bytes: artifact.bytes,
+            });
+
+            expect(attempt.result.ok).toBe(true);
+            if (!attempt.result.ok || attempt.result.outcome !== "rendered") {
+                throw new Error("expected a recovered render");
+            }
+            expect(attempt.result.summary.postRenderWarning).toEqual({
+                code: "pages-not-published",
+                runId: 7,
+                failingJob: "Merge group 0",
+                failingStep: "Build the documentation site to publish alongside the map",
+            });
+            expect(attempt.result.summary.verified).toBe(true);
+            expect(attempt.events.find((event) => event.type === "run")?.run.conclusion).toBe(
+                "failure",
+            );
+            expect(attempt.mounts.getMounts()).toHaveLength(1);
+            expect(nothingUploaded(attempt.github)).toBe(true);
+
+            const state = await readCiSyncState(
+                ciSyncWorkspace(join(workDir, "maps"), attempt.syncId).stateFile,
+            );
+            expect(state?.stage).toBe("rendered");
+            expect(state?.runId).toBe(7);
+            expect(state?.recoveryAttemptedRunId).toBe(7);
+            expect(state?.postRenderWarning).toBe(attempt.result.summary.postRenderWarning);
+        },
+    );
+
+    it("proves recovery from complete job and artifact inventories beyond page 1", async () => {
+        const artifact = await renderedMapArtifact();
+        const github = releaseRoute(baseRoutes(new RecordingGitHub()))
+            .on("GET", /\/actions\/runs\/7$/, {
+                status: 200,
+                json: runJson({ id: 7, status: "completed", conclusion: "failure" }),
+            })
+            .on(
+                "GET",
+                "/actions/runs/7/jobs",
+                {
+                    status: 200,
+                    json: {
+                        total_count: 101,
+                        jobs: Array.from({ length: 100 }, (_, index) =>
+                            ({
+                                ...(jobJson({
+                                    id: index + 1,
+                                    name: `Unused wave ${String(index + 1)}`,
+                                    status: "completed",
+                                    conclusion: "skipped",
+                                }) as object),
+                                steps: [],
+                            }),
+                        ),
+                    },
+                },
+                { status: 200, json: { total_count: 101, jobs: [mergeJobJson()] } },
+            )
+            .on(
+                "GET",
+                "/actions/runs/7/artifacts",
+                {
+                    status: 200,
+                    json: {
+                        total_count: 101,
+                        artifacts: Array.from({ length: 100 }, (_, index) =>
+                            artifactJson({
+                                id: index + 1,
+                                name: `diagnostic-${String(index)}`,
+                                bytes: 1,
+                            }),
+                        ),
+                    },
+                },
+                {
+                    status: 200,
+                    json: {
+                        total_count: 101,
+                        artifacts: [
+                            artifactJson({
+                                id: 1001,
+                                name: "rendered-map",
+                                bytes: artifact.bytes.byteLength,
+                                digest: `sha256:${artifact.sha256}`,
+                            }),
+                        ],
+                    },
+                },
+            )
+            .on("GET", "/artifacts/1001/zip", { status: 200, bytes: artifact.bytes });
+        await seedUploadedState({ runId: 7 });
+        const sync = makeSync({ github, mounts: new LocalMapHandler() });
+
+        const result = await sync.sync(request());
+
+        expect(result.ok && result.outcome === "rendered").toBe(true);
+        expect(github.countOf("/actions/runs/7/jobs", "GET")).toBe(2);
+        expect(github.countOf("/actions/runs/7/artifacts", "GET")).toBe(2);
+    });
+
+    it("stays fail-closed when any render step failed before the proof sequence", async () => {
+        const attempt = await runRecovery({ jobs: [mergeJobJson({ earlierFailure: true })] });
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.code).toBe("run-failure");
+        expect(attempt.github.never("/artifacts")).toBe(true);
+        expect(attempt.mounts.getMounts()).toHaveLength(0);
+    });
+
+    it("stays fail-closed when the first later failure is not explicitly Pages-only", async () => {
+        const attempt = await runRecovery({
+            jobs: [mergeJobJson({ failureName: "Validate the rendered map again" })],
+        });
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.code).toBe("run-failure");
+        expect(attempt.github.never("/artifacts")).toBe(true);
+    });
+
+    it("stays fail-closed when GitHub's step numbers are not strictly ordered", async () => {
+        const job = mergeJobJson();
+        const steps = job["steps"] as Record<string, unknown>[];
+        steps[2] = { ...steps[2], number: 12 };
+        const attempt = await runRecovery({ jobs: [job] });
+        expect(attempt.result.ok).toBe(false);
+        expect(attempt.github.never("/artifacts")).toBe(true);
+    });
+
+    it("stays fail-closed when a post-upload step has no conclusion", async () => {
+        const job = mergeJobJson();
+        const steps = job["steps"] as Record<string, unknown>[];
+        steps.splice(4, 0, stepJson(17, "Validate the Pages bundle", null));
+        steps[5] = { ...steps[5], number: 18 };
+        const attempt = await runRecovery({ jobs: [job] });
+        expect(attempt.result.ok).toBe(false);
+        expect(attempt.github.never("/artifacts")).toBe(true);
+    });
+
+    it("stays fail-closed when any raw step entry is malformed", async () => {
+        const job = mergeJobJson();
+        const steps = job["steps"] as Record<string, unknown>[];
+        steps.splice(4, 0, { number: "seventeen", name: "Unreadable step" });
+        const attempt = await runRecovery({ jobs: [job] });
+        expect(attempt.result.ok).toBe(false);
+        expect(attempt.github.never("/artifacts")).toBe(true);
+    });
+
+    it("refuses a missing rendered-map artifact", async () => {
+        const attempt = await runRecovery();
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.code).toBe("no-map-artifact");
+        const state = await readCiSyncState(
+            ciSyncWorkspace(join(workDir, "maps"), attempt.syncId).stateFile,
+        );
+        expect(state?.recoveryAttemptedRunId).toBe(7);
+
+        const second = await attempt.sync.sync(request());
+        expect(second.ok).toBe(false);
+        if (second.ok) return;
+        expect(second.failure.code).toBe("artifact-recovery-already-attempted");
+        expect(attempt.github.countOf("/actions/runs/7/artifacts", "GET")).toBe(1);
+    });
+
+    it("does not touch artifacts when the one-attempt marker cannot be persisted", async () => {
+        const attempt = await runRecovery({
+            artifacts: [
+                artifactJson({
+                    id: 9,
+                    name: "rendered-map",
+                    bytes: 1,
+                    digest: `sha256:${"a".repeat(64)}`,
+                }),
+            ],
+            writeState: () => Promise.reject(new Error("state storage is unavailable")),
+        });
+
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.message).toContain("state storage is unavailable");
+        expect(attempt.github.never("/actions/runs/7/artifacts")).toBe(true);
+        expect(attempt.mounts.getMounts()).toHaveLength(0);
+    });
+
+    it("refuses duplicate rendered-map artifacts instead of choosing one", async () => {
+        const attempt = await runRecovery({
+            artifacts: [
+                artifactJson({
+                    id: 9,
+                    name: "rendered-map",
+                    bytes: 1,
+                    digest: `sha256:${"a".repeat(64)}`,
+                }),
+                artifactJson({
+                    id: 10,
+                    name: "rendered-map",
+                    bytes: 1,
+                    digest: `sha256:${"b".repeat(64)}`,
+                }),
+            ],
+        });
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.code).toBe("ambiguous-map-artifact");
+        expect(attempt.github.never("/zip")).toBe(true);
+    });
+
+    it("refuses an expired rendered-map artifact", async () => {
+        const attempt = await runRecovery({
+            artifacts: [
+                artifactJson({
+                    id: 9,
+                    name: "rendered-map",
+                    bytes: 1,
+                    digest: `sha256:${"a".repeat(64)}`,
+                    expired: true,
+                }),
+            ],
+        });
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.code).toBe("artifact-expired");
+    });
+
+    it("requires GitHub's published SHA-256 before downloading from a red run", async () => {
+        const attempt = await runRecovery({
+            artifacts: [artifactJson({ id: 9, name: "rendered-map", bytes: 1 })],
+        });
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.code).toBe("artifact-digest-missing");
+        expect(attempt.github.never("/zip")).toBe(true);
+    });
+
+    it("refuses bytes that disagree with the published digest", async () => {
+        const bytes = new Uint8Array([1, 2, 3, 4]);
+        const attempt = await runRecovery({
+            artifacts: [
+                artifactJson({
+                    id: 9,
+                    name: "rendered-map",
+                    bytes: bytes.byteLength,
+                    digest: `sha256:${"b".repeat(64)}`,
+                }),
+            ],
+            bytes,
+        });
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.code).toBe("digest-mismatch");
+    });
+
+    it("refuses a digest-valid zip whose map shape is incomplete", async () => {
+        const site = join(workDir, "malformed-site");
+        await mkdir(join(site, "maps", MAP_ID), { recursive: true });
+        await writeFile(join(site, "settings.json"), '{"maps":["world"]}', "utf8");
+        const archive = join(workDir, "malformed.zip");
+        const packed = await packFolder(site, archive);
+        const bytes = new Uint8Array(await readFile(archive));
+        const attempt = await runRecovery({
+            artifacts: [
+                artifactJson({
+                    id: 9,
+                    name: "rendered-map",
+                    bytes: bytes.byteLength,
+                    digest: `sha256:${packed.sha256}`,
+                }),
+            ],
+            bytes,
+        });
+        expect(attempt.result.ok).toBe(false);
+        if (attempt.result.ok) return;
+        expect(attempt.result.failure.code).toBe("artifact-not-a-map");
+        expect(attempt.mounts.getMounts()).toHaveLength(0);
+    });
+
+    it("uses BlueMap's sanitized storage id while keeping the raw id as the sync identity", async () => {
+        const rawMapId = "bayville-world-v10-1";
+        const storageMapId = "bayville_world_v10_1";
+        await writeFile(
+            join(world, "worldlens.project.json"),
+            projectFile().replace(`"id": "${MAP_ID}"`, `"id": "${rawMapId}"`),
+            "utf8",
+        );
+        const artifact = await renderedMapArtifact(storageMapId);
+        const attempt = await runRecovery({
+            mapId: rawMapId,
+            artifacts: [
+                artifactJson({
+                    id: 9,
+                    name: "rendered-map",
+                    bytes: artifact.bytes.byteLength,
+                    digest: `sha256:${artifact.sha256}`,
+                }),
+            ],
+            bytes: artifact.bytes,
+        });
+        expect(attempt.result.ok).toBe(true);
+        if (!attempt.result.ok || attempt.result.outcome !== "rendered") return;
+        expect(attempt.result.summary.mapId).toBe(storageMapId);
+        const state = await readCiSyncState(
+            ciSyncWorkspace(join(workDir, "maps"), attempt.syncId).stateFile,
+        );
+        expect(state?.mapId).toBe(rawMapId);
+        const record = JSON.parse(
+            await readFile(join(workDir, "maps", `ci-${attempt.syncId}`, "render.json"), "utf8"),
+        ) as { maps: { id: string }[] };
+        expect(record.maps[0]?.id).toBe(storageMapId);
+    });
+
+    it("retries with the existing upload and preserves the recovered map and warning in flight", async () => {
+        const artifact = await renderedMapArtifact();
+        const github = releaseRoute(baseRoutes(new RecordingGitHub()))
+            .on("GET", /\/actions\/runs\/7$/, {
+                status: 200,
+                json: runJson({ id: 7, status: "completed", conclusion: "failure" }),
+            })
+            .on("GET", "/actions/runs/7/jobs", { status: 200, json: { jobs: [mergeJobJson()] } })
+            .on("GET", "/actions/runs/7/artifacts", {
+                status: 200,
+                json: {
+                    artifacts: [
+                        artifactJson({
+                            id: 9,
+                            name: "rendered-map",
+                            bytes: artifact.bytes.byteLength,
+                            digest: `sha256:${artifact.sha256}`,
+                        }),
+                    ],
+                },
+            })
+            .on("GET", "/artifacts/9/zip", { status: 200, bytes: artifact.bytes })
+            .on("GET", "/actions/workflows/render-world.yml/runs", {
+                status: 200,
+                json: { workflow_runs: [runJson({ id: 8, status: "in_progress" })] },
+            })
+            .on("GET", /\/actions\/runs\/8$/, {
+                status: 200,
+                json: runJson({ id: 8, status: "in_progress" }),
+            })
+            .on("GET", "/actions/runs/8/jobs", { status: 200, json: { jobs: [] } });
+        const syncId = await seedUploadedState({ runId: 7 });
+        const sync = makeSync({ github, mounts: new LocalMapHandler() });
+        const recovered = await sync.sync(request());
+        expect(recovered.ok && recovered.outcome === "rendered").toBe(true);
+        const recoveredState = await readCiSyncState(
+            ciSyncWorkspace(join(workDir, "maps"), syncId).stateFile,
+        );
+
+        const retried = await sync.sync(request({ output: "artifact-and-pages", follow: false }));
+
+        expect(retried.ok && retried.outcome === "running").toBe(true);
+        if (!retried.ok || retried.outcome !== "running") return;
+        expect(retried.state.runId).toBe(8);
+        expect(retried.state.releaseTag).toBe(RELEASE_TAG);
+        expect(retried.state.assetName).toBe(ASSET_NAME);
+        expect(retried.state.archiveSha256).toBe("a".repeat(64));
+        expect(retried.state.renderId).toBe(recoveredState?.renderId);
+        expect(retried.state.artifactSha256).toBe(recoveredState?.artifactSha256);
+        expect(retried.state.postRenderWarning).toBe(recoveredState?.postRenderWarning);
+        expect(github.countOf("/dispatches", "POST")).toBe(1);
+        expect(nothingUploaded(github)).toBe(true);
+    });
+
+    it("refuses the retry when the local world changed after the recovered snapshot", async () => {
+        const artifact = await renderedMapArtifact();
+        const recovered = await runRecovery({
+            artifacts: [
+                artifactJson({
+                    id: 9,
+                    name: "rendered-map",
+                    bytes: artifact.bytes.byteLength,
+                    digest: `sha256:${artifact.sha256}`,
+                }),
+            ],
+            bytes: artifact.bytes,
+        });
+        expect(recovered.result.ok && recovered.result.outcome === "rendered").toBe(true);
+
+        await writeFile(join(world, "region", "r.0.0.mca"), "changed after recovery", "utf8");
+        const retry = await recovered.sync.sync(request({ output: "artifact-and-pages" }));
+
+        expect(retry.ok).toBe(false);
+        if (retry.ok) return;
+        expect(retry.failure.code).toBe("retry-world-changed");
+        expect(recovered.github.countOf("/dispatches", "POST")).toBe(0);
+        expect(nothingUploaded(recovered.github)).toBe(true);
+    });
+
+    it("refuses the retry before dispatch when the recorded source asset is gone", async () => {
+        const artifact = await renderedMapArtifact();
+        const recovered = await runRecovery({
+            artifacts: [
+                artifactJson({
+                    id: 9,
+                    name: "rendered-map",
+                    bytes: artifact.bytes.byteLength,
+                    digest: `sha256:${artifact.sha256}`,
+                }),
+            ],
+            bytes: artifact.bytes,
+        });
+        expect(recovered.result.ok && recovered.result.outcome === "rendered").toBe(true);
+
+        const github = baseRoutes(new RecordingGitHub()).on(
+            "GET",
+            `/releases/tags/${RELEASE_TAG}`,
+            {
+                status: 200,
+                json: {
+                    id: 5,
+                    tag_name: RELEASE_TAG,
+                    name: RELEASE_TAG,
+                    html_url: "https://github.test/release",
+                    upload_url: "",
+                    created_at: "2026-08-03T09:00:00Z",
+                    assets: [],
+                },
+            },
+        );
+        const retrySync = makeSync({ github });
+        const retry = await retrySync.sync(request({ output: "artifact-and-pages" }));
+
+        expect(retry.ok).toBe(false);
+        if (retry.ok) return;
+        expect(retry.failure.code).toBe("retry-source-missing");
+        expect(github.never("/dispatches")).toBe(true);
+        expect(nothingUploaded(github)).toBe(true);
     });
 });
 

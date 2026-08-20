@@ -22,6 +22,7 @@ import { formatBytes } from "../downloads/downloads.js";
 import type {
     CiJobReport,
     CiOwnerChoicesAnswer,
+    CiPostRenderWarning,
     CiPreflight,
     CiRenderBridge,
     CiRepositoryChoice,
@@ -99,6 +100,8 @@ export interface CiRow {
     readonly transfer: CiTransferProgress | null;
     readonly run: CiRunReport | null;
     readonly summary: CiSyncSummary | null;
+    /** A verified local map can coexist with a failed optional Pages publication. */
+    readonly postRenderWarning: CiPostRenderWarning | null;
     readonly failure: CiSyncFailure | null;
     readonly startedAt: string | null;
     readonly finishedAt: string | null;
@@ -132,6 +135,7 @@ function blankRow(syncId: string): CiRow {
         transfer: null,
         run: null,
         summary: null,
+        postRenderWarning: null,
         failure: null,
         startedAt: null,
         finishedAt: null,
@@ -399,6 +403,8 @@ export interface CiRenders {
 
     check(request: CiSyncRequest): Promise<CiPreflight | null>;
     start(request: CiSyncRequest): Promise<CiSyncResult | null>;
+    /** Starts a fresh Pages run from the already-uploaded source of a recovered map. */
+    retry(syncId: string): Promise<CiSyncResult | null>;
     poll(syncId: string): Promise<CiSyncResult | null>;
     stop(syncId: string): Promise<boolean>;
     /** Removes a finished row from local history without touching GitHub. */
@@ -465,10 +471,11 @@ function describe(error: unknown): string {
 }
 
 function persistedRow(state: CiSyncState): CiRow {
+    const recovered = state.postRenderWarning !== null && state.renderId !== null;
     const terminal =
         state.stage === "rendered" || state.stage === "failed" || state.stage === "cancelled";
     const rowState: CiRowState =
-        state.stage === "rendered"
+        recovered || state.stage === "rendered"
             ? "rendered"
             : state.stage === "failed"
               ? "failed"
@@ -480,7 +487,7 @@ function persistedRow(state: CiSyncState): CiRow {
                     ? "uploaded"
                     : "idle";
     const conclusion =
-        state.stage === "rendered"
+        recovered || state.stage === "rendered"
             ? "success"
             : state.stage === "failed"
               ? "failure"
@@ -493,6 +500,7 @@ function persistedRow(state: CiSyncState): CiRow {
         mapId: state.mapId,
         worldFolder: state.worldFolder,
         state: rowState,
+        postRenderWarning: state.postRenderWarning,
         route: state.accountId === null ? null : "gh",
         run:
             state.runId === null
@@ -524,7 +532,8 @@ function persistedRow(state: CiSyncState): CiRow {
                   }
                 : null,
         startedAt: state.dispatchedAt,
-        finishedAt: terminal ? state.updatedAt : null,
+        phase: recovered ? "finished" : null,
+        finishedAt: recovered || terminal ? state.updatedAt : null,
         live: false,
     };
 }
@@ -603,7 +612,8 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         const row = rowFor(event.syncId);
 
         switch (event.type) {
-            case "started":
+            case "started": {
+                const preservesRecoveredMap = row.postRenderWarning !== null;
                 put({
                     ...row,
                     repository: event.repository,
@@ -615,8 +625,8 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     // next `phase` event is what says which credential actually drove it.
                     route: null,
                     transfer: null,
-                    run: null,
-                    summary: null,
+                    run: preservesRecoveredMap ? row.run : null,
+                    summary: preservesRecoveredMap ? row.summary : null,
                     failure: null,
                     startedAt: event.at,
                     finishedAt: null,
@@ -625,6 +635,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     live: true,
                 });
                 break;
+            }
             case "phase":
                 // The transfer's bar is cleared the moment the sync moves past uploading.
                 // Leaving a finished upload's bar beside "GitHub is rendering" would read
@@ -668,6 +679,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     phase: "finished",
                     route: event.summary.route,
                     summary: event.summary,
+                    postRenderWarning: event.summary.postRenderWarning ?? null,
                     repository: event.summary.repository,
                     mapId: event.summary.mapId,
                     durationMs: event.durationMs,
@@ -689,7 +701,11 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 }
                 put({
                     ...row,
-                    state: "failed",
+                    // A Pages retry can fail while the previously recovered map remains
+                    // mounted and usable. Keep that row rendered and show the new failure
+                    // beside its warning; changing it to failed would claim the map left.
+                    state: row.postRenderWarning === null ? "failed" : "rendered",
+                    phase: row.postRenderWarning === null ? row.phase : "finished",
                     // A failure this early can genuinely predate any phase - "no route" and
                     // "read-only" both fail before a credential is settled - so this keeps
                     // whatever the row already knew rather than overwriting it with null.
@@ -774,6 +790,36 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
 
     const unsubscribe = bridge === null ? null : bridge.onCiRenderEvent(handle);
 
+    async function startRender(request: CiSyncRequest): Promise<CiSyncResult | null> {
+        if (bridge === null) return null;
+        starting.value = true;
+        startFailure.value = null;
+        try {
+            const result = await bridge.startCiRender(request);
+            if (!result.ok && (result.syncId === "" || result.syncId === "nowhere")) {
+                startFailure.value = result.failure;
+            }
+            return result;
+        } catch (error) {
+            startFailure.value = {
+                code: "bridge",
+                message: describe(error),
+                detail: null,
+                status: null,
+                needsSignIn: false,
+                needsEula: false,
+                route: null,
+                run: null,
+                failingJob: null,
+                failingStep: null,
+                logExcerpt: null,
+            };
+            return null;
+        } finally {
+            starting.value = false;
+        }
+    }
+
     return {
         available: bridge !== null,
         canCancel: bridge?.canCancel ?? false,
@@ -837,33 +883,40 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
             }
         },
 
-        async start(request: CiSyncRequest): Promise<CiSyncResult | null> {
-            if (bridge === null) return null;
-            starting.value = true;
-            startFailure.value = null;
+        start: startRender,
+
+        async retry(syncId: string): Promise<CiSyncResult | null> {
+            if (bridge === null || !bridge.canList) return null;
+            let answer: Awaited<ReturnType<CiRenderBridge["listCiRenders"]>>;
             try {
-                const result = await bridge.startCiRender(request);
-                if (!result.ok && (result.syncId === "" || result.syncId === "nowhere")) {
-                    startFailure.value = result.failure;
-                }
-                return result;
+                answer = await bridge.listCiRenders();
             } catch (error) {
-                startFailure.value = {
-                    code: "bridge",
-                    message: describe(error),
-                    detail: null,
-                    status: null,
-                    needsSignIn: false,
-                    needsEula: false,
-                    route: null,
-                    run: null,
-                    failingJob: null,
-                    logExcerpt: null,
-                };
+                knownFailure.value = describe(error);
                 return null;
-            } finally {
-                starting.value = false;
             }
+            if (!answer.ok) {
+                knownFailure.value = answer.message;
+                return null;
+            }
+            known.value = answer.value;
+            const state = answer.value.find((candidate) => candidate.syncId === syncId);
+            if (state === undefined || (state.postRenderWarning ?? null) === null) {
+                knownFailure.value = "This recovered render no longer has a Pages retry recorded.";
+                return null;
+            }
+            return await startRender({
+                worldFolder: state.worldFolder,
+                owner: state.owner,
+                repo: state.repo,
+                mapId: state.mapId,
+                ...(state.accountId === null ? {} : { accountId: state.accountId }),
+                acknowledgeUpload: false,
+                // The same repository was acknowledged before the original upload, and
+                // this retry sends no new bytes; it only dispatches that recorded source.
+                acknowledgePublic: true,
+                forceUpload: false,
+                output: "artifact-and-pages",
+            });
         },
 
         async poll(syncId: string): Promise<CiSyncResult | null> {
@@ -918,6 +971,26 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                             void bridge.resumeCiRender(state.syncId).finally(() => {
                                 resuming.delete(state.syncId);
                             });
+                        }
+                        // A recovered row deliberately retains the red run as evidence.
+                        // Read it back rather than synthesizing one from the few run fields
+                        // in local state; invented timestamps, jobs or conclusions would be
+                        // worse than a temporarily absent report when the network is down.
+                        if (
+                            (state.postRenderWarning ?? null) !== null &&
+                            state.runId !== null &&
+                            bridge.canCheck
+                        ) {
+                            const checked = await bridge
+                                .checkCiRender(state.syncId)
+                                .catch(() => null);
+                            if (
+                                checked?.ok === true &&
+                                checked.outcome === "running" &&
+                                checked.run !== null
+                            ) {
+                                put({ ...rowFor(state.syncId), run: checked.run, live: false });
+                            }
                         }
                     }
                 } else {

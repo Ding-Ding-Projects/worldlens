@@ -41,6 +41,10 @@ export const RENDER_WORKFLOW_FILE = "render-world.yml";
 /** The artifact a single-group render publishes: the whole webapp with the map inside. */
 export const RENDERED_MAP_ARTIFACT = "rendered-map";
 
+/** 10,000 records is bounded while remaining far above GitHub's job/artifact limits here. */
+const MAX_ACTIONS_PAGES = 100;
+const ACTIONS_PAGE_SIZE = 100;
+
 export interface ActionsCallOptions {
     readonly fetch: FetchLike;
     readonly signal?: AbortSignal | undefined;
@@ -68,6 +72,17 @@ const KNOWN_STATUSES: readonly RunStatus[] = [
     "pending",
 ];
 
+export interface WorkflowStep {
+    /** GitHub's stable order inside one job. */
+    readonly number: number;
+    readonly name: string;
+    readonly status: RunStatus;
+    /** `success`, `failure`, `cancelled`, `skipped`, ... or null while it is still going. */
+    readonly conclusion: string | null;
+    readonly startedAt: string | null;
+    readonly completedAt: string | null;
+}
+
 export interface WorkflowJob {
     readonly id: number;
     readonly name: string;
@@ -77,6 +92,10 @@ export interface WorkflowJob {
     readonly htmlUrl: string;
     readonly startedAt: string | null;
     readonly completedAt: string | null;
+    /** Ordered exactly as GitHub returned them; recovery decisions depend on that order. */
+    readonly steps: readonly WorkflowStep[];
+    /** False when any raw step could not be parsed exactly. */
+    readonly stepsComplete: boolean;
 }
 
 export interface WorkflowRun {
@@ -511,12 +530,25 @@ export async function readRunJobs(
     runId: number,
     options: ActionsCallOptions,
 ): Promise<readonly WorkflowJob[]> {
-    const url =
-        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
-        `/actions/runs/${String(runId)}/jobs?per_page=100`;
-    const response = await options.fetch(url, init(options));
-    if (!response.ok) throw await refuse(response, url, `Reading the jobs of run ${String(runId)}`);
-    return parseJobs(await response.json());
+    const jobs: WorkflowJob[] = [];
+    let expectedTotal: number | null = null;
+    for (let page = 1; page <= MAX_ACTIONS_PAGES; page += 1) {
+        const url =
+            `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+            `/actions/runs/${String(runId)}/jobs?per_page=${String(ACTIONS_PAGE_SIZE)}&page=${String(page)}`;
+        const response = await options.fetch(url, init(options));
+        if (!response.ok) {
+            throw await refuse(response, url, `Reading the jobs of run ${String(runId)}`);
+        }
+        const body: unknown = await response.json();
+        const pageJobs = parseJobs(body);
+        jobs.push(...pageJobs);
+        expectedTotal = consistentTotal(expectedTotal, totalCount(body), response.status, url);
+        if (pageComplete(body, "jobs", jobs.length, expectedTotal, response, page, runId, url)) {
+            return jobs;
+        }
+    }
+    throw incompleteInventory("jobs", runId, base(options));
 }
 
 /** The `/jobs` body, shared by both credential routes. */
@@ -537,9 +569,55 @@ export function parseJobs(body: unknown): readonly WorkflowJob[] {
             htmlUrl: text(item["html_url"]),
             startedAt: optionalText(item["started_at"]),
             completedAt: optionalText(item["completed_at"]),
+            steps: parseSteps(item["steps"]),
+            stepsComplete: stepsParsedCompletely(item["steps"]),
         });
     }
     return jobs;
+}
+
+/** One job's ordered step list. Invalid entries are omitted rather than invented. */
+export function parseSteps(value: unknown): readonly WorkflowStep[] {
+    if (!Array.isArray(value)) return [];
+    const steps: WorkflowStep[] = [];
+    for (const item of value) {
+        const parsed = parseStep(item);
+        if (parsed !== null) steps.push(parsed);
+    }
+    return steps;
+}
+
+function stepsParsedCompletely(value: unknown): boolean {
+    return Array.isArray(value) && value.every((item) => parseStep(item) !== null);
+}
+
+function parseStep(value: unknown): WorkflowStep | null {
+    if (!isRecord(value)) return null;
+    const number = value["number"];
+    const name = value["name"];
+    const rawStatus = value["status"];
+    const conclusion = value["conclusion"];
+    const startedAt = value["started_at"];
+    const completedAt = value["completed_at"];
+    if (
+        typeof number !== "number" ||
+        !Number.isFinite(number) ||
+        typeof name !== "string" ||
+        typeof rawStatus !== "string" ||
+        (conclusion !== null && typeof conclusion !== "string") ||
+        (startedAt !== null && typeof startedAt !== "string") ||
+        (completedAt !== null && typeof completedAt !== "string")
+    ) {
+        return null;
+    }
+    return {
+        number,
+        name,
+        status: status(rawStatus),
+        conclusion,
+        startedAt,
+        completedAt,
+    };
 }
 
 /** How many lines of a failing job's log are carried back. */
@@ -592,13 +670,101 @@ export async function listRunArtifacts(
     runId: number,
     options: ActionsCallOptions,
 ): Promise<readonly WorkflowArtifact[]> {
-    const url =
-        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
-        `/actions/runs/${String(runId)}/artifacts?per_page=100`;
-    const response = await options.fetch(url, init(options));
-    if (!response.ok)
-        throw await refuse(response, url, `Listing the artifacts of run ${String(runId)}`);
-    return parseArtifacts(await response.json(), artifactZipUrl(base(options), owner, repo));
+    const artifacts: WorkflowArtifact[] = [];
+    let expectedTotal: number | null = null;
+    for (let page = 1; page <= MAX_ACTIONS_PAGES; page += 1) {
+        const url =
+            `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+            `/actions/runs/${String(runId)}/artifacts?per_page=${String(ACTIONS_PAGE_SIZE)}&page=${String(page)}`;
+        const response = await options.fetch(url, init(options));
+        if (!response.ok) {
+            throw await refuse(response, url, `Listing the artifacts of run ${String(runId)}`);
+        }
+        const body: unknown = await response.json();
+        artifacts.push(...parseArtifacts(body, artifactZipUrl(base(options), owner, repo)));
+        expectedTotal = consistentTotal(expectedTotal, totalCount(body), response.status, url);
+        if (
+            pageComplete(
+                body,
+                "artifacts",
+                artifacts.length,
+                expectedTotal,
+                response,
+                page,
+                runId,
+                url,
+            )
+        ) {
+            return artifacts;
+        }
+    }
+    throw incompleteInventory("artifacts", runId, base(options));
+}
+
+function totalCount(body: unknown): number | null {
+    const value = isRecord(body) ? body["total_count"] : null;
+    return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+function consistentTotal(
+    previous: number | null,
+    current: number | null,
+    statusCode: number,
+    url: string,
+): number | null {
+    if (current === null) return previous;
+    if (previous !== null && previous !== current) {
+        throw new ActionsCallError(
+            "GitHub changed the reported inventory size while it was being read, so completeness " +
+                "could not be proved.",
+            statusCode,
+            url,
+        );
+    }
+    return current;
+}
+
+function pageComplete(
+    body: unknown,
+    key: "jobs" | "artifacts",
+    parsedCount: number,
+    expectedTotal: number | null,
+    response: Response,
+    page: number,
+    runId: number,
+    url: string,
+): boolean {
+    const raw = isRecord(body) ? body[key] : null;
+    const rawCount = Array.isArray(raw) ? raw.length : 0;
+    if (expectedTotal !== null) {
+        if (parsedCount === expectedTotal) return true;
+        if (parsedCount > expectedTotal || rawCount === 0) {
+            throw incompleteInventory(key, runId, url);
+        }
+        return false;
+    }
+    const link = response.headers.get("link") ?? "";
+    if (/rel="next"/i.test(link)) return false;
+    if (rawCount < ACTIONS_PAGE_SIZE) return true;
+    throw new ActionsCallError(
+        `GitHub returned a full page ${String(page)} of ${key} without total_count or a next-page ` +
+            "link, so the inventory may be truncated.",
+        response.status,
+        url,
+    );
+}
+
+function incompleteInventory(
+    kind: "jobs" | "artifacts",
+    runId: number,
+    url: string,
+): ActionsCallError {
+    return new ActionsCallError(
+        `The complete ${kind} inventory for run ${String(runId)} could not be proved within ` +
+            `${String(MAX_ACTIONS_PAGES)} pages.`,
+        200,
+        url,
+    );
 }
 
 /** The URL an artifact's zip lives at, when GitHub's own answer did not carry one. */

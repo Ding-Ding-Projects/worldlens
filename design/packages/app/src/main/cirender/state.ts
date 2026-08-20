@@ -34,8 +34,8 @@ import { dirname, join, resolve } from "node:path";
 /** The folder under the map storage directory that holds every CI sync's record. */
 export const CI_SYNC_DIRECTORY = "ci-render";
 
-/** Bumped when the shape below changes incompatibly. */
-export const CI_SYNC_STATE_VERSION = 1;
+/** Version 2 adds fail-closed artifact-recovery provenance while reading version 1 safely. */
+export const CI_SYNC_STATE_VERSION = 2;
 
 /**
  * How far a sync has got.
@@ -44,13 +44,14 @@ export const CI_SYNC_STATE_VERSION = 1;
  * world is uploaded" survives a restart; "the loop is currently polling" does not, and a
  * record that claimed it would be wrong the moment the process ended.
  */
-export type CiSyncStage =
-    | "idle"
-    | "uploaded"
-    | "dispatched"
-    | "rendered"
-    | "failed"
-    | "cancelled";
+export type CiSyncStage = "idle" | "uploaded" | "dispatched" | "rendered" | "failed" | "cancelled";
+
+export interface CiPostRenderWarning {
+    readonly code: "pages-not-published";
+    readonly runId: number;
+    readonly failingJob: string;
+    readonly failingStep: string;
+}
 
 export interface CiSyncState {
     readonly version: number;
@@ -99,6 +100,10 @@ export interface CiSyncState {
     readonly renderId: string | null;
     /** The artifact's SHA-256 as this computer measured it. Provenance, see `collect.ts`. */
     readonly artifactSha256: string | null;
+    /** Which red run has already had its one verified-artifact recovery attempt. */
+    readonly recoveryAttemptedRunId: number | null;
+    /** A recovered map can be ready locally while its optional Pages publication is not. */
+    readonly postRenderWarning: CiPostRenderWarning | null;
     /** Why it failed, when it did. Kept so a reopened app can still say what happened. */
     readonly failureCode: string | null;
     readonly failureMessage: string | null;
@@ -198,6 +203,8 @@ export function newCiSyncState(input: NewStateInput): CiSyncState {
         stage: "idle",
         renderId: null,
         artifactSha256: null,
+        recoveryAttemptedRunId: null,
+        postRenderWarning: null,
         failureCode: null,
         failureMessage: null,
         updatedAt: input.at,
@@ -214,6 +221,15 @@ function str(value: unknown): string | null {
 
 function num(value: unknown): number | null {
     return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readPostRenderWarning(value: unknown): CiPostRenderWarning | null {
+    if (!isRecord(value) || value["code"] !== "pages-not-published") return null;
+    const runId = num(value["runId"]);
+    const failingJob = str(value["failingJob"]);
+    const failingStep = str(value["failingStep"]);
+    if (runId === null || failingJob === null || failingStep === null) return null;
+    return { code: "pages-not-published", runId, failingJob, failingStep };
 }
 
 function stage(value: unknown): CiSyncStage {
@@ -248,14 +264,25 @@ export async function readCiSyncState(path: string): Promise<CiSyncState | null>
     } catch {
         return null;
     }
-    if (!isRecord(parsed) || parsed["version"] !== CI_SYNC_STATE_VERSION) return null;
+    if (
+        !isRecord(parsed) ||
+        (parsed["version"] !== 1 && parsed["version"] !== CI_SYNC_STATE_VERSION)
+    ) {
+        return null;
+    }
 
     const syncId = str(parsed["syncId"]);
     const owner = str(parsed["owner"]);
     const repo = str(parsed["repo"]);
     const worldFolder = str(parsed["worldFolder"]);
     const mapId = str(parsed["mapId"]);
-    if (syncId === null || owner === null || repo === null || worldFolder === null || mapId === null) {
+    if (
+        syncId === null ||
+        owner === null ||
+        repo === null ||
+        worldFolder === null ||
+        mapId === null
+    ) {
         return null;
     }
 
@@ -287,6 +314,10 @@ export async function readCiSyncState(path: string): Promise<CiSyncState | null>
         stage: stage(parsed["stage"]),
         renderId: str(parsed["renderId"]),
         artifactSha256: str(parsed["artifactSha256"]),
+        // Version 1 records predate recovery. Migrating them to explicit nulls preserves
+        // every durable fact without pretending a recovery was attempted or succeeded.
+        recoveryAttemptedRunId: num(parsed["recoveryAttemptedRunId"]),
+        postRenderWarning: readPostRenderWarning(parsed["postRenderWarning"]),
         failureCode: str(parsed["failureCode"]),
         failureMessage: str(parsed["failureMessage"]),
         updatedAt: str(parsed["updatedAt"]) ?? "",
