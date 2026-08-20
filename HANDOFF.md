@@ -679,11 +679,19 @@ implementation supplies the runtime behavior and genuine packaged capture requir
 
 ## Issue #78 per-project render engine choice — 2026-08-19
 
-Projects persist canonical `typescript` or `upstream-java` intent. New projects default to the
-no-JVM TypeScript route; legacy files migrate to Java behavior. Local desktop rendering has a real
-TypeScript launch adapter, resume/provenance carry the engine, and explicit choices never silently
-fall back. The relevant workspace build and focused render/project/settings suites pass. Packaged
-same-project comparison across both engines remains the final issue-specific acceptance step.
+Projects persist canonical `typescript` or `upstream-java` intent. The global new-project choice is
+now wired through both real creation routes, `ProjectsScreen` and `WorldScreen`, in main commit
+[`e3cf7f30`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3cf7f30b40989d83a6b8833b1f42894efa55623);
+legacy files preserve their explicit engine intent. The packaged TypeScript staging path carries
+and validates its required production dependency closure in main commit
+[`80eefd17`](https://github.com/Ding-Ding-Projects/worldlens/commit/80eefd172d35b9329f95b464e20b56d415826025).
+The local staging record reported **TypeScript 0.1.0** and **Java 5.22-27**.
+
+The decisive acceptance evidence is still open: no genuine packaged project has been rendered
+through both engines with output and provenance compared, and no matching capture evidence is
+verified. Runtime routing for local, Docker, CLI, and restart-with-speed requests remains an
+explicit boundary where not independently proven. This records reconciliation ran no tests,
+builds, packaging, packaged interaction, or captures.
 
 ## Issue #65 standalone CLI parity — 2026-08-19
 

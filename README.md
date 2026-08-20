@@ -1091,14 +1091,18 @@ verification, and it has not been made. Until it is, the JDK requirement stands.
 
 The app tells you which engine rendered a map. It does not silently switch.
 
-**Issue #78 delivery status (2026-08-19).** The source now carries a per-project engine choice,
-a global default for new projects, canonical engine ids (`upstream-java` and `typescript`), and
-packaging metadata for both engines. The package path stages the TypeScript engine assets and a
-manifest that records capability flags and the staged Java CLI artifact's size and SHA-256 when
-present. Source/build evidence for the current Issue #78 state was not run in this documentation
-pass, and the packaged dual-engine proof remains pending: the next owner must build the real
-installer, verify both artifacts from the packaged output, and render one project through each
-engine without silent fallback.
+**Issue #78 delivery status (2026-08-20).** The per-project engine choice and global new-project
+selection are now wired through both real creation routes, `ProjectsScreen` and `WorldScreen`, in
+main commit [`e3cf7f30`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3cf7f30b40989d83a6b8833b1f42894efa55623).
+The packaged TypeScript staging path now carries and validates the required production dependency
+closure in [`80eefd17`](https://github.com/Ding-Ding-Projects/worldlens/commit/80eefd172d35b9329f95b464e20b56d415826025).
+Its local staging record reported **TypeScript 0.1.0** and **Java 5.22-27**.
+
+This does not prove the acceptance boundary. A genuine packaged project has not yet been rendered
+through both engines with output and provenance compared, and no matching capture evidence is
+verified. Local, Docker, CLI, and restart-with-speed runtime routing remain open where not already
+proven by the packaged acceptance run. No tests, builds, packaging, packaged interaction, or
+captures were run in this documentation-only reconciliation.
 
 </details>
 

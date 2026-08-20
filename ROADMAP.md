@@ -306,8 +306,18 @@ remain open. Do not close issue #86 from this record.
 
 ## Issue #78 — per-project render engine choice
 
-Implementation and focused verification are complete. Remaining before closure: package both
-engines, render the same genuine project through each, and compare output/provenance.
+The global new-project engine choice is wired through both real creation routes, `ProjectsScreen`
+and `WorldScreen`, in main commit
+[`e3cf7f30`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3cf7f30b40989d83a6b8833b1f42894efa55623).
+The packaged TypeScript staging path carries and validates the required production dependency
+closure in main commit
+[`80eefd17`](https://github.com/Ding-Ding-Projects/worldlens/commit/80eefd172d35b9329f95b464e20b56d415826025),
+and the local staging record reported **TypeScript 0.1.0** and **Java 5.22-27**.
+
+Remaining before closure: render one genuine packaged project through both engines, compare the
+outputs and provenance, and retain the corresponding capture evidence. Local, Docker, CLI, and
+restart-with-speed runtime routing remains open where not independently proven. This records-only
+reconciliation ran no tests, builds, packaging, packaged interaction, or captures.
 
 ## Issue #65 — standalone CLI mod/resource/SQL parity
 
