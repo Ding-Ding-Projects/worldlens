@@ -102,6 +102,40 @@ prove tests, throwaway-container operations, refusal or cancellation paths, map/
 state, persistent complete logs/history, bulk mutations, VS Code handoff, packaged interaction, or
 headless captures. Those remain required before any acceptance item can be marked complete.
 
+### Packaged v1.0.1398 follow-up
+
+The published `v1.0.1398` Squirrel package was extracted and launched through the cheap Lowlevel
+headless route on an isolated desktop. The package contains `Worldlens.exe` and
+`resources/app.asar`; its release target is `761d9c5be80475908093554da2174a6de13c2c6f`.
+
+The launch produced exactly one CDP page target. After the real first-run flow was completed
+(Minecraft download consent was explicitly declined), the packaged preload bridge was queried
+without mutating Docker:
+
+```text
+window.worldlens.dockerHosting.inspect()
+{
+  "ok": true,
+  "value": {
+    "daemon": "ready",
+    "clientVersion": "29.6.2",
+    "serverVersion": "29.6.2",
+    "containers": [],
+    "images": [],
+    "volumes": []
+  }
+}
+```
+
+This proves the packaged IPC path reaches the real local daemon and preserves the ownership
+boundary. It does not prove the visible manager surface is reachable: the packaged DOM contained
+no `Docker` or `hosting` text, the command palette exposed only map controls, and no Docker-hosting
+destination was addressable from the rendered UI. The bridge object did expose `inspect`, `create`,
+`authorize`, `mutate`, `logs`, and `cancel`, so the remaining packaged blocker is UI/navigation
+wiring rather than daemon access. No container, image, volume, or unrelated workload was created
+or changed. The Playwright driver helper was unavailable in this isolated checkout because
+`@playwright/test` was not installed; direct CDP was used instead.
+
 The next owner must prove daemon-state handling and ownership isolation against an isolated
 throwaway Docker environment; create conflict and rollback; start/stop/restart; update refusal
 until transactional recreate exists; map/configuration state; persistent logs/history; multi-row
