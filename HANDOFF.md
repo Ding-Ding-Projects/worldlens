@@ -523,26 +523,30 @@ BlueMap workload、packaged UI 或 capture proof；嗰啲仍然 open。
 
 ## Issue #80 — privacy-safe in-app issue reporting (2026-08-19)
 
-The isolated Issue #80 checkout contains an in-progress implementation for a reviewed diagnostic
-report draft. The main-process report builder is in
-`design/packages/app/src/main/repair/report.ts`; the repair surface wires a `Report a problem`
-panel through `redesign/ui/src/components/repair/RepairPanel.vue`, with field assembly and
-Markdown/JSON export in `redesign/ui/src/components/repair/issueReport.ts` and the panel in
+The source implementation for the reviewed diagnostic report draft is now on the default branch:
+commits `45de1686` and `85758d94` are ancestors of `36c1d4d7`, and both are included in released
+`v1.0.1411` (target `36c1d4d7`). The main-process report builder is in
+`design/packages/app/src/main/repair/report.ts`; the draft panel is under
+`redesign/ui/src/components/repair/RepairPanel.vue`, with field assembly and Markdown/JSON export
+in `redesign/ui/src/components/repair/issueReport.ts` and the panel in
 `redesign/ui/src/components/repair/IssueReportPanel.vue`.
 
 The current source behavior redacts recognised credential, user-path, private-address, and
 private-host shapes; bounds selected console evidence; shows required and optional fields for
 review; allows optional evidence to be edited or cleared; exports Markdown or JSON locally; and
 opens a GitHub new-issue form only after copying a draft. It explicitly marks the draft as not
-submitted automatically. The source implementation is committed in this issue lane.
+submitted automatically. This is source-level evidence only: the packaged UI remains
+`design/packages/ui`, which does not contain `IssueReportPanel.vue` or a `Report a problem` entry.
 
-Acceptance is not yet proven. The current wiring is visible from the repair panel, while the
-required Help/About and every relevant failure-surface discovery audit remains open. There is no
-verified production submission flow, no disposable-target submission proof, and no packaged
-application interaction evidence. No tests, checks, or screenshots were run in this records-only
-pass. Do not close Issue #80 until the implementation is committed, the adversarial redaction and
-accessibility/localization checks run, and a genuine packaged capture and disposable submission
-record are available.
+Acceptance is not yet proven. The draft wiring is visible only in the redesign panel; the packaged
+repair surface still needs the production integration. The required Help/About and every relevant
+failure-surface discovery audit remains open. There is no verified production submission flow, no
+disposable-target submission proof, and no packaged application interaction evidence. No tests,
+checks, or screenshots were run in this records-only pass. The current release/CI evidence is
+release `v1.0.1411`, targeting `36c1d4d7` and citing successful CI run `32324227069`; that is
+build/release evidence, not Issue #80 acceptance. Do not close Issue #80 until the packaged
+implementation, adversarial redaction and accessibility/localization checks, genuine packaged
+capture, and disposable submission record are available.
 
 ## Issue #79 automatic updater evidence — records-only update, 2026-08-19
 

@@ -32,6 +32,36 @@ pattern-specific resource path，但 `BlockStateModelRenderer.renderBanner` 依�
 未接入 `TextureGallery`。Audit lane 已修正 fixture manifest base path 同 oracle README
 banner count；冇喺缺少 packaged proof 時聲稱 renderer repair 或 runtime 結果。
 
+## Issue #80 — privacy-safe in-app issue reporting (source boundary, 2026-08-20)
+
+- **Status:** Issue #80 remains open and unverified. Source commits `45de1686` and `85758d94`
+  are ancestors of default commit `36c1d4d7` and are included in released `v1.0.1411`.
+- **Source record:** The main-process draft builder is
+  `design/packages/app/src/main/repair/report.ts`; the draft panel and local Markdown/JSON export
+  are under `redesign/ui/src/components/repair/`.
+- **Packaging boundary:** The visible `Report a problem` wiring is in `redesign/ui`, while the
+  packaged UI is `design/packages/ui`; the packaged tree has no `IssueReportPanel.vue` or report
+  action. Source presence and a released commit therefore do not prove packaged acceptance.
+- **Evidence boundary:** No Help/About or complete failure-surface discovery audit, production
+  submission flow, disposable-target submission proof, packaged interaction, focused test result,
+  or capture is recorded. Release `v1.0.1411` targets `36c1d4d7` and cites CI run `32324227069`,
+  which is build/release evidence only.
+
+### 廣東話同步
+
+- **Status:** Issue #80 仲係 open，未驗證。`45de1686` 同 `85758d94` 已經係 default
+  commit `36c1d4d7` 嘅 ancestor，亦包括喺已發布嘅 `v1.0.1411` 入面。
+- **Source record:** main-process draft builder 係
+  `design/packages/app/src/main/repair/report.ts`；draft panel 同本地 Markdown/JSON export
+  喺 `redesign/ui/src/components/repair/`。
+- **Packaging boundary:** 可見嘅 `Report a problem` wiring 只喺 `redesign/ui`；packaged UI 係
+  `design/packages/ui`，入面冇 `IssueReportPanel.vue` 或 report action。所以 source 存在同
+  release commit 都唔等於 packaged acceptance。
+- **Evidence boundary:** Help/About、完整 failure-surface discovery audit、production
+  submission flow、disposable-target proof、packaged interaction、focused test result 同
+  capture 都未有記錄。`v1.0.1411` target `36c1d4d7`，release body 引用 CI run `32324227069`；
+  呢啲只係 build/release evidence，唔係 Issue #80 acceptance。
+
 ## CI artifact-only workflow update (2026-08-19)
 
 - **Workflow shape:** `.github/workflows/ci.yml` now retains exactly five jobs: `check` (a separate
