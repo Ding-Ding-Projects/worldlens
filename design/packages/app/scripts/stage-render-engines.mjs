@@ -9,13 +9,57 @@ const designRoot = resolve(appRoot, "../..");
 const repositoryRoot = resolve(designRoot, "..");
 const engineRoot = join(designRoot, "packages", "engine");
 const sharedRoot = join(designRoot, "packages", "shared");
+const nbtRoot = join(designRoot, "packages", "nbt");
+const configRoot = join(designRoot, "packages", "config");
 const driverSource = join(repositoryRoot, "tools", "oracle", "render-ts.mjs");
 const typescriptAssets = join(engineRoot, "assets");
 const jarDirectory = join(repositoryRoot, "tools", "oracle", "out", "jars");
 
+const runtimeWorkspacePackages = [
+    { name: "@worldlens/config", root: configRoot },
+    { name: "@worldlens/nbt", root: nbtRoot },
+    { name: "@worldlens/shared", root: sharedRoot },
+];
+
 async function artifactMetadata(path) {
     const bytes = await readFile(path);
     return { size: bytes.byteLength, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
+/**
+ * Keep the TypeScript engine's bare workspace imports inside its staged package
+ * boundary. `tsc` deliberately leaves `@worldlens/*` specifiers intact, so the
+ * packaged driver must see an ordinary Node package layout next to the engine;
+ * the checkout's pnpm links cannot cross an installed app's resource boundary.
+ */
+async function stageWorkspaceRuntimePackage(packageDefinition, packageRoot) {
+    const sourceManifestPath = join(packageDefinition.root, "package.json");
+    const sourceManifest = JSON.parse(await readFile(sourceManifestPath, "utf8"));
+    if (sourceManifest.name !== packageDefinition.name) {
+        throw new Error(
+            `workspace package manifest name mismatch: expected ${packageDefinition.name}, got ${String(sourceManifest.name)}`,
+        );
+    }
+    if (typeof sourceManifest.main !== "string" || !sourceManifest.main.startsWith("./")) {
+        throw new Error(`workspace package ${packageDefinition.name} has no relative main entry`);
+    }
+    const sourceDist = join(packageDefinition.root, "dist");
+    const sourceMain = join(packageDefinition.root, sourceManifest.main);
+    const sourceDistInfo = await stat(sourceDist);
+    const sourceMainInfo = await stat(sourceMain);
+    if (!sourceDistInfo.isDirectory() || !sourceMainInfo.isFile()) {
+        throw new Error(`workspace package ${packageDefinition.name} is not built: ${sourceMain}`);
+    }
+
+    const targetRoot = join(packageRoot, packageDefinition.name.slice("@worldlens/".length));
+    await mkdir(targetRoot, { recursive: true });
+    await cp(sourceDist, join(targetRoot, "dist"), { recursive: true, force: true });
+    await cp(sourceManifestPath, join(targetRoot, "package.json"), { force: true });
+    return {
+        name: packageDefinition.name,
+        root: `typescript/node_modules/@worldlens/${packageDefinition.name.slice("@worldlens/".length)}`,
+        main: sourceManifest.main.slice(2),
+    };
 }
 
 /**
@@ -34,6 +78,13 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
     await cp(join(engineRoot, "dist"), join(outputDirectory, "typescript", "dist"), { recursive: true, force: true });
     await cp(join(sharedRoot, "dist"), join(outputDirectory, "shared", "dist"), { recursive: true, force: true });
     await cp(driverSource, join(outputDirectory, "typescript", "render-ts.mjs"));
+    const workspacePackageRoot = join(outputDirectory, "typescript", "node_modules", "@worldlens");
+    const stagedWorkspacePackages = [];
+    for (const packageDefinition of runtimeWorkspacePackages) {
+        stagedWorkspacePackages.push(
+            await stageWorkspaceRuntimePackage(packageDefinition, workspacePackageRoot),
+        );
+    }
 
     let javaVersion = null;
     let javaArtifact = null;
@@ -115,6 +166,10 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
                 assetDirectory: "typescript/assets",
                 engineEntry: "typescript/dist/index.js",
                 driver: "typescript/render-ts.mjs",
+                packageResolution: {
+                    root: "typescript/node_modules/@worldlens",
+                    packages: stagedWorkspacePackages,
+                },
             },
         },
     };

@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 import { ensureJava, NoUsableJavaError, resolveCliJar } from "../java/index.js";
 import type { JarLookupOptions } from "../java/index.js";
 import { readFile, stat } from "node:fs/promises";
-import { join, resolve, basename } from "node:path";
+import { isAbsolute, join, resolve, basename } from "node:path";
 import { EngineUnavailableError } from "./orchestrator.js";
 import type { ResolvedEngine } from "./orchestrator.js";
 import type { RenderEngineId } from "./provenance.js";
@@ -213,15 +213,93 @@ async function stagedTypeScriptVersion(root: string): Promise<string | null> {
     try {
         const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8")) as {
             manifestVersion?: unknown;
-            engines?: { typescript?: { available?: unknown; version?: unknown } };
+            engines?: {
+                typescript?: {
+                    available?: unknown;
+                    version?: unknown;
+                    packageResolution?: {
+                        root?: unknown;
+                        packages?: unknown;
+                    };
+                };
+            };
         };
         if (manifest.manifestVersion !== 1 || manifest.engines?.typescript?.available !== true) return null;
+        if (!(await hasStagedTypeScriptPackageBoundary(root, manifest.engines.typescript.packageResolution))) {
+            return null;
+        }
         return typeof manifest.engines?.typescript?.version === "string"
             ? manifest.engines.typescript.version
             : "unknown";
     } catch {
         return null;
     }
+}
+
+const STAGED_TYPESCRIPT_PACKAGES = ["@worldlens/config", "@worldlens/nbt", "@worldlens/shared"] as const;
+const STAGED_TYPESCRIPT_PACKAGE_ROOT = "typescript/node_modules/@worldlens";
+
+interface StagedTypeScriptPackageRecord {
+    readonly name?: unknown;
+    readonly root?: unknown;
+    readonly main?: unknown;
+}
+
+interface StagedTypeScriptPackageResolution {
+    readonly root?: unknown;
+    readonly packages?: unknown;
+}
+
+/**
+ * Verify the package boundary that Node will use for bare workspace imports before
+ * returning a packaged engine. The installed app cannot see pnpm's workspace links;
+ * a manifest that merely says the engine is available is not enough evidence that its
+ * import graph can load.
+ */
+async function hasStagedTypeScriptPackageBoundary(
+    root: string,
+    resolution: StagedTypeScriptPackageResolution | undefined,
+): Promise<boolean> {
+    if (resolution?.root !== STAGED_TYPESCRIPT_PACKAGE_ROOT || !Array.isArray(resolution.packages)) return false;
+    const records = resolution.packages as StagedTypeScriptPackageRecord[];
+    if (records.length !== STAGED_TYPESCRIPT_PACKAGES.length) return false;
+
+    for (const packageName of STAGED_TYPESCRIPT_PACKAGES) {
+        const suffix = packageName.slice("@worldlens/".length);
+        const record = records.find((candidate) => candidate?.name === packageName);
+        if (
+            record === undefined ||
+            record.root !== `${STAGED_TYPESCRIPT_PACKAGE_ROOT}/${suffix}` ||
+            typeof record.main !== "string" ||
+            !isSafeStagedRelativePath(record.main)
+        ) {
+            return false;
+        }
+        const packageRoot = join(root, record.root);
+        const packageManifestPath = join(packageRoot, "package.json");
+        try {
+            const packageManifest = JSON.parse(await readFile(packageManifestPath, "utf8")) as {
+                name?: unknown;
+                main?: unknown;
+            };
+            if (
+                packageManifest.name !== packageName ||
+                typeof packageManifest.main !== "string" ||
+                !packageManifest.main.startsWith("./") ||
+                packageManifest.main.slice(2) !== record.main
+            ) {
+                return false;
+            }
+        } catch {
+            return false;
+        }
+        if (!(await exists(join(packageRoot, record.main)))) return false;
+    }
+    return true;
+}
+
+function isSafeStagedRelativePath(value: string): boolean {
+    return value.length > 0 && !isAbsolute(value) && !value.split(/[\\/]+/u).includes("..");
 }
 
 async function exists(path: string): Promise<boolean> {
