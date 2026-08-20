@@ -208,12 +208,21 @@ same-world render、restart/reopen 同 diagnostic read-back 仲未有。
   separate Create and Start operations, stop/restart, cancellation,
   bounded logs and authorization tokens. The preload bridge, `DockerHostingScreen.vue`,
   `dockerHosting` tab, command-palette catalogue entry and app startup wiring are present.
-- **Still required:** prove missing/stopped/refused/unusable/ready daemon states and ownership
-  isolation against a real disposable daemon; verify create conflict/rollback, retain the explicit
-  transactional-update refusal until a safe recreate plan exists, implement server/map configuration,
+- **Daemon-contract evidence:** A bounded local receipt used the non-BlueMap digest-pinned
+  `nodeterm-server@sha256:69778914f2b70964241d9600b46b37a6722e78c492a6ea9bea0466449b6fab6b`
+  image with owner `worldlens-8bd86805f61e2583f988`, instance/container
+  `issue69-proof-20260819` / `worldlens-issue69-proof-20260819`, owned volume
+  `worldlens-issue69-proof-volume`, and loopback `127.0.0.1:18169 -> 8443`. Create, start, stop,
+  restart, remove and volume removal succeeded; final owned inventories were empty, the port was
+  free, the existing `nodeterm-server` stayed healthy, and the unrelated workload was unchanged.
+- **Still required:** prove missing/stopped/refused/unusable/ready daemon states; prove BlueMap
+  server/map configuration and create conflict/rollback; retain the explicit
+  transactional-update refusal until a safe recreate plan exists; implement
+  persistent logs/history,
   persistent logs/history, complete
   multi-row bulk actions, export and Visual Studio Code handoff; then run packaged interaction and
-  headless capture evidence. No tests, daemon, package or captures were run in this records update.
+  headless capture evidence. No tests, builds, packaged interaction, or captures were run in this
+  records update; the daemon receipt above is the only lifecycle evidence.
   See [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md) and issue #69.
 
 ## Issue #83 — BlueMap server-adapter smoke evidence (2026-08-19)
