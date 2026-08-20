@@ -30,7 +30,9 @@ import type {
     CiRunReport,
     CiScheduleStatus,
     CiSyncEvent,
+    CiSyncRequest,
     CiSyncResult,
+    CiSyncState,
 } from "./ciRenderBridge.js";
 
 const t = ((key: string, a?: unknown, b?: unknown): string => {
@@ -40,6 +42,13 @@ const t = ((key: string, a?: unknown, b?: unknown): string => {
         String((a as Record<string, unknown>)[name] ?? ""),
     );
 }) as Parameters<typeof phaseLabel>[1];
+
+const pagesWarning = {
+    code: "pages-not-published" as const,
+    runId: 7,
+    failingJob: "Merge group 0",
+    failingStep: "Build the documentation site to publish alongside the map",
+};
 
 function job(overrides: Partial<CiJobReport> = {}): CiJobReport {
     return {
@@ -447,6 +456,163 @@ describe("rows follow the events", () => {
         expect(renders.rows.value).toHaveLength(0);
         renders.dispose();
     });
+
+    it("keeps a recovered map rendered while retaining the red run and Pages warning", () => {
+        const { bridge: host, emit } = bridge();
+        const renders = createCiRenders(host);
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "raw-map",
+            worldFolder: "/world",
+            at: "2026-08-19T01:00:00Z",
+        });
+        emit({
+            type: "run",
+            syncId: "s",
+            run: run({ status: "completed", conclusion: "failure" }),
+            at: "2026-08-19T01:35:45Z",
+        });
+        emit({
+            type: "finished",
+            syncId: "s",
+            summary: {
+                syncId: "s",
+                repository: "o/r",
+                releaseTag: "world-v1",
+                assetName: "world.zip",
+                runId: 7,
+                runUrl: "https://github.test/runs/7",
+                renderId: "ci-s",
+                dataRoot: "/local/ci-s",
+                mapId: "raw_map",
+                mapName: "Raw map",
+                route: "gh",
+                uploaded: false,
+                artifactBytes: 42,
+                artifactSha256: "a".repeat(64),
+                verified: true,
+                postRenderWarning: pagesWarning,
+            },
+            durationMs: 1000,
+            at: "2026-08-19T01:35:46Z",
+        });
+
+        expect(renders.rows.value[0]?.state).toBe("rendered");
+        expect(renders.rows.value[0]?.run?.conclusion).toBe("failure");
+        expect(renders.rows.value[0]?.postRenderWarning).toEqual(pagesWarning);
+        expect(renders.rows.value[0]?.summary?.mapId).toBe("raw_map");
+
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "raw-map",
+            worldFolder: "/world",
+            at: "2026-08-19T02:00:00Z",
+        });
+        emit({
+            type: "failed",
+            syncId: "s",
+            failure: {
+                code: "retry-source-missing",
+                message: "The uploaded source is gone.",
+                detail: null,
+                status: null,
+                needsSignIn: false,
+                needsEula: false,
+                route: "gh",
+                run: null,
+                failingJob: null,
+                failingStep: null,
+                logExcerpt: null,
+            },
+            at: "2026-08-19T02:00:01Z",
+        });
+        expect(renders.rows.value[0]?.state).toBe("rendered");
+        expect(renders.rows.value[0]?.failure?.code).toBe("retry-source-missing");
+        expect(renders.rows.value[0]?.postRenderWarning).toEqual(pagesWarning);
+        expect(renders.rows.value[0]?.run?.conclusion).toBe("failure");
+        renders.dispose();
+    });
+});
+
+describe("recovered Pages retry", () => {
+    it("survives loadKnown and dispatches the existing source without requesting an upload", async () => {
+        const state: CiSyncState = {
+            version: 2,
+            syncId: "s",
+            owner: "o",
+            repo: "r",
+            accountId: "acct-1",
+            worldFolder: "/world",
+            mapId: "raw-map",
+            mapName: "Raw map",
+            dimension: "minecraft:overworld",
+            fingerprint: "fingerprint",
+            releaseTag: "world-v1",
+            assetName: "world.zip",
+            archiveBytes: 42,
+            archiveSha256: "a".repeat(64),
+            runId: 7,
+            runNumber: 7,
+            runUrl: "https://github.test/runs/7",
+            dispatchedAt: "2026-08-19T01:00:00Z",
+            stage: "rendered",
+            renderId: "ci-s",
+            artifactSha256: "b".repeat(64),
+            recoveryAttemptedRunId: 7,
+            postRenderWarning: pagesWarning,
+            failureCode: null,
+            failureMessage: null,
+            updatedAt: "2026-08-19T01:35:46Z",
+        };
+        const requests: CiSyncRequest[] = [];
+        const { bridge: host } = bridge({
+            listCiRenders: () => Promise.resolve({ ok: true, value: [state] }),
+            checkCiRender: () =>
+                Promise.resolve({
+                    ok: true,
+                    syncId: "s",
+                    outcome: "running",
+                    run: run({ status: "completed", conclusion: "failure" }),
+                    state,
+                }),
+            startCiRender: (candidate) => {
+                requests.push(candidate);
+                return Promise.resolve({
+                    ok: true,
+                    syncId: "s",
+                    outcome: "running",
+                    run: null,
+                    state,
+                });
+            },
+        });
+        const renders = createCiRenders(host);
+
+        await renders.loadKnown();
+        expect(renders.rows.value[0]?.state).toBe("rendered");
+        expect(renders.rows.value[0]?.postRenderWarning).toEqual(pagesWarning);
+        expect(renders.rows.value[0]?.run?.conclusion).toBe("failure");
+
+        await renders.retry("s");
+        expect(requests).toEqual([
+            {
+                worldFolder: "/world",
+                owner: "o",
+                repo: "r",
+                mapId: "raw-map",
+                accountId: "acct-1",
+                acknowledgeUpload: false,
+                acknowledgePublic: true,
+                forceUpload: false,
+                output: "artifact-and-pages",
+            },
+        ]);
+        renders.dispose();
+    });
 });
 
 describe("what is already running, elsewhere", () => {
@@ -605,10 +771,14 @@ describe("who could own it: the signed-in login and its organisations", () => {
     it("keeps the newest account's owners when an older request finishes last", async () => {
         let resolveFirst!: (answer: CiOwnerChoicesAnswer) => void;
         let resolveSecond!: (answer: CiOwnerChoicesAnswer) => void;
-        const first = new Promise<CiOwnerChoicesAnswer>((resolve) => { resolveFirst = resolve; });
-        const second = new Promise<CiOwnerChoicesAnswer>((resolve) => { resolveSecond = resolve; });
+        const first = new Promise<CiOwnerChoicesAnswer>((resolve) => {
+            resolveFirst = resolve;
+        });
+        const second = new Promise<CiOwnerChoicesAnswer>((resolve) => {
+            resolveSecond = resolve;
+        });
         const { bridge: host } = bridge({
-            listCiOwners: (accountId) => accountId === "first" ? first : second,
+            listCiOwners: (accountId) => (accountId === "first" ? first : second),
         });
         const renders = createCiRenders(host);
 
@@ -922,14 +1092,22 @@ describe("an existing repository, picked instead of typed", () => {
     });
 
     it("keeps the newest account's repositories when an older request finishes last", async () => {
-        let resolveFirst!: (answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>) => void;
-        let resolveSecond!: (answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>) => void;
-        const first = new Promise<Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>>(
-            (resolve) => { resolveFirst = resolve; },
-        );
-        const second = new Promise<Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>>(
-            (resolve) => { resolveSecond = resolve; },
-        );
+        let resolveFirst!: (
+            answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>,
+        ) => void;
+        let resolveSecond!: (
+            answer: Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>,
+        ) => void;
+        const first = new Promise<
+            Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>
+        >((resolve) => {
+            resolveFirst = resolve;
+        });
+        const second = new Promise<
+            Awaited<ReturnType<NonNullable<CiRenderBridge["listExistingRepositories"]>>>
+        >((resolve) => {
+            resolveSecond = resolve;
+        });
         const repository = (owner: string): CiRepositoryChoice => ({
             owner,
             name: "maps",
@@ -939,7 +1117,7 @@ describe("an existing repository, picked instead of typed", () => {
             htmlUrl: `https://github.test/${owner}/maps`,
         });
         const { bridge: host } = bridge({
-            listExistingRepositories: (accountId) => accountId === "first" ? first : second,
+            listExistingRepositories: (accountId) => (accountId === "first" ? first : second),
         });
         const renders = createCiRenders(host);
 

@@ -1053,6 +1053,17 @@ async function start(): Promise<void> {
     }
 }
 
+async function retryPostRender(row: CiRow): Promise<void> {
+    const result = await renders.retry(row.syncId);
+    if (result?.ok === true && result.outcome === "rendered") {
+        emit("rendered", {
+            renderId: result.summary.renderId,
+            dataRoot: result.summary.dataRoot,
+            mapId: result.summary.mapId,
+        });
+    }
+}
+
 /* -- the job list, searchable like every other list in the application ------ */
 
 const jobQuery = ref("");
@@ -2288,11 +2299,69 @@ onBeforeUnmount(() => {
                                 )
                             }}
                         </p>
+                        <p
+                            v-if="(row.failure.failingStep ?? null) !== null"
+                            class="mt-2"
+                            data-test="failing-step"
+                        >
+                            {{
+                                t(
+                                    "cirender.failingStep",
+                                    { step: row.failure.failingStep },
+                                    "The step that failed: {step}",
+                                )
+                            }}
+                        </p>
                         <pre
                             v-if="row.failure.logExcerpt !== null"
                             class="ci-log"
                             data-test="log-excerpt"
                             >{{ row.failure.logExcerpt }}</pre>
+                    </VAlert>
+
+                    <VAlert
+                        v-if="row.postRenderWarning !== null"
+                        type="warning"
+                        variant="tonal"
+                        class="mt-3"
+                        data-test="post-render-warning"
+                    >
+                        <p>
+                            {{
+                                t(
+                                    "cirender.postRenderWarning.title",
+                                    "The map is ready locally, but GitHub Pages was not published.",
+                                )
+                            }}
+                        </p>
+                        <p class="mt-1 text-medium-emphasis">
+                            {{
+                                t(
+                                    "cirender.postRenderWarning.detail",
+                                    {
+                                        run: row.postRenderWarning.runId,
+                                        step: row.postRenderWarning.failingStep,
+                                    },
+                                    'Run {run} produced a verified map, but GitHub Pages was not published because "{step}" failed. The original failed run remains linked as evidence.',
+                                )
+                            }}
+                        </p>
+                        <VBtn
+                            v-if="renders.canList"
+                            size="small"
+                            variant="text"
+                            class="mt-2"
+                            :loading="renders.starting.value"
+                            data-test="retry-post-render"
+                            @click="retryPostRender(row)"
+                        >
+                            {{
+                                t(
+                                    "cirender.postRenderWarning.retry",
+                                    "Retry Pages with the uploaded world",
+                                )
+                            }}
+                        </VBtn>
                     </VAlert>
 
                     <VAlert

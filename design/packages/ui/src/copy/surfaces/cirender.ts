@@ -563,6 +563,23 @@ export const CIRENDER_VOICED = {
     /* When it is over                                                   */
     /* ---------------------------------------------------------------- */
 
+    "cirender.postRenderWarning.detail": {
+        en: [
+            'Run {run} produced a verified map, but GitHub Pages was not published because "{step}" failed. The original failed run remains linked as evidence.',
+            'Run {run} produced a verified map, but GitHub Pages was not published because "{step}" failed. The original failed run remains linked as evidence.',
+            'Run {run} produced a verified map, but GitHub Pages was not published because "{step}" failed. The original failed run stays linked so the evidence does not wander off.',
+            'Run {run} safely delivered the verified map before "{step}" failed, so GitHub Pages was not published. The original red run remains linked as evidence.',
+            'Run {run} got the verified map safely over the finish line, then "{step}" tripped over the Pages carpet. GitHub Pages was not published, and the original failed run remains linked as evidence.',
+        ],
+        yue: [
+            'Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會保留做證據。',
+            'Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會保留做證據。',
+            'Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會留低，證據唔會自己走失。',
+            'Run {run} 喺「{step}」失敗之前已經安全交付並驗證咗張地圖，所以 GitHub Pages 冇發佈到。原本紅咗嘅 run 連結會保留做證據。',
+            'Run {run} 已經將驗證好嘅地圖安全送到終點，跟住「{step}」先至俾 Pages 張地氈跣親。GitHub Pages 冇發佈到，原本失敗嘅 run 連結會保留做證據。',
+        ],
+    },
+
     /*
      * `recorded` is the one entry on this screen where a single word is the whole message.
      * Hashing what arrived proves the file has not changed since it was downloaded; it
@@ -1222,6 +1239,15 @@ export const CIRENDER_FIXED = {
     },
     "cirender.jobs.search": { en: "Search jobs", yue: "搜尋工作" },
     "cirender.failingJob": { en: "The job that failed: {job}", yue: "失敗咗嗰個工作：{job}" },
+    "cirender.failingStep": { en: "The step that failed: {step}", yue: "失敗咗嗰一步：{step}" },
+    "cirender.postRenderWarning.title": {
+        en: "The map is ready locally, but GitHub Pages was not published.",
+        yue: "張地圖已經喺本機準備好，但 GitHub Pages 冇發佈到。",
+    },
+    "cirender.postRenderWarning.retry": {
+        en: "Retry Pages with the uploaded world",
+        yue: "用已上載嘅世界再試 Pages",
+    },
 
     /*
      * The workflow runs shards in sequential waves; these three say which wave a job or a
@@ -1526,6 +1552,10 @@ export const CIRENDER_FACTS = {
     "cirender.done": {
         en: ["{map}", "map list", "rendered on GitHub"],
         yue: ["{map}", "地圖清單", "GitHub"],
+    },
+    "cirender.postRenderWarning.detail": {
+        en: ["{run}", "{step}", "verified map", "GitHub Pages", "failed run"],
+        yue: ["{run}", "{step}", "驗證", "GitHub Pages", "失敗"],
     },
     // "recorded" and "verified" are different claims, and the distinction is the message.
     "cirender.recorded": {

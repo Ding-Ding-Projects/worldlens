@@ -27,6 +27,15 @@
 export type CiRunStatus =
     "queued" | "in_progress" | "completed" | "waiting" | "requested" | "pending" | "unknown";
 
+export interface CiStepReport {
+    readonly number: number;
+    readonly name: string;
+    readonly status: CiRunStatus;
+    readonly conclusion: string | null;
+    readonly startedAt: string | null;
+    readonly completedAt: string | null;
+}
+
 export interface CiJobReport {
     readonly id: number;
     readonly name: string;
@@ -36,6 +45,9 @@ export interface CiJobReport {
     readonly htmlUrl: string;
     readonly startedAt: string | null;
     readonly completedAt: string | null;
+    /** Optional only for compatibility with a main process predating ordered step reports. */
+    readonly steps?: readonly CiStepReport[];
+    readonly stepsComplete?: boolean;
     /**
      * Which wave of the render this job belongs to, read by the main process from the
      * job's own name. Null for a job that carries no wave in its name - `Build the BlueMap
@@ -86,6 +98,13 @@ export interface CiRenderPlan {
 
 export type CiSyncStage = "idle" | "uploaded" | "dispatched" | "rendered" | "failed" | "cancelled";
 
+export interface CiPostRenderWarning {
+    readonly code: "pages-not-published";
+    readonly runId: number;
+    readonly failingJob: string;
+    readonly failingStep: string;
+}
+
 export interface CiSyncState {
     readonly version: number;
     readonly syncId: string;
@@ -108,6 +127,9 @@ export interface CiSyncState {
     readonly stage: CiSyncStage;
     readonly renderId: string | null;
     readonly artifactSha256: string | null;
+    /** Optional for compatibility with a main process from before verified recovery shipped. */
+    readonly recoveryAttemptedRunId?: number | null;
+    readonly postRenderWarning?: CiPostRenderWarning | null;
     readonly failureCode: string | null;
     readonly failureMessage: string | null;
     readonly updatedAt: string;
@@ -288,6 +310,7 @@ export interface CiSyncFailure {
     readonly route: CiRoute | null;
     readonly run: CiRunReport | null;
     readonly failingJob: string | null;
+    readonly failingStep?: string | null;
     readonly logExcerpt: string | null;
 }
 
@@ -307,6 +330,8 @@ export interface CiSyncSummary {
     readonly artifactBytes: number;
     readonly artifactSha256: string;
     readonly verified: boolean;
+    /** Optional for compatibility with a main process predating verified recovery. */
+    readonly postRenderWarning?: CiPostRenderWarning | null;
 }
 
 export interface CiSyncRequest {
