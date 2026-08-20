@@ -94,12 +94,83 @@ export type RepairAnswer =
     | { readonly ok: true; readonly result: RepairResult }
     | { readonly ok: false; readonly message: string };
 
+/**
+ * Issue-reporting is deliberately a capability query, not a submit API. The renderer can
+ * explain whether a local draft is offline, lacks sign-in, or is merely ready for the user
+ * to review and copy; no bridge method accepts or sends a report.
+ */
+export type IssueReportAvailability =
+    | { readonly status: "ready"; readonly accountLabel: string | null }
+    | { readonly status: "offline"; readonly reason: string }
+    | { readonly status: "not-signed-in"; readonly reason: string };
+
+export interface IssueReportData {
+    readonly app: string;
+    readonly build: string;
+    readonly engine: string;
+    readonly platform: string;
+    readonly failureCategory: string;
+    readonly configFacts: readonly string[];
+    readonly reproductionSteps: readonly string[];
+    readonly consoleEvidence: readonly string[];
+}
+
+export interface IssueReportDraft {
+    readonly title: string;
+    readonly body: string;
+    readonly report: IssueReportData;
+    readonly requiresUserConfirmation: true;
+    readonly autoSubmitted: false;
+}
+
+export interface IssueReportSelection {
+    readonly reproductionSteps?: readonly string[];
+    readonly consoleEvidence?: readonly string[];
+}
+
+export type IssueReportDraftAnswer =
+    | { readonly ok: true; readonly draft: IssueReportDraft }
+    | {
+          readonly ok: false;
+          readonly status: "invalid" | "missing";
+          readonly message: string;
+      };
+
+export type IssueReportExportAnswer =
+    | { readonly ok: true; readonly path: string }
+    | {
+          readonly ok: false;
+          readonly status: "invalid" | "cancelled" | "failed";
+          readonly message: string;
+      };
+
+export type IssueReportSubmitAnswer =
+    | { readonly ok: true; readonly url: string }
+    | {
+          readonly ok: false;
+          readonly status: "invalid" | "offline" | "not-signed-in" | "permission-denied" | "failed";
+          readonly message: string;
+      };
+
+export interface IssueReportSubmitRequest {
+    readonly title: string;
+    readonly markdown: string;
+}
+
+export interface IssueReportBridge {
+    availability(): Promise<IssueReportAvailability>;
+    draft(failureId: string, selection?: IssueReportSelection): Promise<IssueReportDraftAnswer>;
+    export(content: string, format: "json" | "markdown"): Promise<IssueReportExportAnswer>;
+    submit(request: IssueReportSubmitRequest): Promise<IssueReportSubmitAnswer>;
+}
+
 /** What this surface needs from the shell. All or nothing, per this project's usual rule. */
 export interface RepairBridge {
     agentAvailability(): Promise<AgentAvailability>;
     failures(): Promise<readonly FailureSummary[]>;
     diagnose(id: string): Promise<DiagnoseAnswer>;
     run(id: string): Promise<RepairAnswer>;
+    readonly issueReport?: IssueReportBridge;
 }
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -118,10 +189,36 @@ export function resolveRepairBridge(): RepairBridge | null {
     if (!required.every(isFunction)) return null;
 
     const complete = api as RepairBridge;
+    const reportCandidate = candidate.issueReport;
+    const reportBridge =
+        typeof reportCandidate === "object" &&
+        reportCandidate !== null &&
+        isFunction((reportCandidate as { availability?: unknown }).availability)
+        && isFunction((reportCandidate as { draft?: unknown }).draft)
+        && isFunction((reportCandidate as { export?: unknown }).export)
+        && isFunction((reportCandidate as { submit?: unknown }).submit)
+            ? {
+                  availability: () =>
+                      (reportCandidate as { availability: () => Promise<IssueReportAvailability> }).availability(),
+                  draft: (failureId: string, selection?: IssueReportSelection) =>
+                      (reportCandidate as {
+                          draft: (failureId: string, selection?: IssueReportSelection) => Promise<IssueReportDraftAnswer>;
+                      }).draft(failureId, selection),
+                  export: (content: string, format: "json" | "markdown") =>
+                      (reportCandidate as {
+                          export: (content: string, format: "json" | "markdown") => Promise<IssueReportExportAnswer>;
+                      }).export(content, format),
+                  submit: (request: IssueReportSubmitRequest) =>
+                      (reportCandidate as {
+                          submit: (request: IssueReportSubmitRequest) => Promise<IssueReportSubmitAnswer>;
+                      }).submit(request),
+              }
+            : undefined;
     return {
         agentAvailability: () => complete.agentAvailability(),
         failures: () => complete.failures(),
         diagnose: (id) => complete.diagnose(id),
         run: (id) => complete.run(id),
+        issueReport: reportBridge,
     };
 }
