@@ -123,13 +123,53 @@ non-BlueMap long-running image. It does not prove BlueMap server/map configurati
 image update, refusal/rollback/cancellation coverage beyond this receipt, persistent complete
 logs/history, full bulk actions, VS Code handoff, packaged UI interaction, or headless captures.
 
-The current `main` baseline is `b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170`, published as
-`v1.0.1380`. This records update ran no tests, builds, packaged interaction, or headless captures;
-the read-only probe and the bounded non-BlueMap lifecycle receipt above are the live daemon evidence.
+The current `main` baseline is `761d9c5be80475908093554da2174a6de13c2c6f`, published as
+`v1.0.1398`. This records update ran no local tests, builds, packaged interaction, or headless
+captures; the read-only probe, bounded non-BlueMap lifecycle receipt, and packaged IPC inspection
+above are the live daemon evidence.
 
 The next owner must prove daemon-state handling across missing/stopped/refused/unusable/ready
 states; BlueMap server/map configuration; create conflict and rollback; update refusal until
 transactional recreate exists; persistent logs/history; multi-row
+
+### Packaged v1.0.1398 follow-up
+
+The published `v1.0.1398` Squirrel package was extracted and launched through the cheap Lowlevel
+headless route on an isolated desktop. The package contains `Worldlens.exe` and
+`resources/app.asar`; its release target is `761d9c5be80475908093554da2174a6de13c2c6f`.
+
+The launch produced exactly one CDP page target. After the real first-run flow was completed
+(Minecraft download consent was explicitly declined), the packaged preload bridge was queried
+without mutating Docker:
+
+```text
+window.worldlens.dockerHosting.inspect()
+{
+  "ok": true,
+  "value": {
+    "daemon": "ready",
+    "clientVersion": "29.6.2",
+    "serverVersion": "29.6.2",
+    "containers": [],
+    "images": [],
+    "volumes": []
+  }
+}
+```
+
+This proves the packaged IPC path reaches the real local daemon and preserves the ownership
+boundary. It does not prove the visible manager surface is reachable: the packaged DOM contained
+no `Docker` or `hosting` text, the command palette exposed only map controls, and no Docker-hosting
+destination was addressable from the rendered UI. The bridge object did expose `inspect`, `create`,
+`authorize`, `mutate`, `logs`, and `cancel`, so the remaining packaged blocker is UI/navigation
+wiring rather than daemon access. No container, image, volume, or unrelated workload was created
+or changed. The Playwright driver helper was unavailable in this isolated checkout because
+`@playwright/test` was not installed; direct CDP was used instead.
+
+The packaged follow-up does not change the remaining acceptance boundary: the next owner must
+prove daemon-state handling and ownership isolation against an isolated throwaway Docker
+environment; create conflict and rollback; start/stop/restart; update refusal until transactional
+recreate exists; map/configuration state; persistent logs/history; multi-row
 bulk actions; export and Visual Studio Code handoff. The packaged application must subsequently
 exercise these flows through the approved headless route, with captures of the real surface and
 redacted operation receipts.
