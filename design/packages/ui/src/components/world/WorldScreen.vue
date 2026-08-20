@@ -28,6 +28,8 @@ import { createBridgeConfigHost, provideConfigHost, type ConfigHost } from "../c
 import { provideSettingsOpener } from "../downloads/index.js";
 import { resolveProjectHost, type ProjectHost } from "../project/projectHost.js";
 import { projectFromWizard } from "../project/projectModel.js";
+import { createJavaSetting } from "../settings/javaSetting.js";
+import { globalRenderEngineDefault, resolveRenderEngine } from "../settings/engineChoice.js";
 import { emitTutorialSignal } from "../tutorial/tutorialSignals.js";
 import {
     RemoteHostingPanel,
@@ -137,6 +139,14 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const java = createJavaSetting();
+const javaAvailable = computed<boolean | null>(() => {
+    if (!java.supported) return null;
+    if (java.state.value === "found") return true;
+    if (java.state.value === "missing") return false;
+    return null;
+});
 
 const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
 const optional = props.optionalBridge === undefined ? resolveOptionalWorldBridge() : props.optionalBridge;
@@ -286,6 +296,7 @@ async function writeProject(request: RenderRequest, configText: string, storageD
         fixEdges: request.fixEdges ?? false,
         metrics: request.metrics ?? false,
         threads: request.renderThreads ?? null,
+        engine: resolveRenderEngine(globalRenderEngineDefault(), javaAvailable.value === true),
     });
 
     try {
@@ -376,6 +387,7 @@ onMounted(async () => {
     void offers.load();
     void containerOffers.load();
     rereadConsent();
+    void java.load();
 
     // The record can also be changed by another window or another process, and those do
     // reach a renderer as real events. Registered here rather than in `consentState.ts`
