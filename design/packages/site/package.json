@@ -8,6 +8,7 @@
         "dev": "node scripts/assert-archive-controls.mjs && node scripts/assert-screenshot-gallery.mjs && node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs --tolerant && vite",
         "build": "node scripts/assert-archive-controls.mjs && node scripts/assert-screenshot-gallery.mjs && node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs --tolerant && vite build",
         "build:strict": "node scripts/assert-archive-controls.mjs && node scripts/assert-screenshot-gallery.mjs && node scripts/assert-article-bundle.mjs && node scripts/generate-color-roles.mjs && node scripts/fetch-dim-sum-pool.mjs && vite build",
+        "proof:hydration": "node scripts/assert-hydrated-artifact.mjs",
         "preview": "vite preview",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "fetch-dim-sum": "node scripts/fetch-dim-sum-pool.mjs"
