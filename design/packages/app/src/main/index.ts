@@ -194,6 +194,9 @@ const directLaunchUserData = directLaunch
 if (directLaunch && directLaunchUserData === "") {
     throw new Error("--worldlens-direct-launch requires an owned --user-data-dir profile.");
 }
+if (directLaunch && !path.isAbsolute(directLaunchUserData)) {
+    throw new Error("--worldlens-direct-launch requires an absolute --user-data-dir profile.");
+}
 if (
     directLaunch &&
     path.resolve(directLaunchUserData) === path.resolve(join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName))
