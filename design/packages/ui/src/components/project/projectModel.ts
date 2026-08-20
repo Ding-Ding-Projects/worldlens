@@ -33,6 +33,7 @@
  */
 
 import {
+    DEFAULT_PROJECT_RENDER_ENGINE,
     PROJECT_FORMAT_VERSION,
     PROJECT_SCHEMA_ID,
     descriptorFor,
@@ -48,6 +49,7 @@ import {
     type ProjectFile,
     type ProjectMap,
     type ProjectRender,
+    type ProjectRenderEngine,
     type ProjectStorage,
 } from "@worldlens/config";
 import {
@@ -197,7 +199,7 @@ export function defaultStamp(): ProjectStamp {
 }
 
 export const EMPTY_RENDER: ProjectRender = {
-    engine: "typescript",
+    engine: DEFAULT_PROJECT_RENDER_ENGINE,
     route: "local",
     threads: null,
     force: false,
@@ -221,7 +223,11 @@ export function projectRenderRoute(project: ProjectFile): "local" | "github-acti
  * distinction is not a quality judgement - the file and its settings are identical either
  * way - it just lets the list honestly say "made by the guide, never opened in the editor".
  */
-export function createProject(name: string, stamp: ProjectStamp = defaultStamp()): ProjectFile {
+export function createProject(
+    name: string,
+    stamp: ProjectStamp = defaultStamp(),
+    engine: ProjectRenderEngine = DEFAULT_PROJECT_RENDER_ENGINE,
+): ProjectFile {
     return {
         schema: PROJECT_SCHEMA_ID,
         version: PROJECT_FORMAT_VERSION,
@@ -232,7 +238,7 @@ export function createProject(name: string, stamp: ProjectStamp = defaultStamp()
         appVersion: stamp.appVersion ?? null,
         maps: [],
         storages: [],
-        render: { ...EMPTY_RENDER },
+        render: { ...EMPTY_RENDER, engine },
         core: null,
         webapp: null,
         webserver: null,
@@ -260,6 +266,8 @@ export interface GeneratedProjectDefaults {
     readonly version?: string;
     /** The platform spelling used by the generated HOCON paths. */
     readonly separator?: string;
+    /** The concrete engine selected for this new project by the persisted global preference. */
+    readonly engine?: ProjectRenderEngine;
 }
 
 /**
@@ -317,7 +325,7 @@ export function createProjectFromGeneratedDefaults(
     }));
 
     return {
-        ...createProject(name, stamp),
+        ...createProject(name, stamp, options.engine),
         maps,
         storages: [{ id: "file", config: required("storages/file.conf") }],
         core: required("core.conf"),
@@ -343,6 +351,8 @@ export interface WizardAnswers {
     readonly fixEdges?: boolean;
     readonly metrics?: boolean;
     readonly threads?: number | null;
+    /** The concrete engine selected for this new project by the persisted global preference. */
+    readonly engine?: ProjectRenderEngine;
 }
 
 /**
@@ -360,7 +370,7 @@ export function projectFromWizard(
     answers: WizardAnswers,
     stamp: ProjectStamp = defaultStamp(),
 ): ProjectFile {
-    const base = createProject(worldLeaf(answers.world), stamp);
+    const base = createProject(worldLeaf(answers.world), stamp, answers.engine);
     const map: ProjectMap = {
         id: answers.mapId,
         name: answers.mapName.trim() === "" ? answers.mapId : answers.mapName.trim(),

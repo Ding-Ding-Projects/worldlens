@@ -54,6 +54,7 @@ import {
 import { provideSettingsOpener } from "../downloads/index.js";
 import { raiseNotice } from "../../stores/notices.js";
 import { createJavaSetting } from "../settings/javaSetting.js";
+import { globalRenderEngineDefault, resolveRenderEngine } from "../settings/engineChoice.js";
 
 /**
  * Projects: the list of them, the editor for one, and the render one starts.
@@ -551,6 +552,7 @@ function openNewProjectFor(world: string, route: "local" | "github-actions" = "l
         createProjectFromGeneratedDefaults(worldLeaf(world), {
             world,
             separator: separator.value,
+            engine: resolveRenderEngine(globalRenderEngineDefault(), javaAvailable.value === true),
         }),
         { route },
     );
