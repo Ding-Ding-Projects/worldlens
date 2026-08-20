@@ -34,7 +34,7 @@ import type { CiWorkflowTemplate } from "./bootstrap.js";
  * file changes. It is deliberately independent of a content digest: ordering numbers is
  * what lets an older installed application refuse to downgrade workflows from a newer one.
  */
-export const CI_WORKFLOW_TEMPLATE_VERSION = 1;
+export const CI_WORKFLOW_TEMPLATE_VERSION = 2;
 
 /** Every workflow file a render or scheduled check needs, relative to `.github/workflows/`. */
 export const CI_WORKFLOW_FILE_NAMES = [
