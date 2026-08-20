@@ -34,6 +34,34 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
     await cp(join(engineRoot, "dist"), join(outputDirectory, "typescript", "dist"), { recursive: true, force: true });
     await cp(join(sharedRoot, "dist"), join(outputDirectory, "shared", "dist"), { recursive: true, force: true });
     await cp(driverSource, join(outputDirectory, "typescript", "render-ts.mjs"));
+    // The standalone driver loads the engine as ESM rather than through Electron's
+    // bundle, so its bare runtime imports need a small self-contained dependency set.
+    for (const dependency of [
+        "@bokuweb/zstd-wasm",
+        "@worldlens/config",
+        "@worldlens/nbt",
+        "@worldlens/shared",
+        "chokidar",
+        "readdirp",
+        "lru-cache",
+        "lz4js",
+        "pngjs",
+        "xxhash-wasm",
+        "zod",
+    ]) {
+        const source = await dependencySource(dependency);
+        const destination = join(outputDirectory, "node_modules", dependency);
+        await cp(source, destination, { recursive: true, force: true, dereference: true });
+    }
+    // Keep the engine itself addressable by its package name too. The driver enters
+    // through the staged `typescript/dist` path, but compiled engine modules may import
+    // `@worldlens/engine` from a sibling helper; a flat dist copy must not resolve that
+    // name against an unrelated app.asar dependency.
+    const enginePackage = join(outputDirectory, "node_modules", "@worldlens", "engine");
+    await mkdir(enginePackage, { recursive: true });
+    await cp(join(engineRoot, "package.json"), join(enginePackage, "package.json"));
+    await cp(join(engineRoot, "dist"), join(enginePackage, "dist"), { recursive: true, force: true });
+    await cp(join(engineRoot, "assets"), join(enginePackage, "assets"), { recursive: true, force: true });
 
     let javaVersion = null;
     let javaArtifact = null;
@@ -120,6 +148,23 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
     };
     await writeFile(join(outputDirectory, "manifest.json"), `${JSON.stringify(manifest, null, 4)}\n`, "utf8");
     return manifest;
+}
+
+async function dependencySource(dependency) {
+    for (const candidate of [
+        join(engineRoot, "node_modules", dependency),
+        join(designRoot, "packages", "config", "node_modules", dependency),
+        join(designRoot, "node_modules", dependency),
+        join(designRoot, "node_modules", ".pnpm", "readdirp@4.1.2", "node_modules", dependency),
+    ]) {
+        try {
+            await stat(candidate);
+            return candidate;
+        } catch {
+            // Try the next workspace package's link.
+        }
+    }
+    throw new Error(`The TypeScript render dependency is missing from the workspace: ${dependency}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

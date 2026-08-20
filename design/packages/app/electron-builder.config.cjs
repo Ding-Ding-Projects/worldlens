@@ -132,6 +132,11 @@ module.exports = {
             to: "render-engines/shared",
             filter: ["**/*"],
         },
+        {
+            from: "dist/render-engines/node_modules",
+            to: "render-engines/node_modules",
+            filter: ["**/*"],
+        },
         // The complete managed workflow set a CI-render bootstrap commits to a repository -
         // see cirender/workflowTemplates.ts's `loadCiWorkflowTemplates`, which reads them
         // back from `resourcesPath/workflows/` in a packaged build. Without this entry a

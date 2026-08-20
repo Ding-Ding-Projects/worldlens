@@ -411,7 +411,10 @@ export class TypeScriptRun {
         try {
             child = (this.options.spawn ?? defaultSpawn)(this.options.nodeExecutable, this.arguments(), {
                 cwd: this.options.cwd,
-                env: process.env,
+                // Packaged Electron does not ship a separate node.exe. Electron's
+                // documented run-as-node mode lets the same signed runtime execute the
+                // standalone ESM driver without launching a nested desktop process.
+                env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
             });
         } catch (error) {
             return this.result(null, null, startedAt, [describe(error)]);
@@ -445,6 +448,10 @@ export class TypeScriptRun {
                 }
             }
         };
+        // Attach stream readers before waiting for close; Electron-as-node can close
+        // the child and release its pipe immediately after the final JSON line.
+        const stdoutRead = read(child.stdout, "stdout");
+        const stderrRead = read(child.stderr, "stderr");
         const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
             child.once("error", (error) => {
                 diagnostics.push(describe(error));
@@ -452,7 +459,7 @@ export class TypeScriptRun {
             });
             child.once("close", (code, signal) => resolve({ code, signal }));
         });
-        await Promise.all([read(child.stdout, "stdout"), read(child.stderr, "stderr")]);
+        await Promise.all([stdoutRead, stderrRead]);
         this.finished = true;
 
         let payload: Record<string, unknown> | null = null;
