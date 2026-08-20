@@ -199,8 +199,9 @@ same-world render、restart/reopen 同 diagnostic read-back 仲未有。
 
 ## Issue #69 — Docker hosting instance manager — 2026-08-19
 
-- **Status:** The issue-owned checkout contains the Phase G manager, bridge and navigation source;
-  Issue #69 remains open pending verification.
+- **Status:** The default branch contains the Phase G manager, bridge and navigation source as of
+  `b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170` (`v1.0.1380`); Issue #69 remains open pending
+  verification.
 - **Current source:** `design/packages/app/src/main/dockerhosting/{manager.ts,ipc.ts,index.ts}`
   owns daemon probing, app-label filtering, exact digest-pinned image inventory, persistent records, digest-pinned create validation,
   named-volume ownership checks, image `ENTRYPOINT`/`CMD` preservation, create verification/rollback,

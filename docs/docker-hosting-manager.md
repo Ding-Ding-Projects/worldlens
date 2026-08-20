@@ -102,6 +102,10 @@ prove tests, throwaway-container operations, refusal or cancellation paths, map/
 state, persistent complete logs/history, bulk mutations, VS Code handoff, packaged interaction, or
 headless captures. Those remain required before any acceptance item can be marked complete.
 
+The current `main` baseline is `b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170`, published as
+`v1.0.1380`. This records update ran no tests, builds, throwaway-container operations, packaged
+interaction, or headless captures; the read-only daemon probe above is the only live daemon evidence.
+
 The next owner must prove daemon-state handling and ownership isolation against an isolated
 throwaway Docker environment; create conflict and rollback; start/stop/restart; update refusal
 until transactional recreate exists; map/configuration state; persistent logs/history; multi-row
