@@ -81,8 +81,13 @@ import type {
     AgentAvailability,
     DiagnoseAnswer,
     FailureSummary,
+    IssueReportAvailability,
+    IssueReportDraftAnswer,
+    IssueReportExportAnswer,
+    IssueReportSubmitAnswer,
     RepairAnswer,
 } from "../main/repair/index.js";
+import type { ReportDraftSelection } from "../main/repair/index.js";
 import type {
     ProfilesHistoryListing,
     ProfilesSaveResult,
@@ -1336,6 +1341,13 @@ export interface RepairBridge {
     diagnose(id: string): Promise<DiagnoseAnswer>;
     /** Runs the repair pass: the deterministic diagnosis, then the guardrailed agent if allowed. */
     run(id: string): Promise<RepairAnswer>;
+    /** Reports whether a user-triggered issue submission can use the active GitHub CLI account. */
+    readonly issueReport: {
+        availability(): Promise<IssueReportAvailability>;
+        draft(id: string, selection?: ReportDraftSelection): Promise<IssueReportDraftAnswer>;
+        export(content: string, format: "json" | "markdown"): Promise<IssueReportExportAnswer>;
+        submit(title: string, markdown: string): Promise<IssueReportSubmitAnswer>;
+    };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -3881,6 +3893,13 @@ const bridge: WorldlensBridge = {
         failures: () => ipcRenderer.invoke("repair:failures"),
         diagnose: (id) => ipcRenderer.invoke("repair:diagnose", id),
         run: (id) => ipcRenderer.invoke("repair:run", id),
+        issueReport: {
+            availability: () => ipcRenderer.invoke("repair:reportAvailability"),
+            draft: (id, selection) => ipcRenderer.invoke("repair:reportDraft", id, selection),
+            export: (content, format) => ipcRenderer.invoke("repair:reportExport", { content, format }),
+            submit: (title, markdown) =>
+                ipcRenderer.invoke("repair:reportSubmit", { title, markdown }),
+        },
     },
 
     listBackupOwners: (accountId) => ipcRenderer.invoke("backup:owners", { accountId }),

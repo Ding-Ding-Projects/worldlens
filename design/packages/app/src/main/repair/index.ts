@@ -109,12 +109,27 @@ export {
 } from "./ipc.js";
 
 export {
+    REPORT_CHANNELS,
+    registerReportHandlers,
+    type IssueReportAvailability,
+    type IssueReportDraftAnswer,
+    type IssueReportExportAnswer,
+    type IssueReportSubmitAnswer,
+    type ReportBridgeOptions,
+    type ReportDraftSelection,
+} from "./reportBridge.js";
+
+export {
+    MAX_REPORT_BODY_CHARS,
     MAX_REPORT_LOG_CHARS,
     MAX_REPORT_LOG_LINES,
     REPORT_REDACTED,
     createDiagnosticReport,
     exportDiagnosticReportJson,
     exportDiagnosticReportMarkdown,
+    parseDiagnosticReport,
+    parseDiagnosticReportInput,
+    parseIssueDraft,
     prepareIssueDraft,
     redactDiagnosticText,
     type DiagnosticReport,

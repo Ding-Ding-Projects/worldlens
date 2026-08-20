@@ -15,6 +15,7 @@ export const MAX_REPORT_FIELD_CHARS = 512;
 export const MAX_REPORT_TOTAL_CHARS = 64 * 1024;
 export const MAX_REPORT_TITLE_CHARS = 120;
 export const MAX_REPORT_INPUT_CHARS = 64 * 1024;
+export const MAX_REPORT_BODY_CHARS = MAX_REPORT_TOTAL_CHARS + 8 * 1024;
 export const REPORT_REDACTED = "[redacted]";
 
 export interface DiagnosticReportInput {
@@ -47,6 +48,149 @@ export interface IssueDraft {
     readonly autoSubmitted: false;
 }
 
+const REPORT_INPUT_KEYS = new Set([
+    "app",
+    "build",
+    "engine",
+    "platform",
+    "failureCategory",
+    "configFacts",
+    "reproductionSteps",
+    "consoleEvidence",
+]);
+
+const REPORT_KEYS = new Set([
+    "app",
+    "build",
+    "engine",
+    "platform",
+    "failureCategory",
+    "configFacts",
+    "reproductionSteps",
+    "consoleEvidence",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, allowed: ReadonlySet<string>): boolean {
+    return Object.keys(value).every((key) => allowed.has(key));
+}
+
+function boundedString(value: unknown, maximum: number): value is string {
+    return typeof value === "string" && value.length <= maximum;
+}
+
+function nonEmptyBoundedString(value: unknown, maximum: number): value is string {
+    return boundedString(value, maximum) && value.trim().length > 0;
+}
+
+function boundedStringArray(value: unknown, maximumItems: number, maximumChars: number): value is string[] {
+    return (
+        Array.isArray(value) &&
+        value.length <= maximumItems &&
+        value.every((item) => boundedString(item, maximumChars))
+    );
+}
+
+/**
+ * Parse renderer-supplied report facts before any redaction or formatting work.
+ *
+ * This is intentionally strict: truncating a malformed or over-sized renderer value would
+ * turn an invalid request into a plausible report, and the main process must own the
+ * privacy boundary rather than trusting a renderer to trim it first.
+ */
+export function parseDiagnosticReportInput(value: unknown): DiagnosticReportInput | null {
+    if (!isRecord(value) || !hasOnlyKeys(value, REPORT_INPUT_KEYS)) return null;
+    const app = value.app;
+    const build = value.build;
+    const engine = value.engine;
+    const platform = value.platform;
+    const failureCategory = value.failureCategory;
+    if (
+        !nonEmptyBoundedString(app, MAX_REPORT_INPUT_CHARS) ||
+        !nonEmptyBoundedString(build, MAX_REPORT_INPUT_CHARS) ||
+        !nonEmptyBoundedString(engine, MAX_REPORT_INPUT_CHARS) ||
+        !nonEmptyBoundedString(platform, MAX_REPORT_INPUT_CHARS) ||
+        !nonEmptyBoundedString(failureCategory, MAX_REPORT_INPUT_CHARS)
+    ) return null;
+    const configFacts = value.configFacts;
+    const reproductionSteps = value.reproductionSteps;
+    const consoleEvidence = value.consoleEvidence;
+    for (const key of ["configFacts", "reproductionSteps", "consoleEvidence"] as const) {
+        const items = value[key];
+        if (
+            items !== undefined &&
+            !boundedStringArray(items, MAX_REPORT_ITEMS, MAX_REPORT_INPUT_CHARS)
+        ) {
+            return null;
+        }
+    }
+    return {
+        app,
+        build,
+        engine,
+        platform,
+        failureCategory,
+        ...(configFacts === undefined ? {} : { configFacts: configFacts as string[] }),
+        ...(reproductionSteps === undefined ? {} : { reproductionSteps: reproductionSteps as string[] }),
+        ...(consoleEvidence === undefined ? {} : { consoleEvidence: consoleEvidence as string[] }),
+    };
+}
+
+/** Parse an already-built report at its smaller post-redaction bounds. */
+export function parseDiagnosticReport(value: unknown): DiagnosticReport | null {
+    if (!isRecord(value) || !hasOnlyKeys(value, REPORT_KEYS)) return null;
+    const app = value.app;
+    const build = value.build;
+    const engine = value.engine;
+    const platform = value.platform;
+    const failureCategory = value.failureCategory;
+    const configFacts = value.configFacts;
+    const reproductionSteps = value.reproductionSteps;
+    const consoleEvidence = value.consoleEvidence;
+    if (
+        !nonEmptyBoundedString(app, MAX_REPORT_FIELD_CHARS) ||
+        !nonEmptyBoundedString(build, MAX_REPORT_FIELD_CHARS) ||
+        !nonEmptyBoundedString(engine, MAX_REPORT_FIELD_CHARS) ||
+        !nonEmptyBoundedString(platform, MAX_REPORT_FIELD_CHARS) ||
+        !nonEmptyBoundedString(failureCategory, MAX_REPORT_FIELD_CHARS) ||
+        !boundedStringArray(configFacts, MAX_REPORT_ITEMS, MAX_REPORT_FIELD_CHARS) ||
+        !boundedStringArray(reproductionSteps, MAX_REPORT_ITEMS, MAX_REPORT_FIELD_CHARS) ||
+        !boundedStringArray(consoleEvidence, MAX_REPORT_LOG_LINES, MAX_REPORT_LOG_CHARS)
+    ) return null;
+    return {
+        app,
+        build,
+        engine,
+        platform,
+        failureCategory,
+        configFacts,
+        reproductionSteps,
+        consoleEvidence,
+    };
+}
+
+/**
+ * Rebuild and verify a reviewed draft. The body and title must be the deterministic output
+ * of the main-process report formatter; a renderer cannot replace the redacted record with
+ * an arbitrary payload while retaining the `IssueDraft` marker fields.
+ */
+export function parseIssueDraft(value: unknown): IssueDraft | null {
+    if (!isRecord(value) || !hasOnlyKeys(value, new Set(["title", "body", "report", "requiresUserConfirmation", "autoSubmitted"]))) {
+        return null;
+    }
+    if (!boundedString(value.title, MAX_REPORT_TITLE_CHARS) || !boundedString(value.body, MAX_REPORT_BODY_CHARS)) {
+        return null;
+    }
+    if (value.requiresUserConfirmation !== true || value.autoSubmitted !== false) return null;
+    const report = parseDiagnosticReport(value.report);
+    if (report === null) return null;
+    const expected = prepareIssueDraft(report);
+    return value.title === expected.title && value.body === expected.body ? expected : null;
+}
+
 /** Redact secrets and identifying machine details without deleting diagnostic facts. */
 export function redactDiagnosticText(value: string): string {
     let result = redactKnownSecrets(value);
@@ -60,6 +204,11 @@ export function redactDiagnosticText(value: string): string {
     result = result.replace(/([A-Za-z]:[\\/]+Users[\\/])[^\\/\s]+/gi, `$1${REPORT_REDACTED}`);
     result = result.replace(/([\\/]Users[\\/]|[\\/]home[\\/])[^\\/\s]+/gi, `$1${REPORT_REDACTED}`);
     result = result.replace(/^(\\\\)[^\\/]+(\\[^\r\n]*)/gm, `$1${REPORT_REDACTED}$2`);
+    // Absolute paths outside a home folder are identifying too. Keep no drive, UNC host,
+    // or root path in a report body; relative config filenames remain useful facts.
+    result = result.replace(/\b[A-Za-z]:[\\/]+[^\s,;]+/g, REPORT_REDACTED);
+    result = result.replace(/\\\\[^\\/\s]+(?:[\\/]+[^\\/\s]+)*/g, REPORT_REDACTED);
+    result = result.replace(/(^|[\s(])\/(?:[^\/\s]+\/)+[^\/\s,;]*/gm, `$1${REPORT_REDACTED}`);
 
     // Bearer/API/key assignments and query values are structured secret locations.
     result = result.replace(/(\b(?:authorization\s*:\s*bearer|bearer|token|api[_-]?key|secret|password)\s*[=:]\s*)[^\s,;]+/gi, `$1${REPORT_REDACTED}`);

@@ -26,6 +26,7 @@ import { diagnose, type RepairDiagnosis } from "./diagnose.js";
 import type { RepairEvidence } from "./evidence.js";
 import type { RepairScope } from "./guardrails.js";
 import { runRepairPass, type ReadText, type RecordHistory, type RepairResult, type WriteText } from "./pass.js";
+import { REPORT_CHANNELS, registerReportHandlers, type ReportBridgeOptions } from "./reportBridge.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
 export const REPAIR_CHANNELS = [
@@ -33,6 +34,7 @@ export const REPAIR_CHANNELS = [
     "repair:failures",
     "repair:diagnose",
     "repair:run",
+    ...REPORT_CHANNELS,
 ] as const;
 
 /**
@@ -79,6 +81,8 @@ export interface RepairIpcOptions {
     readonly recordHistory?: RecordHistory;
     /** Where the world folders come from, so a repair can be told what to keep away from. */
     readonly scopeFor?: (evidence: RepairEvidence) => RepairScope;
+    /** Main-owned report drafting/export/submission capability. */
+    readonly report?: Omit<ReportBridgeOptions, "evidenceFor">;
 }
 
 export interface RepairIpc {
@@ -143,6 +147,16 @@ export function registerRepairHandlers(
 
     const evidenceFor = (id: unknown): RepairEvidence | null =>
         typeof id === "string" ? (failures.get(id) ?? null) : null;
+
+    registerReportHandlers(ipcMain, {
+        ...(options.report ?? {
+            broker: null,
+            appName: () => "Worldlens",
+            buildVersion: () => "unknown",
+            platform: () => process.platform,
+        }),
+        evidenceFor: (id) => evidenceFor(id),
+    });
 
     ipcMain.handle("repair:agent", async (_event: IpcMainInvokeEvent): Promise<AgentAvailability> => await availability());
 
