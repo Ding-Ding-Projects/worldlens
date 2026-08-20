@@ -454,11 +454,20 @@ explicitly refused until a transactional recreate plan can preserve mounts, port
 actual server/map configuration management, persistent full logs/history, complete multi-row bulk actions and
 Visual Studio Code handoff are not yet complete.
 
-This records update ran no tests, contacted no Docker daemon, created no throwaway container, built
-no package and took no capture. Real daemon state/refusal/ownership/rollback, lifecycle recovery,
-reattachment, update/map/configuration, persistent logs/history, multi-bulk/export, VS Code,
-packaged interaction and headless capture evidence remain open. Preserve this evidence boundary;
-do not close Issue #69 from source presence alone.
+This records update ran no tests, builds, packaged interaction, or captures. A separate bounded
+daemon-contract receipt did contact the local daemon using the non-BlueMap digest-pinned
+`nodeterm-server@sha256:69778914f2b70964241d9600b46b37a6722e78c492a6ea9bea0466449b6fab6b` image:
+owner `worldlens-8bd86805f61e2583f988`, instance `issue69-proof-20260819`, container
+`worldlens-issue69-proof-20260819` (ID
+`b9f2135cb2151f1b376ba1fc96ae88b2e661a7f0d38b965b0e938861db72bd13`), volume
+`worldlens-issue69-proof-volume`, and loopback `127.0.0.1:18169 -> 8443`. Create/start/stop/
+restart/remove/volume-remove all succeeded; owned inventories ended empty, the port was free, the
+existing `nodeterm-server` remained healthy, and the unrelated workload was unchanged.
+
+This is daemon-contract lifecycle evidence, not BlueMap workload or packaged UI evidence. BlueMap
+server/map configuration, transactional update, refusal/rollback/cancellation beyond this receipt,
+persistent logs/history, multi-bulk/export, VS Code, packaged interaction and headless capture
+evidence remain open. Preserve this boundary; do not close Issue #69 from source presence alone.
 
 ### 廣東話 / Cantonese
 
@@ -471,8 +480,14 @@ feature record 係 [`docs/docker-hosting-manager.md`](docs/docker-hosting-manage
 create、檢查 port/volume ownership、做 create verification/rollback，仲有 start/stop/restart/
 remove、progress/cancel、bounded logs、selection/export 同 native confirmation。Update 暫時
 明確拒絕，等 transactional recreate plan；map/config、完整 persistent logs/history、multi-bulk
-同 VS Code handoff 仲未齊。今次只寫 records，冇 tests、真 daemon、throwaway container、package
-或者 capture；真 runtime 同 packaged evidence 仍然 open。
+同 VS Code handoff 仲未齊。Daemon contract receipt 用過非 BlueMap 嘅 digest-pinned
+`nodeterm-server@sha256:69778914f2b70964241d9600b46b37a6722e78c492a6ea9bea0466449b6fab6b`：
+owner `worldlens-8bd86805f61e2583f988`、instance/container
+`issue69-proof-20260819` / `worldlens-issue69-proof-20260819`、volume
+`worldlens-issue69-proof-volume`、loopback `127.0.0.1:18169 -> 8443`，create/start/stop/
+restart/remove/volume-remove 全部成功，最後 owned inventory 清空、port free、existing
+`nodeterm-server` healthy，同 unrelated workload 冇郁。呢個只係 daemon-contract proof，唔係
+BlueMap workload、packaged UI 或 capture proof；嗰啲仍然 open。
 
 ## Issue #80 — privacy-safe in-app issue reporting (2026-08-19)
 

@@ -102,13 +102,34 @@ prove tests, throwaway-container operations, refusal or cancellation paths, map/
 state, persistent complete logs/history, bulk mutations, VS Code handoff, packaged interaction, or
 headless captures. Those remain required before any acceptance item can be marked complete.
 
-The current `main` baseline is `b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170`, published as
-`v1.0.1380`. This records update ran no tests, builds, throwaway-container operations, packaged
-interaction, or headless captures; the read-only daemon probe above is the only live daemon evidence.
+On the same local daemon, a separate bounded daemon-contract receipt exercised one disposable
+app-owned instance. This is not BlueMap workload evidence: it used the local digest-pinned
+`nodeterm-server@sha256:69778914f2b70964241d9600b46b37a6722e78c492a6ea9bea0466449b6fab6b`
+image only to prove the manager's ownership and lifecycle boundary.
 
-The next owner must prove daemon-state handling and ownership isolation against an isolated
-throwaway Docker environment; create conflict and rollback; start/stop/restart; update refusal
-until transactional recreate exists; map/configuration state; persistent logs/history; multi-row
+| Receipt field | Exact observed value |
+| --- | --- |
+| Owner label | `com.worldlens.docker-owner=worldlens-8bd86805f61e2583f988` |
+| Manager label | `com.worldlens.docker-hosting=true` |
+| Instance label | `com.worldlens.docker-instance=issue69-proof-20260819` |
+| Container label/name | `com.worldlens.docker-name=worldlens-issue69-proof-20260819`; container `worldlens-issue69-proof-20260819` (ID `b9f2135cb2151f1b376ba1fc96ae88b2e661a7f0d38b965b0e938861db72bd13`) |
+| Owned volume | `worldlens-issue69-proof-volume`, carrying the same owner label |
+| Loopback mapping | `127.0.0.1:18169 -> 8443` |
+| Lifecycle | Create, Start, Stop, Restart, Remove, and volume removal all succeeded |
+| Final state | Owned container and volume inventories empty; port `18169` free; existing `nodeterm-server` healthy; unrelated workload unchanged |
+
+This receipt proves the local manager's create/start/stop/restart/remove ownership path against a
+non-BlueMap long-running image. It does not prove BlueMap server/map configuration, transactional
+image update, refusal/rollback/cancellation coverage beyond this receipt, persistent complete
+logs/history, full bulk actions, VS Code handoff, packaged UI interaction, or headless captures.
+
+The current `main` baseline is `b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170`, published as
+`v1.0.1380`. This records update ran no tests, builds, packaged interaction, or headless captures;
+the read-only probe and the bounded non-BlueMap lifecycle receipt above are the live daemon evidence.
+
+The next owner must prove daemon-state handling across missing/stopped/refused/unusable/ready
+states; BlueMap server/map configuration; create conflict and rollback; update refusal until
+transactional recreate exists; persistent logs/history; multi-row
 bulk actions; export and Visual Studio Code handoff. The packaged application must subsequently
 exercise these flows through the approved headless route, with captures of the real surface and
 redacted operation receipts.
