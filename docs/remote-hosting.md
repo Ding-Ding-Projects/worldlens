@@ -170,33 +170,30 @@ actual port, or an actual browser opening a hosted map. Nothing here has been pr
 real remote host. Treat the shape as proven and the wiring against a genuine Linux server as the
 next thing to verify by hand.
 
-## What is deliberately not built yet
+## What is deliberately not verified yet
 
 ### Issue #85 dependency and evidence boundary (2026-08-19)
 
-Issue #85 cannot close the combined SSH flow while this surface remains outside the application’s
-dedicated discoverable tab navigation. Issue #84 tracks that prerequisite: the saved-target and
-completed-map pickers, a dedicated command-palette destination, inventories, persistence, and real
- packaged publish, refresh, and stop path still need to be wired and captured. The main/preload
- `hosting:*` seam is present, and the issue-84 checkout now contains an uncommitted candidate
- `RemoteHostingScreen.vue`/`remoteHosting` tab with saved-target and completed-render selection.
- That candidate has not been committed, tested, packaged, or captured, so it is not accepted
- application evidence. The existing catalogue entry named `share.publishing.remote-hosting` still
- targets the Pages job with `reveal: "remote-hosting"`, so a dedicated command-palette route is not
- yet proven. Until #84 is resolved, the panel evidence below is not end-to-end application evidence.
+Issue #85 cannot close the combined SSH flow until issue #84’s source navigation and packaged
+acceptance boundaries are both resolved. Commit `8e78a95c` landed the dedicated
+`RemoteHostingScreen.vue`/`remoteHosting` tab, saved-target and completed-render selection, the
+corrected catalogue route, and the command-palette destination. Those source edits are committed,
+but they have not been exercised in the packaged application or against an isolated host, so they
+are not accepted runtime evidence.
 
 The ultra-speed records pass intentionally ran no tests and took no captures. This note records
 the dependency only; it does not upgrade the existing fake-host evidence or claim a real Linux
 host, public/loopback verification, or cleanup pass.
 
 `RemoteHostingPanel.vue` is a complete, tested, standalone component, reachable through the main
- process's `hosting:*` IPC channels and the preload bridge end to end. In the issue-84 checkout, a
- candidate screen now composes saved targets and finished renders, but those source edits are
- uncommitted and unverified. The existing `WorldScreen.vue` nested mount remains conditional on a
- live render target, render id, and completed map. The candidate still needs proof of its dedicated
- command-palette route, complete search/menu/inventory coverage, focus/persistence behavior, and the
- genuine packaged publish/refresh/stop path. The panel bridge and its publish/refresh/stop behavior
- must be preserved when that candidate is integrated.
+process's `hosting:*` IPC channels and the preload bridge end to end. The landed screen composes
+saved targets and finished renders, and the catalogue and command-palette wiring is present in
+source. The existing `WorldScreen.vue` nested mount remains conditional on a live render target,
+render id, and completed map. Remaining acceptance work is to prove the packaged screen's search,
+menu, inventory, focus and persistence behavior; run publish/refresh/stop against an isolated host;
+verify the published port, SSH tunnel, and browser opening; and prove that `ssh`, `scp`, and `rsync`
+are bundled or report their exact unavailable boundary. The panel bridge and its
+publish/refresh/stop behavior must be preserved.
 
 ## 廣東話
 
@@ -270,6 +267,6 @@ remote hosting 有一個本地伺服器永遠冇嘅皺摺:兩個唔同嘅網絡�
 
 **未**行過嘅:真嘅 `ssh` 連線、真嘅 Docker daemon 發佈真嘅 port、真嘅瀏覽器開一幅 hosted 地圖。呢度冇任何嘢對住真遠端主機證過。形狀當已證,對住一部真 Linux 伺服器嘅接線就係下一樣要人手驗嘅嘢。
 
-### 刻意仲未起嘅部分
+### 刻意仲未驗證嘅部分
 
-`RemoteHostingPanel.vue` 係一個完整、有測試、獨立嘅 component,經主進程嘅 `hosting:*` IPC channel 同 preload bridge 頭尾駁通 — 但佢**仲未接入 app 自己嘅 tab navigation**。將佢 mount 落一個搵得到嘅 screen,畀返一個真 screen 會供應嘅 target-picker 同 map-list context,係下一步;過早接入 — 喺一個幾個 screen 同時起緊嘅 shared checkout 度 — 有風險令一個半完成嘅整合過唔到幾個 package-wide 嘅「every surface has X」invariant(command palette 覆蓋、tab search、menu 覆蓋),而一個真正新嘅 top-level screen 係要全數滿足嗰啲invariant嘅。
+`RemoteHostingPanel.vue` 係一個完整、有測試、獨立嘅 component,經主進程嘅 `hosting:*` IPC channel 同 preload bridge 頭尾駁通。Commit `8e78a95c` 已經將 `RemoteHostingScreen.vue`/`remoteHosting` tab、saved-target 同 completed-render selection、corrected catalogue route 同 command-palette destination 接入 source。呢啲 source wiring 已 commit,但 packaged application interaction、isolated host publish/refresh/stop、published port、SSH tunnel、browser opening、bundled `ssh`/`scp`/`rsync` 同 dedicated screen checks 仲未驗證；所以 Issue #84 仍然 open。

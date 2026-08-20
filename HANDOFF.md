@@ -583,13 +583,13 @@ measurements, endpoint/render results, restart receipts, and negative-case outco
 The main/preload `hosting:*` bridge is present, and the panel retains publish, refresh, verification,
 progress, and super-confirmed stop behavior. Commit `8e78a95c` added the dedicated
 `RemoteHostingScreen.vue`/`remoteHosting` tab with saved-target and completed-render selection,
-corrected the catalogue route, and registered the command-palette destination. It is not yet
-packaged, captured, or accepted runtime evidence.
+corrected the catalogue route, and registered the command-palette destination. The source navigation
+and wiring are landed; they are not packaged, captured, or accepted runtime evidence.
 
 This records-only lane intentionally ran no tests and took no captures. No implementation, packaged
 application interaction, isolated-host publish/refresh/stop, merge, push, or cleanup was performed.
-Issue #84 remains open until the navigation/wiring work and genuine packaged isolated-host proof are
-available.
+Issue #84 remains open until genuine packaged isolated-host proof is available, including
+publish/refresh/stop, port and tunnel verification, browser opening, and dedicated screen checks.
 
 ## Issue #85 — SSH world, remote render, and remote hosting records (2026-08-19)
 
@@ -601,10 +601,10 @@ render upload/launch/progress/reattach/collect/cancel, remote hosting publish/re
 redacted logs and captures. No real-host command output, transfer measurements, hashes, or
 packaged captures were produced in this pass.
 
-Remote hosting has an explicit dependency on issue #84: its panel is not yet mounted in the
-application’s discoverable tab navigation with real saved-target and completed-map context. The
-combined issue must not be closed until that dependency and its packaged acceptance evidence are
-resolved.
+Remote hosting now has its source navigation dependency on issue #84 landed by `8e78a95c`: the panel
+is mounted in the application’s discoverable tab navigation with saved-target and completed-render
+context. The combined issue must not be closed until that source wiring is exercised in the packaged
+application and its isolated-host acceptance evidence is resolved.
 
 The records-only pass deliberately skipped tests and captures. That is a process boundary, not a
 verification result; the existing fake-host tests and built-panel evidence retain their prior
