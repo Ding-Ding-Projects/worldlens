@@ -306,8 +306,12 @@ remain open. Do not close issue #86 from this record.
 
 ## Issue #78 — per-project render engine choice
 
-Implementation and focused verification are complete. Remaining before closure: package both
-engines, render the same genuine project through each, and compare output/provenance.
+The project-specific UI and routing pieces are present, but the global-default creation wiring is
+not complete: `chooseNewProjectEngine()` has no caller and `createProject()` hard-codes
+`render.engine` to `typescript`, so new projects currently ignore the selected global default.
+Remaining before closure: repair that wiring, package both engines, prove the staged TypeScript
+package imports resolve, render the same genuine project through each, and compare
+output/provenance.
 
 ## Issue #65 — standalone CLI mod/resource/SQL parity
 

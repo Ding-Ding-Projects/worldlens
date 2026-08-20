@@ -1091,14 +1091,18 @@ verification, and it has not been made. Until it is, the JDK requirement stands.
 
 The app tells you which engine rendered a map. It does not silently switch.
 
-**Issue #78 delivery status (2026-08-19).** The source now carries a per-project engine choice,
-a global default for new projects, canonical engine ids (`upstream-java` and `typescript`), and
-packaging metadata for both engines. The package path stages the TypeScript engine assets and a
-manifest that records capability flags and the staged Java CLI artifact's size and SHA-256 when
-present. Source/build evidence for the current Issue #78 state was not run in this documentation
-pass, and the packaged dual-engine proof remains pending: the next owner must build the real
-installer, verify both artifacts from the packaged output, and render one project through each
-engine without silent fallback.
+**Issue #78 delivery status (2026-08-19, corrected 2026-08-20).** The source carries a
+per-project engine choice and canonical engine ids (`upstream-java` and `typescript`), but the
+global-default creation wiring is not complete: `chooseNewProjectEngine()` has no caller and
+`createProject()` hard-codes `render.engine` to `typescript`, so new projects currently ignore the
+selected global default. Packaging metadata for both engines exists; the package path stages the
+TypeScript engine assets and a manifest that records capability flags and the staged Java CLI
+artifact's size and SHA-256 when present. A static audit found that compiled TypeScript output
+retains bare `@worldlens/shared`, `@worldlens/nbt`, and `@worldlens/config` imports without a
+packaged resolution proof. Source/build evidence for the current Issue #78 state was not run in
+this documentation pass, and the packaged dual-engine proof remains pending: the next owner must
+build the real installer, prove both artifacts and those imports from the packaged output, and
+render one project through each engine without silent fallback.
 
 </details>
 

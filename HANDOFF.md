@@ -679,11 +679,17 @@ implementation supplies the runtime behavior and genuine packaged capture requir
 
 ## Issue #78 per-project render engine choice — 2026-08-19
 
-Projects persist canonical `typescript` or `upstream-java` intent. New projects default to the
-no-JVM TypeScript route; legacy files migrate to Java behavior. Local desktop rendering has a real
-TypeScript launch adapter, resume/provenance carry the engine, and explicit choices never silently
-fall back. The relevant workspace build and focused render/project/settings suites pass. Packaged
-same-project comparison across both engines remains the final issue-specific acceptance step.
+Projects persist canonical `typescript` or `upstream-java` intent. The intended global default for
+new projects is recorded, but the current source does not wire it: `chooseNewProjectEngine()` has
+no caller, `createProject()` hard-codes `typescript`, and generated-default and wizard creation
+copy that value. Current new projects therefore use `typescript` regardless of the selected global
+default; legacy files migrate to Java behavior. Local desktop rendering has a real TypeScript
+launch adapter, resume/provenance carry the engine, and explicit choices never silently fall back.
+The relevant workspace build and focused render/project/settings suites passed in the earlier issue
+lane. Packaged same-project comparison across both engines remains open. A static audit also found
+that the staged TypeScript output retains bare `@worldlens/shared`, `@worldlens/nbt`, and
+`@worldlens/config` imports while the staging script copies no proven package-resolution boundary;
+no packaged import or dual-engine render proof exists yet.
 
 ## Issue #65 standalone CLI parity — 2026-08-19
 
