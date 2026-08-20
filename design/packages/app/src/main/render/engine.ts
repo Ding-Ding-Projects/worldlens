@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 import { ensureJava, NoUsableJavaError, resolveCliJar } from "../java/index.js";
 import type { JarLookupOptions } from "../java/index.js";
 import { readFile, stat } from "node:fs/promises";
-import { join, resolve, basename } from "node:path";
+import { isAbsolute, join, resolve, basename } from "node:path";
 import { EngineUnavailableError } from "./orchestrator.js";
 import type { ResolvedEngine } from "./orchestrator.js";
 import type { RenderEngineId } from "./provenance.js";
@@ -213,15 +213,107 @@ async function stagedTypeScriptVersion(root: string): Promise<string | null> {
     try {
         const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8")) as {
             manifestVersion?: unknown;
-            engines?: { typescript?: { available?: unknown; version?: unknown } };
+            engines?: {
+                typescript?: {
+                    available?: unknown;
+                    version?: unknown;
+                    packageResolution?: {
+                        root?: unknown;
+                        packages?: unknown;
+                    };
+                };
+            };
         };
         if (manifest.manifestVersion !== 1 || manifest.engines?.typescript?.available !== true) return null;
+        if (!(await hasStagedTypeScriptPackageBoundary(root, manifest.engines.typescript.packageResolution))) {
+            return null;
+        }
         return typeof manifest.engines?.typescript?.version === "string"
             ? manifest.engines.typescript.version
             : "unknown";
     } catch {
         return null;
     }
+}
+
+const STAGED_TYPESCRIPT_PACKAGES = ["@worldlens/config", "@worldlens/nbt", "@worldlens/shared"] as const;
+const STAGED_TYPESCRIPT_PACKAGE_ROOT = "typescript/node_modules/@worldlens";
+
+interface StagedTypeScriptPackageRecord {
+    readonly name?: unknown;
+    readonly root?: unknown;
+    readonly main?: unknown;
+}
+
+interface StagedTypeScriptPackageResolution {
+    readonly root?: unknown;
+    readonly packages?: unknown;
+}
+
+/**
+ * Verify the package boundary that Node will use for bare workspace imports before
+ * returning a packaged engine. The installed app cannot see pnpm's workspace links;
+ * a manifest that merely says the engine is available is not enough evidence that its
+ * import graph can load.
+ */
+async function hasStagedTypeScriptPackageBoundary(
+    root: string,
+    resolution: StagedTypeScriptPackageResolution | undefined,
+): Promise<boolean> {
+    if (resolution?.root !== STAGED_TYPESCRIPT_PACKAGE_ROOT || !Array.isArray(resolution.packages)) return false;
+    const records = resolution.packages as StagedTypeScriptPackageRecord[];
+    if (records.length < STAGED_TYPESCRIPT_PACKAGES.length) return false;
+
+    for (const packageName of STAGED_TYPESCRIPT_PACKAGES) {
+        if (!records.some((candidate) => candidate?.name === packageName)) return false;
+    }
+
+    const names = new Set<string>();
+    for (const record of records) {
+        if (
+            typeof record.name !== "string" ||
+            names.has(record.name) ||
+            !isSafeStagedPackageName(record.name) ||
+            record.root !== `typescript/node_modules/${record.name}` ||
+            typeof record.main !== "string" ||
+            !isSafeStagedRelativePath(record.main)
+        ) {
+            return false;
+        }
+        names.add(record.name);
+        const packageRoot = join(root, record.root);
+        const packageManifestPath = join(packageRoot, "package.json");
+        try {
+            const packageManifest = JSON.parse(await readFile(packageManifestPath, "utf8")) as {
+                name?: unknown;
+                main?: unknown;
+            };
+            if (
+                packageManifest.name !== record.name ||
+                typeof packageManifest.main !== "string" ||
+                !isSafeStagedRelativePath(packageManifest.main) ||
+                normalizeStagedPackagePath(packageManifest.main) !== record.main
+            ) {
+                return false;
+            }
+        } catch {
+            return false;
+        }
+        if (!(await exists(join(packageRoot, record.main)))) return false;
+    }
+    return true;
+}
+
+function isSafeStagedRelativePath(value: string): boolean {
+    return value.length > 0 && !isAbsolute(value) && !value.split(/[\\/]+/u).includes("..");
+}
+
+function isSafeStagedPackageName(value: string): boolean {
+    return /^(?:@[^/]+\/[^/]+|[^/]+)$/u.test(value);
+}
+
+function normalizeStagedPackagePath(value: string): string {
+    return value.replace(/^\.\//u, "").replaceAll("\\", "/");
 }
 
 async function exists(path: string): Promise<boolean> {
