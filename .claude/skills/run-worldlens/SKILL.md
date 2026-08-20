@@ -138,14 +138,10 @@ JSONL plan to `driver.mjs`; each of the twelve walkthrough ids needs at least tw
 
 ## Gotchas
 
-- **`WORLDLENS_SCREENSHOTS=1` is what makes `--user-data-dir` work at all.** Without it the app
-  pins storage to its production identity (`src/main/index.ts:172`) and silently opens the
-  **user's real profile**. That is why `launch-headless.cmd` exists.
-- **Setting that variable inline through `launch_on_headless_desktop` does not work.**
-  `cmd.exe /c set WORLDLENS_SCREENSHOTS=1 && electron.exe …` starts the process with the
-  variable unset — verified twice, once landing in the real profile. The tell is a first-run
-  launch that shows **no onboarding dialog**, and a throwaway profile directory that stays
-  empty. A populated profile dir (≈18 entries) means the seam took.
+- **`--worldlens-direct-launch` is the explicit packaged smoke switch.** It requires an owned
+  `--user-data-dir=<profile>` and refuses the production application-data directory, so a
+  direct launch can isolate its profile without `WORLDLENS_SCREENSHOTS=1` or a shell wrapper.
+  The existing `WORLDLENS_SCREENSHOTS=1` route remains supported for the older capture matrix.
 - **`""quoted""` paths inside a `cmd /c "…"` string break Electron**, which then reads its own
   `electron.exe` as an ES module: `ERR_UNKNOWN_FILE_EXTENSION: Unknown file extension ".exe"`.
   It surfaces as a native `#32770` "Error" box on the hidden desktop — invisible unless you
