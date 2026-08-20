@@ -11,6 +11,15 @@ this records update ran no new tests, builds, packaged interaction, or captures.
 Real NBT/oracle comparison and packaged same-world render, restart/reopen, and
 diagnostic read-back evidence remain open, so Issue #89 stays open.
 
+The acceptance audit also found a source-level renderer seam: `bannerRenderLayers` derives
+pattern-specific resource paths, but `BlockStateModelRenderer.renderBanner` currently requests
+the shared `minecraft:block/white_banner` material for every layer. `bannerLayerImage` is only a
+deterministic fixture/test helper and is not connected to the packaged `TextureGallery` path. The
+manifest's base resource path and the oracle README's banner count were corrected in the Issue #89
+audit lane; no renderer repair is claimed without the prohibited build/runtime proof. The next
+owner must correct that seam, then run the real oracle and packaged-viewer evidence against one
+exact release before closure.
+
 ### 廣東話同步
 
 Typed banner reader 會保留 legacy/current 同未知 pattern、colour 嘅次序同資料。
@@ -20,6 +29,14 @@ default；後面啱嘅 layer 照次序行。Diagnostic 最多 32 條，reader st
 tests、build、packaged interaction 或 captures。真 NBT/oracle、same-world
 packaged render、restart/reopen 同 diagnostic read-back 仲未有，所以 Issue #89
 繼續 open。
+
+今次 acceptance audit 亦搵到 renderer seam：`bannerRenderLayers` 會計出每層
+pattern-specific resource path，但 `BlockStateModelRenderer.renderBanner` 依家每層都攞
+共用 `minecraft:block/white_banner` material。`bannerLayerImage` 只係 deterministic
+fixture/test helper，未接去 packaged `TextureGallery` 路徑。Issue #89 audit lane 已修正
+manifest base resource path 同 oracle README banner count；冇喺禁止嘅 build/runtime proof
+之前聲稱 renderer repair。下一位 owner 要先修好呢條 seam，再用同一個 exact release 跑真 oracle
+同 packaged-viewer evidence，先可以考慮關 issue。
 
 ## CI artifact-only workflow update (2026-08-19)
 

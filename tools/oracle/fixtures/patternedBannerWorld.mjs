@@ -59,7 +59,7 @@ export async function createPatternedBannerWorld(outDir) {
             position: [banner.x, banner.y, banner.z], field: banner.patternField,
             layers: banner.patterns.map(({ pattern, color }) => [pattern, color]),
         })),
-        resourcePaths: ["minecraft:entity/banner_base", "minecraft:entity/banner/stripe_bottom", "minecraft:entity/banner/creeper", "minecraft:entity/banner/triangles_top"],
+        resourcePaths: ["minecraft:entity/banner/banner_base", "minecraft:entity/banner/stripe_bottom", "minecraft:entity/banner/creeper", "minecraft:entity/banner/triangles_top"],
         generatedLevelDat: await readFile(join(generated.worldFolder, "level.dat")).then(() => true),
     };
     await writeFile(join(generated.worldFolder, "patterned-banner-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
