@@ -436,7 +436,8 @@ version skew、大 inventory、restart、accessibility、localization 同窄闊�
 
 ## Issue #69 — Docker hosting instance manager — 2026-08-19
 
-Issue #69 remains **open and unverified**. The issue-owned checkout contains the local manager in
+Issue #69 remains **open and unverified**. The default branch at
+`b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170` (`v1.0.1380`) contains the local manager in
 `design/packages/app/src/main/dockerhosting/manager.ts`, `ipc.ts` and `index.ts`, the preload
 bridge in `design/packages/app/src/preload/index.ts`, the `DockerHostingScreen.vue` surface and
 `dockerHostingBridge.ts`, plus `main/index.ts` startup wiring, the `dockerHosting` tab, the
@@ -461,7 +462,8 @@ do not close Issue #69 from source presence alone.
 
 ### 廣東話 / Cantonese
 
-Issue #69 仲係 **open，未驗證**。Issue-owned checkout 有 manager、IPC/preload bridge、
+Issue #69 仲係 **open，未驗證**。`main` 喺 `b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170`
+（`v1.0.1380`）已經有 manager、IPC/preload bridge、
 `DockerHostingScreen.vue`、`dockerHosting` tab、command-palette entry 同 startup wiring；直接
 feature record 係 [`docs/docker-hosting-manager.md`](docs/docker-hosting-manager.md)。
 

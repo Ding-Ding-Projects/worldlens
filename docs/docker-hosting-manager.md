@@ -81,7 +81,8 @@ will be affected.
 
 ## Verification status
 
-Issue #69 remains open and unverified. The current checkout contains the manager implementation,
+Issue #69 remains open and unverified. As of the current `main` baseline
+(`b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170`, published as `v1.0.1380`), the checkout contains the manager implementation,
 bridge, navigation and catalogue wiring described above, alongside the existing Docker render,
 Docker world-import and remote-hosting foundations. This records update did not run tests, contact
 a Docker daemon, create throwaway containers, exercise refusal or cancellation paths, build the
