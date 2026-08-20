@@ -39,7 +39,7 @@
  */
 
 import { inject, provide, type InjectionKey } from "vue";
-import type { ProjectFile, ProjectReadFailure } from "@worldlens/config";
+import { serializeProjectFile, type ProjectFile, type ProjectReadFailure } from "@worldlens/config";
 import type {
     HistoryRestoreResult,
     HistoryRevision,
@@ -226,6 +226,17 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 }
 
 /**
+ * Turns a possibly reactive project into the canonical JSON-only value the bridge accepts.
+ *
+ * A shallow spread or `toRaw` can leave nested Vue proxies behind, which Electron cannot
+ * structured-clone. Reusing the project serializer also preserves forward-compatible
+ * passthrough fields while keeping this transport normalization identical to the file format.
+ */
+function plainProjectForBridge(project: ProjectFile): ProjectFile {
+    return JSON.parse(serializeProjectFile(project)) as ProjectFile;
+}
+
+/**
  * A host from the desktop shell's bridge, or null when this build has no project layer.
  *
  * Takes the bridge object rather than reaching for `window` itself, so a test can hand it
@@ -248,11 +259,16 @@ export function projectHostFromBridge(bridge: unknown): ProjectHost | null {
         canDelete,
         listProjects: () => ready.listProjects(),
         readProject: (world) => ready.readProject(world),
-        writeProject: (world, project) => ready.writeProject(world, project),
+        writeProject: (world, project) => {
+            const bridgeProject = plainProjectForBridge(project);
+            return ready.writeProject(world, bridgeProject);
+        },
         ...(isFunction(ready.notifyAutosaveChange)
             ? {
-                  notifyAutosaveChange: (world: string, project: ProjectFile) =>
-                      ready.notifyAutosaveChange?.(world, project) as Promise<void>,
+                  notifyAutosaveChange: (world: string, project: ProjectFile) => {
+                      const bridgeProject = plainProjectForBridge(project);
+                      return ready.notifyAutosaveChange?.(world, bridgeProject) as Promise<void>;
+                  },
               }
             : {}),
         ...(isFunction(ready.flushAutosave)
