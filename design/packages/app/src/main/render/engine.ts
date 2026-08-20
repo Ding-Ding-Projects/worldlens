@@ -262,19 +262,25 @@ async function hasStagedTypeScriptPackageBoundary(
 ): Promise<boolean> {
     if (resolution?.root !== STAGED_TYPESCRIPT_PACKAGE_ROOT || !Array.isArray(resolution.packages)) return false;
     const records = resolution.packages as StagedTypeScriptPackageRecord[];
-    if (records.length !== STAGED_TYPESCRIPT_PACKAGES.length) return false;
+    if (records.length < STAGED_TYPESCRIPT_PACKAGES.length) return false;
 
     for (const packageName of STAGED_TYPESCRIPT_PACKAGES) {
-        const suffix = packageName.slice("@worldlens/".length);
-        const record = records.find((candidate) => candidate?.name === packageName);
+        if (!records.some((candidate) => candidate?.name === packageName)) return false;
+    }
+
+    const names = new Set<string>();
+    for (const record of records) {
         if (
-            record === undefined ||
-            record.root !== `${STAGED_TYPESCRIPT_PACKAGE_ROOT}/${suffix}` ||
+            typeof record.name !== "string" ||
+            names.has(record.name) ||
+            !isSafeStagedPackageName(record.name) ||
+            record.root !== `typescript/node_modules/${record.name}` ||
             typeof record.main !== "string" ||
             !isSafeStagedRelativePath(record.main)
         ) {
             return false;
         }
+        names.add(record.name);
         const packageRoot = join(root, record.root);
         const packageManifestPath = join(packageRoot, "package.json");
         try {
@@ -283,10 +289,10 @@ async function hasStagedTypeScriptPackageBoundary(
                 main?: unknown;
             };
             if (
-                packageManifest.name !== packageName ||
+                packageManifest.name !== record.name ||
                 typeof packageManifest.main !== "string" ||
-                !packageManifest.main.startsWith("./") ||
-                packageManifest.main.slice(2) !== record.main
+                !isSafeStagedRelativePath(packageManifest.main) ||
+                normalizeStagedPackagePath(packageManifest.main) !== record.main
             ) {
                 return false;
             }
@@ -300,6 +306,14 @@ async function hasStagedTypeScriptPackageBoundary(
 
 function isSafeStagedRelativePath(value: string): boolean {
     return value.length > 0 && !isAbsolute(value) && !value.split(/[\\/]+/u).includes("..");
+}
+
+function isSafeStagedPackageName(value: string): boolean {
+    return /^(?:@[^/]+\/[^/]+|[^/]+)$/u.test(value);
+}
+
+function normalizeStagedPackagePath(value: string): string {
+    return value.replace(/^\.\//u, "").replaceAll("\\", "/");
 }
 
 async function exists(path: string): Promise<boolean> {

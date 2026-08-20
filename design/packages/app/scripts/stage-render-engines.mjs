@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -14,6 +15,7 @@ const configRoot = join(designRoot, "packages", "config");
 const driverSource = join(repositoryRoot, "tools", "oracle", "render-ts.mjs");
 const typescriptAssets = join(engineRoot, "assets");
 const jarDirectory = join(repositoryRoot, "tools", "oracle", "out", "jars");
+const require = createRequire(import.meta.url);
 
 const runtimeWorkspacePackages = [
     { name: "@worldlens/config", root: configRoot },
@@ -32,7 +34,7 @@ async function artifactMetadata(path) {
  * packaged driver must see an ordinary Node package layout next to the engine;
  * the checkout's pnpm links cannot cross an installed app's resource boundary.
  */
-async function stageWorkspaceRuntimePackage(packageDefinition, packageRoot) {
+async function stageRuntimePackage(packageDefinition, packageRoot) {
     const sourceManifestPath = join(packageDefinition.root, "package.json");
     const sourceManifest = JSON.parse(await readFile(sourceManifestPath, "utf8"));
     if (sourceManifest.name !== packageDefinition.name) {
@@ -40,26 +42,118 @@ async function stageWorkspaceRuntimePackage(packageDefinition, packageRoot) {
             `workspace package manifest name mismatch: expected ${packageDefinition.name}, got ${String(sourceManifest.name)}`,
         );
     }
-    if (typeof sourceManifest.main !== "string" || !sourceManifest.main.startsWith("./")) {
-        throw new Error(`workspace package ${packageDefinition.name} has no relative main entry`);
+    if (
+        typeof sourceManifest.main !== "string" ||
+        isAbsolute(sourceManifest.main) ||
+        !isSafeRelativePackagePath(sourceManifest.main)
+    ) {
+        throw new Error(`runtime package ${packageDefinition.name} has no relative main entry`);
     }
-    const sourceDist = join(packageDefinition.root, "dist");
     const sourceMain = join(packageDefinition.root, sourceManifest.main);
-    const sourceDistInfo = await stat(sourceDist);
     const sourceMainInfo = await stat(sourceMain);
-    if (!sourceDistInfo.isDirectory() || !sourceMainInfo.isFile()) {
-        throw new Error(`workspace package ${packageDefinition.name} is not built: ${sourceMain}`);
+    if (!sourceMainInfo.isFile()) {
+        throw new Error(`runtime package ${packageDefinition.name} is not built: ${sourceMain}`);
     }
 
-    const targetRoot = join(packageRoot, packageDefinition.name.slice("@worldlens/".length));
+    const targetRoot = join(packageRoot, ...packageDefinition.name.split("/"));
     await mkdir(targetRoot, { recursive: true });
-    await cp(sourceDist, join(targetRoot, "dist"), { recursive: true, force: true });
-    await cp(sourceManifestPath, join(targetRoot, "package.json"), { force: true });
+    if (packageDefinition.workspace) {
+        const sourceDist = join(packageDefinition.root, "dist");
+        const sourceDistInfo = await stat(sourceDist);
+        if (!sourceDistInfo.isDirectory()) {
+            throw new Error(`workspace package ${packageDefinition.name} has no built dist directory: ${sourceDist}`);
+        }
+        await cp(sourceDist, join(targetRoot, "dist"), { recursive: true, force: true });
+        await cp(sourceManifestPath, join(targetRoot, "package.json"), { force: true });
+    } else {
+        await cp(packageDefinition.root, targetRoot, {
+            recursive: true,
+            force: true,
+            filter: (source) => {
+                const relativeSource = relative(packageDefinition.root, source);
+                return !relativeSource.split(/[\\/]+/u).includes("node_modules");
+            },
+        });
+    }
     return {
         name: packageDefinition.name,
-        root: `typescript/node_modules/@worldlens/${packageDefinition.name.slice("@worldlens/".length)}`,
-        main: sourceManifest.main.slice(2),
+        root: `typescript/node_modules/${packageDefinition.name}`,
+        main: sourceManifest.main.replace(/^\.\//u, "").replaceAll("\\", "/"),
     };
+}
+
+function isSafeRelativePackagePath(value) {
+    return value.length > 0 && !value.split(/[\\/]+/u).includes("..");
+}
+
+function resolveInstalledPackage(packageName, fromRoot) {
+    let entry;
+    try {
+        entry = require.resolve(packageName, { paths: [fromRoot] });
+    } catch (error) {
+        throw new Error(`runtime dependency ${packageName} required by ${fromRoot} is not installed: ${String(error)}`);
+    }
+    const marker = join("node_modules", ...packageName.split("/"));
+    const markerIndex = entry.lastIndexOf(marker);
+    if (markerIndex < 0) throw new Error(`resolved runtime dependency is outside node_modules: ${entry}`);
+    return entry.slice(0, markerIndex + marker.length);
+}
+
+async function stageRuntimePackageClosure(outputDirectory) {
+    const packageRoot = join(outputDirectory, "typescript", "node_modules");
+    const workspaceDefinitions = new Map(runtimeWorkspacePackages.map((definition) => [definition.name, definition]));
+    const queue = [
+        ...runtimeWorkspacePackages.map((definition) => ({ ...definition, workspace: true })),
+        { name: "@worldlens/engine", root: engineRoot, workspace: true, stage: false },
+    ];
+    const staged = [];
+    const visited = new Set();
+    while (queue.length > 0) {
+        const definition = queue.shift();
+        if (visited.has(definition.name)) continue;
+        visited.add(definition.name);
+        const sourceManifest = JSON.parse(await readFile(join(definition.root, "package.json"), "utf8"));
+        if (sourceManifest.name !== definition.name) {
+            throw new Error(`runtime package manifest name mismatch for ${definition.name}`);
+        }
+        if (definition.stage !== false) {
+            staged.push(await stageRuntimePackage(definition, packageRoot));
+        }
+        const optional = new Set(
+            sourceManifest.optionalDependencies && typeof sourceManifest.optionalDependencies === "object"
+                ? Object.keys(sourceManifest.optionalDependencies)
+                : [],
+        );
+        const dependencies = new Set(
+            sourceManifest.dependencies && typeof sourceManifest.dependencies === "object"
+                ? Object.keys(sourceManifest.dependencies)
+                : [],
+        );
+        const optionalPeers = new Set(
+            sourceManifest.peerDependenciesMeta && typeof sourceManifest.peerDependenciesMeta === "object"
+                ? Object.entries(sourceManifest.peerDependenciesMeta)
+                      .filter(([, metadata]) => metadata?.optional === true)
+                      .map(([name]) => name)
+                : [],
+        );
+        if (sourceManifest.peerDependencies && typeof sourceManifest.peerDependencies === "object") {
+            for (const dependencyName of Object.keys(sourceManifest.peerDependencies)) dependencies.add(dependencyName);
+        }
+        for (const dependencyName of dependencies) {
+            if (optional.has(dependencyName) || optionalPeers.has(dependencyName)) continue;
+            const workspaceDefinition = workspaceDefinitions.get(dependencyName);
+            if (workspaceDefinition !== undefined) {
+                queue.push({ ...workspaceDefinition, workspace: true });
+                continue;
+            }
+            queue.push({
+                name: dependencyName,
+                root: resolveInstalledPackage(dependencyName, definition.root),
+                workspace: false,
+            });
+        }
+    }
+    return staged;
 }
 
 /**
@@ -78,13 +172,7 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
     await cp(join(engineRoot, "dist"), join(outputDirectory, "typescript", "dist"), { recursive: true, force: true });
     await cp(join(sharedRoot, "dist"), join(outputDirectory, "shared", "dist"), { recursive: true, force: true });
     await cp(driverSource, join(outputDirectory, "typescript", "render-ts.mjs"));
-    const workspacePackageRoot = join(outputDirectory, "typescript", "node_modules", "@worldlens");
-    const stagedWorkspacePackages = [];
-    for (const packageDefinition of runtimeWorkspacePackages) {
-        stagedWorkspacePackages.push(
-            await stageWorkspaceRuntimePackage(packageDefinition, workspacePackageRoot),
-        );
-    }
+    const stagedWorkspacePackages = await stageRuntimePackageClosure(outputDirectory);
 
     let javaVersion = null;
     let javaArtifact = null;
