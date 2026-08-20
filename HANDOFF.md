@@ -613,9 +613,10 @@ changelog refresh from `215307ac`. `gh release create` and `gh release upload` n
 the supported `[HOST/]OWNER/REPO` target through `--repo`; they never receive the
 unsupported release-level `--hostname` flag. Before each release read, create, or upload,
 the selected signed-in account is re-read from the live `gh` inventory, switched when
-necessary, and verified with `gh api --hostname HOST user --jq .login`. Missing accounts,
-refused switches, and identity mismatches stop before release mutation and expose the
-same-surface account recovery action.
+necessary, and verified with `gh api --hostname HOST user --jq .login` for the operation.
+The broker then restores the account that was active beforehand; a restore refusal is
+surfaced as an operation failure. Missing accounts, refused switches, and identity
+mismatches stop before release mutation and expose the same-surface account recovery action.
 
 The focused transport, sync, CI-render screen, and backup-run-card suites passed **148/148**;
 app and UI typechecks, workspace build, and lint passed in the original repair lane. The
@@ -627,8 +628,22 @@ that capture evidence exists.
 
 The current Worldlens baseline also carries the central `gh` process runner and `runToFile`
 boundary (`2a3684f6`, `eb2663e1`), child-process close handling (`4d511d6c`), and cloud-render
-restart/recovery integration (`f148a538`). The current CI run for `ac46de28` is
-`32257677190` and remains in progress; it is not a completed verdict.
+restart/recovery integration (`f148a538`). The current default-branch SHA is
+`761d9c5be80475908093554da2174a6de13c2c6f`; GitHub Actions run
+[`32320134150`](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32320134150)
+completed successfully for that SHA and published non-draft release
+[`v1.0.1398`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1398),
+whose six required assets are non-empty. The later GitHub Actions run
+[`32320651851`](https://github.com/Ding-Ding-Projects/worldlens/actions/runs/32320651851)
+also completed successfully for the same SHA.
+
+### 廣東話同步
+
+而家 Worldlens default branch 係
+`761d9c5be80475908093554da2174a6de13c2c6f`；GitHub Actions run `32320134150` 對住同一個
+SHA 成功完成，發布咗 non-draft `v1.0.1398`，六件 required assets 全部有非零大小。後續
+`32320651851` 亦對住同一個 SHA 成功完成。呢啲只係 release/build record，唔代表 Issue #52
+嗰張 genuine packaged fixed-state capture 已經存在。
 
 ## Issue #87 — GitHub sign-out and token revocation record (2026-08-19)
 
