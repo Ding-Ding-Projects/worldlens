@@ -112,6 +112,7 @@ import { notices, raiseNotice } from "./stores/notices.js";
 import { wireProjectAutosaveNotices } from "./stores/projectAutosaveNotices.js";
 import { productDisplayName } from "./stores/productName.js";
 import { KidShell, createKidMode, type StickerId } from "./kid/index.js";
+import { routeKidProfile } from "./kid/profileRoute.js";
 import { resolveCatalogues, type ResolvedCatalogue } from "./components/shell/catalogueSearch.js";
 import { useTheme } from "vuetify";
 
@@ -571,6 +572,33 @@ const tabs = ref<InstanceType<typeof WorkPane> | null>(null);
  */
 const kidShellRef = ref<InstanceType<typeof KidShell> | null>(null);
 
+function requestAdultMode(intent: "problems" | null = null): void {
+    if (!kid.enabled.value) return;
+    settingsOpen.value = false;
+    paletteOpen.value = false;
+    kidShellRef.value?.requestAdult(intent);
+}
+
+function completeAdultTransition(intent: "problems" | null): void {
+    kid.enabled.value = false;
+    if (intent === "problems") {
+        void nextTick(() => {
+            problemsOpen.value = true;
+        });
+    }
+}
+
+function openKidProfile(id: string): void {
+    routeKidProfile(
+        id,
+        profilesStore.profiles.map((profile) => profile.id),
+        (profileId) => {
+            profilesStore.activeId = profileId;
+        },
+        () => onRailSelect("map"),
+    );
+}
+
 /** Adds a job to whichever Work pane is actually mounted. */
 function ensureJob(pageId: string): void {
     if (kid.enabled.value) {
@@ -745,7 +773,7 @@ onMounted(() => {
     markMigrationRan();
     shell.destination.value = result.destination;
     if (result.activeJobId !== null) {
-        void nextTick(() => tabs.value?.revealPage(result.activeJobId as string));
+        void nextTick(() => revealJob(result.activeJobId as string));
     }
 });
 
@@ -1759,18 +1787,23 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 v-if="kid.enabled.value"
                 ref="kidShellRef"
                 class="mb-kid-shell-host"
-                :inert="configOpen"
+                :content-inert="configOpen"
                 :destination="destination"
                 :catalogues="kidCatalogues"
                 :open-jobs="openJobIds"
                 :problems="problems"
                 :notices="kidNotices"
+                :notifications-activator-id="notificationsActivatorId"
+                :notifications-panel-id="NOTIFICATIONS_PANEL_ID"
+                :notifications-open="notificationsOpen"
                 :render-rows="kidRenderRows"
                 :render-percent="renderProgressPercent"
                 :running-render-count="runningRenderCount"
                 :profiles="kidProfiles"
                 @activate="onActivateFeature"
+                @open-profile="openKidProfile"
                 @select-destination="onRailSelect"
+                @switch-to-adult="completeAdultTransition"
                 @workspace-change="(ids: readonly string[]) => (openJobIds = ids)"
             >
                 <!--
@@ -2546,6 +2579,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 :anchor-missing="settingsMissing"
                 :updates="updates"
                 @update:open="settingsOpen = $event"
+                @request-adult="requestAdultMode()"
             />
 
             <!--
@@ -2581,6 +2615,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @open-settings="openSettings()"
                 @open-config="openConfig($event)"
                 @open-profiles="revealPage(PAGE_SERVERS)"
+                @request-adult="requestAdultMode()"
                 @open-page="revealPage($event)"
                 @open-notice-centre="requestReveal('noticeCentre')"
                 @open-tab-finder="openTabFinder"
@@ -2611,6 +2646,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             :first-run="dimSumFirstRunActive"
             :update-flow-active="dimSumUpdateFlowActive"
             :error-active="dimSumErrorActive"
+            :school-mode-active="schoolMode.enabled.value"
         />
 
         <!--

@@ -14,6 +14,7 @@ import {
 import { memoryStorage, setSetupStorage, setupStorage } from "./setupPrefs.js";
 import {
     SCHOOL_MODE_RECORD_KEY,
+    createSetupStorageSchoolModeAdapter,
     deleteSchoolModeLocalRecord,
     enableSchoolMode,
     reloadSchoolMode,
@@ -25,6 +26,7 @@ import {
     setSchoolModeRecordAdapter,
     useSchoolMode,
     type SchoolModeRecordAdapter,
+    type SchoolModeResult,
     type SchoolModeSnapshot,
 } from "./schoolMode.js";
 
@@ -83,6 +85,7 @@ describe("the shared preload adapter", () => {
                 snapshot = { ...snapshot, name };
                 return { ok: true, state: snapshot };
             },
+            verify: async () => ({ ok: true, state: snapshot }),
             disable: async () => {
                 snapshot = { ...snapshot, enabled: false };
                 return { ok: true, state: snapshot };
@@ -116,6 +119,7 @@ describe("the shared preload adapter", () => {
             }),
             enable: async () => ({ ok: true as const, state: disabled }),
             rename: async () => ({ ok: true as const, state: disabled }),
+            verify: async () => ({ ok: true as const, state: disabled }),
             disable: async () => ({ ok: true as const, state: disabled }),
             reset: async () => ({ ok: true as const, state: disabled }),
         };
@@ -123,10 +127,82 @@ describe("the shared preload adapter", () => {
         await setSchoolModeRecordAdapter(failingHost);
 
         expect(useSchoolMode().source.value).toBe("unavailable");
-        expect(schoolModeEnabled()).toBe(false);
+        expect(schoolModeEnabled()).toBe(true);
         expect(schoolModeName("School mode")).toBe("School mode");
         expect(setupStorage().read(SCHOOL_MODE_RECORD_KEY)).toBe(fallbackRecord);
         expect(languageSearchLabels()).toContain("The packaged app could not read the shared mode record. Local fallback is not used, so no shared state is being claimed.");
+    });
+
+    it("reconciles live shared changes and detaches the old subscription when adapters change", async () => {
+        let listener: ((result: SchoolModeResult) => void) | null = null;
+        const adapter: SchoolModeRecordAdapter = {
+            source: "shared",
+            read: async () => ({ ok: true, state: disabled }),
+            enable: async () => ({ ok: true, state: disabled }),
+            rename: async () => ({ ok: true, state: disabled }),
+            verify: async () => ({ ok: true, state: disabled }),
+            disable: async () => ({ ok: true, state: disabled }),
+            reset: async () => ({ ok: true, state: disabled }),
+            subscribe: (next) => {
+                listener = next;
+                return () => {
+                    listener = null;
+                };
+            },
+        };
+        await setSchoolModeRecordAdapter(adapter);
+        const live = listener;
+        if (live === null) throw new Error("The shared change listener was not attached.");
+        live({
+            ok: true,
+            state: { version: 1, enabled: true, name: "Live room", credentialConfigured: true },
+        });
+        expect(useSchoolMode().enabled.value).toBe(true);
+        expect(schoolModeName("School mode")).toBe("Live room");
+
+        await setSchoolModeRecordAdapter(createSetupStorageSchoolModeAdapter(memoryStorage()));
+        expect(listener).toBeNull();
+    });
+
+    it("keeps the unavailable policy fail-closed for the whole retry", async () => {
+        let resolveRetry: ((result: SchoolModeResult) => void) | null = null;
+        let reads = 0;
+        const adapter: SchoolModeRecordAdapter = {
+            source: "shared",
+            read: () => {
+                reads += 1;
+                if (reads === 1) {
+                    return Promise.resolve({
+                        ok: false as const,
+                        code: "storage-unavailable" as const,
+                        message: "offline",
+                        state: null,
+                    });
+                }
+                return new Promise<SchoolModeResult>((resolve) => {
+                    resolveRetry = resolve;
+                });
+            },
+            enable: async () => ({ ok: true, state: disabled }),
+            rename: async () => ({ ok: true, state: disabled }),
+            verify: async () => ({ ok: true, state: disabled }),
+            disable: async () => ({ ok: true, state: disabled }),
+            reset: async () => ({ ok: true, state: disabled }),
+        };
+
+        await setSchoolModeRecordAdapter(adapter);
+        expect(useSchoolMode().source.value).toBe("unavailable");
+        expect(schoolModeEnabled()).toBe(true);
+
+        const retry = reloadSchoolMode();
+        expect(useSchoolMode().source.value).toBe("unavailable");
+        expect(schoolModeEnabled()).toBe(true);
+        const finish = resolveRetry;
+        if (finish === null) throw new Error("The retry read did not start.");
+        finish({ ok: true, state: disabled });
+        await retry;
+        expect(useSchoolMode().source.value).toBe("shared");
+        expect(schoolModeEnabled()).toBe(false);
     });
 });
 

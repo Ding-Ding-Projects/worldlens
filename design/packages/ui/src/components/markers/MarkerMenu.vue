@@ -76,6 +76,8 @@ const emit = defineEmits<{
     "update:title": [title: string];
     /** A camera move or map switch failed. The shell may surface this as a notification. */
     error: [message: string];
+    /** A marker was successfully created in the local marker studio. */
+    "marker-created": [id: string];
 }>();
 
 const { t, tx } = useMarkerI18n();
@@ -613,6 +615,7 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
                     v-if="studioOpen"
                     :map-id="studioMapId"
                     :camera-position="studioCameraPosition"
+                    @marker-created="(id) => emit('marker-created', id)"
                 />
             </div>
         </template>

@@ -131,6 +131,8 @@ export interface PaletteShellActions {
     readonly openConfig: (screen: PaletteConfigTarget) => void;
     /** Open the server-profile manager. */
     readonly openProfiles: () => void;
+    /** Ask the one grown-up gate to switch from Kid Mode; never flips the flag directly. */
+    readonly requestAdultMode?: () => void;
     /** Show one of the shell's pages, exactly as clicking its tab would. */
     readonly openPage?: (pageId: string) => void;
     /** Open the notification centre behind the bell in the corner. */
@@ -170,6 +172,7 @@ export interface PaletteCatalogInput {
     readonly canRouteConfigScreens: boolean;
     readonly size: PaletteSize;
     readonly setSize: (size: PaletteSize) => void;
+    readonly kidModeActive?: boolean;
 }
 
 /**
@@ -351,6 +354,22 @@ function shellItems(input: PaletteCatalogInput, group: string, hasPages: boolean
         },
     );
 
+    if (input.kidModeActive === true && actions.requestAdultMode !== undefined) {
+        items.push({
+            kind: "destination",
+            id: "shell.adultMode",
+            group,
+            title: t("settings.kidMode.adultModeOption", "Adult Mode"),
+            description: t(
+                "palette.shell.adultMode",
+                "Opens the one grown-up gate before switching out of Kid Mode.",
+            ),
+            keywords: ["kid mode", "grown-up", "grown up", "switch mode"],
+            where: t("palette.where.adultMode", "Opens the grown-up gate in Kid Mode."),
+            go: actions.requestAdultMode,
+        });
+    }
+
     if (!hasPages) {
         items.push({
             kind: "destination",
@@ -400,12 +419,23 @@ function settingsSectionItems(input: PaletteCatalogInput, group: string): Palett
     const { t, actions } = input;
     const copy = sectionCopy(t);
 
-    return SETTINGS_SECTIONS.map((anchor: SettingsSectionAnchor): PaletteItem => {
+    return SETTINGS_SECTIONS.filter(
+        (anchor) => !schoolModeEnabled() || anchor !== "vocabulary",
+    ).map((anchor: SettingsSectionAnchor): PaletteItem => {
         const section = copy[anchor];
-        const keywords =
-            anchor === "language-and-tone" && schoolModeEnabled()
-                ? [section.title]
-                : [anchor.replaceAll("-", " ")];
+        const keywords = anchor === "language-and-tone" && schoolModeEnabled()
+            ? [section.title]
+            : anchor === "kid-mode"
+              ? [
+                    anchor.replaceAll("-", " "),
+                    t("settings.kidMode.kidModeOption", "Kid Mode"),
+                    t("settings.kidMode.adultModeOption", "Adult Mode"),
+                    t("settings.kidMode.name", "What to call the child"),
+                    t("settings.kidMode.celebrations", "Celebrate finished jobs"),
+                    t("settings.kidMode.sound", "Play a sound with a celebration"),
+                    t("settings.kidMode.labelStyle", "Labels"),
+                ]
+              : [anchor.replaceAll("-", " ")];
         // Every section reveals now, including the twelve no render can name. Whether a
         // failure could point here decides nothing about whether the palette can: the
         // palette knows exactly which section was picked, so opening Settings and leaving

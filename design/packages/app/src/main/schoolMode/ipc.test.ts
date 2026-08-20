@@ -27,13 +27,20 @@ afterEach(async () => {
 });
 
 describe("School-mode IPC", () => {
-    it("registers only the five narrow record operations and removes exactly them on disposal", async () => {
-        const registration = registerSchoolModeHandlers(ipcMain as never, { applicationDataDirectory });
+    it("registers the six narrow record operations, publishes safe changes, and removes exactly them", async () => {
+        const onChanged = vi.fn();
+        const registration = registerSchoolModeHandlers(ipcMain as never, {
+            applicationDataDirectory,
+            onChanged,
+        });
         expect([...handlers.keys()].sort()).toEqual(Object.values(SCHOOL_MODE_CHANNELS).sort());
 
         const enable = handlers.get(SCHOOL_MODE_CHANNELS.enable);
         const read = handlers.get(SCHOOL_MODE_CHANNELS.read);
-        if (enable === undefined || read === undefined) throw new Error("School-mode handlers were not registered.");
+        const verify = handlers.get(SCHOOL_MODE_CHANNELS.verify);
+        if (enable === undefined || read === undefined || verify === undefined) {
+            throw new Error("School-mode handlers were not registered.");
+        }
 
         const credential = "test-only-unlock";
         await expect(enable({}, { name: "Host bridge", credential })).resolves.toMatchObject({
@@ -41,9 +48,18 @@ describe("School-mode IPC", () => {
             state: { enabled: true, name: "Host bridge", credentialConfigured: true },
         });
         const snapshot = await read({});
+        await expect(verify({}, credential)).resolves.toMatchObject({
+            ok: true,
+            state: { enabled: true },
+        });
+        await expect(read({})).resolves.toMatchObject({ ok: true, state: { enabled: true } });
         expect(JSON.stringify(snapshot)).not.toContain(credential);
         expect(JSON.stringify(snapshot)).not.toContain("hash");
         expect(JSON.stringify(snapshot)).not.toContain("salt");
+        expect(onChanged).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(onChanged.mock.calls[0]?.[0])).not.toContain(credential);
+        expect(JSON.stringify(onChanged.mock.calls[0]?.[0])).not.toContain("hash");
+        expect(JSON.stringify(onChanged.mock.calls[0]?.[0])).not.toContain("salt");
 
         registration.dispose();
         expect(handlers.size).toBe(0);

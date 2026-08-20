@@ -8,17 +8,14 @@
  * (kid-mode drop-in audit, defect 1). The real shared credential this whole application already
  * has is School mode's own record, `components/setup/schoolMode.ts`: `useSchoolMode()` for the
  * reactive view (`ready`, `source`, `enabled`, `chosenName`, `credentialConfigured`, `error`), and
- * the bare function `disableSchoolMode(credential)` to verify a typed code against it. Neither is
+ * the bare function `verifySchoolModeCredential(credential)` to verify a typed code against it. Neither is
  * re-exported from `components/setup/index.ts` today, so this file imports them from the real
  * module directly - the same "import the file, not the barrel" pattern `CataloguePage.vue` already
  * uses for `ResolvedCatalogue`.
  *
- * `disableSchoolMode` is also the only verification primitive the shared record exposes: there is
- * no separate "check this code without changing anything" call. Calling it here means a correct
- * code, entered here, also turns School mode's own language-restriction feature off if a household
- * happens to have both features enabled at once - which is the accepted behaviour, not a bug: the
- * shared credential is one "prove you are the grown-up" code for every one of these apps, by
- * design, and this gate is explicitly told never to invent a second one of its own.
+ * Verification is deliberately separate from disabling the shared record. A correct code proves
+ * who is using this one Kid Mode transition without changing School mode for this app or any
+ * participating sibling app.
  *
  * ### Kid Mode must never become a one-way door
  *
@@ -47,17 +44,23 @@
  * The earlier draft of this file revealed `AppSettings` and the options editor inline, still
  * inside the kid-mode shell - which needed an `updates: UpdatesController` prop that `KidShell.vue`
  * never actually passed down, so it could never have rendered correctly. This version does the
- * simpler, correct thing the amended requirement actually asks for: it emits `switchToAdult`, and
- * `KidShell.vue` (which already holds `useKidMode()`) sets `kid.enabled.value = false` in response.
- * The whole kid-mode shell then unmounts on its own, the same way any `v-if="kid.enabled"` in the
- * application root reacts to the flag - Adult Mode already has its own Settings, its own options
- * editor and its own problems panel, so nothing needs re-hosting here to reach them.
+ * simpler, correct thing the amended requirement asks for: it emits `switchToAdult`; `KidShell`
+ * relays that verified event and its pending intent to `App.vue`, the sole owner that changes the
+ * Kid Mode flag and opens the requested Adult surface. Adult Mode already has its own Settings,
+ * options editor and problems panel, so nothing needs re-hosting here to reach them.
  */
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiLockOutline } from "@mdi/js";
 import { VIcon } from "vuetify/components";
-import { disableSchoolMode, ensureSchoolModeReady, useSchoolMode } from "../components/setup/schoolMode.js";
+import {
+    ensureSchoolModeReady,
+    reloadSchoolMode,
+    schoolModeName,
+    useSchoolMode,
+    verifySchoolModeCredential,
+    type SchoolModeFailureCode,
+} from "../components/setup/schoolMode.js";
 
 const emit = defineEmits<{
     /** The grown-up gate was passed - by an explicit press with no code configured, or by a
@@ -69,7 +72,7 @@ const { t } = useI18n();
 const school = useSchoolMode();
 
 const entered = ref("");
-const failed = ref(false);
+const failureCode = ref<SchoolModeFailureCode | null>(null);
 const busy = ref(false);
 
 /*
@@ -82,21 +85,91 @@ onMounted(() => {
     void ensureSchoolModeReady();
 });
 
-const noLockConfigured = computed(() => school.ready.value && !school.credentialConfigured.value);
-const lockConfigured = computed(() => school.ready.value && school.credentialConfigured.value);
+const unavailable = computed(() => school.ready.value && school.source.value === "unavailable");
+const noLockConfigured = computed(
+    () => school.ready.value && !unavailable.value && !school.credentialConfigured.value,
+);
+const lockConfigured = computed(
+    () => school.ready.value && !unavailable.value && school.credentialConfigured.value,
+);
+const modeName = computed(() =>
+    schoolModeName(t("kid.gate.sharedModeName", "School mode")),
+);
 
-function goStraightThrough(): void {
-    emit("switchToAdult");
+const activeFailureCode = computed(() => failureCode.value ?? school.errorCode.value);
+const failureMessage = computed(() => {
+    switch (activeFailureCode.value) {
+        case "credential-invalid":
+            return t(
+                "kid.gate.failure.credentialInvalid",
+                { name: modeName.value },
+                "That code did not match. {name} and Kid Mode are unchanged.",
+            );
+        case "credential-required":
+            return t(
+                "kid.gate.failure.credentialRequired",
+                "Enter the shared PIN or password before trying again.",
+            );
+        case "credential-too-long":
+            return t(
+                "kid.gate.failure.credentialTooLong",
+                "That entry is longer than the shared credential limit.",
+            );
+        case "record-invalid":
+            return t(
+                "kid.gate.failure.recordInvalid",
+                { name: modeName.value },
+                "{name} could not be checked safely. Kid Mode stays on; use the reset recovery in Settings.",
+            );
+        case "storage-unavailable":
+        case "host-unavailable":
+            return t(
+                "kid.gate.failure.unavailable",
+                { name: modeName.value },
+                "{name} could not be reached. Kid Mode stays on; retry after the shared record is available.",
+            );
+        default:
+            return "";
+    }
+});
+
+async function goStraightThrough(): Promise<void> {
+    if (busy.value) return;
+    busy.value = true;
+    failureCode.value = null;
+    try {
+        await reloadSchoolMode();
+        if (school.source.value === "unavailable") {
+            failureCode.value = school.errorCode.value ?? "host-unavailable";
+            return;
+        }
+        // Re-read on the click closes the watcher interval race: a sibling app may have added a
+        // credential after this branch rendered but before the button was pressed.
+        if (school.credentialConfigured.value) return;
+        emit("switchToAdult");
+    } finally {
+        busy.value = false;
+    }
+}
+
+async function retry(): Promise<void> {
+    if (busy.value) return;
+    busy.value = true;
+    try {
+        await reloadSchoolMode();
+    } finally {
+        busy.value = false;
+    }
 }
 
 async function unlock(): Promise<void> {
     if (busy.value || entered.value.trim() === "") return;
     busy.value = true;
-    failed.value = false;
+    failureCode.value = null;
     try {
-        const result = await disableSchoolMode(entered.value);
+        const result = await verifySchoolModeCredential(entered.value);
         if (result.ok) emit("switchToAdult");
-        else failed.value = true;
+        else failureCode.value = result.code;
     } finally {
         // The credential lives only in this field, and only for the one call it was typed for.
         entered.value = "";
@@ -114,15 +187,22 @@ async function unlock(): Promise<void> {
             {{ t("kid.gate.loading", "Checking for a grown-up code…") }}
         </p>
 
+        <template v-else-if="unavailable">
+            <p role="alert">{{ failureMessage }}</p>
+            <button class="wl-kid-gate__go" type="button" :disabled="busy" @click="retry">
+                {{ t("kid.gate.retry", "Try the shared record again") }}
+            </button>
+        </template>
+
         <template v-else-if="noLockConfigured">
             <p>{{ t("kid.gate.noLock.blurb", "No grown-up code is set on this computer yet, so anyone can switch to Adult Mode.") }}</p>
-            <button class="wl-kid-gate__go" type="button" @click="goStraightThrough">
+            <button class="wl-kid-gate__go" type="button" :disabled="busy" @click="goStraightThrough">
                 {{ t("kid.gate.noLock.action", "Go to Adult Mode") }}
             </button>
         </template>
 
         <template v-else-if="lockConfigured">
-            <p>{{ t("kid.gate.locked.blurb", "A grown-up types the shared code to switch to Adult Mode. It is the same code across these apps.") }}</p>
+            <p>{{ t("kid.gate.locked.blurb", { name: modeName }, "A grown-up types the {name} code to switch to Adult Mode. It is the same code across participating apps.") }}</p>
             <label class="wl-kid-gate__field">
                 <span>{{ t("kid.gate.credential", "Shared code") }}</span>
                 <!--
@@ -142,7 +222,7 @@ async function unlock(): Promise<void> {
             <button class="wl-kid-gate__go" type="button" :disabled="busy || entered.trim() === ''" @click="unlock">
                 {{ t("kid.gate.unlock", "Switch to Adult Mode") }}
             </button>
-            <p v-if="failed" role="alert">{{ t("kid.gate.failed", "That code did not match. Kid Mode stays on.") }}</p>
+            <p v-if="failureCode !== null" role="alert">{{ failureMessage }}</p>
         </template>
 
         <!--
@@ -154,7 +234,8 @@ async function unlock(): Promise<void> {
             {{
                 t(
                     "kid.gate.honesty",
-                    "This is a user-experience lock, not a security lock. A grown-up who has already reached Adult Mode can reset the shared code from Settings, in Shared restricted mode.",
+                    { name: modeName },
+                    "This is a user-experience lock, not a security lock. A grown-up who has reached Adult Mode can reset the {name} record from Settings.",
                 )
             }}
         </p>

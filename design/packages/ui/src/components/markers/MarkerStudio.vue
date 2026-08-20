@@ -63,6 +63,7 @@ const props = withDefaults(
     }>(),
     { cameraPosition: null },
 );
+const emit = defineEmits<{ markerCreated: [id: string] }>();
 
 const { t } = useI18n();
 
@@ -149,13 +150,15 @@ function cancel(): void {
 }
 
 function save(): void {
+    const creating = editing.value === null;
     const result =
-        editing.value === null
+        creating
             ? addMarker(props.mapId, draft.value)
             : updateMarker(editing.value, draft.value);
     if (result.ok) {
         formOpen.value = false;
         problems.value = [];
+        if (creating) emit("markerCreated", result.marker.id);
         return;
     }
     problems.value = result.problems;

@@ -55,8 +55,10 @@ const kid = useKidMode();
 const heroTarget = computed(() => findFeature("make.finding-a-world.the-project-editor"));
 const guideTarget = computed(() => findFeature("make.finding-a-world.the-guide"));
 
-function activateByName(featureName: string): void {
-    const match = props.catalogues.flatMap((catalogue) => catalogue.features).find((entry) => entry.name === featureName);
+function activateByKey(featureKey: string): void {
+    const match = props.catalogues
+        .flatMap((catalogue) => catalogue.features)
+        .find((entry) => entry.definition.key === featureKey);
     if (match !== undefined) emit("activate", match.definition);
 }
 
@@ -113,14 +115,14 @@ function rowLabel(row: { label: string; renderId: string }): string {
 
         <div class="wl-kid-home__split">
             <section class="wl-kid-home__panel">
-                <h2>{{ t("kid.home.now", "What this app is doing right now") }}</h2>
+                <h2>{{ t("kid.home.rendersNow", "Renders right now") }}</h2>
                 <!-- Running renders first: the same rows the status strip and the Work badge read. -->
                 <button
                     v-for="row in props.renderRows"
                     :key="row.renderId"
                     class="wl-kid-home__row"
                     type="button"
-                    @click="activateByName('Renders in progress')"
+                    @click="activateByKey('make.while-it-runs.renders-in-progress')"
                 >
                     <v-icon :icon="mdiProgressClock" size="20" aria-hidden="true" />
                     <strong>{{ kidLabel("Renders in progress", KID_FEATURE_LABELS, kid.labelStyle.value).primary }}</strong>
@@ -128,7 +130,7 @@ function rowLabel(row: { label: string; renderId: string }): string {
                     <span class="wl-kid-home__meta">{{ row.percent === null ? "…" : Math.round(row.percent) + "%" }}</span>
                 </button>
                 <p v-if="props.renderRows.length === 0">
-                    {{ t("kid.home.quiet", "Nothing is happening right now. Press GO to start something.") }}
+                    {{ t("kid.home.noRenders", "No renders are running right now. Press GO to start one.") }}
                 </p>
             </section>
 
@@ -145,7 +147,7 @@ function rowLabel(row: { label: string; renderId: string }): string {
                     <strong>{{ profile.name }}</strong>
                     <em>{{ profile.meta }}</em>
                 </button>
-                <button class="wl-kid-home__secondary" type="button" @click="activateByName('Maps and servers')">
+                <button class="wl-kid-home__secondary" type="button" @click="activateByKey('maps.the-list.maps-and-servers')">
                     {{ t("kid.home.addMap", "Add another one") }}
                     <v-icon :icon="mdiChevronRight" size="18" aria-hidden="true" />
                 </button>

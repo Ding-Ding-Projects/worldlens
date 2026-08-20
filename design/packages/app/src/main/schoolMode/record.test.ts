@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,7 @@ import {
     SHARED_SCHOOL_MODE_DIRECTORY,
     SchoolModeStore,
     schoolModeRecordPath,
+    type SchoolModeResult,
 } from "./record.js";
 
 let applicationDataDirectory: string;
@@ -79,6 +80,77 @@ describe("the shared School-mode record", () => {
                 credentialConfigured: true,
             },
         });
+    });
+
+    it("verifies a credential without changing enabled state or rewriting the record", async () => {
+        await store.enable({ name: "Focused room", credential: "test-only-unlock" });
+        const before = await readFile(store.recordPath, "utf8");
+
+        await expect(store.verify("not-the-unlock")).resolves.toMatchObject({
+            ok: false,
+            code: "credential-invalid",
+            state: { enabled: true, name: "Focused room" },
+        });
+        await expect(store.verify("test-only-unlock")).resolves.toMatchObject({
+            ok: true,
+            state: { enabled: true, name: "Focused room" },
+        });
+
+        expect(await readFile(store.recordPath, "utf8")).toBe(before);
+        expect(stateOf(await store.read()).enabled).toBe(true);
+    });
+
+    it("reuses the bounded atomic replacement retry and does not retry permanent failures", async () => {
+        let transientAttempts = 0;
+        const retrying = new SchoolModeStore(applicationDataDirectory, {
+            replace: async (source, destination) => {
+                transientAttempts += 1;
+                if (transientAttempts < 3) {
+                    throw Object.assign(new Error("busy"), { code: "EPERM" });
+                }
+                await rename(source, destination);
+            },
+        });
+        await expect(
+            retrying.enable({ name: "Retry", credential: "test-only-unlock" }),
+        ).resolves.toMatchObject({ ok: true });
+        expect(transientAttempts).toBe(3);
+
+        let permanentAttempts = 0;
+        const permanent = new SchoolModeStore(join(applicationDataDirectory, "permanent"), {
+            replace: async () => {
+                permanentAttempts += 1;
+                throw Object.assign(new Error("gone"), { code: "ENOENT" });
+            },
+        });
+        await expect(
+            permanent.enable({ name: "Permanent", credential: "test-only-unlock" }),
+        ).resolves.toMatchObject({ ok: false, code: "storage-unavailable" });
+        expect(permanentAttempts).toBe(1);
+    });
+
+    it("watches sibling create and reset writes, then stops cleanly on disposal", async () => {
+        const sibling = new SchoolModeStore(applicationDataDirectory);
+        const changes: SchoolModeResult[] = [];
+        const stop = store.watch((result) => changes.push(result));
+
+        await sibling.enable({ name: "Sibling", credential: "test-only-unlock" });
+        await vi.waitFor(
+            () => expect(changes.at(-1)).toMatchObject({ ok: true, state: { enabled: true } }),
+            { timeout: 2_000 },
+        );
+
+        await sibling.reset();
+        await vi.waitFor(
+            () => expect(changes.at(-1)).toMatchObject({ ok: true, state: { enabled: false } }),
+            { timeout: 2_000 },
+        );
+
+        stop();
+        const count = changes.length;
+        await sibling.enable({ name: "After stop", credential: "test-only-unlock" });
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        expect(changes).toHaveLength(count);
     });
 
     it("requires a first credential, bounds it, and rejects control characters in a user-visible name", async () => {

@@ -24,6 +24,7 @@ import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import { appearanceTargets } from "../appearance/index.js";
 import TabbedNavigation from "./TabbedNavigation.vue";
 import type { TabGroupSeed, TabPage } from "./tabModel.js";
+import { readTabWorkspace } from "./tabStorage.js";
 
 const cells = new Map<string, string>();
 
@@ -201,6 +202,56 @@ describe("roles and structure", () => {
 
         expect(view.find(".page-map").exists()).toBe(true);
         expect(view.find(".page-world").exists()).toBe(false);
+    });
+});
+
+describe("runtime-only presentation", () => {
+    it("hides pages and relabels tabs, searches and reopen buttons without rewriting storage", async () => {
+        const storageKey = "worldlens-tabs-presentation-test";
+        const view = mount(TabbedNavigation, {
+            props: {
+                pages: PAGES,
+                storageKey,
+                hiddenPageIds: ["servers"],
+                presentationLabels: { world: "Five questions" },
+            },
+            slots: {
+                map: () => h("p", "the map"),
+                world: () => h("p", "the wizard"),
+                servers: () => h("p", "the servers"),
+            },
+            global: { plugins: [vuetify, i18n] },
+            attachTo: document.body,
+        });
+        await nextTick();
+
+        expect(view.findAll('[role="tab"]').map((tab) => tab.attributes("title"))).toEqual([
+            "Map",
+            "Five questions",
+        ]);
+
+        await view.findAll('[role="tab"]')[1]?.trigger("click");
+        await nextTick();
+        const stored = readTabWorkspace(undefined, storageKey);
+        expect(stored?.strips[0]?.tabs.map((tab) => [tab.pageId, tab.label])).toEqual([
+            ["map", "Map"],
+            ["world", "Make a map"],
+            ["servers", "Servers"],
+        ]);
+
+        for (const title of ["Map", "Five questions"]) {
+            const tab = view
+                .findAll('[role="tab"]')
+                .find((candidate) => candidate.attributes("title") === title);
+            await tab?.trigger("keydown", { key: "Delete" });
+            await nextTick();
+        }
+        expect(view.text()).toContain("Every tab is closed.");
+        const reopen = view.findAll(".mb-tabs__empty-actions button").map((button) => button.text());
+        expect(reopen).toEqual(["Map", "Five questions"]);
+        expect(reopen).not.toContain("Servers");
+
+        view.unmount();
     });
 });
 

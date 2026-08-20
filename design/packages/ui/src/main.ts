@@ -46,7 +46,7 @@ import "./styles/motion.scss";
 import "./styles/prototypeSurface.scss";
 import "./styles/markers.scss";
 import { installUiSize } from "./components/settings/index.js";
-import { ensureSchoolModeReady } from "./components/setup/schoolMode.js";
+import { disposeSchoolMode, ensureSchoolModeReady } from "./components/setup/schoolMode.js";
 
 // Install Vue's reactivity into the framework-free viewer BEFORE any viewer object is
 // constructed (upstream wrapped its data objects with reactive() directly).
@@ -89,6 +89,7 @@ async function mountApplication(): Promise<void> {
     app.use(vuetify);
     app.use(i18nModule);
     app.mount("#app");
+    globalThis.addEventListener("beforeunload", disposeSchoolMode, { once: true });
 
     void loadLanguage(i18nModule);
 }

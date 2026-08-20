@@ -171,6 +171,10 @@ const props = withDefaults(
          * between a short strip and a smaller application.
          */
         seedPageIds?: readonly string[];
+        /** Pages suppressed from this presentation only; the persisted workspace stays untouched. */
+        hiddenPageIds?: readonly string[];
+        /** Runtime-only page labels for a mode-specific presentation; never written to storage. */
+        presentationLabels?: Readonly<Record<string, string>>;
         /**
          * Where a fresh workspace docks its strip.
          *
@@ -200,6 +204,8 @@ const props = withDefaults(
         stripLabel: "",
         storageKey: DEFAULT_TAB_STORAGE_KEY,
         pinnedPageIds: () => [],
+        hiddenPageIds: () => [],
+        presentationLabels: () => ({}),
         initialGroups: () => [],
         panelPassThrough: false,
         publishesInset: false,
@@ -228,6 +234,14 @@ const { t } = useI18n();
 
 const idPrefix = useId();
 const panelId = `${idPrefix}-panel`;
+const presentedPages = computed(() =>
+    props.pages
+        .filter((page) => !props.hiddenPageIds.includes(page.id))
+        .map((page) => ({
+            ...page,
+            label: props.presentationLabels[page.id] ?? page.label,
+        })),
+);
 
 /* -------------------------------------------------------------------------- */
 /* State                                                                      */
@@ -301,6 +315,49 @@ watch(
 
 const strip = computed<TabStripState>(() => workspace.value.strips[0] ?? seedStrip());
 
+/**
+ * Applies runtime visibility and labels without mutating the saved workspace. School mode uses
+ * this to hide a forbidden tab while preserving its order/pin/group preference, and Kid Mode uses
+ * it to show picture-first job labels without persisting them into the Adult workspace.
+ */
+function presentStrip(source: TabStripState): TabStripState {
+    const hiddenPages = new Set(props.hiddenPageIds);
+    const tabs = source.tabs
+        .filter((tab) => !hiddenPages.has(tab.pageId))
+        .map((tab) => ({
+            ...tab,
+            label: props.presentationLabels[tab.pageId] ?? tab.label,
+        }));
+    const visibleTabIds = new Set(tabs.map((tab) => tab.id));
+    const groups = source.groups.map((group) => ({
+        ...group,
+        tabIds: group.tabIds.filter((tabId) => visibleTabIds.has(tabId)),
+    }));
+    const groupIds = new Set(groups.map((group) => group.id));
+    const slots = source.slots.filter((slot) =>
+        slot.kind === "tab" ? visibleTabIds.has(slot.tabId) : groupIds.has(slot.groupId),
+    );
+    const activeTabId =
+        source.activeTabId !== null && visibleTabIds.has(source.activeTabId)
+            ? source.activeTabId
+            : (tabs[0]?.id ?? null);
+    return {
+        ...source,
+        tabs,
+        groups,
+        pinnedOrder: source.pinnedOrder.filter((tabId) => visibleTabIds.has(tabId)),
+        slots,
+        activeTabId,
+    };
+}
+
+const presentedWorkspace = computed<TabWorkspaceState>(() => ({
+    strips: workspace.value.strips.map(presentStrip),
+}));
+const presentedStrip = computed<TabStripState>(() =>
+    presentStrip(workspace.value.strips[0] ?? seedStrip()),
+);
+
 /** Replaces one strip, leaving every other strip in the workspace untouched. */
 function update(next: TabStripState): void {
     workspace.value = {
@@ -352,13 +409,13 @@ function setCollapsed(groupId: string, collapsed: boolean): void {
 /* -------------------------------------------------------------------------- */
 
 const activeTab = computed(
-    () => strip.value.tabs.find((tab) => tab.id === strip.value.activeTabId) ?? null,
+    () => presentedStrip.value.tabs.find((tab) => tab.id === presentedStrip.value.activeTabId) ?? null,
 );
 
 const activePage = computed(() =>
     activeTab.value === null
         ? null
-        : (props.pages.find((page) => page.id === activeTab.value?.pageId) ?? null),
+        : (presentedPages.value.find((page) => page.id === activeTab.value?.pageId) ?? null),
 );
 
 /* -------------------------------------------------------------------------- */
@@ -404,7 +461,7 @@ function fileIntoSeedGroup(state: TabStripState, pageId: string): TabStripState 
 }
 
 function openPage(pageId: string): void {
-    const page = props.pages.find((candidate) => candidate.id === pageId);
+    const page = presentedPages.value.find((candidate) => candidate.id === pageId);
     if (page === undefined) return;
     update(
         fileIntoSeedGroup(
@@ -434,6 +491,7 @@ function openPage(pageId: string): void {
  * group's own saved preference is left exactly as the user set it - see `revealed` above.
  */
 function revealPage(pageId: string): void {
+    if (!presentedPages.value.some((page) => page.id === pageId)) return;
     const existing = strip.value.tabs.find((tab) => tab.pageId === pageId);
     if (existing === undefined) {
         openPage(pageId);
@@ -461,7 +519,7 @@ function revealPage(pageId: string): void {
  * `pinnedPageIds` prop doc for why that matters.
  */
 function ensurePage(pageId: string): void {
-    const page = props.pages.find((candidate) => candidate.id === pageId);
+    const page = presentedPages.value.find((candidate) => candidate.id === pageId);
     if (page === undefined) return;
     if (strip.value.tabs.some((tab) => tab.pageId === pageId)) return;
 
@@ -601,16 +659,16 @@ function applyPlan(
 <template>
     <div
         class="mb-tabs"
-        :class="`mb-tabs--${strip.placement}`"
-        :data-tab-placement="strip.placement"
+        :class="`mb-tabs--${presentedStrip.placement}`"
+        :data-tab-placement="presentedStrip.placement"
     >
         <TabStrip
-            :strip="strip"
-            :workspace="workspace"
+            :strip="presentedStrip"
+            :workspace="presentedWorkspace"
             :revealed="revealed"
             :panel-id="panelId"
             :id-prefix="idPrefix"
-            :pages="pages"
+            :pages="presentedPages"
             :publishes-inset="publishesInset === true"
             :closeless="closeless === true"
             @set-placement="update(setTabPlacement(strip, $event))"
@@ -701,7 +759,7 @@ function applyPlan(
                 <p class="mb-tabs__empty-line">{{ t("tabs.panel.empty", "Every tab is closed.") }}</p>
                 <div class="mb-tabs__empty-actions">
                     <v-btn
-                        v-for="page in pages"
+                        v-for="page in presentedPages"
                         :key="page.id"
                         variant="tonal"
                         size="small"

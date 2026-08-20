@@ -19,13 +19,32 @@ describe("the restricted-mode capability boundary", () => {
         expect(personalVocabulary?.hideInRestrictedMode).toBe(true);
     });
 
-    it("does not claim that a renderer-local policy is the universal shared credential route", () => {
+    it("reports the real shared record and credential route as available", () => {
         const state = capabilityState("restricted-mode");
 
-        expect(state.available).toBe(false);
-        expect(state.reason).toContain("renderer-local School-mode policy");
-        expect(state.reason).toContain("shared application-data record");
-        expect(state.reason).toContain("privileged credential verifier");
+        expect(state).toEqual({ available: true, reason: "" });
+        const restrictedMode = CATALOGUES.flatMap((catalogue) => catalogue.features).find(
+            (feature) => feature.key === "setup.language.modename",
+        );
+        expect(restrictedMode?.target).toEqual({
+            kind: "conditional",
+            capability: "restricted-mode",
+            target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
+        });
+    });
+
+    it("keeps narrator and scheduled settings absent until their real runtimes exist", () => {
+        expect(capabilityState("narrator").available).toBe(false);
+        expect(capabilityState("scheduled-settings").available).toBe(false);
+        const visible = resolveCatalogues(
+            (_key, fallback) => (typeof fallback === "string" ? fallback : ""),
+            () => undefined,
+            false,
+        )
+            .flatMap((catalogue) => catalogue.features)
+            .map((feature) => feature.definition.key);
+        expect(visible).not.toContain("setup.language.spoken-narrator");
+        expect(visible).not.toContain("setup.language.scheduled-language-and-appearance");
     });
 
     it("keeps marked language and personal-capability rows out of the pre-indexed catalogue", () => {

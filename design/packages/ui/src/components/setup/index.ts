@@ -104,6 +104,7 @@ export {
     SCHOOL_MODE_RECORD_KEY,
     createSetupStorageSchoolModeAdapter,
     deleteSchoolModeLocalRecord,
+    disposeSchoolMode,
     effectiveSchoolModeFunnyLevel,
     effectiveSchoolModeLanguage,
     enableSchoolMode,
@@ -117,9 +118,11 @@ export {
     schoolModeName,
     setSchoolModeRecordAdapter,
     useSchoolMode,
+    verifySchoolModeCredential,
 } from "./schoolMode.js";
 export type {
     SchoolModeEnableRequest,
+    SchoolModeFailureCode,
     SchoolModeRecordAdapter,
     SchoolModeRestriction,
     SchoolModeResult,

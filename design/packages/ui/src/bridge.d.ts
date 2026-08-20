@@ -561,7 +561,7 @@ type SharedSchoolModeResult =
     | { readonly ok: true; readonly state: SharedSchoolModeSnapshot }
     | {
           readonly ok: false;
-          readonly code: string;
+          readonly code: SharedSchoolModeFailureCode;
           readonly message: string;
           readonly state: SharedSchoolModeSnapshot | null;
       };
@@ -570,9 +570,20 @@ interface SharedSchoolModeBridge {
     read(): Promise<SharedSchoolModeResult>;
     enable(request: { readonly name: string | null; readonly credential: string }): Promise<SharedSchoolModeResult>;
     rename(name: string | null): Promise<SharedSchoolModeResult>;
+    verify(credential: string): Promise<SharedSchoolModeResult>;
     disable(credential: string): Promise<SharedSchoolModeResult>;
     reset(): Promise<SharedSchoolModeResult>;
+    onChanged(listener: (result: SharedSchoolModeResult) => void): () => void;
 }
+
+type SharedSchoolModeFailureCode =
+    | "invalid-name"
+    | "credential-required"
+    | "credential-invalid"
+    | "credential-too-long"
+    | "record-invalid"
+    | "storage-unavailable"
+    | "host-unavailable";
 
 interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;

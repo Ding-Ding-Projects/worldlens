@@ -8,7 +8,7 @@
  * true. Removed rather than left wired to nothing (see `KidHome.vue`'s own doc comment on why).
  *
  * This is the negative-regression side of that removal: it proves the component works correctly
- * with no such prop at all, and that "nothing is happening" is reported from `renderRows` alone
+ * with no such prop at all, and that the renders-only empty state is reported from `renderRows` alone
  * once `activity` stops existing to (silently) contribute to that same check.
  */
 import { describe, expect, it } from "vitest";
@@ -53,10 +53,12 @@ describe("KidHome, with the dead activity prop gone", () => {
         expect(Object.prototype.hasOwnProperty.call(wrapper.vm.$props, "activity")).toBe(false);
     });
 
-    it("reports 'nothing is happening' from renderRows alone, with no activity feed to also ask", () => {
+    it("names the panel and empty state as renders only, with no broader activity claim", () => {
         const wrapper = home({ renderRows: [] });
 
-        expect(wrapper.text()).toContain("Nothing is happening right now. Press GO to start something.");
+        expect(wrapper.text()).toContain("Renders right now");
+        expect(wrapper.text()).toContain("No renders are running right now. Press GO to start one.");
+        expect(wrapper.text()).not.toContain("What this app is doing right now");
         // Only one kind of row can exist in this panel now - the running-render one - so the
         // absence of the "quiet" message is exactly the presence of a render row, checked
         // directly rather than through a second, removed data source.
@@ -70,8 +72,22 @@ describe("KidHome, with the dead activity prop gone", () => {
             renderRows: [{ state: "running", percent: 42, label: "overworld", renderId: "overworld-0a974df3a729" }],
         });
 
-        expect(wrapper.text()).not.toContain("Nothing is happening right now. Press GO to start something.");
+        expect(wrapper.text()).not.toContain("No renders are running right now. Press GO to start one.");
         expect(wrapper.findAll(".wl-kid-home__row")).toHaveLength(1);
+    });
+
+    it("routes duplicate display names by each profile's stable id", async () => {
+        const wrapper = home({
+            profiles: [
+                { id: "first", name: "My map", meta: "This computer", remote: false },
+                { id: "second", name: "My map", meta: "https://example.test", remote: true },
+            ],
+        });
+
+        const rows = wrapper.findAll(".wl-kid-home__row");
+        expect(rows).toHaveLength(2);
+        await rows[1]?.trigger("click");
+        expect(wrapper.emitted("openProfile")).toEqual([["second"]]);
     });
 
     it("passing an activity prop from a stale caller does nothing - it is not a declared prop any more", () => {

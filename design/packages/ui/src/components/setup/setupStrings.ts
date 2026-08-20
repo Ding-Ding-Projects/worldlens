@@ -280,6 +280,30 @@ export const FIXED = {
         en: "The packaged app could not read the shared mode record. Local fallback is not used, so no shared state is being claimed.",
         yue: "呢個已封裝程式讀唔到共用模式記錄。唔會改用本機備援，所以唔會聲稱有共用狀態。",
     },
+    "school.failure.invalidName": {
+        en: "Choose a shorter name for {name}, without control characters.",
+        yue: "請幫 {name} 揀個短啲、冇控制字元嘅名。",
+    },
+    "school.failure.credentialRequired": {
+        en: "Enter the PIN or password for {name}.",
+        yue: "請輸入 {name} 嘅 PIN 或密碼。",
+    },
+    "school.failure.credentialInvalid": {
+        en: "That PIN or password did not match {name}. Nothing changed.",
+        yue: "嗰個 PIN 或密碼同 {name} 唔啱。所有設定都冇改。",
+    },
+    "school.failure.credentialTooLong": {
+        en: "That PIN or password is longer than the shared credential limit.",
+        yue: "嗰個 PIN 或密碼長過共用憑證上限。",
+    },
+    "school.failure.recordInvalid": {
+        en: "The {name} record is invalid and was not used. Retry after repairing or resetting the shared record.",
+        yue: "{name} 記錄無效，所以冇使用。修復或者重設共用記錄之後再試。",
+    },
+    "school.failure.storageUnavailable": {
+        en: "The {name} record could not be read or saved. Nothing changed; retry when shared storage is available.",
+        yue: "讀取或者儲存唔到 {name} 記錄。所有設定都冇改；共用儲存可用之後再試。",
+    },
 
     "storage.fieldLabel": { en: "Folder for rendered maps", yue: "存放已算圖地圖嘅資料夾" },
     "storage.defaultLabel": { en: "Default", yue: "預設" },

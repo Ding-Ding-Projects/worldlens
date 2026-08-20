@@ -116,7 +116,7 @@ describe("the shared School-mode settings control", () => {
             if (credential !== "test-only-unlock") {
                 return {
                     ok: false as const,
-                    code: "credential-invalid",
+                    code: "credential-invalid" as const,
                     message: "That PIN or password did not unlock this mode.",
                     state: snapshot,
                 };
@@ -132,6 +132,7 @@ describe("the shared School-mode settings control", () => {
                 snapshot = { ...snapshot, name };
                 return { ok: true as const, state: snapshot };
             },
+            verify: async () => ({ ok: true as const, state: snapshot }),
             disable,
             reset: async () => ({ ok: true as const, state: disabled }),
         };
@@ -171,6 +172,9 @@ describe("the shared School-mode settings control", () => {
         if (retryInput === undefined) throw new Error("the unlock field did not remain available after refusal");
         expect(retryInput.value).toBe("");
         expect(schoolControl().textContent).not.toContain("wrong-unlock");
+        expect(schoolControl().textContent).toContain(
+            "That PIN or password did not match Focus room. Nothing changed.",
+        );
 
         await setInput(retryInput, "test-only-unlock");
         schoolButton("Turn off Focus room").click();
@@ -195,6 +199,7 @@ describe("the shared School-mode settings control", () => {
             }),
             enable: async () => ({ ok: true as const, state: disabled }),
             rename: async () => ({ ok: true as const, state: disabled }),
+            verify: async () => ({ ok: true as const, state: disabled }),
             disable: async () => ({ ok: true as const, state: disabled }),
             reset: async () => ({ ok: true as const, state: disabled }),
         };
@@ -202,7 +207,7 @@ describe("the shared School-mode settings control", () => {
         wrapper = mount(Host, { global: { plugins: [vuetify, i18nModule] }, attachTo: document.body });
         await settle();
 
-        expect(schoolControl().textContent).toContain("The shared mode record could not be read.");
+        expect(schoolControl().textContent).toContain("The School mode record could not be read or saved.");
         expect(schoolControl().textContent).toContain("Retry shared record");
         expect(schoolControl().textContent).not.toContain("Local browser fallback only");
         expect(schoolControl().textContent).not.toContain("Turn on");

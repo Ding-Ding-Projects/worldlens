@@ -41,11 +41,16 @@ import { useKidProgress, type StickerId } from "./useKidProgress.js";
 import { KID_SHELL_VARS } from "./kidTheme.js";
 
 const props = defineProps<{
+    /** Makes the page content inert while an opaque editor is open; the persistent rail stays usable. */
+    contentInert?: boolean;
     destination: "home" | "map" | "work";
     catalogues: readonly ResolvedCatalogue[];
     openJobs: readonly string[];
     problems: readonly { id: string; message: string }[];
     notices: readonly { level: string; text: string; at: string; read: boolean }[];
+    notificationsActivatorId?: string | undefined;
+    notificationsPanelId?: string | undefined;
+    notificationsOpen?: boolean | undefined;
     /**
      * `renderId` is the same id `label` itself falls back to when nothing human-readable has been
      * resolved yet (`activeRenders.ts`'s `worldLabelOf`/`ciToRow`) - forwarded through unchanged so
@@ -67,6 +72,8 @@ const emit = defineEmits<{
     /** Relayed from `KidJobStrip`'s own `WorkPane`, so the caller's own open-job tracking stays
      * live across a Kid Mode toggle instead of freezing at whatever it read before the switch. */
     workspaceChange: [pageIds: readonly string[]];
+    openProfile: [id: string];
+    switchToAdult: [intent: "problems" | null];
 }>();
 
 const { t } = useI18n();
@@ -78,6 +85,7 @@ const view = ref<"catalogues" | "catalogue" | "map" | "work" | "stickers" | "gro
 const openCatalogueId = ref<string | null>(null);
 const jobStrip = ref<InstanceType<typeof KidJobStrip> | null>(null);
 const celebration = ref<InstanceType<typeof KidCelebration> | null>(null);
+const pendingAdultIntent = ref<"problems" | null>(null);
 
 function destinationToView(destination: "home" | "map" | "work"): "catalogues" | "map" | "work" {
     if (destination === "map") return "map";
@@ -96,6 +104,20 @@ watch(
     () => props.destination,
     (next) => (view.value = destinationToView(next)),
 );
+watch(
+    () => props.contentInert,
+    (next, previous) => {
+        if (previous === true && next !== true) view.value = destinationToView(props.destination);
+    },
+);
+
+function selectTopLevel(destination: "home" | "map" | "work"): void {
+    // While configuration is open, App owns the unsaved-work decision. Do not move this local
+    // presentation ahead of that decision; the content-inert watcher above follows the accepted
+    // destination only after the editor really closes.
+    if (props.contentInert !== true) view.value = destinationToView(destination);
+    emit("selectDestination", destination);
+}
 
 /**
  * `noUncheckedIndexedAccess` (and `.find()`'s own signature) both type a lookup as possibly
@@ -223,13 +245,18 @@ function revealJob(pageId: string): void {
 }
 
 /**
- * Kid Mode is presentation only, so leaving it is a flip of the one flag every other kid-mode
- * component already reads - no separate "leave" state to keep in sync. `KidGrownUpGate.vue` never
- * touches `kid.enabled` itself; it only decides *whether* a grown-up has proven they are one, and
- * this is the one place that acts on that decision.
+ * `KidGrownUpGate.vue` decides only whether the transition is allowed. The root owns the Kid Mode
+ * flag and any pending Adult destination, so every entrance - rail, Settings, palette, or problem
+ * count - returns through the same verified event instead of acquiring its own bypass.
  */
+function requestAdult(intent: "problems" | null = null): void {
+    pendingAdultIntent.value = intent;
+    view.value = "grown-ups";
+}
+
 function switchToAdult(): void {
-    kid.enabled.value = false;
+    emit("switchToAdult", pendingAdultIntent.value);
+    pendingAdultIntent.value = null;
     // Reset for the next time Kid Mode is turned back on, so it does not reopen on the gate.
     view.value = destinationToView(props.destination);
 }
@@ -240,7 +267,7 @@ function switchToAdult(): void {
  * `shellNavigation.activateTarget` reaches) has to land inside *this* shell's own `WorkPane`
  * instance rather than the adult shell's, and only this component has a ref to it.
  */
-defineExpose({ ensureJob, revealJob, award });
+defineExpose({ ensureJob, revealJob, award, requestAdult });
 </script>
 
 <template>
@@ -249,16 +276,19 @@ defineExpose({ ensureJob, revealJob, award });
             :view="view"
             :job-count="props.openJobs.length"
             :unread="unread"
-            @home="((view = 'catalogues'), emit('selectDestination', 'home'))"
-            @map="((view = 'map'), emit('selectDestination', 'map'))"
-            @work="((view = 'work'), emit('selectDestination', 'work'))"
+            :notifications-activator-id="props.notificationsActivatorId"
+            :notifications-panel-id="props.notificationsPanelId"
+            :notifications-open="props.notificationsOpen"
+            @home="selectTopLevel('home')"
+            @map="selectTopLevel('map')"
+            @work="selectTopLevel('work')"
             @stickers="view = 'stickers'"
             @find="openPalette"
             @messages="openNotifications"
-            @grown-ups="view = 'grown-ups'"
+            @grown-ups="requestAdult()"
         />
 
-        <main class="wl-kid__pane">
+        <main class="wl-kid__pane" :inert="props.contentInert || undefined">
             <header class="wl-kid__status">
                 <!--
                     Was `<span class="wl-kid__level-badge">{{ progress.level.value }}</span>` right
@@ -268,17 +298,42 @@ defineExpose({ ensureJob, revealJob, award });
                     its own (`KidShell.vue`'s style block has no such rule), so it was not a deliberate
                     numeral badge either - just a leftover duplicate. One number, in one sentence.
                 -->
-                <button class="wl-kid__level" type="button" @click="view = 'stickers'">
+                <button
+                    class="wl-kid__level"
+                    type="button"
+                    :aria-label="t('kid.status.openLevel', { n: String(progress.level.value) }, 'Open sticker book, level {n}')"
+                    @click="view = 'stickers'"
+                >
                     {{ t("kid.status.level", { n: String(progress.level.value) }, "Level {n}") }}
                 </button>
-                <div class="wl-kid__xp" role="progressbar" :aria-valuenow="progress.intoLevel.value" aria-valuemin="0" :aria-valuemax="500">
+                <div
+                    class="wl-kid__xp"
+                    role="progressbar"
+                    :aria-label="t('kid.status.xpLabel', 'XP until the next level')"
+                    :aria-valuenow="progress.intoLevel.value"
+                    aria-valuemin="0"
+                    :aria-valuemax="500"
+                    :aria-valuetext="t('kid.status.xpValue', { current: String(progress.intoLevel.value), total: '500' }, '{current} of {total} XP')"
+                >
                     <div class="wl-kid__xp-fill" :style="{ width: (progress.intoLevel.value / 5) + '%' }" />
                 </div>
                 <!-- The same aggregator the adult status strip and the Work badge read. -->
-                <button v-if="running.length > 0" class="wl-kid__chip wl-kid__chip--go" type="button" @click="openRendersInProgress">
+                <button
+                    v-if="running.length > 0"
+                    class="wl-kid__chip wl-kid__chip--go"
+                    type="button"
+                    :aria-label="props.renderPercent === null ? t('kid.status.renderStarting', 'Open renders in progress; progress is starting') : t('kid.status.renderPercent', { percent: String(Math.round(props.renderPercent)) }, 'Open renders in progress; {percent} percent complete')"
+                    @click="openRendersInProgress"
+                >
                     {{ props.renderPercent === null ? "…" : Math.round(props.renderPercent) + "%" }}
                 </button>
-                <button v-if="props.problems.length > 0" class="wl-kid__chip wl-kid__chip--problem" type="button" @click="view = 'grown-ups'">
+                <button
+                    v-if="props.problems.length > 0"
+                    class="wl-kid__chip wl-kid__chip--problem"
+                    type="button"
+                    :aria-label="t('kid.status.problems', { count: String(props.problems.length) }, '{count} problems; open the grown-up gate, then show the problems panel')"
+                    @click="requestAdult('problems')"
+                >
                     {{ props.problems.length }}
                 </button>
                 <span class="wl-kid__spacer" />
@@ -292,6 +347,7 @@ defineExpose({ ensureJob, revealJob, award });
                 :profiles="props.profiles"
                 @open-catalogue="openCatalogue"
                 @activate="(feature) => emit('activate', feature)"
+                @open-profile="(id) => emit('openProfile', id)"
             />
             <KidCataloguePage
                 v-else-if="view === 'catalogue' && activeCatalogue !== null"
