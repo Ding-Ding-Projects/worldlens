@@ -187,9 +187,23 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  */
 const applicationDataDirectory = app.getPath("appData");
 app.setName(WORLDLENS_IDENTITY.shippedName);
+const directLaunch = app.commandLine.hasSwitch("worldlens-direct-launch");
+const directLaunchUserData = directLaunch
+    ? app.commandLine.getSwitchValue("user-data-dir").trim()
+    : "";
+if (directLaunch && directLaunchUserData === "") {
+    throw new Error("--worldlens-direct-launch requires an owned --user-data-dir profile.");
+}
+if (
+    directLaunch &&
+    path.resolve(directLaunchUserData) === path.resolve(join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName))
+) {
+    throw new Error("--worldlens-direct-launch refuses the production application-data directory.");
+}
+const smokeMode = directLaunch || process.env.WORLDLENS_SCREENSHOTS === "1";
 const screenshotUserData =
-    process.env.WORLDLENS_SCREENSHOTS === "1"
-        ? app.commandLine.getSwitchValue("user-data-dir").trim()
+    smokeMode
+        ? directLaunchUserData || app.commandLine.getSwitchValue("user-data-dir").trim()
         : "";
 app.setPath(
     "userData",
@@ -552,7 +566,7 @@ function startRendering(): RenderIpc {
     // explained rather than discovered. Only a profile that has never chosen a folder is
     // affected, so an existing install keeps its maps exactly where they are.
     const screenshotStorage =
-        process.env.WORLDLENS_SCREENSHOTS === "1"
+        smokeMode
             ? process.env.WORLDLENS_SCREENSHOT_STORAGE?.trim()
             : undefined;
     const windowsDefault =
@@ -683,7 +697,7 @@ function startWorldInspection(): WorldIpc {
     // `.minecraft`. Both are passed in rather than read inside `world/`, so the whole
     // directory still runs, and is still tested, with no Electron and no real machine.
     const screenshotHome =
-        process.env.WORLDLENS_SCREENSHOTS === "1"
+        smokeMode
             ? process.env.WORLDLENS_SCREENSHOT_HOME?.trim()
             : undefined;
     const screenshotEnvironment =

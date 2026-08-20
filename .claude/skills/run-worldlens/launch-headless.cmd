@@ -4,11 +4,10 @@ REM so the window lands on an off-screen Win32 desktop and the visible desktop i
 REM
 REM   launch-headless.cmd [port] [profile-dir] [repo-root]
 REM
-REM This file exists because WORLDLENS_SCREENSHOTS can only be set as an ENVIRONMENT
-REM variable (design/packages/app/src/main/index.ts:172) and `launch_on_headless_desktop`
-REM takes only a command line. Chaining `cmd /c set VAR=1 && electron.exe ...` inline does
-REM NOT work through that tool - the process starts with the variable unset, --user-data-dir
-REM is then ignored, and the app silently opens the user's REAL profile. Verified twice.
+REM The packaged app accepts --worldlens-direct-launch as an explicit smoke-only switch.
+REM It requires --user-data-dir and refuses the production application-data directory, so
+REM launch_on_headless_desktop can pass the owned profile directly without an environment
+REM wrapper.
 setlocal
 set "PORT=%~1"
 if "%PORT%"=="" set "PORT=9333"
@@ -35,9 +34,6 @@ if not exist "%ASAR%" (
   exit /b 1
 )
 
-REM The seam that makes the app honour --user-data-dir. Without it, production identity
-REM wins and this run would write to the user's own settings.
-set "WORLDLENS_SCREENSHOTS=1"
 set "WORLDLENS_SCREENSHOT_HOME=C:\Worldlens-Capture"
 set "WORLDLENS_SCREENSHOT_STORAGE=C:\Worldlens-Capture\maps"
 set "WORLDLENS_PACKAGED_EXE=%PACKAGED%"
@@ -45,4 +41,4 @@ set "WORLDLENS_PACKAGED_ASAR=%ASAR%"
 
 "%PACKAGED%" ^
   --no-sandbox --disable-gpu --force-prefers-reduced-motion ^
-  --remote-debugging-port=%PORT% "--user-data-dir=%PROFILE%"
+  --remote-debugging-port=%PORT% "--worldlens-direct-launch" "--user-data-dir=%PROFILE%"
