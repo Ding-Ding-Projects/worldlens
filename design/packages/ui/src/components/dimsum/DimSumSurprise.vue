@@ -50,8 +50,9 @@ const props = withDefaults(
         firstRun?: boolean;
         updateFlowActive?: boolean;
         errorActive?: boolean;
+        schoolModeActive?: boolean;
     }>(),
-    { firstRun: false, updateFlowActive: false, errorActive: false },
+    { firstRun: false, updateFlowActive: false, errorActive: false, schoolModeActive: false },
 );
 
 const { t } = useI18n();
@@ -66,6 +67,7 @@ function buildContext(): DimSumEligibilityContext {
         firstRun: props.firstRun,
         updateFlowActive: props.updateFlowActive,
         errorActive: props.errorActive,
+        restrictedModeActive: props.schoolModeActive,
         alreadyShownThisLaunch: drawn,
     };
 }
@@ -107,7 +109,7 @@ async function draw(): Promise<void> {
     // Re-check eligibility after the await: a first-run wizard, an update flow or an error
     // surface can all have opened while the fetch was in flight, and a surprise that was
     // fine to show a moment ago is not automatically fine to show now.
-    if (props.firstRun || props.updateFlowActive || props.errorActive) return;
+    if (props.firstRun || props.updateFlowActive || props.errorActive || props.schoolModeActive) return;
     dish.value = picked;
     visible.value = true;
 }

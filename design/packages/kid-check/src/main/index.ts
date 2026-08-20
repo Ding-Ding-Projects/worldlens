@@ -180,11 +180,24 @@ function registerIpc(): void {
     if (ipcRegistered) return;
     ipcRegistered = true;
 
+    const publish = <T extends { readonly ok: boolean }>(result: T): T => {
+        if (result.ok) {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send("schoolMode:changed", result);
+            }
+        }
+        return result;
+    };
     ipcMain.handle("schoolMode:read", () => schoolMode.read());
-    ipcMain.handle("schoolMode:enable", (_event, request: unknown) => schoolMode.enable(request));
-    ipcMain.handle("schoolMode:rename", (_event, name: unknown) => schoolMode.rename(name));
-    ipcMain.handle("schoolMode:disable", (_event, credential: unknown) => schoolMode.disable(credential));
-    ipcMain.handle("schoolMode:reset", () => schoolMode.reset());
+    ipcMain.handle("schoolMode:enable", async (_event, request: unknown) =>
+        publish(await schoolMode.enable(request)),
+    );
+    ipcMain.handle("schoolMode:rename", (_event, name: unknown) => publish(schoolMode.rename(name)));
+    ipcMain.handle("schoolMode:verify", (_event, credential: unknown) => schoolMode.verify(credential));
+    ipcMain.handle("schoolMode:disable", async (_event, credential: unknown) =>
+        publish(await schoolMode.disable(credential)),
+    );
+    ipcMain.handle("schoolMode:reset", () => publish(schoolMode.reset()));
 
     // The window is frameless (see `createWindow` below), so these four channels are the only way
     // it can change state at all - without them the title bar's own drawn buttons would sit there

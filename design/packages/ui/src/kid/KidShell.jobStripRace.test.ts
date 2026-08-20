@@ -111,7 +111,7 @@ let wrapper: VueWrapper | null = null;
  * three job screens, all non-pinned (`jobRegistry.ts`'s `pinnedOnFreshWorkspace: false` for every
  * one of `backups`, `pages` and `cirender`) so nothing here is seeded open for free by the fresh-
  * workspace pinned tab the way `world` would be. */
-function shell(): VueWrapper {
+function shell(props: Record<string, unknown> = {}): VueWrapper {
     wrapper = mount(KidShell, {
         global: { plugins: [vuetify, i18n()] },
         attachTo: document.body,
@@ -123,6 +123,7 @@ function shell(): VueWrapper {
             notices: [],
             renderRows: [],
             renderPercent: null,
+            ...props,
         },
         slots: {
             backups: `<div class="test-backups-marker">Backups job content</div>`,
@@ -195,6 +196,10 @@ describe("the first ever revealJob/ensureJob call, before the job strip has moun
             wrapper!.find(".test-backups-marker").exists(),
             "the first tap on a non-pinned job must open it, not silently do nothing",
         ).toBe(true);
+        expect(
+            wrapper!.find('[data-tutorial-anchor="tab-backups"]').attributes("title"),
+            "a job opened after mount must receive its Kid presentation label immediately",
+        ).toBe("Safe copies");
     });
 
     it("ensures (without focusing) the requested job on the very first call too", async () => {
@@ -233,5 +238,34 @@ describe("the first ever revealJob/ensureJob call, before the job strip has moun
             tabIsOpen("backups"),
             "the earlier queued ensureJob request must not have been lost",
         ).toBe(true);
+    });
+});
+
+describe("grown-up intent", () => {
+    it("carries the problems intent through the one gate before asking App to switch", async () => {
+        const view = shell({ problems: [{ id: "problem-1", message: "Needs a grown-up" }] });
+        await settle();
+
+        await view.get(".wl-kid__chip--problem").trigger("click");
+        await settle();
+        expect(view.findComponent({ name: "KidGrownUpGate" }).exists()).toBe(true);
+
+        await view.get(".wl-kid-gate__go").trigger("click");
+        await settle();
+        expect(view.emitted("switchToAdult")).toEqual([["problems"]]);
+    });
+});
+
+describe("profile-row relay", () => {
+    it("relays the stable profile id from KidHome to App", async () => {
+        const view = shell({
+            profiles: [
+                { id: "profile-1", name: "My map", meta: "This computer", remote: false },
+            ],
+        });
+        await settle();
+
+        await view.get(".wl-kid-home__row").trigger("click");
+        expect(view.emitted("openProfile")).toEqual([["profile-1"]]);
     });
 });

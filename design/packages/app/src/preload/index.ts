@@ -5,6 +5,8 @@ import type { EulaLoadResult } from "../main/eula/index.js";
 import type { SchoolModeResult } from "../main/schoolMode/index.js";
 import type { VocabularyResult, VocabularySnapshot } from "../main/vocabulary/index.js";
 import type { CreateInstanceRequest, DockerHostingSnapshot, ManagedInstance, ManagerAnswer } from "../main/dockerhosting/index.js";
+
+const SCHOOL_MODE_CHANGED_CHANNEL = "schoolMode:changed";
 import type {
     CiBootstrapEvent,
     CiBootstrapResult,
@@ -2332,8 +2334,10 @@ interface WorldlensBridge {
             readonly credential: string;
         }): Promise<SchoolModeResult>;
         rename(name: string | null): Promise<SchoolModeResult>;
+        verify(credential: string): Promise<SchoolModeResult>;
         disable(credential: string): Promise<SchoolModeResult>;
         reset(): Promise<SchoolModeResult>;
+        onChanged(listener: (result: SchoolModeResult) => void): () => void;
     };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
@@ -3264,8 +3268,14 @@ const bridge: WorldlensBridge = {
         read: () => ipcRenderer.invoke("schoolMode:read"),
         enable: (request) => ipcRenderer.invoke("schoolMode:enable", request),
         rename: (name) => ipcRenderer.invoke("schoolMode:rename", name),
+        verify: (credential) => ipcRenderer.invoke("schoolMode:verify", credential),
         disable: (credential) => ipcRenderer.invoke("schoolMode:disable", credential),
         reset: () => ipcRenderer.invoke("schoolMode:reset"),
+        onChanged: (listener) => {
+            const handler = (_event: IpcRendererEvent, result: SchoolModeResult): void => listener(result);
+            ipcRenderer.on(SCHOOL_MODE_CHANGED_CHANNEL, handler);
+            return () => ipcRenderer.off(SCHOOL_MODE_CHANGED_CHANNEL, handler);
+        },
     },
     vocabulary: {
         read: () => ipcRenderer.invoke("vocabulary:read"),

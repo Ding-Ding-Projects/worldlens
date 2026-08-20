@@ -14,16 +14,15 @@
  *    repository implements it, and inventing a control plane, a sync attestation or a secret
  *    intake to fill the gap would put private implementation details into a public repository by
  *    implication.
- *  - `restricted-mode` - the shared, renamable mode with its locally verified exit credential.
- *    **Still absent from this route.** The renderer now has a deliberately local School-mode
- *    policy under Settings, but this checkout still has no reader for the shared application-data
- *    record or privileged credential verifier. Calling the local policy universal here would be
- *    a false capability claim.
+ *  - `restricted-mode` - **present.** The main process owns the shared application-data record,
+ *    verifier, file watcher and safe IPC event; the renderer exposes the real Settings route.
  *  - `personal-vocabulary` - **present.** Settings always exposes the local JSON picker; the
  *    replacement data itself remains absent until the user supplies a valid private file.
  *  - `narrator` - **absent.** `docs/contracts/localization.md` specifies it; no settings row
  *    implements it yet. The row stays in the manifest and stays out of the interface until one
  *    does, rather than routing to a settings section that is not there.
+ *  - `scheduled-settings` - **absent.** The contract exists, but this build has neither the rule
+ *    editor nor the runtime that would apply one.
  *  - `shared-localization-contract` - **present**, because the article genuinely is bundled. This
  *    one is resolved by asking the docs registry rather than by a constant, so it stops being
  *    available the moment the article stops being shipped.
@@ -62,14 +61,15 @@ const RESOLVERS: Record<string, () => CapabilityState> = {
         absent(
             "No public implementation of the shared console, control plane, attestation or secret intake exists in this checkout, and a demonstration of one would be a fake integration.",
         ),
-    "restricted-mode": () =>
-        absent(
-            "A renderer-local School-mode policy exists in Settings, but the shared application-data record and privileged credential verifier are not exposed here, so the universal restricted-mode route remains unavailable.",
-        ),
+    "restricted-mode": () => PRESENT,
     "personal-vocabulary": () => PRESENT,
     narrator: () =>
         absent(
             "The spoken narrator is specified in the localization contract and has no settings row yet. The row stays out of the interface until one exists rather than routing to a section that is not there.",
+        ),
+    "scheduled-settings": () =>
+        absent(
+            "Scheduled language and appearance rules have no editor or runtime in this build, so the catalogue route stays absent rather than opening an unrelated settings row.",
         ),
     "shared-localization-contract": () =>
         DOCS_ARTICLE_IDS.has("localization-contract") || DOCS_ARTICLE_IDS.has("localization")

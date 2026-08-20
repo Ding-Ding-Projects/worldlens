@@ -1,4 +1,9 @@
-export { registerSchoolModeHandlers, SCHOOL_MODE_CHANNELS, type SchoolModeIpc } from "./ipc.js";
+export {
+    registerSchoolModeHandlers,
+    SCHOOL_MODE_CHANNELS,
+    SCHOOL_MODE_EVENT_CHANNEL,
+    type SchoolModeIpc,
+} from "./ipc.js";
 export {
     SCHOOL_MODE_CREDENTIAL_MAX_LENGTH,
     SCHOOL_MODE_CREDENTIAL_MIN_LENGTH,

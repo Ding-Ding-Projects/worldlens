@@ -905,7 +905,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         target: {
             kind: "conditional",
             capability: "restricted-mode",
-            target: { kind: "overlay", overlay: "settings" },
+            target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
         },
         metaResolver: "restrictedMode.name",
     }),
@@ -932,7 +932,11 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.narrator.blurb",
         blurbFallback:
             "Speaks app events one utterance at a time, superseded lines replaced rather than stacked, yielding to a screen reader and to quiet hours.",
-        target: { kind: "overlay", overlay: "settings" },
+        target: {
+            kind: "conditional",
+            capability: "narrator",
+            target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
+        },
         metaResolver: "narrator.state",
         hideInRestrictedMode: true,
     }),
@@ -944,7 +948,12 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
         blurbKey: "catalogue.setup.schedule.blurb",
         blurbFallback:
             "Applies versioned rules by date, time, weekday and timezone, optionally gated by a bounded API or a boolean entity, with tokens kept in session memory.",
-        target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
+        target: {
+            kind: "conditional",
+            capability: "scheduled-settings",
+            target: { kind: "overlay", overlay: "settings", reveal: "language-and-tone" },
+        },
+        hideInRestrictedMode: true,
     }),
 
     feature("sharedAcrossTheseApps", {

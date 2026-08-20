@@ -9,8 +9,10 @@
  */
 
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { unwatchFile, watchFile, type Stats } from "node:fs";
 import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { replaceFileWithRetry, type AsyncFileReplace } from "../storage/atomicReplace.js";
 
 /** A stable sibling of app-specific data directories below Electron's `app.getPath("appData")`. */
 export const SHARED_SCHOOL_MODE_DIRECTORY = "Ding-Ding Shared";
@@ -25,6 +27,7 @@ export const SCHOOL_MODE_RECORD_MAX_BYTES = 4 * 1024;
 const SALT_BYTES = 16;
 const VERIFIER_BYTES = 32;
 const SCRYPT_MAX_MEMORY = 64 * 1024 * 1024;
+const SCHOOL_MODE_WATCH_INTERVAL_MS = 250;
 
 export type SchoolModeFailureCode =
     | "invalid-name"
@@ -67,6 +70,11 @@ interface PersistedSchoolModeRecord {
 export interface SchoolModeEnableRequest {
     readonly name: string | null;
     readonly credential: string;
+}
+
+interface SchoolModeStoreOptions {
+    /** Test seam for the destination replacement; production always uses `rename`. */
+    readonly replace?: AsyncFileReplace;
 }
 
 function defaultRecord(): PersistedSchoolModeRecord {
@@ -192,9 +200,11 @@ export function schoolModeRecordPath(applicationDataDirectory: string): string {
  */
 export class SchoolModeStore {
     readonly recordPath: string;
+    private readonly replace: AsyncFileReplace;
 
-    constructor(applicationDataDirectory: string) {
+    constructor(applicationDataDirectory: string, options: SchoolModeStoreOptions = {}) {
         this.recordPath = schoolModeRecordPath(applicationDataDirectory);
+        this.replace = options.replace ?? rename;
     }
 
     async read(): Promise<SchoolModeResult> {
@@ -280,38 +290,117 @@ export class SchoolModeStore {
     }
 
     async disable(credential: unknown): Promise<SchoolModeResult> {
+        const verified = await this.verifiedRecord(credential);
+        if (!verified.ok) return verified.result;
+        const next: PersistedSchoolModeRecord = { ...verified.record, enabled: false };
+        try {
+            await this.writeRecord(next);
+            return { ok: true, state: snapshotOf(next) };
+        } catch {
+            return failure("storage-unavailable", "The shared mode record could not be updated.");
+        }
+    }
+
+    /** Checks the shared credential without changing the enabled state or rewriting the record. */
+    async verify(credential: unknown): Promise<SchoolModeResult> {
+        const verified = await this.verifiedRecord(credential);
+        return verified.ok ? { ok: true, state: snapshotOf(verified.record) } : verified.result;
+    }
+
+    /**
+     * Watches the shared record itself, including create/delete/replace by a sibling app.
+     * Only a safe result crosses the callback: no path, verifier, salt, hash, or credential.
+     */
+    watch(listener: (result: SchoolModeResult) => void): () => void {
+        let disposed = false;
+        let readGeneration = 0;
+        let lastPayload: string | null = null;
+
+        const changed = (current: Stats, previous: Stats): void => {
+            if (
+                current.mtimeMs === previous.mtimeMs &&
+                current.ctimeMs === previous.ctimeMs &&
+                current.size === previous.size &&
+                current.nlink === previous.nlink &&
+                current.ino === previous.ino
+            ) {
+                return;
+            }
+            const generation = ++readGeneration;
+            void this.read().then((result) => {
+                if (disposed || generation !== readGeneration) return;
+                const payload = JSON.stringify(result);
+                if (payload === lastPayload) return;
+                lastPayload = payload;
+                listener(result);
+            });
+        };
+
+        watchFile(this.recordPath, { persistent: false, interval: SCHOOL_MODE_WATCH_INTERVAL_MS }, changed);
+        return () => {
+            if (disposed) return;
+            disposed = true;
+            readGeneration += 1;
+            unwatchFile(this.recordPath, changed);
+        };
+    }
+
+    private async verifiedRecord(credential: unknown): Promise<
+        | { readonly ok: true; readonly record: PersistedSchoolModeRecord }
+        | { readonly ok: false; readonly result: SchoolModeResult }
+    > {
         if (typeof credential !== "string" || credential.length === 0) {
-            return failure("credential-required", "Enter the PIN or password to turn this mode off.");
+            return {
+                ok: false,
+                result: failure("credential-required", "Enter the PIN or password to unlock this mode."),
+            };
         }
         if (credential.length > SCHOOL_MODE_CREDENTIAL_MAX_LENGTH) {
-            return failure(
-                "credential-too-long",
-                `Use a PIN or password of at most ${SCHOOL_MODE_CREDENTIAL_MAX_LENGTH} characters.`,
-            );
+            return {
+                ok: false,
+                result: failure(
+                    "credential-too-long",
+                    `Use a PIN or password of at most ${SCHOOL_MODE_CREDENTIAL_MAX_LENGTH} characters.`,
+                ),
+            };
         }
         const loaded = await this.readRecord();
-        if (!loaded.ok) return loaded.result;
+        if (!loaded.ok) return loaded;
         const record = loaded.record;
         if (record.credential === null) {
-            return failure("record-invalid", "The shared mode record has no unlock verifier.");
+            return {
+                ok: false,
+                result: failure("record-invalid", "The shared mode record has no unlock verifier."),
+            };
         }
 
         try {
             const salt = decodeExactBase64(record.credential.salt, SALT_BYTES);
             const stored = decodeExactBase64(record.credential.hash, VERIFIER_BYTES);
             if (salt === null || stored === null) {
-                return failure("record-invalid", "The shared mode record could not be read safely.");
+                return {
+                    ok: false,
+                    result: failure("record-invalid", "The shared mode record could not be read safely."),
+                };
             }
             const supplied = await deriveVerifier(credential, salt);
             // Equal-sized values are required by `timingSafeEqual`; parse validation guarantees it.
             if (!timingSafeEqual(stored, supplied)) {
-                return failure("credential-invalid", "That PIN or password did not unlock this mode.", snapshotOf(record));
+                return {
+                    ok: false,
+                    result: failure(
+                        "credential-invalid",
+                        "That PIN or password did not unlock this mode.",
+                        snapshotOf(record),
+                    ),
+                };
             }
-            const next: PersistedSchoolModeRecord = { ...record, enabled: false };
-            await this.writeRecord(next);
-            return { ok: true, state: snapshotOf(next) };
+            return { ok: true, record };
         } catch {
-            return failure("storage-unavailable", "The shared mode record could not be updated.");
+            return {
+                ok: false,
+                result: failure("storage-unavailable", "The shared mode credential could not be checked."),
+            };
         }
     }
 
@@ -372,10 +461,11 @@ export class SchoolModeStore {
         const temporary = `${this.recordPath}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`;
         try {
             await writeFile(temporary, `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 });
-            await rename(temporary, this.recordPath);
+            await replaceFileWithRetry(temporary, this.recordPath, this.replace);
         } finally {
             // A failed write must not leave an ever-growing collection of credential verifiers.
             await rm(temporary, { force: true }).catch(() => undefined);
         }
     }
+
 }

@@ -25,8 +25,10 @@ const props = withDefaults(
     defineProps<{
         /** The live active-render count, for the Renders job's own label suffix. */
         runningRenderCount?: number;
+        /** Runtime-only labels for a presentation mode; TabbedNavigation never persists them. */
+        presentationLabels?: Readonly<Record<string, string>>;
     }>(),
-    { runningRenderCount: 0 },
+    { runningRenderCount: 0, presentationLabels: () => ({}) },
 );
 
 const emit = defineEmits<{
@@ -96,6 +98,7 @@ defineExpose({
             ref="tabs"
             class="wl-work__tabs"
             :pages="pages"
+            :presentation-labels="props.presentationLabels"
             :pinned-page-ids="pinnedPageIds"
             :initial-groups="initialGroups"
             :seed-page-ids="FRESH_WORKSPACE_JOB_IDS"

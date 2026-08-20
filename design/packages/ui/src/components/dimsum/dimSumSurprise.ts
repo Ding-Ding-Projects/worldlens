@@ -25,6 +25,8 @@ export interface DimSumEligibilityContext {
     readonly updateFlowActive: boolean;
     /** True while a startup or runtime error surface is on screen. */
     readonly errorActive: boolean;
+    /** True while the shared restricted mode makes dim-sum capability absent. */
+    readonly restrictedModeActive: boolean;
     /** True once this launch has already shown the surprise, however that draw came out. */
     readonly alreadyShownThisLaunch: boolean;
 }
@@ -43,6 +45,7 @@ export function shouldShowDimSum(random: number, context: DimSumEligibilityConte
     if (context.firstRun) return false;
     if (context.updateFlowActive) return false;
     if (context.errorActive) return false;
+    if (context.restrictedModeActive) return false;
     if (context.alreadyShownThisLaunch) return false;
     return random < DIM_SUM_SHOW_CHANCE;
 }

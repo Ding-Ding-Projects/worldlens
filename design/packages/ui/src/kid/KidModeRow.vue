@@ -23,6 +23,7 @@ import { useKidMode } from "./kidMode.js";
 const { t } = useI18n();
 const kid = useKidMode();
 const school = useSchoolMode();
+const emit = defineEmits<{ requestAdult: [] }>();
 
 /* Defensive and idempotent, matching `SchoolModeSettingsRow.vue`'s own doc comment on why: this
  * row can be the first place in a given session that reads the shared record. */
@@ -34,11 +35,20 @@ onMounted(() => {
 const mode = computed<"kid" | "adult">({
     get: () => (kid.enabled.value ? "kid" : "adult"),
     set: (value) => {
-        kid.enabled.value = value === "kid";
+        if (value === "kid") {
+            kid.enabled.value = true;
+            return;
+        }
+        if (kid.enabled.value) emit("requestAdult");
     },
 });
 
-const noLockConfigured = computed(() => school.ready.value && !school.credentialConfigured.value);
+const noLockConfigured = computed(
+    () =>
+        school.ready.value &&
+        school.source.value !== "unavailable" &&
+        !school.credentialConfigured.value,
+);
 </script>
 
 <template>

@@ -13,7 +13,14 @@ import { useI18n } from "vue-i18n";
 import { mdiBellOutline, mdiEarth, mdiHammerWrench, mdiHomeOutline, mdiLockOutline, mdiMagnify, mdiMedalOutline } from "@mdi/js";
 import { VIcon, VTooltip } from "vuetify/components";
 
-const props = defineProps<{ view: string; jobCount: number; unread: number }>();
+const props = defineProps<{
+    view: string;
+    jobCount: number;
+    unread: number;
+    notificationsActivatorId?: string | undefined;
+    notificationsPanelId?: string | undefined;
+    notificationsOpen?: boolean | undefined;
+}>();
 
 /**
  * A real call-signature type, not the tuple-of-a-union shape the drop-in shipped with
@@ -52,7 +59,7 @@ const unreadLabel = computed(() =>
         <button
             class="wl-kid-rail__big"
             type="button"
-            :aria-current="view === 'catalogues' ? 'page' : undefined"
+            :aria-current="view === 'catalogues' || view === 'catalogue' ? 'page' : undefined"
             @click="emit('home')"
         >
             <v-icon :icon="mdiHomeOutline" size="30" />
@@ -104,7 +111,11 @@ const unreadLabel = computed(() =>
         <button
             class="wl-kid-rail__small"
             type="button"
+            :id="props.notificationsActivatorId"
             :aria-label="unreadLabel === '' ? t('kid.rail.messages', 'Messages') : `${t('kid.rail.messages', 'Messages')}, ${unreadLabel}`"
+            :aria-controls="props.notificationsPanelId"
+            :aria-expanded="props.notificationsOpen === true ? 'true' : 'false'"
+            aria-haspopup="dialog"
             @click="emit('messages')"
         >
             <v-icon :icon="mdiBellOutline" size="22" />
@@ -122,6 +133,7 @@ const unreadLabel = computed(() =>
         <button
             class="wl-kid-rail__small"
             type="button"
+            :aria-current="view === 'grown-ups' ? 'page' : undefined"
             :aria-label="t('kid.rail.grownUps', 'Grown-ups: switch to Adult Mode')"
             @click="emit('grownUps')"
         >

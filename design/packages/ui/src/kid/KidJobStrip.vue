@@ -6,26 +6,19 @@
  * `jobRegistry.ts`, filters capability-gated jobs out entirely, and forwards every named slot the
  * host gave it straight through to `TabbedNavigation`. Kid mode therefore adds exactly two things:
  *
- *  1. **Kid labels**, applied through `WorkPane`'s own exposed `renamePage(pageId, label)`, which is
- *     the mechanism the tab system already has for a label that changes. `TabbedNavigation` has no
- *     chip slot, so re-labelling is the honest route - and because a rename is persisted the same
- *     way the user's own renames are, kid labels survive a restart and turning kid mode off puts
- *     the shipped labels back. `kidLabel()` resolves the current language mode itself (see
- *     `kidLabels.ts`'s own doc comment), but only when something actually calls it again - a
- *     `renamePage` here is a one-off imperative write, not a reactive template read, so
- *     `applyKidLabels()` has to be re-run by hand whenever the language mode changes rather than
- *     picking the change up on its own the way a `<template>` expression would. That is exactly
- *     what the `languageMode` watch source below is for.
+ *  1. **Kid labels**, supplied through `TabbedNavigation`'s runtime presentation-label map. The
+ *     saved workspace keeps shipped and user-renamed labels untouched, while every open tab,
+ *     including one opened after mount, searches and renders the current Kid label. Language,
+ *     label style and the live Renders count are reactive inputs to that map.
  *  2. **Kid sizing**, as CSS on this wrapper only: 64px minimum chip height and the two-line chip.
  *
  * Everything else is untouched and therefore still true: docking left/right/top/bottom, groups,
  * pinning, drag reorder, overflow, the four discovery searches, bulk close with preview, the
  * context menu and workspace persistence. `scripts/test-tab-contract.mjs` passes unchanged.
  */
-import { onMounted, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import WorkPane from "../components/shell/WorkPane.vue";
 import { JOB_DEFINITIONS } from "../components/shell/jobRegistry.js";
-import { languageMode } from "../components/setup/setupI18n.js";
 import { KID_JOB_LABELS, kidLabel } from "./kidLabels.js";
 import { useKidMode } from "./kidMode.js";
 
@@ -35,26 +28,15 @@ const emit = defineEmits<{ workspaceChange: [pageIds: readonly string[]] }>();
 const kid = useKidMode();
 const pane = ref<InstanceType<typeof WorkPane> | null>(null);
 
-/**
- * Re-label every job the moment the strip exists, and again whenever the label style changes.
- *
- * `renamePage` is a no-op for a page with no tab open, so this is safe to run over the whole
- * registry rather than only the open subset: a job opened later is renamed by the same watcher on
- * its next run, and the shipped label is what it starts from.
- */
-function applyKidLabels(): void {
-    for (const job of JOB_DEFINITIONS) {
+const presentationLabels = computed<Readonly<Record<string, string>>>(() =>
+    Object.fromEntries(
+        JOB_DEFINITIONS.map((job) => {
         const pair = kidLabel(job.labelFallback, KID_JOB_LABELS, kid.labelStyle.value);
-        pane.value?.renamePage(job.id, pair.primary);
-    }
-}
-
-onMounted(applyKidLabels);
-// `languageMode` is a plain function, not a ref - `watch()` treats a function element of its
-// source array as a reactive getter, so this re-runs `applyKidLabels()` on the same schedule a
-// `<template>` read of `languageMode()` would re-render on, without this file needing to import
-// or construct a `computed()` just to give `watch()` something ref-shaped to hold.
-watch([kid.labelStyle, kid.enabled, languageMode], applyKidLabels);
+            const count = job.id === "renders" ? (props.runningRenderCount ?? 0) : 0;
+            return [job.id, count > 0 ? `${pair.primary} (${count})` : pair.primary];
+        }),
+    ),
+);
 
 /** The shell drives Work exactly as it always did; kid mode adds no second navigation path. */
 defineExpose({
@@ -71,6 +53,7 @@ defineExpose({
         <WorkPane
             ref="pane"
             :running-render-count="props.runningRenderCount ?? 0"
+            :presentation-labels="presentationLabels"
             @workspace-change="(ids: readonly string[]) => emit('workspaceChange', ids)"
         >
             <!-- Every job screen the host passed in, forwarded verbatim, as WorkPane already does. -->

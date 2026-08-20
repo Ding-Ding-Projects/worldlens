@@ -2,6 +2,9 @@
 import SetupText from "./SetupText.vue";
 import SetupLanguagePanel from "./SetupLanguagePanel.vue";
 import WelcomeIntro from "./WelcomeIntro.vue";
+import { useSchoolMode } from "./schoolMode.js";
+
+const school = useSchoolMode();
 
 /**
  * Step one: what this is, what you end up with, where to go next, and what to expect.
@@ -26,7 +29,7 @@ import WelcomeIntro from "./WelcomeIntro.vue";
 
         <WelcomeIntro />
 
-        <SetupLanguagePanel />
+        <SetupLanguagePanel v-if="!school.enabled.value" />
     </div>
 </template>
 

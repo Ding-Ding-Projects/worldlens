@@ -3,9 +3,9 @@
  *
  * Two contracts, both real and both complete rather than partial:
  *
- *   - `schoolMode`: `read`/`enable`/`rename`/`disable`/`reset`, matching
+ *   - `schoolMode`: `read`/`enable`/`rename`/`verify`/`disable`/`reset`/`onChanged`, matching
  *     `isHostBridge()` in `design/packages/ui/src/components/setup/schoolMode.ts` exactly. That
- *     function checks that every one of the five is a real function before it will trust this as the
+ *     function checks that every method is a real function before it will trust this as the
  *     *shared* record rather than fall back to the browser/test local-only adapter - three real
  *     methods and two missing ones would not degrade gracefully, it would simply fail the shape
  *     check and silently exercise a different code path than the one this harness exists to drive.
@@ -60,16 +60,24 @@ interface SchoolModeBridge {
     read(): Promise<SchoolModeResult>;
     enable(request: unknown): Promise<SchoolModeResult>;
     rename(name: unknown): Promise<SchoolModeResult>;
+    verify(credential: unknown): Promise<SchoolModeResult>;
     disable(credential: unknown): Promise<SchoolModeResult>;
     reset(): Promise<SchoolModeResult>;
+    onChanged(listener: (result: SchoolModeResult) => void): () => void;
 }
 
 const schoolMode: SchoolModeBridge = {
     read: () => ipcRenderer.invoke("schoolMode:read") as Promise<SchoolModeResult>,
     enable: (request) => ipcRenderer.invoke("schoolMode:enable", request) as Promise<SchoolModeResult>,
     rename: (name) => ipcRenderer.invoke("schoolMode:rename", name) as Promise<SchoolModeResult>,
+    verify: (credential) => ipcRenderer.invoke("schoolMode:verify", credential) as Promise<SchoolModeResult>,
     disable: (credential) => ipcRenderer.invoke("schoolMode:disable", credential) as Promise<SchoolModeResult>,
     reset: () => ipcRenderer.invoke("schoolMode:reset") as Promise<SchoolModeResult>,
+    onChanged: (listener) => {
+        const forward = (_event: IpcRendererEvent, result: SchoolModeResult): void => listener(result);
+        ipcRenderer.on("schoolMode:changed", forward);
+        return () => ipcRenderer.off("schoolMode:changed", forward);
+    },
 };
 
 contextBridge.exposeInMainWorld("worldlens", {

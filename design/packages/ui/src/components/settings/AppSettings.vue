@@ -133,7 +133,11 @@ const props = withDefaults(
     { anchor: null, anchorMissing: false },
 );
 
-const emit = defineEmits<{ "update:open": [value: boolean] }>();
+const emit = defineEmits<{
+    "update:open": [value: boolean];
+    requestAdult: [];
+    awardKidSticker: [id: "fixer" | "time-traveller"];
+}>();
 
 const { t } = useI18n();
 
@@ -353,6 +357,14 @@ const sections = computed<SettingsSectionText[]>(() => {
             values: [
                 t("settings.kidMode.kidModeOption", "Kid Mode"),
                 t("settings.kidMode.adultModeOption", "Adult Mode"),
+                t("settings.kidMode.modeLabel", "Which mode should open?"),
+                t("settings.kidMode.name", "What to call the child"),
+                t("settings.kidMode.celebrations", "Celebrate finished jobs"),
+                t("settings.kidMode.sound", "Play a sound with a celebration"),
+                t("settings.kidMode.labelStyle", "Labels"),
+                t("settings.kidMode.kidFirst", "Kid words first, real name underneath"),
+                t("settings.kidMode.nameFirst", "Real name first, kid words underneath"),
+                t("settings.kidMode.nameOnly", "Real names only"),
                 kid.childName.value,
             ],
         },
@@ -552,6 +564,9 @@ const settingsPages = computed<TabPage[]>(() =>
             icon: null,
         }),
     ),
+);
+const hiddenSettingsPages = computed<readonly string[]>(() =>
+    schoolModeEnabled() ? ["vocabulary"] : [],
 );
 
 /* -------------------------------------------------------------------------- */
@@ -842,6 +857,7 @@ function onDrawer(value: boolean): void {
                 closeless
                 ref="tabsNav"
                 :pages="settingsPages"
+                :hidden-page-ids="hiddenSettingsPages"
                 storage-key="worldlens-settings-tabs"
                 :strip-label="t('settings.tabs.strip', 'Settings sections')"
                 :window-label="t('settings.title', 'Settings')"
@@ -1002,7 +1018,7 @@ function onDrawer(value: boolean): void {
                         :title="copy['kid-mode'].title"
                         :description="copy['kid-mode'].description"
                     >
-                        <KidModeRow />
+                        <KidModeRow @request-adult="emit('requestAdult')" />
                     </SettingsSection>
                 </template>
 

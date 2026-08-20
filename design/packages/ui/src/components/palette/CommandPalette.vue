@@ -16,6 +16,7 @@ import {
 } from "./paletteCatalog.js";
 import { countByKind, filterItems, groupItems, paletteSample, type PaletteItem } from "./paletteItems.js";
 import { readPaletteSize, writePaletteSize, type PaletteSize } from "./palettePrefs.js";
+import { useKidMode } from "../../kid/kidMode.js";
 
 /**
  * One shortcut, and everything the application can do behind it.
@@ -78,6 +79,8 @@ const emit = defineEmits<{
     "open-config": [screen: PaletteConfigTarget];
     /** Open the server-profile manager. */
     "open-profiles": [];
+    /** Open the central grown-up gate; the palette never changes the mode flag itself. */
+    "request-adult": [];
     /** Reveal one of the shell's tabbed pages. */
     "open-page": [pageId: string];
     /** Open the notification centre in the corner. */
@@ -95,6 +98,7 @@ const emit = defineEmits<{
 }>();
 
 const { t, locale } = useI18n();
+const kid = useKidMode();
 
 const titleId = useId();
 
@@ -132,6 +136,7 @@ const actions: PaletteShellActions = {
     openSettings: () => emit("open-settings"),
     openConfig: (screen) => emit("open-config", screen),
     openProfiles: () => emit("open-profiles"),
+    requestAdultMode: () => emit("request-adult"),
     openPage: (pageId) => emit("open-page", pageId),
     openNoticeCentre: () => emit("open-notice-centre"),
     openTabFinder: () => emit("open-tab-finder"),
@@ -162,6 +167,7 @@ const items = computed<PaletteItem[]>(() =>
         setSize: (value) => {
             size.value = value;
         },
+        kidModeActive: kid.enabled.value,
     }),
 );
 

@@ -52,7 +52,11 @@ import {
     windowsMapStorageDefault,
 } from "./files/index.js";
 import { registerEulaHandlers } from "./eula/index.js";
-import { registerSchoolModeHandlers } from "./schoolMode/index.js";
+import {
+    registerSchoolModeHandlers,
+    SCHOOL_MODE_EVENT_CHANNEL,
+    type SchoolModeIpc,
+} from "./schoolMode/index.js";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import {
@@ -459,6 +463,7 @@ function hardenSession(baseUrl: string): void {
  * `startWorldInspection`) each guard themselves the same way; this one did not.
  */
 let ipcRegistered = false;
+let schoolModeIpc: SchoolModeIpc | null = null;
 
 function registerIpc(): void {
     if (ipcRegistered) return;
@@ -509,7 +514,15 @@ function registerIpc(): void {
     // This record sits under the OS-wide app-data root rather than Worldlens's own userData
     // directory.  Register it before a renderer can load, so preload's initial read is the
     // shared state rather than a renderer-local guess.
-    registerSchoolModeHandlers(ipcMain, { applicationDataDirectory });
+    schoolModeIpc = registerSchoolModeHandlers(ipcMain, {
+        applicationDataDirectory,
+        onChanged: (result) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(SCHOOL_MODE_EVENT_CHANNEL, result);
+            }
+        },
+    });
+    app.on("will-quit", () => schoolModeIpc?.dispose());
     registerVocabularyHandlers(ipcMain, { applicationDataDirectory });
 
     // Mojang's licence, fetched and cached so it can be read inside the app rather than

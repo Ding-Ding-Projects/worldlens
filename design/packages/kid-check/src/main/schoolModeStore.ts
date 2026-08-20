@@ -4,10 +4,10 @@
  * `KidGrownUpGate.vue` (`design/packages/ui/src/kid/KidGrownUpGate.vue`) reads
  * `credentialConfigured` to decide which of its two branches to draw - "no grown-up code is set,
  * press through" versus "type the shared code" - and its `isHostBridge()` check
- * (`design/packages/ui/src/components/setup/schoolMode.ts`) requires all five methods
- * (`read`/`enable`/`rename`/`disable`/`reset`) to exist as real functions before it will trust this
+ * (`design/packages/ui/src/components/setup/schoolMode.ts`) requires all seven methods
+ * (`read`/`enable`/`rename`/`verify`/`disable`/`reset`/`onChanged`) to exist as real functions before it will trust this
  * as the *shared* record rather than fall back to the browser/test local-only adapter. So this harness
- * cannot get away with three of the five as stubs: a partially-wired bridge is exactly the "convenient
+ * cannot get away with a partial set of stubs: a partially-wired bridge is exactly the "convenient
  * lie" the brief forbids, and `isHostBridge` would in any case refuse it and silently downgrade to a
  * different code path than the one this harness exists to exercise.
  *
@@ -185,14 +185,11 @@ export class KidCheckSchoolModeStore {
         return { ok: true, state: snapshotOf(this.record) };
     }
 
-    async disable(credential: unknown): Promise<SchoolModeResult> {
+    async verify(credential: unknown): Promise<SchoolModeResult> {
         if (typeof credential !== "string" || credential.length === 0) {
-            return failure("credential-required", "Enter the PIN or password to turn this mode off.");
+            return failure("credential-required", "Enter the PIN or password to unlock this mode.");
         }
         if (this.record.credential === null) {
-            // No verifier at all: nothing to check against, so there is nothing to refuse - the
-            // mode simply was not on. This mirrors what a fresh, never-configured record does.
-            this.record = { ...this.record, enabled: false };
             return { ok: true, state: snapshotOf(this.record) };
         }
         const supplied = await deriveVerifier(credential, this.record.credential.salt);
@@ -203,6 +200,12 @@ export class KidCheckSchoolModeStore {
                 snapshotOf(this.record),
             );
         }
+        return { ok: true, state: snapshotOf(this.record) };
+    }
+
+    async disable(credential: unknown): Promise<SchoolModeResult> {
+        const verified = await this.verify(credential);
+        if (!verified.ok) return verified;
         this.record = { ...this.record, enabled: false };
         return { ok: true, state: snapshotOf(this.record) };
     }

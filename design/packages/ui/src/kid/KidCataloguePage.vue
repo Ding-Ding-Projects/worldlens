@@ -51,6 +51,19 @@ const shown = computed<ResolvedCatalogue>(() => filterCatalogues([props.catalogu
 
 /** The real grouping helper every other catalogue page uses, rather than a hand-rolled `Map`. */
 const groups = computed(() => groupFeatures(shown.value));
+const shownCount = computed(() =>
+    groups.value.reduce((total, group) => total + group.features.length, 0),
+);
+const totalCount = computed(() => props.catalogue.features.length);
+const summary = computed(() =>
+    matcher.value.active
+        ? t(
+              "kid.search.summary",
+              { shown: String(shownCount.value), total: String(totalCount.value) },
+              "{shown} of {total} features match",
+          )
+        : "",
+);
 
 const sample = computed(() => catalogueSampleText(props.catalogue.features));
 </script>
@@ -70,6 +83,7 @@ const sample = computed(() => catalogueSampleText(props.catalogue.features));
                 class="wl-kid-cat__search"
                 :label="t('kid.search', 'Look for something…')"
                 :sample="sample"
+                :summary="summary"
                 density="comfortable"
             />
         </header>
@@ -94,6 +108,10 @@ const sample = computed(() => catalogueSampleText(props.catalogue.features));
                 </li>
             </ul>
         </div>
+
+        <p v-if="matcher.active && shownCount === 0" class="wl-kid-cat__empty" role="status" aria-live="polite">
+            {{ t("kid.search.none", { query }, "Nothing in this catalogue matches “{query}”.") }}
+        </p>
     </section>
 </template>
 
@@ -114,4 +132,5 @@ const sample = computed(() => catalogueSampleText(props.catalogue.features));
 .wl-kid-cat__labels small { font-size: 15px; color: rgb(var(--v-theme-on-surface-variant)); text-wrap: pretty; }
 .wl-kid-cat__meta { font-family: var(--wl-kid-mono); font-size: 13px; color: rgb(var(--v-theme-outline)); }
 .wl-kid-cat__chevron { flex-shrink: 0; color: rgb(var(--v-theme-outline)); }
+.wl-kid-cat__empty { margin: 24px 0 0; font-size: 18px; color: rgb(var(--v-theme-on-surface-variant)); }
 </style>

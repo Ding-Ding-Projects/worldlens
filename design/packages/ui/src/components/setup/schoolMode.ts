@@ -27,10 +27,19 @@ export type SchoolModeResult =
     | { readonly ok: true; readonly state: SchoolModeSnapshot }
     | {
           readonly ok: false;
-          readonly code: string;
+          readonly code: SchoolModeFailureCode;
           readonly message: string;
           readonly state: SchoolModeSnapshot | null;
       };
+
+export type SchoolModeFailureCode =
+    | "invalid-name"
+    | "credential-required"
+    | "credential-invalid"
+    | "credential-too-long"
+    | "record-invalid"
+    | "storage-unavailable"
+    | "host-unavailable";
 
 export interface SchoolModeEnableRequest {
     readonly name: string | null;
@@ -39,6 +48,64 @@ export interface SchoolModeEnableRequest {
 
 export type SchoolModeSource = "pending" | "shared" | "local-fallback" | "unavailable";
 type MaybePromise<T> = T | Promise<T>;
+const HOST_OPERATION_DEADLINE_MS = 5_000;
+const HOST_CREDENTIAL_DEADLINE_MS = 30_000;
+const SCHOOL_MODE_FAILURE_CODES = new Set<SchoolModeFailureCode>([
+    "invalid-name",
+    "credential-required",
+    "credential-invalid",
+    "credential-too-long",
+    "record-invalid",
+    "storage-unavailable",
+    "host-unavailable",
+]);
+
+function isSchoolModeSnapshot(value: unknown): value is SchoolModeSnapshot {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+    const snapshot = value as Record<string, unknown>;
+    return (
+        snapshot.version === SCHOOL_MODE_RECORD_VERSION &&
+        typeof snapshot.enabled === "boolean" &&
+        (snapshot.name === null || typeof snapshot.name === "string") &&
+        typeof snapshot.credentialConfigured === "boolean"
+    );
+}
+
+function isSchoolModeResult(value: unknown): value is SchoolModeResult {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+    const result = value as Record<string, unknown>;
+    if (result.ok === true) return isSchoolModeSnapshot(result.state);
+    return (
+        result.ok === false &&
+        typeof result.code === "string" &&
+        SCHOOL_MODE_FAILURE_CODES.has(result.code as SchoolModeFailureCode) &&
+        typeof result.message === "string" &&
+        (result.state === null || isSchoolModeSnapshot(result.state))
+    );
+}
+
+function withHostDeadline(
+    operation: () => Promise<SchoolModeResult>,
+    milliseconds = HOST_OPERATION_DEADLINE_MS,
+): Promise<SchoolModeResult> {
+    return new Promise((resolve, reject) => {
+        const timer = globalThis.setTimeout(
+            () => reject(new Error("The shared mode bridge did not answer in time.")),
+            milliseconds,
+        );
+        void operation().then(
+            (result) => {
+                globalThis.clearTimeout(timer);
+                if (isSchoolModeResult(result)) resolve(result);
+                else reject(new Error("The shared mode bridge returned an invalid payload."));
+            },
+            (error: unknown) => {
+                globalThis.clearTimeout(timer);
+                reject(error);
+            },
+        );
+    });
+}
 
 /**
  * An async-capable replacement seam.  Local fallback operations intentionally return directly
@@ -50,8 +117,10 @@ export interface SchoolModeRecordAdapter {
     read(): MaybePromise<SchoolModeResult>;
     enable(request: SchoolModeEnableRequest): MaybePromise<SchoolModeResult>;
     rename(name: string | null): MaybePromise<SchoolModeResult>;
+    verify(credential: string): MaybePromise<SchoolModeResult>;
     disable(credential: string): MaybePromise<SchoolModeResult>;
     reset(): MaybePromise<SchoolModeResult>;
+    subscribe?(listener: (result: SchoolModeResult) => void): () => void;
 }
 
 interface UnavailableSchoolModeAdapter {
@@ -59,6 +128,7 @@ interface UnavailableSchoolModeAdapter {
     read(): SchoolModeResult;
     enable(request: SchoolModeEnableRequest): SchoolModeResult;
     rename(name: string | null): SchoolModeResult;
+    verify(credential: string): SchoolModeResult;
     disable(credential: string): SchoolModeResult;
     reset(): SchoolModeResult;
 }
@@ -78,6 +148,7 @@ interface SchoolModeState {
     name: string | null;
     credentialConfigured: boolean;
     error: string | null;
+    errorCode: SchoolModeFailureCode | null;
 }
 
 function defaultSnapshot(): SchoolModeSnapshot {
@@ -89,7 +160,11 @@ function defaultSnapshot(): SchoolModeSnapshot {
     };
 }
 
-function failure(code: string, message: string, state: SchoolModeSnapshot | null = null): SchoolModeResult {
+function failure(
+    code: SchoolModeFailureCode,
+    message: string,
+    state: SchoolModeSnapshot | null = null,
+): SchoolModeResult {
     return { ok: false, code, message, state };
 }
 
@@ -184,6 +259,13 @@ export function createSetupStorageSchoolModeAdapter(
                 return failure("storage-unavailable", "The local-only fallback record could not be saved.");
             }
         },
+        verify: () => {
+            try {
+                return { ok: true, state: readSnapshot() };
+            } catch {
+                return failure("storage-unavailable", "The local-only fallback record could not be read.");
+            }
+        },
         disable: () => {
             try {
                 const next: SchoolModeSnapshot = { ...readSnapshot(), enabled: false };
@@ -207,7 +289,7 @@ export function createSetupStorageSchoolModeAdapter(
 function isHostBridge(value: unknown): value is NonNullable<WorldlensBridge["schoolMode"]> {
     if (typeof value !== "object" || value === null) return false;
     const candidate = value as Record<string, unknown>;
-    return ["read", "enable", "rename", "disable", "reset"].every(
+    return ["read", "enable", "rename", "verify", "disable", "reset", "onChanged"].every(
         (method) => typeof candidate[method] === "function",
     );
 }
@@ -215,11 +297,17 @@ function isHostBridge(value: unknown): value is NonNullable<WorldlensBridge["sch
 function createHostAdapter(bridge: NonNullable<WorldlensBridge["schoolMode"]>): SchoolModeRecordAdapter {
     return {
         source: "shared",
-        read: () => bridge.read(),
-        enable: (request) => bridge.enable(request),
-        rename: (name) => bridge.rename(name),
-        disable: (credential) => bridge.disable(credential),
-        reset: () => bridge.reset(),
+        read: () => withHostDeadline(() => bridge.read()),
+        enable: (request) => withHostDeadline(() => bridge.enable(request), HOST_CREDENTIAL_DEADLINE_MS),
+        rename: (name) => withHostDeadline(() => bridge.rename(name)),
+        verify: (credential) => withHostDeadline(() => bridge.verify(credential), HOST_CREDENTIAL_DEADLINE_MS),
+        disable: (credential) => withHostDeadline(() => bridge.disable(credential), HOST_CREDENTIAL_DEADLINE_MS),
+        reset: () => withHostDeadline(() => bridge.reset()),
+        subscribe: (listener) =>
+            bridge.onChanged((result) => {
+                if (isSchoolModeResult(result)) listener(result);
+                else listener(failure("host-unavailable", "The shared mode bridge returned an invalid event."));
+            }),
     };
 }
 
@@ -230,6 +318,7 @@ function unavailableAdapter(message: string): UnavailableSchoolModeAdapter {
         read: result,
         enable: result,
         rename: result,
+        verify: result,
         disable: result,
         reset: result,
     };
@@ -262,9 +351,11 @@ const state = reactive<SchoolModeState>({
     name: null,
     credentialConfigured: false,
     error: null,
+    errorCode: null,
 });
-let loadGeneration = 0;
+let stateGeneration = 0;
 let readyPromise: Promise<void> | null = null;
+let stopAdapterSubscription: (() => void) | null = null;
 
 function applySnapshot(snapshot: SchoolModeSnapshot): void {
     state.enabled = snapshot.enabled;
@@ -280,11 +371,13 @@ function reconcileResult(
     if (result.ok) {
         applySnapshot(result.state);
         state.error = null;
+        state.errorCode = null;
         state.source = adapterSource;
         return;
     }
     if (result.state !== null) applySnapshot(result.state);
     state.error = result.message;
+    state.errorCode = result.code;
     if (adapterSource === "shared" && invalidateSharedState) {
         // A failed packaged-host read cannot retain an earlier browser/local snapshot. Leaving
         // that visible would be the very false shared-state claim this split is designed to stop.
@@ -295,28 +388,54 @@ function reconcileResult(
     }
 }
 
-function completeRead(result: SchoolModeResult, generation: number): void {
-    if (generation !== loadGeneration) return;
-    reconcileResult(result, adapter.source, true);
+function completeRead(
+    result: SchoolModeResult,
+    generation: number,
+    source: ActiveAdapter["source"],
+): void {
+    if (generation !== stateGeneration) return;
+    reconcileResult(result, source, true);
     state.ready = true;
+}
+
+function attachAdapterSubscription(): void {
+    stopAdapterSubscription?.();
+    stopAdapterSubscription = null;
+    if (adapter.source !== "shared" || adapter.subscribe === undefined) return;
+    const subscribed = adapter;
+    stopAdapterSubscription = adapter.subscribe((result) => {
+        if (adapter !== subscribed) return;
+        stateGeneration += 1;
+        reconcileResult(result, subscribed.source, true);
+        state.ready = true;
+        readyPromise = Promise.resolve();
+    });
 }
 
 /** Re-reads the active adapter. The packaged path is asynchronous; the local fallback is immediate. */
 export function reloadSchoolMode(): Promise<void> {
-    const generation = ++loadGeneration;
-    state.ready = false;
-    state.source = adapter.source;
+    attachAdapterSubscription();
+    const generation = ++stateGeneration;
+    const source = adapter.source;
+    // A refresh keeps the last enforced policy on screen until the replacement answer arrives.
+    // In particular, retrying an unavailable packaged bridge must not reveal suppressed controls
+    // for the duration of its deadline.
+    if (!state.ready) {
+        state.ready = false;
+        state.source = source;
+    }
     const result = adapter.read();
     if (!isPromiseLike(result)) {
-        completeRead(result, generation);
+        completeRead(result, generation, source);
         return Promise.resolve();
     }
     return result
-        .then((value) => completeRead(value, generation))
+        .then((value) => completeRead(value, generation, source))
         .catch(() =>
             completeRead(
                 failure("host-unavailable", "The shared mode bridge could not be reached."),
                 generation,
+                source,
             ),
         );
 }
@@ -329,42 +448,60 @@ export function ensureSchoolModeReady(): Promise<void> {
 
 /** Replaces the adapter for a focused browser/unit test or an embedding host. */
 export function setSchoolModeRecordAdapter(next: ActiveAdapter): Promise<void> {
+    stopAdapterSubscription?.();
+    stopAdapterSubscription = null;
     adapter = next;
+    stateGeneration += 1;
+    state.ready = false;
+    state.source = next.source;
     readyPromise = null;
     return reloadSchoolMode();
 }
 
 /** Returns to the real preload bridge when present, otherwise the visibly local-only fallback. */
 export function resetSchoolModeRecordAdapter(): Promise<void> {
+    stopAdapterSubscription?.();
+    stopAdapterSubscription = null;
     adapter = createDefaultSchoolModeAdapter();
+    stateGeneration += 1;
+    state.ready = false;
+    state.source = adapter.source;
     readyPromise = null;
     return reloadSchoolMode();
 }
 
 function invokeOperation(operation: () => MaybePromise<SchoolModeResult>): Promise<SchoolModeResult> {
+    const generation = ++stateGeneration;
+    const source = adapter.source;
     const result = operation();
     if (!isPromiseLike(result)) {
-        reconcileResult(result, adapter.source);
-        state.ready = true;
+        if (generation === stateGeneration) {
+            reconcileResult(result, source);
+            state.ready = true;
+        }
         return Promise.resolve(result);
     }
     return result
         .then((value) => {
-            reconcileResult(value, adapter.source);
-            state.ready = true;
+            if (generation === stateGeneration) {
+                reconcileResult(value, source);
+                state.ready = true;
+            }
             return value;
         })
         .catch(() => {
             const failureResult = failure("host-unavailable", "The shared mode bridge could not be reached.");
-            reconcileResult(failureResult, adapter.source, true);
-            state.ready = true;
+            if (generation === stateGeneration) {
+                reconcileResult(failureResult, source, true);
+                state.ready = true;
+            }
             return failureResult;
         });
 }
 
-/** Whether the effective policy is active. It remains false until the first host read completes. */
+/** Whether the effective policy is active. An unavailable packaged bridge fails closed. */
 export function schoolModeEnabled(): boolean {
-    return state.ready && state.enabled;
+    return state.ready && (state.enabled || state.source === "unavailable");
 }
 
 /** The user-selected name only. Consumers provide their own shipped fallback when no name exists. */
@@ -404,6 +541,19 @@ export function enableSchoolMode(
 /** Uses the host's locally verified credential route; local fallback disables only its own preview. */
 export function disableSchoolMode(credential = ""): Promise<SchoolModeResult> {
     return invokeOperation(() => adapter.disable(credential));
+}
+
+/** Verifies the shared credential without changing the shared policy record. */
+export function verifySchoolModeCredential(credential = ""): Promise<SchoolModeResult> {
+    return invokeOperation(() => adapter.verify(credential));
+}
+
+/** Stops the preload event subscription when the renderer root is torn down. */
+export function disposeSchoolMode(): void {
+    stopAdapterSubscription?.();
+    stopAdapterSubscription = null;
+    stateGeneration += 1;
+    readyPromise = null;
 }
 
 /**
@@ -457,15 +607,17 @@ export interface SchoolModeView {
     readonly chosenName: ComputedRef<string | null>;
     readonly credentialConfigured: ComputedRef<boolean>;
     readonly error: ComputedRef<string | null>;
+    readonly errorCode: ComputedRef<SchoolModeFailureCode | null>;
 }
 
 export function useSchoolMode(): SchoolModeView {
     return {
         ready: computed(() => state.ready),
         source: computed(() => state.source),
-        enabled: computed(() => state.ready && state.enabled),
+        enabled: computed(() => schoolModeEnabled()),
         chosenName: computed(() => state.name),
         credentialConfigured: computed(() => state.credentialConfigured),
         error: computed(() => state.error),
+        errorCode: computed(() => state.errorCode),
     };
 }

@@ -11,6 +11,8 @@ import {
     resetSchoolModeRecord,
     schoolModeName,
     useSchoolMode,
+    type SchoolModeFailureCode,
+    type SchoolModeResult,
 } from "./schoolMode.js";
 import { useSetupI18n } from "./setupI18n.js";
 
@@ -27,6 +29,7 @@ const enableCredential = ref("");
 const disableCredential = ref("");
 const busy = ref(false);
 const operationMessage = ref<string | null>(null);
+const operationCode = ref<SchoolModeFailureCode | null>(null);
 
 const shippedName = computed(() => i18n.t("school.shippedName"));
 const name = computed(() => schoolModeName(shippedName.value));
@@ -47,10 +50,28 @@ onMounted(() => {
     void ensureSchoolModeReady();
 });
 
-function showResult(result: { readonly ok: boolean; readonly message?: string }): boolean {
-    operationMessage.value = result.ok
-        ? null
-        : (result.message ?? i18n.t("school.hostUnavailable"));
+function localizedFailure(code: SchoolModeFailureCode): string {
+    switch (code) {
+        case "invalid-name":
+            return i18n.t("school.failure.invalidName", { name: name.value });
+        case "credential-required":
+            return i18n.t("school.failure.credentialRequired", { name: name.value });
+        case "credential-invalid":
+            return i18n.t("school.failure.credentialInvalid", { name: name.value });
+        case "credential-too-long":
+            return i18n.t("school.failure.credentialTooLong");
+        case "record-invalid":
+            return i18n.t("school.failure.recordInvalid", { name: name.value });
+        case "storage-unavailable":
+            return i18n.t("school.failure.storageUnavailable", { name: name.value });
+        case "host-unavailable":
+            return i18n.t("school.hostUnavailable");
+    }
+}
+
+function showResult(result: SchoolModeResult): boolean {
+    operationCode.value = result.ok ? null : result.code;
+    operationMessage.value = result.ok ? null : localizedFailure(result.code);
     return result.ok;
 }
 
@@ -106,7 +127,9 @@ async function retrySharedRecord(): Promise<void> {
     operationMessage.value = null;
     try {
         await reloadSchoolMode();
-        operationMessage.value = school.error.value;
+        operationCode.value = school.errorCode.value;
+        operationMessage.value =
+            school.errorCode.value === null ? null : localizedFailure(school.errorCode.value);
     } finally {
         busy.value = false;
     }
@@ -145,7 +168,7 @@ async function retrySharedRecord(): Promise<void> {
 
         <template v-else-if="school.source.value === 'unavailable'">
             <p class="mb-school-mode__boundary" role="alert">
-                {{ school.error.value ?? i18n.t("school.hostUnavailable") }}
+                {{ school.errorCode.value === null ? i18n.t("school.hostUnavailable") : localizedFailure(school.errorCode.value) }}
             </p>
             <v-btn
                 variant="outlined"
@@ -255,6 +278,14 @@ async function retrySharedRecord(): Promise<void> {
             <p v-if="operationMessage !== null" class="mb-school-mode__error" role="alert">
                 {{ operationMessage }}
             </p>
+            <v-btn
+                v-if="operationCode === 'record-invalid' || operationCode === 'storage-unavailable' || operationCode === 'host-unavailable'"
+                variant="text"
+                density="comfortable"
+                :disabled="busy"
+                :text="i18n.t('school.retry')"
+                @click="retrySharedRecord"
+            />
 
             <p class="mb-school-mode__boundary" role="note">
                 {{
