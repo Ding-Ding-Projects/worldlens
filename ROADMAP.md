@@ -265,8 +265,8 @@ was produced in this documentation-only update. Issue #83 remains open.
 - [ ] Verify publish/refresh/stop from the genuine packaged application against an isolated host
       through the approved headless route, with real host evidence and captures.
 
-This records-only update ran no tests and took no captures. It records source navigation/wiring facts
-only; issue #84 remains open until the implementation and packaged isolated-host proof exist.
+This records-only update ran no tests and took no captures. It records the source navigation/wiring
+fact only; issue #84 remains open until the packaged application and isolated-host proof exist.
 
 ## Issue #86 — Docker world import against a real daemon
 
