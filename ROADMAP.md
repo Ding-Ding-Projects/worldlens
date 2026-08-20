@@ -120,8 +120,14 @@ same-world render、restart/reopen 同 diagnostic read-back 仲未有。
   readout; missing or malformed inventory is an error, and local-build facts remain separate from
   cloud verdicts. Issue #51's `.613` evidence remains outside this ledger; only the workflow-policy
   row is `verified`; the completeness-enforcement row is not.
-- **Packaging boundary:** `electron-builder.config.cjs` copies the ledger and its inventory to
-  `resources/release-ledger/`; packaged interaction and restart/reopen proof remain unrun.
+- **Packaging/runtime boundary:** `electron-builder.config.cjs` copies the ledger and its inventory
+  to `resources/release-ledger/`. Release [`v1.0.1394`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1394),
+  targeting `ad07eb0aea6fd0e31aeb7ac59235eaf103860a39`, proves the built packaged reader: the
+  complete profile showed the visible Release Ledger UI with **6 of 6** phases; the incomplete
+  profile used a five-phase user-data `release-ledger.json` and the UI named the missing
+  **Release-ledger completeness enforcement** phase. The corresponding captures are local-only,
+  unposted evidence with absolute paths omitted from this public record. Runtime proof is complete,
+  but capture upload remains unavailable, so Issue #63 remains open.
 - **Failed/no-release boundary:** Commit `4a7aad1eda64b24337de2e50d4dd50fb625167ff` has no
   release. Run `32295874519` completed `jars` and `package`, then cancelled `test-world`, so
   `release` was skipped; companion run `32295860490` also skipped publication. The correction is

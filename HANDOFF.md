@@ -210,8 +210,18 @@ inventory and ledger together.
 
 The packaging configuration copies both records into the stable
 `resources/release-ledger/` location, and the reader checks that packaged location before its
-development-checkout fallbacks. Packaged interaction, restart/reopen, and installer proof remain
-unrun in this lane.
+development-checkout fallbacks.
+
+Release [`v1.0.1394`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1394)
+targets integrated commit `ad07eb0aea6fd0e31aeb7ac59235eaf103860a39` and provides the completed
+packaged-reader runtime proof. The complete profile loaded the visible Release Ledger UI with **6
+of 6** inventory phases. The incomplete profile supplied a five-phase user-data
+`release-ledger.json`, and the UI failed closed with the exact missing phase name **Release-ledger
+completeness enforcement**.
+
+The complete-profile and incomplete-profile captures are retained as **local-only, unposted
+evidence**. Their absolute local paths are intentionally omitted from this public record. The
+runtime proof is complete; capture upload remains unavailable, so Issue #63 stays open.
 
 The populated task-owned ledger contains six inventory phases: four historical rows (releases
 682, 704, 708, and 731), the verified build-and-release-only workflow policy row, and the failed
@@ -239,10 +249,11 @@ group, uses `always()` to inspect upstream results, and publishes unique run-num
 successful artifact-producing jobs; it does not gate on `check` alone. This records a
 failed/no-release boundary, not a verified phase.
 
-This update changes the packaged reader and its records. No tests, builds, installer runs, runtime
-sessions, workflow dispatches, or captures were run. No phase is closed from
-source presence or local packaging. Issue #63 stays open until the populated
-ledger has one durable row for every completed phase and the remote release evidence is complete.
+This update changes the packaged reader and its records. No tests, builds, installer runs, or
+workflow dispatches were run in this documentation lane. The packaged-reader runtime proof is
+complete on `v1.0.1394`; the two captures remain local-only and unposted. No phase is closed from
+source presence or local packaging, and Issue #63 stays open because capture upload remains
+unavailable.
 
 ### 廣東話 / Cantonese
 
@@ -258,14 +269,16 @@ public bilingual code name 同真實 `running`/`failed`/`verified` state；local
 release/target/workflow/timing/asset/hash read-back，但全部係 `failed` 加
 `shipped-nonconforming`，因為舊 release copy 同 attach 咗 dim-sum 相；現行 policy 要求
 淨係 link public catalog photo，唔可以 copy 或 attach。四行都唔係 `verified`，#51 嘅
-`.613` evidence 亦唔放入呢份 ledger。今次只改 documentation，冇跑 tests、build、
-installer、runtime、workflow dispatch 或 captures。Issue #63 要等每個 completed phase
-都有 row，同 integrated-phase completeness check 齊先可以 close。
+`.613` evidence 亦唔放入呢份 ledger。今次只改 documentation，冇跑 tests、build、installer
+或 workflow dispatch。`v1.0.1394` 嘅 packaged-reader runtime proof 已經完成：complete
+profile 見到 Release Ledger UI 同 **6/6** phases；incomplete profile 只有五個 phase，UI
+準確報 **Release-ledger completeness enforcement** missing。兩張 capture 只保留喺 local、未
+post，absolute path 唔寫入 public record。因為 capture upload 仲未有，所以 Issue #63 繼續 open。
 
 Records-only reconciliation commit `873eb0eae7c5b9208c3570a15cf81cf9704a29c7` 之後以
 [`v1.0.1373`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1373)
 發布；呢個係文件修正嘅 release，唔係第七個 phase，亦唔可以攞嚟冒認六行入面任何一行。
-Packaged reader interaction 同 restart/reopen proof 仲未跑。
+Packaged reader runtime proof 已完成；capture 仍然係 local-only、未 post，upload 仲未有。
 
 ## Issue #70 marker authoring — records-only update, 2026-08-19
 

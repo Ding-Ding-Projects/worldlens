@@ -108,10 +108,25 @@ That release publishes the documentation correction itself; it is not a seventh 
 phase and must not be borrowed as the release identity for another inventory row. The six named
 inventory phases above remain the completeness boundary.
 
-The packaged app copies both `docs/release-ledger.json` and
-`docs/release-phase-inventory.json` into `resources/release-ledger/`; the reader checks that
-read-only packaged location before its development-checkout fallbacks. Packaged interaction and
-restart/reopen proof remain unrun in this lane.
+The packaged app copies both `docs/release-ledger.json` and `docs/release-phase-inventory.json` into
+`resources/release-ledger/`; the reader checks that read-only packaged location before its
+development-checkout fallbacks.
 
-No tests, builds, installer runs, workflow dispatches, runtime sessions, or
-captures were performed for this documentation update.
+## Packaged reader runtime evidence
+
+Release [`v1.0.1394`](https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.0.1394)
+targets integrated commit `ad07eb0aea6fd0e31aeb7ac59235eaf103860a39` and carries the completed
+packaged-reader proof. In the complete profile, the visible Release Ledger UI loaded all **6 of 6**
+inventory phases. In the incomplete profile, the user-data `release-ledger.json` contained only
+five phases and the UI reported the exact missing phase: **Release-ledger completeness
+enforcement**. This proves both the bundled complete-ledger path and fail-closed incomplete-user-data
+path through the built artifact.
+
+Two corresponding captures are retained as **local-only, unposted evidence** (complete profile and
+incomplete profile); their absolute local paths are intentionally omitted from this public record.
+Packaged runtime proof is complete, while capture upload remains unavailable, so Issue #63 stays
+open.
+
+No tests, builds, installer runs, or workflow dispatches were performed in this documentation
+update. The packaged-reader runtime proof above was read back from `v1.0.1394`; the two captures
+remain local-only and unposted.
