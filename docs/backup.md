@@ -351,9 +351,10 @@ reporting a bare 403.
 When the CI-render surface uses `gh` as its credential route, it still uses this same packer,
 splitter, pointer and resume logic. Before a release is read, created or uploaded, the selected
 account is matched against `gh`'s real signed-in inventory, switched active when necessary, and
-verified through `gh api user`. That switch affects the whole computer and is left active. Release
-commands carry an enterprise host through `--repo <host>/<owner>/<repository>`; they never receive
-the unsupported `--hostname` flag.
+verified through `gh api user` for the operation. The broker then restores the account that was
+active beforehand; a restore refusal is surfaced rather than hidden. Release commands carry an
+enterprise host through `--repo <host>/<owner>/<repository>`; they never receive the unsupported
+`--hostname` flag.
 
 ## Failure modes
 
