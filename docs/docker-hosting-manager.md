@@ -81,12 +81,26 @@ will be affected.
 
 ## Verification status
 
-Issue #69 remains open and unverified. The current checkout contains the manager implementation,
-bridge, navigation and catalogue wiring described above, alongside the existing Docker render,
-Docker world-import and remote-hosting foundations. This records update did not run tests, contact
-a Docker daemon, create throwaway containers, exercise refusal or cancellation paths, build the
-packaged application, or take a headless capture. Those are required before any acceptance item can
-be marked complete.
+Issue #69 remains open. The current checkout contains the manager implementation, bridge,
+navigation and catalogue wiring described above, alongside the existing Docker render, Docker
+world-import and remote-hosting foundations.
+
+On 2026-08-19, a bounded read-only probe ran against the local Docker CLI without creating,
+starting, stopping, removing, or inspecting any unrelated workload:
+
+| Evidence | Observed result |
+| --- | --- |
+| `docker version --format '{{json .}}'` | Docker Desktop 4.85.0; client 29.6.2; server 29.6.2; Linux/amd64 daemon; API 1.55 (minimum 1.40) |
+| App-owned container filter | `docker ps -a --filter label=com.worldlens.docker-hosting=true` returned no records |
+| Installation-owned image filter | `docker image ls --digests --filter label=com.worldlens.docker-owner=worldlens-088449bd19b0a7a84999` returned no records |
+| Installation-owned volume filter | `docker volume ls --filter label=com.worldlens.docker-owner=worldlens-088449bd19b0a7a84999` returned no records |
+| Source/config audit | `manager.ts` uses the `com.worldlens.docker-hosting=true` and installation-owner labels to scope discovery; unlabelled workloads are excluded |
+| Packaged baseline | Release `v1.0.1380` targets commit `b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170` and publishes the Squirrel installer/update assets; the packaged manager surface was not exercised |
+
+This probe proves daemon availability and the empty ownership-scoped inventory only. It does not
+prove tests, throwaway-container operations, refusal or cancellation paths, map/configuration
+state, persistent complete logs/history, bulk mutations, VS Code handoff, packaged interaction, or
+headless captures. Those remain required before any acceptance item can be marked complete.
 
 The next owner must prove daemon-state handling and ownership isolation against an isolated
 throwaway Docker environment; create conflict and rollback; start/stop/restart; update refusal
