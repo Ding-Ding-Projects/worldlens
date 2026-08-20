@@ -1358,6 +1358,7 @@ export class RenderOrchestrator {
             const evidence = collectEvidence({
                 subject: "render",
                 mode,
+                engineId: engine.engine,
                 command: launch?.command ?? engine.javaExecutable,
                 args: launch?.args ?? ["-jar", engine.enginePath],
                 result: {

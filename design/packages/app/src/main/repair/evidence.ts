@@ -46,6 +46,8 @@ export interface EvidenceWorld {
 export interface RepairEvidence {
     readonly subject: RepairSubject;
     readonly mode: RuntimeMode;
+    /** The selected render engine id, when the caller had one; null/absent is honest for older records. */
+    readonly engineId?: string | null;
     /** The binary that was spawned: the JVM, or `docker`. */
     readonly command: string;
     readonly args: readonly string[];
@@ -141,6 +143,8 @@ function tail(lines: readonly string[]): string[] {
 export interface CollectEvidenceInput {
     readonly subject: RepairSubject;
     readonly mode: RuntimeMode;
+    /** Exact selected engine provenance; web-server and legacy callers may leave it absent. */
+    readonly engineId?: string | null;
     readonly command: string;
     readonly args: readonly string[];
     readonly result: EngineRunResult;
@@ -168,6 +172,7 @@ export function collectEvidence(input: CollectEvidenceInput): RepairEvidence {
     return {
         subject: input.subject,
         mode: input.mode,
+        ...(input.engineId === undefined ? {} : { engineId: input.engineId }),
         command: input.command,
         args: [...input.args],
         exitCode: result.exitCode,

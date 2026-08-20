@@ -35,7 +35,7 @@ import { installDownloadIpc } from "./download/ipc.js";
 import type { DownloadIpc } from "./download/ipc.js";
 import { registerStructureRenderHandlers } from "./structures/ipc.js";
 import type { StructureRenderIpc } from "./structures/ipc.js";
-import { totalmem } from "node:os";
+import { release as osRelease, totalmem } from "node:os";
 import {
     createFileUpdateFeedHandoff,
     createFileUpdateInstallJournal,
@@ -795,11 +795,13 @@ function startSysdepInstaller(): SysdepIpc {
  * active account.
  */
 let ghCliIpc: GhCliIpc | null = null;
+let ghCredentialBroker: GhCredentialBroker | null = null;
 
 function startGhCliAccounts(): GhCliIpc {
     if (ghCliIpc !== null) return ghCliIpc;
     const runner = nodeProcessRunner();
     const broker = new GhCredentialBroker({ runner });
+    ghCredentialBroker = broker;
     ghCliIpc = registerGhCliHandlers(ipcMain, {
         broker,
         runner,
@@ -1562,7 +1564,17 @@ function startAddonManager(): AddonIpc {
 
 function startRepairDiagnostics(): RepairIpc {
     if (repairIpc !== null) return repairIpc;
-    repairIpc = registerRepairHandlers(ipcMain);
+    repairIpc = registerRepairHandlers(ipcMain, {
+        report: {
+            broker: ghCredentialBroker,
+            appName: () => app.getName(),
+            buildVersion: () => app.getVersion(),
+            platform: () => `${process.platform}/${process.arch} ${osRelease()}`,
+            dialog,
+            app,
+            resolveWindow: (sender) => BrowserWindow.fromWebContents(sender),
+        },
+    });
     return repairIpc;
 }
 
