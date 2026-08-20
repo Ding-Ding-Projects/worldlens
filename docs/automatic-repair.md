@@ -2,7 +2,9 @@
 
 ## Privacy-safe issue report drafts (Issue #80)
 
-The repair surface now has an in-progress `Report a problem` draft path. The report builder keeps
+The source tree now has an in-progress `Report a problem` draft path. Commits `45de1686` and
+`85758d94` are on the default branch and included in release `v1.0.1411`, targeting `36c1d4d7`.
+The report builder keeps
 the app/build, engine, platform, failure category, timing, exit code, diagnosis, repair result,
 reproduction steps, and selected console evidence as separate fields. Recognised credential
 assignments, user-bearing paths, private addresses, and private host names are redacted before
@@ -14,10 +16,12 @@ form does not submit anything automatically; the draft body remains on the user'
 the user chooses what to paste. The main-process report builder also exposes an explicit
 `autoSubmitted: false` result so collection cannot silently become submission.
 
-This documentation records source-level progress, not acceptance. The current wiring is present
-on the repair panel, but Help/About discovery and every relevant failure-surface entry point have
-not been audited. No disposable-target submission proof, offline/not-signed-in production flow,
-packaged application evidence, or issue-specific test result is recorded yet. The next owner must
+This documentation records source-level progress, not acceptance. The draft wiring is present in
+`redesign/ui`, not in the packaged `design/packages/ui` tree, which still has no
+`IssueReportPanel.vue` or `Report a problem` entry. Help/About discovery and every relevant
+failure-surface entry point have not been audited. No disposable-target submission proof,
+offline/not-signed-in production flow, packaged application evidence, or issue-specific test result
+is recorded yet. The next owner must
 run adversarial redaction, bounded-log, Unicode, empty-diagnostics, cancellation, accessibility,
 localization, and funny-level checks, then verify a genuine packaged flow and a disposable issue
 target before closing Issue #80.
