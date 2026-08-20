@@ -10,6 +10,12 @@
 - **Evidence boundary:** This records-only update ran no new tests, builds,
   packaged interactions, or captures. Real NBT worlds, oracle comparison,
   packaged same-world render, restart/reopen, and diagnostic read-back remain open.
+- **Renderer seam found by the acceptance audit:** `bannerRenderLayers` derives the
+  pattern-specific resource path, but `BlockStateModelRenderer.renderBanner` currently
+  requests the shared `minecraft:block/white_banner` material for every layer; the
+  deterministic `bannerLayerImage` helper is not wired into `TextureGallery`. The fixture
+  manifest's base path and oracle README's banner count were corrected in the audit lane.
+  No renderer repair or runtime claim is made without the missing packaged proof.
 
 ### 廣東話同步
 
@@ -19,6 +25,12 @@ Issue #89 嘅 typed ordered layers 同 focused 5/5 acceptance 仍然有 records�
 error 繼續 propagate，diagnostics 最多 32 條。今次 records-only update 冇加跑
 tests、build、packaged interaction 或 captures；真 NBT、oracle、packaged
 same-world render、restart/reopen 同 diagnostic read-back 仲未有。
+
+**Acceptance audit 搵到嘅 renderer seam：** `bannerRenderLayers` 會計出
+pattern-specific resource path，但 `BlockStateModelRenderer.renderBanner` 依家每層都攞
+共用 `minecraft:block/white_banner` material；deterministic `bannerLayerImage` helper
+未接入 `TextureGallery`。Audit lane 已修正 fixture manifest base path 同 oracle README
+banner count；冇喺缺少 packaged proof 時聲稱 renderer repair 或 runtime 結果。
 
 ## CI artifact-only workflow update (2026-08-19)
 

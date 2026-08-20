@@ -101,6 +101,16 @@ namespace and value, allowing a resource pack or a later build to provide the te
 without rewriting the source entity. Resource lookup is cached by the resource-path
 object; the compatibility adapter does not fetch a remote asset or invent one.
 
+The current source still has a renderer seam that is not acceptance evidence:
+`bannerRenderLayers` derives each layer's resource path, but
+`BlockStateModelRenderer.renderBanner` currently requests the shared
+`minecraft:block/white_banner` material for every layer rather than registering or looking
+up `layer.texture`. `bannerLayerImage` is a deterministic fixture/test helper; it is not
+connected to the `TextureGallery` used by the packaged renderer. Until that seam is
+corrected and read back from a real packaged render, a source-level tint assertion or the
+patterned-banner oracle shape alone cannot prove pattern-specific textures, layer order, or
+colours in the viewer.
+
 ## Round-trip and evidence boundary
 
 The focused fixture/test contract covers:
@@ -142,3 +152,11 @@ pattern 或 colour 就原封不動留低；wrong-tag 嘅壞 layer 只會跳過�
 diagnostic 係固定而唔帶 payload，最多留三十二條；冇填 `Pattern` 或 `Color` 就保留歷史
 預設 `b` 同 `0`，唔可以當成 malformed skip。真正世界、upstream oracle 同 packaged viewer 嘅啱層啱色證明仲未跑，
 所以 issue 未可以關，唔可以攞一張普通白旗相扮晒驗收。
+
+今次 acceptance audit 仲搵到一個 renderer seam：`bannerRenderLayers` 會計出每層
+pattern-specific resource path，但 `BlockStateModelRenderer.renderBanner` 依家每層都攞
+共用嘅 `minecraft:block/white_banner` material，未有將 `layer.texture` 接入
+`TextureGallery`。`bannerLayerImage` 只係 deterministic fixture/test helper，唔係
+packaged renderer 真正用緊嘅路。未修好呢條 seam，亦未喺真 packaged render 讀返結果之前，
+source tint assertion 或 patterned-banner oracle shape 都唔可以當成 viewer 嘅啱 texture、
+layer 次序同顏色證明。
