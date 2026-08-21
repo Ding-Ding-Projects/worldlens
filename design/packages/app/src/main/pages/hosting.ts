@@ -660,6 +660,28 @@ export class PagesHost {
                         "limit. It cannot be pushed at all, so this map cannot be hosted this way.",
                 );
             }
+            if (site.rootAbsoluteAssets.length > 0) {
+                // The trap: fetching the published URL later on (see `waitForBuild`'s probe)
+                // only ever asks for this one page, and a root-absolute script/link tag
+                // still lets that one page answer 200. The 404 happens on the *next*
+                // request, made by the browser for the reference below, one directory
+                // above where GitHub Pages actually put the file - so a green preflight and
+                // a green publish would both have shipped a blank map without this check.
+                blockers.push(
+                    `index.html references ${site.rootAbsoluteAssets.slice(0, 3).join(", ")} as a ` +
+                        "root-absolute path. That only resolves from the domain root, and a GitHub " +
+                        "Pages project site is served from a subpath " +
+                        `(https://${request.owner || "<owner>"}.github.io/${request.repo || "<repo>"}/), ` +
+                        "so every browser that opens the published map would 404 on it.",
+                );
+            }
+            if (site.missingAssets.length > 0) {
+                blockers.push(
+                    `index.html asks for ${site.missingAssets.slice(0, 3).join(", ")}, which ` +
+                        "is not among the staged files. Publishing now would produce a page that " +
+                        "loads and then fails to load everything it references.",
+                );
+            }
             if (site.maps.length === 0) {
                 blockers.push("This render lists no maps, so there would be nothing to look at.");
             }

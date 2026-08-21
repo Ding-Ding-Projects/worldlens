@@ -52,6 +52,16 @@ export interface StaticHostReport {
     readonly fileCount: number;
     readonly oversizedFiles: readonly { readonly path: string; readonly bytes: number }[];
     readonly overSoftLimit: boolean;
+    /**
+     * `<script src>` / `<link href>` references in index.html that name a file which is
+     * not staged. Kept here (not just in the main-process type) because this is a second
+     * copy of the same shape crossing the IPC boundary - see `staticHost.ts` for why the
+     * check exists at all; dropping it from either copy would silently swallow it for the
+     * renderer half of the feature while the main process kept refusing to publish.
+     */
+    readonly missingAssets: readonly string[];
+    /** Root-absolute (`/x.js`) asset references, which 404 once served from a Pages subpath. */
+    readonly rootAbsoluteAssets: readonly string[];
     readonly notes: readonly string[];
 }
 
