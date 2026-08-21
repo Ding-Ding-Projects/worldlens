@@ -260,7 +260,18 @@ const dirty = computed(
  */
 watch(openProject, (project) => {
     if (project === null || openWorld.value === null || !dirty.value) return;
-    void host?.notifyAutosaveChange?.(openWorld.value, project);
+    // `notifyAutosaveChange` only *schedules* a write - its own result says whether the
+    // request reached the scheduler, and a completed attempt (quiet or flushed, ok or not)
+    // is reported separately through `onAutosaveEvent` below. What is missing without a
+    // `.catch()` here is the request itself failing before the scheduler ever sees it - the
+    // bridge boundary threw (a payload Electron's structured clone refused, say) rather than
+    // the write it would have scheduled. That failure has nowhere else to go: no autosave was
+    // ever queued, so no `onAutosaveEvent` is coming, and an unhandled rejection is invisible
+    // to whoever is looking at the screen. Naming the call is what turns "An object could not
+    // be cloned." from a mystery back into something the next report can act on.
+    host?.notifyAutosaveChange?.(openWorld.value, project)?.catch((error: unknown) => {
+        saveFailure.value = describeBridgeFailure("notifyAutosaveChange", error);
+    });
 });
 
 /**
@@ -313,9 +324,34 @@ function blockUnsavedTransition(action: string): boolean {
     ) {
         const world = openWorld.value;
         const project = openProject.value;
-        void host
-            .notifyAutosaveChange?.(world, project)
-            .then(() => host.flushAutosave?.(world, "boundary"));
+        // `savedProject` is set below the moment the transition is allowed to proceed, ahead
+        // of the notify+flush actually landing - the transition itself (closing the editor,
+        // opening another project) is not something a slow disk write should hold up. That
+        // makes the `.catch()` below the *only* place a failure in this exact chain can ever
+        // be seen: nothing downstream is still watching `dirty` or `saveFailure` for this
+        // world once the transition has moved on, so swallowing the rejection here would
+        // make the failure disappear rather than merely be reported late.
+        void (async (): Promise<void> => {
+            try {
+                await host.notifyAutosaveChange?.(world, project);
+                const result = await host.flushAutosave?.(world, "boundary");
+                if (result !== undefined && result !== null && !result.ok) {
+                    saveFailure.value = describeBridgeFailure(
+                        "flushAutosave",
+                        new Error(result.message),
+                    );
+                }
+            } catch (error) {
+                // Either call in this pair can be the one that threw - `notifyAutosaveChange`
+                // failing before the write was ever scheduled, or `flushAutosave` failing to
+                // write what had been. Naming the pair rather than guessing which is honest
+                // about what this handler can actually tell apart.
+                saveFailure.value = describeBridgeFailure(
+                    "notifyAutosaveChange/flushAutosave",
+                    error,
+                );
+            }
+        })();
         savedProject.value = project;
         return false;
     }
@@ -372,6 +408,24 @@ watch(
     },
     { immediate: true },
 );
+
+/**
+ * Names which bridge call actually failed, alongside whatever it failed with.
+ *
+ * A thrown `DataCloneError` crosses `ipcRenderer.invoke` as a bare `Error` whose message is
+ * exactly `"An object could not be cloned."` - Electron's own text for a payload its
+ * structured-clone step refused, with no indication of which of the several project-shaped
+ * calls this screen makes (`writeProject`, `notifyAutosaveChange`, `flushAutosave`) produced
+ * it. The prior version of this banner just showed that sentence verbatim, which is exactly
+ * how a Vue-reactive-proxy-vs-structured-clone bug went undiagnosed long enough to need a
+ * screenshot: the message was real, and it named nothing. Every catch site in this file that
+ * can see a bridge call throw goes through this so the next person gets a call name for free
+ * instead of re-deriving one from a stack trace.
+ */
+function describeBridgeFailure(call: string, error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    return `${call}: ${message}`;
+}
 
 /**
  * Every way a project file can refuse to be read, in words somebody can act on.
@@ -477,7 +531,14 @@ async function save(): Promise<void> {
         }
         void reload();
     } catch (error) {
-        saveFailure.value = error instanceof Error ? error.message : String(error);
+        // `writeProject` is sanitized at the bridge boundary (see `plainProjectForBridge` in
+        // projectHost.ts), so this catch should be unreachable for the Vue-reactive-proxy
+        // class of `DataCloneError` that used to land here unlabelled. It is kept anyway,
+        // and still names the call: a boundary that is safe today is not a promise that
+        // every future project-shaped payload crossing it will be too, and "writeProject: An
+        // object could not be cloned." is the one sentence that tells the next person exactly
+        // which sanitizer to go check first, instead of leaving them to rediscover this file.
+        saveFailure.value = describeBridgeFailure("writeProject", error);
     } finally {
         saving.value = false;
     }
