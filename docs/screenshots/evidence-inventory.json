@@ -196,18 +196,54 @@
       "reproducibility": "current-candidate-hidden-desktop-frames",
       "minimumFramesPerId": 2,
       "framePlan": {
-        "appearance-editor": ["tab context menu before opening the editor", "anchored appearance editor open on Text or Surface"],
-        "changelog-filter": ["changelog viewer before filtering", "date/text filter applied with a real result count"],
-        "command-palette": ["command palette open", "palette filtered to a live setting control"],
-        "documentation-search": ["offline documentation index", "offline documentation search results"],
-        "language-tone": ["Language and tone settings tab before a change", "same tab after a real funny-level or language control change"],
-        "navigation-drawer": ["Home destination with the application rail", "Work destination selected through that rail"],
-        "notification-history": ["rail notification bell with unread badge", "notification history opened from that exact bell"],
-        "regex-builder": ["plain-text search field", "its adjacent full regex builder open with a valid pattern"],
-        "tab-discovery": ["Work tab strip", "tab finder open from that strip"],
-        "tab-groups": ["seeded collapsed tab groups", "one real group expanded without changing membership"],
-        "theme-switch": ["same shell in light theme", "same shell in high-contrast theme"],
-        "verified-download": ["real release asset list from an authorized published release", "real download progress or verified completion for one selected asset"]
+        "appearance-editor": [
+          "tab context menu before opening the editor",
+          "anchored appearance editor open on Text or Surface"
+        ],
+        "changelog-filter": [
+          "changelog viewer before filtering",
+          "date/text filter applied with a real result count"
+        ],
+        "command-palette": [
+          "command palette open",
+          "palette filtered to a live setting control"
+        ],
+        "documentation-search": [
+          "offline documentation index",
+          "offline documentation search results"
+        ],
+        "language-tone": [
+          "Language and tone settings tab before a change",
+          "same tab after a real funny-level or language control change"
+        ],
+        "navigation-drawer": [
+          "Home destination with the application rail",
+          "Work destination selected through that rail"
+        ],
+        "notification-history": [
+          "rail notification bell with unread badge",
+          "notification history opened from that exact bell"
+        ],
+        "regex-builder": [
+          "plain-text search field",
+          "its adjacent full regex builder open with a valid pattern"
+        ],
+        "tab-discovery": [
+          "Work tab strip",
+          "tab finder open from that strip"
+        ],
+        "tab-groups": [
+          "seeded collapsed tab groups",
+          "one real group expanded without changing membership"
+        ],
+        "theme-switch": [
+          "same shell in light theme",
+          "same shell in high-contrast theme"
+        ],
+        "verified-download": [
+          "real release asset list from an authorized published release",
+          "real download progress or verified completion for one selected asset"
+        ]
       },
       "expectedCount": 24,
       "targets": [
@@ -316,7 +352,7 @@
         "docs/screenshots/issue-98-in-progress-discovered-worlds.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc",
         "docs/screenshots/issue-99-in-progress-dependencies.png": "b4b9a47f889efe35ad96da9681e91e93777d5edc"
       },
-      "expectedCount": 16,
+      "expectedCount": 17,
       "targets": [
         "design/docs/assets/issues/106-before-startup-blocked.png",
         "docs/screenshots/issue-100-in-progress-container-offers.png",
@@ -327,6 +363,7 @@
         "docs/screenshots/issue-107-before-pages-replacement.png",
         "docs/screenshots/issue-123-before-account-overview.png",
         "docs/screenshots/issue-123-before-credential-surface.png",
+        "docs/screenshots/issue-139-before-save-clone-error.png",
         "docs/screenshots/issue-93-in-progress-backup-run.png",
         "docs/screenshots/issue-94-in-progress-backup-listing.png",
         "docs/screenshots/issue-95-in-progress-config-save.png",
