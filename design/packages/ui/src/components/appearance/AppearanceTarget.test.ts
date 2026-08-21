@@ -243,7 +243,9 @@ describe("the context menu", () => {
         targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
         await settle();
 
-        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        targetElement().dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         await settle();
 
@@ -321,9 +323,9 @@ describe("the search field's regex mode", () => {
         regexToggle()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await settle();
 
-        const builderButton = [...document.querySelectorAll<HTMLElement>(".mb-config-search button")].find(
-            (button) => button.textContent?.trim() === ".*",
-        );
+        const builderButton = [
+            ...document.querySelectorAll<HTMLElement>(".mb-config-search button"),
+        ].find((button) => button.textContent?.trim() === ".*");
         builderButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await settle();
 
@@ -389,7 +391,9 @@ describe("the keyboard path", () => {
         expect(bodyText()).toContain("Edit appearance...");
         expect(document.activeElement).toBe(targetElement());
 
-        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        targetElement().dispatchEvent(
+            new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+        );
         await settle();
 
         // The menu's own search field is the first focusable thing inside it.
@@ -413,7 +417,9 @@ describe("the keyboard path", () => {
         expect(bodyText()).toContain("Appearance of The test row");
         expect(document.activeElement).toBe(targetElement());
 
-        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        targetElement().dispatchEvent(
+            new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+        );
         await settle();
 
         const panel = document.querySelector<HTMLElement>(".mb-appearance-editor");
@@ -483,16 +489,14 @@ describe("the keyboard path", () => {
         // the target still opens its editor. Listening only on the wrapper's own focus would
         // make the keyboard path work for exactly nobody.
         mountTarget();
-        document
-            .querySelector(".host-button")
-            ?.dispatchEvent(
-                new KeyboardEvent("keydown", {
-                    key: "F10",
-                    shiftKey: true,
-                    ctrlKey: true,
-                    bubbles: true,
-                }),
-            );
+        document.querySelector(".host-button")?.dispatchEvent(
+            new KeyboardEvent("keydown", {
+                key: "F10",
+                shiftKey: true,
+                ctrlKey: true,
+                bubbles: true,
+            }),
+        );
         await settle();
 
         expect(bodyText()).toContain("Appearance of The test row");
@@ -559,7 +563,9 @@ describe("the anchored editor", () => {
         );
         await settle();
 
-        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        targetElement().dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         await settle();
 
@@ -761,7 +767,9 @@ describe("aria-haspopup matches whichever popup is actually open", () => {
         await settle();
         expect(targetElement().getAttribute("aria-haspopup")).not.toBe("menu");
 
-        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        targetElement().dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         await settle();
 
@@ -806,15 +814,32 @@ describe("the wrapper's own cursor", () => {
         expect(rule?.[0]).toContain("cursor: auto");
     });
 
-    it("never itself answers with cursor: pointer, which is the one value that would leak", async () => {
+    it("declares cursor: pointer only on the lock badge, which is a real button", async () => {
         // The wrapper is never a left-click target - it opens on right-click and on a
-        // keyboard shortcut only - so `pointer` here would be both wrong for the wrapper and,
-        // because it wraps arbitrary host content, wrong for everything inside it too.
-        // Comments are stripped first: this very file's own doc comments above quote Vuetify's
-        // `[aria-controls] { cursor: pointer }` rule in prose, which would otherwise trip the
-        // same regex this test uses to check the *declarations*.
+        // keyboard shortcut only - so `pointer` on it would be both wrong for the wrapper
+        // and, because it wraps arbitrary host content and `cursor` inherits, wrong for
+        // everything inside it too.
+        //
+        // The badge is the one legitimate exception and is named here rather than exempted
+        // by loosening the check: it is a leaf `<button>` that is genuinely clickable and is
+        // not an ancestor of the slot, so nothing can inherit from it. Asserting the
+        // permitted selector is strictly stronger than the blanket "no pointer anywhere"
+        // this replaced - that version would have passed a `pointer` added to a *new* rule
+        // that did wrap host content, as long as somebody also deleted the badge.
+        //
+        // Comments are stripped first: this very file's own doc comments above quote
+        // Vuetify's `[aria-controls] { cursor: pointer }` rule in prose, which would
+        // otherwise trip the same regex this test uses to check the *declarations*.
         const css = (await styleBlock()).replace(/\/\*[\s\S]*?\*\//g, "");
-        expect(css).not.toMatch(/cursor:\s*pointer/);
+
+        // Every rule in the block, as (selector, body) pairs. `[^{}]` keeps each match
+        // inside one rule rather than letting a lazy any-run bridge across two of them.
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+        const withPointer = rules
+            .filter((rule) => /cursor:\s*pointer/.test(rule[2] ?? ""))
+            .map((rule) => (rule[1] ?? "").trim());
+
+        expect(withPointer).toEqual([".mb-appearance-target__locked"]);
     });
 });
 
@@ -926,15 +951,17 @@ describe("dismissal: closes on an outside pointer press", () => {
         targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
         await settle();
 
-        const builderButton = [...document.querySelectorAll<HTMLElement>(".mb-config-search button")].find(
-            (button) => button.textContent?.trim() === ".*",
-        );
+        const builderButton = [
+            ...document.querySelectorAll<HTMLElement>(".mb-config-search button"),
+        ].find((button) => button.textContent?.trim() === ".*");
         expect(builderButton).not.toBeUndefined();
         builderButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await settle();
         expect(activeCount(".mb-config-regex")).toBe(1);
 
-        const patternField = document.querySelector<HTMLTextAreaElement>(".mb-config-regex textarea");
+        const patternField = document.querySelector<HTMLTextAreaElement>(
+            ".mb-config-regex textarea",
+        );
         expect(patternField).not.toBeNull();
         if (patternField !== null) press(patternField);
         await settle();
@@ -1055,9 +1082,7 @@ describe("cross-instance dismissal: opening a second element's popup closes the 
         mountTwoTargets();
         const [elementA, elementB] = targetElements();
 
-        elementA?.dispatchEvent(
-            new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
-        );
+        elementA?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }));
         await settle();
         expect(activeCount(".mb-appearance-editor")).toBe(1);
         expect(bodyText()).toContain("Appearance of Row A");
@@ -1077,9 +1102,7 @@ describe("cross-instance dismissal: opening a second element's popup closes the 
         await settle();
         expect(activeCount(".mb-appearance-target__menu")).toBe(1);
 
-        elementB?.dispatchEvent(
-            new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
-        );
+        elementB?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }));
         await settle();
 
         expect(activeCount(".mb-appearance-target__menu")).toBe(0);

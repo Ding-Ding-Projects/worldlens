@@ -3,6 +3,7 @@ import {
     autoUpdater,
     BrowserWindow,
     ipcMain,
+    safeStorage,
     session,
     clipboard,
     dialog,
@@ -57,6 +58,7 @@ import {
     SCHOOL_MODE_EVENT_CHANNEL,
     type SchoolModeIpc,
 } from "./schoolMode/index.js";
+import { registerLockHandlers, type LockIpc } from "./locks/ipc.js";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import {
@@ -94,7 +96,12 @@ import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
-import { installPagesIpc, PAGES_EVENT_CHANNEL, installStaticMapExportIpc, STATIC_EXPORT_EVENT_CHANNEL } from "./pages/index.js";
+import {
+    installPagesIpc,
+    PAGES_EVENT_CHANNEL,
+    installStaticMapExportIpc,
+    STATIC_EXPORT_EVENT_CHANNEL,
+} from "./pages/index.js";
 import type { PagesIpc } from "./pages/index.js";
 import type { StaticMapExportIpc } from "./pages/index.js";
 import { installPreviewIpc, PreviewNetworkStore, PREVIEW_EVENT_CHANNEL } from "./preview/index.js";
@@ -203,15 +210,15 @@ if (directLaunch && !path.isAbsolute(directLaunchUserData)) {
 }
 if (
     directLaunch &&
-    path.resolve(directLaunchUserData) === path.resolve(join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName))
+    path.resolve(directLaunchUserData) ===
+        path.resolve(join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName))
 ) {
     throw new Error("--worldlens-direct-launch refuses the production application-data directory.");
 }
 const smokeMode = directLaunch || process.env.WORLDLENS_SCREENSHOTS === "1";
-const screenshotUserData =
-    smokeMode
-        ? directLaunchUserData || app.commandLine.getSwitchValue("user-data-dir").trim()
-        : "";
+const screenshotUserData = smokeMode
+    ? directLaunchUserData || app.commandLine.getSwitchValue("user-data-dir").trim()
+    : "";
 app.setPath(
     "userData",
     screenshotUserData || join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName),
@@ -271,7 +278,10 @@ async function showRecovery(issues: readonly StartupIssue[]): Promise<void> {
 }
 
 async function requestProfileMigrationConsent(): Promise<"accept" | "deny"> {
-    const copy = profileMigrationConsentCopy("bilingual", profileMigrationPlan(applicationDataDirectory));
+    const copy = profileMigrationConsentCopy(
+        "bilingual",
+        profileMigrationPlan(applicationDataDirectory),
+    );
     const answer = await dialog.showMessageBox({
         type: "question",
         title: copy.title,
@@ -464,6 +474,7 @@ function hardenSession(baseUrl: string): void {
  */
 let ipcRegistered = false;
 let schoolModeIpc: SchoolModeIpc | null = null;
+let lockIpc: LockIpc | null = null;
 
 function registerIpc(): void {
     if (ipcRegistered) return;
@@ -482,7 +493,8 @@ function registerIpc(): void {
                 profile.name.length > MAX_PROFILE_NAME_LENGTH ||
                 /[\u0000-\u001F\u007F]/.test(profile.id) ||
                 /[\u0000-\u001F\u007F]/.test(profile.name)
-            ) continue;
+            )
+                continue;
             const url = sanitizeProfileUrl(profile.baseUrl);
             if (url === null) continue;
             remoteProxy.setProfile({
@@ -500,7 +512,10 @@ function registerIpc(): void {
         await writeProfilesState(app.getPath("userData"), {
             version: 1,
             profiles: saved.map((profile) => ({ ...profile, trustCustomizations: false })),
-            activeId: previous.activeId !== null && known.has(previous.activeId) ? previous.activeId : null,
+            activeId:
+                previous.activeId !== null && known.has(previous.activeId)
+                    ? previous.activeId
+                    : null,
         }).catch(() => {
             // Profile sync remains usable if persistence is temporarily unavailable.
         });
@@ -518,11 +533,21 @@ function registerIpc(): void {
         applicationDataDirectory,
         onChanged: (result) => {
             for (const window of BrowserWindow.getAllWindows()) {
-                if (!window.isDestroyed()) window.webContents.send(SCHOOL_MODE_EVENT_CHANNEL, result);
+                if (!window.isDestroyed())
+                    window.webContents.send(SCHOOL_MODE_EVENT_CHANNEL, result);
             }
         },
     });
     app.on("will-quit", () => schoolModeIpc?.dispose());
+    // Toy locks live under this app's own userData rather than the shared app-data root:
+    // they are per-application by design, unlike School mode, which is deliberately one
+    // switch across every sibling app. Registered here so the renderer's first `load` finds
+    // a real host and offers "Lock this element..." rather than hiding it.
+    lockIpc = registerLockHandlers(ipcMain, {
+        dataFolder: app.getPath("userData"),
+        safeStorage,
+    });
+    app.on("will-quit", () => lockIpc?.dispose());
     registerVocabularyHandlers(ipcMain, { applicationDataDirectory });
 
     // Mojang's licence, fetched and cached so it can be read inside the app rather than
@@ -581,10 +606,9 @@ function startRendering(): RenderIpc {
     // Windows has moved Documents there, with the reason carried alongside so the move is
     // explained rather than discovered. Only a profile that has never chosen a folder is
     // affected, so an existing install keeps its maps exactly where they are.
-    const screenshotStorage =
-        smokeMode
-            ? process.env.WORLDLENS_SCREENSHOT_STORAGE?.trim()
-            : undefined;
+    const screenshotStorage = smokeMode
+        ? process.env.WORLDLENS_SCREENSHOT_STORAGE?.trim()
+        : undefined;
     const windowsDefault =
         screenshotStorage === undefined || screenshotStorage === ""
             ? windowsMapStorageDefault({
@@ -712,10 +736,7 @@ function startWorldInspection(): WorldIpc {
     // executable's own directory is where a portable installation would put its
     // `.minecraft`. Both are passed in rather than read inside `world/`, so the whole
     // directory still runs, and is still tested, with no Electron and no real machine.
-    const screenshotHome =
-        smokeMode
-            ? process.env.WORLDLENS_SCREENSHOT_HOME?.trim()
-            : undefined;
+    const screenshotHome = smokeMode ? process.env.WORLDLENS_SCREENSHOT_HOME?.trim() : undefined;
     const screenshotEnvironment =
         screenshotHome === undefined || screenshotHome === ""
             ? undefined
@@ -1150,7 +1171,8 @@ function startStaticMapExport(render: RenderIpc): StaticMapExportIpc {
         ledgerDir: () => join(app.getPath("userData"), "static-map-exports"),
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
-                if (!window.isDestroyed()) window.webContents.send(STATIC_EXPORT_EVENT_CHANNEL, event);
+                if (!window.isDestroyed())
+                    window.webContents.send(STATIC_EXPORT_EVENT_CHANNEL, event);
             }
         },
     });
@@ -1335,14 +1357,15 @@ function startDockerHosting(): DockerHostingIpc {
             recordFile: join(app.getPath("userData"), "docker-hosting", "instances.json"),
             managedRoot: join(app.getPath("userData"), "docker-hosting", "data"),
             onEvent: (event) => {
-                for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("dockerhosting:event", event);
+                for (const window of BrowserWindow.getAllWindows())
+                    if (!window.isDestroyed())
+                        window.webContents.send("dockerhosting:event", event);
             },
         }),
     });
     app.on("will-quit", () => dockerHostingIpc?.dispose());
     return dockerHostingIpc;
 }
-
 
 function startDockerWorld(): DockerWorldIpc {
     if (dockerWorldIpc !== null) return dockerWorldIpc;
@@ -1789,8 +1812,11 @@ async function createWindow(): Promise<void> {
         );
     }
     if (render !== null) {
-        await attempt("initialization", "static-map-export", "Static map export is unavailable in this launch", () =>
-            startStaticMapExport(render),
+        await attempt(
+            "initialization",
+            "static-map-export",
+            "Static map export is unavailable in this launch",
+            () => startStaticMapExport(render),
         );
     }
     const ciRender =
@@ -1857,7 +1883,12 @@ async function createWindow(): Promise<void> {
         ],
         ["network", "ssh-world-source", "SSH world sources are unavailable", startSshWorldSources],
         ["dependency", "docker-world", "Docker world import is unavailable", startDockerWorld],
-        ["dependency", "docker-hosting", "Docker hosting manager is unavailable", startDockerHosting],
+        [
+            "dependency",
+            "docker-hosting",
+            "Docker hosting manager is unavailable",
+            startDockerHosting,
+        ],
         [
             "configuration",
             "world-inspection",

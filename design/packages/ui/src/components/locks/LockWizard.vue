@@ -37,13 +37,29 @@ import { useLockStore } from "./useLocks.js";
  * rather than hidden, per the guided-form rule: a control that vanishes teaches nothing,
  * and a control that says why teaches exactly one thing.
  */
-const props = defineProps<{ target: LockTarget }>();
+/**
+ * `changing` carries the id of the lock whose credential is being replaced, or is absent for
+ * an ordinary new lock.
+ *
+ * One component for both because they ask the person exactly the same questions - method,
+ * credential, confirmation, duration - and the only difference is which store call the
+ * answers go to at the end. A second near-identical wizard would be the copy that stops
+ * validating the confirmation field the day somebody fixes it in only one of them.
+ */
+// `| undefined` explicitly, not just `?`: this workspace runs
+// `exactOptionalPropertyTypes`, under which an optional prop and a prop that may be
+// passed an explicit `undefined` are different types - and the caller binds
+// `:changing="changingLockId ?? undefined"`, which is the second one.
+const props = defineProps<{ target: LockTarget; changing?: string | undefined }>();
 
 const emit = defineEmits<{
-    /** A lock now exists on this element. */
+    /** A lock now exists on this element, or its credential has just been replaced. */
     created: [];
     cancel: [];
 }>();
+
+/** True while this wizard is replacing an existing credential rather than making a lock. */
+const changing = computed(() => props.changing !== undefined);
 
 const { t } = useI18n();
 const store = useLockStore();
@@ -153,7 +169,8 @@ async function create(): Promise<void> {
             const { decodeBase32, verifyTotp } = await import("./totp.js");
             const decoded = decodeBase32(secret.value);
             const paired =
-                decoded.ok && (await verifyTotp(decoded.bytes, pairingCode.value.trim(), Date.now()));
+                decoded.ok &&
+                (await verifyTotp(decoded.bytes, pairingCode.value.trim(), Date.now()));
             if (!paired) {
                 problem.value = t(
                     "locks.wizard.pairingFailed",
@@ -163,13 +180,14 @@ async function create(): Promise<void> {
             }
         }
 
-        const made = await store.add(
-            props.target,
+        const creation =
             method.value === "password"
-                ? { method: "password", password: password.value }
-                : { method: "totp", secretBase32: secret.value },
-            chosenDuration(),
-        );
+                ? ({ method: "password", password: password.value } as const)
+                : ({ method: "totp", secretBase32: secret.value } as const);
+        const made =
+            props.changing === undefined
+                ? await store.add(props.target, creation, chosenDuration())
+                : await store.changeAuth(props.changing, creation, chosenDuration());
         if (!made.ok) {
             problem.value = made.message;
             return;
@@ -191,7 +209,15 @@ async function create(): Promise<void> {
         data-test="lock-wizard"
     >
         <h3 class="mb-lock-wizard__title">
-            {{ t("locks.wizard.title", { label: props.target.label }, "Lock {label}") }}
+            {{
+                changing
+                    ? t(
+                          "locks.wizard.changeTitle",
+                          { label: props.target.label },
+                          "Change the lock on {label}",
+                      )
+                    : t("locks.wizard.title", { label: props.target.label }, "Lock {label}")
+            }}
         </h3>
 
         <!-- Before the credential is chosen, deliberately. See the note in the script. -->
@@ -204,7 +230,11 @@ async function create(): Promise<void> {
             }}
         </p>
 
-        <VRadioGroup v-model="method" :label="t('locks.wizard.method', 'How this one opens')" inline>
+        <VRadioGroup
+            v-model="method"
+            :label="t('locks.wizard.method', 'How this one opens')"
+            inline
+        >
             <VRadio
                 :label="t('locks.wizard.methodPassword', 'A password')"
                 value="password"

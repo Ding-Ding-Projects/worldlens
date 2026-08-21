@@ -77,11 +77,17 @@ function host(): LockHost {
 function mountTarget(store: LockStore) {
     return mount(AppearanceTarget, {
         props: { id: "settings.fontSize", label: "Font size" },
+        slots: { default: '<button data-test="guarded">Bigger</button>' },
         attachTo: document.body,
         global: {
             plugins: [
                 createVuetify(),
-                createI18n({ legacy: false, locale: "en", missingWarn: false, fallbackWarn: false }),
+                createI18n({
+                    legacy: false,
+                    locale: "en",
+                    missingWarn: false,
+                    fallbackWarn: false,
+                }),
             ],
             provide: { [LOCK_STORE as unknown as symbol]: store },
         },
@@ -92,7 +98,9 @@ function mountTarget(store: LockStore) {
 async function menuItems(wrapper: ReturnType<typeof mountTarget>): Promise<string[]> {
     await wrapper.trigger("contextmenu");
     await flushPromises();
-    return [...document.querySelectorAll(".v-list-item")].map((item) => item.textContent?.trim() ?? "");
+    return [...document.querySelectorAll(".v-list-item")].map(
+        (item) => item.textContent?.trim() ?? "",
+    );
 }
 
 describe("every element that can be styled can also be locked", () => {
@@ -178,5 +186,124 @@ describe("every element that can be styled can also be locked", () => {
         expect(items.some((item) => item.includes("Lock it again now"))).toBe(true);
         wrapper.unmount();
         document.body.innerHTML = "";
+    });
+});
+
+describe("a locked element is actually disabled, not merely labelled", () => {
+    /**
+     * The assertion this whole feature turns on.
+     *
+     * A lock that leaves its element clickable is decoration, and it is decoration that
+     * *looks* like it works - which is worse than no lock, because the owner believes the
+     * element is guarded. `inert` is checked rather than a class or a `pointer-events`
+     * style because those two leave the element reachable by keyboard, and a lock that a
+     * Tab press walks straight through has not disabled anything.
+     */
+    async function lockedWrapper() {
+        const store = createLockStore({ host: host() });
+        await store.load();
+        await store.add(
+            { surface: "element", path: "settings.fontSize", label: "Font size" },
+            { method: "password", password: "correct-horse" },
+        );
+        const wrapper = mountTarget(store);
+        await flushPromises();
+        return { store, wrapper };
+    }
+
+    it("makes the guarded content inert while the lock is closed", async () => {
+        const { wrapper } = await lockedWrapper();
+
+        const content = wrapper
+            .get('[data-test="guarded"]')
+            .element.closest(".mb-appearance-target__content");
+        expect(content?.hasAttribute("inert")).toBe(true);
+
+        wrapper.unmount();
+        document.body.innerHTML = "";
+    });
+
+    it("lets the content work again once the right password opens the lock", async () => {
+        const { store, wrapper } = await lockedWrapper();
+
+        const outcome = await store.attempt(store.locks.value[0]!.id, "correct-horse");
+        expect(outcome.ok).toBe(true);
+        await flushPromises();
+
+        const content = wrapper
+            .get('[data-test="guarded"]')
+            .element.closest(".mb-appearance-target__content");
+        expect(content?.hasAttribute("inert")).toBe(false);
+
+        wrapper.unmount();
+        document.body.innerHTML = "";
+    });
+
+    it("keeps the unlock badge outside the inert subtree, or there is no way back in", async () => {
+        const { wrapper } = await lockedWrapper();
+
+        const badge = wrapper.get('[data-test="element-lock-badge"]').element;
+        expect(badge.closest("[inert]")).toBeNull();
+
+        wrapper.unmount();
+        document.body.innerHTML = "";
+    });
+
+    it("says it is disabled to assistive technology as well as to the eye", async () => {
+        const { wrapper } = await lockedWrapper();
+        expect(wrapper.attributes("aria-disabled")).toBe("true");
+        wrapper.unmount();
+        document.body.innerHTML = "";
+    });
+});
+
+describe("a lock can be managed after it is made", () => {
+    it("offers changing the credential from the element's own menu", async () => {
+        const store = createLockStore({ host: host() });
+        await store.load();
+        await store.add(
+            { surface: "element", path: "settings.fontSize", label: "Font size" },
+            { method: "password", password: "first" },
+        );
+
+        const wrapper = mountTarget(store);
+        await flushPromises();
+        const items = await menuItems(wrapper);
+        expect(items.some((item) => item.includes("Change this lock"))).toBe(true);
+        wrapper.unmount();
+        document.body.innerHTML = "";
+    });
+
+    it("replaces the credential in one step, keeping the lock closed throughout", async () => {
+        const store = createLockStore({ host: host() });
+        await store.load();
+        await store.add(
+            { surface: "element", path: "settings.fontSize", label: "Font size" },
+            { method: "password", password: "first" },
+        );
+        const id = store.locks.value[0]!.id;
+        // Open it, so the change has an existing session to invalidate.
+        await store.attempt(id, "first");
+        expect(store.isLocked("element", "settings.fontSize")).toBe(false);
+
+        const changed = await store.changeAuth(id, { method: "password", password: "second" });
+        expect(changed.ok).toBe(true);
+
+        // The element is guarded again immediately: a credential change that left the old
+        // session open would mean the replaced password still had effect.
+        expect(store.isLocked("element", "settings.fontSize")).toBe(true);
+        // One lock, same id - not a second row, and nothing that referenced it is stale.
+        expect(store.locks.value).toHaveLength(1);
+        expect(store.locks.value[0]!.id).toBe(id);
+
+        expect((await store.attempt(id, "first")).ok).toBe(false);
+        expect((await store.attempt(id, "second")).ok).toBe(true);
+    });
+
+    it("refuses to change a lock that is no longer in the list", async () => {
+        const store = createLockStore({ host: host() });
+        await store.load();
+        const result = await store.changeAuth("nope", { method: "password", password: "x" });
+        expect(result.ok).toBe(false);
     });
 });

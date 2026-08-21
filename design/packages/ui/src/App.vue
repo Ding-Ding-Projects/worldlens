@@ -104,7 +104,8 @@ import AuthenticatorScreen from "./components/authenticator/AuthenticatorScreen.
 import LockList from "./components/locks/LockList.vue";
 import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensionScreen.vue";
 import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScreen.vue";
-import { resolveLockHost } from "./components/locks/useLocks.js";
+import { createLockStore } from "./components/locks/lockStore.js";
+import { provideLockStore, resolveLockHost } from "./components/locks/useLocks.js";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
 import {
@@ -170,6 +171,32 @@ watch(
 const currentApp = computed(() => blueMapApp.value);
 provideBlueMap(currentApp);
 useBlueMapTheme(currentApp);
+
+/* -------------------------------------------------------------------------- */
+/* Toy locks                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The one lock store every surface under this shell shares.
+ *
+ * Provided here, once, for the reason `useLocks` gives: injection rather than a module
+ * singleton, so a test can hand a component a store it built itself and two stores never
+ * race over one list. This is the call that was missing - `resolveLockHost` was imported
+ * for the recovery folder alone, so every `useLockStore()` fell through to the hostless
+ * default, `canList` was false everywhere, and every element's context menu quietly hid
+ * "Lock this element..." because the store honestly reported it could not keep a lock. The
+ * feature was whole apart from the one line that connected it to the shell.
+ */
+const lockStore = createLockStore({ host: resolveLockHost() });
+provideLockStore(lockStore);
+
+// Read the saved locks once the shell is up. A locked element renders unlocked for the
+// instant before this resolves, which is the honest ordering: the store says `loaded` is
+// false until it has actually read, and the surfaces wait on that rather than assuming an
+// empty list means "nothing is locked".
+onMounted(() => {
+    void lockStore.load();
+});
 
 /* -------------------------------------------------------------------------- */
 /* Kid Mode's theme swap                                                      */
@@ -319,8 +346,9 @@ const PAGE_CHUNKER = "chunker";
  * rather than offering a button that does nothing.
  */
 async function openLockDataFolder(): Promise<boolean> {
-    const shell = (globalThis as { worldlens?: { shell?: { openPath?: (p: string) => Promise<boolean> } } })
-        .worldlens?.shell;
+    const shell = (
+        globalThis as { worldlens?: { shell?: { openPath?: (p: string) => Promise<boolean> } } }
+    ).worldlens?.shell;
     const folder = resolveLockHost()?.dataFolder ?? null;
     if (shell?.openPath === undefined || folder === null) return false;
     return await shell.openPath(folder);
@@ -358,7 +386,19 @@ const renderIndicator = createActiveRenders({
 });
 onMounted(() => {
     void renderIndicator.reconcile();
-    const bridge = (globalThis as { worldlens?: { listRenders?: () => Promise<readonly { outcome: "running" | "finished" | "failed" | "cancelled"; dataRoot: string | null; maps: readonly { id: string }[] }[]> } }).worldlens;
+    const bridge = (
+        globalThis as {
+            worldlens?: {
+                listRenders?: () => Promise<
+                    readonly {
+                        outcome: "running" | "finished" | "failed" | "cancelled";
+                        dataRoot: string | null;
+                        maps: readonly { id: string }[];
+                    }[]
+                >;
+            };
+        }
+    ).worldlens;
     if (typeof bridge?.listRenders !== "function") return;
     void bridge.listRenders().then((summaries) => {
         promoteFinishedLocalRenders(summaries, (dataRoot, mapIds) => {
@@ -503,9 +543,21 @@ const pages = computed<TabPage[]>(() => [
     // chatting and hardware fit are a whole workflow of their own, exactly as GitHub runners
     // and Structures earned their own tabs above for the same reason.
     { id: PAGE_OLLAMA, label: t("ollama.title", "Ollama"), icon: mdiRobotOutline },
-    { id: PAGE_REMOTE_HOSTING, label: t("tabs.page.remoteHosting", "Remote hosting"), icon: mdiCloudUploadOutline },
-    { id: PAGE_DOCKER_HOSTING, label: t("tabs.page.dockerHosting", "Docker hosting"), icon: mdiServerNetwork },
-    { id: PAGE_SCREENSHOTS, label: t("tabs.page.screenshots", "Screenshots"), icon: mdiImageMultipleOutline },
+    {
+        id: PAGE_REMOTE_HOSTING,
+        label: t("tabs.page.remoteHosting", "Remote hosting"),
+        icon: mdiCloudUploadOutline,
+    },
+    {
+        id: PAGE_DOCKER_HOSTING,
+        label: t("tabs.page.dockerHosting", "Docker hosting"),
+        icon: mdiServerNetwork,
+    },
+    {
+        id: PAGE_SCREENSHOTS,
+        label: t("tabs.page.screenshots", "Screenshots"),
+        icon: mdiImageMultipleOutline,
+    },
 ]);
 
 /**
@@ -722,7 +774,10 @@ const shell = createShellNavigation({
         // so, once, through the same notice history everything else uses.
         raiseNotice("warning", problem.message);
         if (!routingFailures.value.some((entry) => entry.id === problem.id)) {
-            routingFailures.value = [...routingFailures.value, { id: problem.id, message: problem.message }];
+            routingFailures.value = [
+                ...routingFailures.value,
+                { id: problem.id, message: problem.message },
+            ];
         }
     },
 });
@@ -881,9 +936,7 @@ const kidProfiles = computed(() =>
     profilesStore.profiles.map((profile) => ({
         id: profile.id,
         name: profile.name,
-        meta: isLocalProfile(profile)
-            ? t("kid.home.mapMeta.local", "This computer")
-            : profile.url,
+        meta: isLocalProfile(profile) ? t("kid.home.mapMeta.local", "This computer") : profile.url,
         remote: !isLocalProfile(profile),
     })),
 );
@@ -1227,7 +1280,7 @@ async function renderDroppedPath(name: string, path: string | null): Promise<voi
             t(
                 "dropRender.noPath",
                 { name },
-                "\"{name}\" could not be located on disk, so it cannot be rendered.",
+                '"{name}" could not be located on disk, so it cannot be rendered.',
             ),
         );
         return;
@@ -1237,17 +1290,14 @@ async function renderDroppedPath(name: string, path: string | null): Promise<voi
     // A render can take minutes; the honest reading of `raiseNotice` here is "this has
     // started", not "this has finished" - the finish or failure gets its own notice below,
     // exactly like every other long render in this app.
-    raiseNotice(
-        "info",
-        t("dropRender.started", { name }, "Rendering \"{name}\"…"),
-    );
+    raiseNotice("info", t("dropRender.started", { name }, 'Rendering "{name}"…'));
     try {
         const outcome = await dropRenderHost.render(path);
         if (!outcome.ok || outcome.render === undefined) {
             raiseNotice(
                 "error",
                 outcome.message ??
-                    t("dropRender.failed", { name }, "\"{name}\" could not be rendered."),
+                    t("dropRender.failed", { name }, '"{name}" could not be rendered.'),
             );
             return;
         }
@@ -1966,8 +2016,18 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <div class="mb-shell-centre">
                             <DashboardScreen
                                 @close="revealPage(PAGE_MAP)"
-                                @open-profile="(id) => { profilesStore.activeId = id; revealPage(PAGE_MAP); }"
-                                @open-hosting="(id) => { localStorage.setItem('worldlens.dashboard.hostingId', id); revealPage(PAGE_REMOTE_HOSTING); }"
+                                @open-profile="
+                                    (id) => {
+                                        profilesStore.activeId = id;
+                                        revealPage(PAGE_MAP);
+                                    }
+                                "
+                                @open-hosting="
+                                    (id) => {
+                                        localStorage.setItem('worldlens.dashboard.hostingId', id);
+                                        revealPage(PAGE_REMOTE_HOSTING);
+                                    }
+                                "
                             />
                         </div>
                     </div>
@@ -2115,41 +2175,41 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :aria-hidden="destination !== 'map' ? 'true' : undefined"
                     >
                         <div class="mb-map-page">
-                                <FreeFlightMobileControls v-if="showFreeFlightControls" />
-                                <ZoomButtons v-if="showZoomButtons" />
+                            <FreeFlightMobileControls v-if="showFreeFlightControls" />
+                            <ZoomButtons v-if="showZoomButtons" />
 
-                                <ControlBar v-if="showViewerChrome" />
+                            <ControlBar v-if="showViewerChrome" />
 
-                                <div v-if="mapState !== 'loaded'" class="mb-map-state">
-                                    <!--
+                            <div v-if="mapState !== 'loaded'" class="mb-map-state">
+                                <!--
                                         The live region is the sentence and only the sentence.
                                         A button inside it would be re-announced every time the
                                         map moved between loading, loaded and errored, which
                                         turns a status update into a repeated instruction.
                                     -->
-                                    <p class="mb-map-state__line" role="status" aria-live="polite">
-                                        {{ mapStateMessage }}
-                                    </p>
+                                <p class="mb-map-state__line" role="status" aria-live="polite">
+                                    {{ mapStateMessage }}
+                                </p>
 
-                                    <!--
+                                <!--
                                         "No map loaded." names a state and not the one action
                                         that leaves it. With nothing chosen at all the message
                                         keeps its own tab company: the strip already offers the
                                         wizard, and this puts the same door where the person is
                                         actually looking.
                                     -->
-                                    <v-btn
-                                        v-if="profilesStore.activeId === null"
-                                        class="mb-interactive"
-                                        variant="tonal"
-                                        :prepend-icon="mdiMapPlus"
-                                        @click="revealPage(PAGE_WORLD)"
-                                    >
-                                        {{ t("tabs.page.world", "Make a map") }}
-                                    </v-btn>
-                                </div>
+                                <v-btn
+                                    v-if="profilesStore.activeId === null"
+                                    class="mb-interactive"
+                                    variant="tonal"
+                                    :prepend-icon="mdiMapPlus"
+                                    @click="revealPage(PAGE_WORLD)"
+                                >
+                                    {{ t("tabs.page.world", "Make a map") }}
+                                </v-btn>
+                            </div>
 
-                                <!--
+                            <!--
                                     The menu owns the page stack (`appState.menu`), which the
                                     control bar pushes onto, so it belongs to the same page the
                                     control bar does. Its "markers" page is a slot because the
@@ -2157,19 +2217,19 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     whatever the opener put there, which is the root set for the
                                     Markers button and the `bm-players` set for the Players one.
                                 -->
-                                <MainMenu
-                                    @open-docs="revealPage(PAGE_DOCS)"
-                                    @open-tutorial="requestTutorialLaunch()"
-                                >
-                                    <template #markers="{ page, menu }">
-                                        <MarkerMenu
-                                            v-if="blueMapApp"
-                                            :app="blueMapApp"
-                                            :menu="menu"
-                                            :marker-set="pageMarkerSet(page)"
-                                        />
-                                    </template>
-                                </MainMenu>
+                            <MainMenu
+                                @open-docs="revealPage(PAGE_DOCS)"
+                                @open-tutorial="requestTutorialLaunch()"
+                            >
+                                <template #markers="{ page, menu }">
+                                    <MarkerMenu
+                                        v-if="blueMapApp"
+                                        :app="blueMapApp"
+                                        :menu="menu"
+                                        :marker-set="pageMarkerSet(page)"
+                                    />
+                                </template>
+                            </MainMenu>
                         </div>
                     </div>
 
@@ -2178,7 +2238,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         fourth destination. Opaque, so the map behind it is invisible without
                         being unmounted.
                     -->
-                    <div v-show="destination === 'home'" class="mb-shell-layer mb-shell-layer--home mb-interactive">
+                    <div
+                        v-show="destination === 'home'"
+                        class="mb-shell-layer mb-shell-layer--home mb-interactive"
+                    >
                         <CataloguePage
                             v-if="shell.catalogueId.value"
                             :catalogue-id="shell.catalogueId.value"
@@ -2228,47 +2291,47 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             :running-render-count="runningRenderCount"
                             @workspace-change="(ids: readonly string[]) => (openJobIds = ids)"
                         >
-                        <!--
+                            <!--
                             The wizard is taller than a short window, so it keeps its own
                             scroll container: the step buttons must never be the thing that
                             ends up off-screen.
                         -->
-                        <template #world>
-                            <div class="mb-world-host mb-interactive">
-                                <WorldScreen
-                                    :settings-epoch="settingsEpoch"
-                                    :can-open-ci="true"
-                                    :focus-render-id="worldFocusRenderId"
-                                    @consent="openSettings('mojang-download-consent')"
-                                    @settings="revealSetting"
-                                    @open-map="onLocalRenderOpened"
-                                    @open-project="onWorldProjectOpened"
-                                    @open-ci-render="openCiRender()"
-                                />
-                            </div>
-                        </template>
+                            <template #world>
+                                <div class="mb-world-host mb-interactive">
+                                    <WorldScreen
+                                        :settings-epoch="settingsEpoch"
+                                        :can-open-ci="true"
+                                        :focus-render-id="worldFocusRenderId"
+                                        @consent="openSettings('mojang-download-consent')"
+                                        @settings="revealSetting"
+                                        @open-map="onLocalRenderOpened"
+                                        @open-project="onWorldProjectOpened"
+                                        @open-ci-render="openCiRender()"
+                                    />
+                                </div>
+                            </template>
 
-                        <!--
+                            <!--
                             Projects: the settings a world renders with, all of them, before
                             a render starts. Its own scroll container for the same reason the
                             guide has one - the editor is far taller than a short window, and
                             the Save button must never be the thing that ends up off-screen.
                         -->
-                        <template #projects>
-                            <div class="mb-world-host mb-interactive">
-                                <ProjectsScreen
-                                    :settings-epoch="settingsEpoch"
-                                    :open-world="projectToOpen"
-                                    @consent="openSettings('mojang-download-consent')"
-                                    @settings="revealSetting"
-                                    @open-map="onLocalRenderOpened"
-                                    @cloud-render="openCiRender"
-                                    @dirty-change="unsavedProjectChanges = $event"
-                                />
-                            </div>
-                        </template>
+                            <template #projects>
+                                <div class="mb-world-host mb-interactive">
+                                    <ProjectsScreen
+                                        :settings-epoch="settingsEpoch"
+                                        :open-world="projectToOpen"
+                                        @consent="openSettings('mojang-download-consent')"
+                                        @settings="revealSetting"
+                                        @open-map="onLocalRenderOpened"
+                                        @cloud-render="openCiRender"
+                                        @dirty-change="unsavedProjectChanges = $event"
+                                    />
+                                </div>
+                            </template>
 
-                        <!--
+                            <!--
                             Rendering on GitHub's runners: the answer for a machine that
                             cannot render a large world at all. Its own page rather than a
                             fourth choice on the guide, because it is a workflow with a
@@ -2281,27 +2344,32 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             Mojang's licence is deliberately not accepted on that screen;
                             it points at the settings row that already asks.
                         -->
-                        <template #cirender>
-                            <div class="mb-world-host mb-interactive">
-                                <div class="mb-shell-centre">
-                                    <CiRenderScreen
-                                        :key="ciWorldToOpen ?? 'manual'"
-                                        :worlds="
-                                            ciWorldToOpen === null
-                                                ? []
-                                                : [{ folder: ciWorldToOpen, label: ciWorldToOpen }]
-                                        "
-                                        :can-open-settings="true"
-                                        @sign-in="openSettings('github-account')"
-                                        @open-consent="openSettings('mojang-download-consent')"
-                                        @open="openInBrowser"
-                                        @rendered="openCiRenderedMap"
-                                    />
+                            <template #cirender>
+                                <div class="mb-world-host mb-interactive">
+                                    <div class="mb-shell-centre">
+                                        <CiRenderScreen
+                                            :key="ciWorldToOpen ?? 'manual'"
+                                            :worlds="
+                                                ciWorldToOpen === null
+                                                    ? []
+                                                    : [
+                                                          {
+                                                              folder: ciWorldToOpen,
+                                                              label: ciWorldToOpen,
+                                                          },
+                                                      ]
+                                            "
+                                            :can-open-settings="true"
+                                            @sign-in="openSettings('github-account')"
+                                            @open-consent="openSettings('mojang-download-consent')"
+                                            @open="openInBrowser"
+                                            @rendered="openCiRenderedMap"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
+                            </template>
 
-                        <!--
+                            <!--
                             Every render this application knows about, on any of its three
                             routes, including one this app did not start this session - a
                             container found running from an earlier launch, or a render on
@@ -2311,41 +2379,41 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             it: this page, and the tab label's own live count above, are both
                             reachable regardless of which screen a render was watched from.
                         -->
-                        <!--
+                            <!--
                             The structure list, and the drop zone's own home. Both were
                             built before there was a page to put them on, which is a thing
                             that looks finished in a diff and is unreachable in the
                             application, so this is the half that makes them real.
                         -->
-                        <template #authenticator>
-                            <AuthenticatorScreen />
-                        </template>
+                            <template #authenticator>
+                                <AuthenticatorScreen />
+                            </template>
 
-                        <template #locks>
-                            <LockList />
-                        </template>
+                            <template #locks>
+                                <LockList />
+                            </template>
 
-                        <template #support>
-                            <SupportTickets :open-data-folder="openLockDataFolder" />
-                        </template>
+                            <template #support>
+                                <SupportTickets :open-data-folder="openLockDataFolder" />
+                            </template>
 
-                        <template #browserExtension>
-                            <BrowserExtensionScreen />
-                        </template>
+                            <template #browserExtension>
+                                <BrowserExtensionScreen />
+                            </template>
 
-                        <template #chunker>
-                            <ChunkerScreen />
-                        </template>
+                            <template #chunker>
+                                <ChunkerScreen />
+                            </template>
 
-                        <template #structures>
-                            <div class="mb-world-host mb-interactive">
-                                <!--
+                            <template #structures>
+                                <div class="mb-world-host mb-interactive">
+                                    <!--
                                     `canScan` is the shell's own honest answer rather than a
                                     constant: a build with no filesystem bridge cannot look
                                     inside a world, and the list says that instead of showing
                                     an empty result that reads as "this world has none".
                                 -->
-                                <!--
+                                    <!--
                                     The drop zone lives on this page rather than wrapping
                                     the whole application. It used to wrap `<v-app>`'s
                                     children, and Vuetify's layout needs `v-main` as a
@@ -2355,92 +2423,105 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     something somebody goes looking for, and this is the
                                     page they look on.
                                 -->
-                                <DropRenderZone
-                                    :disabled="dropRenderBusy"
-                                    @render="onDropRender"
-                                    @browse="onDropRenderBrowse"
-                                />
-                                <StructureList
-                                    :files="structureStore.discovered"
-                                    :can-scan="canScanStructures"
-                                    @open="onOpenRenderedStructure"
-                                />
-                            </div>
-                        </template>
+                                    <DropRenderZone
+                                        :disabled="dropRenderBusy"
+                                        @render="onDropRender"
+                                        @browse="onDropRenderBrowse"
+                                    />
+                                    <StructureList
+                                        :files="structureStore.discovered"
+                                        :can-scan="canScanStructures"
+                                        @open="onOpenRenderedStructure"
+                                    />
+                                </div>
+                            </template>
 
-                        <template #renders>
-                            <div class="mb-world-host mb-interactive">
-                                <RendersScreen @open-console="onOpenConsole" />
-                            </div>
-                        </template>
+                            <template #renders>
+                                <div class="mb-world-host mb-interactive">
+                                    <RendersScreen @open-console="onOpenConsole" />
+                                </div>
+                            </template>
 
-                        <!--
+                            <!--
                             The list is a card rather than a full-width screen, so it is
                             centred in its page instead of stretched across it. Its Close
                             button now goes back to the map, which is the only thing "close"
                             can honestly mean on a page that cannot be dismissed.
                         -->
-                        <template #servers>
-                            <div class="mb-world-host mb-interactive">
-                                <div class="mb-shell-centre">
-                                    <DashboardScreen
-                                        @close="revealPage(PAGE_MAP)"
-                                        @open-profile="(id) => { profilesStore.activeId = id; revealPage(PAGE_MAP); }"
-                                        @open-hosting="(id) => { localStorage.setItem('worldlens.dashboard.hostingId', id); revealPage(PAGE_REMOTE_HOSTING); }"
-                                    />
+                            <template #servers>
+                                <div class="mb-world-host mb-interactive">
+                                    <div class="mb-shell-centre">
+                                        <DashboardScreen
+                                            @close="revealPage(PAGE_MAP)"
+                                            @open-profile="
+                                                (id) => {
+                                                    profilesStore.activeId = id;
+                                                    revealPage(PAGE_MAP);
+                                                }
+                                            "
+                                            @open-hosting="
+                                                (id) => {
+                                                    localStorage.setItem(
+                                                        'worldlens.dashboard.hostingId',
+                                                        id,
+                                                    );
+                                                    revealPage(PAGE_REMOTE_HOSTING);
+                                                }
+                                            "
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
+                            </template>
 
-                        <!--
+                            <!--
                             Backing a world or a rendered map up to GitHub release assets.
                             Restoring is deliberately not a second downloader: the screen
                             names the release it wants and the existing downloads surface,
                             which already verifies every part against its published digest,
                             is what fetches it.
                         -->
-                        <template #backups>
-                            <div class="mb-world-host mb-interactive">
-                                <div class="mb-shell-centre">
-                                    <BackupScreen
-                                        :can-open-settings="true"
-                                        @sign-in="openSettings('github-account')"
-                                        @open="openInBrowser"
-                                        @restore="revealBackupRestore"
-                                        @backup-finished="awardKidSticker('safe-keeper')"
-                                    />
+                            <template #backups>
+                                <div class="mb-world-host mb-interactive">
+                                    <div class="mb-shell-centre">
+                                        <BackupScreen
+                                            :can-open-settings="true"
+                                            @sign-in="openSettings('github-account')"
+                                            @open="openInBrowser"
+                                            @restore="revealBackupRestore"
+                                            @backup-finished="awardKidSticker('safe-keeper')"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
+                            </template>
 
-                        <template #pages>
-                            <div class="mb-world-host mb-interactive">
-                                <div class="mb-shell-centre">
-                                    <PagesScreen @open="onPagesOpened" />
+                            <template #pages>
+                                <div class="mb-world-host mb-interactive">
+                                    <div class="mb-shell-centre">
+                                        <PagesScreen @open="onPagesOpened" />
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
+                            </template>
 
-                        <!--
+                            <!--
                             A world going the other direction, incrementally: synced into a
                             git repository rather than re-zipped whole, and recognised again
                             on a second computer that never touched it. `adopted` lands on the
                             same Projects page a finished guide run does, open at the world
                             just written - the natural next step once a project exists there.
                         -->
-                        <template #worldrepo>
-                            <div class="mb-world-host mb-interactive">
-                                <div class="mb-shell-centre">
-                                    <WorldRepoScreen
-                                        @open="openInBrowser"
-                                        @open-settings="(anchor) => openSettings(anchor)"
-                                        @adopted="openProject"
-                                    />
+                            <template #worldrepo>
+                                <div class="mb-world-host mb-interactive">
+                                    <div class="mb-shell-centre">
+                                        <WorldRepoScreen
+                                            @open="openInBrowser"
+                                            @open-settings="(anchor) => openSettings(anchor)"
+                                            @adopted="openProject"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
+                            </template>
 
-                        <!--
+                            <!--
                             The local twin of the Pages tab above. `PreviewScreen.vue` drives
                             its own bridge and IPC channel directly - there is no URL for the
                             shell to open externally here, because opening a loopback address
@@ -2448,51 +2529,51 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             nothing (see `main/preview/ipc.ts`'s own `openExternal` doc
                             comment), so this screen calls the main process itself instead.
                         -->
-                        <template #preview>
-                            <div class="mb-world-host mb-interactive">
-                                <div class="mb-shell-centre">
-                                    <PreviewScreen />
+                            <template #preview>
+                                <div class="mb-world-host mb-interactive">
+                                    <div class="mb-shell-centre">
+                                        <PreviewScreen />
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
+                            </template>
 
-                        <!--
+                            <!--
                             Every article under docs/, bundled at build time and rendered
                             through the app's one shared Markdown renderer. Its own scroll
                             container for the same reason every other tall page here has one.
                         -->
-                        <template #docs>
-                            <div class="mb-world-host mb-interactive">
-                                <DocsPage />
-                            </div>
-                        </template>
+                            <template #docs>
+                                <div class="mb-world-host mb-interactive">
+                                    <DocsPage />
+                                </div>
+                            </template>
 
-                        <template #screenshots>
-                            <div class="mb-world-host mb-interactive">
-                                <ScreenshotGalleryScreen />
-                            </div>
-                        </template>
+                            <template #screenshots>
+                                <div class="mb-world-host mb-interactive">
+                                    <ScreenshotGalleryScreen />
+                                </div>
+                            </template>
 
-                        <!--
+                            <!--
                             The local Ollama suite manager: runtime health, the Model Store,
                             the pull cart and streaming chat, all talking to the documented
                             local daemon only. See OllamaScreen.vue's own doc comment.
                         -->
-                        <template #ollama>
-                            <div class="mb-world-host mb-interactive">
-                                <OllamaScreen />
-                            </div>
-                        </template>
+                            <template #ollama>
+                                <div class="mb-world-host mb-interactive">
+                                    <OllamaScreen />
+                                </div>
+                            </template>
 
-                        <template #remoteHosting>
-                            <RemoteHostingScreen />
-                        </template>
+                            <template #remoteHosting>
+                                <RemoteHostingScreen />
+                            </template>
 
-                        <template #dockerHosting>
-                            <DockerHostingScreen />
-                        </template>
+                            <template #dockerHosting>
+                                <DockerHostingScreen />
+                            </template>
 
-                        <!--
+                            <!--
                             The memory console, which this build does not implement. The job
                             is capability-gated, so `WorkPane` filters the tab out today and
                             nothing opens this; the slot exists because a registered job with
@@ -2500,20 +2581,20 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             page" fallback the instant its capability resolves, which reads
                             as a broken page rather than as an honest absence.
                         -->
-                        <template #memory>
-                            <div class="mb-world-host mb-interactive">
-                                <div class="mb-shell-centre">
-                                    <p class="mb-memory-absent">
-                                        {{
-                                            t(
-                                                "tabs.page.memory.absent",
-                                                "This build has no memory console. The page is registered so a build that does have one can open it; nothing here is measuring anything.",
-                                            )
-                                        }}
-                                    </p>
+                            <template #memory>
+                                <div class="mb-world-host mb-interactive">
+                                    <div class="mb-shell-centre">
+                                        <p class="mb-memory-absent">
+                                            {{
+                                                t(
+                                                    "tabs.page.memory.absent",
+                                                    "This build has no memory console. The page is registered so a build that does have one can open it; nothing here is measuring anything.",
+                                                )
+                                            }}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
+                            </template>
                         </WorkPane>
                     </div>
 
@@ -2573,7 +2654,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             <v-dialog :model-value="configClosePromptOpen" persistent max-width="500">
                 <v-card>
                     <v-card-title>
-                        {{ t("config.shell.closeUnsavedTitle", "Discard unsaved configuration changes?") }}
+                        {{
+                            t(
+                                "config.shell.closeUnsavedTitle",
+                                "Discard unsaved configuration changes?",
+                            )
+                        }}
                     </v-card-title>
                     <v-card-text>
                         {{
@@ -2713,7 +2799,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             `revealPage` as its steps advance.
         -->
         <TutorialOverlay :reveal-page="revealPage" />
-
     </v-app>
 </template>
 

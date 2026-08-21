@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { VAlert, VBtn, VCheckbox, VChip, VList, VListItem } from "vuetify/components";
+import { VAlert, VBtn, VCheckbox, VChip, VDialog, VList, VListItem } from "vuetify/components";
 
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { lockSearchText, type LockRecord } from "./lockModel.js";
+import LockWizard from "./LockWizard.vue";
 import { useLockStore } from "./useLocks.js";
 
 /**
@@ -43,6 +44,21 @@ const regex = ref(false);
 const flags = ref("i");
 const selected = ref(new Set<string>());
 const confirming = ref(false);
+
+/**
+ * The lock whose credential is being replaced, or null.
+ *
+ * The list is the management surface for locks made anywhere, including on an element that
+ * is not currently on screen - so changing a credential has to be reachable here and not
+ * only from the element's own context menu, which needs the element to be visible to open
+ * at all.
+ */
+const changing = ref<LockRecord | null>(null);
+
+async function onChanged(): Promise<void> {
+    changing.value = null;
+    await store.load();
+}
 
 const matcher = computed(() => createSettingMatcher(query.value, regex.value, flags.value));
 
@@ -191,7 +207,12 @@ function isOpen(lock: LockRecord): boolean {
 
             <template v-else>
                 <div class="d-flex ga-2 flex-wrap align-center mt-3">
-                    <VBtn size="small" variant="text" data-test="lock-select-all" @click="selectAllListed">
+                    <VBtn
+                        size="small"
+                        variant="text"
+                        data-test="lock-select-all"
+                        @click="selectAllListed"
+                    >
                         {{
                             t(
                                 "locks.list.selectListed",
@@ -200,7 +221,12 @@ function isOpen(lock: LockRecord): boolean {
                             )
                         }}
                     </VBtn>
-                    <VBtn size="small" variant="text" data-test="lock-select-invert" @click="invertSelection">
+                    <VBtn
+                        size="small"
+                        variant="text"
+                        data-test="lock-select-invert"
+                        @click="invertSelection"
+                    >
                         {{ t("locks.list.invert", "Invert within those shown") }}
                     </VBtn>
                     <VBtn
@@ -252,7 +278,12 @@ function isOpen(lock: LockRecord): boolean {
                         )
                     }}
                     <div class="d-flex ga-2 mt-2">
-                        <VBtn size="small" color="error" data-test="lock-remove-go" @click="removeSelected">
+                        <VBtn
+                            size="small"
+                            color="error"
+                            data-test="lock-remove-go"
+                            @click="removeSelected"
+                        >
                             {{ t("locks.list.confirmYes", "Remove them") }}
                         </VBtn>
                         <VBtn size="small" variant="text" @click="confirming = false">
@@ -285,8 +316,12 @@ function isOpen(lock: LockRecord): boolean {
                         </VListItem-subtitle>
                         <template #append>
                             <div class="d-flex ga-2 align-center flex-wrap">
-                                <VChip size="x-small" variant="outlined">{{ methodLabel(lock) }}</VChip>
-                                <VChip size="x-small" variant="outlined">{{ durationLabel(lock) }}</VChip>
+                                <VChip size="x-small" variant="outlined">{{
+                                    methodLabel(lock)
+                                }}</VChip>
+                                <VChip size="x-small" variant="outlined">{{
+                                    durationLabel(lock)
+                                }}</VChip>
                                 <VChip
                                     size="x-small"
                                     :color="isOpen(lock) ? 'success' : undefined"
@@ -311,6 +346,14 @@ function isOpen(lock: LockRecord): boolean {
                                 <VBtn
                                     size="small"
                                     variant="text"
+                                    data-test="lock-row-change"
+                                    @click="changing = lock"
+                                >
+                                    {{ t("locks.list.change", "Change") }}
+                                </VBtn>
+                                <VBtn
+                                    size="small"
+                                    variant="text"
                                     data-test="lock-row-remove"
                                     @click="store.remove(lock.id)"
                                 >
@@ -330,6 +373,25 @@ function isOpen(lock: LockRecord): boolean {
                 </p>
             </template>
         </template>
+
+        <!--
+            The change wizard, in a dialog rather than anchored, because this surface is a
+            list of locks on elements that are mostly somewhere else entirely - there is no
+            element on this screen for it to sit beside.
+        -->
+        <VDialog
+            :model-value="changing !== null"
+            max-width="520"
+            @update:model-value="(open: boolean) => !open && (changing = null)"
+        >
+            <LockWizard
+                v-if="changing !== null"
+                :target="changing.target"
+                :changing="changing.id"
+                @created="onChanged"
+                @cancel="changing = null"
+            />
+        </VDialog>
     </section>
 </template>
 

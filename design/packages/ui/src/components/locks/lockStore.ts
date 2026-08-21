@@ -85,6 +85,16 @@ export interface LockStore {
     /** True when this element is locked AND not currently unlocked. */
     isLocked(surface: string, path: string): boolean;
     add(target: LockTarget, creation: LockCreation, duration?: LockDuration): Promise<AddResult>;
+    /**
+     * Replaces an existing lock's credential, keeping the element it guards.
+     *
+     * Separate from remove-then-add because those two are not the same operation from the
+     * owner's side: an element that is briefly unlocked between the two is an element
+     * anything can touch in the gap, and a failure halfway through leaves it unlocked
+     * forever with nothing saying so. This swaps the credential in one step and leaves the
+     * lock closed either way.
+     */
+    changeAuth(lockId: string, creation: LockCreation, duration?: LockDuration): Promise<AddResult>;
     remove(lockId: string): Promise<void>;
     /** Ends an open session without touching the lock. The explicit "Lock again". */
     relock(lockId: string): void;
@@ -217,6 +227,61 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
             return { ok: true, record: made.record };
         },
 
+        async changeAuth(lockId, creation, duration): Promise<AddResult> {
+            const existing = locks.value.find((lock) => lock.id === lockId);
+            if (existing === undefined) {
+                return { ok: false, message: "That lock is no longer in the list." };
+            }
+            if (creation.method === "totp" && host?.vault == null) {
+                return {
+                    ok: false,
+                    message:
+                        "This build has nowhere safe to keep an authenticator secret, so this lock can only use a password.",
+                };
+            }
+
+            const made = await createLock(existing.target, creation, {
+                ...(duration === undefined ? { duration: existing.duration } : { duration }),
+            });
+            if (!made.ok) return made;
+
+            // The new record keeps the original id, so nothing that referenced this lock -
+            // an open session, a failure count, a row the list is rendering - is looking at
+            // an id that has just stopped existing.
+            const record = { ...made.record, id: existing.id, createdAt: existing.createdAt };
+
+            if (creation.method === "totp") {
+                try {
+                    await host?.vault?.put(record.id, creation.secretBase32);
+                } catch (error) {
+                    return {
+                        ok: false,
+                        message: `The new secret could not be stored, so the lock still uses its old credential: ${
+                            error instanceof Error ? error.message : String(error)
+                        }`,
+                    };
+                }
+            }
+
+            await persist(locks.value.map((lock) => (lock.id === lockId ? record : lock)));
+
+            // A credential change closes the lock. Leaving a session open across it would
+            // mean the old password still had effect after being replaced, which is the
+            // opposite of what somebody changing it has just asked for.
+            sessions.value.delete(lockId);
+            sessions.value = new Map(sessions.value);
+            failureCounts.delete(lockId);
+
+            // Only once the record no longer refers to it. A stale secret left behind by a
+            // password change is inert, and clearing it before the save would have been the
+            // failure that leaves a TOTP lock listed with nothing to check against.
+            if (existing.method === "totp" && creation.method !== "totp" && host?.vault != null) {
+                await host.vault.remove(lockId).catch(() => undefined);
+            }
+
+            return { ok: true, record };
+        },
+
         async remove(lockId): Promise<void> {
             const record = locks.value.find((lock) => lock.id === lockId);
             await persist(locks.value.filter((lock) => lock.id !== lockId));
@@ -273,9 +338,7 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
             return failureCounts.get(lockId) ?? 0;
         },
 
-        open: computed(() =>
-            [...sessions.value.keys()].filter((id) => live(id)),
-        ),
+        open: computed(() => [...sessions.value.keys()].filter((id) => live(id))),
     };
 }
 

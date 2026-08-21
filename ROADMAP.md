@@ -1,5 +1,28 @@
 # Roadmap
 
+## Toy locks reach the shell, and a locked element is actually disabled (2026-08-21)
+
+- [x] Register the lock host in the Electron shell: `locks:load`/`locks:save` over a
+      bounded, atomically written `toy-locks.v1.json` under `userData`, and a `safeStorage`
+      vault for TOTP secrets that refuses outright rather than writing a secret in the clear.
+- [x] Expose `worldlens.locks` from the preload, including the folder the recovery route
+      names, so `resolveLockHost`'s probe finds a complete namespace.
+- [x] Call `provideLockStore` in `App.vue`. This was the whole defect: the store was built
+      correctly, the wizard and prompt worked, and nothing was ever connected - so every
+      `useLockStore()` fell through to the hostless default, `canList` was false, and every
+      element's context menu correctly hid "Lock this element..." because the build honestly
+      could not keep a lock.
+- [x] Make a closed lock actually disable its element - `inert` on the guarded content, with
+      the unlock badge deliberately outside that subtree and `aria-disabled` on the wrapper.
+- [x] Add `changeAuth`, so a credential can be replaced in one step from the element's own
+      menu and from the lock list, without the element being briefly unguarded in between.
+- [x] Guard the seam itself: an anchored source check that `provideLockStore` is called and
+      that the preload exposes every member the probe requires. Verified red by commenting
+      the call out, and green again on restore.
+- [ ] Capture the locked state, the change wizard and the lock list from the real built
+      artifact and post them on the issue. Not yet done: the captures must come from a
+      packaged build, not the source tree.
+
 ## Issue #89 — typed banner patterns
 
 - **Status:** Typed ordered layers and focused 5/5 acceptance remain recorded;

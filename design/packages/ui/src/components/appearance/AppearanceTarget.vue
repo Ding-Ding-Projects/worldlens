@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiLockOpenVariantOutline, mdiLockOutline, mdiPalette, mdiRestore } from "@mdi/js";
+import {
+    mdiLockOpenVariantOutline,
+    mdiLockOutline,
+    mdiLockReset,
+    mdiPalette,
+    mdiRestore,
+} from "@mdi/js";
 import { VList, VListItem, VMenu } from "vuetify/components";
 
 import AppearanceEditor from "./AppearanceEditor.vue";
@@ -132,7 +138,11 @@ function focusableIn(container: HTMLElement | null): HTMLElement[] {
  * `ArrowDown`, the last for `ArrowUp` - mirroring `onActivatorKeydown` above.
  */
 function focusIntoPopup(edge: "first" | "last"): void {
-    const container = menuOpen.value ? menuContent.value : editorOpen.value ? editorContent.value : null;
+    const container = menuOpen.value
+        ? menuContent.value
+        : editorOpen.value
+          ? editorContent.value
+          : null;
     const items = focusableIn(container);
     if (items.length === 0) return;
     // The emptiness check above already proves both ends exist, but strict index checking
@@ -249,8 +259,26 @@ const locked = computed(() => locks.isLocked(LOCK_SURFACE, props.id));
 const wizardOpen = ref(false);
 const unlockOpen = ref(false);
 
+/**
+ * The id of the lock whose credential the wizard is replacing, or null when it is making a
+ * new one. Kept beside `wizardOpen` rather than derived from `lock`, because "this element
+ * has a lock" and "the wizard is changing that lock" are different questions - the element
+ * has a lock the whole time the change wizard is open.
+ */
+const changingLockId = ref<string | null>(null);
+
 function openWizard(): void {
     closeMenu();
+    changingLockId.value = null;
+    wizardOpen.value = true;
+}
+
+/** Replaces this element's credential, keeping the lock and the element it guards. */
+function openChangeWizard(): void {
+    const current = lock.value;
+    if (current === undefined) return;
+    closeMenu();
+    changingLockId.value = current.id;
     wizardOpen.value = true;
 }
 
@@ -261,6 +289,7 @@ function openUnlock(): void {
 
 function closeLockPopups(): void {
     wizardOpen.value = false;
+    changingLockId.value = null;
     unlockOpen.value = false;
     returnFocus();
 }
@@ -310,6 +339,13 @@ const commands = computed<Command[]>(() => {
                           locks.relock(lock.value!.id);
                           closeMenu();
                       },
+            });
+            list.push({
+                key: "change-lock",
+                label: t("locks.menu.change", "Change this lock's password or authenticator..."),
+                shortcut: "",
+                icon: mdiLockReset,
+                run: openChangeWizard,
             });
             list.push({
                 key: "remove-lock",
@@ -457,7 +493,11 @@ function onKeydown(event: KeyboardEvent): void {
     // still on the wrapper itself rather than already inside the slot content, where a host's
     // own widget may have a legitimate use for its own arrow keys.
     const popupOpen = menuOpen.value || editorOpen.value;
-    if (popupOpen && (event.key === "ArrowDown" || event.key === "ArrowUp") && event.target === root.value) {
+    if (
+        popupOpen &&
+        (event.key === "ArrowDown" || event.key === "ArrowUp") &&
+        event.target === root.value
+    ) {
         event.preventDefault();
         event.stopPropagation();
         focusIntoPopup(event.key === "ArrowDown" ? "first" : "last");
@@ -474,6 +514,8 @@ function onKeydown(event: KeyboardEvent): void {
         tabindex="-1"
         :style="target.style.value.style"
         :aria-keyshortcuts="`Shift+F10 ${EDITOR_SHORTCUT}`"
+        :aria-disabled="locked ? 'true' : undefined"
+        :data-locked="locked ? 'true' : undefined"
         :aria-haspopup="haspopup"
         :aria-expanded="menuOpen || editorOpen ? 'true' : 'false'"
         :aria-controls="menuOpen ? menuId : editorOpen ? editorId : undefined"
@@ -481,7 +523,45 @@ function onKeydown(event: KeyboardEvent): void {
         @contextmenu="onContextMenu"
         @keydown="onKeydown"
     >
-        <slot />
+        <!--
+            The slot, made genuinely unusable while the lock is closed.
+
+            `inert` rather than a class, a scrim, or `pointer-events: none`, because those
+            three all leave the element *working* for anybody who reaches it another way: a
+            scrim is a sibling a keyboard user simply tabs past, and `pointer-events: none`
+            stops the mouse and nothing else, so Tab still lands on the button and Enter
+            still presses it. `inert` is the one mechanism that removes the subtree from hit
+            testing, from the tab order, and from the accessibility tree at once - which is
+            what "disabled until unlocked" has to mean if the lock is to be worth anything
+            even as a toy.
+
+            It is deliberately on an inner wrapper rather than on the root: the unlock
+            affordance below has to stay reachable, and an `inert` root would take the one
+            route out of the lock down with everything else.
+        -->
+        <span class="mb-appearance-target__content" :inert="locked || undefined">
+            <slot />
+        </span>
+
+        <!--
+            The way back in. Present only while the element is actually locked, so an
+            unlocked surface carries no extra chrome at all, and it is a real button rather
+            than a decorative badge because it is the only pointer route to the prompt once
+            the content beneath it has gone inert.
+        -->
+        <button
+            v-if="locked"
+            type="button"
+            class="mb-appearance-target__locked"
+            data-test="element-lock-badge"
+            :title="t('locks.badge.title', 'Locked. Choose to unlock it.')"
+            @click.stop="openUnlock"
+        >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path :d="mdiLockOutline" />
+            </svg>
+            <span>{{ t("locks.badge.label", "Locked") }}</span>
+        </button>
 
         <!--
             The context menu. Anchored at the pointer for a right-click and at the element for
@@ -516,7 +596,10 @@ function onKeydown(event: KeyboardEvent): void {
                 -->
                 <slot name="menu" :close="closeMenu" />
 
-                <v-list density="compact" :aria-label="t('appearance.menu.label', 'Appearance commands')">
+                <v-list
+                    density="compact"
+                    :aria-label="t('appearance.menu.label', 'Appearance commands')"
+                >
                     <v-list-item
                         v-for="command in visibleCommands"
                         :key="command.key"
@@ -578,6 +661,7 @@ function onKeydown(event: KeyboardEvent): void {
         >
             <LockWizard
                 :target="{ surface: LOCK_SURFACE, path: id, label }"
+                :changing="changingLockId ?? undefined"
                 @created="closeLockPopups"
                 @cancel="closeLockPopups"
             />
@@ -642,6 +726,48 @@ function onKeydown(event: KeyboardEvent): void {
     cursor: auto;
 }
 
+/*
+ * The content wrapper is `display: contents` for the same reason the root is: adding it must
+ * not change one pixel of any surface that was laid out before locks existed. `inert` is not
+ * a layout property, so it applies perfectly well through a contents box.
+ */
+.mb-appearance-target__content {
+    display: contents;
+}
+
+/*
+ * The badge sits in the flow rather than over the element on purpose. An absolutely
+ * positioned overlay would need a positioned ancestor, and this wrapper deliberately has no
+ * box at all in the common case - so it would attach itself to whatever unrelated ancestor
+ * happened to be positioned, and land somewhere else entirely.
+ */
+.mb-appearance-target__locked {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-inline-start: 6px;
+    padding: 1px 8px;
+    border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
+    border-radius: 999px;
+    background: rgba(var(--v-theme-surface-variant), 0.7);
+    color: rgb(var(--v-theme-on-surface));
+    font: inherit;
+    font-size: 0.7rem;
+    line-height: 1.6;
+    cursor: pointer;
+}
+
+.mb-appearance-target__locked svg {
+    inline-size: 14px;
+    block-size: 14px;
+    fill: currentColor;
+}
+
+.mb-appearance-target__locked:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
 .mb-appearance-target--box {
     display: inline-block;
     min-inline-size: 0;
@@ -661,7 +787,9 @@ function onKeydown(event: KeyboardEvent): void {
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
-    box-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 4px 8px 3px rgba(0, 0, 0, 0.15),
+        0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .mb-appearance-target__shortcut {

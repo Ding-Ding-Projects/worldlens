@@ -4,7 +4,12 @@ import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
 import type { SchoolModeResult } from "../main/schoolMode/index.js";
 import type { VocabularyResult, VocabularySnapshot } from "../main/vocabulary/index.js";
-import type { CreateInstanceRequest, DockerHostingSnapshot, ManagedInstance, ManagerAnswer } from "../main/dockerhosting/index.js";
+import type {
+    CreateInstanceRequest,
+    DockerHostingSnapshot,
+    ManagedInstance,
+    ManagerAnswer,
+} from "../main/dockerhosting/index.js";
 
 const SCHOOL_MODE_CHANGED_CHANNEL = "schoolMode:changed";
 import type {
@@ -103,7 +108,13 @@ import type {
 import type { RestoreResult } from "../main/history/index.js";
 import { RELEASE_LEDGER_CHANNEL, type ReleaseLedgerReadout } from "../main/releaseLedger/index.js";
 import type { StartupDiagnosticsSnapshot, StartupExportFormat } from "../main/startup/index.js";
-import type { GalleryAssetRead, GalleryDraft, GalleryRecord, GalleryRevision, GalleryUpdate } from "../main/gallery/store.js";
+import type {
+    GalleryAssetRead,
+    GalleryDraft,
+    GalleryRecord,
+    GalleryRevision,
+    GalleryUpdate,
+} from "../main/gallery/store.js";
 import {
     toBridgeCoordinates,
     toBridgeDiscoveryResult,
@@ -127,13 +138,18 @@ export interface FirstRunState {
 }
 
 export interface GalleryBridge {
-    list(): Promise<{ readonly records: readonly GalleryRecord[]; readonly history: readonly GalleryRevision[] }>;
+    list(): Promise<{
+        readonly records: readonly GalleryRecord[];
+        readonly history: readonly GalleryRevision[];
+    }>;
     readAsset(id: string): Promise<GalleryAssetRead>;
     add(draft: GalleryDraft): Promise<GalleryRecord>;
     importRecords(drafts: readonly GalleryDraft[]): Promise<readonly GalleryRecord[]>;
     update(id: string, changes: GalleryUpdate): Promise<GalleryRecord>;
     delete(ids: readonly string[]): Promise<number>;
-    export(format: "json" | "markdown"): Promise<{ readonly format: string; readonly filename: string; readonly content: string }>;
+    export(
+        format: "json" | "markdown",
+    ): Promise<{ readonly format: string; readonly filename: string; readonly content: string }>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2062,7 +2078,10 @@ export interface DockerWorldBridge {
 export interface DockerHostingBridge {
     create(request: CreateInstanceRequest): Promise<ManagerAnswer<ManagedInstance>>;
     inspect(): Promise<unknown>;
-    authorize(request: { readonly operation: "stop"; readonly containerId: string }): Promise<unknown>;
+    authorize(request: {
+        readonly operation: "stop";
+        readonly containerId: string;
+    }): Promise<unknown>;
     removeToken(containerId: string): Promise<unknown>;
     mutate(request: unknown): Promise<unknown>;
     logs(containerId: string, tail?: number): Promise<unknown>;
@@ -2338,6 +2357,25 @@ interface WorldlensBridge {
         disable(credential: string): Promise<SchoolModeResult>;
         reset(): Promise<SchoolModeResult>;
         onChanged(listener: (result: SchoolModeResult) => void): () => void;
+    };
+    /**
+     * Toy locks: the record list, and the vault the one genuinely secret field lives in.
+     *
+     * The renderer owns every decision - what a verifier is, whether a code matches, how long
+     * an unlock lasts. This bridge owns only the two places a browser tab has not got.
+     * Without it `useLocks`'s probe returns null, the store reports `canList: false`, and
+     * every element's context menu correctly hides a Lock command it could not honour.
+     */
+    locks: {
+        load(): Promise<readonly unknown[]>;
+        save(locks: readonly unknown[]): Promise<void>;
+        /** The folder a person deletes to reset every lock. Named by the recovery route. */
+        readonly dataFolder: string | null;
+        vault: {
+            put(lockId: string, secretBase32: string): Promise<boolean>;
+            get(lockId: string): Promise<string | null>;
+            remove(lockId: string): Promise<void>;
+        };
     };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
@@ -2962,7 +3000,10 @@ interface WorldlensBridge {
     dockerHostingInspect(): Promise<ManagerAnswer<DockerHostingSnapshot>>;
     dockerHostingMutate(request: unknown): Promise<ManagerAnswer<DockerHostingSnapshot>>;
     dockerHostingCancel(operationId: string): Promise<boolean>;
-    dockerHostingAuthorize(request: { readonly operation: "stop"; readonly containerId: string }): Promise<unknown>;
+    dockerHostingAuthorize(request: {
+        readonly operation: "stop";
+        readonly containerId: string;
+    }): Promise<unknown>;
     dockerHostingRemoveToken(instanceId: string): Promise<ManagerAnswer<string>>;
     onDockerHostingEvent(listener: (event: unknown) => void): () => void;
     /**
@@ -3108,11 +3149,15 @@ interface WorldlensBridge {
     onPagesEvent(listener: (event: PagesEvent) => void): () => void;
 
     /* ---- Exporting a rendered map as a portable static site --------------- */
-    exportStaticMap(request: StaticMapExportRequest): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
+    exportStaticMap(
+        request: StaticMapExportRequest,
+    ): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
     cancelStaticMapExport(exportId: string): Promise<boolean>;
     activeStaticMapExports(): Promise<readonly string[]>;
     issueStaticMapOverwriteToken(): Promise<string>;
-    resumeStaticMapExport(exportId: string): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
+    resumeStaticMapExport(
+        exportId: string,
+    ): Promise<StaticMapExportReport | { readonly ok: false; readonly message: string }>;
     staticMapExportLedger(): Promise<readonly string[]>;
     onStaticMapExportEvent(listener: (event: StaticMapExportEvent) => void): () => void;
 
@@ -3259,6 +3304,22 @@ interface AddonsBridge {
     diagnostics(): Promise<Array<{ addonId: string; phase: string; message: string }>>;
 }
 
+/**
+ * The lock data folder, or null on a shell too old to answer.
+ *
+ * `sendSync` throws when no handler is registered, so the whole probe is guarded: a renderer
+ * loaded beside an older main process gets a bridge that still works and simply cannot name
+ * the folder, which the surfaces already know how to say.
+ */
+function readLockDataFolder(): string | null {
+    try {
+        const folder: unknown = ipcRenderer.sendSync("locks:dataFolder");
+        return typeof folder === "string" && folder.length > 0 ? folder : null;
+    } catch {
+        return null;
+    }
+}
+
 const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
@@ -3272,9 +3333,23 @@ const bridge: WorldlensBridge = {
         disable: (credential) => ipcRenderer.invoke("schoolMode:disable", credential),
         reset: () => ipcRenderer.invoke("schoolMode:reset"),
         onChanged: (listener) => {
-            const handler = (_event: IpcRendererEvent, result: SchoolModeResult): void => listener(result);
+            const handler = (_event: IpcRendererEvent, result: SchoolModeResult): void =>
+                listener(result);
             ipcRenderer.on(SCHOOL_MODE_CHANGED_CHANNEL, handler);
             return () => ipcRenderer.off(SCHOOL_MODE_CHANGED_CHANNEL, handler);
+        },
+    },
+    locks: {
+        load: () => ipcRenderer.invoke("locks:load"),
+        save: (locks) => ipcRenderer.invoke("locks:save", locks),
+        // Read once, at bridge construction, from the synchronous channel that exists for
+        // exactly this: the object below is built in one pass and cannot await.
+        dataFolder: readLockDataFolder(),
+        vault: {
+            put: (lockId, secretBase32) =>
+                ipcRenderer.invoke("locks:vault:put", lockId, secretBase32),
+            get: (lockId) => ipcRenderer.invoke("locks:vault:get", lockId),
+            remove: (lockId) => ipcRenderer.invoke("locks:vault:remove", lockId),
         },
     },
     vocabulary: {
@@ -3539,7 +3614,8 @@ const bridge: WorldlensBridge = {
         authorize: (request) => ipcRenderer.invoke("dockerhosting:authorize", request),
         removeToken: (containerId) => ipcRenderer.invoke("dockerhosting:removeToken", containerId),
         mutate: (request) => ipcRenderer.invoke("dockerhosting:mutate", request),
-        logs: (containerId, tail = 200) => ipcRenderer.invoke("dockerhosting:logs", { id: containerId, tail }),
+        logs: (containerId, tail = 200) =>
+            ipcRenderer.invoke("dockerhosting:logs", { id: containerId, tail }),
         cancel: (operationId) => ipcRenderer.invoke("dockerhosting:cancel", operationId),
         onEvent: (listener) => {
             const forward = (_event: IpcRendererEvent, payload: unknown): void => listener(payload);
@@ -3578,7 +3654,8 @@ const bridge: WorldlensBridge = {
     dashboardSnapshot: (): Promise<DashboardSnapshot> => ipcRenderer.invoke("dashboard:snapshot"),
     dashboardRefresh: (options?: DashboardRefreshOptions): Promise<DashboardSnapshot> =>
         ipcRenderer.invoke("dashboard:refresh", options ?? {}),
-    dashboardCancel: (): Promise<{ readonly cancelled: boolean }> => ipcRenderer.invoke("dashboard:cancel"),
+    dashboardCancel: (): Promise<{ readonly cancelled: boolean }> =>
+        ipcRenderer.invoke("dashboard:cancel"),
     onRemoteHostingEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: RemoteHostEvent): void =>
             listener(payload);
@@ -3587,12 +3664,18 @@ const bridge: WorldlensBridge = {
             ipcRenderer.off("hosting:event", forward);
         };
     },
-    dockerHostingInspect: (): Promise<ManagerAnswer<DockerHostingSnapshot>> => ipcRenderer.invoke("dockerhosting:inspect"),
-    dockerHostingCreate: (request): Promise<ManagerAnswer<ManagedInstance>> => ipcRenderer.invoke("dockerhosting:create", request),
-    dockerHostingMutate: (request): Promise<ManagerAnswer<DockerHostingSnapshot>> => ipcRenderer.invoke("dockerhosting:mutate", request),
-    dockerHostingCancel: (operationId): Promise<boolean> => ipcRenderer.invoke("dockerhosting:cancel", operationId),
-    dockerHostingAuthorize: (request): Promise<unknown> => ipcRenderer.invoke("dockerhosting:authorize", request),
-    dockerHostingRemoveToken: (instanceId): Promise<ManagerAnswer<string>> => ipcRenderer.invoke("dockerhosting:removeToken", instanceId),
+    dockerHostingInspect: (): Promise<ManagerAnswer<DockerHostingSnapshot>> =>
+        ipcRenderer.invoke("dockerhosting:inspect"),
+    dockerHostingCreate: (request): Promise<ManagerAnswer<ManagedInstance>> =>
+        ipcRenderer.invoke("dockerhosting:create", request),
+    dockerHostingMutate: (request): Promise<ManagerAnswer<DockerHostingSnapshot>> =>
+        ipcRenderer.invoke("dockerhosting:mutate", request),
+    dockerHostingCancel: (operationId): Promise<boolean> =>
+        ipcRenderer.invoke("dockerhosting:cancel", operationId),
+    dockerHostingAuthorize: (request): Promise<unknown> =>
+        ipcRenderer.invoke("dockerhosting:authorize", request),
+    dockerHostingRemoveToken: (instanceId): Promise<ManagerAnswer<string>> =>
+        ipcRenderer.invoke("dockerhosting:removeToken", instanceId),
     onDockerHostingEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: unknown): void => listener(payload);
         ipcRenderer.on("dockerhosting:event", forward);
@@ -3615,8 +3698,7 @@ const bridge: WorldlensBridge = {
             ipcRenderer.off("cirender:event", forward);
         };
     },
-    createCiCloudConfig: (request) =>
-        ipcRenderer.invoke("cirender:createCloudConfig", request),
+    createCiCloudConfig: (request) => ipcRenderer.invoke("cirender:createCloudConfig", request),
     cancelCiCloudConfig: (operationId) =>
         ipcRenderer.invoke("cirender:cancelCloudConfig", operationId),
 
@@ -3671,9 +3753,12 @@ const bridge: WorldlensBridge = {
     resumeStaticMapExport: (exportId) => ipcRenderer.invoke("map-export:resume", exportId),
     staticMapExportLedger: () => ipcRenderer.invoke("map-export:ledger"),
     onStaticMapExportEvent: (listener) => {
-        const forward = (_event: IpcRendererEvent, payload: StaticMapExportEvent): void => listener(payload);
+        const forward = (_event: IpcRendererEvent, payload: StaticMapExportEvent): void =>
+            listener(payload);
         ipcRenderer.on("map-export:event", forward);
-        return () => { ipcRenderer.off("map-export:event", forward); };
+        return () => {
+            ipcRenderer.off("map-export:event", forward);
+        };
     },
 
     previewAvailability: (renderId) => ipcRenderer.invoke("preview:availability", renderId),
@@ -3906,7 +3991,8 @@ const bridge: WorldlensBridge = {
         issueReport: {
             availability: () => ipcRenderer.invoke("repair:reportAvailability"),
             draft: (id, selection) => ipcRenderer.invoke("repair:reportDraft", id, selection),
-            export: (content, format) => ipcRenderer.invoke("repair:reportExport", { content, format }),
+            export: (content, format) =>
+                ipcRenderer.invoke("repair:reportExport", { content, format }),
             submit: (title, markdown) =>
                 ipcRenderer.invoke("repair:reportSubmit", { title, markdown }),
         },

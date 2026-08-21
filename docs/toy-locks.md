@@ -16,12 +16,44 @@ appearance edited. The commands live on that element's own right-click menu, bes
 | State | Commands offered |
 |---|---|
 | Not locked | **Lock this element…** |
-| Locked | **Unlock this element…**, **Remove this lock** |
-| Unlocked, session still open | **Lock it again now**, **Remove this lock** |
+| Locked | **Unlock this element…**, **Change this lock's password or authenticator…**, **Remove this lock** |
+| Unlocked, session still open | **Lock it again now**, **Change this lock's password or authenticator…**, **Remove this lock** |
 | Build cannot keep locks | *(no lock command at all)* |
 
 The last row is deliberate. A menu item that opens a wizard which then says "this build
 cannot keep locks" costs two clicks to learn what an absent item says immediately.
+
+## A locked element is genuinely disabled
+
+Not dimmed, not merely labelled — the guarded content is made `inert` while the lock is
+closed, which removes it from hit testing, from the tab order and from the accessibility
+tree at once. A class, a scrim, or `pointer-events: none` would each leave the element
+*working* for anybody who reached it another way: a scrim is a sibling a keyboard user tabs
+straight past, and `pointer-events: none` stops the mouse and nothing else, so <kbd>Tab</kbd>
+still lands on the button and <kbd>Enter</kbd> still presses it.
+
+A small **Locked** badge sits beside the element and is deliberately *outside* the inert
+subtree — it is the way back in, and an inert root would take the only route out of the lock
+down with everything else. The element also carries `aria-disabled="true"`, so the state
+reaches assistive technology as well as the eye.
+
+This still does not make a toy lock a security boundary. It makes it a lock that actually
+stops the thing it is in front of, which is the least a lock can be worth.
+
+## Changing a lock's credential
+
+**Change this lock's password or authenticator…** replaces the credential while keeping the
+lock and the element it guards. It is reachable from the element's own menu and from the
+lock list, because the list manages locks on elements that are mostly somewhere else
+entirely and cannot be right-clicked without first being on screen.
+
+It is one step rather than remove-then-add on purpose. Those two are not equivalent from the
+owner's side: an element that is briefly unlocked between them is an element anything can
+touch in the gap, and a failure halfway through leaves it unlocked forever with nothing
+saying so. The swap keeps the lock's id — so an open session, a failure count and a row the
+list is rendering are not suddenly pointing at an id that has stopped existing — and it
+closes the lock either way, because leaving the old session open would mean the replaced
+password still had effect after being replaced.
 
 ## Every lock carries its own credential
 
@@ -136,3 +168,29 @@ Each guard was confirmed to fail when the thing it guards was broken on purpose,
 - [Appearance editors](appearance-editors.md) — the wrapper the locks share
 - [Super confirmation](super-confirmation.md) — the gate that genuinely destructive actions use
 - [Regex builder](regex-builder.md) — the search on the lock list
+
+
+## Where the locks are kept
+
+| | Where | Why there |
+|---|---|---|
+| Lock records | `toy-locks.v1.json` under this application's `userData` | Ordinary application data. A record carries a salted one-way verifier, which is what a password is checked *against*, never the password. |
+| TOTP secrets | Encrypted through the OS credential store, beside the records | A base32 secret is a live credential: anyone holding it can generate valid codes forever. |
+
+On a machine whose keychain cannot encrypt, the vault **refuses** rather than falling back to
+writing the secret in the clear — the one failure that would turn a for-fun lock into a real
+disclosure. The application then offers password locks and says plainly why an authenticator
+is not on offer, which the surfaces already know how to do.
+
+Records are written atomically. A half-written lock file read at the next launch is a list
+that has silently lost locks, and losing a lock is losing the only record that an element was
+ever locked at all. One malformed record is dropped on its own rather than costing you every
+other lock in the file.
+
+## In a build with no lock host
+
+A plain browser tab has neither of those places, so `useLocks`'s probe finds nothing, the
+store reports `canList: false`, and every element's context menu hides the lock commands. The
+store is deliberately a real object with no host rather than `null`: every caller then gets
+something whose list is honestly empty, instead of nine call sites null-checking and one of
+them getting it wrong.
