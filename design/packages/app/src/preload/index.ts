@@ -3222,6 +3222,18 @@ interface WorldlensBridge {
     startBackup(request: BackupRequest): Promise<BackupResult>;
     /** Stops one. What is packed and uploaded is kept. False when there was nothing to stop. */
     cancelBackup(backupId: string): Promise<boolean>;
+    pauseBackup(backupId: string): Promise<boolean>;
+    resumeBackup(backupId: string): Promise<boolean>;
+    pausedBackups(): Promise<
+        readonly {
+            readonly backupId: string;
+            readonly phase: string;
+            readonly tag: string;
+            readonly repository: string;
+            readonly kind: string | null;
+            readonly label: string;
+        }[]
+    >;
     activeBackups(): Promise<readonly string[]>;
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
@@ -3920,6 +3932,9 @@ const bridge: WorldlensBridge = {
     listBackups: (request) => ipcRenderer.invoke("backup:list", request),
     startBackup: (request) => ipcRenderer.invoke("backup:start", request),
     cancelBackup: (backupId) => ipcRenderer.invoke("backup:cancel", backupId),
+    pauseBackup: (backupId) => ipcRenderer.invoke("backup:pause", backupId),
+    resumeBackup: (backupId) => ipcRenderer.invoke("backup:resume", backupId),
+    pausedBackups: () => ipcRenderer.invoke("backup:pausedBackups"),
     activeBackups: () => ipcRenderer.invoke("backup:active"),
     onBackupEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: BackupEvent): void => listener(payload);

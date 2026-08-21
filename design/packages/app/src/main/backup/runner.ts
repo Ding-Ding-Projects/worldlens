@@ -37,9 +37,9 @@
  * pointer on a release that has no parts under it.
  */
 
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
-import { sha256File, splitFile } from "@worldlens/parts";
+import { splitFile } from "@worldlens/parts";
 import type { PartsManifest } from "@worldlens/parts";
 import { estimateEta, formatEta } from "../download/downloader.js";
 import { packFolder } from "./archive.js";
@@ -67,10 +67,16 @@ import type { GhCliAccountLease, GhCliAccountProvider } from "../ghcli/credentia
 import {
     backupIdFor,
     backupWorkspace,
+    listBackupIds,
     pruneStagedPayload,
+    stagedArchiveMarkerPath,
     stagedArchivePath,
     stagedPointerPath,
 } from "./workspace.js";
+import { createPauseGate } from "./pauseGate.js";
+import type { PauseGate, PauseGateState } from "./pauseGate.js";
+import { clearPauseState, readPauseState, writePauseState } from "./pauseState.js";
+import { clearArchiveDigestCache, digestStagedArchive } from "./archiveDigestCache.js";
 
 export type BackupPhase = "inspecting" | "packing" | "splitting" | "publishing" | "uploading" | "finished";
 
@@ -173,7 +179,20 @@ export type BackupEvent =
           readonly at: string;
       }
     | { readonly type: "failed"; readonly backupId: string; readonly failure: BackupFailure; readonly at: string }
-    | { readonly type: "cancelled"; readonly backupId: string; readonly at: string };
+    | { readonly type: "cancelled"; readonly backupId: string; readonly at: string }
+    /**
+     * Pause was asked for but the operation has not reached a clean boundary yet - it is
+     * still mid-file, mid-part or mid-asset and has to finish that much before it can
+     * actually sit still. The interface must show this as its own state ("Pausing...")
+     * rather than jumping straight to "Paused": claiming the operation has stopped moving
+     * bytes while it is still doing exactly that is the decorative-control defect this
+     * whole feature exists to avoid.
+     */
+    | { readonly type: "pausing"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string }
+    /** Actually parked at a boundary. Nothing is open; nothing is half-written. */
+    | { readonly type: "paused"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string }
+    /** Woken from a boundary and about to carry straight on - no redo, because nothing was undone. */
+    | { readonly type: "resuming"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string };
 
 export interface BackupRequest {
     readonly kind: BackupSourceKind;
@@ -202,6 +221,17 @@ export interface BackupRequest {
     readonly resumeTag?: string | undefined;
     /** Overridable so a test does not have to write half a gigabyte. */
     readonly partSize?: number | undefined;
+}
+
+/** One backup this process never started running, left paused by a since-closed window. */
+export interface PausedBackupInfo {
+    readonly backupId: string;
+    readonly phase: BackupPhase;
+    /** Empty when a pre-this-feature pause record has none - see `BackupPauseRecord`. */
+    readonly tag: string;
+    readonly repository: string;
+    readonly kind: BackupSourceKind | null;
+    readonly label: string;
 }
 
 export type BackupResult =
@@ -241,6 +271,17 @@ export interface RepositoryReport {
 export class BackupRunner {
     readonly #options: BackupRunnerOptions;
     readonly #running = new Map<string, AbortController>();
+    /**
+     * One pause gate per backup in flight, alongside its `AbortController`. Deliberately
+     * a second map rather than folding pause state into the controller: an
+     * `AbortController` only ever moves one way (not aborted -> aborted) and throwing is
+     * how it communicates that, which is exactly wrong for something that has to be
+     * asked to stop and then carry on with no error anywhere. See `pauseGate.ts`.
+     */
+    readonly #pauseGates = new Map<string, PauseGate>();
+    /** The last phase reported for each backup in flight, so a bare `pause()` call - which
+     * takes no phase of its own - can still say honestly which phase is pausing. */
+    readonly #lastKnownPhase = new Map<string, BackupPhase>();
 
     constructor(options: BackupRunnerOptions) {
         this.#options = options;
@@ -251,12 +292,97 @@ export class BackupRunner {
         return [...this.#running.keys()];
     }
 
+    /**
+     * Every backup on disk whose durable pause record says it was left paused - which,
+     * after a restart, is the only place that information still exists. `#running` and
+     * `#pauseGates` are both plain in-memory maps that a fresh process starts with
+     * nothing in, so an app that closes while a backup is paused has to read this off
+     * disk to tell the interface "Paused" rather than presenting nothing at all, as
+     * though the backup had simply vanished.
+     *
+     * This never claims the backup is *running* again - it is not, nothing in this
+     * process touched it - only that carrying on with it (a fresh `backup()` call with
+     * `resumeTag` set to its tag) is what "Resume" means for a row in this state. See
+     * `pauseState.ts` for exactly what durability does and does not mean here.
+     */
+    async pausedBackups(): Promise<readonly PausedBackupInfo[]> {
+        const ids = await listBackupIds(this.#options.storageDir());
+        const found: PausedBackupInfo[] = [];
+        for (const backupId of ids) {
+            // A backup this process is currently running (even if paused *in this
+            // process*) is reported through the live path above, not this one - it
+            // would otherwise appear twice, once as "running/paused" and once as
+            // "paused from disk", which is exactly the kind of state a person cannot
+            // make sense of.
+            if (this.#running.has(backupId)) continue;
+            const workspace = backupWorkspace(this.#options.storageDir(), backupId);
+            const record = await readPauseState(workspace);
+            if (record !== null && record.pausedAt !== null) {
+                found.push({
+                    backupId,
+                    phase: record.phase as BackupPhase,
+                    tag: record.tag ?? "",
+                    repository: record.owner !== undefined && record.repo !== undefined ? `${record.owner}/${record.repo}` : "",
+                    kind: (record.kind as BackupSourceKind | undefined) ?? null,
+                    label: record.label ?? "",
+                });
+            }
+        }
+        return found;
+    }
+
     /** Stops one. False when there was nothing by that id to stop. */
     cancel(backupId: string): boolean {
         const controller = this.#running.get(backupId);
         if (controller === undefined) return false;
         controller.abort();
         return true;
+    }
+
+    /**
+     * Asks a running backup to pause at its next clean boundary.
+     *
+     * False when there is nothing by that id running *in this process* right now - which
+     * includes a backup that is already paused, one this process never started (it was
+     * begun in a window that has since closed, or before the app was last restarted), and
+     * one that has already finished. None of those is an error: the caller (`ipc.ts`)
+     * reports it exactly as `cancel` already does, as "nothing to do" rather than a
+     * refusal.
+     */
+    pause(backupId: string): boolean {
+        const gate = this.#pauseGates.get(backupId);
+        if (gate === undefined) return false;
+        gate.requestPause();
+        this.emit({ type: "pausing", backupId, phase: this.#lastKnownPhase.get(backupId) ?? "packing", at: this.#timestamp() });
+        return true;
+    }
+
+    /**
+     * Wakes a backup this process is still holding open at a paused boundary.
+     *
+     * This is the **live** resume - the operation is still sitting in memory,
+     * mid-`backup()` call, and carries on with absolutely nothing redone: no rehash, no
+     * re-split, no re-upload, because nothing about its state was ever discarded in the
+     * first place. It is a completely different thing from restarting a stopped or
+     * closed-and-reopened backup with `resumeTag`, which is a fresh `backup()` call that
+     * has to re-derive what is safe to skip from what is on disk - see the doc comments
+     * on `#packOrReuse`, `splitFile`'s own resume, and the upload loop's existing-asset
+     * skip for what that path does and does not redo.
+     *
+     * False when there is nothing live to wake - the app was closed while paused, for
+     * instance, in which case the only way to carry on is a fresh `backup()` call with
+     * `resumeTag` set to the same tag, exactly as it already is for a stopped backup.
+     */
+    resume(backupId: string): boolean {
+        const gate = this.#pauseGates.get(backupId);
+        if (gate === undefined) return false;
+        gate.resume();
+        return true;
+    }
+
+    /** This process's own live view of where a backup's pause stands, or `null`. */
+    pauseGateState(backupId: string): PauseGateState | null {
+        return this.#pauseGates.get(backupId)?.state() ?? null;
     }
 
     /**
@@ -400,6 +526,17 @@ export class BackupRunner {
 
         const controller = new AbortController();
         this.#running.set(backupId, controller);
+        // A fresh gate per attempt, keyed the same as the controller. A `resumeTag`
+        // restart after the app was closed gets a brand-new gate too - there is nothing
+        // to "resume" about the gate itself, since nothing was ever waiting on the old
+        // one once the process that owned it exited.
+        this.#pauseGates.set(backupId, createPauseGate());
+        // Any durable pause record for this workspace describes an attempt that is, by
+        // definition, no longer the one running - either this is the very first call for
+        // this backupId (no record exists) or it is a resume of one that was left paused
+        // when the app closed (this call *is* the resume, so the record is now stale the
+        // instant it starts). Either way it must not linger to be misread later.
+        await clearPauseState(workspace);
         this.emit({
             type: "started",
             backupId,
@@ -453,6 +590,8 @@ export class BackupRunner {
             return this.#failed(backupId, failureFromError(error));
         } finally {
             this.#running.delete(backupId);
+            this.#pauseGates.delete(backupId);
+            this.#lastKnownPhase.delete(backupId);
         }
     }
 
@@ -499,7 +638,32 @@ export class BackupRunner {
                     since: splittingSince,
                 });
             },
+            // Between parts: the part just finished is closed and recorded; the next
+            // one has not been opened. See `splitFile`'s own doc comment on this hook,
+            // and its resume logic (`findResumablePrefix`) for why a pause landing here
+            // costs nothing on the next resume - the parts already cut are rehashed and
+            // kept, never re-cut.
+            onPartBoundary: () =>
+                this.#pauseBoundary(backupId, "splitting", workspace, signal, {
+                    tag: context.tag,
+                    owner: context.owner,
+                    repo: context.repo,
+                    kind: context.request.kind,
+                    label: source.label,
+                }),
         });
+        if (split.split && split.partsResumed > 0) {
+            this.emit({
+                type: "log",
+                backupId,
+                level: "info",
+                message:
+                    split.partsResumed === split.manifest.parts.length
+                        ? `Every part from an earlier attempt was still there and checked out; nothing was cut again.`
+                        : `${String(split.partsResumed)} part(s) from an earlier attempt were still there and checked out; only the rest were cut again.`,
+                at: this.#timestamp(),
+            });
+        }
 
         /**
          * What actually goes up, and under what names.
@@ -589,6 +753,15 @@ export class BackupRunner {
 
         for (const [index, upload] of uploads.entries()) {
             signal.throwIfAborted();
+            // Between assets: nothing is open, nothing is half-sent - a part either made
+            // it to the release already (checked immediately below) or has not started.
+            await this.#pauseBoundary(backupId, "uploading", workspace, signal, {
+                tag: context.tag,
+                owner: context.owner,
+                repo: context.repo,
+                kind: context.request.kind,
+                label: source.label,
+            });
             const already = existing.get(upload.name);
             /*
              * Skipped when the name and the size both match.
@@ -709,13 +882,36 @@ export class BackupRunner {
             backupId: string;
             source: BackupSource;
             signal: AbortSignal;
+            workspace: ReturnType<typeof backupWorkspace>;
+            archiveName: string;
+            tag: string;
+            owner: string;
+            repo: string;
+            request: BackupRequest;
             /** When the packing phase began, for its own estimate. */
             since: number;
         },
         archivePath: string,
     ): Promise<{ bytes: number; sha256: string }> {
+        const markerPath = stagedArchiveMarkerPath(context.workspace, context.archiveName);
+        const stillPacking = await readFile(markerPath, "utf8").then(
+            () => true,
+            () => false,
+        );
         const staged = await stat(archivePath).catch(() => null);
-        if (staged !== null && staged.isFile() && staged.size > 0) {
+
+        // A marker left over from an attempt that never finished packing means whatever
+        // bytes are sitting at archivePath right now, if any, stopped mid-write and are
+        // missing a zip's central directory. That is not "a slightly less certain
+        // archive"; it is not a valid archive at all, and reusing it would silently hand
+        // a corrupt file straight to the splitter. It is deleted, along with any digest
+        // cached for it (which would otherwise describe bytes that are about to change),
+        // and packing starts clean - see the module doc comment for why packing, unlike
+        // splitting, has no way to resume a partial file instead.
+        if (stillPacking) {
+            await rm(archivePath, { force: true }).catch(() => undefined);
+            await clearArchiveDigestCache(context.workspace, context.archiveName);
+        } else if (staged !== null && staged.isFile() && staged.size > 0) {
             this.emit({
                 type: "log",
                 backupId: context.backupId,
@@ -723,10 +919,27 @@ export class BackupRunner {
                 message: "An archive from an earlier attempt is here; checking it rather than packing again.",
                 at: this.#timestamp(),
             });
-            const digest = await sha256File(archivePath, context.signal);
+            // digestStagedArchive still hashes the file when its size/mtime proof does
+            // not hold - it is never a substitute for the check, only a way to skip
+            // paying for it again when nothing about the file has changed since the last
+            // time this exact process (or an earlier resume) already paid for it. See
+            // archiveDigestCache.ts for exactly what is and is not proven by the fast
+            // path. Reaching this branch at all already proves the marker is absent, so
+            // whatever is on disk finished packing successfully last time.
+            const digest = await digestStagedArchive(
+                context.workspace,
+                context.archiveName,
+                archivePath,
+                staged.size,
+                context.signal,
+            );
             return { bytes: staged.size, sha256: digest };
         }
 
+        // About to (re)pack from byte zero: the marker goes down first, so a pause, a
+        // crash or the app closing anywhere in the middle of this leaves unambiguous
+        // evidence that the archive is not to be trusted next time.
+        await writeFile(markerPath, JSON.stringify({ version: 1, archiveName: context.archiveName }), "utf8");
         const packed = await packFolder(context.source.folder, archivePath, {
             signal: context.signal,
             onProgress: (progress) => {
@@ -743,7 +956,25 @@ export class BackupRunner {
                     since: context.since,
                 });
             },
+            // Between files: nothing is open, and the archive on disk ends exactly at a
+            // file boundary - which is precisely why the marker above, not the archive's
+            // mere presence, is what decides whether a later attempt may trust it.
+            // Packing itself still has no per-file resume the way splitting now does
+            // (see the module doc comment): a pause landing here and later resumed after
+            // the app was fully closed re-packs the whole source from scratch. A pause
+            // and resume within the same running app, though, costs nothing at all - the
+            // loop is simply still sitting here, packFolder's call stack intact, waiting
+            // on onFileBoundary to resolve.
+            onFileBoundary: () =>
+                this.#pauseBoundary(context.backupId, "packing", context.workspace, context.signal, {
+                    tag: context.tag,
+                    owner: context.owner,
+                    repo: context.repo,
+                    kind: context.request.kind,
+                    label: context.source.label,
+                }),
         });
+        await rm(markerPath, { force: true }).catch(() => undefined);
         return { bytes: packed.bytes, sha256: packed.sha256 };
     }
 
@@ -839,8 +1070,64 @@ export class BackupRunner {
      * believe. A phase that times itself gives an estimate that converges.
      */
     #phase(backupId: string, phase: BackupPhase): number {
+        this.#lastKnownPhase.set(backupId, phase);
         this.emit({ type: "phase", backupId, phase, at: this.#timestamp() });
         return this.#clock();
+    }
+
+    /**
+     * The one place every pause boundary in this file calls through. `archive.ts`'s
+     * `onFileBoundary` and `splitFile`'s `onPartBoundary` both end up here via a small
+     * closure in `#run`; the upload loop calls it directly, since it already iterates
+     * asset by asset with nothing open between iterations.
+     *
+     * Resolves immediately, with no side effect at all, when nothing was requested -
+     * this is called at *every* boundary regardless of pause state, so the ordinary,
+     * never-paused path must cost nothing beyond one map lookup and one boolean check.
+     */
+    async #pauseBoundary(
+        backupId: string,
+        phase: BackupPhase,
+        workspace: ReturnType<typeof backupWorkspace>,
+        signal: AbortSignal,
+        /**
+         * Enough of this backup's own identity for `pausedBackups()` to offer "carry on"
+         * after a restart, when the `backupId` alone (a one-way hash - see
+         * `backupIdFor`) cannot be inverted back into a tag and a repository.
+         */
+        identity: { readonly tag: string; readonly owner: string; readonly repo: string; readonly kind: string; readonly label: string },
+    ): Promise<void> {
+        const gate = this.#pauseGates.get(backupId);
+        if (gate === undefined || gate.state() === "running") return;
+
+        // Persisted *before* actually parking, so a crash in the gap between "decided to
+        // pause" and "resumed or aborted" still leaves a durable record behind - the
+        // worst that record can cause is the interface offering Resume on a backup whose
+        // process already exited, which is exactly the case a `resumeTag` restart already
+        // handles safely. There is a narrow window where `resume()` lands on the same
+        // tick as this write and the gate un-pauses before `waitAtBoundary` ever parks;
+        // the `finally` below clears the record regardless of which way that race went,
+        // so the durable state always ends up correct once this call returns.
+        const at = this.#timestamp();
+        await writePauseState(workspace, {
+            version: 1,
+            backupId,
+            phase,
+            tag: identity.tag,
+            owner: identity.owner,
+            repo: identity.repo,
+            kind: identity.kind,
+            label: identity.label,
+            requestedAt: at,
+            pausedAt: at,
+        });
+        this.emit({ type: "paused", backupId, phase, at });
+        try {
+            await gate.waitAtBoundary(signal);
+        } finally {
+            await clearPauseState(workspace);
+        }
+        this.emit({ type: "resuming", backupId, phase, at: this.#timestamp() });
     }
 
     #progress(

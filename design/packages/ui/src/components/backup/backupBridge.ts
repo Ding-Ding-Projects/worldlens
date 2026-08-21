@@ -195,7 +195,13 @@ export type BackupEvent =
           readonly at: string;
       }
     | { readonly type: "failed"; readonly backupId: string; readonly failure: BackupFailure; readonly at: string }
-    | { readonly type: "cancelled"; readonly backupId: string; readonly at: string };
+    | { readonly type: "cancelled"; readonly backupId: string; readonly at: string }
+    /** Asked to pause, has not yet reached a clean boundary - still moving bytes. */
+    | { readonly type: "pausing"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string }
+    /** Actually parked at a boundary. Nothing is open; nothing is half-written. */
+    | { readonly type: "paused"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string }
+    /** Woken and carrying straight on, with nothing redone. */
+    | { readonly type: "resuming"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string };
 
 export type BackupResult =
     | {
@@ -267,10 +273,28 @@ export interface BackupBridge {
     }): Promise<Answer<readonly BackupListing[]>>;
     startBackup(request: BackupRequest): Promise<BackupResult>;
     cancelBackup(backupId: string): Promise<boolean>;
+    /**
+     * Asks a backup this build is currently running to pause at its next boundary.
+     * Optional for the same reason `cancelBackup` already is: a build that cannot pause
+     * must say so plainly (`canPause`) rather than offering a button that does nothing.
+     */
+    pauseBackup?(backupId: string): Promise<boolean>;
+    /**
+     * Wakes a backup that is paused **and still running in this process** - zero redo,
+     * because nothing about its state was ever discarded. A backup paused in a window
+     * that has since closed has no live gate to wake; carrying it on is `startBackup`
+     * with `resumeTag` set, exactly like a stopped backup, and the interface offers
+     * that instead (see `canResume` in `backups.ts`).
+     */
+    resumeBackup?(backupId: string): Promise<boolean>;
+    /** Backups this build never started running, left paused when the app last closed. */
+    pausedBackups?(): Promise<readonly PausedBackupInfo[]>;
     activeBackups(): Promise<readonly string[]>;
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
     /** True when a backup in flight can actually be stopped from here. */
     readonly canCancel: boolean;
+    /** True when a backup in flight can actually be paused/live-resumed from here. */
+    readonly canPause: boolean;
     /** True when the account's repositories can be listed, rather than only typed. */
     readonly canListRepositories: boolean;
     /** True when a repository's existing backups can be listed. */
@@ -304,6 +328,9 @@ type Host = Partial<{
     }) => Promise<Answer<readonly BackupListing[]>>;
     startBackup: (request: BackupRequest) => Promise<BackupResult>;
     cancelBackup: (backupId: string) => Promise<boolean>;
+    pauseBackup: (backupId: string) => Promise<boolean>;
+    resumeBackup: (backupId: string) => Promise<boolean>;
+    pausedBackups: () => Promise<readonly PausedBackupInfo[]>;
     activeBackups: () => Promise<readonly string[]>;
     onBackupEvent: (listener: (event: BackupEvent) => void) => () => void;
 }>;
@@ -378,7 +405,16 @@ export function resolveBackupBridge(): BackupBridge | null {
         // answers that way: not being able to ask what is in flight and nothing being in
         // flight lead to the same screen. What must never happen is a build inventing one.
         activeBackups: () => (isFunction(host.activeBackups) ? host.activeBackups() : Promise.resolve([])),
+        // Same false-not-rejection shape as `cancelBackup` just above, and for the same
+        // reason: "this build cannot pause a backup" and "there was nothing to pause"
+        // both leave the backup exactly where it was, and `canPause` is what tells the
+        // interface which of the two it is rather than a thrown error.
+        ...(isFunction(host.pauseBackup) ? { pauseBackup: (backupId: string) => host.pauseBackup!(backupId) } : {}),
+        ...(isFunction(host.resumeBackup) ? { resumeBackup: (backupId: string) => host.resumeBackup!(backupId) } : {}),
+        pausedBackups: () =>
+            isFunction(host.pausedBackups) ? host.pausedBackups() : Promise.resolve([]),
         canCancel,
+        canPause: isFunction(host.pauseBackup) && isFunction(host.resumeBackup),
         canListRepositories,
         canListBackups,
         canSeeActive,

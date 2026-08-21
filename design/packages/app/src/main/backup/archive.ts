@@ -89,6 +89,18 @@ export interface ArchiveProgress {
 export interface ArchiveOptions {
     readonly onProgress?: ((progress: ArchiveProgress) => void) | undefined;
     readonly signal?: AbortSignal | undefined;
+    /**
+     * Called between files - the one moment in this whole pass where nothing is open.
+     * A local header has been written and closed with its data descriptor, the next
+     * file's read stream has not been opened, and the running SHA-256/CRC state is
+     * exactly what it needs to be for whichever file comes next. A caller that wants to
+     * pause "between files while packing" awaits this and does not resolve it until it
+     * is safe to continue; `packFolder` has no opinion about what makes it safe and
+     * just awaits whatever comes back. Never called before the first file (there is
+     * nothing to have paused *between* yet) or after the last (nothing follows it but a
+     * quick central-directory write).
+     */
+    readonly onFileBoundary?: (() => Promise<void> | void) | undefined;
 }
 
 export interface ArchiveResult {
@@ -260,6 +272,10 @@ export async function packFolder(
     try {
         for (const [index, entry] of contents.entries.entries()) {
             options.signal?.throwIfAborted();
+            // Between files, not before the first one: index 0 has nothing preceding it
+            // to have paused after, and awaiting an unresolved hook there would delay the
+            // very first byte of a fresh pack for no reason a person asked for.
+            if (index > 0) await options.onFileBoundary?.();
             const nameBytes = Buffer.from(nameEncoder.encode(entry.name));
             const offset = written;
             await write(localHeader(nameBytes));

@@ -504,6 +504,15 @@ function stop(backupId: string): void {
     void backups.stop(backupId);
 }
 
+function pause(backupId: string): void {
+    void backups.pause(backupId);
+}
+
+/** Wakes a **live** paused backup in place - see `canLiveResume` in `backups.ts`. */
+function liveResume(backupId: string): void {
+    void backups.liveResume(backupId);
+}
+
 /* -- what the repository already holds -------------------------------------- */
 
 /*
@@ -1180,9 +1189,12 @@ defineExpose({
                 :key="row.backupId"
                 :row="row"
                 :can-cancel="backups.canCancel"
+                :can-pause="backups.canPause"
                 :can-open-settings="canOpenSettings === true"
                 @stop="stop"
                 @resume="resume"
+                @pause="pause"
+                @live-resume="liveResume"
                 @sign-in="emit('signIn')"
                 @open="(url: string) => emit('open', url)"
             />

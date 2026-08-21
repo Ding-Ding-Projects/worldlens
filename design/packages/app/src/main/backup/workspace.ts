@@ -40,6 +40,12 @@ export interface BackupWorkspace {
     readonly partsDir: string;
     /** `<root>/backup.json` - the sidecar. */
     readonly sidecarFile: string;
+    /**
+     * `<root>/pause.json` - the durable record of a pause, so it survives the
+     * application being closed and reopened. See `pauseState.ts` for what it holds and
+     * why closing the app does not, by itself, make a paused backup resume in place.
+     */
+    readonly pauseStateFile: string;
 }
 
 export function backupWorkspace(storageDir: string, backupId: string): BackupWorkspace {
@@ -49,12 +55,40 @@ export function backupWorkspace(storageDir: string, backupId: string): BackupWor
         root,
         partsDir: join(root, "parts"),
         sidecarFile: join(root, "backup.json"),
+        pauseStateFile: join(root, "pause.json"),
     };
 }
 
 /** The staged archive's path inside a workspace. */
 export function stagedArchivePath(workspace: BackupWorkspace, archiveName: string): string {
     return join(workspace.root, archiveName);
+}
+
+/**
+ * Where the staged archive's own already-proven digest is cached, so a resumed backup
+ * does not have to re-hash a gigabytes-large file it already hashed on this very
+ * machine. See `#packOrReuse` in `runner.ts` for exactly what has to be true before this
+ * cache is trusted instead of re-hashing - size and mtime alone are a cheap fast path,
+ * never a substitute for the hash when either of them do not match.
+ */
+export function stagedArchiveDigestPath(workspace: BackupWorkspace, archiveName: string): string {
+    return join(workspace.root, `${archiveName}.sha256.json`);
+}
+
+/**
+ * Where the "packing is still under way" marker lives.
+ *
+ * A zip's central directory - the part that says the archive is structurally complete -
+ * is written only once, at the very end of `packFolder`. A file interrupted mid-pack (by
+ * a pause, a crash, or the application closing) is missing it, and is not a valid archive
+ * at all - reusing it as though it were finished would silently hand a corrupt zip
+ * straight through to the split step. This marker is what tells `#packOrReuse` the
+ * difference: written before packing starts, removed only once `packFolder` returns
+ * successfully. Its presence means "whatever is at the archive path right now, if
+ * anything, cannot be trusted" - never "trust it a little less".
+ */
+export function stagedArchiveMarkerPath(workspace: BackupWorkspace, archiveName: string): string {
+    return join(workspace.root, `${archiveName}.packing.json`);
 }
 
 /** The staged pointer's path inside a workspace. */
@@ -166,4 +200,9 @@ export async function pruneStagedPayload(
 ): Promise<void> {
     await rm(workspace.partsDir, { recursive: true, force: true });
     await rm(stagedArchivePath(workspace, archiveName), { force: true });
+    // The digest cache describes bytes that no longer exist once the archive is gone;
+    // leaving it behind would let a later, unrelated file at the same path be trusted
+    // on the strength of a size/mtime coincidence rather than a real rehash.
+    await rm(stagedArchiveDigestPath(workspace, archiveName), { force: true });
+    await rm(stagedArchiveMarkerPath(workspace, archiveName), { force: true });
 }

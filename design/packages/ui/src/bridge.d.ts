@@ -889,6 +889,20 @@ interface WorldlensBridge {
     }): Promise<BackupAnswer<readonly BackupListing[]>>;
     startBackup(request: BackupRequest): Promise<BackupResult>;
     cancelBackup(backupId: string): Promise<boolean>;
+    /** Live-resumable in this process only - see `backupBridge.ts`'s `resumeBackup`. */
+    pauseBackup(backupId: string): Promise<boolean>;
+    resumeBackup(backupId: string): Promise<boolean>;
+    /** Backups this process never started running, paused when the app was last closed. */
+    pausedBackups(): Promise<
+        readonly {
+            readonly backupId: string;
+            readonly phase: string;
+            readonly tag: string;
+            readonly repository: string;
+            readonly kind: string | null;
+            readonly label: string;
+        }[]
+    >;
     activeBackups(): Promise<readonly string[]>;
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }

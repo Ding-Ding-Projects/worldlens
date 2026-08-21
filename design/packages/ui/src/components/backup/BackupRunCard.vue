@@ -9,6 +9,7 @@ import {
     mdiChevronUp,
     mdiCloudUploadOutline,
     mdiOpenInNew,
+    mdiPauseCircleOutline,
     mdiPlayCircleOutline,
     mdiStopCircleOutline,
 } from "@mdi/js";
@@ -24,7 +25,7 @@ import {
     VProgressLinear,
     VTooltip,
 } from "vuetify/components";
-import { canResume, etaText, formatBytes, partsText, phaseLabel, transferText } from "./backups.js";
+import { canLiveResume, canRestartPaused, canResume, etaText, formatBytes, partsText, phaseLabel, transferText } from "./backups.js";
 import type { BackupRow } from "./backups.js";
 import { useStickyScroll } from "../scroll/stickyScroll.js";
 
@@ -47,6 +48,8 @@ const props = defineProps<{
     row: BackupRow;
     /** True when this build can stop a backup in flight. */
     canCancel: boolean;
+    /** True when this build can pause and live-resume a backup in flight. */
+    canPause: boolean;
     /** True when something above this can actually open the sign-in settings row. */
     canOpenSettings: boolean;
 }>();
@@ -56,6 +59,10 @@ const emit = defineEmits<{
     stop: [backupId: string];
     /** Carry a stopped backup on from where it got to. */
     resume: [row: BackupRow];
+    /** Ask a running backup to pause at its next boundary. */
+    pause: [backupId: string];
+    /** Wake a paused backup that is still live in this process, at zero cost. */
+    liveResume: [backupId: string];
     /** Open the GitHub sign-in row in settings. */
     signIn: [];
     /** Open a release page in the system browser. */
@@ -124,7 +131,14 @@ const stateLabel = computed(() => {
             return t("backup.row.failed", "Did not finish");
         case "cancelled":
             return t("backup.row.cancelled", "Stopped");
+        case "paused":
+            return t("backup.row.paused", "Paused");
         default:
+            // "running" still covers "pausing": the operation is still moving bytes
+            // until it actually reaches a boundary, so the state chip keeps saying
+            // whichever phase it is in - only the button beneath it changes to
+            // "Pausing...". Claiming "Paused" here would be exactly the decorative-
+            // control defect this feature has to avoid: the bar is still moving.
             return phase.value;
     }
 });
@@ -137,6 +151,8 @@ const stateColour = computed(() => {
             return "error";
         case "cancelled":
             return "warning";
+        case "paused":
+            return "secondary";
         default:
             return "primary";
     }
@@ -148,6 +164,8 @@ const stateIcon = computed(() => {
             return mdiCheckCircleOutline;
         case "failed":
             return mdiAlertCircleOutline;
+        case "paused":
+            return mdiPauseCircleOutline;
         default:
             return mdiCloudUploadOutline;
     }
@@ -204,29 +222,92 @@ const cardLabel = computed(() =>
                     <span v-if="parts"> · {{ parts }}</span>
                     <span v-if="eta"> · {{ eta }}</span>
                 </p>
+                <div class="mb-backup-row__actions">
+                    <v-btn
+                        v-if="canPause"
+                        :prepend-icon="mdiPauseCircleOutline"
+                        :disabled="row.pausing"
+                        size="small"
+                        variant="text"
+                        color="secondary"
+                        :aria-label="
+                            row.pausing
+                                ? t('backup.row.pausingAria', 'Pausing this backup, waiting for a safe point to stop')
+                                : t('backup.row.pauseAria', 'Pause this backup at the next safe point')
+                        "
+                        @click="emit('pause', row.backupId)"
+                    >
+                        {{
+                            row.pausing
+                                ? t("backup.row.pausing", "Pausing...")
+                                : t("backup.row.pause", "Pause this backup")
+                        }}
+                    </v-btn>
+                    <p v-else class="mb-meta mb-backup-row__note">
+                        {{
+                            t(
+                                "backup.row.cannotPause",
+                                "This build cannot pause a backup once it has started. Stopping is still safe: what is packed and uploaded is kept.",
+                            )
+                        }}
+                    </p>
+                    <v-btn
+                        v-if="canCancel"
+                        :prepend-icon="mdiStopCircleOutline"
+                        :disabled="row.stopping"
+                        size="small"
+                        variant="text"
+                        color="warning"
+                        @click="emit('stop', row.backupId)"
+                    >
+                        {{
+                            row.stopping
+                                ? t("backup.row.stopping", "Stopping...")
+                                : t("backup.row.stop", "Stop this backup")
+                        }}
+                    </v-btn>
+                    <p v-else class="mb-meta mb-backup-row__note">
+                        {{
+                            t(
+                                "backup.row.cannotStop",
+                                "This build cannot stop a backup once it has started. It will finish, or fail, on its own.",
+                            )
+                        }}
+                    </p>
+                </div>
+            </template>
+
+            <template v-else-if="row.state === 'paused'">
+                <!--
+                    `role="status"` plus `aria-live="polite"` on the numbers paragraph
+                    above already announces the phase change from running to paused, the
+                    same as it announces every other progress update - the state chip
+                    and this alert are the visible half of the same fact, not a second
+                    announcement competing with it.
+                -->
+                <v-alert type="info" density="compact" variant="tonal" class="mb-backup-row__alert">
+                    {{
+                        row.liveResumable
+                            ? t(
+                                  "backup.row.pausedLiveDetail",
+                                  "Paused. Nothing is open and nothing was undone - Resume carries straight on from here, with no redo at all.",
+                              )
+                            : t(
+                                  "backup.row.pausedRestartDetail",
+                                  "Paused - and this window was closed and reopened since. Carrying on now re-checks what is already packed, split and uploaded rather than resuming this exact moment, so most of it is skipped rather than redone.",
+                              )
+                    }}
+                </v-alert>
                 <v-btn
-                    v-if="canCancel"
-                    :prepend-icon="mdiStopCircleOutline"
-                    :disabled="row.stopping"
+                    v-if="canLiveResume(row)"
+                    :prepend-icon="mdiPlayCircleOutline"
                     size="small"
-                    variant="text"
-                    color="warning"
-                    @click="emit('stop', row.backupId)"
+                    variant="tonal"
+                    color="primary"
+                    @click="emit('liveResume', row.backupId)"
                 >
-                    {{
-                        row.stopping
-                            ? t("backup.row.stopping", "Stopping...")
-                            : t("backup.row.stop", "Stop this backup")
-                    }}
+                    {{ t("backup.row.continueBackup", "Resume this backup") }}
                 </v-btn>
-                <p v-else class="mb-meta mb-backup-row__note">
-                    {{
-                        t(
-                            "backup.row.cannotStop",
-                            "This build cannot stop a backup once it has started. It will finish, or fail, on its own.",
-                        )
-                    }}
-                </p>
             </template>
 
             <template v-else-if="row.state === 'finished' && row.summary">
@@ -291,7 +372,7 @@ const cardLabel = computed(() =>
             </template>
 
             <v-btn
-                v-if="canResume(row)"
+                v-if="canResume(row) || canRestartPaused(row)"
                 :prepend-icon="mdiPlayCircleOutline"
                 size="small"
                 variant="tonal"
@@ -430,6 +511,15 @@ const cardLabel = computed(() =>
 .mb-backup-row__alert,
 .mb-backup-row :deep(.v-progress-linear) {
     inline-size: 100%;
+}
+
+/* Pause and Stop sit side by side, wrapping at narrow widths rather than clipping - the
+   same reasoning `.mb-backup-row__head` states at length for the title row above. */
+.mb-backup-row__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
 }
 
 .mb-backup-row__logFrame {
