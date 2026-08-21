@@ -37,6 +37,7 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
+import type { GhCliFailureKind } from "./transferFailure.js";
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -88,12 +89,22 @@ export interface BackupRelease {
 export class GitHubCallError extends Error {
     readonly status: number;
     readonly url: string;
+    /**
+     * How this failure was classified, when the thrower already knows - `runner.ts`'s
+     * upload path and `restore.ts`'s download path both classify with
+     * {@link classifyGhCliFailure} before throwing, so the catch site does not have to
+     * re-derive "was this really a credential problem" from the status code alone. Null
+     * for every other call site in this file, which keeps their pre-existing behaviour
+     * (401/403 read as a credential failure) exactly as it was.
+     */
+    readonly kind: GhCliFailureKind | null;
 
-    constructor(message: string, status: number, url: string) {
+    constructor(message: string, status: number, url: string, kind: GhCliFailureKind | null = null) {
         super(message);
         this.name = "GitHubCallError";
         this.status = status;
         this.url = url;
+        this.kind = kind;
     }
 }
 

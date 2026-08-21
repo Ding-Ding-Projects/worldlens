@@ -559,6 +559,9 @@ export function createBackups(bridge: BackupBridge | null): Backups {
                     detail: null,
                     status: null,
                     needsSignIn: false,
+                    accountId: null,
+                    accountLogin: null,
+                    accountHost: null,
                 };
                 return null;
             } finally {

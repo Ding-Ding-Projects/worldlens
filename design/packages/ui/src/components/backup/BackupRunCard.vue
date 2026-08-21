@@ -278,7 +278,25 @@ const cardLabel = computed(() =>
                     color="primary"
                     @click="emit('signIn')"
                 >
-                    {{ t("backup.row.signIn", "Sign in to GitHub again") }}
+                    <!--
+                        Named with the exact account whenever the main process reported
+                        one, per its own doc comment on `BackupFailure.accountLogin` -
+                        several accounts can be signed in at once, and "Sign in to GitHub
+                        again" alone leaves the person guessing which one this backup was
+                        actually using. Falls back to the un-named sentence only for a
+                        credential failure that happened before any account was resolved
+                        (see `runner.ts#backup`'s early "signed-out" paths), where there is
+                        genuinely no account to name.
+                    -->
+                    {{
+                        row.failure.accountLogin
+                            ? t(
+                                  "backup.row.signInAs",
+                                  "Sign in again as {login}",
+                                  { login: row.failure.accountLogin },
+                              )
+                            : t("backup.row.signIn", "Sign in to GitHub again")
+                    }}
                 </v-btn>
                 <p v-else-if="row.failure.needsSignIn" class="mb-meta mb-backup-row__note">
                     {{

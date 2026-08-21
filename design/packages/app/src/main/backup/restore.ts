@@ -60,6 +60,16 @@ import { restoreArchivePath, restoreIdFor, restoreWorkspace } from "./workspace.
 import type { BackupSourceKind } from "./source.js";
 import { ghApiBaseForHost } from "../ghcli/credentialBroker.js";
 import type { GhCliAccountLease, GhCliAccountProvider } from "../ghcli/credentialBroker.js";
+import {
+    DEFAULT_GH_CLI_RETRY_POLICY,
+    classifyGhCliFailure,
+    computeBackoffMs,
+    describeGhCliFailure,
+    describeGhCliRetry,
+    isRetryableGhCliFailure,
+    sleepAbortable,
+} from "./transferFailure.js";
+import type { GhCliFailureKind } from "./transferFailure.js";
 
 export type RestorePhase = "reading" | "downloading" | "joining" | "extracting" | "finished";
 
@@ -79,6 +89,17 @@ export interface RestoreFailure {
     readonly code: string;
     readonly message: string;
     readonly detail: string | null;
+    /**
+     * True when signing in again in Settings is the thing that would fix it - mirrors
+     * `BackupFailure.needsSignIn` in `runner.ts` exactly, and is likewise only ever true
+     * for a genuine credential failure, never for a rate limit or a transient failure
+     * that GitHub itself would clear on its own.
+     */
+    readonly needsSignIn: boolean;
+    /** The exact account that was refused; present only when {@link needsSignIn} is true. */
+    readonly accountId: string | null;
+    readonly accountLogin: string | null;
+    readonly accountHost: string | null;
 }
 
 export interface RestoreSummary {
@@ -104,6 +125,19 @@ export type RestoreEvent =
           readonly at: string;
       }
     | { readonly type: "phase"; readonly restoreId: string; readonly phase: RestorePhase; readonly at: string }
+    /**
+     * A retry-in-progress notice, mirroring `BackupEvent`'s own `log` variant in
+     * `runner.ts` - the same "say the wait out loud" reasoning applies here, since a
+     * download that pauses to back off from a rate limit looks exactly like a hang
+     * otherwise.
+     */
+    | {
+          readonly type: "log";
+          readonly restoreId: string;
+          readonly level: "info" | "warning" | "error";
+          readonly message: string;
+          readonly at: string;
+      }
     | {
           readonly type: "progress";
           readonly restoreId: string;
@@ -185,6 +219,7 @@ export class BackupRestoreRunner {
                     error instanceof Error
                         ? error.message
                         : "The selected GitHub CLI account could not be used for this restore.",
+                needsSignIn: true,
             });
         }
         if (lease === null) {
@@ -193,6 +228,7 @@ export class BackupRestoreRunner {
                 message:
                     "Nobody is signed in to GitHub on this computer, so there is nowhere to read a" +
                     " backup from. Sign in from Settings, then try again.",
+                needsSignIn: true,
             });
         }
 
@@ -223,10 +259,30 @@ export class BackupRestoreRunner {
                             "The restore was stopped. What was already downloaded and verified is kept," +
                             " so starting it again carries on rather than starting over.",
                         detail: null,
+                        needsSignIn: false,
+                        accountId: null,
+                        accountLogin: null,
+                        accountHost: null,
                     },
                 };
             }
-            return this.#failed(restoreId, failureFromError(error));
+            /*
+             * `lease` is the exact account this whole `restore()` call resolved and used
+             * for every download - attach its identity only when the failure is genuinely
+             * a credential one, exactly mirroring `runner.ts`'s outer catch.
+             */
+            const failure = failureFromError(error);
+            return this.#failed(
+                restoreId,
+                failure.needsSignIn && lease !== null
+                    ? {
+                          ...failure,
+                          accountId: lease.accountId,
+                          accountLogin: lease.login,
+                          accountHost: lease.host,
+                      }
+                    : failure,
+            );
         } finally {
             this.#running.delete(restoreId);
         }
@@ -386,12 +442,14 @@ export class BackupRestoreRunner {
                 `The release names ${pointer.assetName} but has no asset by that name.`,
             );
         }
-        const result = await lease.downloadApi(
+        const result = await this.#downloadWithRetry(
+            lease,
             apiAssetUrl(owner, repo, asset.id, lease.host),
             archivePath,
-            { signal },
+            restoreId,
+            pointer.assetName,
+            signal,
         );
-        this.#assertDownload(result, pointer.assetName);
         this.#progress(restoreId, "downloading", {
             description: `Downloading ${pointer.assetName}`,
             bytesDone: result.bytes,
@@ -441,26 +499,73 @@ export class BackupRestoreRunner {
                     `The pointer names part ${part.name} but the release has no asset by that name.`,
                 );
             }
-            const result = await lease.downloadApi(
+            await this.#downloadWithRetry(
+                lease,
                 apiAssetUrl(owner, repo, asset.id, lease.host),
                 join(workspace.partsDir, part.name),
-                { signal },
+                restoreId,
+                part.name,
+                signal,
             );
-            this.#assertDownload(result, part.name);
             doneByPart.set(index, part.sizeInBytes);
             publish(index, part.name);
         }
     }
 
-    #assertDownload(
-        result: { readonly started: boolean; readonly code: number | null },
+    /**
+     * Downloads one asset, retrying automatically on a rate limit or a transient
+     * network/server failure - the twin of `runner.ts`'s `#uploadAsset` retry loop, kept
+     * deliberately identical in shape so the two do not quietly drift into different
+     * behaviour for what is the same underlying problem on opposite ends of the pipe.
+     * Never retries a genuine credential failure, a 404, or a 422: none of those change
+     * by asking again.
+     */
+    async #downloadWithRetry(
+        lease: GhCliAccountLease,
+        url: string,
+        destination: string,
+        restoreId: string,
         assetName: string,
-    ): void {
-        if (result.started && result.code === 0) return;
-        throw new RestoreRefusal(
-            "download-failed",
-            `GitHub CLI could not download ${assetName}. Reauthenticate the selected account and try again.`,
-        );
+        signal: AbortSignal,
+    ): Promise<{ readonly bytes: number }> {
+        const policy = DEFAULT_GH_CLI_RETRY_POLICY;
+        let totalWaitedMs = 0;
+
+        for (let attempt = 1; ; attempt += 1) {
+            signal.throwIfAborted();
+            const result = await lease.downloadApi(url, destination, { signal });
+            if (result.started && result.code === 0) return { bytes: result.bytes };
+
+            const classification = classifyGhCliFailure(result);
+            const attemptsLeft = attempt < policy.maxAttempts;
+            const waitMs = computeBackoffMs(attempt, classification.retryAfterMs, policy);
+            const withinBudget = totalWaitedMs + waitMs <= policy.maxTotalWaitMs;
+
+            if (!isRetryableGhCliFailure(classification.kind) || !attemptsLeft || !withinBudget) {
+                throw new RestoreRefusal(
+                    "download-failed",
+                    describeGhCliFailure("download", assetName, classification),
+                    classification.kind,
+                );
+            }
+
+            totalWaitedMs += waitMs;
+            this.emit({
+                type: "log",
+                restoreId,
+                level: "warning",
+                message: describeGhCliRetry(
+                    "download",
+                    assetName,
+                    classification,
+                    attempt,
+                    policy.maxAttempts,
+                    waitMs,
+                ),
+                at: this.#timestamp(),
+            });
+            await sleepAbortable(waitMs, signal);
+        }
     }
 
     /**
@@ -553,6 +658,10 @@ export class BackupRestoreRunner {
             code: partial.code,
             message: partial.message,
             detail: partial.detail ?? null,
+            needsSignIn: partial.needsSignIn ?? false,
+            accountId: partial.accountId ?? null,
+            accountLogin: partial.accountLogin ?? null,
+            accountHost: partial.accountHost ?? null,
         };
         this.emit({ type: "failed", restoreId, failure, at: this.#timestamp() });
         return { ok: false, restoreId, failure };
@@ -583,21 +692,48 @@ function apiAsset(asset: ReleaseAssetInfo, owner: string, repo: string, host: st
 /** A restore that stopped because what it found could not honestly be restored. */
 export class RestoreRefusal extends Error {
     readonly code: string;
+    /**
+     * How this failure was classified, when the thrower already knows.
+     * `#downloadWithRetry` always classifies before throwing one of these for a download
+     * problem; every other `RestoreRefusal` in this file (an integrity mismatch, a
+     * missing asset, a release with no pointer) is a refusal that has nothing to do with
+     * signing in, so it is left null and read as "not a credential failure" downstream.
+     */
+    readonly kind: GhCliFailureKind | null;
 
-    constructor(code: string, message: string) {
+    constructor(code: string, message: string, kind: GhCliFailureKind | null = null) {
         super(message);
         this.name = "RestoreRefusal";
         this.code = code;
+        this.kind = kind;
     }
 }
 
+/**
+ * Every thrown thing turned into one sentence - the restore twin of `runner.ts`'s
+ * `failureFromError`. `needsSignIn` is derived from `kind` exactly the same way there:
+ * true only for a genuine credential failure, never for a rate limit or a transient
+ * failure that already exhausted its own retry budget inside `#downloadWithRetry`.
+ */
 function failureFromError(error: unknown): RestoreFailure {
     if (error instanceof RestoreRefusal) {
-        return { code: error.code, message: error.message, detail: null };
+        return {
+            code: error.code,
+            message: error.message,
+            detail: null,
+            needsSignIn: error.kind === "credential",
+            accountId: null,
+            accountLogin: null,
+            accountHost: null,
+        };
     }
     return {
         code: "failed",
         message: error instanceof Error ? error.message : String(error),
         detail: null,
+        needsSignIn: false,
+        accountId: null,
+        accountLogin: null,
+        accountHost: null,
     };
 }

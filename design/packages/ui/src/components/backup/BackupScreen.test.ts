@@ -170,7 +170,16 @@ function fakeBridge(overrides: Partial<BackupBridge> = {}): BackupBridge {
             Promise.resolve({
                 ok: false,
                 backupId: "nowhere",
-                failure: { code: "x", message: "no", detail: null, status: null, needsSignIn: false },
+                failure: {
+                    code: "x",
+                    message: "no",
+                    detail: null,
+                    status: null,
+                    needsSignIn: false,
+                    accountId: null,
+                    accountLogin: null,
+                    accountHost: null,
+                },
             } as BackupResult),
         cancelBackup: () => Promise.resolve(true),
         activeBackups: () => Promise.resolve([]),
