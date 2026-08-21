@@ -1,0 +1,19 @@
+The project editor refusing to save, with the failure the issue is about visible in frame.
+
+Bayville World v10.1 is open, its Project name has been edited so the project is dirty, and
+Save now has been pressed. The alert beneath the path reads "An object could not be cloned."
+- Electron's DataCloneError, raised when a value that cannot survive structured cloning is
+handed across the IPC boundary.
+
+This is the before state, captured from the installed Squirrel build Worldlens 1.0.1420
+(source commit e40063387404ebbf97ce50403d99d3e072d93eab), which predates the renderer-side
+sanitiser that fixes it. The failing call is the autosave watcher's notifyAutosaveChange, not
+writeProject; the stack recorded during this capture reads:
+
+    Error: An object could not be cloned.
+        at Object.notifyAutosaveChange (index-CYxEOrFv.js:43114:18206)
+
+Captured on a cheap Lowlevel off-screen desktop. The application was launched directly onto
+that desktop, the loopback debugging endpoint was proved to hold exactly one page target
+before anything was evaluated, and the surface was driven to this exact state rather than the
+image being staged, edited, or reconstructed. The window is the real 1280x800 client area.
