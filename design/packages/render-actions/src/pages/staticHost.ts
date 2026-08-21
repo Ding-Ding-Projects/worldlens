@@ -64,8 +64,94 @@ export interface StaticHostReport {
     readonly oversizedFiles: readonly { readonly path: string; readonly bytes: number }[];
     /** True when the whole site is over the size GitHub asks sites to stay under. */
     readonly overSoftLimit: boolean;
+    /**
+     * Every `<script src>` / `<link href>` in `index.html` that names a local, relative
+     * file and that file is not on disk under the staged web root. This is the check that
+     * a root-URL probe cannot do: fetching `index.html` alone reports 200 whether or not
+     * every asset it then asks for exists, because the browser makes those requests, not
+     * the probe. See `checkEntryAssets` below for why this has to walk the real HTML.
+     */
+    readonly missingAssets: readonly string[];
+    /**
+     * Every `<script src>` / `<link href>` in `index.html` written as a **root-absolute**
+     * path (`/assets/x.js`, never `//host/...` or `http(s)://...`). A root-absolute
+     * reference resolves against the *origin*, not the page - so it is correct only when
+     * the site is served from the domain root. A GitHub Pages *project* site is served at
+     * `https://<owner>.github.io/<repo>/`, a subpath, so a root-absolute reference there
+     * silently asks for `https://<owner>.github.io/assets/x.js` - one directory too high -
+     * and 404s in every browser while the file sits right there on disk, unread. This is
+     * the failure class this whole report exists to catch before it ships: green build,
+     * green Pages deploy, root page loads, and then everything past it is a blank map.
+     */
+    readonly rootAbsoluteAssets: readonly string[];
     /** Everything worth telling a person, in the order it is worth telling them. */
     readonly notes: readonly string[];
+}
+
+/**
+ * Every local asset `index.html` will ask the browser to fetch, sorted into "missing from
+ * the staged root" and "written as a root-absolute path that only works from the domain
+ * root". Neither problem shows up as anything other than a 200 for `index.html` itself -
+ * the page loads, its own script tag parses fine, and the *next* request is what 404s. A
+ * probe that only fetches the entry HTML and checks for 200 (which is what verifying a
+ * publish by fetching the published URL amounts to) proves nothing about either failure
+ * mode, because both failures live one request later than the probe ever looks.
+ *
+ * Deliberately narrow: this reads `<script src>` and `<link href>` (the two tag/attribute
+ * pairs that name a document's own executable and stylesheet dependencies) with a plain
+ * regex rather than a full HTML parser, because staged output here is always machine-
+ * written by BlueMap's own webapp generator or by this project's static-export step, never
+ * hand-authored markup with attributes that could confuse a naive scan. External origins
+ * (`http://`, `https://`, `//host/...`), same-page anchors (`#...`) and inline data URIs
+ * (`data:...`) are skipped: none of them are files this project is staging, so none of them
+ * are ours to verify.
+ */
+async function checkEntryAssets(webRoot: string): Promise<{ missing: string[]; rootAbsolute: string[] }> {
+    const missing: string[] = [];
+    const rootAbsolute: string[] = [];
+
+    let html: string;
+    try {
+        html = await readFile(join(webRoot, "index.html"), "utf8");
+    } catch {
+        // No index.html at all is its own kind of broken map, but `prepareStaticHost`
+        // already treats a webRoot with no settings.json as "not a rendered map"; an
+        // index.html-less webRoot is out of scope for this check specifically rather than
+        // silently passing it - there is simply nothing here for this function to read.
+        return { missing, rootAbsolute };
+    }
+
+    const seen = new Set<string>();
+    const tagPattern = /<(?:script|link)\b[^>]*?\b(?:src|href)\s*=\s*["']([^"']+)["'][^>]*>/gi;
+    for (const match of html.matchAll(tagPattern)) {
+        const raw = match[1] ?? "";
+        if (raw === "" || seen.has(raw)) continue;
+        seen.add(raw);
+
+        // Not ours to check: an external origin, a protocol-relative host reference, a
+        // same-page anchor, or an inline data URI. Only a same-site path is something this
+        // export is responsible for actually containing.
+        if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(raw)) continue;
+
+        if (raw.startsWith("/")) {
+            // Root-absolute: `/assets/x.js`. Correct only from the domain root, wrong from
+            // any subpath - flagged unconditionally, because there is no way for this
+            // function (which does not know the eventual publish URL) to tell "safe root
+            // site" apart from "unsafe project subpath" except by refusing to guess.
+            rootAbsolute.push(raw);
+            continue;
+        }
+
+        // A same-directory relative reference, the only kind that survives being served
+        // from any subpath unchanged. Strip a query string or fragment before resolving,
+        // since `index.js?v=2` names the file `index.js` on disk, not a file literally
+        // called `index.js?v=2`.
+        const relative = raw.split(/[?#]/, 1)[0] ?? raw;
+        if (relative === "") continue;
+        if (!(await exists(join(webRoot, relative)))) missing.push(raw);
+    }
+
+    return { missing, rootAbsolute };
 }
 
 /** The web app's root `settings.json`. Only the parts this module has an opinion about. */
@@ -280,6 +366,28 @@ export async function prepareStaticHost(options: PrepareStaticHostOptions): Prom
         );
     }
 
+    // The check a root-URL probe cannot do: does index.html's own script/link markup name
+    // files that are actually staged, and is any of it written in a way that only survives
+    // being served from the domain root? Both failures pass a "did index.html answer 200"
+    // probe every single time, because that probe never makes the second request.
+    const { missing: missingAssets, rootAbsolute: rootAbsoluteAssets } = await checkEntryAssets(webRoot);
+    if (rootAbsoluteAssets.length > 0) {
+        notes.push(
+            `${String(rootAbsoluteAssets.length)} asset reference in index.html is a root-absolute ` +
+                `path (${rootAbsoluteAssets.slice(0, 3).join(", ")}), which only resolves correctly when ` +
+                "the site is served from the domain root. A GitHub Pages project site is served from " +
+                "https://<owner>.github.io/<repo>/, a subpath, so every one of these will 404 in a real " +
+                "browser even though index.html itself loads fine and the file is sitting right there on disk.",
+        );
+    }
+    if (missingAssets.length > 0) {
+        notes.push(
+            `${String(missingAssets.length)} asset index.html asks for is not staged: ` +
+                `${missingAssets.slice(0, 5).join(", ")}. Publishing now would produce a site whose entry ` +
+                "page loads and then fails to load everything it references.",
+        );
+    }
+
     const walked: Walked = { bytes: 0, files: 0, oversized: [] };
     await walk(webRoot, "", walked);
     walked.oversized.sort((a, b) => b.bytes - a.bytes);
@@ -310,7 +418,12 @@ export async function prepareStaticHost(options: PrepareStaticHostOptions): Prom
     }
 
     return {
-        servable: brokenMaps.length === 0 && walked.oversized.length === 0 && ids.length > 0,
+        servable:
+            brokenMaps.length === 0 &&
+            walked.oversized.length === 0 &&
+            ids.length > 0 &&
+            missingAssets.length === 0 &&
+            rootAbsoluteAssets.length === 0,
         changedSettings: !alreadySet && write,
         addedNoJekyll: !hadNoJekyll && write,
         maps,
@@ -318,6 +431,8 @@ export async function prepareStaticHost(options: PrepareStaticHostOptions): Prom
         fileCount: walked.files,
         oversizedFiles: walked.oversized,
         overSoftLimit,
+        missingAssets,
+        rootAbsoluteAssets,
         notes,
     };
 }
