@@ -985,8 +985,12 @@ interface BackupFailure {
     readonly message: string;
     readonly detail: string | null;
     readonly status: number | null;
-    /** True when signing in again in Settings is the thing that would fix it. */
+    /** True only for a genuine credential failure - never for a rate limit or a retried transient failure. */
     readonly needsSignIn: boolean;
+    /** The exact refused account, present only alongside {@link needsSignIn}. */
+    readonly accountId: string | null;
+    readonly accountLogin: string | null;
+    readonly accountHost: string | null;
 }
 
 interface BackupSummary {

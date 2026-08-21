@@ -6,6 +6,7 @@ import {
     readRepository as readRepositoryOverRest,
 } from "../backup/index.js";
 import type { BackupRelease } from "../backup/index.js";
+import { classifyGhCliFailure } from "../backup/transferFailure.js";
 import { ghApiBaseForHost } from "../ghcli/credentialBroker.js";
 import type { GhCliAccountLease } from "../ghcli/credentialBroker.js";
 import {
@@ -664,7 +665,15 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
                 options.signal === undefined ? {} : { signal: options.signal },
             );
             if (!result.started || result.code !== 0) {
-                const status = cliHttpStatus(result.stderr);
+                /*
+                 * A bare 403 used to be read as "reauthenticate", full stop - the same
+                 * conflation `runner.ts`'s upload path had, and for the same reason: GitHub
+                 * answers a secondary rate limit with a 403 too, and that status code alone
+                 * cannot tell a bad credential apart from "you are asking too fast". Classify
+                 * first, so the sentence this throws only ever tells someone to sign in again
+                 * when their credential is genuinely what failed.
+                 */
+                const classification = classifyGhCliFailure(result);
                 const detail = result.stderr
                     .trim()
                     .split(/\r?\n/u)
@@ -673,14 +682,16 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
                     .join(" | ");
                 throw new ActionsCallError(
                     `GitHub CLI could not upload the release asset for ${options.lease.login} on ${options.lease.host}` +
-                        `: GitHub answered ${String(status)}. No release data changed.` +
+                        `: GitHub answered ${String(classification.status)}. No release data changed.` +
                         (detail === "" ? "" : ` ${detail}`) +
-                        (status === 401 || status === 403
+                        (classification.kind === "credential"
                             ? " Reauthenticate this selected account from GitHub Settings, then try again."
-                            : ""),
-                    status,
+                            : classification.kind === "rate-limited"
+                              ? " GitHub rate-limited this request; this is not a credential problem, try again shortly."
+                              : ""),
+                    classification.status,
                     `${upload.owner}/${upload.repo}#${release.tag}`,
-                    [401, 403].includes(status),
+                    classification.kind === "credential",
                 );
             }
             upload.onProgress?.({ bytesSent: upload.bytes, bytesTotal: upload.bytes });

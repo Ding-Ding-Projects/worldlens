@@ -214,6 +214,9 @@ describe("events become rows", () => {
                 detail: null,
                 status: null,
                 needsSignIn: false,
+                accountId: null,
+                accountLogin: null,
+                accountHost: null,
             },
             at: startedAt,
         });
@@ -417,7 +420,16 @@ describe("starting and stopping", () => {
             Promise.resolve({
                 ok: false,
                 backupId: "nowhere",
-                failure: { code: "x", message: "no", detail: null, status: null, needsSignIn: false },
+                failure: {
+                    code: "x",
+                    message: "no",
+                    detail: null,
+                    status: null,
+                    needsSignIn: false,
+                    accountId: null,
+                    accountLogin: null,
+                    accountHost: null,
+                },
             } as BackupResult),
         );
         const bridge = fakeBridge({ startBackup });

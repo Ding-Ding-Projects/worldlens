@@ -65,6 +65,15 @@ import type { BackupSource, BackupSourceKind } from "./source.js";
 import { ghApiBaseForHost } from "../ghcli/credentialBroker.js";
 import type { GhCliAccountLease, GhCliAccountProvider } from "../ghcli/credentialBroker.js";
 import {
+    DEFAULT_GH_CLI_RETRY_POLICY,
+    classifyGhCliFailure,
+    computeBackoffMs,
+    describeGhCliFailure,
+    describeGhCliRetry,
+    isRetryableGhCliFailure,
+    sleepAbortable,
+} from "./transferFailure.js";
+import {
     backupIdFor,
     backupWorkspace,
     pruneStagedPayload,
@@ -123,8 +132,24 @@ export interface BackupFailure {
     /** Extra context worth showing behind a disclosure, never in the headline. */
     readonly detail: string | null;
     readonly status: number | null;
-    /** True when signing in again in Settings is the thing that would fix it. */
+    /**
+     * True when signing in again in Settings is the thing that would fix it.
+     *
+     * Only ever true for a genuine credential failure (401, or a 403 that is not a rate
+     * limit) - never for a rate limit or a transient server hiccup, both of which fix
+     * themselves and neither of which has anything to do with who is signed in. See
+     * `transferFailure.ts` for why a bare 403 used to be conflated with these.
+     */
     readonly needsSignIn: boolean;
+    /**
+     * The exact account that was refused, carried as data rather than left only inside
+     * `message`'s English sentence - a sentence the interface cannot act on, an id it can.
+     * Present only when {@link needsSignIn} is true; null the rest of the time, including
+     * every failure that happened before an account was even resolved.
+     */
+    readonly accountId: string | null;
+    readonly accountLogin: string | null;
+    readonly accountHost: string | null;
 }
 
 export interface BackupSummary {
@@ -359,7 +384,7 @@ export class BackupRunner {
         try {
             repository = await readRepository(owner, repo, this.#callOptions(lease));
         } catch (error) {
-            return this.#failed("nowhere", failureFromError(error));
+            return this.#failed("nowhere", this.#withAccountIdentity(failureFromError(error), lease));
         }
 
         if (!repository.canWrite) {
@@ -447,10 +472,22 @@ export class BackupRunner {
                         detail: null,
                         status: null,
                         needsSignIn: false,
+                        accountId: null,
+                        accountLogin: null,
+                        accountHost: null,
                     },
                 };
             }
-            return this.#failed(backupId, failureFromError(error));
+            /*
+             * `lease` is the exact account this whole `backup()` call resolved and used
+             * for every upload - see the assignment near the top of this method -
+             * so `#withAccountIdentity` attaches its identity whenever (and only when)
+             * this failure is genuinely a credential one. Never attached for a rate limit
+             * or a transient failure: neither of those is fixed by signing in again, and
+             * attaching an account identity to them would dress up "wait and retry" as
+             * "your sign-in is broken".
+             */
+            return this.#failed(backupId, this.#withAccountIdentity(failureFromError(error), lease));
         } finally {
             this.#running.delete(backupId);
         }
@@ -633,6 +670,7 @@ export class BackupRunner {
                 upload.path,
                 {
                     signal,
+                    backupId,
                     onProgress: (progress) => {
                         bytesDone = before + progress.bytesSent;
                         this.#progress(backupId, "uploading", {
@@ -662,7 +700,7 @@ export class BackupRunner {
                 context.repo,
                 SIDECAR_ASSET_NAME,
                 workspace.sidecarFile,
-                { signal },
+                { signal, backupId },
             );
         }
         signal.throwIfAborted();
@@ -674,7 +712,7 @@ export class BackupRunner {
                 context.repo,
                 pointerName,
                 pointerPath,
-                { signal },
+                { signal, backupId },
             );
         }
 
@@ -796,6 +834,19 @@ export class BackupRunner {
         };
     }
 
+    /**
+     * Uploads one asset, retrying automatically when the failure was a rate limit or a
+     * transient server/network problem - the two kinds that fix themselves - and giving
+     * up immediately on everything else, including a genuine credential failure, because
+     * repeating an unchanged request against a bad credential or a 404 only spends the
+     * user's retry budget on a request that can never succeed.
+     *
+     * The `backupId` in `options` exists solely so a retry wait can be reported through
+     * the ordinary `log` event this runner already emits - the same list the interface's
+     * "Show what it reported" disclosure already renders - rather than inventing a second
+     * progress channel just for this. A user watching an upload sit still for forty
+     * seconds sees exactly why, instead of a bar that looks stuck.
+     */
     async #uploadAsset(
         lease: GhCliAccountLease,
         release: BackupRelease,
@@ -804,29 +855,49 @@ export class BackupRunner {
         assetName: string,
         filePath: string,
         options: {
-            readonly signal?: AbortSignal | undefined;
+            readonly signal: AbortSignal;
+            readonly backupId: string;
             readonly onProgress?: ((progress: { bytesSent: number; bytesTotal: number }) => void) | undefined;
         },
     ): Promise<void> {
         const bytes = (await stat(filePath)).size;
-        const result = await lease.uploadReleaseAsset(
-            owner,
-            repo,
-            release.tag,
-            assetName,
-            filePath,
-            options.signal === undefined ? {} : { signal: options.signal },
-        );
-        if (!result.started || result.code !== 0) {
-            const statusText = /(?:\(HTTP |HTTP )(\d{3})/.exec(result.stderr)?.[1];
-            const status = statusText === undefined ? 0 : Number.parseInt(statusText, 10);
-            throw new GitHubCallError(
-                `GitHub CLI could not upload ${assetName}. Reauthenticate the selected account and try again.`,
-                status,
-                `${owner}/${repo}#${release.tag}`,
-            );
+        const policy = DEFAULT_GH_CLI_RETRY_POLICY;
+        let totalWaitedMs = 0;
+
+        for (let attempt = 1; ; attempt += 1) {
+            options.signal.throwIfAborted();
+            const result = await lease.uploadReleaseAsset(owner, repo, release.tag, assetName, filePath, {
+                signal: options.signal,
+            });
+            if (result.started && result.code === 0) {
+                options.onProgress?.({ bytesSent: bytes, bytesTotal: bytes });
+                return;
+            }
+
+            const classification = classifyGhCliFailure(result);
+            const attemptsLeft = attempt < policy.maxAttempts;
+            const waitMs = computeBackoffMs(attempt, classification.retryAfterMs, policy);
+            const withinBudget = totalWaitedMs + waitMs <= policy.maxTotalWaitMs;
+
+            if (!isRetryableGhCliFailure(classification.kind) || !attemptsLeft || !withinBudget) {
+                throw new GitHubCallError(
+                    describeGhCliFailure("upload", assetName, classification),
+                    classification.status,
+                    `${owner}/${repo}#${release.tag}`,
+                    classification.kind,
+                );
+            }
+
+            totalWaitedMs += waitMs;
+            this.emit({
+                type: "log",
+                backupId: options.backupId,
+                level: "warning",
+                message: describeGhCliRetry("upload", assetName, classification, attempt, policy.maxAttempts, waitMs),
+                at: this.#timestamp(),
+            });
+            await sleepAbortable(waitMs, options.signal);
         }
-        options.onProgress?.({ bytesSent: bytes, bytesTotal: bytes });
     }
 
     /**
@@ -878,6 +949,21 @@ export class BackupRunner {
         });
     }
 
+    /**
+     * Attaches the account that was actually in use to a failure that needs signing in
+     * again, so a reauthentication control has an exact identity to name rather than only
+     * `message`'s English sentence. A no-op for every failure that is not a credential
+     * one, and a no-op when no account was ever resolved (signing out before an account
+     * was even chosen has no identity to attach).
+     */
+    #withAccountIdentity(
+        failure: Partial<BackupFailure> & Pick<BackupFailure, "code" | "message">,
+        lease: GhCliAccountLease | null,
+    ): Partial<BackupFailure> & Pick<BackupFailure, "code" | "message"> {
+        if (failure.needsSignIn !== true || lease === null) return failure;
+        return { ...failure, accountId: lease.accountId, accountLogin: lease.login, accountHost: lease.host };
+    }
+
     #failed(backupId: string, partial: Partial<BackupFailure> & Pick<BackupFailure, "code" | "message">): BackupResult {
         const failure: BackupFailure = {
             code: partial.code,
@@ -885,6 +971,9 @@ export class BackupRunner {
             detail: partial.detail ?? null,
             status: partial.status ?? null,
             needsSignIn: partial.needsSignIn ?? false,
+            accountId: partial.accountId ?? null,
+            accountLogin: partial.accountLogin ?? null,
+            accountHost: partial.accountHost ?? null,
         };
         this.emit({ type: "failed", backupId, failure, at: this.#timestamp() });
         return { ok: false, backupId, failure };
@@ -949,14 +1038,35 @@ export function overallPercent(phase: BackupPhase, bytesDone: number, bytesTotal
 }
 
 /** Every thrown thing turned into one sentence, with the GitHub status when there was one. */
+/**
+ * Every thrown thing turned into one sentence, with the GitHub status when there was one.
+ *
+ * `#uploadAsset` already classified its own failure with {@link classifyGhCliFailure}
+ * before throwing (see `error.kind` below), so this only re-derives a kind for a
+ * `GitHubCallError` thrown somewhere else in this file - `readRepository`, the release
+ * lookup/creation calls in `github.ts` - which keep their pre-existing behaviour of
+ * reading 401 *or* 403 as a credential failure. Those call sites are not upload/download
+ * traffic and were never the shape this file's rate-limit bug lived in, so their
+ * behaviour is deliberately left alone rather than widened along with the upload path.
+ */
 function failureFromError(error: unknown): BackupFailure {
     if (error instanceof GitHubCallError) {
+        const needsSignIn = error.kind === null ? error.status === 401 || error.status === 403 : error.kind === "credential";
         return {
-            code: error.status === 401 ? "signed-out" : `github-${String(error.status)}`,
+            code: needsSignIn
+                ? "signed-out"
+                : error.kind === "rate-limited"
+                  ? "rate-limited"
+                  : error.kind === "transient"
+                    ? "transient"
+                    : `github-${String(error.status)}`,
             message: error.message,
             detail: error.url === "" ? null : error.url,
             status: error.status,
-            needsSignIn: error.status === 401 || error.status === 403,
+            needsSignIn,
+            accountId: null,
+            accountLogin: null,
+            accountHost: null,
         };
     }
     return {
@@ -965,5 +1075,8 @@ function failureFromError(error: unknown): BackupFailure {
         detail: null,
         status: null,
         needsSignIn: false,
+        accountId: null,
+        accountLogin: null,
+        accountHost: null,
     };
 }

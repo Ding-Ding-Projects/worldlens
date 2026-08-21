@@ -133,8 +133,23 @@ export interface BackupFailure {
     readonly message: string;
     readonly detail: string | null;
     readonly status: number | null;
-    /** True when signing in again in Settings is the thing that would fix it. */
+    /**
+     * True when signing in again in Settings is the thing that would fix it. Only ever
+     * true for a genuine credential failure - a rate limit or a transient network/server
+     * problem is retried by the main process on its own and never sets this, because
+     * neither has anything to do with who is signed in.
+     */
     readonly needsSignIn: boolean;
+    /**
+     * The exact account the main process had selected when it was refused - carried as
+     * data, not only as a sentence inside `message`, so a "sign in again" control can name
+     * precisely which of possibly several signed-in accounts to send someone back to.
+     * Present only alongside {@link needsSignIn}; null otherwise, including every failure
+     * that happened before an account was even resolved.
+     */
+    readonly accountId: string | null;
+    readonly accountLogin: string | null;
+    readonly accountHost: string | null;
 }
 
 export interface BackupSummary {
