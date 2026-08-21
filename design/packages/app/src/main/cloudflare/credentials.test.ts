@@ -107,15 +107,23 @@ describe("the Cloudflare token store", () => {
         expect(presence.accountName).toBe("Example Ltd");
 
         // The whole presence object is what crosses IPC, so assert on all of it at once:
-        // no substring of the token, and no length or prefix hiding in another field.
+        // no substring of the token anywhere in it.
         const serialised = JSON.stringify(presence);
         expect(serialised).not.toContain(SECRET);
         expect(serialised).not.toContain(SECRET.slice(0, 8));
-        expect(serialised).not.toContain(String(SECRET.length));
-        for (const value of Object.values(presence)) {
-            expect(typeof value === "number", "presence must carry no numeric derivative").toBe(
-                false,
-            );
+
+        // And no field *is* a derivative of the value. Checked field by field rather than
+        // by searching the serialised string for the length: the first version of this
+        // did that, and failed on correct code because the token happened to be 45
+        // characters and "45" appears inside an ISO timestamp. A guard that fires on a
+        // coincidence teaches people to ignore it.
+        for (const [name, value] of Object.entries(presence)) {
+            expect(typeof value, `presence.${name} must not be a number`).not.toBe("number");
+            if (typeof value === "string") {
+                expect(value.length, `presence.${name} must not be the token`).not.toBe(
+                    SECRET.length,
+                );
+            }
         }
     });
 
