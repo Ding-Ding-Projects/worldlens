@@ -3,6 +3,7 @@ import { KeyCombination } from "../../KeyCombination";
 import { MapControls } from "../MapControls";
 import type { ControlsManager } from "../../ControlsManager";
 import type { Map } from "../../../map/Map";
+import { keystrokeIsForEditableTarget } from "../../keyboardTarget";
 
 export class KeyZoomControls {
     static KEYS = {
@@ -73,6 +74,10 @@ export class KeyZoomControls {
     }
 
     onKeyDown = (evt: KeyboardEvent) => {
+        // A keystroke aimed at a text field, textarea, select, contentEditable region or ARIA textbox
+        // must pass through untouched -- see keyboardTarget.ts for why this window-level handler would
+        // otherwise silently eat every W/A/S/D (and everything else it binds) typed anywhere in the app.
+        if (keystrokeIsForEditableTarget(evt)) return;
         if (KeyCombination.oneDown(evt, ...KeyZoomControls.KEYS.IN)) {
             this.in = true;
             evt.preventDefault();
