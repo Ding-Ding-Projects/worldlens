@@ -35,7 +35,7 @@
  * a missing download. So it is refused with the reason and the artifacts named.
  */
 
-import { rename, rm, stat } from "node:fs/promises";
+import { readdir, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { sha256File } from "@worldlens/parts";
 import { sanitizeMapId } from "@worldlens/render-actions";
@@ -217,13 +217,21 @@ export async function collectRenderedMap(
 
     const looksLikeAMap = await isAMap(stagedWebRoot, storageMapId);
     if (!looksLikeAMap) {
+        // Diagnose *before* deleting the evidence. The refusal below used to say only
+        // what it expected and never what it found, which is exactly why this bug shipped
+        // undiagnosable from a screenshot: a user (and an agent looking at their bug
+        // report) could see "expected maps/bayville_world_v10_1" and had no way to tell
+        // whether the artifact had no maps/ folder at all, had one under a *different*
+        // name (the classic app-vs-workflow sanitizeMapId drift - see bluemap.ts and issue
+        // #47), or had the right folder but a truncated settings.json inside it. Read the
+        // directory back while it still exists and say what is actually there.
+        const found = await describeUnpackedArtifact(stagedWebRoot, storageMapId);
         await rm(stagedWebRoot, { recursive: true, force: true }).catch(() => undefined);
         return refuse(
             "artifact-not-a-map",
             `The ${RENDERED_MAP_ARTIFACT} artifact unpacked without a maps/${storageMapId} folder ` +
                 "containing its settings.json and a root settings.json beside it, so it is not a " +
-                "map this application can serve. " +
-                "Nothing was registered.",
+                `map this application can serve. ${found} Nothing was registered.`,
         );
     }
 
@@ -373,4 +381,85 @@ function refuse(
     message: string,
 ): { readonly ok: false; readonly failure: CollectFailure } {
     return { ok: false, failure: { code, message } };
+}
+
+/**
+ * What was actually in the unpacked artifact, for the one message a person reading a bug
+ * report can act on without also having a shell open on the machine that produced it.
+ *
+ * This exists because of a real, otherwise-invisible failure class: `storageMapId` here
+ * and the workflow's own `sanitizeMapId(mapId)` (see `../../render-actions/bluemap.ts` and
+ * `.github/workflows/render-world.yml`'s `plan` job) are two call sites computing what is
+ * supposed to be the same value from the same shared function. They agree today - but
+ * "they call the same function" is a fact about the source tree, not about any particular
+ * installed build or any particular artifact sitting on disk. An app built before that
+ * shared function existed (or a workflow template a bootstrapped repository never
+ * re-synced to a newer `CI_WORKFLOW_TEMPLATE_VERSION`) would compute the *other* one's
+ * answer, and the two sides would silently stop agreeing - one still looking for the raw,
+ * hyphenated id, the other having written the sanitized one. Nothing throws when that
+ * happens: every step upstream reports success, because every step upstream is only
+ * checking its own work, never the other side's.
+ *
+ * The old refusal message named only the expected path and never what was actually on
+ * disk, so *this exact drift* was the one thing it could never reveal - a user's bug
+ * report showed "expected maps/bayville-world-v10-1" and nobody could tell whether the
+ * real folder was named `bayville_world_v10_1` (drift), absent entirely (a genuinely
+ * incomplete artifact), or present but gutted (a truncated merge). Reading the directory
+ * back before it is deleted, and naming a same-but-for-sanitization sibling explicitly
+ * when one exists, turns "not a map" into "here is exactly what differs and why".
+ */
+async function describeUnpackedArtifact(webRoot: string, expectedMapId: string): Promise<string> {
+    const topLevel = await listNames(webRoot);
+    if (topLevel === null) {
+        return "The unpacked artifact directory itself could not be read back.";
+    }
+    if (topLevel.length === 0) {
+        return "What was unpacked: nothing at all - the artifact extracted to an empty directory.";
+    }
+
+    const mapsEntries = topLevel.includes("maps") ? await listNames(join(webRoot, "maps")) : null;
+    const parts: string[] = [
+        `What was unpacked: ${describeEntries(topLevel)} at the archive root.`,
+    ];
+
+    if (mapsEntries === null) {
+        parts.push(`Looked for a maps/ folder there and it was not present.`);
+    } else if (mapsEntries.length === 0) {
+        parts.push("The maps/ folder was present and empty.");
+    } else {
+        parts.push(`The maps/ folder held: ${describeEntries(mapsEntries)}.`);
+        // The specific, diagnosable case this whole function exists for: the map is
+        // there, just filed under the *other* sanitization of the same raw id. Naming
+        // this explicitly turns a silent app-vs-workflow drift into a one-line diagnosis
+        // instead of a coincidence the reader has to notice themselves.
+        const sibling = mapsEntries.find(
+            (entry) => entry !== expectedMapId && sanitizeMapId(entry) === sanitizeMapId(expectedMapId),
+        );
+        if (sibling !== undefined) {
+            parts.push(
+                `Note: "${sibling}" sanitizes to the same id as "${expectedMapId}" but is not an ` +
+                    "exact match - this looks like the application and the render workflow computed " +
+                    "the map's storage id differently. Rebuild the application and re-sync this " +
+                    "repository's managed workflow files so both sides use the same rule.",
+            );
+        }
+    }
+    return parts.join(" ");
+}
+
+/** Every entry directly inside `dir`, or null when `dir` does not exist / is not a directory. */
+async function listNames(dir: string): Promise<string[] | null> {
+    try {
+        return await readdir(dir);
+    } catch {
+        return null;
+    }
+}
+
+/** A short, bounded, human-readable rendering of a directory listing for an error message. */
+function describeEntries(names: string[]): string {
+    const MAX_NAMES = 12;
+    const shown = names.slice(0, MAX_NAMES).map((name) => `"${name}"`);
+    const remainder = names.length - shown.length;
+    return shown.join(", ") + (remainder > 0 ? ` (+${String(remainder)} more)` : "");
 }
