@@ -57,11 +57,35 @@ export interface ResolvedPath {
     readonly relative: string;
 }
 
-/** Normalises a root into an absolute POSIX path with no trailing separator. */
+/** Normalises a root into an absolute path with forward slashes and no trailing separator. */
 export function normaliseRoot(root: string): string {
     const posix = root.replace(/\\/g, SEPARATOR);
     const trimmed = posix.replace(/\/+$/, "");
     return trimmed === "" ? SEPARATOR : trimmed;
+}
+
+/**
+ * Splits a root into the part that anchors it and the segments beneath.
+ *
+ * Two kinds of root reach this. A container path is POSIX (`/data`), and a local server
+ * folder on Windows is drive-rooted (`C:/Users/.../servers/paper`). They have to be kept
+ * apart, because rebuilding an absolute path by pasting a separator on the front turns
+ * `C:/servers/paper` into `/C:/servers/paper`, which no Windows API will open.
+ *
+ * That is not a hypothetical: the local transport's own tests run against a real temporary
+ * directory, and every file operation failed on exactly this while the out-of-scope
+ * refusals kept passing - the refusals never needed to rebuild a usable path.
+ */
+function splitRoot(root: string): { readonly prefix: string; readonly segments: string[] } | null {
+    const drive = /^([a-zA-Z]:)(\/|$)/.exec(root);
+    const drivePrefix = drive?.[1];
+    if (drivePrefix !== undefined) {
+        const rest = root.slice(drivePrefix.length);
+        const segments = collapse(rest.split(SEPARATOR));
+        return segments === null ? null : { prefix: drivePrefix, segments };
+    }
+    const segments = collapse(root.split(SEPARATOR));
+    return segments === null ? null : { prefix: "", segments };
 }
 
 /**
@@ -102,40 +126,56 @@ export function resolveInScope(candidate: string, options: ScopeOptions): Answer
     const root = normaliseRoot(options.root);
     const posix = candidate.replace(/\\/g, SEPARATOR);
 
-    // A Windows drive letter or a UNC share in what should be a path under the server root
-    // is never a relative path that happens to look odd - it is an absolute path aimed
-    // somewhere else, and it must not be silently pasted onto the root.
-    if (/^[a-zA-Z]:/.test(posix) || posix.startsWith("//")) {
-        return fail("out-of-scope", "That path points at another drive or share, which is outside this server.");
-    }
-
-    const absoluteInput = posix.startsWith(SEPARATOR);
-    const rootSegments = collapse(root.split(SEPARATOR));
-    if (rootSegments === null) {
+    const parsedRoot = splitRoot(root);
+    if (parsedRoot === null) {
         return fail("invalid-request", "The server root is not a usable path.");
     }
 
-    const combined = absoluteInput ? posix.split(SEPARATOR) : [...root.split(SEPARATOR), ...posix.split(SEPARATOR)];
-    const collapsed = collapse(combined);
-    if (collapsed === null) {
-        return fail("out-of-scope", "That path climbs above the server folder.");
+    // A UNC share is always somewhere else. There is no root this could be inside of, and
+    // pasting it onto one would produce a path pointing at a machine nobody asked for.
+    if (posix.startsWith("//")) {
+        return fail("out-of-scope", "That path points at a network share, which is outside this server.");
+    }
+
+    const candidateDrive = /^([a-zA-Z]:)(\/|$)/.exec(posix)?.[1];
+    let segments: string[];
+
+    if (candidateDrive !== undefined) {
+        // Drive-rooted input is allowed only when it is the SAME drive as the root. A
+        // different letter is a different disk, and comparing case-insensitively matters
+        // because Windows treats `c:` and `C:` as one drive while string equality does not.
+        if (candidateDrive.toLowerCase() !== parsedRoot.prefix.toLowerCase()) {
+            return fail("out-of-scope", "That path points at another drive, which is outside this server.");
+        }
+        const collapsedInput = collapse(posix.slice(candidateDrive.length).split(SEPARATOR));
+        if (collapsedInput === null) return fail("out-of-scope", "That path climbs above the server folder.");
+        segments = collapsedInput;
+    } else if (posix.startsWith(SEPARATOR)) {
+        const collapsedInput = collapse(posix.split(SEPARATOR));
+        if (collapsedInput === null) return fail("out-of-scope", "That path climbs above the server folder.");
+        segments = collapsedInput;
+    } else {
+        const collapsedInput = collapse([...parsedRoot.segments, ...posix.split(SEPARATOR)]);
+        if (collapsedInput === null) return fail("out-of-scope", "That path climbs above the server folder.");
+        segments = collapsedInput;
     }
 
     // Inside means: starts with every segment of the root, segment by segment. Comparing
     // strings with `startsWith` instead would accept `/srv/minecraft-other` as being inside
     // `/srv/minecraft`, because the prefix matches and the boundary is not a separator.
-    if (collapsed.length < rootSegments.length) {
+    const rootSegments = parsedRoot.segments;
+    if (segments.length < rootSegments.length) {
         return fail("out-of-scope", "That path is outside the server folder.");
     }
     for (let index = 0; index < rootSegments.length; index += 1) {
-        if (collapsed[index] !== rootSegments[index]) {
+        if (segments[index] !== rootSegments[index]) {
             return fail("out-of-scope", "That path is outside the server folder.");
         }
     }
 
-    const relative = collapsed.slice(rootSegments.length).join(SEPARATOR);
-    const absolute = SEPARATOR + collapsed.join(SEPARATOR);
-    return ok({ absolute: root === SEPARATOR ? absolute : absolute, relative });
+    const relative = segments.slice(rootSegments.length).join(SEPARATOR);
+    const absolute = `${parsedRoot.prefix}${SEPARATOR}${segments.join(SEPARATOR)}`;
+    return ok({ absolute, relative });
 }
 
 /**

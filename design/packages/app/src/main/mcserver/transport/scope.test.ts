@@ -99,6 +99,57 @@ describe("resolveInScope refuses an escape", () => {
     });
 });
 
+describe("resolveInScope with a Windows root", () => {
+    // The local transport's server folder really is drive-rooted on Windows. An earlier
+    // version rebuilt every absolute path as "/" + segments, which turned
+    // C:/servers/paper into /C:/servers/paper - a path no Windows API will open. Every
+    // out-of-scope test still passed, because a refusal never has to rebuild a usable
+    // path. Only the tests that actually read and wrote files caught it.
+    const WIN = "C:/servers/paper";
+
+    it("keeps the drive letter on the rebuilt absolute path", () => {
+        const answer = resolveInScope("server.properties", { root: WIN });
+        expect(answer.ok).toBe(true);
+        if (!answer.ok) return;
+        expect(answer.value.absolute).toBe("C:/servers/paper/server.properties");
+        expect(answer.value.relative).toBe("server.properties");
+    });
+
+    it("accepts an absolute path on the same drive", () => {
+        const answer = resolveInScope("C:/servers/paper/plugins/a.yml", { root: WIN });
+        expect(answer.ok).toBe(true);
+        if (!answer.ok) return;
+        expect(answer.value.relative).toBe("plugins/a.yml");
+    });
+
+    it("accepts the same drive written in the other case", () => {
+        // Windows treats c: and C: as one drive; string equality does not.
+        expect(resolveInScope("c:/servers/paper/eula.txt", { root: WIN }).ok).toBe(true);
+    });
+
+    it("refuses a different drive", () => {
+        const answer = resolveInScope("D:/elsewhere/file.txt", { root: WIN });
+        expect(answer.ok).toBe(false);
+        if (answer.ok) return;
+        expect(answer.failure.code).toBe("out-of-scope");
+    });
+
+    it("refuses a climb out of a drive-rooted folder", () => {
+        expect(resolveInScope("../../Windows/System32", { root: WIN }).ok).toBe(false);
+    });
+
+    it("refuses a sibling whose name starts with the root", () => {
+        expect(resolveInScope("C:/servers/paper-old/server.properties", { root: WIN }).ok).toBe(false);
+    });
+
+    it("accepts a backslash root, as Windows hands it to us", () => {
+        const answer = resolveInScope("server.properties", { root: "C:\\servers\\paper" });
+        expect(answer.ok).toBe(true);
+        if (!answer.ok) return;
+        expect(answer.value.absolute).toBe("C:/servers/paper/server.properties");
+    });
+});
+
 describe("resolveForWrite", () => {
     const scoped = { root: ROOT, writeScope: ["plugins", "config"] } as const;
 
