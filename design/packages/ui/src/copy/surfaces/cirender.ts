@@ -1159,6 +1159,38 @@ export const CIRENDER_VOICED = {
             "Java 唔會醒，client 同 JDK 唔會去 shopping，本機 render 亦唔會偷走。寫完一次 history-backed project，原本嗰個 CI preflight 就返嚟，之前啲答案一樣齊。",
         ],
     },
+    "cirender.cloudConfig.noBridge": {
+        en: [
+            "This build cannot write a cloud configuration through the desktop bridge, so nothing was written.",
+            "This build cannot write a cloud configuration through the desktop bridge, so nothing was written.",
+            "This build has no desktop bridge for writing a cloud configuration, so nothing was written.",
+            "This build cannot reach the desktop bridge that writes a cloud configuration. Nothing was written, and nothing was half-written either.",
+            "This build has no desktop bridge to write a cloud configuration through, so the button had nowhere to send it. Nothing was written, and nothing was left half-written behind it.",
+        ],
+        yue: [
+            "呢個版本冇 desktop bridge 寫 cloud 設定，所以乜都冇寫到。",
+            "呢個版本冇 desktop bridge 寫 cloud 設定，所以乜都冇寫到。",
+            "呢個版本搭唔到 desktop bridge 去寫 cloud 設定，乜都冇寫到。",
+            "呢個版本搭唔到寫 cloud 設定嗰條 desktop bridge。乜都冇寫到，亦都冇寫到一半。",
+            "呢個版本根本冇條 desktop bridge 畀粒掣送嘢過去，所以佢按咗都冇地方去。乜都冇寫到，亦都冇留低寫一半嘅手尾。",
+        ],
+    },
+    "cirender.cloudConfig.noWorld": {
+        en: [
+            "Choose the world folder first. Nothing was written.",
+            "Choose the world folder first. Nothing was written.",
+            "Choose the world folder first; nothing was written.",
+            "There is no world folder chosen, so there is nowhere to write the configuration. Nothing was written.",
+            "No world folder is chosen, so the configuration has no home to go to. Nothing was written.",
+        ],
+        yue: [
+            "請先揀世界資料夾。乜都冇寫到。",
+            "請先揀世界資料夾。乜都冇寫到。",
+            "請先揀世界資料夾，依家乜都冇寫到。",
+            "未揀世界資料夾，設定冇地方寫。乜都冇寫到。",
+            "連世界資料夾都未揀，張設定連個屋企都冇。乜都冇寫到。",
+        ],
+    },
     "cirender.cloudConfig.written": {
         en: [
             "Wrote {file} through local history. Returning to the same cloud preflight now; your world, account and repository choices stay filled in.",
@@ -1822,6 +1854,14 @@ export const CIRENDER_FACTS = {
     "cirender.defaultProject.written": {
         en: ["{file}", "overworld, nether and end"],
         yue: ["{file}", "overworld、nether 同 end"],
+    },
+    "cirender.cloudConfig.noBridge": {
+        en: ["desktop bridge", "nothing was written"],
+        yue: ["desktop bridge", "乜都冇寫到"],
+    },
+    "cirender.cloudConfig.noWorld": {
+        en: ["world folder", "Nothing was written"],
+        yue: ["世界資料夾", "乜都冇寫到"],
     },
     "cirender.cloudConfig.written": {
         en: ["local history", "same cloud preflight"],

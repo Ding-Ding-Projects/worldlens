@@ -35,8 +35,19 @@ const props = withDefaults(
     defineProps<{
         world: string;
         separator?: string;
+        /**
+         * True while the parent is writing the project.
+         *
+         * The write happens outside this component, and so did its only visible sign of
+         * life - which is behind the dialog's own scrim, where nobody can read it. Pressing
+         * the button therefore looked exactly like pressing a dead one. It arrives as a prop
+         * so the state that actually decides the outcome is the state the button renders.
+         */
+        busy?: boolean;
+        /** The parent's refusal, shown here because a dialog covers wherever else it went. */
+        failure?: string | null;
     }>(),
-    { separator: "/" },
+    { separator: "/", busy: false, failure: null },
 );
 
 const emit = defineEmits<{
@@ -375,15 +386,26 @@ watch(selectedDimension, (value) => {
                 </dl>
                 <p v-if="problem !== null" class="text-error" role="alert">{{ problem }}</p>
             </section>
+            <VAlert
+                v-if="failure !== null"
+                type="error"
+                variant="tonal"
+                density="compact"
+                class="mt-4"
+                role="alert"
+                data-test="cloud-config-failure"
+            >
+                {{ failure }}
+            </VAlert>
         </VCardText>
         <VDivider />
         <div class="cloud-config-wizard__actions">
-            <VBtn variant="text" @click="emit('cancel')">{{ t("cirender.cloudConfig.cancel", "Cancel") }}</VBtn>
+            <VBtn variant="text" :disabled="busy === true" @click="emit('cancel')">{{ t("cirender.cloudConfig.cancel", "Cancel") }}</VBtn>
             <span class="cloud-config-wizard__status" role="status" aria-live="polite">{{ t("cirender.cloudConfig.status", { step: steps.findIndex((item) => item.id === step) + 1, total: steps.length }, "Step {step} of {total}") }}</span>
             <span class="flex-grow-1" />
             <VBtn v-if="step !== 'map'" :prepend-icon="mdiArrowLeft" variant="text" @click="back">{{ t("cirender.cloudConfig.back", "Back") }}</VBtn>
             <VBtn v-if="step !== 'review'" :append-icon="mdiArrowRight" color="primary" :disabled="problem !== null" @click="next">{{ t("cirender.cloudConfig.next", "Next") }}</VBtn>
-            <VBtn v-else :prepend-icon="mdiCheckCircleOutline" color="primary" :disabled="problem !== null" @click="save">{{ t("cirender.cloudConfig.save", "Write and return to cloud preflight") }}</VBtn>
+            <VBtn v-else :prepend-icon="mdiCheckCircleOutline" color="primary" :disabled="problem !== null || busy === true" :loading="busy === true" data-test="cloud-config-save" @click="save">{{ t("cirender.cloudConfig.save", "Write and return to cloud preflight") }}</VBtn>
         </div>
     </VCard>
 </template>

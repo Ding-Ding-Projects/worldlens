@@ -903,6 +903,15 @@ const defaultProjectFailure = ref<string | null>(null);
 const defaultProjectMessage = ref<string | null>(null);
 const cloudConfigOpen = ref(false);
 const cloudConfigOperationId = ref<string | null>(null);
+/**
+ * The write's refusal, while the wizard dialog is still up.
+ *
+ * Separate from `defaultProjectFailure`, which renders on the screen underneath and is
+ * therefore behind the dialog's own scrim - which is why pressing Write looked like
+ * pressing a dead button on every failure. Both are set, so the message is readable
+ * whether the dialog is still open or has been dismissed.
+ */
+const cloudConfigFailure = ref<string | null>(null);
 
 const canCreateCloudConfig = computed(() => bridge?.createCiCloudConfig !== undefined);
 
@@ -926,6 +935,7 @@ function openCloudConfig(): void {
     if (creatingDefaultProject.value) return;
     defaultProjectFailure.value = null;
     defaultProjectMessage.value = null;
+    cloudConfigFailure.value = null;
     cloudConfigOpen.value = true;
 }
 
@@ -934,11 +944,33 @@ async function saveCloudConfig(config: CiCloudRenderConfigInput): Promise<void> 
     if (creatingDefaultProject.value) return;
     const cloudBridge = bridge;
     const world = worldFolder.value.trim();
-    if (cloudBridge?.createCiCloudConfig === undefined || world === "") return;
+    /*
+     * Named, never a silent return. Both of these are reachable - a build without the
+     * bridge method, and a world folder cleared behind the open dialog - and returning
+     * quietly from either is indistinguishable, to the person pressing the button, from
+     * the button not being wired up at all.
+     */
+    if (cloudBridge?.createCiCloudConfig === undefined) {
+        cloudConfigFailure.value = t(
+            "cirender.cloudConfig.noBridge",
+            "This build cannot write a cloud configuration through the desktop bridge, so nothing was written.",
+        );
+        defaultProjectFailure.value = cloudConfigFailure.value;
+        return;
+    }
+    if (world === "") {
+        cloudConfigFailure.value = t(
+            "cirender.cloudConfig.noWorld",
+            "Choose the world folder first. Nothing was written.",
+        );
+        defaultProjectFailure.value = cloudConfigFailure.value;
+        return;
+    }
 
     creatingDefaultProject.value = true;
     defaultProjectFailure.value = null;
     defaultProjectMessage.value = null;
+    cloudConfigFailure.value = null;
     try {
         const operationId =
             typeof globalThis.crypto?.randomUUID === "function"
@@ -959,6 +991,7 @@ async function saveCloudConfig(config: CiCloudRenderConfigInput): Promise<void> 
         });
         if (!result.ok) {
             defaultProjectFailure.value = result.failure.message;
+            cloudConfigFailure.value = result.failure.message;
             return;
         }
         defaultProjectMessage.value = t(
@@ -968,7 +1001,9 @@ async function saveCloudConfig(config: CiCloudRenderConfigInput): Promise<void> 
         cloudConfigOpen.value = false;
         await check();
     } catch (error) {
-        defaultProjectFailure.value = error instanceof Error ? error.message : String(error);
+        const detail = error instanceof Error ? error.message : String(error);
+        defaultProjectFailure.value = detail;
+        cloudConfigFailure.value = detail;
     } finally {
         cloudConfigOperationId.value = null;
         creatingDefaultProject.value = false;
@@ -2141,6 +2176,8 @@ onBeforeUnmount(() => {
                             <CloudRenderConfigWizard
                                 :world="worldFolder"
                                 :separator="worldFolder.includes('\\') ? '\\' : '/'"
+                                :busy="creatingDefaultProject"
+                                :failure="cloudConfigFailure"
                                 @cancel="cancelCloudConfig"
                                 @save="saveCloudConfig"
                             />

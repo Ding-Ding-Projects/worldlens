@@ -367,6 +367,32 @@ async function run(request: CiUploadRequest): Promise<CiUploadSummary> {
         }
 
         const before = bytesDone;
+        /*
+         * Said before the first byte moves, and this is the whole of what makes an upload
+         * look like it is happening.
+         *
+         * `gh release upload` prints nothing while it transfers, so the transport can only
+         * report a part once it has landed - which meant the bar and its caption sat on
+         * whatever the packing step last said for the entire upload. A world going up as
+         * six 1.5 GB parts spent most of an evening claiming to be packing.
+         *
+         * Emitting here does not invent byte-level progress that nobody can observe. It
+         * reports what is actually known: which part is in flight, how big it is, and how
+         * much of the whole archive is already on the release. The bar therefore steps once
+         * per part, which with a 1.5 GB part size is real, honest movement rather than a
+         * spinner pretending to be a percentage.
+         */
+        say({
+            type: "progress",
+            description:
+                `Uploading part ${String(index + 1)} of ${String(uploads.length)} ` +
+                `(${describeUploadBytes(upload.bytes)})`,
+            bytesDone: before,
+            bytesTotal,
+            assetsDone: index,
+            assetsTotal: uploads.length,
+            asset: upload.name,
+        });
         await transport.uploadReleaseAsset({
             release,
             owner,
@@ -378,7 +404,9 @@ async function run(request: CiUploadRequest): Promise<CiUploadSummary> {
                 bytesDone = before + progress.bytesSent;
                 say({
                     type: "progress",
-                    description: `Uploading part ${String(index + 1)} of ${String(uploads.length)}`,
+                    description:
+                        `Uploading part ${String(index + 1)} of ${String(uploads.length)} ` +
+                        `(${describeUploadBytes(upload.bytes)})`,
                     bytesDone,
                     bytesTotal,
                     assetsDone: index,
@@ -439,6 +467,18 @@ async function run(request: CiUploadRequest): Promise<CiUploadSummary> {
     };
 }
 
+/** Bytes as a person reads them. Local to this module so a caption never carries a raw count. */
+function describeUploadBytes(bytes: number): string {
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1000 && unit < units.length - 1) {
+        value /= 1000;
+        unit += 1;
+    }
+    return unit === 0 ? `${String(value)} B` : `${value.toFixed(1)} ${units[unit] as string}`;
+}
+
 /**
  * Packs the world, or re-uses an archive an earlier attempt already staged.
  *
@@ -469,7 +509,9 @@ async function packOrReuse(
             say({
                 type: "progress",
                 description:
-                    progress.current === null ? "Packing the world" : `Packing ${basename(progress.current)}`,
+                    progress.current === null
+                        ? "Packing the world for upload"
+                        : `Packing ${basename(progress.current)}`,
                 bytesDone: progress.bytesDone,
                 bytesTotal: progress.bytesTotal,
                 assetsDone: progress.filesDone,
