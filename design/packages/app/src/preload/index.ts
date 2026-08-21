@@ -2377,6 +2377,38 @@ interface WorldlensBridge {
             remove(lockId: string): Promise<void>;
         };
     };
+    /**
+     * Minecraft server hosting: the server list, and the machine each one lives on.
+     *
+     * Every call answers with the same `{ ok, value } | { ok, failure }` shape the main
+     * process uses, rather than rejecting. "That daemon is unreachable" and "that server is
+     * stopped" are ordinary answers a screen has to render differently, and an exception
+     * would flatten both into one catch block.
+     *
+     * Bytes cross as text with the hash of the ORIGINAL bytes attached, so the stale-write
+     * guard still compares what is genuinely on disk.
+     */
+    mcserver: {
+        list(): Promise<unknown>;
+        get(id: string): Promise<unknown>;
+        save(record: unknown): Promise<unknown>;
+        /** Removes it from this app's list. Never deletes the container or the folder. */
+        forget(id: string): Promise<unknown>;
+        probe(id: string): Promise<unknown>;
+        status(id: string): Promise<unknown>;
+        start(id: string): Promise<unknown>;
+        stop(id: string, options?: { graceful?: boolean; timeoutMs?: number }): Promise<unknown>;
+        files: {
+            list(id: string, dir: string): Promise<unknown>;
+            read(id: string, path: string): Promise<unknown>;
+            write(
+                id: string,
+                path: string,
+                body: { text: string; expectedHash: string | null; backup?: boolean },
+            ): Promise<unknown>;
+        };
+        logTail(id: string, lines?: number): Promise<unknown>;
+    };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
         load(raw: string): Promise<VocabularyResult>;
@@ -3351,6 +3383,22 @@ const bridge: WorldlensBridge = {
             get: (lockId) => ipcRenderer.invoke("locks:vault:get", lockId),
             remove: (lockId) => ipcRenderer.invoke("locks:vault:remove", lockId),
         },
+    },
+    mcserver: {
+        list: () => ipcRenderer.invoke("mcserver:list"),
+        get: (id) => ipcRenderer.invoke("mcserver:get", id),
+        save: (record) => ipcRenderer.invoke("mcserver:save", record),
+        forget: (id) => ipcRenderer.invoke("mcserver:forget", id),
+        probe: (id) => ipcRenderer.invoke("mcserver:probe", id),
+        status: (id) => ipcRenderer.invoke("mcserver:status", id),
+        start: (id) => ipcRenderer.invoke("mcserver:start", id),
+        stop: (id, options) => ipcRenderer.invoke("mcserver:stop", id, options),
+        files: {
+            list: (id, dir) => ipcRenderer.invoke("mcserver:file:list", id, dir),
+            read: (id, path) => ipcRenderer.invoke("mcserver:file:read", id, path),
+            write: (id, path, body) => ipcRenderer.invoke("mcserver:file:write", id, path, body),
+        },
+        logTail: (id, lines) => ipcRenderer.invoke("mcserver:log:tail", id, lines),
     },
     vocabulary: {
         read: () => ipcRenderer.invoke("vocabulary:read"),

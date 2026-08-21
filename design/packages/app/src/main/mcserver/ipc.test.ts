@@ -1,0 +1,187 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { MCSERVER_CHANNELS, registerMcServerHandlers, type IpcMainLike, type McServerIpc } from "./ipc.js";
+import type { ServerRecord } from "./registry.js";
+import type { CommandOutput, CommandRunner } from "../runtime/command.js";
+
+type Handler = (event: unknown, ...args: unknown[]) => Promise<unknown>;
+
+/** A stand-in for `ipcMain` so nothing here needs Electron. */
+function fakeIpc(): IpcMainLike & { handlers: Map<string, Handler>; removed: string[] } {
+    const handlers = new Map<string, Handler>();
+    const removed: string[] = [];
+    return {
+        handlers,
+        removed,
+        handle(channel: string, handler: unknown): void {
+            handlers.set(channel, handler as Handler);
+        },
+        removeHandler(channel: string): void {
+            removed.push(channel);
+            handlers.delete(channel);
+        },
+    } as IpcMainLike & { handlers: Map<string, Handler>; removed: string[] };
+}
+
+function dockerOutput(overrides: Partial<CommandOutput> = {}): CommandOutput {
+    return { ok: true, exitCode: 0, stdout: "", stderr: "", spawnError: null, ...overrides };
+}
+
+const RECORD: ServerRecord = {
+    id: "survival",
+    name: "Survival",
+    flavour: "paper",
+    minecraftVersion: "1.21.4",
+    ref: { kind: "local-docker", containerRef: "mc-survival", serverDir: "/data" },
+    origin: "created",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    hasRconSecret: false,
+    rconPort: null,
+    writeScope: [],
+};
+
+describe("registerMcServerHandlers", () => {
+    let dir: string;
+    let ipc: ReturnType<typeof fakeIpc>;
+    let registered: McServerIpc;
+    let calls: { command: string; args: readonly string[] }[];
+
+    const invoke = async (channel: string, ...args: unknown[]): Promise<unknown> => {
+        const handler = ipc.handlers.get(channel);
+        if (handler === undefined) throw new Error(`no handler for ${channel}`);
+        return handler({}, ...args);
+    };
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "wl-mcipc-"));
+        ipc = fakeIpc();
+        calls = [];
+        const runner: CommandRunner = async (command, args) => {
+            calls.push({ command, args });
+            if (args[0] === "inspect") {
+                return dockerOutput({ stdout: JSON.stringify({ Status: "running", Running: true, ExitCode: 0 }) });
+            }
+            return dockerOutput();
+        };
+        registered = registerMcServerHandlers(ipc, { dataFolder: dir, factory: { runner } });
+        await registered.registry.put(RECORD);
+    });
+
+    afterEach(async () => {
+        registered.dispose();
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    it("registers every channel it declares", () => {
+        for (const channel of Object.values(MCSERVER_CHANNELS)) {
+            expect(ipc.handlers.has(channel)).toBe(true);
+        }
+    });
+
+    it("removes every channel on dispose", () => {
+        registered.dispose();
+        for (const channel of Object.values(MCSERVER_CHANNELS)) {
+            expect(ipc.removed).toContain(channel);
+        }
+    });
+
+    it("lists saved servers", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.list)) as { ok: boolean; value: ServerRecord[] };
+        expect(answer.ok).toBe(true);
+        expect(answer.value).toHaveLength(1);
+    });
+
+    it("reports status through the transport", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.status, "survival")) as {
+            ok: boolean;
+            value: { running: boolean };
+        };
+        expect(answer.ok).toBe(true);
+        expect(answer.value.running).toBe(true);
+    });
+
+    it("refuses an unknown server rather than reaching for a machine", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.status, "ghost")) as {
+            ok: boolean;
+            failure: { code: string };
+        };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("not-found");
+        expect(calls).toHaveLength(0);
+    });
+
+    it("refuses a malformed server name before doing anything", async () => {
+        for (const bad of [undefined, null, 42, "", "x".repeat(500)]) {
+            const answer = (await invoke(MCSERVER_CHANNELS.status, bad)) as { ok: boolean; failure: { code: string } };
+            expect(answer.ok).toBe(false);
+            expect(answer.failure.code).toBe("invalid-request");
+        }
+        expect(calls).toHaveLength(0);
+    });
+
+    it("stops gracefully when the renderer says nothing about it", async () => {
+        // A missing or malformed flag must never be read as "kill it" - that costs
+        // whatever the server has not saved since its last autosave.
+        await invoke(MCSERVER_CHANNELS.stop, "survival", undefined);
+        expect(calls[0]?.args[0]).toBe("stop");
+
+        calls.length = 0;
+        await invoke(MCSERVER_CHANNELS.stop, "survival", { graceful: "no thanks" });
+        expect(calls[0]?.args[0]).toBe("stop");
+    });
+
+    it("kills only when the renderer explicitly asks", async () => {
+        await invoke(MCSERVER_CHANNELS.stop, "survival", { graceful: false });
+        expect(calls[0]?.args[0]).toBe("kill");
+    });
+
+    it("clamps an absurd stop timeout instead of passing it through", async () => {
+        await invoke(MCSERVER_CHANNELS.stop, "survival", { graceful: true, timeoutMs: 99_999_999 });
+        expect(calls[0]?.args).toEqual(["stop", "--timeout", "60", "mc-survival"]);
+    });
+
+    it("refuses a path with a line break before it reaches the machine", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.fileRead, "survival", "a\nb.yml")) as {
+            ok: boolean;
+            failure: { code: string };
+        };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("invalid-request");
+        expect(calls).toHaveLength(0);
+    });
+
+    it("refuses a write whose body is not readable", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.fileWrite, "survival", "server.properties", {
+            text: 42,
+        })) as { ok: boolean; failure: { code: string } };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("invalid-request");
+    });
+
+    it("carries the record's write scope into the transport", async () => {
+        await registered.registry.put({ ...RECORD, writeScope: ["plugins"] });
+        const answer = (await invoke(MCSERVER_CHANNELS.fileWrite, "survival", "server.properties", {
+            text: "pvp=false",
+            expectedHash: null,
+        })) as { ok: boolean; failure: { code: string } };
+
+        // The scope is stored on the record, so a handler that built a transport without it
+        // would silently ignore what the user consented to on an adopted container.
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("out-of-scope");
+    });
+
+    it("forgetting a server never asks Docker to remove anything", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.forget, "survival")) as { ok: boolean };
+        expect(answer.ok).toBe(true);
+        // Forgetting is not deleting. This is what makes releasing an adopted container safe.
+        expect(calls.some((call) => call.args.includes("rm"))).toBe(false);
+        const listed = (await invoke(MCSERVER_CHANNELS.list)) as { ok: boolean; value: ServerRecord[] };
+        expect(listed.value).toHaveLength(0);
+    });
+});

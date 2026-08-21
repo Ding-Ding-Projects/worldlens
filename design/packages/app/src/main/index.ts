@@ -59,6 +59,7 @@ import {
     type SchoolModeIpc,
 } from "./schoolMode/index.js";
 import { registerLockHandlers, type LockIpc } from "./locks/ipc.js";
+import { registerMcServerHandlers, type McServerIpc } from "./mcserver/ipc.js";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import {
@@ -475,6 +476,7 @@ function hardenSession(baseUrl: string): void {
 let ipcRegistered = false;
 let schoolModeIpc: SchoolModeIpc | null = null;
 let lockIpc: LockIpc | null = null;
+let mcServerIpc: McServerIpc | null = null;
 
 function registerIpc(): void {
     if (ipcRegistered) return;
@@ -548,6 +550,15 @@ function registerIpc(): void {
         safeStorage,
     });
     app.on("will-quit", () => lockIpc?.dispose());
+
+    // Minecraft server hosting. Registered unconditionally, because the renderer decides
+    // what to show from the capability probes rather than from whether a host answered -
+    // a machine with no Docker still has a server list worth reading.
+    mcServerIpc = registerMcServerHandlers(ipcMain, {
+        dataFolder: app.getPath("userData"),
+    });
+    app.on("will-quit", () => mcServerIpc?.dispose());
+
     registerVocabularyHandlers(ipcMain, { applicationDataDirectory });
 
     // Mojang's licence, fetched and cached so it can be read inside the app rather than
