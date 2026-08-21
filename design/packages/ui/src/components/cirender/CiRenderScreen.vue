@@ -1007,13 +1007,6 @@ const blockedBecause = computed<string | null>(() => {
     if (report.routeReport.ready !== true) return report.routeReport.describe;
     if (report.planFailure !== null) return report.planFailure;
     if (report.worldFailure !== null) return report.worldFailure;
-    if (report.tooLargeToUpload && report.uploadNeeded) {
-        return t(
-            "cirender.blocked.large",
-            { size: formatBytes(report.estimatedArchiveBytes, t) },
-            "This world packs to about {size}, past what one GitHub release asset can hold.",
-        );
-    }
     // The broker-backed route can publish; keep the capability check for future read-only
     // routes and keep recovery on the selected account.
     if (report.uploadNeeded && !report.routeReport.canUpload) {

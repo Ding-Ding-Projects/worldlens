@@ -123,7 +123,6 @@ function preflight(overrides: Partial<CiPreflight> = {}): CiPreflight {
         worldChanged: true,
         uploadNeeded: true,
         estimatedArchiveBytes: 1000,
-        tooLargeToUpload: false,
         state: null,
         run: null,
         ...overrides,

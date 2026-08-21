@@ -283,7 +283,6 @@ export interface CiPreflight {
     readonly worldChanged: boolean;
     readonly uploadNeeded: boolean;
     readonly estimatedArchiveBytes: number;
-    readonly tooLargeToUpload: boolean;
     readonly state: CiSyncState | null;
     readonly run: CiRunReport | null;
 }

@@ -74,20 +74,20 @@ import {
 import type { CiPostRenderWarning, CiSyncState } from "./state.js";
 
 /**
- * The largest world this feature will upload, and why there is a ceiling at all.
+ * The largest **single release asset** GitHub accepts, which is no longer a ceiling on the
+ * world.
  *
- * The workflow's `release-asset` source runs `gh release download --pattern`, finds one
- * `.zip` and unzips it. A world large enough for the backup to split into parts therefore
- * cannot be dispatched at all: the parts are named `world.zip.000-<digest>` and there is
- * no `.zip` for the workflow to find. So the archive has to fit in **one** release asset,
- * and GitHub caps an asset at 2 GiB.
+ * It used to be one. The workflow's `release-asset` source fetched exactly one `.zip`, so
+ * an archive big enough to be split had no whole `.zip` for it to find and the sync refused
+ * before packing anything. `render-world.yml` now downloads every asset whose name begins
+ * with the archive's, finds the `*.parts.json` this uploader publishes beside the parts,
+ * and hands it to the same joiner the desktop application runs - which verifies each part
+ * against its own SHA-256 and the rejoined archive against the whole-file digest before a
+ * single byte is unzipped. So a world of any size uploads and renders; it simply arrives in
+ * more pieces.
  *
- * The check runs before anything is packed, using the source folder's own byte total plus
- * an allowance for the zip's per-entry overhead. It errs towards refusing early, because
- * the alternative is discovering it after an hour of packing and an evening of uploading.
- *
- * The number is the Cheap LFS reader's own ceiling, which is 2 GiB for exactly the same
- * reason: it is what GitHub accepts as one asset.
+ * The constant is kept because the per-asset cap is still real: it is what
+ * {@link CI_UPLOAD_PART_SIZE_BYTES} has to stay under.
  */
 export const CI_MAX_WORLD_BYTES = CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES;
 
@@ -95,27 +95,19 @@ export const CI_MAX_WORLD_BYTES = CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES;
 const ZIP_ENTRY_OVERHEAD_BYTES = 256;
 
 /**
- * The part size the CI upload asks the backup for.
+ * The part size the CI upload asks the backup for: 1.5 GB.
  *
- * Larger than the backup's own 500 MiB default, on purpose: that default is sized for a
- * laptop uploading over a home connection and splitting is a *feature* there, because a
- * dropped connection costs one part rather than the whole archive. Here a split archive
- * is unusable, so the split point is pushed out to the asset ceiling and the size guard
- * above is what keeps anything larger from being attempted.
+ * Comfortably under GitHub's 2 GiB per-asset cap rather than pressed against it, which is
+ * the whole point of choosing a number at all. The margin absorbs the difference between a
+ * decimal gigabyte and GitHub's binary one without anybody having to do that arithmetic at
+ * upload time, and a rejected final asset after hours of transfer is the expensive way to
+ * discover the cap is nearer than it looks.
  *
- * **This is not a setting, and a settings-exposure pass should not turn it into one.**
- * It looks like the same "how big is a part" trade-off `docs/backup.md` deliberately
- * declines to expose, and on inspection it is a narrower case than that: because a split
- * archive cannot be rendered at all here, this value has exactly one usable range - large
- * enough that any archive under {@link CI_MAX_WORLD_BYTES} never gets split - and that
- * range's floor already equals its ceiling, both being GitHub's own asset cap. Lowering it
- * would not trade anything for anything; it would only start splitting archives that used
- * to upload whole, and the very next check (`result.summary.parts !== 1`) would then fail
- * the sync outright. Raising it past the cap does nothing, since GitHub refuses the upload
- * either way. There is no point on either side of this value where a person is better off
- * for having moved it.
+ * It also bounds what a dropped connection costs: a failed part is 1.5 GB re-sent, not the
+ * whole world, and the resume path skips every part already on the release by name and size.
  */
-export const CI_UPLOAD_PART_SIZE_BYTES = CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES;
+export const CI_UPLOAD_PART_SIZE_BYTES = 1_500_000_000;
+
 
 /** The stable name owned by the generated workflow template. */
 export const VERIFIED_MAP_UPLOAD_STEP = "Publish the verified map artifact";
@@ -432,9 +424,12 @@ export interface CiPreflight {
     readonly worldChanged: boolean;
     /** True when this sync would send the world to GitHub. */
     readonly uploadNeeded: boolean;
-    /** The estimated archive size, and whether it is past a release asset's ceiling. */
+    /**
+     * The estimated archive size. Reported so the confirmation can say what is about to be
+     * sent; it is no longer a ceiling, because an archive past a release asset's cap is
+     * split into verified parts and rejoined by the workflow.
+     */
     readonly estimatedArchiveBytes: number;
-    readonly tooLargeToUpload: boolean;
     readonly state: CiSyncState | null;
     /** The recorded run's current state, when there is a recorded run. */
     readonly run: CiRunReport | null;
@@ -664,7 +659,6 @@ export class CiRenderSync {
                 uploadNeeded:
                     changed || request.forceUpload === true || (state?.releaseTag ?? null) === null,
                 estimatedArchiveBytes: estimated,
-                tooLargeToUpload: estimated >= CI_MAX_WORLD_BYTES,
                 state,
                 run,
             },
@@ -1398,22 +1392,14 @@ export class CiRenderSync {
                 );
             }
 
-            const estimated = estimateArchiveBytes(source.bytes, source.files);
-            if (estimated >= CI_MAX_WORLD_BYTES) {
-                return this.#failed(
-                    syncId,
-                    failure(
-                        "world-too-large",
-                        `${source.label} packs to roughly ${describeBytes(estimated)}, and a GitHub ` +
-                            `release asset stops at ${describeBytes(CI_MAX_WORLD_BYTES)}. The render ` +
-                            "workflow fetches one zip from a release, so a world that has to be split " +
-                            "into several assets cannot be dispatched at all. Nothing was packed. " +
-                            "Render this world on this computer, or render one dimension at a time.",
-                        { route },
-                    ),
-                );
-            }
-
+            /*
+             * No size refusal here any more, and the absence is deliberate.
+             *
+             * This used to fail closed above CI_MAX_WORLD_BYTES because the workflow could
+             * only fetch one whole zip from a release. It now rejoins a split archive from
+             * the manifest the uploader publishes, so an 8 GB world goes up as six verified
+             * parts and renders exactly like a 200 MB one.
+             */
             this.#phase(syncId, "uploading", route);
 
             /*
@@ -1503,21 +1489,19 @@ export class CiRenderSync {
                 );
             }
 
-            // The guard above should have caught this, and this is the belt to its
-            // braces. A split archive on the release would dispatch a run that downloads
-            // no zip and fails in the workflow's fetch step, minutes later, with a
-            // message about the workflow rather than about the world.
+            /*
+             * A split archive is published, not refused: `upload.ts` puts a `.parts.json`
+             * on the release naming every part and its digest, and the workflow rejoins and
+             * verifies from it. Parts are counted only for the log below.
+             */
             if (result.summary.parts !== 1) {
-                return this.#failed(
+                this.#log(
                     syncId,
-                    failure(
-                        "world-split-into-parts",
-                        `The world was uploaded as ${String(result.summary.parts)} parts, and the ` +
-                            "render workflow reads a single zip from a release. The upload is on " +
-                            `${result.summary.tag} and is a perfectly good backup; it just cannot be ` +
-                            "rendered by GitHub. Render this world on this computer instead.",
-                        { route },
-                    ),
+                    "info",
+                    `The world went up as ${String(result.summary.parts)} parts with a rejoin ` +
+                        "manifest beside them; the render workflow verifies every part against its " +
+                        "own SHA-256 and the rejoined archive against the whole-file digest before " +
+                        "unpacking it.",
                 );
             }
 

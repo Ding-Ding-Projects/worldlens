@@ -197,7 +197,6 @@ describe("the line that decides whether somebody starts an upload", () => {
             worldChanged: true,
             uploadNeeded: true,
             estimatedArchiveBytes: 1_500_000_000,
-            tooLargeToUpload: false,
             state: null,
             run: null,
             ...overrides,
@@ -1166,7 +1165,6 @@ describe("clearing a stale preflight report", () => {
             worldChanged: true,
             uploadNeeded: true,
             estimatedArchiveBytes: 0,
-            tooLargeToUpload: false,
             state: null,
             run: null,
         };

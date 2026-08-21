@@ -56,7 +56,7 @@
 
 import { mkdir, rename, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { sha256File, splitFile } from "@worldlens/parts";
+import { manifestNameFor, sha256File, splitFile } from "@worldlens/parts";
 import type { PartsManifest } from "@worldlens/parts";
 import {
     CHEAP_LFS_POINTER_VERSION,
@@ -231,6 +231,22 @@ async function run(request: CiUploadRequest): Promise<CiUploadSummary> {
 
     const uploads: { name: string; path: string; bytes: number }[] = [];
     let pointerParts: CheapLfsPointerPart[] | undefined;
+    /**
+     * The rejoin manifest for a split archive, staged here and published beside the parts.
+     *
+     * `splitFile` already wrote one, and it is the wrong one to publish: it lists the parts
+     * under the names the splitter gave them (`world.zip.000`), and every part is renamed
+     * below to the digest-carrying asset name a restore looks for. A manifest naming files
+     * that are not on the release rejoins nothing.
+     *
+     * It is what makes an oversized world renderable at all. `render-world.yml` looks for a
+     * `*.parts.json` beside the assets it downloaded and hands it to the same joiner this
+     * application runs, which verifies every part against its own SHA-256 and the rejoined
+     * archive against the whole-file digest before anything is unzipped. Without it the
+     * workflow falls through to its `SHA256SUMS` branch, which this uploader does not
+     * publish, and refuses to join parts it cannot verify.
+     */
+    let manifestUpload: { name: string; path: string } | undefined;
 
     if (split.split) {
         const manifest: PartsManifest = split.manifest;
@@ -247,6 +263,19 @@ async function run(request: CiUploadRequest): Promise<CiUploadSummary> {
             uploads.push({ name: assetName, path: staged, bytes: part.bytes });
             pointerParts.push({ name: assetName, sizeInBytes: part.bytes, sha256: part.sha256 });
         }
+        const renamed: PartsManifest = {
+            ...manifest,
+            file: archiveName,
+            parts: manifest.parts.map((part, index) => ({
+                ...part,
+                name: uploads[index]?.name ?? part.name,
+            })),
+        };
+        const manifestName = manifestNameFor(archiveName);
+        const manifestPath = join(workspace.partsDir, manifestName);
+        await writeFile(manifestPath, `${JSON.stringify(renamed, null, 4)}
+`, "utf8");
+        manifestUpload = { name: manifestName, path: manifestPath };
     } else {
         // Small enough to be one asset, which the pointer format calls out by name: five
         // lines and no part lines. The archive is already staged under its own name.
@@ -387,6 +416,10 @@ async function run(request: CiUploadRequest): Promise<CiUploadSummary> {
         await transport.uploadReleaseAsset({ release, owner, repo, assetName, filePath, bytes });
     };
     await putSmall(SIDECAR_ASSET_NAME, workspace.sidecarFile);
+    // Before the pointer, because the pointer is the completion marker: a release whose
+    // pointer is up but whose rejoin manifest is not would look finished to a restore and
+    // be unrenderable to the workflow.
+    if (manifestUpload !== undefined) await putSmall(manifestUpload.name, manifestUpload.path);
     await putSmall(pointerName, pointerPath);
 
     // The archive is a second copy of a folder that is still on the disk beside it, so
