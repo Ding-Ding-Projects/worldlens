@@ -1,5 +1,60 @@
 # Roadmap
 
+## Pause/resume for the remaining long-running operations — lane/pause
+
+`BackupRunner` (packing, splitting, uploading a backup) now supports a real, safe,
+durable pause and resume - see `design/packages/app/src/main/backup/pauseGate.ts`,
+`pauseState.ts`, `archiveDigestCache.ts`, and the resumable `splitFile` in
+`design/packages/parts/src/split.ts`. Deliberately left out of that same pass, so it
+could be reviewed against real code rather than half-wired across every subsystem:
+
+- [ ] **CI-render upload** (`design/packages/app/src/main/cirender/upload.ts`, `sync.ts`).
+  Structurally different from `BackupRunner`: a plain async function rather than a class
+  with a `#running` map, so there is no natural home for a per-operation `PauseGate` yet.
+  Its asset-upload loop (`upload.ts`, the `for (const [index, upload] of uploads.entries())`
+  around the `signal?.throwIfAborted()` call) is exactly the same shape as the backup
+  runner's own upload loop and would take the same boundary call almost verbatim; its
+  `splitFile` call now inherits the resume this task added for free, since both callers
+  share `@worldlens/parts`. Packing (via `packOrReuse` in `upload.ts`) would need the same
+  in-progress-marker treatment `runner.ts#packOrReuse` now has, or a resumed CI upload can
+  hit the exact same "silently reuse a truncated archive" bug this task fixed for backups.
+- [ ] **CI-render dispatch/poll/collect loop** (`sync.ts`). Waiting for a GitHub Actions run
+  is not itself pausable in a meaningful sense - there is nothing local to pause, the
+  work is happening on GitHub's own runners - but the *local* polling loop should stop
+  cheaply on request rather than only on the existing cancel path, and the durable
+  `CiSyncState` (`state.ts`) already has the stage machinery a pause marker could extend.
+- [ ] **World download / restore** (`design/packages/app/src/main/download/downloader.ts`,
+  `worlddownloader/`). The restore side of this whole feature already resumes a rejoin
+  from a verified prefix (`joinParts`/`verifyExistingPrefix` in
+  `design/packages/parts/src/join.ts`), which is most of what a safe pause needs - but
+  there is currently no `pause()`/`resume()` surface on the downloader itself, only
+  cancel. Adding one is close to copying `BackupRunner`'s new `PauseGate` wiring almost
+  directly, since the shapes are deliberate mirrors of each other (see `runner.ts`'s own
+  module doc comment).
+- [ ] **World rendering** (`design/packages/app/src/main/render/`). Not investigated in
+  this pass at all - a render is a different kind of long operation (CPU-bound tile
+  generation rather than I/O-bound pack/split/upload) and may already have its own
+  resumable-by-tile behaviour, or may not. Worth a dedicated look before assuming either.
+
+Each of the above should get its own `PauseGate`/durable-record treatment following the
+pattern in `backup/pauseGate.ts` and `backup/pauseState.ts` rather than a bespoke one, so
+"pause" means the same thing (safe boundary, durable across restart, honest UI state) on
+every long-running surface in this application - see the shared instructions' universal
+feature-delivery rule, which this partial pass does not yet satisfy on its own.
+
+### 廣東話同步
+
+`BackupRunner`（打包、切開、上傳一份備份）而家有真正、安全、可以跨越重啟嘅暫停同繼續喇——
+睇 `pauseGate.ts`、`pauseState.ts`、`archiveDigestCache.ts`，同埋而家識由暫停位繼續切嘅
+`splitFile`（`design/packages/parts/src/split.ts`）。同一輪特登冇做埋嘅嘢，寧願集中做好一個
+先俾人審，好過周圍半桶水咁掛住：CI render 嘅上傳（結構同 BackupRunner 唔同，暫時冇個地方擺
+per-operation 嘅 PauseGate，但佢個上傳 loop 形狀同 backup 個一模一樣，加返個暫停位應該唔難；
+splitFile 已經自動有埋今次加嘅 resume）；CI render 嘅 dispatch/poll/collect loop（本地
+polling 應該可以平價噉停低，雖然 GitHub runner 嗰邊嘅嘢冇得喺呢度暫停）；世界下載／還原（rejoin
+嗰邊已經識由已驗證嘅位繼續，但下載本身仲未有 pause()/resume() 呢個接口，得 cancel）；世界
+render（呢一輪完全冇睇過，可能本身已經識逐個 tile 續，可能唔識，要專登睇先知）。跟返
+`pauseGate.ts`／`pauseState.ts` 嗰個做法先啱，唔好每個 surface 自己整一套。
+
 ## Screenshot gallery — issue #76
 
 - **Source state:** An in-progress gallery surface and its article are present in this issue-owned

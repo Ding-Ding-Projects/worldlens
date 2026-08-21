@@ -71,7 +71,7 @@ export function etaText(task: BackupTaskProgress | null, t: T): string {
     return downloadEtaText(inDownloadShape(task), t);
 }
 
-export type BackupRowState = "running" | "finished" | "failed" | "cancelled";
+export type BackupRowState = "running" | "paused" | "finished" | "failed" | "cancelled";
 
 export interface BackupLogLine {
     readonly id: number;
@@ -98,12 +98,29 @@ export interface BackupRow {
     /** True once a real event has arrived, as opposed to an id adopted from a list. */
     readonly live: boolean;
     readonly stopping: boolean;
+    /**
+     * A pause was asked for and has not reached a clean boundary yet - still `running`
+     * on screen (bytes are still moving), but the Pause control shows "Pausing..." so a
+     * person is not left wondering whether their click landed. Distinct from `state ===
+     * "paused"`, which means the boundary was actually reached.
+     */
+    readonly pausing: boolean;
+    /**
+     * True only for a `paused` row whose pause is **live** - this build's own process is
+     * still holding the operation open, so Resume wakes it in place with nothing redone.
+     * False for a row adopted from `pausedBackups()` (the app was restarted since it
+     * paused): that row still shows `state === "paused"`, but resuming it has to be a
+     * fresh `startBackup` call with `resumeTag`, exactly like a stopped backup, because
+     * there is nothing left in this process to wake.
+     */
+    readonly liveResumable: boolean;
     readonly log: readonly BackupLogLine[];
 }
 
 /** Running first, then the endings. Newest first inside each rank. */
 const RANK: Readonly<Record<BackupRowState, number>> = {
     running: 0,
+    paused: 0,
     failed: 1,
     cancelled: 2,
     finished: 3,
@@ -126,6 +143,8 @@ function blankRow(backupId: string): BackupRow {
         durationMs: null,
         live: false,
         stopping: false,
+        pausing: false,
+        liveResumable: false,
         log: [],
     };
 }
@@ -176,6 +195,25 @@ export function canResume(row: BackupRow): boolean {
     );
 }
 
+/**
+ * Whether *this build, right now* can wake a paused row in place, at zero cost - as
+ * opposed to `canResume` above, which always means "restart with `resumeTag`" and is what
+ * a paused-but-not-live row falls back to (see `liveResumable` on `BackupRow`).
+ */
+export function canLiveResume(row: BackupRow): boolean {
+    return row.state === "paused" && row.liveResumable;
+}
+
+/**
+ * A paused row that this process can no longer wake in place - it was left paused by an
+ * earlier window/session and only exists here because `pausedBackups()` reported it.
+ * Carrying it on is `canResume`'s ordinary restart-with-`resumeTag` path, so this reuses
+ * exactly the same fields `canResume` checks and differs only in the state it accepts.
+ */
+export function canRestartPaused(row: BackupRow): boolean {
+    return row.state === "paused" && !row.liveResumable && row.tag !== "" && row.repository !== "" && row.kind !== null;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Naming a new repository: GitHub's own grammar, checked in plain words      */
 /* before a name is ever sent, exactly the way `ciRenders.ts`'s               */
@@ -224,6 +262,8 @@ export interface Backups {
     /** True when this build can make a backup at all. */
     readonly available: boolean;
     readonly canCancel: boolean;
+    /** True when this build can pause and live-resume a backup in flight. */
+    readonly canPause: boolean;
     readonly canListRepositories: boolean;
     readonly canListBackups: boolean;
     /** True when a brand-new repository can be created from this screen. */
@@ -273,7 +313,17 @@ export interface Backups {
     clearAccountState(): void;
     start(request: BackupRequest): Promise<BackupResult | null>;
     stop(backupId: string): Promise<boolean>;
-    /** Adopts anything already in flight, so a backup started elsewhere is on screen. */
+    /** Asks a running backup to pause at its next boundary. */
+    pause(backupId: string): Promise<boolean>;
+    /** Wakes a **live** paused backup in place - see `canLiveResume`. */
+    liveResume(backupId: string): Promise<boolean>;
+    /**
+     * Adopts anything already in flight, so a backup started elsewhere is on screen -
+     * and now also anything left durably **paused** by a since-closed window, read from
+     * disk through `pausedBackups()`. Both need adopting for the same reason: neither
+     * has a row yet in this surface's own state, because neither event stream (this
+     * window's `onBackupEvent`) has ever fired for them.
+     */
     reconcile(): Promise<void>;
     dispose(): void;
 }
@@ -364,11 +414,38 @@ export function createBackups(bridge: BackupBridge | null): Backups {
                     finishedAt: null,
                     durationMs: null,
                     stopping: false,
+                    pausing: false,
+                    liveResumable: false,
                     live: true,
                 });
                 break;
             case "phase":
                 put({ ...row, phase: event.phase, live: true });
+                break;
+            case "pausing":
+                // Still `running` on screen - bytes are still moving until the boundary
+                // is actually reached. Only the flag the button reads from changes.
+                put({ ...row, phase: event.phase, pausing: true, live: true });
+                break;
+            case "paused":
+                put({
+                    ...row,
+                    state: "paused",
+                    phase: event.phase,
+                    pausing: false,
+                    liveResumable: true,
+                    live: true,
+                });
+                break;
+            case "resuming":
+                put({
+                    ...row,
+                    state: "running",
+                    phase: event.phase,
+                    pausing: false,
+                    liveResumable: false,
+                    live: true,
+                });
                 break;
             case "progress":
                 put({ ...row, phase: event.phase, task: event.task, state: "running", live: true });
@@ -390,6 +467,8 @@ export function createBackups(bridge: BackupBridge | null): Backups {
                     finishedAt: event.at,
                     failure: null,
                     stopping: false,
+                    pausing: false,
+                    liveResumable: false,
                     live: true,
                 });
                 break;
@@ -400,11 +479,21 @@ export function createBackups(bridge: BackupBridge | null): Backups {
                     failure: event.failure,
                     finishedAt: event.at,
                     stopping: false,
+                    pausing: false,
+                    liveResumable: false,
                     live: true,
                 });
                 break;
             case "cancelled":
-                put({ ...row, state: "cancelled", finishedAt: event.at, stopping: false, live: true });
+                put({
+                    ...row,
+                    state: "cancelled",
+                    finishedAt: event.at,
+                    stopping: false,
+                    pausing: false,
+                    liveResumable: false,
+                    live: true,
+                });
                 break;
         }
     }
@@ -414,6 +503,7 @@ export function createBackups(bridge: BackupBridge | null): Backups {
     return {
         available: bridge !== null,
         canCancel: bridge?.canCancel ?? false,
+        canPause: bridge?.canPause ?? false,
         canListRepositories: bridge?.canListRepositories ?? false,
         canListBackups: bridge?.canListBackups ?? false,
         canCreateRepository: bridge?.canCreateRepository ?? false,
@@ -575,11 +665,51 @@ export function createBackups(bridge: BackupBridge | null): Backups {
             return await bridge.cancelBackup(backupId);
         },
 
+        async pause(backupId: string): Promise<boolean> {
+            if (bridge?.pauseBackup === undefined) return false;
+            // `pausing: true` here is a hint, not the source of truth - the main
+            // process's own `pausing` event (handled above) is what actually drives the
+            // control, and arrives moments later. Setting it here too means the button
+            // reflects the click immediately rather than waiting a round trip for an
+            // event that is coming anyway.
+            put({ ...rowFor(backupId), pausing: true });
+            return await bridge.pauseBackup(backupId);
+        },
+
+        async liveResume(backupId: string): Promise<boolean> {
+            if (bridge?.resumeBackup === undefined) return false;
+            return await bridge.resumeBackup(backupId);
+        },
+
         async reconcile(): Promise<void> {
             if (bridge === null) return;
             const active = await bridge.activeBackups();
             for (const backupId of active) {
                 if (byId.value[backupId] === undefined) put(blankRow(backupId));
+            }
+            // Backups nobody's event stream will ever mention again in this window:
+            // paused, and left that way by a session that has since closed. Adopted as
+            // `paused`/not-live-resumable so the interface offers the restart-with-
+            // `resumeTag` route rather than a Resume button that would find no live gate
+            // to wake - see `canRestartPaused` and `liveResumable` on `BackupRow`.
+            if (bridge.pausedBackups !== undefined) {
+                const paused = await bridge.pausedBackups();
+                for (const entry of paused) {
+                    if (active.includes(entry.backupId)) continue;
+                    const existing = byId.value[entry.backupId];
+                    if (existing !== undefined && existing.live) continue;
+                    put({
+                        ...blankRow(entry.backupId),
+                        state: "paused",
+                        phase: entry.phase,
+                        tag: entry.tag,
+                        repository: entry.repository,
+                        kind: entry.kind,
+                        label: entry.label,
+                        liveResumable: false,
+                        live: true,
+                    });
+                }
             }
         },
 

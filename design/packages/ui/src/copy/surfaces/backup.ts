@@ -678,6 +678,27 @@ export const BACKUP_VOICED = {
         ],
     },
     /*
+     * Shown instead of the pause button on a build that has no pause. Stopping is still
+     * always safe regardless - the sentence exists precisely so nobody reads "cannot
+     * pause" as "cannot stop safely", which are two very different facts about this screen.
+     */
+    "backup.row.cannotPause": {
+        en: [
+            "This build cannot pause a backup once it has started. Stopping is still safe: what is packed and uploaded is kept.",
+            "This build cannot pause a backup once it has started. Stopping is still safe: what is packed and uploaded is kept.",
+            "This build cannot pause a backup once it has started, and there is no button here that changes that. Stopping is still safe, though: what is packed and uploaded is kept.",
+            "This build cannot pause a backup once it has started. No button here changes that - but Stop is still safe: what is packed and uploaded is kept either way.",
+            "This build cannot pause a backup once it has started, and no amount of clicking will change that. Stop stays safe regardless, though: what is packed and uploaded is kept, pause or no pause.",
+        ],
+        yue: [
+            "呢個版本一旦開始咗備份就暫停唔到。停低就仍然安全：已經打包同已經上傳咗嘅嘢會保留。",
+            "呢個版本一旦開始咗備份就暫停唔到。停低就仍然安全：已經打包同已經上傳咗嘅嘢會保留。",
+            "呢個版本一旦開始咗備份就暫停唔到，呢度冇掣可以改變呢件事。不過停低仍然安全：已經打包同已經上傳咗嘅嘢會保留。",
+            "呢個版本一旦開始咗備份就暫停唔到，撳咩掣都冇用。不過停低照樣安全：已經打包同已經上傳咗嘅嘢一樣會保留。",
+            "呢個版本一旦開始咗備份就暫停唔到，撳到隻手軟都一樣。不過停低點都安全：暫唔暫停都好，已經打包同已經上傳咗嘅嘢一樣保留。",
+        ],
+    },
+    /*
      * The success line, and the one place a level is tempted to say "done" and stop. The
      * SHA-256 clause is why the backup is worth anything, so it stays: what makes this a
      * backup rather than a pile of uploads is that a restore can check it.
@@ -717,6 +738,44 @@ export const BACKUP_VOICED = {
             "已經停咗，冇嘢掉咗。已經打包好同已經上傳咗嘅嘢全部保留，所以繼續做落去會由停低嗰個位接返落去，唔使由頭嚟過。",
             "已經停咗，一樣嘢都冇掉。已經打包好同已經上傳咗嘅嘢全部保留，所以繼續做落去會由停低嗰個位接返落去，唔使由頭嚟過。",
             "已經停咗，連一個打包好嘅位元組都冇掉。已經打包好同已經上傳咗嘅嘢全部保留，所以繼續做落去會由停低嗰個位接返落去，完全唔使由頭嚟過。",
+        ],
+    },
+    /*
+     * Pausing is not stopping, and the two must never blur into each other at any level.
+     * A live pause (this window is still open) costs nothing to resume; a pause left over
+     * from a closed window costs a re-check, not a redo, but it does have to say that
+     * "re-check" honestly rather than implying the operation resumes exactly where it was.
+     */
+    "backup.row.pausedLiveDetail": {
+        en: [
+            "Paused. Nothing is open and nothing was undone - Resume carries straight on from here, with no redo at all.",
+            "Paused. Nothing is open and nothing was undone - Resume carries straight on from here, with no redo at all.",
+            "Paused, and holding perfectly still. Nothing is open and nothing was undone, so Resume carries straight on from exactly here, with no redo at all.",
+            "Paused, mid-breath. Nothing is open, nothing was undone, and nothing was thrown away - Resume carries straight on from exactly here, with no redo at all.",
+            "Paused, mid-breath, not even a byte out of place. Nothing is open, nothing was undone, and nothing was thrown away - Resume carries straight on from exactly here, with absolutely no redo.",
+        ],
+        yue: [
+            "已經暫停咗。冇嘢開住，亦都冇嘢被還原返，撳「繼續」即刻由呢一刻接住做，完全唔使補做。",
+            "已經暫停咗。冇嘢開住，亦都冇嘢被還原返，撳「繼續」即刻由呢一刻接住做，完全唔使補做。",
+            "暫停咗，企定定喺度。冇嘢開住，冇嘢被還原返，所以撳「繼續」即刻由呢一刻接住做，完全唔使補做。",
+            "暫停咗，連一啖氣都未瞓返。冇嘢開住，冇嘢被還原返，一啲都冇掉，撳「繼續」即刻由呢一刻接住做，完全唔使補做。",
+            "暫停咗，連一啖氣都未瞓返，一個位元組都冇走位。冇嘢開住，冇嘢被還原返，一啲都冇掉，撳「繼續」即刻由呢一刻接住做，一啲都唔使補做。",
+        ],
+    },
+    "backup.row.pausedRestartDetail": {
+        en: [
+            "Paused - and this window was closed and reopened since. Carrying on now re-checks what is already packed, split and uploaded rather than resuming this exact moment, so most of it is skipped rather than redone.",
+            "Paused - and this window was closed and reopened since. Carrying on now re-checks what is already packed, split and uploaded rather than resuming this exact moment, so most of it is skipped rather than redone.",
+            "Paused, and this window closed and reopened in the meantime. Carrying on re-checks what is already packed, split and uploaded rather than resuming this exact moment - so most of it is skipped, not redone, but it is a check first rather than a straight continuation.",
+            "Paused - this window shut and came back since, so the exact moment it paused at is gone. Carrying on re-checks what is already packed, split and uploaded rather than resuming that instant; most of it is skipped rather than redone, but it is a check first, not a straight continuation.",
+            "Paused, and this window shut and came back in the meantime, so the exact instant it paused at is gone with it. Carrying on re-checks what is already packed, split and uploaded rather than resuming that instant; most of it is skipped rather than redone, but it is a check first, never a straight continuation.",
+        ],
+        yue: [
+            "已經暫停咗——不過呢個視窗已經閂咗再開返。而家繼續嘅話會重新check返已經打包、切開同上傳咗嘅嘢，唔係由暫停嗰一刻接返，所以大部分嘢會跳過而唔係補做。",
+            "已經暫停咗——不過呢個視窗已經閂咗再開返。而家繼續嘅話會重新check返已經打包、切開同上傳咗嘅嘢，唔係由暫停嗰一刻接返，所以大部分嘢會跳過而唔係補做。",
+            "暫停咗，不過呢個視窗中途閂咗又再開返。繼續嘅話會重新check返已經打包、切開同上傳嘅嘢，唔係接返暫停嗰一刻，所以大部分會跳過唔使補做，不過始終要check多次先接住做。",
+            "暫停咗——呢個視窗中途閂咗再開返，暫停嗰一刻已經冇埋。繼續會重新check返已經打包、切開同上傳嘅嘢，唔係接返嗰一刻；大部分會跳過唔使補做，不過始終要check先，唔係即刻接落去。",
+            "暫停咗，仲要係呢個視窗中途閂咗再開返，連暫停嗰一刻都冇埋。繼續會重新check返已經打包、切開同上傳嘅嘢，唔係接返嗰一刻；大部分會跳過唔使補做，不過永遠都要check先，唔係即刻接落去。",
         ],
     },
     /*
@@ -1035,6 +1094,18 @@ export const BACKUP_FIXED = {
         yue: "呢個備份做咗幾多",
     },
     "backup.row.stop": { en: "Stop this backup", yue: "停低呢個備份" },
+    "backup.row.pause": { en: "Pause this backup", yue: "暫停呢個備份" },
+    "backup.row.pausing": { en: "Pausing...", yue: "暫停緊..." },
+    "backup.row.paused": { en: "Paused", yue: "已暫停" },
+    "backup.row.pauseAria": {
+        en: "Pause this backup at the next safe point",
+        yue: "喺下一個安全位暫停呢個備份",
+    },
+    "backup.row.pausingAria": {
+        en: "Pausing this backup, waiting for a safe point to stop",
+        yue: "暫停緊呢個備份，等緊一個安全位停低",
+    },
+    "backup.row.continueBackup": { en: "Resume this backup", yue: "繼續呢個備份" },
     "backup.row.openRelease": {
         en: "Open the release on GitHub",
         yue: "喺 GitHub 開個 release",
@@ -1218,6 +1289,22 @@ export const BACKUP_FACTS = {
     "backup.row.cannotStop": {
         en: ["cannot stop", "finish, or fail, on its own"],
         yue: ["停唔到", "自己完成，或者自己失敗"],
+    },
+    // Stopping stays safe even where pausing is unavailable - the fact this sentence
+    // exists to keep from being confused with "cannot stop safely".
+    "backup.row.cannotPause": {
+        en: ["cannot pause", "Stopping is still safe", "is kept"],
+        yue: ["暫停唔到", "停低就仍然安全", "會保留"],
+    },
+    // A live pause costs literally nothing - every level says "no redo" in some form.
+    "backup.row.pausedLiveDetail": {
+        en: ["Paused", "no redo"],
+        yue: ["已經暫停咗", "唔使補做"],
+    },
+    // A restarted pause re-checks rather than blindly continuing - every level says both.
+    "backup.row.pausedRestartDetail": {
+        en: ["Paused", "re-check", "skipped", "redone"],
+        yue: ["已經暫停咗", "重新check", "跳過", "補做"],
     },
     // What makes this a backup rather than a pile of uploads is that a restore can check it.
     "backup.row.finishedDetail": {

@@ -67,7 +67,10 @@ export const BACKUP_CHANNELS = [
     "backup:list",
     "backup:start",
     "backup:cancel",
+    "backup:pause",
+    "backup:resume",
     "backup:active",
+    "backup:pausedBackups",
 ] as const;
 
 /** What creating a repository from this screen needs, and what it answers with. */
@@ -315,7 +318,24 @@ export function installBackupIpc(options: BackupIpcOptions): BackupIpc {
         return typeof backupId === "string" && runner.cancel(backupId);
     });
 
+    // Pause and resume answer `false` for the same reasons `cancel` already does -
+    // nothing by that id running in this process, already in the state asked for, or
+    // never started here at all - rather than throwing. A refusal that reads as a crash
+    // is a worse outcome than a button that quietly did nothing, for an action this low
+    // stakes.
+    options.ipcMain.handle("backup:pause", (_event: IpcMainInvokeEvent, backupId: unknown) => {
+        return typeof backupId === "string" && runner.pause(backupId);
+    });
+
+    options.ipcMain.handle("backup:resume", (_event: IpcMainInvokeEvent, backupId: unknown) => {
+        return typeof backupId === "string" && runner.resume(backupId);
+    });
+
     options.ipcMain.handle("backup:active", () => runner.activeBackupIds());
+
+    // Read from disk, not memory: the whole point is to answer for a backup this
+    // process never started running - see `BackupRunner#pausedBackups`.
+    options.ipcMain.handle("backup:pausedBackups", async () => await runner.pausedBackups());
 
     return {
         runner,
