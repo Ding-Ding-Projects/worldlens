@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { blueMapApp } from "../../stores/bluemap.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import { VBtn, VCheckbox, VSelect, VTextarea, VTextField } from "vuetify/components";
 
 interface GalleryRecord {
     id: string;
@@ -105,36 +106,35 @@ function captureCurrentView(): void {
 <template>
     <section class="mb-screenshot-gallery" aria-labelledby="screenshot-gallery-title">
         <header class="mb-screenshot-gallery__header">
-            <div><p class="mb-eyebrow">Evidence library</p><h1 id="screenshot-gallery-title">Screenshot gallery</h1><p>Organize real map captures and local imports. Nothing is uploaded automatically.</p></div>
-            <div class="mb-screenshot-gallery__header-actions"><button class="mb-button" type="button" @click="captureCurrentView">Capture current map view</button><button class="mb-button mb-button--primary" type="button" @click="importInput?.click()">Import screenshots</button></div>
+            <div><div class="mb-eyebrow text-overline">Evidence library</div><div id="screenshot-gallery-title" class="text-h1">Screenshot gallery</div><div class="text-body-1">Organize real map captures and local imports. Nothing is uploaded automatically.</div></div>
+            <div class="mb-screenshot-gallery__header-actions"><VBtn variant="outlined" @click="captureCurrentView">Capture current map view</VBtn><VBtn color="primary" @click="importInput?.click()">Import screenshots</VBtn></div>
             <input ref="importInput" class="mb-visually-hidden" type="file" accept="image/*" multiple @change="importFiles" />
         </header>
         <div class="mb-screenshot-gallery__toolbar" role="search">
-            <label for="screenshot-gallery-search">Search captures</label>
-            <input id="screenshot-gallery-search" v-model="query" type="search" placeholder="Title, map, tags, coordinates…" />
-            <button type="button" :aria-expanded="regexMode" @click="regexMode = !regexMode">Regex builder</button>
-            <select v-model="category" aria-label="Filter by tag"><option v-for="item in categories" :key="item" :value="item">{{ item === "all" ? "All tags" : item }}</option></select>
+            <VTextField id="screenshot-gallery-search" v-model="query" label="Search captures" placeholder="Title, map, tags, coordinates…" density="comfortable" hide-details />
+            <VBtn variant="text" :aria-expanded="regexMode" @click="regexMode = !regexMode">Regex builder</VBtn>
+            <VSelect v-model="category" :items="categories" label="Filter by tag" density="comfortable" hide-details />
         </div>
         <div v-if="regexMode" class="mb-screenshot-gallery__regex" role="region" aria-label="Anchored regex builder">
-            <label>Pattern <input v-model="query" aria-label="Regular expression pattern" /></label>
-            <label>Flags <input v-model="regexFlags" maxlength="6" aria-label="Regular expression flags" /></label>
+            <VTextField v-model="query" label="Pattern" aria-label="Regular expression pattern" density="compact" hide-details />
+            <VTextField v-model="regexFlags" label="Flags" maxlength="6" aria-label="Regular expression flags" density="compact" hide-details />
             <span v-if="query" class="mb-screenshot-gallery__hint">{{ filtered.length }} matching captures</span>
         </div>
         <div class="mb-screenshot-gallery__bulk" aria-label="Bulk actions">
             <span>{{ selected.size }} selected · {{ filtered.length }} shown</span>
-            <button type="button" @click="selectVisible">Select shown</button><button type="button" @click="invertVisible">Invert shown</button>
-            <button type="button" @click="exportRecords('json')">Export JSON</button><button type="button" @click="exportRecords('csv')">Export CSV</button><button type="button" @click="exportRecords('md')">Export Markdown</button><ConfigSuperConfirm title="Delete screenshots" action="Delete the selected screenshot records from the local gallery. This cannot be undone here." :affected="filtered.filter((record) => selected.has(record.id)).map((record) => record.title)" confirm-label="Delete selected screenshots" :disabled="selected.size === 0" @confirm="removeSelected" />
+            <VBtn variant="text" @click="selectVisible">Select shown</VBtn><VBtn variant="text" @click="invertVisible">Invert shown</VBtn>
+            <VBtn variant="text" @click="exportRecords('json')">Export JSON</VBtn><VBtn variant="text" @click="exportRecords('csv')">Export CSV</VBtn><VBtn variant="text" @click="exportRecords('md')">Export Markdown</VBtn><ConfigSuperConfirm title="Delete screenshots" action="Delete the selected screenshot records from the local gallery. This cannot be undone here." :affected="filtered.filter((record) => selected.has(record.id)).map((record) => record.title)" confirm-label="Delete selected screenshots" :disabled="selected.size === 0" @confirm="removeSelected" />
         </div>
-        <p v-if="status" class="mb-screenshot-gallery__status" role="status">{{ status }}</p>
-        <p v-if="filtered.length === 0" class="mb-screenshot-gallery__empty">No captures match this search and filter.</p>
+        <div v-if="status" class="mb-screenshot-gallery__status text-body-2" role="status">{{ status }}</div>
+        <div v-if="filtered.length === 0" class="mb-screenshot-gallery__empty text-body-1">No captures match this search and filter.</div>
         <div v-else class="mb-screenshot-gallery__grid">
             <article v-for="record in filtered" :key="record.id" class="mb-screenshot-gallery__card" :class="{ 'is-selected': selected.has(record.id) }">
-                <label class="mb-screenshot-gallery__select"><input type="checkbox" :checked="selected.has(record.id)" @change="toggle(record.id)" /> Select</label>
-                <img v-if="assetUrls.get(record.id)" :src="assetUrls.get(record.id)" :alt="record.title" loading="lazy" /><p v-else class="mb-screenshot-gallery__missing">Image bytes are unavailable; metadata is still preserved.</p>
-                <div class="mb-screenshot-gallery__card-body"><h2>{{ record.title }}</h2><p>{{ record.notes }}</p><dl><dt>Source</dt><dd>{{ record.source }}</dd><dt>Captured</dt><dd>{{ record.capturedAt }}</dd><dt>Map</dt><dd>{{ record.map }} · {{ record.coordinates }}</dd><dt>Camera</dt><dd>{{ record.camera }}</dd><dt>Version</dt><dd>{{ record.version }}</dd></dl><p class="mb-screenshot-gallery__tags">{{ record.tags.join(" · ") }}</p><button type="button" @click="editing = record">Edit metadata</button></div>
+                <VCheckbox class="mb-screenshot-gallery__select" :model-value="selected.has(record.id)" label="Select" @update:model-value="toggle(record.id)" />
+                <img v-if="assetUrls.get(record.id)" :src="assetUrls.get(record.id)" :alt="record.title" loading="lazy" /><div v-else class="mb-screenshot-gallery__missing text-body-2">Image bytes are unavailable; metadata is still preserved.</div>
+                <div class="mb-screenshot-gallery__card-body"><div class="text-h2">{{ record.title }}</div><div class="text-body-1">{{ record.notes }}</div><dl><dt>Source</dt><dd>{{ record.source }}</dd><dt>Captured</dt><dd>{{ record.capturedAt }}</dd><dt>Map</dt><dd>{{ record.map }} · {{ record.coordinates }}</dd><dt>Camera</dt><dd>{{ record.camera }}</dd><dt>Version</dt><dd>{{ record.version }}</dd></dl><div class="mb-screenshot-gallery__tags text-body-2">{{ record.tags.join(" · ") }}</div><VBtn variant="text" @click="editing = record">Edit metadata</VBtn></div>
             </article>
         </div>
-        <div v-if="editing" class="mb-screenshot-gallery__editor" role="dialog" aria-modal="true" aria-label="Edit screenshot metadata"><h2>Edit metadata</h2><label>Name <input v-model="editing.title" /></label><label>Tags <input :value="editing.tags.join(', ')" @input="editing.tags = ($event.target as HTMLInputElement).value.split(',').map((tag) => tag.trim()).filter(Boolean)" /></label><label>Notes <textarea v-model="editing.notes" /></label><button type="button" @click="saveEdit">Save</button><button type="button" @click="editing = null">Cancel</button></div>
+        <div v-if="editing" class="mb-screenshot-gallery__editor" role="dialog" aria-modal="true" aria-label="Edit screenshot metadata"><div class="text-h2">Edit metadata</div><VTextField v-model="editing.title" label="Name" /><VTextField :model-value="editing.tags.join(', ')" label="Tags" @update:model-value="editing.tags = $event.split(',').map((tag) => tag.trim()).filter(Boolean)" /><VTextarea v-model="editing.notes" label="Notes" /><div class="d-flex ga-2"><VBtn color="primary" @click="saveEdit">Save</VBtn><VBtn variant="text" @click="editing = null">Cancel</VBtn></div></div>
     </section>
 </template>
 

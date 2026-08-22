@@ -263,9 +263,9 @@ function fieldLabel(field: IssueReportField): string {
         </v-btn>
 
         <div v-if="open" :id="reportPanelId" class="mb-issue-report__body" data-test="issue-report-panel">
-            <p class="mb-repair__note">
+            <div class="mb-repair__note text-body-2">
                 {{ t("repair.reportPreview", "Review every field before submitting. Nothing is sent automatically; optional evidence can be edited or removed.") }}
-            </p>
+            </div>
             <div v-if="draftLoading" class="mb-repair__loading" role="status" aria-live="polite">
                 <v-progress-circular indeterminate size="18" width="2" aria-hidden="true" />
                 <span>{{ t("repair.reportLoading", "Preparing a redacted draft...") }}</span>
@@ -309,7 +309,7 @@ function fieldLabel(field: IssueReportField): string {
                 variant="outlined"
             />
             <v-divider class="my-2" />
-            <p v-if="status" class="mb-repair__note" role="status" aria-live="polite">{{ status }}</p>
+            <div v-if="status" class="mb-repair__note text-body-2" role="status" aria-live="polite">{{ status }}</div>
             <v-alert v-if="bridgeError" type="error" variant="tonal" density="compact" class="mb-3">
                 {{ bridgeError }}
             </v-alert>
@@ -337,11 +337,11 @@ function fieldLabel(field: IssueReportField): string {
             <v-alert type="info" variant="tonal" density="compact" class="mt-3">
                 {{ t("repair.reportNoAutoSend", "Submission requires this explicit action. The report body stays on this computer until you choose to submit it.") }}
             </v-alert>
-            <p v-if="submittedUrl" class="mb-repair__note mt-2">
+            <div v-if="submittedUrl" class="mb-repair__note text-body-2 mt-2">
                 <a :href="submittedUrl" target="_blank" rel="noopener noreferrer">
                     {{ t("repair.reportOpenSubmitted", "Open the submitted issue") }}
                 </a>
-            </p>
+            </div>
             </template>
             <v-alert
                 v-if="reportState.status === 'offline'"

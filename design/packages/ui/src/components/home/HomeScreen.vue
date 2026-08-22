@@ -804,7 +804,7 @@ function clearSearch(): void {
         <AppearanceTarget id="home.page" :label="t('home.title', 'Home')" as="div">
             <div class="mb-home__inner">
                 <header class="mb-home__header">
-                    <h2 id="mb-home-title" class="mb-home__title">{{ t("home.title", "Home") }}</h2>
+                    <div id="mb-home-title" class="mb-home__title text-h2">{{ t("home.title", "Home") }}</div>
 
                     <AppearanceTarget
                         id="home.intro"
@@ -812,14 +812,14 @@ function clearSearch(): void {
                         as="div"
                     >
                         <div class="mb-home__intro">
-                            <p v-if="!introCollapsed" class="mb-home__lede">
+                            <div v-if="!introCollapsed" class="mb-home__lede text-body-1">
                                 {{
                                     t(
                                         "home.lede",
                                         "BlueMap turns a Minecraft world into a browsable 3D map you open in a web browser.",
                                     )
                                 }}
-                            </p>
+                            </div>
                             <div class="mb-home__intro-actions">
                                 <VBtn
                                     v-if="!introCollapsed"
@@ -857,7 +857,7 @@ function clearSearch(): void {
                     :sample="sample"
                 />
 
-                <p v-if="matcher.active" class="mb-home__count" aria-live="polite">
+                <div v-if="matcher.active" class="mb-home__count text-body-2" aria-live="polite">
                     {{
                         t(
                             "home.search.showing",
@@ -865,11 +865,11 @@ function clearSearch(): void {
                             "Showing {shown} of {total} things Home can do.",
                         )
                     }}
-                </p>
+                </div>
 
                 <!-- Searching: one flat, honest result list, exactly as the docs browser does it. -->
                 <template v-if="matcher.active">
-                    <p v-if="searchResults.length === 0" class="mb-home__empty-line">
+                    <div v-if="searchResults.length === 0" class="mb-home__empty-line text-body-1">
                         {{
                             t(
                                 "home.search.noMatches",
@@ -884,7 +884,7 @@ function clearSearch(): void {
                         <VBtn class="mb-interactive" variant="tonal" size="small" @click="clearSearch">
                             {{ t("home.search.clear", "Clear the search") }}
                         </VBtn>
-                    </p>
+                    </div>
                     <div v-else class="mb-home__grid" role="list">
                         <VCard
                             v-for="item in searchResults"
@@ -897,12 +897,12 @@ function clearSearch(): void {
                             <VCardText>
                                 <div class="mb-home__card-head">
                                     <VIcon :icon="item.icon" size="20" aria-hidden="true" />
-                                    <h3 class="mb-home__card-title">{{ item.title }}</h3>
+                                    <div class="mb-home__card-title text-h3">{{ item.title }}</div>
                                 </div>
-                                <p class="mb-home__card-desc">{{ item.description }}</p>
-                                <p v-if="item.disabledReason" class="mb-home__card-blocked" role="note">
+                                <div class="mb-home__card-desc text-body-1">{{ item.description }}</div>
+                                <div v-if="item.disabledReason" class="mb-home__card-blocked text-body-2" role="note">
                                     {{ item.disabledReason }}
-                                </p>
+                                </div>
                                 <div class="mb-home__card-actions">
                                     <VBtn
                                         v-if="!item.disabledReason"
@@ -934,9 +934,9 @@ function clearSearch(): void {
                     <section v-if="hasContinue" class="mb-home__section" aria-labelledby="mb-home-continue">
                         <AppearanceTarget id="home.continue" :label="t('home.section.continue', 'Continue')" as="div">
                             <div>
-                                <h3 id="mb-home-continue" class="mb-home__section-title">
+                                <div id="mb-home-continue" class="mb-home__section-title text-h3">
                                     {{ t("home.section.continue", "Continue") }}
-                                </h3>
+                                </div>
                                 <div class="mb-home__continue-row">
                                     <VBtn
                                         v-for="profile in continueProfiles"
@@ -954,9 +954,9 @@ function clearSearch(): void {
                     </section>
 
                     <section class="mb-home__section" aria-labelledby="mb-home-started">
-                        <h3 id="mb-home-started" class="mb-home__section-title">
+                        <div id="mb-home-started" class="mb-home__section-title text-h3">
                             {{ t("home.section.getStarted", "Get started") }}
-                        </h3>
+                        </div>
 
                         <!--
                             The hero. One capability, full width, on primary-container, with the
@@ -971,7 +971,7 @@ function clearSearch(): void {
                             :data-capability="heroCapability.id"
                             data-hero="true"
                         >
-                            <p class="mb-home__hero-eyebrow">{{ setupI18n.t("action.startHere") }}</p>
+                            <div class="mb-home__hero-eyebrow text-overline">{{ setupI18n.t("action.startHere") }}</div>
                             <div class="mb-home__hero-body">
                                 <VIcon
                                     :icon="heroCapability.icon"
@@ -980,8 +980,8 @@ function clearSearch(): void {
                                     class="mb-home__hero-icon"
                                 />
                                 <div class="mb-home__hero-words">
-                                    <h4 class="mb-home__hero-title">{{ heroCapability.title }}</h4>
-                                    <p class="mb-home__hero-desc">{{ heroCapability.description }}</p>
+                                    <div class="mb-home__hero-title text-h4">{{ heroCapability.title }}</div>
+                                    <div class="mb-home__hero-desc text-body-1">{{ heroCapability.description }}</div>
                                 </div>
                             </div>
                             <div class="mb-home__hero-actions">
@@ -1016,9 +1016,9 @@ function clearSearch(): void {
                                 <VCardText>
                                     <div class="mb-home__card-head">
                                         <VIcon :icon="item.icon" size="20" aria-hidden="true" />
-                                        <h4 class="mb-home__card-title">{{ item.title }}</h4>
+                                        <div class="mb-home__card-title text-h4">{{ item.title }}</div>
                                     </div>
-                                    <p class="mb-home__card-desc">{{ item.description }}</p>
+                                    <div class="mb-home__card-desc text-body-1">{{ item.description }}</div>
                                     <div class="mb-home__card-actions">
                                         <VBtn
                                             class="mb-interactive"
@@ -1042,9 +1042,9 @@ function clearSearch(): void {
                     >
                         <section class="mb-home__section" aria-labelledby="mb-home-more">
                             <div class="mb-home__more-head">
-                                <h3 id="mb-home-more" class="mb-home__section-title">
+                                <div id="mb-home-more" class="mb-home__section-title text-h3">
                                     {{ t("home.section.everythingElse", "Everything else") }}
-                                </h3>
+                                </div>
                                 <VBtn
                                     class="mb-interactive"
                                     variant="text"
@@ -1076,10 +1076,10 @@ function clearSearch(): void {
                                     class="mb-home__disclosure"
                                     :data-section="section.id"
                                 >
-                                    <h4 class="mb-home__disclosure-heading">
-                                        <button
-                                            type="button"
+                                    <div class="mb-home__disclosure-heading text-h4">
+                                        <VBtn
                                             class="mb-home__disclosure-button mb-interactive"
+                                            variant="text"
                                             :aria-expanded="sectionExpanded(section.id) ? 'true' : 'false'"
                                             :aria-controls="sectionPanelId(section.id)"
                                             @click="toggleSection(section.id)"
@@ -1098,8 +1098,8 @@ function clearSearch(): void {
                                                     )
                                                 }}
                                             </span>
-                                        </button>
-                                    </h4>
+                                        </VBtn>
+                                    </div>
 
                                     <div
                                         v-show="sectionExpanded(section.id)"
@@ -1119,9 +1119,9 @@ function clearSearch(): void {
                                                 <VCardText>
                                                     <div class="mb-home__card-head">
                                                         <VIcon :icon="item.icon" size="20" aria-hidden="true" />
-                                                        <h5 class="mb-home__card-title">{{ item.title }}</h5>
+                                                        <div class="mb-home__card-title text-h5">{{ item.title }}</div>
                                                     </div>
-                                                    <p class="mb-home__card-desc">{{ item.description }}</p>
+                                                    <div class="mb-home__card-desc text-body-1">{{ item.description }}</div>
 
                                                     <VAlert
                                                         v-if="item.disabledReason"

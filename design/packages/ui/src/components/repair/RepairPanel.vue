@@ -121,9 +121,9 @@ function subjectLabel(failure: FailureSummary): string {
         </div>
 
         <template v-else-if="bridge === null">
-            <p class="mb-repair__note">
+            <div class="mb-repair__note text-body-2">
                 {{ t("repair.noHost", "This build cannot diagnose a failed run. The desktop application is what does.") }}
-            </p>
+            </div>
         </template>
 
         <template v-else>
@@ -141,19 +141,19 @@ function subjectLabel(failure: FailureSummary): string {
                 </v-btn>
             </div>
 
-            <p v-if="failures.length === 0" class="mb-repair__note">
+            <div v-if="failures.length === 0" class="mb-repair__note text-body-2">
                 {{
                     t(
                         "repair.empty",
                         "No failures are on record. One is remembered here the moment a render or the web server fails to start, so it can be diagnosed and, where the failure is understood, repaired.",
                     )
                 }}
-            </p>
+            </div>
 
             <ul v-else class="mb-repair__list">
                 <li v-for="failure in failures" :key="failure.id" class="mb-repair__row">
                     <div class="mb-repair__rowHead">
-                        <strong>{{ subjectLabel(failure) }}</strong>
+                        <span class="font-weight-bold">{{ subjectLabel(failure) }}</span>
                         <v-chip size="x-small" variant="tonal">{{ failure.mode }}</v-chip>
                         <span class="mb-repair__at">{{ failure.at }}</span>
                     </div>
@@ -185,7 +185,7 @@ function subjectLabel(failure: FailureSummary): string {
                     </v-alert>
                     <ul v-else-if="diagnoses[failure.id]" class="mb-repair__diagnoses">
                         <li v-for="(diagnosis, index) in diagnoses[failure.id]" :key="index">
-                            <strong>{{ diagnosis.message }}</strong>
+                            <span class="font-weight-bold">{{ diagnosis.message }}</span>
                             <span> - {{ diagnosis.remedy.summary }}</span>
                         </li>
                         <li v-if="diagnoses[failure.id]?.length === 0">
@@ -197,17 +197,17 @@ function subjectLabel(failure: FailureSummary): string {
                         {{ runError[failure.id] }}
                     </v-alert>
                     <div v-else-if="results[failure.id]" class="mb-repair__result">
-                        <p>{{ results[failure.id]?.summary }}</p>
-                        <p class="mb-repair__note">{{ results[failure.id]?.agent.message }}</p>
+                        <div class="text-body-1">{{ results[failure.id]?.summary }}</div>
+                        <div class="mb-repair__note text-body-2">{{ results[failure.id]?.agent.message }}</div>
                         <ul v-if="(results[failure.id]?.applied.length ?? 0) > 0" class="mb-repair__applied">
                             <li v-for="change in results[failure.id]?.applied" :key="change.path">
                                 {{ change.path }}
                                 ({{ t("repair.lineChanges", { added: change.linesAdded, removed: change.linesRemoved }, "+{added}/-{removed}") }})
                             </li>
                         </ul>
-                        <p v-if="results[failure.id]?.history" class="mb-repair__note">
+                        <div v-if="results[failure.id]?.history" class="mb-repair__note text-body-2">
                             {{ results[failure.id]?.history?.message }}
-                        </p>
+                        </div>
                     </div>
                     <IssueReportPanel
                         :failure="failure"
