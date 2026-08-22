@@ -257,7 +257,9 @@ interface BlueMapProjectStorage {
 }
 
 interface BlueMapProjectRender {
-    route?: "local" | "github-actions";
+    route?: "local" | "github-actions" | "aws-batch";
+    hosting?: "github-pages" | "aws-cloudfront" | "local";
+    domain?: { zoneId: string; hostname: string; viaTunnel: boolean };
     threads: number | null;
     force: boolean;
     fixEdges: boolean;

@@ -212,8 +212,27 @@ export const EMPTY_RENDER: ProjectRender = {
  * The execution route a project asks for. Project format version 1 predates the field, so
  * absence deliberately means the original local behaviour rather than forcing a migration.
  */
-export function projectRenderRoute(project: ProjectFile): "local" | "github-actions" {
-    return project.render.route === "github-actions" ? "github-actions" : "local";
+export function projectRenderRoute(
+    project: ProjectFile,
+): "local" | "github-actions" | "aws-batch" {
+    const route = project.render.route;
+    if (route === "github-actions" || route === "aws-batch") {
+        return route;
+    }
+    // Anything else - absent, or a route written by a newer build than this one - reads as
+    // local. Guessing at an unknown route would run a render somewhere nobody asked for.
+    return "local";
+}
+
+/**
+ * Where the finished map is served from. Absence means GitHub Pages, which is what every
+ * project did before the field existed.
+ */
+export function projectHostingRoute(
+    project: ProjectFile,
+): "github-pages" | "aws-cloudfront" | "local" {
+    const hosting = project.render.hosting;
+    return hosting === "aws-cloudfront" || hosting === "local" ? hosting : "github-pages";
 }
 
 /**
