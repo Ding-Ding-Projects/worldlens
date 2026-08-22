@@ -58,10 +58,43 @@ test so the scheme cannot be quietly regenerated from a different seed. Light sc
 primary/secondary/tertiary at tone 40 on containers at 90, dark at tone 80 on containers at
 30, per the spec.
 
+**The three schemes are read from the design system canvas, not regenerated to match it.**
+Two of them had drifted away from what the canvas publishes. Light was the larger gap: it
+opened on pure white where the canvas asks for a tinted `#F7F9FF`, its surface sat a step
+brighter than the canvas surface, its secondary was a much paler blue-grey than the canvas
+names, and fourteen further roles were off by a single step each. A whole scheme off by one
+step is the signature of a palette that was regenerated from a seed rather than read from the
+published values, which is why the schemes are now transcribed and pinned. Dark agreed
+everywhere except `on-error`, which was a tone too light.
+
 The contrast theme is deliberately **not** tonal. It answers the same role names with the
-highest-contrast values that keep their meaning: black at every surface tier, white text and
+highest-contrast values that keep their meaning: near-black surfaces, white text and
 outlines, white primary, yellow secondary. Deriving it from a seed would defeat the one thing
 it exists for.
+
+Two things about that theme are easy to mistake for bugs and are not. The top two container
+tiers are lifted off pure black to `#141414` and `#1F1F1F`, because a menu over a sheet over
+the background is three surfaces deep and at pure black with white hairlines between them the
+whole stack reads as one plane; those are the smallest lifts that separate the tiers, and both
+stay far above the 7:1 WCAG AAA floor against white text, so the ratio assertion in the test
+pins the real number (16.5:1 at the highest tier) rather than the theme name's 21:1. And the
+secondary, tertiary and error containers are painted black with coloured text rather than
+filled solid, so a container never becomes a block of saturated colour that its own label has
+to fight.
+
+`colors.ts` is the one place the three schemes are written down, so every consumer moves with
+it: the Vuetify themes, the viewer's framework-neutral shell, and the kid theme that derives
+from the light scheme. There is no second copy to forget.
+
+The render console spends those roles too, and is the cautionary tale for why it should.
+Its log level palette used to be literal colours under `.v-theme--light` and `.v-theme--dark`
+rules. The contrast theme's class matches neither, so in the accessibility theme every line
+fell through to the inherited colour and the console lost its severity distinction entirely:
+error, tip and signal all looked the same. Five of the six levels are now theme roles, which
+fixes all three schemes at once. Only `warning` stays literal, because Material 3 has no
+warning role and Vuetify's status amber measures under 3:1 as text on a light surface; its
+contrast-theme value is the same yellow that scheme already spends elsewhere, rather than a
+seventh colour invented for one rule.
 
 `styles/markers.scss` maps these onto `--md-sys-color-*` for the viewer's raw-DOM marker
 layer, which sits outside the Vue tree and so is reached by no component stylesheet.
@@ -92,6 +125,11 @@ a wide window, which is about double what is readable. The cap applies to `<p>` 
 released explicitly inside tables, `pre`, `code`, `kbd` and `samp`, where a paragraph is a
 cell or a path rather than prose.
 
+The type ramp is deliberately left on stock Material 3, even though the design system canvas
+publishes its own numbers and the shell already renders them as hand-written `rem` literals.
+Moving the token ramp off the spec is a design decision with consequences for every screen at
+once, so it is not something a colour and elevation cleanup gets to do on the way past.
+
 ### Elevation, state and motion
 
 Elevation is `--md-sys-elevation-shadow-level0` through `level5`, M3's key-plus-ambient
@@ -99,6 +137,22 @@ shadow pair. It is deliberately **not** named `--md-sys-elevation-levelN`: `mark
 owns that name for a `drop-shadow()` filter chain and is imported later, so a `box-shadow`
 under that name would be silently clobbered into an invalid declaration and every elevated
 surface would go flat. A test pins the absence.
+
+**Every overlay and panel spends that token, and none of them types a shadow by hand.** Fifteen
+of them used to. The tell was that most had the *right* numbers: level 3 spelled out in full,
+typed into four separate files. Somebody built an overlay and copied a neighbour's shadow
+rather than the neighbour's token, and the copy stopped tracking the system the moment it was
+made; four had drifted a generation further, to values the ladder does not contain at all.
+
+`design/packages/ui/src/components/overlaySurfaceTokens.test.ts` holds that line. Its inventory
+of overlay files is hand-written rather than globbed, so a new overlay has to be considered
+rather than inheriting whatever it copied, and it fails in both directions: on a hand-written
+shadow, and on a surface that stops painting elevation at all. The second direction matters
+because a rule of the shape "a shadow that is present must be a token" passes perfectly on a
+surface with no shadow at all, which is the other way an overlay stops looking like the rest of
+the application. Not every `box-shadow` is elevation, so focus rings, scrims, inset hairlines
+and pulse keyframes are allowlisted per file by name, which stops a new raw shadow hiding
+behind a category that was opened for a different declaration.
 
 State layers are `--md-sys-state-hover-opacity` 8%, `-focus-` 10%, `-pressed-` 10%,
 `-dragged-` 16%, and `global.scss` re-points Vuetify's own `--v-*-opacity` variables at them
@@ -155,7 +209,14 @@ that every type value is in `rem` and no root font size is set; that the two she
 value-for-value on every token both declare; that `global.scss` re-points the utilities rather
 than hard-coding a second scale; that no `!important` was added outside the two that already
 had one; that the reduced-motion kill switch is still last and still absolute; and that the
-map layer's stacking and pointer-events contract is untouched.
+map layer's stacking and pointer-events contract is untouched. It also pins the contrast
+theme's two lifted container tiers at their exact values, so a later tidy-up cannot flatten
+them back to black.
+
+`overlaySurfaceTokens.test.ts` asserts the other half: that every overlay in its hand-written
+inventory still exists, still paints elevation, and names an elevation token to do it. Both of
+its failure directions were proven red before the change that introduced it landed, because a
+guard nobody has watched fail is a guard nobody knows the shape of.
 
 ## 廣東話
 
@@ -183,7 +244,15 @@ map layer's stacking and pointer-events contract is untouched.
 
 深色同淺色都係由呢個 app 一直用嗰隻藍色 seed 嘅 tonal palette 生成 — `#00639B` 係嗰家族嘅 tone 40，`#8FCDFF` 係 tone 80，兩隻都有測試釘住，所以個 scheme 唔可以靜靜雞用第二隻 seed 重新生成。跟 spec，淺色 scheme 嘅 primary/secondary/tertiary 用 tone 40，container 用 90；深色就用 tone 80，container 用 30。
 
-contrast theme 就**故意唔係** tonal 嘅。佢用一啲仍然保住原意、對比最高嘅值去答同樣嘅 role 名：每一層 surface 都係黑、文字同 outline 白、primary 白、secondary 黃。如果由一隻 seed 推導出嚟，就會毀咗佢存在嘅唯一理由。
+**三套配色係照抄設計系統 canvas 出嘅值，唔係重新生成去夾佢。** 之前有兩套飄咗。Light 差得最遠：出貨用純白，但 canvas 要帶藍嘅 `#F7F9FF`；surface 亦比 canvas 嗰隻光咗一級；secondary 淺過 canvas 一大截；另外仲有十四個角色各差一級。成套配色齊齊差一級，一睇就知係由 seed 重新生成而唔係照抄，所以而家啲值係逐個抄落嚟再用測試釘住。Dark 就除咗 `on-error` 淺咗一級之外，其他全部啱。
+
+contrast theme 就**故意唔係** tonal 嘅。佢用一啲仍然保住原意、對比最高嘅值去答同樣嘅 role 名：接近全黑嘅 surface、文字同 outline 白、primary 白、secondary 黃。如果由一隻 seed 推導出嚟，就會毀咗佢存在嘅唯一理由。
+
+呢個 theme 有兩樣嘢好易畀人當咗係 bug，其實唔係。最頂兩層 container 特登抬離純黑，去到 `#141414` 同 `#1F1F1F`：因為選單疊喺面板疊喺背景就已經係三層，全部純黑、中間淨係一條白線嘅話，成疊嘢睇落就變成一塊平面。呢兩個係最細幅度、又分得開嗰兩級嘅提升，而且對住白字都仲遠高過 WCAG AAA 嘅 7:1，所以測試釘嘅係真實數字（最頂嗰層 16.5:1），而唔係個 theme 個名嗰個 21:1。另外 secondary、tertiary 同 error 嘅 container 係黑底配彩色字，唔係成塊填實色，噉樣個 container 先唔會變成一嚿飽和色，逼到自己個 label 同佢鬥。
+
+`colors.ts` 係呢三套配色唯一寫低嘅地方，所以所有用家都跟住佢郁：Vuetify theme、viewer 嗰個唔靠 framework 嘅外殼、同埋由 light 推導出嚟嘅 kid theme。冇第二份會漏改。
+
+Render console 亦都使呢啲 role，而佢本身就係「點解要噉做」嘅反面教材。佢個 log 等級色板以前係寫死喺 `.v-theme--light` 同 `.v-theme--dark` 規則入面嘅 literal 色。contrast theme 個 class 兩個都唔夾，所以喺無障礙 theme 之下每一行都跌返落繼承色，個 console 完全冇咗嚴重程度嘅分別：error、tip、signal 全部一個樣。而家六個等級入面五個都係 theme role，一次過整返好三套配色。淨係 `warning` 仍然寫死值，因為 Material 3 根本冇 warning role，而 Vuetify 個 status 琥珀色喺淺色 surface 上做文字量到唔夠 3:1；佢喺 contrast theme 嗰個值就用返嗰套配色本身已經喺用嘅黃色，唔會為咗一條規則憑空再加第七隻色。
 
 `styles/markers.scss` 將呢啲對應去 `--md-sys-color-*`，畀 viewer 嗰個 raw-DOM marker 層用；嗰層喺 Vue tree 外面，所以任何 component stylesheet 都掂佢唔到。
 
@@ -197,9 +266,15 @@ contrast theme 就**故意唔係** tonal 嘅。佢用一啲仍然保住原意、
 
 正文闊度封頂喺 68ch。之前 wizard 喺闊視窗度一行大約行到 150 個字符，差唔多係可讀範圍嘅兩倍。呢個上限淨係套用喺 `<p>`，而喺 table、`pre`、`code`、`kbd` 同 `samp` 入面會明確解除，因為喺嗰啲位一段嘢其實係個 cell 或者一條路徑，唔係正文。
 
+字體 ramp 就特登維持喺原裝 Material 3 嗰套，就算設計系統 canvas 自己有出一套數字、而個外殼亦已經用手寫 `rem` 值畫緊佢哋。將 token ramp 搬離 spec 係一個會即刻影響全部畫面嘅設計決定，唔應該喺一次顏色同陰影嘅清理入面順手做埋。
+
 ### Tokens：elevation、state 同 motion
 
 Elevation 係 `--md-sys-elevation-shadow-level0` 去到 `level5`，即 M3 嗰對 key 加 ambient 陰影。佢**故意唔**叫做 `--md-sys-elevation-levelN`：嗰個名畀 `markers.scss` 攞咗嚟做 `drop-shadow()` filter 鏈，而且 `markers.scss` 遲啲先 import，所以如果有個 `box-shadow` 用埋呢個名，就會靜靜雞被蓋成一句無效宣告，跟住每個有 elevation 嘅 surface 都會變平。有測試釘住呢個名唔可以出現。
+
+**每個浮層同面板都要使呢個 token，冇一個可以自己打份陰影出嚟。** 以前有十五個係噉做嘅，而且最出賣佢哋嘅一點係：大部分嘅數字其實*係啱*嘅，level 3 逐個字打出嚟，打咗四份喺四個唔同檔案。即係有人整咗個浮層，抄咗隔籬個陰影而唔係抄隔籬個 token，抄嗰一刻就已經同個系統脫節；其中四個仲飄多咗一代，飄到啲階梯根本冇嘅值度。
+
+`design/packages/ui/src/components/overlaySurfaceTokens.test.ts` 就係釘住呢條線。佢份浮層清單係手寫、唔係 glob 出嚟，噉樣新加一個浮層就一定要有人諗過，而唔係繼承佢抄返嚟嗰份嘢；而且佢兩個方向都會紅：手寫陰影會紅，一個 surface 索性唔再畫 elevation 都會紅。第二個方向好緊要，因為「有陰影就一定要係 token」呢種規則，喺一個完全冇陰影嘅 surface 上面會完美咁 pass，而嗰個正正係浮層甩離成個 application 樣貌嘅另一條路。另外唔係所有 `box-shadow` 都係 elevation，所以 focus ring、scrim、inset 幼線同 pulse keyframe 都係逐個檔案、逐句列名放行，噉樣一個新嘅生陰影就唔可以匿喺一個為咗第二句宣告而開嘅類別後面。
 
 State layer 係 `--md-sys-state-hover-opacity` 8%、`-focus-` 10%、`-pressed-` 10%、`-dragged-` 16%，而 `global.scss` 將 Vuetify 自己嘅 `--v-*-opacity` 變數重新指去佢哋，所以整個 framework 嘅 state overlay 都可以喺一個地方調校。
 
@@ -221,4 +296,6 @@ Motion 用嘅係 MD3 Expressive 嗰套：七條 easing — `emphasized` 同佢�
 
 ### 驗證
 
-`vuetify.test.ts` 會 assert：三個 theme 入面每個 M3 role 都真係以 hex 色值存在；每對 `on-X`/`X` 閱讀組合經真實對比運算都到 WCAG AA 4.5:1，而 contrast theme 去到 21:1；token sheet 有出齊成個 shape scale、十五條字體 ramp 連四條軸、elevation 0-5、四個 state 透明度同完整嘅 motion 集；每個字體值都用 `rem` 而且冇設 root font size；兩份 sheet 對佢哋都有宣告嘅每個 token 值對值一致；`global.scss` 係重新指向啲 utility 而唔係硬寫多一套 scale；除咗本身已經有嗰兩個之外冇新加過 `!important`；reduced-motion kill switch 仍然喺最後而且仍然絕對；以及 map 層嘅 stacking 同 pointer-events 合約冇被改動。
+`vuetify.test.ts` 會 assert：三個 theme 入面每個 M3 role 都真係以 hex 色值存在；每對 `on-X`/`X` 閱讀組合經真實對比運算都到 WCAG AA 4.5:1，而 contrast theme 去到 21:1；token sheet 有出齊成個 shape scale、十五條字體 ramp 連四條軸、elevation 0-5、四個 state 透明度同完整嘅 motion 集；每個字體值都用 `rem` 而且冇設 root font size；兩份 sheet 對佢哋都有宣告嘅每個 token 值對值一致；`global.scss` 係重新指向啲 utility 而唔係硬寫多一套 scale；除咗本身已經有嗰兩個之外冇新加過 `!important`；reduced-motion kill switch 仍然喺最後而且仍然絕對；以及 map 層嘅 stacking 同 pointer-events 合約冇被改動。佢仲會釘住 contrast theme 嗰兩層抬高咗嘅 container 嘅實際值，等日後有人「執靚啲」嗰陣唔可以靜靜雞將佢哋壓返落純黑。
+
+`overlaySurfaceTokens.test.ts` 就負責另一半：佢份手寫清單入面每個浮層都仲喺度、都仲有畫 elevation、而且係用 elevation token 去畫。佢兩個失敗方向喺引入佢嗰次改動落地之前都試過會紅，因為一個冇人見過佢紅嘅守門測試，其實冇人知佢守緊乜。
