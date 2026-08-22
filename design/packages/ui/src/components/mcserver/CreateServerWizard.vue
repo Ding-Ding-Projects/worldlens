@@ -36,7 +36,12 @@ import {
     type ServerFlavour,
     type TransportRef,
 } from "./serverModel.js";
-import type { CatalogueSnapshot, CatalogueVersionEntry, JavaProvisionProgress, JavaResolution } from "./serverStore.js";
+import type {
+    CatalogueSnapshot,
+    CatalogueVersionEntry,
+    JavaProvisionProgress,
+    JavaResolution,
+} from "./serverStore.js";
 import {
     FLAVOUR_CARDS,
     RUNTIME_OPTIONS,
@@ -45,6 +50,7 @@ import {
     groupVersions,
     memorySliderMax,
     type WhereItRuns,
+    runtimeOptions,
 } from "./wizardModel.js";
 
 /**
@@ -57,7 +63,11 @@ import {
  * has not wired one up yet, rather than pretending the step does not exist.
  */
 const props = defineProps<{ modelValue: boolean }>();
-const emit = defineEmits<{ "update:modelValue": [value: boolean]; created: [id: string] }>();
+const emit = defineEmits<{
+    "update:modelValue": [value: boolean];
+    created: [id: string];
+    "open-aws": [id: string];
+}>();
 
 const { t } = useI18n();
 const store = useServerStore();
@@ -96,7 +106,9 @@ async function loadCatalogue(): Promise<void> {
         catalogue.value = result.value;
         catalogueFailure.value = null;
     } else {
-        catalogueFailure.value = result.failure?.message ?? t("mcserver.wizard.catalogueFailed", "The version list could not be loaded.");
+        catalogueFailure.value =
+            result.failure?.message ??
+            t("mcserver.wizard.catalogueFailed", "The version list could not be loaded.");
     }
     catalogueLoading.value = false;
 }
@@ -109,7 +121,9 @@ async function refreshCatalogue(): Promise<void> {
         catalogue.value = result.value;
         catalogueFailure.value = null;
     } else {
-        catalogueFailure.value = result.failure?.message ?? t("mcserver.wizard.catalogueFailed", "The version list could not be refreshed.");
+        catalogueFailure.value =
+            result.failure?.message ??
+            t("mcserver.wizard.catalogueFailed", "The version list could not be refreshed.");
     }
     catalogueLoading.value = false;
 }
@@ -166,7 +180,14 @@ const versionOptions = computed(() =>
     }),
 );
 
-const filteredVersions = computed(() => filterVersions(flavourVersions.value, versionQuery.value, versionUseRegex.value, versionFlags.value));
+const filteredVersions = computed(() =>
+    filterVersions(
+        flavourVersions.value,
+        versionQuery.value,
+        versionUseRegex.value,
+        versionFlags.value,
+    ),
+);
 const versionGroups = computed(() => groupVersions(filteredVersions.value));
 const versionSample = computed(() => flavourVersions.value.map((v) => v.version).join("\n"));
 
@@ -186,20 +207,34 @@ const whereItRuns = ref<WhereItRuns>("local-process");
 const serverDir = ref("");
 const sshHost = ref("");
 
+const awsAvailable = computed(() => {
+    const bridge = (globalThis as { worldlens?: { mcserver?: { aws?: unknown } } }).worldlens;
+    return bridge?.mcserver?.aws !== undefined && bridge.mcserver.aws !== null;
+});
+const runtimeOptionsForWizard = computed(() => runtimeOptions(awsAvailable.value));
+
 interface RuntimeAvailability {
     checking: boolean;
     available: boolean | null;
     message: string;
 }
 
-const dockerAvailability = reactive<RuntimeAvailability>({ checking: false, available: null, message: "" });
+const dockerAvailability = reactive<RuntimeAvailability>({
+    checking: false,
+    available: null,
+    message: "",
+});
 const dockerStarting = ref(false);
 
 async function probeDocker(): Promise<void> {
-    const bridge = (globalThis as { worldlens?: { dockerRuntime?: () => Promise<unknown> } }).worldlens;
+    const bridge = (globalThis as { worldlens?: { dockerRuntime?: () => Promise<unknown> } })
+        .worldlens;
     if (bridge?.dockerRuntime === undefined) {
         dockerAvailability.available = false;
-        dockerAvailability.message = t("mcserver.wizard.dockerNoBridge", "This build cannot check for Docker.");
+        dockerAvailability.message = t(
+            "mcserver.wizard.dockerNoBridge",
+            "This build cannot check for Docker.",
+        );
         return;
     }
     dockerAvailability.checking = true;
@@ -213,13 +248,18 @@ async function probeDocker(): Promise<void> {
 }
 
 async function startDocker(): Promise<void> {
-    const bridge = (globalThis as { worldlens?: { startDockerRuntime?: () => Promise<unknown> } }).worldlens;
+    const bridge = (globalThis as { worldlens?: { startDockerRuntime?: () => Promise<unknown> } })
+        .worldlens;
     if (bridge?.startDockerRuntime === undefined) return;
     dockerStarting.value = true;
     try {
-        const result = (await bridge.startDockerRuntime()) as { outcome?: string; message?: string };
+        const result = (await bridge.startDockerRuntime()) as {
+            outcome?: string;
+            message?: string;
+        };
         dockerAvailability.message = result.message ?? "";
-        dockerAvailability.available = result.outcome === "started" || result.outcome === "already-running";
+        dockerAvailability.available =
+            result.outcome === "started" || result.outcome === "already-running";
     } finally {
         dockerStarting.value = false;
     }
@@ -326,12 +366,17 @@ const eulaAccepted = ref(false);
 const creating = ref(false);
 const createFailure = ref<string | null>(null);
 
-const idError = computed(() => validateServerId(serverId.value, store.servers.value.map((s) => s.id)));
+const idError = computed(() =>
+    validateServerId(
+        serverId.value,
+        store.servers.value.map((s) => s.id),
+    ),
+);
 const nameError = computed(() => validateServerName(serverName.value));
 const memoryError = computed(() => validateMemoryMb(memoryMb.value));
 const portError = computed(() => validatePort(port.value));
 const folderError = computed(() =>
-    (whereItRuns.value === "local-process" && serverDir.value.trim() === "")
+    whereItRuns.value === "local-process" && serverDir.value.trim() === ""
         ? t("mcserver.wizard.folderRequired", "Choose a folder for this server.")
         : null,
 );
@@ -352,7 +397,26 @@ function transportRef(): TransportRef {
         return { kind: "local-docker", containerRef: serverId.value, serverDir: serverDir.value };
     }
     if (whereItRuns.value === "ssh-docker") {
-        return { kind: "ssh-docker", hostId: sshHost.value, containerRef: serverId.value, serverDir: serverDir.value };
+        return {
+            kind: "ssh-docker",
+            hostId: sshHost.value,
+            containerRef: serverId.value,
+            serverDir: serverDir.value,
+        };
+    }
+    if (whereItRuns.value === "aws") {
+        // The provisioning panel fills the instance details after the record is created.
+        // Keep the record typed and routable while that existing flow does its work.
+        return {
+            kind: "aws",
+            region: "",
+            instanceId: "",
+            publicIp: "",
+            sshUser: "ec2-user",
+            identityFile: null,
+            containerRef: serverId.value,
+            serverDir: serverDir.value || "~",
+        };
     }
     return { kind: "local-process", serverDir: serverDir.value };
 }
@@ -375,11 +439,14 @@ async function create(): Promise<void> {
         creating.value = false;
         if (result.ok) {
             emit("created", serverId.value);
+            if (whereItRuns.value === "aws") emit("open-aws", serverId.value);
             open.value = false;
             resetWizard();
             return;
         }
-        createFailure.value = result.failure?.message ?? t("mcserver.wizard.createFailed", "The server could not be created.");
+        createFailure.value =
+            result.failure?.message ??
+            t("mcserver.wizard.createFailed", "The server could not be created.");
         return;
     }
 
@@ -391,7 +458,8 @@ async function create(): Promise<void> {
         id: serverId.value,
         name: serverName.value,
         flavour: flavour.value,
-        minecraftVersion: minecraftVersion.value.trim() === "" ? null : minecraftVersion.value.trim(),
+        minecraftVersion:
+            minecraftVersion.value.trim() === "" ? null : minecraftVersion.value.trim(),
         ref: transportRef(),
         origin: "created",
         createdAt: now,
@@ -403,10 +471,13 @@ async function create(): Promise<void> {
     creating.value = false;
     if (result.ok) {
         emit("created", serverId.value);
+        if (whereItRuns.value === "aws") emit("open-aws", serverId.value);
         open.value = false;
         resetWizard();
     } else {
-        createFailure.value = result.failure?.message ?? t("mcserver.wizard.createFailed", "The server could not be created.");
+        createFailure.value =
+            result.failure?.message ??
+            t("mcserver.wizard.createFailed", "The server could not be created.");
     }
 }
 
@@ -473,11 +544,16 @@ const canAdvanceFromRuntime = computed(() => {
     if (folderError.value !== null) return false;
     if (whereItRuns.value === "local-process") return true;
     if (whereItRuns.value === "local-docker") return dockerAvailability.available === true;
+    if (whereItRuns.value === "aws") return awsAvailable.value;
     return sshHost.value.trim() !== "";
 });
 const canAdvanceFromJava = computed(() => true);
-const canAdvanceFromResources = computed(() => memoryError.value === null && portError.value === null && folderError.value === null);
-const canAdvanceFromWorld = computed(() => worldMode.value === "new" || importedWorldDir.value.trim() !== "");
+const canAdvanceFromResources = computed(
+    () => memoryError.value === null && portError.value === null && folderError.value === null,
+);
+const canAdvanceFromWorld = computed(
+    () => worldMode.value === "new" || importedWorldDir.value.trim() !== "",
+);
 
 /**
  * Why Next cannot be pressed, in words, or null when it can.
@@ -499,10 +575,19 @@ const advanceBlockedReason = computed<string | null>(() => {
         case "runtime":
             if (folderError.value !== null) return folderError.value;
             if (whereItRuns.value === "local-docker" && dockerAvailability.available !== true) {
-                return t("mcserver.wizard.dockerUnavailable", "Docker is not usable on this computer yet.");
+                return t(
+                    "mcserver.wizard.dockerUnavailable",
+                    "Docker is not usable on this computer yet.",
+                );
             }
             if (whereItRuns.value === "ssh-docker" && sshHost.value.trim() === "") {
                 return t("mcserver.wizard.needHost", "Enter the host this server runs on.");
+            }
+            if (whereItRuns.value === "aws" && !awsAvailable.value) {
+                return t(
+                    "mcserver.wizard.awsUnavailable",
+                    "AWS hosting is not available in this build.",
+                );
             }
             return null;
         case "resources":
@@ -541,13 +626,18 @@ const canAdvance = computed(() => {
         <VCard>
             <VCardTitle>{{ t("mcserver.wizard.title", "New Minecraft server") }}</VCardTitle>
             <VCardText class="wl-mcserver-wizard__body">
-                <nav class="wl-mcserver-wizard__stepper" :aria-label="t('mcserver.wizard.progress', 'Wizard progress')">
+                <nav
+                    class="wl-mcserver-wizard__stepper"
+                    :aria-label="t('mcserver.wizard.progress', 'Wizard progress')"
+                >
                     <VChip
                         v-for="(s, idx) in WIZARD_STEPS"
                         :key="s"
                         size="small"
                         :variant="s === step ? 'flat' : stepNumber > idx + 1 ? 'tonal' : 'outlined'"
-                        :color="s === step ? 'primary' : stepNumber > idx + 1 ? 'success' : undefined"
+                        :color="
+                            s === step ? 'primary' : stepNumber > idx + 1 ? 'success' : undefined
+                        "
                     >
                         {{ idx + 1 }}. {{ t(`mcserver.wizard.step.${s}`, s) }}
                     </VChip>
@@ -555,7 +645,14 @@ const canAdvance = computed(() => {
 
                 <!-- Step 1: flavour -->
                 <div v-if="step === 'flavour'" class="wl-mcserver-wizard__step">
-                    <div class="text-body-2">{{ t("mcserver.wizard.flavourIntro", "Choose the kind of server this will be.") }}</div>
+                    <div class="text-body-2">
+                        {{
+                            t(
+                                "mcserver.wizard.flavourIntro",
+                                "Choose the kind of server this will be.",
+                            )
+                        }}
+                    </div>
                     <div class="wl-mcserver-wizard__flavours">
                         <VBtn
                             v-for="card in FLAVOUR_CARDS"
@@ -563,17 +660,29 @@ const canAdvance = computed(() => {
                             variant="text"
                             block
                             class="wl-mcserver-wizard__flavour-card"
-                            :class="{ 'wl-mcserver-wizard__flavour-card--selected': flavour === card.id }"
+                            :class="{
+                                'wl-mcserver-wizard__flavour-card--selected': flavour === card.id,
+                            }"
                             :aria-pressed="flavour === card.id"
                             @click="flavour = card.id"
                         >
                             <div class="wl-mcserver-wizard__flavour-name">
                                 {{ card.name }}
-                                <VIcon v-if="flavour === card.id" :icon="mdiCheckCircle" size="18" color="primary" />
+                                <VIcon
+                                    v-if="flavour === card.id"
+                                    :icon="mdiCheckCircle"
+                                    size="18"
+                                    color="primary"
+                                />
                             </div>
                             <div class="text-caption text-medium-emphasis">{{ card.tagline }}</div>
                             <div class="text-caption">{{ card.description }}</div>
-                            <VChip v-if="card.cataloguedId === null" size="x-small" variant="tonal" color="warning">
+                            <VChip
+                                v-if="card.cataloguedId === null"
+                                size="x-small"
+                                variant="tonal"
+                                color="warning"
+                            >
                                 {{ t("mcserver.wizard.noCatalogue", "No live version list yet") }}
                             </VChip>
                         </VBtn>
@@ -582,22 +691,58 @@ const canAdvance = computed(() => {
 
                 <!-- Step 2: version -->
                 <div v-else-if="step === 'version'" class="wl-mcserver-wizard__step">
-                    <VAlert v-if="!store.hasCatalogue" type="info" variant="tonal" density="compact">
-                        {{ t("mcserver.wizard.noCatalogueHost", "This build cannot reach the server-version catalogue, so the version has to be entered below.") }}
+                    <VAlert
+                        v-if="!store.hasCatalogue"
+                        type="info"
+                        variant="tonal"
+                        density="compact"
+                    >
+                        {{
+                            t(
+                                "mcserver.wizard.noCatalogueHost",
+                                "This build cannot reach the server-version catalogue, so the version has to be entered below.",
+                            )
+                        }}
                     </VAlert>
-                    <VAlert v-else-if="catalogueFailure" type="warning" variant="tonal" density="compact">
+                    <VAlert
+                        v-else-if="catalogueFailure"
+                        type="warning"
+                        variant="tonal"
+                        density="compact"
+                    >
                         {{ catalogueFailure }}
                         <template #append>
-                            <VBtn size="small" variant="text" :prepend-icon="mdiRefresh" @click="refreshCatalogue">
+                            <VBtn
+                                size="small"
+                                variant="text"
+                                :prepend-icon="mdiRefresh"
+                                @click="refreshCatalogue"
+                            >
                                 {{ t("common.retry", "Retry") }}
                             </VBtn>
                         </template>
                     </VAlert>
                     <template v-else>
-                        <VAlert v-if="catalogue?.stale" type="warning" variant="tonal" density="compact">
-                            {{ t("mcserver.wizard.catalogueStale", "This version list was fetched a while ago and may be missing newer releases.") }}
+                        <VAlert
+                            v-if="catalogue?.stale"
+                            type="warning"
+                            variant="tonal"
+                            density="compact"
+                        >
+                            {{
+                                t(
+                                    "mcserver.wizard.catalogueStale",
+                                    "This version list was fetched a while ago and may be missing newer releases.",
+                                )
+                            }}
                             <template #append>
-                                <VBtn size="small" variant="text" :prepend-icon="mdiRefresh" :loading="catalogueLoading" @click="refreshCatalogue">
+                                <VBtn
+                                    size="small"
+                                    variant="text"
+                                    :prepend-icon="mdiRefresh"
+                                    :loading="catalogueLoading"
+                                    @click="refreshCatalogue"
+                                >
                                     {{ t("mcserver.wizard.refresh", "Refresh") }}
                                 </VBtn>
                             </template>
@@ -609,12 +754,28 @@ const canAdvance = computed(() => {
                             :label="t('mcserver.wizard.searchVersions', 'Search versions')"
                             :sample="versionSample"
                         />
-                        <div v-if="flavourVersions.length === 0 && !catalogueLoading" class="text-caption text-medium-emphasis">
-                            {{ t("mcserver.wizard.noVersionsForFlavour", "No versions could be fetched for this flavour, so there is nothing to choose from. Enter the version below instead.") }}
+                        <div
+                            v-if="flavourVersions.length === 0 && !catalogueLoading"
+                            class="text-caption text-medium-emphasis"
+                        >
+                            {{
+                                t(
+                                    "mcserver.wizard.noVersionsForFlavour",
+                                    "No versions could be fetched for this flavour, so there is nothing to choose from. Enter the version below instead.",
+                                )
+                            }}
                         </div>
-                        <div v-for="group in versionGroups" :key="group.stability" class="wl-mcserver-wizard__version-group">
+                        <div
+                            v-for="group in versionGroups"
+                            :key="group.stability"
+                            class="wl-mcserver-wizard__version-group"
+                        >
                             <div class="text-caption text-medium-emphasis text-uppercase">
-                                {{ group.stability === "release" ? t("mcserver.wizard.releases", "Releases") : t("mcserver.wizard.snapshots", "Snapshots") }}
+                                {{
+                                    group.stability === "release"
+                                        ? t("mcserver.wizard.releases", "Releases")
+                                        : t("mcserver.wizard.snapshots", "Snapshots")
+                                }}
                             </div>
                             <VBtn
                                 v-for="entry in group.versions"
@@ -622,12 +783,21 @@ const canAdvance = computed(() => {
                                 variant="text"
                                 block
                                 class="wl-mcserver-wizard__version-row"
-                                :class="{ 'wl-mcserver-wizard__version-row--selected': minecraftVersion === entry.version }"
+                                :class="{
+                                    'wl-mcserver-wizard__version-row--selected':
+                                        minecraftVersion === entry.version,
+                                }"
                                 @click="minecraftVersion = entry.version"
                             >
                                 <span>{{ entry.version }}</span>
                                 <span class="text-caption text-medium-emphasis">
-                                    {{ t("mcserver.wizard.needsJava", { n: entry.javaFeature }, "Needs Java {n}") }}
+                                    {{
+                                        t(
+                                            "mcserver.wizard.needsJava",
+                                            { n: entry.javaFeature },
+                                            "Needs Java {n}",
+                                        )
+                                    }}
                                     <template v-if="releaseDateLabel(entry.releasedAt)">
                                         &#183; {{ releaseDateLabel(entry.releasedAt) }}
                                     </template>
@@ -642,9 +812,19 @@ const canAdvance = computed(() => {
                         item-title="title"
                         item-value="value"
                         :label="t('mcserver.wizard.version', 'Minecraft version')"
-                        :hint="t('mcserver.wizard.versionHint', 'Chosen from the versions this flavour actually publishes.')"
+                        :hint="
+                            t(
+                                'mcserver.wizard.versionHint',
+                                'Chosen from the versions this flavour actually publishes.',
+                            )
+                        "
                         persistent-hint
-                        :no-data-text="t('mcserver.wizard.noVersions', 'No versions were fetched for this flavour.')"
+                        :no-data-text="
+                            t(
+                                'mcserver.wizard.noVersions',
+                                'No versions were fetched for this flavour.',
+                            )
+                        "
                     >
                         <template #item="{ props: itemProps, item }">
                             <VListItem v-bind="itemProps" :subtitle="item.raw.subtitle" />
@@ -654,7 +834,12 @@ const canAdvance = computed(() => {
                         v-else
                         v-model="minecraftVersion"
                         :label="t('mcserver.wizard.versionByHand', 'Version not in the list')"
-                        :hint="t('mcserver.wizard.versionByHandHint', 'Only needed for a version published after this catalogue was fetched.')"
+                        :hint="
+                            t(
+                                'mcserver.wizard.versionByHandHint',
+                                'Only needed for a version published after this catalogue was fetched.',
+                            )
+                        "
                         persistent-hint
                     />
                     <!--
@@ -670,22 +855,44 @@ const canAdvance = computed(() => {
                         rel="noreferrer noopener"
                     >
                         <VIcon :icon="mdiOpenInNew" size="x-small" />
-                        {{ t("mcserver.wizard.wikiLink", { v: minecraftVersion }, "Read about {v} on the Minecraft Wiki") }}
+                        {{
+                            t(
+                                "mcserver.wizard.wikiLink",
+                                { v: minecraftVersion },
+                                "Read about {v} on the Minecraft Wiki",
+                            )
+                        }}
                     </a>
                     <VSwitch
                         v-if="flavourVersions.length > 0"
                         v-model="typeVersionByHand"
                         density="compact"
-                        :label="t('mcserver.wizard.versionByHandToggle', 'Enter a version that is not listed')"
+                        :label="
+                            t(
+                                'mcserver.wizard.versionByHandToggle',
+                                'Enter a version that is not listed',
+                            )
+                        "
                     />
                 </div>
 
                 <!-- Step 3: where it runs -->
                 <div v-else-if="step === 'runtime'" class="wl-mcserver-wizard__step">
-                    <VRadioGroup v-model="whereItRuns" :label="t('mcserver.wizard.whereItRuns', 'Where it runs')">
-                        <div v-for="option in RUNTIME_OPTIONS" :key="option.id" class="wl-mcserver-wizard__runtime-option">
+                    <VRadioGroup
+                        v-model="whereItRuns"
+                        :label="t('mcserver.wizard.whereItRuns', 'Where it runs')"
+                    >
+                        <div
+                            v-for="option in runtimeOptionsForWizard"
+                            :key="option.id"
+                            class="wl-mcserver-wizard__runtime-option"
+                        >
                             <VRadio :value="option.id" :label="option.name" />
-                            <div class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc">{{ option.description }}</div>
+                            <div
+                                class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc"
+                            >
+                                {{ option.description }}
+                            </div>
                         </div>
                     </VRadioGroup>
 
@@ -705,9 +912,20 @@ const canAdvance = computed(() => {
                             variant="tonal"
                             density="compact"
                         >
-                            <span v-if="dockerAvailability.checking">{{ t("mcserver.wizard.checkingDocker", "Checking whether Docker is available…") }}</span>
-                            <span v-else-if="dockerAvailability.available">{{ t("mcserver.wizard.dockerReady", "Docker is available.") }} {{ dockerAvailability.message }}</span>
-                            <span v-else>{{ dockerAvailability.message || t("mcserver.wizard.dockerUnavailable", "Docker is not available.") }}</span>
+                            <span v-if="dockerAvailability.checking">{{
+                                t(
+                                    "mcserver.wizard.checkingDocker",
+                                    "Checking whether Docker is available…",
+                                )
+                            }}</span>
+                            <span v-else-if="dockerAvailability.available"
+                                >{{ t("mcserver.wizard.dockerReady", "Docker is available.") }}
+                                {{ dockerAvailability.message }}</span
+                            >
+                            <span v-else>{{
+                                dockerAvailability.message ||
+                                t("mcserver.wizard.dockerUnavailable", "Docker is not available.")
+                            }}</span>
                             <template #append>
                                 <VBtn
                                     v-if="!dockerAvailability.available"
@@ -723,16 +941,26 @@ const canAdvance = computed(() => {
                         <PathField
                             v-model="serverDir"
                             field="server folder"
-                            :label="t('mcserver.wizard.folder', 'Server folder (mounted into the container)')"
+                            :label="
+                                t(
+                                    'mcserver.wizard.folder',
+                                    'Server folder (mounted into the container)',
+                                )
+                            "
                             semantic="folder"
                         />
                     </template>
 
-                    <template v-else>
+                    <template v-else-if="whereItRuns === 'ssh-docker'">
                         <VTextField
                             v-model="sshHost"
                             :label="t('mcserver.wizard.sshHost', 'SSH host id')"
-                            :hint="t('mcserver.wizard.sshHostHint', 'The remote host this container will run on.')"
+                            :hint="
+                                t(
+                                    'mcserver.wizard.sshHostHint',
+                                    'The remote host this container will run on.',
+                                )
+                            "
                             persistent-hint
                         />
                         <PathField
@@ -742,24 +970,59 @@ const canAdvance = computed(() => {
                             semantic="folder"
                         />
                     </template>
+                    <VAlert v-else type="info" variant="tonal">
+                        {{
+                            t(
+                                "mcserver.wizard.awsRoute",
+                                "AWS hosting is available. Finish this wizard to open the AWS EC2 provisioning panel, which shows the plan and asks for confirmation before creating anything.",
+                            )
+                        }}
+                    </VAlert>
                 </div>
 
                 <!-- Step 4: Java -->
                 <div v-else-if="step === 'java'" class="wl-mcserver-wizard__step">
                     <div class="text-body-2">
-                        {{ t("mcserver.wizard.javaIntro", { n: requiredJavaFeature }, "This version needs Java {n}.") }}
+                        {{
+                            t(
+                                "mcserver.wizard.javaIntro",
+                                { n: requiredJavaFeature },
+                                "This version needs Java {n}.",
+                            )
+                        }}
                     </div>
                     <VAlert v-if="!store.hasJava" type="info" variant="tonal" density="compact">
-                        {{ t("mcserver.wizard.noJavaHost", "This build cannot check for Java. It will be checked again when the server starts.") }}
+                        {{
+                            t(
+                                "mcserver.wizard.noJavaHost",
+                                "This build cannot check for Java. It will be checked again when the server starts.",
+                            )
+                        }}
                     </VAlert>
                     <template v-else>
                         <VAlert v-if="javaChecking" type="info" variant="tonal" density="compact">
                             {{ t("mcserver.wizard.checkingJava", "Looking for a suitable Java…") }}
                         </VAlert>
-                        <VAlert v-else-if="javaResolution?.found" type="success" variant="tonal" density="compact">
-                            {{ t("mcserver.wizard.javaFound", { v: javaResolution.version, source: javaResolution.source }, "Found Java {v} ({source}).") }}
+                        <VAlert
+                            v-else-if="javaResolution?.found"
+                            type="success"
+                            variant="tonal"
+                            density="compact"
+                        >
+                            {{
+                                t(
+                                    "mcserver.wizard.javaFound",
+                                    { v: javaResolution.version, source: javaResolution.source },
+                                    "Found Java {v} ({source}).",
+                                )
+                            }}
                         </VAlert>
-                        <VAlert v-else-if="javaResolution" type="warning" variant="tonal" density="compact">
+                        <VAlert
+                            v-else-if="javaResolution"
+                            type="warning"
+                            variant="tonal"
+                            density="compact"
+                        >
                             {{ javaResolution.message }}
                             <template #append>
                                 <VBtn
@@ -771,19 +1034,35 @@ const canAdvance = computed(() => {
                                     :loading="javaProvisioning"
                                     @click="provisionJava"
                                 >
-                                    {{ t("mcserver.wizard.installJava", { n: requiredJavaFeature }, "Install Java {n}") }}
+                                    {{
+                                        t(
+                                            "mcserver.wizard.installJava",
+                                            { n: requiredJavaFeature },
+                                            "Install Java {n}",
+                                        )
+                                    }}
                                 </VBtn>
                             </template>
                         </VAlert>
                         <div v-if="javaProvisioning" class="wl-mcserver-wizard__progress">
                             <VProgressLinear
-                                :model-value="javaProgress && javaProgress.totalBytes ? (javaProgress.receivedBytes / javaProgress.totalBytes) * 100 : 0"
+                                :model-value="
+                                    javaProgress && javaProgress.totalBytes
+                                        ? (javaProgress.receivedBytes / javaProgress.totalBytes) *
+                                          100
+                                        : 0
+                                "
                                 :indeterminate="!javaProgress?.totalBytes"
                                 color="primary"
                                 height="8"
                                 rounded
                             />
-                            <div class="text-caption">{{ javaProgress?.message ?? t("mcserver.wizard.installingJava", "Installing Java…") }}</div>
+                            <div class="text-caption">
+                                {{
+                                    javaProgress?.message ??
+                                    t("mcserver.wizard.installingJava", "Installing Java…")
+                                }}
+                            </div>
                         </div>
                     </template>
                 </div>
@@ -803,7 +1082,9 @@ const canAdvance = computed(() => {
                             thumb-label
                             :aria-label="t('mcserver.wizard.memory', 'Memory (MB)')"
                         />
-                        <div v-if="memoryError" class="text-caption text-error">{{ memoryError }}</div>
+                        <div v-if="memoryError" class="text-caption text-error">
+                            {{ memoryError }}
+                        </div>
                     </div>
                     <VTextField
                         v-model.number="port"
@@ -827,18 +1108,41 @@ const canAdvance = computed(() => {
 
                 <!-- Step 6: world -->
                 <div v-else-if="step === 'world'" class="wl-mcserver-wizard__step">
-                    <VRadioGroup v-model="worldMode" :label="t('mcserver.wizard.worldMode', 'World')" inline>
-                        <VRadio value="new" :label="t('mcserver.wizard.worldNew', 'Generate a new world')" />
-                        <VRadio value="import" :label="t('mcserver.wizard.worldImport', 'Import an existing world')" />
+                    <VRadioGroup
+                        v-model="worldMode"
+                        :label="t('mcserver.wizard.worldMode', 'World')"
+                        inline
+                    >
+                        <VRadio
+                            value="new"
+                            :label="t('mcserver.wizard.worldNew', 'Generate a new world')"
+                        />
+                        <VRadio
+                            value="import"
+                            :label="t('mcserver.wizard.worldImport', 'Import an existing world')"
+                        />
                     </VRadioGroup>
                     <template v-if="worldMode === 'new'">
                         <VTextField
                             v-model="seed"
                             :label="t('mcserver.wizard.seed', 'Seed (optional)')"
-                            :placeholder="t('mcserver.wizard.seedPlaceholder', 'Leave blank for a random world')"
+                            :placeholder="
+                                t(
+                                    'mcserver.wizard.seedPlaceholder',
+                                    'Leave blank for a random world',
+                                )
+                            "
                         />
-                        <VSelect v-model="levelType" :items="LEVEL_TYPES" :label="t('mcserver.wizard.levelType', 'World type')" />
-                        <VSwitch v-model="generateStructures" :label="t('mcserver.wizard.generateStructures', 'Generate structures')" color="primary" />
+                        <VSelect
+                            v-model="levelType"
+                            :items="LEVEL_TYPES"
+                            :label="t('mcserver.wizard.levelType', 'World type')"
+                        />
+                        <VSwitch
+                            v-model="generateStructures"
+                            :label="t('mcserver.wizard.generateStructures', 'Generate structures')"
+                            color="primary"
+                        />
                     </template>
                     <template v-else>
                         <PathField
@@ -877,25 +1181,45 @@ const canAdvance = computed(() => {
                         <dt>{{ t("mcserver.wizard.port", "Port") }}</dt>
                         <dd>{{ port }}</dd>
                         <dt>{{ t("mcserver.wizard.worldMode", "World") }}</dt>
-                        <dd>{{ worldMode === "new" ? t("mcserver.wizard.worldNew", "New world") : importedWorldDir }}</dd>
+                        <dd>
+                            {{
+                                worldMode === "new"
+                                    ? t("mcserver.wizard.worldNew", "New world")
+                                    : importedWorldDir
+                            }}
+                        </dd>
                     </dl>
                     <VDivider />
                     <VSwitch
                         v-model="eulaAccepted"
                         color="primary"
-                        :label="t('mcserver.wizard.eulaAgree', 'I have read and accept the Minecraft EULA')"
+                        :label="
+                            t(
+                                'mcserver.wizard.eulaAgree',
+                                'I have read and accept the Minecraft EULA',
+                            )
+                        "
                     />
-                    <a href="https://www.minecraft.net/en-us/eula" target="_blank" rel="noopener" class="wl-mcserver-wizard__eula-link">
+                    <a
+                        href="https://www.minecraft.net/en-us/eula"
+                        target="_blank"
+                        rel="noopener"
+                        class="wl-mcserver-wizard__eula-link"
+                    >
                         {{ t("mcserver.wizard.eulaLink", "Read the Minecraft EULA") }}
                         <VIcon :icon="mdiOpenInNew" size="14" />
                     </a>
-                    <VAlert v-if="createFailure" type="error" variant="tonal" density="compact">{{ createFailure }}</VAlert>
+                    <VAlert v-if="createFailure" type="error" variant="tonal" density="compact">{{
+                        createFailure
+                    }}</VAlert>
                 </div>
             </VCardText>
             <VCardActions>
                 <VBtn variant="text" @click="open = false">{{ t("common.cancel", "Cancel") }}</VBtn>
                 <VSpacer />
-                <VBtn v-if="step !== 'flavour'" variant="text" @click="back">{{ t("common.back", "Back") }}</VBtn>
+                <VBtn v-if="step !== 'flavour'" variant="text" @click="back">{{
+                    t("common.back", "Back")
+                }}</VBtn>
                 <span v-if="advanceBlockedReason" class="text-caption text-medium-emphasis mr-2">
                     {{ advanceBlockedReason }}
                 </span>
@@ -915,7 +1239,11 @@ const canAdvance = computed(() => {
                     variant="tonal"
                     :disabled="!canCreate"
                     :loading="creating"
-                    :title="!eulaAccepted ? t('mcserver.wizard.eulaRequired', 'Accept the EULA to continue.') : undefined"
+                    :title="
+                        !eulaAccepted
+                            ? t('mcserver.wizard.eulaRequired', 'Accept the EULA to continue.')
+                            : undefined
+                    "
                     @click="create"
                 >
                     {{ t("mcserver.wizard.create", "Create") }}
@@ -924,7 +1252,6 @@ const canAdvance = computed(() => {
         </VCard>
     </VDialog>
 </template>
-
 
 <style scoped>
 .wl-mcserver-wizard__body {

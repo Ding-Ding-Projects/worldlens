@@ -53,7 +53,8 @@ export const FLAVOUR_CARDS: readonly FlavourCard[] = [
         id: "fabric",
         name: "Fabric",
         tagline: "Lightweight mod loader",
-        description: "A lightweight, fast-updating mod loader favoured for smaller, focused modpacks.",
+        description:
+            "A lightweight, fast-updating mod loader favoured for smaller, focused modpacks.",
         cataloguedId: "fabric",
     },
     {
@@ -68,7 +69,8 @@ export const FLAVOUR_CARDS: readonly FlavourCard[] = [
         id: "neoforge",
         name: "NeoForge",
         tagline: "Forge's modern successor",
-        description: "A community-maintained continuation of Forge, aimed at newer versions and cleaner internals.",
+        description:
+            "A community-maintained continuation of Forge, aimed at newer versions and cleaner internals.",
         cataloguedId: null,
     },
     {
@@ -135,7 +137,7 @@ export function memorySliderMax(totalMachineMb: number): number {
     return Math.max(1024, totalMachineMb - reserve);
 }
 
-export type WhereItRuns = "local-process" | "local-docker" | "ssh-docker";
+export type WhereItRuns = "local-process" | "local-docker" | "ssh-docker" | "aws";
 
 export interface RuntimeOption {
     readonly id: WhereItRuns;
@@ -147,7 +149,8 @@ export const RUNTIME_OPTIONS: readonly RuntimeOption[] = [
     {
         id: "local-process",
         name: "Local process",
-        description: "Runs directly on this computer as an ordinary program. Simplest option, no container engine needed.",
+        description:
+            "Runs directly on this computer as an ordinary program. Simplest option, no container engine needed.",
     },
     {
         id: "local-docker",
@@ -159,7 +162,18 @@ export const RUNTIME_OPTIONS: readonly RuntimeOption[] = [
         name: "Remote container (SSH)",
         description: "Runs on another machine you reach over SSH, inside Docker there.",
     },
+    {
+        id: "aws",
+        name: "AWS EC2",
+        description: "Provision an EC2 host, then run this server in Docker there.",
+    },
 ];
+
+/** Runtime choices are capability-driven: an older shell without the AWS bridge keeps the
+ * option out of the wizard instead of offering a button that can never do anything. */
+export function runtimeOptions(awsAvailable: boolean): readonly RuntimeOption[] {
+    return awsAvailable ? RUNTIME_OPTIONS : RUNTIME_OPTIONS.filter((option) => option.id !== "aws");
+}
 
 export const WIZARD_STEPS = [
     "flavour",
