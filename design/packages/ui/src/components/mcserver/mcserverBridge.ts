@@ -9,6 +9,14 @@
  */
 
 import type { Answer } from "./serverStore.js";
+import type {
+    AwsInstanceTypeOption,
+    AwsProvisionPlan,
+    AwsProvisionResult,
+    AwsRegionOption,
+    AwsServerSpec,
+    AwsTeardownResult,
+} from "./awsProvisionModel.js";
 
 export interface ConsoleLineEvent {
     readonly stream: "stdout" | "stderr" | "app";
@@ -133,6 +141,13 @@ interface RawBridge {
             stop?(): Promise<unknown>;
             setPassword?(password: string): Promise<unknown>;
             bind?(): Promise<unknown>;
+        };
+        aws?: {
+            plan?(request: unknown): Promise<unknown>;
+            provision?(request: unknown): Promise<unknown>;
+            teardown?(request: unknown): Promise<unknown>;
+            regions?(): Promise<unknown>;
+            instanceTypes?(): Promise<unknown>;
         };
     };
 }
@@ -276,6 +291,30 @@ export function webConsoleSetPassword(password: string, root: unknown = globalTh
 export function webConsoleBind(root: unknown = globalThis): Promise<Answer<WebConsoleStatus>> {
     const b = bridge(root);
     return call(b?.webConsole?.bind ? () => b.webConsole!.bind!() : undefined);
+}
+
+export function awsPlan(request: AwsServerSpec, root: unknown = globalThis): Promise<Answer<AwsProvisionPlan>> {
+    const b = bridge(root);
+    return call(b?.aws?.plan ? () => b.aws!.plan!(request) : undefined);
+}
+export function awsProvision(request: AwsServerSpec, root: unknown = globalThis): Promise<Answer<AwsProvisionResult>> {
+    const b = bridge(root);
+    return call(b?.aws?.provision ? () => b.aws!.provision!(request) : undefined);
+}
+export function awsTeardown(
+    target: { serverId: string; region: string; instanceId: string | null; elasticIpAllocationId: string | null; securityGroupId: string | null },
+    root: unknown = globalThis,
+): Promise<Answer<AwsTeardownResult>> {
+    const b = bridge(root);
+    return call(b?.aws?.teardown ? () => b.aws!.teardown!(target) : undefined);
+}
+export function awsRegions(root: unknown = globalThis): Promise<Answer<readonly AwsRegionOption[]>> {
+    const b = bridge(root);
+    return call(b?.aws?.regions ? () => b.aws!.regions!() : undefined);
+}
+export function awsInstanceTypes(root: unknown = globalThis): Promise<Answer<readonly AwsInstanceTypeOption[]>> {
+    const b = bridge(root);
+    return call(b?.aws?.instanceTypes ? () => b.aws!.instanceTypes!() : undefined);
 }
 
 /** True once a build's bridge advertises this whole extended surface. */
