@@ -926,6 +926,19 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 ...(typeof body.fabricInstallerVersion === "string"
                     ? { fabricInstallerVersion: body.fabricInstallerVersion }
                     : {}),
+                ...(typeof body.loaderVersion === "string"
+                    ? { loaderVersion: body.loaderVersion }
+                    : {}),
+                ...(typeof body.modsDirectory === "string"
+                    ? { modsDirectory: body.modsDirectory }
+                    : {}),
+                ...(Array.isArray(body.preinstallApiLibraries)
+                    ? {
+                          preinstallApiLibraries: body.preinstallApiLibraries.filter(
+                              (value): value is string => typeof value === "string",
+                          ),
+                      }
+                    : {}),
                 ...(options.now === undefined ? {} : { now: options.now }),
                 ...(options.fetchText === undefined ? {} : { fetchText: options.fetchText }),
                 ...(options.fetchBinary === undefined ? {} : { fetchBinary: options.fetchBinary }),

@@ -7,6 +7,10 @@ import {
     flavourCard,
     groupVersions,
     memorySliderMax,
+    isModLoaderFlavour,
+    recommendedMemoryMb,
+    validateModsDirectory,
+    WIZARD_STEPS,
     stepIndex,
 } from "./wizardModel.js";
 import type { CatalogueVersionEntry } from "./serverStore.js";
@@ -28,6 +32,29 @@ describe("FLAVOUR_CARDS", () => {
         expect(flavourCard("paper")?.name).toBe("Paper");
         expect(flavourCard("vanilla")?.cataloguedId).toBe("vanilla");
         expect(flavourCard("spigot")?.cataloguedId).toBeNull();
+    });
+});
+
+describe("mod-loader profile helpers", () => {
+    it("keeps a dedicated profile step in the wizard sequence", () => {
+        expect(WIZARD_STEPS.indexOf("mod-loader")).toBe(WIZARD_STEPS.indexOf("version") + 1);
+    });
+
+    it("recognises all supported mod-loader flavours", () => {
+        expect(isModLoaderFlavour("fabric")).toBe(true);
+        expect(isModLoaderFlavour("forge")).toBe(true);
+        expect(isModLoaderFlavour("neoforge")).toBe(true);
+        expect(isModLoaderFlavour("paper")).toBe(false);
+    });
+
+    it("recommends more memory for modded servers than vanilla", () => {
+        expect(recommendedMemoryMb("fabric")).toBeGreaterThan(recommendedMemoryMb("paper"));
+    });
+
+    it("accepts a simple mods folder and rejects path traversal", () => {
+        expect(validateModsDirectory("mods")).toBeNull();
+        expect(validateModsDirectory("../mods")).not.toBeNull();
+        expect(validateModsDirectory("mods/subfolder")).not.toBeNull();
     });
 });
 
