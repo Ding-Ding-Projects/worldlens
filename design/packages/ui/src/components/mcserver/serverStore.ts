@@ -68,7 +68,7 @@ export interface ProbeResult {
 /* Catalogue + Java resolution, for the create wizard                         */
 /* -------------------------------------------------------------------------- */
 
-export type CatalogueFlavourId = "vanilla" | "paper" | "velocity" | "purpur" | "fabric";
+export type CatalogueFlavourId = "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
 
 export type VersionStability = "release" | "snapshot";
 
@@ -85,6 +85,9 @@ export interface CatalogueVersionEntry {
 export interface CatalogueFlavour {
     readonly flavour: CatalogueFlavourId;
     readonly versions: readonly CatalogueVersionEntry[];
+    /** Optional mod-loader metadata supplied by catalogues that publish it. */
+    readonly loaderVersions?: readonly string[];
+    readonly commonApiLibraries?: readonly string[];
 }
 
 export interface CatalogueSnapshot {
@@ -119,6 +122,9 @@ export interface CreateServerRequest {
     readonly acceptedEula: boolean;
     readonly provisionJavaIfMissing?: boolean;
     readonly fabricInstallerVersion?: string;
+    readonly loaderVersion?: string;
+    readonly modsDirectory?: string;
+    readonly preinstallApiLibraries?: readonly string[];
 }
 
 /* -------------------------------------------------------------------------- */

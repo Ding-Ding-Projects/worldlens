@@ -49,6 +49,10 @@ import {
     filterVersions,
     groupVersions,
     memorySliderMax,
+    DEFAULT_MODS_DIRECTORY,
+    isModLoaderFlavour,
+    recommendedMemoryMb,
+    validateModsDirectory,
     type WhereItRuns,
     runtimeOptions,
 } from "./wizardModel.js";
@@ -78,13 +82,18 @@ const open = computed<boolean>({
 });
 
 const step = ref<(typeof WIZARD_STEPS)[number]>("flavour");
-const stepNumber = computed(() => WIZARD_STEPS.indexOf(step.value) + 1);
 
 /* -------------------------------------------------------------------------- */
 /* Step 1: flavour                                                            */
 /* -------------------------------------------------------------------------- */
 
 const flavour = ref<ServerFlavour>("paper");
+const visibleSteps = computed(() =>
+    WIZARD_STEPS.filter(
+        (candidate) => candidate !== "mod-loader" || isModLoaderFlavour(flavour.value),
+    ),
+);
+const stepNumber = computed(() => visibleSteps.value.indexOf(step.value) + 1);
 
 /* -------------------------------------------------------------------------- */
 /* Step 2: version, from the real catalogue                                   */
@@ -195,8 +204,38 @@ const selectedVersionEntry = computed<CatalogueVersionEntry | undefined>(() =>
     flavourVersions.value.find((v) => v.version === minecraftVersion.value),
 );
 
+const modLoaderCatalogue = computed(() => {
+    const card = FLAVOUR_CARDS.find((c) => c.id === flavour.value);
+    const entry = catalogue.value?.flavours.find((f) => f.flavour === card?.cataloguedId);
+    return entry;
+});
+const modLoaderVersions = computed<readonly string[]>(() => {
+    const explicit = modLoaderCatalogue.value?.loaderVersions;
+    if (explicit && explicit.length > 0) return explicit;
+    // Fabric's existing catalogue entries are loader builds. Keep them usable as the
+    // dedicated picker until the upstream catalogue supplies a separate field.
+    return flavour.value === "fabric" ? flavourVersions.value.map((entry) => entry.version) : [];
+});
+const commonApiLibraries = computed<readonly string[]>(
+    () => modLoaderCatalogue.value?.commonApiLibraries ?? [],
+);
+const modLoaderVersion = ref("");
+const modsDirectory = ref(DEFAULT_MODS_DIRECTORY);
+const preinstallApiLibraries = ref<string[]>([]);
+const modLoaderMemoryRecommendation = computed(() => recommendedMemoryMb(flavour.value));
+const isModLoader = computed(() => isModLoaderFlavour(flavour.value));
+
+function setApiLibraryEnabled(library: string, enabled: boolean): void {
+    preinstallApiLibraries.value = enabled
+        ? [...new Set([...preinstallApiLibraries.value, library])]
+        : preinstallApiLibraries.value.filter((item) => item !== library);
+}
+
 watch(flavour, () => {
     minecraftVersion.value = "";
+    modLoaderVersion.value = "";
+    preinstallApiLibraries.value = [];
+    memoryMb.value = recommendedMemoryMb(flavour.value);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -435,6 +474,13 @@ async function create(): Promise<void> {
             memoryMb: memoryMb.value,
             acceptedEula: eulaAccepted.value,
             provisionJavaIfMissing: true,
+            ...(isModLoader.value
+                ? {
+                      loaderVersion: modLoaderVersion.value.trim() || undefined,
+                      modsDirectory: modsDirectory.value.trim() || DEFAULT_MODS_DIRECTORY,
+                      preinstallApiLibraries: [...preinstallApiLibraries.value],
+                  }
+                : {}),
         });
         creating.value = false;
         if (result.ok) {
@@ -507,6 +553,9 @@ function resetWizard(): void {
     sshHost.value = "";
     javaResolution.value = null;
     memoryMb.value = 2048;
+    modLoaderVersion.value = "";
+    modsDirectory.value = DEFAULT_MODS_DIRECTORY;
+    preinstallApiLibraries.value = [];
     port.value = 25565;
     worldMode.value = "new";
     seed.value = "";
@@ -527,15 +576,32 @@ watch(open, (isOpen) => {
 
 function next(): void {
     const idx = WIZARD_STEPS.indexOf(step.value);
-    if (idx < WIZARD_STEPS.length - 1) step.value = WIZARD_STEPS[idx + 1]!;
+    for (let nextIdx = idx + 1; nextIdx < WIZARD_STEPS.length; nextIdx += 1) {
+        const candidate = WIZARD_STEPS[nextIdx]!;
+        if (candidate !== "mod-loader" || isModLoader.value) {
+            step.value = candidate;
+            return;
+        }
+    }
 }
 function back(): void {
     const idx = WIZARD_STEPS.indexOf(step.value);
-    if (idx > 0) step.value = WIZARD_STEPS[idx - 1]!;
+    for (let previousIdx = idx - 1; previousIdx >= 0; previousIdx -= 1) {
+        const candidate = WIZARD_STEPS[previousIdx]!;
+        if (candidate !== "mod-loader" || isModLoader.value) {
+            step.value = candidate;
+            return;
+        }
+    }
 }
 
 const canAdvanceFromFlavour = computed(() => flavour.value !== null);
 const canAdvanceFromVersion = computed(() => minecraftVersion.value.trim() !== "");
+const canAdvanceFromModLoader = computed(
+    () =>
+        !isModLoader.value ||
+        (modLoaderVersion.value.trim() !== "" && validateModsDirectory(modsDirectory.value) === null),
+);
 const canAdvanceFromRuntime = computed(() => {
     // The server folder field lives on THIS step, so this step is where a missing one has
     // to stop you. It used to let you straight past and the resources step refused to
@@ -572,6 +638,11 @@ const advanceBlockedReason = computed<string | null>(() => {
             return minecraftVersion.value.trim() === ""
                 ? t("mcserver.wizard.pickVersion", "Choose a Minecraft version first.")
                 : null;
+        case "mod-loader":
+            return canAdvanceFromModLoader.value
+                ? null
+                : validateModsDirectory(modsDirectory.value) ??
+                  t("mcserver.wizard.pickModLoader", "Choose a loader version first.");
         case "runtime":
             if (folderError.value !== null) return folderError.value;
             if (whereItRuns.value === "local-docker" && dockerAvailability.available !== true) {
@@ -607,6 +678,8 @@ const canAdvance = computed(() => {
             return canAdvanceFromFlavour.value;
         case "version":
             return canAdvanceFromVersion.value;
+        case "mod-loader":
+            return canAdvanceFromModLoader.value;
         case "runtime":
             return canAdvanceFromRuntime.value;
         case "java":
@@ -631,7 +704,7 @@ const canAdvance = computed(() => {
                     :aria-label="t('mcserver.wizard.progress', 'Wizard progress')"
                 >
                     <VChip
-                        v-for="(s, idx) in WIZARD_STEPS"
+                        v-for="(s, idx) in visibleSteps"
                         :key="s"
                         size="small"
                         :variant="s === step ? 'flat' : stepNumber > idx + 1 ? 'tonal' : 'outlined'"
@@ -876,7 +949,55 @@ const canAdvance = computed(() => {
                     />
                 </div>
 
-                <!-- Step 3: where it runs -->
+                <!-- Step 3: mod-loader profile (modded flavours only) -->
+                <div v-else-if="step === 'mod-loader'" class="wl-mcserver-wizard__step">
+                    <VAlert type="info" variant="tonal" density="compact">
+                        {{
+                            t(
+                                "mcserver.wizard.modLoaderIntro",
+                                "Modded servers usually need more memory and a dedicated mods folder.",
+                            )
+                        }}
+                        {{
+                            t(
+                                "mcserver.wizard.modLoaderMemoryHint",
+                                { n: modLoaderMemoryRecommendation },
+                                "We recommend at least {n} MB for this loader.",
+                            )
+                        }}
+                    </VAlert>
+                    <VSelect
+                        v-if="modLoaderVersions.length > 0"
+                        v-model="modLoaderVersion"
+                        :items="modLoaderVersions"
+                        :label="t('mcserver.wizard.loaderVersion', 'Mod-loader version')"
+                        :hint="t('mcserver.wizard.loaderVersionHint', 'Choose a published loader build.')"
+                        persistent-hint
+                    />
+                    <VTextField
+                        v-else
+                        v-model="modLoaderVersion"
+                        :label="t('mcserver.wizard.loaderVersion', 'Mod-loader version')"
+                        :hint="t('mcserver.wizard.loaderVersionUnavailable', 'Enter the loader version published for this Minecraft version.')"
+                        persistent-hint
+                    />
+                    <VTextField
+                        v-model="modsDirectory"
+                        :label="t('mcserver.wizard.modsDirectory', 'Mods directory')"
+                        :error-messages="validateModsDirectory(modsDirectory) ?? undefined"
+                        :hint="t('mcserver.wizard.modsDirectoryHint', 'The folder inside the server directory where mods are installed.')"
+                        persistent-hint
+                    />
+                    <VSwitch
+                        v-for="library in commonApiLibraries"
+                        :key="library"
+                        :model-value="preinstallApiLibraries.includes(library)"
+                        :label="t('mcserver.wizard.preinstallApi', { library }, 'Pre-install {library}')"
+                        @update:model-value="(enabled) => setApiLibraryEnabled(library, enabled)"
+                    />
+                </div>
+
+                <!-- Step 4: where it runs -->
                 <div v-else-if="step === 'runtime'" class="wl-mcserver-wizard__step">
                     <VRadioGroup
                         v-model="whereItRuns"
@@ -1174,6 +1295,12 @@ const canAdvance = computed(() => {
                         <dd>{{ flavour }}</dd>
                         <dt>{{ t("mcserver.wizard.version", "Version") }}</dt>
                         <dd>{{ minecraftVersion || t("common.notSet", "Not set") }}</dd>
+                        <template v-if="isModLoader">
+                            <dt>{{ t("mcserver.wizard.loaderVersion", "Mod-loader version") }}</dt>
+                            <dd>{{ modLoaderVersion || t("common.notSet", "Not set") }}</dd>
+                            <dt>{{ t("mcserver.wizard.modsDirectory", "Mods directory") }}</dt>
+                            <dd>{{ modsDirectory }}</dd>
+                        </template>
                         <dt>{{ t("mcserver.wizard.whereItRuns", "Where it runs") }}</dt>
                         <dd>{{ whereItRuns }}</dd>
                         <dt>{{ t("mcserver.wizard.memory", "Memory (MB)") }}</dt>

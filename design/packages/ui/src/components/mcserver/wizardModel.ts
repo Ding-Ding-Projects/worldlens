@@ -7,6 +7,35 @@
 import type { ServerFlavour } from "./serverModel.js";
 import type { CatalogueFlavourId, CatalogueVersionEntry } from "./serverStore.js";
 
+export const MOD_LOADER_FLAVOURS = ["fabric", "forge", "neoforge"] as const;
+export type ModLoaderFlavour = (typeof MOD_LOADER_FLAVOURS)[number];
+
+export function isModLoaderFlavour(flavour: ServerFlavour): flavour is ModLoaderFlavour {
+    return (MOD_LOADER_FLAVOURS as readonly string[]).includes(flavour);
+}
+
+export interface ModLoaderProfile {
+    readonly loaderVersion: string;
+    readonly modsDirectory: string;
+    readonly preinstallApiLibraries: readonly string[];
+}
+
+export const DEFAULT_MODS_DIRECTORY = "mods";
+export const MOD_LOADER_MEMORY_MB = 4096;
+
+export function recommendedMemoryMb(flavour: ServerFlavour): number {
+    return isModLoaderFlavour(flavour) ? MOD_LOADER_MEMORY_MB : 2048;
+}
+
+export function validateModsDirectory(value: string): string | null {
+    const trimmed = value.trim();
+    if (trimmed === "") return "Choose a folder name for installed mods.";
+    if (trimmed === "." || trimmed === ".." || /[\\/:*?"<>|]/.test(trimmed)) {
+        return "The mods folder must be one safe folder name, not a path.";
+    }
+    return null;
+}
+
 export interface FlavourCard {
     readonly id: ServerFlavour;
     readonly name: string;
@@ -178,6 +207,7 @@ export function runtimeOptions(awsAvailable: boolean): readonly RuntimeOption[] 
 export const WIZARD_STEPS = [
     "flavour",
     "version",
+    "mod-loader",
     "runtime",
     "java",
     "resources",

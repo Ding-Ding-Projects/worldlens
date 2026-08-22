@@ -2533,6 +2533,9 @@ interface WorldlensBridge {
             acceptedEula: boolean;
             provisionJavaIfMissing?: boolean;
             fabricInstallerVersion?: string;
+            loaderVersion?: string;
+            modsDirectory?: string;
+            preinstallApiLibraries?: readonly string[];
         }): Promise<unknown>;
         /** Provisioning, and tearing down, a Minecraft server on an EC2 instance this app creates. */
         aws: {

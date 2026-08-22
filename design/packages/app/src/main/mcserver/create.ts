@@ -66,6 +66,10 @@ export interface CreateLocalServerOptions {
     readonly provisionJavaIfMissing?: boolean;
     /** For Fabric only: which installer build to combine with the chosen loader. */
     readonly fabricInstallerVersion?: string;
+    /** Optional mod-loader profile values supplied by the create wizard. */
+    readonly loaderVersion?: string;
+    readonly modsDirectory?: string;
+    readonly preinstallApiLibraries?: readonly string[];
     readonly fetchText?: FetchText;
     readonly fetchBinary?: FetchBinary;
     /** Injected in tests so Java discovery never launches a real `java` process. */
@@ -249,6 +253,13 @@ export async function createLocalServer(options: CreateLocalServerOptions): Prom
     if (!installed.ok) return installed;
 
     try {
+        if (options.modsDirectory !== undefined && options.modsDirectory.trim() !== "") {
+            const modsDirectory = options.modsDirectory.trim();
+            if (modsDirectory === "." || modsDirectory === ".." || /[\\/:*?"<>|]/.test(modsDirectory)) {
+                return fail("invalid-request", "The mods directory must be one safe folder name.");
+            }
+            await mkdir(join(serverDir, modsDirectory), { recursive: true });
+        }
         await writeFile(join(serverDir, "server.properties"), defaultServerProperties(), "utf8");
     } catch (error) {
         return fail("denied", "server.properties could not be written.", String(error));
