@@ -284,7 +284,7 @@ export class MaterialShell {
         this.menu.hidden = true;
         this.menu.setAttribute("role", "menu");
         this.menu.dataset.copyAriaLabel = "terrainActions";
-        this.menu.innerHTML = `<button type="button" role="menuitem" data-action="pin">📍 <span data-copy="addPinpoint">Add pinpoint here</span></button><button type="button" role="menuitem" data-action="command">🛠 <span data-copy="buildCommandHere">Build command here</span></button><button type="button" role="menuitem" data-action="copy" data-copy="copyCoordinates">Copy coordinates</button><button type="button" role="menuitem" data-action="cancel" data-copy="cancel">Cancel</button>`;
+        this.menu.innerHTML = `<button type="button" role="menuitem" data-action="pin">📍 <span data-copy="addPinpoint">Add pinpoint here</span></button><button type="button" role="menuitem" data-action="build-command">🛠 <span data-copy="buildCommandHere">Build command here</span></button><button type="button" role="menuitem" data-action="copy" data-copy="copyCoordinates">Copy coordinates</button><button type="button" role="menuitem" data-action="cancel" data-copy="cancel">Cancel</button>`;
         this.root.appendChild(this.menu);
         this.menu.addEventListener("click", (event) => void this.handleMenuClick(event));
         this.menu.addEventListener("keydown", this.handleContextMenuKeydown);
@@ -1425,7 +1425,11 @@ export class MaterialShell {
             }
             this.closeContextMenu();
         }
-        if (action === "command") {
+        // Deliberately not "command": the app bar's command-palette button already owns
+        // that action name, and sharing it made the two indistinguishable to this handler
+        // and broke the embedded-chrome contract, which asserts the palette control is absent
+        // when the host draws its own bar.
+        if (action === "build-command") {
             const point = { x: Number(this.menu.dataset.x), y: Number(this.menu.dataset.y), z: Number(this.menu.dataset.z) };
             this.closeContextMenu();
             if (this.onBuildCommandHere) {
