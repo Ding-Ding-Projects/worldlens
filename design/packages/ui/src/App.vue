@@ -109,6 +109,9 @@ import { createServerStore } from "./components/mcserver/serverStore.js";
 import { provideServerStore, resolveServerHost } from "./components/mcserver/useServers.js";
 import ServerListScreen from "./components/mcserver/ServerListScreen.vue";
 import CreateServerWizard from "./components/mcserver/CreateServerWizard.vue";
+import AdoptionReviewDialog from "./components/mcserver/AdoptionReviewDialog.vue";
+import type { AdoptionCandidate } from "./components/mcserver/serverStore.js";
+import type { ServerRecord } from "./components/mcserver/serverModel.js";
 import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
@@ -198,6 +201,41 @@ const mcServerStore = createServerStore({ host: resolveServerHost() });
 provideServerStore(mcServerStore);
 const mcServerCreateOpen = ref(false);
 const mcServerOpenId = ref<string | null>(null);
+const mcServerAdoptOpen = ref(false);
+const mcServerAdoptRecord = ref<ServerRecord | null>(null);
+const mcServerAdoptContainerId = ref<string | null>(null);
+
+function adoptionRecord(candidate: AdoptionCandidate): ServerRecord {
+    const now = new Date().toISOString();
+    return {
+        id: `adopt-${candidate.containerId}`,
+        name: candidate.containerName,
+        flavour: (candidate.guessedFlavour ?? "unknown") as ServerRecord["flavour"],
+        minecraftVersion: candidate.guessedVersion,
+        ref: { kind: "local-docker", containerRef: candidate.containerId, serverDir: "" },
+        origin: "adopted",
+        createdAt: now,
+        updatedAt: now,
+        hasRconSecret: false,
+        rconPort: null,
+        writeScope: [],
+    };
+}
+
+async function openMcServerAdoption(): Promise<void> {
+    const discovered = await mcServerStore.adoptDiscover();
+    const candidate = discovered.ok ? discovered.value?.[0] : undefined;
+    if (!candidate) return;
+    mcServerAdoptRecord.value = adoptionRecord(candidate);
+    mcServerAdoptContainerId.value = candidate.containerId;
+    mcServerAdoptOpen.value = true;
+}
+
+function completeMcServerAdoption(record: ServerRecord): void {
+    mcServerAdoptRecord.value = record;
+    mcServerOpenId.value = record.id;
+    mcServerAdoptOpen.value = false;
+}
 
 // Read the saved locks once the shell is up. A locked element renders unlocked for the
 // instant before this resolves, which is the honest ordering: the store says `loaded` is
@@ -2071,8 +2109,15 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             v-else
                             @open="(id) => (mcServerOpenId = id)"
                             @create="mcServerCreateOpen = true"
+                            @adopt="openMcServerAdoption"
                         />
                         <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <AdoptionReviewDialog
+                            v-model="mcServerAdoptOpen"
+                            :record="mcServerAdoptRecord"
+                            :container-id="mcServerAdoptContainerId"
+                            @confirmed="completeMcServerAdoption"
+                        />
                     </div>
                 </template>
 
@@ -2298,8 +2343,15 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             v-else
                             @open="(id) => (mcServerOpenId = id)"
                             @create="mcServerCreateOpen = true"
+                            @adopt="openMcServerAdoption"
                         />
                         <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <AdoptionReviewDialog
+                            v-model="mcServerAdoptOpen"
+                            :record="mcServerAdoptRecord"
+                            :container-id="mcServerAdoptContainerId"
+                            @confirmed="completeMcServerAdoption"
+                        />
                     </div>
 
                     <!--
@@ -2546,10 +2598,17 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         v-else
                                         @open="(id) => (mcServerOpenId = id)"
                                         @create="mcServerCreateOpen = true"
+                                        @adopt="openMcServerAdoption"
                                     />
                                     <CreateServerWizard
                                         v-model="mcServerCreateOpen"
                                         @created="(id) => (mcServerOpenId = id)"
+                                    />
+                                    <AdoptionReviewDialog
+                                        v-model="mcServerAdoptOpen"
+                                        :record="mcServerAdoptRecord"
+                                        :container-id="mcServerAdoptContainerId"
+                                        @confirmed="completeMcServerAdoption"
                                     />
                                 </div>
                             </template>
