@@ -41,6 +41,7 @@ import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import { filterByOwner } from "./ownerFilter.js";
 import GhEntityPicker from "../github/GhEntityPicker.vue";
 import {
     createGhCliAccountsStore,
@@ -483,10 +484,33 @@ const candidateQuery = ref("");
 const candidateRegex = ref(false);
 const candidateFlags = ref("i");
 
-const shownCandidates = computed(() => {
+/**
+ * What the repository picker actually shows.
+ *
+ * Narrowed by the chosen owner as well as by the search. Choosing an organization used to
+ * set the owner and change nothing here, so the list sat there looking identical and the
+ * control read as broken - it was not broken, it was simply not connected to anything.
+ *
+ * A filter rather than another fetch: the organization's repositories are already in the
+ * list loaded for this account, so asking the network again would spend a round trip to
+ * display what is on screen already, and would fail differently offline for a narrowing
+ * that never needed the network.
+ */
+const ownerNarrowing = computed(() => {
     const matcher = createSettingMatcher(candidateQuery.value, candidateRegex.value, candidateFlags.value);
-    return candidates.value.filter((candidate) => matcher.test(candidate.fullName));
+    const matched = candidates.value.filter((candidate) => matcher.test(candidate.fullName));
+    return filterByOwner(matched, candidates.value, owner.value || null);
 });
+
+const shownCandidates = computed(() => ownerNarrowing.value.shown);
+
+/** True when the chosen owner has nothing this account may write to. */
+const ownerHasNoRepositories = computed(
+    () => ownerNarrowing.value.ownerIsEmpty && candidates.value.length > 0,
+);
+
+/** How many the owner filter is holding back, so the count can say so rather than confuse. */
+const hiddenByOwner = computed(() => ownerNarrowing.value.hiddenByOwner);
 
 const candidateSample = computed(() => candidates.value.map((candidate) => candidate.fullName).join("\n"));
 
@@ -716,9 +740,25 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
                         :search-label="t('worldrepo.repo.search', 'Search writable repositories')"
                         :select-label="t('worldrepo.repo.pick', 'Choose an existing repository')"
                         :selected-label="t('worldrepo.repo.selected', 'Selected repository')"
-                        :empty-message="t('worldrepo.repo.empty', 'No writable repositories were returned by GitHub CLI.')"
+                        :empty-message="
+                            ownerHasNoRepositories
+                                ? t(
+                                      'worldrepo.repo.emptyForOwner',
+                                      { owner },
+                                      'This account cannot write to any repository under {owner}.',
+                                  )
+                                : t('worldrepo.repo.empty', 'No writable repositories were returned by GitHub CLI.')
+                        "
                         :no-match-message="t('worldrepo.repo.noMatch', 'No real repository matches that search.')"
-                        :hint="t('worldrepo.repo.help', 'Up to 300 real writable repositories returned for the selected GitHub CLI account.')"
+                        :hint="
+                            hiddenByOwner > 0
+                                ? t(
+                                      'worldrepo.repo.helpFiltered',
+                                      { owner, hidden: String(hiddenByOwner) },
+                                      'Showing repositories under {owner}. {hidden} under other owners are hidden; clear the owner above to see them.',
+                                  )
+                                : t('worldrepo.repo.help', 'Up to 300 real writable repositories returned for the selected GitHub CLI account.')
+                        "
                         class="mt-2"
                         data-test-base="worldrepo-repository-picker"
                         @update:model-value="chooseRepository"
