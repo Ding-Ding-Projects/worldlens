@@ -34,9 +34,10 @@ is ever configured by typing a command or editing a file by hand.
 
 ### Phases 2-9 - in progress
 
-- [ ] Flavour and version catalogue from the real upstream APIs, Java provisioning through
-      the existing `provisionJava`, and guided server creation with a real picker at every
-      step and EULA consent given in the interface.
+- [x] Version selection now uses the live Paper/Velocity v3 catalogue, release dates and
+      digest-backed entries; the picker and guided wizard are landed on `origin/main`.
+- [ ] Flavour catalogue completion, Java provisioning through the existing `provisionJava`,
+      and the remaining guided-creation/EULA paths still need end-to-end evidence.
 - [ ] RCON client and protocol, the console session supervisor with reconnect de-duplication,
       and players, ops, whitelist and bans as real lists with row actions.
 - [ ] The configuration editor: Minecraft's config keys described as `FieldMeta` and rendered
@@ -50,16 +51,27 @@ is ever configured by typing a command or editing a file by hand.
 - [ ] A locally hosted web management console behind password authentication, hostable in the
       app, in a container, or on an SSH host, carrying the unlock ladder because it can lock a
       user out.
-- [ ] The Vue screens, a sixth catalogue, and the universal surface contracts.
+- [ ] The Vue server screens and wizard are mounted, but adoption, AWS hosting controls, the
+      remaining config surfaces, and the universal surface contracts are still open (Issues
+      #150-#159).
 - [ ] Real captures from the built artifact. Not done: these must come from a packaged build,
       not the source tree.
 
 ### Evidence boundary
 
-Phase 1 is implemented, tested and pushed on `feat/mcserver`. Nothing in this feature has been
-exercised against a real Docker daemon, a real SSH host or a real Minecraft server yet, and no
-capture exists from a packaged build. The tests prove the modules; they do not prove the
-feature runs.
+Phase 1 is implemented, tested and pushed on `feat/mcserver`; the version-picker and guided
+wizard slices are also present on `origin/main`. Nothing in this feature has been exercised
+against a real Docker daemon, a real SSH host or a real Minecraft server yet, and no capture
+exists from a packaged build. The tests prove the modules; they do not prove the feature runs.
+
+### Records reconciliation (2026-08-22)
+
+Against `origin/main` at `a90f588f`, Issues #150–#162 remain open: adoption wiring, config IPC and
+remaining schemas, AWS wizard controls, world-generator reconciliation/vanilla generation,
+mod-loader profiles, world-drop actions, search coverage, two-corner command picking, stale
+captures, and the pre-existing red gates all lack a verified closure record. The landed version
+picker and Paper/Velocity v3 catalogue are the only items in this block promoted from the older
+handoff's open list; no unchecked roadmap item was silently removed.
 
 ### 廣東話
 
