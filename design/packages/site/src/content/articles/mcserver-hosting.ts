@@ -73,6 +73,17 @@ export const mcserverHosting: Article = {
                     ],
                 },
                 {
+                    kind: "paragraph",
+                    content: [
+                        "Choosing a version is a picker over a live catalogue, not a text field: Vanilla ",
+                        "reads Mojang's manifest, Purpur and Fabric read their own project APIs, and Paper ",
+                        "and Velocity read PaperMC's v3 API, each entry carrying a release date and a ",
+                        "verifiable SHA-256, with a link to the version's page on the Minecraft Wiki built ",
+                        "from its name rather than looked up. Typing a version is possible only behind an ",
+                        "explicit switch, for one published after the catalogue was fetched.",
+                    ],
+                },
+                {
                     kind: "callout",
                     tone: "warning",
                     title: "Adoption is built and does not open",

@@ -551,6 +551,8 @@ Open a section to see the rest. Each capture's own caption sits beside it in
 `docs/screenshots/captions.md`, and `docs/screenshots/manifest.json` records what took it, by
 what method, and every surface the run could not reach.
 
+**A screen recording, not only stills**, shows the interface actually moving: [`docs/recordings/worldlens-tour.mp4`](docs/recordings/worldlens-tour.mp4) - GitHub does not play an mp4 inline in a README, so open it rather than expecting it to play here. Captured from the packaged unsigned build on an off-screen desktop at commit `f02370eb`, 20 seconds at 1280×800: moving between Home, Map, Work and the Minecraft server destination; opening the create-server wizard; the flavour cards; choosing a version from the live catalogue with its release date; stepping back; cancelling. [`docs/recordings/README.md`](docs/recordings/README.md) explains how it and any future ones are made, and the one rule that is not negotiable: the machine's own screen is never recorded, only the application's own window or renderer.
+
 <details>
 <summary><b>Starting a render: the guide, step by step</b> - photographed before the rewrite</summary>
 

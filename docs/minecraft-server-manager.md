@@ -21,9 +21,20 @@ cached across a restart. A cached "running" that survived a reboot would render 
 dot beside a server that has been down for hours, which is worse than an honest "not checked
 yet".
 
-A **New server** wizard creates one: an id, a display name, a flavour picker, an optional
-version, a server folder chosen through a native browse button, a memory slider bounded to
-what a Minecraft server can actually use, and a port stepper bounded to 1–65535.
+A **New server** wizard creates one: an id, a display name, a flavour picker, a server
+folder chosen through a native browse button, a memory slider bounded to what a Minecraft
+server can actually use, and a port stepper bounded to 1–65535.
+
+The version step is a picker over a live catalogue rather than a text field: Vanilla reads
+Mojang's own version manifest, Purpur and Fabric read their own project APIs, and Paper and
+Velocity read PaperMC's v3 API - which replaced the v2 API this used to read after v2 was
+retired and started answering `410` to every request, silently leaving Paper and Velocity
+with no versions to show. Every catalogued entry carries a release date shown beside it and
+a verifiable SHA-256 of its own download. A link beside the chosen version opens its page on
+the Minecraft Wiki - constructed from the version's own name rather than looked up, so it is
+reliable for a version that has been out a while and may not resolve for one published minutes
+ago. Typing a version by hand is possible only behind an explicit switch, for a version newer
+than the catalogue that was fetched.
 
 Opening a server shows a tabbed panel with four real screens:
 
