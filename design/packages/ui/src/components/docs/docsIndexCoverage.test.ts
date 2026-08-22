@@ -116,6 +116,10 @@ const DISK_FILES = diskMarkdownFiles();
  * rather than loosening the rule for everyone.
  */
 const CATEGORY_EXEMPT: Readonly<Record<string, string>> = {
+    "screenshot-evidence.md":
+        "An explanation of how the capture staleness check works and why a recapture taken " +
+        "while the tree is still moving is stale on arrival. It is guidance for whoever " +
+        "refreshes the evidence, not a description of anything the application does.",
     "search-coverage.md":
         "A hand-written inventory of which surfaces carry a search field and which do not. It " +
         "exists because a rule-shaped check can only validate the fields already present, so " +
