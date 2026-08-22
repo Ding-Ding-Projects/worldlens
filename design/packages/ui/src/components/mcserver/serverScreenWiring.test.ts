@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 const APP = fileURLToPath(new URL("../../App.vue", import.meta.url));
 
 /** The events the list emits that a host must answer. */
-const REQUIRED = ["@open", "@create"] as const;
+const REQUIRED = ["@open", "@create", "@adopt"] as const;
 
 /**
  * Every `<ServerListScreen` tag in the file, with the text of that one tag.

@@ -19,7 +19,7 @@ import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { useServerStore } from "./useServers.js";
-import { adoptConfirm, adoptRelease } from "./mcserverBridge.js";
+import { adoptRelease } from "./mcserverBridge.js";
 import type { ServerRecord } from "./serverModel.js";
 
 /**
@@ -38,7 +38,7 @@ const props = defineProps<{
     blockers?: readonly string[];
     containerId?: string | null;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: boolean]; confirmed: [] }>();
+const emit = defineEmits<{ "update:modelValue": [value: boolean]; confirmed: [record: ServerRecord] }>();
 
 const { t } = useI18n();
 const store = useServerStore();
@@ -108,16 +108,13 @@ const reviewSummary = computed(() =>
 async function confirm(): Promise<void> {
     if (!props.record) return;
     failure.value = null;
-    if (props.containerId) {
-        const result = await adoptConfirm({ id: props.record.id, containerId: props.containerId, consent: { ...consent } });
-        if (!result.ok) {
-            failure.value = result.failure?.message ?? t("mcserver.adopt.confirmFailed", "Could not confirm the adoption.");
-            return;
-        }
+    if (!props.containerId) {
+        failure.value = t("mcserver.adopt.noContainer", "No container was selected for adoption.");
+        return;
     }
-    const result = await store.save(props.record);
+    const result = await store.adoptConfirm({ id: props.record.id, containerId: props.containerId, consent: { ...consent } });
     if (result.ok) {
-        emit("confirmed");
+        emit("confirmed", result.value ?? props.record);
         open.value = false;
     } else {
         failure.value = result.failure?.message ?? t("mcserver.adopt.saveFailed", "Could not save this server.");
@@ -255,7 +252,7 @@ async function confirmRelease(): Promise<void> {
             </VCardText>
             <VCardActions>
                 <VBtn variant="text" @click="open = false">{{ t("common.cancel", "Cancel") }}</VBtn>
-                <VBtn color="primary" variant="tonal" :disabled="probing || !capabilities || hasBlockers" @click="confirm">
+                <VBtn color="primary" variant="tonal" :disabled="probing || !containerId || hasBlockers" @click="confirm">
                     {{ t("mcserver.adopt.confirm", "Adopt") }}
                 </VBtn>
             </VCardActions>
