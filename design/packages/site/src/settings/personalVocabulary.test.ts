@@ -18,16 +18,29 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { Preferences } from "../platform/Preferences.js";
-import { MAX_VOCABULARY_ENTRIES, PersonalVocabulary } from "./personalVocabulary.js";
+import {
+    MAX_VOCABULARY_ENTRIES,
+    PersonalVocabulary,
+    VOCABULARY_SCHEMA_VERSION,
+} from "./personalVocabulary.js";
 
 function freshPrefs(): Preferences {
     window.localStorage.clear();
     return new Preferences(window.localStorage);
 }
 
-/** Built here rather than committed as a fixture: no vocabulary content belongs in this repo. */
+/**
+ * Built here rather than committed as a fixture: no vocabulary content belongs in this repo.
+ *
+ * The shape is the versioned one the loader actually accepts - a schema version plus a
+ * from/to map. This helper used to emit a bare array, which the loader had long since
+ * stopped accepting, so every test that supplied a file was asserting against a refusal
+ * rather than against the behaviour it was written for.
+ */
 function file(pairs: readonly (readonly [string, string])[]): string {
-    return JSON.stringify(pairs.map(([from, to]) => ({ from, to })));
+    const entries: Record<string, string> = {};
+    for (const [from, to] of pairs) entries[from] = to;
+    return JSON.stringify({ schemaVersion: VOCABULARY_SCHEMA_VERSION, entries });
 }
 
 describe("PersonalVocabulary", () => {
@@ -105,8 +118,13 @@ describe("PersonalVocabulary", () => {
     it("refuses a file it cannot safely use, naming which refusal it was", () => {
         expect(vocabulary.load("not json at all").ok).toBe(false);
         expect(vocabulary.load("not json at all")).toEqual({ ok: false, reason: "not-json" });
-        expect(vocabulary.load('{"from":"a","to":"b"}')).toEqual({ ok: false, reason: "wrong-shape" });
-        expect(vocabulary.load("[]")).toEqual({ ok: false, reason: "empty" });
+        // An object with no schema version is a version refusal, not a shape one: the loader
+        // checks the version first so an older file gets a message about its age.
+        expect(vocabulary.load('{"from":"a","to":"b"}')).toEqual({ ok: false, reason: "unknown-version" });
+        // A bare array is the shape this file used to be, and is now refused outright.
+        expect(vocabulary.load("[]")).toEqual({ ok: false, reason: "wrong-shape" });
+        // Empty means the right shape carrying nothing, which is a different mistake.
+        expect(vocabulary.load(file([]))).toEqual({ ok: false, reason: "empty" });
         expect(vocabulary.load(file([["", "x"]]))).toEqual({ ok: false, reason: "wrong-shape" });
         expect(vocabulary.load(JSON.stringify(["nope"]))).toEqual({ ok: false, reason: "wrong-shape" });
     });

@@ -42,12 +42,47 @@ type GalleryCategoryRegistryEntry = {
 
 const CATEGORY_REGISTRY = galleryCategoryRegistry as readonly GalleryCategoryRegistryEntry[];
 
-export const GALLERY_CATEGORY_IDS = CATEGORY_REGISTRY.map((category) => category.id) as readonly [
-    string,
-    ...string[],
-];
+/**
+ * The category ids, written out rather than derived from the JSON.
+ *
+ * A JSON import types every string as `string`, so deriving the union from the file
+ * collapsed `GalleryCategoryId` to plain `string`. That silently removed the type's whole
+ * value: the label and description records stopped being checked for completeness, and
+ * every lookup into them became `| undefined` under noUncheckedIndexedAccess.
+ *
+ * Written here it is a real union again, and the check below fails the build when the
+ * JSON and this list drift apart - which is the pairing a rule-shaped guard cannot give
+ * you, because a rule about entries that exist never notices one that disappeared.
+ */
+export const GALLERY_CATEGORY_IDS = [
+    "getting-started",
+    "shell-navigation",
+    "settings-appearance",
+    "worlds-projects",
+    "configuration",
+    "delivery-runtime",
+    "kid-mode",
+    "site-evidence",
+    "installed-builds",
+    "rendered-maps",
+    "issue-baselines",
+    "historical-retired",
+    "other",
+] as const;
 
 export type GalleryCategoryId = (typeof GALLERY_CATEGORY_IDS)[number];
+
+/** Fails the build when the registry file and the union above disagree, in either direction. */
+const REGISTRY_IDS = CATEGORY_REGISTRY.map((category) => category.id);
+const MISSING = GALLERY_CATEGORY_IDS.filter((id) => !REGISTRY_IDS.includes(id));
+const UNKNOWN = REGISTRY_IDS.filter((id) => !(GALLERY_CATEGORY_IDS as readonly string[]).includes(id));
+if (MISSING.length > 0 || UNKNOWN.length > 0) {
+    throw new Error(
+        `The gallery category registry does not match GALLERY_CATEGORY_IDS. ` +
+            `Missing from the registry: ${MISSING.join(", ") || "none"}. ` +
+            `Not in the union: ${UNKNOWN.join(", ") || "none"}.`,
+    );
+}
 
 export type GalleryCategoryDefinition = GalleryCategoryRegistryEntry & {
     readonly id: GalleryCategoryId;
