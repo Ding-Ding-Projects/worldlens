@@ -19,7 +19,7 @@ export const purpurFields: readonly FieldMeta[] = [
         label: "Mob hard limit per chunk",
         doc: "Absolute cap on mobs allowed in a single chunk, regardless of category caps.",
         control: { kind: "number", integer: true, min: 0 },
-        default: -1,
+        default: -1, // UNVERIFIED: https://purpurmc.org/docs/ configuration pages do not expose a stable default for this key.
         group: "settings",
         advanced: true,
     }),
@@ -28,7 +28,7 @@ export const purpurFields: readonly FieldMeta[] = [
         label: "Enable Velocity forwarding",
         doc: "Whether Purpur should accept Velocity modern forwarding, mirroring Paper's own setting.",
         control: { kind: "switch" },
-        default: false,
+        default: false, // UNVERIFIED: https://purpurmc.org/docs/ does not publish the generated purpur.yml default for this key.
         group: "settings",
     }),
     field({
@@ -36,7 +36,7 @@ export const purpurFields: readonly FieldMeta[] = [
         label: "Disable explosion knockback",
         doc: "Whether explosions apply no knockback to entities, for the default world settings block.",
         control: { kind: "switch" },
-        default: false,
+        default: false, // UNVERIFIED: https://purpurmc.org/docs/ does not publish this world-settings default.
         group: "world-settings",
         advanced: true,
     }),
@@ -44,8 +44,8 @@ export const purpurFields: readonly FieldMeta[] = [
         path: "world-settings.default.mobs.zombie.baby-zombie-movement-modifier",
         label: "Baby zombie speed modifier",
         doc: "Movement-speed multiplier applied to baby zombies, for the default world settings block.",
-        control: { kind: "number", integer: false, min: 0, max: 10, step: 0.05 },
-        default: 1.7,
+        control: { kind: "number", integer: false, step: 0.05 },
+        default: 1.7, // UNVERIFIED: https://purpurmc.org/docs/ does not publish this key's default or bounds.
         group: "world-settings",
         advanced: true,
     }),
@@ -54,7 +54,7 @@ export const purpurFields: readonly FieldMeta[] = [
         label: "Unbreakable anvils",
         doc: "Whether anvils never take use-damage, for the default world settings block.",
         control: { kind: "switch" },
-        default: false,
+        default: false, // UNVERIFIED: https://purpurmc.org/docs/ does not publish this world-settings default.
         group: "world-settings",
         advanced: true,
     }),

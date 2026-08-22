@@ -26,7 +26,7 @@ export const paperGlobalFields: readonly FieldMeta[] = [
         label: "BungeeCord online mode",
         doc: "Whether the server should use BungeeCord's forwarded online-mode player info.",
         control: { kind: "switch" },
-        default: true,
+        default: true, // Source: https://docs.papermc.io/paper/reference/global-configuration/ (proxies.bungee-cord.online-mode)
         group: "proxies",
     }),
     field({
@@ -34,7 +34,7 @@ export const paperGlobalFields: readonly FieldMeta[] = [
         label: "Use HAProxy protocol",
         doc: "Whether Paper should accept clients using the HAProxy PROXY protocol.",
         control: { kind: "switch" },
-        default: false,
+        default: false, // Source: https://docs.papermc.io/paper/reference/global-configuration/ (proxies.proxy-protocol)
         group: "proxies",
         advanced: true,
     }),
@@ -43,7 +43,7 @@ export const paperGlobalFields: readonly FieldMeta[] = [
         label: "Enable Velocity forwarding",
         doc: "Whether to use Velocity's modern player-info forwarding.",
         control: { kind: "switch" },
-        default: false,
+        default: false, // Source: https://docs.papermc.io/paper/reference/global-configuration/ (proxies.velocity.enabled)
         group: "proxies",
     }),
     field({
@@ -51,7 +51,7 @@ export const paperGlobalFields: readonly FieldMeta[] = [
         label: "Velocity online mode",
         doc: "Whether Velocity's forwarded player info should be treated as online-mode.",
         control: { kind: "switch" },
-        default: false,
+        default: true, // Source: https://docs.papermc.io/paper/reference/global-configuration/ (proxies.velocity.online-mode)
         group: "proxies",
     }),
     field({
@@ -68,7 +68,7 @@ export const paperGlobalFields: readonly FieldMeta[] = [
         label: "Log admin commands",
         doc: "Whether to log admin commands to console/log file.",
         control: { kind: "switch" },
-        default: true,
+        default: true, // UNVERIFIED: current Paper global-configuration docs do not list commands.log-admin-commands.
         group: "commands",
     }),
     field({
@@ -76,7 +76,7 @@ export const paperGlobalFields: readonly FieldMeta[] = [
         label: "Suggest player names on empty tab-complete",
         doc: "Whether to suggest player names in tab completion when nothing has been typed yet.",
         control: { kind: "switch" },
-        default: true,
+        default: false, // Source: https://docs.papermc.io/paper/reference/global-configuration/ (commands.suggest-player-names-when-null-tab-completions)
         group: "commands",
         advanced: true,
     }),

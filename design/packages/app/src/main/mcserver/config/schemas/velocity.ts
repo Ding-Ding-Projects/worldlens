@@ -25,15 +25,15 @@ export const velocityFields: readonly FieldMeta[] = [
         label: "Config version",
         doc: "Do not change this. It tells Velocity which config file version this is, so it can upgrade an old file automatically.",
         control: { kind: "text" },
-        default: "2.7",
+        default: "2.8", // Source: https://github.com/PaperMC/Velocity/blob/dev/4.0.0/proxy/src/main/resources/default-velocity.toml (config-version)
         advanced: true,
     }),
     field({
         path: "bind",
         label: "Bind address",
-        doc: "What host and port should the proxy bind to? By default, this is 0.0.0.0:25577, which means it will listen on all interfaces.",
+        doc: "What host and port should the proxy bind to? By default, this is 0.0.0.0:25565, which means it will listen on all interfaces.",
         control: { kind: "text", monospace: true },
-        default: "0.0.0.0:25577",
+        default: "0.0.0.0:25565", // Source: https://docs.papermc.io/velocity/configuration/ (bind)
     }),
     field({
         path: "motd",
@@ -84,7 +84,7 @@ export const velocityFields: readonly FieldMeta[] = [
             ],
             true,
         ),
-        default: "MODERN",
+        default: "NONE", // Source: https://github.com/PaperMC/Velocity/blob/dev/4.0.0/proxy/src/main/resources/default-velocity.toml (player-info-forwarding-mode)
     }),
     field({
         path: "forwarding-secret-file",
@@ -289,7 +289,7 @@ export const velocityFields: readonly FieldMeta[] = [
         label: "Query port",
         doc: "If query is enabled, on what port should the query protocol listen on?",
         control: port(),
-        default: 25577,
+        default: 25565, // Source: https://github.com/PaperMC/Velocity/blob/dev/4.0.0/proxy/src/main/resources/default-velocity.toml (query.port)
     }),
     field({
         path: "query.map",

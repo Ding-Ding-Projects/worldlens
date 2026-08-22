@@ -16,7 +16,7 @@ export const paperWorldDefaultsFields: readonly FieldMeta[] = [
         label: "Enable anti-X-ray",
         doc: "Whether Paper should obscure ores from X-ray clients by faking nearby blocks.",
         control: { kind: "switch" },
-        default: true,
+        default: false, // Source: https://docs.papermc.io/paper/reference/world-configuration/ (anticheat.anti-xray.enabled)
         group: "anticheat",
     }),
     field({
@@ -26,8 +26,9 @@ export const paperWorldDefaultsFields: readonly FieldMeta[] = [
         control: select([
             { value: "1", label: "Hide ores that have no exposed face" },
             { value: "2", label: "Hide ores plus obfuscate nearby blocks" },
+            { value: "3", label: "Randomize each chunk layer" },
         ]),
-        default: "1",
+        default: "1", // Source: https://docs.papermc.io/paper/reference/world-configuration/ (engine-mode defaults to 1)
         group: "anticheat",
         advanced: true,
     }),
@@ -36,7 +37,7 @@ export const paperWorldDefaultsFields: readonly FieldMeta[] = [
         label: "Prevent moving into unloaded chunks",
         doc: "Whether to stop entities from being moved into chunks that are not currently loaded.",
         control: { kind: "switch" },
-        default: true,
+        default: false, // Source: https://docs.papermc.io/paper/reference/world-configuration/ (chunks.prevent-moving-into-unloaded-chunks)
         group: "chunks",
         advanced: true,
     }),
@@ -44,8 +45,8 @@ export const paperWorldDefaultsFields: readonly FieldMeta[] = [
         path: "entities.spawning.despawn-ranges.soft",
         label: "Soft despawn range",
         doc: "Distance in blocks from a player beyond which an entity may start despawning.",
-        control: { kind: "number", integer: true, min: 0 },
-        default: 32,
+        control: { kind: "text" },
+        default: "default", // Source: https://docs.papermc.io/paper/reference/world-configuration/ (despawn-ranges.soft defaults to "default")
         group: "entities",
         advanced: true,
     }),
@@ -53,8 +54,8 @@ export const paperWorldDefaultsFields: readonly FieldMeta[] = [
         path: "entities.spawning.despawn-ranges.hard",
         label: "Hard despawn range",
         doc: "Distance in blocks from a player beyond which an entity always despawns.",
-        control: { kind: "number", integer: true, min: 0 },
-        default: 128,
+        control: { kind: "text" },
+        default: "default", // Source: https://docs.papermc.io/paper/reference/world-configuration/ (despawn-ranges.hard defaults to "default")
         group: "entities",
         advanced: true,
     }),
