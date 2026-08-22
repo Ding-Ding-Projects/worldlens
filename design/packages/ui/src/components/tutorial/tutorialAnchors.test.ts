@@ -120,7 +120,7 @@ beforeAll(() => {
 });
 
 /**
- * The exact `localStorage` key `kidMode.ts`'s own `persisted(KEY_ENABLED, true)` reads and
+ * The exact `localStorage` key `kidMode.ts`'s own `persisted(KEY_ENABLED, false)` reads and
  * writes for the kid-mode flag. `KEY_ENABLED` is a module-private constant there, so this is a
  * literal copy rather than an import - the same way `cells` below stands in for `localStorage`
  * itself without importing anything from the modules that read it.
@@ -128,7 +128,7 @@ beforeAll(() => {
  * Every step this file walks is a step through the adult rail-and-tab-strip shell: `goToRail`,
  * `openJob` and `goToPage` below all click `.wl-rail-item` and `[data-tutorial-anchor="tab-*"]`
  * nodes, and neither exists in `KidShell`'s own markup - it has its own rail (`.wl-kid-rail`) and
- * its own job strip. Kid Mode ships on by default (`kidMode.ts`'s own "Kid Mode ships on" doc
+ * its own job strip. Adult Mode is the default (`kidMode.ts`'s own "Adult Mode ships on" doc
  * comment), and `App.vue` mounts `KidShell` instead of this adult tree whenever it is - see the
  * `<KidShell v-if="kid.enabled.value"> / v-else` branch there.
  *

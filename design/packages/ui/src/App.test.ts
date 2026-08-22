@@ -185,7 +185,7 @@ beforeAll(() => {
  * itself without importing anything from the modules that read it.
  *
  * Kid Mode ships on (`kidMode.ts`'s own "Kid Mode ships on" doc comment: `enabled` defaults to
- * `true`), and `App.vue` mounts `KidShell` instead of the adult rail-and-tab-strip tree whenever
+ * `false`), and `App.vue` mounts `KidShell` instead of the adult rail-and-tab-strip tree whenever
  * it is on - see the `<KidShell v-if="kid.enabled.value"> / v-else` branch there. Every case
  * below this point except the "which shell mounts" pair right after `shell()` is about that
  * adult tree specifically: the rail, the tab strip, the appearance target that wraps it, the
@@ -408,26 +408,43 @@ describe("which shell mounts", () => {
      * This is the seam `KID_MODE_ENABLED_KEY` forces shut for the rest of the file, and until
      * now nothing proved the seam itself works - only that each side, once forced, behaves the
      * way its own describe block already expected. A flipped `v-if`/`v-else` in `App.vue`, or a
-     * changed default in `kidMode.ts`'s `persisted(KEY_ENABLED, true)`, would pass every other
+     * changed default in `kidMode.ts`'s `persisted(KEY_ENABLED, false)`, would pass every other
      * case below and go completely unnoticed here: this is the only pair of cases in the file
      * that lets the flag decide which tree mounts rather than pinning it first.
      */
 
-    it("mounts Kid Mode's own shell on a fresh install, because kidMode.ts ships enabled: true", () => {
-        // Undoes this file's own `beforeEach` declaration: every other case deliberately forces
-        // Adult Mode, but this one is specifically about what a genuinely fresh install sees
-        // with nothing overriding the shipped default - no stored value at all, which is exactly
-        // what `persisted()` falls back to `true` for.
+    it("mounts the adult shell on a fresh install, because kidMode.ts ships enabled: false", () => {
+        // Undoes this file's own `beforeEach` declaration. Every other case forces Adult Mode
+        // explicitly; this one is about what a genuinely fresh install sees with nothing
+        // overriding the shipped default - no stored value at all, which is what `persisted()`
+        // falls back to `false` for.
+        //
+        // Inverted on 2026-08-21, when Adult Mode became the default. This is precisely the
+        // case that would have caught that change silently, so it is worth saying here that
+        // the flip was deliberate rather than a regression somebody waved through.
         cells.delete(KID_MODE_ENABLED_KEY);
+
+        const app = shell();
+
+        expect(app.findComponent(KidShell).exists()).toBe(false);
+        expect(document.querySelector(".wl-kid")).toBeNull();
+        // The rail is the adult tree's own chrome, and `KidShell` renders none of it - it has
+        // its own rail (`.wl-kid-rail`) and its own job strip. Its PRESENCE is what proves the
+        // adult tree really mounted, rather than nothing at all having rendered.
+        expect(document.querySelectorAll(".wl-rail-item").length).toBeGreaterThan(0);
+    });
+
+    it("mounts Kid Mode's own shell once a grown-up turns it on", () => {
+        // The other half of the seam. Kid Mode is now chosen rather than shipped, so this is
+        // the case that proves choosing it still works.
+        cells.set(KID_MODE_ENABLED_KEY, "true");
 
         const app = shell();
 
         expect(app.findComponent(KidShell).exists()).toBe(true);
         expect(document.querySelector(".wl-kid")).not.toBeNull();
-        // The rail and the tab strip are the adult tree's own chrome. `KidShell` renders
-        // neither - it has its own rail (`.wl-kid-rail`) and its own job strip - so their total
-        // absence is what proves the adult tree never mounted at all, not merely that something
-        // is covering it.
+        // Total absence of the adult chrome proves the adult tree never mounted at all, not
+        // merely that something is covering it.
         expect(document.querySelectorAll(".wl-rail-item")).toHaveLength(0);
         expect(shellTabs()).toHaveLength(0);
     });
