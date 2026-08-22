@@ -239,7 +239,7 @@ const runner = computed<WorldGenRunner>(() =>
         ? { kind: "local" }
         : { kind: "github-actions", repoSlug: "owner/repo", workflowFile: "worldgen.yml" },
 );
-const plan = computed(() => buildGenerationPlan(settings, runner.value));
+const plan = computed(() => buildGenerationPlan(settings, runner.value, engineId.value));
 
 function isUnwired(kind: string): boolean {
     return (UNWIRED_STEP_KINDS as readonly string[]).includes(kind);
