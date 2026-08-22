@@ -67,6 +67,8 @@ import { provisionAwsServer } from "./aws/provision.js";
 import { teardownAwsServer, type AwsTeardownTarget } from "./aws/teardown.js";
 import { AWS_INSTANCE_TYPES, AWS_REGIONS } from "./aws/regions.js";
 import type { AwsServerSpec } from "./aws/types.js";
+import { listAccounts, setAccountAlias } from "./aws/accounts.js";
+import { readCredits, type CreditsPeriod } from "./aws/credits.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -118,6 +120,9 @@ export const MCSERVER_CHANNELS = {
     awsTeardown: "mcserver:aws:teardown",
     awsRegions: "mcserver:aws:regions",
     awsInstanceTypes: "mcserver:aws:instanceTypes",
+    awsAccounts: "mcserver:aws:accounts",
+    awsAccountAlias: "mcserver:aws:accountAlias",
+    awsCredits: "mcserver:aws:credits",
 } as const;
 
 /** The console line shape pushed to the renderer as the session lives. Never the RCON password. */
@@ -1196,6 +1201,42 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         [MCSERVER_CHANNELS.awsRegions]: async () => ({ ok: true, value: AWS_REGIONS }),
 
         [MCSERVER_CHANNELS.awsInstanceTypes]: async () => ({ ok: true, value: AWS_INSTANCE_TYPES }),
+
+        /** Every AWS account this machine can reach, read fresh from the CLI's own profiles. */
+        [MCSERVER_CHANNELS.awsAccounts]: async () => {
+            const runner = options.awsRunner ?? execFileCommandRunner;
+            return listAccounts({ runner, ...(options.aws === undefined ? {} : { aws: options.aws }) });
+        },
+
+        /** Names an account. Refused before the call when the alias itself could not be valid. */
+        [MCSERVER_CHANNELS.awsAccountAlias]: async (_event: never, request: unknown) => {
+            const body = request as { profile?: unknown; alias?: unknown } | null;
+            if (body === null || typeof body !== "object" || typeof body.profile !== "string" || typeof body.alias !== "string") {
+                return fail("invalid-request", "That account naming request could not be read.");
+            }
+            const runner = options.awsRunner ?? execFileCommandRunner;
+            return setAccountAlias(body.profile, body.alias, {
+                runner,
+                ...(options.aws === undefined ? {} : { aws: options.aws }),
+            });
+        },
+
+        /** One account's spend and applied credits for a period. Billed by AWS - fetched on demand, never polled. */
+        [MCSERVER_CHANNELS.awsCredits]: async (_event: never, request: unknown) => {
+            const body = request as { profile?: unknown; period?: unknown } | null;
+            if (body === null || typeof body !== "object" || typeof body.profile !== "string") {
+                return fail("invalid-request", "That credits request could not be read.");
+            }
+            let period: CreditsPeriod | undefined;
+            if (body.period !== undefined && body.period !== null && typeof body.period === "object") {
+                const p = body.period as { start?: unknown; end?: unknown };
+                if (typeof p.start === "string" && typeof p.end === "string") {
+                    period = { start: p.start, end: p.end };
+                }
+            }
+            const runner = options.awsRunner ?? execFileCommandRunner;
+            return readCredits(body.profile, { runner, ...(options.aws === undefined ? {} : { aws: options.aws }) }, period);
+        },
     };
 
     for (const [channel, handler] of Object.entries(handlers)) {

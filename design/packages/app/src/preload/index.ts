@@ -2541,6 +2541,12 @@ interface WorldlensBridge {
             regions(): Promise<unknown>;
             instanceTypes(): Promise<unknown>;
         };
+        /** Every AWS account this machine's CLI profiles can reach, and what each is spending. */
+        awsAccounts: {
+            list(): Promise<unknown>;
+            setAlias(request: { profile: string; alias: string }): Promise<unknown>;
+            credits(request: { profile: string; period?: { start: string; end: string } }): Promise<unknown>;
+        };
     };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
@@ -3631,6 +3637,11 @@ const bridge: WorldlensBridge = {
             teardown: (request) => ipcRenderer.invoke("mcserver:aws:teardown", request),
             regions: () => ipcRenderer.invoke("mcserver:aws:regions"),
             instanceTypes: () => ipcRenderer.invoke("mcserver:aws:instanceTypes"),
+        },
+        awsAccounts: {
+            list: () => ipcRenderer.invoke("mcserver:aws:accounts"),
+            setAlias: (request) => ipcRenderer.invoke("mcserver:aws:accountAlias", request),
+            credits: (request) => ipcRenderer.invoke("mcserver:aws:credits", request),
         },
     },
     vocabulary: {

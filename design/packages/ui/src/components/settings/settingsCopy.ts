@@ -155,6 +155,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Install git, the GitHub CLI, Docker Desktop and rsync through Windows's own package managers, winget or Chocolatey. Each one is real system software, not a private copy for this app alone, so most of them will ask Windows for administrator permission - always disclosed here before the button is pressed.",
             ),
         },
+        "aws-accounts": {
+            title: t("settings.awsAccounts.title", "AWS accounts"),
+            description: t(
+                "settings.awsAccounts.description",
+                "Every AWS account this machine's own CLI profiles can reach: its identity, whether it is reachable, and what it has spent. Naming an unnamed account, and checking spending, both happen here.",
+            ),
+        },
         "addons": {
             title: t("settings.addons.title", "Design add-ons"),
             description: t("settings.addons.description", "Import local JavaScript or ESM add-on manifests, review their requested capabilities, and enable or disable them without granting app or credential access."),

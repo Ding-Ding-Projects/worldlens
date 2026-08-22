@@ -110,6 +110,18 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["git", "Docker Desktop", "winget"],
     },
     {
+        anchor: "aws-accounts",
+        title: "AWS accounts",
+        description: "Every AWS account this machine's own CLI profiles can reach.",
+        values: ["personal", "111122223333"],
+    },
+    {
+        anchor: "addons",
+        title: "Design add-ons",
+        description: "Import local JavaScript or ESM add-on manifests.",
+        values: ["manifest", "capabilities"],
+    },
+    {
         anchor: "bluemap-engine",
         title: "BlueMap engine",
         description: "Which BlueMap this installation's rendering engine was built from.",
@@ -214,6 +226,8 @@ describe("every section the surface renders", () => {
             "download-concurrency",
             "notification-duration",
             "system-dependencies",
+            "aws-accounts",
+            "addons",
             "bluemap-engine",
             "updates",
             "vocabulary",
