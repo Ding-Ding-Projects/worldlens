@@ -11,11 +11,16 @@
  * crash. It is a plausible-looking argument reaching `docker` or the filesystem.
  */
 
+import { join } from "node:path";
+
 import type { IpcMain } from "electron";
 
 import { createTransport, type FactoryDeps } from "./transport/factory.js";
+import { createLocalServer, type CreateLocalServerOptions } from "./create.js";
+import type { FetchBinary } from "./install.js";
+import { listCatalogue, refreshCatalogue, FLAVOUR_IDS, type FetchText, type FlavourId } from "./flavours/catalogue.js";
+import { requiredJavaFeature } from "./flavours/javaRequirement.js";
 import { createServerRegistry, type ServerRecord, type ServerRegistry } from "./registry.js";
-import { fail, type Answer, type ServerTransport } from "./transport/types.js";
 import { checkCompatibility } from "./plugins/compatibility.js";
 import { installPluginVersion } from "./plugins/install.js";
 import { checkForUpdate, listInstalledPlugins, removePlugin, togglePlugin } from "./plugins/manage.js";
@@ -23,6 +28,10 @@ import { createHangarSource } from "./plugins/sources/hangar.js";
 import { createModrinthSource } from "./plugins/sources/modrinth.js";
 import { createSpigotSource } from "./plugins/sources/spigot.js";
 import type { PluginFetchLike, PluginLoader, PluginSource, PluginSourceId } from "./plugins/types.js";
+import { fail, ok, type Answer, type ServerTransport } from "./transport/types.js";
+import { discoverJava } from "../java/discovery.js";
+import type { JavaRunner } from "../java/probe.js";
+import { REQUIRED_JAVA_FEATURE } from "../java/version.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -44,6 +53,10 @@ export const MCSERVER_CHANNELS = {
     pluginsToggle: "mcserver:plugins:toggle",
     pluginsRemove: "mcserver:plugins:remove",
     pluginsUpdates: "mcserver:plugins:updates",
+    catalogueList: "mcserver:catalogue:list",
+    catalogueRefresh: "mcserver:catalogue:refresh",
+    javaResolve: "mcserver:java:resolve",
+    create: "mcserver:create",
 } as const;
 
 export type McServerChannel = (typeof MCSERVER_CHANNELS)[keyof typeof MCSERVER_CHANNELS];
@@ -53,6 +66,8 @@ export type IpcMainLike = Pick<IpcMain, "handle" | "removeHandler">;
 
 export interface McServerIpcOptions {
     readonly dataFolder: string;
+    /** Where new servers' directories are created. Defaults to `<dataFolder>/servers`. */
+    readonly serversRoot?: string;
     readonly factory?: FactoryDeps;
     readonly registry?: ServerRegistry;
     readonly now?: () => string;
@@ -60,6 +75,12 @@ export interface McServerIpcOptions {
     readonly pluginFetch?: PluginFetchLike;
     /** Injected for tests, so a source's own default API base need not be reached. */
     readonly pluginSources?: readonly PluginSource[];
+    /** Injected in tests so the catalogue and Java channels never touch a real network. */
+    readonly fetchText?: FetchText;
+    readonly fetchBinary?: FetchBinary;
+    readonly javaRunner?: JavaRunner;
+    readonly javaExists?: (path: string) => boolean;
+    readonly javaEnv?: NodeJS.ProcessEnv;
 }
 
 export interface McServerIpc {
@@ -93,8 +114,13 @@ function isSourceId(value: unknown): value is PluginSourceId {
     return value === "modrinth" || value === "hangar" || value === "spigot";
 }
 
+function isFlavourId(value: unknown): value is FlavourId {
+    return typeof value === "string" && (FLAVOUR_IDS as readonly string[]).includes(value);
+}
+
 export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServerIpcOptions): McServerIpc {
     const registry = options.registry ?? createServerRegistry({ dataFolder: options.dataFolder, ...(options.now === undefined ? {} : { now: options.now }) });
+    const serversRoot = options.serversRoot ?? join(options.dataFolder, "servers");
 
     const pluginFetch: PluginFetchLike = options.pluginFetch ?? ((url, init) => globalThis.fetch(url, init));
     const pluginSources: readonly PluginSource[] =
@@ -370,6 +396,81 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 projectId: body.projectId,
                 installed: body.installed as never,
             });
+        },
+
+        [MCSERVER_CHANNELS.catalogueList]: async () =>
+            listCatalogue({
+                dataDir: options.dataFolder,
+                ...(options.fetchText === undefined ? {} : { fetchText: options.fetchText }),
+            }),
+
+        [MCSERVER_CHANNELS.catalogueRefresh]: async () =>
+            refreshCatalogue({
+                dataDir: options.dataFolder,
+                ...(options.fetchText === undefined ? {} : { fetchText: options.fetchText }),
+            }),
+
+        [MCSERVER_CHANNELS.javaResolve]: async (_event: never, version: unknown) => {
+            if (typeof version !== "string" || version.length === 0 || version.length > 64) {
+                return fail("invalid-request", "That is not a version this app can resolve a Java requirement for.");
+            }
+            const requirement = requiredJavaFeature(version);
+            const feature = requirement.known ? requirement.feature : REQUIRED_JAVA_FEATURE;
+            const discovery = await discoverJava({
+                dataDir: options.dataFolder,
+                required: feature,
+                ...(options.javaRunner === undefined ? {} : { runner: options.javaRunner }),
+                ...(options.javaExists === undefined ? {} : { exists: options.javaExists }),
+                ...(options.javaEnv === undefined ? {} : { env: options.javaEnv }),
+            });
+            return ok({
+                requirement,
+                installation: discovery.installation,
+                rejected: discovery.rejected,
+            });
+        },
+
+        [MCSERVER_CHANNELS.create]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "That server could not be created because its details were not readable.");
+            }
+            const body = request as Record<string, unknown>;
+            if (!isRecordId(body.id) || typeof body.name !== "string" || body.name.trim() === "") {
+                return fail("invalid-request", "A server needs a valid name to be created.");
+            }
+            if (!isFlavourId(body.flavour)) {
+                return fail("invalid-request", "That is not a server flavour this app supports.");
+            }
+            if (typeof body.version !== "string" || body.version.length === 0) {
+                return fail("invalid-request", "A server needs a version to be created.");
+            }
+            if (typeof body.memoryMb !== "number") {
+                return fail("invalid-request", "A server needs a memory limit to be created.");
+            }
+            const createOptions: CreateLocalServerOptions = {
+                id: body.id,
+                name: body.name,
+                flavour: body.flavour,
+                version: body.version,
+                memoryMb: body.memoryMb,
+                acceptedEula: body.acceptedEula === true,
+                dataDir: options.dataFolder,
+                serversRoot,
+                registry,
+                ...(typeof body.provisionJavaIfMissing === "boolean"
+                    ? { provisionJavaIfMissing: body.provisionJavaIfMissing }
+                    : {}),
+                ...(typeof body.fabricInstallerVersion === "string"
+                    ? { fabricInstallerVersion: body.fabricInstallerVersion }
+                    : {}),
+                ...(options.now === undefined ? {} : { now: options.now }),
+                ...(options.fetchText === undefined ? {} : { fetchText: options.fetchText }),
+                ...(options.fetchBinary === undefined ? {} : { fetchBinary: options.fetchBinary }),
+                ...(options.javaRunner === undefined ? {} : { javaRunner: options.javaRunner }),
+                ...(options.javaExists === undefined ? {} : { javaExists: options.javaExists }),
+                ...(options.javaEnv === undefined ? {} : { javaEnv: options.javaEnv }),
+            };
+            return createLocalServer(createOptions);
         },
     };
 
