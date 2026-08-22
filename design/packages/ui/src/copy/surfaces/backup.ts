@@ -51,6 +51,29 @@
 import type { FixedString, VoicedString } from "../../components/setup/setupStrings.js";
 
 export const BACKUP_VOICED = {
+    /*
+     * Named with the exact account whenever the main process reported one - see
+     * `BackupFailure.accountLogin`'s doc comment in `runner.ts`. Several accounts can be
+     * signed in on one machine, so "sign in again" alone leaves the reader guessing which;
+     * this button removes the guess by putting the login right on it. Every level still
+     * names {login} - that is the one word this button exists to say.
+     */
+    "backup.row.signInAs": {
+        en: [
+            "Sign in again as {login}",
+            "Sign in again as {login}",
+            "Sign in again as {login} - that's the one GitHub was fussy about",
+            "Sign back in as {login}",
+            "Sign back in as {login} - it's the exact account this backup got refused on",
+        ],
+        yue: [
+            "用返 {login} 呢個帳戶再登入一次",
+            "用返 {login} 呢個帳戶再登入一次",
+            "用返 {login} 再登入一次 - GitHub 就係唔畀呢個帳戶過",
+            "用返 {login} 呢個帳戶再登入一次啦",
+            "用返 {login} 再登入一次 - 呢個備份俾人拒絕嗰個就係佢",
+        ],
+    },
     /* ---------------------------------------------------------------- */
     /* What this screen is, and why it is built the way it is           */
     /* ---------------------------------------------------------------- */
@@ -1111,29 +1134,6 @@ export const BACKUP_FIXED = {
         yue: "喺 GitHub 開個 release",
     },
     "backup.row.signIn": { en: "Sign in to GitHub again", yue: "再登入一次 GitHub" },
-    /*
-     * Named with the exact account whenever the main process reported one - see
-     * `BackupFailure.accountLogin`'s doc comment in `runner.ts`. Several accounts can be
-     * signed in on one machine, so "sign in again" alone leaves the reader guessing which;
-     * this button removes the guess by putting the login right on it. Every level still
-     * names {login} - that is the one word this button exists to say.
-     */
-    "backup.row.signInAs": {
-        en: [
-            "Sign in again as {login}",
-            "Sign in again as {login}",
-            "Sign in again as {login} - that's the one GitHub was fussy about",
-            "Sign back in as {login}",
-            "Sign back in as {login} - it's the exact account this backup got refused on",
-        ],
-        yue: [
-            "用返 {login} 呢個帳戶再登入一次",
-            "用返 {login} 呢個帳戶再登入一次",
-            "用返 {login} 再登入一次 - GitHub 就係唔畀呢個帳戶過",
-            "用返 {login} 呢個帳戶再登入一次啦",
-            "用返 {login} 再登入一次 - 呢個備份俾人拒絕嗰個就係佢",
-        ],
-    },
     "backup.row.resume": { en: "Carry on with this backup", yue: "接住做呢個備份" },
     "backup.row.hideLog": { en: "Hide what it reported", yue: "收埋佢報過嘅嘢" },
     "backup.row.showLog": { en: "Show what it reported", yue: "睇佢報過嘅嘢" },
@@ -1187,6 +1187,9 @@ export const BACKUP_FIXED = {
 } as const satisfies Record<string, FixedString>;
 
 export const BACKUP_FACTS = {
+    // The login is the entire reason this button exists: several accounts can be signed in
+    // on one machine, and "sign in again" alone leaves the reader guessing which.
+    "backup.row.signInAs": { en: ["{login}"], yue: ["{login}"] },
     // The mechanism, not the marketing: the split size, the digest, and where it lands.
     "backup.blurb": {
         en: ["500 MiB", "SHA-256", "GitHub release", "restore"],
