@@ -2532,6 +2532,15 @@ interface WorldlensBridge {
             provisionJavaIfMissing?: boolean;
             fabricInstallerVersion?: string;
         }): Promise<unknown>;
+        /** Provisioning, and tearing down, a Minecraft server on an EC2 instance this app creates. */
+        aws: {
+            /** The bill, before anything is created. Instant and offline - see `aws/plan.ts`. */
+            plan(request: unknown): Promise<unknown>;
+            provision(request: unknown): Promise<unknown>;
+            teardown(request: unknown): Promise<unknown>;
+            regions(): Promise<unknown>;
+            instanceTypes(): Promise<unknown>;
+        };
     };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
@@ -3616,6 +3625,13 @@ const bridge: WorldlensBridge = {
             },
         },
         create: (request) => ipcRenderer.invoke("mcserver:create", request),
+        aws: {
+            plan: (request) => ipcRenderer.invoke("mcserver:aws:plan", request),
+            provision: (request) => ipcRenderer.invoke("mcserver:aws:provision", request),
+            teardown: (request) => ipcRenderer.invoke("mcserver:aws:teardown", request),
+            regions: () => ipcRenderer.invoke("mcserver:aws:regions"),
+            instanceTypes: () => ipcRenderer.invoke("mcserver:aws:instanceTypes"),
+        },
     },
     vocabulary: {
         read: () => ipcRenderer.invoke("vocabulary:read"),

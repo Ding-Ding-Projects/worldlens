@@ -61,6 +61,12 @@ import { provisionJava } from "../java/provision.js";
 import { applyConfigChanges, describeConfigFile } from "./config/describe.js";
 import type { JavaRunner } from "../java/probe.js";
 import { REQUIRED_JAVA_FEATURE } from "../java/version.js";
+import { execFileCommandRunner, type CommandRunner } from "../runtime/command.js";
+import { planAwsServer } from "./aws/plan.js";
+import { provisionAwsServer } from "./aws/provision.js";
+import { teardownAwsServer, type AwsTeardownTarget } from "./aws/teardown.js";
+import { AWS_INSTANCE_TYPES, AWS_REGIONS } from "./aws/regions.js";
+import type { AwsServerSpec } from "./aws/types.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -107,6 +113,11 @@ export const MCSERVER_CHANNELS = {
     backupCreate: "mcserver:backup:create",
     backupList: "mcserver:backup:list",
     backupRestore: "mcserver:backup:restore",
+    awsPlan: "mcserver:aws:plan",
+    awsProvision: "mcserver:aws:provision",
+    awsTeardown: "mcserver:aws:teardown",
+    awsRegions: "mcserver:aws:regions",
+    awsInstanceTypes: "mcserver:aws:instanceTypes",
 } as const;
 
 /** The console line shape pushed to the renderer as the session lives. Never the RCON password. */
@@ -175,6 +186,9 @@ export interface McServerIpcOptions {
     readonly javaRunner?: JavaRunner;
     readonly javaExists?: (path: string) => boolean;
     readonly javaEnv?: NodeJS.ProcessEnv;
+    /** The `CommandRunner` the AWS provisioning/teardown channels run the `aws` CLI through. */
+    readonly awsRunner?: CommandRunner;
+    readonly aws?: string;
 }
 
 export interface McServerIpc {
@@ -215,6 +229,56 @@ function isFlavourId(value: unknown): value is FlavourId {
 
 function defaultRconHostFor(_ref: TransportRef): string {
     return "127.0.0.1";
+}
+
+/** Reads and validates an {@link AwsServerSpec} from an untrusted renderer payload. */
+function readAwsServerSpec(request: unknown): AwsServerSpec | null {
+    if (typeof request !== "object" || request === null) return null;
+    const body = request as Record<string, unknown>;
+    if (!isRecordId(body.serverId)) return null;
+    if (typeof body.region !== "string" || body.region.length === 0) return null;
+    if (typeof body.instanceType !== "string" || body.instanceType.length === 0) return null;
+    if (typeof body.diskGiB !== "number" || !Number.isFinite(body.diskGiB) || body.diskGiB <= 0 || body.diskGiB > 16_384) return null;
+    if (typeof body.staticAddress !== "boolean") return null;
+    if (typeof body.amiId !== "string" || body.amiId.length === 0) return null;
+    if (typeof body.keyPairName !== "string" || body.keyPairName.length === 0) return null;
+    if (!Array.isArray(body.rules)) return null;
+    const rules = body.rules.map((entry) => {
+        const r = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
+        return {
+            port: typeof r.port === "number" ? r.port : -1,
+            protocol: r.protocol === "udp" ? ("udp" as const) : ("tcp" as const),
+            cidr: typeof r.cidr === "string" ? r.cidr : "",
+            description: typeof r.description === "string" ? r.description : "",
+        };
+    });
+    if (rules.some((r) => r.port < 1 || r.port > 65_535 || r.cidr === "")) return null;
+    return {
+        serverId: body.serverId,
+        region: body.region,
+        instanceType: body.instanceType,
+        diskGiB: body.diskGiB,
+        staticAddress: body.staticAddress,
+        rules,
+        amiId: body.amiId,
+        keyPairName: body.keyPairName,
+    };
+}
+
+/** Reads and validates an {@link AwsTeardownTarget} from an untrusted renderer payload. */
+function readAwsTeardownTarget(request: unknown): AwsTeardownTarget | null {
+    if (typeof request !== "object" || request === null) return null;
+    const body = request as Record<string, unknown>;
+    if (!isRecordId(body.serverId)) return null;
+    if (typeof body.region !== "string" || body.region.length === 0) return null;
+    const optionalString = (value: unknown): string | null => (typeof value === "string" && value.length > 0 ? value : null);
+    return {
+        serverId: body.serverId,
+        region: body.region,
+        instanceId: optionalString(body.instanceId),
+        elasticIpAllocationId: optionalString(body.elasticIpAllocationId),
+        securityGroupId: optionalString(body.securityGroupId),
+    };
 }
 
 export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServerIpcOptions): McServerIpc {
@@ -1095,6 +1159,35 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
             });
         },
+
+        /**
+         * The bill, before anything is created. Pure - `planAwsServer` never touches AWS -
+         * so this channel answers instantly and offline, which is exactly what a screen
+         * showing "here is what this will cost" needs.
+         */
+        [MCSERVER_CHANNELS.awsPlan]: async (_event: never, request: unknown) => {
+            const spec = readAwsServerSpec(request);
+            if (spec === null) return fail("invalid-request", "That AWS server description could not be read.");
+            return { ok: true, value: planAwsServer(spec) };
+        },
+
+        [MCSERVER_CHANNELS.awsProvision]: async (_event: never, request: unknown) => {
+            const spec = readAwsServerSpec(request);
+            if (spec === null) return fail("invalid-request", "That AWS server description could not be read.");
+            const runner = options.awsRunner ?? execFileCommandRunner;
+            return provisionAwsServer(planAwsServer(spec), { runner, ...(options.aws === undefined ? {} : { aws: options.aws }) });
+        },
+
+        [MCSERVER_CHANNELS.awsTeardown]: async (_event: never, request: unknown) => {
+            const target = readAwsTeardownTarget(request);
+            if (target === null) return fail("invalid-request", "That AWS server could not be identified for teardown.");
+            const runner = options.awsRunner ?? execFileCommandRunner;
+            return teardownAwsServer(target, { runner, ...(options.aws === undefined ? {} : { aws: options.aws }) });
+        },
+
+        [MCSERVER_CHANNELS.awsRegions]: async () => ({ ok: true, value: AWS_REGIONS }),
+
+        [MCSERVER_CHANNELS.awsInstanceTypes]: async () => ({ ok: true, value: AWS_INSTANCE_TYPES }),
     };
 
     for (const [channel, handler] of Object.entries(handlers)) {

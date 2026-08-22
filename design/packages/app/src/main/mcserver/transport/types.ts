@@ -38,6 +38,22 @@ export type TransportRef =
           readonly hostId: string;
           readonly containerRef: string;
           readonly serverDir: string;
+      }
+    | {
+          /**
+           * A server on an EC2 instance this app provisioned. Reached exactly like
+           * `ssh-docker` - see `aws/transport.ts`, which builds a `RemoteTarget` from
+           * these fields and hands it to `createSshDockerTransport` unchanged.
+           */
+          readonly kind: "aws";
+          readonly region: string;
+          readonly instanceId: string;
+          readonly publicIp: string;
+          readonly sshUser: string;
+          /** Absolute path to the private key, or null to use the SSH agent. */
+          readonly identityFile: string | null;
+          readonly containerRef: string;
+          readonly serverDir: string;
       };
 
 export type TransportKind = TransportRef["kind"];
