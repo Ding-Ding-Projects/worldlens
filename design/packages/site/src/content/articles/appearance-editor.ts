@@ -9,7 +9,7 @@ export const appearanceEditor: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "The feature is on the default branch with test files running in CI, several of them mounting the real components, including 42 tab- and group-editor tests in TabbedNavigation.test.ts. The desktop application wraps ten component families: the window title bar and tab bar, each server profile row, the editor's own chrome, the control bar, EULA sections and viewer, history, project rows, docked surfaces, and every tab and group. The Pages surface walks and registers every rendered HTMLElement, so its prose, headings, summaries, table cells, links and controls all have the same entry point. The cross-surface contract still asks the desktop application for that same literal-every-element coverage rather than ten named families, so this is the machinery shipped rather than the contract met.",
+        "The reusable color roles, token stylesheet, Vuetify themes and component defaults now live in the publishable @worldlens/design-system package, and the WorldLens UI consumes that package from its real bootstrap. The appearance editor remains product behavior in the UI package. Its existing coverage boundary is unchanged: ten desktop component families and an every-rendered-element walk on Pages, rather than literal every-element coverage in the desktop application.",
 
     sections: [
         {
@@ -245,6 +245,10 @@ export const appearanceEditor: Article = {
 
     sources: [
         { label: "docs/appearance-editors.md", href: APPEARANCE_EDITORS_DOC_URL },
+        {
+            label: "packages/design-system",
+            href: repoFile("design/packages/design-system"),
+        },
         {
             label: "packages/ui/src/components/appearance",
             href: repoFile("design/packages/ui/src/components/appearance"),

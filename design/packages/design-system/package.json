@@ -1,0 +1,56 @@
+{
+    "name": "@worldlens/design-system",
+    "version": "0.1.0",
+    "private": false,
+    "type": "module",
+    "description": "Reusable WorldLens Material Design 3 colors, tokens, and Vuetify theme contract",
+    "license": "MIT",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist",
+        "src/tokens.css",
+        "README.md"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./colors": {
+            "types": "./dist/colors.d.ts",
+            "import": "./dist/colors.js"
+        },
+        "./theme": {
+            "types": "./dist/theme.d.ts",
+            "import": "./dist/theme.js"
+        },
+        "./tokens.css": "./src/tokens.css",
+        "./package.json": "./package.json"
+    },
+    "sideEffects": [
+        "*.css",
+        "**/*.css"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "peerDependencies": {
+        "vue": "^3.5.0",
+        "vuetify": "^3.13.0"
+    },
+    "dependencies": {
+        "@mdi/js": "^7.4.47"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "keywords": [
+        "worldlens",
+        "material-design-3",
+        "vuetify",
+        "design-system"
+    ]
+}
+

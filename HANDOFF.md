@@ -1,5 +1,33 @@
 # Handoff
 
+## 2026-08-22 — Reusable WorldLens design system package
+
+Commit `d32e7a24be60fddfa6e95d2a4d84c080c19a37dc` introduces the publishable
+`@worldlens/design-system` package at version 0.1.0. The package exports framework-neutral
+colour roles, the token stylesheet, WorldLens themes and component defaults, and
+`createWorldLensDesignSystem()`. The WorldLens UI imports the package from its real Vuetify
+bootstrap and CSS entrypoint; its kid presentation scheme remains product-specific and is
+supplied to the factory as an additional theme.
+
+No dependency installation, lockfile update, build, test, type check, static analysis, UI run,
+or capture was performed in this ultra-speed lane. The integration owner must reconcile the
+workspace manifest changes, install once, and build the design-system, shared and UI packages in
+topological order before treating the package as verified or publishable output.
+
+### 廣東話同步
+
+Commit `d32e7a24be60fddfa6e95d2a4d84c080c19a37dc` 加咗可發布嘅
+`@worldlens/design-system` 0.1.0。套件有唔依賴 framework 嘅色彩角色、token stylesheet、
+WorldLens theme、component 預設同 `createWorldLensDesignSystem()`；WorldLens UI 嘅真正
+Vuetify bootstrap 同 CSS entrypoint 已經直接用佢。Kid presentation scheme 仍然留喺產品入面，
+只係當額外 theme 傳畀 factory，冇硬塞入共用套件。
+
+呢條超快 source lane 冇裝 dependency、冇改 lockfile、冇 build、冇跑 test、type check、
+static analysis、UI 或 capture。Integration owner 要先對齊 workspace manifest、統一安裝一次，
+再按拓撲次序 build design-system、shared 同 UI，先可以話產物驗證過或者真係可發布。
+
+---
+
 ## 2026-08-22 — Minecraft server hosting manager
 
 Written for the next owner. Assume no prior conversation. `main` is at the tip recorded by the

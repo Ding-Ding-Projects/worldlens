@@ -59,7 +59,7 @@ function code(source: string): string {
 }
 
 const motion = read("./styles/motion.scss");
-const md3 = read("./styles/md3.scss");
+const md3 = read("../../design-system/src/tokens.css");
 const rules = code(motion);
 
 /** Every `property: value` pair in the sheet, comments already gone. */
