@@ -1,5 +1,16 @@
 # Roadmap
 
+## Documentation refresh — 2026-08-22
+
+- [x] Indexed the five root feature records previously absent from `docs/README.md`; issue ledgers,
+      smoke evidence, conformance audits, and nested compatibility, recordings, and screenshot
+      support files retain their explicit exemptions or category indexes.
+- [x] Reconciled the Pages hero and README to the current **54** bundled site articles. The
+      committed `assert-article-bundle.mjs` check reports all 54 imported and exported.
+- [x] Added the current `docs/recordings/worldlens-tour.mp4` reference to README. Its source commit
+      is `f02370eb`, already an ancestor of `origin/main`; no later app/UI changes require a new
+      recording.
+
 ## Pause/resume for the remaining long-running operations — lane/pause
 
 `BackupRunner` (packing, splitting, uploading a backup) now supports a real, safe,

@@ -1,5 +1,14 @@
 # Roadmap
 
+## Documentation refresh — 2026-08-22
+
+- [x] The documentation index now includes all five previously unindexed root feature records;
+      nested audit and compatibility records remain intentionally grouped with their own indexes.
+- [x] The Pages hero and README agree on the current **54** bundled production articles, as proved
+      by `design/packages/site/scripts/assert-article-bundle.mjs`.
+- [x] README links the current committed [Worldlens tour recording](docs/recordings/worldlens-tour.mp4)
+      at `f02370eb`; the recording is already an ancestor of `origin/main` and remains current.
+
 ## Minecraft server hosting manager (2026-08-21)
 
 Create, run and fully administer any Minecraft server - vanilla, Paper, Purpur, Spigot,
