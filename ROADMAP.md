@@ -32,34 +32,48 @@ is ever configured by typing a command or editing a file by hand.
       commenting the registration out and watching exactly that test go red.
 - [x] 115 tests, no Docker, SSH or Java required by any of them.
 
-### Phases 2-9 - in progress
+### Phases 2-9 - mostly built, one wiring gap and one whole phase unreachable
 
-- [ ] Flavour and version catalogue from the real upstream APIs, Java provisioning through
-      the existing `provisionJava`, and guided server creation with a real picker at every
-      step and EULA consent given in the interface.
-- [ ] RCON client and protocol, the console session supervisor with reconnect de-duplication,
-      and players, ops, whitelist and bans as real lists with row actions.
-- [ ] The configuration editor: Minecraft's config keys described as `FieldMeta` and rendered
-      through the twelve-kind control renderer that already ships, over a document model that
-      preserves comments, key order and unknown keys. Guarded by a no-text-box test and a
-      byte-for-byte round-trip property test.
-- [ ] Plugins and mods from Modrinth and Hangar with hash verification and compatibility
-      gating; SpigotMC browse-and-link only, because it has no sanctioned download API.
-- [ ] Adoption of containers this app did not create: read-only discovery, four independent
-      consent switches, record-only by default, and a release that destroys nothing.
-- [ ] A locally hosted web management console behind password authentication, hostable in the
-      app, in a container, or on an SSH host, carrying the unlock ladder because it can lock a
-      user out.
-- [ ] The Vue screens, a sixth catalogue, and the universal surface contracts.
-- [ ] Real captures from the built artifact. Not done: these must come from a packaged build,
-      not the source tree.
+- [x] Flavour and version catalogue (`flavours/catalogue.ts`, `javaRequirement.ts`), Java
+      provisioning, and the "New server" wizard with a real picker at every step.
+- [x] RCON client and protocol, the console session, and players/ops/whitelist/bans as real
+      tables with row actions and an add-player dialog.
+- [x] The configuration editor: Minecraft's config keys described and rendered through a
+      twelve-kind control renderer over a document model that preserves comments, key order
+      and unknown keys. Guarded by `noTextBox.test.ts` and a byte-for-byte round-trip
+      property test (`roundTrip.test.ts`).
+- [x] Plugins from Modrinth and Hangar with install/manage/compatibility, and SpigotMC
+      browse-and-link only, exactly as scoped - it has no sanctioned download API.
+- [x] Adoption's read-only discovery, scoring and four-switch consent review dialog are
+      built and tested (`adopt/`, `AdoptionReviewDialog.vue`).
+- [ ] **Adoption is not reachable from the interface.** `ServerListScreen.vue`'s "Adopt an
+      existing server" button emits an `adopt` event that nothing listens for at any of its
+      three mount sites in `App.vue`, `AdoptionReviewDialog.vue` is not mounted anywhere
+      outside its own tests, and there is no screen that browses candidate containers to
+      adopt in the first place. This is the one genuinely broken surface in the whole
+      feature, not merely an unverified one.
+- [x] A locally hosted, password-protected web management console (`webconsole/`), reachable
+      from the same panel that hosts the desktop console, with scrypt password hashing,
+      hashed sessions, lockout and the unlock ladder.
+- [x] The Vue screens and a real "Minecraft servers" destination in the left rail
+      (`mcservers` job), wired end to end and guarded by `mcserverShellWiring.test.ts`.
+- [ ] Real captures from the built artifact. Not done: nothing here has run in a packaged
+      build, and no screenshot exists of any of these screens.
+- [ ] A fourth hosting target, added after this roadmap section was first written: an EC2
+      instance the app provisions on AWS (`aws/plan.ts`, `provision.ts`, `teardown.ts`,
+      `accounts.ts`, `credits.ts`). The planning, provisioning, rollback and teardown backend
+      is built and tested against a fake `aws` CLI - **no wizard step or screen reaches it**,
+      so it is exercised only by its own tests, never by a person.
 
 ### Evidence boundary
 
-Phase 1 is implemented, tested and pushed on `feat/mcserver`. Nothing in this feature has been
-exercised against a real Docker daemon, a real SSH host or a real Minecraft server yet, and no
-capture exists from a packaged build. The tests prove the modules; they do not prove the
-feature runs.
+The transport, registry, config editor, console, players, plugins and web console are
+implemented, tested and pushed. All of it is exercised against fakes and in-memory
+transports: nothing in this feature has been exercised against a real Docker daemon, a real
+SSH host, a real `java -jar` process or a real AWS account, and no capture exists from a
+packaged build. The tests prove the modules; they do not prove the feature runs. Two things
+are not merely unproven but genuinely unreachable today: the adoption button opens no dialog,
+and the AWS hosting target has no interface at all.
 
 ### 廣東話
 

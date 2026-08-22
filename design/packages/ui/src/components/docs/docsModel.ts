@@ -121,6 +121,9 @@ export const APPLICATION_ORDER: readonly string[] = [
     "mcserver-transport.md",
     "mcserver-config.md",
     "minecraft-server-manager.md",
+    "mcserver-plugins.md",
+    "mcserver-web-console.md",
+    "mcserver-aws.md",
 ];
 
 /**

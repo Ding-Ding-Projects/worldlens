@@ -371,6 +371,7 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Private worlds**                         | Sealed before they leave the machine, rendered on public runners, published only privately                                                                                                | [`docs/private-world-rendering.md`](docs/private-world-rendering.md)                                                                                                 |
 | **World sources**                          | Fetches a world from any GitHub release, including one split into parts in another repository                                                                                             | [`docs/world-sources.md`](docs/world-sources.md)                                                                                                                     |
 | **Backups**                                | Packs a world or a rendered map, splits it and publishes it as release assets, with digests                                                                                               | [`docs/backup.md`](docs/backup.md)                                                                                                                                   |
+| **Minecraft server manager**               | Installs, configures, consoles into and manages the plugins and players of a real Minecraft server - a local process, a local Docker container, or one reached over SSH - with every setting a real typed control and a password-protected web console reaching the same screens from a browser. Adoption of a server this app did not create is built and tested but its button opens nothing yet. | [`docs/minecraft-server-manager.md`](docs/minecraft-server-manager.md)                                                                                               |
 | **Worldlens migration**                    | Moves profiles and preferences without deleting the old copy; reads legacy project/marker/env names and writes current identifiers                                                        | [`docs/worldlens-migration.md`](docs/worldlens-migration.md)                                                                                                         |
 | **Startup recovery**                       | Keeps a usable shell open when recoverable startup work fails; hard profile/preload/renderer boundaries open an isolated recovery window with cached, copyable and exportable diagnostics | [`docs/startup-recovery.md`](docs/startup-recovery.md)                                                                                                               |
 | **Automatic updates**                      | Reads the unsigned Squirrel feed, checks its package hashes, and offers a restart in a banner that never blocks                                                                           | [`docs/automatic-updates.md`](docs/automatic-updates.md)                                                                                                             |
@@ -549,6 +550,8 @@ this section for why they are ten days older than most of the rest of this page.
 Open a section to see the rest. Each capture's own caption sits beside it in
 `docs/screenshots/captions.md`, and `docs/screenshots/manifest.json` records what took it, by
 what method, and every surface the run could not reach.
+
+**A screen recording, not only stills**, shows the interface actually moving: [`docs/recordings/worldlens-tour.mp4`](docs/recordings/worldlens-tour.mp4) - GitHub does not play an mp4 inline in a README, so open it rather than expecting it to play here. Captured from the packaged unsigned build on an off-screen desktop at commit `f02370eb`, 20 seconds at 1280×800: moving between Home, Map, Work and the Minecraft server destination; opening the create-server wizard; the flavour cards; choosing a version from the live catalogue with its release date; stepping back; cancelling. [`docs/recordings/README.md`](docs/recordings/README.md) explains how it and any future ones are made, and the one rule that is not negotiable: the machine's own screen is never recorded, only the application's own window or renderer.
 
 <details>
 <summary><b>Starting a render: the guide, step by step</b> - photographed before the rewrite</summary>
@@ -920,9 +923,10 @@ rather than counting by hand; it is the same command CI runs.
 
 ## Running the server, not only its map
 
-WorldLens renders and serves Minecraft *maps*. It is also learning to run the *server* the
-map comes from, so that installing Paper, changing a setting, adding a plugin or opping a
-friend happens in the application rather than in a terminal and a text editor.
+WorldLens renders and serves Minecraft *maps*. It also runs the *server* the map comes from,
+so that installing Paper, changing a setting, adding a plugin or opping a friend happens in
+the application rather than in a terminal and a text editor. It lives in the left rail as its
+own destination, **Minecraft servers**.
 
 The rule that shapes the whole feature: **nothing in it is configured by typing.** No
 command, no hand-edited file. Every setting — every key in `server.properties`, every nested
@@ -932,29 +936,59 @@ knows it stops at 32, a port is a stepper bounded to 1–65535, and a colour ope
 picker. Free text is reserved for things that genuinely are prose, like the message of the
 day.
 
-A server can live in three places, and the same interface reaches all of them:
+A server can live in three places the interface actually reaches today, plus a fourth that
+exists only as backend code:
 
-| Where | How |
-| --- | --- |
-| A process on this computer | A Java runtime the application downloads for it |
-| A container on this computer | The local Docker daemon |
-| A container on another machine | The same commands, over SSH |
+| Where | How | Reachable from the interface? |
+| --- | --- | --- |
+| A process on this computer | A Java runtime the application downloads for it | Yes |
+| A container on this computer | The local Docker daemon | Yes |
+| A container on another machine | The same commands, over SSH | Yes |
+| An EC2 instance the app provisions | A priced, idempotent, tag-verified AWS backend | No — built and tested, no wizard step leads to it |
 
-It can also **adopt a server it did not create**. Discovery is read-only — it looks at
-containers, their mounts and their logs, scores the evidence and reports how confident it
-is, without starting, stopping or writing anything. Taking one over is an explicit,
-per-container decision with four independent permissions (control it, change its files,
-install plugins, send it commands), and handing it back removes the record without touching
-the container at all.
+Opening a server shows a real console (RCON in, the server's own log out), the typed
+`server.properties` / `paper-global.yml` editor, a plugin manager that searches Hangar,
+Modrinth and SpigotMC, and whitelist/operator/ban tables with an add-player dialog. A
+password-protected web console, started and stopped from the same panel, serves the same four
+screens to an ordinary browser rather than only to the desktop shell.
+
+<details>
+<summary><b>What "adopting a server it did not create" actually does today — read before relying on it</b></summary>
+
+Adopting a server WorldLens did not create is meant to work like this: discovery is
+read-only, looking at a container's mounts and logs, scoring how confident the match is,
+without starting, stopping or writing anything; taking one over is an explicit, per-container
+decision behind a review dialog with four independent permissions (control it, change its
+files, install plugins, send it commands); and handing it back removes the record without
+touching the container at all.
+
+**The discovery logic and the review dialog are built and tested. Neither is reachable from
+the running application.** `ServerListScreen.vue`'s "Adopt an existing server" button emits an
+event that nothing listens for at any of its three mount sites in `App.vue`, the review
+dialog is not mounted anywhere the app actually runs, and there is no screen that lists
+candidate containers to review in the first place. Clicking the button does nothing —
+silently, with no error. Forgetting an already-registered server is unaffected by this and
+works normally.
+
+</details>
 
 > [!NOTE]
-> **Shipped so far:** the transport layer, its path safety, the server registry and the
-> bridge into the interface — 115 tests, none of which need Docker, SSH or Java. **Not yet
-> proven:** none of it has met a real Docker daemon, a real SSH host or a real Minecraft
-> server, and there is no capture from a packaged build. The tests show the parts behave as
-> specified; they do not show the feature runs. Progress is tracked on
+> **Shipped:** the transport layer and its path safety, the server registry, RCON and the
+> console, the config editor, the plugin manager, the player tables and the web console — all
+> wired into a real destination in the left rail and covered by several hundred tests. **Not
+> yet proven:** none of it has met a real Docker daemon, a real SSH host or a real Minecraft
+> server, and there is no capture from a packaged build — 150 of this repository's committed
+> screenshots are currently stale and a full recapture is deliberately deferred, so no image
+> for this feature is shown here rather than reusing one that no longer matches. **Not
+> reachable at all:** the adoption button (see above) and the AWS hosting target, which has
+> no interface. Progress is tracked on
 > [issue #149](https://github.com/Ding-Ding-Projects/worldlens/issues/149), and
-> [`docs/mcserver-transport.md`](docs/mcserver-transport.md) explains the layer in full.
+> [`docs/minecraft-server-manager.md`](docs/minecraft-server-manager.md) is the full writeup,
+> with [`docs/mcserver-transport.md`](docs/mcserver-transport.md),
+> [`docs/mcserver-config.md`](docs/mcserver-config.md),
+> [`docs/mcserver-plugins.md`](docs/mcserver-plugins.md),
+> [`docs/mcserver-web-console.md`](docs/mcserver-web-console.md) and
+> [`docs/mcserver-aws.md`](docs/mcserver-aws.md) covering each part.
 
 ## Rendering on GitHub Actions, for computers that cannot render locally
 
@@ -1079,6 +1113,11 @@ The source of truth lives in the repository:
 | [`plan.md`](plan.md)                                                                                                                    | The approved full port plan. Read this first.                                                                       |
 | [`docs/README.md`](docs/README.md)                                                                                                      | The index of the per-feature articles, one file per feature                                                         |
 | [`docs/mcserver-transport.md`](docs/mcserver-transport.md)                                                                              | Reaching a Minecraft server on this computer, in a container, or over SSH                                           |
+| [`docs/minecraft-server-manager.md`](docs/minecraft-server-manager.md)                                                                  | The whole Minecraft server manager: what is wired in, and what is not (the adoption button, the AWS target)         |
+| [`docs/mcserver-config.md`](docs/mcserver-config.md)                                                                                    | Editing a server's settings with real typed controls, never a text box                                              |
+| [`docs/mcserver-plugins.md`](docs/mcserver-plugins.md)                                                                                  | Searching, installing and managing plugins across Hangar, Modrinth and SpigotMC                                     |
+| [`docs/mcserver-web-console.md`](docs/mcserver-web-console.md)                                                                          | The password-protected browser console for a server, and its unlock ladder                                          |
+| [`docs/mcserver-aws.md`](docs/mcserver-aws.md)                                                                                          | The AWS provisioning backend for a fourth hosting target, with no interface reaching it yet                          |
 | [`design/README.md`](design/README.md)                                                                                                  | The workspace: packages, development, port notes                                                                    |
 | [`design/ROADMAP.md`](design/ROADMAP.md)                                                                                                | Phase table and status, and what is proven versus merely built                                                      |
 | [`design/HANDOFF.md`](design/HANDOFF.md)                                                                                                | Current state. Its opening plain-language summary is written to be readable with no prior knowledge of the codebase |
