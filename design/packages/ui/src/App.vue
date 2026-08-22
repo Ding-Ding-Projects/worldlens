@@ -24,7 +24,7 @@ import {
 } from "@mdi/js";
 import type { MenuPage } from "@worldlens/viewer";
 import MapView from "./components/MapView.vue";
-import { HomeScreen } from "./components/home/index.js";
+import { HomeDashboard } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
 import DashboardScreen from "./components/DashboardScreen.vue";
 import ZoomButtons from "./components/controls/ZoomButtons.vue";
@@ -37,7 +37,6 @@ import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import {
     AppRail,
     CataloguePage,
-    HomeCatalogues,
     WorkPane,
     NotificationPanel,
     ProblemsPanel,
@@ -1022,6 +1021,22 @@ function onOpenConsole(target: ConsoleTarget): void {
     void nextTick(() => {
         worldFocusRenderId.value = null;
     });
+}
+
+/**
+ * Home's own "In progress" row, resolved into the same real navigation `RendersScreen`'s
+ * "Open console" already uses - `renderIndicator.consoleTargetFor` is the one source of truth
+ * for where a render key actually sends somebody, so Home does not get a second opinion.
+ */
+function onOpenRenderFromHome(key: string): void {
+    const target = renderIndicator.consoleTargetFor(key);
+    if (target !== null) onOpenConsole(target);
+}
+
+/** Home's own "Your maps & servers" row: make the picked profile active and switch to Map. */
+function onOpenMapFromHome(profileId: string): void {
+    profilesStore.activeId = profileId;
+    shell.select("map");
 }
 
 /**
@@ -2295,31 +2310,24 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @activate-feature="onActivateFeature"
                         />
                         <!--
-                            The landing surface itself, above the catalogues rather than
-                            instead of them: it is the weighted "what would you like to do"
-                            list, and the catalogues underneath it are the exhaustive index
-                            of the same capabilities. It was imported here and never
-                            rendered, which `<script setup>` drops silently, so a fully
-                            built and fully tested landing screen shipped with no way in.
+                            The landing surface itself: what is actually happening on this
+                            machine right now, not an index of everything the application could
+                            theoretically do. `HomeScreen.vue` and `HomeCatalogues.vue` - the
+                            two catalogue-shaped surfaces this replaced - are still in the tree,
+                            unreferenced, should this need reverting; see `HomeDashboard.vue`'s
+                            own doc comment for why.
                         -->
                         <template v-else>
-                            <HomeScreen
-                                @reveal-page="revealPage"
-                                @open-changelog="openChangelog"
-                                @open-tab-finder="openTabFinder"
-                                @open-settings="openSettings($event)"
-                                @open-config="openConfig($event)"
-                                @open-eula="eulaOpen = true"
-                                @open-welcome="welcomeOpen = true"
-                                @open-palette="paletteOpen = true"
-                            />
-                            <HomeCatalogues
+                            <HomeDashboard
                                 :meta-sources="metaSources"
+                                :render-rows="renderIndicator.rows.value"
                                 :restricted-mode-active="schoolMode.enabled.value"
-                                @open-catalogue="shell.openCatalogue"
-                                @activate-feature="onActivateFeature"
                                 @new-map="revealPage(PAGE_PROJECTS)"
                                 @walk-me-through="revealPage(PAGE_WORLD)"
+                                @open-palette="paletteOpen = true"
+                                @open-render="onOpenRenderFromHome"
+                                @open-map="onOpenMapFromHome"
+                                @open-catalogue="shell.openCatalogue"
                             />
                         </template>
                     </div>
