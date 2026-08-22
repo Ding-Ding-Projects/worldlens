@@ -66,7 +66,20 @@ export interface CatalogueSnapshot {
 
 export type FetchText = (url: string) => Promise<string>;
 
+/**
+ * The cache file, and the shape number written inside it.
+ *
+ * The filename stays put so an upgrade does not leave an orphan behind; the shape number
+ * inside decides whether the contents are still usable. Bump it whenever a field is added
+ * to a version entry, because a cache written before that field existed will otherwise be
+ * handed back as though it satisfied the current shape - it parses, it has the right
+ * top-level keys, and every entry is quietly missing the new value. Nothing reports that;
+ * the feature simply looks unimplemented until the cache happens to expire.
+ */
 export const CATALOGUE_FILE = "mcserver-catalogue.v1.json";
+
+/** Raised when a version entry gains or loses a field. */
+export const CATALOGUE_CACHE_SHAPE = 2;
 /** A week: long enough to skip needless refetching, short enough that "stale" means it. */
 export const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHE_BYTES = 8 * 1024 * 1024;
@@ -329,6 +342,9 @@ async function readCache(dataDir: string): Promise<CatalogueSnapshot | null> {
         if (bytes.byteLength > MAX_CACHE_BYTES) return null;
         const parsed = JSON.parse(bytes.toString("utf8")) as Partial<CatalogueSnapshot>;
         if (!Array.isArray(parsed.flavours) || typeof parsed.fetchedAt !== "string") return null;
+        // An older shape is refused rather than upgraded in place: guessing what a missing
+        // field should have been is how a wrong release date would get invented.
+        if ((parsed as { shape?: unknown }).shape !== CATALOGUE_CACHE_SHAPE) return null;
         return {
             flavours: parsed.flavours,
             fetchedAt: parsed.fetchedAt,
@@ -343,7 +359,10 @@ async function readCache(dataDir: string): Promise<CatalogueSnapshot | null> {
 async function writeCache(dataDir: string, snapshot: CatalogueSnapshot): Promise<void> {
     const file = cacheFile(dataDir);
     await mkdir(dirname(file), { recursive: true });
-    await atomicWriteTextFile(file, `${JSON.stringify(snapshot, null, 2)}\n`);
+    // The shape number travels with the contents, so a later build can tell whether what
+    // it is reading was written for the fields it expects.
+    const written = { ...snapshot, shape: CATALOGUE_CACHE_SHAPE };
+    await atomicWriteTextFile(file, `${JSON.stringify(written, null, 2)}\n`);
 }
 
 function withStaleness(snapshot: CatalogueSnapshot, now: () => string): CatalogueSnapshot {

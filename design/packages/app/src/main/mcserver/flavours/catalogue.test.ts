@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -215,5 +215,57 @@ describe("fabricServerJarUrl", () => {
         expect(fabricServerJarUrl("1.21.4", "0.16.9", "1.0.1")).toBe(
             "https://meta.fabricmc.net/v2/versions/loader/1.21.4/0.16.9/1.0.1/server/jar",
         );
+    });
+});
+
+describe("a cache written by an older build", () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "mcserver-catalogue-shape-"));
+    });
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    it("is refused rather than handed back missing the fields this build expects", async () => {
+        // The exact defect this guards. A cache written before `releasedAt` existed still
+        // parses, still carries the right top-level keys, and every version inside it is
+        // quietly missing the date - so the feature looks unimplemented rather than stale,
+        // and nothing anywhere reports why.
+        const older = {
+            flavours: [
+                {
+                    flavour: "vanilla",
+                    versions: [
+                        { version: "1.21.4", stability: "release", javaFeature: 21, downloadUrl: null, sha256: null },
+                    ],
+                },
+            ],
+            fetchedAt: "2026-08-21T00:00:00.000Z",
+            failures: [],
+            // No `shape` key at all, exactly as an older build wrote it.
+        };
+        await writeFile(join(dir, CATALOGUE_FILE), JSON.stringify(older), "utf8");
+
+        let fetches = 0;
+        const counting = fakeFetch(ALL_ROUTES);
+        const answer = await listCatalogue({
+            dataDir: dir,
+            fetchText: async (url: string) => {
+                fetches += 1;
+                return counting(url);
+            },
+            now: () => "2026-08-21T00:00:01.000Z",
+        });
+
+        // Refusing it means going back to the network, which is the whole point: what comes
+        // back carries the field, rather than a cached entry silently lacking it.
+        expect(fetches).toBeGreaterThan(0);
+        expect(answer.ok).toBe(true);
+        if (!answer.ok) return;
+        const vanilla = answer.value.flavours.find((entry) => entry.flavour === "vanilla");
+        expect(vanilla?.versions[0]?.releasedAt).toBe("2024-12-03T10:12:57+00:00");
     });
 });
