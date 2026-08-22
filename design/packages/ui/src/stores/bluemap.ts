@@ -38,7 +38,11 @@ export const mapCommandPoint: ShallowRef<{ x: number; y: number; z: number } | n
 /** Replaces the live instance (or clears it). Called by MapView, which owns the lifecycle. */
 export function setBlueMapApp(instance: BlueMapApp | null): void {
     blueMapApp.value = instance;
-    if (instance) {
+    // The shell is optional on this instance: a test double, and an embedding host that
+        // supplies its own chrome, both hand over an app with no material shell at all.
+        // Assigning through it unconditionally threw for every one of them, which read as the
+        // theme setting being broken rather than as a missing guard here.
+    if (instance?.materialShell) {
         instance.materialShell.onBuildCommandHere = (point: { x: number; y: number; z: number }) => {
             mapCommandPoint.value = point;
         };
