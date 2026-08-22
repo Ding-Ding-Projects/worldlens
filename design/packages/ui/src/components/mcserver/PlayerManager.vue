@@ -15,6 +15,8 @@ import {
     VMenu,
     VList,
     VListItem,
+    VSelect,
+    VSwitch,
     VTab,
     VTabs,
     VTable,
@@ -56,6 +58,8 @@ const failure = ref<string | null>(null);
 const addDialog = ref(false);
 const newName = ref("");
 const newReason = ref("");
+/** Default to picking a known name; typing one is an explicit opt-in. */
+const addAsCustom = ref(false);
 
 const online = ref<PlayerRecord[]>([]);
 const onlineFailure = ref<string | null>(null);
@@ -112,6 +116,23 @@ const capabilities = computed(() => store.capabilitiesFor(props.serverId));
 const server = computed(() => store.get(props.serverId));
 const blockReason = computed(() => (server.value ? writeBlockReason(server.value, capabilities.value) : null));
 
+/**
+ * Every player name this app already knows about, from the currently-online roster plus
+ * every flat-file list it has read - never invented. The add dialog offers these as a
+ * picker by default; typing a name not yet known to the app is an explicit opt-in.
+ */
+const knownNames = computed(() => {
+    const names = new Set<string>();
+    for (const p of online.value) names.add(p.name);
+    for (const kind of ["ops", "whitelist", "bans"] as const) {
+        for (const entry of lists[kind]) names.add(entry.name);
+    }
+    if (tab.value !== "online") {
+        for (const entry of lists[tab.value as Exclude<ListKind, "online">]) names.delete(entry.name);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b));
+});
+
 async function persist(kind: Exclude<ListKind, "online">): Promise<void> {
     const result = await store.files.write(props.serverId, FILES[kind], {
         text: JSON.stringify(
@@ -141,6 +162,7 @@ const newNameError = computed(() => (newName.value === "" ? null : nameValid(new
 function openAdd(): void {
     newName.value = "";
     newReason.value = "";
+    addAsCustom.value = knownNames.value.length === 0;
     addDialog.value = true;
 }
 
@@ -337,7 +359,28 @@ async function bulkKick(): Promise<void> {
             <VCard>
                 <VCardTitle>{{ t("mcserver.players.addTitle", "Add player") }}</VCardTitle>
                 <VCardText>
-                    <VTextField v-model="newName" :label="t('mcserver.players.playerName', 'Player name')" :error-messages="newNameError ? [newNameError] : []" />
+                    <VSelect
+                        v-if="!addAsCustom"
+                        v-model="newName"
+                        :items="knownNames"
+                        :label="t('mcserver.players.playerNamePick', 'Player name')"
+                        :error-messages="newNameError ? [newNameError] : []"
+                    />
+                    <VTextField
+                        v-else
+                        v-model="newName"
+                        :label="t('mcserver.players.playerName', 'Player name')"
+                        :error-messages="newNameError ? [newNameError] : []"
+                    />
+                    <VSwitch
+                        v-model="addAsCustom"
+                        :label="t('mcserver.players.enterUnlisted', 'Enter a name not listed')"
+                        :disabled="knownNames.length === 0"
+                        :hint="knownNames.length === 0 ? t('mcserver.players.noKnownNames', 'No known player names yet - nobody has been online or listed, so typing is the only option.') : undefined"
+                        persistent-hint
+                        density="compact"
+                        @update:model-value="newName = ''"
+                    />
                     <VTextField
                         v-if="tab === 'bans'"
                         v-model="newReason"
