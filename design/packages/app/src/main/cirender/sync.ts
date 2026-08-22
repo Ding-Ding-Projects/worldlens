@@ -1158,6 +1158,7 @@ export class CiRenderSync {
             artifactBytes: collected.bytes,
             artifactSha256: collected.sha256,
             verified: collected.verified,
+            postRenderWarning: null,
         };
         const durationMs = this.#clock() - context.startedAt;
         this.emit({ type: "finished", syncId, summary, durationMs, at: this.#timestamp() });

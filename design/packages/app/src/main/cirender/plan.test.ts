@@ -48,6 +48,7 @@ function project(maps: ProjectMap[]): ProjectFile {
         maps,
         storages: [],
         render: {
+            engine: "typescript",
             threads: null,
             force: false,
             fixEdges: false,

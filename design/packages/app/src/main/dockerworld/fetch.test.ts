@@ -237,7 +237,6 @@ describe("a running container's bind-mounted world", () => {
         const result = await fetcher.fetch({
             source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
             destination,
-            acknowledgeLiveRisk: true,
         });
         expect(result.ok).toBe(true);
         const warning = events.find((event) => event.type === "log" && event.level === "warning");

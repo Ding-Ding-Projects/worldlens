@@ -95,7 +95,7 @@ function fakeGitHub() {
                 : answer(200, { id: release.id, tag_name: release.tag, html_url: `https://github.test/o/r/releases/${String(release.id)}`, assets: release.assets.map((a) => ({ name: a.name, size: a.size })) });
         }
         if (method === "POST" && url.endsWith("/repos/o/r/releases")) {
-            const body = init?.body === undefined ? {} : (JSON.parse(String(init.body)) as { tag_name: string });
+            const body: { tag_name: string } = init?.body === undefined ? { tag_name: "" } : (JSON.parse(String(init.body)) as { tag_name: string });
             const id = nextId++;
             releases.set(body.tag_name, { id, tag: body.tag_name, assets: [] });
             return answer(201, { id, tag_name: body.tag_name, html_url: `https://github.test/o/r/releases/${String(id)}`, assets: [] });

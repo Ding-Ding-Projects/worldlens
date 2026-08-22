@@ -45,6 +45,7 @@ const ENGINE: ResolvedEngine = {
     engineVersion: "5.22-27",
     enginePath: "",
     javaExecutable: "",
+    launch: "java-cli",
     javaVersion: null,
 };
 

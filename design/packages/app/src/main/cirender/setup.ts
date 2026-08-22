@@ -13,6 +13,7 @@ export type CiOwnerChoicesAnswer =
           /** False when the reason is simply that nobody is signed in yet. */
           readonly signedIn: boolean;
           readonly message: string;
+          readonly needsSignIn?: boolean;
       };
 /* Repository-name suggestion. */
 

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { cp as cpAsync, lstat, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
 import { ZipWriter } from "@worldlens/worldgen";
 import { prepareStaticHost } from "@worldlens/render-actions";
@@ -121,7 +121,7 @@ async function sha256(path: string): Promise<{ bytes: number; digest: string }> 
     return await new Promise((resolvePromise, reject) => {
         const hash = createHash("sha256"); let bytes = 0;
         const stream = createReadStream(path);
-        stream.on("data", (chunk: Buffer) => { bytes += chunk.length; hash.update(chunk); });
+        stream.on("data", (chunk: string | Buffer) => { const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk); bytes += data.length; hash.update(data); });
         stream.once("error", reject);
         stream.once("end", () => resolvePromise({ bytes, digest: hash.digest("hex") }));
     });
@@ -234,7 +234,7 @@ export class StaticMapExporter {
                 if (!stagedInfo.isFile() || stagedInfo.isSymbolicLink()) throw new Error(`Staged export file is not regular: ${rel}`);
                 this.options.onEvent?.({ type: "progress", exportId, phase: "copying", done: i + 1, total: copyFiles.length, path: rel, at: new Date().toISOString() });
             }
-            for (const path of copyFiles) { const before = sourceSnapshot.get(path)!; const after = await lstat(join(source, path)); if (after.size !== before.size || after.mtimeMs !== before.mtimeMs || (before.ino !== undefined && after.ino !== before.ino)) throw new Error(`The rendered source changed during export: ${path}`); }
+            for (const path of copyFiles) { const before = sourceSnapshot.get(path)!; const after = await lstat(join(source, path)); if (after.size !== before.size || after.mtimeMs !== before.mtimeMs || (before.ino !== undefined && String(after.ino) !== String(before.ino))) throw new Error(`The rendered source changed during export: ${path}`); }
             check();
             const settingsPath = join(stage, "settings.json");
             const settings = JSON.parse(await readFile(settingsPath, "utf8")) as Record<string, unknown>;
@@ -247,7 +247,7 @@ export class StaticMapExporter {
             }
             const omissions: string[] = [];
             if (request.basePath !== undefined) settings.basePath = request.basePath.replaceAll("\\", "/");
-            if (request.compression !== false) settings.clientDecompression = true;
+            settings.clientDecompression = true;
             if (selected !== null) settings.maps = (Array.isArray(settings.maps) ? settings.maps : []).filter((entry) => selected.includes(typeof entry === "string" ? entry : String((entry as { id?: unknown }).id ?? "")));
             await writeFile(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
             if (request.noJekyll !== false) await writeFile(join(stage, ".nojekyll"), "", "utf8");
@@ -263,7 +263,7 @@ export class StaticMapExporter {
                 const digest = await sha256(join(stage, rel));
                 totalBytes += digest.bytes;
                 if (totalBytes > MAX_TOTAL_BYTES) throw new Error("The export exceeds the total size limit.");
-                records.push({ path: rel, ...digest });
+                records.push({ path: rel, bytes: digest.bytes, sha256: digest.digest });
                 this.options.onEvent?.({ type: "progress", exportId, phase: "validating", done: i + 1, total: files.length, path: rel, at: new Date().toISOString() });
             }
             let engine: string | null = null;

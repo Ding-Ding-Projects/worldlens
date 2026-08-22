@@ -38,7 +38,7 @@ function digest(raw: string): string {
 function validMetadata(value: unknown): value is VocabularyCacheMetadata {
     if (value === null || typeof value !== "object") return false;
     const metadata = value as Partial<VocabularyCacheMetadata>;
-    return Number.isSafeInteger(metadata.revision) && metadata.revision > 0 && metadata.revision <= 1_000_000_000
+    return Number.isSafeInteger(metadata.revision) && metadata.revision !== undefined && metadata.revision > 0 && metadata.revision <= 1_000_000_000
         && typeof metadata.sourceDigest === "string" && /^[a-f0-9]{64}$/u.test(metadata.sourceDigest)
         && typeof metadata.loadedAt === "string" && Number.isFinite(Date.parse(metadata.loadedAt));
 }
