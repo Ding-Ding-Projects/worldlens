@@ -9,7 +9,12 @@ import {
     VCardActions,
     VCardText,
     VCardTitle,
+    VCheckbox,
+    VChip,
     VDialog,
+    VMenu,
+    VList,
+    VListItem,
     VTab,
     VTabs,
     VTable,
@@ -17,22 +22,23 @@ import {
     VWindow,
     VWindowItem,
 } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { useServerStore } from "./useServers.js";
 import { writeBlockReason } from "./serverModel.js";
+import { playersAction, playersList, type PlayerActionKind, type PlayerRecord } from "./mcserverBridge.js";
 
 /**
- * Ops, the whitelist and bans, as three record tables rather than three JSON files nobody
- * is asked to hand-edit. Each of Minecraft's own list files (`ops.json`, `whitelist.json`,
- * `banned-players.json`) is a flat JSON array of `{ name/uuid, ... }` records; this reads,
- * renders and rewrites that array through the same file bridge every other write here uses.
+ * Who is online right now, plus the three flat-file lists (ops, whitelist, bans) as real
+ * record tables. The online tab talks to the running server through `players.*`; the list
+ * tabs read and rewrite the JSON files directly, exactly as before.
  */
 const props = defineProps<{ serverId: string }>();
 
 const { t } = useI18n();
 const store = useServerStore();
 
-type ListKind = "ops" | "whitelist" | "bans";
-const FILES: Record<ListKind, string> = {
+type ListKind = "online" | "ops" | "whitelist" | "bans";
+const FILES: Record<Exclude<ListKind, "online">, string> = {
     ops: "ops.json",
     whitelist: "whitelist.json",
     bans: "banned-players.json",
@@ -43,13 +49,20 @@ interface Entry {
     readonly raw: Record<string, unknown>;
 }
 
-const tab = ref<ListKind>("whitelist");
-const lists = reactive<Record<ListKind, Entry[]>>({ ops: [], whitelist: [], bans: [] });
-const hashes = reactive<Record<ListKind, string | null>>({ ops: null, whitelist: null, bans: null });
+const tab = ref<ListKind>("online");
+const lists = reactive<Record<Exclude<ListKind, "online">, Entry[]>>({ ops: [], whitelist: [], bans: [] });
+const hashes = reactive<Record<Exclude<ListKind, "online">, string | null>>({ ops: null, whitelist: null, bans: null });
 const failure = ref<string | null>(null);
 const addDialog = ref(false);
 const newName = ref("");
 const newReason = ref("");
+
+const online = ref<PlayerRecord[]>([]);
+const onlineFailure = ref<string | null>(null);
+const query = ref("");
+const useRegex = ref(false);
+const flags = ref("i");
+const selected = ref<Set<string>>(new Set());
 
 function parseList(text: string): Entry[] {
     try {
@@ -63,15 +76,13 @@ function parseList(text: string): Entry[] {
     }
 }
 
-async function loadList(kind: ListKind): Promise<void> {
+async function loadList(kind: Exclude<ListKind, "online">): Promise<void> {
     const result = await store.files.read(props.serverId, FILES[kind]);
     if (result.ok && result.value) {
         lists[kind] = parseList(new TextDecoder().decode(result.value.bytes));
         hashes[kind] = result.value.hash;
         failure.value = null;
     } else if (result.ok === false && result.failure?.code === "not-found") {
-        // No file yet means an empty list, not a failure - Minecraft only writes these once
-        // something is added.
         lists[kind] = [];
         hashes[kind] = null;
     } else {
@@ -79,8 +90,19 @@ async function loadList(kind: ListKind): Promise<void> {
     }
 }
 
+async function loadOnline(): Promise<void> {
+    const result = await playersList(props.serverId);
+    if (result.ok) {
+        online.value = [...(result.value ?? [])];
+        onlineFailure.value = null;
+    } else {
+        onlineFailure.value = result.failure?.message ?? t("mcserver.players.onlineFailed", "Could not reach the running server.");
+        online.value = [];
+    }
+}
+
 async function loadAll(): Promise<void> {
-    await Promise.all((Object.keys(FILES) as ListKind[]).map(loadList));
+    await Promise.all([loadOnline(), loadList("ops"), loadList("whitelist"), loadList("bans")]);
 }
 
 onMounted(loadAll);
@@ -90,7 +112,7 @@ const capabilities = computed(() => store.capabilitiesFor(props.serverId));
 const server = computed(() => store.get(props.serverId));
 const blockReason = computed(() => (server.value ? writeBlockReason(server.value, capabilities.value) : null));
 
-async function persist(kind: ListKind): Promise<void> {
+async function persist(kind: Exclude<ListKind, "online">): Promise<void> {
     const result = await store.files.write(props.serverId, FILES[kind], {
         text: JSON.stringify(
             lists[kind].map((entry) => entry.raw),
@@ -107,6 +129,15 @@ async function persist(kind: ListKind): Promise<void> {
     }
 }
 
+function nameValid(name: string): string | null {
+    if (name.trim() === "") return t("mcserver.players.nameRequired", "A player name is required.");
+    if (!/^[A-Za-z0-9_]{1,16}$/.test(name.trim())) {
+        return t("mcserver.players.nameInvalid", "Minecraft names are 1-16 characters of letters, digits and underscores.");
+    }
+    return null;
+}
+const newNameError = computed(() => (newName.value === "" ? null : nameValid(newName.value)));
+
 function openAdd(): void {
     newName.value = "";
     newReason.value = "";
@@ -114,21 +145,62 @@ function openAdd(): void {
 }
 
 async function confirmAdd(): Promise<void> {
-    if (newName.value.trim() === "") return;
+    if (tab.value === "online" || nameValid(newName.value) !== null) return;
+    const kind = tab.value;
     const raw: Record<string, unknown> =
-        tab.value === "bans"
+        kind === "bans"
             ? { name: newName.value.trim(), reason: newReason.value.trim() || "Banned by an operator." }
-            : tab.value === "ops"
+            : kind === "ops"
               ? { name: newName.value.trim(), level: 4, bypassesPlayerLimit: false }
               : { name: newName.value.trim() };
-    lists[tab.value] = [...lists[tab.value], { name: newName.value.trim(), raw }];
-    await persist(tab.value);
+    lists[kind] = [...lists[kind], { name: newName.value.trim(), raw }];
+    await persist(kind);
     addDialog.value = false;
 }
 
-async function remove(kind: ListKind, name: string): Promise<void> {
+async function remove(kind: Exclude<ListKind, "online">, name: string): Promise<void> {
     lists[kind] = lists[kind].filter((entry) => entry.name !== name);
     await persist(kind);
+}
+
+async function bulkRemove(kind: Exclude<ListKind, "online">): Promise<void> {
+    const targets = selected.value;
+    lists[kind] = lists[kind].filter((entry) => !targets.has(entry.name));
+    selected.value = new Set();
+    await persist(kind);
+}
+
+const filteredOnline = computed(() => {
+    if (query.value.trim() === "") return online.value;
+    if (!useRegex.value) {
+        const needle = query.value.toLowerCase();
+        return online.value.filter((p) => p.name.toLowerCase().includes(needle));
+    }
+    try {
+        const pattern = new RegExp(query.value, flags.value);
+        return online.value.filter((p) => pattern.test(p.name));
+    } catch {
+        return [];
+    }
+});
+
+async function act(name: string, action: PlayerActionKind, reason?: string): Promise<void> {
+    const request: { action: PlayerActionKind; name: string; reason?: string } = reason === undefined ? { action, name } : { action, name, reason };
+    const result = await playersAction(props.serverId, request);
+    if (result.ok) await loadOnline();
+    else onlineFailure.value = result.failure?.message ?? t("mcserver.players.actionFailed", "That action failed.");
+}
+
+function toggleSelect(name: string): void {
+    const next = new Set(selected.value);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    selected.value = next;
+}
+
+async function bulkKick(): Promise<void> {
+    for (const name of selected.value) await act(name, "kick", t("mcserver.players.bulkKickReason", "Removed by an operator.") as string);
+    selected.value = new Set();
 }
 </script>
 
@@ -138,16 +210,27 @@ async function remove(kind: ListKind, name: string): Promise<void> {
         <VAlert v-if="blockReason" type="info" variant="tonal" class="mb-2">{{ blockReason }}</VAlert>
 
         <VTabs v-model="tab">
+            <VTab value="online">{{ t("mcserver.players.online", "Online") }}</VTab>
             <VTab value="whitelist">{{ t("mcserver.players.whitelist", "Whitelist") }}</VTab>
             <VTab value="ops">{{ t("mcserver.players.ops", "Operators") }}</VTab>
             <VTab value="bans">{{ t("mcserver.players.bans", "Bans") }}</VTab>
         </VTabs>
 
         <div class="wl-mcserver-players__toolbar">
+            <ConfigSearchField
+                v-if="tab === 'online'"
+                v-model="query"
+                v-model:regex="useRegex"
+                v-model:flags="flags"
+                :label="t('mcserver.players.search', 'Search players')"
+                :sample="online.map((p) => p.name).join(' ')"
+                class="wl-mcserver-players__search"
+            />
             <VBtn :prepend-icon="mdiRefresh" variant="text" size="small" @click="loadAll">
                 {{ t("mcserver.players.refresh", "Refresh") }}
             </VBtn>
             <VBtn
+                v-if="tab !== 'online'"
                 :prepend-icon="mdiAccountPlus"
                 variant="tonal"
                 color="primary"
@@ -158,19 +241,77 @@ async function remove(kind: ListKind, name: string): Promise<void> {
             >
                 {{ t("mcserver.players.add", "Add player") }}
             </VBtn>
+            <VBtn
+                v-if="tab !== 'online' && selected.size > 0"
+                :prepend-icon="mdiDelete"
+                variant="tonal"
+                size="small"
+                :disabled="!!blockReason"
+                :title="blockReason ?? undefined"
+                @click="bulkRemove(tab as Exclude<ListKind, 'online'>)"
+            >
+                {{ t("mcserver.players.bulkRemove", { n: selected.size }, "Remove {n}") }}
+            </VBtn>
+            <VBtn v-if="tab === 'online' && selected.size > 0" :prepend-icon="mdiDelete" variant="tonal" size="small" @click="bulkKick">
+                {{ t("mcserver.players.bulkKick", { n: selected.size }, "Kick {n}") }}
+            </VBtn>
         </div>
 
         <VWindow v-model="tab">
+            <VWindowItem value="online">
+                <VAlert v-if="onlineFailure" type="warning" variant="tonal">{{ onlineFailure }}</VAlert>
+                <VTable v-else-if="filteredOnline.length > 0">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>{{ t("mcserver.players.name", "Name") }}</th>
+                            <th>{{ t("mcserver.players.actions", "Actions") }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in filteredOnline" :key="p.name">
+                            <td><VCheckbox :model-value="selected.has(p.name)" hide-details density="compact" @update:model-value="toggleSelect(p.name)" /></td>
+                            <td>
+                                {{ p.name }}
+                                <VChip v-if="p.op" size="x-small" color="primary" variant="tonal">op</VChip>
+                                <VChip v-if="p.banned" size="x-small" color="error" variant="tonal">banned</VChip>
+                            </td>
+                            <td>
+                                <VMenu>
+                                    <template #activator="{ props: menuProps }">
+                                        <VBtn v-bind="menuProps" size="small" variant="text">{{ t("mcserver.players.act", "Act...") }}</VBtn>
+                                    </template>
+                                    <VList>
+                                        <VListItem @click="act(p.name, 'kick')">{{ t("mcserver.players.kick", "Kick") }}</VListItem>
+                                        <VListItem @click="act(p.name, 'ban')">{{ t("mcserver.players.ban", "Ban") }}</VListItem>
+                                        <VListItem @click="act(p.name, 'pardon')">{{ t("mcserver.players.pardon", "Pardon") }}</VListItem>
+                                        <VListItem @click="act(p.name, p.op ? 'deop' : 'op')">
+                                            {{ p.op ? t("mcserver.players.deop", "Deop") : t("mcserver.players.op", "Op") }}
+                                        </VListItem>
+                                        <VListItem @click="act(p.name, p.whitelisted ? 'whitelist-remove' : 'whitelist-add')">
+                                            {{ p.whitelisted ? t("mcserver.players.unwhitelist", "Remove from whitelist") : t("mcserver.players.whitelistAdd", "Add to whitelist") }}
+                                        </VListItem>
+                                    </VList>
+                                </VMenu>
+                            </td>
+                        </tr>
+                    </tbody>
+                </VTable>
+                <VAlert v-else type="info" variant="tonal">{{ t("mcserver.players.noneOnline", "Nobody is online right now.") }}</VAlert>
+            </VWindowItem>
+
             <VWindowItem v-for="kind in (['whitelist', 'ops', 'bans'] as const)" :key="kind" :value="kind">
                 <VTable v-if="lists[kind].length > 0">
                     <thead>
                         <tr>
+                            <th></th>
                             <th>{{ t("mcserver.players.name", "Name") }}</th>
                             <th>{{ t("mcserver.players.actions", "Actions") }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="entry in lists[kind]" :key="entry.name">
+                            <td><VCheckbox :model-value="selected.has(entry.name)" hide-details density="compact" @update:model-value="toggleSelect(entry.name)" /></td>
                             <td>{{ entry.name }}</td>
                             <td>
                                 <VBtn
@@ -196,7 +337,7 @@ async function remove(kind: ListKind, name: string): Promise<void> {
             <VCard>
                 <VCardTitle>{{ t("mcserver.players.addTitle", "Add player") }}</VCardTitle>
                 <VCardText>
-                    <VTextField v-model="newName" :label="t('mcserver.players.playerName', 'Player name')" />
+                    <VTextField v-model="newName" :label="t('mcserver.players.playerName', 'Player name')" :error-messages="newNameError ? [newNameError] : []" />
                     <VTextField
                         v-if="tab === 'bans'"
                         v-model="newReason"
@@ -205,7 +346,7 @@ async function remove(kind: ListKind, name: string): Promise<void> {
                 </VCardText>
                 <VCardActions>
                     <VBtn variant="text" @click="addDialog = false">{{ t("common.cancel", "Cancel") }}</VBtn>
-                    <VBtn color="primary" variant="tonal" :disabled="newName.trim() === ''" @click="confirmAdd">
+                    <VBtn color="primary" variant="tonal" :disabled="nameValid(newName) !== null" @click="confirmAdd">
                         {{ t("mcserver.players.add", "Add player") }}
                     </VBtn>
                 </VCardActions>
@@ -218,6 +359,11 @@ async function remove(kind: ListKind, name: string): Promise<void> {
 .wl-mcserver-players__toolbar {
     display: flex;
     gap: 8px;
+    align-items: center;
     margin: 12px 0;
+    flex-wrap: wrap;
+}
+.wl-mcserver-players__search {
+    flex: 1 1 260px;
 }
 </style>

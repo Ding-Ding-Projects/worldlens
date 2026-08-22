@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiPlay, mdiStop } from "@mdi/js";
-import { VAlert, VBtn, VChip, VTab, VTabs, VWindow, VWindowItem } from "vuetify/components";
+import { mdiLan, mdiLock, mdiPlay, mdiStop } from "@mdi/js";
+import { VAlert, VBtn, VChip, VDivider, VTab, VTabs, VTextField, VWindow, VWindowItem } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import ServerConsole from "./ServerConsole.vue";
 import ServerConfigEditor from "./ServerConfigEditor.vue";
@@ -10,19 +10,28 @@ import PluginManager from "./PluginManager.vue";
 import PlayerManager from "./PlayerManager.vue";
 import { useServerStore } from "./useServers.js";
 import { flavourName, lifecycleBlockReason, stateLabel, transportSummary } from "./serverModel.js";
-import { ref } from "vue";
+import {
+    webConsoleBind,
+    webConsoleSetPassword,
+    webConsoleStart,
+    webConsoleStatus,
+    webConsoleStop,
+    type WebConsoleStatus,
+} from "./mcserverBridge.js";
 
 /**
- * One server's whole panel: lifecycle controls, its console, its `server.properties`, its
- * plugins and its players, in tabs. Named `WebConsolePanel` per the assignment - it is the
- * "open one server and work on it" surface the shell hosts as the job's main view.
+ * One server's whole panel: lifecycle controls, its console, its configuration files, its
+ * plugins, its players, and - on its own tab - the locally hosted web management console.
+ *
+ * The web-console password crosses this component exactly once, inbound to `setPassword`,
+ * and is never echoed back, logged, or bound into any other field.
  */
 const props = defineProps<{ serverId: string }>();
 const emit = defineEmits<{ forgotten: [] }>();
 
 const { t } = useI18n();
 const store = useServerStore();
-const tab = ref<"console" | "config" | "plugins" | "players">("console");
+const tab = ref<"console" | "config" | "plugins" | "players" | "web">("console");
 
 async function refresh(): Promise<void> {
     await store.probe(props.serverId);
@@ -53,6 +62,50 @@ async function stop(): Promise<void> {
 async function confirmForget(): Promise<void> {
     const result = await store.forget(props.serverId);
     if (result.ok) emit("forgotten");
+}
+
+// --- Web console ---
+const webStatus = ref<WebConsoleStatus | null>(null);
+const webFailure = ref<string | null>(null);
+const newPassword = ref("");
+const passwordSaved = ref(false);
+
+async function loadWebStatus(): Promise<void> {
+    const result = await webConsoleStatus();
+    if (result.ok) {
+        webStatus.value = result.value ?? null;
+        webFailure.value = null;
+    } else {
+        webFailure.value = result.failure?.message ?? t("mcserver.web.statusFailed", "Could not read the web console's status.");
+    }
+}
+onMounted(loadWebStatus);
+
+async function startWeb(): Promise<void> {
+    const result = await webConsoleStart(undefined);
+    if (result.ok) webStatus.value = result.value ?? null;
+    else webFailure.value = result.failure?.message ?? t("mcserver.web.startFailed", "Could not start the web console.");
+}
+async function stopWeb(): Promise<void> {
+    const result = await webConsoleStop();
+    if (result.ok) await loadWebStatus();
+    else webFailure.value = result.failure?.message ?? t("mcserver.web.stopFailed", "Could not stop the web console.");
+}
+async function rebind(): Promise<void> {
+    const result = await webConsoleBind();
+    if (result.ok) webStatus.value = result.value ?? null;
+    else webFailure.value = result.failure?.message ?? t("mcserver.web.bindFailed", "Could not change the bind address.");
+}
+async function setPassword(): Promise<void> {
+    if (newPassword.value.trim() === "") return;
+    const result = await webConsoleSetPassword(newPassword.value);
+    newPassword.value = "";
+    if (result.ok) {
+        passwordSaved.value = true;
+        await loadWebStatus();
+    } else {
+        webFailure.value = result.failure?.message ?? t("mcserver.web.passwordFailed", "Could not set the password.");
+    }
 }
 </script>
 
@@ -103,12 +156,65 @@ async function confirmForget(): Promise<void> {
             <VTab value="config">{{ t("mcserver.panel.tabConfig", "Configuration") }}</VTab>
             <VTab value="plugins">{{ t("mcserver.panel.tabPlugins", "Plugins") }}</VTab>
             <VTab value="players">{{ t("mcserver.panel.tabPlayers", "Players") }}</VTab>
+            <VTab value="web">{{ t("mcserver.panel.tabWeb", "Web console") }}</VTab>
         </VTabs>
         <VWindow v-model="tab">
             <VWindowItem value="console"><ServerConsole :server-id="server.id" /></VWindowItem>
             <VWindowItem value="config"><ServerConfigEditor :server-id="server.id" /></VWindowItem>
             <VWindowItem value="plugins"><PluginManager :server-id="server.id" /></VWindowItem>
             <VWindowItem value="players"><PlayerManager :server-id="server.id" /></VWindowItem>
+            <VWindowItem value="web">
+                <div class="wl-mcserver-web">
+                    <VAlert v-if="webFailure" type="warning" variant="tonal" class="mb-2">{{ webFailure }}</VAlert>
+                    <VAlert v-if="passwordSaved" type="success" variant="tonal" class="mb-2">
+                        {{ t("mcserver.web.passwordSaved", "Password updated.") }}
+                    </VAlert>
+
+                    <div class="wl-mcserver-web__status">
+                        <VChip :color="webStatus?.running ? 'success' : 'surface'" variant="flat">
+                            {{ webStatus?.running ? t("mcserver.web.running", "Running") : t("mcserver.web.stopped", "Stopped") }}
+                        </VChip>
+                        <VChip v-if="webStatus" size="small" variant="tonal">{{ webStatus.host }}:{{ webStatus.port ?? "?" }}</VChip>
+                        <VChip v-if="webStatus?.hasPassword" size="small" color="primary" variant="tonal" :prepend-icon="mdiLock">
+                            {{ t("mcserver.web.hasPassword", "Password set") }}
+                        </VChip>
+                    </div>
+
+                    <VAlert v-if="webStatus?.loopbackOnly" type="info" variant="tonal" class="my-2">
+                        {{ t("mcserver.web.loopback", "Only reachable from this machine. Rebind to make it reachable on the LAN - understand that anyone on that network who knows the password can reach it too.") }}
+                    </VAlert>
+                    <VAlert v-else-if="webStatus?.running" type="warning" variant="tonal" class="my-2">
+                        {{ t("mcserver.web.lan", "Reachable from your local network. Make sure the password is strong.") }}
+                    </VAlert>
+
+                    <div class="wl-mcserver-web__actions">
+                        <VBtn :prepend-icon="mdiPlay" variant="tonal" color="primary" :disabled="webStatus?.running === true" @click="startWeb">
+                            {{ t("mcserver.web.start", "Start") }}
+                        </VBtn>
+                        <VBtn :prepend-icon="mdiStop" variant="tonal" :disabled="webStatus?.running !== true" @click="stopWeb">
+                            {{ t("mcserver.web.stop", "Stop") }}
+                        </VBtn>
+                        <VBtn :prepend-icon="mdiLan" variant="text" @click="rebind">
+                            {{ t("mcserver.web.rebind", "Change bind address") }}
+                        </VBtn>
+                    </div>
+
+                    <VDivider class="my-3" />
+                    <div class="wl-mcserver-web__password">
+                        <VTextField
+                            v-model="newPassword"
+                            type="password"
+                            autocomplete="new-password"
+                            :label="t('mcserver.web.newPassword', 'Set a new password')"
+                            density="compact"
+                            hide-details
+                        />
+                        <VBtn variant="tonal" :disabled="newPassword.trim() === ''" @click="setPassword">
+                            {{ t("mcserver.web.setPassword", "Set password") }}
+                        </VBtn>
+                    </div>
+                </div>
+            </VWindowItem>
         </VWindow>
 
         <ConfigSuperConfirm
@@ -148,5 +254,21 @@ async function confirmForget(): Promise<void> {
 }
 .wl-mcserver-panel__forget {
     margin-top: 24px;
+}
+.wl-mcserver-web__status {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.wl-mcserver-web__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+.wl-mcserver-web__password {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    max-width: 420px;
 }
 </style>
