@@ -8,6 +8,7 @@ import ServerConsole from "./ServerConsole.vue";
 import ServerConfigEditor from "./ServerConfigEditor.vue";
 import PluginManager from "./PluginManager.vue";
 import PlayerManager from "./PlayerManager.vue";
+import AwsProvisionPanel from "./AwsProvisionPanel.vue";
 import { useServerStore } from "./useServers.js";
 import { flavourName, lifecycleBlockReason, stateLabel, transportSummary } from "./serverModel.js";
 import {
@@ -31,7 +32,7 @@ const emit = defineEmits<{ forgotten: [] }>();
 
 const { t } = useI18n();
 const store = useServerStore();
-const tab = ref<"console" | "config" | "plugins" | "players" | "web">("console");
+const tab = ref<"console" | "config" | "plugins" | "players" | "web" | "aws">("console");
 
 async function refresh(): Promise<void> {
     await store.probe(props.serverId);
@@ -157,6 +158,7 @@ async function setPassword(): Promise<void> {
             <VTab value="plugins">{{ t("mcserver.panel.tabPlugins", "Plugins") }}</VTab>
             <VTab value="players">{{ t("mcserver.panel.tabPlayers", "Players") }}</VTab>
             <VTab value="web">{{ t("mcserver.panel.tabWeb", "Web console") }}</VTab>
+            <VTab value="aws">{{ t("mcserver.panel.tabAws", "AWS hosting") }}</VTab>
         </VTabs>
         <VWindow v-model="tab">
             <VWindowItem value="console"><ServerConsole :server-id="server.id" /></VWindowItem>
@@ -215,6 +217,7 @@ async function setPassword(): Promise<void> {
                     </div>
                 </div>
             </VWindowItem>
+            <VWindowItem value="aws"><AwsProvisionPanel :server-id="server.id" /></VWindowItem>
         </VWindow>
 
         <ConfigSuperConfirm
