@@ -647,3 +647,4 @@ cd design && npx vitest run packages/parts packages/app packages/ui/src/componen
 - `design/packages/app/src/main/download/downloader.ts`——下載步驟嘅次序，同點解個次序就係設計。
 - `design/packages/app/src/main/download/zip.ts`——個 zip reader，包括點解係手寫同 Zip64 改變咗乜。
 - `design/packages/ui/src/components/downloads/`——個 panel 本身、佢啲行，同一個失敗點樣變成一個解釋加一條去可以修正嘅設定嘅路。
+- [Rendering on AWS](./aws-render.md)

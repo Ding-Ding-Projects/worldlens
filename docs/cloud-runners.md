@@ -166,3 +166,5 @@ workflow 語法同渲染出嚟嘅文件；不過真正嘅執行期證明，仍�
 - [Rendering a world in GitHub Actions](./render-in-actions.md)
 - [Rendering a private world](./private-world-rendering.md)
 - [Publishing a rendered map to GitHub Pages](./pages-hosting.md)
+- [Rendering on AWS](./aws-render.md)
+- [Serving a map from AWS](./aws-hosting.md)

@@ -27,9 +27,16 @@
  * - **A private repository's Actions minutes are finite.** Public repositories get
  *   unlimited standard-runner minutes; private ones spend from a monthly allowance, and a
  *   sharded render spends one runner-minute per runner per minute.
- * - **There is a ceiling.** The workflow fetches one zip from a release, so a world whose
- *   archive would pass a release asset's 2 GiB limit cannot be dispatched at all. That is
- *   refused before anything is packed, with the reason.
+ * - **A release asset caps at 1.5 GB, so a world is uploaded in verified parts.** It is no
+ *   longer a ceiling on world size: a world past that is split, each part is published
+ *   with its digest, and the workflow reassembles them. What it costs is a full extra pass
+ *   over the world on disk before anything is uploaded.
+ *
+ *   This entry used to say a world whose archive passed 2 GiB could not be dispatched at
+ *   all. That stopped being true when part uploads landed, and the sentence stayed - which
+ *   is the ordinary way a doc comment becomes actively misleading rather than merely old.
+ *   The AWS route in `../awsrender/` has no equivalent limit at all, because S3 takes a
+ *   single object to 5 TB and does multipart transfer itself.
  * - **A very large world can still exceed a job's budget**, and a map too large to
  *   assemble on one runner ships in parts that this collector deliberately refuses rather
  *   than half-unpacking.
