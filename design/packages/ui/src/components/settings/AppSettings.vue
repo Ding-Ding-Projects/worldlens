@@ -15,6 +15,7 @@ import { schoolModeEnabled } from "../setup/schoolMode.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import DockedSurface from "./DockedSurface.vue";
 import DependencyInstallerPanel from "./DependencyInstallerPanel.vue";
+import AwsAccountsPanel from "./AwsAccountsPanel.vue";
 import AddonManagerPanel from "./AddonManagerPanel.vue";
 import BlueMapSourceRow from "./BlueMapSourceRow.vue";
 import { blueMapSourceSearchValues } from "./bluemapSourceStore.js";
@@ -181,6 +182,7 @@ const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(nul
 const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const awsAccountsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const addonsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const blueMapSourceSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -430,6 +432,16 @@ const sections = computed<SettingsSectionText[]>(() => {
             description: text["system-dependencies"].description,
             values: ["git", "GitHub CLI", "Docker Desktop", "rsync", "winget", "Chocolatey"],
         },
+        // No searchable "values" beyond the section's own copy - the live account list
+        // lives inside AwsAccountsPanel and would need this component to hold a second
+        // copy of AWS state purely so the search bar could see it, for a payoff of
+        // finding a row that is also right there once the section is open.
+        {
+            anchor: "aws-accounts",
+            title: text["aws-accounts"].title,
+            description: text["aws-accounts"].description,
+            values: [],
+        },
         {
             anchor: "addons",
             title: text.addons.title,
@@ -603,6 +615,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return noticeDurationSection.value;
         case "system-dependencies":
             return systemDependenciesSection.value;
+        case "aws-accounts":
+            return awsAccountsSection.value;
         case "addons":
             return addonsSection.value;
         case "bluemap-engine":
@@ -1112,6 +1126,22 @@ function onDrawer(value: boolean): void {
                         :description="copy['system-dependencies'].description"
                     >
                         <DependencyInstallerPanel />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    Every AWS account this machine's CLI profiles can reach. The panel
+                    resolves its own bridge and reads accounts fresh each time - there is
+                    no account list of this app's own, per `main/mcserver/aws/accounts.ts`.
+                -->
+                <template #aws-accounts>
+                    <SettingsSection
+                        ref="awsAccountsSection"
+                        anchor="aws-accounts"
+                        :title="copy['aws-accounts'].title"
+                        :description="copy['aws-accounts'].description"
+                    >
+                        <AwsAccountsPanel />
                     </SettingsSection>
                 </template>
 

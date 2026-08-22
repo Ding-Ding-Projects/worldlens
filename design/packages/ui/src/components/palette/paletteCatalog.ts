@@ -273,12 +273,77 @@ const PAGE_NOTES: Record<string, { description: [string, string]; keywords: read
         ],
         keywords: ["git", "repository", "sync", "world repo", "adopt", "adoption", "clone", "marker", "incremental"],
     },
-    remoteHosting: {
+    mcservers: {
         description: [
-            "palette.page.remoteHosting",
-            "Publish a finished rendered map to a saved SSH target running Docker, then verify, republish or stop it.",
+            "palette.page.mcservers",
+            "Host Server: create, start, stop and manage a real Minecraft server - its console, configuration, plugins, players, adopting one that already exists, its web console, and provisioning one on AWS.",
         ],
-        keywords: ["remote hosting", "ssh", "docker", "publish", "republish", "stop hosting", "finished map"],
+        keywords: [
+            "host server",
+            "minecraft server",
+            "create server",
+            "start server",
+            "stop server",
+            "console",
+            "server config",
+            "plugins",
+            "players",
+            "adopt",
+            "adoption",
+            "web console",
+            "aws",
+            "aws provision",
+            "ec2",
+            "rcon",
+        ],
+    },
+    structures: {
+        description: ["palette.page.structures", "Placing and managing structure schematics inside a rendered world."],
+        keywords: ["structure", "schematic", "placement", "build"],
+    },
+    chunker: {
+        description: ["palette.page.chunker", "Converting and repairing a world's chunk data between formats."],
+        keywords: ["chunk", "convert", "repair", "format", "region"],
+    },
+    authenticator: {
+        description: ["palette.page.authenticator", "The built-in TOTP authenticator: pairing, live codes, and every registered secret."],
+        keywords: ["totp", "otp", "two-factor", "2fa", "authenticator", "qr code", "code"],
+    },
+    locks: {
+        description: ["palette.page.locks", "Every-element toy lock: which elements are locked, and by password or OTP."],
+        keywords: ["lock", "unlock", "password", "otp", "toy lock"],
+    },
+    support: {
+        description: ["palette.page.support", "Support Tickets: the recovery route for a locked-out element or account."],
+        keywords: ["support", "ticket", "recovery", "locked out", "forgotten password"],
+    },
+    renders: {
+        description: ["palette.page.renders", "Every render this app has run, and its current progress or result."],
+        keywords: ["render", "progress", "job", "history", "log"],
+    },
+    preview: {
+        description: ["palette.page.preview", "A live preview of a rendered map before it is published anywhere."],
+        keywords: ["preview", "live", "local server"],
+    },
+    docs: {
+        description: ["palette.page.docs", "This app's own bundled, offline documentation browser."],
+        keywords: ["docs", "documentation", "help", "manual", "offline"],
+    },
+    ollama: {
+        description: ["palette.page.ollama", "The local Ollama suite manager: models, the store, chat, and harness profiles."],
+        keywords: ["ollama", "model", "llm", "chat", "local ai", "harness"],
+    },
+    dockerHosting: {
+        description: ["palette.page.dockerHosting", "Hosting a rendered map or server through Docker on a saved host."],
+        keywords: ["docker", "hosting", "container", "host"],
+    },
+    screenshots: {
+        description: ["palette.page.screenshots", "Every captured screenshot this app has taken, and where it was captured from."],
+        keywords: ["screenshot", "capture", "image", "picture"],
+    },
+    browserExtension: {
+        description: ["palette.page.browserExtension", "The companion browser extension: install, download capture, and its status."],
+        keywords: ["browser extension", "download capture", "install extension", "chrome", "edge"],
     },
 };
 
