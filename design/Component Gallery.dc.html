@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  body { margin: 0; background: #0B0E11; }
+  a { color: #8FCDFF; }
+  a:hover { color: #CEE5FF; }
+  .msr { font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal; line-height: 1; display: inline-block; white-space: nowrap; -webkit-font-feature-settings: "liga"; -webkit-font-smoothing: antialiased; }
+</style>
+</helmet>
+
+<div data-wl-theme="{{ themeId }}" style="width: 1240px; background: var(--wl-bg); color: var(--wl-on-surf); font-family: Roboto, Helvetica, sans-serif; padding: 48px 64px 96px; box-sizing: border-box;">
+
+  <div style="display: flex; align-items: flex-end; gap: 20px; margin-bottom: 12px;">
+    <div style="flex: 1;">
+      <div style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--wl-outline);">Worldlens</div>
+      <h1 style="margin: 2px 0 0; font-size: 40px; font-weight: 400; letter-spacing: -0.01em;">Component gallery</h1>
+    </div>
+    <div style="display: flex; gap: 6px; padding: 4px; border-radius: 22px; border: 1px solid var(--wl-outline-var);">
+      <sc-for list="{{ themeSwitch }}" as="t" hint-placeholder-count="3">
+        <div onClick="{{ t.pick }}" style="height: 34px; padding: 0 18px; border-radius: 17px; background: {{ t.bg }}; color: {{ t.fg }}; font-size: 13px; font-weight: 500; display: grid; place-items: center; cursor: pointer;">{{ t.label }}</div>
+      </sc-for>
+    </div>
+  </div>
+  <p style="margin: 0 0 40px; font-size: 15px; line-height: 23px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">Every part the shell is built from, in one place, in whichever scheme you switch to. Each part names the component file that owns it, so a change here has one place to land.</p>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px;">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 400;">Navigation rail</h2>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">shell/AppRail.vue</div>
+  </div>
+  <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">Three destinations and three footer actions. The active indicator is a 56×32 full-corner pill — MD3's navigation-rail spec, not a filled square. The badge on Work reads the open-job count. There are no floating action buttons anywhere; search, the bell and settings live in the footer.</p>
+  <div style="display: flex; gap: 20px; margin-bottom: 44px; align-items: flex-start;">
+    <div style="width: 80px; height: 340px; box-sizing: border-box; background: var(--wl-surface); border: 1px solid var(--wl-outline-var); border-radius: 16px; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+        <div style="width: 56px; height: 32px; border-radius: 16px; background: var(--wl-prim-cont); color: var(--wl-on-prim-cont); display: grid; place-items: center;"><span class="msr" style="font-size: 22px;">home</span></div>
+        <div style="font-size: 12px; font-weight: 500; color: var(--wl-on-surf);">Home</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+        <div style="width: 56px; height: 32px; border-radius: 16px; color: var(--wl-on-surf-var); display: grid; place-items: center;"><span class="msr" style="font-size: 22px;">public</span></div>
+        <div style="font-size: 12px; color: var(--wl-on-surf-var);">Map</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+        <div style="width: 56px; height: 32px; border-radius: 16px; color: var(--wl-on-surf-var); display: grid; place-items: center; position: relative;">
+          <span class="msr" style="font-size: 22px;">handyman</span>
+          <div style="position: absolute; top: -2px; right: 10px; min-width: 16px; height: 16px; border-radius: 8px; background: var(--wl-primary); color: var(--wl-on-primary); font-size: 10px; font-weight: 700; display: grid; place-items: center; padding: 0 4px;">4</div>
+        </div>
+        <div style="font-size: 12px; color: var(--wl-on-surf-var);">Work</div>
+      </div>
+      <div style="flex: 1; min-height: 34px;"></div>
+      <div style="width: 48px; height: 48px; border-radius: 24px; display: grid; place-items: center; color: var(--wl-on-surf-var);"><span class="msr" style="font-size: 22px;">search</span></div>
+      <div style="width: 48px; height: 48px; border-radius: 24px; display: grid; place-items: center; color: var(--wl-on-surf-var); position: relative;"><span class="msr" style="font-size: 22px;">notifications</span><div style="position: absolute; top: 6px; right: 8px; min-width: 16px; height: 16px; border-radius: 8px; background: var(--wl-error); color: var(--wl-on-error); font-size: 10px; font-weight: 700; display: grid; place-items: center; padding: 0 4px;">6</div></div>
+      <div style="width: 48px; height: 48px; border-radius: 24px; display: grid; place-items: center; color: var(--wl-on-surf-var);"><span class="msr" style="font-size: 22px;">settings</span></div>
+    </div>
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+      <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 14px; padding: 14px 18px;">
+        <div style="font-size: 13px; font-weight: 500;">States, left to right</div>
+        <div style="display: flex; gap: 12px; margin-top: 12px;">
+          <div style="width: 56px; height: 32px; border-radius: 16px; background: var(--wl-prim-cont); color: var(--wl-on-prim-cont); display: grid; place-items: center;"><span class="msr" style="font-size: 22px;">home</span></div>
+          <div style="width: 56px; height: 32px; border-radius: 16px; background: var(--wl-surf-highest); color: var(--wl-on-surf); display: grid; place-items: center;"><span class="msr" style="font-size: 22px;">public</span></div>
+          <div style="width: 56px; height: 32px; border-radius: 16px; color: var(--wl-on-surf-var); display: grid; place-items: center;"><span class="msr" style="font-size: 22px;">handyman</span></div>
+          <div style="width: 56px; height: 32px; border-radius: 16px; color: var(--wl-outline); display: grid; place-items: center; outline: 2px solid var(--wl-primary); outline-offset: 2px;"><span class="msr" style="font-size: 22px;">menu_book</span></div>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--wl-outline);">
+          <div style="width: 56px; text-align: center;">active</div>
+          <div style="width: 56px; text-align: center;">hover</div>
+          <div style="width: 56px; text-align: center;">rest</div>
+          <div style="width: 56px; text-align: center;">focus</div>
+        </div>
+      </div>
+      <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 14px; padding: 14px 18px; font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var);">Minimum hit target is 48px on every rail item and every row action, whatever the visual size of the pill inside it.</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px;">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 400;">Catalogue cards</h2>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">shell/HomeCatalogues.vue</div>
+  </div>
+  <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">The hero is primary-container and full width — it is the only card with a filled button, because making a map is the one thing a newcomer is here for. The other four are outlined surface-container and identical in weight to each other. Feature previews inside a card cap at four, with the count in the header, so a card never becomes a list.</p>
+  <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 44px;">
+    <div style="background: var(--wl-prim-cont); color: var(--wl-on-prim-cont); border-radius: 16px; padding: 22px 24px; display: flex; gap: 22px; align-items: center;">
+      <div style="width: 56px; height: 56px; border-radius: 12px; background: var(--wl-primary); color: var(--wl-on-primary); display: grid; place-items: center;"><span class="msr" style="font-size: 28px;">add_location_alt</span></div>
+      <div style="flex: 1;">
+        <div style="font-size: 22px; font-weight: 500;">Make a map</div>
+        <div style="font-size: 14px; line-height: 21px; margin-top: 5px; max-width: 68ch;">Turn a Minecraft world into a browsable 3D map. Five questions, then it renders — on this computer, in a container, over SSH, or on GitHub's own runners.</div>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <div style="height: 44px; padding: 0 24px; border-radius: 22px; background: var(--wl-primary); color: var(--wl-on-primary); font-size: 14px; font-weight: 500; display: grid; place-items: center;">New map</div>
+        <div style="height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid var(--wl-on-prim-cont); font-size: 14px; display: grid; place-items: center;">Or walk me through it</div>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+      <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 16px; padding: 18px 20px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--wl-sec-cont); color: var(--wl-on-sec-cont); display: grid; place-items: center;"><span class="msr" style="font-size: 22px;">map</span></div>
+          <div style="font-size: 17px; font-weight: 500; flex: 1;">Your maps</div>
+          <div style="font-size: 12px; color: var(--wl-outline);">11 features</div>
+        </div>
+        <div style="font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); margin-top: 12px;">Everything already rendered: the viewer and its controls, markers, and the servers a map can come from.</div>
+        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--wl-on-surf-var); padding: 5px 0;"><span class="msr" style="font-size: 18px; color: var(--wl-outline);">chevron_right</span>Maps and servers</div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--wl-on-surf-var); padding: 5px 0;"><span class="msr" style="font-size: 18px; color: var(--wl-outline);">chevron_right</span>The viewer and its controls</div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--wl-on-surf-var); padding: 5px 0;"><span class="msr" style="font-size: 18px; color: var(--wl-outline);">chevron_right</span>Markers and marker sets</div>
+        </div>
+      </div>
+      <div style="background: var(--wl-surf-high); border: 1px solid var(--wl-outline-var); border-radius: 16px; padding: 18px 20px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--wl-tert-cont); color: var(--wl-on-tert-cont); display: grid; place-items: center;"><span class="msr" style="font-size: 22px;">ios_share</span></div>
+          <div style="font-size: 17px; font-weight: 500; flex: 1;">Share a map</div>
+          <div style="font-size: 12px; color: var(--wl-outline);">hover state</div>
+        </div>
+        <div style="font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); margin-top: 12px;">A finished render is a folder of static files. These are the places it can go, including one that never becomes public at all.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px;">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 400;">Feature row</h2>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">shell/CataloguePage.vue</div>
+  </div>
+  <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch;">No cards on a catalogue page: a back link, a header block, and a divided list. Each row's blurb is one sentence, and it is the article's own first sentence.</p>
+  <div style="border: 1px solid var(--wl-outline-var); border-radius: 16px; overflow: hidden; margin-bottom: 44px;">
+    <div style="display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--wl-surf-cont);">
+      <span class="msr" style="font-size: 22px; color: var(--wl-on-surf-var);">healing</span>
+      <div style="flex: 1;">
+        <div style="display: flex; align-items: baseline; gap: 10px;"><div style="font-size: 15px; font-weight: 500;">Automatic repair</div><div style="font-size: 12px; font-family: 'Roboto Mono', monospace; color: var(--wl-outline);">7 checks</div></div>
+        <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 3px;">Reads the log, names what it found, and proposes the edit — it does not apply one on your behalf.</div>
+      </div>
+      <span class="msr" style="font-size: 22px; color: var(--wl-outline);">chevron_right</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px; padding: 18px 20px; background: var(--wl-surf-high);">
+      <span class="msr" style="font-size: 22px; color: var(--wl-on-surf-var);">grid_on</span>
+      <div style="flex: 1;">
+        <div style="display: flex; align-items: baseline; gap: 10px;"><div style="font-size: 15px; font-weight: 500;">Render mask drawing</div><div style="font-size: 12px; font-family: 'Roboto Mono', monospace; color: var(--wl-outline);">5 tools</div></div>
+        <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 3px;">Draw the part of the world worth rendering, as an ordered list of additions and subtractions.</div>
+      </div>
+      <span class="msr" style="font-size: 22px; color: var(--wl-outline);">chevron_right</span>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px;">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 400;">Job strip</h2>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">TabbedNavigation.vue, re-hosted in WorkPane.vue</div>
+  </div>
+  <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">The old tab strip, scoped to the jobs the user actually started. It keeps docking, groups, pinning, reordering, overflow, the four discovery searches, bulk close and the context menu. Group labels render inline before their first member. Pinned chips show a pin and have no close button — the only close affordance in the shell is here.</p>
+  <div style="background: var(--wl-surface); border: 1px solid var(--wl-outline-var); border-radius: 16px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; margin-bottom: 44px; overflow: hidden;">
+    <div style="height: 38px; padding: 0 14px; border-radius: 8px 8px 0 0; background: var(--wl-surf-cont); border-bottom: 2px solid var(--wl-primary); display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500;"><span class="msr" style="font-size: 18px;">add_location_alt</span>Make a map<span class="msr" style="font-size: 15px; color: var(--wl-outline);">push_pin</span></div>
+    <div style="height: 28px; padding: 0 12px; border-radius: 14px; background: var(--wl-prim-cont); color: var(--wl-on-prim-cont); font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px;"><span class="msr" style="font-size: 14px;">expand_more</span>Rendering</div>
+    <div style="height: 38px; padding: 0 12px; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--wl-on-surf-var);"><span class="msr" style="font-size: 18px;">folder_open</span>Projects<span class="msr" style="font-size: 16px; color: var(--wl-outline);">close</span></div>
+    <div style="height: 38px; padding: 0 12px; border-radius: 8px 8px 0 0; background: var(--wl-surf-high); display: flex; align-items: center; gap: 8px; font-size: 13px;"><span class="msr" style="font-size: 18px;">pending</span>Renders (1)<span class="msr" style="font-size: 16px; color: var(--wl-outline);">close</span></div>
+    <div style="height: 28px; padding: 0 12px; border-radius: 14px; background: var(--wl-tert-cont); color: var(--wl-on-tert-cont); font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px;"><span class="msr" style="font-size: 14px;">expand_more</span>Finished maps</div>
+    <div style="height: 38px; padding: 0 12px; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--wl-on-surf-var);"><span class="msr" style="font-size: 18px;">dns</span>Maps and servers<span class="msr" style="font-size: 16px; color: var(--wl-outline);">close</span></div>
+    <span style="flex: 1;"></span>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline); padding: 0 8px;">⋯ 3</div>
+    <div style="width: 36px; height: 36px; border-radius: 18px; display: grid; place-items: center; color: var(--wl-on-surf-var);"><span class="msr" style="font-size: 20px;">add</span></div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px;">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 400;">Buttons, chips and badges</h2>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">corner-full, everywhere</div>
+  </div>
+  <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch;">One filled button per surface at most. Destructive actions are outlined in error until the confirmation gate, never filled red in a resting state.</p>
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px;">
+    <div style="height: 40px; padding: 0 22px; border-radius: 20px; background: var(--wl-primary); color: var(--wl-on-primary); font-size: 14px; font-weight: 500; display: grid; place-items: center;">Filled</div>
+    <div style="height: 40px; padding: 0 22px; border-radius: 20px; background: var(--wl-prim-press); color: var(--wl-on-primary); font-size: 14px; font-weight: 500; display: grid; place-items: center;">Pressed</div>
+    <div style="height: 40px; padding: 0 20px; border-radius: 20px; border: 1px solid var(--wl-outline); color: var(--wl-primary); font-size: 14px; display: grid; place-items: center;">Outlined</div>
+    <div style="height: 40px; padding: 0 16px; border-radius: 20px; color: var(--wl-primary); font-size: 14px; display: grid; place-items: center;">Text</div>
+    <div style="height: 40px; padding: 0 20px; border-radius: 20px; border: 1px solid var(--wl-error); color: var(--wl-error); font-size: 14px; display: grid; place-items: center;">Destructive</div>
+    <div style="height: 40px; padding: 0 20px; border-radius: 20px; border: 1px solid var(--wl-outline-var); color: var(--wl-outline); font-size: 14px; display: grid; place-items: center;">Disabled</div>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 44px;">
+    <div style="height: 30px; padding: 0 14px; border-radius: 15px; background: var(--wl-sec-cont); color: var(--wl-on-sec-cont); font-size: 12px; font-weight: 500; display: grid; place-items: center;">Bundled 21</div>
+    <div style="height: 30px; padding: 0 14px; border-radius: 15px; background: var(--wl-tert-cont); color: var(--wl-on-tert-cont); font-size: 12px; font-weight: 500; display: grid; place-items: center;">Unsaved changes</div>
+    <div style="height: 30px; padding: 0 14px; border-radius: 15px; background: var(--wl-err-cont); color: var(--wl-on-err-cont); font-size: 12px; font-weight: 500; display: grid; place-items: center;">Declined</div>
+    <div style="height: 30px; padding: 0 14px; border-radius: 15px; border: 1px solid var(--wl-outline-var); color: var(--wl-on-surf-var); font-size: 12px; display: grid; place-items: center;">Signed out</div>
+    <div style="height: 22px; padding: 0 8px; border-radius: 11px; background: var(--wl-error); color: var(--wl-on-error); font-size: 11px; font-weight: 700; display: grid; place-items: center;">re-renders tiles</div>
+    <div style="min-width: 20px; height: 20px; border-radius: 10px; background: var(--wl-primary); color: var(--wl-on-primary); font-size: 11px; font-weight: 700; display: grid; place-items: center; padding: 0 6px;">4</div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px;">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 400;">Fields</h2>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">rendered from FieldMeta, never a hand-written list</div>
+  </div>
+  <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">Each field carries its dotted path in monospace, its type, upstream's own documentation sentence, a control, and a re-renders-tiles badge where that is true. A field the user changed turns primary and gains Revert to default. Every search field carries the regex builder's <span style="font-family: 'Roboto Mono', monospace; font-size: 13px;">.*</span> affordance.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 44px;">
+    <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 14px; padding: 16px 18px;">
+      <div style="display: flex; align-items: center; gap: 8px;"><div style="font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 500;">world</div><div style="font-size: 11px; color: var(--wl-outline);">path</div><div style="height: 18px; padding: 0 7px; border-radius: 9px; background: var(--wl-error); color: var(--wl-on-error); font-size: 10px; font-weight: 700; display: grid; place-items: center;">re-renders tiles</div></div>
+      <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 6px;">The Minecraft save this map is rendered from. Read only; nothing is ever written back into it.</div>
+      <div style="height: 48px; border-radius: 12px; background: var(--wl-surface); border: 1px solid var(--wl-outline-var); display: flex; align-items: center; gap: 10px; padding: 0 14px; margin-top: 10px; font-family: 'Roboto Mono', monospace; font-size: 13px;">…\saves\heapandyville<span style="flex: 1;"></span><span class="msr" style="font-size: 18px; color: var(--wl-outline);">folder_open</span></div>
+    </div>
+    <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 14px; padding: 16px 18px;">
+      <div style="display: flex; align-items: center; gap: 8px;"><div style="font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 500; color: var(--wl-primary);">render-memory</div><div style="font-size: 11px; color: var(--wl-outline);">int · MiB</div></div>
+      <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 6px;">How much heap the render may use. Changed from its default of 4096.</div>
+      <div style="height: 48px; border-radius: 12px; background: var(--wl-surface); border: 1px solid var(--wl-primary); display: flex; align-items: center; gap: 10px; padding: 0 14px; margin-top: 10px; font-family: 'Roboto Mono', monospace; font-size: 13px; color: var(--wl-primary);">6144</div>
+      <div style="font-size: 12px; color: var(--wl-primary); margin-top: 8px;">Revert to default</div>
+    </div>
+    <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 14px; padding: 16px 18px;">
+      <div style="display: flex; align-items: center; gap: 8px;"><div style="font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 500;">accept-download</div><div style="font-size: 11px; color: var(--wl-outline);">boolean</div></div>
+      <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 6px;">Whether BlueMap may download Minecraft's own client files, which it needs for block textures and models.</div>
+      <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
+        <div style="width: 52px; height: 32px; border-radius: 16px; background: var(--wl-primary); position: relative;"><div style="position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 12px; background: var(--wl-on-primary);"></div></div>
+        <div style="font-size: 13px;">Given at first run</div>
+      </div>
+    </div>
+    <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 14px; padding: 16px 18px;">
+      <div style="font-size: 13px; font-weight: 500;">Search, with the regex builder</div>
+      <div style="height: 48px; border-radius: 12px; background: var(--wl-surface); border: 1px solid var(--wl-outline-var); display: flex; align-items: center; gap: 10px; padding: 0 14px; margin-top: 10px;">
+        <span class="msr" style="font-size: 20px; color: var(--wl-outline);">search</span>
+        <div style="flex: 1; font-size: 13px; color: var(--wl-outline);">Search every setting in this project</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--wl-primary); border: 1px solid var(--wl-outline-var); border-radius: 6px; padding: 3px 7px;">.*</div>
+      </div>
+      <div style="font-size: 12px; color: var(--wl-outline); margin-top: 8px;">Anchored beside the field it belongs to — never a separate dialog.</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px;">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 400;">Status strip, problems and notices</h2>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">StatusStrip.vue · ProblemsPanel.vue · NotificationPanel.vue</div>
+  </div>
+  <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">One line under the title bar says what is running, how far along it is, how many problems there are, and offers one action. Nothing appears over content unprompted: notices land in the bell and its history panel.</p>
+  <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 44px;">
+    <div style="background: var(--wl-surf-low); border: 1px solid var(--wl-outline-var); border-radius: 12px; display: flex; align-items: center; gap: 12px; padding: 10px 18px;">
+      <span class="msr" style="font-size: 19px; color: var(--wl-primary);">bolt</span>
+      <div style="font-size: 13px;">Rendering <strong>heapandyville · overworld</strong></div>
+      <div style="width: 200px; height: 6px; border-radius: 3px; background: var(--wl-surf-highest);"><div style="width: 41%; height: 100%; border-radius: 3px; background: var(--wl-primary);"></div></div>
+      <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-on-surf-var);">394 / 961 tiles · 6 min left</div>
+      <span style="flex: 1;"></span>
+      <div style="height: 28px; padding: 0 12px; border-radius: 14px; background: var(--wl-err-cont); color: var(--wl-on-err-cont); font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px;"><span class="msr" style="font-size: 15px;">error</span>1 problem</div>
+      <div style="height: 28px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--wl-outline); color: var(--wl-primary); font-size: 12px; display: grid; place-items: center;">Open console</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px;">
+      <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 14px; overflow: hidden;">
+        <div style="padding: 12px 18px; border-bottom: 1px solid var(--wl-outline-var); font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 18px; color: var(--wl-error);">error</span>Problems<span style="flex: 1;"></span><span style="font-size: 12px; color: var(--wl-outline);">1</span></div>
+        <div style="padding: 14px 18px; display: flex; gap: 14px; align-items: flex-start;">
+          <div style="flex: 1;">
+            <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-on-surf-var);">core.conf · render-memory</div>
+            <div style="font-size: 13px; line-height: 20px; margin-top: 4px;">Out of heap at region r.4.-2. The render stopped rather than writing a partial tile.</div>
+          </div>
+          <div style="height: 34px; padding: 0 14px; border-radius: 17px; border: 1px solid var(--wl-outline); color: var(--wl-primary); font-size: 13px; display: grid; place-items: center; white-space: nowrap;">See the evidence</div>
+        </div>
+      </div>
+      <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 14px; overflow: hidden;">
+        <div style="padding: 12px 18px; border-bottom: 1px solid var(--wl-outline-var); font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px;"><span class="msr" style="font-size: 18px;">notifications</span>Notices<span style="flex: 1;"></span><span style="font-size: 12px; color: var(--wl-outline);">6 unread</span></div>
+        <div style="padding: 12px 18px; display: flex; gap: 12px; align-items: flex-start; border-bottom: 1px solid var(--wl-surf-high);">
+          <span class="msr" style="font-size: 18px; color: var(--wl-on-sec-cont);">check_circle</span>
+          <div style="flex: 1; font-size: 13px; line-height: 20px;">the_nether finished. 132 regions, 1.1 GB.</div>
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--wl-outline);">21:04</div>
+        </div>
+        <div style="padding: 12px 18px; display: flex; gap: 12px; align-items: flex-start;">
+          <span class="msr" style="font-size: 18px; color: var(--wl-error);">error</span>
+          <div style="flex: 1; font-size: 13px; line-height: 20px;">creative-flats stopped: out of heap.</div>
+          <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--wl-outline);">21:02</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px;">
+    <h2 style="margin: 0; font-size: 24px; font-weight: 400;">Overlays</h2>
+    <div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">CommandPalette · super confirmation · map control bar</div>
+  </div>
+  <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">The palette is the only corner-xl surface. The confirmation gate names consequences first, then asks for two key switches and a full-travel slider, with bundled artwork and an emergency exit — a disabled button is not a gate.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+    <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 28px; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--wl-outline-var);">
+        <span class="msr" style="font-size: 22px; color: var(--wl-outline);">search</span>
+        <div style="flex: 1; font-size: 16px; color: var(--wl-on-surf);">render<span style="color: var(--wl-primary);">|</span></div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--wl-outline); border: 1px solid var(--wl-outline-var); border-radius: 6px; padding: 3px 7px;">Ctrl+Shift+F</div>
+      </div>
+      <div style="padding: 8px 0;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 11px 22px; background: var(--wl-surf-high);"><span class="msr" style="font-size: 19px; color: var(--wl-primary);">pending</span><div style="flex: 1; font-size: 14px;">Open renders in progress</div><div style="font-size: 12px; color: var(--wl-outline);">Job</div></div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 11px 22px;"><span class="msr" style="font-size: 19px; color: var(--wl-on-surf-var);">grid_on</span><div style="flex: 1; font-size: 14px;">Draw the render mask</div><div style="font-size: 12px; color: var(--wl-outline);">Action</div></div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 11px 22px;"><span class="msr" style="font-size: 19px; color: var(--wl-on-surf-var);">memory</span><div style="flex: 1; font-size: 14px;">core.conf · render-memory</div><div style="font-size: 12px; color: var(--wl-outline);">Setting</div></div>
+      </div>
+    </div>
+    <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-err-cont); border-radius: 28px; overflow: hidden;">
+      <img src="assets/action-artwork.png" alt="A configuration file being reviewed before a destructive change" style="width: 100%; height: 120px; object-fit: cover; display: block;" />
+      <div style="padding: 18px 22px;">
+        <div style="font-size: 18px; font-weight: 500;">This throws away 961 rendered tiles</div>
+        <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 6px; max-width: 68ch;">They will be rebuilt from the world, which took 18 minutes last time. The world folder itself is not touched.</div>
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+          <div style="flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--wl-outline-var); display: flex; align-items: center; gap: 10px; padding: 0 14px;"><div style="width: 40px; height: 24px; border-radius: 12px; background: var(--wl-err-cont); position: relative;"><div style="position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 9px; background: var(--wl-on-err-cont);"></div></div><div style="font-size: 12px; color: var(--wl-on-surf-var);">Key one</div></div>
+          <div style="flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--wl-outline-var); display: flex; align-items: center; gap: 10px; padding: 0 14px;"><div style="width: 40px; height: 24px; border-radius: 12px; background: var(--wl-surf-highest); position: relative;"><div style="position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 9px; background: var(--wl-outline);"></div></div><div style="font-size: 12px; color: var(--wl-outline);">Key two</div></div>
+        </div>
+        <div style="height: 44px; border-radius: 22px; background: var(--wl-surf-highest); margin-top: 12px; display: flex; align-items: center; padding: 0 5px;">
+          <div style="width: 34px; height: 34px; border-radius: 17px; background: var(--wl-outline); display: grid; place-items: center;"><span class="msr" style="font-size: 18px; color: var(--wl-surf-cont);">chevron_right</span></div>
+          <div style="flex: 1; text-align: center; font-size: 12px; color: var(--wl-outline);">Slide all the way to throw the tiles away</div>
+        </div>
+        <div style="font-size: 12px; color: var(--wl-primary); margin-top: 12px;">Get me out of here</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1240}}">
+class Component extends DCLogic {
+  state = { theme: "dark" };
+  renderVals() {
+    const t = this.state.theme;
+    return {
+      themeId: t,
+      themeSwitch: [["dark", "Dark"], ["light", "Light"], ["contrast", "Contrast"]].map(([id, label]) => ({
+        key: id, label,
+        bg: t === id ? "var(--wl-prim-cont)" : "transparent",
+        fg: t === id ? "var(--wl-on-prim-cont)" : "var(--wl-on-surf-var)",
+        pick: () => this.setState({ theme: id }),
+      })),
+      sections: [],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

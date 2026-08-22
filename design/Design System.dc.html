@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  body { margin: 0; background: #0B0E11; }
+  a { color: #8FCDFF; text-underline-offset: 2px; }
+  a:hover { color: #CEE5FF; }
+  .msr { font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal; line-height: 1; display: inline-block; white-space: nowrap; -webkit-font-feature-settings: "liga"; -webkit-font-smoothing: antialiased; }
+</style>
+</helmet>
+
+<div style="width: 1240px; background: var(--wl-bg); color: var(--wl-on-surf); font-family: Roboto, Helvetica, sans-serif; padding: 56px 64px 96px; box-sizing: border-box;">
+
+  <div style="display: flex; align-items: flex-start; gap: 18px; margin-bottom: 14px;">
+    <img src="assets/worldlens-logo-256.png" alt="" style="width: 46px; height: 46px; border-radius: 10px;" />
+    <div>
+      <div style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--wl-outline);">Worldlens</div>
+      <h1 style="margin: 2px 0 0; font-size: 40px; font-weight: 400; letter-spacing: -0.01em;">The design system</h1>
+    </div>
+  </div>
+  <p style="margin: 0 0 10px; font-size: 15px; line-height: 23px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">Every visual decision in this application resolves to one of the tokens below. Nothing in a component hard-codes a corner radius, a shadow, a type size, a state-layer opacity or an animation curve; a component that needs one names the token, and the token is declared once.</p>
+  <p style="margin: 0 0 44px; font-size: 15px; line-height: 23px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">The vocabulary lives in <span style="font-family: 'Roboto Mono', monospace; font-size: 13px;">tokens.css</span> beside this page, and in the repository as <span style="font-family: 'Roboto Mono', monospace; font-size: 13px;">@worldlens/design-system</span>. The desktop app and the served browser shell import the same file — never a second copy — so a colour that changes here changes in a published map in the same commit.</p>
+
+  <div style="height: 1px; background: var(--wl-outline-var); margin-bottom: 34px;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px;">
+    <h2 style="margin: 0; font-size: 26px; font-weight: 400;">Colour</h2>
+    <div style="font-size: 13px; color: var(--wl-outline); font-family: 'Roboto Mono', monospace;">3 schemes · one role set</div>
+  </div>
+  <p style="margin: 0 0 22px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">Dark and light are generated from the tonal palettes of the blue seed the app has always used. Contrast is deliberately <em>not</em> tonal: it answers the same role names with the highest-contrast values that keep their meaning. Reference the role, never the hex.</p>
+
+  <div style="display: grid; grid-template-columns: 220px 1fr 1fr 1fr; gap: 10px 14px; align-items: center; margin-bottom: 8px;">
+    <div></div>
+    <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wl-outline);">Dark · default</div>
+    <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wl-outline);">Light</div>
+    <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wl-outline);">Contrast</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 46px;">
+    <sc-for list="{{ roles }}" as="r" hint-placeholder-count="16">
+      <div style="display: grid; grid-template-columns: 220px 1fr 1fr 1fr; gap: 14px; align-items: center;">
+        <div>
+          <div style="font-size: 13px; font-weight: 500;">{{ r.name }}</div>
+          <div style="font-size: 12px; color: var(--wl-outline); font-family: 'Roboto Mono', monospace;">{{ r.token }}</div>
+        </div>
+        <div data-wl-theme="dark" style="height: 52px; border-radius: 12px; border: 1px solid var(--wl-outline-var); display: flex; align-items: center; padding: 0 14px; background: var({{ r.var }});">
+          <span style="font-family: 'Roboto Mono', monospace; font-size: 12px; background: var(--wl-surface); color: var(--wl-on-surf); border: 1px solid var(--wl-outline-var); border-radius: 6px; padding: 3px 7px;">{{ r.dark }}</span>
+        </div>
+        <div data-wl-theme="light" style="height: 52px; border-radius: 12px; border: 1px solid var(--wl-outline-var); display: flex; align-items: center; padding: 0 14px; background: var({{ r.var }});">
+          <span style="font-family: 'Roboto Mono', monospace; font-size: 12px; background: var(--wl-surface); color: var(--wl-on-surf); border: 1px solid var(--wl-outline-var); border-radius: 6px; padding: 3px 7px;">{{ r.light }}</span>
+        </div>
+        <div data-wl-theme="contrast" style="height: 52px; border-radius: 12px; border: 1px solid var(--wl-outline-var); display: flex; align-items: center; padding: 0 14px; background: var({{ r.var }});">
+          <span style="font-family: 'Roboto Mono', monospace; font-size: 12px; background: var(--wl-surface); color: var(--wl-on-surf); border: 1px solid var(--wl-outline-var); border-radius: 6px; padding: 3px 7px;">{{ r.contrast }}</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px;">
+    <h2 style="margin: 0; font-size: 26px; font-weight: 400;">The same card, three ways</h2>
+  </div>
+  <p style="margin: 0 0 20px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch;">One markup, one set of role names. Nothing below is themed by hand.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 52px;">
+    <sc-for list="{{ themes }}" as="t" hint-placeholder-count="3">
+      <div data-wl-theme="{{ t.id }}" style="background: var(--wl-bg); border: 1px solid var(--wl-outline-var); border-radius: 18px; padding: 18px;">
+        <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--wl-outline); margin-bottom: 12px;">{{ t.label }}</div>
+        <div style="background: var(--wl-prim-cont); color: var(--wl-on-prim-cont); border-radius: 16px; padding: 16px;">
+          <div style="font-size: 18px; font-weight: 500;">Make a map</div>
+          <div style="font-size: 13px; line-height: 20px; margin-top: 6px; opacity: 0.92;">Five questions, then it renders.</div>
+          <div style="margin-top: 14px; display: flex; gap: 8px;">
+            <div style="height: 36px; padding: 0 18px; border-radius: 18px; background: var(--wl-primary); color: var(--wl-on-primary); font-size: 13px; font-weight: 500; display: grid; place-items: center;">New map</div>
+            <div style="height: 36px; padding: 0 16px; border-radius: 18px; border: 1px solid var(--wl-on-prim-cont); font-size: 13px; display: grid; place-items: center;">Walk me through it</div>
+          </div>
+        </div>
+        <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 16px; padding: 14px 16px; margin-top: 12px;">
+          <div style="font-size: 14px; font-weight: 500; color: var(--wl-on-surf);">Backups</div>
+          <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 4px;">Three kept, oldest 6 days.</div>
+        </div>
+        <div style="background: var(--wl-err-cont); color: var(--wl-on-err-cont); border-radius: 16px; padding: 14px 16px; margin-top: 12px; font-size: 13px; line-height: 20px;">Out of heap at <span style="font-family: 'Roboto Mono', monospace;">r.4.-2</span>.</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <h2 style="margin: 0 0 6px; font-size: 26px; font-weight: 400;">Type</h2>
+  <p style="margin: 0 0 22px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">Roboto throughout, and Roboto Mono for paths, values, keys, digests and shortcuts — anything the user could be asked to retype. Every value is in rem and no rule anywhere sets a root font size, because interface scale belongs to the interface-size dial, which works through page zoom.</p>
+  <div style="border: 1px solid var(--wl-outline-var); border-radius: 16px; overflow: hidden; margin-bottom: 52px;">
+    <sc-for list="{{ typeRamp }}" as="t" hint-placeholder-count="10">
+      <div style="display: flex; align-items: baseline; gap: 22px; padding: 14px 22px; border-bottom: 1px solid var(--wl-surf-cont);">
+        <div style="width: 168px; flex: 0 0 168px; font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">{{ t.token }}</div>
+        <div style="width: 118px; flex: 0 0 118px; font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-on-surf-var);">{{ t.spec }}</div>
+        <div style="flex: 1; min-width: 0; color: var(--wl-on-surf); font-size: {{ t.size }}; line-height: {{ t.lh }}; font-weight: {{ t.weight }}; letter-spacing: {{ t.tracking }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ t.sample }}</div>
+        <div style="width: 200px; flex: 0 0 200px; font-size: 12px; color: var(--wl-outline); text-align: right;">{{ t.use }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 52px;">
+    <div>
+      <h2 style="margin: 0 0 6px; font-size: 26px; font-weight: 400;">Shape</h2>
+      <p style="margin: 0 0 20px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var);">Real M3 values, not Vuetify's M2 arithmetic wearing M3 names.</p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <sc-for list="{{ shapes }}" as="sh" hint-placeholder-count="7">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 68px; height: 44px; background: var(--wl-surf-high); border: 1px solid var(--wl-outline-var); border-radius: {{ sh.radius }};"></div>
+            <div style="width: 210px; font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-on-surf-var);">{{ sh.token }}</div>
+            <div style="font-size: 13px; color: var(--wl-outline);">{{ sh.use }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div>
+      <h2 style="margin: 0 0 6px; font-size: 26px; font-weight: 400;">State &amp; elevation</h2>
+      <p style="margin: 0 0 20px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var);">M3's 8 / 10 / 10 / 16, not M2's 4 / 12 / 12 / 8. Vuetify's own opacity variables are re-pointed at these, so every overlay retunes from one place.</p>
+      <div style="display: flex; gap: 10px; margin-bottom: 22px;">
+        <sc-for list="{{ states }}" as="st" hint-placeholder-count="4">
+          <div style="flex: 1; border-radius: 12px; border: 1px solid var(--wl-outline-var); overflow: hidden;">
+            <div style="height: 54px; background: var(--wl-surf-cont); position: relative;">
+              <div style="position: absolute; inset: 0; background: var(--wl-on-surf); opacity: {{ st.opacity }};"></div>
+            </div>
+            <div style="padding: 8px 10px;">
+              <div style="font-size: 12px; font-weight: 500;">{{ st.name }}</div>
+              <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--wl-outline);">{{ st.value }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <sc-for list="{{ elevations }}" as="el" hint-placeholder-count="6">
+          <div style="flex: 1; height: 58px; border-radius: 12px; background: var(--wl-surf-cont); box-shadow: {{ el.shadow }}; display: grid; place-items: center; font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--wl-on-surf-var);">{{ el.n }}</div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="margin: 0 0 6px; font-size: 26px; font-weight: 400;">Motion</h2>
+  <p style="margin: 0 0 20px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">The MD3 Expressive set: seven easings and a twelve-step duration ladder. Reduced motion is absolute — the kill switch is the last rule in the stylesheet and uses <span style="font-family: 'Roboto Mono', monospace; font-size: 13px;">!important</span>, so it outranks any normal declaration regardless of which token fed it.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 52px;">
+    <div style="border: 1px solid var(--wl-outline-var); border-radius: 16px; padding: 18px 20px;">
+      <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wl-outline); margin-bottom: 12px;">Durations</div>
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <sc-for list="{{ durations }}" as="d" hint-placeholder-count="12">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 200px; font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-on-surf-var);">{{ d.token }}</div>
+            <div style="flex: 1; height: 5px; border-radius: 3px; background: var(--wl-surf-highest);"><div style="height: 100%; border-radius: 3px; background: var(--wl-primary); width: {{ d.w }};"></div></div>
+            <div style="width: 56px; text-align: right; font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-outline);">{{ d.ms }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="border: 1px solid var(--wl-outline-var); border-radius: 16px; padding: 18px 20px;">
+      <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wl-outline); margin-bottom: 12px;">Easings</div>
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <sc-for list="{{ easings }}" as="e" hint-placeholder-count="7">
+          <div style="display: flex; align-items: baseline; gap: 12px;">
+            <div style="width: 240px; font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--wl-on-surf-var);">{{ e.token }}</div>
+            <div style="flex: 1; font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--wl-outline);">{{ e.curve }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="margin: 0 0 6px; font-size: 26px; font-weight: 400;">Patterns</h2>
+  <p style="margin: 0 0 22px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch;">Decisions that are not a token, but are just as binding.</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 34px;">
+    <sc-for list="{{ patterns }}" as="p" hint-placeholder-count="6">
+      <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 16px; padding: 18px 20px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="msr" style="font-size: 20px; color: {{ p.fg }};">{{ p.icon }}</span>
+          <div style="font-size: 15px; font-weight: 500;">{{ p.title }}</div>
+        </div>
+        <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 8px; text-wrap: pretty;">{{ p.blurb }}</div>
+        <div style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--wl-outline); margin-top: 10px;">{{ p.rule }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="background: var(--wl-surf-cont); border: 1px solid var(--wl-outline-var); border-radius: 18px; padding: 24px 26px;">
+    <h2 style="margin: 0 0 6px; font-size: 22px; font-weight: 400;">Copy and tone</h2>
+    <p style="margin: 0 0 18px; font-size: 14px; line-height: 21px; color: var(--wl-on-surf-var); max-width: 68ch; text-wrap: pretty;">The prose is the product's voice, not decoration. It sits under the control it explains rather than beside it, capped at a 68-character measure, in <span style="font-family: 'Roboto Mono', monospace; font-size: 13px;">on-surface-variant</span>.</p>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <sc-for list="{{ tone }}" as="t" hint-placeholder-count="5">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; padding: 14px 0; border-top: 1px solid var(--wl-surf-highest);">
+          <div>
+            <div style="font-size: 14px; font-weight: 500;">{{ t.rule }}</div>
+            <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var); margin-top: 4px; text-wrap: pretty;">{{ t.why }}</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 10px; align-items: flex-start;">
+              <span class="msr" style="font-size: 18px; color: var(--wl-error);">close</span>
+              <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf-var);">{{ t.bad }}</div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: flex-start;">
+              <span class="msr" style="font-size: 18px; color: var(--wl-on-sec-cont);">check</span>
+              <div style="font-size: 13px; line-height: 20px; color: var(--wl-on-surf);">{{ t.good }}</div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1240}}">
+class Component extends DCLogic {
+  renderVals() {
+    const role = (name, token, v, on, dark, light, contrast) => ({
+      key: token, name, token, var: v, onVar: on, dark, light, contrast,
+    });
+    return {
+      roles: [
+        role("Background", "background", "--wl-bg", "--wl-on-surf", "#0B0E11", "#F7F9FF", "#000000"),
+        role("Surface", "surface", "--wl-surface", "--wl-on-surf", "#101418", "#F1F4FA", "#000000"),
+        role("Surface container", "surface-container", "--wl-surf-cont", "--wl-on-surf", "#1D2024", "#EBEEF4", "#000000"),
+        role("Surface container high", "surface-container-high", "--wl-surf-high", "--wl-on-surf", "#272A2E", "#E5E8EE", "#141414"),
+        role("Surface container highest", "surface-container-highest", "--wl-surf-highest", "--wl-on-surf", "#323539", "#DFE2E8", "#1F1F1F"),
+        role("Primary", "primary", "--wl-primary", "--wl-on-primary", "#8FCDFF", "#00639B", "#FFFFFF"),
+        role("Primary container", "primary-container", "--wl-prim-cont", "--wl-on-prim-cont", "#004B73", "#CDE5FF", "#FFFFFF"),
+        role("Secondary container", "secondary-container", "--wl-sec-cont", "--wl-on-sec-cont", "#384956", "#D3E5F5", "#000000"),
+        role("Tertiary container", "tertiary-container", "--wl-tert-cont", "--wl-on-tert-cont", "#4E4161", "#EDDCFF", "#000000"),
+        role("Error container", "error-container", "--wl-err-cont", "--wl-on-err-cont", "#93000A", "#FFDAD6", "#000000"),
+        role("On surface", "on-surface", "--wl-on-surf", "--wl-bg", "#E1E2E8", "#181C20", "#FFFFFF"),
+        role("On surface variant", "on-surface-variant", "--wl-on-surf-var", "--wl-bg", "#C2C7CF", "#41474D", "#FFFFFF"),
+        role("Outline", "outline", "--wl-outline", "--wl-bg", "#8C9199", "#6C737A", "#FFFFFF"),
+        role("Outline variant", "outline-variant", "--wl-outline-var", "--wl-on-surf", "#42474E", "#C1C7CE", "#FFFFFF"),
+      ],
+      themes: [
+        { key: "dark", id: "dark", label: "Dark · default" },
+        { key: "light", id: "light", label: "Light" },
+        { key: "contrast", id: "contrast", label: "Contrast · 21:1" },
+      ],
+      typeRamp: [
+        { token: "display-small", spec: "36 / 44 · 400", size: "36px", lh: "44px", weight: "400", tracking: "0", sample: "Worldlens", use: "First-run only" },
+        { token: "headline-medium", spec: "32 / 40 · 400", size: "32px", lh: "40px", weight: "400", tracking: "0", sample: "What are you here to do?", use: "Home, catalogue page" },
+        { token: "headline-small", spec: "26 / 32 · 400", size: "26px", lh: "32px", weight: "400", tracking: "0", sample: "Renders in progress", use: "Job pane title" },
+        { token: "title-large", spec: "22 / 28 · 400", size: "22px", lh: "28px", weight: "400", tracking: "0", sample: "Make a map", use: "Hero card title" },
+        { token: "title-medium", spec: "17 / 24 · 500", size: "17px", lh: "24px", weight: "500", tracking: "0.009em", sample: "Keep a copy", use: "Catalogue card title" },
+        { token: "title-small", spec: "15 / 20 · 500", size: "15px", lh: "20px", weight: "500", tracking: "0.006em", sample: "Automatic repair", use: "Feature row, setting" },
+        { token: "body-medium", spec: "14 / 21 · 400", size: "14px", lh: "21px", weight: "400", tracking: "0.017em", sample: "Explanatory prose, capped at a 68ch measure.", use: "Body prose" },
+        { token: "body-small", spec: "13 / 20 · 400", size: "13px", lh: "20px", weight: "400", tracking: "0.03em", sample: "One sentence under the control it explains.", use: "Row blurb, field help" },
+        { token: "label-medium", spec: "12 / 16 · 500", size: "12px", lh: "16px", weight: "500", tracking: "0.04em", sample: "394 / 961 tiles · 6 min left", use: "Meta, status strip" },
+        { token: "mono · body-small", spec: "13 / 20 · 400", size: "13px", lh: "20px", weight: "400", tracking: "0", sample: "core.conf · render-memory", use: "Anything retypable" },
+      ].map((t, i) => ({ ...t, key: i })),
+      shapes: [
+        { key: 1, token: "corner-none · 0px", radius: "0px", use: "Window caption buttons" },
+        { key: 2, token: "corner-xs · 4px", radius: "4px", use: "Dense chips" },
+        { key: 3, token: "corner-sm · 8px", radius: "8px", use: "Job chip top corners" },
+        { key: 4, token: "corner-md · 12px", radius: "12px", use: "Fields and field chrome" },
+        { key: 5, token: "corner-lg · 16px", radius: "16px", use: "Cards, panels, sheets" },
+        { key: 6, token: "corner-xl · 28px", radius: "28px", use: "Command palette, dialogs" },
+        { key: 7, token: "corner-full", radius: "9999px", use: "Buttons, rail pills, badges" },
+      ],
+      states: [
+        { key: 1, name: "Hover", value: "8%", opacity: 0.08 },
+        { key: 2, name: "Focus", value: "10%", opacity: 0.1 },
+        { key: 3, name: "Pressed", value: "10%", opacity: 0.1 },
+        { key: 4, name: "Dragged", value: "16%", opacity: 0.16 },
+      ],
+      elevations: [
+        { key: 0, n: "0", shadow: "none" },
+        { key: 1, n: "1", shadow: "0 1px 2px rgba(0,0,0,.3), 0 1px 3px 1px rgba(0,0,0,.15)" },
+        { key: 2, n: "2", shadow: "0 1px 2px rgba(0,0,0,.3), 0 2px 6px 2px rgba(0,0,0,.15)" },
+        { key: 3, n: "3", shadow: "0 4px 8px 3px rgba(0,0,0,.15), 0 1px 3px rgba(0,0,0,.3)" },
+        { key: 4, n: "4", shadow: "0 6px 10px 4px rgba(0,0,0,.15), 0 2px 3px rgba(0,0,0,.3)" },
+        { key: 5, n: "5", shadow: "0 8px 12px 6px rgba(0,0,0,.15), 0 4px 4px rgba(0,0,0,.3)" },
+      ],
+      durations: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600].map((ms, i) => ({
+        key: ms,
+        token: "--md-sys-motion-duration-" + ["short1","short2","short3","short4","medium1","medium2","medium3","medium4","long1","long2","long3","long4"][i],
+        ms: ms + "ms", w: Math.round((ms / 600) * 100) + "%",
+      })),
+      easings: [
+        { key: 1, token: "easing-linear", curve: "cubic-bezier(0, 0, 1, 1)" },
+        { key: 2, token: "easing-standard", curve: "cubic-bezier(0.2, 0, 0, 1)" },
+        { key: 3, token: "easing-standard-decelerate", curve: "cubic-bezier(0, 0, 0, 1)" },
+        { key: 4, token: "easing-standard-accelerate", curve: "cubic-bezier(0.3, 0, 1, 1)" },
+        { key: 5, token: "easing-emphasized", curve: "cubic-bezier(0.2, 0, 0, 1)" },
+        { key: 6, token: "easing-emphasized-decelerate", curve: "cubic-bezier(0.05, 0.7, 0.1, 1)" },
+        { key: 7, token: "easing-emphasized-accelerate", curve: "cubic-bezier(0.3, 0, 0.8, 0.15)" },
+      ],
+      patterns: [
+        { key: 1, icon: "format_align_left", fg: "var(--wl-primary)", title: "Prose measure", blurb: "Explanatory paragraphs cap at 68 characters and sit under the control they explain. The cap applies to paragraphs only, and is released inside tables, pre, code, kbd and samp, where a paragraph is a cell or a path.", rule: "max-width: 68ch · text-wrap: pretty" },
+        { key: 2, icon: "error", fg: "var(--wl-error)", title: "Where an error appears", blurb: "Inline, in the section that owns it, in an error-container panel with the remedy inside it. Never a toast over what you are reading. The Problems panel aggregates; it does not replace the inline notice.", rule: "error-container / on-error-container" },
+        { key: 3, icon: "notifications", fg: "var(--wl-on-sec-cont)", title: "Nothing appears unprompted", blurb: "raiseNotice() lands in the bell and its history panel. There are no toasts and no floating action buttons anywhere in the shell.", rule: "no FAB · no snackbar" },
+        { key: 4, icon: "shield", fg: "var(--wl-tert)", title: "The confirmation gate", blurb: "Anything destructive names its consequences first, then asks for two key switches and a full-travel slider, with bundled action artwork and an emergency exit. A disabled button is not a gate.", rule: "consequences → keys → travel" },
+        { key: 5, icon: "close", fg: "var(--wl-outline)", title: "Close affordances", blurb: "A close button exists only on an open job chip. Pinned chips do not have one, and no settings section, card or panel has one.", rule: "open jobs only" },
+        { key: 6, icon: "inbox", fg: "var(--wl-outline)", title: "Empty states", blurb: "An empty surface says what would be here, where it comes from, and offers the one action that fills it. A folder that is currently unplugged stays in the list and says so rather than disappearing.", rule: "name it, source it, offer one action" },
+      ],
+      tone: [
+        { key: 1, rule: "Name the consequence before the action", why: "The user should know what they are agreeing to before they read the verb.", bad: "Are you sure you want to continue?", good: "This throws away 961 rendered tiles. They will be rebuilt from the world, which took 18 minutes last time." },
+        { key: 2, rule: "Say what it read, not just what it decided", why: "Automatic repair shows its evidence before it proposes an edit.", bad: "Fixing your configuration…", good: "Out of heap at r.4.-2. Raising render-memory from 4096 to 6144 MiB. No tiles are thrown away." },
+        { key: 3, rule: "Facts survive every funny level", why: "Destructive, financial, security, accessibility and error copy stays clear and accurate at levels 1 through 5.", bad: "Oopsie! Something went a bit sideways.", good: "The render stopped: the world folder is no longer mounted at D:\\saves." },
+        { key: 4, rule: "Say when something is not protection", why: "School mode is a user-experience lock, not a security boundary, and must say so rather than implying it cannot be reset.", bad: "This setting is locked and cannot be changed.", good: "This can be reset by deleting the shared record on this computer. It is a lock on the interface, not on the files." },
+        { key: 5, rule: "Never dim a capability that must be absent", why: "A greyed-out control is still a discoverable one, which is a failure of the shared contract.", bad: "Cantonese (unavailable in this mode)", good: "The block is not rendered at all." },
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

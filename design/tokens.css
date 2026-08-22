@@ -1,0 +1,163 @@
+/* Worldlens design system — token vocabulary.
+   Colour roles are Material 3 role names. Nothing in a component hard-codes a
+   value; a component that needs one names the token. Three schemes: dark (the
+   default), light, and contrast — contrast is deliberately NOT tonal. */
+
+:root,
+[data-wl-theme="dark"] {
+  --wl-bg: #0B0E11;
+  --wl-surface: #101418;
+  --wl-surf-low: #191C20;
+  --wl-surf-cont: #1D2024;
+  --wl-surf-high: #272A2E;
+  --wl-surf-highest: #323539;
+  --wl-surf-alt: #2A2E33;
+  --wl-outline-var: #42474E;
+  --wl-outline-dim: #5A5F66;
+  --wl-outline: #8C9199;
+  --wl-on-surf-var: #C2C7CF;
+  --wl-on-surf: #E1E2E8;
+  --wl-primary: #8FCDFF;
+  --wl-on-primary: #003351;
+  --wl-prim-cont: #004B73;
+  --wl-on-prim-cont: #CEE5FF;
+  --wl-prim-deep: #001D31;
+  --wl-prim-press: #005884;
+  --wl-prim-alt: #7DABFF;
+  --wl-sec: #B7C9D9;
+  --wl-sec-cont: #384956;
+  --wl-on-sec-cont: #D3E5F5;
+  --wl-tert: #D1BFE7;
+  --wl-tert-cont: #4E4161;
+  --wl-on-tert-cont: #EDDCFF;
+  --wl-error: #FFB4AB;
+  --wl-on-error: #410002;
+  --wl-err-cont: #93000A;
+  --wl-on-err-cont: #FFDAD6;
+  --wl-err-dim: #690005;
+}
+
+[data-wl-theme="light"] {
+  --wl-bg: #F7F9FF;
+  --wl-surface: #F1F4FA;
+  --wl-surf-low: #F1F4FA;
+  --wl-surf-cont: #EBEEF4;
+  --wl-surf-high: #E5E8EE;
+  --wl-surf-highest: #DFE2E8;
+  --wl-surf-alt: #E5E8EE;
+  --wl-outline-var: #C1C7CE;
+  --wl-outline-dim: #A9AFB6;
+  --wl-outline: #6C737A;
+  --wl-on-surf-var: #41474D;
+  --wl-on-surf: #181C20;
+  --wl-primary: #00639B;
+  --wl-on-primary: #FFFFFF;
+  --wl-prim-cont: #CDE5FF;
+  --wl-on-prim-cont: #001D32;
+  --wl-prim-deep: #E3F1FF;
+  --wl-prim-press: #004A77;
+  --wl-prim-alt: #3F5F8F;
+  --wl-sec: #3B4A57;
+  --wl-sec-cont: #D3E5F5;
+  --wl-on-sec-cont: #0C1D29;
+  --wl-tert: #66587B;
+  --wl-tert-cont: #EDDCFF;
+  --wl-on-tert-cont: #211634;
+  --wl-error: #BA1A1A;
+  --wl-on-error: #FFFFFF;
+  --wl-err-cont: #FFDAD6;
+  --wl-on-err-cont: #410002;
+  --wl-err-dim: #FFB4AB;
+}
+
+/* Answers the same role names with the highest-contrast values that keep their
+   meaning. Deriving it from the blue seed would defeat the one thing it exists for. */
+[data-wl-theme="contrast"] {
+  --wl-bg: #000000;
+  --wl-surface: #000000;
+  --wl-surf-low: #000000;
+  --wl-surf-cont: #000000;
+  --wl-surf-high: #141414;
+  --wl-surf-highest: #1F1F1F;
+  --wl-surf-alt: #141414;
+  --wl-outline-var: #FFFFFF;
+  --wl-outline-dim: #FFFFFF;
+  --wl-outline: #FFFFFF;
+  --wl-on-surf-var: #FFFFFF;
+  --wl-on-surf: #FFFFFF;
+  --wl-primary: #FFFFFF;
+  --wl-on-primary: #000000;
+  --wl-prim-cont: #FFFFFF;
+  --wl-on-prim-cont: #000000;
+  --wl-prim-deep: #FFFFFF;
+  --wl-prim-press: #E0E0E0;
+  --wl-prim-alt: #FFFFFF;
+  --wl-sec: #FFFF00;
+  --wl-sec-cont: #000000;
+  --wl-on-sec-cont: #FFFF00;
+  --wl-tert: #FFFF00;
+  --wl-tert-cont: #000000;
+  --wl-on-tert-cont: #FFFF00;
+  --wl-error: #FF5449;
+  --wl-on-error: #000000;
+  --wl-err-cont: #000000;
+  --wl-on-err-cont: #FF5449;
+  --wl-err-dim: #000000;
+}
+
+/* Shape — M3 values, not Vuetify's M2 arithmetic wearing M3 names. */
+:root {
+  --md-sys-shape-corner-none: 0px;
+  --md-sys-shape-corner-xs: 4px;
+  --md-sys-shape-corner-sm: 8px;
+  --md-sys-shape-corner-md: 12px;
+  --md-sys-shape-corner-lg: 16px;
+  --md-sys-shape-corner-xl: 28px;
+  --md-sys-shape-corner-full: 9999px;
+
+  /* State layers — M3's 8/10/10/16, not M2's 4/12/12/8. */
+  --md-sys-state-hover-opacity: 0.08;
+  --md-sys-state-focus-opacity: 0.10;
+  --md-sys-state-pressed-opacity: 0.10;
+  --md-sys-state-dragged-opacity: 0.16;
+
+  /* Elevation — key + ambient pair. Deliberately not named
+     --md-sys-elevation-levelN: markers.scss owns that name for a filter chain. */
+  --md-sys-elevation-shadow-level0: none;
+  --md-sys-elevation-shadow-level1: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px 1px rgba(0,0,0,.15);
+  --md-sys-elevation-shadow-level2: 0 1px 2px rgba(0,0,0,.3), 0 2px 6px 2px rgba(0,0,0,.15);
+  --md-sys-elevation-shadow-level3: 0 4px 8px 3px rgba(0,0,0,.15), 0 1px 3px rgba(0,0,0,.3);
+  --md-sys-elevation-shadow-level4: 0 6px 10px 4px rgba(0,0,0,.15), 0 2px 3px rgba(0,0,0,.3);
+  --md-sys-elevation-shadow-level5: 0 8px 12px 6px rgba(0,0,0,.15), 0 4px 4px rgba(0,0,0,.3);
+
+  /* Motion — MD3 Expressive. */
+  --md-sys-motion-easing-linear: cubic-bezier(0, 0, 1, 1);
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --md-sys-motion-duration-short1: 50ms;
+  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short3: 150ms;
+  --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium1: 250ms;
+  --md-sys-motion-duration-medium2: 300ms;
+  --md-sys-motion-duration-medium3: 350ms;
+  --md-sys-motion-duration-medium4: 400ms;
+  --md-sys-motion-duration-long1: 450ms;
+  --md-sys-motion-duration-long2: 500ms;
+  --md-sys-motion-duration-long3: 550ms;
+  --md-sys-motion-duration-long4: 600ms;
+}
+
+/* Reduced motion is absolute. This must stay the last rule in the sheet. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
