@@ -67,9 +67,18 @@ const WORKFLOW_JOBS: readonly WorkflowJob[] = [
     { workflow: "ci.yml", job: "check", runner: "ubuntu-24.04", tools: [] },
     { workflow: "ci.yml", job: "package", runner: "windows-2022", tools: [] },
     { workflow: "ci.yml", job: "jars", uses: "./.github/workflows/build-jars.yml", tools: [] },
-    { workflow: "ci.yml", job: "config-java-roundtrip", runner: "ubuntu-24.04", tools: [] },
+    // `ci.yml:config-java-roundtrip` and `ci.yml:screenshots` used to be listed here, and both
+    // went the same way `ci.yml:workflows` did above. ci.yml is now release inputs only, and it
+    // says so itself: "This workflow builds and packages release inputs only. Test, lint,
+    // typecheck, static analysis, UI capture, and round-trip validation run outside this workflow
+    // and never participate in its release dependency graph." The round trip and the capture run
+    // are quality work, so they left with the rest of it.
+    //
+    // Worth being blunt about what that costs, because this inventory is where somebody would
+    // look for it. Nothing on a hosted runner runs this project's tests any more, and the release
+    // notes say as much in every published release: a release may ship from code whose tests
+    // would fail. Removing these two rows records that decision; it does not endorse it.
     { workflow: "ci.yml", job: "test-world", runner: "ubuntu-24.04", tools: [] },
-    { workflow: "ci.yml", job: "screenshots", runner: "ubuntu-24.04", tools: [] },
     { workflow: "ci.yml", job: "release", runner: "ubuntu-24.04", tools: ["gh"] },
     { workflow: "pages.yml", job: "build", runner: "ubuntu-24.04", tools: [] },
     { workflow: "pages.yml", job: "deploy", runner: "ubuntu-24.04", tools: [] },
@@ -100,6 +109,10 @@ const WORKFLOW_JOBS: readonly WorkflowJob[] = [
     })),
     { workflow: "render-world.yml", job: "merge", runner: "ubuntu-24.04", tools: [] },
     { workflow: "render-world.yml", job: "merge-lowres", runner: "ubuntu-24.04", tools: [] },
+    // Added when this inventory was reconciled: `receipt` existed in render-world.yml but had
+    // never been listed, which is the opposite failure to the two retirements above. A job the
+    // inventory has never heard of is a job whose runner label nothing checks.
+    { workflow: "render-world.yml", job: "receipt", runner: "ubuntu-24.04", tools: [] },
     { workflow: "render-world.yml", job: "publish", runner: "ubuntu-24.04", tools: [] },
     { workflow: "scheduled-render.yml", job: "check", runner: "ubuntu-24.04", tools: ["gh"] },
 ];
