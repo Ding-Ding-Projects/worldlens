@@ -5,6 +5,7 @@ import { mdiClose, mdiContentCopy, mdiDelete, mdiPlus, mdiSend } from "@mdi/js";
 import {
     VAlert,
     VBtn,
+    VBtnToggle,
     VCard,
     VCardActions,
     VCardText,
@@ -44,8 +45,12 @@ import {
     makeCoord3,
     makeExecuteClause,
     makeTargetSelector,
+    makeTwoCornerSelection,
+    selectTwoCorner,
+    resetTwoCornerSelection,
     selectorError,
     type Coord3,
+    type CoordinatePickMode,
     type CommandForm,
     type ExecuteClause,
     type ExecuteClauseKind,
@@ -54,6 +59,7 @@ import {
 } from "./commandBuilderModel.js";
 import { addPreset, loadHistory, loadPresets, pushHistory, removePreset, saveHistory, savePresets, type CommandHistoryEntry, type CommandPreset } from "./commandBuilderHistory.js";
 import { playersList } from "./mcserverBridge.js";
+import { mapPickPoint, setMapCoordinatePicking } from "../../stores/bluemap.js";
 
 /**
  * The Minecraft command builder: pick a command from a searchable list, fill in every
@@ -129,6 +135,9 @@ onMounted(async () => {
 // -- field values for the active form ------------------------------------------------------
 
 const values = reactive<Record<string, unknown>>({});
+const regionPickMode = ref<CoordinatePickMode>("manual");
+const regionSelection = ref(makeTwoCornerSelection());
+const isRegionCommand = computed(() => activeFormId.value === "fill" || activeFormId.value === "clone");
 
 function defaultValueFor(kind: FieldKind): unknown {
     switch (kind) {
@@ -156,7 +165,27 @@ function resetValuesForForm(form: CommandForm | undefined): void {
         values[field.key] = defaultValueFor(field.kind);
     }
 }
-watch(activeFormId, () => resetValuesForForm(activeForm.value), { immediate: true });
+watch(activeFormId, () => {
+    resetValuesForForm(activeForm.value);
+    regionPickMode.value = "manual";
+    regionSelection.value = resetTwoCornerSelection();
+    setMapCoordinatePicking(false);
+}, { immediate: true });
+
+function toggleRegionPick(enabled: boolean): void {
+    regionPickMode.value = enabled ? "map" : "manual";
+    if (!enabled) regionSelection.value = resetTwoCornerSelection();
+    setMapCoordinatePicking(enabled);
+}
+
+watch(mapPickPoint, (point) => {
+    if (!point || !isRegionCommand.value || regionPickMode.value !== "map") return;
+    const next = selectTwoCorner(regionSelection.value, makeCoord3(point.x, point.y, point.z));
+    regionSelection.value = next;
+    if (next.corner1) values.from = next.corner1;
+    if (next.corner2) values.to = next.corner2;
+    mapPickPoint.value = null;
+}, { flush: "sync" });
 
 const built = computed(() => (activeForm.value ? buildCommand(activeForm.value.id, values) : { text: "", errors: ["No command selected."] }));
 
@@ -285,6 +314,22 @@ const replayText = ref<string | null>(null);
 
                         <div v-if="activeForm" class="wl-mcserver-cmdbuilder__form">
                             <div class="text-body-2 text-medium-emphasis">{{ activeForm.summary }}</div>
+                            <div v-if="isRegionCommand" class="d-flex align-center ga-2 flex-wrap mt-2 mb-2">
+                                <VBtnToggle
+                                    :model-value="regionPickMode"
+                                    mandatory
+                                    density="compact"
+                                    variant="outlined"
+                                    divided
+                                    @update:model-value="(mode) => toggleRegionPick(mode === 'map')"
+                                >
+                                    <VBtn value="manual" size="small">{{ t("mcserver.commandBuilder.manualCoordinates", "Manual coordinates") }}</VBtn>
+                                    <VBtn value="map" size="small">{{ t("mcserver.commandBuilder.pickFromMap", "Pick two corners from map") }}</VBtn>
+                                </VBtnToggle>
+                                <span v-if="regionPickMode === 'map'" class="text-caption text-medium-emphasis">
+                                    {{ regionSelection.corner2 ? t("mcserver.commandBuilder.twoCornersPicked", "Two corners picked") : regionSelection.corner1 ? t("mcserver.commandBuilder.pickSecondCorner", "Pick corner 2 on the map") : t("mcserver.commandBuilder.pickFirstCorner", "Pick corner 1 on the map") }}
+                                </span>
+                            </div>
                             <template v-for="field in activeForm.fields" :key="field.key">
                                 <TargetSelectorField
                                     v-if="field.kind === 'target'"
