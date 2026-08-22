@@ -22,7 +22,9 @@ import {
     VTabs,
     VTextField,
 } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import { useServerStore } from "./useServers.js";
 import { writeBlockReason } from "./serverModel.js";
 import {
@@ -67,6 +69,28 @@ const installing = ref(false);
 const installFailure = ref<string | null>(null);
 
 const removeTarget = ref<InstalledPlugin | null>(null);
+
+/**
+ * The installed-plugins list has no ceiling on how many plugins a real server can carry,
+ * so it gets the same local filter every other list in this app does: plain text by
+ * default, an anchored regex opt-in through {@link ConfigSearchField}, and an honest
+ * no-match state naming what was filtered out rather than leaving a blank list.
+ */
+const installedQuery = ref("");
+const installedRegex = ref(false);
+const installedFlags = ref("i");
+const installedMatcher = computed(() => createSettingMatcher(installedQuery.value, installedRegex.value, installedFlags.value));
+const installedSample = computed(() => installed.value.map((plugin) => `${plugin.name} ${plugin.source} ${plugin.version ?? ""}`).join(String.fromCharCode(10)));
+const filteredInstalled = computed(() =>
+    installed.value.filter((plugin) => installedMatcher.value.test(`${plugin.name} ${plugin.source} ${plugin.version ?? ""} ${plugin.path}`)),
+);
+const installedSummary = computed(() =>
+    t(
+        "mcserver.plugins.installedSummary",
+        { shown: filteredInstalled.value.length, total: installed.value.length },
+        "Showing {shown} of {total}",
+    ),
+);
 
 const capabilities = computed(() => store.capabilitiesFor(props.serverId));
 const server = computed(() => store.get(props.serverId));
@@ -225,8 +249,22 @@ function onDrop(event: DragEvent): void {
         <VAlert v-else-if="installed.length === 0" type="info" variant="tonal">
             {{ t("mcserver.plugins.empty", "No plugins installed.") }}
         </VAlert>
+        <template v-else>
+            <ConfigSearchField
+                v-model="installedQuery"
+                v-model:regex="installedRegex"
+                v-model:flags="installedFlags"
+                :label="t('mcserver.plugins.filterLabel', 'Filter installed plugins')"
+                :placeholder="t('mcserver.plugins.filterHint', 'Name, source or version')"
+                :sample="installedSample"
+                :summary="installedSummary"
+                class="mb-2"
+            />
+            <p v-if="filteredInstalled.length === 0" class="wl-mcserver-plugins__empty" role="status">
+                {{ t("mcserver.plugins.noMatch", { query: installedQuery }, "No installed plugin matches “{query}”.") }}
+            </p>
         <VList v-else>
-            <VListItem v-for="plugin in installed" :key="plugin.path">
+            <VListItem v-for="plugin in filteredInstalled" :key="plugin.path">
                 <template #prepend>
                     <VChip size="small" color="primary" variant="tonal">{{ plugin.source }}</VChip>
                 </template>
@@ -256,6 +294,7 @@ function onDrop(event: DragEvent): void {
                 </template>
             </VListItem>
         </VList>
+        </template>
 
         <VDialog v-model="versionDialog" max-width="480" persistent>
             <VCard v-if="versionTarget">
@@ -322,6 +361,11 @@ function onDrop(event: DragEvent): void {
 }
 .wl-mcserver-plugins__drop--over {
     border-color: rgb(var(--v-theme-primary));
+}
+.wl-mcserver-plugins__empty {
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: 0.875rem;
+    margin: 8px 0;
 }
 .wl-mcserver-plugins__header {
     display: flex;
