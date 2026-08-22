@@ -2398,6 +2398,21 @@ interface WorldlensBridge {
         status(id: string): Promise<unknown>;
         start(id: string): Promise<unknown>;
         stop(id: string, options?: { graceful?: boolean; timeoutMs?: number }): Promise<unknown>;
+        /**
+         * A configuration file described as real controls, and the way to change them.
+         *
+         * `describe` returns every key with the control it should be drawn as - hand-written
+         * where a schema exists, worked out from the value where none does - so no surface
+         * needs its own copy of a schema and no file has to fall back to a text box.
+         */
+        config: {
+            describe(id: string, path: string): Promise<unknown>;
+            apply(
+                id: string,
+                path: string,
+                body: { expectedHash: string; changes: readonly { path: readonly string[]; value: unknown }[] },
+            ): Promise<unknown>;
+        };
         files: {
             list(id: string, dir: string): Promise<unknown>;
             read(id: string, path: string): Promise<unknown>;
@@ -3525,6 +3540,10 @@ const bridge: WorldlensBridge = {
         status: (id) => ipcRenderer.invoke("mcserver:status", id),
         start: (id) => ipcRenderer.invoke("mcserver:start", id),
         stop: (id, options) => ipcRenderer.invoke("mcserver:stop", id, options),
+        config: {
+            describe: (id, path) => ipcRenderer.invoke("mcserver:config:describe", id, path),
+            apply: (id, path, body) => ipcRenderer.invoke("mcserver:config:apply", id, path, body),
+        },
         files: {
             list: (id, dir) => ipcRenderer.invoke("mcserver:file:list", id, dir),
             read: (id, path) => ipcRenderer.invoke("mcserver:file:read", id, path),

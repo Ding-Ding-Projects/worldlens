@@ -58,6 +58,7 @@ import { WebConsolePasswordStore } from "./webconsole/passwordStore.js";
 import { startWebConsoleServer, type WebConsoleServerHandle } from "./webconsole/server.js";
 import { discoverJava } from "../java/discovery.js";
 import { provisionJava } from "../java/provision.js";
+import { applyConfigChanges, describeConfigFile } from "./config/describe.js";
 import type { JavaRunner } from "../java/probe.js";
 import { REQUIRED_JAVA_FEATURE } from "../java/version.js";
 
@@ -90,6 +91,8 @@ export const MCSERVER_CHANNELS = {
     catalogueRefresh: "mcserver:catalogue:refresh",
     javaResolve: "mcserver:java:resolve",
     javaProvision: "mcserver:java:provision",
+    configDescribe: "mcserver:config:describe",
+    configApply: "mcserver:config:apply",
     create: "mcserver:create",
     rconTest: "mcserver:rcon:test",
     consoleOpen: "mcserver:console:open",
@@ -754,6 +757,62 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                     error instanceof Error ? error.message : String(error),
                 );
             }
+        },
+
+        /**
+         * Every key of one configuration file, as a real control.
+         *
+         * The schemas, the parsers and the reconciler all existed in this process and none
+         * of them could be reached from the interface, so the editor grew a partial copy of
+         * one schema and showed a text box for everything else. This is the seam that was
+         * missing rather than a new capability.
+         */
+        [MCSERVER_CHANNELS.configDescribe]: async (_event: never, id: unknown, path: unknown) => {
+            if (!isPath(path)) return fail("invalid-request", "That file name cannot be used.");
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            return describeConfigFile({
+                transport: opened.value.transport,
+                path,
+                flavour: opened.value.record.flavour,
+                version: opened.value.record.minecraftVersion ?? "",
+            });
+        },
+
+        [MCSERVER_CHANNELS.configApply]: async (_event: never, id: unknown, path: unknown, request: unknown) => {
+            if (!isPath(path)) return fail("invalid-request", "That file name cannot be used.");
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "That change could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            if (typeof body.expectedHash !== "string" || body.expectedHash === "") {
+                // Without the hash there is nothing to check the file against, and an
+                // unconditional write here would silently discard whatever the server or a
+                // plugin wrote since it was opened.
+                return fail("invalid-request", "That change did not say which version of the file it was made against.");
+            }
+            if (!Array.isArray(body.changes) || body.changes.length === 0) {
+                return fail("invalid-request", "That change listed nothing to change.");
+            }
+            const changes = body.changes.map((entry) => {
+                const record = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
+                const path_ = Array.isArray(record.path)
+                    ? record.path.filter((segment): segment is string => typeof segment === "string")
+                    : [];
+                return { path: path_, value: record.value };
+            });
+            if (changes.some((change) => change.path.length === 0)) {
+                return fail("invalid-request", "One of those changes did not name a setting.");
+            }
+
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            return applyConfigChanges({
+                transport: opened.value.transport,
+                path,
+                changes,
+                expectedHash: body.expectedHash,
+            });
         },
 
         [MCSERVER_CHANNELS.create]: async (_event: never, request: unknown) => {
