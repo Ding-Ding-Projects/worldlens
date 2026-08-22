@@ -142,6 +142,21 @@ export function readDockerVersion(output: CommandOutput, docker = "docker"): Doc
                 detail: null,
             };
         }
+        // `sshCommandRunner` reports a failure of ssh ITSELF as spawnError "SSH", precisely
+        // so that a caller can tell "the host did not answer" apart from "the host answered
+        // and docker failed". Saying the docker command could not be started here would
+        // send somebody to check a Docker installation on a machine they cannot even reach
+        // - and the actual cause is usually an untrusted host key, a refused key, or a
+        // machine that is off, none of which has anything to do with Docker.
+        if (output.spawnError === "SSH") {
+            return {
+                status: "unusable",
+                clientVersion: null,
+                serverVersion: null,
+                message: "That machine did not answer, so nothing could be asked about its Docker.",
+                detail: said,
+            };
+        }
         return {
             status: "unusable",
             clientVersion: null,

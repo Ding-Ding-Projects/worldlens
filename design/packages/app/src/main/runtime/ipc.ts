@@ -27,12 +27,14 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { probeDocker, type DockerReport, type ProbeDockerOptions } from "./docker.js";
+import { startDockerDaemon, type DockerStartResult, type StartDockerOptions } from "./dockerDaemon.js";
 import { DEFAULT_DOCKER_IMAGE, DEFAULT_RUNTIME_MODE, type RuntimeMode } from "./plan.js";
 import type { ContainerReattacher, ContainerScan, ReattachResult } from "./reattach.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
 export const RUNTIME_CHANNELS = [
     "runtime:docker",
+    "runtime:docker:start",
     "runtime:modes",
     "runtime:containers",
     "runtime:reattach",
@@ -146,6 +148,28 @@ export function registerRuntimeHandlers(
     ipcMain.handle(
         "runtime:docker",
         async (_event: IpcMainInvokeEvent): Promise<DockerSummary> => summariseDocker(await look()),
+    );
+
+    // Starting the engine, rather than printing instructions for starting the engine. The
+    // handler waits for the daemon to actually answer before returning, because a button
+    // that reported success the moment a process existed would be lying for the minute
+    // Docker Desktop takes to come up.
+    ipcMain.handle(
+        "runtime:docker:start",
+        async (_event: IpcMainInvokeEvent): Promise<DockerStartResult> => {
+            const startOptions: StartDockerOptions =
+                options.docker === undefined ? {} : { docker: options.docker };
+            try {
+                return await startDockerDaemon(startOptions);
+            } catch (error) {
+                return {
+                    outcome: "failed",
+                    message: "Docker could not be started.",
+                    detail: error instanceof Error ? error.message : String(error),
+                    report: null,
+                };
+            }
+        },
     );
 
     ipcMain.handle(

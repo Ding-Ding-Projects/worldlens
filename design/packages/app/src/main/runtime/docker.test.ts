@@ -99,6 +99,27 @@ describe("reading `docker version`", () => {
         expect(report.status).toBe("unusable");
         expect(report.message).toContain("EACCES");
     });
+
+    it("blames the unreachable machine, not Docker, when ssh itself failed", () => {
+        // `sshCommandRunner` reports a failure of ssh ITSELF as spawnError "SSH". Reading
+        // that as a Docker problem sends somebody to check a Docker installation on a
+        // machine they cannot even reach, when the real cause is an untrusted host key, a
+        // refused key, or a machine that is switched off.
+        //
+        // Found against a real host: pointing the probe at a remote daemon with an
+        // unseeded known-hosts file reported "The 'docker' command could not be started
+        // (SSH)" for a daemon that was running perfectly well the whole time.
+        const report = readDockerVersion(
+            output({ spawnError: "SSH", stderr: "Host key verification failed." }),
+        );
+
+        expect(report.status).toBe("unusable");
+        expect(report.message).not.toContain("docker");
+        expect(report.message).toContain("did not answer");
+        // The client's own words are kept, because "Host key verification failed" is the
+        // one line that actually tells somebody what to fix.
+        expect(report.detail).toContain("Host key verification failed");
+    });
 });
 
 describe("probing", () => {

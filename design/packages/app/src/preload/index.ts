@@ -3060,6 +3060,17 @@ interface WorldlensBridge {
      * its daemon is not running" rather than collapsing that into "Docker is not available".
      */
     dockerRuntime(): Promise<unknown>;
+    /**
+     * Starts Docker's engine and waits for it to answer.
+     *
+     * Resolves only once the daemon genuinely responds, or once it is clear it will not, so
+     * a caller can show a real result rather than a hopeful one.
+     */
+    startDockerRuntime(): Promise<{
+        readonly outcome: "started" | "already-running" | "timed-out" | "unsupported" | "failed";
+        readonly message: string;
+        readonly detail: string | null;
+    }>;
     /** Where a render could run, and whether each place is actually up. */
     runtimeModes(): Promise<unknown>;
     /** Containers from an earlier session: still running, finished while away, or gone. */
@@ -3841,6 +3852,7 @@ const bridge: WorldlensBridge = {
     },
 
     dockerRuntime: () => ipcRenderer.invoke("runtime:docker"),
+    startDockerRuntime: () => ipcRenderer.invoke("runtime:docker:start"),
     runtimeModes: () => ipcRenderer.invoke("runtime:modes"),
     containerOffers: () => ipcRenderer.invoke("runtime:containers"),
     reattachContainer: (renderId) => ipcRenderer.invoke("runtime:reattach", renderId),

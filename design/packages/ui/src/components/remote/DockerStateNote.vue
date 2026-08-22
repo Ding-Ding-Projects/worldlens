@@ -1,9 +1,31 @@
 <script setup lang="ts">
-import { ref, useId } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
-import { VAlert, VBtn } from "vuetify/components";
+import { mdiChevronDown, mdiChevronUp, mdiPlay } from "@mdi/js";
+import { VAlert, VBtn, VProgressCircular } from "vuetify/components";
 import type { DockerNote } from "./dockerStates.js";
+
+type StartOutcome = "started" | "already-running" | "timed-out" | "unsupported" | "failed";
+
+interface StartHost {
+    startDockerRuntime(): Promise<{
+        readonly outcome: StartOutcome;
+        readonly message: string;
+        readonly detail: string | null;
+    }>;
+}
+
+/**
+ * The bridge, if this build has one.
+ *
+ * Probed rather than assumed, exactly as `useLocks` probes for its own host: a renderer
+ * running beside an older shell must render a disabled control with a reason, not a button
+ * that throws when pressed.
+ */
+function resolveStartHost(): StartHost | null {
+    const bridge = (globalThis as { worldlens?: Partial<StartHost> }).worldlens;
+    return typeof bridge?.startDockerRuntime === "function" ? (bridge as StartHost) : null;
+}
 
 /**
  * One of Docker's five states, rendered as the three sentences it deserves.
@@ -17,12 +39,58 @@ import type { DockerNote } from "./dockerStates.js";
  * is a warning, a missing installation is merely information - because on a machine that
  * renders locally, Docker not being installed is not a problem at all.
  */
-defineProps<{ note: DockerNote }>();
+const props = defineProps<{ note: DockerNote }>();
+const emit = defineEmits<{ (event: "started"): void }>();
 
 const { t } = useI18n();
 
 const detailOpen = ref(false);
 const detailId = useId();
+
+const startHost = resolveStartHost();
+const starting = ref(false);
+const startResult = ref<{ outcome: StartOutcome; message: string; detail: string | null } | null>(null);
+
+/**
+ * Only a stopped engine can be started.
+ *
+ * A Docker that is not installed needs a download, and offering to start it would be a
+ * button that could never work - the decorative control this codebase forbids everywhere
+ * else.
+ */
+const canOffer = computed(() => props.note.status === "daemon-unreachable");
+
+/** Why the button is disabled, in words, rather than a control that is merely grey. */
+const disabledReason = computed(() => {
+    if (startHost === null) {
+        return t(
+            "remote.docker.start.noHost",
+            "This build cannot start Docker for you.",
+        );
+    }
+    return null;
+});
+
+async function start(): Promise<void> {
+    if (startHost === null || starting.value) return;
+    starting.value = true;
+    startResult.value = null;
+    try {
+        const result = await startHost.startDockerRuntime();
+        startResult.value = result;
+        // Only a genuine answer from the engine counts as started. "timed-out" means it is
+        // probably still coming up, and saying otherwise would be the comfortable lie.
+        if (result.outcome === "started" || result.outcome === "already-running") emit("started");
+    } catch (error) {
+        startResult.value = {
+            outcome: "failed",
+            message: t("remote.docker.start.failed", "Docker could not be started."),
+            detail: error instanceof Error ? error.message : String(error),
+        };
+    } finally {
+        starting.value = false;
+    }
+}
 </script>
 
 <template>
@@ -39,6 +107,44 @@ const detailId = useId();
             <strong>{{ t("remote.docker.nextLabel", "Next:") }}</strong>
             {{ note.nextStep }}
         </p>
+
+        <div v-if="canOffer" class="mb-remote-docker__actions">
+            <v-btn
+                :prepend-icon="starting ? undefined : mdiPlay"
+                :disabled="starting || disabledReason !== null"
+                variant="tonal"
+                size="small"
+                density="comfortable"
+                data-testid="docker-start"
+                @click="start"
+            >
+                <v-progress-circular
+                    v-if="starting"
+                    indeterminate
+                    size="16"
+                    width="2"
+                    class="mb-remote-docker__spinner"
+                />
+                {{
+                    starting
+                        ? t("remote.docker.start.working", "Starting Docker...")
+                        : t("remote.docker.start.action", "Start Docker")
+                }}
+            </v-btn>
+            <p v-if="disabledReason" class="mb-remote-docker__line">{{ disabledReason }}</p>
+            <p v-if="starting" class="mb-remote-docker__line">
+                {{
+                    t(
+                        "remote.docker.start.patience",
+                        "Docker's engine can take a minute or two to come up. This waits for it to actually answer.",
+                    )
+                }}
+            </p>
+            <p v-else-if="startResult" class="mb-remote-docker__line">{{ startResult.message }}</p>
+            <p v-if="!starting && startResult?.detail" class="mb-remote-docker__line">
+                {{ startResult.detail }}
+            </p>
+        </div>
 
         <template v-if="note.detail">
             <v-btn
@@ -77,6 +183,14 @@ const detailId = useId();
 .mb-remote-docker .v-btn,
 .mb-shell-layer .mb-remote-docker .v-btn.v-btn--size-small {
     min-block-size: 44px;
+}
+
+.mb-remote-docker__actions {
+    margin-block-start: 10px;
+}
+
+.mb-remote-docker__spinner {
+    margin-inline-end: 6px;
 }
 
 .mb-remote-docker__line {
