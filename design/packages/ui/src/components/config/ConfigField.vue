@@ -13,6 +13,7 @@ import { VAlert, VBtn, VChip, VIcon, VTooltip } from "vuetify/components";
 import type { FieldMeta, PlainValue } from "@worldlens/config";
 import ConfigControl from "./ConfigControl.vue";
 import ConfigKeyValueField from "./ConfigKeyValueField.vue";
+import ConfigRecordTableField from "./ConfigRecordTableField.vue";
 import ConfigListField from "./ConfigListField.vue";
 import ConfigMarkerSetsField from "./ConfigMarkerSetsField.vue";
 import ConfigMaskField from "./ConfigMaskField.vue";
@@ -269,6 +270,14 @@ function set(next: PlainValue): void {
                         ? controlValue
                         : {}
                 "
+                :label="field.label"
+                :disabled="isDisabled"
+                @update:model-value="set"
+            />
+            <ConfigRecordTableField
+                v-else-if="field.control.kind === 'record-table'"
+                :control="field.control"
+                :model-value="controlValue"
                 :label="field.label"
                 :disabled="isDisabled"
                 @update:model-value="set"
