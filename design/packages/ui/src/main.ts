@@ -31,7 +31,7 @@ import "@fontsource/roboto-mono/500.css";
 // the two sheets that spend it. Import order is also what settles the handful of token names
 // `markers.scss` re-declares for the raw-DOM marker layer: it comes last, so its values win,
 // and `md3.scss` spells those particular tokens with exactly the values it has.
-import "./styles/md3.scss";
+import "@worldlens/design-system/tokens.css";
 import "./styles/global.scss";
 // The transition and animation vocabulary the components opt into by class name. After
 // `global.scss` so that its reduced-motion kill switch is already in force above these

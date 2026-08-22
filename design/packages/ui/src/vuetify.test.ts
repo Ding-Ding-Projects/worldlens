@@ -289,7 +289,7 @@ function code(source: string): string {
  * fall back to whatever the browser felt like, in one theme, on one screen.
  */
 describe("the M3 token sheet publishes the whole system, not only the colour half", () => {
-    const source = read("./styles/md3.scss");
+    const source = read("../../design-system/src/tokens.css");
 
     /** The declared value of one custom property, or undefined when it is not declared. */
     function token(name: string): string | undefined {
@@ -442,7 +442,9 @@ describe("the M3 token sheet publishes the whole system, not only the colour hal
     });
 
     it("is actually imported, or none of the above reaches a running app", () => {
-        expect(read("./main.ts")).toMatch(/import "\.\/styles\/md3\.scss"/);
+        expect(read("./main.ts")).toMatch(
+            /import "@worldlens\/design-system\/tokens\.css"/,
+        );
     });
 });
 
