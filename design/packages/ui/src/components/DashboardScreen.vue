@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArrowDown, mdiArrowUp, mdiDownload, mdiLaptop, mdiOpenInNew, mdiPin, mdiPinOff, mdiRefresh, mdiServerNetwork, mdiStop } from "@mdi/js";
-import { VBtn, VCard, VCardActions, VCardText, VChip, VIcon } from "vuetify/components";
+import { VBtn, VCard, VCardActions, VCardText, VCheckbox, VChip, VIcon, VSelect } from "vuetify/components";
 import ConfigSearchField from "./config/ConfigSearchField.vue";
 import { createSettingMatcher } from "./config/regexEngine.js";
 
@@ -152,7 +152,7 @@ onUnmounted(() => { void bridge?.dashboardCancel().catch(() => undefined); });
                 <span class="mb-dashboard__refresh" role="status">{{ refreshLabel }}</span>
             </div>
             <div class="mb-dashboard__bulk" role="toolbar" :aria-label="t('dashboard.bulkLabel', 'Dashboard bulk actions')">
-                <label class="mb-dashboard__select-all"><input type="checkbox" :checked="allVisibleSelected" @change="toggleAll" /> {{ t("dashboard.selectAll", "Select visible") }}</label>
+                <v-checkbox class="mb-dashboard__select-all" :model-value="allVisibleSelected" :label="t('dashboard.selectAll', 'Select visible')" density="compact" hide-details @update:model-value="toggleAll" />
                 <span class="mb-dashboard__selection">{{ t("dashboard.selected", { count: selected.length }, "{count} selected") }}</span>
                 <v-btn size="small" variant="tonal" :disabled="selected.length === 0" :prepend-icon="mdiOpenInNew" @click="openSelected">{{ t("dashboard.openFirst", "Open first selected") }}</v-btn>
                 <v-btn size="small" variant="text" :disabled="selected.length === 0" :prepend-icon="mdiDownload" @click="exportSelected">{{ t("dashboard.export", "Export") }}</v-btn>
@@ -163,18 +163,16 @@ onUnmounted(() => { void bridge?.dashboardCancel().catch(() => undefined); });
             <div v-if="visibleRows.length" class="mb-dashboard__grid">
                 <article v-for="row in visibleRows" :key="row.id" class="mb-dashboard__row" :class="{ 'mb-dashboard__row--selected': selected.includes(row.id) }">
                     <div class="mb-dashboard__row-top">
-                        <label class="mb-dashboard__check"><input type="checkbox" :checked="selected.includes(row.id)" :aria-label="t('dashboard.select', { name: row.label }, `Select ${row.label}`)" @change="toggle(row.id)" /></label>
+                        <v-checkbox class="mb-dashboard__check" :model-value="selected.includes(row.id)" :aria-label="t('dashboard.select', { name: row.label }, `Select ${row.label}`)" density="compact" hide-details @update:model-value="toggle(row.id)" />
                         <v-icon :icon="row.source === 'profile' ? mdiLaptop : mdiServerNetwork" aria-hidden="true" />
-                        <button class="mb-dashboard__name" type="button" @click="row.owner.kind === 'profile' ? emit('openProfile', row.owner.id) : emit('openHosting', row.owner.id)">{{ row.label }}</button>
+                        <v-btn class="mb-dashboard__name" variant="text" :ripple="false" @click="row.owner.kind === 'profile' ? emit('openProfile', row.owner.id) : emit('openHosting', row.owner.id)">{{ row.label }}</v-btn>
                         <v-chip size="small" variant="tonal">{{ sourceLabel(row.source) }}</v-chip>
                         <v-btn size="x-small" variant="text" :icon="pinned.includes(row.id) ? mdiPinOff : mdiPin" :aria-label="pinned.includes(row.id) ? t('dashboard.unpin', 'Unpin') : t('dashboard.pin', 'Pin')" @click="togglePin(row.id)" />
                         <v-btn size="x-small" variant="text" :icon="mdiArrowUp" :aria-label="t('dashboard.moveUp', 'Move up')" @click="move(row.id, -1)" />
                         <v-btn size="x-small" variant="text" :icon="mdiArrowDown" :aria-label="t('dashboard.moveDown', 'Move down')" @click="move(row.id, 1)" />
                     </div>
                     <div class="mb-dashboard__url">{{ row.url ?? t("dashboard.unknown", "Unknown") }}</div>
-                    <select class="mb-dashboard__group" :aria-label="t('dashboard.group', 'Dashboard group')" :value="groups[row.id] ?? ''" @change="setGroup(row.id, ($event.target as HTMLSelectElement).value)">
-                        <option v-for="group in groupNames" :key="group" :value="group">{{ group || t("dashboard.noGroup", "No group") }}</option>
-                    </select>
+                    <v-select class="mb-dashboard__group" :aria-label="t('dashboard.group', 'Dashboard group')" :model-value="groups[row.id] ?? ''" :items="groupNames.map((group) => ({ title: group || t('dashboard.noGroup', 'No group'), value: group }))" density="compact" hide-details variant="outlined" @update:model-value="setGroup(row.id, $event)" />
                     <dl class="mb-dashboard__facts">
                         <div><dt>{{ t("dashboard.reachability", "Reachability") }}</dt><dd>{{ row.reachability }}</dd></div>
                         <div><dt>{{ t("dashboard.version", "Version") }}</dt><dd>{{ row.version ?? t("dashboard.unknown", "Unknown") }}</dd></div>

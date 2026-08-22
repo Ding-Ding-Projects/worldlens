@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from "vue";
-import { VListItem, VSwitch, VTooltip } from "vuetify/components";
+import { VLabel, VListItem, VSwitch, VTooltip } from "vuetify/components";
 
 /**
  * MD3 replacement for upstream `Menu/SwitchButton.vue` + `Menu/SwitchHandle.vue`.
@@ -35,7 +35,7 @@ const checked = computed<boolean>({
 
 <template>
     <v-list-item class="mb-menu-switch">
-        <label :for="inputId" class="mb-menu-switch__label">{{ label }}</label>
+        <VLabel :for="inputId" class="mb-menu-switch__label">{{ label }}</VLabel>
         <template #append>
             <v-switch
                 :id="inputId"

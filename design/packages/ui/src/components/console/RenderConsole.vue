@@ -725,12 +725,13 @@ function openSetting(target: SettingsTarget): void {
                 @scroll="autoScroll.onScroll"
             >
                 <li v-for="row in visible" :key="row.line.id" :class="`mb-console__line mb-console__line--${row.line.level}`">
-                    <input
+                    <v-checkbox
                         class="mb-console__select"
-                        type="checkbox"
-                        :checked="selectedIds.has(row.line.id)"
+                        :model-value="selectedIds.has(row.line.id)"
                         :aria-label="t('world.console.selectLine', { id: row.line.id }, `Select line ${row.line.id}`)"
-                        @change="toggleSelection(row.line.id)"
+                        density="compact"
+                        hide-details
+                        @update:model-value="toggleSelection(row.line.id)"
                     />
                     <span class="mb-console__clock">{{ clockText(row.line.at) }}</span>
                     <span class="mb-console__tag" :aria-label="levelLabels[row.line.level]">

@@ -26,7 +26,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiRestore, mdiUpload } from "@mdi/js";
-import { VAlert, VBtn, VTextField } from "vuetify/components";
+import { VAlert, VBtn, VColorPicker, VLabel, VTextField } from "vuetify/components";
 import { LOGO_PRESETS, logoPresetById, logoPresetLabel, type LogoPresetId } from "./logoPresets.js";
 import { validateLogoBytes, type LogoImageFormat, type LogoRejectionReason } from "./logoValidation.js";
 import {
@@ -349,11 +349,11 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
 
         <fieldset class="mb-applogo-row__presets">
             <legend>{{ t("appLogo.preset.groupLabel", "Shipped presets") }}</legend>
-            <button
+            <VBtn
                 v-for="preset in LOGO_PRESETS"
                 :key="preset.id"
-                type="button"
                 class="mb-applogo-row__preset-tile"
+                variant="text"
                 :class="{
                     'mb-applogo-row__preset-tile--active':
                         logoStore.custom === null && logoStore.presetId === preset.id,
@@ -363,7 +363,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
             >
                 <img :src="preset.src" :alt="logoPresetLabel(t, preset.id)" width="40" height="40" />
                 <span>{{ logoPresetLabel(t, preset.id) }}</span>
-            </button>
+            </VBtn>
         </fieldset>
 
         <div class="mb-applogo-row__actions">
@@ -510,14 +510,16 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
             >
                 {{ t("appLogo.background.solid", "Solid colour") }}
             </VBtn>
-            <label v-if="logoStore.background === 'solid'" class="mb-applogo-row__color-label">
-                {{ t("appLogo.background.colorLabel", "Background colour") }}
-                <input
-                    type="color"
-                    :value="logoStore.backgroundColor"
-                    @input="(event) => setBackgroundColor((event.target as HTMLInputElement).value)"
+            <div v-if="logoStore.background === 'solid'" class="mb-applogo-row__color-label">
+                <VLabel>{{ t("appLogo.background.colorLabel", "Background colour") }}</VLabel>
+                <VColorPicker
+                    :model-value="logoStore.backgroundColor"
+                    hide-inputs
+                    show-swatches
+                    width="280"
+                    @update:model-value="setBackgroundColor"
                 />
-            </label>
+            </div>
         </fieldset>
 
         <div class="mb-applogo-row__previews">
