@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 228,
+  "expectedTargetCount": 229,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
