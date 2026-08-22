@@ -99,7 +99,7 @@ beforeAll(() => {
     });
 });
 
-/** The exact key `kidMode.ts`'s own `persisted(KEY_ENABLED, true)` reads and writes. */
+/** The exact key `kidMode.ts`'s own `persisted(KEY_ENABLED, false)` reads and writes. */
 const KID_MODE_ENABLED_KEY = "bluemap-kid-mode";
 /** The exact key `useKidProgress.ts`'s own `KEY_LEDGER` reads and writes. */
 const KID_PROGRESS_KEY = "bluemap-kid-progress";

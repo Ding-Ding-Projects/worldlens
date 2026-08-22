@@ -7,14 +7,23 @@
  * restricted-mode record** (School mode's own shared credential, in `components/setup/schoolMode.js`)
  * rather than inventing a second one.
  *
- * ### Kid Mode ships on
+ * ### Adult Mode ships on
  *
- * `enabled` defaults to `true`: a fresh install opens in Kid Mode, not Adult Mode. That is a
- * deliberate product decision, and it is the one thing in this module that creates a hazard the
- * rest of the file exists to close - see `KidGrownUpGate.vue`'s own doc comment for the full
- * reasoning, but the short version is: a fresh install has no shared restricted-mode credential
- * configured yet, so the gate must let a grown-up straight through to Adult Mode rather than
- * demand a code that was never set. Kid Mode must never become a one-way door.
+ * `enabled` defaults to `false`: a fresh install opens in Adult Mode, and Kid Mode is something
+ * a grown-up deliberately turns on. This reversed on 2026-08-21 at the owner's direction; it
+ * shipped the other way round for most of this application's life, so a comment, a test or a
+ * screenshot anywhere that still says "a fresh install opens in Kid Mode" is stale rather than
+ * describing a second code path.
+ *
+ * The reversal also retires a hazard rather than creating one. While Kid Mode was the default,
+ * a fresh install landed inside it holding no shared restricted-mode credential, so the grown-up
+ * gate had to let anybody straight through to Adult Mode rather than demand a code nobody had
+ * set - the alternative being a one-way door into a restricted shell on first run. Defaulting to
+ * Adult Mode means nobody arrives behind that gate without having chosen to be there.
+ *
+ * That fall-through in `KidGrownUpGate.vue` still matters and must not be removed on the strength
+ * of this change: somebody who turns Kid Mode on without configuring a credential is in exactly
+ * the old position, and Kid Mode must never become a one-way door.
  */
 import { computed, inject, provide, ref, watch, type InjectionKey, type Ref } from "vue";
 import type { KidLabelStyle } from "./kidLabels.js";
@@ -52,7 +61,7 @@ function buildKidModeState(): KidModeState {
     media?.addEventListener?.("change", (event) => (reducedMotion.value = event.matches));
 
     return {
-        enabled: persisted(KEY_ENABLED, true),
+        enabled: persisted(KEY_ENABLED, false),
         childName: persisted(KEY_NAME, "Explorer"),
         labelStyle: persisted<KidLabelStyle>(KEY_STYLE, "kid-first"),
         celebrations: persisted(KEY_CELEBRATE, true),
