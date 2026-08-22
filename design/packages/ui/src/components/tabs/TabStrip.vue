@@ -2115,7 +2115,7 @@ const tabCountLabel = computed(() =>
 .mb-tabs-strip__sheet {
     background: rgb(var(--v-theme-surface));
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    box-shadow: var(--md-sys-elevation-shadow-level3);
     max-width: calc(100vw - 16px);
     max-height: min(calc(100vh - 24px), 640px);
     overflow-y: auto;

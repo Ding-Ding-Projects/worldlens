@@ -249,9 +249,7 @@ function resetCamera(): void {
     border: 1px solid rgb(var(--v-theme-outline-variant));
     color: rgb(var(--v-theme-on-surface));
     /* MD3 elevation level 2. */
-    box-shadow:
-        0 1px 2px rgba(0, 0, 0, 0.3),
-        0 2px 6px 2px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--md-sys-elevation-shadow-level2);
 }
 
 /*
@@ -307,9 +305,7 @@ function resetCamera(): void {
         pointer-events: auto;
         background: rgb(var(--v-theme-surface));
         color: rgb(var(--v-theme-on-surface));
-        box-shadow:
-            0 1px 2px rgba(0, 0, 0, 0.3),
-            0 2px 6px 2px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--md-sys-elevation-shadow-level2);
     }
 
     .mb-cb__cluster {

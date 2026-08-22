@@ -445,7 +445,7 @@ const rowName = (row: TabGroupPickerRow): string =>
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
-    box-shadow: 0 6px 10px 4px rgba(0, 0, 0, 0.15), 0 2px 3px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--md-sys-elevation-shadow-level4);
 }
 
 .mb-tab-group-picker__search {

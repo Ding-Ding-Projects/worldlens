@@ -154,14 +154,21 @@ describe("what must not drift", () => {
             "surface-container-lowest",
             "surface-container-low",
             "surface-container",
-            "surface-container-high",
-            "surface-container-highest",
         ]) {
             expect(colors[role], `contrast ${role} must stay black`).toBe("#000000");
         }
+        // The top two container tiers are the one exception, and the design system publishes
+        // them as such: a menu over a sheet over the background is three surfaces deep, and at
+        // pure black with white hairlines between them the stack reads as one plane. #141414
+        // and #1F1F1F are the smallest lifts that separate them. Both stay far above the 7:1
+        // WCAG AAA floor against white text, but the highest tier is 16.5:1 rather than the
+        // theme name's 21:1, so the ratio assertion below pins the real number.
+        expect(colors["surface-container-high"]).toBe("#141414");
+        expect(colors["surface-container-highest"]).toBe("#1F1F1F");
         expect(colors["on-surface"]).toBe("#FFFFFF");
         expect(colors.outline).toBe("#FFFFFF");
         expect(contrastRatio(colors.surface!, colors["on-surface"]!)).toBeCloseTo(21, 0);
+        expect(contrastRatio(colors["surface-container-highest"]!, colors["on-surface"]!)).toBeGreaterThan(16);
     });
 
     it("marks dark and contrast as dark schemes, and light and kid as light ones", () => {

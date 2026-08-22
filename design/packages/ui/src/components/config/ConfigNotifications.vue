@@ -216,9 +216,7 @@ function close(id: number): void {
      */
     background: rgb(var(--v-theme-surface));
     background-color: rgb(var(--v-theme-surface));
-    box-shadow:
-        0 6px 16px rgb(0 0 0 / 28%),
-        0 1px 3px rgb(0 0 0 / 22%);
+    box-shadow: var(--md-sys-elevation-shadow-level3);
     border: 1px solid rgb(var(--v-border-color) / 0.22);
 }
 

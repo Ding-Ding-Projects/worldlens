@@ -1003,65 +1003,58 @@ function openSetting(target: SettingsTarget): void {
 /*
  * The level palette.
  *
- * Declared here rather than taken from Vuetify's status colours because those are tuned
- * for filled chips and buttons: the default warning amber measures under 3:1 as text on
- * a light surface, and a warning that cannot be read is not a warning. Each value below
- * is chosen to clear 4.5:1 against the console's own background in its own theme.
+ * Five of the six levels are the design system's own roles, so they retheme with everything
+ * else and no value is written twice. Only `warning` is a literal, and it is a literal for the
+ * reason the roles cannot cover it: Material 3 has no warning role, and Vuetify's status amber
+ * measures under 3:1 as text on a light surface, which makes a warning that cannot be read.
+ * Each of the three warning values below is chosen to clear 4.5:1 against the console's own
+ * background in its own theme; the contrast theme takes the same yellow that scheme already
+ * spends on secondary and tertiary, so it agrees with the rest of that palette rather than
+ * inventing a seventh colour.
+ *
+ * `debug` is `info` at reduced opacity rather than a colour of its own, which is what keeps a
+ * debug line legible in the contrast theme instead of dropping it to a grey that scheme has no
+ * value for.
+ *
+ * The contrast branch is the one this file was missing. `.v-theme--contrast` matches neither
+ * `.v-theme--light` nor `.v-theme--dark`, so before it existed every line in that theme fell
+ * through to the inherited colour and the console lost its level distinction entirely, which is
+ * the accessibility theme losing an accessibility feature.
  */
-.v-theme--light .mb-console__line--error,
-.v-theme--light .mb-console__advice--warning {
-    color: #a3231c;
+.mb-console__line--error,
+.mb-console__advice--warning {
+    color: rgb(var(--v-theme-error));
+}
+
+.mb-console__line--info,
+.mb-console__line--debug {
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-console__line--debug {
+    opacity: 0.72;
+}
+
+.mb-console__line--tip,
+.mb-console__advice--tip {
+    color: rgb(var(--v-theme-primary));
+}
+
+.mb-console__line--signal {
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .v-theme--light .mb-console__line--warning {
     color: #7a4a00;
 }
 
-.v-theme--light .mb-console__line--info,
-.v-theme--light .mb-console__line--debug {
-    color: #1d1b20;
-}
-
-.v-theme--light .mb-console__line--debug {
-    opacity: 0.72;
-}
-
-.v-theme--light .mb-console__line--tip,
-.v-theme--light .mb-console__advice--tip {
-    color: #0b57d0;
-}
-
-.v-theme--light .mb-console__line--signal {
-    color: #45484d;
-}
-
-.v-theme--dark .mb-console__line--error,
-.v-theme--dark .mb-console__advice--warning {
-    color: #f2b8b5;
-}
-
 .v-theme--dark .mb-console__line--warning {
     color: #ffb861;
 }
 
-.v-theme--dark .mb-console__line--info,
-.v-theme--dark .mb-console__line--debug {
-    color: #e6e1e5;
+.v-theme--contrast .mb-console__line--warning {
+    color: #ffff00;
 }
-
-.v-theme--dark .mb-console__line--debug {
-    opacity: 0.72;
-}
-
-.v-theme--dark .mb-console__line--tip,
-.v-theme--dark .mb-console__advice--tip {
-    color: #a8c7fa;
-}
-
-.v-theme--dark .mb-console__line--signal {
-    color: #b6bac0;
-}
-
 /*
  * A console that animates its own scrolling is a console that makes some readers ill.
  * The follow behaviour still works; it simply arrives instantly.

@@ -300,7 +300,7 @@ function onExit(): void {
     border-radius: 16px;
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--md-sys-elevation-shadow-level3);
     pointer-events: auto;
     transition:
         top 0.15s ease,

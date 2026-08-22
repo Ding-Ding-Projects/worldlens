@@ -881,7 +881,7 @@ function number(value: string, fallback: number): number {
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
-    box-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--md-sys-elevation-shadow-level3);
 }
 
 .mb-type-editor__fontList {
