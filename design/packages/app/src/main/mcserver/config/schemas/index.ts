@@ -7,11 +7,10 @@
  * `resolveSchema` checks flavour-specific entries first. `paper-global.yml` and
  * `paper-world-defaults.yml` are Paper-only. `purpur.yml` is Purpur-only.
  *
- * Deliberately still missing: `velocity.toml` (no comment-preserving TOML round-trip
- * exists in this package yet - see `parseYaml.ts`'s doc comment for why that matters and
- * `noTextBox.test.ts`/`describe.ts` for how an unschemad file still avoids a text box), and
- * the Fabric/Forge/NeoForge loader and mod config formats, which have no single stable
- * schema across mods and are left to per-file inference rather than a fabricated one.
+ * `velocity.toml` now has its own schema, backed by the line-oriented, comment-preserving
+ * TOML parser in `parseToml.ts`. Deliberately still missing: the Fabric/Forge/NeoForge
+ * loader and mod config formats, which have no single stable schema across mods and are
+ * left to per-file inference rather than a fabricated one.
  */
 
 import type { FieldMeta } from "@worldlens/config";
@@ -21,6 +20,7 @@ import { paperWorldDefaultsFields } from "./paperWorldDefaults.js";
 import { purpurFields } from "./purpur.js";
 import { serverPropertiesFields } from "./serverProperties.js";
 import { spigotFields } from "./spigot.js";
+import { velocityFields } from "./velocity.js";
 
 export interface SchemaMatch {
     /** File-kind identifier, e.g. `"server.properties"`, `"paper-world-defaults.yml"`. */
@@ -39,6 +39,7 @@ export const REGISTRY: readonly SchemaMatch[] = [
     { fileKind: "paper-global.yml", flavour: "paper", versionRange: "*", fields: paperGlobalFields },
     { fileKind: "paper-world-defaults.yml", flavour: "paper", versionRange: "*", fields: paperWorldDefaultsFields },
     { fileKind: "purpur.yml", flavour: "purpur", versionRange: "*", fields: purpurFields },
+    { fileKind: "velocity.toml", flavour: "velocity", versionRange: "*", fields: velocityFields },
 ];
 
 /**
@@ -60,3 +61,4 @@ export { paperWorldDefaultsFields } from "./paperWorldDefaults.js";
 export { purpurFields } from "./purpur.js";
 export { serverPropertiesFields } from "./serverProperties.js";
 export { spigotFields } from "./spigot.js";
+export { velocityFields } from "./velocity.js";
