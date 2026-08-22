@@ -84,6 +84,15 @@ packaged build. The tests prove the modules; they do not prove the feature runs.
 are not merely unproven but genuinely unreachable today: the adoption button opens no dialog,
 and the AWS hosting target has no interface at all.
 
+### Records reconciliation (2026-08-22)
+
+Against `origin/main` at `a90f588f`, Issues #150–#162 remain open: adoption wiring, config IPC and
+remaining schemas, AWS wizard controls, world-generator reconciliation/vanilla generation,
+mod-loader profiles, world-drop actions, search coverage, two-corner command picking, stale
+captures, and the pre-existing red gates all lack a verified closure record. The landed version
+picker and Paper/Velocity v3 catalogue are the only items in this block promoted from the older
+handoff's open list; no unchecked roadmap item was silently removed.
+
 ### 廣東話
 
 一個介面打通三個地方：本機、Yere Dow container、SSH 上面嘅 container。SSH 嗰個唔使另外寫

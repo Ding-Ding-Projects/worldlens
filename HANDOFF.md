@@ -41,37 +41,46 @@ it before writing any interface.
 
 ### Not done, and none of it optional
 
-1. **Adoption reaches nothing.** `ServerListScreen.vue` emits `adopt`; no mount site in `App.vue`
-   listens, and `AdoptionReviewDialog.vue` is mounted nowhere outside its own test. The backend
-   under `main/mcserver/adopt/` is real and tested. A discovery-browser screen does not exist.
-2. **The config editor never calls its own IPC.** Typed schemas exist and pass tests for
-   `paper-global.yml`, `paper-world-defaults.yml`, `spigot.yml`, `bukkit.yml`, `purpur.yml` and
-   `velocity.toml`, but `ServerConfigEditor.vue` does not call `configDescribe`/`configApply`, so
-   none of it reaches a user. Still missing: Fabric, Forge and NeoForge loader configs, and the
-   ops/whitelist/banned-players/banned-ips files as record tables rather than JSON in a text box.
-   Every default and bound currently in those schemas came from recall, not a fetched upstream
-   source; each file says so in its own doc comment and they are worth verifying.
-3. **AWS has no interface.** The whole `main/mcserver/aws/` backend is built and tested and the
-   creation wizard contains zero references to it. Note that `creditBalanceRemaining` is always
-   null on purpose: AWS publishes no API for a remaining balance, only credits applied over a
-   period, which is a different number and must never be presented as the other.
-4. **`lane/world-generator` carries two competing implementations**, committed unreconciled and
-   flagged as such. Neither is wired into IPC, preload or app boot. `design/packages/worldgen/`
-   is a real Anvil-format writer producing genuine region files and zips, but deliberately
-   synthetic terrain rather than vanilla-accurate output. The honest route to real generation is
-   to run the server jar the app already downloads, with the chosen settings, plus the Chunky
-   pre-generation plugin, then package the resulting world.
-5. **Screenshots are stale** — 150 of 229 targets. The checker grades against a content digest of
-   the interface source, so a recapture taken while code is still moving is stale on arrival.
-   Recapture only on a frozen tree. Notes are in `docs/screenshot-evidence.md`.
-6. **Requested and not started:** profile creators for mod loaders, fully interactive, on the
-   client side; dragging a Minecraft world onto the app doing something useful; search fields on
-   the surfaces still listed as gaps in `docs/search-coverage.md`; two-corner map picking for
-   `/fill` and `/clone` in the command builder.
-7. **Pre-existing red gates, not caused by this work:** 39 typecheck errors in unrelated files in
-   the app package, a large pre-existing baseline in the interface package, `docsIndexCoverage`
-   failing on five docs missing from `docs/README.md`, and a Kid Mode language suite asserting
-   five tiles where a sixth was added.
+The records below were reconciled against `origin/main` at `a90f588f` on 2026-08-22. The server
+wizard, live version picker, Paper/Velocity v3 catalogue, and byte-for-byte config document model
+are landed; the following interface and evidence gaps remain open.
+
+1. **Adoption remains unwired (Issue #150).** `ServerListScreen.vue` emits `adopt`, but all three
+   `App.vue` mount sites still omit `@adopt`; `AdoptionReviewDialog.vue` is only referenced by its
+   own tests. The read-only backend under `main/mcserver/adopt/` is real and tested, but no
+   discovery browser or review flow is reachable from the app.
+2. **The config editor is still disconnected (Issue #151).** `ServerConfigEditor.vue` contains no
+   `configDescribe` or `configApply` call, so the typed schemas do not reach a user. The five
+   server/proxy schemas already present are source-only; Fabric, Forge, NeoForge and the
+   `ops.json`/`whitelist.json`/`banned-players.json`/`banned-ips.json` record tables remain missing
+   (Issue #158). Defaults and bounds are still marked recall-derived and need upstream checking
+   (Issue #159).
+3. **AWS hosting is still unreachable from the wizard (Issue #152).** The tested
+   `main/mcserver/aws/` backend exists, but `CreateServerWizard.vue` has no AWS route or controls;
+   `creditBalanceRemaining` correctly remains `null` because AWS exposes applied credits, not a
+   remaining-balance API.
+4. **World generation is still unresolved (Issues #153 and #154).** `origin/main` does not wire
+   either `lane/world-generator` implementation into IPC, preload or app boot. The Anvil writer
+   remains deliberately synthetic; vanilla-accurate generation still requires running the
+   downloaded server jar with Chunky and packaging its output.
+5. **Screenshot evidence remains stale (Issue #160).** 150 of 229 targets are stale against the
+   interface content digest. Recapture only on a frozen tree using the real built-artifact
+   harness; see `docs/screenshot-evidence.md`.
+6. **Requested client and interaction work remains open (Issues #155–#157, #161).** No fully
+   interactive Fabric/Forge/NeoForge/Quilt profile creator has landed (#155); dropping a world
+   folder/zip still has no useful inspect/action flow (#156); the remaining rows in
+   `docs/search-coverage.md` still need their search and anchored regex builder (#157); and the
+   command builder still lacks a second map-picked corner for `/fill` and `/clone` (#161).
+7. **Pre-existing red gates remain (Issue #162).** The unrelated app typecheck errors, the
+   interface-package baseline, five missing docs-index entries, and the Kid Mode language suite's
+   sixth-tile mismatch are still recorded as pre-existing and are not claimed as fixed here.
+
+### Issue reconciliation (2026-08-22)
+
+Issues #150, #151, #152, #153, #154, #155, #156, #157, #158, #159, #160, #161 and #162 are all
+still open against `origin/main` (`a90f588f`). Their source or evidence status is recorded above;
+none has a verified packaged-runtime or capture result that justifies closure. The already-landed
+server-manager work is limited to the verified items listed in **Verified working**.
 
 ### Traps that have already cost time
 
