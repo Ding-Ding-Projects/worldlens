@@ -46,3 +46,7 @@ design/packages/app/.version-backup
 
 # Screenshots taken by .claude/skills/run-worldlens/driver.mjs
 .worldlens-driver/
+
+# Linked worktrees created for parallel work. They are checkouts of this same
+# repository, so tracking them would commit one lane into another.
+wl-lanes/
