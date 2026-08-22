@@ -167,23 +167,48 @@ async function fetchVanillaVersions(fetchText: FetchText, limit: number): Promis
 }
 
 // ---------------------------------------------------------------------------------------
-// Paper / Velocity - https://api.papermc.io/v2/projects/{project}/versions/{v}/builds
+// Paper / Velocity - https://fill.papermc.io/v3/projects/{project}
+//
+// The v2 API this used to read was sunset and now answers 410 to every request, which the
+// old code turned into an empty version list. So Paper - the flavour this app's own copy
+// calls the usual pick for a community server - silently offered nothing to choose from,
+// and the interface honestly reported that no versions were catalogued. Nothing was
+// broken locally; upstream had simply retired the endpoint.
+//
+// v3 is better shaped for this anyway: it publishes the download URL, a real SHA-256 and
+// the build time, all of which v2 either omitted or made us construct by hand.
 // ---------------------------------------------------------------------------------------
 
-interface PaperProject {
-    readonly versions: readonly string[];
+/** v3 groups versions by their major line: `{ "1.21": ["1.21.4", "1.21.3"], ... }`. */
+interface PaperProjectV3 {
+    readonly versions?: Record<string, readonly string[] | undefined>;
 }
 
-interface PaperBuild {
-    readonly build: number;
-    readonly channel: string;
-    readonly downloads: {
-        readonly application?: { readonly name: string; readonly sha256?: string };
-    };
+interface PaperBuildV3 {
+    readonly id: number;
+    /** ISO-8601 build time. This is what gives Paper and Velocity a real release date. */
+    readonly time?: string;
+    /** `STABLE`, or a pre-release channel such as `ALPHA` or `BETA`. */
+    readonly channel?: string;
+    readonly downloads?: Record<string, {
+        readonly name?: string;
+        readonly url?: string;
+        readonly checksums?: { readonly sha256?: string };
+    } | undefined>;
 }
 
-interface PaperBuilds {
-    readonly builds: readonly PaperBuild[];
+/**
+ * Every game version v3 lists, newest line first.
+ *
+ * The map's own key order is the API's, and its values are already newest-first within a
+ * line, so flattening preserves the ordering upstream chose rather than imposing one.
+ */
+function paperVersionsNewestFirst(project: PaperProjectV3): string[] {
+    const out: string[] = [];
+    for (const line of Object.values(project.versions ?? {})) {
+        for (const version of line ?? []) out.push(version);
+    }
+    return out;
 }
 
 async function fetchPaperFamilyVersions(
@@ -191,29 +216,33 @@ async function fetchPaperFamilyVersions(
     project: "paper" | "velocity",
     limit: number,
 ): Promise<VersionEntry[]> {
-    const projectText = await fetchText(`https://api.papermc.io/v2/projects/${project}`);
-    const projectInfo = JSON.parse(projectText) as PaperProject;
-    const gameVersions = projectInfo.versions.slice(-limit).reverse();
+    const projectText = await fetchText(`https://fill.papermc.io/v3/projects/${project}`);
+    const projectInfo = JSON.parse(projectText) as PaperProjectV3;
+    const gameVersions = paperVersionsNewestFirst(projectInfo).slice(0, limit);
 
     const entries: VersionEntry[] = [];
     for (const version of gameVersions) {
-        const buildsText = await fetchText(`https://api.papermc.io/v2/projects/${project}/versions/${version}/builds`);
-        const builds = JSON.parse(buildsText) as PaperBuilds;
-        if (builds.builds.length === 0) continue;
-        // The API returns builds oldest first, so the latest is the last entry.
-        const latest = builds.builds[builds.builds.length - 1];
-        if (latest === undefined || latest.downloads.application === undefined) continue;
-        const filename = latest.downloads.application.name;
+        const buildsText = await fetchText(
+            `https://fill.papermc.io/v3/projects/${project}/versions/${encodeURIComponent(version)}/builds`,
+        );
+        const builds = JSON.parse(buildsText) as readonly PaperBuildV3[];
+        // v3 returns builds newest first, the opposite of v2. Reading the last entry here
+        // would quietly offer the oldest build of every version.
+        const latest = Array.isArray(builds) ? builds[0] : undefined;
+        if (latest === undefined) continue;
+
+        // The server jar is published under this key; anything else is a different artifact.
+        const download = latest.downloads?.["server:default"];
+        if (download?.url === undefined) continue;
+
         entries.push({
-            version: `${version}#${String(latest.build)}`,
-            stability: latest.channel === "default" ? "release" : "snapshot",
+            version: `${version}#${String(latest.id)}`,
+            // Upstream says STABLE for a finished build and names a channel otherwise.
+            stability: (latest.channel ?? "").toUpperCase() === "STABLE" ? "release" : "snapshot",
             javaFeature: 21,
-            downloadUrl: `https://api.papermc.io/v2/projects/${project}/versions/${version}/builds/${String(latest.build)}/downloads/${filename}`,
-            sha256: isSha256(latest.downloads.application.sha256)
-                ? latest.downloads.application.sha256.toLowerCase()
-                : null,
-                // This API publishes no release date, and a guessed one would be repeated as fact.
-                releasedAt: null,
+            downloadUrl: download.url,
+            sha256: isSha256(download.checksums?.sha256) ? download.checksums.sha256.toLowerCase() : null,
+            releasedAt: latest.time ?? null,
         });
     }
     return entries;

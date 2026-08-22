@@ -31,18 +31,50 @@ const VANILLA_SNAPSHOT_DETAIL = JSON.stringify({
     javaVersion: { majorVersion: 21 },
 });
 
-const PAPER_PROJECT = JSON.stringify({ versions: ["1.21.3", "1.21.4"] });
-const PAPER_BUILDS = JSON.stringify({
-    builds: [
-        { build: 10, channel: "default", downloads: { application: { name: "paper-1.21.4-10.jar", sha256: "a".repeat(64) } } },
-        { build: 11, channel: "default", downloads: { application: { name: "paper-1.21.4-11.jar", sha256: "b".repeat(64) } } },
-    ],
-});
+const PAPER_PROJECT = JSON.stringify({ versions: { "1.21": ["1.21.4", "1.21.3"] } });
+// v3 returns builds NEWEST FIRST, the opposite of the v2 API this used to read.
+const PAPER_BUILDS = JSON.stringify([
+    {
+        id: 11,
+        time: "2024-12-04T09:00:00Z",
+        channel: "STABLE",
+        downloads: {
+            "server:default": {
+                name: "paper-1.21.4-11.jar",
+                url: "https://fill-data.papermc.io/v1/objects/bbb/paper-1.21.4-11.jar",
+                checksums: { sha256: "b".repeat(64) },
+            },
+        },
+    },
+    {
+        id: 10,
+        time: "2024-12-03T09:00:00Z",
+        channel: "STABLE",
+        downloads: {
+            "server:default": {
+                name: "paper-1.21.4-10.jar",
+                url: "https://fill-data.papermc.io/v1/objects/aaa/paper-1.21.4-10.jar",
+                checksums: { sha256: "a".repeat(64) },
+            },
+        },
+    },
+]);
 
-const VELOCITY_PROJECT = JSON.stringify({ versions: ["3.4.0"] });
-const VELOCITY_BUILDS = JSON.stringify({
-    builds: [{ build: 5, channel: "default", downloads: { application: { name: "velocity-3.4.0-5.jar", sha256: "c".repeat(64) } } }],
-});
+const VELOCITY_PROJECT = JSON.stringify({ versions: { "3.4": ["3.4.0"] } });
+const VELOCITY_BUILDS = JSON.stringify([
+    {
+        id: 5,
+        time: "2024-11-01T09:00:00Z",
+        channel: "STABLE",
+        downloads: {
+            "server:default": {
+                name: "velocity-3.4.0-5.jar",
+                url: "https://fill-data.papermc.io/v1/objects/ccc/velocity-3.4.0-5.jar",
+                checksums: { sha256: "c".repeat(64) },
+            },
+        },
+    },
+]);
 
 const PURPUR_PROJECT = JSON.stringify({ versions: ["1.21.4"] });
 const PURPUR_VERSION = JSON.stringify({ builds: { latest: "2350", all: ["2349", "2350"] } });
@@ -65,11 +97,11 @@ const ALL_ROUTES: Record<string, string> = {
     "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json": VANILLA_MANIFEST,
     "https://example.test/1.21.4.json": VANILLA_DETAIL,
     "https://example.test/24w45a.json": VANILLA_SNAPSHOT_DETAIL,
-    "https://api.papermc.io/v2/projects/paper/versions/1.21.3/builds": PAPER_BUILDS,
-    "https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds": PAPER_BUILDS,
-    "https://api.papermc.io/v2/projects/paper": PAPER_PROJECT,
-    "https://api.papermc.io/v2/projects/velocity/versions/3.4.0/builds": VELOCITY_BUILDS,
-    "https://api.papermc.io/v2/projects/velocity": VELOCITY_PROJECT,
+    "https://fill.papermc.io/v3/projects/paper/versions/1.21.3/builds": PAPER_BUILDS,
+    "https://fill.papermc.io/v3/projects/paper/versions/1.21.4/builds": PAPER_BUILDS,
+    "https://fill.papermc.io/v3/projects/paper": PAPER_PROJECT,
+    "https://fill.papermc.io/v3/projects/velocity/versions/3.4.0/builds": VELOCITY_BUILDS,
+    "https://fill.papermc.io/v3/projects/velocity": VELOCITY_PROJECT,
     "https://api.purpurmc.org/v2/purpur/1.21.4": PURPUR_VERSION,
     "https://api.purpurmc.org/v2/purpur": PURPUR_PROJECT,
     "https://meta.fabricmc.net/v2/versions/loader": FABRIC_LOADERS,
@@ -129,9 +161,9 @@ describe("refreshCatalogue", () => {
         await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES), now: () => "2026-08-14T00:00:00.000Z" });
 
         const brokenRoutes = { ...ALL_ROUTES };
-        delete brokenRoutes["https://api.papermc.io/v2/projects/paper"];
+        delete brokenRoutes["https://fill.papermc.io/v3/projects/paper"];
         const secondFetch: FetchText = async (url) => {
-            if (url.startsWith("https://api.papermc.io/v2/projects/paper") && !url.includes("velocity")) {
+            if (url.startsWith("https://fill.papermc.io/v3/projects/paper") && !url.includes("velocity")) {
                 throw new Error("PaperMC is down");
             }
             return fakeFetch(ALL_ROUTES)(url);
