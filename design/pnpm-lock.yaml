@@ -141,6 +141,18 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  packages/design-system:
+    dependencies:
+      '@mdi/js':
+        specifier: ^7.4.47
+        version: 7.4.47
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.40(typescript@5.9.3)
+      vuetify:
+        specifier: ^3.13.0
+        version: 3.13.0(typescript@5.9.3)(vue@3.5.40(typescript@5.9.3))
+
   packages/engine:
     dependencies:
       '@bokuweb/zstd-wasm':
@@ -273,7 +285,11 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0
 
-  packages/shared: {}
+  packages/shared:
+    dependencies:
+      '@worldlens/design-system':
+        specifier: workspace:*
+        version: link:../design-system
 
   packages/site:
     devDependencies:
@@ -307,6 +323,9 @@ importers:
       '@worldlens/config':
         specifier: workspace:*
         version: link:../config
+      '@worldlens/design-system':
+        specifier: workspace:*
+        version: link:../design-system
       '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
