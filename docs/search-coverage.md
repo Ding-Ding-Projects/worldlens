@@ -10,6 +10,8 @@ Hand-written inventory of every `.vue` file under `design/packages/ui/src/compon
 |---|---|---|---|
 | `mcserver/PluginManager.vue` | Installed plugins (name/source/version/path) | No | Yes — `ConfigSearchField`, local filter, honest no-match state |
 | `mcserver/AdoptionReviewDialog.vue` | Discovery evidence lines, mounted paths, published ports | No | Yes — one combined `ConfigSearchField` filtering all three lists, per-section no-match states |
+| `mcserver/CreateServerWizard.vue` | Minecraft version catalogue in the version step | No | Yes — `ConfigSearchField`, local version filtering, plain-text default with anchored regex opt-in |
+| `mcserver/ServerConsole.vue` | Live console transcript lines | No | Yes — `ConfigSearchField`, local transcript filtering composed with stream filter |
 
 `mcserver/WebConsolePanel.vue` was reviewed as a named gap candidate. Its `VTabs` strip holds exactly five fixed items (Console/Configuration/Plugins/Players/Web console) — a local window tab set, not the application's primary browser-style navigation tab strip that the tabbed-navigation rules govern. A filter field over five never-changing labels would be decoration rather than a feature, so it was deliberately left as-is; if this tab set ever grows past a handful of dynamic entries it should get the same `MenuSearchList`-style filter the app's real tab strips use.
 
@@ -109,11 +111,11 @@ Hand-written inventory of every `.vue` file under `design/packages/ui/src/compon
 | `markers/RegexBuilder.vue` | 6 | no — reviewed | Reviewed: transient/small live-progress or wizard-step content, not a persistent browsable collection. No search required. (spot-checked individually; see report) |
 | `markers/StudioMarkerLayerHost.vue` | 0 | n/a | No list/table/select/menu markers found; not a candidate surface. |
 | `mcserver/AdoptionReviewDialog.vue` | 16 | yes (fixed here) | FIXED this task: evidence/mounts/ports lists had no filter; added a combined ConfigSearchField with per-section no-match states. |
-| `mcserver/CreateServerWizard.vue` | 11 | no (not touched) | Owned by another lane right now per this task's instructions; not touched. |
+| `mcserver/CreateServerWizard.vue` | 11 | yes | Version catalogue step uses `ConfigSearchField` with a per-wizard query, plain-text default, anchored regex builder, and local filtered version options. |
 | `mcserver/PlayerManager.vue` | 19 | yes | Already uses the established search-plus-regex-builder component. |
 | `mcserver/PluginManager.vue` | 23 | yes (fixed here) | FIXED this task: installed-plugins list had no local filter; added ConfigSearchField over name/source/version/path with no-match state. |
 | `mcserver/ServerConfigEditor.vue` | 4 | yes | Already uses the established search-plus-regex-builder component. |
-| `mcserver/ServerConsole.vue` | 8 | no (not touched) | Owned by another lane right now per this task's instructions; not touched. |
+| `mcserver/ServerConsole.vue` | 8 | yes | Live transcript uses `ConfigSearchField` with its own query, stream-filter composition, plain-text default, anchored regex builder, and local no-match behavior. |
 | `mcserver/ServerListScreen.vue` | 3 | yes | Already uses the established search-plus-regex-builder component. |
 | `mcserver/WebConsolePanel.vue` | 0 | n/a | No list/table/select/menu markers found; not a candidate surface. |
 | `menu/InfoPage.vue` | 0 | n/a | No list/table/select/menu markers found; not a candidate surface. |

@@ -17,6 +17,8 @@ import { createVuetify } from "vuetify";
 
 import PluginManager from "./PluginManager.vue";
 import AdoptionReviewDialog from "./AdoptionReviewDialog.vue";
+import CreateServerWizard from "./CreateServerWizard.vue";
+import ServerConsole from "./ServerConsole.vue";
 import { SERVER_STORE } from "./useServers.js";
 import { createServerStore, type McServerHost } from "./serverStore.js";
 import type { ServerRecord } from "./serverModel.js";
@@ -141,10 +143,14 @@ function stubBridge(): void {
     };
 }
 
-async function mountWith(component: unknown, props: Record<string, unknown>) {
+async function mountWith(
+    component: unknown,
+    props: Record<string, unknown>,
+    host = fakeHost(),
+) {
     const i18n = createI18n({ legacy: false, locale: "en", messages: { en: {} } });
     const vuetify = createVuetify();
-    const store = createServerStore({ host: fakeHost() });
+    const store = createServerStore({ host });
     await store.load();
     return mount(component as never, {
         props: props as never,
@@ -191,6 +197,68 @@ describe("PluginManager installed-plugin filter", () => {
         await flushPromises();
         expect(wrapper.text()).toContain("No installed plugin matches");
         expect(wrapper.text()).not.toContain("EssentialsX");
+    });
+});
+
+describe("CreateServerWizard and ServerConsole search coverage", () => {
+    beforeAll(stubBridge);
+
+    it("filters the wizard's catalogue versions with plain text by default", async () => {
+        const host = fakeHost();
+        host.catalogue = {
+            list: vi.fn().mockResolvedValue({
+                ok: true,
+                value: {
+                    fetchedAt: "2026-01-01T00:00:00Z",
+                    stale: false,
+                    flavours: [
+                        {
+                            flavour: "paper",
+                            versions: [
+                                { version: "1.21.4", releasedAt: null, javaFeature: 21 },
+                                { version: "1.20.6", releasedAt: null, javaFeature: 21 },
+                            ],
+                        },
+                    ],
+                },
+            }),
+            refresh: vi.fn(),
+        };
+        const wrapper = await mountWith(CreateServerWizard, { modelValue: true }, host);
+        await flushPromises();
+        const nextButton = wrapper.findAll("button").find((button) => button.text().includes("Next"));
+        expect(nextButton).toBeDefined();
+        await nextButton!.trigger("click");
+        await flushPromises();
+        expect(wrapper.find('input[placeholder="Search versions"]').exists()).toBe(true);
+        expect(wrapper.text()).toContain("1.21.4");
+        expect(wrapper.text()).toContain("1.20.6");
+        const field = wrapper.find('input[placeholder="Search versions"]');
+        await field.setValue("1.21.4");
+        await flushPromises();
+        expect(wrapper.text()).toContain("1.21.4");
+        expect(wrapper.text()).not.toContain("1.20.6");
+    });
+
+    it("filters live console lines and exposes the anchored regex opt-in field", async () => {
+        const host = fakeHost();
+        host.logTail = vi.fn().mockResolvedValue({
+            ok: true,
+            value: [
+                { at: "2026-01-01T00:00:00Z", stream: "stdout", text: "Started world" },
+                { at: "2026-01-01T00:00:01Z", stream: "stderr", text: "Failed to bind port" },
+            ],
+        });
+        const wrapper = await mountWith(ServerConsole, { serverId: "srv-1" }, host);
+        await flushPromises();
+        const field = wrapper.find('input[placeholder="Search log"]');
+        expect(field.exists()).toBe(true);
+        expect(wrapper.text()).toContain("Started world");
+        expect(wrapper.text()).toContain("Failed to bind port");
+        await field.setValue("Failed");
+        await flushPromises();
+        expect(wrapper.text()).toContain("Failed to bind port");
+        expect(wrapper.text()).not.toContain("Started world");
     });
 });
 
