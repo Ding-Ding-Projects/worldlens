@@ -66,6 +66,11 @@ export function titleFromMarkdown(markdown: string, fallbackId: string): string 
  * command palette's own catalogue keeps its groups in the order the surface they describe uses.
  */
 export const APPLICATION_ORDER: readonly string[] = [
+    "aws-cli-requirement.md",
+    "aws-hosting.md",
+    "aws-render.md",
+    "cloudflare-tunnel.md",
+    "custom-domains.md",
     "home.md",
     "glossary.md",
     "command-palette.md",

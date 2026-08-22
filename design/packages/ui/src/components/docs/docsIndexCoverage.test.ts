@@ -116,6 +116,11 @@ const DISK_FILES = diskMarkdownFiles();
  * rather than loosening the rule for everyone.
  */
 const CATEGORY_EXEMPT: Readonly<Record<string, string>> = {
+    "search-coverage.md":
+        "A hand-written inventory of which surfaces carry a search field and which do not. It " +
+        "exists because a rule-shaped check can only validate the fields already present, so " +
+        "the list of what must exist has to be written down - but it is a record of work " +
+        "outstanding, not an article about something a reader can use today.",
     "server-adapter-smoke.md":
         "Runtime acceptance evidence for issue #83's six server adapters, not an article about a " +
         "feature. It records what a smoke pass proved and what it has not proved yet, which " +
