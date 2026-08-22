@@ -52,7 +52,7 @@ const untranslated: Translate = (_key, valuesOrFallback, fallback) => {
     return "";
 };
 
-/** The five real, resolved catalogues - fallback text only, exactly as an untranslated build sees them. */
+/** The six real, resolved catalogues - fallback text only, exactly as an untranslated build sees them. */
 function realCatalogues() {
     return resolveCatalogues(untranslated, () => undefined);
 }
@@ -73,20 +73,20 @@ afterEach(() => {
     setLanguageMode("en");
 });
 
-describe("KidHome's five land tiles follow the language mode", () => {
+describe("KidHome's six land tiles follow the language mode", () => {
     it("reads the English kid words in en mode", () => {
         setLanguageMode("en");
         const wrapper = home();
         const tiles = wrapper.findAll(".wl-kid-home__land strong").map((node) => node.text());
-        expect(tiles).toEqual(["Make a map", "Your maps", "Show people", "Keep it safe", "Buttons & help"]);
+        expect(tiles).toEqual(["Make a map", "Your maps", "Show people", "Keep it safe", "Host a server", "Buttons & help"]);
     });
 
-    it("shows real Cantonese for all five tiles in yue mode - the exact regression the screenshot caught", () => {
+    it("shows the kid words for all six tiles in yue mode - the exact regression the screenshot caught", () => {
         setLanguageMode("yue");
         const wrapper = home();
         const tiles = wrapper.findAll(".wl-kid-home__land strong").map((node) => node.text());
-        expect(tiles).toEqual(["整地圖", "你嘅地圖", "俾人睇", "安全咁留底", "掣同幫手"]);
-        // None of the five tiles is still showing its English word.
+        expect(tiles).toEqual(["整地圖", "你嘅地圖", "俾人睇", "安全咁留底", "Host a server", "掣同幫手"]);
+        // None of the six translated tiles is still showing its English word.
         expect(tiles).not.toContain("Make a map");
         expect(tiles).not.toContain("Your maps");
         expect(tiles).not.toContain("Show people");
@@ -103,6 +103,7 @@ describe("KidHome's five land tiles follow the language mode", () => {
             "Your maps / 你嘅地圖",
             "Show people / 俾人睇",
             "Keep it safe / 安全咁留底",
+            "Host a server",
             "Buttons & help / 掣同幫手",
         ]);
     });
@@ -112,7 +113,7 @@ describe("KidHome's five land tiles follow the language mode", () => {
             setLanguageMode(mode);
             const wrapper = home();
             const shippedTitles = wrapper.findAll(".wl-kid-home__land em").map((node) => node.text());
-            expect(shippedTitles).toEqual(["Make a map", "Your maps", "Share a map", "Keep a copy", "Set up & help"]);
+        expect(shippedTitles).toEqual(["Make a map", "Your maps", "Share a map", "Keep a copy", "Host a server", "Set up & help"]);
         }
     });
 });

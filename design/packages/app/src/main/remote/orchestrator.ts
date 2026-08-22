@@ -268,6 +268,7 @@ export class RemoteRenderOrchestrator {
         const mapIds = request.maps.map((map) => map.id);
         const sshOptions = this.sshOptions(target);
 
+        const requestedEngine = request.engine;
         let engine: ResolvedEngine;
         try {
             engine = await this.options.resolveEngine(requestedEngine);
@@ -649,7 +650,7 @@ export class RemoteRenderOrchestrator {
             ...(this.options.ssh === undefined ? {} : { ssh: this.options.ssh }),
             ...(this.options.rsync === undefined ? {} : { rsync: this.options.rsync }),
             ...(this.options.runner === undefined ? {} : { runner: this.options.runner }),
-            signal: this.active.get(renderId)?.value.controller.signal,
+            ...(this.active.get(renderId)?.value.controller.signal === undefined ? {} : { signal: this.active.get(renderId)!.value.controller.signal }),
             scpTransfer: this.defaultTransfer(target),
             onLine: (line) => this.log(renderId, "WARNING", line),
         });

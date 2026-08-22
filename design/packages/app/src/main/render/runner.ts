@@ -473,7 +473,11 @@ export class TypeScriptRun {
         }
         const status = payload?.status;
         if (status === "rendered") {
-            const tiles = typeof payload.tiles === "number" && Number.isFinite(payload.tiles) ? payload.tiles : 0;
+            const renderedPayload = payload;
+            if (renderedPayload === null) {
+                return { exitCode: exit.code, signal: exit.signal, cancelled: this.cancelRequested, upToDate: false, mapsScheduled: null, consentMissing: false, diagnostics: [...diagnostics, "rendered payload was missing"], setupProblems: [], mapsLoaded: [], durationMs: 0 };
+            }
+            const tiles = typeof renderedPayload.tiles === "number" && Number.isFinite(renderedPayload.tiles) ? renderedPayload.tiles : 0;
             this.options.onSignal?.({ kind: "map-loaded", mapId: this.options.mapId }, "stdout");
             this.options.onSignal?.(
                 {

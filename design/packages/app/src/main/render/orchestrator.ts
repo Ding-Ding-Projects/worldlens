@@ -1359,8 +1359,8 @@ export class RenderOrchestrator {
                 subject: "render",
                 mode,
                 engineId: engine.engine,
-                command: launch?.command ?? engine.javaExecutable,
-                args: launch?.args ?? ["-jar", engine.enginePath],
+                command: launch?.command ?? engine.javaExecutable ?? "",
+                args: launch?.args ?? (engine.enginePath === null ? [] : ["-jar", engine.enginePath]),
                 result: {
                     exitCode: result.exitCode,
                     signal: result.signal,

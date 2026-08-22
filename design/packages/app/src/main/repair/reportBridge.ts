@@ -15,6 +15,7 @@ import type { ProcessResult } from "../cirender/gh.js";
 import { renameWithRetry } from "@worldlens/server";
 import {
     MAX_REPORT_BODY_CHARS,
+    MAX_REPORT_FIELD_CHARS,
     MAX_REPORT_INPUT_CHARS,
     MAX_REPORT_ITEMS,
     MAX_REPORT_TITLE_CHARS,
@@ -122,7 +123,7 @@ function reportInputFor(
         platform: options.platform(),
         failureCategory: evidence.subject,
         configFacts,
-        reproductionSteps: selection.reproductionSteps,
+        ...(selection.reproductionSteps === undefined ? {} : { reproductionSteps: selection.reproductionSteps }),
         consoleEvidence,
     };
 }

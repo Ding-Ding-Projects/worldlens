@@ -352,11 +352,12 @@ export class DockerHostingManager {
         }).map((entry) => managedContainer(entry, this.owner)).filter((entry): entry is ManagedInstance => entry !== null && entry.id === id);
         if (foundEntries.length === 0) return { ok: false, failure: failure("not-found", "That app-owned Docker instance was not found.") };
         if (foundEntries.length !== 1) return { ok: false, failure: failure("command-failed", "Duplicate app-owned instance labels were found; no mutation was attempted.") };
-        const found = foundEntries[0];
+        const found = foundEntries[0] as ManagedInstance;
         const remembered = this.recordsCache?.find((entry) => entry.id === id);
         if (remembered?.fingerprint !== null && remembered?.fingerprint !== undefined && found.fingerprint !== remembered.fingerprint) return { ok: false, failure: failure("command-failed", "The Docker instance fingerprint changed; no mutation was attempted.") };
-        this.recordsCache = [...(this.recordsCache ?? []).filter((entry) => entry.id !== id), found];
-        await this.persist(this.recordsCache);
+        const nextRecords = [...(this.recordsCache ?? []).filter((entry) => entry.id !== id), found];
+        this.recordsCache = nextRecords;
+        await this.persist(nextRecords);
         return { ok: true, value: found };
     }
 

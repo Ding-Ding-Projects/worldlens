@@ -265,7 +265,7 @@ async function defaultProbeLoopback(
     signal?: AbortSignal,
 ): Promise<boolean> {
     const script = `timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/${String(port)}' 2>/dev/null`;
-    const result = await runner(ssh, sshScriptArguments(sshOptions, script), { signal });
+    const result = await runner(ssh, sshScriptArguments(sshOptions, script), signal === undefined ? {} : { signal });
     return result.ok;
 }
 

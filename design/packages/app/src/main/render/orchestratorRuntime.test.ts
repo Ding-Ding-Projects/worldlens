@@ -39,6 +39,7 @@ const ENGINE: ResolvedEngine = {
     engineVersion: "5.22-27",
     enginePath: "/jars/cli-5.22-27-shadow.jar",
     javaExecutable: "/jdk/bin/java",
+    launch: "java-cli",
     javaVersion: "25.0.3",
 };
 

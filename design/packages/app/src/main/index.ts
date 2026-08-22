@@ -288,7 +288,7 @@ async function requestProfileMigrationConsent(): Promise<"accept" | "deny"> {
         title: copy.title,
         message: copy.message,
         detail: copy.detail,
-        buttons: copy.buttons,
+        buttons: [...copy.buttons],
         defaultId: 0,
         cancelId: 1,
         noLink: true,

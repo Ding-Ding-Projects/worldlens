@@ -127,7 +127,7 @@ describe("what changed inside the file, named rather than counted", () => {
 
     it("says when the render options moved", () => {
         const after = project({
-            render: { threads: 4, force: false, fixEdges: false, metrics: false, outputFolder: null },
+            render: { engine: "typescript", threads: 4, force: false, fixEdges: false, metrics: false, outputFolder: null },
         });
         expect(label(project(), after)).toBe("Changed the render options");
     });
