@@ -364,3 +364,5 @@ pnpm exec vitest run packages/app/src/main/pages packages/ui/src/components/page
 - [Rendering a world in GitHub Actions](./render-in-actions.md)——另一條通往 Pages copy 嘅路,由 runner render、merge job 準備個 site。
 - [Super confirmation](./super-confirmation.md)——落架前嗰道閘。
 - [Large worlds and rendered maps](./large-worlds.md)——地圖超過限制時點算。
+- [Serving a map from AWS](./aws-hosting.md)
+- [Putting a map on your own domain](./custom-domains.md)

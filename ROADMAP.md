@@ -578,3 +578,52 @@ and cleanup, not a near-limit refusal test.
 groups；receipt setup 因為 `actions/setup-node` SHA 無效而失敗，final merge verification、
 lowres、Pages 同 cleanup 跳過。Source 改動只係刪走 SHA 多咗嗰一個 `e`，要 rerun 讀到 receipt
 先有 runtime proof；所以而家未算 final map、public result 或 disk boundary。
+
+## AWS rendering, AWS hosting, and Cloudflare domains
+
+A second cloud render route, a third hosting route, and custom domains for all of them.
+Ticked items are implemented, unit-tested and dewed; the unticked ones are honestly
+unticked, and the wiring items are what stands between this and a person being able to use
+it from the interface.
+
+### Landed
+
+- [x] `CiRunTransport`: the provider-neutral job seam, extracted without rewriting the
+      GitHub route, plus the adapter that lets the existing transport satisfy it.
+- [x] AWS credential lease over the `aws` CLI, structurally unable to return a credential,
+      with an ambient-key boundary so a shell environment cannot outrank the chosen profile.
+- [x] S3 upload as one object, with a guard that fails if the Actions route's 1.5 GB part
+      splitting is ever wired in, and digest-matched reuse.
+- [x] AWS Batch on Fargate: submit, poll, array jobs for shards, CloudWatch log tail,
+      cancel that works before and after a job starts.
+- [x] Provisioning plan that states every billable resource's real cost before creating
+      anything, and reconciliation that reports orphans rather than repairing them.
+- [x] Cloudflare token store in the OS credential vault, refusing rather than downgrading
+      when no store exists, with presence-only reads.
+- [x] Cloudflare DNS with an honest `pending` state and a conflict that is never silently
+      overwritten.
+- [x] Cloudflare tunnels across three runtimes (host binary, local container, SSH
+      container), publishing no port, digest-pinned, with the token redacted from anything
+      shown.
+- [x] `route`, `hosting` and `domain` on the project schema, with every mirror widened.
+- [x] Render and hosting route pickers following `chunkerRoute.ts`, with coded reasons,
+      full five-level bilingual copy, and fact guards on the money words.
+- [x] Documentation: AWS render, AWS hosting, the CLI requirement, custom domains,
+      tunnels; and the stale 2 GiB ceiling claim in `cirender/index.ts` corrected.
+
+### Not done yet
+
+- [ ] Wire the AWS route into `CiRenderSync`: persist `route` in `CiSyncState`, bump the
+      state version to 3 reading absent as `gh`, and branch `#resolveRoute`.
+- [ ] Provisioning **execution**. The plan and the cost preflight exist; the create calls
+      and the committed CloudFormation-shaped templates do not.
+- [ ] IPC channels for the AWS and Cloudflare surfaces, added to the single
+      `CIRENDER_CHANNELS` array so the existing drift guard covers them.
+- [ ] Mount the route pickers in `CiRenderScreen.vue` and `CloudRenderConfigWizard.vue`,
+      replacing the read-only `github-actions` field.
+- [ ] Cloudflare domain and tunnel panels, surfaced from `RemoteHostingPanel.vue` and
+      `PagesScreen.vue`.
+- [ ] A `DashboardSource` for a running tunnel, so it appears in the reachability dashboard.
+- [ ] Real built-artifact captures of the picker, the costed preflight, a running AWS job
+      and the teardown gate.
+- [ ] One end-to-end render on a live AWS account, and one tunnel serving a real map.

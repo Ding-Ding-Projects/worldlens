@@ -155,7 +155,31 @@ export const projectRenderSchema = z
          * local by every reader; new files write the choice explicitly so a project opened on a
          * second computer keeps the same one-click Render behaviour.
          */
-        route: z.enum(["local", "github-actions"]).optional(),
+        route: z.enum(["local", "github-actions", "aws-batch"]).optional(),
+        /**
+         * Where the finished map is served from.
+         *
+         * Separate from `route` on purpose: rendering on Actions and hosting on AWS is a
+         * perfectly reasonable combination, and tying the two together would rule it out
+         * for no reason. Absent means the project has not chosen, which every reader
+         * treats as GitHub Pages - the behaviour before this field existed.
+         */
+        hosting: z.enum(["github-pages", "aws-cloudfront", "local"]).optional(),
+        /**
+         * The custom domain this map answers on, when there is one.
+         *
+         * Carries no credential. The Cloudflare API token lives in the operating system
+         * credential store and never enters a project file, which is why only the zone and
+         * the hostname are here - neither of which is a secret.
+         */
+        domain: z
+            .object({
+                zoneId: z.string(),
+                hostname: z.string(),
+                /** True when a Cloudflare tunnel publishes this rather than a public host. */
+                viaTunnel: z.boolean().default(false),
+            })
+            .optional(),
         /** Null means "let BlueMap decide", which is what upstream does with no value. */
         threads: z.number().int().min(1).nullable().default(null),
         force: z.boolean().default(false),

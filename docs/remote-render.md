@@ -672,3 +672,4 @@ container 狀態本身 — still running、app 唔喺度嗰陣完成咗、被 da
 - [Rendering a world in GitHub Actions](./render-in-actions.md) — 另一部可以幫你 render 嘅機,而且係唔使你自己有伺服器嗰部。
 - [Renders that survive being interrupted](./resumable-renders.md) — 本機 render 嘅同一個承諾,同埋令繼續一個 render 變平嘅 incremental 行為。
 - [Running the engine on this computer, or in a container](./docker-and-local.md) — reattachment 機器住嘅地方,同埋佢一樣適用嘅本地 container。
+- [Publishing a map from your own machine](./cloudflare-tunnel.md)

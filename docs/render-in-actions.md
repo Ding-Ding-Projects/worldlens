@@ -1364,3 +1364,4 @@ npx vitest run packages/render-actions
 ```
 
 上面最後嗰張截圖係由 hosted 嘅細測試世界拍返嚟嘅真實畫面，唔係 mock 亦唔係手改嘅圖，佢記錄咗發佈嘅 URL 回 `200` 之後嘅瀏覽器地址同地圖 viewer。
+- [Rendering on AWS](./aws-render.md)
