@@ -556,6 +556,7 @@ function registerIpc(): void {
     // a machine with no Docker still has a server list worth reading.
     mcServerIpc = registerMcServerHandlers(ipcMain, {
         dataFolder: app.getPath("userData"),
+        safeStorage,
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
 

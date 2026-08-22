@@ -6,7 +6,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MCSERVER_CHANNELS, registerMcServerHandlers, type IpcMainLike, type McServerIpc } from "./ipc.js";
 import type { ServerRecord } from "./registry.js";
+import type { SafeStorageLike } from "./rcon/secret.js";
 import type { CommandOutput, CommandRunner } from "../runtime/command.js";
+
+/** Reversible but obviously not real encryption - same fake as rcon/secret.test.ts. */
+function fakeSafeStorage(available = true): SafeStorageLike {
+    return {
+        isEncryptionAvailable: () => available,
+        encryptString: (text) => Buffer.from(`sealed:${text}`, "utf8"),
+        decryptString: (buffer) => buffer.toString("utf8").replace(/^sealed:/, ""),
+    };
+}
 
 type Handler = (event: unknown, ...args: unknown[]) => Promise<unknown>;
 
@@ -68,7 +78,7 @@ describe("registerMcServerHandlers", () => {
             }
             return dockerOutput();
         };
-        registered = registerMcServerHandlers(ipc, { dataFolder: dir, factory: { runner } });
+        registered = registerMcServerHandlers(ipc, { dataFolder: dir, factory: { runner }, safeStorage: fakeSafeStorage() });
         await registered.registry.put(RECORD);
     });
 
@@ -233,6 +243,7 @@ describe("registerMcServerHandlers - catalogue, java and create channels", () =>
             fetchText,
             javaRunner: noJavaRunner,
             javaExists: noJavaExists,
+            safeStorage: fakeSafeStorage(),
         });
     });
 

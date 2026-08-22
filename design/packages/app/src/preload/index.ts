@@ -2408,6 +2408,25 @@ interface WorldlensBridge {
             ): Promise<unknown>;
         };
         logTail(id: string, lines?: number): Promise<unknown>;
+        /** Proves the stored RCON password and port work. Never returns the password. */
+        rconTest(id: string): Promise<unknown>;
+        /**
+         * Opens a stable console session and starts listening for its lines. Subscribe
+         * with `onConsoleLine` BEFORE (or right after) calling this, since lines can
+         * start arriving as soon as the session goes live.
+         */
+        consoleOpen(id: string, tail?: number): Promise<unknown>;
+        consoleSend(id: string, sessionId: string, command: string): Promise<unknown>;
+        consoleClose(id: string, sessionId: string): Promise<unknown>;
+        /** Every update for every open console session on this window - filter by sessionId. */
+        onConsoleLine(listener: (sessionId: string, event: unknown) => void): () => void;
+        players: {
+            list(id: string): Promise<unknown>;
+            action(
+                id: string,
+                request: { action: string; name: string; reason?: string },
+            ): Promise<unknown>;
+        };
         /**
          * The locally hosted, password-authenticated web management console.
          *
@@ -3464,6 +3483,26 @@ const bridge: WorldlensBridge = {
             stop: () => ipcRenderer.invoke("mcserver:webconsole:stop"),
             setPassword: (password) => ipcRenderer.invoke("mcserver:webconsole:setPassword", password),
             bind: () => ipcRenderer.invoke("mcserver:webconsole:bind"),
+        },
+        // The RCON password itself never crosses this bridge in either direction: the
+        // main process holds it, uses it, and only ever hands back an Answer<T> saying
+        // whether a call worked.
+        rconTest: (id) => ipcRenderer.invoke("mcserver:rcon:test", id),
+        consoleOpen: (id, tail) => ipcRenderer.invoke("mcserver:console:open", id, tail),
+        consoleSend: (id, sessionId, command) =>
+            ipcRenderer.invoke("mcserver:console:send", id, sessionId, command),
+        consoleClose: (id, sessionId) => ipcRenderer.invoke("mcserver:console:close", id, sessionId),
+        onConsoleLine: (listener) => {
+            const forward = (_event: IpcRendererEvent, sessionId: string, event: unknown): void =>
+                listener(sessionId, event);
+            ipcRenderer.on("mcserver:console:line", forward);
+            return () => {
+                ipcRenderer.off("mcserver:console:line", forward);
+            };
+        },
+        players: {
+            list: (id) => ipcRenderer.invoke("mcserver:players:list", id),
+            action: (id, request) => ipcRenderer.invoke("mcserver:players:action", id, request),
         },
         plugins: {
             search: (request) => ipcRenderer.invoke("mcserver:plugins:search", request),
