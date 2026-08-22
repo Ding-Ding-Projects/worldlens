@@ -1,5 +1,110 @@
 # Handoff
 
+## 2026-08-22 — Minecraft server hosting manager
+
+Written for the next owner. Assume no prior conversation. `main` is at the tip recorded by the
+final commit of this session and every branch named below is pushed and verified against the
+remote.
+
+### The rule this work is built on
+
+Every setting is configured through a real GUI control. No command line, no hand-edited config
+file, and no bare text box standing in for a control. The full statement, with the value-kind to
+control mapping table, is now in `AGENTS.md` under **Every setting is a real GUI control**. Read
+it before writing any interface.
+
+### Verified working
+
+- **The Host Server destination.** It was mounted with no event listeners, so every button on it
+  emitted into nothing: Manage, New server and each card action did nothing at all. Fixed, and
+  guarded by `serverScreenWiring.test.ts`, which reads `App.vue` and fails when any mount ignores
+  an event the list emits. An unhandled emit is not a type error, so nothing else could catch it.
+- **The create-server wizard can be completed.** It previously could not be on its default
+  transport: the server folder field lives on the runtime step while only the resources step
+  required it, so a user reached a disabled Next with the fixing field on another screen and no
+  explanation. The runtime step now gates on its own folder, the folder arrives pre-filled, and a
+  disabled Next names its exact unmet condition.
+- **Version is chosen, not typed** — a picker over the live catalogue, each entry carrying its
+  release date and a link to its page on the Minecraft Wiki. Typing survives only behind an
+  explicit switch, for a version published after the catalogue was fetched. The wiki address is
+  constructed from the version name rather than looked up, so a very new version may not have an
+  article yet; the wording promises a page for that version rather than claiming one exists.
+- **PaperMC's v2 API was retired and answers 410.** Paper and Velocity were silently returning
+  zero versions while the interface honestly reported none were catalogued. Both now read the v3
+  API, which additionally supplies real release dates and verifiable SHA-256 digests. An opt-in
+  test talks to the real APIs and fails when any flavour returns nothing:
+  `WORLDLENS_CATALOGUE_NETWORK=1 npx vitest run catalogue.realNetwork` from `design/`.
+- **Config round-trip is byte-for-byte**, verified rather than assumed: comments, blank lines,
+  key order, indentation and CRLF all survive parse-then-write, across 58 tests.
+- **A screen recording is committed** at `docs/recordings/worldlens-tour.mp4`, captured from the
+  application's own renderer on an off-screen desktop. The machine's monitor is never recorded.
+
+### Not done, and none of it optional
+
+1. **Adoption reaches nothing.** `ServerListScreen.vue` emits `adopt`; no mount site in `App.vue`
+   listens, and `AdoptionReviewDialog.vue` is mounted nowhere outside its own test. The backend
+   under `main/mcserver/adopt/` is real and tested. A discovery-browser screen does not exist.
+2. **The config editor never calls its own IPC.** Typed schemas exist and pass tests for
+   `paper-global.yml`, `paper-world-defaults.yml`, `spigot.yml`, `bukkit.yml`, `purpur.yml` and
+   `velocity.toml`, but `ServerConfigEditor.vue` does not call `configDescribe`/`configApply`, so
+   none of it reaches a user. Still missing: Fabric, Forge and NeoForge loader configs, and the
+   ops/whitelist/banned-players/banned-ips files as record tables rather than JSON in a text box.
+   Every default and bound currently in those schemas came from recall, not a fetched upstream
+   source; each file says so in its own doc comment and they are worth verifying.
+3. **AWS has no interface.** The whole `main/mcserver/aws/` backend is built and tested and the
+   creation wizard contains zero references to it. Note that `creditBalanceRemaining` is always
+   null on purpose: AWS publishes no API for a remaining balance, only credits applied over a
+   period, which is a different number and must never be presented as the other.
+4. **`lane/world-generator` carries two competing implementations**, committed unreconciled and
+   flagged as such. Neither is wired into IPC, preload or app boot. `design/packages/worldgen/`
+   is a real Anvil-format writer producing genuine region files and zips, but deliberately
+   synthetic terrain rather than vanilla-accurate output. The honest route to real generation is
+   to run the server jar the app already downloads, with the chosen settings, plus the Chunky
+   pre-generation plugin, then package the resulting world.
+5. **Screenshots are stale** — 150 of 229 targets. The checker grades against a content digest of
+   the interface source, so a recapture taken while code is still moving is stale on arrival.
+   Recapture only on a frozen tree. Notes are in `docs/screenshot-evidence.md`.
+6. **Requested and not started:** profile creators for mod loaders, fully interactive, on the
+   client side; dragging a Minecraft world onto the app doing something useful; search fields on
+   the surfaces still listed as gaps in `docs/search-coverage.md`; two-corner map picking for
+   `/fill` and `/clone` in the command builder.
+7. **Pre-existing red gates, not caused by this work:** 39 typecheck errors in unrelated files in
+   the app package, a large pre-existing baseline in the interface package, `docsIndexCoverage`
+   failing on five docs missing from `docs/README.md`, and a Kid Mode language suite asserting
+   five tiles where a sixth was added.
+
+### Traps that have already cost time
+
+- Files are CRLF; a scripted multi-line replacement written with `
+` matches nothing and
+  silently changes nothing. Prefer line-based edits and assert the file actually changed.
+- The renderer is not inside `app.asar`; it is at `release/win-unpacked/resources/ui/`. Packaging
+  the app does not rebuild the interface workspace, so build from `design/` first or package a
+  stale renderer.
+- Packaging fails with a busy-resource error while the app is running.
+- A wrapper's exit status lies: write the exit code into the log itself and read it back.
+- `git stash` is shared across every linked worktree on one repository. Two agents stashing
+  concurrently collided today and work briefly vanished. Commit instead of stashing.
+- A guard nobody has watched fail proves nothing. Two guards written this session were toothless
+  until deliberately broken; one truncated its match at the `>` inside an arrow function and
+  reported every correct site as broken.
+
+### Verification
+
+Run from `design/`, not the repository root:
+`npx vitest run packages/ui/src/components/mcserver packages/app/src/main/mcserver` and
+`npx vitest run packages/site`. For interface work, verify against the built artifact rather than
+the source: several defects this session were invisible in the code and obvious in the first
+capture of the running application.
+
+---
+
+## Earlier sessions
+
+Retained below and not re-verified in this pass, except that issue #89 was confirmed still open.
+
+# Handoff
+
 ## Issue #89 — typed banner patterns: lenient malformed-layer boundary
 
 The typed banner reader preserves ordered legacy/current and unknown pattern and
