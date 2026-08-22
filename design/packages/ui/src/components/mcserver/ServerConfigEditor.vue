@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiContentSave, mdiRestore } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VChip, VDivider, VSelect, VSwitch, VTextarea } from "vuetify/components";
-import type { PlainValue } from "@worldlens/config";
+import type { Control, PlainValue } from "@worldlens/config";
 import ConfigControl from "../config/ConfigControl.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { useServerStore } from "./useServers.js";
@@ -23,7 +23,8 @@ const props = defineProps<{ serverId: string }>();
 const { t } = useI18n();
 const store = useServerStore();
 
-const WELL_KNOWN = ["server.properties", "bukkit.yml", "spigot.yml", "paper-global.yml", "ops.json", "whitelist.json", "eula.txt"];
+const WELL_KNOWN = ["server.properties", "bukkit.yml", "spigot.yml", "paper-global.yml", "paper-world-defaults.yml", "purpur.yml", "velocity.toml", "ops.json", "whitelist.json", "eula.txt"];
+const SCHEMA_FILES = new Set(["paper-global.yml", "paper-world-defaults.yml", "spigot.yml", "bukkit.yml", "purpur.yml", "velocity.toml"]);
 
 const entries = ref<FileEntry[]>([]);
 const selected = ref<string>("server.properties");
@@ -36,6 +37,22 @@ const query = ref("");
 const useRegex = ref(false);
 const flags = ref("i");
 const changedOnly = ref(false);
+
+interface DescribedField {
+    path: readonly string[];
+    key: string;
+    control: Control;
+    label: string;
+    help: string | null;
+    group: string;
+    value: unknown;
+    readOnlyReason: string | null;
+}
+const describedFields = ref<DescribedField[]>([]);
+const describedOriginal = ref<Record<string, unknown>>({});
+const describedValues = ref<Record<string, unknown>>({});
+const describedHash = ref<string | null>(null);
+const schemaLoaded = ref(false);
 
 // server.properties structured state
 const props1 = ref<Record<string, string>>({});
@@ -59,6 +76,45 @@ function serializeProperties(values: Record<string, string>): string {
 }
 
 const isProperties = computed(() => selected.value === "server.properties");
+const isSchemaFile = computed(() => SCHEMA_FILES.has(selected.value.toLowerCase()));
+
+function configBridge(): { describe: (id: string, path: string) => Promise<unknown>; apply: (id: string, path: string, body: unknown) => Promise<unknown> } | null {
+    const host = (globalThis as { worldlens?: { mcserver?: { config?: unknown } } }).worldlens?.mcserver;
+    const config = host?.config as { describe?: unknown; apply?: unknown } | undefined;
+    return typeof config?.describe === "function" && typeof config.apply === "function"
+        ? { describe: config.describe as (id: string, path: string) => Promise<unknown>, apply: config.apply as (id: string, path: string, body: unknown) => Promise<unknown> }
+        : null;
+}
+
+interface BridgeAnswer {
+    ok: boolean;
+    value?: { fields?: unknown; unreadable?: boolean; hash?: unknown };
+    failure?: { code?: string; message?: string };
+}
+
+function answerValue(result: unknown): BridgeAnswer {
+    return result && typeof result === "object" ? (result as BridgeAnswer) : { ok: false };
+}
+
+function controlValue(field: DescribedField): PlainValue {
+    const value = describedValues.value[field.key];
+    if (value === null || value === undefined) return null;
+    if (field.control?.kind === "switch") return value === true || value === "true";
+    if (field.control?.kind === "number" || field.control?.kind === "slider") return typeof value === "number" ? value : Number(value);
+    return typeof value === "string" ? value : String(value);
+}
+
+function setDescribedValue(key: string, value: PlainValue): void {
+    describedValues.value = { ...describedValues.value, [key]: value };
+}
+
+const describedChangedFields = computed(() => describedFields.value.filter((field) => JSON.stringify(describedValues.value[field.key]) !== JSON.stringify(describedOriginal.value[field.key])));
+const describedChangedKeys = computed(() => describedChangedFields.value.map((field) => field.key));
+const describedGroups = computed(() => {
+    const groups = new Map<string, DescribedField[]>();
+    for (const field of describedFields.value) groups.set(field.group, [...(groups.get(field.group) ?? []), field]);
+    return [...groups.entries()];
+});
 
 async function listFiles(): Promise<void> {
     const result = await store.files.list(props.serverId, ".");
@@ -71,6 +127,34 @@ async function loadSelected(): Promise<void> {
     loading.value = true;
     failure.value = null;
     saved.value = false;
+    describedFields.value = [];
+    describedOriginal.value = {};
+    describedValues.value = {};
+    describedHash.value = null;
+    schemaLoaded.value = false;
+
+    if (isSchemaFile.value) {
+        const bridge = configBridge();
+        if (bridge) {
+            try {
+                const described = answerValue(await bridge.describe(props.serverId, selected.value));
+                if (described.ok && described.value && Array.isArray(described.value.fields) && described.value.unreadable !== true) {
+                    describedFields.value = described.value.fields as DescribedField[];
+                    const values = Object.fromEntries(describedFields.value.map((field) => [field.key, field.value]));
+                    describedOriginal.value = values;
+                    describedValues.value = { ...values };
+                    describedHash.value = typeof described.value.hash === "string" ? described.value.hash : null;
+                    originalHash.value = describedHash.value;
+                    schemaLoaded.value = true;
+                    loading.value = false;
+                    return;
+                }
+            } catch {
+                // An older shell may expose no config bridge (or a partial one). Raw text remains usable.
+            }
+        }
+    }
+
     const result = await store.files.read(props.serverId, selected.value);
     if (result.ok && result.value) {
         const text = new TextDecoder().decode(result.value.bytes);
@@ -171,6 +255,28 @@ const diffText = computed(() =>
 
 async function save(): Promise<void> {
     saved.value = false;
+    if (schemaLoaded.value) {
+        const bridge = configBridge();
+        if (!bridge || !describedHash.value) {
+            schemaLoaded.value = false;
+            await loadSelected();
+            return;
+        }
+        const changes = describedChangedFields.value
+            .map((field) => ({ path: field.path, value: describedValues.value[field.key] }));
+        const result = answerValue(await bridge.apply(props.serverId, selected.value, { expectedHash: describedHash.value, changes }));
+        if (result.ok && result.value) {
+            describedHash.value = typeof result.value.hash === "string" ? result.value.hash : describedHash.value;
+            describedOriginal.value = { ...describedValues.value };
+            originalHash.value = describedHash.value;
+            saved.value = true;
+        } else if (result.failure?.code === "stale-document" || result.failure?.code === "stale") {
+            failure.value = t("mcserver.config.stale", "This file changed on disk since it was opened. Reload before saving.");
+        } else {
+            failure.value = result.failure?.message ?? t("mcserver.config.saveFailed", "Could not save.");
+        }
+        return;
+    }
     const text = isProperties.value ? serializeProperties(props1.value) : rawText.value;
     const result = await store.files.write(props.serverId, selected.value, { text, expectedHash: originalHash.value });
     if (result.ok && result.value) {
@@ -247,6 +353,27 @@ async function save(): Promise<void> {
                     <pre class="wl-mcserver-config__diff">{{ diffText }}</pre>
                 </VCardText>
             </VCard>
+        </template>
+
+        <template v-else-if="schemaLoaded && !loading">
+            <VCard v-for="[group, fields] in describedGroups" :key="group" variant="outlined" class="mb-3">
+                <VCardText>
+                    <div class="text-subtitle-2 mb-2">{{ group }}</div>
+                    <div v-for="field in fields" :key="field.key" class="wl-mcserver-config__row">
+                        <ConfigControl
+                            :control="field.control"
+                            :model-value="controlValue(field)"
+                            :label="field.label"
+                            :disabled="!!blockReason || !!field.readOnlyReason"
+                            :error="field.readOnlyReason"
+                            @update:model-value="(v) => setDescribedValue(field.key, v)"
+                        />
+                    </div>
+                </VCardText>
+            </VCard>
+            <VAlert v-if="describedChangedKeys.length > 0" type="info" variant="tonal" class="mb-3">
+                {{ t("mcserver.config.changedCount", { n: describedChangedKeys.length }, "{n} changed") }}
+            </VAlert>
         </template>
 
         <VTextarea
