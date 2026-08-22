@@ -2408,6 +2408,27 @@ interface WorldlensBridge {
             ): Promise<unknown>;
         };
         logTail(id: string, lines?: number): Promise<unknown>;
+        adopt: {
+            discover(): Promise<unknown>;
+            confirm(request: {
+                id: string;
+                containerId: string;
+                consent?: { configWrite?: boolean; lifecycle?: boolean; pluginInstall?: boolean; consoleWrite?: boolean };
+            }): Promise<unknown>;
+            /** Forgets the adoption. Never stops, removes or deletes the container or its files. */
+            release(id: string, options?: { restoreSnapshot?: boolean }): Promise<unknown>;
+        };
+        worlds: {
+            list(id: string): Promise<unknown>;
+        };
+        backup: {
+            create(
+                id: string,
+                request: { owner: string; repo: string; worldFolder: string; accountId?: string; acknowledgePublic?: boolean; resumeTag?: string },
+            ): Promise<unknown>;
+            list(owner: string, repo: string): Promise<unknown>;
+            restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string }): Promise<unknown>;
+        };
     };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
@@ -3399,6 +3420,19 @@ const bridge: WorldlensBridge = {
             write: (id, path, body) => ipcRenderer.invoke("mcserver:file:write", id, path, body),
         },
         logTail: (id, lines) => ipcRenderer.invoke("mcserver:log:tail", id, lines),
+        adopt: {
+            discover: () => ipcRenderer.invoke("mcserver:adopt:discover"),
+            confirm: (request) => ipcRenderer.invoke("mcserver:adopt", request),
+            release: (id, options) => ipcRenderer.invoke("mcserver:adopt:release", id, options),
+        },
+        worlds: {
+            list: (id) => ipcRenderer.invoke("mcserver:worlds:list", id),
+        },
+        backup: {
+            create: (id, request) => ipcRenderer.invoke("mcserver:backup:create", id, request),
+            list: (owner, repo) => ipcRenderer.invoke("mcserver:backup:list", owner, repo),
+            restore: (id, request) => ipcRenderer.invoke("mcserver:backup:restore", id, request),
+        },
     },
     vocabulary: {
         read: () => ipcRenderer.invoke("vocabulary:read"),
