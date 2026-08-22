@@ -100,7 +100,7 @@ async function confirmRelease(): Promise<void> {
 </script>
 
 <template>
-    <VDialog v-model="open" max-width="560">
+    <VDialog v-model="open" max-width="560" persistent>
         <VCard v-if="record">
             <VCardTitle>{{ t("mcserver.adopt.title", "Review before adopting") }}</VCardTitle>
             <VCardText>

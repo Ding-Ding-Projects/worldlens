@@ -333,7 +333,7 @@ async function bulkKick(): Promise<void> {
             </VWindowItem>
         </VWindow>
 
-        <VDialog v-model="addDialog" max-width="420">
+        <VDialog v-model="addDialog" max-width="420" persistent>
             <VCard>
                 <VCardTitle>{{ t("mcserver.players.addTitle", "Add player") }}</VCardTitle>
                 <VCardText>

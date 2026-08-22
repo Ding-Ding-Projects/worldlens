@@ -362,6 +362,23 @@ async function create(): Promise<void> {
     }
 }
 
+/**
+ * Fills the server folder with the location this app would choose anyway.
+ *
+ * The field used to open empty, which asked every user to type or browse to a path the app
+ * already had an answer for - and an empty value was also what made the wizard
+ * unfinishable. It stays fully editable, with its own browse button; this only means
+ * nobody has to supply it by hand to get started.
+ *
+ * A host that cannot suggest one leaves the field empty rather than receiving a guess, and
+ * a suggestion never overwrites a folder the user has already chosen.
+ */
+async function fillSuggestedFolder(): Promise<void> {
+    if (serverDir.value.trim() !== "") return;
+    const suggested = await store.suggestFolder(serverName.value.trim() || serverId.value.trim());
+    if (suggested !== null && serverDir.value.trim() === "") serverDir.value = suggested;
+}
+
 function resetWizard(): void {
     step.value = "flavour";
     flavour.value = "paper";
@@ -384,6 +401,8 @@ watch(open, (isOpen) => {
     if (isOpen) {
         void loadCatalogue();
         resetWizard();
+        // After the reset, so it is not immediately cleared again.
+        void fillSuggestedFolder();
     }
 });
 
@@ -399,6 +418,11 @@ function back(): void {
 const canAdvanceFromFlavour = computed(() => flavour.value !== null);
 const canAdvanceFromVersion = computed(() => minecraftVersion.value.trim() !== "");
 const canAdvanceFromRuntime = computed(() => {
+    // The server folder field lives on THIS step, so this step is where a missing one has
+    // to stop you. It used to let you straight past and the resources step refused to
+    // advance instead - with the folder field nowhere on screen and nothing saying why,
+    // which is a dead end rather than a validation message.
+    if (folderError.value !== null) return false;
     if (whereItRuns.value === "local-process") return true;
     if (whereItRuns.value === "local-docker") return dockerAvailability.available === true;
     return sshHost.value.trim() !== "";
@@ -406,6 +430,43 @@ const canAdvanceFromRuntime = computed(() => {
 const canAdvanceFromJava = computed(() => true);
 const canAdvanceFromResources = computed(() => memoryError.value === null && portError.value === null && folderError.value === null);
 const canAdvanceFromWorld = computed(() => worldMode.value === "new" || importedWorldDir.value.trim() !== "");
+
+/**
+ * Why Next cannot be pressed, in words, or null when it can.
+ *
+ * A disabled button with no stated reason reads as broken software. This names the exact
+ * unmet condition beside the control, which is what the surrounding rules require of every
+ * disabled control.
+ */
+const advanceBlockedReason = computed<string | null>(() => {
+    switch (step.value) {
+        case "flavour":
+            return flavour.value === null
+                ? t("mcserver.wizard.pickFlavour", "Choose the kind of server first.")
+                : null;
+        case "version":
+            return minecraftVersion.value.trim() === ""
+                ? t("mcserver.wizard.pickVersion", "Choose a Minecraft version first.")
+                : null;
+        case "runtime":
+            if (folderError.value !== null) return folderError.value;
+            if (whereItRuns.value === "local-docker" && dockerAvailability.available !== true) {
+                return t("mcserver.wizard.dockerUnavailable", "Docker is not usable on this computer yet.");
+            }
+            if (whereItRuns.value === "ssh-docker" && sshHost.value.trim() === "") {
+                return t("mcserver.wizard.needHost", "Enter the host this server runs on.");
+            }
+            return null;
+        case "resources":
+            return memoryError.value ?? portError.value ?? folderError.value;
+        case "world":
+            return canAdvanceFromWorld.value
+                ? null
+                : t("mcserver.wizard.pickWorld", "Choose the world folder to import.");
+        default:
+            return null;
+    }
+});
 
 const canAdvance = computed(() => {
     switch (step.value) {
@@ -428,7 +489,7 @@ const canAdvance = computed(() => {
 </script>
 
 <template>
-    <VDialog v-model="open" max-width="720" scrollable>
+    <VDialog v-model="open" max-width="720" scrollable persistent>
         <VCard>
             <VCardTitle>{{ t("mcserver.wizard.title", "New Minecraft server") }}</VCardTitle>
             <VCardText class="wl-mcserver-wizard__body">
@@ -743,7 +804,17 @@ const canAdvance = computed(() => {
                 <VBtn variant="text" @click="open = false">{{ t("common.cancel", "Cancel") }}</VBtn>
                 <VSpacer />
                 <VBtn v-if="step !== 'flavour'" variant="text" @click="back">{{ t("common.back", "Back") }}</VBtn>
-                <VBtn v-if="step !== 'review'" color="primary" variant="tonal" :disabled="!canAdvance" @click="next">
+                <span v-if="advanceBlockedReason" class="text-caption text-medium-emphasis mr-2">
+                    {{ advanceBlockedReason }}
+                </span>
+                <VBtn
+                    v-if="step !== 'review'"
+                    color="primary"
+                    variant="tonal"
+                    :disabled="!canAdvance"
+                    :title="advanceBlockedReason ?? undefined"
+                    @click="next"
+                >
                     {{ t("common.next", "Next") }}
                 </VBtn>
                 <VBtn

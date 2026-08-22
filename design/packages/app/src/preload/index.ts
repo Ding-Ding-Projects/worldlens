@@ -2394,6 +2394,8 @@ interface WorldlensBridge {
         save(record: unknown): Promise<unknown>;
         /** Removes it from this app's list. Never deletes the container or the folder. */
         forget(id: string): Promise<unknown>;
+        /** Where a new server should live, so a path never has to be typed. */
+        suggestFolder(name?: string): Promise<unknown>;
         probe(id: string): Promise<unknown>;
         status(id: string): Promise<unknown>;
         start(id: string): Promise<unknown>;
@@ -3545,6 +3547,7 @@ const bridge: WorldlensBridge = {
         get: (id) => ipcRenderer.invoke("mcserver:get", id),
         save: (record) => ipcRenderer.invoke("mcserver:save", record),
         forget: (id) => ipcRenderer.invoke("mcserver:forget", id),
+        suggestFolder: (name) => ipcRenderer.invoke("mcserver:suggestFolder", name),
         probe: (id) => ipcRenderer.invoke("mcserver:probe", id),
         status: (id) => ipcRenderer.invoke("mcserver:status", id),
         start: (id) => ipcRenderer.invoke("mcserver:start", id),

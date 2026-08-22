@@ -257,7 +257,7 @@ function onDrop(event: DragEvent): void {
             </VListItem>
         </VList>
 
-        <VDialog v-model="versionDialog" max-width="480">
+        <VDialog v-model="versionDialog" max-width="480" persistent>
             <VCard v-if="versionTarget">
                 <VCardText>
                     <h4 class="text-subtitle-1 mb-2">{{ versionTarget.name }}</h4>

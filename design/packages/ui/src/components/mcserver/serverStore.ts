@@ -216,6 +216,8 @@ export interface McServerHost {
     get(id: string): Promise<Answer<ServerRecord>>;
     save(record: ServerRecord): Promise<Answer<ServerRecord>>;
     forget(id: string): Promise<Answer<void>>;
+    /** Where a new server should live. Optional: an older host simply has no suggestion. */
+    suggestFolder?(name?: string): Promise<Answer<string>>;
     probe(id: string): Promise<Answer<ProbeResult>>;
     status(id: string): Promise<Answer<InstanceStatus>>;
     start(id: string): Promise<Answer<void>>;
@@ -315,6 +317,8 @@ export interface ServerStore {
     capabilitiesFor(id: string): TransportCapabilities | null;
     save(record: ServerRecord): Promise<Answer<ServerRecord>>;
     forget(id: string): Promise<Answer<void>>;
+    /** A suggested folder for a new server, or null when the host cannot suggest one. */
+    suggestFolder(name?: string): Promise<string | null>;
     probe(id: string): Promise<Answer<ProbeResult>>;
     refreshStatus(id: string): Promise<Answer<InstanceStatus>>;
     start(id: string): Promise<Answer<void>>;
@@ -419,6 +423,15 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
                 servers.value = next;
             }
             return result;
+        },
+
+        async suggestFolder(name?: string): Promise<string | null> {
+            // Null rather than a guess. Inventing a plausible-looking path here would put a
+            // location in the field that this app has no reason to believe in, and the user
+            // would find out only when the server was written somewhere unexpected.
+            if (host === null || host.suggestFolder === undefined) return null;
+            const result = await host.suggestFolder(name);
+            return result.ok ? result.value : null;
         },
 
         async forget(id): Promise<Answer<void>> {

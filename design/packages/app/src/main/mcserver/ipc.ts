@@ -116,6 +116,7 @@ export const MCSERVER_CHANNELS = {
     awsPlan: "mcserver:aws:plan",
     awsProvision: "mcserver:aws:provision",
     awsTeardown: "mcserver:aws:teardown",
+    suggestFolder: "mcserver:suggestFolder",
     awsRegions: "mcserver:aws:regions",
     awsInstanceTypes: "mcserver:aws:instanceTypes",
 } as const;
@@ -1191,6 +1192,20 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (target === null) return fail("invalid-request", "That AWS server could not be identified for teardown.");
             const runner = options.awsRunner ?? execFileCommandRunner;
             return teardownAwsServer(target, { runner, ...(options.aws === undefined ? {} : { aws: options.aws }) });
+        },
+
+        // Where a new server should live, so the folder field arrives filled in.
+        //
+        // An empty path field is a question the app can already answer: it owns a servers
+        // directory and has since the registry was written. Leaving it blank asked every
+        // user to type or browse to a location the app was going to choose anyway, and an
+        // empty value was also the thing that made the creation wizard unfinishable.
+        [MCSERVER_CHANNELS.suggestFolder]: async (_event: unknown, name?: unknown) => {
+            // Only a plain folder-name fragment is ever appended, so a crafted name cannot
+            // climb out of the servers directory.
+            const raw = typeof name === "string" ? name.trim() : "";
+            const safe = raw.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^[-.]+|[-.]+$/g, "").slice(0, 64);
+            return { ok: true, value: safe === "" ? serversRoot : join(serversRoot, safe) };
         },
 
         [MCSERVER_CHANNELS.awsRegions]: async () => ({ ok: true, value: AWS_REGIONS }),
