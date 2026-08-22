@@ -475,6 +475,10 @@ export const javaRenderPath: Article = {
             articleId: "test-world-generator",
             reason: "Where the 1000x1000 world in the figures above came from, and how to reproduce it.",
         },
+        {
+            articleId: "render-engine-choice",
+            reason: "Where a project picks this engine, the JVM-free alternative, or Automatic, and what each choice means.",
+        },
     ],
 
     sources: [
