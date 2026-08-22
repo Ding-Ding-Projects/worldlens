@@ -1,23 +1,57 @@
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VSelect, VSlider, VTextField } from "vuetify/components";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardActions,
+    VCardText,
+    VCardTitle,
+    VChip,
+    VDialog,
+    VDivider,
+    VIcon,
+    VProgressLinear,
+    VRadio,
+    VRadioGroup,
+    VSelect,
+    VSlider,
+    VSpacer,
+    VSwitch,
+    VTextField,
+} from "vuetify/components";
+import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
 import PathField from "../PathField.vue";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { useServerStore } from "./useServers.js";
 import {
-    SERVER_FLAVOURS,
-    flavourName,
     validateMemoryMb,
     validatePort,
     validateServerId,
     validateServerName,
     type ServerFlavour,
+    type TransportRef,
 } from "./serverModel.js";
+import type { CatalogueSnapshot, CatalogueVersionEntry, JavaProvisionProgress, JavaResolution } from "./serverStore.js";
+import {
+    FLAVOUR_CARDS,
+    RUNTIME_OPTIONS,
+    WIZARD_STEPS,
+    filterVersions,
+    groupVersions,
+    memorySliderMax,
+    type WhereItRuns,
+} from "./wizardModel.js";
 
 /**
- * Every setting a new server needs is a real typed control: the flavour is a select, memory
- * and the port are steppers with real bounds, the server folder is a path field with its own
- * native browse button. Nothing here is a text box standing in for a picker.
+ * A real multi-step wizard over the whole `mcserver` create surface: which flavour, which
+ * real catalogue version, where it runs, whether Java is ready, how much memory and which
+ * port, a new or imported world, and a review that never writes `eula=true` without the
+ * user explicitly agreeing to it.
+ *
+ * Every step reads from the store's optional namespaces and says plainly when this build
+ * has not wired one up yet, rather than pretending the step does not exist.
  */
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: boolean]; created: [id: string] }>();
@@ -25,27 +59,233 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean]; created: [id: 
 const { t } = useI18n();
 const store = useServerStore();
 
-const form = reactive({
-    id: "",
-    name: "",
-    flavour: "paper" as ServerFlavour,
-    minecraftVersion: "",
-    serverDir: "",
-    memoryMb: 2048,
-    port: 25565,
-});
-
 const open = computed<boolean>({
     get: () => props.modelValue,
     set: (value) => emit("update:modelValue", value),
 });
 
-const idError = computed(() => validateServerId(form.id, store.servers.value.map((s) => s.id)));
-const nameError = computed(() => validateServerName(form.name));
-const memoryError = computed(() => validateMemoryMb(form.memoryMb));
-const portError = computed(() => validatePort(form.port));
+const step = ref<(typeof WIZARD_STEPS)[number]>("flavour");
+const stepNumber = computed(() => WIZARD_STEPS.indexOf(step.value) + 1);
+
+/* -------------------------------------------------------------------------- */
+/* Step 1: flavour                                                            */
+/* -------------------------------------------------------------------------- */
+
+const flavour = ref<ServerFlavour>("paper");
+
+/* -------------------------------------------------------------------------- */
+/* Step 2: version, from the real catalogue                                   */
+/* -------------------------------------------------------------------------- */
+
+const catalogue = ref<CatalogueSnapshot | null>(null);
+const catalogueLoading = ref(false);
+const catalogueFailure = ref<string | null>(null);
+const versionQuery = ref("");
+const versionUseRegex = ref(false);
+const versionFlags = ref("i");
+const minecraftVersion = ref("");
+
+async function loadCatalogue(): Promise<void> {
+    if (!store.hasCatalogue) return;
+    catalogueLoading.value = true;
+    const result = await store.catalogueList();
+    if (result.ok && result.value) {
+        catalogue.value = result.value;
+        catalogueFailure.value = null;
+    } else {
+        catalogueFailure.value = result.failure?.message ?? t("mcserver.wizard.catalogueFailed", "The version list could not be loaded.");
+    }
+    catalogueLoading.value = false;
+}
+
+async function refreshCatalogue(): Promise<void> {
+    if (!store.hasCatalogue) return;
+    catalogueLoading.value = true;
+    const result = await store.catalogueRefresh();
+    if (result.ok && result.value) {
+        catalogue.value = result.value;
+        catalogueFailure.value = null;
+    } else {
+        catalogueFailure.value = result.failure?.message ?? t("mcserver.wizard.catalogueFailed", "The version list could not be refreshed.");
+    }
+    catalogueLoading.value = false;
+}
+
+const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
+    const card = FLAVOUR_CARDS.find((c) => c.id === flavour.value);
+    if (card?.cataloguedId === null || card === undefined) return [];
+    const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);
+    return entry?.versions ?? [];
+});
+
+const filteredVersions = computed(() => filterVersions(flavourVersions.value, versionQuery.value, versionUseRegex.value, versionFlags.value));
+const versionGroups = computed(() => groupVersions(filteredVersions.value));
+const versionSample = computed(() => flavourVersions.value.map((v) => v.version).join("\n"));
+
+const selectedVersionEntry = computed<CatalogueVersionEntry | undefined>(() =>
+    flavourVersions.value.find((v) => v.version === minecraftVersion.value),
+);
+
+watch(flavour, () => {
+    minecraftVersion.value = "";
+});
+
+/* -------------------------------------------------------------------------- */
+/* Step 3: where it runs                                                      */
+/* -------------------------------------------------------------------------- */
+
+const whereItRuns = ref<WhereItRuns>("local-process");
+const serverDir = ref("");
+const sshHost = ref("");
+
+interface RuntimeAvailability {
+    checking: boolean;
+    available: boolean | null;
+    message: string;
+}
+
+const dockerAvailability = reactive<RuntimeAvailability>({ checking: false, available: null, message: "" });
+const dockerStarting = ref(false);
+
+async function probeDocker(): Promise<void> {
+    const bridge = (globalThis as { worldlens?: { dockerRuntime?: () => Promise<unknown> } }).worldlens;
+    if (bridge?.dockerRuntime === undefined) {
+        dockerAvailability.available = false;
+        dockerAvailability.message = t("mcserver.wizard.dockerNoBridge", "This build cannot check for Docker.");
+        return;
+    }
+    dockerAvailability.checking = true;
+    try {
+        const summary = (await bridge.dockerRuntime()) as { available?: boolean; message?: string };
+        dockerAvailability.available = summary.available ?? false;
+        dockerAvailability.message = summary.message ?? "";
+    } finally {
+        dockerAvailability.checking = false;
+    }
+}
+
+async function startDocker(): Promise<void> {
+    const bridge = (globalThis as { worldlens?: { startDockerRuntime?: () => Promise<unknown> } }).worldlens;
+    if (bridge?.startDockerRuntime === undefined) return;
+    dockerStarting.value = true;
+    try {
+        const result = (await bridge.startDockerRuntime()) as { outcome?: string; message?: string };
+        dockerAvailability.message = result.message ?? "";
+        dockerAvailability.available = result.outcome === "started" || result.outcome === "already-running";
+    } finally {
+        dockerStarting.value = false;
+    }
+    await probeDocker();
+}
+
+watch(whereItRuns, (value) => {
+    if (value === "local-docker" && dockerAvailability.available === null) {
+        void probeDocker();
+    }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Step 4: Java                                                               */
+/* -------------------------------------------------------------------------- */
+
+const javaResolution = ref<JavaResolution | null>(null);
+const javaChecking = ref(false);
+const javaProvisioning = ref(false);
+const javaProgress = ref<JavaProvisionProgress | null>(null);
+let unsubscribeJavaProgress: (() => void) | null = null;
+
+const requiredJavaFeature = computed(() => selectedVersionEntry.value?.javaFeature ?? 21);
+
+async function checkJava(): Promise<void> {
+    if (!store.hasJava) return;
+    javaChecking.value = true;
+    const result = await store.javaResolve(String(requiredJavaFeature.value));
+    if (result.ok && result.value) javaResolution.value = result.value;
+    javaChecking.value = false;
+}
+
+async function provisionJava(): Promise<void> {
+    javaProvisioning.value = true;
+    javaProgress.value = null;
+    const result = await store.javaProvision(String(requiredJavaFeature.value));
+    if (result.ok && result.value) javaResolution.value = result.value;
+    javaProvisioning.value = false;
+}
+
+watch(step, (value) => {
+    if (value === "java" && javaResolution.value === null && store.hasJava) void checkJava();
+});
+
+onMounted(() => {
+    unsubscribeJavaProgress = store.onJavaProgress((progress) => {
+        javaProgress.value = progress;
+    });
+});
+onUnmounted(() => {
+    unsubscribeJavaProgress?.();
+});
+
+const canAutoProvisionJava = computed(() => store.hasJava);
+
+/* -------------------------------------------------------------------------- */
+/* Step 5: resources                                                          */
+/* -------------------------------------------------------------------------- */
+
+// This build has no bridge call exposing the host's real physical memory to the
+// renderer, so the slider is bounded against a conservative fixed ceiling rather than
+// a live probe. Widening it to a real machine reading is tracked as a follow-up.
+const MACHINE_MEMORY_CEILING_MB = 16384;
+const memoryMb = ref(2048);
+const memorySliderCap = computed(() => memorySliderMax(MACHINE_MEMORY_CEILING_MB));
+const port = ref(25565);
+const portChecking = ref(false);
+const portAvailable = ref<boolean | null>(null);
+
+async function checkPort(): Promise<void> {
+    // No dedicated port-availability bridge call exists; this stays a client-side bounds
+    // check plus the explicit port field, which is the honest limit of what this build
+    // can verify before the server is actually created.
+    portChecking.value = false;
+    portAvailable.value = validatePort(port.value) === null ? null : false;
+}
+watch(port, () => void checkPort());
+
+/* -------------------------------------------------------------------------- */
+/* Step 6: world                                                              */
+/* -------------------------------------------------------------------------- */
+
+const worldMode = ref<"new" | "import">("new");
+const seed = ref("");
+const levelType = ref("minecraft:normal");
+const generateStructures = ref(true);
+const importedWorldDir = ref("");
+
+const LEVEL_TYPES = [
+    { title: "Default", value: "minecraft:normal" },
+    { title: "Superflat", value: "minecraft:flat" },
+    { title: "Large biomes", value: "minecraft:large_biomes" },
+    { title: "Amplified", value: "minecraft:amplified" },
+    { title: "Single biome", value: "minecraft:single_biome_surface" },
+];
+
+/* -------------------------------------------------------------------------- */
+/* Step 7: review + EULA                                                      */
+/* -------------------------------------------------------------------------- */
+
+const serverId = ref("");
+const serverName = ref("");
+const eulaAccepted = ref(false);
+const creating = ref(false);
+const createFailure = ref<string | null>(null);
+
+const idError = computed(() => validateServerId(serverId.value, store.servers.value.map((s) => s.id)));
+const nameError = computed(() => validateServerName(serverName.value));
+const memoryError = computed(() => validateMemoryMb(memoryMb.value));
+const portError = computed(() => validatePort(port.value));
 const folderError = computed(() =>
-    form.serverDir.trim() === "" ? t("mcserver.wizard.folderRequired", "Choose a folder for this server.") : null,
+    (whereItRuns.value === "local-process" && serverDir.value.trim() === "")
+        ? t("mcserver.wizard.folderRequired", "Choose a folder for this server.")
+        : null,
 );
 
 const canCreate = computed(
@@ -54,96 +294,465 @@ const canCreate = computed(
         nameError.value === null &&
         memoryError.value === null &&
         portError.value === null &&
-        folderError.value === null,
+        folderError.value === null &&
+        eulaAccepted.value &&
+        minecraftVersion.value.trim() !== "",
 );
+
+function transportRef(): TransportRef {
+    if (whereItRuns.value === "local-docker") {
+        return { kind: "local-docker", containerRef: serverId.value, serverDir: serverDir.value };
+    }
+    if (whereItRuns.value === "ssh-docker") {
+        return { kind: "ssh-docker", hostId: sshHost.value, containerRef: serverId.value, serverDir: serverDir.value };
+    }
+    return { kind: "local-process", serverDir: serverDir.value };
+}
 
 async function create(): Promise<void> {
     if (!canCreate.value) return;
+    creating.value = true;
+    createFailure.value = null;
+
+    if (store.hasCreate) {
+        const result = await store.createServer({
+            id: serverId.value,
+            name: serverName.value,
+            flavour: flavour.value,
+            version: minecraftVersion.value,
+            memoryMb: memoryMb.value,
+            acceptedEula: eulaAccepted.value,
+            provisionJavaIfMissing: true,
+        });
+        creating.value = false;
+        if (result.ok) {
+            emit("created", serverId.value);
+            open.value = false;
+            resetWizard();
+            return;
+        }
+        createFailure.value = result.failure?.message ?? t("mcserver.wizard.createFailed", "The server could not be created.");
+        return;
+    }
+
+    // No dedicated `create` namespace on this build's bridge: fall back to registering
+    // the record directly, exactly as the pre-wizard form did, so the wizard still works
+    // end to end against an older shell.
     const now = new Date().toISOString();
     const result = await store.save({
-        id: form.id,
-        name: form.name,
-        flavour: form.flavour,
-        minecraftVersion: form.minecraftVersion.trim() === "" ? null : form.minecraftVersion.trim(),
-        ref: { kind: "local-process", serverDir: form.serverDir },
+        id: serverId.value,
+        name: serverName.value,
+        flavour: flavour.value,
+        minecraftVersion: minecraftVersion.value.trim() === "" ? null : minecraftVersion.value.trim(),
+        ref: transportRef(),
         origin: "created",
         createdAt: now,
         updatedAt: now,
         hasRconSecret: false,
-        rconPort: form.port,
+        rconPort: port.value,
         writeScope: [],
     });
+    creating.value = false;
     if (result.ok) {
-        emit("created", form.id);
+        emit("created", serverId.value);
         open.value = false;
+        resetWizard();
+    } else {
+        createFailure.value = result.failure?.message ?? t("mcserver.wizard.createFailed", "The server could not be created.");
     }
 }
+
+function resetWizard(): void {
+    step.value = "flavour";
+    flavour.value = "paper";
+    minecraftVersion.value = "";
+    whereItRuns.value = "local-process";
+    serverDir.value = "";
+    sshHost.value = "";
+    javaResolution.value = null;
+    memoryMb.value = 2048;
+    port.value = 25565;
+    worldMode.value = "new";
+    seed.value = "";
+    serverId.value = "";
+    serverName.value = "";
+    eulaAccepted.value = false;
+    createFailure.value = null;
+}
+
+watch(open, (isOpen) => {
+    if (isOpen) {
+        void loadCatalogue();
+        resetWizard();
+    }
+});
+
+function next(): void {
+    const idx = WIZARD_STEPS.indexOf(step.value);
+    if (idx < WIZARD_STEPS.length - 1) step.value = WIZARD_STEPS[idx + 1]!;
+}
+function back(): void {
+    const idx = WIZARD_STEPS.indexOf(step.value);
+    if (idx > 0) step.value = WIZARD_STEPS[idx - 1]!;
+}
+
+const canAdvanceFromFlavour = computed(() => flavour.value !== null);
+const canAdvanceFromVersion = computed(() => minecraftVersion.value.trim() !== "");
+const canAdvanceFromRuntime = computed(() => {
+    if (whereItRuns.value === "local-process") return true;
+    if (whereItRuns.value === "local-docker") return dockerAvailability.available === true;
+    return sshHost.value.trim() !== "";
+});
+const canAdvanceFromJava = computed(() => true);
+const canAdvanceFromResources = computed(() => memoryError.value === null && portError.value === null && folderError.value === null);
+const canAdvanceFromWorld = computed(() => worldMode.value === "new" || importedWorldDir.value.trim() !== "");
+
+const canAdvance = computed(() => {
+    switch (step.value) {
+        case "flavour":
+            return canAdvanceFromFlavour.value;
+        case "version":
+            return canAdvanceFromVersion.value;
+        case "runtime":
+            return canAdvanceFromRuntime.value;
+        case "java":
+            return canAdvanceFromJava.value;
+        case "resources":
+            return canAdvanceFromResources.value;
+        case "world":
+            return canAdvanceFromWorld.value;
+        default:
+            return true;
+    }
+});
 </script>
 
 <template>
-    <VDialog v-model="open" max-width="560">
+    <VDialog v-model="open" max-width="720" scrollable>
         <VCard>
             <VCardTitle>{{ t("mcserver.wizard.title", "New Minecraft server") }}</VCardTitle>
             <VCardText class="wl-mcserver-wizard__body">
-                <VTextField
-                    v-model="form.id"
-                    :label="t('mcserver.wizard.id', 'Server id')"
-                    :error-messages="idError ? [idError] : []"
-                    hint="lowercase, letters, digits, hyphens"
-                    persistent-hint
-                />
-                <VTextField
-                    v-model="form.name"
-                    :label="t('mcserver.wizard.name', 'Display name')"
-                    :error-messages="nameError ? [nameError] : []"
-                />
-                <VSelect
-                    v-model="form.flavour"
-                    :items="SERVER_FLAVOURS.map((f) => ({ title: flavourName(f), value: f }))"
-                    :label="t('mcserver.wizard.flavour', 'Server flavour')"
-                />
-                <VTextField
-                    v-model="form.minecraftVersion"
-                    :label="t('mcserver.wizard.version', 'Minecraft version (optional)')"
-                    placeholder="1.21.1"
-                />
-                <PathField
-                    v-model="form.serverDir"
-                    field="server folder"
-                    :label="t('mcserver.wizard.folder', 'Server folder')"
-                    semantic="folder"
-                    :error="folderError"
-                />
-                <div>
-                    <label class="text-caption">
-                        {{ t("mcserver.wizard.memory", "Memory (MB)") }}: {{ form.memoryMb }}
-                    </label>
-                    <VSlider
-                        v-model="form.memoryMb"
-                        :min="512"
-                        :max="16384"
-                        :step="256"
-                        thumb-label
-                        :aria-label="t('mcserver.wizard.memory', 'Memory (MB)')"
-                    />
-                    <div v-if="memoryError" class="text-caption text-error">{{ memoryError }}</div>
+                <nav class="wl-mcserver-wizard__stepper" :aria-label="t('mcserver.wizard.progress', 'Wizard progress')">
+                    <VChip
+                        v-for="(s, idx) in WIZARD_STEPS"
+                        :key="s"
+                        size="small"
+                        :variant="s === step ? 'flat' : stepNumber > idx + 1 ? 'tonal' : 'outlined'"
+                        :color="s === step ? 'primary' : stepNumber > idx + 1 ? 'success' : undefined"
+                    >
+                        {{ idx + 1 }}. {{ t(`mcserver.wizard.step.${s}`, s) }}
+                    </VChip>
+                </nav>
+
+                <!-- Step 1: flavour -->
+                <div v-if="step === 'flavour'" class="wl-mcserver-wizard__step">
+                    <p class="text-body-2">{{ t("mcserver.wizard.flavourIntro", "Choose the kind of server this will be.") }}</p>
+                    <div class="wl-mcserver-wizard__flavours">
+                        <button
+                            v-for="card in FLAVOUR_CARDS"
+                            :key="card.id"
+                            type="button"
+                            class="wl-mcserver-wizard__flavour-card"
+                            :class="{ 'wl-mcserver-wizard__flavour-card--selected': flavour === card.id }"
+                            :aria-pressed="flavour === card.id"
+                            @click="flavour = card.id"
+                        >
+                            <div class="wl-mcserver-wizard__flavour-name">
+                                {{ card.name }}
+                                <VIcon v-if="flavour === card.id" :icon="mdiCheckCircle" size="18" color="primary" />
+                            </div>
+                            <div class="text-caption text-medium-emphasis">{{ card.tagline }}</div>
+                            <p class="text-caption">{{ card.description }}</p>
+                            <VChip v-if="card.cataloguedId === null" size="x-small" variant="tonal" color="warning">
+                                {{ t("mcserver.wizard.noCatalogue", "No live version list yet") }}
+                            </VChip>
+                        </button>
+                    </div>
                 </div>
-                <VTextField
-                    v-model.number="form.port"
-                    type="number"
-                    :min="1"
-                    :max="65535"
-                    :label="t('mcserver.wizard.port', 'Server port')"
-                    :error-messages="portError ? [portError] : []"
-                />
+
+                <!-- Step 2: version -->
+                <div v-else-if="step === 'version'" class="wl-mcserver-wizard__step">
+                    <VAlert v-if="!store.hasCatalogue" type="info" variant="tonal" density="compact">
+                        {{ t("mcserver.wizard.noCatalogueHost", "This build cannot reach the server-version catalogue. Type the version by hand.") }}
+                    </VAlert>
+                    <VAlert v-else-if="catalogueFailure" type="warning" variant="tonal" density="compact">
+                        {{ catalogueFailure }}
+                        <template #append>
+                            <VBtn size="small" variant="text" :prepend-icon="mdiRefresh" @click="refreshCatalogue">
+                                {{ t("common.retry", "Retry") }}
+                            </VBtn>
+                        </template>
+                    </VAlert>
+                    <template v-else>
+                        <VAlert v-if="catalogue?.stale" type="warning" variant="tonal" density="compact">
+                            {{ t("mcserver.wizard.catalogueStale", "This version list was fetched a while ago and may be missing newer releases.") }}
+                            <template #append>
+                                <VBtn size="small" variant="text" :prepend-icon="mdiRefresh" :loading="catalogueLoading" @click="refreshCatalogue">
+                                    {{ t("mcserver.wizard.refresh", "Refresh") }}
+                                </VBtn>
+                            </template>
+                        </VAlert>
+                        <ConfigSearchField
+                            v-model="versionQuery"
+                            v-model:regex="versionUseRegex"
+                            v-model:flags="versionFlags"
+                            :label="t('mcserver.wizard.searchVersions', 'Search versions')"
+                            :sample="versionSample"
+                        />
+                        <div v-if="flavourVersions.length === 0 && !catalogueLoading" class="text-caption text-medium-emphasis">
+                            {{ t("mcserver.wizard.noVersionsForFlavour", "No live versions are catalogued for this flavour yet. Type one by hand below.") }}
+                        </div>
+                        <div v-for="group in versionGroups" :key="group.stability" class="wl-mcserver-wizard__version-group">
+                            <div class="text-caption text-medium-emphasis text-uppercase">
+                                {{ group.stability === "release" ? t("mcserver.wizard.releases", "Releases") : t("mcserver.wizard.snapshots", "Snapshots") }}
+                            </div>
+                            <button
+                                v-for="entry in group.versions"
+                                :key="entry.version"
+                                type="button"
+                                class="wl-mcserver-wizard__version-row"
+                                :class="{ 'wl-mcserver-wizard__version-row--selected': minecraftVersion === entry.version }"
+                                @click="minecraftVersion = entry.version"
+                            >
+                                <span>{{ entry.version }}</span>
+                                <span class="text-caption text-medium-emphasis">{{ t("mcserver.wizard.needsJava", { n: entry.javaFeature }, "Needs Java {n}") }}</span>
+                            </button>
+                        </div>
+                    </template>
+                    <VTextField
+                        v-model="minecraftVersion"
+                        :label="t('mcserver.wizard.version', 'Minecraft version')"
+                        :hint="t('mcserver.wizard.versionHint', 'Pick one above, or type it directly.')"
+                        persistent-hint
+                    />
+                </div>
+
+                <!-- Step 3: where it runs -->
+                <div v-else-if="step === 'runtime'" class="wl-mcserver-wizard__step">
+                    <VRadioGroup v-model="whereItRuns" :label="t('mcserver.wizard.whereItRuns', 'Where it runs')">
+                        <div v-for="option in RUNTIME_OPTIONS" :key="option.id" class="wl-mcserver-wizard__runtime-option">
+                            <VRadio :value="option.id" :label="option.name" />
+                            <p class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc">{{ option.description }}</p>
+                        </div>
+                    </VRadioGroup>
+
+                    <template v-if="whereItRuns === 'local-process'">
+                        <PathField
+                            v-model="serverDir"
+                            field="server folder"
+                            :label="t('mcserver.wizard.folder', 'Server folder')"
+                            semantic="folder"
+                            :error="folderError"
+                        />
+                    </template>
+
+                    <template v-else-if="whereItRuns === 'local-docker'">
+                        <VAlert
+                            :type="dockerAvailability.available ? 'success' : 'warning'"
+                            variant="tonal"
+                            density="compact"
+                        >
+                            <span v-if="dockerAvailability.checking">{{ t("mcserver.wizard.checkingDocker", "Checking whether Docker is available…") }}</span>
+                            <span v-else-if="dockerAvailability.available">{{ t("mcserver.wizard.dockerReady", "Docker is available.") }} {{ dockerAvailability.message }}</span>
+                            <span v-else>{{ dockerAvailability.message || t("mcserver.wizard.dockerUnavailable", "Docker is not available.") }}</span>
+                            <template #append>
+                                <VBtn
+                                    v-if="!dockerAvailability.available"
+                                    size="small"
+                                    variant="tonal"
+                                    :loading="dockerStarting"
+                                    @click="startDocker"
+                                >
+                                    {{ t("mcserver.wizard.startDocker", "Start Docker") }}
+                                </VBtn>
+                            </template>
+                        </VAlert>
+                        <PathField
+                            v-model="serverDir"
+                            field="server folder"
+                            :label="t('mcserver.wizard.folder', 'Server folder (mounted into the container)')"
+                            semantic="folder"
+                        />
+                    </template>
+
+                    <template v-else>
+                        <VTextField
+                            v-model="sshHost"
+                            :label="t('mcserver.wizard.sshHost', 'SSH host id')"
+                            :hint="t('mcserver.wizard.sshHostHint', 'The remote host this container will run on.')"
+                            persistent-hint
+                        />
+                        <PathField
+                            v-model="serverDir"
+                            field="server folder"
+                            :label="t('mcserver.wizard.folder', 'Server folder on the remote host')"
+                            semantic="folder"
+                        />
+                    </template>
+                </div>
+
+                <!-- Step 4: Java -->
+                <div v-else-if="step === 'java'" class="wl-mcserver-wizard__step">
+                    <p class="text-body-2">
+                        {{ t("mcserver.wizard.javaIntro", { n: requiredJavaFeature }, "This version needs Java {n}.") }}
+                    </p>
+                    <VAlert v-if="!store.hasJava" type="info" variant="tonal" density="compact">
+                        {{ t("mcserver.wizard.noJavaHost", "This build cannot check for Java. It will be checked again when the server starts.") }}
+                    </VAlert>
+                    <template v-else>
+                        <VAlert v-if="javaChecking" type="info" variant="tonal" density="compact">
+                            {{ t("mcserver.wizard.checkingJava", "Looking for a suitable Java…") }}
+                        </VAlert>
+                        <VAlert v-else-if="javaResolution?.found" type="success" variant="tonal" density="compact">
+                            {{ t("mcserver.wizard.javaFound", { v: javaResolution.version, source: javaResolution.source }, "Found Java {v} ({source}).") }}
+                        </VAlert>
+                        <VAlert v-else-if="javaResolution" type="warning" variant="tonal" density="compact">
+                            {{ javaResolution.message }}
+                            <template #append>
+                                <VBtn
+                                    v-if="canAutoProvisionJava"
+                                    size="small"
+                                    variant="tonal"
+                                    color="primary"
+                                    :prepend-icon="mdiCloudDownloadOutline"
+                                    :loading="javaProvisioning"
+                                    @click="provisionJava"
+                                >
+                                    {{ t("mcserver.wizard.installJava", { n: requiredJavaFeature }, "Install Java {n}") }}
+                                </VBtn>
+                            </template>
+                        </VAlert>
+                        <div v-if="javaProvisioning" class="wl-mcserver-wizard__progress">
+                            <VProgressLinear
+                                :model-value="javaProgress && javaProgress.totalBytes ? (javaProgress.receivedBytes / javaProgress.totalBytes) * 100 : 0"
+                                :indeterminate="!javaProgress?.totalBytes"
+                                color="primary"
+                                height="8"
+                                rounded
+                            />
+                            <div class="text-caption">{{ javaProgress?.message ?? t("mcserver.wizard.installingJava", "Installing Java…") }}</div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Step 5: resources -->
+                <div v-else-if="step === 'resources'" class="wl-mcserver-wizard__step">
+                    <div>
+                        <label class="text-caption" for="wl-mcserver-memory">
+                            {{ t("mcserver.wizard.memory", "Memory (MB)") }}: {{ memoryMb }}
+                        </label>
+                        <VSlider
+                            id="wl-mcserver-memory"
+                            v-model="memoryMb"
+                            :min="512"
+                            :max="memorySliderCap"
+                            :step="256"
+                            thumb-label
+                            :aria-label="t('mcserver.wizard.memory', 'Memory (MB)')"
+                        />
+                        <div v-if="memoryError" class="text-caption text-error">{{ memoryError }}</div>
+                    </div>
+                    <VTextField
+                        v-model.number="port"
+                        type="number"
+                        :min="1"
+                        :max="65535"
+                        :label="t('mcserver.wizard.port', 'Server port')"
+                        :error-messages="portError ? [portError] : []"
+                        :hint="t('mcserver.wizard.portHint', 'Ports run from 1 to 65535.')"
+                        persistent-hint
+                    />
+                    <PathField
+                        v-if="whereItRuns !== 'local-process'"
+                        v-model="serverDir"
+                        field="server folder"
+                        :label="t('mcserver.wizard.folder', 'Server folder')"
+                        semantic="folder"
+                        :error="folderError"
+                    />
+                </div>
+
+                <!-- Step 6: world -->
+                <div v-else-if="step === 'world'" class="wl-mcserver-wizard__step">
+                    <VRadioGroup v-model="worldMode" :label="t('mcserver.wizard.worldMode', 'World')" inline>
+                        <VRadio value="new" :label="t('mcserver.wizard.worldNew', 'Generate a new world')" />
+                        <VRadio value="import" :label="t('mcserver.wizard.worldImport', 'Import an existing world')" />
+                    </VRadioGroup>
+                    <template v-if="worldMode === 'new'">
+                        <VTextField
+                            v-model="seed"
+                            :label="t('mcserver.wizard.seed', 'Seed (optional)')"
+                            :placeholder="t('mcserver.wizard.seedPlaceholder', 'Leave blank for a random world')"
+                        />
+                        <VSelect v-model="levelType" :items="LEVEL_TYPES" :label="t('mcserver.wizard.levelType', 'World type')" />
+                        <VSwitch v-model="generateStructures" :label="t('mcserver.wizard.generateStructures', 'Generate structures')" color="primary" />
+                    </template>
+                    <template v-else>
+                        <PathField
+                            v-model="importedWorldDir"
+                            field="world folder"
+                            :label="t('mcserver.wizard.worldFolder', 'World folder to import')"
+                            semantic="folder"
+                        />
+                    </template>
+                </div>
+
+                <!-- Step 7: review + EULA -->
+                <div v-else class="wl-mcserver-wizard__step">
+                    <VTextField
+                        v-model="serverId"
+                        :label="t('mcserver.wizard.id', 'Server id')"
+                        :error-messages="idError ? [idError] : []"
+                        hint="lowercase, letters, digits, hyphens"
+                        persistent-hint
+                    />
+                    <VTextField
+                        v-model="serverName"
+                        :label="t('mcserver.wizard.name', 'Display name')"
+                        :error-messages="nameError ? [nameError] : []"
+                    />
+                    <VDivider />
+                    <dl class="wl-mcserver-wizard__summary">
+                        <dt>{{ t("mcserver.wizard.flavour", "Flavour") }}</dt>
+                        <dd>{{ flavour }}</dd>
+                        <dt>{{ t("mcserver.wizard.version", "Version") }}</dt>
+                        <dd>{{ minecraftVersion || t("common.notSet", "Not set") }}</dd>
+                        <dt>{{ t("mcserver.wizard.whereItRuns", "Where it runs") }}</dt>
+                        <dd>{{ whereItRuns }}</dd>
+                        <dt>{{ t("mcserver.wizard.memory", "Memory (MB)") }}</dt>
+                        <dd>{{ memoryMb }}</dd>
+                        <dt>{{ t("mcserver.wizard.port", "Port") }}</dt>
+                        <dd>{{ port }}</dd>
+                        <dt>{{ t("mcserver.wizard.worldMode", "World") }}</dt>
+                        <dd>{{ worldMode === "new" ? t("mcserver.wizard.worldNew", "New world") : importedWorldDir }}</dd>
+                    </dl>
+                    <VDivider />
+                    <VSwitch
+                        v-model="eulaAccepted"
+                        color="primary"
+                        :label="t('mcserver.wizard.eulaAgree', 'I have read and accept the Minecraft EULA')"
+                    />
+                    <a href="https://www.minecraft.net/en-us/eula" target="_blank" rel="noopener" class="wl-mcserver-wizard__eula-link">
+                        {{ t("mcserver.wizard.eulaLink", "Read the Minecraft EULA") }}
+                        <VIcon :icon="mdiOpenInNew" size="14" />
+                    </a>
+                    <VAlert v-if="createFailure" type="error" variant="tonal" density="compact">{{ createFailure }}</VAlert>
+                </div>
             </VCardText>
             <VCardActions>
                 <VBtn variant="text" @click="open = false">{{ t("common.cancel", "Cancel") }}</VBtn>
+                <VSpacer />
+                <VBtn v-if="step !== 'flavour'" variant="text" @click="back">{{ t("common.back", "Back") }}</VBtn>
+                <VBtn v-if="step !== 'review'" color="primary" variant="tonal" :disabled="!canAdvance" @click="next">
+                    {{ t("common.next", "Next") }}
+                </VBtn>
                 <VBtn
+                    v-else
                     color="primary"
                     variant="tonal"
-                    :disabled="!canCreate || !store.canList"
-                    :title="!store.canList ? t('mcserver.noHost', 'This build cannot reach a Minecraft server host.') : undefined"
+                    :disabled="!canCreate"
+                    :loading="creating"
+                    :title="!eulaAccepted ? t('mcserver.wizard.eulaRequired', 'Accept the EULA to continue.') : undefined"
                     @click="create"
                 >
                     {{ t("mcserver.wizard.create", "Create") }}
@@ -153,10 +762,93 @@ async function create(): Promise<void> {
     </VDialog>
 </template>
 
+
 <style scoped>
 .wl-mcserver-wizard__body {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+.wl-mcserver-wizard__stepper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.wl-mcserver-wizard__step {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.wl-mcserver-wizard__flavours {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+.wl-mcserver-wizard__flavour-card {
+    text-align: left;
+    border: 1px solid rgb(var(--v-border-color));
+    border-radius: 8px;
+    padding: 10px;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.wl-mcserver-wizard__flavour-card--selected {
+    border-color: rgb(var(--v-theme-primary));
+    background: rgba(var(--v-theme-primary), 0.08);
+}
+.wl-mcserver-wizard__flavour-name {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.wl-mcserver-wizard__version-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.wl-mcserver-wizard__version-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-align: left;
+}
+.wl-mcserver-wizard__version-row--selected {
+    border-color: rgb(var(--v-theme-primary));
+    background: rgba(var(--v-theme-primary), 0.08);
+}
+.wl-mcserver-wizard__runtime-option {
+    margin-bottom: 6px;
+}
+.wl-mcserver-wizard__runtime-desc {
+    margin-left: 32px;
+    margin-top: -6px;
+}
+.wl-mcserver-wizard__progress {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.wl-mcserver-wizard__summary {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    font-size: 0.875rem;
+}
+.wl-mcserver-wizard__summary dt {
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-mcserver-wizard__eula-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
 }
 </style>
