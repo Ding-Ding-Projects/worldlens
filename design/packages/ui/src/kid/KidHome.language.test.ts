@@ -78,14 +78,14 @@ describe("KidHome's six land tiles follow the language mode", () => {
         setLanguageMode("en");
         const wrapper = home();
         const tiles = wrapper.findAll(".wl-kid-home__land strong").map((node) => node.text());
-        expect(tiles).toEqual(["Make a map", "Your maps", "Show people", "Keep it safe", "Host a server", "Buttons & help"]);
+        expect(tiles).toEqual(["Make a map", "Your maps", "Show people", "Keep it safe", "Run a server", "Buttons & help"]);
     });
 
     it("shows the kid words for all six tiles in yue mode - the exact regression the screenshot caught", () => {
         setLanguageMode("yue");
         const wrapper = home();
         const tiles = wrapper.findAll(".wl-kid-home__land strong").map((node) => node.text());
-        expect(tiles).toEqual(["整地圖", "你嘅地圖", "俾人睇", "安全咁留底", "Host a server", "掣同幫手"]);
+        expect(tiles).toEqual(["整地圖", "你嘅地圖", "俾人睇", "安全咁留底", "開個伺服器", "掣同幫手"]);
         // None of the six translated tiles is still showing its English word.
         expect(tiles).not.toContain("Make a map");
         expect(tiles).not.toContain("Your maps");
@@ -103,7 +103,7 @@ describe("KidHome's six land tiles follow the language mode", () => {
             "Your maps / 你嘅地圖",
             "Show people / 俾人睇",
             "Keep it safe / 安全咁留底",
-            "Host a server",
+            "Run a server / 開個伺服器",
             "Buttons & help / 掣同幫手",
         ]);
     });

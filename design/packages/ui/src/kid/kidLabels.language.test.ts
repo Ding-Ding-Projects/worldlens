@@ -14,6 +14,7 @@
  * `bilingual` mode, not only the `en` mode every previous test happened to run under.
  */
 import { beforeEach, describe, expect, it } from "vitest";
+import { CATALOGUES } from "../components/shell/catalogues.js";
 import { memoryStorage, setSetupStorage } from "../components/setup/setupPrefs.js";
 import { reloadSetupLanguage, setLanguageMode } from "../components/setup/setupI18n.js";
 import {
@@ -107,8 +108,12 @@ describe("kidCatalogueLabel() - the five land buttons the capture caught in Engl
         expect(kidCatalogueLabel("not-a-real-catalogue", "Fallback Title")).toBe("Fallback Title");
     });
 
-    it("every one of the five catalogues actually has an entry in the table this reads", () => {
-        expect(Object.keys(KID_CATALOGUE_LABELS).sort()).toEqual(["copy", "make", "maps", "setup", "share"]);
+    it("has an entry for every catalogue the shell actually ships", () => {
+        // Derived from the real catalogue list rather than a written-out set of ids. The
+        // frozen list this replaces named five, and went red the moment a sixth and seventh
+        // shipped - reporting a drifted fixture as though Kid Mode had lost its words.
+        const missing = CATALOGUES.filter((catalogue) => KID_CATALOGUE_LABELS[catalogue.id] === undefined);
+        expect(missing.map((catalogue) => catalogue.id)).toEqual([]);
     });
 });
 

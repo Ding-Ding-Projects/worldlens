@@ -41,6 +41,9 @@ import { languageMode } from "../components/setup/setupI18n.js";
 import { applyVocabulary } from "../components/vocabulary/applyVocabulary.js";
 
 export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
+    "Console, config, plugins and players": { en: "Everything about your server", yue: "你伺服器嘅所有嘢" },
+    "Your Minecraft servers": { en: "Servers you made", yue: "你整咗嘅伺服器" },
+    "Docker hosting manager": { en: "Servers in boxes", yue: "箱仔入面嘅伺服器" },
     /* Make a map (28) */
     "The project editor": { en: "Build room", yue: "砌嘢房" },
     "The guide": { en: "Five questions", yue: "五條問題" },
@@ -138,6 +141,10 @@ export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
 
 /** Job label (`jobRegistry.ts` `labelFallback`) → kid label. All eighteen jobs. */
 export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
+    "Remote hosting": { en: "Servers somewhere else", yue: "喺第度嘅伺服器" },
+    "Docker hosting": { en: "Servers in boxes", yue: "箱仔入面嘅伺服器" },
+    Screenshots: { en: "Pictures you took", yue: "你影咗嘅相" },
+    "Minecraft servers": { en: "Your own servers", yue: "你自己嘅伺服器" },
     "Make a map": { en: "Five questions", yue: "五條問題" },
     Projects: { en: "Build room", yue: "砌嘢房" },
     "GitHub runners": { en: "Robot helpers", yue: "機械人幫手" },
@@ -164,6 +171,9 @@ export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
 
 /** Settings section anchor → kid label. All nineteen sections. */
 export const KID_SETTINGS_LABELS: Readonly<Record<string, FixedString>> = {
+    "render-engine-choice": { en: "Which drawing helper", yue: "用邊個畫圖幫手" },
+    "aws-accounts": { en: "Big computer accounts", yue: "大電腦帳戶" },
+    addons: { en: "Extra bits", yue: "額外嘅嘢" },
     "mojang-download-consent": { en: "Say yes to Mojang", yue: "同 Mojang 講好" },
     "java-runtime": { en: "The engine's Java", yue: "引擎嘅 Java" },
     "map-storage-directory": { en: "Where maps live", yue: "地圖住喺邊" },
@@ -196,6 +206,8 @@ export const KID_SETTINGS_LABELS: Readonly<Record<string, FixedString>> = {
 
 /** The five catalogues, by id. */
 export const KID_CATALOGUE_LABELS: Readonly<Record<string, FixedString>> = {
+    remoteHosting: { en: "Somebody else's computer", yue: "人哋部電腦" },
+    host: { en: "Run a server", yue: "開個伺服器" },
     make: { en: "Make a map", yue: "整地圖" },
     maps: { en: "Your maps", yue: "你嘅地圖" },
     share: { en: "Show people", yue: "俾人睇" },
