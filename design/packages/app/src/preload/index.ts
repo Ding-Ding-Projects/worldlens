@@ -2408,6 +2408,34 @@ interface WorldlensBridge {
             ): Promise<unknown>;
         };
         logTail(id: string, lines?: number): Promise<unknown>;
+        /**
+         * Browsing and installing plugins/mods from Modrinth, Hangar and SpigotMC.
+         *
+         * SpigotMC results always carry `installable: false` - there is no sanctioned
+         * download API for it - so `plugins.install` must never be offered against one.
+         */
+        plugins: {
+            search(request: {
+                sourceId: "modrinth" | "hangar" | "spigot";
+                query: string;
+                loader?: string;
+                gameVersion?: string;
+                limit?: number;
+            }): Promise<unknown>;
+            versions(request: {
+                sourceId: "modrinth" | "hangar" | "spigot";
+                projectId: string;
+                loader?: string;
+                gameVersion?: string;
+                /** When given, each returned version also carries its compatibility verdict. */
+                serverId?: string;
+            }): Promise<unknown>;
+            install(id: string, request: { version: unknown; pluginsDir?: string; modsDir?: string }): Promise<unknown>;
+            list(id: string, request?: { pluginsDir?: string; modsDir?: string }): Promise<unknown>;
+            toggle(id: string, request: { path: string; enable: boolean }): Promise<unknown>;
+            remove(id: string, path: string): Promise<unknown>;
+            updates(request: { sourceId: "modrinth" | "hangar" | "spigot"; projectId: string; installed: unknown }): Promise<unknown>;
+        };
     };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
@@ -3399,6 +3427,15 @@ const bridge: WorldlensBridge = {
             write: (id, path, body) => ipcRenderer.invoke("mcserver:file:write", id, path, body),
         },
         logTail: (id, lines) => ipcRenderer.invoke("mcserver:log:tail", id, lines),
+        plugins: {
+            search: (request) => ipcRenderer.invoke("mcserver:plugins:search", request),
+            versions: (request) => ipcRenderer.invoke("mcserver:plugins:versions", request),
+            install: (id, request) => ipcRenderer.invoke("mcserver:plugins:install", id, request),
+            list: (id, request) => ipcRenderer.invoke("mcserver:plugins:list", id, request),
+            toggle: (id, request) => ipcRenderer.invoke("mcserver:plugins:toggle", id, request),
+            remove: (id, path) => ipcRenderer.invoke("mcserver:plugins:remove", id, path),
+            updates: (request) => ipcRenderer.invoke("mcserver:plugins:updates", request),
+        },
     },
     vocabulary: {
         read: () => ipcRenderer.invoke("vocabulary:read"),

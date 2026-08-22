@@ -16,6 +16,13 @@ import type { IpcMain } from "electron";
 import { createTransport, type FactoryDeps } from "./transport/factory.js";
 import { createServerRegistry, type ServerRecord, type ServerRegistry } from "./registry.js";
 import { fail, type Answer, type ServerTransport } from "./transport/types.js";
+import { checkCompatibility } from "./plugins/compatibility.js";
+import { installPluginVersion } from "./plugins/install.js";
+import { checkForUpdate, listInstalledPlugins, removePlugin, togglePlugin } from "./plugins/manage.js";
+import { createHangarSource } from "./plugins/sources/hangar.js";
+import { createModrinthSource } from "./plugins/sources/modrinth.js";
+import { createSpigotSource } from "./plugins/sources/spigot.js";
+import type { PluginFetchLike, PluginLoader, PluginSource, PluginSourceId } from "./plugins/types.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -30,6 +37,13 @@ export const MCSERVER_CHANNELS = {
     fileRead: "mcserver:file:read",
     fileWrite: "mcserver:file:write",
     logTail: "mcserver:log:tail",
+    pluginsSearch: "mcserver:plugins:search",
+    pluginsVersions: "mcserver:plugins:versions",
+    pluginsInstall: "mcserver:plugins:install",
+    pluginsList: "mcserver:plugins:list",
+    pluginsToggle: "mcserver:plugins:toggle",
+    pluginsRemove: "mcserver:plugins:remove",
+    pluginsUpdates: "mcserver:plugins:updates",
 } as const;
 
 export type McServerChannel = (typeof MCSERVER_CHANNELS)[keyof typeof MCSERVER_CHANNELS];
@@ -42,6 +56,10 @@ export interface McServerIpcOptions {
     readonly factory?: FactoryDeps;
     readonly registry?: ServerRegistry;
     readonly now?: () => string;
+    /** Injected for tests. Defaults to the global `fetch`, as `download/downloader.ts` does. */
+    readonly pluginFetch?: PluginFetchLike;
+    /** Injected for tests, so a source's own default API base need not be reached. */
+    readonly pluginSources?: readonly PluginSource[];
 }
 
 export interface McServerIpc {
@@ -59,8 +77,39 @@ function isPath(value: unknown): value is string {
     return typeof value === "string" && value.length > 0 && value.length <= 4_096 && !/[\0\r\n]/.test(value);
 }
 
+function isPluginLoader(value: unknown): value is PluginLoader {
+    return (
+        value === "bukkit" ||
+        value === "spigot" ||
+        value === "paper" ||
+        value === "purpur" ||
+        value === "fabric" ||
+        value === "forge" ||
+        value === "neoforge"
+    );
+}
+
+function isSourceId(value: unknown): value is PluginSourceId {
+    return value === "modrinth" || value === "hangar" || value === "spigot";
+}
+
 export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServerIpcOptions): McServerIpc {
     const registry = options.registry ?? createServerRegistry({ dataFolder: options.dataFolder, ...(options.now === undefined ? {} : { now: options.now }) });
+
+    const pluginFetch: PluginFetchLike = options.pluginFetch ?? ((url, init) => globalThis.fetch(url, init));
+    const pluginSources: readonly PluginSource[] =
+        options.pluginSources ?? [
+            createModrinthSource({ fetch: pluginFetch }),
+            createHangarSource({ fetch: pluginFetch }),
+            createSpigotSource({ fetch: pluginFetch }),
+        ];
+
+    function findSource(sourceId: unknown): Answer<PluginSource> {
+        if (!isSourceId(sourceId)) return fail("invalid-request", "That plugin source is not recognised.");
+        const source = pluginSources.find((candidate) => candidate.id === sourceId);
+        if (source === undefined) return fail("invalid-request", "That plugin source is not available.");
+        return { ok: true, value: source };
+    }
 
     /**
      * Looks a server up and builds its transport, in one step.
@@ -192,6 +241,135 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             }
             attached.value.detach();
             return { ok: true, value: collected };
+        },
+
+        [MCSERVER_CHANNELS.pluginsSearch]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "That search could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            const source = findSource(body.sourceId);
+            if (!source.ok) return source;
+            if (typeof body.query !== "string" || body.query.trim() === "") {
+                return fail("invalid-request", "A search needs something to search for.");
+            }
+            const loader = isPluginLoader(body.loader) ? body.loader : undefined;
+            const gameVersion = typeof body.gameVersion === "string" ? body.gameVersion : undefined;
+            const limit = typeof body.limit === "number" ? body.limit : undefined;
+            return source.value.search({
+                query: body.query,
+                ...(loader === undefined ? {} : { loader }),
+                ...(gameVersion === undefined ? {} : { gameVersion }),
+                ...(limit === undefined ? {} : { limit }),
+            });
+        },
+
+        [MCSERVER_CHANNELS.pluginsVersions]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "That request could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            const source = findSource(body.sourceId);
+            if (!source.ok) return source;
+            if (typeof body.projectId !== "string" || body.projectId === "") {
+                return fail("invalid-request", "That project is not recognised.");
+            }
+            const loader = isPluginLoader(body.loader) ? body.loader : undefined;
+            const gameVersion = typeof body.gameVersion === "string" ? body.gameVersion : undefined;
+            const versions = await source.value.versions(body.projectId, {
+                ...(loader === undefined ? {} : { loader }),
+                ...(gameVersion === undefined ? {} : { gameVersion }),
+            });
+            if (!versions.ok) return versions;
+
+            // Compatibility is decided server-side, against the actual server record,
+            // so the renderer never has to re-derive the same logic `compatibility.ts`
+            // already owns.
+            const serverId = body.serverId;
+            if (isRecordId(serverId)) {
+                const server = await registry.get(serverId);
+                if (server.ok) {
+                    return {
+                        ok: true,
+                        value: versions.value.map((version) => ({
+                            version,
+                            compatibility: checkCompatibility(server.value, version),
+                        })),
+                    };
+                }
+            }
+            return {
+                ok: true,
+                value: versions.value.map((version) => ({ version, compatibility: null })),
+            };
+        },
+
+        [MCSERVER_CHANNELS.pluginsInstall]: async (_event: never, id: unknown, request: unknown) => {
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "That install could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            if (typeof body.version !== "object" || body.version === null) {
+                return fail("invalid-request", "That version could not be read.");
+            }
+            return installPluginVersion({
+                fetch: pluginFetch,
+                transport: opened.value.transport,
+                version: body.version as never,
+                ...(typeof body.pluginsDir === "string" ? { pluginsDir: body.pluginsDir } : {}),
+                ...(typeof body.modsDir === "string" ? { modsDir: body.modsDir } : {}),
+            });
+        },
+
+        [MCSERVER_CHANNELS.pluginsList]: async (_event: never, id: unknown, request: unknown) => {
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            const body = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
+            return listInstalledPlugins({
+                transport: opened.value.transport,
+                ...(typeof body.pluginsDir === "string" ? { pluginsDir: body.pluginsDir } : {}),
+                ...(typeof body.modsDir === "string" ? { modsDir: body.modsDir } : {}),
+            });
+        },
+
+        [MCSERVER_CHANNELS.pluginsToggle]: async (_event: never, id: unknown, request: unknown) => {
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "That request could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            if (!isPath(body.path)) return fail("invalid-request", "That file name cannot be used.");
+            return togglePlugin({ transport: opened.value.transport, path: body.path, enable: body.enable === true });
+        },
+
+        [MCSERVER_CHANNELS.pluginsRemove]: async (_event: never, id: unknown, path: unknown) => {
+            if (!isPath(path)) return fail("invalid-request", "That file name cannot be used.");
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            return removePlugin({ transport: opened.value.transport, path });
+        },
+
+        [MCSERVER_CHANNELS.pluginsUpdates]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "That request could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            const source = findSource(body.sourceId);
+            if (!source.ok) return source;
+            if (typeof body.projectId !== "string" || body.projectId === "") {
+                return fail("invalid-request", "That project is not recognised.");
+            }
+            if (typeof body.installed !== "object" || body.installed === null) {
+                return fail("invalid-request", "That installed plugin could not be read.");
+            }
+            return checkForUpdate({
+                source: source.value,
+                projectId: body.projectId,
+                installed: body.installed as never,
+            });
         },
     };
 
