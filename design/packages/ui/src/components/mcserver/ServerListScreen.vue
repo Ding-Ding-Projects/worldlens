@@ -126,7 +126,7 @@ async function stopOne(id: string): Promise<void> {
 <template>
     <div class="wl-mcserver-list">
         <div class="wl-mcserver-list__header">
-            <h2 class="text-h6">{{ t("mcserver.list.title", "Minecraft servers") }}</h2>
+            <div class="text-h6">{{ t("mcserver.list.title", "Minecraft servers") }}</div>
             <div class="wl-mcserver-list__actions">
                 <VBtn
                     :prepend-icon="mdiRefresh"
@@ -264,9 +264,14 @@ async function stopOne(id: string): Promise<void> {
                                 @click.stop
                             />
                             <VIcon :icon="mdiServerNetwork" />
-                            <button type="button" class="wl-mcserver-card__title" @click="emit('open', server.id)">
+                            <VBtn
+                                class="wl-mcserver-card__title"
+                                variant="text"
+                                :ripple="false"
+                                @click="emit('open', server.id)"
+                            >
                                 {{ server.name }}
-                            </button>
+                            </VBtn>
                             <VChip size="small" :color="stateLabel(store.statuses[server.id]?.state ?? null).color" variant="flat">
                                 {{ stateLabel(store.statuses[server.id]?.state ?? null).text }}
                             </VChip>

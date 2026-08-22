@@ -219,7 +219,7 @@ async function save(): Promise<void> {
 
             <VCard v-for="[group, fields] in groupedFields" :key="group" variant="outlined" class="mb-3">
                 <VCardText>
-                    <h4 class="text-subtitle-2 mb-2">{{ group }}</h4>
+                    <div class="text-subtitle-2 mb-2">{{ group }}</div>
                     <div v-for="field in fields" :key="field.key" class="wl-mcserver-config__row">
                         <ConfigControl
                             :control="field.control"
@@ -243,7 +243,7 @@ async function save(): Promise<void> {
 
             <VCard v-if="changedKeys.length > 0" variant="tonal" class="mb-3">
                 <VCardText>
-                    <h4 class="text-subtitle-2 mb-1">{{ t("mcserver.config.diff", "Changes to be saved") }}</h4>
+                    <div class="text-subtitle-2 mb-1">{{ t("mcserver.config.diff", "Changes to be saved") }}</div>
                     <pre class="wl-mcserver-config__diff">{{ diffText }}</pre>
                 </VCardText>
             </VCard>

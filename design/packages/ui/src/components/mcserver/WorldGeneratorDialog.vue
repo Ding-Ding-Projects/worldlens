@@ -270,11 +270,11 @@ function onClose(): void {
                   choosing a world type needs to know their choice will be ignored while
                   they are making it, not after they have made every other one too.
                 -->
-                <h3 class="text-subtitle-2 mb-2">{{ t("engine") }}</h3>
+                <div class="text-subtitle-2 mb-2">{{ t("engine") }}</div>
                 <VRadioGroup v-model="engineId" density="compact" hide-details class="mb-2">
                     <VRadio v-for="engine in WORLD_GEN_ENGINES" :key="engine.id" :value="engine.id" :label="engine.label" />
                 </VRadioGroup>
-                <p class="text-caption text-medium-emphasis mb-2">{{ selectedEngine.summary }}</p>
+                <div class="text-caption text-medium-emphasis mb-2">{{ selectedEngine.summary }}</div>
 
                 <VAlert
                     v-if="engineId === 'synthetic'"
@@ -283,12 +283,12 @@ function onClose(): void {
                     density="compact"
                     class="mb-4"
                 >
-                    <p class="mb-0">{{ SYNTHETIC_TERRAIN_NOTICE }}</p>
+                    <div class="mb-0">{{ SYNTHETIC_TERRAIN_NOTICE }}</div>
                     <template v-if="ignoredSettings.length > 0">
-                        <p class="mt-2 mb-1 font-weight-medium">{{ t("engineIgnores") }}</p>
+                        <div class="mt-2 mb-1 font-weight-medium">{{ t("engineIgnores") }}</div>
                         <ul class="ps-4 mb-0">
                             <li v-for="ignored in ignoredSettings" :key="ignored.field" class="text-caption">
-                                <strong>{{ ignored.label }}</strong> &mdash; {{ ignored.reason }}
+                                <span class="font-weight-medium">{{ ignored.label }}</span> &mdash; {{ ignored.reason }}
                             </li>
                         </ul>
                     </template>
@@ -303,10 +303,10 @@ function onClose(): void {
                     <VTextField v-model="settings.seedInput" :label="t('seed')" density="compact" hide-details clearable />
                     <VBtn :prepend-icon="mdiDice5" variant="tonal" @click="rollSeed">{{ t("seedRandom") }}</VBtn>
                 </div>
-                <p class="text-caption mb-4">
+                <div class="text-caption mb-4">
                     <template v-if="seedResolved !== null">{{ t("seedResolved") }}: {{ seedResolved }}</template>
                     <template v-else>{{ t("seedBlank") }}</template>
-                </p>
+                </div>
 
                 <!-- World type -->
                 <VRadioGroup v-model="settings.worldType" :label="t('worldType')" density="compact" hide-details class="mb-2">
@@ -320,7 +320,7 @@ function onClose(): void {
 
                 <!-- Superflat layer editor -->
                 <div v-if="settings.worldType === 'flat'" class="mb-4">
-                    <h3 class="text-subtitle-2 mb-2">{{ t("layers") }}</h3>
+                    <div class="text-subtitle-2 mb-2">{{ t("layers") }}</div>
                     <VList density="compact">
                         <VListItem v-for="(layer, index) in settings.superflatLayers" :key="index">
                             <div class="d-flex align-center ga-2">
@@ -357,7 +357,7 @@ function onClose(): void {
                         <VTextField v-model.number="layerDepthDraft" type="number" min="1" :label="t('layerDepth')" density="compact" hide-details style="max-width: 100px" />
                         <VBtn :prepend-icon="mdiPlus" variant="tonal" @click="onAddLayer">{{ t("layerAdd") }}</VBtn>
                     </div>
-                    <p class="text-caption mt-1">{{ t("layerTotal") }}: {{ layerTotalDepth }}</p>
+                    <div class="text-caption mt-1">{{ t("layerTotal") }}: {{ layerTotalDepth }}</div>
                     <VAlert v-if="validation.errors.superflatLayers" type="error" variant="tonal" density="compact" class="mt-2">
                         {{ validation.errors.superflatLayers }}
                     </VAlert>
@@ -366,7 +366,7 @@ function onClose(): void {
                 <VDivider class="my-4" />
 
                 <!-- Dimensions -->
-                <h3 class="text-subtitle-2 mb-2">{{ t("dimensions") }}</h3>
+                <div class="text-subtitle-2 mb-2">{{ t("dimensions") }}</div>
                 <div class="d-flex ga-4 mb-4">
                     <VSwitch :model-value="true" disabled :label="t('overworld')" density="compact" hide-details />
                     <VSwitch v-model="settings.dimensions.nether" :label="t('nether')" density="compact" hide-details />
@@ -391,10 +391,10 @@ function onClose(): void {
                     <VTextField v-model.number="settings.pregenerationRadius" type="number" min="16" max="20000"
                         :label="`${t('extent')} - ${t('radius')}`" density="compact"
                         :error-messages="validation.errors.pregenerationRadius ? [validation.errors.pregenerationRadius] : []" />
-                    <p class="text-caption">
+                    <div class="text-caption">
                         {{ t("estimate") }}: {{ pregenEstimate.chunkCount }} chunks, ~{{ (pregenEstimate.estimatedBytes / 1_000_000).toFixed(1) }} MB,
                         ~{{ pregenEstimate.estimatedSeconds }}s
-                    </p>
+                    </div>
                 </div>
 
                 <VDivider class="my-4" />
@@ -418,7 +418,7 @@ function onClose(): void {
                 <VDivider class="my-4" />
 
                 <!-- Gamerules -->
-                <h3 class="text-subtitle-2 mb-2">{{ t("gamerules") }}</h3>
+                <div class="text-subtitle-2 mb-2">{{ t("gamerules") }}</div>
                 <div class="d-flex flex-wrap ga-4 mb-2">
                     <VSwitch v-model="settings.gamerules.doDaylightCycle" label="doDaylightCycle" density="compact" hide-details />
                     <VSwitch v-model="settings.gamerules.doWeatherCycle" label="doWeatherCycle" density="compact" hide-details />
@@ -433,7 +433,7 @@ function onClose(): void {
                 <VDivider class="my-4" />
 
                 <!-- Output -->
-                <h3 class="text-subtitle-2 mb-2">{{ t("output") }}</h3>
+                <div class="text-subtitle-2 mb-2">{{ t("output") }}</div>
                 <VRadioGroup v-model="settings.outputMode" density="compact" hide-details inline class="mb-2">
                     <VRadio value="folder" :label="t('outputFolder')" />
                     <VRadio value="zip" :label="t('outputZip')" />
@@ -450,7 +450,7 @@ function onClose(): void {
                 <VDivider class="my-4" />
 
                 <!-- Runner -->
-                <h3 class="text-subtitle-2 mb-2">{{ t("runner") }}</h3>
+                <div class="text-subtitle-2 mb-2">{{ t("runner") }}</div>
                 <VRadioGroup v-model="runnerKind" density="compact" hide-details inline class="mb-4">
                     <VRadio value="local" :label="t('runnerLocal')" />
                     <VRadio value="github-actions" :label="t('runnerGithub')" />
@@ -458,7 +458,7 @@ function onClose(): void {
 
                 <!-- Plan preview -->
                 <div v-if="showPlan">
-                    <h3 class="text-subtitle-2 mb-2">{{ t("planTitle") }}</h3>
+                    <div class="text-subtitle-2 mb-2">{{ t("planTitle") }}</div>
                     <VList density="compact">
                         <VListItem v-for="step in plan.steps" :key="step.kind">
                             <div class="d-flex align-center ga-2">

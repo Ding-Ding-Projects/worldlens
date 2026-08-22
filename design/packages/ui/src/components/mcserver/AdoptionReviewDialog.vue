@@ -139,7 +139,7 @@ async function confirmRelease(): Promise<void> {
         <VCard v-if="record">
             <VCardTitle>{{ t("mcserver.adopt.title", "Review before adopting") }}</VCardTitle>
             <VCardText>
-                <p>
+                <div>
                     {{
                         t(
                             "mcserver.adopt.blurb",
@@ -147,7 +147,7 @@ async function confirmRelease(): Promise<void> {
                             "{name} was not created by this app. This app will only be able to do what it is granted below.",
                         )
                     }}
-                </p>
+                </div>
 
                 <VAlert v-if="failure" type="warning" variant="tonal" class="my-2">{{ failure }}</VAlert>
 
@@ -175,29 +175,29 @@ async function confirmRelease(): Promise<void> {
                 />
 
                 <template v-if="evidence && evidence.length > 0">
-                    <h4 class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.evidenceTitle", "Why this looks like a Minecraft server") }}</h4>
-                    <p v-if="filteredEvidence.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
+                    <div class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.evidenceTitle", "Why this looks like a Minecraft server") }}</div>
+                    <div v-if="filteredEvidence.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
                         {{ t("mcserver.adopt.evidenceNoMatch", "No evidence line matches the filter.") }}
-                    </p>
+                    </div>
                     <ul v-else class="wl-mcserver-adopt__evidence">
                         <li v-for="(item, index) in filteredEvidence" :key="index">{{ item }}</li>
                     </ul>
                 </template>
 
                 <template v-if="mounts && mounts.length > 0">
-                    <h4 class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.mountsTitle", "Mounted paths") }}</h4>
-                    <p v-if="filteredMounts.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
+                    <div class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.mountsTitle", "Mounted paths") }}</div>
+                    <div v-if="filteredMounts.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
                         {{ t("mcserver.adopt.mountsNoMatch", "No mounted path matches the filter.") }}
-                    </p>
+                    </div>
                     <ul v-else class="wl-mcserver-adopt__evidence">
                         <li v-for="(m, index) in filteredMounts" :key="index">{{ m.source }} &rarr; {{ m.target }}</li>
                     </ul>
                 </template>
                 <template v-if="ports && ports.length > 0">
-                    <h4 class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.portsTitle", "Published ports") }}</h4>
-                    <p v-if="filteredPorts.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
+                    <div class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.portsTitle", "Published ports") }}</div>
+                    <div v-if="filteredPorts.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
                         {{ t("mcserver.adopt.portsNoMatch", "No published port matches the filter.") }}
-                    </p>
+                    </div>
                     <ul v-else class="wl-mcserver-adopt__evidence">
                         <li v-for="(p, index) in filteredPorts" :key="index">{{ p.container }} &rarr; {{ p.host ?? t("mcserver.adopt.notPublished", "not published") }}</li>
                     </ul>
@@ -208,7 +208,7 @@ async function confirmRelease(): Promise<void> {
                 </VAlert>
 
                 <VDivider class="my-3" />
-                <h4 class="text-subtitle-2 mb-1">{{ t("mcserver.adopt.consentTitle", "What this app may do") }}</h4>
+                <div class="text-subtitle-2 mb-1">{{ t("mcserver.adopt.consentTitle", "What this app may do") }}</div>
                 <VSwitch v-model="consent.configWrite" :label="t('mcserver.adopt.consentConfig', 'Write its configuration files')" hide-details density="compact" />
                 <VSwitch v-model="consent.lifecycle" :label="t('mcserver.adopt.consentLifecycle', 'Start and stop it')" hide-details density="compact" />
                 <VSwitch v-model="consent.pluginInstall" :label="t('mcserver.adopt.consentPlugins', 'Install and remove plugins')" hide-details density="compact" />

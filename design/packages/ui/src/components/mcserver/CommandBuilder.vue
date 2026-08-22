@@ -284,7 +284,7 @@ const replayText = ref<string | null>(null);
                         </VList>
 
                         <div v-if="activeForm" class="wl-mcserver-cmdbuilder__form">
-                            <p class="text-body-2 text-medium-emphasis">{{ activeForm.summary }}</p>
+                            <div class="text-body-2 text-medium-emphasis">{{ activeForm.summary }}</div>
                             <template v-for="field in activeForm.fields" :key="field.key">
                                 <TargetSelectorField
                                     v-if="field.kind === 'target'"
@@ -354,9 +354,9 @@ const replayText = ref<string | null>(null);
                 </template>
 
                 <template v-else>
-                    <p class="text-body-2 text-medium-emphasis">
+                    <div class="text-body-2 text-medium-emphasis">
                         {{ t("mcserver.commandBuilder.executeHelp", "Build the subcommand chain in order, then say what to run at the end.") }}
-                    </p>
+                    </div>
                     <div class="wl-mcserver-cmdbuilder__execute-add">
                         <VMenu>
                             <template #activator="{ props: menuProps }">

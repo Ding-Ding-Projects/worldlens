@@ -13,6 +13,7 @@ import {
     VDivider,
     VIcon,
     VListItem,
+    VLabel,
     VProgressLinear,
     VRadio,
     VRadioGroup,
@@ -554,12 +555,13 @@ const canAdvance = computed(() => {
 
                 <!-- Step 1: flavour -->
                 <div v-if="step === 'flavour'" class="wl-mcserver-wizard__step">
-                    <p class="text-body-2">{{ t("mcserver.wizard.flavourIntro", "Choose the kind of server this will be.") }}</p>
+                    <div class="text-body-2">{{ t("mcserver.wizard.flavourIntro", "Choose the kind of server this will be.") }}</div>
                     <div class="wl-mcserver-wizard__flavours">
-                        <button
+                        <VBtn
                             v-for="card in FLAVOUR_CARDS"
                             :key="card.id"
-                            type="button"
+                            variant="text"
+                            block
                             class="wl-mcserver-wizard__flavour-card"
                             :class="{ 'wl-mcserver-wizard__flavour-card--selected': flavour === card.id }"
                             :aria-pressed="flavour === card.id"
@@ -570,11 +572,11 @@ const canAdvance = computed(() => {
                                 <VIcon v-if="flavour === card.id" :icon="mdiCheckCircle" size="18" color="primary" />
                             </div>
                             <div class="text-caption text-medium-emphasis">{{ card.tagline }}</div>
-                            <p class="text-caption">{{ card.description }}</p>
+                            <div class="text-caption">{{ card.description }}</div>
                             <VChip v-if="card.cataloguedId === null" size="x-small" variant="tonal" color="warning">
                                 {{ t("mcserver.wizard.noCatalogue", "No live version list yet") }}
                             </VChip>
-                        </button>
+                        </VBtn>
                     </div>
                 </div>
 
@@ -614,10 +616,11 @@ const canAdvance = computed(() => {
                             <div class="text-caption text-medium-emphasis text-uppercase">
                                 {{ group.stability === "release" ? t("mcserver.wizard.releases", "Releases") : t("mcserver.wizard.snapshots", "Snapshots") }}
                             </div>
-                            <button
+                            <VBtn
                                 v-for="entry in group.versions"
                                 :key="entry.version"
-                                type="button"
+                                variant="text"
+                                block
                                 class="wl-mcserver-wizard__version-row"
                                 :class="{ 'wl-mcserver-wizard__version-row--selected': minecraftVersion === entry.version }"
                                 @click="minecraftVersion = entry.version"
@@ -629,7 +632,7 @@ const canAdvance = computed(() => {
                                         &#183; {{ releaseDateLabel(entry.releasedAt) }}
                                     </template>
                                 </span>
-                            </button>
+                            </VBtn>
                         </div>
                     </template>
                     <VSelect
@@ -682,7 +685,7 @@ const canAdvance = computed(() => {
                     <VRadioGroup v-model="whereItRuns" :label="t('mcserver.wizard.whereItRuns', 'Where it runs')">
                         <div v-for="option in RUNTIME_OPTIONS" :key="option.id" class="wl-mcserver-wizard__runtime-option">
                             <VRadio :value="option.id" :label="option.name" />
-                            <p class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc">{{ option.description }}</p>
+                            <div class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc">{{ option.description }}</div>
                         </div>
                     </VRadioGroup>
 
@@ -743,9 +746,9 @@ const canAdvance = computed(() => {
 
                 <!-- Step 4: Java -->
                 <div v-else-if="step === 'java'" class="wl-mcserver-wizard__step">
-                    <p class="text-body-2">
+                    <div class="text-body-2">
                         {{ t("mcserver.wizard.javaIntro", { n: requiredJavaFeature }, "This version needs Java {n}.") }}
-                    </p>
+                    </div>
                     <VAlert v-if="!store.hasJava" type="info" variant="tonal" density="compact">
                         {{ t("mcserver.wizard.noJavaHost", "This build cannot check for Java. It will be checked again when the server starts.") }}
                     </VAlert>
@@ -788,9 +791,9 @@ const canAdvance = computed(() => {
                 <!-- Step 5: resources -->
                 <div v-else-if="step === 'resources'" class="wl-mcserver-wizard__step">
                     <div>
-                        <label class="text-caption" for="wl-mcserver-memory">
+                        <VLabel class="text-caption" for="wl-mcserver-memory">
                             {{ t("mcserver.wizard.memory", "Memory (MB)") }}: {{ memoryMb }}
-                        </label>
+                        </VLabel>
                         <VSlider
                             id="wl-mcserver-memory"
                             v-model="memoryMb"

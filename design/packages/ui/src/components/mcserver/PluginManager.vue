@@ -180,7 +180,7 @@ function onDrop(event: DragEvent): void {
 
 <template>
     <div class="wl-mcserver-plugins">
-        <h3 class="text-subtitle-1 mb-2">{{ t("mcserver.plugins.title", "Plugins") }}</h3>
+        <div class="text-subtitle-1 mb-2">{{ t("mcserver.plugins.title", "Plugins") }}</div>
         <VAlert v-if="blockReason" type="info" variant="tonal" class="mb-2">{{ blockReason }}</VAlert>
 
         <VTabs v-model="source">
@@ -240,7 +240,7 @@ function onDrop(event: DragEvent): void {
 
         <VDivider class="my-3" />
         <div class="wl-mcserver-plugins__header">
-            <h4 class="text-subtitle-2">{{ t("mcserver.plugins.installedTitle", "Installed") }}</h4>
+            <div class="text-subtitle-2">{{ t("mcserver.plugins.installedTitle", "Installed") }}</div>
             <VBtn :prepend-icon="mdiRefresh" variant="text" size="small" @click="loadInstalled">
                 {{ t("mcserver.plugins.refresh", "Refresh") }}
             </VBtn>
@@ -260,9 +260,9 @@ function onDrop(event: DragEvent): void {
                 :summary="installedSummary"
                 class="mb-2"
             />
-            <p v-if="filteredInstalled.length === 0" class="wl-mcserver-plugins__empty" role="status">
+            <div v-if="filteredInstalled.length === 0" class="wl-mcserver-plugins__empty" role="status">
                 {{ t("mcserver.plugins.noMatch", { query: installedQuery }, "No installed plugin matches “{query}”.") }}
-            </p>
+            </div>
         <VList v-else>
             <VListItem v-for="plugin in filteredInstalled" :key="plugin.path">
                 <template #prepend>
@@ -299,7 +299,7 @@ function onDrop(event: DragEvent): void {
         <VDialog v-model="versionDialog" max-width="480" persistent>
             <VCard v-if="versionTarget">
                 <VCardText>
-                    <h4 class="text-subtitle-1 mb-2">{{ versionTarget.name }}</h4>
+                    <div class="text-subtitle-1 mb-2">{{ versionTarget.name }}</div>
                     <VAlert v-if="installFailure" type="warning" variant="tonal" class="mb-2">{{ installFailure }}</VAlert>
                     <VProgressLinear v-if="installing" indeterminate class="mb-2" />
                     <VList>

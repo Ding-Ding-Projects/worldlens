@@ -225,14 +225,14 @@ const teardownAffected = computed(() =>
                 {{ t("mcserver.aws.setupTitle", "Provision on AWS") }}
             </VCardTitle>
             <VCardText>
-                <p class="text-body-2 text-medium-emphasis mb-4">
+                <div class="text-body-2 text-medium-emphasis mb-4">
                     {{
                         t(
                             "mcserver.aws.setupLede",
                             "Creates a new EC2 instance and runs this server's Docker container on it, using the same console, configuration editor, and plugin manager as every other server here.",
                         )
                     }}
-                </p>
+                </div>
 
                 <div class="wl-aws-panel__grid">
                     <VSelect
@@ -305,14 +305,14 @@ const teardownAffected = computed(() =>
 
                 <VCard v-if="plan" variant="tonal" class="mt-4 wl-aws-panel__plan">
                     <VCardText>
-                        <p class="text-caption text-medium-emphasis mb-2">
+                        <div class="text-caption text-medium-emphasis mb-2">
                             {{
                                 t(
                                     "mcserver.aws.planNote",
                                     "List-price on-demand estimate for common regions, not a live pricing lookup. Actual usage, data transfer, and non-listed instance types can change the real bill.",
                                 )
                             }}
-                        </p>
+                        </div>
                         <ul class="wl-aws-panel__resources">
                             <li v-for="resource in plan.resources" :key="resource.kind + resource.summary">
                                 <span>{{ resource.summary }}</span>
@@ -323,7 +323,7 @@ const teardownAffected = computed(() =>
                         </ul>
                         <VDivider class="my-2" />
                         <div class="wl-aws-panel__total">
-                            <strong>{{ t("mcserver.aws.total", "Estimated total") }}</strong>
+                            <span class="font-weight-medium">{{ t("mcserver.aws.total", "Estimated total") }}</span>
                             <span>
                                 {{ formatMonthlyUsd(plan.estimatedMonthlyUsd) }}
                                 <span v-if="planHasUnknownCost(plan)" class="text-warning">
@@ -348,7 +348,7 @@ const teardownAffected = computed(() =>
                 <VAlert v-if="provisionFailure" type="error" variant="tonal" density="compact" class="mt-3">
                     <div class="d-flex align-center ga-2 mb-1">
                         <VIcon :icon="mdiAlertCircleOutline" size="small" />
-                        <strong>{{ t("mcserver.aws.provisionFailedTitle", "Provisioning failed") }}</strong>
+                        <span class="font-weight-medium">{{ t("mcserver.aws.provisionFailedTitle", "Provisioning failed") }}</span>
                     </div>
                     {{ rollbackNote }}
                 </VAlert>

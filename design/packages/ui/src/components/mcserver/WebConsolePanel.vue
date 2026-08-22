@@ -114,12 +114,12 @@ async function setPassword(): Promise<void> {
     <div v-if="server" class="wl-mcserver-panel">
         <div class="wl-mcserver-panel__header">
             <div>
-                <h2 class="text-h6">{{ server.name }}</h2>
-                <p class="text-caption text-medium-emphasis">
+                <div class="text-h6">{{ server.name }}</div>
+                <div class="text-caption text-medium-emphasis">
                     {{ flavourName(server.flavour) }}
                     <span v-if="server.minecraftVersion"> &middot; {{ server.minecraftVersion }}</span>
                     &middot; {{ transportSummary(server) }}
-                </p>
+                </div>
             </div>
             <VChip :color="stateLabel(status?.state ?? null).color" variant="flat">
                 {{ stateLabel(status?.state ?? null).text }}
