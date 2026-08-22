@@ -2496,6 +2496,16 @@ interface WorldlensBridge {
         };
         java: {
             resolve(version: string): Promise<unknown>;
+            /**
+             * Downloads and installs a Java runtime for a server that has none.
+             *
+             * Resolves only once the runtime is genuinely usable, so a caller can report a
+             * real result rather than a hopeful one. Progress arrives through
+             * `onJavaProgress` while it runs.
+             */
+            provision(id: string): Promise<unknown>;
+            /** Progress while a runtime is downloading. Returns an unsubscribe function. */
+            onProgress(listener: (id: string, event: unknown) => void): () => void;
         };
         create(request: {
             id: string;
@@ -3576,6 +3586,15 @@ const bridge: WorldlensBridge = {
         },
         java: {
             resolve: (version) => ipcRenderer.invoke("mcserver:java:resolve", version),
+            provision: (id) => ipcRenderer.invoke("mcserver:java:provision", id),
+            onProgress: (listener) => {
+                const forward = (_event: IpcRendererEvent, id: string, event: unknown): void =>
+                    listener(id, event);
+                ipcRenderer.on("mcserver:java:progress", forward);
+                return () => {
+                    ipcRenderer.off("mcserver:java:progress", forward);
+                };
+            },
         },
         create: (request) => ipcRenderer.invoke("mcserver:create", request),
     },

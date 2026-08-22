@@ -57,6 +57,7 @@ import { buildWebConsolePasswordRecord, type SafeStorageLike } from "./webconsol
 import { WebConsolePasswordStore } from "./webconsole/passwordStore.js";
 import { startWebConsoleServer, type WebConsoleServerHandle } from "./webconsole/server.js";
 import { discoverJava } from "../java/discovery.js";
+import { provisionJava } from "../java/provision.js";
 import type { JavaRunner } from "../java/probe.js";
 import { REQUIRED_JAVA_FEATURE } from "../java/version.js";
 
@@ -88,6 +89,7 @@ export const MCSERVER_CHANNELS = {
     catalogueList: "mcserver:catalogue:list",
     catalogueRefresh: "mcserver:catalogue:refresh",
     javaResolve: "mcserver:java:resolve",
+    javaProvision: "mcserver:java:provision",
     create: "mcserver:create",
     rconTest: "mcserver:rcon:test",
     consoleOpen: "mcserver:console:open",
@@ -689,6 +691,69 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 installation: discovery.installation,
                 rejected: discovery.rejected,
             });
+        },
+
+        /**
+         * Downloads a Java runtime for a server that has none, and records it.
+         *
+         * The surface this serves used to state the problem and stop: "This server has no
+         * Java runtime chosen yet", with nothing to press. The application knows which
+         * version is needed, knows where to get it, and already has the code to fetch and
+         * verify it - so leaving the reader to go and solve it themselves was the same
+         * failure as telling somebody to go and start Docker.
+         *
+         * It resolves only once the runtime is genuinely installed and recorded, because a
+         * handler that returned as soon as the download began would report success while
+         * every following Start still failed for the same reason.
+         */
+        [MCSERVER_CHANNELS.javaProvision]: async (event: unknown, id: unknown) => {
+            if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
+            const found = await registry.get(id);
+            if (!found.ok) return found;
+
+            const requirement = requiredJavaFeature(found.value.minecraftVersion ?? "");
+            const feature = requirement.known ? requirement.feature : REQUIRED_JAVA_FEATURE;
+
+            // Already there is a real answer, and a far better one than downloading two
+            // hundred megabytes somebody already has.
+            const discovery = await discoverJava({
+                dataDir: options.dataFolder,
+                required: feature,
+                ...(options.javaRunner === undefined ? {} : { runner: options.javaRunner }),
+                ...(options.javaExists === undefined ? {} : { exists: options.javaExists }),
+                ...(options.javaEnv === undefined ? {} : { env: options.javaEnv }),
+            });
+            if (discovery.installation !== null) {
+                return ok({ outcome: "already-installed", java: discovery.installation, feature });
+            }
+
+            const sender = (event as { sender?: { send?: (channel: string, ...args: unknown[]) => void } } | null)
+                ?.sender;
+            try {
+                const record = await provisionJava({
+                    dataDir: options.dataFolder,
+                    feature,
+                    // Progress is pushed rather than polled, so a long download can say what
+                    // it is doing instead of showing a spinner that never changes.
+                    onEvent: (progress) => {
+                        try {
+                            sender?.send?.("mcserver:java:progress", id, progress);
+                        } catch {
+                            // A renderer that has gone away is not a reason to abandon a
+                            // download that is otherwise working.
+                        }
+                    },
+                });
+                return ok({ outcome: "installed", java: record, feature });
+            } catch (error) {
+                // `provisionJava` throws; every other handler here answers. Translated rather
+                // than propagated, so the renderer keeps one shape to render.
+                return fail(
+                    "command-failed",
+                    "That Java runtime could not be installed.",
+                    error instanceof Error ? error.message : String(error),
+                );
+            }
         },
 
         [MCSERVER_CHANNELS.create]: async (_event: never, request: unknown) => {
