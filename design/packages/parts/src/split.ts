@@ -140,10 +140,31 @@ interface InProgressMarker {
     readonly file: string;
     readonly bytes: number;
     readonly partSize: number;
+    /**
+     * The digest of every part this split has finished, appended as each one closes.
+     *
+     * Without it the resume had nothing to check a candidate part against, so its rehash
+     * compared the bytes to themselves: it computed a digest and adopted it as the truth,
+     * which validates a part's length and nothing whatsoever about its content. A part
+     * corrupted in place at the right size sailed through, its wrong digest went into the
+     * finished manifest, and the archive then verified perfectly against a record of its
+     * own corruption - the failure a whole-file digest exists to prevent, arriving with
+     * the digest's blessing.
+     */
+    readonly parts?: readonly { readonly index: number; readonly bytes: number; readonly sha256: string }[];
 }
 
+/**
+ * `world.zip` -> `world.zip.parts.inprogress.json`.
+ *
+ * Built from the file name directly rather than by appending to `manifestNameFor`, which
+ * produced `world.zip.parts.json.inprogress.json` - a name that contradicted this module's
+ * own doc comment above, and that no reader looking for the documented marker would find.
+ * It also read as a manifest with a suffix bolted on, which is the one thing the marker
+ * must never be mistaken for.
+ */
 function inProgressMarkerNameFor(fileName: string): string {
-    return `${manifestNameFor(fileName)}.inprogress.json`;
+    return `${fileName}.parts.inprogress.json`;
 }
 
 async function readInProgressMarker(path: string): Promise<InProgressMarker | null> {
@@ -222,6 +243,7 @@ async function findResumablePrefix(
     fileName: string,
     boundaries: readonly PartBoundary[],
     signal: AbortSignal | undefined,
+    expected: ReadonlyMap<number, string>,
 ): Promise<{ records: PartRecord[]; hash: Hash }> {
     const records: PartRecord[] = [];
     let hash = createHash("sha256");
@@ -232,6 +254,11 @@ async function findResumablePrefix(
         const partPath = join(outDir, partNameFor(fileName, boundary.index));
         const stats = await stat(partPath).catch(() => null);
         if (stats === null || !stats.isFile() || stats.size !== boundary.bytes) break;
+
+        // No recorded digest for this index means the marker never saw this part finish,
+        // so whatever is on disk under its name is not this split's proven work.
+        const want = expected.get(boundary.index);
+        if (want === undefined) break;
 
         const partHash = createHash("sha256");
         const before = hash.copy();
@@ -267,14 +294,23 @@ async function findResumablePrefix(
             break;
         }
 
+        // `digest()` finalizes a Node `Hash` and may only be called once, so this is the
+        // single read of it - `hash` (the whole-file running digest) is a separate,
+        // still-open `Hash` instance and is unaffected.
+        const actual = partHash.digest("hex");
+        if (actual !== want) {
+            // The bytes on disk are not the bytes this split wrote. Roll the whole-file
+            // digest back so the corrupted content never contributes to it, and stop
+            // trusting the prefix here; the caller re-cuts from this part onward.
+            hash = before;
+            break;
+        }
+
         records.push({
             index: boundary.index,
             name: partNameFor(fileName, boundary.index),
             bytes: boundary.bytes,
-            // `digest()` finalizes a Node `Hash` and may only be called once, so this is
-            // the single read of it - `hash` (the whole-file running digest) is a
-            // separate, still-open `Hash` instance and is unaffected.
-            sha256: partHash.digest("hex"),
+            sha256: actual,
         });
     }
 
@@ -327,7 +363,13 @@ export async function splitFile(path: string, options: SplitOptions = {}): Promi
 
     let resumed: { records: PartRecord[]; hash: Hash } = { records: [], hash: createHash("sha256") };
     if (markerMatches) {
-        resumed = await findResumablePrefix(outDir, fileName, boundaries, options.signal);
+        resumed = await findResumablePrefix(
+            outDir,
+            fileName,
+            boundaries,
+            options.signal,
+            new Map((marker?.parts ?? []).map((part) => [part.index, part.sha256])),
+        );
     } else {
         // No marker, or one that does not match: every `<name>.NNN` this call might
         // otherwise have found is not provably this split's own work, so it is removed
@@ -393,6 +435,29 @@ export async function splitFile(path: string, options: SplitOptions = {}): Promi
             bytes: part.bytes,
             sha256: part.hash.digest("hex"),
         });
+        /*
+         * Rewritten now, not at the end, because the marker's whole job is to describe a
+         * split that did NOT reach the end. A digest recorded only on success would be
+         * absent in exactly the case the resume needs it.
+         *
+         * Whole-file rewrite of a few hundred bytes per part, which is nothing beside the
+         * gigabyte just written, and it cannot leave a half-appended record behind.
+         */
+        await writeFile(
+            markerPath,
+            JSON.stringify({
+                version: 1,
+                file: fileName,
+                bytes: bytesTotal,
+                partSize,
+                parts: records.map((record) => ({
+                    index: record.index,
+                    bytes: record.bytes,
+                    sha256: record.sha256,
+                })),
+            }),
+            "utf8",
+        ).catch(() => undefined);
         options.onProgress?.({
             bytesDone,
             bytesTotal,
@@ -440,6 +505,25 @@ export async function splitFile(path: string, options: SplitOptions = {}): Promi
                     // Never awaited for the very last part - see the doc comment on
                     // `onPartBoundary`.
                     if (partIndex < partsTotal) await options.onPartBoundary?.();
+                    /*
+                     * And the signal is re-read HERE, not only at the top of the outer
+                     * read loop, because the outer loop turns once per read chunk while
+                     * this one turns once per part.
+                     *
+                     * `READ_CHUNK_BYTES` is far larger than a part size in every test and
+                     * in some real configurations, so a whole archive can arrive in a
+                     * single chunk: the outer check runs once, every part is then cut
+                     * inside this inner loop, and an abort raised by `onPartBoundary`
+                     * itself - which is exactly how a pause arrives - is never looked at
+                     * again. The split ran to completion and resolved, having been asked
+                     * twice to stop.
+                     *
+                     * Checking after the boundary rather than before it is deliberate: the
+                     * part just finished is closed, hashed and recorded, so stopping here
+                     * leaves a provable prefix for the resume to pick up rather than a
+                     * half-written part it would have to discard.
+                     */
+                    options.signal?.throwIfAborted();
                 }
             }
         }
@@ -454,7 +538,23 @@ export async function splitFile(path: string, options: SplitOptions = {}): Promi
         // here would throw away the one thing that made this attempt cheaper than
         // starting from zero, for no safety benefit: it was already proven intact before
         // a single new byte was streamed.
-        for (let index = resumedCount + 1; index <= partsTotal; index++) {
+        /*
+         * Torn down: only the part that was still open, and anything past it. Never a
+         * part this attempt already finished.
+         *
+         * `records` holds every part that is closed, hashed and written into the marker -
+         * the resumed prefix and everything this attempt completed since. Those are
+         * provable, and they are the entire point of a resumable split: deleting them
+         * because the run was interrupted turns every pause back into starting from zero,
+         * which is the behaviour this function was changed to stop.
+         *
+         * The old code deleted from `resumedCount + 1`, so an abort at the first boundary
+         * threw away the part that boundary had just proved. The safety property is
+         * untouched by keeping them, because it never rested on the parts being absent: a
+         * partial split is recognised by its `.parts.inprogress.json` marker and the
+         * absence of the real manifest, and the marker is deliberately left in place here.
+         */
+        for (let index = records.length + 1; index <= partsTotal; index++) {
             const written = partPaths[index - 1];
             if (written !== undefined) await rm(written, { force: true }).catch(() => undefined);
         }

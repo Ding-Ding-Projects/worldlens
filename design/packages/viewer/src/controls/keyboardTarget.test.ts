@@ -68,7 +68,14 @@ describe("keystrokeIsForEditableTarget", () => {
 
     it("is true for a contentEditable element", () => {
         const div = document.createElement("div");
-        div.contentEditable = "true";
+        // setAttribute, not `.contentEditable = "true"`, and the difference is the environment
+        // rather than the intent. In a browser the IDL setter reflects straight to the
+        // attribute and either spelling works; jsdom does not implement `contentEditable` at
+        // all, so assigning it there quietly creates a plain JS property on the element, sets
+        // no attribute, and produces an element that no correct implementation could ever
+        // recognise as editable. The attribute is what real markup carries and what both
+        // environments agree on.
+        div.setAttribute("contenteditable", "true");
         document.body.appendChild(div);
         expect(keystrokeIsForEditableTarget(fireKeydownAt(div, "KeyD"))).toBe(true);
         document.body.removeChild(div);
@@ -96,7 +103,7 @@ describe("keystrokeIsForEditableTarget", () => {
         // names the real, innermost, contentEditable element.
         const host = document.createElement("div"); // stands in for the shadow host
         const innerEditable = document.createElement("span");
-        innerEditable.contentEditable = "true";
+        innerEditable.setAttribute("contenteditable", "true");
         document.body.appendChild(host);
         host.appendChild(innerEditable);
 

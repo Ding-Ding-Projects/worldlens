@@ -67,7 +67,25 @@ function fakeGitHub() {
             }) as unknown as Response;
 
         if (url.endsWith("/repos/o/r")) {
-            return answer(200, { full_name: "o/r", private: false, permissions: { push: true }, html_url: "https://github.test/o/r" });
+            // `name` and `owner.login` are not decoration: readRepositoryRecord refuses a
+            // payload without them, and refuses it with "not a repository this build
+            // understands" rather than naming the missing field. A fake that omits them
+            // fails the very first call of the backup, so the run never reaches packing and
+            // every pause assertion below times out waiting for a phase that was never
+            // entered - which reads exactly like a broken pause and is nothing of the kind.
+            return answer(200, {
+                full_name: "o/r",
+                name: "r",
+                owner: { login: "o" },
+                // Private, deliberately. A public repository makes the runner refuse with
+                // public-not-acknowledged unless the request opts in, and this file is about
+                // pausing rather than about the publish-consent gate - which has its own
+                // tests. Left public, every assertion here fails on a refusal that fired
+                // correctly, two guards before pausing was ever reached.
+                private: true,
+                permissions: { push: true },
+                html_url: "https://github.test/o/r",
+            });
         }
         if (method === "GET" && url.includes("/releases/tags/")) {
             const tag = decodeURIComponent(url.split("/releases/tags/")[1] as string);
@@ -137,7 +155,17 @@ function makeRunner(github: ReturnType<typeof fakeGitHub>, events: BackupEvent[]
     });
 }
 
-async function waitUntil(predicate: () => boolean, limitMs = 5000): Promise<void> {
+/**
+ * Polls until the condition holds, or gives up.
+ *
+ * The ceiling is 30s rather than 5s because this is a poll, not a hang detector: it returns
+ * the instant the predicate is true, so a larger budget costs exactly nothing on a healthy
+ * run and only stops a false failure on a loaded one. These cases drive a real BackupRunner
+ * over real temporary files, and the full suite runs them beside thirty other workers - at
+ * 5s the upload-phase case failed at 5066ms in company and passed alone, which is a
+ * statement about the machine and not about pausing.
+ */
+async function waitUntil(predicate: () => boolean, limitMs = 30000): Promise<void> {
     const deadline = Date.now() + limitMs;
     while (!predicate()) {
         if (Date.now() > deadline) throw new Error("waited too long for a condition to hold");

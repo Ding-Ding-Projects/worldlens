@@ -399,8 +399,19 @@ watch(selectedDimension, (value) => {
             </VAlert>
         </VCardText>
         <VDivider />
+        <!--
+            Cancel stays live while the write is in flight, deliberately.
+
+            It was briefly disabled alongside the Write button when the busy state was added,
+            which is the obvious-looking thing to do and is wrong here: this is not a second
+            submit that a double click could duplicate, it is the escape hatch. The parent
+            answers it by calling cancelCiCloudConfig with the very operation id that is
+            running, so disabling it removes the only way to stop a write that has begun -
+            precisely when somebody most wants to. A regression test cancels an in-flight
+            operation and caught this immediately.
+        -->
         <div class="cloud-config-wizard__actions">
-            <VBtn variant="text" :disabled="busy === true" @click="emit('cancel')">{{ t("cirender.cloudConfig.cancel", "Cancel") }}</VBtn>
+            <VBtn variant="text" @click="emit('cancel')">{{ t("cirender.cloudConfig.cancel", "Cancel") }}</VBtn>
             <span class="cloud-config-wizard__status" role="status" aria-live="polite">{{ t("cirender.cloudConfig.status", { step: steps.findIndex((item) => item.id === step) + 1, total: steps.length }, "Step {step} of {total}") }}</span>
             <span class="flex-grow-1" />
             <VBtn v-if="step !== 'map'" :prepend-icon="mdiArrowLeft" variant="text" @click="back">{{ t("cirender.cloudConfig.back", "Back") }}</VBtn>

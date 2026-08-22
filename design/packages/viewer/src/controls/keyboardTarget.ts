@@ -64,6 +64,29 @@ function isEditableInputElement(el: Element): boolean {
     return false;
 }
 
+/**
+ * Whether this element is itself an editing host.
+ *
+ * Both halves are load-bearing, and the second is not redundant belt-and-braces.
+ * `isContentEditable` is the property to trust in a browser: it resolves the inherited
+ * `inherit` value and tells you what the engine actually decided. But it is a convenience
+ * accessor that a DOM implementation is free not to provide, and jsdom does not - there it
+ * is permanently `false`, so a check written only that way silently stops recognising every
+ * rich-text editor the moment it is under test, which is precisely when nobody sees it fail.
+ *
+ * The attribute is the declaration; the property is the resolution. Reading both means the
+ * guard works where only one of them exists. `plaintext-only` counts, and an empty value
+ * counts, because HTML treats a bare `contenteditable` as true. `"false"` and `"inherit"`
+ * deliberately do not - `inherit` is answered by the ancestor walk this sits inside.
+ */
+function isContentEditableElement(el: Element): boolean {
+    if (el instanceof HTMLElement && el.isContentEditable) return true;
+    const declared = el.getAttribute("contenteditable");
+    if (declared === null) return false;
+    const value = declared.trim().toLowerCase();
+    return value === "" || value === "true" || value === "plaintext-only";
+}
+
 function isEditableRoleElement(el: Element): boolean {
     const role = el.getAttribute("role");
     return role === "textbox" || role === "searchbox" || role === "combobox";
@@ -93,7 +116,7 @@ export function keystrokeIsForEditableTarget(evt: KeyboardEvent): boolean {
     // that are not themselves editable, so `isContentEditable` has to be checked up the tree,
     // not only on the innermost element.
     while (el) {
-        if (el instanceof HTMLElement && el.isContentEditable) return true;
+        if (isContentEditableElement(el)) return true;
         if (isEditableInputElement(el)) return true;
         if (isEditableRoleElement(el)) return true;
         el = el.parentElement;
