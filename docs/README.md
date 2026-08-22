@@ -151,6 +151,11 @@ map and is not listed here.
 | [Rendering a world that lives in a private repository](./private-world-rendering.md)     | Encrypted worlds rendered on public runners, and what that does and does not protect.                                                                                                                                                                                                                                                                  |
 | [1.12.2 worlds](./legacy-1-12-worlds.md)                                                 | Writing pre-flattening worlds from the generator, and the render harness that checks one reads back as a map.                                                                                                                                                                                                                                          |
 | [Bedrock Edition worlds](./bedrock-worlds.md)                                            | Recognising a Bedrock world and saying so, and converting one to Java with Chunker — its MIT licence, what conversion loses, and why exit code zero does not mean it worked.                                                                                                                                                                           |
+| [AWS CLI requirement](./aws-cli-requirement.md)                                           | The declared AWS CLI dependency, discovery, version checks, and honest missing-tool recovery. |
+| [AWS hosting](./aws-hosting.md)                                                           | Hosting rendered maps through AWS targets, configuration, limits, and verification boundaries. |
+| [AWS rendering](./aws-render.md)                                                         | The AWS render transport, bounded upload/download flow, and failure evidence. |
+| [Cloudflare tunnel](./cloudflare-tunnel.md)                                               | Tunnel setup, credential boundaries, lifecycle controls, and reachability verification. |
+| [Custom domains](./custom-domains.md)                                                     | Custom-domain configuration, DNS and certificate prerequisites, and failure recovery. |
 
 ## Captures
 

@@ -34,6 +34,15 @@ See [Rendering engines](#rendering-engines).
 · [all releases](https://github.com/Ding-Ding-Projects/worldlens/releases)
 · [documentation site](https://ding-ding-projects.github.io/worldlens/)
 
+### See it move
+
+The committed [Worldlens tour recording](docs/recordings/worldlens-tour.mp4) shows the shipped
+desktop flow. It is the current recording at `f02370eb`; no regeneration is needed for this docs
+refresh.
+
+The documentation site currently bundles **54 production articles**. The source article bundle is
+checked by `design/packages/site/scripts/assert-article-bundle.mjs` during the site build.
+
 **1.0 is the verified public baseline.** It means exactly this, no more: the Material Design 3
 shell rewrite is complete and closed against its own acceptance issues (#126, #134, #123); the
 full workspace suite - 723 test files, 10,512 tests - is the local verification baseline for the

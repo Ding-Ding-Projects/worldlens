@@ -1,5 +1,30 @@
 # Handoff
 
+## 2026-08-22 — documentation inventory refresh
+
+The documentation index now lists the five root feature records that had existed on disk but were
+missing from `docs/README.md`: the AWS CLI, AWS hosting and AWS rendering records, Cloudflare
+tunnel, and custom domains. Issue ledgers, smoke evidence, conformance audits, nested compatibility,
+recordings, and screenshot support records retain their own exemptions or indexes rather than being
+mislabelled as product features.
+
+The Pages source currently contains **54** article modules, all imported and exported; the site
+hero now says 54 rather than the stale 59. README links the committed
+`docs/recordings/worldlens-tour.mp4` at `f02370eb`, which is already an ancestor of `origin/main`
+and has no later UI/app changes that would make it stale. The docs-index guard was run after the
+refresh and passed.
+
+### 廣東話同步
+
+今次文檔盤點補返五份之前喺 `docs/` 有、但 `docs/README.md` 個 index 冇列嘅 root feature records：AWS
+CLI、AWS hosting、AWS rendering、Cloudflare tunnel 同 custom domains。Issue ledger、smoke
+evidence、conformance audit、compatibility、recordings 同 screenshot 輔助 records 保留原本嘅
+exemption 或自己嘅 index，唔會扮成 product feature。
+
+Site 而家有 **54** 篇 article module，全部 import/export 齊晒；hero 由舊嘅 59 改做 54。
+README 亦連返 `docs/recordings/worldlens-tour.mp4`（`f02370eb`）；佢已經係 `origin/main` ancestor，
+之後冇 UI/app 改動令條片過時。文檔 index guard 改完之後已經跑過並通過。
+
 ## 2026-08-19 — CI build-and-release-only record
 
 The current `ci.yml` keeps the workspace build, all seven BlueMap jar builds, the Windows

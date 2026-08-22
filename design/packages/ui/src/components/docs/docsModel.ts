@@ -179,6 +179,11 @@ export const RENDERING_ORDER: readonly string[] = [
     "render-engine-choice.md",
     "static-map-export.md",
     "threejs-upgrade.md",
+    "aws-cli-requirement.md",
+    "aws-hosting.md",
+    "aws-render.md",
+    "cloudflare-tunnel.md",
+    "custom-domains.md",
 ];
 
 /**
