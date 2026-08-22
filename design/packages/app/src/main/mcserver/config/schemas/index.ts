@@ -1,18 +1,29 @@
 /**
  * Registry resolving (fileKind, flavour, versionRange) to a schema.
  *
- * Only `server.properties` has a hand-written schema today - every other config file a
- * flavour ships (Paper's `config/paper-world-defaults.yml`, a plugin's `config.yml`) has no
- * entry here yet, and `reconcile.ts` falls back to `inferSchema.ts` for those rather than
- * refusing to render them. The registry is deliberately small and append-only: adding a
- * flavour's config later means adding a row here, not changing how resolution works.
+ * `server.properties` applies to every flavour (`"*"`). `bukkit.yml` and `spigot.yml`
+ * predate Paper and are still read by it, so they are registered once for `"*"` too rather
+ * than duplicated per flavour - a real per-flavour override still wins because
+ * `resolveSchema` checks flavour-specific entries first. `paper-global.yml` and
+ * `paper-world-defaults.yml` are Paper-only. `purpur.yml` is Purpur-only.
+ *
+ * `velocity.toml` now has its own schema, backed by the line-oriented, comment-preserving
+ * TOML parser in `parseToml.ts`. Deliberately still missing: the Fabric/Forge/NeoForge
+ * loader and mod config formats, which have no single stable schema across mods and are
+ * left to per-file inference rather than a fabricated one.
  */
 
 import type { FieldMeta } from "@worldlens/config";
+import { bukkitFields } from "./bukkit.js";
+import { paperGlobalFields } from "./paperGlobal.js";
+import { paperWorldDefaultsFields } from "./paperWorldDefaults.js";
+import { purpurFields } from "./purpur.js";
 import { serverPropertiesFields } from "./serverProperties.js";
+import { spigotFields } from "./spigot.js";
+import { velocityFields } from "./velocity.js";
 
 export interface SchemaMatch {
-    /** File-kind identifier, e.g. `"server.properties"`, `"paper-world-defaults"`. */
+    /** File-kind identifier, e.g. `"server.properties"`, `"paper-world-defaults.yml"`. */
     readonly fileKind: string;
     /** Flavour this schema applies to, or `"*"` for every flavour (vanilla keys apply everywhere). */
     readonly flavour: string;
@@ -21,7 +32,15 @@ export interface SchemaMatch {
     readonly fields: readonly FieldMeta[];
 }
 
-const REGISTRY: readonly SchemaMatch[] = [{ fileKind: "server.properties", flavour: "*", versionRange: "*", fields: serverPropertiesFields }];
+export const REGISTRY: readonly SchemaMatch[] = [
+    { fileKind: "server.properties", flavour: "*", versionRange: "*", fields: serverPropertiesFields },
+    { fileKind: "bukkit.yml", flavour: "*", versionRange: "*", fields: bukkitFields },
+    { fileKind: "spigot.yml", flavour: "*", versionRange: "*", fields: spigotFields },
+    { fileKind: "paper-global.yml", flavour: "paper", versionRange: "*", fields: paperGlobalFields },
+    { fileKind: "paper-world-defaults.yml", flavour: "paper", versionRange: "*", fields: paperWorldDefaultsFields },
+    { fileKind: "purpur.yml", flavour: "purpur", versionRange: "*", fields: purpurFields },
+    { fileKind: "velocity.toml", flavour: "velocity", versionRange: "*", fields: velocityFields },
+];
 
 /**
  * Resolves the best-matching schema for a file. Flavour-specific entries win over `"*"`;
@@ -36,4 +55,10 @@ export function resolveSchema(fileKind: string, flavour: string, _version: strin
     return wildcard?.fields;
 }
 
+export { bukkitFields } from "./bukkit.js";
+export { paperGlobalFields } from "./paperGlobal.js";
+export { paperWorldDefaultsFields } from "./paperWorldDefaults.js";
+export { purpurFields } from "./purpur.js";
 export { serverPropertiesFields } from "./serverProperties.js";
+export { spigotFields } from "./spigot.js";
+export { velocityFields } from "./velocity.js";

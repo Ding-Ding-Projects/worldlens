@@ -1,0 +1,36 @@
+# This is the global configuration file for Paper.
+# As you can see, there's a lot to configure. Some options may impact gameplay, so use
+# with caution, and make sure you know what each option does before configuring.
+_version: 30
+commands:
+  log-admin-commands: true
+  # Suggest player names when the completion is otherwise empty.
+  suggest-player-names-when-null-tab-completions: true
+console:
+  enable-brigadier-completions: true
+  enable-brigadier-highlighting: true
+logging:
+  deobfuscate-stacktraces: true
+packet-limiter:
+  kick-message: <red>Sent too many packets
+proxies:
+  bungee-cord:
+    online-mode: true
+  proxy-protocol: false
+  velocity:
+    enabled: false
+    online-mode: false
+    secret: ''
+spam-limiter:
+  recipe-spam-increment: 1
+  recipe-spam-limit: 20
+  tab-spam-increment: 1
+  tab-spam-limit: 500
+unsupported-settings:
+  allow-permanent-block-break-exploits: false
+  allow-piston-duplication: false
+  # DO NOT ENABLE THIS UNLESS YOU KNOW WHAT YOU ARE DOING
+  compression-format: zlib
+watchdog:
+  early-warning-delay: 10000
+  early-warning-every: 5000

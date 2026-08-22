@@ -25,13 +25,14 @@ import { hashOf, type ConfigDocument, type EntryNode } from "./document.js";
 import { inferField } from "./inferSchema.js";
 import { parseProperties, serializeProperties, setPropertiesValue } from "./parseProperties.js";
 import { parseYaml, setYamlValue } from "./parseYaml.js";
+import { parseToml, serializeToml, setTomlValue } from "./parseToml.js";
 import { reconcile, type ReconciledField } from "./reconcile.js";
 import { resolveSchema } from "./schemas/index.js";
 import { fail, ok, type Answer } from "../transport/types.js";
 import type { ServerTransport } from "../transport/types.js";
 
 /** How a file's bytes are read as structure. Chosen from the name, not guessed per line. */
-export type ConfigFormat = "properties" | "yaml" | "json" | "text";
+export type ConfigFormat = "properties" | "yaml" | "json" | "toml" | "text";
 
 /**
  * Which parser a file needs.
@@ -45,6 +46,7 @@ export function formatFor(path: string): ConfigFormat {
     if (name.endsWith(".properties") || name === "eula.txt") return "properties";
     if (name.endsWith(".yml") || name.endsWith(".yaml")) return "yaml";
     if (name.endsWith(".json")) return "json";
+    if (name.endsWith(".toml")) return "toml";
     return "text";
 }
 
@@ -146,6 +148,10 @@ function parseFor(format: ConfigFormat, text: string): ConfigDocument | null {
         const parsed = parseYaml(text);
         return parsed.ok ? parsed.value : null;
     }
+    if (format === "toml") {
+        const parsed = parseToml(text);
+        return parsed.ok ? parsed.value : null;
+    }
     return null;
 }
 
@@ -242,7 +248,9 @@ export async function applyConfigChanges(options: ApplyOptions): Promise<Answer<
         const applied =
             format === "properties"
                 ? setPropertiesValue(document, change.path.join("."), change.value, document.hash)
-                : setYamlValue(document, change.path, change.value, document.hash);
+                : format === "toml"
+                  ? setTomlValue(document, change.path, change.value, document.hash)
+                  : setYamlValue(document, change.path, change.value, document.hash);
         if (!applied.ok) {
             return fail(
                 "invalid-request",
@@ -253,7 +261,7 @@ export async function applyConfigChanges(options: ApplyOptions): Promise<Answer<
         document = applied.value;
     }
 
-    const next = format === "properties" ? serializeProperties(document) : document.sourceText;
+    const next = format === "properties" ? serializeProperties(document) : format === "toml" ? serializeToml(document) : document.sourceText;
     const written = await options.transport.fileWrite(options.path, new Uint8Array(Buffer.from(next, "utf8")), {
         expectedHash: read.value.hash,
     });

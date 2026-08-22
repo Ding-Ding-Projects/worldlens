@@ -1,0 +1,21 @@
+# This is the main configuration file for Spigot.
+# As you can see, there's tons to configure. Some options may impact gameplay, so use
+# with caution, and make sure you know what each option does before configuring.
+config-version: 12
+settings:
+  debug: false
+  bungeecord: false
+  restart-on-crash: true
+  timeout-time: 60
+messages:
+  whitelist: You are not whitelisted on this server!
+  unknown-command: Unknown command. Type "/help" for help.
+  server-full: The server is full!
+players:
+  disable-saving: false
+world-settings:
+  default:
+    verbose: true
+    hopper-transfer: 8
+    # A brand-new key this schema does not know about yet - must survive untouched.
+    a-future-spigot-setting: 42
