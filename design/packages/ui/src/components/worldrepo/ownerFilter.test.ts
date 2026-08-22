@@ -71,6 +71,49 @@ describe("narrowing repositories to a chosen owner", () => {
     });
 });
 
+describe("the picker really receives the narrowing", () => {
+    /** The screen source, with line endings normalised so a CRLF checkout cannot
+     *  silently make every pattern below match nothing. */
+    async function screenSource(): Promise<string> {
+        const { readFile } = await import("node:fs/promises");
+        const { fileURLToPath } = await import("node:url");
+        const text = await readFile(
+            fileURLToPath(new URL("./WorldRepoScreen.vue", import.meta.url)),
+            "utf8",
+        );
+        return text.replace(/\r\n/g, "\n");
+    }
+
+    it("binds the repository picker to the owner-scoped list, not the raw one", async () => {
+        // The first attempt at this fix computed the narrowing correctly and handed it to
+        // the adoption section, while the repository picker stayed bound to the
+        // unfiltered list. It type-checked, every test passed, and choosing an
+        // organization still changed nothing on the control somebody was looking at.
+        //
+        // Only reading the binding catches that.
+        const source = await screenSource();
+
+        const items = /:items="(\w+)\.map\(\(entry\) => \(\{ title: entry\.fullName/.exec(source);
+        expect(items?.[1], "the repository picker's :items binding was not found").toBeDefined();
+        expect(items?.[1]).toBe("ownerScopedCandidates");
+    });
+
+    it("offers a way to ask again, because filtering cannot invent a new repository", async () => {
+        // Narrowing needs no network, but a repository created somewhere else a moment
+        // ago is genuinely absent, and without this the only remedy was restarting the
+        // application - which is not a remedy.
+        const source = await screenSource();
+
+        // Anchored to whole lines: a refresh somebody commented out while debugging still
+        // contains the substring, and that is exactly how wiring dies.
+        expect(source).toMatch(/^\s*async function refreshRepositories/m);
+        expect(source).toMatch(/^\s*@click="refreshRepositories"$/m);
+        // The failure was recorded and never rendered, so a failed call read as "you
+        // have none" rather than "the question could not be asked".
+        expect(source).toContain('data-test="worldrepo-candidates-failure"');
+    });
+});
+
 describe("listing the owners that are actually present", () => {
     it("names each owner once, in the order they first appear", () => {
         expect(ownersPresent(ALL)).toEqual(["cntow", "Ding-Ding-Projects"]);

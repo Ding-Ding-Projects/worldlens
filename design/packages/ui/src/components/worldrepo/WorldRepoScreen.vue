@@ -205,6 +205,29 @@ function chooseRepository(value: unknown): void {
     repo.value = choice.name;
 }
 
+const refreshingRepositories = ref(false);
+
+/**
+ * Re-reads the owners and repositories for the current account.
+ *
+ * Filtering is instant and needs no network, but a repository created somewhere else a
+ * moment ago genuinely is not in the list yet - and without a way to ask again the only
+ * remedy was restarting the application, which is not a remedy.
+ *
+ * Owners are re-read too: a newly created organization is missing from both lists, and a
+ * refresh that returned its repositories while leaving it out of the owner picker would be
+ * half an answer.
+ */
+async function refreshRepositories(): Promise<void> {
+    if (refreshingRepositories.value) return;
+    refreshingRepositories.value = true;
+    try {
+        await Promise.all([wr.loadOwners(effectiveAccountId.value), loadCandidates()]);
+    } finally {
+        refreshingRepositories.value = false;
+    }
+}
+
 async function loadAccountScope(accountId = effectiveAccountId.value): Promise<void> {
     wr.clearPreflight();
     wr.owners.value = [];
@@ -504,6 +527,17 @@ const ownerNarrowing = computed(() => {
 
 const shownCandidates = computed(() => ownerNarrowing.value.shown);
 
+/**
+ * What the repository PICKER shows.
+ *
+ * Owner narrowing only. The picker carries its own search field, so also applying the
+ * adoption section's query here would filter it by a box that is not on screen beside it -
+ * two searches feeding one list, one of them invisible.
+ */
+const ownerScopedCandidates = computed(
+    () => filterByOwner(candidates.value, candidates.value, owner.value || null).shown,
+);
+
 /** True when the chosen owner has nothing this account may write to. */
 const ownerHasNoRepositories = computed(
     () => ownerNarrowing.value.ownerIsEmpty && candidates.value.length > 0,
@@ -733,9 +767,49 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
                         @update:model-value="chooseOwner"
                     />
 
+                    <div class="d-flex align-center ga-2 mt-2 flex-wrap">
+                        <v-btn
+                            :prepend-icon="mdiRefresh"
+                            :loading="refreshingRepositories"
+                            :disabled="refreshingRepositories"
+                            variant="tonal"
+                            size="small"
+                            density="comfortable"
+                            data-test="worldrepo-refresh"
+                            @click="refreshRepositories"
+                        >
+                            {{ t("worldrepo.repo.refresh", "Refresh owners and repositories") }}
+                        </v-btn>
+                        <span v-if="refreshingRepositories" class="text-medium-emphasis text-caption">
+                            {{ t("worldrepo.repo.refreshing", "Reading them again...") }}
+                        </span>
+                    </div>
+
+                    <!--
+                        The failure was being recorded and never shown, so a call that failed
+                        rendered as "no writable repositories were returned" - which reads as
+                        "you have none" rather than "the question could not be asked".
+                    -->
+                    <v-alert
+                        v-if="candidatesFailure"
+                        type="warning"
+                        density="compact"
+                        variant="tonal"
+                        class="mt-2"
+                        data-test="worldrepo-candidates-failure"
+                    >
+                        {{
+                            t(
+                                "worldrepo.repo.failed",
+                                { detail: candidatesFailure },
+                                "Your repositories could not be read: {detail}",
+                            )
+                        }}
+                    </v-alert>
+
                     <GhEntityPicker
                         v-if="candidates.length > 0"
-                        :items="candidates.map((entry) => ({ title: entry.fullName, value: entry.fullName, searchText: `${entry.owner} ${entry.name} ${entry.private ? 'private' : 'public'}` }))"
+                        :items="ownerScopedCandidates.map((entry) => ({ title: entry.fullName, value: entry.fullName, searchText: `${entry.owner} ${entry.name} ${entry.private ? 'private' : 'public'}` }))"
                         :model-value="owner && repo ? `${owner}/${repo}` : null"
                         :search-label="t('worldrepo.repo.search', 'Search writable repositories')"
                         :select-label="t('worldrepo.repo.pick', 'Choose an existing repository')"
