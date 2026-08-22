@@ -211,6 +211,14 @@ export class MaterialShell {
     private reviewedNoticeId = 0;
     /** The canvas that asked for keyboard terrain actions, restored on Escape. */
     private contextMenuInvoker: HTMLElement | null = null;
+
+    /**
+     * Set by a host (the desktop app's map screen) that wants the terrain menu's new
+     * "Build command here" action to open its own Minecraft command builder pre-filled with
+     * this exact world point. A served, host-less BlueMap deployment simply never sets this,
+     * so the button does nothing there rather than assuming a command builder exists.
+     */
+    onBuildCommandHere: ((point: { x: number; y: number; z: number }) => void) | null = null;
     /** The exact palette opener, restored when the command card closes. */
     private commandPaletteInvoker: HTMLElement | null = null;
     /** The exact settings opener, restored after close or Escape. */
@@ -276,7 +284,7 @@ export class MaterialShell {
         this.menu.hidden = true;
         this.menu.setAttribute("role", "menu");
         this.menu.dataset.copyAriaLabel = "terrainActions";
-        this.menu.innerHTML = `<button type="button" role="menuitem" data-action="pin">📍 <span data-copy="addPinpoint">Add pinpoint here</span></button><button type="button" role="menuitem" data-action="copy" data-copy="copyCoordinates">Copy coordinates</button><button type="button" role="menuitem" data-action="cancel" data-copy="cancel">Cancel</button>`;
+        this.menu.innerHTML = `<button type="button" role="menuitem" data-action="pin">📍 <span data-copy="addPinpoint">Add pinpoint here</span></button><button type="button" role="menuitem" data-action="command">🛠 <span data-copy="buildCommandHere">Build command here</span></button><button type="button" role="menuitem" data-action="copy" data-copy="copyCoordinates">Copy coordinates</button><button type="button" role="menuitem" data-action="cancel" data-copy="cancel">Cancel</button>`;
         this.root.appendChild(this.menu);
         this.menu.addEventListener("click", (event) => void this.handleMenuClick(event));
         this.menu.addEventListener("keydown", this.handleContextMenuKeydown);
@@ -1416,6 +1424,16 @@ export class MaterialShell {
                 this.recordNotice("externalAlert", "alert", { message: `Could not copy coordinates: ${String(error)}` });
             }
             this.closeContextMenu();
+        }
+        if (action === "command") {
+            const point = { x: Number(this.menu.dataset.x), y: Number(this.menu.dataset.y), z: Number(this.menu.dataset.z) };
+            this.closeContextMenu();
+            if (this.onBuildCommandHere) {
+                this.onBuildCommandHere(point);
+            } else {
+                this.recordNotice("externalAlert", "alert", { message: "No command builder is connected to this map." });
+            }
+            return;
         }
         if (action === "pin") {
             const waypoint = this.measurementModel.addWaypoint({

@@ -22,9 +22,27 @@ import type { MarkerSetData } from "@worldlens/viewer";
  */
 export const blueMapApp: ShallowRef<BlueMapApp | null> = shallowRef(null);
 
+/**
+ * The exact world point the terrain menu's "Build command here" action was clicked at, or
+ * null when nothing has been picked (or the picked point has been consumed).
+ *
+ * Honest about what it is NOT: a click-to-position seam into the loaded map, and nothing more.
+ * There is no data linking a BlueMap profile to a specific managed Minecraft server in this
+ * app - `ServerProfile` (stores/profiles.ts) carries no server id - so a point picked here is
+ * a real, editable coordinate for the command builder to prefill, never proof that any
+ * particular managed server is "this same world". Surfaces reading this value must say so
+ * plainly rather than silently assuming a send target.
+ */
+export const mapCommandPoint: ShallowRef<{ x: number; y: number; z: number } | null> = shallowRef(null);
+
 /** Replaces the live instance (or clears it). Called by MapView, which owns the lifecycle. */
 export function setBlueMapApp(instance: BlueMapApp | null): void {
     blueMapApp.value = instance;
+    if (instance) {
+        instance.materialShell.onBuildCommandHere = (point: { x: number; y: number; z: number }) => {
+            mapCommandPoint.value = point;
+        };
+    }
 }
 
 /** Reactive `appState`: controls, menu, maps, theme, screenshot, debug. Null before load. */

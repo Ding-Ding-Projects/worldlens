@@ -352,6 +352,25 @@ describe("MaterialShell", () => {
         expect(shell.root.querySelector(".bm-m3-pin")?.textContent).toContain("10, 64, -20");
     });
 
+    it("hands the terrain menu's exact world point to a connected command-builder host, and closes the menu", () => {
+        const shell = new MaterialShell(document.querySelector("main")!);
+        const received: { x: number; y: number; z: number }[] = [];
+        shell.onBuildCommandHere = (point) => received.push(point);
+        shell.openContextMenu({ hit: { point: { x: 12.4, y: 70, z: -5.9 } } } as never, 120, 180);
+        const menu = shell.root.querySelector(".bm-m3-menu") as HTMLDivElement;
+        (menu.querySelector('[data-action="command"]') as HTMLButtonElement).click();
+        expect(received).toEqual([{ x: 12.4, y: 70, z: -5.9 }]);
+        expect(menu.hidden).toBe(true);
+    });
+
+    it("reports honestly when no command-builder host is connected, rather than silently doing nothing", () => {
+        const shell = new MaterialShell(document.querySelector("main")!);
+        shell.openContextMenu({ hit: { point: { x: 0, y: 64, z: 0 } } } as never, 120, 180);
+        const menu = shell.root.querySelector(".bm-m3-menu") as HTMLDivElement;
+        (menu.querySelector('[data-action="command"]') as HTMLButtonElement).click();
+        expect(shell.root.textContent).toContain("No command builder is connected to this map.");
+    });
+
     it("makes terrain actions keyboard-operable and restores the invoking canvas after Escape", () => {
         const shell = new MaterialShell(document.querySelector("main")!);
         const invoker = document.createElement("button");
@@ -367,6 +386,8 @@ describe("MaterialShell", () => {
         const menu = shell.root.querySelector<HTMLElement>(".bm-m3-menu")!;
 
         expect(document.activeElement).toBe(menu.querySelector('[data-action="pin"]'));
+        menu.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
+        expect(document.activeElement).toBe(menu.querySelector('[data-action="command"]'));
         menu.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
         expect(document.activeElement).toBe(menu.querySelector('[data-action="copy"]'));
         menu.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));

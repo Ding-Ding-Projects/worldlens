@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiContentCopy, mdiDownload, mdiRefresh, mdiSend } from "@mdi/js";
+import { mdiContentCopy, mdiDownload, mdiHammerWrench, mdiRefresh, mdiSend } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VChip, VMenu, VList, VListItem, VTextField } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import CommandBuilder from "./CommandBuilder.vue";
 import { useServerStore } from "./useServers.js";
 import { consoleClose, consoleOpen, consoleSend, onConsoleLine, rconTest, type RconTestResult } from "./mcserverBridge.js";
 import type { ConsoleLine } from "./serverStore.js";
@@ -36,6 +37,7 @@ const opening = ref(false);
 const rcon = ref<RconTestResult | null>(null);
 
 const command = ref("");
+const builderOpen = ref(false);
 const history = ref<string[]>([]);
 const historyIndex = ref<number | null>(null);
 const sending = ref(false);
@@ -131,6 +133,10 @@ const sendReason = computed<string | null>(() => {
     return null;
 });
 
+function useBuiltCommand(text: string): void {
+    command.value = text;
+}
+
 async function send(): Promise<void> {
     const text = command.value.trim();
     if (text === "" || sessionId.value === null) return;
@@ -224,6 +230,9 @@ function exportTranscript(): void {
             <VBtn variant="text" size="small" :color="follow ? 'primary' : undefined" @click="follow = !follow">
                 {{ follow ? t("mcserver.console.following", "Following") : t("mcserver.console.paused", "Paused") }}
             </VBtn>
+            <VBtn :prepend-icon="mdiHammerWrench" variant="text" size="small" @click="builderOpen = true">
+                {{ t("mcserver.console.openCommandBuilder", "Command builder") }}
+            </VBtn>
             <VChip
                 size="small"
                 :color="rcon?.ok ? 'success' : 'warning'"
@@ -272,6 +281,7 @@ function exportTranscript(): void {
         <div v-if="completions.length > 0" class="wl-mcserver-console__completions text-caption text-medium-emphasis">
             {{ completions.join(", ") }}
         </div>
+        <CommandBuilder v-model="builderOpen" :server-id="serverId" @use-command="useBuiltCommand" />
     </div>
 </template>
 
