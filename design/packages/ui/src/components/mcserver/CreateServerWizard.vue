@@ -130,6 +130,21 @@ const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
  */
 const typeVersionByHand = ref(false);
 
+/**
+ * Whether the version has to be entered rather than chosen.
+ *
+ * True when the user asked for it, and also whenever nothing could be fetched for the
+ * chosen flavour - an empty picker is not a choice, and offering one beside a message
+ * saying there is nothing to pick is the interface arguing with itself.
+ */
+const versionEnteredByHand = computed(
+    // `flavourVersions`, not the search-filtered list: a query that happens to match
+    // nothing means "no results", not "this flavour publishes nothing", and swapping the
+    // picker for a text field mid-search would be the interface changing shape under the
+    // person using it.
+    () => typeVersionByHand.value || flavourVersions.value.length === 0,
+);
+
 /** Every catalogued version for the chosen flavour, as options for the picker. */
 /** The wiki page for whichever version is chosen, or null when none is chosen yet. */
 const selectedWikiUrl = computed(() =>
@@ -566,7 +581,7 @@ const canAdvance = computed(() => {
                 <!-- Step 2: version -->
                 <div v-else-if="step === 'version'" class="wl-mcserver-wizard__step">
                     <VAlert v-if="!store.hasCatalogue" type="info" variant="tonal" density="compact">
-                        {{ t("mcserver.wizard.noCatalogueHost", "This build cannot reach the server-version catalogue. Type the version by hand.") }}
+                        {{ t("mcserver.wizard.noCatalogueHost", "This build cannot reach the server-version catalogue, so the version has to be entered below.") }}
                     </VAlert>
                     <VAlert v-else-if="catalogueFailure" type="warning" variant="tonal" density="compact">
                         {{ catalogueFailure }}
@@ -593,7 +608,7 @@ const canAdvance = computed(() => {
                             :sample="versionSample"
                         />
                         <div v-if="flavourVersions.length === 0 && !catalogueLoading" class="text-caption text-medium-emphasis">
-                            {{ t("mcserver.wizard.noVersionsForFlavour", "No live versions are catalogued for this flavour yet. Type one by hand below.") }}
+                            {{ t("mcserver.wizard.noVersionsForFlavour", "No versions could be fetched for this flavour, so there is nothing to choose from. Enter the version below instead.") }}
                         </div>
                         <div v-for="group in versionGroups" :key="group.stability" class="wl-mcserver-wizard__version-group">
                             <div class="text-caption text-medium-emphasis text-uppercase">
@@ -618,7 +633,7 @@ const canAdvance = computed(() => {
                         </div>
                     </template>
                     <VSelect
-                        v-if="!typeVersionByHand"
+                        v-if="!versionEnteredByHand"
                         v-model="minecraftVersion"
                         :items="versionOptions"
                         item-title="title"
@@ -655,6 +670,7 @@ const canAdvance = computed(() => {
                         {{ t("mcserver.wizard.wikiLink", { v: minecraftVersion }, "Read about {v} on the Minecraft Wiki") }}
                     </a>
                     <VSwitch
+                        v-if="flavourVersions.length > 0"
                         v-model="typeVersionByHand"
                         density="compact"
                         :label="t('mcserver.wizard.versionByHandToggle', 'Enter a version that is not listed')"
