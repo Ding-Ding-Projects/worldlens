@@ -123,29 +123,56 @@ export function rebalance(
  * Absorbs the rounding error so the total is exactly 100.
  *
  * Rounding several proportions independently can land on 99 or 101, and a panel that says
- * "101%" reads as a defect regardless of how small the cause was. The remainder goes to the
- * largest share that is not the one being edited, because moving it by one is invisible
- * there and would be obvious on a share of 2.
+ * "101%" reads as a defect regardless of how small the cause was. The drift is spread a
+ * single unit at a time across every share except the one being edited, largest first, so
+ * no share is pushed past a bound and the adjustment stays invisible.
  */
 function settleToHundred(
     shares: readonly EngineShare[],
     protectedEngineId: string,
 ): readonly EngineShare[] {
-    const total = shares.reduce((sum, share) => sum + share.percent, 0);
-    const drift = MAX_PERCENT - total;
-    if (drift === 0) return shares;
-
-    const candidates = shares
+    const percents = new Map(shares.map((share) => [share.engineId, share.percent]));
+    const order = shares
         .filter((share) => share.engineId !== protectedEngineId)
-        .sort((left, right) => right.percent - left.percent);
-    const target = candidates[0];
-    if (target === undefined) return shares;
+        .sort((left, right) => right.percent - left.percent)
+        .map((share) => share.engineId);
 
-    return shares.map((share) =>
-        share.engineId === target.engineId
-            ? { ...share, percent: Math.max(MIN_PERCENT, share.percent + drift) }
-            : share,
-    );
+    if (order.length === 0) return shares;
+
+    let drift = MAX_PERCENT - shares.reduce((sum, share) => sum + share.percent, 0);
+
+    // Spread the drift rather than dumping it on one share.
+    //
+    // The first version gave the whole remainder to the largest other share and clamped the
+    // result at zero, which quietly swallowed the correction whenever that share was too
+    // small to absorb it: with 0/1/1/1/97/1 the drift of -1 landed on a share of 0, the
+    // clamp held it at 0, and the total stayed at 101. A panel reading 101% looks like a
+    // defect whatever the arithmetic reason, and this was found by a property test rather
+    // than by any of the cases anybody thought to write.
+    //
+    // One unit at a time, cycling, so no single share is pushed out of range and the
+    // adjustment stays invisible - taking six units off one share of 1 is not possible,
+    // and taking one off six shares is not noticeable.
+    let guard = 0;
+    while (drift !== 0 && guard < MAX_PERCENT * 4) {
+        let moved = false;
+        for (const engineId of order) {
+            if (drift === 0) break;
+            const current = percents.get(engineId) ?? 0;
+            const step = drift > 0 ? 1 : -1;
+            const next = current + step;
+            if (next < MIN_PERCENT || next > MAX_PERCENT) continue;
+            percents.set(engineId, next);
+            drift -= step;
+            moved = true;
+        }
+        // Nothing could absorb another unit - every other share is already at a bound. The
+        // total is then as close as it can honestly get, and looping again would spin.
+        if (!moved) break;
+        guard += 1;
+    }
+
+    return shares.map((share) => ({ ...share, percent: percents.get(share.engineId) ?? share.percent }));
 }
 
 /** Whether these shares can actually be rendered. */
