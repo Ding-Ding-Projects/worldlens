@@ -41,6 +41,12 @@ export interface VersionEntry {
     readonly downloadUrl: string | null;
     /** Lower-case hex SHA-256, when the upstream API published one. Never guessed. */
     readonly sha256: string | null;
+    /**
+     * When this version was published, ISO-8601, or null where the upstream API does not
+     * say. Null rather than a plausible date: a wrong release date is the kind of thing
+     * somebody repeats to another person as fact.
+     */
+    readonly releasedAt: string | null;
 }
 
 export interface FlavourCatalogue {
@@ -100,6 +106,8 @@ interface VanillaManifestEntry {
     readonly id: string;
     readonly type: string;
     readonly url: string;
+    /** ISO timestamp Mojang publishes for the release. Absent on nothing observed so far. */
+    readonly releaseTime?: string;
 }
 
 interface VanillaManifest {
@@ -139,6 +147,7 @@ async function fetchVanillaVersions(fetchText: FetchText, limit: number): Promis
             // Mojang publishes SHA-1 here, not SHA-256. Recording an invented SHA-256
             // from a SHA-1 digest would be worse than recording none at all.
             sha256: null,
+            releasedAt: candidate.releaseTime ?? null,
         });
     }
     return entries;
@@ -190,6 +199,8 @@ async function fetchPaperFamilyVersions(
             sha256: isSha256(latest.downloads.application.sha256)
                 ? latest.downloads.application.sha256.toLowerCase()
                 : null,
+                // This API publishes no release date, and a guessed one would be repeated as fact.
+                releasedAt: null,
         });
     }
     return entries;
@@ -225,6 +236,8 @@ async function fetchPurpurVersions(fetchText: FetchText, limit: number): Promise
             downloadUrl: `https://api.purpurmc.org/v2/purpur/${version}/${latest}/download`,
             // Purpur's build API does not publish a digest for this endpoint.
             sha256: null,
+            // This API publishes no release date, and a guessed one would be repeated as fact.
+            releasedAt: null,
         });
     }
     return entries;
@@ -263,6 +276,8 @@ async function fetchFabricLoaderVersions(fetchText: FetchText, limit: number): P
         javaFeature: 8,
         downloadUrl: null,
         sha256: null,
+        // This API publishes no release date, and a guessed one would be repeated as fact.
+        releasedAt: null,
     }));
 }
 

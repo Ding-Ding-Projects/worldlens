@@ -12,6 +12,7 @@ import {
     VDialog,
     VDivider,
     VIcon,
+    VListItem,
     VProgressLinear,
     VRadio,
     VRadioGroup,
@@ -24,6 +25,7 @@ import {
 import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
 import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { releaseDateLabel, wikiUrlFor } from "./versionPresentation.js";
 import { useServerStore } from "./useServers.js";
 import {
     validateMemoryMb,
@@ -117,6 +119,36 @@ const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
     const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);
     return entry?.versions ?? [];
 });
+
+/**
+ * Whether the user has deliberately asked to type a version the catalogue does not list.
+ *
+ * Off by default, so the version is chosen from real fetched data rather than typed. The
+ * escape hatch stays because a snapshot can be published before the catalogue this build
+ * reads has caught up, and refusing to install it would be worse than a text field - but it
+ * is something you switch on, not the first thing you land in.
+ */
+const typeVersionByHand = ref(false);
+
+/** Every catalogued version for the chosen flavour, as options for the picker. */
+/** The wiki page for whichever version is chosen, or null when none is chosen yet. */
+const selectedWikiUrl = computed(() =>
+    minecraftVersion.value.trim() === "" ? null : wikiUrlFor(minecraftVersion.value),
+);
+
+const versionOptions = computed(() =>
+    filteredVersions.value.map((entry) => {
+        const released = releaseDateLabel(entry.releasedAt);
+        const java = t("mcserver.wizard.needsJava", { n: entry.javaFeature }, "Needs Java {n}");
+        return {
+            value: entry.version,
+            title: entry.version,
+            // The date is only mentioned when there is one. An upstream API that publishes
+            // no date leaves the version dateless rather than dated approximately.
+            subtitle: released === null ? java : `${java} · ${released}`,
+        };
+    }),
+);
 
 const filteredVersions = computed(() => filterVersions(flavourVersions.value, versionQuery.value, versionUseRegex.value, versionFlags.value));
 const versionGroups = computed(() => groupVersions(filteredVersions.value));
@@ -576,15 +608,56 @@ const canAdvance = computed(() => {
                                 @click="minecraftVersion = entry.version"
                             >
                                 <span>{{ entry.version }}</span>
-                                <span class="text-caption text-medium-emphasis">{{ t("mcserver.wizard.needsJava", { n: entry.javaFeature }, "Needs Java {n}") }}</span>
+                                <span class="text-caption text-medium-emphasis">
+                                    {{ t("mcserver.wizard.needsJava", { n: entry.javaFeature }, "Needs Java {n}") }}
+                                    <template v-if="releaseDateLabel(entry.releasedAt)">
+                                        &#183; {{ releaseDateLabel(entry.releasedAt) }}
+                                    </template>
+                                </span>
                             </button>
                         </div>
                     </template>
-                    <VTextField
+                    <VSelect
+                        v-if="!typeVersionByHand"
                         v-model="minecraftVersion"
+                        :items="versionOptions"
+                        item-title="title"
+                        item-value="value"
                         :label="t('mcserver.wizard.version', 'Minecraft version')"
-                        :hint="t('mcserver.wizard.versionHint', 'Pick one above, or type it directly.')"
+                        :hint="t('mcserver.wizard.versionHint', 'Chosen from the versions this flavour actually publishes.')"
                         persistent-hint
+                        :no-data-text="t('mcserver.wizard.noVersions', 'No versions were fetched for this flavour.')"
+                    >
+                        <template #item="{ props: itemProps, item }">
+                            <VListItem v-bind="itemProps" :subtitle="item.raw.subtitle" />
+                        </template>
+                    </VSelect>
+                    <VTextField
+                        v-else
+                        v-model="minecraftVersion"
+                        :label="t('mcserver.wizard.versionByHand', 'Version not in the list')"
+                        :hint="t('mcserver.wizard.versionByHandHint', 'Only needed for a version published after this catalogue was fetched.')"
+                        persistent-hint
+                    />
+                    <!--
+                        The address is built from the version name rather than looked up, so the
+                        wording promises a page for this version and not that one exists yet - a
+                        version published minutes ago may not have an article.
+                    -->
+                    <a
+                        v-if="selectedWikiUrl"
+                        class="text-caption d-inline-flex align-center ga-1"
+                        :href="selectedWikiUrl"
+                        target="_blank"
+                        rel="noreferrer noopener"
+                    >
+                        <VIcon :icon="mdiOpenInNew" size="x-small" />
+                        {{ t("mcserver.wizard.wikiLink", { v: minecraftVersion }, "Read about {v} on the Minecraft Wiki") }}
+                    </a>
+                    <VSwitch
+                        v-model="typeVersionByHand"
+                        density="compact"
+                        :label="t('mcserver.wizard.versionByHandToggle', 'Enter a version that is not listed')"
                     />
                 </div>
 

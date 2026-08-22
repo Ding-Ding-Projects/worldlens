@@ -15,8 +15,8 @@ import {
 
 const VANILLA_MANIFEST = JSON.stringify({
     versions: [
-        { id: "1.21.4", type: "release", url: "https://example.test/1.21.4.json" },
-        { id: "24w45a", type: "snapshot", url: "https://example.test/24w45a.json" },
+        { id: "1.21.4", type: "release", url: "https://example.test/1.21.4.json", releaseTime: "2024-12-03T10:12:57+00:00" },
+        { id: "24w45a", type: "snapshot", url: "https://example.test/24w45a.json", releaseTime: "2024-11-06T09:00:00+00:00" },
         { id: "b1.7.3", type: "old_beta", url: "https://example.test/b1.7.3.json" },
     ],
 });
@@ -102,8 +102,8 @@ describe("refreshCatalogue", () => {
 
         const vanilla = result.value.flavours.find((f) => f.flavour === "vanilla");
         expect(vanilla?.versions).toEqual([
-            { version: "1.21.4", stability: "release", javaFeature: 21, downloadUrl: "https://example.test/server-1.21.4.jar", sha256: null },
-            { version: "24w45a", stability: "snapshot", javaFeature: 21, downloadUrl: "https://example.test/server-24w45a.jar", sha256: null },
+            { version: "1.21.4", stability: "release", javaFeature: 21, downloadUrl: "https://example.test/server-1.21.4.jar", sha256: null, releasedAt: "2024-12-03T10:12:57+00:00" },
+            { version: "24w45a", stability: "snapshot", javaFeature: 21, downloadUrl: "https://example.test/server-24w45a.jar", sha256: null, releasedAt: "2024-11-06T09:00:00+00:00" },
         ]);
 
         const paper = result.value.flavours.find((f) => f.flavour === "paper");
@@ -112,8 +112,8 @@ describe("refreshCatalogue", () => {
 
         const fabric = result.value.flavours.find((f) => f.flavour === "fabric");
         expect(fabric?.versions).toEqual([
-            { version: "0.16.9", stability: "release", javaFeature: 8, downloadUrl: null, sha256: null },
-            { version: "0.16.10-beta.1", stability: "snapshot", javaFeature: 8, downloadUrl: null, sha256: null },
+            { version: "0.16.9", stability: "release", javaFeature: 8, downloadUrl: null, sha256: null, releasedAt: null },
+            { version: "0.16.10-beta.1", stability: "snapshot", javaFeature: 8, downloadUrl: null, sha256: null, releasedAt: null },
         ]);
     });
 

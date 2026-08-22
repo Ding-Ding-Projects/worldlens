@@ -78,6 +78,8 @@ export interface CatalogueVersionEntry {
     readonly javaFeature: number;
     readonly downloadUrl: string | null;
     readonly sha256: string | null;
+    /** When it was published, ISO-8601, or null where the upstream API does not say. */
+    readonly releasedAt: string | null;
 }
 
 export interface CatalogueFlavour {
