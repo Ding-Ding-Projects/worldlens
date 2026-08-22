@@ -116,6 +116,22 @@ const DISK_FILES = diskMarkdownFiles();
  * rather than loosening the rule for everyone.
  */
 const CATEGORY_EXEMPT: Readonly<Record<string, string>> = {
+    "server-adapter-smoke.md":
+        "Runtime acceptance evidence for issue #83's six server adapters, not an article about a " +
+        "feature. It records what a smoke pass proved and what it has not proved yet, which " +
+        "belongs with the issue rather than in a list of things the application does.",
+    "sql-cross-engine-compatibility.md":
+        "An acceptance contract and evidence record for issue #66, written to say plainly that " +
+        "two dialects are not proven yet. Indexing it would put an open verification question " +
+        "beside articles describing behaviour a reader can rely on today.",
+    "issue-62-cleanup-ledger.md":
+        "A planning and evidence ledger for one issue, not an article about a feature of the " +
+        "application. A reader of the product index has nothing to do with it, and indexing it " +
+        "would put a record of repository housekeeping beside articles about things they can use.",
+    "release-smoke-gallery.md":
+        "Evidence for the issue #144 release-grade smoke pass, not a feature article. It records " +
+        "what was captured and verified for one release, which belongs with the release record " +
+        "rather than in a list of things the application does.",
     "bluemapgui-parity.md":
         "A source-code audit article, not a feature article. docsModel.ts's own DOCS_CATEGORIES " +
         "comment says so in these words, and docsModel.test.ts's categoryOfFile suite pins " +

@@ -166,6 +166,11 @@ const GROUPS = {
         fallback: "Keeping the app healthy",
     },
     readingAboutIt: { key: "catalogue.group.readingAboutIt", fallback: "Reading about it" },
+    theServerList: { key: "catalogue.group.theServerList", fallback: "The server list" },
+    whileTheServerRuns: {
+        key: "catalogue.group.whileTheServerRuns",
+        fallback: "While the server runs",
+    },
 } as const satisfies Record<string, { key: string; fallback: string }>;
 
 type GroupName = keyof typeof GROUPS;
@@ -1178,6 +1183,34 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
  * only card that carries a filled primary action. The other four are equal in weight to each
  * other, which is what stops Home becoming a ranked list of things somebody has to read.
  */
+
+/* -------------------------------------------------------------------------- */
+/* 5.5 Host a server (2)                                                      */
+/* -------------------------------------------------------------------------- */
+
+const HOST_FEATURES: readonly CatalogueFeatureDefinition[] = [
+    feature("theServerList", {
+        key: "host.the-server-list.your-servers",
+        icon: mdiServerNetwork,
+        nameKey: "catalogue.host.serverList.name",
+        nameFallback: "Your Minecraft servers",
+        blurbKey: "catalogue.host.serverList.blurb",
+        blurbFallback:
+            "Every server this app knows about, wherever it runs: this computer, a container here, or a container on a remote host - and a wizard for creating a new one.",
+        target: { kind: "job", jobId: "mcservers" },
+    }),
+    feature("whileTheServerRuns", {
+        key: "host.while-the-server-runs.console-and-players",
+        icon: mdiConsoleLine,
+        nameKey: "catalogue.host.console.name",
+        nameFallback: "Console, config, plugins and players",
+        blurbKey: "catalogue.host.console.blurb",
+        blurbFallback:
+            "Open a server to follow its log, edit server.properties with real typed controls, browse its plugins folder, and manage its whitelist, operators and bans.",
+        target: { kind: "job", jobId: "mcservers", reveal: "console" },
+    }),
+];
+
 export const CATALOGUES: readonly CatalogueDefinition[] = [
     {
         id: "make",
@@ -1218,6 +1251,16 @@ export const CATALOGUES: readonly CatalogueDefinition[] = [
         blurbFallback:
             "The ways a world or a render is put somewhere that is not this one machine, and the append-only history the app keeps beside itself, never inside your world folder.",
         features: COPY_FEATURES,
+    },
+    {
+        id: "host",
+        icon: mdiServerNetwork,
+        titleKey: "catalogue.host.title",
+        titleFallback: "Host a server",
+        blurbKey: "catalogue.host.blurb",
+        blurbFallback:
+            "Run a real Minecraft server this app can see: create one, adopt one that already exists, watch its console, edit its settings, and manage who can play.",
+        features: HOST_FEATURES,
     },
     {
         id: "setup",

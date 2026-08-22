@@ -1,5 +1,82 @@
 # Roadmap
 
+## Minecraft server hosting manager (2026-08-21)
+
+Create, run and fully administer any Minecraft server - vanilla, Paper, Purpur, Spigot,
+Fabric, Forge, NeoForge and proxies - on three hosting targets, with every setting exposed
+as a real typed control. The binding constraint, set by the owner: nothing in this feature
+is ever configured by typing a command or editing a file by hand.
+
+### Phase 1 - the transport seam
+
+- [x] One `ServerTransport` interface over three targets: a local process, a container on
+      the local Docker daemon, and a container on a daemon reached over SSH. The SSH case is
+      not a second implementation - `remote/ssh.ts` already returns a `sshCommandRunner` that
+      *is* a `CommandRunner`, so it is the Docker transport handed a different runner.
+- [x] `transport/scope.ts` as the single path chokepoint every file call passes through.
+      Refuses rather than clamps, compares segment by segment so `/srv/minecraft-other`
+      cannot enter `/srv/minecraft`, and stays deliberately lexical - resolving symlinks
+      first would follow the very link it exists to catch.
+- [x] Files move via `docker cp` and a staging file, never through the command runner:
+      `CommandOutput.stdout` is a string, and a jar piped through one loses every invalid
+      UTF-8 byte to U+FFFD, silently and one way.
+- [x] Console reads the log and writes over RCON. No `--follow`, and never `docker attach` -
+      an attached TTY forwards a stray Ctrl-C into a live JVM full of players.
+- [x] `unreachable` kept strictly distinct from `not-running`, with five tests on that one
+      distinction. A dropped SSH connection must never render as "stopped" and offer a
+      restart button for a healthy server.
+- [x] Server registry storing what a server *is* and never a cached running state. RCON
+      passwords go to the OS credential vault; the record keeps only that one exists.
+- [x] IPC and preload bridge, with a wiring guard that reads the real shell and the real
+      bridge, anchored to whole lines so a commented-out call cannot satisfy it. Verified by
+      commenting the registration out and watching exactly that test go red.
+- [x] 115 tests, no Docker, SSH or Java required by any of them.
+
+### Phases 2-9 - in progress
+
+- [ ] Flavour and version catalogue from the real upstream APIs, Java provisioning through
+      the existing `provisionJava`, and guided server creation with a real picker at every
+      step and EULA consent given in the interface.
+- [ ] RCON client and protocol, the console session supervisor with reconnect de-duplication,
+      and players, ops, whitelist and bans as real lists with row actions.
+- [ ] The configuration editor: Minecraft's config keys described as `FieldMeta` and rendered
+      through the twelve-kind control renderer that already ships, over a document model that
+      preserves comments, key order and unknown keys. Guarded by a no-text-box test and a
+      byte-for-byte round-trip property test.
+- [ ] Plugins and mods from Modrinth and Hangar with hash verification and compatibility
+      gating; SpigotMC browse-and-link only, because it has no sanctioned download API.
+- [ ] Adoption of containers this app did not create: read-only discovery, four independent
+      consent switches, record-only by default, and a release that destroys nothing.
+- [ ] A locally hosted web management console behind password authentication, hostable in the
+      app, in a container, or on an SSH host, carrying the unlock ladder because it can lock a
+      user out.
+- [ ] The Vue screens, a sixth catalogue, and the universal surface contracts.
+- [ ] Real captures from the built artifact. Not done: these must come from a packaged build,
+      not the source tree.
+
+### Evidence boundary
+
+Phase 1 is implemented, tested and pushed on `feat/mcserver`. Nothing in this feature has been
+exercised against a real Docker daemon, a real SSH host or a real Minecraft server yet, and no
+capture exists from a packaged build. The tests prove the modules; they do not prove the
+feature runs.
+
+### 廣東話
+
+一個介面打通三個地方：本機、Yere Dow container、SSH 上面嘅 container。SSH 嗰個唔使另外寫
+過 - 換個 runner 就得。
+
+`scope.ts` 係唯一一個檢查路徑嘅地方，出界即刻拒絕，唔會偷偷幫你改去第二度。特登唔行
+symlink，因為 realpath 會跟埋條 link 走，跟完就見唔到原本要捉嗰條。
+
+檔案唔行 command runner - stdout 係 string，個 jar 一過就變晒亂碼，仲要靜雞雞噉壞。
+Console 淨係讀 log，寫就行 RCON，死都唔用 docker attach - 撳錯個掣連埋成班人一齊拉閘。
+
+「連唔到」同「停咗」係兩件事，分開咗五個測試去守。斷咗條線就當人哋死咗，然後彈個掣叫你
+重開一部行緊嘅 server，呢個先係最衰。
+
+Wiring test 特登 comment 咗成行去睇佢紅先信 - 綠色但從未紅過嘅測試等於冇。
+
 ## Toy locks reach the shell, and a locked element is actually disabled (2026-08-21)
 
 - [x] Register the lock host in the Electron shell: `locks:load`/`locks:save` over a

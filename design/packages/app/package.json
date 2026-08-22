@@ -37,6 +37,7 @@
         "@worldlens/server": "workspace:*",
         "@worldlens/shared": "workspace:*",
         "@worldlens/worldgen": "workspace:*",
-        "electron-store": "^10.1.0"
+        "electron-store": "^10.1.0",
+        "yaml": "^2.6.1"
     }
 }

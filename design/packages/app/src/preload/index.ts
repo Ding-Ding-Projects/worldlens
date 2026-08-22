@@ -2377,6 +2377,137 @@ interface WorldlensBridge {
             remove(lockId: string): Promise<void>;
         };
     };
+    /**
+     * Minecraft server hosting: the server list, and the machine each one lives on.
+     *
+     * Every call answers with the same `{ ok, value } | { ok, failure }` shape the main
+     * process uses, rather than rejecting. "That daemon is unreachable" and "that server is
+     * stopped" are ordinary answers a screen has to render differently, and an exception
+     * would flatten both into one catch block.
+     *
+     * Bytes cross as text with the hash of the ORIGINAL bytes attached, so the stale-write
+     * guard still compares what is genuinely on disk.
+     */
+    mcserver: {
+        list(): Promise<unknown>;
+        get(id: string): Promise<unknown>;
+        save(record: unknown): Promise<unknown>;
+        /** Removes it from this app's list. Never deletes the container or the folder. */
+        forget(id: string): Promise<unknown>;
+        probe(id: string): Promise<unknown>;
+        status(id: string): Promise<unknown>;
+        start(id: string): Promise<unknown>;
+        stop(id: string, options?: { graceful?: boolean; timeoutMs?: number }): Promise<unknown>;
+        files: {
+            list(id: string, dir: string): Promise<unknown>;
+            read(id: string, path: string): Promise<unknown>;
+            write(
+                id: string,
+                path: string,
+                body: { text: string; expectedHash: string | null; backup?: boolean },
+            ): Promise<unknown>;
+        };
+        logTail(id: string, lines?: number): Promise<unknown>;
+        adopt: {
+            discover(): Promise<unknown>;
+            confirm(request: {
+                id: string;
+                containerId: string;
+                consent?: { configWrite?: boolean; lifecycle?: boolean; pluginInstall?: boolean; consoleWrite?: boolean };
+            }): Promise<unknown>;
+            /** Forgets the adoption. Never stops, removes or deletes the container or its files. */
+            release(id: string, options?: { restoreSnapshot?: boolean }): Promise<unknown>;
+        };
+        worlds: {
+            list(id: string): Promise<unknown>;
+        };
+        backup: {
+            create(
+                id: string,
+                request: { owner: string; repo: string; worldFolder: string; accountId?: string; acknowledgePublic?: boolean; resumeTag?: string },
+            ): Promise<unknown>;
+            list(owner: string, repo: string): Promise<unknown>;
+            restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string }): Promise<unknown>;
+        };
+        /** Proves the stored RCON password and port work. Never returns the password. */
+        rconTest(id: string): Promise<unknown>;
+        /**
+         * Opens a stable console session and starts listening for its lines. Subscribe
+         * with `onConsoleLine` BEFORE (or right after) calling this, since lines can
+         * start arriving as soon as the session goes live.
+         */
+        consoleOpen(id: string, tail?: number): Promise<unknown>;
+        consoleSend(id: string, sessionId: string, command: string): Promise<unknown>;
+        consoleClose(id: string, sessionId: string): Promise<unknown>;
+        /** Every update for every open console session on this window - filter by sessionId. */
+        onConsoleLine(listener: (sessionId: string, event: unknown) => void): () => void;
+        players: {
+            list(id: string): Promise<unknown>;
+            action(
+                id: string,
+                request: { action: string; name: string; reason?: string },
+            ): Promise<unknown>;
+        };
+        /**
+         * The locally hosted, password-authenticated web management console.
+         *
+         * The password crosses this bridge exactly once, inbound, to be hashed on the main
+         * side - `setPassword` never has a corresponding "get" call, and no other method
+         * here can return one. Every other call is status/lifecycle only.
+         */
+        webConsole: {
+            status(): Promise<unknown>;
+            start(options?: { host?: string; port?: number; tlsTerminated?: boolean }): Promise<unknown>;
+            stop(): Promise<unknown>;
+            setPassword(password: string): Promise<unknown>;
+            bind(): Promise<unknown>;
+        };
+        /**
+         * Browsing and installing plugins/mods from Modrinth, Hangar and SpigotMC.
+         *
+         * SpigotMC results always carry `installable: false` - there is no sanctioned
+         * download API for it - so `plugins.install` must never be offered against one.
+         */
+        plugins: {
+            search(request: {
+                sourceId: "modrinth" | "hangar" | "spigot";
+                query: string;
+                loader?: string;
+                gameVersion?: string;
+                limit?: number;
+            }): Promise<unknown>;
+            versions(request: {
+                sourceId: "modrinth" | "hangar" | "spigot";
+                projectId: string;
+                loader?: string;
+                gameVersion?: string;
+                /** When given, each returned version also carries its compatibility verdict. */
+                serverId?: string;
+            }): Promise<unknown>;
+            install(id: string, request: { version: unknown; pluginsDir?: string; modsDir?: string }): Promise<unknown>;
+            list(id: string, request?: { pluginsDir?: string; modsDir?: string }): Promise<unknown>;
+            toggle(id: string, request: { path: string; enable: boolean }): Promise<unknown>;
+            remove(id: string, path: string): Promise<unknown>;
+            updates(request: { sourceId: "modrinth" | "hangar" | "spigot"; projectId: string; installed: unknown }): Promise<unknown>;
+        };
+        catalogue: {
+            list(): Promise<unknown>;
+            refresh(): Promise<unknown>;
+        };
+        java: {
+            resolve(version: string): Promise<unknown>;
+        };
+        create(request: {
+            id: string;
+            name: string;
+            flavour: string;
+            version: string;
+            memoryMb: number;
+            acceptedEula: boolean;
+            provisionJavaIfMissing?: boolean;
+            fabricInstallerVersion?: string;
+        }): Promise<unknown>;
+    };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
         load(raw: string): Promise<VocabularyResult>;
@@ -3363,6 +3494,79 @@ const bridge: WorldlensBridge = {
             get: (lockId) => ipcRenderer.invoke("locks:vault:get", lockId),
             remove: (lockId) => ipcRenderer.invoke("locks:vault:remove", lockId),
         },
+    },
+    mcserver: {
+        list: () => ipcRenderer.invoke("mcserver:list"),
+        get: (id) => ipcRenderer.invoke("mcserver:get", id),
+        save: (record) => ipcRenderer.invoke("mcserver:save", record),
+        forget: (id) => ipcRenderer.invoke("mcserver:forget", id),
+        probe: (id) => ipcRenderer.invoke("mcserver:probe", id),
+        status: (id) => ipcRenderer.invoke("mcserver:status", id),
+        start: (id) => ipcRenderer.invoke("mcserver:start", id),
+        stop: (id, options) => ipcRenderer.invoke("mcserver:stop", id, options),
+        files: {
+            list: (id, dir) => ipcRenderer.invoke("mcserver:file:list", id, dir),
+            read: (id, path) => ipcRenderer.invoke("mcserver:file:read", id, path),
+            write: (id, path, body) => ipcRenderer.invoke("mcserver:file:write", id, path, body),
+        },
+        logTail: (id, lines) => ipcRenderer.invoke("mcserver:log:tail", id, lines),
+        adopt: {
+            discover: () => ipcRenderer.invoke("mcserver:adopt:discover"),
+            confirm: (request) => ipcRenderer.invoke("mcserver:adopt", request),
+            release: (id, options) => ipcRenderer.invoke("mcserver:adopt:release", id, options),
+        },
+        worlds: {
+            list: (id) => ipcRenderer.invoke("mcserver:worlds:list", id),
+        },
+        backup: {
+            create: (id, request) => ipcRenderer.invoke("mcserver:backup:create", id, request),
+            list: (owner, repo) => ipcRenderer.invoke("mcserver:backup:list", owner, repo),
+            restore: (id, request) => ipcRenderer.invoke("mcserver:backup:restore", id, request),
+        },
+        webConsole: {
+            status: () => ipcRenderer.invoke("mcserver:webconsole:status"),
+            start: (options) => ipcRenderer.invoke("mcserver:webconsole:start", options),
+            stop: () => ipcRenderer.invoke("mcserver:webconsole:stop"),
+            setPassword: (password) => ipcRenderer.invoke("mcserver:webconsole:setPassword", password),
+            bind: () => ipcRenderer.invoke("mcserver:webconsole:bind"),
+        },
+        // The RCON password itself never crosses this bridge in either direction: the
+        // main process holds it, uses it, and only ever hands back an Answer<T> saying
+        // whether a call worked.
+        rconTest: (id) => ipcRenderer.invoke("mcserver:rcon:test", id),
+        consoleOpen: (id, tail) => ipcRenderer.invoke("mcserver:console:open", id, tail),
+        consoleSend: (id, sessionId, command) =>
+            ipcRenderer.invoke("mcserver:console:send", id, sessionId, command),
+        consoleClose: (id, sessionId) => ipcRenderer.invoke("mcserver:console:close", id, sessionId),
+        onConsoleLine: (listener) => {
+            const forward = (_event: IpcRendererEvent, sessionId: string, event: unknown): void =>
+                listener(sessionId, event);
+            ipcRenderer.on("mcserver:console:line", forward);
+            return () => {
+                ipcRenderer.off("mcserver:console:line", forward);
+            };
+        },
+        players: {
+            list: (id) => ipcRenderer.invoke("mcserver:players:list", id),
+            action: (id, request) => ipcRenderer.invoke("mcserver:players:action", id, request),
+        },
+        plugins: {
+            search: (request) => ipcRenderer.invoke("mcserver:plugins:search", request),
+            versions: (request) => ipcRenderer.invoke("mcserver:plugins:versions", request),
+            install: (id, request) => ipcRenderer.invoke("mcserver:plugins:install", id, request),
+            list: (id, request) => ipcRenderer.invoke("mcserver:plugins:list", id, request),
+            toggle: (id, request) => ipcRenderer.invoke("mcserver:plugins:toggle", id, request),
+            remove: (id, path) => ipcRenderer.invoke("mcserver:plugins:remove", id, path),
+            updates: (request) => ipcRenderer.invoke("mcserver:plugins:updates", request),
+        },
+        catalogue: {
+            list: () => ipcRenderer.invoke("mcserver:catalogue:list"),
+            refresh: () => ipcRenderer.invoke("mcserver:catalogue:refresh"),
+        },
+        java: {
+            resolve: (version) => ipcRenderer.invoke("mcserver:java:resolve", version),
+        },
+        create: (request) => ipcRenderer.invoke("mcserver:create", request),
     },
     vocabulary: {
         read: () => ipcRenderer.invoke("vocabulary:read"),

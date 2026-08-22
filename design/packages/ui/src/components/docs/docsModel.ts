@@ -112,6 +112,15 @@ export const APPLICATION_ORDER: readonly string[] = [
     // browser filed them under "uncategorized" while looking perfectly correct on the site.
     "ollama.md",
     "region-watch-safety.md",
+    "docker-hosting-manager.md",
+    "linear-region-files.md",
+    "local-live-player-tracking.md",
+    "measurement-and-waypoints.md",
+    "multi-server-dashboard.md",
+    "screenshot-gallery.md",
+    "mcserver-transport.md",
+    "mcserver-config.md",
+    "minecraft-server-manager.md",
 ];
 
 /**
@@ -158,6 +167,10 @@ export const RENDERING_ORDER: readonly string[] = [
     "private-world-rendering.md",
     "legacy-1-12-worlds.md",
     "bedrock-worlds.md",
+    "manual-release-ledger.md",
+    "render-engine-choice.md",
+    "static-map-export.md",
+    "threejs-upgrade.md",
 ];
 
 /**

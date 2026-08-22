@@ -918,6 +918,44 @@ human-written. Every release publishes the full breakdown — by category, by pa
 authorship — generated at the tagged commit by `scripts/count-lines.mjs`. Run that script
 rather than counting by hand; it is the same command CI runs.
 
+## Running the server, not only its map
+
+WorldLens renders and serves Minecraft *maps*. It is also learning to run the *server* the
+map comes from, so that installing Paper, changing a setting, adding a plugin or opping a
+friend happens in the application rather than in a terminal and a text editor.
+
+The rule that shapes the whole feature: **nothing in it is configured by typing.** No
+command, no hand-edited file. Every setting — every key in `server.properties`, every nested
+key in `paper-global.yml`, every JVM flag, every plugin's own `config.yml` — is a real typed
+control. A boolean is a switch, `difficulty` is a menu, `view-distance` is a stepper that
+knows it stops at 32, a port is a stepper bounded to 1–65535, and a colour opens the colour
+picker. Free text is reserved for things that genuinely are prose, like the message of the
+day.
+
+A server can live in three places, and the same interface reaches all of them:
+
+| Where | How |
+| --- | --- |
+| A process on this computer | A Java runtime the application downloads for it |
+| A container on this computer | The local Docker daemon |
+| A container on another machine | The same commands, over SSH |
+
+It can also **adopt a server it did not create**. Discovery is read-only — it looks at
+containers, their mounts and their logs, scores the evidence and reports how confident it
+is, without starting, stopping or writing anything. Taking one over is an explicit,
+per-container decision with four independent permissions (control it, change its files,
+install plugins, send it commands), and handing it back removes the record without touching
+the container at all.
+
+> [!NOTE]
+> **Shipped so far:** the transport layer, its path safety, the server registry and the
+> bridge into the interface — 115 tests, none of which need Docker, SSH or Java. **Not yet
+> proven:** none of it has met a real Docker daemon, a real SSH host or a real Minecraft
+> server, and there is no capture from a packaged build. The tests show the parts behave as
+> specified; they do not show the feature runs. Progress is tracked on
+> [issue #149](https://github.com/Ding-Ding-Projects/worldlens/issues/149), and
+> [`docs/mcserver-transport.md`](docs/mcserver-transport.md) explains the layer in full.
+
 ## Rendering on GitHub Actions, for computers that cannot render locally
 
 Rendering a big Minecraft world is hours of CPU and gigabytes of disk. On a thin laptop
@@ -1040,6 +1078,7 @@ The source of truth lives in the repository:
 | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | [`plan.md`](plan.md)                                                                                                                    | The approved full port plan. Read this first.                                                                       |
 | [`docs/README.md`](docs/README.md)                                                                                                      | The index of the per-feature articles, one file per feature                                                         |
+| [`docs/mcserver-transport.md`](docs/mcserver-transport.md)                                                                              | Reaching a Minecraft server on this computer, in a container, or over SSH                                           |
 | [`design/README.md`](design/README.md)                                                                                                  | The workspace: packages, development, port notes                                                                    |
 | [`design/ROADMAP.md`](design/ROADMAP.md)                                                                                                | Phase table and status, and what is proven versus merely built                                                      |
 | [`design/HANDOFF.md`](design/HANDOFF.md)                                                                                                | Current state. Its opening plain-language summary is written to be readable with no prior knowledge of the codebase |
