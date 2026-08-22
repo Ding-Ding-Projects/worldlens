@@ -29,6 +29,7 @@ even if you skip the rest.
 - [Line counts in releases](#line-counts-in-releases)
 - [User-facing languages](#user-facing-languages)
 - [The startup surprise](#the-startup-surprise)
+- [Every setting is a real GUI control](#every-setting-is-a-real-gui-control)
 - [User interface quality](#user-interface-quality)
 - [Regex builder](#regex-builder)
 - [Non-blocking notifications](#non-blocking-notifications)
@@ -509,6 +510,77 @@ created.
   asset URL or an application-data cache, but it never commits, downloads during release,
   duplicates, or attaches the image. If the catalog has no published asset for a record, omit the
   image and report the missing public asset rather than filling the gap locally.
+
+</details>
+
+<details id="every-setting-is-a-real-gui-control">
+<summary><b>Every setting is a real GUI control</b></summary>
+
+**Nothing in this product is configured by typing.** Not a command, not a config file, and not
+a value dropped into a bare text box because a control was more work. Every setting a user can
+change is a typed control that matches the value it edits, and the product never tells anybody
+to open a terminal or hand-edit a file.
+
+This is the single most repeated instruction on this project and it has been re-stated many
+times, in these words: every single thing configured must be in the GUI; no telling the user to
+type any CLI; not even typing a config; real GUI controls, not just text boxes; never make the
+user enter anything into a text box if possible; everything must be interactive GUI.
+
+**The mapping is the rule, and it is not a matter of taste:**
+
+| What the value is | Control |
+| --- | --- |
+| Boolean | switch |
+| Bounded integer | number stepper with real min/max/step and a unit |
+| Ratio or tunable | slider |
+| Fixed value set | select or radio group |
+| Extensible value set | select that also accepts a new value |
+| Port | stepper bounded 1-65535 |
+| Duration | stepper in ticks or seconds with a unit toggle |
+| Colour | the infinite colour picker |
+| Filesystem location | the path field with its native browse button |
+| List of scalars | chips or list editor |
+| Map of pairs | key/value editor |
+| Records | a table with add and remove row actions |
+| Genuinely free prose | text, and only here |
+
+`text` is correct for a message of the day, a kick reason, a search query, a credential being
+chosen, or a name a human is composing. It is wrong for everything above it. A key with a
+knowable set of values rendered as a text box is a defect, not a simplification.
+
+**Where a list exists, offer the list.** Populate every picker from real fetched or discovered
+data - installed fonts, live version catalogues, known player names, existing branches, the
+accounts already configured on the machine - never from a hand-written list that will drift, and
+never from an invented one that merely looks authoritative. Suggest a sensible default so the
+field arrives filled rather than empty. Where the app already knows the answer, the app supplies
+it: an empty path field asking the user to type a location the product was going to choose
+anyway is the failure this rule exists to prevent.
+
+**An escape hatch is opt-in, never the landing place.** A value the catalogue cannot yet cover -
+a version published after the last fetch, an id from a mod nothing has indexed - may be entered
+by hand, behind an explicit switch the user turns on. The picker is what they meet first. Copy
+must never invite typing where a control exists: a hint reading "or type it directly" beside a
+dropdown is the interface arguing with itself.
+
+**An empty picker is not a choice.** When nothing could be fetched, show the entry field and say
+why, and hide the switch that would have offered the same thing rather than leaving a control
+that does nothing. Key that decision to the unfiltered set, never to a search-filtered one, or a
+query matching nothing will change the shape of the interface under the person using it.
+
+**Every disabled control names its exact unmet condition**, next to itself, in words. A greyed
+button with no stated reason reads as broken software, and when the condition it is waiting on
+lives on a different screen it is not a validation message at all - it is a dead end.
+
+**This applies to every variant, not the common one.** Where a product supports several kinds of
+a thing - server flavours, engines, providers, formats - each one carries the full set of typed
+controls for its own settings. Covering the default and leaving the rest to a raw editor is the
+exemption this rule refuses.
+
+**Guard it, and pair the guard with a hand-written list.** A test that enumerates shipped field
+metadata and fails when a boolean, enum, numeric, port, colour, path, list or record value
+resolves to a text control catches a key typed lazily. It cannot catch a surface that shipped no
+metadata at all, so keep an explicit inventory of the surfaces that must have controls and fail
+when a row is missing. Watch every such guard fail on purpose before trusting it.
 
 </details>
 
