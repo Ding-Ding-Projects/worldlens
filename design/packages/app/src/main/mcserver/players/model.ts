@@ -156,7 +156,6 @@ function sanitizeReason(reason: string | undefined): string {
     // No control characters at all - a newline here is exactly the same class of
     // injection a player name would be, just typed by an operator instead of chosen as
     // a username.
-    // eslint-disable-next-line no-control-regex
     const withoutControlChars = reason.replace(/[\x00-\x1f\x7f]/g, " ");
     return withoutControlChars.trim().slice(0, 200);
 }

@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,7 +14,6 @@ const VANILLA_MANIFEST = JSON.stringify({
 });
 
 const JAR_BYTES = Buffer.from("pretend-server-jar-bytes");
-const JAR_SHA256 = createHash("sha256").update(JAR_BYTES).digest("hex");
 
 const VANILLA_DETAIL = JSON.stringify({
     downloads: { server: { url: "https://example.test/server-1.21.4.jar", sha1: "irrelevant", size: JAR_BYTES.byteLength } },

@@ -128,7 +128,7 @@ describe.skipIf(!ENABLED)("a real Docker daemon over a real SSH connection", () 
                 candidate.detected.confidence,
                 `${candidate.containerName} (${candidate.image}) was rated ` +
                     `${candidate.detected.confidence}; evidence: ` +
-                    candidate.evidence.map((entry) => entry.kind).join(", "),
+                    candidate.evidence.join(", "),
             ).not.toBe("high");
         }
     }, 120_000);

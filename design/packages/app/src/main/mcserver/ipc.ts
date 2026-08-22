@@ -51,7 +51,7 @@ import { realRconSocketFactory } from "./rcon/nodeSocket.js";
 // Aliased: the web console module exports a type of the same name for the same Electron
 // shape. Two lanes arrived at the same good name independently, which is a collision rather
 // than a disagreement - importing both unaliased would simply not compile.
-import { RconSecretStore, type SafeStorageLike as RconSafeStorageLike } from "./rcon/secret.js";
+import { RconSecretStore } from "./rcon/secret.js";
 import { fail, ok, type Answer, type ServerTransport, type TransportRef } from "./transport/types.js";
 import { buildWebConsolePasswordRecord, type SafeStorageLike } from "./webconsole/password.js";
 import { WebConsolePasswordStore } from "./webconsole/passwordStore.js";

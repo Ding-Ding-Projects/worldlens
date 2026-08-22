@@ -17,12 +17,6 @@
 import { type ConfigDocument, type DocumentNode, detectEol, detectTrailingNewline, hashOf } from "./document.js";
 import { type ConfigAnswer, fail, ok } from "./answer.js";
 
-interface PropertiesLine {
-    readonly raw: string;
-    /** Index of the separator (`=` or `:`) in `raw`, or -1 when this line has none. */
-    readonly separatorIndex: number;
-}
-
 function splitLines(sourceText: string, eol: "\n" | "\r\n"): string[] {
     const body = eol === "\r\n" ? sourceText.replace(/\r\n/g, "\n") : sourceText;
     const withoutTrailing = body.endsWith("\n") ? body.slice(0, -1) : body;

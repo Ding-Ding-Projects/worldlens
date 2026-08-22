@@ -29,7 +29,7 @@ const REGISTRY: readonly SchemaMatch[] = [{ fileKind: "server.properties", flavo
  * today is `"*"`, and this is where per-version key additions/removals would be threaded in
  * once a schema needs one).
  */
-export function resolveSchema(fileKind: string, flavour: string, version: string): readonly FieldMeta[] | undefined {
+export function resolveSchema(fileKind: string, flavour: string, _version: string): readonly FieldMeta[] | undefined {
     const exact = REGISTRY.find((entry) => entry.fileKind === fileKind && entry.flavour === flavour);
     if (exact !== undefined) return exact.fields;
     const wildcard = REGISTRY.find((entry) => entry.fileKind === fileKind && entry.flavour === "*");

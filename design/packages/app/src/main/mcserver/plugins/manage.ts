@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { ZipReader } from "../../download/zip.js";
-import { fail, ok, type Answer, type ServerTransport } from "../transport/types.js";
+import { ok, type Answer, type ServerTransport } from "../transport/types.js";
 import type { PluginSource, PluginVersion } from "./types.js";
 
 const DISABLED_SUFFIX = ".jar.disabled";

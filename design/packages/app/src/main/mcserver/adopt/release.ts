@@ -15,7 +15,7 @@
  * path on an adopted server is refused before anything happens.
  */
 
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { ServerRegistry } from "../registry.js";
