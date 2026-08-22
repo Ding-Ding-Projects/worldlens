@@ -67,6 +67,8 @@ const props = withDefaults(
          * of the same map or quietly replace the settings they chose.
          */
         existingProject?: { readonly name: string; readonly maps: number } | null;
+        /** A shell-level world drop to prefill when this wizard becomes visible. */
+        initialWorldPath?: string | null;
     }>(),
     {
         consentAccepted: false,
@@ -76,6 +78,7 @@ const props = withDefaults(
         probe: null,
         applyStorage: null,
         existingProject: null,
+        initialWorldPath: null,
     },
 );
 
@@ -121,6 +124,17 @@ const wizard = createMapWizard({
     separator: props.separator ?? "/",
     ...(props.storage === null ? {} : { storageDirectory: props.storage.current }),
 });
+
+watch(
+    () => props.initialWorldPath,
+    (path) => {
+        const trimmed = path?.trim() ?? "";
+        if (trimmed === "") return;
+        wizard.worldPath.value = trimmed;
+        emit("world", trimmed);
+    },
+    { immediate: true },
+);
 const optionsStep = ref<MapOptionsStepExpose | null>(null);
 
 const storageApplying = ref(false);

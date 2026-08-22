@@ -114,6 +114,8 @@ const props = withDefaults(
          * being ignored as "no change".
          */
         focusRenderId?: string | null;
+        /** A shell-level world drop to prefill the create-a-map wizard. */
+        initialWorldPath?: string | null;
     }>(),
     { settingsEpoch: 0, canOpenCi: false },
 );
@@ -638,6 +640,7 @@ async function resume(renderId: string): Promise<void> {
                     :probe="probe"
                     :apply-storage="applyStorage"
                     :existing-project="existingProject"
+                    :initial-world-path="props.initialWorldPath"
                     @start="start"
                     @consent="emit('consent')"
                     @cancel="emit('cancel')"

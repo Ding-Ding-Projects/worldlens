@@ -128,6 +128,7 @@ import { KidShell, createKidMode, type StickerId } from "./kid/index.js";
 import { routeKidProfile } from "./kid/profileRoute.js";
 import { resolveCatalogues, type ResolvedCatalogue } from "./components/shell/catalogueSearch.js";
 import { useTheme } from "vuetify";
+import { isWorldArchive, looksLikeMinecraftWorld } from "./components/world/worldDropModel.js";
 
 const { t } = useI18n();
 const schoolMode = useSchoolMode();
@@ -1294,10 +1295,74 @@ function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: s
  */
 const projectToOpen = ref<string | null>(null);
 const ciWorldToOpen = ref<string | null>(null);
+const droppedWorldPath = ref<string | null>(null);
+
+function revealDroppedWorld(path: string): void {
+    droppedWorldPath.value = path;
+    revealPage(PAGE_WORLD);
+    // Clear the one-shot navigation request after the wizard has consumed it, so dropping
+    // the same world again later still reopens and prefills the flow.
+    void nextTick(() => {
+        if (droppedWorldPath.value === path) droppedWorldPath.value = null;
+    });
+}
 
 function openProject(world: string): void {
     projectToOpen.value = world;
     revealPage(PAGE_PROJECTS);
+}
+
+/**
+ * Handles a world dropped anywhere on the shell. The wizard remains the single creation
+ * flow: this only proves the path is a world and carries it to that flow. Empty and mixed
+ * drops are reported through the normal non-blocking notice queue instead of a browser alert.
+ */
+async function onWorldDrop(event: DragEvent): Promise<void> {
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length === 0) {
+        raiseNotice("warning", t("world.drop.empty", "Nothing was dropped. Choose a world folder or a world archive."));
+        return;
+    }
+    if (runningRenderCount.value > 0) {
+        raiseNotice("warning", t("world.drop.busy", "A render is already running, so this world was not opened."));
+        return;
+    }
+    const file = files[0];
+    if (file === undefined) return;
+    if (files.length > 1) {
+        raiseNotice("info", t("world.drop.multiple", { count: files.length }, "Several items were dropped; checking the first one."));
+    }
+    const pathForFile = (globalThis as { worldlens?: { pathForDroppedFile?: (file: File) => string | null } }).worldlens?.pathForDroppedFile;
+    const path = typeof pathForFile === "function" ? pathForFile(file) : null;
+    if (path === null) {
+        raiseNotice("warning", t("world.drop.noPath", "This drop has no local file path. Use the world folder field or Browse instead."));
+        return;
+    }
+    if (isWorldArchive(file.name)) {
+        const extract = (globalThis as { worldlens?: { extractDroppedWorld?: (archive: string) => Promise<string | null> } }).worldlens?.extractDroppedWorld;
+        if (typeof extract !== "function") {
+            raiseNotice("warning", t("world.drop.archiveUnavailable", "That world archive was recognised, but this build cannot unpack dropped archives yet."));
+            return;
+        }
+        const extracted = await extract(path).catch(() => null);
+        if (extracted === null) {
+            raiseNotice("error", t("world.drop.archiveFailed", "The world archive could not be unpacked."));
+            return;
+        }
+        revealDroppedWorld(extracted);
+        return;
+    }
+    const inspect = (globalThis as { worldlens?: { inspectWorldFolder?: (folder: string) => Promise<{ entries: readonly { path: string }[] }> } }).worldlens?.inspectWorldFolder;
+    if (typeof inspect !== "function") {
+        raiseNotice("warning", t("world.drop.unavailable", "This build cannot inspect dropped folders. Use the world field or Browse instead."));
+        return;
+    }
+    const listing = await inspect(path).catch(() => null);
+    if (listing === null || !looksLikeMinecraftWorld(listing.entries.map((entry) => entry.path))) {
+        raiseNotice("warning", t("world.drop.notWorld", { name: file.name }, '"{name}" does not look like a Minecraft world (no level.dat and world data were found).'));
+        return;
+    }
+    revealDroppedWorld(path);
 }
 
 /**
@@ -1841,7 +1906,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 </script>
 
 <template>
-    <v-app class="mb-app">
+    <v-app class="mb-app" @dragover.prevent @drop.prevent="onWorldDrop">
         <!--
             Covers the whole app shell so a structure or schematic can be dropped from
             anywhere, not only from whichever page happens to be open. It does not render
@@ -1997,6 +2062,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     <div class="mb-world-host mb-interactive">
                         <WorldScreen
                             :settings-epoch="settingsEpoch"
+                            :initial-world-path="droppedWorldPath"
                             :can-open-ci="true"
                             :focus-render-id="worldFocusRenderId"
                             @consent="openSettings('mojang-download-consent')"
@@ -2461,6 +2527,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 <div class="mb-world-host mb-interactive">
                                     <WorldScreen
                                         :settings-epoch="settingsEpoch"
+                                        :initial-world-path="droppedWorldPath"
                                         :can-open-ci="true"
                                         :focus-render-id="worldFocusRenderId"
                                         @consent="openSettings('mojang-download-consent')"
