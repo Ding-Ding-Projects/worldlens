@@ -1,19 +1,40 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiPlus, mdiRefresh, mdiServerNetwork } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VChip, VIcon, VList, VListItem, VListItemTitle, VListItemSubtitle, VSelect } from "vuetify/components";
+import { mdiCubeOutline, mdiPlay, mdiPlus, mdiRefresh, mdiServerNetwork, mdiStop, mdiTrashCanOutline } from "@mdi/js";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VCheckbox,
+    VChip,
+    VIcon,
+    VProgressCircular,
+    VSelect,
+} from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { useServerStore } from "./useServers.js";
-import { filterServers, flavourName, sortServers, stateLabel, transportSummary, type ServerSort } from "./serverModel.js";
+import {
+    filterServers,
+    flavourName,
+    lifecycleBlockReason,
+    sortServers,
+    stateLabel,
+    transportSummary,
+    type ServerRecord,
+    type ServerSort,
+} from "./serverModel.js";
 
 /**
- * Every hosted Minecraft server this installation knows about, in one searchable list.
- *
- * `canList` drives the whole screen: a build with no host says so plainly rather than
- * showing an empty list that reads as "you have no servers".
+ * Every hosted Minecraft server this installation knows about, as real cards: live state,
+ * flavour and version, where it runs, memory and ports, with search, sort, and bulk
+ * start/stop/forget over a real multi-select. `canList` drives the whole screen: a build
+ * with no host says so plainly rather than showing an empty list that reads as "you have
+ * no servers".
  */
-const emit = defineEmits<{ open: [id: string]; create: [] }>();
+const emit = defineEmits<{ open: [id: string]; create: []; adopt: [] }>();
 
 const { t } = useI18n();
 const store = useServerStore();
@@ -22,10 +43,19 @@ const query = ref("");
 const useRegex = ref(false);
 const flags = ref("i");
 const sort = ref<ServerSort>("name");
+const selected = ref<readonly string[]>([]);
+const bulkBusy = ref(false);
 
 onMounted(() => {
-    void store.load();
+    void refreshAll();
 });
+
+async function refreshAll(): Promise<void> {
+    await store.load();
+    for (const server of store.servers.value) {
+        void store.refreshStatus(server.id);
+    }
+}
 
 const filtered = computed(() =>
     sortServers(
@@ -36,6 +66,61 @@ const filtered = computed(() =>
 );
 
 const sampleText = computed(() => store.servers.value.map((s) => s.name).join("\n"));
+
+const allSelected = computed(() => filtered.value.length > 0 && filtered.value.every((s) => selected.value.includes(s.id)));
+const someSelected = computed(() => selected.value.length > 0 && !allSelected.value);
+
+function toggleSelectAll(): void {
+    selected.value = allSelected.value ? [] : filtered.value.map((s) => s.id);
+}
+function toggleOne(id: string): void {
+    selected.value = selected.value.includes(id) ? selected.value.filter((x) => x !== id) : [...selected.value, id];
+}
+
+const selectedRecords = computed<readonly ServerRecord[]>(() =>
+    store.servers.value.filter((s) => selected.value.includes(s.id)),
+);
+
+async function bulkStart(): Promise<void> {
+    bulkBusy.value = true;
+    for (const record of selectedRecords.value) {
+        if (lifecycleBlockReason(record, store.capabilitiesFor(record.id), "start", store.statuses[record.id]?.state ?? null) === null) {
+            await store.start(record.id);
+        }
+    }
+    await refreshAll();
+    bulkBusy.value = false;
+}
+
+async function bulkStop(): Promise<void> {
+    bulkBusy.value = true;
+    for (const record of selectedRecords.value) {
+        if (lifecycleBlockReason(record, store.capabilitiesFor(record.id), "stop", store.statuses[record.id]?.state ?? null) === null) {
+            await store.stop(record.id, { graceful: true });
+        }
+    }
+    await refreshAll();
+    bulkBusy.value = false;
+}
+
+async function bulkForget(): Promise<void> {
+    bulkBusy.value = true;
+    for (const record of selectedRecords.value) {
+        await store.forget(record.id);
+    }
+    selected.value = [];
+    bulkBusy.value = false;
+}
+
+async function startOne(id: string): Promise<void> {
+    await store.start(id);
+    await store.refreshStatus(id);
+}
+async function stopOne(id: string): Promise<void> {
+    await store.stop(id, { graceful: true });
+    await store.refreshStatus(id);
+}
+
 </script>
 
 <template>
@@ -48,9 +133,17 @@ const sampleText = computed(() => store.servers.value.map((s) => s.name).join("\
                     variant="text"
                     :disabled="!store.canList"
                     :title="!store.canList ? t('mcserver.noHost', 'This build cannot reach a Minecraft server host.') : undefined"
-                    @click="store.load()"
+                    @click="refreshAll"
                 >
                     {{ t("mcserver.list.refresh", "Refresh") }}
+                </VBtn>
+                <VBtn
+                    v-if="store.hasAdopt"
+                    :prepend-icon="mdiCubeOutline"
+                    variant="text"
+                    @click="emit('adopt')"
+                >
+                    {{ t("mcserver.list.adopt", "Adopt an existing container") }}
                 </VBtn>
                 <VBtn
                     :prepend-icon="mdiPlus"
@@ -72,6 +165,13 @@ const sampleText = computed(() => store.servers.value.map((s) => s.name).join("\
         <VAlert v-else-if="store.failure.value" type="warning" variant="tonal" class="mb-4">
             {{ store.failure.value }}
         </VAlert>
+
+        <template v-else-if="!store.loaded.value">
+            <div class="wl-mcserver-list__loading">
+                <VProgressCircular indeterminate size="24" />
+                <span>{{ t("mcserver.list.loading", "Loading servers…") }}</span>
+            </div>
+        </template>
 
         <template v-else>
             <div class="wl-mcserver-list__toolbar">
@@ -97,7 +197,47 @@ const sampleText = computed(() => store.servers.value.map((s) => s.name).join("\
                 />
             </div>
 
-            <VAlert v-if="store.loaded.value && filtered.length === 0" type="info" variant="tonal">
+            <div v-if="filtered.length > 0" class="wl-mcserver-list__bulkbar">
+                <VCheckbox
+                    :model-value="allSelected"
+                    :indeterminate="someSelected"
+                    density="compact"
+                    hide-details
+                    :label="t('mcserver.list.selectAll', { n: filtered.length }, 'Select all ({n})')"
+                    @update:model-value="toggleSelectAll"
+                />
+                <template v-if="selected.length > 0">
+                    <span class="text-caption text-medium-emphasis">{{ t("mcserver.list.selectedCount", { n: selected.length }, "{n} selected") }}</span>
+                    <VBtn size="small" variant="text" :prepend-icon="mdiPlay" :loading="bulkBusy" @click="bulkStart">
+                        {{ t("mcserver.list.bulkStart", "Start") }}
+                    </VBtn>
+                    <VBtn size="small" variant="text" :prepend-icon="mdiStop" :loading="bulkBusy" @click="bulkStop">
+                        {{ t("mcserver.list.bulkStop", "Stop") }}
+                    </VBtn>
+                    <ConfigSuperConfirm
+                        :title="t('mcserver.list.bulkForgetTitle', 'Forget the selected servers')"
+                        :action="
+                            t(
+                                'mcserver.list.bulkForgetAction',
+                                { n: selected.length },
+                                'Remove {n} server(s) from this app. Their containers, folders, and worlds are never deleted.',
+                            )
+                        "
+                        :affected="selectedRecords.map((r) => r.name)"
+                        :confirm-label="t('mcserver.list.bulkForgetConfirm', 'Forget them')"
+                        :disabled="bulkBusy"
+                        @confirm="bulkForget"
+                    >
+                        <template #activator="{ props: activatorProps }">
+                            <VBtn v-bind="activatorProps" size="small" variant="text" color="error" :prepend-icon="mdiTrashCanOutline">
+                                {{ t("mcserver.list.bulkForget", "Forget") }}
+                            </VBtn>
+                        </template>
+                    </ConfigSuperConfirm>
+                </template>
+            </div>
+
+            <VAlert v-if="filtered.length === 0" type="info" variant="tonal">
                 {{
                     store.servers.value.length === 0
                         ? t("mcserver.list.empty", "No servers yet. Create one to get started.")
@@ -105,37 +245,69 @@ const sampleText = computed(() => store.servers.value.map((s) => s.name).join("\
                 }}
             </VAlert>
 
-            <VList v-else class="wl-mcserver-list__items">
-                <VListItem
+            <div v-else class="wl-mcserver-list__grid">
+                <VCard
                     v-for="server in filtered"
                     :key="server.id"
-                    class="wl-mcserver-list__item"
-                    :title="server.name"
-                    @click="emit('open', server.id)"
+                    class="wl-mcserver-card"
+                    :class="{ 'wl-mcserver-card--selected': selected.includes(server.id) }"
+                    variant="outlined"
                 >
-                    <template #prepend>
-                        <VIcon :icon="mdiServerNetwork" />
-                    </template>
-                    <VListItemTitle>{{ server.name }}</VListItemTitle>
-                    <VListItemSubtitle>
-                        {{ flavourName(server.flavour) }}
-                        <span v-if="server.minecraftVersion"> &middot; {{ server.minecraftVersion }}</span>
-                        &middot; {{ transportSummary(server) }}
-                        <span v-if="server.origin === 'adopted'">
-                            &middot; {{ t("mcserver.list.adopted", "adopted, not created here") }}
-                        </span>
-                    </VListItemSubtitle>
-                    <template #append>
-                        <VChip
-                            size="small"
-                            :color="stateLabel(store.statuses[server.id]?.state ?? null).color"
-                            variant="flat"
-                        >
-                            {{ stateLabel(store.statuses[server.id]?.state ?? null).text }}
-                        </VChip>
-                    </template>
-                </VListItem>
-            </VList>
+                    <VCardText class="wl-mcserver-card__body">
+                        <div class="wl-mcserver-card__top">
+                            <VCheckbox
+                                :model-value="selected.includes(server.id)"
+                                density="compact"
+                                hide-details
+                                :aria-label="t('mcserver.list.selectOne', { name: server.name }, 'Select {name}')"
+                                @update:model-value="toggleOne(server.id)"
+                                @click.stop
+                            />
+                            <VIcon :icon="mdiServerNetwork" />
+                            <button type="button" class="wl-mcserver-card__title" @click="emit('open', server.id)">
+                                {{ server.name }}
+                            </button>
+                            <VChip size="small" :color="stateLabel(store.statuses[server.id]?.state ?? null).color" variant="flat">
+                                {{ stateLabel(store.statuses[server.id]?.state ?? null).text }}
+                            </VChip>
+                        </div>
+                        <div class="text-caption text-medium-emphasis">
+                            {{ flavourName(server.flavour) }}
+                            <span v-if="server.minecraftVersion"> &middot; {{ server.minecraftVersion }}</span>
+                            &middot; {{ transportSummary(server) }}
+                            <span v-if="server.rconPort"> &middot; {{ t("mcserver.list.port", { p: server.rconPort }, "port {p}") }}</span>
+                            <span v-if="server.origin === 'adopted'">
+                                &middot; {{ t("mcserver.list.adopted", "adopted, not created here") }}
+                            </span>
+                        </div>
+                        <div class="wl-mcserver-card__actions">
+                            <VBtn
+                                size="small"
+                                variant="tonal"
+                                :prepend-icon="mdiPlay"
+                                :disabled="lifecycleBlockReason(server, store.capabilitiesFor(server.id), 'start', store.statuses[server.id]?.state ?? null) !== null"
+                                :title="lifecycleBlockReason(server, store.capabilitiesFor(server.id), 'start', store.statuses[server.id]?.state ?? null) ?? undefined"
+                                @click="startOne(server.id)"
+                            >
+                                {{ t("mcserver.list.start", "Start") }}
+                            </VBtn>
+                            <VBtn
+                                size="small"
+                                variant="tonal"
+                                :prepend-icon="mdiStop"
+                                :disabled="lifecycleBlockReason(server, store.capabilitiesFor(server.id), 'stop', store.statuses[server.id]?.state ?? null) !== null"
+                                :title="lifecycleBlockReason(server, store.capabilitiesFor(server.id), 'stop', store.statuses[server.id]?.state ?? null) ?? undefined"
+                                @click="stopOne(server.id)"
+                            >
+                                {{ t("mcserver.list.stop", "Stop") }}
+                            </VBtn>
+                            <VBtn size="small" variant="text" @click="emit('open', server.id)">
+                                {{ t("mcserver.list.manage", "Manage") }}
+                            </VBtn>
+                        </div>
+                    </VCardText>
+                </VCard>
+            </div>
         </template>
     </div>
 </template>
@@ -168,7 +340,52 @@ const sampleText = computed(() => store.servers.value.map((s) => s.name).join("\
 .wl-mcserver-list__sort {
     max-width: 220px;
 }
-.wl-mcserver-list__item {
+.wl-mcserver-list__loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 0;
+}
+.wl-mcserver-list__bulkbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.wl-mcserver-list__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+.wl-mcserver-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.wl-mcserver-card__top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.wl-mcserver-card__title {
+    background: transparent;
+    border: none;
+    font-weight: 600;
     cursor: pointer;
+    text-align: left;
+    flex: 1;
+    padding: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+.wl-mcserver-card--selected {
+    border-color: rgb(var(--v-theme-primary));
+}
+.wl-mcserver-card__actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 </style>

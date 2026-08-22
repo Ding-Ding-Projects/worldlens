@@ -9,6 +9,14 @@
  * `canList: false` is not "zero servers". A build with no host, or a build whose main
  * process has not wired the `mcserver` namespace yet, cannot say whether there are any
  * servers at all, and the list screen must say that rather than showing an empty state.
+ *
+ * Beyond the list/lifecycle/files surface, this also carries the create-wizard's needs
+ * (catalogue, java resolution, create) and the operational screens (plugins, players,
+ * adoption, worlds, backup, the web console). Every one of those is optional on
+ * `McServerHost`: an older shell build that has not wired a given namespace yet still
+ * resolves a usable host for the calls it does support, and a caller reaching for a
+ * namespace that is not there gets a clear "not available in this build" answer instead
+ * of a thrown exception.
  */
 
 import { computed, reactive, ref, shallowRef, type ComputedRef, type Ref } from "vue";
@@ -56,6 +64,151 @@ export interface ProbeResult {
     readonly capabilities: TransportCapabilities | null;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Catalogue + Java resolution, for the create wizard                         */
+/* -------------------------------------------------------------------------- */
+
+export type CatalogueFlavourId = "vanilla" | "paper" | "velocity" | "purpur" | "fabric";
+
+export type VersionStability = "release" | "snapshot";
+
+export interface CatalogueVersionEntry {
+    readonly version: string;
+    readonly stability: VersionStability;
+    readonly javaFeature: number;
+    readonly downloadUrl: string | null;
+    readonly sha256: string | null;
+}
+
+export interface CatalogueFlavour {
+    readonly flavour: CatalogueFlavourId;
+    readonly versions: readonly CatalogueVersionEntry[];
+}
+
+export interface CatalogueSnapshot {
+    readonly flavours: readonly CatalogueFlavour[];
+    readonly fetchedAt: string;
+    readonly stale: boolean;
+    readonly failures: readonly { readonly flavour: CatalogueFlavourId; readonly reason: string }[];
+}
+
+export interface JavaResolution {
+    readonly found: boolean;
+    readonly executable: string | null;
+    readonly source: "JAVA_HOME" | "PATH" | "provisioned" | null;
+    readonly version: string | null;
+    readonly requiredFeature: number;
+    readonly message: string;
+}
+
+export interface JavaProvisionProgress {
+    readonly phase: "downloading" | "extracting" | "verifying" | "done" | "failed";
+    readonly receivedBytes: number;
+    readonly totalBytes: number | null;
+    readonly message: string;
+}
+
+export interface CreateServerRequest {
+    readonly id: string;
+    readonly name: string;
+    readonly flavour: string;
+    readonly version: string;
+    readonly memoryMb: number;
+    readonly acceptedEula: boolean;
+    readonly provisionJavaIfMissing?: boolean;
+    readonly fabricInstallerVersion?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Plugins / mods                                                             */
+/* -------------------------------------------------------------------------- */
+
+export type PluginSourceId = "modrinth" | "hangar" | "spigot";
+
+export interface PluginSearchResult {
+    readonly sourceId: PluginSourceId;
+    readonly projectId: string;
+    readonly name: string;
+    readonly summary: string;
+    readonly installable: boolean;
+    readonly downloads: number | null;
+    readonly iconUrl: string | null;
+}
+
+export interface PluginVersionEntry {
+    readonly id: string;
+    readonly name: string;
+    readonly versionNumber: string;
+    readonly gameVersions: readonly string[];
+    readonly compatible: boolean | null;
+}
+
+export interface InstalledPlugin {
+    readonly path: string;
+    readonly name: string;
+    readonly enabled: boolean;
+    readonly sourceId: PluginSourceId | null;
+    readonly projectId: string | null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Players                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export interface PlayerEntry {
+    readonly name: string;
+    readonly online: boolean;
+    readonly op: boolean;
+    readonly banned: boolean;
+    readonly whitelisted: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Adoption                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export interface AdoptionCandidate {
+    readonly containerId: string;
+    readonly containerName: string;
+    readonly image: string;
+    readonly guessedFlavour: string | null;
+    readonly guessedVersion: string | null;
+}
+
+export interface AdoptConfirmRequest {
+    readonly id: string;
+    readonly containerId: string;
+    readonly consent?: {
+        readonly configWrite?: boolean;
+        readonly lifecycle?: boolean;
+        readonly pluginInstall?: boolean;
+        readonly consoleWrite?: boolean;
+    };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Worlds / backup / web console                                             */
+/* -------------------------------------------------------------------------- */
+
+export interface WorldEntry {
+    readonly folder: string;
+    readonly dimension: string;
+    readonly sizeBytes: number | null;
+}
+
+export interface BackupEntry {
+    readonly tag: string;
+    readonly createdAt: string;
+    readonly sizeBytes: number | null;
+}
+
+export interface WebConsoleStatus {
+    readonly running: boolean;
+    readonly host: string | null;
+    readonly port: number | null;
+    readonly hasPassword: boolean;
+}
+
 /** What the Electron bridge's `mcserver` namespace looks like, from the renderer's side. */
 export interface McServerHost {
     readonly name: string;
@@ -77,6 +230,74 @@ export interface McServerHost {
         ): Promise<Answer<WriteReceipt>>;
     };
     logTail(id: string, lines?: number): Promise<Answer<readonly ConsoleLine[]>>;
+
+    readonly catalogue?: {
+        list(): Promise<Answer<CatalogueSnapshot>>;
+        refresh(): Promise<Answer<CatalogueSnapshot>>;
+    };
+    readonly java?: {
+        resolve(version: string): Promise<Answer<JavaResolution>>;
+        provision?(version: string): Promise<Answer<JavaResolution>>;
+        onProgress?(listener: (progress: JavaProvisionProgress) => void): () => void;
+    };
+    create?(request: CreateServerRequest): Promise<Answer<ServerRecord>>;
+    readonly plugins?: {
+        search(request: {
+            sourceId: PluginSourceId;
+            query: string;
+            loader?: string;
+            gameVersion?: string;
+            limit?: number;
+        }): Promise<Answer<readonly PluginSearchResult[]>>;
+        versions(request: {
+            sourceId: PluginSourceId;
+            projectId: string;
+            loader?: string;
+            gameVersion?: string;
+            serverId?: string;
+        }): Promise<Answer<readonly PluginVersionEntry[]>>;
+        install(
+            id: string,
+            request: { version: PluginVersionEntry; pluginsDir?: string; modsDir?: string },
+        ): Promise<Answer<InstalledPlugin>>;
+        list(id: string, request?: { pluginsDir?: string; modsDir?: string }): Promise<Answer<readonly InstalledPlugin[]>>;
+        toggle(id: string, request: { path: string; enable: boolean }): Promise<Answer<void>>;
+        remove(id: string, path: string): Promise<Answer<void>>;
+    };
+    readonly players?: {
+        list(id: string): Promise<Answer<readonly PlayerEntry[]>>;
+        action(id: string, request: { action: string; name: string; reason?: string }): Promise<Answer<void>>;
+    };
+    readonly adopt?: {
+        discover(): Promise<Answer<readonly AdoptionCandidate[]>>;
+        confirm(request: AdoptConfirmRequest): Promise<Answer<ServerRecord>>;
+        release(id: string, options?: { restoreSnapshot?: boolean }): Promise<Answer<void>>;
+    };
+    readonly worlds?: {
+        list(id: string): Promise<Answer<readonly WorldEntry[]>>;
+    };
+    readonly backup?: {
+        create(
+            id: string,
+            request: {
+                owner: string;
+                repo: string;
+                worldFolder: string;
+                accountId?: string;
+                acknowledgePublic?: boolean;
+                resumeTag?: string;
+            },
+        ): Promise<Answer<BackupEntry>>;
+        list(owner: string, repo: string): Promise<Answer<readonly BackupEntry[]>>;
+        restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string }): Promise<Answer<void>>;
+    };
+    readonly webConsole?: {
+        status(): Promise<Answer<WebConsoleStatus>>;
+        start(options?: { host?: string; port?: number; tlsTerminated?: boolean }): Promise<Answer<void>>;
+        stop(): Promise<Answer<void>>;
+        setPassword(password: string): Promise<Answer<void>>;
+        bind(): Promise<Answer<void>>;
+    };
 }
 
 export interface ServerStore {
@@ -101,14 +322,36 @@ export interface ServerStore {
     files: McServerHost["files"];
     logTail(id: string, lines?: number): Promise<Answer<readonly ConsoleLine[]>>;
     readonly runningCount: ComputedRef<number>;
+
+    /** True when this build's shell has wired the given optional namespace. */
+    readonly hasCatalogue: boolean;
+    readonly hasJava: boolean;
+    readonly hasCreate: boolean;
+    readonly hasAdopt: boolean;
+
+    catalogueList(): Promise<Answer<CatalogueSnapshot>>;
+    catalogueRefresh(): Promise<Answer<CatalogueSnapshot>>;
+    javaResolve(version: string): Promise<Answer<JavaResolution>>;
+    javaProvision(version: string): Promise<Answer<JavaResolution>>;
+    onJavaProgress(listener: (progress: JavaProvisionProgress) => void): () => void;
+    createServer(request: CreateServerRequest): Promise<Answer<ServerRecord>>;
+
+    adoptDiscover(): Promise<Answer<readonly AdoptionCandidate[]>>;
+    adoptConfirm(request: AdoptConfirmRequest): Promise<Answer<ServerRecord>>;
+    adoptRelease(id: string, options?: { restoreSnapshot?: boolean }): Promise<Answer<void>>;
+
+    worldsList(id: string): Promise<Answer<readonly WorldEntry[]>>;
+
+    playersList(id: string): Promise<Answer<readonly PlayerEntry[]>>;
+    playersAction(id: string, request: { action: string; name: string; reason?: string }): Promise<Answer<void>>;
 }
 
 export interface ServerStoreOptions {
     readonly host?: McServerHost | null;
 }
 
-function fail<T = never>(message: string): Answer<T> {
-    return { ok: false, failure: { code: "unreachable", message, detail: null } };
+function fail<T = never>(message: string, code = "unreachable"): Answer<T> {
+    return { ok: false, failure: { code, message, detail: null } };
 }
 
 export function createServerStore(options: ServerStoreOptions = {}): ServerStore {
@@ -124,6 +367,10 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         return fail("This build cannot reach a Minecraft server host, so this action is unavailable.");
     }
 
+    function notWired<T>(namespace: string): Answer<T> {
+        return fail(`This build has not wired up ${namespace} yet, so this action is unavailable.`, "not-wired");
+    }
+
     return {
         canList: host !== null,
         servers,
@@ -131,6 +378,11 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         failure,
         statuses,
         probes,
+
+        hasCatalogue: host?.catalogue !== undefined,
+        hasJava: host?.java !== undefined,
+        hasCreate: host?.create !== undefined,
+        hasAdopt: host?.adopt !== undefined,
 
         async load(): Promise<void> {
             if (host === null) {
@@ -227,6 +479,83 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         runningCount: computed(
             () => Object.values(statuses).filter((status) => status?.state === "running").length,
         ),
+
+        async catalogueList(): Promise<Answer<CatalogueSnapshot>> {
+            if (host === null) return noHost();
+            if (host.catalogue === undefined) return notWired("the server catalogue");
+            return host.catalogue.list();
+        },
+        async catalogueRefresh(): Promise<Answer<CatalogueSnapshot>> {
+            if (host === null) return noHost();
+            if (host.catalogue === undefined) return notWired("the server catalogue");
+            return host.catalogue.refresh();
+        },
+        async javaResolve(version): Promise<Answer<JavaResolution>> {
+            if (host === null) return noHost();
+            if (host.java === undefined) return notWired("Java discovery");
+            return host.java.resolve(version);
+        },
+        async javaProvision(version): Promise<Answer<JavaResolution>> {
+            if (host === null) return noHost();
+            if (host.java?.provision === undefined) {
+                return notWired("installing Java automatically");
+            }
+            return host.java.provision(version);
+        },
+        onJavaProgress(listener): () => void {
+            if (host?.java?.onProgress === undefined) return () => {};
+            return host.java.onProgress(listener);
+        },
+        async createServer(request): Promise<Answer<ServerRecord>> {
+            if (host === null) return noHost();
+            if (host.create === undefined) return notWired("creating servers");
+            const result = await host.create(request);
+            if (result.ok && result.value) {
+                servers.value = [...servers.value, result.value];
+            }
+            return result;
+        },
+
+        async adoptDiscover(): Promise<Answer<readonly AdoptionCandidate[]>> {
+            if (host === null) return noHost();
+            if (host.adopt === undefined) return notWired("adopting existing containers");
+            return host.adopt.discover();
+        },
+        async adoptConfirm(request): Promise<Answer<ServerRecord>> {
+            if (host === null) return noHost();
+            if (host.adopt === undefined) return notWired("adopting existing containers");
+            const result = await host.adopt.confirm(request);
+            if (result.ok && result.value) {
+                servers.value = [...servers.value, result.value];
+            }
+            return result;
+        },
+        async adoptRelease(id, opts): Promise<Answer<void>> {
+            if (host === null) return noHost();
+            if (host.adopt === undefined) return notWired("adopting existing containers");
+            const result = await host.adopt.release(id, opts);
+            if (result.ok) {
+                servers.value = servers.value.filter((server) => server.id !== id);
+            }
+            return result;
+        },
+
+        async worldsList(id): Promise<Answer<readonly WorldEntry[]>> {
+            if (host === null) return noHost();
+            if (host.worlds === undefined) return notWired("listing worlds");
+            return host.worlds.list(id);
+        },
+
+        async playersList(id): Promise<Answer<readonly PlayerEntry[]>> {
+            if (host === null) return noHost();
+            if (host.players === undefined) return notWired("the player list");
+            return host.players.list(id);
+        },
+        async playersAction(id, request): Promise<Answer<void>> {
+            if (host === null) return noHost();
+            if (host.players === undefined) return notWired("player actions");
+            return host.players.action(id, request);
+        },
     };
 }
 
