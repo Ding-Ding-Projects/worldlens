@@ -27,7 +27,7 @@ import type { JobId } from "./jobRegistry.js";
 export type RailDestination = "home" | "map" | "work";
 
 /** The five catalogues Home offers, in the order they are shown. */
-export const CATALOGUE_IDS = ["make", "maps", "share", "copy", "setup"] as const;
+export const CATALOGUE_IDS = ["make", "maps", "share", "copy", "host", "setup"] as const;
 
 export type CatalogueId = (typeof CATALOGUE_IDS)[number];
 

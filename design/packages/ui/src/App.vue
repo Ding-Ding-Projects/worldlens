@@ -106,6 +106,11 @@ import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensi
 import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScreen.vue";
 import { createLockStore } from "./components/locks/lockStore.js";
 import { provideLockStore, resolveLockHost } from "./components/locks/useLocks.js";
+import { createServerStore } from "./components/mcserver/serverStore.js";
+import { provideServerStore, resolveServerHost } from "./components/mcserver/useServers.js";
+import ServerListScreen from "./components/mcserver/ServerListScreen.vue";
+import CreateServerWizard from "./components/mcserver/CreateServerWizard.vue";
+import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
 import {
@@ -189,6 +194,11 @@ useBlueMapTheme(currentApp);
  */
 const lockStore = createLockStore({ host: resolveLockHost() });
 provideLockStore(lockStore);
+
+const mcServerStore = createServerStore({ host: resolveServerHost() });
+provideServerStore(mcServerStore);
+const mcServerCreateOpen = ref(false);
+const mcServerOpenId = ref<string | null>(null);
 
 // Read the saved locks once the shell is up. A locked element renders unlocked for the
 // instant before this resolves, which is the honest ordering: the store says `loaded` is
@@ -359,6 +369,7 @@ const PAGE_LOCKS = "locks";
 const PAGE_SUPPORT = "support";
 const PAGE_BROWSER_EXTENSION = "browserExtension";
 const PAGE_SERVERS = "servers";
+const PAGE_MCSERVERS = "mcservers";
 const PAGE_BACKUPS = "backups";
 const PAGE_PAGES = "pages";
 const PAGE_WORLDREPO = "worldrepo";
@@ -519,6 +530,7 @@ const pages = computed<TabPage[]>(() => [
         icon: mdiProgressClock,
     },
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
+    { id: PAGE_MCSERVERS, label: t("tabs.page.mcservers", "Minecraft servers"), icon: mdiServerNetwork },
     { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
     { id: PAGE_PAGES, label: t("tabs.page.pages", "Publish to Pages"), icon: mdiWeb },
     // A world, rather than a render, going the other direction: kept in a git repository so
@@ -2033,6 +2045,22 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     </div>
                 </template>
 
+                <template #mcservers>
+                    <div class="mb-world-host mb-interactive">
+                        <WebConsolePanel
+                            v-if="mcServerOpenId"
+                            :server-id="mcServerOpenId"
+                            @forgotten="mcServerOpenId = null"
+                        />
+                        <ServerListScreen
+                            v-else
+                            @open="(id) => (mcServerOpenId = id)"
+                            @create="mcServerCreateOpen = true"
+                        />
+                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                    </div>
+                </template>
+
                 <template #backups>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
@@ -2470,6 +2498,25 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                             "
                                         />
                                     </div>
+                                </div>
+                            </template>
+
+                            <template #mcservers>
+                                <div class="mb-world-host mb-interactive">
+                                    <WebConsolePanel
+                                        v-if="mcServerOpenId"
+                                        :server-id="mcServerOpenId"
+                                        @forgotten="mcServerOpenId = null"
+                                    />
+                                    <ServerListScreen
+                                        v-else
+                                        @open="(id) => (mcServerOpenId = id)"
+                                        @create="mcServerCreateOpen = true"
+                                    />
+                                    <CreateServerWizard
+                                        v-model="mcServerCreateOpen"
+                                        @created="(id) => (mcServerOpenId = id)"
+                                    />
                                 </div>
                             </template>
 

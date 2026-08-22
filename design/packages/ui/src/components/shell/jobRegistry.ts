@@ -58,6 +58,7 @@ export type CoreJobId =
     | "browserExtension"
     | "renders"
     | "servers"
+    | "mcservers"
     | "pages"
     | "preview"
     | "backups"
@@ -99,6 +100,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     support: "support",
     renders: "renders",
     servers: "servers",
+    mcservers: "mcservers",
     pages: "pages",
     preview: "preview",
     backups: "backups",
@@ -294,6 +296,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         semanticName: "servers",
         labelKey: "tabs.page.servers",
         labelFallback: "Maps and servers",
+        icon: mdiServerNetwork,
+        seedGroup: "finished",
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "mcservers",
+        semanticName: "mcservers",
+        labelKey: "tabs.page.mcservers",
+        labelFallback: "Minecraft servers",
         icon: mdiServerNetwork,
         seedGroup: "finished",
         pinnedOnFreshWorkspace: false,
