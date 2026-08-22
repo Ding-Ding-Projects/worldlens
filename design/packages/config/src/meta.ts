@@ -169,6 +169,21 @@ export interface KeyValueControl {
     readonly secretKeys: readonly string[];
 }
 
+/** A typed table of JSON records, with one control per column. */
+export interface RecordTableColumn {
+    readonly key: string;
+    readonly label: string;
+    readonly control: Exclude<Control, ListControl | KeyValueControl | RecordTableControl | MaskListControl | MarkerSetsControl>;
+    readonly required?: boolean;
+}
+
+export interface RecordTableControl {
+    readonly kind: "record-table";
+    readonly columns: readonly RecordTableColumn[];
+    /** Optional stable key used to reject duplicate records on save. */
+    readonly uniqueBy?: string;
+}
+
 /** The render mask: an ordered list of additive and subtractive shapes. */
 export interface MaskListControl {
     readonly kind: "mask-list";
@@ -190,6 +205,7 @@ export type Control =
     | VectorControl
     | ListControl
     | KeyValueControl
+    | RecordTableControl
     | MaskListControl
     | MarkerSetsControl;
 

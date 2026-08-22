@@ -21,6 +21,10 @@ import { purpurFields } from "./purpur.js";
 import { serverPropertiesFields } from "./serverProperties.js";
 import { spigotFields } from "./spigot.js";
 import { velocityFields } from "./velocity.js";
+import { fabricFields } from "./fabric.js";
+import { forgeFields } from "./forge.js";
+import { neoforgeFields } from "./neoforge.js";
+import { bannedIpsFields, bannedPlayersFields, opsFields, whitelistFields } from "./recordTables.js";
 
 export interface SchemaMatch {
     /** File-kind identifier, e.g. `"server.properties"`, `"paper-world-defaults.yml"`. */
@@ -40,6 +44,13 @@ export const REGISTRY: readonly SchemaMatch[] = [
     { fileKind: "paper-world-defaults.yml", flavour: "paper", versionRange: "*", fields: paperWorldDefaultsFields },
     { fileKind: "purpur.yml", flavour: "purpur", versionRange: "*", fields: purpurFields },
     { fileKind: "velocity.toml", flavour: "velocity", versionRange: "*", fields: velocityFields },
+    { fileKind: "server.properties", flavour: "fabric", versionRange: "*", fields: fabricFields },
+    { fileKind: "server.properties", flavour: "forge", versionRange: "*", fields: forgeFields },
+    { fileKind: "server.properties", flavour: "neoforge", versionRange: "*", fields: neoforgeFields },
+    { fileKind: "ops.json", flavour: "*", versionRange: "*", fields: opsFields },
+    { fileKind: "whitelist.json", flavour: "*", versionRange: "*", fields: whitelistFields },
+    { fileKind: "banned-players.json", flavour: "*", versionRange: "*", fields: bannedPlayersFields },
+    { fileKind: "banned-ips.json", flavour: "*", versionRange: "*", fields: bannedIpsFields },
 ];
 
 /**
@@ -62,3 +73,7 @@ export { purpurFields } from "./purpur.js";
 export { serverPropertiesFields } from "./serverProperties.js";
 export { spigotFields } from "./spigot.js";
 export { velocityFields } from "./velocity.js";
+export { fabricFields } from "./fabric.js";
+export { forgeFields } from "./forge.js";
+export { neoforgeFields } from "./neoforge.js";
+export { bannedIpsFields, bannedPlayersFields, opsFields, whitelistFields } from "./recordTables.js";

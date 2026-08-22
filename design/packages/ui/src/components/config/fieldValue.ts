@@ -68,6 +68,8 @@ export function toControlValue(control: Control, value: PlainValue | undefined):
         case "key-value":
         case "marker-sets":
             return isRecord(value) ? value : {};
+        case "record-table":
+            return Array.isArray(value) ? value : [];
     }
 }
 
@@ -122,6 +124,8 @@ export function blankValueFor(control: Control): PlainValue {
         case "key-value":
         case "marker-sets":
             return {};
+        case "record-table":
+            return [];
     }
 }
 
