@@ -92,7 +92,9 @@ async function flushAll(): Promise<void> {
 
 describe("CreateServerWizard", () => {
     it("opens on the flavour step with every flavour card present", async () => {
-        const wrapper = mountWizard();
+        // Mounted for its side effect: the wizard teleports its content to the body, so the
+        // assertion reads the document rather than the returned wrapper.
+        mountWizard();
         await flushAll();
         expect(document.body.textContent).toContain("Vanilla");
         expect(document.body.textContent).toContain("Paper");
