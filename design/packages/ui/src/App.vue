@@ -2274,7 +2274,17 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         v-show="destination === 'host'"
                         class="mb-shell-layer mb-shell-layer--home mb-interactive"
                     >
-                        <ServerListScreen />
+                        <WebConsolePanel
+                            v-if="mcServerOpenId"
+                            :server-id="mcServerOpenId"
+                            @forgotten="mcServerOpenId = null"
+                        />
+                        <ServerListScreen
+                            v-else
+                            @open="(id) => (mcServerOpenId = id)"
+                            @create="mcServerCreateOpen = true"
+                        />
+                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
                     </div>
 
                     <!--
