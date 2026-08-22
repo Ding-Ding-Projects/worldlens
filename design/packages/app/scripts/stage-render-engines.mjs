@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -93,10 +94,23 @@ function resolveInstalledPackage(packageName, fromRoot) {
     } catch (error) {
         throw new Error(`runtime dependency ${packageName} required by ${fromRoot} is not installed: ${String(error)}`);
     }
-    const marker = join("node_modules", ...packageName.split("/"));
-    const markerIndex = entry.lastIndexOf(marker);
-    if (markerIndex < 0) throw new Error(`resolved runtime dependency is outside node_modules: ${entry}`);
-    return entry.slice(0, markerIndex + marker.length);
+    // Package exports may intentionally omit ./package.json. Walk from the
+    // resolved entry to the nearest manifest, which works for both regular
+    // node_modules packages and pnpm workspace symlinks.
+    let directory = dirname(entry);
+    while (directory !== dirname(directory)) {
+        const manifestPath = join(directory, "package.json");
+        if (existsSync(manifestPath)) {
+            try {
+                const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+                if (manifest.name === packageName) return directory;
+            } catch {
+                // Keep walking if an unrelated or malformed manifest is found.
+            }
+        }
+        directory = dirname(directory);
+    }
+    throw new Error(`resolved runtime dependency ${packageName} has no matching package.json: ${entry}`);
 }
 
 async function stageRuntimePackageClosure(outputDirectory) {
@@ -141,6 +155,10 @@ async function stageRuntimePackageClosure(outputDirectory) {
         }
         for (const dependencyName of dependencies) {
             if (optional.has(dependencyName) || optionalPeers.has(dependencyName)) continue;
+            // Vue publishes csstype as a package dependency for its type
+            // declarations, but it is not a runtime asset and pnpm does not
+            // expose it through the real package path used during staging.
+            if (dependencyName === "csstype") continue;
             const workspaceDefinition = workspaceDefinitions.get(dependencyName);
             if (workspaceDefinition !== undefined) {
                 queue.push({ ...workspaceDefinition, workspace: true });

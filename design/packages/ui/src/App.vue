@@ -2196,6 +2196,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             :record="mcServerAdoptRecord"
                             :container-id="mcServerAdoptContainerId"
                             @confirmed="completeMcServerAdoption"
+                        />
                         <CreateServerWizard
                             v-model="mcServerCreateOpen"
                             @created="
@@ -2450,6 +2451,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             :record="mcServerAdoptRecord"
                             :container-id="mcServerAdoptContainerId"
                             @confirmed="completeMcServerAdoption"
+                        />
                         <CreateServerWizard
                             v-model="mcServerCreateOpen"
                             @created="

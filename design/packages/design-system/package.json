@@ -15,15 +15,18 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "require": "./dist/index.js"
         },
         "./colors": {
             "types": "./dist/colors.d.ts",
-            "import": "./dist/colors.js"
+            "import": "./dist/colors.js",
+            "require": "./dist/colors.js"
         },
         "./theme": {
             "types": "./dist/theme.d.ts",
-            "import": "./dist/theme.js"
+            "import": "./dist/theme.js",
+            "require": "./dist/theme.js"
         },
         "./tokens.css": "./src/tokens.css",
         "./package.json": "./package.json"
