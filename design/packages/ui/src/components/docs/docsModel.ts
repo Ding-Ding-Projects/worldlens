@@ -121,6 +121,11 @@ export const APPLICATION_ORDER: readonly string[] = [
     "mcserver-transport.md",
     "mcserver-config.md",
     "minecraft-server-manager.md",
+    "aws-cli-requirement.md",
+    "aws-render.md",
+    "aws-hosting.md",
+    "cloudflare-tunnel.md",
+    "custom-domains.md",
 ];
 
 /**
