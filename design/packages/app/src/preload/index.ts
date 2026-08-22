@@ -2409,6 +2409,20 @@ interface WorldlensBridge {
         };
         logTail(id: string, lines?: number): Promise<unknown>;
         /**
+         * The locally hosted, password-authenticated web management console.
+         *
+         * The password crosses this bridge exactly once, inbound, to be hashed on the main
+         * side - `setPassword` never has a corresponding "get" call, and no other method
+         * here can return one. Every other call is status/lifecycle only.
+         */
+        webConsole: {
+            status(): Promise<unknown>;
+            start(options?: { host?: string; port?: number; tlsTerminated?: boolean }): Promise<unknown>;
+            stop(): Promise<unknown>;
+            setPassword(password: string): Promise<unknown>;
+            bind(): Promise<unknown>;
+        };
+        /**
          * Browsing and installing plugins/mods from Modrinth, Hangar and SpigotMC.
          *
          * SpigotMC results always carry `installable: false` - there is no sanctioned
@@ -3444,6 +3458,13 @@ const bridge: WorldlensBridge = {
             write: (id, path, body) => ipcRenderer.invoke("mcserver:file:write", id, path, body),
         },
         logTail: (id, lines) => ipcRenderer.invoke("mcserver:log:tail", id, lines),
+        webConsole: {
+            status: () => ipcRenderer.invoke("mcserver:webconsole:status"),
+            start: (options) => ipcRenderer.invoke("mcserver:webconsole:start", options),
+            stop: () => ipcRenderer.invoke("mcserver:webconsole:stop"),
+            setPassword: (password) => ipcRenderer.invoke("mcserver:webconsole:setPassword", password),
+            bind: () => ipcRenderer.invoke("mcserver:webconsole:bind"),
+        },
         plugins: {
             search: (request) => ipcRenderer.invoke("mcserver:plugins:search", request),
             versions: (request) => ipcRenderer.invoke("mcserver:plugins:versions", request),
