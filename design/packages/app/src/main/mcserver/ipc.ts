@@ -15,7 +15,10 @@ import type { IpcMain } from "electron";
 
 import { createTransport, type FactoryDeps } from "./transport/factory.js";
 import { createServerRegistry, type ServerRecord, type ServerRegistry } from "./registry.js";
-import { fail, type Answer, type ServerTransport } from "./transport/types.js";
+import { fail, ok, type Answer, type ServerTransport } from "./transport/types.js";
+import { buildWebConsolePasswordRecord, type SafeStorageLike } from "./webconsole/password.js";
+import { WebConsolePasswordStore } from "./webconsole/passwordStore.js";
+import { startWebConsoleServer, type WebConsoleServerHandle } from "./webconsole/server.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -30,6 +33,11 @@ export const MCSERVER_CHANNELS = {
     fileRead: "mcserver:file:read",
     fileWrite: "mcserver:file:write",
     logTail: "mcserver:log:tail",
+    webConsoleStatus: "mcserver:webconsole:status",
+    webConsoleStart: "mcserver:webconsole:start",
+    webConsoleStop: "mcserver:webconsole:stop",
+    webConsoleSetPassword: "mcserver:webconsole:setPassword",
+    webConsoleBind: "mcserver:webconsole:bind",
 } as const;
 
 export type McServerChannel = (typeof MCSERVER_CHANNELS)[keyof typeof MCSERVER_CHANNELS];
@@ -42,6 +50,10 @@ export interface McServerIpcOptions {
     readonly factory?: FactoryDeps;
     readonly registry?: ServerRegistry;
     readonly now?: () => string;
+    /** Required only if the web console handlers will be used - `safeStorage` is how its
+     * password record is encrypted at rest, exactly as a TOTP secret is in `locks/store.ts`. */
+    readonly safeStorage?: SafeStorageLike;
+    readonly schoolMode?: () => boolean;
 }
 
 export interface McServerIpc {
@@ -61,6 +73,8 @@ function isPath(value: unknown): value is string {
 
 export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServerIpcOptions): McServerIpc {
     const registry = options.registry ?? createServerRegistry({ dataFolder: options.dataFolder, ...(options.now === undefined ? {} : { now: options.now }) });
+    const webConsolePasswordStore = new WebConsolePasswordStore(options.dataFolder);
+    let webConsoleHandle: WebConsoleServerHandle | null = null;
 
     /**
      * Looks a server up and builds its transport, in one step.
@@ -193,6 +207,76 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             attached.value.detach();
             return { ok: true, value: collected };
         },
+
+        [MCSERVER_CHANNELS.webConsoleStatus]: async () => {
+            return ok({
+                running: webConsoleHandle !== null,
+                host: webConsoleHandle?.host ?? null,
+                port: webConsoleHandle?.port ?? null,
+                hasPassword: (await webConsolePasswordStore.get()) !== null,
+            });
+        },
+
+        [MCSERVER_CHANNELS.webConsoleStart]: async (_event: never, request: unknown) => {
+            if (webConsoleHandle !== null) {
+                return ok({ host: webConsoleHandle.host, port: webConsoleHandle.port });
+            }
+            if (options.safeStorage === undefined) {
+                return fail("unsupported", "This build cannot offer the web console because it has no credential vault.");
+            }
+            const req = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
+            const host = typeof req.host === "string" && req.host.length > 0 && req.host.length <= 253 ? req.host : undefined;
+            const port = typeof req.port === "number" && Number.isInteger(req.port) && req.port >= 0 && req.port <= 65_535 ? req.port : undefined;
+            const tlsTerminated = req.tlsTerminated === true;
+            try {
+                const handle = await startWebConsoleServer({
+                    registry,
+                    safeStorage: options.safeStorage,
+                    dataFolder: options.dataFolder,
+                    ...(options.factory === undefined ? {} : { factory: options.factory }),
+                    ...(host === undefined ? {} : { host }),
+                    ...(port === undefined ? {} : { port }),
+                    tlsTerminated,
+                    ...(options.schoolMode === undefined ? {} : { schoolMode: options.schoolMode }),
+                });
+                webConsoleHandle = handle;
+                return ok({ host: handle.host, port: handle.port });
+            } catch (error) {
+                return fail("denied", "The web console could not be started.", String(error));
+            }
+        },
+
+        [MCSERVER_CHANNELS.webConsoleStop]: async () => {
+            if (webConsoleHandle === null) return ok(undefined);
+            await webConsoleHandle.close();
+            webConsoleHandle = null;
+            return ok(undefined);
+        },
+
+        [MCSERVER_CHANNELS.webConsoleSetPassword]: async (_event: never, password: unknown) => {
+            if (options.safeStorage === undefined) {
+                return fail("unsupported", "This build cannot offer the web console because it has no credential vault.");
+            }
+            if (typeof password !== "string" || password.length === 0) {
+                return fail("invalid-request", "A password is required.");
+            }
+            // The password crosses the bridge exactly once, inbound, to be hashed here -
+            // never returned, never logged, never characterised.
+            const record = await buildWebConsolePasswordRecord(options.safeStorage, password);
+            if (record === null) {
+                return fail("denied", "The password could not be saved.");
+            }
+            await webConsolePasswordStore.put(record);
+            return ok(undefined);
+        },
+
+        [MCSERVER_CHANNELS.webConsoleBind]: async () => {
+            return ok({
+                running: webConsoleHandle !== null,
+                host: webConsoleHandle?.host ?? null,
+                port: webConsoleHandle?.port ?? null,
+            });
+        },
     };
 
     for (const [channel, handler] of Object.entries(handlers)) {
@@ -204,6 +288,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         dispose(): void {
             for (const channel of Object.keys(handlers)) {
                 ipcMain.removeHandler(channel);
+            }
+            if (webConsoleHandle !== null) {
+                void webConsoleHandle.close();
+                webConsoleHandle = null;
             }
         },
     };
