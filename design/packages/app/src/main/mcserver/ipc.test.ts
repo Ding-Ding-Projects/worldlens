@@ -185,3 +185,123 @@ describe("registerMcServerHandlers", () => {
         expect(listed.value).toHaveLength(0);
     });
 });
+
+describe("registerMcServerHandlers - catalogue, java and create channels", () => {
+    let dir: string;
+    let ipc: ReturnType<typeof fakeIpc>;
+
+    const invoke = async (channel: string, ...args: unknown[]): Promise<unknown> => {
+        const handler = ipc.handlers.get(channel);
+        if (handler === undefined) throw new Error(`no handler for ${channel}`);
+        return handler({}, ...args);
+    };
+
+    const VANILLA_MANIFEST = JSON.stringify({
+        versions: [{ id: "1.21.4", type: "release", url: "https://example.test/1.21.4.json" }],
+    });
+    const VANILLA_DETAIL = JSON.stringify({
+        downloads: { server: { url: "https://example.test/server-1.21.4.jar", sha1: "x", size: 10 } },
+        javaVersion: { majorVersion: 21 },
+    });
+    const EMPTY_LIST = JSON.stringify({ versions: [] });
+    const EMPTY_LOADERS = JSON.stringify([]);
+
+    const routes: Record<string, string> = {
+        "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json": VANILLA_MANIFEST,
+        "https://example.test/1.21.4.json": VANILLA_DETAIL,
+        "https://api.papermc.io/v2/projects/paper": EMPTY_LIST,
+        "https://api.papermc.io/v2/projects/velocity": EMPTY_LIST,
+        "https://api.purpurmc.org/v2/purpur": EMPTY_LIST,
+        "https://meta.fabricmc.net/v2/versions/loader": EMPTY_LOADERS,
+    };
+
+    const fetchText = async (url: string): Promise<string> => {
+        for (const [prefix, body] of Object.entries(routes)) {
+            if (url.startsWith(prefix)) return body;
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+    };
+
+    const noJavaRunner = async () => ({ ok: false, stdout: "", stderr: "", error: "no java here" });
+    const noJavaExists = () => false;
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "wl-mcipc-catalogue-"));
+        ipc = fakeIpc();
+        registerMcServerHandlers(ipc, {
+            dataFolder: dir,
+            fetchText,
+            javaRunner: noJavaRunner,
+            javaExists: noJavaExists,
+        });
+    });
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    it("lists the real catalogue shape through mcserver:catalogue:list", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.catalogueList)) as {
+            ok: boolean;
+            value: { flavours: { flavour: string; versions: unknown[] }[] };
+        };
+        expect(answer.ok).toBe(true);
+        const vanilla = answer.value.flavours.find((f) => f.flavour === "vanilla");
+        expect(vanilla?.versions).toHaveLength(1);
+    });
+
+    it("refreshes the catalogue through mcserver:catalogue:refresh", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.catalogueRefresh)) as { ok: boolean };
+        expect(answer.ok).toBe(true);
+    });
+
+    it("resolves a Java requirement and reports no installation without inventing one", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.javaResolve, "1.20.4")) as {
+            ok: boolean;
+            value: { requirement: { known: boolean; feature?: number }; installation: unknown };
+        };
+        expect(answer.ok).toBe(true);
+        expect(answer.value.requirement).toEqual({ known: true, feature: 17 });
+        expect(answer.value.installation).toBeNull();
+    });
+
+    it("refuses to resolve a Java requirement for a malformed version argument", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.javaResolve, 42)) as { ok: boolean; failure: { code: string } };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("invalid-request");
+    });
+
+    it("refuses to create a server with an unsupported flavour", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.create, {
+            id: "survival",
+            name: "Survival",
+            flavour: "bedrock-only-thing",
+            version: "1.21.4",
+            memoryMb: 1024,
+        })) as { ok: boolean; failure: { code: string } };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("invalid-request");
+    });
+
+    it("refuses to create a server whose details are not readable", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.create, "not an object")) as {
+            ok: boolean;
+            failure: { code: string };
+        };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("invalid-request");
+    });
+
+    it("refuses to create a server for an unknown version without downloading anything", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.create, {
+            id: "survival",
+            name: "Survival",
+            flavour: "vanilla",
+            version: "1.0.0-does-not-exist",
+            memoryMb: 1024,
+            acceptedEula: true,
+        })) as { ok: boolean; failure: { code: string } };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("not-found");
+    });
+});

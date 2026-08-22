@@ -2408,6 +2408,23 @@ interface WorldlensBridge {
             ): Promise<unknown>;
         };
         logTail(id: string, lines?: number): Promise<unknown>;
+        catalogue: {
+            list(): Promise<unknown>;
+            refresh(): Promise<unknown>;
+        };
+        java: {
+            resolve(version: string): Promise<unknown>;
+        };
+        create(request: {
+            id: string;
+            name: string;
+            flavour: string;
+            version: string;
+            memoryMb: number;
+            acceptedEula: boolean;
+            provisionJavaIfMissing?: boolean;
+            fabricInstallerVersion?: string;
+        }): Promise<unknown>;
     };
     vocabulary: {
         read(): Promise<VocabularySnapshot>;
@@ -3399,6 +3416,14 @@ const bridge: WorldlensBridge = {
             write: (id, path, body) => ipcRenderer.invoke("mcserver:file:write", id, path, body),
         },
         logTail: (id, lines) => ipcRenderer.invoke("mcserver:log:tail", id, lines),
+        catalogue: {
+            list: () => ipcRenderer.invoke("mcserver:catalogue:list"),
+            refresh: () => ipcRenderer.invoke("mcserver:catalogue:refresh"),
+        },
+        java: {
+            resolve: (version) => ipcRenderer.invoke("mcserver:java:resolve", version),
+        },
+        create: (request) => ipcRenderer.invoke("mcserver:create", request),
     },
     vocabulary: {
         read: () => ipcRenderer.invoke("vocabulary:read"),

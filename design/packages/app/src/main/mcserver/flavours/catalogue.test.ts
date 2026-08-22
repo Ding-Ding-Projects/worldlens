@@ -1,0 +1,219 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import {
+    CATALOGUE_FILE,
+    FLAVOUR_IDS,
+    fabricServerJarUrl,
+    listCatalogue,
+    refreshCatalogue,
+    type FetchText,
+} from "./catalogue.js";
+
+const VANILLA_MANIFEST = JSON.stringify({
+    versions: [
+        { id: "1.21.4", type: "release", url: "https://example.test/1.21.4.json" },
+        { id: "24w45a", type: "snapshot", url: "https://example.test/24w45a.json" },
+        { id: "b1.7.3", type: "old_beta", url: "https://example.test/b1.7.3.json" },
+    ],
+});
+
+const VANILLA_DETAIL = JSON.stringify({
+    downloads: { server: { url: "https://example.test/server-1.21.4.jar", sha1: "deadbeef", size: 123 } },
+    javaVersion: { majorVersion: 21 },
+});
+
+const VANILLA_SNAPSHOT_DETAIL = JSON.stringify({
+    downloads: { server: { url: "https://example.test/server-24w45a.jar", sha1: "cafef00d", size: 456 } },
+    javaVersion: { majorVersion: 21 },
+});
+
+const PAPER_PROJECT = JSON.stringify({ versions: ["1.21.3", "1.21.4"] });
+const PAPER_BUILDS = JSON.stringify({
+    builds: [
+        { build: 10, channel: "default", downloads: { application: { name: "paper-1.21.4-10.jar", sha256: "a".repeat(64) } } },
+        { build: 11, channel: "default", downloads: { application: { name: "paper-1.21.4-11.jar", sha256: "b".repeat(64) } } },
+    ],
+});
+
+const VELOCITY_PROJECT = JSON.stringify({ versions: ["3.4.0"] });
+const VELOCITY_BUILDS = JSON.stringify({
+    builds: [{ build: 5, channel: "default", downloads: { application: { name: "velocity-3.4.0-5.jar", sha256: "c".repeat(64) } } }],
+});
+
+const PURPUR_PROJECT = JSON.stringify({ versions: ["1.21.4"] });
+const PURPUR_VERSION = JSON.stringify({ builds: { latest: "2350", all: ["2349", "2350"] } });
+
+const FABRIC_LOADERS = JSON.stringify([
+    { version: "0.16.9", stable: true },
+    { version: "0.16.10-beta.1", stable: false },
+]);
+
+function fakeFetch(routes: Record<string, string>): FetchText {
+    return async (url: string) => {
+        for (const [prefix, body] of Object.entries(routes)) {
+            if (url.startsWith(prefix)) return body;
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+    };
+}
+
+const ALL_ROUTES: Record<string, string> = {
+    "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json": VANILLA_MANIFEST,
+    "https://example.test/1.21.4.json": VANILLA_DETAIL,
+    "https://example.test/24w45a.json": VANILLA_SNAPSHOT_DETAIL,
+    "https://api.papermc.io/v2/projects/paper/versions/1.21.3/builds": PAPER_BUILDS,
+    "https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds": PAPER_BUILDS,
+    "https://api.papermc.io/v2/projects/paper": PAPER_PROJECT,
+    "https://api.papermc.io/v2/projects/velocity/versions/3.4.0/builds": VELOCITY_BUILDS,
+    "https://api.papermc.io/v2/projects/velocity": VELOCITY_PROJECT,
+    "https://api.purpurmc.org/v2/purpur/1.21.4": PURPUR_VERSION,
+    "https://api.purpurmc.org/v2/purpur": PURPUR_PROJECT,
+    "https://meta.fabricmc.net/v2/versions/loader": FABRIC_LOADERS,
+};
+
+describe("refreshCatalogue", () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "mcserver-catalogue-"));
+    });
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    it("fetches every flavour from its real API shape and caches the result", async () => {
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: fakeFetch(ALL_ROUTES),
+            now: () => "2026-08-21T00:00:00.000Z",
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+
+        expect(result.value.fetchedAt).toBe("2026-08-21T00:00:00.000Z");
+        expect(result.value.stale).toBe(false);
+        expect(result.value.failures).toEqual([]);
+        expect(result.value.flavours.map((f) => f.flavour)).toEqual(FLAVOUR_IDS);
+
+        const vanilla = result.value.flavours.find((f) => f.flavour === "vanilla");
+        expect(vanilla?.versions).toEqual([
+            { version: "1.21.4", stability: "release", javaFeature: 21, downloadUrl: "https://example.test/server-1.21.4.jar", sha256: null },
+            { version: "24w45a", stability: "snapshot", javaFeature: 21, downloadUrl: "https://example.test/server-24w45a.jar", sha256: null },
+        ]);
+
+        const paper = result.value.flavours.find((f) => f.flavour === "paper");
+        expect(paper?.versions).toHaveLength(2);
+        expect(paper?.versions[0]?.sha256).toBe("b".repeat(64));
+
+        const fabric = result.value.flavours.find((f) => f.flavour === "fabric");
+        expect(fabric?.versions).toEqual([
+            { version: "0.16.9", stability: "release", javaFeature: 8, downloadUrl: null, sha256: null },
+            { version: "0.16.10-beta.1", stability: "snapshot", javaFeature: 8, downloadUrl: null, sha256: null },
+        ]);
+    });
+
+    it("writes the cache file to disk", async () => {
+        await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES) });
+        const { readFile } = await import("node:fs/promises");
+        const text = await readFile(join(dir, CATALOGUE_FILE), "utf8");
+        const parsed = JSON.parse(text) as { flavours: unknown[] };
+        expect(parsed.flavours).toHaveLength(FLAVOUR_IDS.length);
+    });
+
+    it("keeps a flavour's previous cached entries when that flavour's fetch fails", async () => {
+        await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES), now: () => "2026-08-14T00:00:00.000Z" });
+
+        const brokenRoutes = { ...ALL_ROUTES };
+        delete brokenRoutes["https://api.papermc.io/v2/projects/paper"];
+        const secondFetch: FetchText = async (url) => {
+            if (url.startsWith("https://api.papermc.io/v2/projects/paper") && !url.includes("velocity")) {
+                throw new Error("PaperMC is down");
+            }
+            return fakeFetch(ALL_ROUTES)(url);
+        };
+
+        const result = await refreshCatalogue({ dataDir: dir, fetchText: secondFetch, now: () => "2026-08-21T00:00:00.000Z" });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.value.failures.some((f) => f.flavour === "paper")).toBe(true);
+        const paper = result.value.flavours.find((f) => f.flavour === "paper");
+        // The previous run's Paper entries survive rather than being wiped to nothing.
+        expect(paper?.versions.length).toBeGreaterThan(0);
+    });
+
+    it("fails when every flavour is unreachable", async () => {
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async () => {
+                throw new Error("offline");
+            },
+        });
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("unreachable");
+    });
+});
+
+describe("listCatalogue", () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "mcserver-catalogue-list-"));
+    });
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    it("fetches fresh when there is no cache yet", async () => {
+        const result = await listCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES) });
+        expect(result.ok).toBe(true);
+    });
+
+    it("serves the cache without touching the network when it is fresh", async () => {
+        await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES), now: () => "2026-08-21T00:00:00.000Z" });
+        const result = await listCatalogue({
+            dataDir: dir,
+            now: () => "2026-08-21T01:00:00.000Z",
+            fetchText: async (url) => {
+                throw new Error(`should not have fetched ${url}`);
+            },
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.value.stale).toBe(false);
+    });
+
+    /**
+     * The offline guard: a cache older than `CACHE_MAX_AGE_MS` whose refresh attempt
+     * fails (no network) must still be served, marked stale, rather than reporting an
+     * error to a caller who simply wants to see whatever was last known.
+     */
+    it("serves a stale cache marked as stale when offline and the cache has expired", async () => {
+        await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES), now: () => "2026-01-01T00:00:00.000Z" });
+        const result = await listCatalogue({
+            dataDir: dir,
+            now: () => "2026-08-21T00:00:00.000Z", // far more than a week later
+            fetchText: async () => {
+                throw new Error("offline");
+            },
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.value.stale).toBe(true);
+        expect(result.value.flavours.length).toBeGreaterThan(0);
+    });
+});
+
+describe("fabricServerJarUrl", () => {
+    it("builds the documented Fabric server jar download URL", () => {
+        expect(fabricServerJarUrl("1.21.4", "0.16.9", "1.0.1")).toBe(
+            "https://meta.fabricmc.net/v2/versions/loader/1.21.4/0.16.9/1.0.1/server/jar",
+        );
+    });
+});
