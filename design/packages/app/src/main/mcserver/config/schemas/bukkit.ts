@@ -15,7 +15,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Allow the End",
         doc: "Whether players can travel to the End dimension.",
         control: { kind: "switch" },
-        default: true,
+        default: true, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "settings",
     }),
     field({
@@ -23,7 +23,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Warn on overload",
         doc: "Whether to print a warning when the server can't keep up and starts skipping ticks.",
         control: { kind: "switch" },
-        default: true,
+        default: true, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "settings",
         advanced: true,
     }),
@@ -32,7 +32,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Permissions file",
         doc: "Path to the legacy Bukkit permissions.yml file.",
         control: { kind: "path", select: "file", relativeToWorkingDirectory: true },
-        default: "permissions.yml",
+        default: "permissions.yml", // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "settings",
         advanced: true,
     }),
@@ -41,7 +41,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Monster spawn limit",
         doc: "Maximum number of monsters that can spawn per world tick sweep.",
         control: boundedInt(0, 2147483647),
-        default: 70,
+        default: 70, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "spawn-limits",
     }),
     field({
@@ -49,7 +49,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Animal spawn limit",
         doc: "Maximum number of animals that can spawn per world tick sweep.",
         control: boundedInt(0, 2147483647),
-        default: 10,
+        default: 10, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "spawn-limits",
     }),
     field({
@@ -57,7 +57,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Water animal spawn limit",
         doc: "Maximum number of water animals that can spawn per world tick sweep.",
         control: boundedInt(0, 2147483647),
-        default: 5,
+        default: 5, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "spawn-limits",
     }),
     field({
@@ -65,7 +65,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Water ambient spawn limit",
         doc: "Maximum number of water-ambient mobs (fish schools) that can spawn per world tick sweep.",
         control: boundedInt(0, 2147483647),
-        default: 20,
+        default: 20, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "spawn-limits",
     }),
     field({
@@ -73,7 +73,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Ambient spawn limit",
         doc: "Maximum number of ambient mobs (bats) that can spawn per world tick sweep.",
         control: boundedInt(0, 2147483647),
-        default: 15,
+        default: 15, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "spawn-limits",
     }),
     field({
@@ -81,7 +81,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Chunk garbage-collection period",
         doc: "Ticks between sweeps that unload chunks nobody is using.",
         control: ticks(1),
-        default: 600,
+        default: 600, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "chunk-gc",
         advanced: true,
     }),
@@ -90,7 +90,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Ticks per animal spawn attempt",
         doc: "Ticks between animal spawn attempts. 0 disables animal spawning.",
         control: ticks(0),
-        default: 400,
+        default: 400, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "ticks-per",
     }),
     field({
@@ -98,7 +98,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Ticks per monster spawn attempt",
         doc: "Ticks between monster spawn attempts. 0 disables monster spawning.",
         control: ticks(0),
-        default: 1,
+        default: 1, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "ticks-per",
     }),
     field({
@@ -106,7 +106,7 @@ export const bukkitFields: readonly FieldMeta[] = [
         label: "Ticks per water-mob spawn attempt",
         doc: "Ticks between water animal spawn attempts. 0 disables water-mob spawning.",
         control: ticks(0),
-        default: 1,
+        default: 1, // UNVERIFIED: https://bukkit.wikia.com/wiki/Bukkit.yml was unreachable during verification.
         group: "ticks-per",
         advanced: true,
     }),
