@@ -25,6 +25,7 @@
 
 import type { WorldGenSettings } from "./worldGenSettings.js";
 import { buildGeneratorSettings } from "./worldGenSettings.js";
+import type { WorldGenEngineId } from "./worldGenEngine.js";
 
 export interface PregenerationEstimate {
     readonly chunkRadius: number;
@@ -54,7 +55,9 @@ export function estimatePregeneration(pregenerationRadius: number): Pregeneratio
 }
 
 /** The exact `server.properties` this generation run would write. */
-export function buildServerProperties(settings: WorldGenSettings): Readonly<Record<string, string>> {
+export function buildServerProperties(
+    settings: WorldGenSettings,
+): Readonly<Record<string, string>> {
     const properties: Record<string, string> = {
         "level-name": settings.worldName.trim(),
         "generate-structures": String(settings.generateStructures),
@@ -106,6 +109,7 @@ export type WorldGenRunner =
 
 export type GenerationStepKind =
     | "resolve-catalogue-version"
+    | "generate-anvil-world"
     | "create-server"
     | "write-server-properties"
     | "launch-server"
@@ -127,6 +131,7 @@ export interface GenerationStep {
 }
 
 export interface GenerationPlan {
+    readonly engine: WorldGenEngineId;
     readonly runner: WorldGenRunner;
     readonly serverProperties: Readonly<Record<string, string>>;
     readonly postGenerationCommands: readonly string[];
@@ -154,45 +159,72 @@ export const UNWIRED_STEP_KINDS: readonly GenerationStepKind[] = [
     "package-output",
 ];
 
-export function buildGenerationPlan(settings: WorldGenSettings, runner: WorldGenRunner): GenerationPlan {
+export function buildGenerationPlan(
+    settings: WorldGenSettings,
+    runner: WorldGenRunner,
+    engine: WorldGenEngineId = "vanilla-server",
+): GenerationPlan {
     const serverProperties = buildServerProperties(settings);
     const postGenerationCommands = buildPostGenerationCommands(settings);
     const pregeneration = estimatePregeneration(settings.pregenerationRadius);
-    const dimensionsToPackage = [
-        "overworld",
-        ...(settings.dimensions.nether ? ["nether"] : []),
-        ...(settings.dimensions.end ? ["end"] : []),
-    ];
+    const dimensionsToPackage =
+        engine === "synthetic"
+            ? ["overworld"]
+            : [
+                  "overworld",
+                  ...(settings.dimensions.nether ? ["nether"] : []),
+                  ...(settings.dimensions.end ? ["end"] : []),
+              ];
     const outputPath = settings.outputDestination.trim();
 
-    const steps: GenerationStep[] = [
-        {
-            kind: "resolve-catalogue-version",
-            description: `Confirm ${settings.flavour} ${settings.version || "(no version chosen)"} against the live catalogue.`,
-            reuses: "mcserver/flavours/catalogue.ts",
-        },
-        {
-            kind: "create-server",
-            description: "Download the server jar and write server.properties, exactly as creating an ordinary server does.",
-            reuses: "mcserver/create.ts",
-        },
-        {
-            kind: "write-server-properties",
-            description: `Write ${Object.keys(serverProperties).length} server.properties keys for this world.`,
-            reuses: "mcserver/create.ts",
-        },
-    ];
+    const steps: GenerationStep[] = [];
 
-    if (runner.kind === "local") {
+    if (engine === "synthetic") {
+        // This is the one canonical local writer. The app-side runner injects the actual
+        // `generateWorld`/`zipWorld` functions from @worldlens/worldgen; the UI plan only
+        // names that seam and never reimplements Anvil or terrain logic.
+        steps.push({
+            kind: "generate-anvil-world",
+            description: `Generate the synthetic overworld with the canonical Anvil writer at ${Math.max(16, Math.trunc(Math.max(0, settings.pregenerationRadius) * 2))} blocks per side.`,
+            reuses: "@worldlens/worldgen.generateWorld",
+        });
+    } else {
+        steps.push(
+            {
+                kind: "resolve-catalogue-version",
+                description: `Confirm ${settings.flavour} ${settings.version || "(no version chosen)"} against the live catalogue.`,
+                reuses: "mcserver/flavours/catalogue.ts",
+            },
+            {
+                kind: "create-server",
+                description:
+                    "Download the server jar and write server.properties, exactly as creating an ordinary server does.",
+                reuses: "mcserver/create.ts",
+            },
+            {
+                kind: "write-server-properties",
+                description: `Write ${Object.keys(serverProperties).length} server.properties keys for this world.`,
+                reuses: "mcserver/create.ts",
+            },
+        );
+    }
+
+    if (engine === "synthetic") {
+        // No server lifecycle, console commands, extra dimensions, or vanilla settings
+        // belong in this path: the engine metadata already tells the UI which choices are
+        // intentionally ignored.
+    } else if (runner.kind === "local") {
         steps.push(
             {
                 kind: "launch-server",
-                description: "Launch the server with --nogui and wait for it to accept console input.",
+                description:
+                    "Launch the server with --nogui and wait for it to accept console input.",
                 reuses: "mcserver/transport/localProcess.ts",
             },
             {
                 kind: "await-world-ready",
-                description: 'Watch the console for "Done" - the world has finished its initial generation.',
+                description:
+                    'Watch the console for "Done" - the world has finished its initial generation.',
                 reuses: null,
             },
         );
@@ -204,13 +236,15 @@ export function buildGenerationPlan(settings: WorldGenSettings, runner: WorldGen
         });
     }
 
-    steps.push({
-        kind: "pregenerate-chunks",
-        description: `Pre-generate a ${pregeneration.chunkRadius}-chunk radius (${pregeneration.chunkCount} chunks, ~${formatBytes(pregeneration.estimatedBytes)}, ESTIMATE) with /forceload or a pregeneration mod command.`,
-        reuses: null,
-    });
+    if (engine !== "synthetic") {
+        steps.push({
+            kind: "pregenerate-chunks",
+            description: `Pre-generate a ${pregeneration.chunkRadius}-chunk radius (${pregeneration.chunkCount} chunks, ~${formatBytes(pregeneration.estimatedBytes)}, ESTIMATE) with /forceload or a pregeneration mod command.`,
+            reuses: null,
+        });
+    }
 
-    if (postGenerationCommands.length > 0) {
+    if (engine !== "synthetic" && postGenerationCommands.length > 0) {
         steps.push({
             kind: "run-console-commands",
             description: `Send ${postGenerationCommands.length} console commands (gamerules, world border, bonus chest).`,
@@ -218,7 +252,10 @@ export function buildGenerationPlan(settings: WorldGenSettings, runner: WorldGen
         });
     }
 
-    if (runner.kind === "local") {
+    if (engine === "synthetic") {
+        // The generated folder is already the output for folder mode. Zip mode is handled
+        // by the same app-side localGeneration seam after this plan step.
+    } else if (runner.kind === "local") {
         steps.push({
             kind: "stop-server",
             description: "Stop the server cleanly so every region file is flushed to disk.",
@@ -228,7 +265,8 @@ export function buildGenerationPlan(settings: WorldGenSettings, runner: WorldGen
         steps.push(
             {
                 kind: "await-workflow-completion",
-                description: "Poll the run, surviving an app restart, and never report success before the run is actually finished.",
+                description:
+                    "Poll the run, surviving an app restart, and never report success before the run is actually finished.",
                 reuses: "cirender/state.ts, cirender/schedule.ts",
             },
             {
@@ -245,10 +283,14 @@ export function buildGenerationPlan(settings: WorldGenSettings, runner: WorldGen
             settings.outputMode === "zip"
                 ? `Zip ${dimensionsToPackage.join(", ")} into ${outputPath || "(no destination chosen)"}.`
                 : `Copy ${dimensionsToPackage.join(", ")} into the folder ${outputPath || "(no destination chosen)"}.`,
-        reuses: null,
+        reuses:
+            engine === "synthetic" && settings.outputMode === "zip"
+                ? "@worldlens/worldgen.zipWorld"
+                : null,
     });
 
     return {
+        engine,
         runner,
         serverProperties,
         postGenerationCommands,

@@ -10,7 +10,12 @@ import {
 } from "./worldGenPlan.js";
 
 function withVersion(overrides: Partial<WorldGenSettings> = {}): WorldGenSettings {
-    return { ...defaultWorldGenSettings(), version: "1.21.4", outputDestination: "C:/out/world.zip", ...overrides };
+    return {
+        ...defaultWorldGenSettings(),
+        version: "1.21.4",
+        outputDestination: "C:/out/world.zip",
+        ...overrides,
+    };
 }
 
 describe("estimatePregeneration", () => {
@@ -31,7 +36,9 @@ describe("estimatePregeneration", () => {
     });
 
     it("scales monotonically with radius", () => {
-        expect(estimatePregeneration(320).chunkCount).toBeGreaterThan(estimatePregeneration(160).chunkCount);
+        expect(estimatePregeneration(320).chunkCount).toBeGreaterThan(
+            estimatePregeneration(160).chunkCount,
+        );
     });
 });
 
@@ -55,7 +62,10 @@ describe("buildServerProperties", () => {
 
     it("encodes the superflat layer string for a flat world", () => {
         const properties = buildServerProperties(
-            withVersion({ worldType: "flat", superflatLayers: [{ block: "minecraft:bedrock", depth: 3 }] }),
+            withVersion({
+                worldType: "flat",
+                superflatLayers: [{ block: "minecraft:bedrock", depth: 3 }],
+            }),
         );
         expect(properties["generator-settings"]).toBe("3*minecraft:bedrock");
         expect(properties["level-type"]).toBe("minecraft:flat");
@@ -65,7 +75,9 @@ describe("buildServerProperties", () => {
         const properties = buildServerProperties(
             withVersion({ worldType: "single_biome_surface", singleBiome: "minecraft:desert" }),
         );
-        expect(properties["generator-settings"]).toBe(JSON.stringify({ biome: "minecraft:desert" }));
+        expect(properties["generator-settings"]).toBe(
+            JSON.stringify({ biome: "minecraft:desert" }),
+        );
         expect(properties["level-type"]).toBe("minecraft:single_biome_surface");
     });
 });
@@ -78,26 +90,36 @@ describe("buildPostGenerationCommands", () => {
     });
 
     it("adds a bonus-chest command only when requested", () => {
-        expect(buildPostGenerationCommands(withVersion({ bonusChest: false })).some((c) => c.includes("chest"))).toBe(
-            false,
-        );
-        expect(buildPostGenerationCommands(withVersion({ bonusChest: true })).some((c) => c.includes("chest"))).toBe(
-            true,
-        );
+        expect(
+            buildPostGenerationCommands(withVersion({ bonusChest: false })).some((c) =>
+                c.includes("chest"),
+            ),
+        ).toBe(false);
+        expect(
+            buildPostGenerationCommands(withVersion({ bonusChest: true })).some((c) =>
+                c.includes("chest"),
+            ),
+        ).toBe(true);
     });
 
     it("adds a worldborder command only when the border is enabled", () => {
         const off = buildPostGenerationCommands(withVersion({ worldBorderEnabled: false }));
         expect(off.some((c) => c.startsWith("/worldborder"))).toBe(false);
 
-        const on = buildPostGenerationCommands(withVersion({ worldBorderEnabled: true, worldBorderDiameter: 5000 }));
+        const on = buildPostGenerationCommands(
+            withVersion({ worldBorderEnabled: true, worldBorderDiameter: 5000 }),
+        );
         expect(on).toContain("/worldborder set 5000");
     });
 });
 
 describe("buildGenerationPlan", () => {
     const local: WorldGenRunner = { kind: "local" };
-    const github: WorldGenRunner = { kind: "github-actions", repoSlug: "owner/repo", workflowFile: "worldgen.yml" };
+    const github: WorldGenRunner = {
+        kind: "github-actions",
+        repoSlug: "owner/repo",
+        workflowFile: "worldgen.yml",
+    };
 
     it("includes create-server and package-output for every runner", () => {
         for (const runner of [local, github]) {
@@ -126,6 +148,31 @@ describe("buildGenerationPlan", () => {
         expect(kinds).not.toContain("stop-server");
     });
 
+    it("routes the synthetic engine through the canonical Anvil writer only", () => {
+        const plan = buildGenerationPlan(
+            withVersion({ dimensions: { overworld: true, nether: true, end: true } }),
+            local,
+            "synthetic",
+        );
+        expect(plan.engine).toBe("synthetic");
+        expect(plan.steps.map((step) => step.kind)).toEqual([
+            "generate-anvil-world",
+            "package-output",
+        ]);
+        expect(plan.steps[0]?.reuses).toBe("@worldlens/worldgen.generateWorld");
+        expect(plan.steps[1]?.reuses).toBe("@worldlens/worldgen.zipWorld");
+        expect(plan.dimensionsToPackage).toEqual(["overworld"]);
+    });
+
+    it("keeps the synthetic path free of server-jar and console steps", () => {
+        const plan = buildGenerationPlan(withVersion(), local, "synthetic");
+        const kinds = plan.steps.map((step) => step.kind);
+        expect(kinds).not.toContain("create-server");
+        expect(kinds).not.toContain("launch-server");
+        expect(kinds).not.toContain("run-console-commands");
+        expect(kinds).not.toContain("pregenerate-chunks");
+    });
+
     it("names the exact existing module each reused step calls", () => {
         const plan = buildGenerationPlan(withVersion(), local);
         const createStep = plan.steps.find((s) => s.kind === "create-server");
@@ -150,7 +197,10 @@ describe("buildGenerationPlan", () => {
     });
 
     it("carries the output destination through unchanged", () => {
-        const plan = buildGenerationPlan(withVersion({ outputDestination: "D:/worlds/out.zip" }), local);
+        const plan = buildGenerationPlan(
+            withVersion({ outputDestination: "D:/worlds/out.zip" }),
+            local,
+        );
         expect(plan.outputPath).toBe("D:/worlds/out.zip");
     });
 
