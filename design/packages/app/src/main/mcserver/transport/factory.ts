@@ -11,6 +11,7 @@
 import { createLocalDockerTransport } from "./localDocker.js";
 import { createLocalProcessTransport } from "./localProcess.js";
 import { createSshDockerTransport } from "./sshDocker.js";
+import { createAwsTransport } from "../aws/transport.js";
 import type { SshOptionsInput } from "../../remote/ssh.js";
 import type { CommandRunner } from "../../runtime/command.js";
 import { fail, type Answer, type ServerTransport, type TransportCapabilities, type TransportRef } from "./types.js";
@@ -32,6 +33,8 @@ export interface FactoryDeps {
     readonly now?: () => string;
     readonly writeScope?: readonly string[];
     readonly capabilities?: Partial<TransportCapabilities>;
+    /** The app's own SSH known-hosts file, used only for `kind: "aws"` refs. */
+    readonly awsKnownHostsFile?: string;
 }
 
 export function createTransport(ref: TransportRef, deps: FactoryDeps = {}): Answer<ServerTransport> {
@@ -90,6 +93,27 @@ export function createTransport(ref: TransportRef, deps: FactoryDeps = {}): Answ
                     hostId: ref.hostId,
                     containerRef: ref.containerRef,
                     serverDir: ref.serverDir,
+                    ...(deps.runner === undefined ? {} : { runner: deps.runner }),
+                    ...(deps.docker === undefined ? {} : { docker: deps.docker }),
+                    ...(deps.writeScope === undefined ? {} : { writeScope: deps.writeScope }),
+                    ...(deps.now === undefined ? {} : { now: deps.now }),
+                    ...(deps.capabilities === undefined ? {} : { capabilities: deps.capabilities }),
+                }),
+            };
+        }
+        case "aws": {
+            if (deps.awsKnownHostsFile === undefined) {
+                return fail(
+                    "invalid-request",
+                    "This installation has no SSH known-hosts file configured for AWS servers.",
+                    "awsKnownHostsFile was not supplied to the transport factory.",
+                );
+            }
+            return {
+                ok: true,
+                value: createAwsTransport({
+                    ref,
+                    knownHostsFile: deps.awsKnownHostsFile,
                     ...(deps.runner === undefined ? {} : { runner: deps.runner }),
                     ...(deps.docker === undefined ? {} : { docker: deps.docker }),
                     ...(deps.writeScope === undefined ? {} : { writeScope: deps.writeScope }),
