@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Extract reusable WorldLens design system package - [`d32e7a24be`](https://github.com/Ding-Ding-Projects/worldlens/commit/d32e7a24be60fddfa6e95d2a4d84c080c19a37dc)
 - Fix generated Pages verification for new repositories - [`3366bfcc5a`](https://github.com/Ding-Ding-Projects/worldlens/commit/3366bfcc5acccb5b22d9225fa8bbc2ce8cb0bb0f)
 
 ### Rendering and world data

@@ -4,10 +4,20 @@ Every visual decision in this application resolves to one of the tokens below. N
 component hard-codes a corner radius, a shadow, a type size, a state-layer opacity or an
 animation curve; a component that needs one names the token, and the token is declared once.
 
-The code is `design/packages/ui/src/styles/md3.scss` for the vocabulary,
-`design/packages/ui/src/styles/global.scss` for the rules that spend it, and
-`design/packages/ui/src/vuetify.ts` for the colour schemes and the component defaults.
-`design/packages/ui/src/vuetify.test.ts` holds all three to their claims.
+The reusable contract is the publishable `@worldlens/design-system` package. Its
+`design/packages/design-system/src/tokens.css` file owns the vocabulary,
+`src/colors.ts` owns the framework-neutral colour roles, and `src/theme.ts` owns the
+Vuetify themes, component defaults and plugin factory. The WorldLens application imports
+that package from `design/packages/ui/src/main.ts` and `design/packages/ui/src/vuetify.ts`;
+`design/packages/ui/src/styles/global.scss` remains the product-specific rule layer that
+spends the shared tokens. `design/packages/ui/src/vuetify.test.ts` holds the integration to
+those claims.
+
+Consumers install `@worldlens/design-system` with compatible Vue and Vuetify peers, import
+`@worldlens/design-system/tokens.css` once, and call `createWorldLensDesignSystem()`. A
+framework-neutral surface can instead import only `@worldlens/design-system/colors`, while
+a product-specific presentation mode can supply an additional theme to the factory without
+moving that product behavior into the package.
 
 ## Why this exists
 
@@ -106,7 +116,7 @@ degrade itself as well, and is tested for it.
 
 ## Component defaults
 
-`COMPONENT_DEFAULTS` in `vuetify.ts` spends the corrected scale once, for the whole
+`WORLDLENS_COMPONENT_DEFAULTS` in `design/packages/design-system/src/theme.ts` spends the corrected scale once, for the whole
 application, rather than in forty component files that would each then own an opinion about
 what a rounded card is: things a person presses are fully rounded, containers take the large
 corner, overlays take the extra-large one through the surfaces they contain, and fields sit
@@ -125,7 +135,7 @@ From weakest to strongest:
 
 1. The type and heading rules in `global.scss`, written with `:where()`, at zero specificity.
 2. Vuetify's component styles and this application's own component stylesheets.
-3. `COMPONENT_DEFAULTS`, which a prop on the component overrides directly - that is how the
+3. `WORLDLENS_COMPONENT_DEFAULTS`, which a prop on the component overrides directly - that is how the
    window's caption buttons stay square against a pill default.
 4. The appearance editor, which lands its per-element overrides as inline styles.
 5. The reduced-motion kill switch, for motion only.
@@ -153,7 +163,9 @@ map layer's stacking and pointer-events contract is untouched.
 
 呢個 application 入面每一個視覺決定都會落到下面其中一個 token 度。冇任何 component 會硬寫死 corner radius、陰影、字級、state-layer 透明度或者動畫曲線；要用嘅 component 就叫個 token 個名，而個 token 淨係宣告一次。
 
-代碼方面：`design/packages/ui/src/styles/md3.scss` 係詞彙表，`design/packages/ui/src/styles/global.scss` 係使呢啲詞彙嘅規則，`design/packages/ui/src/vuetify.ts` 係色彩 scheme 同 component 預設。`design/packages/ui/src/vuetify.test.ts` 就負責釘住呢三份嘢講過嘅嘢。
+代碼方面：可發布嘅 `@worldlens/design-system` 套件係共用合約。`design/packages/design-system/src/tokens.css` 係詞彙表，`src/colors.ts` 係唔依賴 framework 嘅色彩角色，而 `src/theme.ts` 就放 Vuetify theme、component 預設同 plugin factory。WorldLens application 由 `design/packages/ui/src/main.ts` 同 `design/packages/ui/src/vuetify.ts` import 呢個套件；`design/packages/ui/src/styles/global.scss` 繼續淨係放產品自己使 token 嘅規則。`design/packages/ui/src/vuetify.test.ts` 就負責釘住個接駁位講過嘅嘢。
+
+其他介面裝好 `@worldlens/design-system` 同相容嘅 Vue、Vuetify 之後，只要 import 一次 `@worldlens/design-system/tokens.css`，再 call `createWorldLensDesignSystem()`。唔用 framework 嘅表面可以淨係 import `@worldlens/design-system/colors`；產品自己額外嘅 presentation mode 就經 factory 加 theme，唔會塞返入共用套件度。
 
 ### 點解要有呢樣嘢
 
@@ -197,13 +209,13 @@ Motion 用嘅係 MD3 Expressive 嗰套：七條 easing — `emphasized` 同佢�
 
 ### Component 預設
 
-`vuetify.ts` 入面嘅 `COMPONENT_DEFAULTS` 為成個 application 一次過使咗嗰套改正咗嘅 scale，而唔係散喺四十個 component 檔案度、然後每個都對「一張 rounded card 到底係點」有自己一套主張：人會撳嘅嘢就全圓，container 攞大 corner，overlay 就經佢哋裝住嗰啲 surface 攞 extra-large，而 field 就企喺比佢個 container 緊一級嗰度。
+`design/packages/design-system/src/theme.ts` 入面嘅 `WORLDLENS_COMPONENT_DEFAULTS` 為成個 application 一次過使咗嗰套改正咗嘅 scale，而唔係散喺四十個 component 檔案度、然後每個都對「一張 rounded card 到底係點」有自己一套主張：人會撳嘅嘢就全圓，container 攞大 corner，overlay 就經佢哋裝住嗰啲 surface 攞 extra-large，而 field 就企喺比佢個 container 緊一級嗰度。
 
 改之前有兩件事要知。`VDialog` 同 `VMenu` 冇 `rounded` prop，所以佢哋個 corner 係經 nested defaults 設喺佢哋裝住嗰啲嘢度 — 同藍圖用喺 `VBtnGroup: { VBtn }` 嗰個機制一樣，而 provide/inject 會跟住 component tree 穿過 overlay 個 teleport。另外 `VSelect`、`VAutocomplete`、`VCombobox` 同 `VFileInput` 內部都係 render 一個 `VTextField`，而冇設過嘅位會傳 `undefined`，Vuetify 當佢係「冇提供」— 所以單單一條 `VTextField` entry 就掂得到佢哋全部。
 
 ### 邊個蓋過邊個
 
-由最弱到最強：先係 `global.scss` 入面用 `:where()` 寫、specificity 為零嘅字體同標題規則；跟住係 Vuetify 嘅 component 樣式同呢個 application 自己嘅 component stylesheet；再上係 `COMPONENT_DEFAULTS`，而 component 上面嘅 prop 可以直接蓋過佢 — 視窗 caption 掣就係噉樣喺一個 pill 預設之下保持方形；再上係 appearance editor，佢啲逐元素覆寫係以 inline style 落地；最上面係 reduced-motion kill switch，不過淨係管 motion。
+由最弱到最強：先係 `global.scss` 入面用 `:where()` 寫、specificity 為零嘅字體同標題規則；跟住係 Vuetify 嘅 component 樣式同呢個 application 自己嘅 component stylesheet；再上係 `WORLDLENS_COMPONENT_DEFAULTS`，而 component 上面嘅 prop 可以直接蓋過佢 — 視窗 caption 掣就係噉樣喺一個 pill 預設之下保持方形；再上係 appearance editor，佢啲逐元素覆寫係以 inline style 落地；最上面係 reduced-motion kill switch，不過淨係管 motion。
 
 呢個次序本身就係重點：**appearance editor 一定要贏**，因為一個連自己個 application 都主題唔到嘅 theming 功能係唔完整嘅。token 層新加嘅規則入面冇一條係 `!important`，除咗本身已經係 `!important` 嗰兩個 Vuetify radius 同 elevation utility，而嗰兩個都永遠唔會出現喺 appearance-target wrapper 上面。
 

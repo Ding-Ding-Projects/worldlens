@@ -1,5 +1,15 @@
 # Roadmap
 
+## Reusable design system package — 2026-08-22
+
+- [x] Publish the shared WorldLens colour roles, Material Design 3 tokens, Vuetify themes,
+      component defaults and factory as `@worldlens/design-system` version 0.1.0.
+- [x] Keep product-specific presentation modes and behavior in `@worldlens/ui`, while the
+      actual WorldLens bootstrap and CSS entrypoint consume the reusable package.
+- [ ] Install the reconciled workspace manifests and build the package and its consumers.
+      Deliberately deferred to the integration lane; this ultra-speed source lane ran no tests,
+      type checks, builds, or captures.
+
 ## Documentation refresh — 2026-08-22
 
 - [x] The documentation index now includes all five previously unindexed root feature records;
