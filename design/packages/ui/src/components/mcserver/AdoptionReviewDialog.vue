@@ -15,7 +15,9 @@ import {
     VListItem,
     VSwitch,
 } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import { useServerStore } from "./useServers.js";
 import { adoptConfirm, adoptRelease } from "./mcserverBridge.js";
 import type { ServerRecord } from "./serverModel.js";
@@ -69,6 +71,39 @@ watch(
 
 const capabilities = computed(() => (props.record ? store.capabilitiesFor(props.record.id) : null));
 const hasBlockers = computed(() => (props.blockers?.length ?? 0) > 0);
+
+/**
+ * A real container can carry many mounts and published ports, and the discovery evidence
+ * list grows with every heuristic that matched -- so this dialog gets the same local
+ * filter every other list in this app does, covering evidence, mounts and ports together.
+ * Plain text is the default; the anchored regex builder in {@link ConfigSearchField} is an
+ * explicit opt-in. Filtering only ever hides rows: it never changes what "Adopt" does.
+ */
+const reviewQuery = ref("");
+const reviewRegex = ref(false);
+const reviewFlags = ref("i");
+const reviewMatcher = computed(() => createSettingMatcher(reviewQuery.value, reviewRegex.value, reviewFlags.value));
+
+const filteredEvidence = computed(() => (props.evidence ?? []).filter((item) => reviewMatcher.value.test(item)));
+const filteredMounts = computed(() => (props.mounts ?? []).filter((m) => reviewMatcher.value.test(`${m.source} ${m.target}`)));
+const filteredPorts = computed(() =>
+    (props.ports ?? []).filter((p) => reviewMatcher.value.test(`${p.container} ${p.host ?? ""}`)),
+);
+
+const reviewSample = computed(() =>
+    [
+        ...(props.evidence ?? []),
+        ...(props.mounts ?? []).map((m) => `${m.source} -> ${m.target}`),
+        ...(props.ports ?? []).map((p) => `${p.container} -> ${p.host ?? ""}`),
+    ].join(String.fromCharCode(10)),
+);
+
+const reviewHasRows = computed(() => (props.evidence?.length ?? 0) + (props.mounts?.length ?? 0) + (props.ports?.length ?? 0) > 0);
+const reviewShownCount = computed(() => filteredEvidence.value.length + filteredMounts.value.length + filteredPorts.value.length);
+const reviewTotalCount = computed(() => (props.evidence?.length ?? 0) + (props.mounts?.length ?? 0) + (props.ports?.length ?? 0));
+const reviewSummary = computed(() =>
+    t("mcserver.adopt.filterSummary", { shown: reviewShownCount.value, total: reviewTotalCount.value }, "Showing {shown} of {total}"),
+);
 
 async function confirm(): Promise<void> {
     if (!props.record) return;
@@ -127,23 +162,44 @@ async function confirmRelease(): Promise<void> {
                     </VChip>
                 </template>
 
+                <ConfigSearchField
+                    v-if="reviewHasRows"
+                    v-model="reviewQuery"
+                    v-model:regex="reviewRegex"
+                    v-model:flags="reviewFlags"
+                    :label="t('mcserver.adopt.filterLabel', 'Filter evidence, mounts and ports')"
+                    :placeholder="t('mcserver.adopt.filterHint', 'Path, port or evidence text')"
+                    :sample="reviewSample"
+                    :summary="reviewSummary"
+                    class="mb-2"
+                />
+
                 <template v-if="evidence && evidence.length > 0">
                     <h4 class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.evidenceTitle", "Why this looks like a Minecraft server") }}</h4>
-                    <ul class="wl-mcserver-adopt__evidence">
-                        <li v-for="(item, index) in evidence" :key="index">{{ item }}</li>
+                    <p v-if="filteredEvidence.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
+                        {{ t("mcserver.adopt.evidenceNoMatch", "No evidence line matches the filter.") }}
+                    </p>
+                    <ul v-else class="wl-mcserver-adopt__evidence">
+                        <li v-for="(item, index) in filteredEvidence" :key="index">{{ item }}</li>
                     </ul>
                 </template>
 
                 <template v-if="mounts && mounts.length > 0">
                     <h4 class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.mountsTitle", "Mounted paths") }}</h4>
-                    <ul class="wl-mcserver-adopt__evidence">
-                        <li v-for="(m, index) in mounts" :key="index">{{ m.source }} &rarr; {{ m.target }}</li>
+                    <p v-if="filteredMounts.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
+                        {{ t("mcserver.adopt.mountsNoMatch", "No mounted path matches the filter.") }}
+                    </p>
+                    <ul v-else class="wl-mcserver-adopt__evidence">
+                        <li v-for="(m, index) in filteredMounts" :key="index">{{ m.source }} &rarr; {{ m.target }}</li>
                     </ul>
                 </template>
                 <template v-if="ports && ports.length > 0">
                     <h4 class="text-subtitle-2 mt-2">{{ t("mcserver.adopt.portsTitle", "Published ports") }}</h4>
-                    <ul class="wl-mcserver-adopt__evidence">
-                        <li v-for="(p, index) in ports" :key="index">{{ p.container }} &rarr; {{ p.host ?? t("mcserver.adopt.notPublished", "not published") }}</li>
+                    <p v-if="filteredPorts.length === 0" class="wl-mcserver-adopt__noMatch" role="status">
+                        {{ t("mcserver.adopt.portsNoMatch", "No published port matches the filter.") }}
+                    </p>
+                    <ul v-else class="wl-mcserver-adopt__evidence">
+                        <li v-for="(p, index) in filteredPorts" :key="index">{{ p.container }} &rarr; {{ p.host ?? t("mcserver.adopt.notPublished", "not published") }}</li>
                     </ul>
                 </template>
 
@@ -225,6 +281,11 @@ async function confirmRelease(): Promise<void> {
 </template>
 
 <style scoped>
+.wl-mcserver-adopt__noMatch {
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: 0.875rem;
+    margin: 4px 0 0 0;
+}
 .wl-mcserver-adopt__evidence {
     margin: 4px 0 0 20px;
     padding: 0;
