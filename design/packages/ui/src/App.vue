@@ -2262,6 +2262,22 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     </div>
 
                     <!--
+                        Host Server.
+
+                        Its own layer, because the rail offers it as a destination and a
+                        destination that renders nothing falls through to the map underneath -
+                        which is why choosing it showed "no map loaded". The map is always
+                        mounted and only covered, never unmounted, so anything without a layer
+                        of its own is not blank: it is the map, wearing the wrong label.
+                    -->
+                    <div
+                        v-show="destination === 'host'"
+                        class="mb-shell-layer mb-shell-layer--home mb-interactive"
+                    >
+                        <ServerListScreen />
+                    </div>
+
+                    <!--
                         Home, and the catalogue page that is a page *of* Home rather than a
                         fourth destination. Opaque, so the map behind it is invisible without
                         being unmounted.

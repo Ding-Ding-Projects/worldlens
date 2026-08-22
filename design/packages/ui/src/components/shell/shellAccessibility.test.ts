@@ -94,6 +94,33 @@ describe("the application rail", () => {
         }
     });
 
+    it("gives every rail destination somewhere to actually go", async () => {
+        // Adding a destination to the rail without a layer to render it does not produce
+        // a blank screen. The map is always mounted underneath and merely covered, so an
+        // unrouted destination shows the map - which is how Host Server came to say
+        // "no map loaded" instead of listing servers.
+        const { readFile } = await import("node:fs/promises");
+        const { fileURLToPath } = await import("node:url");
+        const read = async (relative: string): Promise<string> => {
+            const text = await readFile(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
+            return text.replace(/\r\n/g, "\n");
+        };
+
+        const app = await read("../../App.vue");
+        const rail = await read("./AppRail.vue");
+
+        const declared = [...rail.matchAll(/^\s*id: "(\w+)",$/gm)].map((match) => match[1]);
+        expect(declared.length, "no rail destinations were found to check").toBeGreaterThan(0);
+
+        for (const id of declared) {
+            // The map is the always-mounted layer itself, so it has no v-show of its own.
+            if (id === "map") continue;
+            expect(app, `the rail offers "${id}" and App.vue renders nothing for it`).toContain(
+                `destination === '${id}'`,
+            );
+        }
+    });
+
     it("marks the active destination with aria-current, not only with a colour", () => {
         const rail = mountRail({ destination: "work" });
         const current = rail
