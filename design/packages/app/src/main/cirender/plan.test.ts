@@ -48,7 +48,7 @@ function project(maps: ProjectMap[]): ProjectFile {
         maps,
         storages: [],
         render: {
-            engine: "typescript",
+            engine: "upstream-java",
             threads: null,
             force: false,
             fixEdges: false,
