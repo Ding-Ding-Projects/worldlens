@@ -70,7 +70,10 @@ const props = withDefaults(
     }>(),
     { versions: () => [], flavours: () => ["vanilla", "paper", "purpur", "fabric"] },
 );
-const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
+const emit = defineEmits<{
+    "update:modelValue": [value: boolean];
+    generate: [settings: WorldGenSettings];
+}>();
 
 const { t } = useI18n({
     useScope: "local",
@@ -245,6 +248,10 @@ function isUnwired(kind: string): boolean {
 function onPreviewPlan(): void {
     if (!validation.value.ok) return;
     showPlan.value = true;
+}
+function onGenerate(): void {
+    if (!validation.value.ok || engineId.value !== "vanilla-server") return;
+    emit("generate", { ...settings, dimensions: { ...settings.dimensions }, gamerules: { ...settings.gamerules } });
 }
 function onClose(): void {
     open.value = false;
@@ -473,6 +480,9 @@ function onClose(): void {
             </VCardText>
             <VCardActions>
                 <VBtn variant="text" @click="onClose">{{ t("cancel") }}</VBtn>
+                <VBtn v-if="engineId === 'vanilla-server'" color="primary" variant="flat" :disabled="!validation.ok" @click="onGenerate">
+                    Generate
+                </VBtn>
                 <VBtn color="primary" variant="tonal" :disabled="!validation.ok" @click="onPreviewPlan">
                     {{ t("previewPlan") }}
                 </VBtn>

@@ -44,10 +44,10 @@ export const WORLD_GEN_ENGINES: readonly WorldGenEngine[] = [
     },
     {
         id: "vanilla-server",
-        label: "Real Minecraft server (not available yet)",
+        label: "Real Minecraft server + Chunky",
         summary:
-            "Runs the actual server jar so Mojang's generator does the work, honouring every setting below. Not wired up in this build.",
-        wired: false,
+            "Runs the downloaded server jar once, then Chunky pre-generates the requested radius with vanilla-accurate terrain.",
+        wired: true,
     },
 ];
 

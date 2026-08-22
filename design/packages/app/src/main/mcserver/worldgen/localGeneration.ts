@@ -16,7 +16,8 @@
  * without writing a world to disk.
  */
 
-import { rm } from "node:fs/promises";
+import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
+import { spawn, type ChildProcess } from "node:child_process";
 import { join } from "node:path";
 
 export interface LocalGenerationRequest {
@@ -53,6 +54,89 @@ export interface LocalGenerationSuccess {
 export type LocalGenerationOutcome =
     | { readonly ok: true; readonly value: LocalGenerationSuccess }
     | { readonly ok: false; readonly code: "cancelled" | "failed"; readonly message: string };
+
+export interface VanillaGenerationRequest {
+    readonly javaPath: string;
+    readonly jarPath: string;
+    readonly serverDir: string;
+    readonly worldName: string;
+    readonly memoryMb: number;
+    /** Explicit user consent; generation never accepts the EULA implicitly. */
+    readonly acceptedEula: boolean;
+    readonly pregenerationRadius: number;
+    readonly chunkyPluginJar?: string;
+    readonly outputDestination: string;
+    readonly outputMode: "folder" | "zip";
+    readonly serverProperties: Readonly<Record<string, string>>;
+}
+
+export interface VanillaGenerationProgress {
+    readonly phase: "server-startup" | "world-generation" | "chunky-pregen" | "packaging";
+    readonly message: string;
+}
+
+export interface VanillaGenerationDeps {
+    readonly spawnProcess?: typeof spawn;
+    readonly zipWorld?: (worldFolder: string, zipPath: string) => Promise<void>;
+    readonly removeDirectory?: (path: string) => Promise<void>;
+}
+
+/** Run the downloaded vanilla jar once, then drive Chunky through the server console. */
+export async function runVanillaGeneration(
+    request: VanillaGenerationRequest,
+    options: { readonly onProgress?: (progress: VanillaGenerationProgress) => void; readonly isCancelled?: () => boolean } = {},
+    deps: VanillaGenerationDeps = {},
+): Promise<LocalGenerationOutcome> {
+    const spawnProcess = deps.spawnProcess ?? spawn;
+    const removeDirectory = deps.removeDirectory ?? ((path: string) => rm(path, { recursive: true, force: true }));
+    const worldFolder = join(request.serverDir, request.worldName);
+    let child: ChildProcess | null = null;
+    const emit = (phase: VanillaGenerationProgress["phase"], message: string) => options.onProgress?.({ phase, message });
+    const waitFor = (needle: RegExp, phase: VanillaGenerationProgress["phase"], timeoutMs = 30 * 60_000): Promise<void> =>
+        new Promise((resolve, reject) => {
+            if (child === null) return reject(new Error("The Minecraft server did not start."));
+            let buffer = "";
+            const timer = setTimeout(() => { cleanup(); reject(new Error(`Timed out waiting for server output matching ${needle.source}.`)); }, timeoutMs);
+            const onData = (data: Buffer) => { buffer += data.toString("utf8"); emit(phase, buffer.split(/\r?\n/).at(-2) ?? ""); if (needle.test(buffer)) { cleanup(); resolve(); } };
+            const onExit = () => { cleanup(); reject(new Error("The Minecraft server exited before the requested stage completed.")); };
+            const cleanup = () => { clearTimeout(timer); child?.stdout?.off("data", onData); child?.stderr?.off("data", onData); child?.off("exit", onExit); };
+            child.stdout?.on("data", onData); child.stderr?.on("data", onData); child.once("exit", onExit);
+        });
+    try {
+        if (request.acceptedEula !== true) return { ok: false, code: "failed", message: "The Minecraft EULA must be accepted before real generation can start." };
+        if (options.isCancelled?.()) throw new Error("cancelled");
+        await mkdir(request.serverDir, { recursive: true });
+        const properties = Object.entries(request.serverProperties).map(([key, value]) => `${key}=${value}`).join("\n") + "\n";
+        await writeFile(join(request.serverDir, "server.properties"), properties, "utf8");
+        await writeFile(join(request.serverDir, "eula.txt"), "# Accepted through WorldLens\neula=true\n", "utf8");
+        if (request.chunkyPluginJar !== undefined) {
+            await mkdir(join(request.serverDir, "plugins"), { recursive: true });
+            await copyFile(request.chunkyPluginJar, join(request.serverDir, "plugins", "Chunky.jar"));
+        }
+        emit("server-startup", "Launching the vanilla server and waiting for its world to load…");
+        child = spawnProcess(request.javaPath, [`-Xmx${request.memoryMb}M`, `-Xms${Math.min(request.memoryMb, 1024)}M`, "-jar", request.jarPath, "nogui"], { cwd: request.serverDir, stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
+        await waitFor(/Done \([^\n]*\)!|For help, type|Preparing spawn area/, "world-generation");
+        emit("chunky-pregen", `Running Chunky pre-generation for ${request.pregenerationRadius} blocks…`);
+        child.stdin?.write(`chunky world ${request.worldName}\n`);
+        child.stdin?.write(`chunky radius ${Math.max(1, Math.ceil(request.pregenerationRadius / 16))}\n`);
+        child.stdin?.write("chunky start\n");
+        await waitFor(/Task finished|Generation task complete|Starting world generation/, "chunky-pregen");
+        child.stdin?.write("stop\n");
+        await new Promise<void>((resolve) => child?.once("exit", () => resolve()));
+        if (request.outputMode === "zip") {
+            emit("packaging", "Packaging the generated world…");
+            if (deps.zipWorld === undefined) throw new Error("Zip packaging is not available for vanilla generation.");
+            await deps.zipWorld(worldFolder, request.outputDestination);
+            await removeDirectory(worldFolder);
+        }
+        return { ok: true, value: { worldFolder, zipPath: request.outputMode === "zip" ? request.outputDestination : null, chunkCount: 0, bytes: 0, seed: 0 } };
+    } catch (error) {
+        child?.kill();
+        await removeDirectory(worldFolder).catch(() => undefined);
+        const message = error instanceof Error ? error.message : String(error);
+        return { ok: false, code: message === "cancelled" ? "cancelled" : "failed", message };
+    }
+}
 
 /** The two `@worldlens/worldgen` entry points this module uses, injectable for tests. */
 export interface GenerationDeps {
