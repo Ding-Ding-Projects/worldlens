@@ -15,6 +15,7 @@ import CreateServerWizard from "./CreateServerWizard.vue";
 import { SERVER_STORE } from "./useServers.js";
 import { createServerStore, type Answer, type McServerHost } from "./serverStore.js";
 import type { ServerRecord } from "./serverModel.js";
+import { runtimeOptions } from "./wizardModel.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -48,7 +49,14 @@ beforeAll(() => {
     } as unknown as VisualViewport;
 });
 
-const i18n = createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", messages: {} });
+const i18n = createI18n({
+    legacy: false,
+    missingWarn: false,
+    fallbackWarn: false,
+    locale: "none",
+    fallbackLocale: "none",
+    messages: {},
+});
 const vuetify = createVuetify();
 
 function ok<T>(value: T): Answer<T> {
@@ -62,8 +70,22 @@ function fakeHost(): McServerHost {
         get: async () => ok(undefined as unknown as ServerRecord),
         save: async () => ok(undefined as unknown as ServerRecord),
         forget: async () => ok(undefined),
-        probe: async () => ok({ reachable: true, runtimeVersion: null, message: "", checkedAt: "now", capabilities: null }),
-        status: async () => ok({ state: "absent" as const, running: false, startedAt: null, exitCode: null, checkedAt: "now" }),
+        probe: async () =>
+            ok({
+                reachable: true,
+                runtimeVersion: null,
+                message: "",
+                checkedAt: "now",
+                capabilities: null,
+            }),
+        status: async () =>
+            ok({
+                state: "absent" as const,
+                running: false,
+                startedAt: null,
+                exitCode: null,
+                checkedAt: "now",
+            }),
         start: async () => ok(undefined),
         stop: async () => ok(undefined),
         files: {
@@ -91,6 +113,11 @@ async function flushAll(): Promise<void> {
 }
 
 describe("CreateServerWizard", () => {
+    it("offers AWS EC2 only when the AWS bridge is present", () => {
+        expect(runtimeOptions(false).some((option) => option.id === "aws")).toBe(false);
+        expect(runtimeOptions(true).find((option) => option.id === "aws")?.name).toBe("AWS EC2");
+    });
+
     it("opens on the flavour step with every flavour card present", async () => {
         // Mounted for its side effect: the wizard teleports its content to the body, so the
         // assertion reads the document rather than the returned wrapper.
@@ -104,9 +131,13 @@ describe("CreateServerWizard", () => {
     it("says plainly that this build has no live catalogue on the version step", async () => {
         const wrapper = mountWizard();
         await flushAll();
-        const next = [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Next");
+        const next = [...document.querySelectorAll("button")].find(
+            (b) => b.textContent?.trim() === "Next",
+        );
         next?.dispatchEvent(new Event("click", { bubbles: true }));
         await flushAll();
-        expect(document.body.textContent).toContain("This build cannot reach the server-version catalogue");
+        expect(document.body.textContent).toContain(
+            "This build cannot reach the server-version catalogue",
+        );
     });
 });

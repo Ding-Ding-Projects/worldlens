@@ -22,7 +22,13 @@ import { dirname, join } from "node:path";
 
 import { atomicWriteTextFile } from "../../storage/atomicReplace.js";
 import type { ServerFlavour } from "../registry.js";
-import { fail, ok, type Answer, type TransportCapabilities, type TransportRef } from "../transport/types.js";
+import {
+    fail,
+    ok,
+    type Answer,
+    type TransportCapabilities,
+    type TransportRef,
+} from "../transport/types.js";
 import { checkFingerprint, computeFingerprint, type FingerprintInput } from "./fingerprint.js";
 
 export const ADOPTION_RECORDS_FILE = "minecraft-adoptions.v1.json";
@@ -93,6 +99,15 @@ function validRef(value: unknown): value is TransportRef {
             return isString(ref.containerRef, 128);
         case "ssh-docker":
             return isString(ref.containerRef, 128) && isString(ref.hostId, 128);
+        case "aws":
+            return (
+                isString(ref.region, 128) &&
+                isString(ref.instanceId, 128) &&
+                isString(ref.publicIp, 128) &&
+                isString(ref.sshUser, 128) &&
+                (ref.identityFile === null || isString(ref.identityFile, 1024)) &&
+                isString(ref.containerRef, 128)
+            );
         default:
             return false;
     }
@@ -108,7 +123,10 @@ export function parseAdoptionRecord(value: unknown): AdoptionRecord | null {
     if (!isString(raw.serverDir)) return null;
     if (raw.mode !== "record-only" && raw.mode !== "labelled") return null;
 
-    const consentRaw = typeof raw.consent === "object" && raw.consent !== null ? (raw.consent as Record<string, unknown>) : {};
+    const consentRaw =
+        typeof raw.consent === "object" && raw.consent !== null
+            ? (raw.consent as Record<string, unknown>)
+            : {};
     const consent: AdoptionConsent = {
         configWrite: isBool(consentRaw.configWrite) && consentRaw.configWrite,
         lifecycle: isBool(consentRaw.lifecycle) && consentRaw.lifecycle,
@@ -116,10 +134,17 @@ export function parseAdoptionRecord(value: unknown): AdoptionRecord | null {
         consoleWrite: isBool(consentRaw.consoleWrite) && consentRaw.consoleWrite,
     };
 
-    const detectedRaw = typeof raw.detected === "object" && raw.detected !== null ? (raw.detected as Record<string, unknown>) : {};
+    const detectedRaw =
+        typeof raw.detected === "object" && raw.detected !== null
+            ? (raw.detected as Record<string, unknown>)
+            : {};
     const detected: AdoptedDetected = {
-        flavour: isString(detectedRaw.flavour, 32) ? (detectedRaw.flavour as ServerFlavour) : "unknown",
-        minecraftVersion: isString(detectedRaw.minecraftVersion, 64) ? detectedRaw.minecraftVersion : null,
+        flavour: isString(detectedRaw.flavour, 32)
+            ? (detectedRaw.flavour as ServerFlavour)
+            : "unknown",
+        minecraftVersion: isString(detectedRaw.minecraftVersion, 64)
+            ? detectedRaw.minecraftVersion
+            : null,
     };
 
     const writeScope = Array.isArray(raw.writeScope)
@@ -168,13 +193,21 @@ export function createAdoptionStore(options: AdoptionStoreOptions): AdoptionStor
         try {
             const bytes = await readFile(file);
             if (bytes.byteLength > ADOPTION_RECORDS_MAX_BYTES) {
-                return fail("invalid-request", "The saved list of adopted servers is too large to be a real list.", `${file} is ${bytes.byteLength} bytes.`);
+                return fail(
+                    "invalid-request",
+                    "The saved list of adopted servers is too large to be a real list.",
+                    `${file} is ${bytes.byteLength} bytes.`,
+                );
             }
             text = bytes.toString("utf8");
         } catch (error) {
             const code = (error as NodeJS.ErrnoException | null)?.code;
             if (code === "ENOENT") return ok([]);
-            return fail("denied", "The saved list of adopted servers could not be read.", String(error));
+            return fail(
+                "denied",
+                "The saved list of adopted servers could not be read.",
+                String(error),
+            );
         }
 
         let parsed: unknown;
@@ -185,7 +218,10 @@ export function createAdoptionStore(options: AdoptionStoreOptions): AdoptionStor
         }
         const stored = parsed as Partial<StoredAdoptions>;
         if (typeof stored !== "object" || stored === null || !Array.isArray(stored.records)) {
-            return fail("invalid-request", "The saved list of adopted servers is not in the expected shape.");
+            return fail(
+                "invalid-request",
+                "The saved list of adopted servers is not in the expected shape.",
+            );
         }
 
         const records: AdoptionRecord[] = [];
@@ -215,22 +251,30 @@ export function createAdoptionStore(options: AdoptionStoreOptions): AdoptionStor
             const loaded = await load();
             if (!loaded.ok) return loaded;
             const found = loaded.value.find((record) => record.id === id);
-            if (found === undefined) return fail("not-found", "There is no adopted server with that name here.");
+            if (found === undefined)
+                return fail("not-found", "There is no adopted server with that name here.");
             return ok(found);
         },
         async put(record: AdoptionRecord): Promise<Answer<AdoptionRecord>> {
             if (!ID.test(record.id)) {
-                return fail("invalid-request", "A server name may use lower-case letters, numbers and hyphens.");
+                return fail(
+                    "invalid-request",
+                    "A server name may use lower-case letters, numbers and hyphens.",
+                );
             }
             const loaded = await load();
             if (!loaded.ok) return loaded;
             const existing = loaded.value.find((entry) => entry.id === record.id);
             if (existing === undefined && loaded.value.length >= ADOPTION_RECORDS_MAX_ENTRIES) {
-                return fail("invalid-request", `This app keeps at most ${ADOPTION_RECORDS_MAX_ENTRIES} adopted servers.`);
+                return fail(
+                    "invalid-request",
+                    `This app keeps at most ${ADOPTION_RECORDS_MAX_ENTRIES} adopted servers.`,
+                );
             }
-            const next = existing === undefined
-                ? [...loaded.value, record]
-                : loaded.value.map((entry) => (entry.id === record.id ? record : entry));
+            const next =
+                existing === undefined
+                    ? [...loaded.value, record]
+                    : loaded.value.map((entry) => (entry.id === record.id ? record : entry));
             const saved = await save(next);
             if (!saved.ok) return saved;
             return ok(record);

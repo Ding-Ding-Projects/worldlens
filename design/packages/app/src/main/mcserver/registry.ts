@@ -118,6 +118,15 @@ function validRef(value: unknown): value is TransportRef {
             return isString(ref.containerRef, 128);
         case "ssh-docker":
             return isString(ref.containerRef, 128) && isString(ref.hostId, 128);
+        case "aws":
+            return (
+                isString(ref.region, 128) &&
+                isString(ref.instanceId, 128) &&
+                isString(ref.publicIp, 128) &&
+                isString(ref.sshUser, 128) &&
+                (ref.identityFile === null || isString(ref.identityFile, 1024)) &&
+                isString(ref.containerRef, 128)
+            );
         default:
             return false;
     }
@@ -139,10 +148,15 @@ export function parseRecord(value: unknown): ServerRecord | null {
     if (!validRef(raw.ref)) return null;
     if (!isString(raw.createdAt, 64) || !isString(raw.updatedAt, 64)) return null;
 
-    const flavour = SERVER_FLAVOURS.includes(raw.flavour as ServerFlavour) ? (raw.flavour as ServerFlavour) : "unknown";
+    const flavour = SERVER_FLAVOURS.includes(raw.flavour as ServerFlavour)
+        ? (raw.flavour as ServerFlavour)
+        : "unknown";
     const origin: ServerOrigin = raw.origin === "adopted" ? "adopted" : "created";
     const rconPort =
-        typeof raw.rconPort === "number" && Number.isInteger(raw.rconPort) && raw.rconPort > 0 && raw.rconPort < 65_536
+        typeof raw.rconPort === "number" &&
+        Number.isInteger(raw.rconPort) &&
+        raw.rconPort > 0 &&
+        raw.rconPort < 65_536
             ? raw.rconPort
             : null;
     const writeScope = Array.isArray(raw.writeScope)
@@ -208,7 +222,10 @@ export function createServerRegistry(options: RegistryOptions): ServerRegistry {
 
         const stored = parsed as Partial<StoredFile>;
         if (typeof stored !== "object" || stored === null || !Array.isArray(stored.servers)) {
-            return fail("invalid-request", "The saved list of servers is not in the expected shape.");
+            return fail(
+                "invalid-request",
+                "The saved list of servers is not in the expected shape.",
+            );
         }
 
         const records: ServerRecord[] = [];
@@ -239,20 +256,27 @@ export function createServerRegistry(options: RegistryOptions): ServerRegistry {
             const loaded = await load();
             if (!loaded.ok) return loaded;
             const found = loaded.value.find((record) => record.id === id);
-            if (found === undefined) return fail("not-found", "There is no server with that name here.");
+            if (found === undefined)
+                return fail("not-found", "There is no server with that name here.");
             return ok(found);
         },
 
         async put(record: ServerRecord): Promise<Answer<ServerRecord>> {
             if (!ID.test(record.id)) {
-                return fail("invalid-request", "A server name may use lower-case letters, numbers and hyphens.");
+                return fail(
+                    "invalid-request",
+                    "A server name may use lower-case letters, numbers and hyphens.",
+                );
             }
             const loaded = await load();
             if (!loaded.ok) return loaded;
 
             const existing = loaded.value.find((entry) => entry.id === record.id);
             if (existing === undefined && loaded.value.length >= REGISTRY_MAX_RECORDS) {
-                return fail("invalid-request", `This app keeps at most ${REGISTRY_MAX_RECORDS} servers.`);
+                return fail(
+                    "invalid-request",
+                    `This app keeps at most ${REGISTRY_MAX_RECORDS} servers.`,
+                );
             }
 
             const updated: ServerRecord = {
@@ -262,9 +286,10 @@ export function createServerRegistry(options: RegistryOptions): ServerRegistry {
                 createdAt: existing?.createdAt ?? record.createdAt ?? now(),
                 updatedAt: now(),
             };
-            const next = existing === undefined
-                ? [...loaded.value, updated]
-                : loaded.value.map((entry) => (entry.id === record.id ? updated : entry));
+            const next =
+                existing === undefined
+                    ? [...loaded.value, updated]
+                    : loaded.value.map((entry) => (entry.id === record.id ? updated : entry));
 
             const saved = await save(next);
             if (!saved.ok) return saved;

@@ -198,6 +198,9 @@ const mcServerStore = createServerStore({ host: resolveServerHost() });
 provideServerStore(mcServerStore);
 const mcServerCreateOpen = ref(false);
 const mcServerOpenId = ref<string | null>(null);
+const mcServerOpenTab = ref<"console" | "config" | "plugins" | "players" | "web" | "aws">(
+    "console",
+);
 
 // Read the saved locks once the shell is up. A locked element renders unlocked for the
 // instant before this resolves, which is the honest ordering: the store says `loaded` is
@@ -529,7 +532,11 @@ const pages = computed<TabPage[]>(() => [
         icon: mdiProgressClock,
     },
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
-    { id: PAGE_MCSERVERS, label: t("tabs.page.mcservers", "Minecraft servers"), icon: mdiServerNetwork },
+    {
+        id: PAGE_MCSERVERS,
+        label: t("tabs.page.mcservers", "Minecraft servers"),
+        icon: mdiServerNetwork,
+    },
     { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
     { id: PAGE_PAGES, label: t("tabs.page.pages", "Publish to Pages"), icon: mdiWeb },
     // A world, rather than a render, going the other direction: kept in a git repository so
@@ -2065,14 +2072,34 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <WebConsolePanel
                             v-if="mcServerOpenId"
                             :server-id="mcServerOpenId"
+                            :initial-tab="mcServerOpenTab"
                             @forgotten="mcServerOpenId = null"
                         />
                         <ServerListScreen
                             v-else
-                            @open="(id) => (mcServerOpenId = id)"
+                            @open="
+                                (id) => {
+                                    mcServerOpenTab = 'console';
+                                    mcServerOpenId = id;
+                                }
+                            "
                             @create="mcServerCreateOpen = true"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <CreateServerWizard
+                            v-model="mcServerCreateOpen"
+                            @created="
+                                (id) => {
+                                    mcServerOpenTab = 'console';
+                                    mcServerOpenId = id;
+                                }
+                            "
+                            @open-aws="
+                                (id) => {
+                                    mcServerOpenTab = 'aws';
+                                    mcServerOpenId = id;
+                                }
+                            "
+                        />
                     </div>
                 </template>
 
@@ -2292,14 +2319,34 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <WebConsolePanel
                             v-if="mcServerOpenId"
                             :server-id="mcServerOpenId"
+                            :initial-tab="mcServerOpenTab"
                             @forgotten="mcServerOpenId = null"
                         />
                         <ServerListScreen
                             v-else
-                            @open="(id) => (mcServerOpenId = id)"
+                            @open="
+                                (id) => {
+                                    mcServerOpenTab = 'console';
+                                    mcServerOpenId = id;
+                                }
+                            "
                             @create="mcServerCreateOpen = true"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <CreateServerWizard
+                            v-model="mcServerCreateOpen"
+                            @created="
+                                (id) => {
+                                    mcServerOpenTab = 'console';
+                                    mcServerOpenId = id;
+                                }
+                            "
+                            @open-aws="
+                                (id) => {
+                                    mcServerOpenTab = 'aws';
+                                    mcServerOpenId = id;
+                                }
+                            "
+                        />
                     </div>
 
                     <!--
@@ -2540,16 +2587,33 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     <WebConsolePanel
                                         v-if="mcServerOpenId"
                                         :server-id="mcServerOpenId"
+                                        :initial-tab="mcServerOpenTab"
                                         @forgotten="mcServerOpenId = null"
                                     />
                                     <ServerListScreen
                                         v-else
-                                        @open="(id) => (mcServerOpenId = id)"
+                                        @open="
+                                            (id) => {
+                                                mcServerOpenTab = 'console';
+                                                mcServerOpenId = id;
+                                            }
+                                        "
                                         @create="mcServerCreateOpen = true"
                                     />
                                     <CreateServerWizard
                                         v-model="mcServerCreateOpen"
-                                        @created="(id) => (mcServerOpenId = id)"
+                                        @created="
+                                            (id) => {
+                                                mcServerOpenTab = 'console';
+                                                mcServerOpenId = id;
+                                            }
+                                        "
+                                        @open-aws="
+                                            (id) => {
+                                                mcServerOpenTab = 'aws';
+                                                mcServerOpenId = id;
+                                            }
+                                        "
                                     />
                                 </div>
                             </template>

@@ -38,12 +38,12 @@ than the catalogue that was fetched.
 
 Opening a server shows a tabbed panel with four real screens:
 
-| Tab | What it is |
-| --- | --- |
-| Console | A live log tail plus command input, both over the transport described in [`docs/mcserver-transport.md`](./mcserver-transport.md) |
-| Config | The typed `server.properties` / `paper-global.yml` / `paper-world-defaults.yml` editor from [`docs/mcserver-config.md`](./mcserver-config.md) |
-| Plugins | Search, install and manage plugins — see [`docs/mcserver-plugins.md`](./mcserver-plugins.md) |
-| Players | Whitelist, operators and bans, each a real table with an add-player dialog |
+| Tab     | What it is                                                                                                                                    |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Console | A live log tail plus command input, both over the transport described in [`docs/mcserver-transport.md`](./mcserver-transport.md)              |
+| Config  | The typed `server.properties` / `paper-global.yml` / `paper-world-defaults.yml` editor from [`docs/mcserver-config.md`](./mcserver-config.md) |
+| Plugins | Search, install and manage plugins — see [`docs/mcserver-plugins.md`](./mcserver-plugins.md)                                                  |
+| Players | Whitelist, operators and bans, each a real table with an add-player dialog                                                                    |
 
 ### The console is a real console, not a read-only tail
 
@@ -86,10 +86,10 @@ nothing on disk or in Docker is deleted.
 A fourth place a server can live — an EC2 instance this application creates for it — has a
 complete, tested planning and provisioning backend (region and instance-type selection, a
 priced plan shown before anything is created, security-group rules, an optional Elastic IP,
-teardown) documented in [`docs/mcserver-aws.md`](./mcserver-aws.md). **It has no user
-interface today.** The create wizard offers only the three transports above; there is no
-screen that reaches the AWS planning or provisioning code, so this capability is exercised
-only by its own test suite, never by a person clicking through the app.
+teardown) documented in [`docs/mcserver-aws.md`](./mcserver-aws.md). The create wizard now
+offers **AWS EC2** when the shell exposes the `mcserver.aws` bridge, and routes the completed
+server straight to the existing AWS planning/provisioning tab. Older shells without that
+bridge omit the option rather than offering a dead button.
 
 ### The web management console
 

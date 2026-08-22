@@ -47,6 +47,16 @@ export type TransportRef =
           readonly hostId: string;
           readonly containerRef: string;
           readonly serverDir: string;
+      }
+    | {
+          readonly kind: "aws";
+          readonly region: string;
+          readonly instanceId: string;
+          readonly publicIp: string;
+          readonly sshUser: string;
+          readonly identityFile: string | null;
+          readonly containerRef: string;
+          readonly serverDir: string;
       };
 
 export interface ServerRecord {
@@ -117,6 +127,8 @@ export function transportSummary(record: ServerRecord): string {
             return "This computer, in a container";
         case "ssh-docker":
             return "A remote host, in a container";
+        case "aws":
+            return "An AWS EC2 host, in a container";
     }
 }
 
