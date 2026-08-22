@@ -35,8 +35,16 @@ export const blueMapApp: ShallowRef<BlueMapApp | null> = shallowRef(null);
  */
 export const mapCommandPoint: ShallowRef<{ x: number; y: number; z: number } | null> = shallowRef(null);
 
+/** Coordinate currently reported by the map while a command builder is picking a corner. */
+export const mapPickPoint: ShallowRef<{ x: number; y: number; z: number } | null> = shallowRef(null);
+
+let mapPickEnabled = false;
+const mapPickPoints: { x: number; y: number; z: number }[] = [];
+
 /** Replaces the live instance (or clears it). Called by MapView, which owns the lifecycle. */
 export function setBlueMapApp(instance: BlueMapApp | null): void {
+    if (blueMapApp.value) blueMapApp.value.onMapCoordinatePick = null;
+    if (blueMapApp.value) blueMapApp.value.setMapCoordinatePreview([]);
     blueMapApp.value = instance;
     // The shell is optional on this instance: a test double, and an embedding host that
         // supplies its own chrome, both hand over an app with no material shell at all.
@@ -46,6 +54,25 @@ export function setBlueMapApp(instance: BlueMapApp | null): void {
         instance.materialShell.onBuildCommandHere = (point: { x: number; y: number; z: number }) => {
             mapCommandPoint.value = point;
         };
+    }
+    if (instance) {
+        instance.onMapCoordinatePick = (point: { x: number; y: number; z: number }) => {
+            if (mapPickEnabled) {
+                mapPickPoints.push(point);
+                if (mapPickPoints.length > 2) mapPickPoints.splice(0, mapPickPoints.length - 2);
+                instance.setMapCoordinatePreview(mapPickPoints);
+                mapPickPoint.value = point;
+            }
+        };
+    }
+}
+
+export function setMapCoordinatePicking(enabled: boolean): void {
+    mapPickEnabled = enabled;
+    if (!enabled) {
+        mapPickPoints.splice(0, mapPickPoints.length);
+        mapPickPoint.value = null;
+        blueMapApp.value?.setMapCoordinatePreview([]);
     }
 }
 

@@ -7,6 +7,10 @@ import {
     formById,
     makeAxis,
     makeCoord3,
+    makeTwoCornerSelection,
+    resetTwoCornerSelection,
+    selectTwoCorner,
+    toggleCoordinatePickMode,
     makeExecuteClause,
     makeTargetSelector,
     selectorError,
@@ -15,6 +19,31 @@ import {
     type ExecuteClause,
     type TargetSelector,
 } from "./commandBuilderModel.js";
+
+describe("two-corner map picking", () => {
+    it("assigns clicks to corner 1 then corner 2, restarting on a third click", () => {
+        const a = makeCoord3(1, 64, 2);
+        const b = makeCoord3(5, 70, 8);
+        const c = makeCoord3(9, 72, 13);
+        let selected = makeTwoCornerSelection();
+        selected = selectTwoCorner(selected, a);
+        expect(selected).toEqual({ corner1: a, corner2: null });
+        selected = selectTwoCorner(selected, b);
+        expect(selected).toEqual({ corner1: a, corner2: b });
+        expect(selectTwoCorner(selected, c)).toEqual({ corner1: c, corner2: null });
+    });
+
+    it("resets both corners", () => {
+        const selected = selectTwoCorner(selectTwoCorner(makeTwoCornerSelection(), makeCoord3(1, 2, 3)), makeCoord3(4, 5, 6));
+        expect(resetTwoCornerSelection()).toEqual({ corner1: null, corner2: null });
+        expect(selected.corner1).not.toBeNull();
+    });
+
+    it("switches between map and manual modes without changing the selected corners", () => {
+        expect(toggleCoordinatePickMode("manual")).toBe("map");
+        expect(toggleCoordinatePickMode("map")).toBe("manual");
+    });
+});
 
 describe("axisToken / coord3Tokens", () => {
     it("renders an absolute coordinate as a plain number", () => {

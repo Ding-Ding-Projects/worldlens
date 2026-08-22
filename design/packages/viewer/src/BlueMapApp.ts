@@ -11,6 +11,7 @@ import type { Animation } from "./util/Utils";
 import { MainMenu } from "./MainMenu";
 import { PopupMarker } from "./PopupMarker";
 import { MarkerSet } from "./markers/MarkerSet";
+import { ShapeMarker } from "./markers/ShapeMarker";
 import type { MarkerSetDataInput } from "./markers/MarkerSet";
 import { getLocalStorage, round, setLocalStorage } from "./Utils";
 import { RevalidatingFileLoader } from "./util/RevalidatingFileLoader";
@@ -159,6 +160,11 @@ export class BlueMapApp {
     viewAnimation: Animation | null;
     materialShell: MaterialShell;
     presentationPolicy: ViewerPresentationPolicy;
+    private commandPickPreviewSet: MarkerSet;
+    private commandPickPreviewMarkers: ShapeMarker[] = [];
+
+    /** Host callback used by command builders that are waiting for a map coordinate. */
+    onMapCoordinatePick: ((point: { x: number; y: number; z: number }) => void) | null = null;
 
     allowRemoteInjection: (kind: "script" | "style", url: string) => boolean;
     dataRoot: string;
@@ -177,6 +183,8 @@ export class BlueMapApp {
         this.materialShell = new MaterialShell(rootElement, this.presentationPolicy, {
             chrome: options.chrome ?? "served",
         });
+        this.commandPickPreviewSet = new MarkerSet("command-pick-preview", { toggleable: false });
+        this.mapViewer.markers.add(this.commandPickPreviewSet);
 
         this.mapControls = new MapControls(this.mapViewer.renderer.domElement, rootElement);
         this.freeFlightControls = new FreeFlightControls(this.mapViewer.renderer.domElement);
@@ -533,6 +541,26 @@ export class BlueMapApp {
         this.playerMarkerManager?.dispose();
         this.markerFileManager?.dispose();
         this.materialShell.dispose();
+        this.mapViewer.markers.remove(this.commandPickPreviewSet);
+    }
+
+    /** Draws small map squares for the active command-builder corners. */
+    setMapCoordinatePreview(points: readonly { x: number; y: number; z: number }[]): void {
+        this.commandPickPreviewMarkers.forEach((marker) => this.commandPickPreviewSet.remove(marker));
+        this.commandPickPreviewMarkers = points.map((point, index) => {
+            const marker = new ShapeMarker(`command-pick-${index}`);
+            marker.updateFromData({
+                position: point,
+                shape: [{ x: -1, z: -1 }, { x: 1, z: -1 }, { x: 1, z: 1 }, { x: -1, z: 1 }],
+                fillColor: { r: 255, g: 193, b: 7, a: 80 },
+                borderColor: { r: 255, g: 193, b: 7, a: 255 },
+                depthTest: false,
+                listed: false,
+            });
+            this.commandPickPreviewSet.add(marker);
+            return marker;
+        });
+        this.mapViewer.redraw();
     }
 
     loadSettings(): Promise<Partial<BlueMapAppSettings>> {
@@ -1107,6 +1135,11 @@ export class BlueMapApp {
                 object?: Object3D;
             }>
         ).detail;
+
+        const picked = detail.hit?.point;
+        if (this.onMapCoordinatePick && picked && !detail.data.contextMenu && !detail.data.doubleTap) {
+            this.onMapCoordinatePick({ x: picked.x, y: picked.y, z: picked.z });
+        }
 
         if (detail.data.contextMenu) {
             const context = detail.data;

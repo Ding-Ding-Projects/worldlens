@@ -36,6 +36,31 @@ import {
 
 export type CoordMode = "abs" | "rel" | "local";
 
+export type CoordinatePickMode = "manual" | "map";
+
+export function toggleCoordinatePickMode(mode: CoordinatePickMode): CoordinatePickMode {
+    return mode === "manual" ? "map" : "manual";
+}
+
+export interface TwoCornerSelection {
+    readonly corner1: Coord3 | null;
+    readonly corner2: Coord3 | null;
+}
+
+export function makeTwoCornerSelection(): TwoCornerSelection {
+    return { corner1: null, corner2: null };
+}
+
+/** Apply map clicks in order; a third click starts a fresh pair at corner 1. */
+export function selectTwoCorner(selection: TwoCornerSelection, point: Coord3): TwoCornerSelection {
+    if (!selection.corner1 || selection.corner2) return { corner1: point, corner2: null };
+    return { corner1: selection.corner1, corner2: point };
+}
+
+export function resetTwoCornerSelection(): TwoCornerSelection {
+    return makeTwoCornerSelection();
+}
+
 export interface CoordAxis {
     readonly mode: CoordMode;
     readonly value: number;
