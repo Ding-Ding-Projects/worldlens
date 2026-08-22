@@ -26,6 +26,7 @@ import {
     VTooltip,
 } from "vuetify/components";
 import { canLiveResume, canRestartPaused, canResume, etaText, formatBytes, partsText, phaseLabel, transferText } from "./backups.js";
+import { createRateMeter, rateText, remainingText } from "./transferRate.js";
 import type { BackupRow } from "./backups.js";
 import { useStickyScroll } from "../scroll/stickyScroll.js";
 
@@ -109,6 +110,40 @@ const percent = computed(() => props.row.task?.percent ?? 0);
 const transfer = computed(() => transferText(props.row.task, t));
 const parts = computed(() => partsText(props.row.task, t));
 const eta = computed(() => etaText(props.row.task, t));
+
+/**
+ * How fast this is going, measured here.
+ *
+ * The main process reports bytes done, never a rate, so a long upload showed a bar and a
+ * total and nothing about whether it was moving at all. "It might be stuck" and "it has
+ * forty minutes left" look identical from a percentage that has not visibly changed.
+ */
+const meter = createRateMeter();
+const rate = ref(meter.rate(0));
+
+watch(
+    () => [props.row.task?.bytesDone ?? 0, props.row.task?.bytesTotal ?? 0, props.row.state] as const,
+    ([done, total, state]) => {
+        // A finished or restarted row must not carry the previous run's speed into the next.
+        if (state !== "running") {
+            meter.reset();
+            rate.value = meter.rate(0);
+            return;
+        }
+        meter.observe(Date.now(), done);
+        rate.value = meter.rate(total);
+    },
+    { immediate: true },
+);
+
+const speed = computed(() => rateText(rate.value, (value) => formatBytes(value, t)));
+
+/**
+ * The main process's own estimate when it sent one, ours when it did not.
+ *
+ * Packing never sends an estimate, which is precisely the phase that runs longest.
+ */
+const remaining = computed(() => eta.value || remainingText(rate.value));
 const phase = computed(() => phaseLabel(props.row.phase, t));
 
 const title = computed(() => {
@@ -216,11 +251,25 @@ const cardLabel = computed(() =>
                     color="primary"
                     :aria-label="t('backup.row.progressLabel', 'How much of this backup is done')"
                 />
+                <!--
+                    Two lines, deliberately.
+
+                    The description names the file being packed and changes several times a
+                    second, so anything sharing its line slides sideways with it - the size
+                    was unreadable not because it was wrong but because it would not hold
+                    still. The numbers now have a line of their own that only their own
+                    values change.
+
+                    Only the numbers announce. The description changing thousands of times
+                    would make a screen reader unusable, so it is left out of the live region
+                    rather than narrated file by file.
+                -->
+                <p class="mb-meta mb-backup-row__current">{{ row.task?.description || phase }}</p>
                 <p class="mb-meta mb-backup-row__numbers" role="status" aria-live="polite">
-                    <span>{{ row.task?.description || phase }}</span>
-                    <span v-if="transfer"> · {{ transfer }}</span>
+                    <span v-if="transfer">{{ transfer }}</span>
                     <span v-if="parts"> · {{ parts }}</span>
-                    <span v-if="eta"> · {{ eta }}</span>
+                    <span v-if="speed"> · {{ speed }}</span>
+                    <span v-if="remaining"> · {{ remaining }}</span>
                 </p>
                 <div class="mb-backup-row__actions">
                     <v-btn

@@ -17,11 +17,46 @@ import { vocabularyStore } from "./vocabularyStore.js";
 import { schoolModeEnabled } from "../setup/schoolMode.js";
 
 /**
- * Replaces every occurrence of a matched vocabulary term inside `text`. Matching is a
- * literal, case-sensitive substring match on the entry's key: no regular expressions,
- * no partial-word heuristics, so a term a user did not actually write can never be
- * silently rewritten by an unrelated one that happens to look similar.
+ * Replaces every occurrence of a matched vocabulary term inside `text`.
+ *
+ * Matching is literal and case-sensitive on the entry's key, and it stops at word
+ * boundaries. That last part is not a refinement - it is the whole correctness of this
+ * function, and it was missing.
+ *
+ * A plain substring replace rewrites the INSIDE of longer words. With a mapping of
+ * `repo` to something else, "No download size was reported" rendered as
+ * "No download size was <replacement>rted" in the shipped interface: the sentence still
+ * looked like a sentence, so nothing about it read as broken, and the only clue was that
+ * one word had quietly become nonsense.
+ *
+ * The comment that used to sit here claimed the opposite - that a literal substring match
+ * meant "no partial-word heuristics, so a term a user did not actually write can never be
+ * silently rewritten". A substring match is precisely the thing that does that. Anyone
+ * reading it would have concluded this case was already handled.
+ *
+ * Boundaries are applied only where the key's own edge is a word character, so a key that
+ * begins or ends with punctuation or a space still matches where it should.
  */
+
+/** Escapes a user-supplied key so it can never be read as a pattern. */
+function escapeForPattern(key: string): string {
+    return key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const WORD_EDGE = /[A-Za-z0-9_]/;
+
+/**
+ * A pattern for one key, refusing to match inside a longer word.
+ *
+ * Lookarounds rather than ``, because `` is defined against word characters on BOTH
+ * sides and a key like `Gerk Tong Hui` or `--flag` has edges that are not word characters
+ * at all - there, `` would refuse matches that should be made.
+ */
+function patternFor(key: string): RegExp {
+    const before = WORD_EDGE.test(key[0] ?? "") ? String.raw`(?<![A-Za-z0-9_])` : "";
+    const after = WORD_EDGE.test(key[key.length - 1] ?? "") ? String.raw`(?![A-Za-z0-9_])` : "";
+    return new RegExp(`${before}${escapeForPattern(key)}${after}`, "g");
+}
 export function applyVocabulary(text: string): string {
     // School mode makes personal-vocabulary capability behave as if it is not installed.
     // The validated cache remains untouched so the user's choices return immediately after
@@ -32,9 +67,14 @@ export function applyVocabulary(text: string): string {
     if (keys.length === 0) return text;
 
     let result = text;
-    for (const key of keys) {
+    // Longest first, so a short key cannot consume the start of a longer one the user also
+    // mapped - with both `repo` and `repository` mapped, the shorter must not win.
+    for (const key of [...keys].sort((left, right) => right.length - left.length)) {
         if (key.length === 0) continue;
-        result = result.split(key).join(entries[key] as string);
+        const replacement = entries[key] as string;
+        // A function replacement, so a `$&` or `$1` inside somebody's own vocabulary value
+        // is inserted literally rather than being read as a backreference.
+        result = result.replace(patternFor(key), () => replacement);
     }
     return result;
 }

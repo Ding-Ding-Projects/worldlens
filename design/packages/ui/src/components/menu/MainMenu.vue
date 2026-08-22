@@ -64,10 +64,34 @@ watch(page, (value) => {
     if (value && value.id !== "-") lastTitle.value = value.title;
 });
 
+/**
+ * A page title that is safe to render.
+ *
+ * The viewer's own menu pages carry their titles as translation KEYS, and a key that has no
+ * entry in the active catalogue arrives here as the literal string - so the heading rendered
+ * as "menu.title" on screen, which is the kind of defect that looks like a missing feature
+ * rather than a missing string.
+ *
+ * A title is treated as a key only when it looks like one: dotted, no whitespace, and
+ * lower-case at the front. A real heading like "Take Screenshot" can never match that, so
+ * nothing legitimate is sent through translation and quietly changed.
+ */
+function resolveTitle(value: string): string {
+    const looksLikeKey = /^[a-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+$/.test(value);
+    if (!looksLikeKey) return value;
+
+    // The last segment, spaced and capitalised, is a far better last resort than the key
+    // itself: "menu.title" reads as "Title" rather than as something broken.
+    const leaf = value.split(".").pop() ?? value;
+    const humanised = leaf.replace(/[_-]+/g, " ").replace(/^./, (c) => c.toUpperCase());
+    const translated = t(value, humanised);
+    return translated === value ? humanised : translated;
+}
+
 const title = computed(() => {
     const current = page.value;
-    if (current && current.id !== "-") return current.title;
-    return lastTitle.value;
+    if (current && current.id !== "-") return resolveTitle(current.title);
+    return resolveTitle(lastTitle.value);
 });
 
 const pageId = computed(() => page.value?.id ?? null);

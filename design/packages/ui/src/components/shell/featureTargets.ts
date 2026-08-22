@@ -24,7 +24,7 @@
 import type { JobId } from "./jobRegistry.js";
 
 /** The three persistent destinations in the application rail. */
-export type RailDestination = "home" | "map" | "work";
+export type RailDestination = "home" | "map" | "work" | "host";
 
 /** The five catalogues Home offers, in the order they are shown. */
 export const CATALOGUE_IDS = ["make", "maps", "share", "copy", "host", "setup"] as const;

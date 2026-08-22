@@ -59,6 +59,45 @@ describe("the personal-vocabulary UI text boundary", () => {
         expect(translate("missing.key", { value: "Open" }, "Open {value}")).toBe("Launch Open");
     });
 
+    it("never rewrites the inside of a longer word", () => {
+        // Found in the shipped interface. With `repo` mapped, an update notice reading
+        // "No download size was reported" rendered as "...was <replacement>rted" - the
+        // sentence still looked like a sentence, so nothing read as broken, and one word
+        // had quietly become nonsense.
+        load({ repo: "vault" });
+
+        expect(applyVocabulary("No download size was reported, so there is no percentage to show.")).toBe(
+            "No download size was reported, so there is no percentage to show.",
+        );
+        // The standalone word still maps, which is the whole point of having the feature.
+        expect(applyVocabulary("open the repo")).toBe("open the vault");
+        expect(applyVocabulary("repository")).toBe("repository");
+        expect(applyVocabulary("preposition")).toBe("preposition");
+    });
+
+    it("prefers the longer key when a shorter one is a prefix of it", () => {
+        // Both mapped, so replacing `repo` first would leave "vaultsitory".
+        load({ repo: "vault", repository: "archive" });
+
+        expect(applyVocabulary("the repository and the repo")).toBe("the archive and the vault");
+    });
+
+    it("still matches a key whose own edges are not word characters", () => {
+        // Word boundaries are applied only where the KEY's edge is a word character. A
+        // multi-word key or a flag has non-word edges, and `` there would refuse
+        // matches that ought to be made.
+        load({ "Gerk Tong Hui": "workspace", "--force": "--insist" });
+
+        expect(applyVocabulary("the Gerk Tong Hui is clean")).toBe("the workspace is clean");
+        expect(applyVocabulary("pass --force here")).toBe("pass --insist here");
+    });
+
+    it("inserts a replacement containing $& literally rather than as a backreference", () => {
+        load({ cost: "$& per hour" });
+
+        expect(applyVocabulary("the cost")).toBe("the $& per hour");
+    });
+
     it("keeps embedded technical facts exact while replacing the prose around them", () => {
         load({ Open: "Launch", PATH: "ROUTE", "level.dat": "world.file", "256": "many" });
 

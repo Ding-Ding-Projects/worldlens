@@ -81,7 +81,11 @@ describe("the application rail", () => {
         const rail = mountRail();
         const items = rail.findAll(".wl-rail-item");
 
-        expect(items).toHaveLength(3);
+        // Home, Map, Host Server, Work. The count is asserted rather than merely iterated so
+        // that a destination quietly disappearing fails here instead of being noticed by
+        // somebody who went looking for it and could not find it.
+        expect(items).toHaveLength(4);
+        expect(items.map((item) => item.find(".wl-rail-label").text())).toContain("Host Server");
         for (const item of items) {
             expect(item.element.tagName).toBe("BUTTON");
             // Visible text, not an icon alone. An icon-only rail is one people learn by trial and

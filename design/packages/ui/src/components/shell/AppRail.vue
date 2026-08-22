@@ -8,6 +8,7 @@ import {
     mdiHomeOutline,
     mdiMagnify,
     mdiMapOutline,
+    mdiServerOutline,
 } from "@mdi/js";
 import { VIcon, VTooltip } from "vuetify/components";
 import type { RailDestination } from "./featureTargets.js";
@@ -116,6 +117,13 @@ const items = computed<readonly RailItem[]>(() => [
         id: "map",
         icon: mdiMapOutline,
         label: t("rail.map", "Map"),
+        badge: 0,
+        badgeLabel: "",
+    },
+    {
+        id: "host",
+        icon: mdiServerOutline,
+        label: t("rail.host", "Host Server"),
         badge: 0,
         badgeLabel: "",
     },
