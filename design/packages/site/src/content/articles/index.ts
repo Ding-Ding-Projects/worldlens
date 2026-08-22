@@ -73,6 +73,7 @@ import { pagesFeatureParity } from "./pages-feature-parity.js";
 import { actionWalkthroughs } from "./action-walkthroughs.js";
 import { scheduledSettings } from "./scheduled-settings.js";
 import { panelGeometry } from "./panel-geometry.js";
+import { mcserverHosting } from "./mcserver-hosting.js";
 
 export const articles: readonly Article[] = [
     glossary,
@@ -106,6 +107,7 @@ export const articles: readonly Article[] = [
     actionWalkthroughs,
     scheduledSettings,
     panelGeometry,
+    mcserverHosting,
     worldReading,
     worldDiscovery,
     legacyWorldSupport,

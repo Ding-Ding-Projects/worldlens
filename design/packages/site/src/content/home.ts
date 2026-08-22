@@ -18,6 +18,8 @@
 
 import type { HomeContent } from "./types.js";
 import {
+    MCSERVER_MANAGER_DOC_URL,
+    MCSERVER_TRANSPORT_DOC_URL,
     ACTION_ARTWORK_DOC_URL,
     APPEARANCE_EDITORS_DOC_URL,
     BACKUP_DOC_URL,
@@ -535,6 +537,18 @@ export const home: HomeContent = {
                     statusNote:
                         "Built and covered by 166 tests, all of which drive a stand-in for GitHub's endpoints. A gated real-account file now proves the app's own client id and a real account's token against the live server; nobody has clicked Authorize on GitHub's own page, which no script can do for them. The account now reaches the download path and the backup path, and neither has been run against real GitHub.",
                     articleId: "github-sign-in",
+                },
+                {
+                    title: "Run the Minecraft server itself, not only its map",
+                    body: "A \"Minecraft servers\" destination that installs, configures, consoles into, and manages the players and plugins of a real server - a local process, a local Docker container, or a container reached over SSH - with every setting a real typed control rather than a text box. A password-protected web console reaches the same four screens from a browser.",
+                    status: "shipped",
+                    statusNote:
+                        "The transport layer, registry, config editor, RCON console, player and plugin managers and web console are wired into the left rail and covered by several hundred tests, all against fakes rather than a real Docker daemon, SSH host or java process. Adoption's review dialog and discovery logic are built and tested but unreachable: the Adopt button opens nothing, because nothing listens for the event it emits, and no adoption-browsing screen exists yet.",
+                    articleId: "mcserver-hosting",
+                    reading: [
+                        { label: "docs/minecraft-server-manager.md", href: MCSERVER_MANAGER_DOC_URL },
+                        { label: "docs/mcserver-transport.md", href: MCSERVER_TRANSPORT_DOC_URL },
+                    ],
                 },
                 {
                     title: "A window that draws its own chrome",

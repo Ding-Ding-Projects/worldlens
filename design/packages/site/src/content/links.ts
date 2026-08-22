@@ -84,6 +84,12 @@ export const SCHEDULED_SETTINGS_DOC_URL = repoFile(
     "docs/scheduled-settings-and-external-sources.md",
 );
 export const PANEL_GEOMETRY_DOC_URL = repoFile("docs/panel-geometry.md");
+export const MCSERVER_TRANSPORT_DOC_URL = repoFile("docs/mcserver-transport.md");
+export const MCSERVER_CONFIG_DOC_URL = repoFile("docs/mcserver-config.md");
+export const MCSERVER_MANAGER_DOC_URL = repoFile("docs/minecraft-server-manager.md");
+export const MCSERVER_PLUGINS_DOC_URL = repoFile("docs/mcserver-plugins.md");
+export const MCSERVER_WEB_CONSOLE_DOC_URL = repoFile("docs/mcserver-web-console.md");
+export const MCSERVER_AWS_DOC_URL = repoFile("docs/mcserver-aws.md");
 
 /** Upstream BlueMap, the project this is a port of. */
 export const UPSTREAM_URL = "https://github.com/BlueMap-Minecraft/BlueMap";
