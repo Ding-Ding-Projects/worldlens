@@ -258,7 +258,7 @@ jobs:
           # Executables this build GENERATES, which is what the no-signing policy is about.
           #
           # The packaged tree now also carries a vendored Temurin JRE under
-          # resourcesundledjava, so that the installer contains the runtime instead of
+          # resources\bundled\java, so that the installer contains the runtime instead of
           # asking a stranger to download one. Those binaries are Eclipse Adoptium's, and they
           # arrive carrying Adoptium's own Authenticode signature: jabswitch.exe is the one
           # that first tripped this gate, but java.exe and javaw.exe are signed too.
@@ -274,7 +274,7 @@ jobs:
           # this build emits stays inside the check, including Worldlens.exe and every Squirrel
           # setup executable, so a signed artefact of our own cannot hide by being placed
           # somewhere new.
-          $vendoredRoot = Join-Path $applicationDirectories[0] 'resourcesundled'
+          $vendoredRoot = Join-Path $applicationDirectories[0] 'resources\bundled'
           $vendoredExecutables = @(
             $packagedExecutables | Where-Object { $_.FullName.StartsWith($vendoredRoot, [System.StringComparison]::OrdinalIgnoreCase) }
           )
@@ -308,7 +308,7 @@ jobs:
             exit 1
           }
           Write-Host "verified $($executables.Count) generated executable(s): Worldlens-branded and NotSigned"
-          Write-Host "vendored (not this build's output, vendor signatures kept): $($vendoredExecutables.Count) executable(s) under resourcesundled"
+          Write-Host "vendored (not this build's output, vendor signatures kept): $($vendoredExecutables.Count) executable(s) under resources\bundled"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
