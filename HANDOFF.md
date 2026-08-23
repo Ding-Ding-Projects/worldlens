@@ -1,5 +1,138 @@
 # Handoff
 
+## 2026-08-23: runtimes inside the installer, and the GUI defects that exposed them
+
+### What the project is now, in one paragraph
+
+Worldlens is a Windows desktop app (Electron shell, Vue renderer, pnpm workspace under
+`design/`) that renders Minecraft worlds into BlueMap web maps and manages Minecraft servers.
+As of this session its installer is **self-contained**: it carries its own Java runtime and the
+Chunker jar rather than downloading them on first use, so a fresh install renders and converts
+with the network unplugged. `Setup.exe` grew from 169 MB to 424 MB as a direct result, which is
+the intended trade and is stated in `docs/dependency-provisioning.md`.
+
+### Published baseline
+
+| tag | target commit | verified how |
+|---|---|---|
+| `v1.0.1640` | `214f32f83d346b24b96358d0c4c47c0bf6eee1ff` | `gh release view`: non-draft, non-prerelease, 6 assets all nonzero, tag resolves to that exact commit via `git ls-remote` |
+| `v1.0.1637` | `966590b4` | Der Machine reported every run green; this is the first release carrying both the runtimes and the wiring that uses them |
+
+`main` is `e27ddd9e`. Its CI run had not reached a terminal state when this handoff was
+written; treat that verdict as unknown rather than green.
+
+### The bundled runtime, and how to check it is real
+
+`design/packages/app/scripts/stage-bundled-runtimes.mjs` downloads two pinned, digest-verified
+artifacts at package time into `dist/bundled/`, which `electron-builder` copies to
+`resources/bundled/`:
+
+- Temurin **JRE** `25.0.4.1+1-LTS`, sha256 `4c95451c…`, 58,475,080 bytes compressed and
+  **179.1 MB extracted across 320 files**. A JRE rather than a JDK because the app runs `java`
+  and never compiles.
+- `chunker-cli-1.19.1.jar`, sha256 `327662e8…`, 31,790,149 bytes, the same asset and digest as
+  `PINNED_CHUNKER` in `src/main/bedrock/chunker.ts`.
+
+A digest mismatch deletes the bytes and fails the build. Staging is wired into both the
+`package` and `make` scripts, so a build cannot silently omit it.
+
+**Verified end to end, not inferred.** This machine has no `JAVA_HOME`, no `java` on `PATH`,
+and no provisioned copy, which is the clean-install case. Asked through the app's own IPC from
+the packaged artifact, `worldlens.javaRuntime()` answered:
+
+```
+source:     bundled
+executable: ...\resources\bundled\java\bin\java.exe
+runtime:    OpenJDK Runtime Environment Temurin-25.0.4.1+1 (build 25.0.4.1+1-LTS)
+```
+
+Before the wiring the same call returned `installation: null`.
+
+**The trap to know about.** Shipping the runtime and *using* it are separate. Four call sites
+resolve a JVM and all four originally passed only `dataDir`: `render/engine.ts`,
+`mcserver/ipc.ts` (twice), `java/ipc.ts`, and `index.ts`. With any JDK installed, every one of
+them works anyway because `JAVA_HOME` or `PATH` answers, so the omission is invisible on a
+developer machine and total on a clean install. `bundledRuntimeWiring.test.ts` pins it.
+
+Direct runtime proof exists for **one** of the four (`java/ipc.ts`). The other three are wired
+and guarded but were not exercised at runtime, because the render path needs BlueMap jars that
+are not staged locally.
+
+### Chut inventory, measured this session
+
+Green: `shared` 210, `config` 234 (2 skipped), `nbt` 56, `parts` 38, `chunker` 50,
+`worldgen` 32, `server` 53, `viewer` 131, `cli` 47 (2 skipped), `site` 828, `md3-check` 17.
+
+Red, all pre-existing and tracked by **#162**: `render-actions` 4 failed of 258, `ui` 66 failed
+of 5415, `app` 41 failed of 3547 (last measured before this session's fixes).
+
+`engine` was measured at 1492 tests with 4 failures earlier in the session; three were repaired
+and the fourth was a timeout under CPU contention. A fresh per-package sweep was still running
+at `engine` when this handoff was written, so treat the engine and app rows as unconfirmed.
+
+### Chuts that run against the built artifact rather than source
+
+The signing proof in `ci.yml` recurses the packaged tree, and this matters now that the tree
+contains a vendored JRE: Adoptium signs its own binaries, so `jabswitch.exe` and friends report
+`Valid`. The gate is scoped to **generated** executables, excluding exactly
+`resources\bundled`, and it fails when that directory contains no executables at all. Verified
+against the real package: 13 vendored binaries excluded, 1 (`Worldlens.exe`) checked, 0
+violations.
+
+CI itself runs **no tests** and says so in its own release notes. A green hui verdict is a
+build verdict only.
+
+### Fixed this session
+
+- **Adoption** could open nothing: the shell discarded the discovery failure, returned silently
+  on no candidates, and took `value?.[0]`. `AdoptionBrowser.vue` now answers for all four
+  outcomes. Guard proven red four ways.
+- **Flavour cards drew every option's prose on top of every other's.** `flex-direction: column`
+  was set on the `VBtn` root; Vuetify lays out `.v-btn__content`. Fixing that exposed a second
+  defect: `height: auto` plus the design system's `corner-full` button default rendered each
+  card as an **ellipse**. Corner now spent through the `rounded` prop, confirmed 16px in the
+  running app.
+- **The server list had no page margins**, so "New server" sat flush against the window edge.
+  Now `18px 48px 48px`, matching the catalogue, and the grid is two fixed columns at 14px,
+  read back from the running app's stylesheet.
+- **`engine` and `server` were aborting**, not failing: a libuv `fs-event.c` assertion killed
+  the process. The guard read `major >= 26`; this machine runs Node 24.19.0. CI pins Node 22
+  and runs no tests, so nothing caught it. The same abort kills the product while a map is
+  watched.
+- Three stale tests moved onto real behaviour, and the viewer's `localStorage` double was
+  three methods deep so asking it what was stored returned a confident empty answer.
+
+### Open boundaries
+
+- **#162** pre-existing red gates. **#160** stale capture evidence: `docs/screenshots/manifest.json`
+  still records `commit: "(local run)"` and `captureMode: "none"`, so no capture is pinned to a
+  verified commit.
+- `scripts/sync-screenshots.mjs` was retargeted at the local capture matrix because the CI
+  `screenshots` job no longer exists; that refresh route has not been exercised.
+- The design canvas in the zip publishes a type ramp differing from stock Material 3
+  (headline-medium 32/40, title-medium 17/24, body-medium 14/21). The shell renders those
+  numbers as hand-written rem literals rather than tokens. Deliberately untouched: moving the
+  token ramp off spec is a decision, not a cleanup.
+
+### 廣東話同步
+
+今次將 runtime 塞咗入安裝檔：Temurin JRE 同釘死版本嘅 Chunker jar，兩個都對過 digest。
+`Setup.exe` 由 169 MB 變 424 MB，係預期之內嘅代價，文件有寫明。
+
+最重要嘅一課：**「帶咗個 runtime」同「真係用緊佢」係兩件事。** 四個解析 JVM 嘅 call site
+原本全部淨係傳 `dataDir`，而只要部機裝過 JDK，四條路都行得好地地，所以喺開發機上面完全睇
+唔出，喺乾淨新裝機就完全壞。已經接通，亦加咗守衛釘死。
+
+GUI 方面：flavour 卡啲字疊晒，係因為 `flex-direction: column` 落錯咗喺 `VBtn` 個 root；
+改完之後又踩到卡變橢圓形，因為設計系統本身將 button 預設做 `corner-full`。伺服器清單完全
+冇頁邊距，粒「New server」貼住視窗邊。
+
+`engine` 同 `server` 唔係肥佬，係直情 abort：libuv 喺 Windows 嘅 assertion。防護寫住
+Node >= 26，但呢部機行 24。CI 釘死 22 而且根本唔行測試，所以一直冇人發現。
+
+---
+
+
 ## 2026-08-22 — Reusable WorldLens design system package
 
 Commit `d32e7a24be60fddfa6e95d2a4d84c080c19a37dc` introduces the publishable
