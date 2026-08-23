@@ -110,6 +110,7 @@ import { provideServerStore, resolveServerHost } from "./components/mcserver/use
 import ServerListScreen from "./components/mcserver/ServerListScreen.vue";
 import CreateServerWizard from "./components/mcserver/CreateServerWizard.vue";
 import AdoptionReviewDialog from "./components/mcserver/AdoptionReviewDialog.vue";
+import AdoptionBrowser from "./components/mcserver/AdoptionBrowser.vue";
 import type { AdoptionCandidate } from "./components/mcserver/serverStore.js";
 import type { ServerRecord } from "./components/mcserver/serverModel.js";
 import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
@@ -203,6 +204,7 @@ provideServerStore(mcServerStore);
 const mcServerCreateOpen = ref(false);
 const mcServerOpenId = ref<string | null>(null);
 const mcServerAdoptOpen = ref(false);
+const mcServerAdoptBrowseOpen = ref(false);
 const mcServerAdoptRecord = ref<ServerRecord | null>(null);
 const mcServerAdoptContainerId = ref<string | null>(null);
 
@@ -223,10 +225,29 @@ function adoptionRecord(candidate: AdoptionCandidate): ServerRecord {
     };
 }
 
-async function openMcServerAdoption(): Promise<void> {
-    const discovered = await mcServerStore.adoptDiscover();
-    const candidate = discovered.ok ? discovered.value?.[0] : undefined;
-    if (!candidate) return;
+/**
+ * Adoption, step one: show the candidates rather than guessing one.
+ *
+ * This used to call `adoptDiscover()` here and act on `value?.[0]`, which had three
+ * separate ways of doing nothing at all. It dropped the `Answer`'s failure, so a host that
+ * has not wired the namespace, a refused Docker permission and a genuinely empty machine
+ * were indistinguishable. It returned early when there was no candidate, so the button
+ * opened no dialog and reported no error, which is precisely what a control that looks
+ * live but does nothing is forbidden from doing. And it took index zero, so a machine with
+ * three adoptable containers let the user reach exactly one of them and never said the
+ * other two existed.
+ *
+ * The browser owns discovery now and has to answer for every outcome: in flight, failed
+ * with the real reason and a way to try again, empty with what would be here and where it
+ * comes from, or a list the user actually chooses from. This function only opens it, which
+ * is why it no longer needs to be async.
+ */
+function openMcServerAdoption(): void {
+    mcServerAdoptBrowseOpen.value = true;
+}
+
+/** Step two: the chosen candidate goes to the review dialog that was always there. */
+function reviewMcServerCandidate(candidate: AdoptionCandidate): void {
     mcServerAdoptRecord.value = adoptionRecord(candidate);
     mcServerAdoptContainerId.value = candidate.containerId;
     mcServerAdoptOpen.value = true;
@@ -2191,6 +2212,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @adopt="openMcServerAdoption"
                         />
                         <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <AdoptionBrowser
+                            v-model="mcServerAdoptBrowseOpen"
+                            @picked="reviewMcServerCandidate"
+                        />
                         <AdoptionReviewDialog
                             v-model="mcServerAdoptOpen"
                             :record="mcServerAdoptRecord"
@@ -2446,6 +2471,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @adopt="openMcServerAdoption"
                         />
                         <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <AdoptionBrowser
+                            v-model="mcServerAdoptBrowseOpen"
+                            @picked="reviewMcServerCandidate"
+                        />
                         <AdoptionReviewDialog
                             v-model="mcServerAdoptOpen"
                             :record="mcServerAdoptRecord"
@@ -2737,7 +2766,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                             }
                                         "
                                     />
-                                    <AdoptionReviewDialog
+                                    <AdoptionBrowser
+                                        v-model="mcServerAdoptBrowseOpen"
+                                        @picked="reviewMcServerCandidate"
+                                    />
+                        <AdoptionReviewDialog
                                         v-model="mcServerAdoptOpen"
                                         :record="mcServerAdoptRecord"
                                         :container-id="mcServerAdoptContainerId"
