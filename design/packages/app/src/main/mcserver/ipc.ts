@@ -136,6 +136,15 @@ export type IpcMainLike = Pick<IpcMain, "handle" | "removeHandler">;
 
 export interface McServerIpcOptions {
     readonly dataFolder: string;
+    /**
+     * Electron process.resourcesPath in a packaged app, null in development.
+     *
+     * The Java a server runs on is discovered here, and without this the runtime the
+     * installer carries is never a candidate. That is the difference between a fresh
+     * install opening a server normally and one telling the user no Java runtime has been
+     * chosen while a working one sits unused in resources/bundled/java.
+     */
+    readonly resourcesPath?: string | null;
     /** Where new servers' directories are created. Defaults to `<dataFolder>/servers`. */
     readonly serversRoot?: string;
     readonly factory?: FactoryDeps;
@@ -762,6 +771,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             const feature = requirement.known ? requirement.feature : REQUIRED_JAVA_FEATURE;
             const discovery = await discoverJava({
                 dataDir: options.dataFolder,
+                ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
                 required: feature,
                 ...(options.javaRunner === undefined ? {} : { runner: options.javaRunner }),
                 ...(options.javaExists === undefined ? {} : { exists: options.javaExists }),
@@ -799,6 +809,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             // hundred megabytes somebody already has.
             const discovery = await discoverJava({
                 dataDir: options.dataFolder,
+                ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
                 required: feature,
                 ...(options.javaRunner === undefined ? {} : { runner: options.javaRunner }),
                 ...(options.javaExists === undefined ? {} : { exists: options.javaExists }),

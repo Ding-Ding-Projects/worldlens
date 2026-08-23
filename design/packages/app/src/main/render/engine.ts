@@ -87,6 +87,15 @@ export function upstreamJavaEngine(
         try {
             java = await ensureJava({
                 dataDir: options.dataDir,
+                // Without this the runtime inside the installer is invisible to the one path
+                // that actually renders, and the app goes hunting the machine for a JVM it is
+                // already carrying. It fails silently in the worst way: on a developer box
+                // with a JDK installed everything works, and on a clean install the user is
+                // told no Java runtime has been chosen while a perfectly good one sits in
+                // `resources/bundled/java`.
+                ...(options.resourcesPath === undefined
+                    ? {}
+                    : { resourcesPath: options.resourcesPath }),
                 ...(options.allowProvisioning === undefined
                     ? {}
                     : { allowProvisioning: options.allowProvisioning }),

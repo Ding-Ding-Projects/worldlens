@@ -556,6 +556,11 @@ function registerIpc(): void {
     // a machine with no Docker still has a server list worth reading.
     mcServerIpc = registerMcServerHandlers(ipcMain, {
         dataFolder: app.getPath("userData"),
+        // The runtime a Minecraft server is launched on is discovered in this module, and
+        // this is what lets the copy inside the installer be one of the candidates. Omit it
+        // and a clean install reports that no Java runtime has been chosen while carrying a
+        // perfectly good one, which is the exact state bundling exists to remove.
+        resourcesPath: app.isPackaged ? process.resourcesPath : null,
         safeStorage,
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
@@ -1564,7 +1569,13 @@ function startBedrockConversion(): BedrockIpc {
         appVersion: app.getVersion(),
         resolveJava: async () => {
             try {
-                const java = await ensureJava({ dataDir: app.getPath("userData") });
+                // Bedrock conversion runs Chunker on a JVM, so it needs the bundled runtime
+                // offered to it too. Passing `dataDir` alone would send a packaged install
+                // hunting the machine for a Java it already ships.
+                const java = await ensureJava({
+                    dataDir: app.getPath("userData"),
+                    resourcesPath: app.isPackaged ? process.resourcesPath : null,
+                });
                 return {
                     ok: true,
                     executable: java.installation.executable,
