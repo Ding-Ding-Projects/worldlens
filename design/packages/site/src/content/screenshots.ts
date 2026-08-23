@@ -1,10 +1,21 @@
 /**
  * The screenshots gallery page.
  *
- * Images come from the app's own Playwright harness, downloaded from a CI run at build
- * time by `scripts/fetch-screenshots.mjs`. When no artifact was available the page says
- * so and shows nothing. There are no placeholder images: a stand-in in a gallery of
- * real captures is indistinguishable from a real capture to anyone scrolling.
+ * Images come from the app's own Playwright capture matrix, run locally against the
+ * packaged application on a hidden Windows desktop and committed to `docs/screenshots/`.
+ * The page reads them from the tree, so a fresh clone shows the complete set.
+ *
+ * The copy here used to say they were downloaded from a CI run at build time by
+ * `scripts/fetch-screenshots.mjs`. That stopped being true when the capture job was
+ * removed from `ci.yml`, which now builds and packages release inputs only. Provenance
+ * prose that describes a route the project no longer has is worse than no prose: a reader
+ * who checks it finds nothing, and then has no reason to believe the rest of the page.
+ * The fetch script still runs at build time and still degrades honestly, but what it can
+ * find now is at most an old, unexpired artifact, never a fresh one.
+ *
+ * When no artifact was available the page says so and shows nothing in that section.
+ * There are no placeholder images: a stand-in in a gallery of real captures is
+ * indistinguishable from a real capture to anyone scrolling.
  */
 
 import type { ScreenshotAvailability, ScreenshotCapture } from "./types.js";
@@ -16,8 +27,8 @@ export type { ScreenshotAvailability, ScreenshotCapture };
 
 export const screenshotsCopy = {
     title: "Screenshots",
-    lead: "Every image here is a capture of the real running application, taken by the project's Playwright harness in continuous integration. None is a mockup, a design file or a hand-edited picture.",
-    caveat: "The map under the interface is real and was rendered by the same workflow run: CI generates a world with a fresh seed on every push, renders it with upstream BlueMap's Java engine built in that run, and serves it to the harness, which fails the job if the application reaches the public internet while capturing. When a capture shows a broken or empty window, that is the state the build was in: the harness publishes what it found rather than hiding it.",
+    lead: "Every image here is a capture of the real running application, taken by the project's Playwright capture matrix driving the packaged app on a maintainer's machine, on an off-screen desktop with a fresh profile. None is a mockup, a design file or a hand-edited picture.",
+    caveat: "The captures are not taken in continuous integration: that workflow builds and packages release inputs only, and has no capture job. What each set actually did is recorded by the run itself, in the manifest committed beside the images, and the provenance below is read straight out of it: which harness took it, how, at which commit and in which run. That same manifest records the map source, the capture mode and every network host the application reached for, so a claim about what is under the interface can be checked against the file rather than against this sentence. When a capture shows a broken or empty window, that is the state the build was in: the harness publishes what it found rather than hiding it.",
     committedHeading: "Committed to this repository",
     committedLead:
         "These are tracked in git, so they travel with every clone and this page shows the complete committed evidence inventory whether or not a workflow artifact could be collected for the build. The cards are grouped by what they prove, and one plain-text-first search covers category, title, description, recorded state, theme, viewport and source commit. Its adjacent builder applies the site's full bounded regular-expression engine to that same search. Historical, issue-specific and retired captures stay visible in their own labelled categories instead of being presented as the current interface.",
@@ -30,13 +41,13 @@ export const screenshotsCopy = {
     committedEvidenceComplete: "{resolved} of {gallery} screenshot targets resolve; inventory {inventory} targets across {groups} evidence groups.",
     committedEvidenceMissing: "{missing} screenshot targets are recorded in the ledger but are not present in this checkout: {files}.",
     committedEvidenceUnpinned: "Capture provenance is not pinned to a candidate commit yet ({commit}); this gallery is current for the checked-in files, not release-grade smoke proof.",
-    ciHeading: "Collected from a recent workflow run",
-    ciLead: "Downloaded from the newest workflow run that still had an unexpired screenshot artifact when this site was built. Artifacts expire, so this set changes and the committed set above does not.",
+    ciHeading: "Collected from a workflow run, a source no longer produced",
+    ciLead: "Downloaded from the newest workflow run that still had an unexpired screenshot artifact when this site was built. No new run produces one: the capture job was removed from the build workflow, which now builds and packages release inputs only. Anything shown here is a leftover artifact that has not yet expired, and once the last one does this section is gone for good. The committed set above is the current evidence.",
     ciNoAdditional:
         "Every filename in the fetched artifact is already present in the complete committed gallery above, so the page does not render duplicate cards.",
     unavailableHeading: "No workflow artifact was collected for this build",
     unavailableLead:
-        "No screenshot artifact could be collected when this site was built, so there is no fetched set to show. The reason is below. Nothing has been substituted for the missing images.",
+        "No screenshot artifact could be collected when this site was built, so there is no fetched set to show. The reason is below. Nothing has been substituted for the missing images. This is now the expected state: no workflow produces that artifact any more, and the complete committed gallery above is where the captures live.",
     unavailableLinkLabel: "Open the workflow run history",
     unavailableLinkHref: ACTIONS_URL,
     provenanceHeading: "Where these came from",

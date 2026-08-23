@@ -1,11 +1,25 @@
 #!/usr/bin/env node
 /**
- * fetch-screenshots.mjs — collect the app's real captures for the site's gallery.
+ * fetch-screenshots.mjs: collect a `screenshots` workflow artifact for the site's gallery.
  *
- * The app's Playwright harness runs in CI and uploads a `screenshots` artifact. This
- * script finds the most recent successful run that still has one, downloads it, checks
- * every file is genuinely a PNG, copies the images into the site's public directory and
- * writes a generated module describing them.
+ * This script finds the most recent successful run that still has one, downloads it,
+ * checks every file is genuinely a PNG, copies the images into the site's public
+ * directory and writes a generated module describing them.
+ *
+ * That artifact is no longer produced. The capture job was removed from `ci.yml`, which
+ * now builds and packages release inputs only, so the newest thing this can find is a
+ * leftover artifact that has not yet aged out, and after that nothing. The script is kept
+ * rather than deleted because it is what makes the absence honest: it degrades to the
+ * unavailable state instead of throwing, and any surviving artifact stays usable to its
+ * retention limit. Deleting it would leave the deploy workflow calling a missing file and
+ * the gallery with a section that has no code behind it and no reason given for why it is
+ * empty.
+ *
+ * The captures a reader actually sees are the committed ones under `docs/screenshots/`,
+ * read out of the tree by `src/content/captures.ts`. Those are produced locally by the
+ * capture matrix in `design/packages/app`, driven on a hidden Windows desktop, and moved
+ * into the tree by `scripts/sync-screenshots.mjs` at the repository root. See
+ * `.claude/skills/run-worldlens/SKILL.md` for how the matrix is run.
  *
  * When there is no artifact to be had, the generated module says so and gives the
  * reason. The gallery then renders its unavailable state. Nothing is substituted: a
@@ -61,10 +75,15 @@ const HARNESS_DEFAULT_SCHEME = "system";
 const HEADER = [
     "GENERATED FILE. Do not edit by hand.",
     "",
-    "Written by `design/packages/site/scripts/fetch-screenshots.mjs`, which downloads the",
-    "`screenshots` artifact produced by the app's Playwright harness in CI and copies the",
-    "images into the site's public directory. The workflow that deploys the site runs that",
-    "script before every build.",
+    "Written by `design/packages/site/scripts/fetch-screenshots.mjs`, which looks for a",
+    "`screenshots` workflow artifact and copies any images it finds into the site's public",
+    "directory. The workflow that deploys the site runs that script before every build.",
+    "",
+    "No workflow produces that artifact any more: ci.yml is release inputs only and its",
+    "capture job was removed with the rest of the quality work. So this file normally records",
+    "an absence, and that is the honest outcome rather than a failure. The captures a reader",
+    "actually sees come from `docs/screenshots/`, which is committed to the repository and",
+    "refreshed by `scripts/sync-screenshots.mjs` from a local capture run.",
     "",
     "The version committed to the repository is deliberately the unavailable one, so a",
     "fresh clone builds a gallery that says captures are not available rather than one",
