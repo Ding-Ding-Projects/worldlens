@@ -274,7 +274,12 @@ jobs:
           # this build emits stays inside the check, including Worldlens.exe and every Squirrel
           # setup executable, so a signed artefact of our own cannot hide by being placed
           # somewhere new.
-          $vendoredRoot = Join-Path $applicationDirectories[0] 'resources\bundled'
+          # GetFullPath, because $applicationDirectories[0] is one of the relative,
+          # forward-slashed literals tested above while Get-ChildItem hands back absolute
+          # backslashed FullName values. Comparing the two with StartsWith can never match, so
+          # the first version of this found zero vendored executables on a build where the
+          # runtime had staged perfectly, and failed for the one reason that was not true.
+          $vendoredRoot = [System.IO.Path]::GetFullPath((Join-Path $applicationDirectories[0] 'resources\bundled'))
           $vendoredExecutables = @(
             $packagedExecutables | Where-Object { $_.FullName.StartsWith($vendoredRoot, [System.StringComparison]::OrdinalIgnoreCase) }
           )
