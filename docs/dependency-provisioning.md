@@ -88,10 +88,19 @@ offers today so the pin can be moved in a reviewed commit rather than drifting o
 build that resolved "latest" would produce a different installer every time upstream published,
 and the digest quoted in a release note would then describe something nobody could reproduce.
 
-**The size cost, stated rather than hidden.** The shipped `Setup.exe` was about 169 MB before
-this change (release `v1.0.1626`), plus roughly 90 MB of compressed runtimes now staged into it.
-The exact new figure belongs here as a measured number once one has been measured; this document
-deliberately does not guess at it.
+**The size cost, stated rather than hidden.** `Setup.exe` was 169,248,768 bytes in release
+`v1.0.1626`, the last one before the runtimes were bundled. It is 424,066,560 bytes in
+`v1.0.1637`, the first one that carries them. That is **+255 MB**, and the download is roughly
+two and a half times what it was.
+
+The estimate written here first was "roughly 90 MB", from adding the 56 MB JRE archive to the
+30 MB Chunker jar. That was wrong, and the way it was wrong is worth keeping rather than
+quietly correcting: Squirrel packages the *extracted* runtime, not the archive it was
+downloaded from. The JRE is 179.1 MB on disk across 320 files and a JRE does not compress well,
+so the installer grew by very nearly the extracted size rather than by the download size.
+
+Anyone re-doing this arithmetic for another dependency should measure the extracted tree, not
+the artefact they fetched.
 
 ## The Java runtime
 
@@ -386,7 +395,11 @@ Chunker 個 jar 同落載會攞到嗰個係 byte 對 byte 一樣，係刻意噉�
 
 驗證用嘅係 runtime 落載嗰條同樣規則，只係搬咗去 build 階段：digest 唔夾就刪走啲 bytes 兼令個 build 失敗。冇「當佢冇事繼續」嘅路，因為一個靜靜雞冇帶到佢承諾嘅 runtime 嘅 installer，會喺陌生人部機度爆，而唔係喺 build 機度爆。呢個 script 接咗入 `packages/app/package.json` 嘅 `package` 同 `make` 兩個 script，所以用平時嘅方法 build 係跳唔過佢。`--check` 會報而家 stage 咗乜但唔會落載任何嘢；`--refresh` 會印出 Adoptium 今日提供緊乜，等個 pin 可以喺一個經審核嘅 commit 度郁，而唔係自己飄：一個解析「latest」嘅 build，上游每次出新嘢都會整出唔同嘅 installer，噉 release note 入面嗰個 digest 就會描述緊一樣冇人重現得到嘅嘢。
 
-**大細嘅代價，講明唔收埋。** 呢個改動之前出街嘅 `Setup.exe` 大約 169 MB（release `v1.0.1626`），而家再加大約 90 MB 壓縮 runtime stage 咗入去。新嘅確切數字要等真係量度過先寫得落嚟；呢份文件刻意唔會估。
+**大細嘅代價，講明唔收埋。** 未 bundle 之前，`v1.0.1626` 個 `Setup.exe` 係 169,248,768 bytes；第一個帶住 runtime 嘅 `v1.0.1637` 就係 424,066,560 bytes。即係大咗 **255 MB**，差唔多兩倍半。
+
+呢度最初寫「大約 90 MB」，係將 56 MB 嘅 JRE 壓縮檔加 30 MB 嘅 Chunker jar 咁計。呢個估算錯咗，而點解錯值得留低：Squirrel 打包嘅係**解壓之後**嗰份 runtime，唔係你下載嗰個檔案。個 JRE 喺硬碟上係 179.1 MB、320 個檔案，而 JRE 本身好難壓縮，所以個安裝檔大咗嘅份量，幾乎等於解壓後嘅大細，而唔係下載嘅大細。
+
+下次有人為第二個 See Fut 計呢條數，要量解壓之後嗰個資料夾，唔好量你攞落嚟嗰個檔案。
 
 ### Java runtime
 
