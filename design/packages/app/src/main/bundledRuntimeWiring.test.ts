@@ -45,8 +45,24 @@ const mainRoot = dirname(fileURLToPath(import.meta.url));
 const RESOLVERS = [
     "render/engine.ts",
     "mcserver/ipc.ts",
+    "java/ipc.ts",
     "index.ts",
 ] as const;
+
+/*
+ * `java/ipc.ts` was missing from the first version of this list, and the omission proved the
+ * point the list exists to make.
+ *
+ * The other three were found by reading for `ensureJava(` and `discoverJava(`. This one calls
+ * through an injected `discover` seam instead, so it did not match the grep that produced the
+ * inventory, and the guard passed while the surface that answers "which Java is this app
+ * using" still reported no installation at all on a clean machine, then offered to download
+ * one that was already present.
+ *
+ * That is why the check below reads the call arguments rather than the function name, and why
+ * the second test insists every inventoried module still resolves a JVM: a hand-written list
+ * is only as good as the reason each entry is on it.
+ */
 
 const sourceOf = (file: string): string =>
     readFileSync(resolve(mainRoot, file), "utf8").replace(/\r/g, "");
@@ -64,7 +80,11 @@ const codeOf = (source: string): string =>
  */
 function javaCalls(source: string): { call: string; args: string }[] {
     const found: { call: string; args: string }[] = [];
-    for (const match of codeOf(source).matchAll(/\b(ensureJava|discoverJava)\s*\(/g)) {
+    // `discover(` is here because `java/ipc.ts` resolves through an injected seam of that
+    // name rather than calling `discoverJava` directly, which is exactly how it escaped the
+    // first version of this guard. The word boundary keeps it from matching `discoverRelease(`
+    // and friends, which are unrelated download-manager calls.
+    for (const match of codeOf(source).matchAll(/\b(ensureJava|discoverJava|discover)\s*\(/g)) {
         const start = match.index ?? 0;
         found.push({ call: match[1]!, args: codeOf(source).slice(start, start + 400) });
     }

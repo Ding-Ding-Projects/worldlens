@@ -212,6 +212,14 @@ export type JavaProvisionOutcome =
 export interface JavaIpcOptions {
     /** Electron's `userData`. Only needed to find a JDK the app provisioned for itself. */
     readonly dataDir: string;
+    /**
+     * Electron's `process.resourcesPath` in a packaged app, null in development.
+     *
+     * This is the surface that answers "which Java is this app using", so leaving it out does
+     * not merely miss the bundled runtime: it reports `installation: null` on a machine that
+     * has a perfectly good JVM sitting inside the installer, and then offers to download one.
+     */
+    readonly resourcesPath?: string | null;
     /** Injected in tests, so no JVM is ever launched to prove this file works. */
     readonly discover?: (options: DiscoverJavaOptions) => Promise<JavaDiscovery>;
     /**
@@ -251,7 +259,12 @@ export function registerJavaHandlers(ipcMain: IpcMain, options: JavaIpcOptions):
 
     async function run(): Promise<JavaRuntimeSummary> {
         try {
-            return summariseDiscovery(await discover({ dataDir: options.dataDir }));
+            return summariseDiscovery(
+                await discover({
+                    dataDir: options.dataDir,
+                    ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
+                }),
+            );
         } catch (error) {
             // Rethrown rather than swallowed - the row has a `failed` state and showing
             // it is more use than an empty one - but the message is put through the same

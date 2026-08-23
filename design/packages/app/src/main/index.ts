@@ -800,6 +800,10 @@ function startJavaDiscovery(): JavaIpc {
     if (javaIpc !== null) return javaIpc;
     javaIpc = registerJavaHandlers(ipcMain, {
         dataDir: app.getPath("userData"),
+        // The surface that answers "which Java is this app using". Without this it reports
+        // no installation at all on a clean machine and offers a download, while the runtime
+        // it should be naming sits in `resources/bundled/java`.
+        resourcesPath: app.isPackaged ? process.resourcesPath : null,
         ensure: ensureJava,
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
