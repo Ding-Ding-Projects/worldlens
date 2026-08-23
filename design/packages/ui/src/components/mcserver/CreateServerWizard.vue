@@ -732,6 +732,7 @@ const canAdvance = computed(() => {
                             :key="card.id"
                             variant="text"
                             block
+                            rounded="lg"
                             class="wl-mcserver-wizard__flavour-card"
                             :class="{
                                 'wl-mcserver-wizard__flavour-card--selected': flavour === card.id,
@@ -1404,13 +1405,49 @@ const canAdvance = computed(() => {
 .wl-mcserver-wizard__flavour-card {
     text-align: left;
     border: 1px solid rgb(var(--v-border-color));
-    border-radius: 8px;
+    /*
+     * The corner comes from the `rounded="lg"` prop on the button, not from here.
+     *
+     * A plain `border-radius` in this block cannot win: Vuetify's radius utilities are
+     * `!important`, and the design system's component defaults make every button
+     * `corner-full` (9999px). On an ordinary short button that is the intended pill. On this
+     * card, once it was given `height: auto` to fit four stacked blocks, a 9999px radius
+     * turned each one into an ellipse, with the corners of the text clipped outside the oval.
+     *
+     * `docs/design-system.md` records the same trap being sprung by the window caption
+     * buttons, and the same answer: spend the token through the `rounded` prop.
+     */
     padding: 10px;
     background: transparent;
     cursor: pointer;
+
+    /*
+     * A `VBtn` puts its slot inside `.v-btn__content`, and that element, not this one, is
+     * what lays the card out. Left alone it is a centred row with `white-space: nowrap`
+     * inside a button of fixed height, so this card's four stacked blocks (name, tagline,
+     * description, catalogue chip) were drawn on one line, refused to wrap, and printed
+     * straight through each other. Every flavour then overflowed into its neighbour and the
+     * step grew a horizontal scrollbar.
+     *
+     * The rules below therefore belong on the content element rather than here: setting
+     * `flex-direction: column` on the button root did nothing at all, which is exactly why
+     * the breakage was invisible in the stylesheet and obvious on screen.
+     */
+    height: auto;
+    min-height: 0;
+    padding-block: 10px;
+}
+
+.wl-mcserver-wizard__flavour-card :deep(.v-btn__content) {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 4px;
+    inline-size: 100%;
+    min-inline-size: 0;
+    /* The description is prose. It has to be allowed to break. */
+    white-space: normal;
+    text-align: left;
 }
 .wl-mcserver-wizard__flavour-card--selected {
     border-color: rgb(var(--v-theme-primary));

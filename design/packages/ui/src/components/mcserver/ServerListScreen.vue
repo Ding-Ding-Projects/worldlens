@@ -318,6 +318,29 @@ async function stopOne(id: string): Promise<void> {
 </template>
 
 <style scoped>
+/*
+ * The page's own margins, which this screen simply never had.
+ *
+ * Every sibling destination pads itself: `CataloguePage.vue` uses 48px inline, dropping to
+ * 20px on a narrow window. This one had no rule for its root at all, so its content ran flush
+ * to both edges of the shell. Measured on the packaged app at a 1400px viewport, the "New
+ * server" button occupied 1258 to 1400: its right edge was exactly the window edge, with the
+ * title jammed against the navigation rail on the other side. It read as a screen that had
+ * overflowed, and clicks near the edge of that button had nowhere to land.
+ *
+ * Matching the catalogue's numbers rather than inventing new ones, so the two destinations
+ * line up when somebody moves between them.
+ */
+.wl-mcserver-list {
+    padding: 18px 48px 48px;
+}
+
+@media (max-width: 720px) {
+    .wl-mcserver-list {
+        padding-inline: 20px;
+    }
+}
+
 .wl-mcserver-list__header {
     display: flex;
     align-items: center;
@@ -360,8 +383,34 @@ async function stopOne(id: string): Promise<void> {
 }
 .wl-mcserver-list__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
+    /*
+     * Two fixed columns, not `auto-fill`, which is what the design file specifies and what
+     * this project already decided once before. An auto-fill grid re-flows on a few pixels of
+     * window width, so a list of five servers flips between three-and-two and two-and-three
+     * while somebody is dragging the window edge, and every card changes size and position
+     * under the pointer. The same reasoning is recorded for the Home catalogue grid.
+     *
+     * One column below the narrow breakpoint, because two 280px cards genuinely do not fit
+     * and the alternative is clipped text, which no amount of design fidelity is worth.
+     */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+@media (max-width: 720px) {
+    .wl-mcserver-list__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.wl-mcserver-card {
+    /*
+     * The design file gives these cards a filled surface-container background rather than the
+     * transparent one `variant="outlined"` leaves behind. On the dark scheme a transparent
+     * card over the page background is a rectangle of hairline with nothing inside it, which
+     * is why the list read as a wireframe rather than as a set of objects.
+     */
+    background: rgb(var(--v-theme-surface-container));
 }
 .wl-mcserver-card__body {
     display: flex;

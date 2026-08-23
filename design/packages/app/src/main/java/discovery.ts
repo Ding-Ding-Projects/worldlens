@@ -1,12 +1,27 @@
 /**
  * Finding a usable JVM on whatever machine the app happens to be running on.
  *
- * The order is `JAVA_HOME`, then `java` on `PATH`, then the copy the app provisioned
- * for itself, and it is that way round on purpose. Someone who has set `JAVA_HOME`
- * has told their whole machine which JDK to use, and an application that quietly
- * prefers its own private copy over that instruction is overriding a decision it was
- * not asked to make. The app's own copy is the last resort precisely because it is
- * the one nobody chose.
+ * The order is the runtime bundled inside the installer, then `JAVA_HOME`, then `java`
+ * on `PATH`, then a copy the app downloaded for itself.
+ *
+ * It used to start at `JAVA_HOME`, on the reasoning that somebody who set it had told
+ * their whole machine which JDK to use, and that the app's own copy should be the last
+ * resort because it was the one nobody chose. That was the right call while the app had
+ * no runtime of its own: the only alternative was something downloaded after the fact.
+ *
+ * It stopped being the right call when the installer began carrying a JRE. A bundled
+ * dependency has to resolve bundled-first, or the JVM a person is running is decided by
+ * whatever else happens to be installed beside the app, and a report of "renders fail on
+ * my machine" cannot be reproduced from the release alone. The bundled copy is also the
+ * one that was actually tested against this build.
+ *
+ * What the change does cost is worth stating rather than glossing. The search stops at
+ * the first candidate that passes, so once a bundled runtime is present, `JAVA_HOME` and
+ * `PATH` are no longer probed at all and do not appear in `rejected`. A person who set
+ * `JAVA_HOME` deliberately is therefore not told it was passed over. The mitigation is
+ * that the chosen installation reports `source: "bundled"`, so any surface showing the
+ * runtime can say plainly which java is in use; "it silently used a different JDK than I
+ * configured" must not be a thing a user can experience without being able to see it.
  *
  * Every candidate is *run* before it is accepted. A path is not evidence: `JAVA_HOME`
  * outlives the JDK it pointed at, a `java` on `PATH` may be a shim for a version
@@ -43,8 +58,13 @@ import { provisionedJavaExecutable } from "./installation.js";
 import type { JavaVersionInfo } from "./version.js";
 import { REQUIRED_JAVA_FEATURE, satisfiesRequirement, tooOldReason } from "./version.js";
 
-/** Where a JVM came from. Reported to the user so the choice is never a mystery. */
-export type JavaSource = "JAVA_HOME" | "PATH" | "provisioned";
+/**
+ * Where a JVM came from. Reported to the user so the choice is never a mystery.
+ *
+ * `bundled` is the copy that ships inside the installer. It is listed first because it is
+ * tried first: see {@link discoverJava} for why that order changed.
+ */
+export type JavaSource = "bundled" | "JAVA_HOME" | "PATH" | "provisioned";
 
 export interface JavaInstallation {
     readonly source: JavaSource;
@@ -71,6 +91,12 @@ export interface JavaDiscovery {
 }
 
 export interface DiscoverJavaOptions {
+    /**
+     * Electron's `process.resourcesPath` in a packaged app; omit in development, where there
+     * is no bundled runtime to find. Same shape as `jars.ts`'s own `resourcesPath` option, so
+     * both bundled lookups are reached the same way.
+     */
+    readonly resourcesPath?: string | null;
     /** `userData`. Only needed to find a previously provisioned copy. */
     readonly dataDir?: string;
     readonly env?: NodeJS.ProcessEnv;
@@ -128,6 +154,35 @@ export function javaOnPath(
     return null;
 }
 
+/**
+ * `<resources>/bundled/java/bin/java` - the runtime `stage-bundled-runtimes.mjs` puts inside
+ * the installer.
+ *
+ * Returns null when there is nothing there, which is the ordinary case in a development
+ * checkout: the staging step runs as part of packaging, not as part of `pnpm build`. That is
+ * why a missing bundled runtime is not a rejection here. A rejection means "this candidate was
+ * looked at and turned down", and there is a real difference between a runtime that failed its
+ * probe and one that was never staged because you are running from source.
+ */
+export function bundledJavaExecutable(
+    resourcesPath: string,
+    platform: NodeJS.Platform = process.platform,
+    exists: (path: string) => boolean = existsSync,
+): string | null {
+    if (resourcesPath.length === 0) return null;
+    // `pathApi(platform)`, not node's native `join`, for the reason spelled out above it: a
+    // function that takes a `platform` and then joins with the running platform's separator
+    // passes on Windows and produces nonsense when a test asks it about win32 from Linux.
+    const executable = pathApi(platform).join(
+        resourcesPath,
+        "bundled",
+        "java",
+        "bin",
+        executableName(platform),
+    );
+    return exists(executable) ? executable : null;
+}
+
 /** The `java` a `JAVA_HOME` points at, if that path exists at all. */
 export function javaFromHome(
     env: NodeJS.ProcessEnv,
@@ -175,6 +230,25 @@ export async function discoverJava(options: DiscoverJavaOptions = {}): Promise<J
 
     const candidates: Candidate[] = [];
     const rejected: JavaRejection[] = [];
+
+    /*
+     * The copy inside the installer goes first, ahead of `JAVA_HOME` and `PATH`.
+     *
+     * That is a deliberate reversal. The order used to start at `JAVA_HOME` on the reasoning
+     * that somebody who set it meant it, which is a fair argument when the only alternative is
+     * a copy the app downloaded for itself. It stops being fair once the app ships its own
+     * runtime: a bundled dependency has to resolve bundled-first, or the version a user is
+     * running depends on what else happens to be installed on their machine, and a bug report
+     * cannot be reproduced from the release alone.
+     *
+     * Nothing is hidden by this. The chosen candidate reports its `source`, so a surface can
+     * say which java is actually in use, and a machine java that is newer still shows up in
+     * the discovery result rather than disappearing.
+     */
+    if (options.resourcesPath !== undefined && options.resourcesPath !== null) {
+        const bundled = bundledJavaExecutable(options.resourcesPath, platform, exists);
+        if (bundled !== null) candidates.push({ source: "bundled", executable: bundled });
+    }
 
     const fromHome = javaFromHome(env, platform, exists);
     if (fromHome !== null) {

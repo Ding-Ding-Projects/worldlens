@@ -21,21 +21,40 @@ interface ReadyWaiter {
 const EXISTENCE_CHECK_INTERVAL_MS = 1000;
 
 /**
- * Node 26's Windows `fs.watch` backend can assert when a chokidar directory watcher receives a
+ * Windows' `fs.watch` backend can assert when a chokidar directory watcher receives a
  * newly-created child event (`src\\win\\fs-event.c`, `_wcsnicmp(filename, dir, dirlen)`). This
- * is a process-level abort, not an ordinary watcher error, so the affected runtime needs the
- * safe polling backend. Keep the native watcher everywhere else: polling is deliberately a
- * compatibility fallback, not the default, because this service may watch one folder per map.
+ * is a process-level abort, not an ordinary watcher error: nothing catches it, the whole
+ * process dies, and in the product that means the application disappears while a map is being
+ * watched. So the affected runtime needs the safe polling backend. Keep the native watcher
+ * everywhere else: polling is deliberately a compatibility fallback, not the default, because
+ * this service may watch one folder per map.
+ *
+ * ## Why the bound moved from 26 to 24
+ *
+ * It was written as `major >= 26` when the abort was first seen on a Node 26 runtime. That was
+ * the version somebody happened to be running, not the version the bug starts at, and the
+ * difference stayed invisible because continuous integration pins Node 22 and runs no tests at
+ * all, so nothing on a hosted runner has ever executed this path.
+ *
+ * Observed directly: Node **24.19.0** on win32 aborts with exactly that assertion, reproducibly,
+ * from `MCAWorldRegionWatchService.test.ts`. It took down the whole `engine` and `server` test
+ * runs, which read as two mysteriously empty suites rather than as a crash.
+ *
+ * The bound is therefore the lowest version observed to abort, not a guess at the true floor.
+ * Node 22 and 23 are **not** verified here either way, and this comment says so rather than
+ * implying they were cleared. If one of them is ever seen aborting, move the bound down again
+ * and record the observation the same way; the cost of being wrong in that direction is a
+ * process abort, while the cost of polling one folder too eagerly is a 100ms timer.
  */
 export function usesPollingForCurrentRuntime(
     platform: string = process.platform,
     nodeVersion: string = process.versions.node,
 ): boolean {
     const major = Number.parseInt(nodeVersion.split(".")[0] ?? "", 10);
-    return platform === "win32" && Number.isFinite(major) && major >= 26;
+    return platform === "win32" && Number.isFinite(major) && major >= 24;
 }
 
-const NODE_26_WINDOWS_POLL_INTERVAL_MS = 100;
+const WINDOWS_FS_WATCH_POLL_INTERVAL_MS = 100;
 
 /**
  * Watches a region-folder for changed region-files and provides the changed
@@ -174,7 +193,7 @@ export class MCAWorldRegionWatchService implements WatchService<Vector2i> {
             ignoreInitial: true,
             depth: 0,
             ...(usesPollingForCurrentRuntime()
-                ? { usePolling: true, interval: NODE_26_WINDOWS_POLL_INTERVAL_MS }
+                ? { usePolling: true, interval: WINDOWS_FS_WATCH_POLL_INTERVAL_MS }
                 : {}),
         });
 

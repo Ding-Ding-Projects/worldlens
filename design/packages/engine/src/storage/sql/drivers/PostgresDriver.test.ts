@@ -47,9 +47,19 @@ describe("toPostgresPlaceholders", () => {
 });
 
 describe("parsePostgresConnectionOptions", () => {
-    it("strips the jdbc: prefix and passes the rest through as pg's own connection string", () => {
+    it("strips the jdbc: prefix and decomposes the rest into pg's discrete fields", () => {
+        // This asserted `connectionString` passed straight through, which is what the adapter
+        // used to do. It decomposes now, on purpose: node-postgres' SCRAM path rejects a
+        // password that is undefined, null, or a non-string with a handshake error that names
+        // neither the property nor the cause, so the parser has to own each field and coerce
+        // it before pg ever sees it. Passing an opaque string through makes that impossible.
         const config = parsePostgresConnectionOptions(options());
-        expect(config["connectionString"]).toBe("postgresql://localhost:5432/bluemap");
+        expect(config["host"]).toBe("localhost");
+        expect(config["port"]).toBe(5432);
+        expect(config["database"]).toBe("bluemap");
+        // And the jdbc: prefix really is gone: a leftover prefix would make `new URL` treat
+        // `jdbc` as the scheme and quietly produce a hostname of "".
+        expect(config["host"]).not.toBe("");
     });
 
     it("a non-positive max-connections falls back to a sane pool size rather than 0", () => {
@@ -64,7 +74,11 @@ describe("parsePostgresConnectionOptions", () => {
         );
         expect(config["user"]).toBe("alice");
         expect(config["password"]).toBe("swordfish");
-        expect(config["connectionString"]).toBe("postgresql://localhost:5432/bluemap");
+        // The rest of the decomposed connection survives the merge: `connection-properties`
+        // overrides credentials without discarding where the database actually is.
+        expect(config["host"]).toBe("localhost");
+        expect(config["port"]).toBe(5432);
+        expect(config["database"]).toBe("bluemap");
     });
 });
 

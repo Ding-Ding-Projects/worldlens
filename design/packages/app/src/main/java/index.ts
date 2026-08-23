@@ -176,6 +176,15 @@ export interface EnsureJavaOptions {
     /** Electron's `userData`. Where a provisioned JDK is looked for and installed. */
     readonly dataDir: string;
     /**
+     * Electron's `process.resourcesPath` in a packaged app, null in development.
+     *
+     * Without it the runtime carried inside the installer is never looked at, and the app
+     * falls back to hunting the machine for a JVM it already ships. That is the whole defect
+     * bundling exists to remove, and it fails silently: everything still works on a developer
+     * machine that happens to have a JDK.
+     */
+    readonly resourcesPath?: string | null;
+    /**
      * Whether the app may download a JDK when none is suitable.
      *
      * Off by default. Two hundred megabytes leaving the machine is a decision
@@ -236,6 +245,7 @@ export async function ensureJava(options: EnsureJavaOptions): Promise<EnsureJava
     const discoverOptions: DiscoverJavaOptions = {
         dataDir: options.dataDir,
         required,
+        ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
         ...(options.env === undefined ? {} : { env: options.env }),
         ...(options.platform === undefined ? {} : { platform: options.platform }),
         ...(options.runner === undefined ? {} : { runner: options.runner }),

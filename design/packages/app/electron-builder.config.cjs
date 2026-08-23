@@ -164,6 +164,20 @@ module.exports = {
         // preload. These two local assets let the minimal no-script recovery window retain
         // the product identity even when either of those normal startup layers is the thing
         // that failed.
+        // The runtimes the app cannot work without, carried inside the installer rather than
+        // downloaded on first use. `scripts/stage-bundled-runtimes.mjs` puts them here, pinned
+        // and digest-verified, and `package`/`make` run it before electron-builder so a build
+        // cannot quietly produce an installer that promises a runtime it does not contain.
+        //
+        // This is what removes "This server has no Java runtime chosen yet" as a state a user
+        // can ever be in on a fresh install. It costs real megabytes and the release notes say
+        // so rather than letting the download size triple quietly: a Temurin JRE (not a JDK,
+        // because the app runs java and never compiles) plus the pinned Chunker CLI.
+        {
+            from: "dist/bundled",
+            to: "bundled",
+            filter: ["**/*"],
+        },
         {
             from: "build/icon.ico",
             to: "brand/worldlens.ico",

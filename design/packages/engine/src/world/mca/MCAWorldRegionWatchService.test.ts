@@ -17,10 +17,24 @@ describe("MCAWorldRegionWatchService", () => {
         return tempDir;
     }
 
-    it("uses polling only for the Node 26 Windows watcher crash", () => {
+    it("uses polling for every Windows runtime observed to abort, and nothing else", () => {
+        // 24.19.0 is the version this was actually caught on: it aborts the whole process with
+        // `_wcsnicmp(filename, dir, dirlen)` from `src\win\fs-event.c`, reproducibly, from the
+        // watcher cases below. The bound used to sit at 26, which is simply the version the
+        // first reporter happened to run, so 24 and 25 fell through it onto the native watcher
+        // and took the engine and server suites down with them.
+        expect(usesPollingForCurrentRuntime("win32", "24.19.0")).toBe(true);
+        expect(usesPollingForCurrentRuntime("win32", "25.9.0")).toBe(true);
         expect(usesPollingForCurrentRuntime("win32", "26.5.0")).toBe(true);
-        expect(usesPollingForCurrentRuntime("win32", "25.9.0")).toBe(false);
+
+        // Not lowered past 24 on a guess. 22 and 23 have not been observed either way here, and
+        // pretending otherwise would be the same mistake that put the bound at 26.
+        expect(usesPollingForCurrentRuntime("win32", "22.11.0")).toBe(false);
+
+        // The abort is a Windows fs-event path. Everything else keeps the native watcher, which
+        // is the point: polling costs a timer per watched map folder.
         expect(usesPollingForCurrentRuntime("linux", "26.5.0")).toBe(false);
+        expect(usesPollingForCurrentRuntime("darwin", "24.19.0")).toBe(false);
     });
 
     afterEach(async () => {

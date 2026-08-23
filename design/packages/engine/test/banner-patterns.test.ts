@@ -10,6 +10,8 @@ import {
     BANNER_PATTERN_CURRENT,
     BannerBlockEntity,
     bannerRenderLayers,
+    clearBannerPatternDiagnostics,
+    getBannerPatternDiagnostics,
     registerBannerBlockEntitySchemas,
 } from "../src/world/mca/blockentity/BannerBlockEntity.js";
 
@@ -154,7 +156,27 @@ describe("BannerBlockEntity typed pattern compatibility", () => {
                 writer.endCompound();
             },
         );
-        expect(() => readBanner(bytes)).toThrow(/banner color as an NBT INT or STRING/);
+        // This used to require `readBanner` to throw. The parser is deliberately lenient now:
+        // `LenientListAdapter` drops the one bad layer and records a payload-free diagnostic,
+        // rather than failing the whole banner and taking the layers either side of it down
+        // with it. That is a better answer to the same question, so the assertion moved
+        // rather than being deleted.
+        //
+        // The rule this actually protects is unchanged and is the reason the case exists: a
+        // malformed layer must not come back as a *valid-looking* one. Colour 0 is black and
+        // a real value, so a silently defaulted layer would be indistinguishable from a
+        // banner the player really dyed black.
+        clearBannerPatternDiagnostics();
+        const entity = readBanner(bytes);
+
+        // `writeEntry` replaces the per-entry writer, so this fixture holds exactly one layer
+        // and that layer is the malformed one. Empty is therefore the whole list, and it is
+        // what separates the two outcomes: a defaulted layer would come back as a real pair
+        // such as `["minecraft:bricks", 0]`, which is a banner somebody could have dyed.
+        expect(layers(entity), "the malformed layer must be dropped, not defaulted").toEqual([]);
+        expect(getBannerPatternDiagnostics()).toContain(
+            "Dropped one malformed banner pattern layer (IOException).",
+        );
     });
 
     it("preserves unknown future identifiers and colors through a round trip", () => {

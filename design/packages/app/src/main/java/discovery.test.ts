@@ -166,6 +166,92 @@ describe("probeJava", () => {
     });
 });
 
+describe("discoverJava and the runtime inside the installer", () => {
+    const resources = "/opt/Worldlens/resources";
+    const bundled = jdkBinary("/opt/Worldlens/resources/bundled/java");
+
+    it("uses the bundled runtime ahead of JAVA_HOME and PATH", async () => {
+        const home = jdkBinary("/opt/jdk-25");
+        const onPath = join("/usr/bin", "java");
+        const { runner } = fakeRunner({
+            [bundled]: { version: "25.0.4", home: "/opt/Worldlens/resources/bundled/java" },
+            [home]: { version: "25.0.3", home: "/opt/jdk-25" },
+            [onPath]: { version: "25.0.5", home: "/usr" },
+        });
+
+        const discovery = await discoverJava({
+            resourcesPath: resources,
+            env: { JAVA_HOME: "/opt/jdk-25", PATH: pathOf("/usr/bin") },
+            platform: "linux",
+            runner,
+            exists: existsIn([bundled, home, onPath]),
+        });
+
+        // Bundled-first even though PATH holds a newer JVM. The runtime that shipped with
+        // this build is the one it was tested against, and it is the only one that makes a
+        // bug report reproducible from the release alone.
+        expect(discovery.installation?.source).toBe("bundled");
+        expect(discovery.installation?.executable).toBe(bundled);
+    });
+
+    it("leaves the old order untouched when nothing is bundled", async () => {
+        const home = jdkBinary("/opt/jdk-25");
+        const { runner } = fakeRunner({ [home]: { version: "25.0.3", home: "/opt/jdk-25" } });
+
+        // A development checkout has no staged runtime. That must not become a rejection or
+        // an error: it is the ordinary case when running from source.
+        const discovery = await discoverJava({
+            resourcesPath: resources,
+            env: { JAVA_HOME: "/opt/jdk-25" },
+            platform: "linux",
+            runner,
+            exists: existsIn([home]),
+        });
+
+        expect(discovery.installation?.source).toBe("JAVA_HOME");
+        expect(discovery.rejected.map((rejection) => rejection.source)).not.toContain("bundled");
+    });
+
+    it("falls through to the machine when the bundled runtime is too old to use", async () => {
+        const home = jdkBinary("/opt/jdk-25");
+        const { runner } = fakeRunner({
+            [bundled]: { version: "17.0.9", home: "/opt/Worldlens/resources/bundled/java" },
+            [home]: { version: "25.0.3", home: "/opt/jdk-25" },
+        });
+
+        const discovery = await discoverJava({
+            resourcesPath: resources,
+            env: { JAVA_HOME: "/opt/jdk-25" },
+            platform: "linux",
+            runner,
+            exists: existsIn([bundled, home]),
+        });
+
+        // Preferring the bundled copy must not mean trusting it. It is probed like every
+        // other candidate, and a staging mistake that shipped the wrong runtime has to be
+        // survivable rather than fatal.
+        expect(discovery.installation?.source).toBe("JAVA_HOME");
+        expect(discovery.rejected.map((rejection) => rejection.source)).toContain("bundled");
+    });
+
+    it("is not looked for at all when no resources path is given", async () => {
+        const home = jdkBinary("/opt/jdk-25");
+        const { runner } = fakeRunner({ [home]: { version: "25.0.3", home: "/opt/jdk-25" } });
+
+        // Every existing caller that has not been taught about the bundled runtime keeps its
+        // previous behaviour exactly, which is why `exists` returning true for everything
+        // here still cannot conjure a bundled candidate.
+        const discovery = await discoverJava({
+            env: { JAVA_HOME: "/opt/jdk-25" },
+            platform: "linux",
+            runner,
+            exists: () => true,
+        });
+
+        expect(discovery.installation?.source).toBe("JAVA_HOME");
+    });
+});
+
 describe("discoverJava", () => {
     it("prefers JAVA_HOME over PATH", async () => {
         const home = jdkBinary("/opt/jdk-25");

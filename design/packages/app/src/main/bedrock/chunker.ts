@@ -41,15 +41,25 @@
  * `.part` file into place only after the hash matches, so a file at the final path is
  * always one that passed.
  *
- * ## Licence, and why nothing is bundled
+ * ## Licence, and why the jar now ships inside the installer
  *
- * Chunker is MIT (Copyright (c) 2024 Hive Games), which *does* permit redistribution and
- * would permit bundling the jar in this app's installer, provided the copyright notice and
- * the licence text ship with it. This app nevertheless does not bundle it - see
- * `docs/bedrock-worlds.md` - because 30 MB in every installer for a feature most people
- * never use is a poor trade, and because a bundled copy pins a converter version to an app
- * release. That is a product decision, not a licence restriction, and the documentation
- * says so plainly rather than implying the licence forbids something it permits.
+ * Chunker is MIT (Copyright (c) 2024 Hive Games), which permits redistribution and so
+ * permits bundling the jar, provided the copyright notice and the licence text ship with it.
+ *
+ * This block used to say the app "nevertheless does not bundle it", on the grounds that
+ * 30 MB in every installer for a feature most people never use was a poor trade and that a
+ * bundled copy pins a converter version to an app release. The first half was re-decided:
+ * an installer that cannot convert a world until the machine has been online is not an
+ * installer that contains the app, and "download this first" is a defect however politely it
+ * is worded. The second half is simply true, and is now a real consequence rather than a
+ * hypothetical one: the converter version moves when the app version moves, or when someone
+ * points `CHUNKER_CLI_JAR` at their own copy.
+ *
+ * `scripts/stage-bundled-runtimes.mjs` stages the jar into the installer using this exact
+ * asset and this exact digest, so a bundled install and a downloaded one are the same
+ * converter rather than two things that merely share a version number. Everything below
+ * stays: it is the fallback for a build with nothing staged, and it is what keeps the
+ * download path honest when one is needed.
  */
 
 import { stat } from "node:fs/promises";

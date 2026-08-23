@@ -11,7 +11,9 @@ cannot be installed this way.
 ## Contents
 
 - [The rule this follows](#the-rule-this-follows)
+- [What ships inside the installer](#what-ships-inside-the-installer)
 - [The Java runtime](#the-java-runtime)
+- [How a JVM is chosen, and what that order costs](#how-a-jvm-is-chosen-and-what-that-order-costs)
 - [Chunker, for Bedrock world conversion](#chunker-for-bedrock-world-conversion)
 - [System dependencies via winget/Chocolatey](#system-dependencies-via-wingetchocolatey)
 - [The one-button settings screen](#the-one-button-settings-screen)
@@ -27,9 +29,12 @@ cannot be installed this way.
 Every provisioning path in this app follows the same four rules, and every section below is an
 instance of them rather than an exception to them:
 
-1. **User-scoped, never system-wide**, where that is possible at all. The JDK and Chunker land
-   under Electron's own `userData` directory — no registry key, no `PATH` edit, no installer, no
-   elevation. Uninstalling the app takes them with it.
+1. **User-scoped, never system-wide**, where that is possible at all. The Java runtime and Chunker
+   now ship inside the installer and live under the app's own `resources/bundled/`, so on a
+   Windows install neither is normally fetched at all. When one *is* fetched (the bundled copy is
+   unusable, or the platform has nothing staged), it lands under Electron's own `userData`
+   directory: no registry key, no `PATH` edit, no separate installer, no elevation. Uninstalling
+   the app takes both locations with it.
 2. **Told plainly, then it happens.** Nothing downloads as a side effect of asking a question.
    Every button that starts a real transfer states what will be fetched, roughly how big it is,
    and where it is going, before a single byte moves — the same shape the
@@ -44,37 +49,132 @@ instance of them rather than an exception to them:
    installer, and offers a re-check — while everything that does not need that dependency keeps
    working.
 
+## What ships inside the installer
+
+The app used to fetch both of its runtime dependencies on demand. It now carries them. The
+failure that closes is the one where a person installs the app, opens it, and is told "This
+server has no Java runtime chosen yet" on a machine where nothing is wrong except that nobody
+has downloaded a JVM yet: a fresh install that cannot render until it has been to the internet
+is not really an installed app. Bundling removes that state instead of wording it better, and it
+means the app works with the network unplugged.
+
+`design/packages/app/scripts/stage-bundled-runtimes.mjs` runs at package time, before
+electron-builder. It downloads two pinned artifacts, verifies each against a SHA-256 committed
+in that script, and stages them into `dist/bundled/`, which electron-builder's `extraResources`
+copies into the installer as `resources/bundled/`:
+
+| Staged | What it is | Size |
+|---|---|---|
+| `bundled/java/` | Eclipse Temurin **JRE** (not a JDK): `OpenJDK25U-jre_x64_windows_hotspot_25.0.4.1_1.zip`, release `jdk-25.0.4.1+1`, version `25.0.4.1+1-LTS` | 58,475,080 bytes compressed, 179.1 MB extracted across 320 files |
+| `bundled/chunker/` | `chunker-cli-1.19.1.jar`, the same asset and digest as `PINNED_CHUNKER` in `main/bedrock/chunker.ts` | 31,790,149 bytes |
+
+A JRE rather than a JDK, because the app only ever *runs* `java` and never compiles anything: a
+compiler, `jlink`, `javadoc` and the rest of the development tooling would be weight in every
+installer that no code path would ever open. The JDK the download button offers is about 140 MB
+against this JRE's 56 MB compressed.
+
+The Chunker jar is byte-identical to the one the downloader would fetch, deliberately. If the
+staged copy and `PINNED_CHUNKER` ever disagreed, a bundled install and a downloaded install
+would be running different converters while both reported the same version, and a conversion bug
+report would not say which one produced it.
+
+Verification is the same rule the runtime downloads follow, applied at build time: a digest
+mismatch deletes the bytes and fails the build. There is no continue-anyway path, because an
+installer that quietly ships without the runtime it promises fails on a stranger's machine
+instead of on the build machine. The script is wired into both the `package` and `make` scripts
+in `packages/app/package.json`, so building the ordinary way cannot skip it. `--check` reports
+what is currently staged without downloading anything, and `--refresh` prints what Adoptium
+offers today so the pin can be moved in a reviewed commit rather than drifting on its own: a
+build that resolved "latest" would produce a different installer every time upstream published,
+and the digest quoted in a release note would then describe something nobody could reproduce.
+
+**The size cost, stated rather than hidden.** The shipped `Setup.exe` was about 169 MB before
+this change (release `v1.0.1626`), plus roughly 90 MB of compressed runtimes now staged into it.
+The exact new figure belongs here as a measured number once one has been measured; this document
+deliberately does not guess at it.
+
 ## The Java runtime
 
-Local rendering discovers a JVM in a fixed order — `JAVA_HOME`, then `java` on `PATH`, then a
-copy the app provisioned for itself — and **runs each candidate before trusting it**, because a
-path is not evidence: `JAVA_HOME` can outlive the JDK it once pointed at, and a folder named
-`jdk-25` has contained a JDK 17 before now. When nothing suitable is found, the Java runtime
-settings row shows a **Download Java (~140 MB)** button — the figure is a real measured number,
-not a guess — that states the source, records agreement on the click itself, downloads with a
+On a Windows install the runtime is already present: `resources/bundled/java/bin/java.exe` ships
+with the app, so "no Java runtime chosen yet" is not a state a clean install reaches, and the
+first render does not wait on a download. The bundled copy is nevertheless **probed, not
+trusted**. It is run like every other candidate, and if it is too old or will not start it is
+rejected with a reason and the search carries on to the next one. A file the installer put there
+is still only a file.
+
+The download path is still here, and still documented, because it is what happens when that
+falls through: a bundled runtime that is somehow unusable (removed, corrupted, or blocked by a
+policy that will not execute it), or a platform for which nothing is staged, since the staging
+script pins a Windows x64 asset only. In those cases the Java runtime settings row shows the
+same **Download Java (~140 MB)** button as before, that figure being a real measured number and
+not a guess. It states the source, records agreement on the click itself, downloads with a
 resumable and digest-verified transfer, extracts only after a real `bin/java` is confirmed
 inside the archive, and then **runs the JDK it just installed** before reporting success, the
-same discipline discovery already applies to a candidate it merely found.
+same discipline discovery applies to a candidate it merely found.
 
 [Fetching a Java runtime for itself](./java-runtime-provisioning.md) is the full account: the
 consent shape, every IPC channel involved, the real-network proof against Adoptium's own
 servers, and the complete failure-mode table. What follows in this document is the shape every
 other tool below repeats.
 
+## How a JVM is chosen, and what that order costs
+
+Local rendering discovers a JVM in a fixed order and **runs each candidate before trusting it**,
+because a path is not evidence: `JAVA_HOME` outlives the JDK it once pointed at, a `java` on
+`PATH` can be a version manager's shim that resolves differently per directory, and a folder
+named `jdk-25` has contained a JDK 17 before now. Nothing in `main/java/discovery.ts` concludes
+anything from a name.
+
+The order is now **bundled, `JAVA_HOME`, `PATH`, provisioned**. It used to be `JAVA_HOME`,
+`PATH`, provisioned, on the reasoning that somebody who set `JAVA_HOME` had told their whole
+machine which JDK to use, and the app's own copy should be last because it was the one nobody
+chose. That was right while the app had no runtime of its own, when the only alternative was
+something downloaded after the fact. It stopped being right when the installer began carrying a
+JRE: a bundled dependency has to resolve bundled-first, or the JVM a person is actually running
+is decided by whatever else happens to be installed beside the app, and "renders fail on my
+machine" cannot be reproduced from the release alone. The bundled copy is also the one this
+build was tested against.
+
+That reversal is not free, and this document will not pretend otherwise. The search stops at the
+first candidate that passes, so once a usable bundled runtime is present, `JAVA_HOME` and `PATH`
+are never probed and never appear in the rejection list. A person who deliberately set
+`JAVA_HOME` is therefore not told it was passed over. The mitigation is disclosure rather than
+prevention: the chosen installation reports `source: "bundled"`, so any surface showing the
+runtime can say plainly which java is in use. "It silently used a different JDK than the one I
+configured" must not be something a person can experience without being able to see it, but
+seeing it still requires looking.
+
+Rejections are collected rather than discarded, for the case where nothing is suitable at all:
+"JAVA_HOME points at Java 17" is actionable, while "no Java found" on a machine with three JDKs
+installed is baffling.
+
 ## Chunker, for Bedrock world conversion
 
 Converting a Bedrock Edition world needs Chunker, Hive Games' open-source converter
-(MIT-licensed) — see [Bedrock Edition worlds](./bedrock-worlds.md) for what conversion does and
-does not preserve. The app does not bundle it: about 30 MB in every installer for a feature most
-people never use is a poor trade, and a bundled copy pins a converter version to an app release.
+(MIT-licensed): see [Bedrock Edition worlds](./bedrock-worlds.md) for what conversion does and
+does not preserve. The pinned jar now ships inside the installer, so a Bedrock world converts on
+a fresh install with no download and no network.
 
-When a Bedrock world is detected and Chunker is not on the machine, the wizard's Bedrock note
-shows a **Download Chunker (~30 MB)** button in the exact spot **Convert** would otherwise be —
-never both, because a Convert button that is certain to fail is worse than one that is not
-offered. Pressing it fetches the pinned release, verified against a SHA-256 committed in this
-app's own source — the strongest check honestly available, since Hive Games publish no
-detached signature or checksum file for the CLI jar — and reports progress the same way the Java
-download does. See [Bedrock Edition worlds § Obtaining it, and what "verified" honestly
+**This reverses a decision, and the old reasoning is recorded rather than deleted.** The previous
+position, stated in this document and in `main/bedrock/chunker.ts`, was that the app should not
+bundle Chunker: about 30 MB in every installer for a feature most people never use is a poor
+trade, and a bundled copy pins a converter version to an app release. The first half was
+re-decided. An installer that works with the network unplugged is worth about 30 MB to everyone,
+including the majority who never convert a Bedrock world, and the alternative was a Convert
+button that could not be honoured on a machine that was offline or behind a proxy. The second
+half was never wrong and is now simply true: the converter version **is** pinned to the app
+release. Moving Chunker means shipping a new build, and a person who needs a newer converter than
+the one bundled has to update the app or point `CHUNKER_CLI_JAR` at their own jar. Neither the
+licence nor anything else forced this either way. It is a product decision, restated.
+
+The download path remains for the case where the bundled jar is missing or unusable, and for
+platforms with nothing staged. When a Bedrock world is detected and no Chunker can be found, the
+wizard's Bedrock note shows a **Download Chunker (~30 MB)** button in the exact spot **Convert**
+would otherwise be, never both, because a Convert button that is certain to fail is worse than
+one that is not offered. Pressing it fetches the pinned release, verified against a SHA-256
+committed in this app's own source, the strongest check honestly available, since Hive Games
+publish no detached signature or checksum file for the CLI jar, and reports progress the same way
+the Java download does. See [Bedrock Edition worlds § Obtaining it, and what "verified" honestly
 means](./bedrock-worlds.md#obtaining-it-and-what-verified-honestly-means) for the full account of
 that verification story, including the weaker `digestTrust: "api"` path a newer release resolves
 through.
@@ -156,9 +256,13 @@ would not remove the remaining manual step:
 
 | Thing | Where it lives | Default |
 |---|---|---|
-| Provisioned JDK | `<userData>/java/<feature>/` | absent until a download is agreed to |
+| Bundled JRE | `<resources>/bundled/java/bin/java.exe` | present in every Windows installer |
+| Bundled Chunker jar | `<resources>/bundled/chunker/chunker-cli-<version>.jar` | present in every Windows installer |
+| Bundled staging manifest | `<resources>/bundled/manifest.json`, written by `scripts/stage-bundled-runtimes.mjs` | records the release, version, digest and source URL of both |
+| Pinned bundled JRE and digest | `PINNED_JRE` in `scripts/stage-bundled-runtimes.mjs` | reviewed source constant |
+| Provisioned JDK (fallback) | `<userData>/java/<feature>/` | absent until a download is agreed to |
 | Java download agreement | `<userData>/java/download-consent.json` | not agreed |
-| Downloaded Chunker jar | `<userData>/chunker/chunker-cli-<version>.jar` | absent until fetched |
+| Downloaded Chunker jar (fallback) | `<userData>/chunker/chunker-cli-<version>.jar` | absent until fetched |
 | Chunker jar override | `CHUNKER_CLI_JAR` environment variable, or a path set in settings | unset |
 | Pinned Chunker release and digest | `PINNED_CHUNKER` in `main/bedrock/chunker.ts` | reviewed source constant |
 | System-dependency route table | `SYSDEP_DEPENDENCIES` in `main/sysdeps/registry.ts` | reviewed source constant |
@@ -167,6 +271,8 @@ would not remove the remaining manual step:
 
 | What happens | What the app does |
 |---|---|
+| The bundled runtime will not run (too old, removed, corrupted, blocked by policy) | It is rejected with a reason like any other candidate and discovery continues to `JAVA_HOME`, `PATH` and the provisioned copy; if none of those works either, the download button is offered as before. |
+| A digest mismatch while staging the installer | The build fails and the bytes are deleted. No installer is produced that claims to carry a runtime it does not carry. |
 | No network during a JDK or Chunker download | The stage reports the failure as an alert; nothing partial is left at the final path, and the button stays ready to retry. |
 | Digest mismatch | The downloaded bytes are deleted; nothing is extracted or installed. Reported as a refusal, never a silent substitution. |
 | Download interrupted mid-transfer | Resumes from the `.part` file already on disk on the next attempt, rather than restarting from zero. |
@@ -187,6 +293,12 @@ would not remove the remaining manual step:
 - **The elevation prompt is never suppressed, bypassed or auto-accepted.** The app calls
   `winget`/`choco` the ordinary way and reports what they report; a declined prompt is a normal,
   reported outcome, not a retried one.
+- **What ships in the installer is verified at build time, not at install time.** Both bundled
+  artifacts are checked against a digest committed in `scripts/stage-bundled-runtimes.mjs`
+  before they are staged, and a mismatch fails the build rather than producing an installer.
+  What that does *not* prove is that the copy on a particular machine is still intact after
+  installation, which is why the bundled runtime is run before it is used, exactly like a
+  candidate merely found on the machine.
 - **A digest is pinned in source for the one dependency (Chunker) with no publisher signature**,
   so the strongest check does not depend entirely on whichever answer the network gives that
   session.
@@ -255,22 +367,52 @@ this is the rest:
 
 呢個 app 每一條 provisioning 路線都跟同樣四條規則，下面每一節都係呢四條規則嘅實例，唔係例外：
 
-1. **只限 user 範圍，永遠唔會 system-wide**（喺做得到嘅情況下）。JDK 同 Chunker 會落喺 Electron 自己嘅 `userData` 目錄入面 — 冇 registry key、唔會改 `PATH`、冇 installer、唔使提權。你反安裝個 app 嗰陣佢哋會一齊冇埋。
-2. **講清楚咗先做。** 冇任何嘢會因為你問咗個問題而順手落載。每一粒真係會啟動傳輸嘅掣，喺郁到第一個 byte 之前都會講明會攞乜、大約幾大、擺去邊 — 同 [Mojang download consent](./eula-and-consent.md) 已經用緊嗰個形狀一樣，只係擴展到 app 可以自己攞嘅每一件工具。
-3. **驗證咗先信。** 每個壓縮檔喺解壓之前都會同 digest 對一對；唔夾就會刪走啲壞 bytes，乜都唔裝。落載途中斷咗會由停低嗰度續傳，唔會由頭嚟過，而寫咗一半嘅嘢永遠唔會execute。
-4. **有啲嘢真係冇辦法用呢個方法自動裝**，個 app 會直接講明而唔係扮冇事：佢會講出缺咗乜、點解自己攞唔到、指去真正嘅 installer，並且畀個重新檢查嘅選項 — 同時所有唔需要嗰個依賴嘅功能照樣行得。
+1. **只限 user 範圍，永遠唔會 system-wide**（喺做得到嘅情況下）。Java runtime 同 Chunker 而家係裝喺 installer 入面，放喺 app 自己嘅 `resources/bundled/`，所以喺 Windows 安裝上面兩樣通常都唔使落載。真係要落載嗰陣（bundle 嗰份用唔到，或者嗰個平台冇 stage 過任何嘢），佢會落喺 Electron 自己嘅 `userData` 目錄：冇 registry key、唔會改 `PATH`、冇另一個 installer、唔使提權。你反安裝個 app 嗰陣兩個位置都會一齊冇埋。
+
+### 安裝檔入面帶咗乜
+
+以前個 app 兩個 runtime 依賴都係要用嗰陣先落載，而家係直接帶埋喺 installer 入面。要擋嘅失敗係噉：有人裝完個 app、開佢，然後見到「This server has no Java runtime chosen yet」，但部機其實一啲事都冇，淨係因為未有人落載過 JVM。一個要上完網先算到圖嘅新安裝，其實唔算裝好咗。Bundle 係直接消滅呢個狀態，而唔係將佢寫得靚啲，同時亦令個 app 喺拔咗網線嘅情況下都用得。
+
+`design/packages/app/scripts/stage-bundled-runtimes.mjs` 會喺 package 嗰陣、electron-builder 之前行。佢落載兩個釘死咗嘅 artifact，逐個對返 script 入面 commit 咗嘅 SHA-256，再 stage 落 `dist/bundled/`，然後 electron-builder 嘅 `extraResources` 會將佢哋抄入 installer 做 `resources/bundled/`：
+
+| Stage 咗嘅嘢 | 係乜 | 大細 |
+|---|---|---|
+| `bundled/java/` | Eclipse Temurin **JRE**（唔係 JDK）：`OpenJDK25U-jre_x64_windows_hotspot_25.0.4.1_1.zip`，release `jdk-25.0.4.1+1`，version `25.0.4.1+1-LTS` | 壓縮 58,475,080 bytes，解壓後 179.1 MB、320 個檔案 |
+| `bundled/chunker/` | `chunker-cli-1.19.1.jar`，同 `main/bedrock/chunker.ts` 嘅 `PINNED_CHUNKER` 係同一個 asset、同一個 digest | 31,790,149 bytes |
+
+用 JRE 而唔用 JDK，係因為個 app 淨係會*行* `java`，永遠唔會編譯任何嘢：compiler、`jlink`、`javadoc` 同其餘啲開發工具，喺每個 installer 度都係死重量，冇一條 code path 會開佢哋。落載掣提供嗰個 JDK 大約 140 MB，呢個 JRE 壓縮後係 56 MB。
+
+Chunker 個 jar 同落載會攞到嗰個係 byte 對 byte 一樣，係刻意噉做：如果 stage 嗰份同 `PINNED_CHUNKER` 唔一致，bundle 安裝同落載安裝就會行緊兩個唔同嘅轉換器但報住同一個版本，到時一個轉換 bug report 講唔出係邊個整出嚟。
+
+驗證用嘅係 runtime 落載嗰條同樣規則，只係搬咗去 build 階段：digest 唔夾就刪走啲 bytes 兼令個 build 失敗。冇「當佢冇事繼續」嘅路，因為一個靜靜雞冇帶到佢承諾嘅 runtime 嘅 installer，會喺陌生人部機度爆，而唔係喺 build 機度爆。呢個 script 接咗入 `packages/app/package.json` 嘅 `package` 同 `make` 兩個 script，所以用平時嘅方法 build 係跳唔過佢。`--check` 會報而家 stage 咗乜但唔會落載任何嘢；`--refresh` 會印出 Adoptium 今日提供緊乜，等個 pin 可以喺一個經審核嘅 commit 度郁，而唔係自己飄：一個解析「latest」嘅 build，上游每次出新嘢都會整出唔同嘅 installer，噉 release note 入面嗰個 digest 就會描述緊一樣冇人重現得到嘅嘢。
+
+**大細嘅代價，講明唔收埋。** 呢個改動之前出街嘅 `Setup.exe` 大約 169 MB（release `v1.0.1626`），而家再加大約 90 MB 壓縮 runtime stage 咗入去。新嘅確切數字要等真係量度過先寫得落嚟；呢份文件刻意唔會估。
 
 ### Java runtime
 
-本機算圖搵 JVM 嘅次序係固定嘅 — 先 `JAVA_HOME`，之後 `PATH` 上面嘅 `java`，最後係 app 自己 provision 嗰份 — 而且**每個候選都會真係行過先信**，因為一條路徑唔算證據：`JAVA_HOME` 可以比佢當初指嗰個 JDK 活得仲耐，而一個叫 `jdk-25` 嘅資料夾以前試過裝住個 JDK 17。搵唔到啱用嘅嗰陣，Java runtime 設定嗰行會出一粒 **Download Java (~140 MB)** 掣 — 嗰個數字係真係量度返嚟嘅，唔係估 — 佢會講明來源、喺撳嗰下記低同意、用可續傳兼 digest 驗證嘅方式落載、確認咗個壓縮檔入面真係有 `bin/java` 先解壓，跟住**行一行啱啱裝好嗰個 JDK** 先報成功，同發現階段對住一個「淨係搵到」嘅候選一樣嚴格。
+喺 Windows 安裝上面，runtime 本身已經喺度：`resources/bundled/java/bin/java.exe` 係跟住個 app 出貨嘅，所以「no Java runtime chosen yet」唔再係一個乾淨安裝去得到嘅狀態，第一次算圖亦唔使等落載。但係 bundle 嗰份係**行過先信，唔係信咗算數**。佢同其他候選一樣會真係行一次，太舊或者行唔起就會連原因一齊被拒絕，然後繼續搵下一個。Installer 擺落去嘅檔案，都仲只係一個檔案。
 
-[Fetching a Java runtime for itself](./java-runtime-provisioning.md) 係完整版：同意嘅形狀、涉及嘅每條 IPC channel、對住 Adoptium 自己 server 嘅真實網絡驗證，同埋完整嘅 failure-mode 表。呢份文件之後講嘅，就係其他每件工具都重複緊嘅同一個形狀。
+落載嗰條路仲喺度，亦仲有文件，因為佢係上面嗰步失手嗰陣行嘅：bundle 嘅 runtime 唔知點解用唔到（畀人刪咗、爛咗，或者畀政策擋住行唔到），又或者嗰個平台根本冇 stage 過（staging script 只釘死咗 Windows x64 嘅 asset）。嗰啲情況之下，Java runtime 設定嗰行照樣出返粒 **Download Java (~140 MB)** 掣，嗰個數字係真係量度返嚟嘅，唔係估。佢會講明來源、喺撳嗰下記低同意、用可續傳兼 digest 驗證嘅方式落載、確認咗個壓縮檔入面真係有 `bin/java` 先解壓，跟住**行一行啱啱裝好嗰個 JDK** 先報成功，同發現階段對住一個「淨係搵到」嘅候選一樣嚴格。
+
+[Fetching a Java runtime for itself](./java-runtime-provisioning.md) 係完整版：同意嘅形狀、涉及嘅每條 IPC channel、對住 Adoptium 自己 server 嘅真實網絡驗證，同埋完整嘅 failure-mode 表。
+
+### 點揀 JVM，同呢個次序嘅代價
+
+本機算圖搵 JVM 嘅次序係固定嘅，而且**每個候選都會真係行過先信**，因為一條路徑唔算證據：`JAVA_HOME` 可以比佢當初指嗰個 JDK 活得仲耐，`PATH` 上面嘅 `java` 可能係某個 version manager 嘅 shim（喺唔同目錄解析到唔同嘢），而一個叫 `jdk-25` 嘅資料夾以前試過裝住個 JDK 17。`main/java/discovery.ts` 入面冇一樣嘢係靠個名落結論。
+
+而家嘅次序係 **bundled、`JAVA_HOME`、`PATH`、provisioned**。以前係 `JAVA_HOME`、`PATH`、provisioned，理由係：肯設 `JAVA_HOME` 嗰個人已經同成部機講咗用邊個 JDK，而 app 自己嗰份應該排最尾，因為佢係冇人揀過嗰個。喺個 app 未有自己 runtime 之前，噉樣係啱嘅，因為當時唯一嘅替代品係事後先落載返嚟嗰份。到 installer 開始帶住個 JRE，就唔再啱：一個 bundle 咗嘅依賴一定要 bundled 行先，否則一個人實際行緊邊個 JVM，就係由裝喺 app 隔籬嗰啲嘢決定，而「喺我部機算圖失敗」呢類報告就淨靠嗰個 release 重現唔到。Bundle 嗰份亦係真係對住呢個 build 測過嗰份。
+
+呢個反轉唔係冇代價，呢份文件唔會扮冇。搜尋一撞到第一個過關嘅候選就會停，所以一旦有一份用得嘅 bundled runtime，`JAVA_HOME` 同 `PATH` 就根本唔會被試過，亦唔會出現喺拒絕清單入面。即係話，一個刻意設咗 `JAVA_HOME` 嘅人，唔會被話畀佢知佢嗰個被越過咗。緩解方法係披露而唔係避免：揀中嗰個安裝會報 `source: "bundled"`，所以任何顯示 runtime 嘅介面都可以直接講出而家用緊邊個 java。「佢靜靜雞用咗另一個 JDK，唔係我配置嗰個」唔應該係一件人經歷得到但睇唔到嘅事，不過要睇到，都仲係要人去望。
+
+拒絕紀錄係收埋起身而唔係掉咗，為咗應付真係一個都唔啱嘅情況：「JAVA_HOME 指住 Java 17」係做得到嘢嘅資訊，而喺一部裝咗三個 JDK 嘅機度話你聽「搵唔到 Java」，就淨係令人一頭霧水。
 
 ### Chunker：轉換 Bedrock 世界
 
-轉換 Bedrock Edition 世界要用 Chunker，即係 Hive Games 嘅開源轉換器（MIT 授權）— 轉換會保留同唔會保留啲乜，睇 [Bedrock Edition worlds](./bedrock-worlds.md)。個 app 唔會 bundle 佢：為咗一個大部分人都唔會用嘅功能，喺每個 installer 度加大約 30 MB 唔抵，而且 bundle 咗就等於將轉換器版本釘死喺某個 app release 上面。
+轉換 Bedrock Edition 世界要用 Chunker，即係 Hive Games 嘅開源轉換器（MIT 授權）：轉換會保留同唔會保留啲乜，睇 [Bedrock Edition worlds](./bedrock-worlds.md)。釘死咗嗰個 jar 而家係裝喺 installer 入面，所以一個全新安裝唔使落載、唔使網絡都轉到 Bedrock 世界。
 
-當偵測到 Bedrock 世界而部機又冇 Chunker 嗰陣，wizard 嘅 Bedrock 提示會喺原本應該係 **Convert** 嗰個位出一粒 **Download Chunker (~30 MB)** 掣 — 兩粒唔會同時出現，因為一粒實會失敗嘅 Convert 掣，仲衰過根本唔畀。撳落去就會攞釘死咗嗰個 release，用一個 commit 咗喺呢個 app 自己 source 入面嘅 SHA-256 嚟驗證 — 呢個係老實講攞得到嘅最強檢查，因為 Hive Games 冇為個 CLI jar 出過 detached signature 或者 checksum 檔 — 進度回報方式同 Java 落載一樣。完整嘅驗證故事，包括新 release 會行到嗰條較弱嘅 `digestTrust: "api"` 路徑，睇 [Bedrock Edition worlds § Obtaining it, and what "verified" honestly means](./bedrock-worlds.md#obtaining-it-and-what-verified-honestly-means)。
+**呢度反轉咗一個決定，舊嘅理由係記低而唔係刪走。** 之前嘅立場，寫喺呢份文件同 `main/bedrock/chunker.ts` 入面，係唔應該 bundle Chunker：為咗一個大部分人都唔會用嘅功能，喺每個 installer 度加大約 30 MB 唔抵，而且 bundle 咗就等於將轉換器版本釘死喺某個 app release 上面。前半部分而家重新判過：一個拔咗網線都用得嘅 installer，對所有人嚟講都抵返嗰 30 MB，包括永遠唔會轉 Bedrock 世界嗰班人；而另一邊嘅代價，係一粒喺離線或者過 proxy 嘅機上兌現唔到嘅 Convert 掣。後半部分從來都冇錯，而家更加係直接成立：轉換器版本**的確**釘死咗喺 app release 上面。要郁 Chunker 就要出新 build，而一個需要比 bundle 嗰個更新嘅轉換器嘅人，就要更新個 app，或者用 `CHUNKER_CLI_JAR` 指去自己嗰個 jar。呢件事無論點揀都唔係授權條款逼出嚟嘅，佢由頭到尾都係一個產品決定，只係重新做過。
+
+落載嗰條路留返畀 bundle 嗰個 jar 唔見咗或者用唔到嘅情況，同埋冇 stage 過嘅平台。當偵測到 Bedrock 世界而搵唔到任何 Chunker 嗰陣，wizard 嘅 Bedrock 提示會喺原本應該係 **Convert** 嗰個位出一粒 **Download Chunker (~30 MB)** 掣，兩粒唔會同時出現，因為一粒實會失敗嘅 Convert 掣，仲衰過根本唔畀。撳落去就會攞釘死咗嗰個 release，用一個 commit 咗喺呢個 app 自己 source 入面嘅 SHA-256 嚟驗證，呢個係老實講攞得到嘅最強檢查，因為 Hive Games 冇為個 CLI jar 出過 detached signature 或者 checksum 檔；進度回報方式同 Java 落載一樣。完整嘅驗證故事，包括新 release 會行到嗰條較弱嘅 `digestTrust: "api"` 路徑，睇 [Bedrock Edition worlds § Obtaining it, and what "verified" honestly means](./bedrock-worlds.md#obtaining-it-and-what-verified-honestly-means)。
 
 ### 用 winget/Chocolatey 裝系統依賴
 
@@ -294,11 +436,11 @@ this is the rest:
 
 ### 設定
 
-設定表列出六樣嘢同佢哋嘅預設：provision 返嚟嘅 JDK 放喺 `<userData>/java/<feature>/`，未同意落載之前唔存在；Java 落載同意記喺 `<userData>/java/download-consent.json`，預設係未同意；落載返嚟嘅 Chunker jar 放喺 `<userData>/chunker/chunker-cli-<version>.jar`，未攞之前唔存在；Chunker jar 可以用 `CHUNKER_CLI_JAR` 環境變數或者設定入面一條路徑覆寫，預設冇設；釘死咗嘅 Chunker release 同 digest 喺 `main/bedrock/chunker.ts` 嘅 `PINNED_CHUNKER`，係經審核嘅 source constant；系統依賴嘅路線表喺 `main/sysdeps/registry.ts` 嘅 `SYSDEP_DEPENDENCIES`，同樣係經審核嘅 source constant。
+設定表而家先列 bundle 嗰邊：bundle 咗嘅 JRE 喺 `<resources>/bundled/java/bin/java.exe`，每個 Windows installer 都有；bundle 咗嘅 Chunker jar 喺 `<resources>/bundled/chunker/chunker-cli-<version>.jar`，同樣每個 installer 都有；`<resources>/bundled/manifest.json` 由 `scripts/stage-bundled-runtimes.mjs` 寫，記低兩者嘅 release、版本、digest 同來源 URL；釘死咗嘅 JRE 同佢個 digest 喺同一個 script 嘅 `PINNED_JRE`，係經審核嘅 source constant。之後先係落載 fallback 嗰邊：provision 返嚟嘅 JDK 放喺 `<userData>/java/<feature>/`，未同意落載之前唔存在；Java 落載同意記喺 `<userData>/java/download-consent.json`，預設係未同意；落載返嚟嘅 Chunker jar 放喺 `<userData>/chunker/chunker-cli-<version>.jar`，未攞之前唔存在；Chunker jar 可以用 `CHUNKER_CLI_JAR` 環境變數或者設定入面一條路徑覆寫，預設冇設；釘死咗嘅 Chunker release 同 digest 喺 `main/bedrock/chunker.ts` 嘅 `PINNED_CHUNKER`，係經審核嘅 source constant；系統依賴嘅路線表喺 `main/sysdeps/registry.ts` 嘅 `SYSDEP_DEPENDENCIES`，同樣係經審核嘅 source constant。
 
 ### 失敗情況
 
-落載 JDK 或者 Chunker 嗰陣冇網絡：嗰個階段會用 alert 報失敗，最終路徑度唔會留低任何半製成品，粒掣照樣可以再試。Digest 唔夾：落載返嚟嘅 bytes 會刪走，乜都唔會解壓或者安裝，會當成一次拒絕嚟報，永遠唔會靜靜雞用第二樣嘢頂替。傳輸中途斷咗：下次會由磁碟上面已經有嘅 `.part` 檔續傳，唔會由零開始。啱啱解壓出嚟嘅 JDK 行唔到：嗰個壞咗嘅安裝紀錄會被撤回，令之後啟動唔會再拎佢出嚟用，而失敗訊息會講明 archive URL 同安裝路徑方便檢查。未畀同意：就算有 caller 跳過咗粒掣，`java:provision`/`bedrock:fetchChunker` 都會喺 server 端拒絕並且講明，唔會照落載。winget 同 Chocolatey 兩個都冇：預覽會報明呢個依賴喺兩個 manager 都攞唔到，並且兩個都點名，唔會淨係畀一個籠統失敗。提權提示被拒絕：當成一個獨立結果嚟報，同「搵唔到」或者「網絡失敗」分開，噉樣嗰行先可以直接講係個人話咗唔好，而唔係有嘢壞咗。
+Bundle 嘅 runtime 行唔到（太舊、畀人刪咗、爛咗、畀政策擋住）：佢會同其他候選一樣連原因被拒絕，然後繼續搵 `JAVA_HOME`、`PATH` 同 provision 嗰份；如果全部都唔得，就照舊出返粒落載掣。Stage installer 嗰陣 digest 唔夾：個 build 會失敗兼刪走啲 bytes，唔會出到一個聲稱帶住 runtime 但其實冇帶嘅 installer。落載 JDK 或者 Chunker 嗰陣冇網絡：嗰個階段會用 alert 報失敗，最終路徑度唔會留低任何半製成品，粒掣照樣可以再試。Digest 唔夾：落載返嚟嘅 bytes 會刪走，乜都唔會解壓或者安裝，會當成一次拒絕嚟報，永遠唔會靜靜雞用第二樣嘢頂替。傳輸中途斷咗：下次會由磁碟上面已經有嘅 `.part` 檔續傳，唔會由零開始。啱啱解壓出嚟嘅 JDK 行唔到：嗰個壞咗嘅安裝紀錄會被撤回，令之後啟動唔會再拎佢出嚟用，而失敗訊息會講明 archive URL 同安裝路徑方便檢查。未畀同意：就算有 caller 跳過咗粒掣，`java:provision`/`bedrock:fetchChunker` 都會喺 server 端拒絕並且講明，唔會照落載。winget 同 Chocolatey 兩個都冇：預覽會報明呢個依賴喺兩個 manager 都攞唔到，並且兩個都點名，唔會淨係畀一個籠統失敗。提權提示被拒絕：當成一個獨立結果嚟報，同「搵唔到」或者「網絡失敗」分開，噉樣嗰行先可以直接講係個人話咗唔好，而唔係有嘢壞咗。
 
 ### 安全考慮
 
@@ -306,6 +448,7 @@ this is the rest:
 - **每個壓縮檔喺解壓之前都會驗證**，而每個解壓出嚟嘅 binary 會再用「行一行佢」嚟驗多次，唔會淨係信個壓縮檔自稱裝住乜。
 - **呢啲路徑上面永遠唔會經過任何 credential。** Adoptium、GitHub 嘅 release CDN 同 winget/Chocolatey manifest 全部係公開、免認證嘅 fetch。
 - **提權提示永遠唔會被壓抑、繞過或者自動接受。** 個 app 用平常方式叫 `winget`/`choco`，佢哋報乜就講乜；被拒絕嘅提示係一個正常兼會被報出嚟嘅結果，唔會攞去重試。
+- **裝喺 installer 入面嘅嘢係喺 build 階段驗證，唔係喺安裝階段。** 兩個 bundle 嘅 artifact 喺 stage 之前都要對返 `scripts/stage-bundled-runtimes.mjs` 入面 commit 咗嘅 digest，唔夾就令個 build 失敗而唔會出到 installer。呢個證明唔到嘅係：某部機上面嗰份喺安裝之後仲係完好。所以 bundle 嘅 runtime 用之前一定要行過，同對住一個「淨係喺機上搵到」嘅候選一模一樣。
 - **唯一一個冇發行方簽名嘅依賴（Chunker），佢個 digest 釘死喺 source 入面**，令最強嗰個檢查唔會完全靠網絡嗰次 session 畀返乜答案。
 
 ### 驗證

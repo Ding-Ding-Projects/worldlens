@@ -18,12 +18,29 @@ describe("MaterialShell", () => {
         document.body.innerHTML = "<main id='map'></main>";
         document.head.querySelector("#bm-m3-style")?.remove();
         setViewport(1280);
+        /*
+         * A faithful `Storage`, not a three-method sketch.
+         *
+         * This used to implement only `getItem`, `setItem` and `clear`. That is enough for a
+         * test that knows the exact key it wants, and silently wrong for one that asks what
+         * was stored: `length` was `undefined` and `key()` did not exist, so enumerating the
+         * store returned nothing and read as "the code saved nothing" rather than "this double
+         * cannot answer that question". A test double that returns a confident empty answer is
+         * worse than one that throws.
+         */
         const values = new Map<string, string>();
         Object.defineProperty(window, "localStorage", {
             configurable: true,
             value: {
+                get length(): number {
+                    return values.size;
+                },
+                key: (index: number): string | null => [...values.keys()][index] ?? null,
                 getItem: (key: string) => values.get(key) ?? null,
                 setItem: (key: string, value: string) => values.set(key, value),
+                removeItem: (key: string) => {
+                    values.delete(key);
+                },
                 clear: () => values.clear(),
             },
         });
@@ -348,8 +365,36 @@ describe("MaterialShell", () => {
         const menu = shell.root.querySelector(".bm-m3-menu") as HTMLDivElement;
         expect(menu.hidden).toBe(false);
         (menu.querySelector('[data-action="pin"]') as HTMLButtonElement).click();
-        expect(localStorage.getItem("bluemap-pinpoints")).toContain("Pinpoint 1");
-        expect(shell.root.querySelector(".bm-m3-pin")?.textContent).toContain("10, 64, -20");
+
+        // The pin is persisted by `measurementWaypointModel`, whose key is scoped per profile,
+        // map and dimension: `worldlens-measurement-waypoints:<profile>:<map>:<dimension>`.
+        //
+        // This used to read `bluemap-pinpoints`, a flat key from before the rename, and had
+        // been failing ever since the model took the job over. It failed in the least useful
+        // way too: `getItem` returned null and the matcher complained about comparing null to
+        // a string, which reads as a broken assertion rather than as "nothing was saved". The
+        // scope is deliberately not hard-coded here, because pinning the exact profile and map
+        // ids into this test would make it fail again the next time the default scope moves,
+        // for a reason that has nothing to do with pinning a point.
+        // Enumerated through `length` / `key(i)` rather than `Object.keys`, because `Storage`
+        // is an index-access exotic object and enumerating it as a plain object is not
+        // something the standard promises.
+        const persisted: string[] = [];
+        for (let index = 0; index < localStorage.length; index += 1) {
+            const key = localStorage.key(index);
+            if (key?.startsWith("worldlens-measurement-waypoints:") === true) {
+                persisted.push(localStorage.getItem(key) ?? "");
+            }
+        }
+        expect(persisted.length, "the pin should have been written to a scoped waypoint store").toBeGreaterThan(0);
+        expect(persisted.join("\n")).toContain("Pinpoint 1");
+
+        // The pin confirms itself through the shell's notice strip, the same place the
+        // sibling command-builder case reads. `.bm-m3-pin` was the old marker element and no
+        // longer exists anywhere in the shell, so `querySelector` returned null, `?.` turned
+        // that into undefined, and the matcher reported an argument-type complaint instead of
+        // "that element is gone". Assert the text a user would actually see.
+        expect(shell.root.textContent).toContain("Pinpoint 1 saved at 10, 64, -20.");
     });
 
     it("hands the terrain menu's exact world point to a connected command-builder host, and closes the menu", () => {
