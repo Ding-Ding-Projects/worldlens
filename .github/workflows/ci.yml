@@ -255,8 +255,35 @@ jobs:
             Write-Host '::error::the collected Squirrel set contains no setup executable'
             exit 1
           }
+          # Executables this build GENERATES, which is what the no-signing policy is about.
+          #
+          # The packaged tree now also carries a vendored Temurin JRE under
+          # resourcesundledjava, so that the installer contains the runtime instead of
+          # asking a stranger to download one. Those binaries are Eclipse Adoptium's, and they
+          # arrive carrying Adoptium's own Authenticode signature: jabswitch.exe is the one
+          # that first tripped this gate, but java.exe and javaw.exe are signed too.
+          #
+          # That is not this project signing anything. The prohibition is on this build
+          # acquiring or using a signing certificate and on presenting its own output as
+          # authenticated; a third-party runtime's vendor signature is the opposite of that
+          # concern, and stripping it would leave users with a runtime whose provenance can no
+          # longer be checked at all. So the vendored tree is excluded from the NotSigned
+          # assertion, and only from that assertion.
+          #
+          # The exclusion is deliberately one exact directory rather than a pattern. Anything
+          # this build emits stays inside the check, including Worldlens.exe and every Squirrel
+          # setup executable, so a signed artefact of our own cannot hide by being placed
+          # somewhere new.
+          $vendoredRoot = Join-Path $applicationDirectories[0] 'resourcesundled'
+          $vendoredExecutables = @(
+            $packagedExecutables | Where-Object { $_.FullName.StartsWith($vendoredRoot, [System.StringComparison]::OrdinalIgnoreCase) }
+          )
+          if ($vendoredExecutables.Count -lt 1) {
+            Write-Host '::error::no vendored runtime executables found; the bundled JRE is missing from the packaged app'
+            exit 1
+          }
           $executables = @(
-            $packagedExecutables
+            $packagedExecutables | Where-Object { -not $_.FullName.StartsWith($vendoredRoot, [System.StringComparison]::OrdinalIgnoreCase) }
             $releaseExecutables
           ) | Sort-Object -Property FullName -Unique
           $applicationCandidates = @($packagedExecutables | Where-Object { $_.Name -eq 'Worldlens.exe' })
@@ -281,6 +308,7 @@ jobs:
             exit 1
           }
           Write-Host "verified $($executables.Count) generated executable(s): Worldlens-branded and NotSigned"
+          Write-Host "vendored (not this build's output, vendor signatures kept): $($vendoredExecutables.Count) executable(s) under resourcesundled"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

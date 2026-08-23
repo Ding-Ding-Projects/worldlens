@@ -533,18 +533,18 @@ export const VOICED = {
      */
     "welcome.cannot": {
         en: [
-            "Before you start: rendering runs on Java. If this computer does not already have a suitable version, the app can fetch one into its own folder, never installed system-wide. Minecraft's own client file is downloaded too, using the answer you give on the next step; you are not asked twice.",
-            "Before you start: rendering runs on Java. If this computer does not already have a suitable version, the app can fetch one into its own folder, never installed system-wide. Minecraft's own client file is downloaded too, using the answer you give on the next step; you are not asked twice.",
-            "Good to know before you start: rendering runs on Java. If this computer does not already have a suitable version, the app fetches one into its own folder rather than installing anything system-wide. Minecraft's own client file also gets downloaded, using the answer you give on the next step, so you are not asked twice.",
-            "Two things worth knowing before you dive in: rendering needs Java, and if this machine does not have a suitable copy the app quietly fetches its own, tucked away in its own folder rather than spread across your system. Minecraft's client file rides along on the very next step's answer, so nobody asks you twice.",
-            "Two little secrets before you dive in: rendering runs on Java, and if this machine is Java-less the app happily fetches its own copy, tucked away in its own folder rather than smeared across your whole system. Minecraft's client file hitches a ride on the very next step's answer, so nobody grills you about it twice.",
+            "Before you start: rendering runs on Java, and this app ships its own copy inside the installer. Nothing has to be downloaded and nothing is installed system-wide. Minecraft's own client file is downloaded, using the answer you give on the next step; you are not asked twice.",
+            "Before you start: rendering runs on Java, and this app ships its own copy inside the installer. Nothing has to be downloaded and nothing is installed system-wide. Minecraft's own client file is downloaded, using the answer you give on the next step; you are not asked twice.",
+            "Good to know before you start: rendering runs on Java, and this app brings its own, inside the installer rather than fetched afterwards or installed system-wide. So there is nothing to set up for that. Minecraft's own client file does get downloaded, using the answer you give on the next step, so you are not asked twice.",
+            "Two things worth knowing before you dive in: rendering needs Java, and this app already carries its own copy, tucked in its own folder rather than spread across your system or fetched later. Minecraft's client file is the one download, and it rides along on the very next step's answer, so nobody asks you twice.",
+            "Two little secrets before you dive in: rendering runs on Java, and this app packed its own the way you pack your own snacks, tucked away in its own folder rather than smeared across your whole system. Minecraft's client file is the only thing still coming over the wire, and it hitches a ride on the very next step's answer, so nobody grills you about it twice.",
         ],
         yue: [
-            "開始之前：算圖係用 Java 嚟做嘅。如果呢部電腦未有合適嘅版本，程式可以幫手攞一份，放喺自己嘅資料夾入面，唔會裝落成部電腦。Minecraft 嘅客戶端檔案都會下載，用嘅係下一步你俾嘅答案，唔會問多次。",
-            "開始之前：算圖係用 Java 嚟做嘅。如果呢部電腦未有合適嘅版本，程式可以幫手攞一份，放喺自己嘅資料夾入面，唔會裝落成部電腦。Minecraft 嘅客戶端檔案都會下載，用嘅係下一步你俾嘅答案，唔會問多次。",
-            "開始之前，你要知道：算圖係用 Java 嚟做嘅。如果呢部電腦未有合適版本，程式會幫手攞一份，放喺自己嘅資料夾，唔會裝到成部電腦度。Minecraft 嘅客戶端檔案都會下載，用返下一步你答嘅答案，唔會再問多次。",
-            "落手之前，有兩件事你要知：算圖靠 Java 撐住，如果呢部機冇合適版本，程式會靜靜雞幫你攞一份，收埋喺自己個資料夾，唔會周圍裝。Minecraft 嘅客戶端檔案就搭下一步你嘅答案順風車，唔會再問你多次。",
-            "落手之前，兩個小秘密話你知：算圖靠 Java 撐場，如果呢部機冇 Java，程式就會自己靜靜雞攞一份返嚟，收埋喺自己個資料夾，唔會周圍裝到成部機都係。Minecraft 嘅客戶端檔案就搭埋下一步你個答案嘅順風車，唔會再煩多次問你。",
+            "開始之前：算圖係用 Java 嚟做嘅，而呢個程式已經將自己嗰份 Java 裝埋喺安裝檔入面。唔使下載，亦都唔會裝落成部電腦。Minecraft 嘅客戶端檔案就會下載，用嘅係下一步你俾嘅答案，唔會問多次。",
+            "開始之前：算圖係用 Java 嚟做嘅，而呢個程式已經將自己嗰份 Java 裝埋喺安裝檔入面。唔使下載，亦都唔會裝落成部電腦。Minecraft 嘅客戶端檔案就會下載，用嘅係下一步你俾嘅答案，唔會問多次。",
+            "開始之前，你要知道：算圖係用 Java 嚟做嘅，而呢個程式自己帶咗一份返嚟，放喺安裝檔入面，唔使事後再攞，亦都唔會裝到成部電腦度。所以嗰邊乜都唔使搞。Minecraft 嘅客戶端檔案就真係會下載，用返下一步你答嘅答案，唔會再問多次。",
+            "落手之前，有兩件事你要知：算圖靠 Java 撐住，而呢個程式已經自己帶咗一份，收埋喺自己個資料夾，唔使遲啲再攞，亦都唔會周圍裝。淨係 Minecraft 嘅客戶端檔案要下載，佢搭下一步你嘅答案順風車，唔會再問你多次。",
+            "落手之前，兩個小秘密話你知：算圖靠 Java 撐場，而呢個程式好似自己帶定糧咁，一早將 Java 收埋喺個資料夾度，唔會周圍裝到成部機都係。得返 Minecraft 嘅客戶端檔案要行網路，佢就搭埋下一步你個答案嘅順風車，唔會再煩多次問你。",
         ],
     },
     "welcome.lead": {

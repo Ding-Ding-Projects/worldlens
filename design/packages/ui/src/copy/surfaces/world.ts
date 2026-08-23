@@ -916,18 +916,18 @@ export const WORLD_VOICED = {
      */
     "world.review.javaValue": {
         en: [
-            "If this computer does not already have a suitable Java runtime, the app fetches one into its own folder before rendering starts. It is not installed system-wide.",
-            "If this computer does not already have a suitable Java runtime, the app fetches one into its own folder before rendering starts. It is not installed system-wide.",
-            "If this computer does not already have a suitable Java runtime, the render sets one up first, fetched into its own folder. It is not installed system-wide.",
-            "No suitable Java runtime on this machine? No bother. The app quietly fetches its own into its own folder before the first render, and it is not installed system-wide.",
-            "Missing a Java runtime? Not your problem. The app happily fetches its own copy into its own folder the moment it is needed, and it is not installed system-wide, so your machine stays exactly as tidy as before.",
+            "This app ships its own Java runtime inside the installer, so rendering needs nothing downloaded and nothing installed system-wide.",
+            "This app ships its own Java runtime inside the installer, so rendering needs nothing downloaded and nothing installed system-wide.",
+            "The Java runtime rendering needs came with the app, inside the installer. Nothing is downloaded for it and nothing is installed system-wide.",
+            "Java? Already here. It came inside the installer rather than being fetched later, and none of it is installed system-wide.",
+            "Java? Already sitting in the bag. It rode in with the installer instead of being fetched when you least wanted to wait, and none of it is installed system-wide, so your machine stays exactly as tidy as before.",
         ],
         yue: [
-            "如果呢部電腦未有合適嘅 Java，算圖之前會幫你攞一份，放喺自己嘅資料夾入面，唔會裝落成部電腦。",
-            "如果呢部電腦未有合適嘅 Java，算圖之前會幫你攞一份，放喺自己嘅資料夾入面，唔會裝落成部電腦。",
-            "如果呢部電腦未有合適嘅 Java，算圖會自動幫手攞一份返嚟，放喺自己嘅資料夾，唔會裝落成部電腦。",
-            "呢部機冇合適嘅 Java？唔緊要，程式會靜靜雞幫你攞一份，放喺自己嘅資料夾，唔會裝落成部電腦。",
-            "冇 Java？唔關你事，程式一於自己攞一份返嚟，收埋喺自己嘅資料夾，一樣唔會裝落成部電腦，你部機照舊咁乾淨。",
+            "呢個程式已經將 Java 裝埋喺安裝檔入面，所以算圖唔使下載任何嘢，亦都唔會裝落成部電腦。",
+            "呢個程式已經將 Java 裝埋喺安裝檔入面，所以算圖唔使下載任何嘢，亦都唔會裝落成部電腦。",
+            "算圖要用嘅 Java 隨程式一齊入咗嚟，就喺安裝檔入面。唔使下載，亦都唔會裝落成部電腦。",
+            "Java？一早喺度。佢係跟住安裝檔入嚟，唔使遲啲再攞，亦都唔會裝落成部電腦。",
+            "Java？一早收埋咗喺個袋度。佢跟住安裝檔一齊入嚟，唔使等到你最唔想等嗰陣先攞，亦都唔會裝落成部電腦，你部機照舊咁乾淨。",
         ],
     },
     "world.review.consentMissing": {
@@ -2737,9 +2737,19 @@ export const WORLD_FACTS = {
         en: ["BlueMap's own engine", "run locally", "reported once it starts"],
         yue: ["BlueMap 自己嘅引擎", "本機", "報返實際版本"],
     },
+    /*
+     * The middle fact used to be "own folder", from when the runtime was fetched at first
+     * use and the reassuring part was where it landed. The app carries its own Java inside
+     * the installer now, so the fact worth protecting from a playful rewrite changed with it:
+     * that it shipped with the app, and that nothing is installed system-wide.
+     *
+     * Updating the pinned literal is the point of this table rather than a chore around it.
+     * It failed the moment the copy changed, which is exactly what should happen when a fact
+     * moves, and it is the reason the new wording could not quietly keep the old promise.
+     */
     "world.review.javaValue": {
-        en: ["Java", "own folder", "not installed system-wide"],
-        yue: ["Java", "自己嘅資料夾", "唔會裝落成部電腦"],
+        en: ["Java", "installer", "system-wide"],
+        yue: ["Java", "安裝檔", "唔會裝落成部電腦"],
     },
     "world.review.consentMissing": {
         en: ["Mojang", "download has not been accepted", "stop before it started"],
