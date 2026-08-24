@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Keep catalogue copy publication safe - [`61c6f8af6a`](https://github.com/Ding-Ding-Projects/worldlens/commit/61c6f8af6af526ab4b9d4db807c4eb8e5855a2b4)
 - Harden complete version catalogue flows - [`eea9b9c32c`](https://github.com/Ding-Ding-Projects/worldlens/commit/eea9b9c32cc6c712951fc35822fcd32f670a7c7e)
 - Complete Mojang version catalogue grouping - [`b54c5ce012`](https://github.com/Ding-Ding-Projects/worldlens/commit/b54c5ce012fddcef678703a53c38112073f7ccce)
 - Expose verified BlueMap provenance in Settings - [`131f0a8db6`](https://github.com/Ding-Ding-Projects/worldlens/commit/131f0a8db65391eb682552348af7c80b3c034641) _(summary of 3 commits, also listed here)_

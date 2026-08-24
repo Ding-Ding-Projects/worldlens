@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "61c6f8af6af526ab4b9d4db807c4eb8e5855a2b4",
+        shortSha: "61c6f8af6a",
+        date: "2026-08-24T03:47:25-04:00",
+        subject: "Keep catalogue copy publication safe",
+        details: "Keep the catalogue's playful failure wording ordinary in the public copy file, because a joke belongs in the tone and not in private session vocabulary.\n\n版本表嘅玩味語氣照留，但公開 copy 唔好帶入私下用語，笑位應該放喺語氣，唔係放喺唔應該出現嘅字眼。",
+        category: "interface",
+        areas: ["interface", "docs"],
+        files: 2,
+    },
+    {
         sha: "eea9b9c32cc6c712951fc35822fcd32f670a7c7e",
         shortSha: "eea9b9c32c",
         date: "2026-08-24T03:44:58-04:00",
