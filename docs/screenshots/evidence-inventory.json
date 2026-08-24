@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 237,
+  "expectedTargetCount": 238,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -356,12 +356,13 @@
         "docs/screenshots/issue-149-in-progress-java-wizard.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de",
         "docs/screenshots/issue-166-in-progress-finished-render-missing.png": "b41f55ad21e9f386c316a399ca4478c4c998023e",
         "docs/screenshots/issue-166-in-progress-map-catalogue-missing.png": "b41f55ad21e9f386c316a399ca4478c4c998023e",
+        "docs/screenshots/issue-82-engine-artifact-provenance-fixed.png": "131f0a8db65391eb682552348af7c80b3c034641",
         "docs/screenshots/issue-82-engine-artifact-provenance-missing.png": "b41f55ad21e9f386c316a399ca4478c4c998023e",
         "docs/screenshots/issue-82-in-progress-java-install.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de",
         "docs/screenshots/issue-148-in-progress-project-render-route.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de",
         "docs/screenshots/direct-world-browse-before.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de"
       },
-      "expectedCount": 25,
+      "expectedCount": 26,
       "targets": [
         "design/docs/assets/issues/106-before-startup-blocked.png",
         "docs/screenshots/issue-100-in-progress-container-offers.png",
@@ -384,6 +385,7 @@
         "docs/screenshots/issue-149-in-progress-java-wizard.png",
         "docs/screenshots/issue-166-in-progress-finished-render-missing.png",
         "docs/screenshots/issue-166-in-progress-map-catalogue-missing.png",
+        "docs/screenshots/issue-82-engine-artifact-provenance-fixed.png",
         "docs/screenshots/issue-82-engine-artifact-provenance-missing.png",
         "docs/screenshots/issue-82-in-progress-java-install.png",
         "docs/screenshots/issue-148-in-progress-project-render-route.png",
