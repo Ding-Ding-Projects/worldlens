@@ -7,3 +7,4 @@ export * from "./creativeTypes.js";
 export * from "./creativeDocument.js";
 export * from "./creativeRenderer.js";
 export * from "./creativeAdapter.js";
+export * from "./creativeLogoPipeline.js";

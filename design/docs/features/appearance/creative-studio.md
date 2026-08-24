@@ -8,7 +8,8 @@ document without changing package identity.
 
 ## What it edits
 
-The document supports raster, vector, text, gradient, and group layers. Layers can be renamed,
+The document format is version 2. Version 1 files migrate before validation, preserving their
+layers, history, and presets. The document supports raster, vector, text, gradient, and group layers. Layers can be renamed,
 hidden, selected together, reordered, nested, grouped, clipped, masked, duplicated through the
 host action, and adjusted with opacity and blend mode controls. The preview is generated from the
 same document used by the controls, so changing a result row changes the rendered SVG immediately.
@@ -32,6 +33,11 @@ content. Image import accepts PNG, JPEG, WebP, and safe static SVG only. It reje
 script-bearing input, bounds the file to 8 MB and the canvas to 16 megapixels, and keeps the prior
 valid state if validation fails. Images are read locally and are never uploaded or fetched from a
 network source.
+
+Generating logo variants sends the selected validated SVG through the same logo store used by the
+app-logo settings row and title-bar chrome. It therefore updates the visible mark live and uses
+the existing persistence and reset path. A failed generated variant leaves the previous mark
+active.
 
 The stable package identity, application data directory, installer identity, and update feed are
 not derived from a custom logo or document name.

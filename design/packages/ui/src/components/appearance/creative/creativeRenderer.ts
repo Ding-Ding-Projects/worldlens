@@ -17,7 +17,9 @@ function transform(layer: CreativeLayer): string {
     const rotation = "rotation" in layer ? layer.rotation : 0;
     const scaleX = ("scaleX" in layer ? layer.scaleX : 1) * ("flipX" in layer && layer.flipX ? -1 : 1);
     const scaleY = ("scaleY" in layer ? layer.scaleY : 1) * ("flipY" in layer && layer.flipY ? -1 : 1);
-    const transforms = [`translate(${cssValue(x + width / 2)} ${cssValue(y + height / 2)})`, `scale(${cssValue(scaleX)} ${cssValue(scaleY)})`, `rotate(${cssValue(rotation)})`, `translate(${cssValue(-width / 2)} ${cssValue(-height / 2)})`];
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+    const transforms = [`translate(${cssValue(centerX)} ${cssValue(centerY)})`, `scale(${cssValue(scaleX)} ${cssValue(scaleY)})`, `rotate(${cssValue(rotation)})`, `translate(${cssValue(-centerX)} ${cssValue(-centerY)})`];
     return ` transform="${transforms.join(" ")}"`;
 }
 

@@ -1,6 +1,7 @@
 import {
     CREATIVE_DOCUMENT_FORMAT,
     CREATIVE_DOCUMENT_VERSION,
+    LEGACY_CREATIVE_DOCUMENT_VERSION,
     CREATIVE_LIMITS,
     DEFAULT_CREATIVE_CAPABILITIES,
     type CreativeAppearanceCapabilities,
@@ -404,39 +405,112 @@ function validLayer(layer: unknown, depth: number, ids: Set<string>, canvas: Cre
     return true;
 }
 
-export function validateCreativeDocument(value: unknown): value is CreativeAppearanceDocument {
-    if (!isObject(value) || value.format !== CREATIVE_DOCUMENT_FORMAT || value.version !== CREATIVE_DOCUMENT_VERSION) return false;
-    const canvas = value.canvas;
-    if (!isObject(canvas) || !validNumber(canvas.width, 1, 4096) || !validNumber(canvas.height, 1, 4096) || !validColor(canvas.background) || canvas.width * canvas.height > CREATIVE_LIMITS.maxCanvasPixels) return false;
-    if (!isObject(canvas.crop) || !validNumber(canvas.crop.top, 0, canvas.height) || !validNumber(canvas.crop.right, 0, canvas.width) || !validNumber(canvas.crop.bottom, 0, canvas.height) || !validNumber(canvas.crop.left, 0, canvas.width) || typeof canvas.rulers !== "boolean" || !isObject(canvas.grid) || typeof canvas.grid.enabled !== "boolean" || !validNumber(canvas.grid.size, 1, 512) || typeof canvas.grid.snap !== "boolean" || !isObject(canvas.safeArea) || !validNumber(canvas.safeArea.inset, 0, 512) || typeof canvas.safeArea.enabled !== "boolean" || !Array.isArray(canvas.guides) || canvas.guides.length > 128 || !canvas.guides.every((guide) => isObject(guide) && typeof guide.id === "string" && ["x", "y"].includes(String(guide.axis)) && validNumber(guide.position, -4096, 8192))) return false;
-    if (!Array.isArray(value.layers) || value.layers.length > CREATIVE_LIMITS.maxLayers) return false;
-    const safeCanvas = canvas as unknown as CreativeCanvas;
+function validCanvas(value: unknown): value is CreativeCanvas {
+    if (!isObject(value) || !validNumber(value.width, 1, 4096) || !validNumber(value.height, 1, 4096) || !validColor(value.background) || value.width * value.height > CREATIVE_LIMITS.maxCanvasPixels) return false;
+    return isObject(value.crop) && validNumber(value.crop.top, 0, value.height) && validNumber(value.crop.right, 0, value.width) && validNumber(value.crop.bottom, 0, value.height) && validNumber(value.crop.left, 0, value.width) && typeof value.rulers === "boolean" && isObject(value.grid) && typeof value.grid.enabled === "boolean" && validNumber(value.grid.size, 1, 512) && typeof value.grid.snap === "boolean" && isObject(value.safeArea) && validNumber(value.safeArea.inset, 0, 512) && typeof value.safeArea.enabled === "boolean" && Array.isArray(value.guides) && value.guides.length <= 128 && value.guides.every((guide) => isObject(guide) && typeof guide.id === "string" && ["x", "y"].includes(String(guide.axis)) && validNumber(guide.position, -4096, 8192));
+}
+
+function validLayerGraph(value: unknown, canvas: CreativeCanvas): value is readonly CreativeLayer[] {
+    if (!Array.isArray(value) || value.length > CREATIVE_LIMITS.maxLayers) return false;
     const ids = new Set<string>();
-    if (!value.layers.every((layer) => validLayer(layer, 0, ids, safeCanvas))) return false;
-    if (value.layers.some((layer) => layer.parentId !== null && !ids.has(layer.parentId))) return false;
-    for (const layer of value.layers) {
+    if (!value.every((layer) => validLayer(layer, 0, ids, canvas))) return false;
+    for (const layer of value) {
+        if (layer.parentId === null) continue;
+        const parent = value.find((candidate) => candidate.id === layer.parentId);
+        if (!parent || parent.kind !== "group") return false;
         const seen = new Set<string>();
-        let parent = layer.parentId;
-        while (parent !== null) {
-            if (seen.has(parent)) return false;
-            seen.add(parent);
-            const ancestor = value.layers.find((candidate) => candidate.id === parent);
-            parent = ancestor?.parentId ?? null;
+        let current: string | null = layer.parentId;
+        while (current !== null) {
+            if (seen.has(current)) return false;
+            seen.add(current);
+            const ancestor = value.find((candidate) => candidate.id === current);
+            current = ancestor?.parentId ?? null;
             if (seen.size > CREATIVE_LIMITS.maxNesting) return false;
         }
     }
-    if (!Array.isArray(value.selectedLayerIds) || value.selectedLayerIds.some((id) => typeof id !== "string" || !ids.has(id))) return false;
+    return value.filter((layer) => layer.kind === "group").length <= CREATIVE_LIMITS.maxGroups;
+}
+
+function selectedIdsValid(layers: unknown, selected: unknown): boolean {
+    if (!Array.isArray(layers) || !Array.isArray(selected)) return false;
+    const ids = new Set(layers.filter(isObject).map((layer) => layer.id).filter((id): id is string => typeof id === "string"));
+    return selected.every((id) => typeof id === "string" && ids.has(id));
+}
+
+export function validateCreativeDocument(value: unknown): value is CreativeAppearanceDocument {
+    if (!isObject(value) || value.format !== CREATIVE_DOCUMENT_FORMAT || value.version !== CREATIVE_DOCUMENT_VERSION) return false;
+    const canvas = value.canvas;
+    if (!validCanvas(canvas)) return false;
+    if (!validLayerGraph(value.layers, canvas)) return false;
+    if (!selectedIdsValid(value.layers, value.selectedLayerIds)) return false;
     if (!Array.isArray(value.history) || value.history.length > CREATIVE_LIMITS.maxHistory || !validNumber(value.historyCursor, 0, Math.max(0, value.history.length - 1))) return false;
-    if (!Array.isArray(value.presets) || value.presets.length > 32 || !isObject(value.logo) || typeof value.logo.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.logo.target)) || !isObject(value.logo.safeArea) || !validNumber(value.logo.safeArea.inset, 0, 512) || typeof value.logo.safeArea.enabled !== "boolean" || !Array.isArray(value.logo.variants) || value.logo.variants.length > 8 || !value.logo.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && typeof variant.dataUrl === "string" && /^data:image\/svg\+xml;charset=utf-8,/i.test(variant.dataUrl))) return false;
-    return value.history.every((entry) => isObject(entry) && typeof entry.id === "string" && typeof entry.action === "string" && typeof entry.timestamp === "string" && isObject(entry.canvas) && Array.isArray(entry.layers) && Array.isArray(entry.selectedLayerIds) && Array.isArray(entry.presets) && isObject(entry.logo));
+    if (!Array.isArray(value.presets) || value.presets.length > 32 || !value.presets.every((preset) => isObject(preset) && typeof preset.id === "string" && typeof preset.name === "string" && validCanvas(preset.canvas) && validLayerGraph(preset.layers, preset.canvas))) return false;
+    if (!isObject(value.logo) || typeof value.logo.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.logo.target)) || !isObject(value.logo.safeArea) || !validNumber(value.logo.safeArea.inset, 0, 512) || typeof value.logo.safeArea.enabled !== "boolean" || !Array.isArray(value.logo.variants) || value.logo.variants.length > 8 || !value.logo.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && typeof variant.dataUrl === "string" && /^data:image\/svg\+xml;charset=utf-8,/i.test(variant.dataUrl))) return false;
+    return value.history.every((entry) => isObject(entry) && typeof entry.id === "string" && typeof entry.action === "string" && typeof entry.timestamp === "string" && validCanvas(entry.canvas) && validLayerGraph(entry.layers, entry.canvas) && selectedIdsValid(entry.layers, entry.selectedLayerIds) && Array.isArray(entry.presets) && entry.presets.every((preset) => isObject(preset) && validCanvas(preset.canvas) && validLayerGraph(preset.layers, preset.canvas)) && isObject(entry.logo));
 }
 
 export function importCreativeDocument(text: string): CreativeImportResult {
     if (text.length > 12 * 1024 * 1024) throw new Error("The creative document is larger than the 12 MB safety limit.");
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { throw new Error("The creative document is not valid JSON."); }
-    if (!validateCreativeDocument(parsed)) throw new Error("The creative document does not match the supported bounded format.");
-    return { document: clone(parsed), warnings: [] };
+    const migrated = migrateCreativeDocument(parsed);
+    if (!validateCreativeDocument(migrated)) throw new Error("The creative document does not match the supported bounded format.");
+    return { document: clone(migrated), warnings: parsed !== migrated ? ["This document was migrated from creative format version 1."] : [] };
+}
+
+function migrateCanvas(raw: unknown): Record<string, unknown> {
+    const value = isObject(raw) ? raw : {};
+    return {
+        ...value,
+        crop: isObject(value.crop) ? value.crop : { top: 0, right: 0, bottom: 0, left: 0 },
+        rulers: typeof value.rulers === "boolean" ? value.rulers : true,
+        guides: Array.isArray(value.guides) ? value.guides : [],
+        grid: isObject(value.grid) ? { enabled: Boolean(value.grid.enabled), size: value.grid.size ?? 16, snap: Boolean(value.grid.snap) } : { enabled: false, size: 16, snap: false },
+        safeArea: isObject(value.safeArea) ? value.safeArea : { inset: 10, enabled: false },
+    };
+}
+
+function migrateLayer(raw: unknown): Record<string, unknown> {
+    const value = isObject(raw) ? valueOrEmpty(raw) : {};
+    const kind = value.kind;
+    return {
+        ...value,
+        locked: typeof value.locked === "boolean" ? value.locked : false,
+        scaleX: "scaleX" in value ? value.scaleX : 1,
+        scaleY: "scaleY" in value ? value.scaleY : 1,
+        ...(kind === "group" ? {} : {}),
+    };
+}
+
+function valueOrEmpty(value: Record<string, unknown>): Record<string, unknown> {
+    return value;
+}
+
+export function migrateCreativeDocument(value: unknown): unknown {
+    if (!isObject(value) || value.format !== CREATIVE_DOCUMENT_FORMAT || value.version !== LEGACY_CREATIVE_DOCUMENT_VERSION) return value;
+    const migratedLayers = Array.isArray(value.layers) ? value.layers.map(migrateLayer) : [];
+    const migrateHistory = Array.isArray(value.history) ? value.history.map((entry) => {
+        const item = isObject(entry) ? entry : {};
+        return {
+            ...item,
+            canvas: migrateCanvas(item.canvas),
+            layers: Array.isArray(item.layers) ? item.layers.map(migrateLayer) : [],
+            presets: Array.isArray(item.presets) ? item.presets : [],
+            logo: isObject(item.logo) ? item.logo : clone(DEFAULT_LOGO),
+        };
+    }) : [];
+    return {
+        ...value,
+        version: CREATIVE_DOCUMENT_VERSION,
+        canvas: migrateCanvas(value.canvas),
+        layers: migratedLayers,
+        history: migrateHistory,
+            presets: Array.isArray(value.presets) ? value.presets.map((preset) => {
+                const item = isObject(preset) ? preset : {};
+                return { ...item, canvas: migrateCanvas(item.canvas), layers: Array.isArray(item.layers) ? item.layers.map(migrateLayer) : [] };
+            }) : [],
+        logo: isObject(value.logo) ? value.logo : clone(DEFAULT_LOGO),
+    };
 }
 
 export function exportCreativeDocument(document: CreativeAppearanceDocument): string {

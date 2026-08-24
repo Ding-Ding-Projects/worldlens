@@ -25,6 +25,7 @@ import {
     updateCreativeLayer,
     CREATIVE_BLEND_MODES,
 } from "./creativeDocument.js";
+import { applyCreativeLogoVariant, resetCreativeLogoPipeline } from "./creativeLogoPipeline.js";
 import { renderCreativeSvg } from "./creativeRenderer.js";
 import {
     type CreativeAppearanceCapabilities,
@@ -188,7 +189,17 @@ function generateLogoVariants(): void {
     const svg = renderCreativeSvg(document.value);
     const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     const variants = [24, 64, 128, 256, 512].map((size) => ({ id: `logo-${size}`, width: size, height: size, dataUrl }));
-    publish(setCreativeLogo(document.value, { enabled: true, target: "app-logo", variants }));
+    const next = setCreativeLogo(document.value, { enabled: true, target: "app-logo", variants });
+    try {
+        publish(applyCreativeLogoVariant(next, variants[2]!));
+    } catch (error) {
+        importError.value = error instanceof Error ? error.message : "The generated logo variant could not be applied.";
+        importState.value = "error";
+    }
+}
+
+function resetLogoPipeline(): void {
+    publish(resetCreativeLogoPipeline(document.value));
 }
 
 async function copyRegex(): Promise<void> {
@@ -270,6 +281,7 @@ async function onAssetImport(event: Event): Promise<void> {
             <button type="button" :disabled="document.historyCursor <= 0" @click="publish(undoCreative(document))">Undo</button>
             <button type="button" :disabled="document.historyCursor >= document.history.length - 1" @click="publish(redoCreative(document))">Redo</button>
             <button type="button" @click="publish(resetCreativeDocument(document))">Reset document</button>
+            <button type="button" @click="resetLogoPipeline">Reset logo pipeline</button>
         </div>
 
         <div class="mb-creative-studio__workbench">

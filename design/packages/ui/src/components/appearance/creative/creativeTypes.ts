@@ -2,7 +2,8 @@ import type { TypographySpec } from "../typographySpec.js";
 
 /** The persisted format identifier. It is deliberately independent of the app package name. */
 export const CREATIVE_DOCUMENT_FORMAT = "worldlens-creative-appearance" as const;
-export const CREATIVE_DOCUMENT_VERSION = 1 as const;
+export const CREATIVE_DOCUMENT_VERSION = 2 as const;
+export const LEGACY_CREATIVE_DOCUMENT_VERSION = 1 as const;
 
 export const CREATIVE_LIMITS = {
     maxLayers: 256,

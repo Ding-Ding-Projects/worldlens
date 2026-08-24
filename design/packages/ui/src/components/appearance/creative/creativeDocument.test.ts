@@ -18,7 +18,7 @@ describe("creative appearance document", () => {
     it("creates a bounded versioned empty document with append-only creation history", () => {
         const document = createCreativeDocument({ width: 1200, height: 630, background: "#101114" });
         expect(document.format).toBe("worldlens-creative-appearance");
-        expect(document.version).toBe(1);
+        expect(document.version).toBe(2);
         expect(document.history).toHaveLength(1);
         expect(document.history[0]?.action).toBe("document created");
         expect(validateCreativeDocument(document)).toBe(true);
@@ -68,6 +68,24 @@ describe("creative appearance document", () => {
         expect(() => importCreativeDocument("{\"format\":\"worldlens-creative-appearance\",\"version\":999}")).toThrow(/supported bounded format/);
     });
 
+    it("migrates version 1 canvas, layers, history, and presets without blanking them", () => {
+        let document = createCreativeDocument();
+        document = addCreativeLayer(document, createCreativeLayer("text"));
+        const legacy = JSON.parse(JSON.stringify(document)) as Record<string, unknown>;
+        legacy.version = 1;
+        delete (legacy.canvas as Record<string, unknown>).crop;
+        delete (legacy.canvas as Record<string, unknown>).grid;
+        delete (legacy.canvas as Record<string, unknown>).guides;
+        delete (legacy.canvas as Record<string, unknown>).safeArea;
+        delete legacy.logo;
+        for (const layer of legacy.layers as Record<string, unknown>[]) { delete layer.locked; delete layer.scaleX; delete layer.scaleY; }
+        const result = importCreativeDocument(JSON.stringify(legacy));
+        expect(result.warnings[0]).toContain("version 1");
+        expect(result.document.layers).toHaveLength(1);
+        expect(result.document.history).toHaveLength(document.history.length);
+        expect(validateCreativeDocument(result.document)).toBe(true);
+    });
+
     it("rejects scripts and decompression-style oversized assets before state changes", () => {
         const png = new Uint8Array(24);
         png.set([0x89, 0x50, 0x4e, 0x47], 0);
@@ -104,5 +122,17 @@ describe("creative appearance document", () => {
         expect(rendered).toContain("creative-mask-");
         expect(rendered).toContain("filter:blur(4px)");
         expect(rendered).toContain("drop-shadow");
+    });
+
+    it("applies x and y once, around the layer center, when transforming geometry", () => {
+        let document = createCreativeDocument();
+        document = addCreativeLayer(document, createCreativeLayer("vector"));
+        const id = document.layers[0]!.id;
+        document = updateCreativeLayer(document, id, { x: 128, y: 192, rotation: 12, scaleX: 1.5, scaleY: 0.5 }, "transform geometry");
+        const rendered = renderCreativePreviewText(document);
+        expect(rendered).toContain('x="128"');
+        expect(rendered).toContain('y="192"');
+        expect(rendered).toContain('translate(308 282) scale(1.5 0.5) rotate(12) translate(-308 -282)');
+        expect(rendered).not.toContain('translate(436 474)');
     });
 });
