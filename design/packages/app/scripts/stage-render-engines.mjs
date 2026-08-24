@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -33,11 +32,6 @@ const runtimeWorkspacePackages = [
     { name: "@worldlens/nbt", root: nbtRoot },
     { name: "@worldlens/shared", root: sharedRoot },
 ];
-
-async function artifactMetadata(path) {
-    const bytes = await readFile(path);
-    return { size: bytes.byteLength, sha256: createHash("sha256").update(bytes).digest("hex") };
-}
 
 /**
  * Keep the TypeScript engine's bare workspace imports inside its staged package
@@ -450,16 +444,12 @@ async function newestGradleCliJar() {
 }
 
 async function verifiedJarMetadata(path) {
-    const info = await stat(path);
-    if (!info.isFile() || info.size < 4096)
-        throw new Error(`BlueMap CLI jar is not a usable file: ${path}`);
-    const actual = await artifactMetadata(path);
     const descriptor = await verifyJarFile(path);
     if (!descriptor.ok)
         throw new Error(
             `BlueMap CLI jar is not a valid JAR archive: ${path} (${descriptor.reason})`,
         );
-    return actual;
+    return { size: descriptor.size, sha256: descriptor.sha256 };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

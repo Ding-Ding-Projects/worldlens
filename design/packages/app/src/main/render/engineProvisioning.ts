@@ -8,7 +8,7 @@
  * jar to a render.
  */
 
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { downloadVerified, type FetchBinary } from "../java/download.js";
@@ -67,6 +67,7 @@ export interface VerifiedManagedEngine {
 }
 
 interface EngineFlight {
+    readonly key: string;
     readonly controller: AbortController;
     readonly listeners: Set<(progress: EngineProvisionProgress) => void>;
     waiters: number;
@@ -89,13 +90,14 @@ export async function verifyManagedUpstreamJava(
     release: EngineRelease = PINNED_UPSTREAM_JAVA,
 ): Promise<VerifiedManagedEngine | null> {
     const path = managedUpstreamJavaJar(dataDir, release);
-    if (!(await verifyJar(path, release))) return null;
-    const info = await stat(path);
+    const verified = await verifyJarFile(path);
+    if (!verified.ok || verified.size !== release.sizeBytes || verified.sha256 !== release.sha256)
+        return null;
     return {
         path,
         version: release.version,
-        size: info.size,
-        sha256: release.sha256,
+        size: verified.size,
+        sha256: verified.sha256,
         source: "managed",
     };
 }
@@ -172,7 +174,7 @@ export function ensureManagedUpstreamJava(
             }),
         )
         .finally(() => inflight.delete(key));
-    const flight = { controller, listeners, waiters: 0, promise: operation };
+    const flight = { key, controller, listeners, waiters: 0, promise: operation };
     inflight.set(key, flight);
     return attachFlight(flight, options);
 }
@@ -195,7 +197,10 @@ function attachFlight(
         };
         const abort = (): void => {
             finish();
-            if (flight.waiters === 0) flight.controller.abort();
+            if (flight.waiters === 0) {
+                if (inflight.get(flight.key) === flight) inflight.delete(flight.key);
+                flight.controller.abort();
+            }
             reject(new Error("engine provisioning was cancelled"));
         };
         if (options.signal?.aborted === true) {
@@ -295,20 +300,13 @@ async function downloadToTemporary(
 
 async function verifyJar(path: string, release: EngineRelease): Promise<boolean> {
     try {
-        const info = await stat(path);
-        if (!info.isFile() || info.size !== release.sizeBytes) return false;
-        if ((await sha256File(path)) !== release.sha256) return false;
-        return (await verifyJarFile(path)).ok;
+        const verified = await verifyJarFile(path);
+        return (
+            verified.ok && verified.size === release.sizeBytes && verified.sha256 === release.sha256
+        );
     } catch {
         return false;
     }
-}
-
-async function sha256File(path: string): Promise<string> {
-    const hash = createHash("sha256");
-    const bytes = await readFile(path);
-    hash.update(bytes);
-    return hash.digest("hex");
 }
 
 async function replaceWithRetry(source: string, target: string): Promise<void> {

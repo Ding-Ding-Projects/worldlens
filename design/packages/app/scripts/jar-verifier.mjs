@@ -1,16 +1,28 @@
-import { lstat, readFile, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { lstat, open } from "node:fs/promises";
 
 const MAX_JAR_BYTES = 512 * 1024 * 1024;
 
 export async function verifyJarFile(path) {
+    let handle;
     try {
         await assertSafePath(path);
-        const info = await stat(path);
+        handle = await open(path, "r");
+        const info = await handle.stat();
         if (!info.isFile() || info.size > MAX_JAR_BYTES)
             return { ok: false, reason: "JAR exceeds the hard byte limit" };
-        return verifyJarBytes(await readFile(path));
+        const bytes = await handle.readFile();
+        const verified = verifyJarBytes(bytes);
+        if (!verified.ok) return verified;
+        return {
+            ...verified,
+            size: bytes.length,
+            sha256: createHash("sha256").update(bytes).digest("hex"),
+        };
     } catch (error) {
         return { ok: false, reason: `could not read JAR: ${String(error)}` };
+    } finally {
+        await handle?.close().catch(() => undefined);
     }
 }
 

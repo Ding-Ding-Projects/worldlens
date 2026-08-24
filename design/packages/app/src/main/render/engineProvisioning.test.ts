@@ -233,6 +233,9 @@ describe("managed upstream Java engine repair", () => {
         await expect(first).rejects.toThrow(/cancelled/i);
         await expect(second).rejects.toThrow(/cancelled/i);
         expect(underlyingSignal?.aborted).toBe(true);
+        await expect(
+            ensureManagedUpstreamJava({ dataDir, release: RELEASE, fetchBinary }),
+        ).resolves.toMatchObject({ source: "managed" });
     });
 
     it("cancels without publishing a temporary or final jar", async () => {

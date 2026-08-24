@@ -29,7 +29,6 @@ for (const key of ["CSC_LINK", "CSC_KEY_PASSWORD", "WIN_CSC_LINK", "WIN_CSC_KEY_
 // discovered after the other inputs above have been cleared.
 process.env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
 
-const { createHash } = require("node:crypto");
 const { existsSync, readFileSync, statSync } = require("node:fs");
 const { resolve } = require("node:path");
 
@@ -76,18 +75,16 @@ async function assertStagedJavaEngine() {
     }
     if (!existsSync(jarPath) || !statSync(jarPath).isFile())
         throw new Error(`Cannot package without the staged BlueMap CLI jar: ${jarPath}`);
-    const bytes = readFileSync(jarPath);
-    const digest = createHash("sha256").update(bytes).digest("hex");
-    if (bytes.length !== cli.size || digest !== cli.sha256.toLowerCase()) {
-        throw new Error(
-            `Cannot package a staged BlueMap CLI jar whose size or SHA-256 differs from its manifest: ${jarPath}`,
-        );
-    }
     const descriptor = await import("./scripts/jar-verifier.mjs").then(({ verifyJarFile }) =>
         verifyJarFile(jarPath),
     );
     if (!descriptor.ok)
         throw new Error(`Cannot package an invalid staged BlueMap CLI JAR: ${descriptor.reason}`);
+    if (descriptor.size !== cli.size || descriptor.sha256 !== cli.sha256.toLowerCase()) {
+        throw new Error(
+            `Cannot package a staged BlueMap CLI jar whose size or SHA-256 differs from its manifest: ${jarPath}`,
+        );
+    }
 }
 
 /**

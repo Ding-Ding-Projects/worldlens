@@ -811,6 +811,18 @@ export class RenderOrchestrator {
      * that already names `jvmArgs` - none does today - is left exactly as it is.
      */
     async render(request: RenderRequest): Promise<RenderResult> {
+        const ownedPending = new Set(this.pending.keys());
+        try {
+            return await this.renderInternal(request);
+        } finally {
+            for (const renderId of this.pending.keys()) {
+                if (!ownedPending.has(renderId) && !this.running.has(renderId))
+                    this.pending.delete(renderId);
+            }
+        }
+    }
+
+    private async renderInternal(request: RenderRequest): Promise<RenderResult> {
         if (request.jvmArgs === undefined) {
             const configured = this.options.jvmArgs;
             const defaults =
