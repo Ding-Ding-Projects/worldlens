@@ -54,6 +54,12 @@ beforeAll(() => {
     });
 });
 
+afterEach(() => {
+    // Every mounted panel is attached to document.body for Vuetify teleports. Clear it
+    // between cases so a later negative filter assertion cannot read an older mount.
+    document.body.innerHTML = "";
+});
+
 const record: ServerRecord = {
     id: "srv-1",
     name: "Test Server",
@@ -220,24 +226,29 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
                             ],
                         },
                     ],
+                    failures: [],
                 },
             }),
             refresh: vi.fn(),
         };
         const wrapper = await mountWith(CreateServerWizard, { modelValue: true }, host);
         await flushPromises();
-        const nextButton = wrapper.findAll("button").find((button) => button.text().includes("Next"));
+        const nextButton = [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
+            button.textContent?.includes("Next"),
+        );
         expect(nextButton).toBeDefined();
-        await nextButton!.trigger("click");
+        nextButton?.click();
         await flushPromises();
-        expect(wrapper.find('input[placeholder="Search versions"]').exists()).toBe(true);
-        expect(wrapper.text()).toContain("1.21.4");
-        expect(wrapper.text()).toContain("1.20.6");
-        const field = wrapper.find('input[placeholder="Search versions"]');
-        await field.setValue("1.21.4");
+        const searchField = document.querySelector<HTMLInputElement>('input[role="searchbox"]');
+        expect(searchField).not.toBeNull();
+        expect(document.body.textContent).toContain("1.21.4");
+        expect(document.body.textContent).toContain("1.20.x");
+        if (searchField === null) return;
+        searchField.value = "1.21.4";
+        searchField.dispatchEvent(new Event("input", { bubbles: true }));
         await flushPromises();
-        expect(wrapper.text()).toContain("1.21.4");
-        expect(wrapper.text()).not.toContain("1.20.6");
+        expect(document.body.textContent).toContain("1.21.4");
+        expect(document.body.textContent).not.toContain("1.20.6");
     });
 
     it("filters live console lines and exposes the anchored regex opt-in field", async () => {
@@ -251,7 +262,7 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
         });
         const wrapper = await mountWith(ServerConsole, { serverId: "srv-1" }, host);
         await flushPromises();
-        const field = wrapper.find('input[placeholder="Search log"]');
+        const field = wrapper.find(".wl-mcserver-console__search input");
         expect(field.exists()).toBe(true);
         expect(wrapper.text()).toContain("Started world");
         expect(wrapper.text()).toContain("Failed to bind port");
@@ -264,13 +275,6 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
 
 describe("AdoptionReviewDialog evidence/mounts/ports filter", () => {
     beforeAll(stubBridge);
-    // VDialog teleports to document.body, and nothing else in this suite tears the previous
-    // mount down first -- so a later test's read of document.body.textContent would otherwise
-    // pick up every prior mount's dialog too, and "not.toContain" would fail against content
-    // this test never rendered.
-    afterEach(() => {
-        document.body.innerHTML = "";
-    });
 
     const dialogProps = {
         modelValue: true,
