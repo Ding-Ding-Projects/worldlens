@@ -76,9 +76,15 @@ function fakeHost(records: readonly ServerRecord[]): McServerHost {
     };
 }
 
-function mountScreen(host: McServerHost | null) {
+function mountScreen(host: McServerHost | null, attach = false) {
     const store = createServerStore({ host });
-    return { store, wrapper: mount(ServerListScreen, { global: { plugins: [i18n, vuetify], provide: { [SERVER_STORE as symbol]: store } } }) };
+    return {
+        store,
+        wrapper: mount(ServerListScreen, {
+            global: { plugins: [i18n, vuetify], provide: { [SERVER_STORE as symbol]: store } },
+            ...(attach ? { attachTo: document.body } : {}),
+        }),
+    };
 }
 
 describe("ServerListScreen", () => {
@@ -108,6 +114,16 @@ describe("ServerListScreen", () => {
         const { wrapper } = mountScreen(fakeHost([]));
         await flushAll();
         expect(wrapper.text()).toContain("No servers yet");
+    });
+
+    it("restores focus to the returned server control after detail Back", async () => {
+        const { wrapper } = mountScreen(fakeHost([record("survival", "Survival")]), true);
+        await flushAll();
+        await wrapper.setProps({ returnServerId: "survival" });
+        await flushAll();
+
+        expect(document.activeElement?.getAttribute("data-server-control")).toBe("survival");
+        wrapper.unmount();
     });
 });
 

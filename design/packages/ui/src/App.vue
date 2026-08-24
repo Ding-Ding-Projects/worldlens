@@ -207,6 +207,7 @@ const mcServerAdoptOpen = ref(false);
 const mcServerAdoptBrowseOpen = ref(false);
 const mcServerAdoptRecord = ref<ServerRecord | null>(null);
 const mcServerAdoptContainerId = ref<string | null>(null);
+const mcServerReturnId = ref<string | null>(null);
 
 function adoptionRecord(candidate: AdoptionCandidate): ServerRecord {
     const now = new Date().toISOString();
@@ -256,11 +257,42 @@ function reviewMcServerCandidate(candidate: AdoptionCandidate): void {
 function completeMcServerAdoption(record: ServerRecord): void {
     mcServerAdoptRecord.value = record;
     mcServerOpenId.value = record.id;
+    mcServerReturnId.value = null;
     mcServerAdoptOpen.value = false;
 }
 const mcServerOpenTab = ref<"console" | "config" | "plugins" | "players" | "web" | "aws">(
     "console",
 );
+
+type McServerOwner = "kid" | "host" | "work" | "none";
+
+/** Exactly one shell surface owns the server list/detail pair at a time. */
+const mcServerOwner = computed<McServerOwner>(() => {
+    if (kid.enabled.value) return "kid";
+    if (destination.value === "host") return "host";
+    if (destination.value === "work") return "work";
+    return "none";
+});
+
+function openMcServerPanel(
+    id: string,
+    tab: "console" | "config" | "plugins" | "players" | "web" | "aws" = "console",
+): void {
+    mcServerOpenTab.value = tab;
+    mcServerOpenId.value = id;
+    mcServerReturnId.value = null;
+}
+
+/** Return to the one active list owner without forgetting or resetting the record. */
+function closeMcServerPanel(): void {
+    if (mcServerOpenId.value !== null) mcServerReturnId.value = mcServerOpenId.value;
+    mcServerOpenId.value = null;
+}
+
+function forgetMcServerPanel(): void {
+    mcServerOpenId.value = null;
+    mcServerReturnId.value = null;
+}
 
 // Read the saved locks once the shell is up. A locked element renders unlocked for the
 // instant before this resolves, which is the honest ordering: the store says `loaded` is
@@ -2193,25 +2225,21 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 </template>
 
                 <template #mcservers>
-                    <div class="mb-world-host mb-interactive">
+                    <div v-if="mcServerOwner === 'kid'" class="mb-world-host mb-interactive">
                         <WebConsolePanel
                             v-if="mcServerOpenId"
                             :server-id="mcServerOpenId"
                             :initial-tab="mcServerOpenTab"
-                            @forgotten="mcServerOpenId = null"
+                            @back="closeMcServerPanel"
+                            @forgotten="forgetMcServerPanel"
                         />
                         <ServerListScreen
                             v-else
-                            @open="
-                                (id) => {
-                                    mcServerOpenTab = 'console';
-                                    mcServerOpenId = id;
-                                }
-                            "
+                            :return-server-id="mcServerReturnId"
+                            @open="openMcServerPanel"
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
                         <AdoptionBrowser
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
@@ -2224,18 +2252,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         />
                         <CreateServerWizard
                             v-model="mcServerCreateOpen"
-                            @created="
-                                (id) => {
-                                    mcServerOpenTab = 'console';
-                                    mcServerOpenId = id;
-                                }
-                            "
-                            @open-aws="
-                                (id) => {
-                                    mcServerOpenTab = 'aws';
-                                    mcServerOpenId = id;
-                                }
-                            "
+                            @created="openMcServerPanel"
+                            @open-aws="(id) => openMcServerPanel(id, 'aws')"
                         />
                     </div>
                 </template>
@@ -2450,6 +2468,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         of its own is not blank: it is the map, wearing the wrong label.
                     -->
                     <div
+                        v-if="mcServerOwner === 'host'"
                         v-show="destination === 'host'"
                         class="mb-shell-layer mb-shell-layer--home mb-interactive"
                     >
@@ -2457,20 +2476,16 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             v-if="mcServerOpenId"
                             :server-id="mcServerOpenId"
                             :initial-tab="mcServerOpenTab"
-                            @forgotten="mcServerOpenId = null"
+                            @back="closeMcServerPanel"
+                            @forgotten="forgetMcServerPanel"
                         />
                         <ServerListScreen
                             v-else
-                            @open="
-                                (id) => {
-                                    mcServerOpenTab = 'console';
-                                    mcServerOpenId = id;
-                                }
-                            "
+                            :return-server-id="mcServerReturnId"
+                            @open="openMcServerPanel"
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
                         <AdoptionBrowser
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
@@ -2483,18 +2498,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         />
                         <CreateServerWizard
                             v-model="mcServerCreateOpen"
-                            @created="
-                                (id) => {
-                                    mcServerOpenTab = 'console';
-                                    mcServerOpenId = id;
-                                }
-                            "
-                            @open-aws="
-                                (id) => {
-                                    mcServerOpenTab = 'aws';
-                                    mcServerOpenId = id;
-                                }
-                            "
+                            @created="openMcServerPanel"
+                            @open-aws="(id) => openMcServerPanel(id, 'aws')"
                         />
                     </div>
 
@@ -2733,38 +2738,25 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             </template>
 
                             <template #mcservers>
-                                <div class="mb-world-host mb-interactive">
+                                <div v-if="mcServerOwner === 'work'" class="mb-world-host mb-interactive">
                                     <WebConsolePanel
                                         v-if="mcServerOpenId"
                                         :server-id="mcServerOpenId"
                                         :initial-tab="mcServerOpenTab"
-                                        @forgotten="mcServerOpenId = null"
+                                        @back="closeMcServerPanel"
+                                        @forgotten="forgetMcServerPanel"
                                     />
                                     <ServerListScreen
                                         v-else
-                                        @open="
-                                            (id) => {
-                                                mcServerOpenTab = 'console';
-                                                mcServerOpenId = id;
-                                            }
-                                        "
+                                        :return-server-id="mcServerReturnId"
+                                        @open="openMcServerPanel"
                                         @create="mcServerCreateOpen = true"
                                         @adopt="openMcServerAdoption"
                                     />
                                     <CreateServerWizard
                                         v-model="mcServerCreateOpen"
-                                        @created="
-                                            (id) => {
-                                                mcServerOpenTab = 'console';
-                                                mcServerOpenId = id;
-                                            }
-                                        "
-                                        @open-aws="
-                                            (id) => {
-                                                mcServerOpenTab = 'aws';
-                                                mcServerOpenId = id;
-                                            }
-                                        "
+                                        @created="openMcServerPanel"
+                                        @open-aws="(id) => openMcServerPanel(id, 'aws')"
                                     />
                                     <AdoptionBrowser
                                         v-model="mcServerAdoptBrowseOpen"

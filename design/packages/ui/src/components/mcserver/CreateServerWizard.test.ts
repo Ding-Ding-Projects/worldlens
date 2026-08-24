@@ -7,7 +7,7 @@
  * final Create action stays disabled until the EULA switch is actually on.
  */
 
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -17,6 +17,8 @@ import {
     createServerStore,
     type Answer,
     type CatalogueSnapshot,
+    type JavaProvisionProgress,
+    type JavaResolution,
     type McServerHost,
 } from "./serverStore.js";
 import type { ServerRecord } from "./serverModel.js";
@@ -122,7 +124,9 @@ async function flushAll(): Promise<void> {
 }
 
 describe("CreateServerWizard", () => {
-    function catalogueHost(): McServerHost {
+    function catalogueHost(
+        failures: readonly { flavour: "vanilla" | "paper"; reason: string }[] = [],
+    ): McServerHost {
         const versions = [
             "1.21.1",
             "1.21.2",
@@ -149,7 +153,7 @@ describe("CreateServerWizard", () => {
             flavours: [{ flavour: "paper", versions }],
             fetchedAt: "2026-08-23T00:00:00Z",
             stale: false,
-            failures: [],
+            failures,
         };
         const host = fakeHost();
         return {
@@ -159,6 +163,62 @@ describe("CreateServerWizard", () => {
                 refresh: async () => ok(snapshot),
             },
         };
+    }
+
+    type WizardVm = {
+        step: string;
+        whereItRuns: string;
+        minecraftVersion: string;
+        checkJava: () => Promise<void>;
+        provisionJava: () => Promise<void>;
+    };
+
+    function javaHost(options: {
+        resolve: (version: string) => Promise<Answer<JavaResolution>>;
+        provision?: (version: string) => Promise<Answer<JavaResolution>>;
+        onProgress?: (listener: (progress: JavaProvisionProgress) => void) => () => void;
+    }): McServerHost {
+        const host = fakeHost();
+        return {
+            ...host,
+            suggestFolder: async () => ok("/srv/worldlens"),
+            java: {
+                resolve: options.resolve,
+                ...(options.provision === undefined ? {} : { provision: options.provision }),
+                ...(options.onProgress === undefined ? {} : { onProgress: options.onProgress }),
+            },
+        };
+    }
+
+    function foundJava(version = "21"): JavaResolution {
+        return {
+            found: true,
+            executable: `/java/${version}/bin/java`,
+            source: "provisioned",
+            version,
+            requiredFeature: Number(version),
+            message: "",
+        };
+    }
+
+    function missingJava(version = "21", message = "No suitable Java found"): JavaResolution {
+        return {
+            found: false,
+            executable: null,
+            source: null,
+            version: null,
+            requiredFeature: Number(version),
+            message,
+        };
+    }
+
+    async function javaVm(host: McServerHost): Promise<{ wrapper: ReturnType<typeof mountWizard>; vm: WizardVm }> {
+        const wrapper = mountWizard(host);
+        await flushAll();
+        const vm = wrapper.vm as unknown as WizardVm;
+        vm.step = "java";
+        await flushAll();
+        return { wrapper, vm };
     }
 
     it("offers AWS EC2 only when the AWS bridge is present", () => {
@@ -240,5 +300,132 @@ describe("CreateServerWizard", () => {
         const wiki = entries[0]?.querySelector("a");
         expect(wiki?.getAttribute("href")).toContain("1.20.6");
         expect(wiki?.getAttribute("aria-label")).toContain("1.20.6");
+    });
+
+    it("reports catalogue completeness for the selected flavour only", async () => {
+        mountWizard(catalogueHost([{ flavour: "vanilla", reason: "offline" }]));
+        await flushAll();
+        [...document.querySelectorAll("button")]
+            .find((b) => b.textContent?.trim() === "Next")
+            ?.click();
+        await flushAll();
+
+        expect(document.querySelector('[data-test="version-catalogue-status"]')?.textContent).toContain(
+            "complete",
+        );
+        expect(document.querySelector('[data-test="version-catalogue-status"]')?.textContent).not.toContain(
+            "incomplete",
+        );
+    });
+
+    it("mounts a Java-capable host and shows a found runtime", async () => {
+        const resolve = vi.fn(async () => ok(foundJava()));
+        const { vm } = await javaVm(javaHost({ resolve }));
+
+        expect(resolve).toHaveBeenCalledWith("21");
+        expect(document.querySelector('[data-test="java-found"]')).not.toBeNull();
+        expect(document.querySelector('[data-test="java-failure"]')).toBeNull();
+        expect(vm.step).toBe("java");
+    });
+
+    it("shows resolution failure, retries once, and blocks unresolved local Java", async () => {
+        const resolve = vi
+            .fn<(version: string) => Promise<Answer<JavaResolution>>>()
+            .mockResolvedValueOnce({ ok: false, failure: { code: "probe", message: "Java probe failed", detail: null } })
+            .mockResolvedValueOnce(ok(foundJava()));
+        const { vm } = await javaVm(javaHost({ resolve }));
+
+        expect(document.querySelector('[data-test="java-failure"]')?.textContent).toContain(
+            "Java probe failed",
+        );
+        expect(vm.step).toBe("java");
+        const retry = document.querySelector<HTMLButtonElement>('[data-test="retry-java"]');
+        expect(retry).not.toBeNull();
+        retry?.click();
+        await flushAll();
+        expect(resolve).toHaveBeenCalledTimes(2);
+        expect(document.querySelector('[data-test="java-found"]')).not.toBeNull();
+    });
+
+    it("keeps one Java check in flight and ignores the stale answer after a version change", async () => {
+        const pending: Array<(answer: Answer<JavaResolution>) => void> = [];
+        const resolve = vi.fn(
+            () => new Promise<Answer<JavaResolution>>((done) => pending.push(done)),
+        );
+        const { vm } = await javaVm(javaHost({ resolve }));
+        expect(resolve).toHaveBeenCalledTimes(1);
+
+        vm.minecraftVersion = "1.20.6";
+        await flushAll();
+        expect(resolve).toHaveBeenCalledTimes(1);
+        pending[0]?.(ok(foundJava("21")));
+        await flushAll();
+        expect(resolve).toHaveBeenCalledTimes(2);
+        pending[1]?.(ok(foundJava("17")));
+        await flushAll();
+        expect(document.querySelector('[data-test="java-found"]')?.textContent).toContain("17");
+    });
+
+    it("shows real provisioning progress, failure, retry, and post-install re-resolution", async () => {
+        let progressListener: ((progress: JavaProvisionProgress) => void) | null = null;
+        const resolve = vi
+            .fn<(version: string) => Promise<Answer<JavaResolution>>>()
+            .mockResolvedValueOnce(ok(missingJava()));
+        let finishProvision: ((answer: Answer<JavaResolution>) => void) | null = null;
+        const provision = vi.fn(
+            () =>
+                new Promise<Answer<JavaResolution>>((done) => {
+                    finishProvision = done;
+                    progressListener?.({
+                        phase: "downloading",
+                        receivedBytes: 5,
+                        totalBytes: 10,
+                        message: "Downloading Java",
+                    });
+                }),
+        );
+        const { vm } = await javaVm(
+            javaHost({
+                resolve,
+                provision,
+                onProgress: (listener) => {
+                    progressListener = listener;
+                    return () => {
+                        progressListener = null;
+                    };
+                },
+            }),
+        );
+        expect(document.querySelector('[data-test="java-missing"]')).not.toBeNull();
+        const provisioning = vm.provisionJava();
+        await flushAll();
+        expect(provision).toHaveBeenCalledWith("21");
+        expect(document.querySelector('[data-test="java-progress"]')).not.toBeNull();
+        finishProvision?.({
+            ok: false,
+            failure: { code: "download", message: "Java download failed", detail: null },
+        });
+        await provisioning;
+        expect(document.querySelector('[data-test="java-failure"]')?.textContent).toContain(
+            "Java download failed",
+        );
+        expect(document.querySelector('[data-test="java-progress"]')).toBeNull();
+    });
+
+    it("re-resolves after successful provisioning and skips local Java on ssh-docker", async () => {
+        const resolve = vi
+            .fn<(version: string) => Promise<Answer<JavaResolution>>>()
+            .mockResolvedValueOnce(ok(missingJava()))
+            .mockResolvedValueOnce(ok(foundJava()));
+        const provision = vi.fn(async () => ok(foundJava()));
+        const { vm } = await javaVm(javaHost({ resolve, provision }));
+        await vm.provisionJava();
+        expect(resolve).toHaveBeenCalledTimes(2);
+        expect(document.querySelector('[data-test="java-found"]')).not.toBeNull();
+
+        vm.whereItRuns = "ssh-docker";
+        await flushAll();
+        expect(document.querySelector('[data-test="java-remote-skip"]')).not.toBeNull();
+        expect(resolve).toHaveBeenCalledTimes(2);
     });
 });

@@ -142,6 +142,12 @@ const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
     const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);
     return entry?.versions ?? [];
 });
+const selectedCatalogueId = computed(() => FLAVOUR_CARDS.find((card) => card.id === flavour.value)?.cataloguedId ?? null);
+const selectedCatalogueFailures = computed(() =>
+    catalogue.value === null || selectedCatalogueId.value === null
+        ? []
+        : catalogue.value.failures.filter((failure) => failure.flavour === selectedCatalogueId.value),
+);
 
 /**
  * Whether the user has deliberately asked to type a version the catalogue does not list.
@@ -351,7 +357,14 @@ async function checkJava(): Promise<void> {
         javaResolution.value = null;
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
-        if (requestId === javaRequestId) javaChecking.value = false;
+        if (requestId === javaRequestId) {
+            javaChecking.value = false;
+        } else if (!javaProvisioning.value) {
+            // A version change invalidated this answer while the host was still working.
+            // Release the single-flight guard and immediately resolve the newer version.
+            javaChecking.value = false;
+            void checkJava();
+        }
     }
 }
 
@@ -387,6 +400,16 @@ async function provisionJava(): Promise<void> {
 
 watch(step, (value) => {
     if (value === "java" && javaResolution.value === null && store.hasJava && !javaNotRequired.value) {
+        void checkJava();
+    }
+});
+
+watch([minecraftVersion, whereItRuns], () => {
+    if (step.value !== "java") return;
+    javaRequestId += 1;
+    javaResolution.value = null;
+    javaFailure.value = null;
+    if (!javaNotRequired.value && !javaChecking.value && !javaProvisioning.value) {
         void checkJava();
     }
 });
@@ -670,7 +693,10 @@ const canAdvanceFromRuntime = computed(() => {
     return sshHost.value.trim() !== "";
 });
 const canAdvanceFromJava = computed(
-    () => javaNotRequired.value || (!javaChecking.value && !javaProvisioning.value),
+    () =>
+        javaNotRequired.value ||
+        (!store.hasJava && !javaChecking.value && !javaProvisioning.value) ||
+        (javaResolution.value?.found === true && !javaChecking.value && !javaProvisioning.value),
 );
 const canAdvanceFromResources = computed(
     () => memoryError.value === null && portError.value === null && folderError.value === null,
@@ -716,6 +742,25 @@ const advanceBlockedReason = computed<string | null>(() => {
                 return t(
                     "mcserver.wizard.awsUnavailable",
                     "AWS hosting is not available in this build.",
+                );
+            }
+            return null;
+        case "java":
+            if (javaNotRequired.value) return null;
+            if (javaChecking.value || javaProvisioning.value) {
+                return t("mcserver.wizard.javaBusy", "Wait for the Java check to finish.");
+            }
+            if (!store.hasJava) {
+                return t(
+                    "mcserver.wizard.javaOnCreate",
+                    "This build cannot check Java here. Create will provision the required runtime automatically.",
+                );
+            }
+            if (javaFailure.value !== null) return javaFailure.value;
+            if (javaResolution.value?.found !== true) {
+                return t(
+                    "mcserver.wizard.javaRequired",
+                    "A suitable Java runtime must be found before this wizard can continue.",
                 );
             }
             return null;
@@ -908,7 +953,7 @@ const canAdvance = computed(() => {
                                     {
                                         fetchedAt: catalogue.fetchedAt,
                                         completeness:
-                                            catalogue.failures.length === 0
+                                            selectedCatalogueFailures.length === 0
                                                 ? t("mcserver.wizard.catalogueComplete", "complete")
                                                 : t("mcserver.wizard.catalogueIncomplete", "incomplete"),
                                     },
@@ -1187,7 +1232,13 @@ const canAdvance = computed(() => {
 
                 <!-- Step 4: Java -->
                 <div v-else-if="step === 'java'" class="wl-mcserver-wizard__step">
-                    <VAlert v-if="javaNotRequired" type="info" variant="tonal" density="compact">
+                    <VAlert
+                        v-if="javaNotRequired"
+                        type="info"
+                        variant="tonal"
+                        density="compact"
+                        data-test="java-remote-skip"
+                    >
                         {{
                             t(
                                 "mcserver.wizard.remoteJava",
@@ -1218,7 +1269,13 @@ const canAdvance = computed(() => {
                         }}
                     </VAlert>
                     <template v-else-if="!javaNotRequired && store.hasJava">
-                        <VAlert v-if="javaChecking" type="info" variant="tonal" density="compact">
+                        <VAlert
+                            v-if="javaChecking"
+                            type="info"
+                            variant="tonal"
+                            density="compact"
+                            data-test="java-checking"
+                        >
                             {{ t("mcserver.wizard.checkingJava", "Looking for a suitable Java…") }}
                         </VAlert>
                         <VAlert
@@ -1248,6 +1305,7 @@ const canAdvance = computed(() => {
                             type="success"
                             variant="tonal"
                             density="compact"
+                            data-test="java-found"
                         >
                             {{
                                 t(
@@ -1262,6 +1320,7 @@ const canAdvance = computed(() => {
                             type="warning"
                             variant="tonal"
                             density="compact"
+                            data-test="java-missing"
                         >
                             {{ javaResolution.message }}
                             <template #append>
@@ -1272,6 +1331,7 @@ const canAdvance = computed(() => {
                                     color="primary"
                                     :prepend-icon="mdiCloudDownloadOutline"
                                     :loading="javaProvisioning"
+                                    data-test="install-java"
                                     @click="provisionJava"
                                 >
                                     {{
@@ -1284,7 +1344,11 @@ const canAdvance = computed(() => {
                                 </VBtn>
                             </template>
                         </VAlert>
-                        <div v-if="javaProvisioning" class="wl-mcserver-wizard__progress">
+                        <div
+                            v-if="javaProvisioning"
+                            class="wl-mcserver-wizard__progress"
+                            data-test="java-progress"
+                        >
                             <VProgressLinear
                                 :model-value="
                                     javaProgress && javaProgress.totalBytes

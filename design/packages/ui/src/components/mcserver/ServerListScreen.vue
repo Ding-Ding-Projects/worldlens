@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCubeOutline, mdiPlay, mdiPlus, mdiRefresh, mdiServerNetwork, mdiStop, mdiTrashCanOutline } from "@mdi/js";
 import {
@@ -34,6 +34,7 @@ import {
  * with no host says so plainly rather than showing an empty list that reads as "you have
  * no servers".
  */
+const props = defineProps<{ returnServerId?: string | null }>();
 const emit = defineEmits<{ open: [id: string]; create: []; adopt: [] }>();
 
 const { t } = useI18n();
@@ -45,6 +46,43 @@ const flags = ref("i");
 const sort = ref<ServerSort>("name");
 const selected = ref<readonly string[]>([]);
 const bulkBusy = ref(false);
+const serverControlRefs = new Map<string, HTMLElement>();
+
+function setServerControlRef(element: unknown, id: string): void {
+    if (element instanceof HTMLElement) {
+        serverControlRefs.set(id, element);
+        return;
+    }
+    if (
+        typeof element === "object" &&
+        element !== null &&
+        "$el" in element &&
+        (element as { $el?: unknown }).$el instanceof HTMLElement
+    ) {
+        serverControlRefs.set(id, (element as { $el: HTMLElement }).$el);
+        return;
+    }
+    serverControlRefs.delete(id);
+}
+
+async function focusReturnedServer(id: string | null | undefined): Promise<void> {
+    if (id === null || id === undefined) return;
+    await nextTick();
+    const element =
+        serverControlRefs.get(id) ??
+        [...document.querySelectorAll<HTMLElement>("[data-server-control]")].find(
+            (candidate) => candidate.dataset.serverControl === id,
+        );
+    element?.focus();
+}
+
+watch(() => props.returnServerId, focusReturnedServer, { immediate: true });
+watch(
+    () => store.loaded.value,
+    (loaded) => {
+        if (loaded) void focusReturnedServer(props.returnServerId);
+    },
+);
 
 onMounted(() => {
     void refreshAll();
@@ -266,6 +304,8 @@ async function stopOne(id: string): Promise<void> {
                             <VIcon :icon="mdiServerNetwork" />
                             <VBtn
                                 class="wl-mcserver-card__title"
+                                :ref="(element) => setServerControlRef(element, server.id)"
+                                :data-server-control="server.id"
                                 variant="text"
                                 :ripple="false"
                                 @click="emit('open', server.id)"
@@ -306,7 +346,13 @@ async function stopOne(id: string): Promise<void> {
                             >
                                 {{ t("mcserver.list.stop", "Stop") }}
                             </VBtn>
-                            <VBtn size="small" variant="text" @click="emit('open', server.id)">
+                            <VBtn
+                                size="small"
+                                variant="text"
+                                :ref="(element) => setServerControlRef(element, server.id)"
+                                :data-server-control="server.id"
+                                @click="emit('open', server.id)"
+                            >
                                 {{ t("mcserver.list.manage", "Manage") }}
                             </VBtn>
                         </div>

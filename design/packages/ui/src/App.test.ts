@@ -1323,3 +1323,107 @@ describe("a saved config folder", () => {
         );
     });
 });
+
+describe("Minecraft server detail navigation", () => {
+    it("opens, changes detail tab, returns to the list, retains the record, and restores focus", async () => {
+        const server = {
+            id: "srv-focus",
+            name: "Focus Server",
+            flavour: "paper",
+            minecraftVersion: "1.21",
+            ref: { kind: "local-process", serverDir: "/srv/focus" },
+            origin: "created",
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: "2026-01-01T00:00:00Z",
+            hasRconSecret: false,
+            rconPort: null,
+            writeScope: [],
+        };
+        const answer = <T>(value: T) => ({ ok: true as const, value });
+        const bridge = {
+            mcserver: {
+                list: async () => answer([server]),
+                get: async () => answer(server),
+                save: async () => answer(server),
+                forget: async () => answer(undefined),
+                probe: async () =>
+                    answer({
+                        reachable: true,
+                        runtimeVersion: "1.21",
+                        message: "",
+                        checkedAt: "now",
+                        capabilities: {
+                            canCreate: true,
+                            canLifecycle: true,
+                            canWriteFiles: true,
+                            canDestroy: true,
+                            console: "stdin",
+                        },
+                    }),
+                status: async () =>
+                    answer({
+                        state: "running",
+                        running: true,
+                        startedAt: null,
+                        exitCode: null,
+                        checkedAt: "now",
+                    }),
+                start: async () => answer(undefined),
+                stop: async () => answer(undefined),
+                logTail: async () => answer([]),
+                files: {
+                    list: async () => answer([]),
+                    read: async () => answer({ bytes: new Uint8Array(), hash: "", size: 0, truncated: false }),
+                    write: async () => answer({ hash: "", size: 0, writtenAt: "now", backupPath: null }),
+                },
+                consoleOpen: async () => ({ sessionId: "s" }),
+                consoleSend: async () => answer(undefined),
+                consoleClose: async () => answer(undefined),
+                onConsoleLine: () => () => undefined,
+                webConsole: {
+                    status: async () => answer({ running: false, host: "127.0.0.1", port: null, loopbackOnly: true, hasPassword: false }),
+                    start: async () => answer(undefined),
+                    stop: async () => answer(undefined),
+                    setPassword: async () => answer(undefined),
+                    bind: async () => answer(undefined),
+                },
+            },
+        };
+        (globalThis as { worldlens?: unknown }).worldlens = bridge;
+
+        const app = shell();
+        const workPane = app.findComponent({ name: "WorkPane" });
+        const workApi = workPane.vm as unknown as {
+            ensurePage: (id: string) => void;
+            revealPage: (id: string) => void;
+        };
+        workApi.ensurePage("mcservers");
+        workApi.revealPage("mcservers");
+        await settle();
+        await goTo("Work");
+        await settle();
+
+        expect(app.findComponent({ name: "ServerListScreen" }).text()).toContain("Focus Server");
+        const controls = [...document.querySelectorAll<HTMLElement>('[data-server-control="srv-focus"]')];
+        expect(controls.length).toBeGreaterThanOrEqual(2);
+        const origin = controls[controls.length - 1]!;
+        origin.focus();
+        origin.click();
+        await settle();
+
+        const panel = app.findComponent({ name: "WebConsolePanel" });
+        expect(panel.exists()).toBe(true);
+        const webTab = panel.findAll('[role="tab"]').find((tab) => tab.text().includes("Web console"));
+        expect(webTab).toBeDefined();
+        await webTab?.trigger("click");
+        await settle();
+
+        await panel.find('[data-test="back-to-minecraft-servers"]').trigger("click");
+        await settle();
+
+        const list = app.findComponent({ name: "ServerListScreen" });
+        expect(list.exists()).toBe(true);
+        expect(list.text()).toContain("Focus Server");
+        expect(document.activeElement?.getAttribute("data-server-control")).toBe("srv-focus");
+    });
+});
