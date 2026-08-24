@@ -38,7 +38,7 @@ const { resolve } = require("node:path");
  * That behaviour is unsafe for the Java render engine, so the packager checks the
  * generated manifest and the exact jar before it starts copying resources.
  */
-function assertStagedJavaEngine() {
+async function assertStagedJavaEngine() {
     const staging = resolve(__dirname, "../../../tools/oracle/out/jars");
     const manifestPath = resolve(staging, "manifest.json");
     if (!existsSync(manifestPath)) {
@@ -62,7 +62,18 @@ function assertStagedJavaEngine() {
             `Cannot package without a complete staged BlueMap CLI manifest: ${manifestPath}`,
         );
     }
+    const pathApi = require("node:path");
+    if (pathApi.basename(cli.fileName) !== cli.fileName) {
+        throw new Error(
+            `Cannot package a staged BlueMap CLI path containing traversal: ${cli.fileName}`,
+        );
+    }
     const jarPath = resolve(staging, cli.fileName);
+    if (!jarPath.startsWith(`${staging}${pathApi.sep}`)) {
+        throw new Error(
+            `Cannot package a staged BlueMap CLI path outside the staging directory: ${cli.fileName}`,
+        );
+    }
     if (!existsSync(jarPath) || !statSync(jarPath).isFile())
         throw new Error(`Cannot package without the staged BlueMap CLI jar: ${jarPath}`);
     const bytes = readFileSync(jarPath);
@@ -72,6 +83,11 @@ function assertStagedJavaEngine() {
             `Cannot package a staged BlueMap CLI jar whose size or SHA-256 differs from its manifest: ${jarPath}`,
         );
     }
+    const descriptor = await import("./scripts/jar-verifier.mjs").then(({ verifyJarFile }) =>
+        verifyJarFile(jarPath),
+    );
+    if (!descriptor.ok)
+        throw new Error(`Cannot package an invalid staged BlueMap CLI JAR: ${descriptor.reason}`);
 }
 
 /**

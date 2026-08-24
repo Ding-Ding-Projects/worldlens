@@ -173,6 +173,30 @@ describe("managed upstream Java engine repair", () => {
         expect(fixture.calls()).toBe(1);
     });
 
+    it("keeps the shared transfer alive when one waiter cancels and fans progress to the other", async () => {
+        const dataDir = await mkdtemp(join(tmpdir(), "worldlens-engine-waiters-"));
+        const fixture = fetchFixture(FIXTURE, 20);
+        const firstController = new AbortController();
+        const secondProgress: string[] = [];
+        const first = ensureManagedUpstreamJava({
+            dataDir,
+            release: RELEASE,
+            fetchBinary: fixture.fetchBinary,
+            signal: firstController.signal,
+        });
+        const second = ensureManagedUpstreamJava({
+            dataDir,
+            release: RELEASE,
+            fetchBinary: fixture.fetchBinary,
+            onProgress: (event) => secondProgress.push(event.stage),
+        });
+        firstController.abort();
+        await expect(first).rejects.toThrow(/cancelled/i);
+        await expect(second).resolves.toMatchObject({ source: "managed" });
+        expect(fixture.calls()).toBe(1);
+        expect(secondProgress).toContain("downloading");
+    });
+
     it("cancels without publishing a temporary or final jar", async () => {
         const dataDir = await mkdtemp(join(tmpdir(), "worldlens-engine-cancel-"));
         const controller = new AbortController();
@@ -194,7 +218,7 @@ describe("managed upstream Java engine repair", () => {
                 fetchBinary,
                 signal: controller.signal,
             }),
-        ).rejects.toThrow(/aborted/i);
+        ).rejects.toThrow(/cancelled|aborted/i);
         await expect(stat(managedUpstreamJavaJar(dataDir, RELEASE))).rejects.toThrow();
     });
 

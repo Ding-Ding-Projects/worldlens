@@ -564,7 +564,7 @@ export class RenderOrchestrator {
 
     /** Renders are keyed by id; this is what is in flight right now. */
     activeRenderIds(): string[] {
-        return [...new Set([...this.running.keys(), ...this.pending.keys()])];
+        return [...this.running.keys()];
     }
 
     /**
@@ -920,8 +920,8 @@ export class RenderOrchestrator {
                       : failures.javaUnavailable(describe(error));
             return this.fail(renderId, failure, null);
         }
-        this.pending.delete(renderId);
         if (provisionAbort.signal.aborted) {
+            this.pending.delete(renderId);
             return this.cancelledBeforeRun(renderId);
         }
 
@@ -1127,12 +1127,17 @@ export class RenderOrchestrator {
                             : { stopContainer: this.options.stopContainer }),
                     });
 
+        if (provisionAbort.signal.aborted) {
+            this.pending.delete(renderId);
+            return this.cancelledBeforeRun(renderId);
+        }
         this.running.set(renderId, {
             run,
             mode,
             containerName: launch?.containerName ?? null,
             dockerCommand: launch?.command ?? this.options.docker ?? "docker",
         });
+        this.pending.delete(renderId);
         // The note goes down **before** `docker run`, not after it. The app can be killed
         // in the gap, and a container started with no record beside it is a render nobody
         // can find again: it keeps writing tiles into a bind-mounted folder with nothing

@@ -30,7 +30,10 @@ import {
 } from "@worldlens/server";
 import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
 import { typescriptEngine, upstreamJavaEngine } from "./render/engine.js";
-import { packagedUpstreamJavaIsUsable } from "./render/engineProvisioning.js";
+import {
+    packagedUpstreamJavaIsUsable,
+    verifyManagedUpstreamJava,
+} from "./render/engineProvisioning.js";
 import { installRenderIpc } from "./render/ipc.js";
 import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
@@ -826,14 +829,16 @@ function startJavaDiscovery(): JavaIpc {
                         repoRoot: null,
                         dataDir: app.getPath("userData"),
                     });
+                    const verifiedManaged =
+                        managed.source === "managed" &&
+                        (await verifyManagedUpstreamJava(app.getPath("userData")));
                     return {
-                        available: managed.source === "managed",
-                        version: managed.source === "managed" ? managed.version : null,
-                        source: managed.source === "managed" ? "managed" : null,
-                        reason:
-                            managed.source === "managed"
-                                ? "The packaged jar needs repair; a managed copy is ready."
-                                : "The packaged BlueMap jar is missing or malformed.",
+                        available: verifiedManaged,
+                        version: verifiedManaged ? managed.version : null,
+                        source: verifiedManaged ? "managed" : null,
+                        reason: verifiedManaged
+                            ? "The packaged jar needs repair; a verified managed copy is ready."
+                            : "The packaged BlueMap jar is missing or malformed.",
                     };
                 }
                 const jar = resolveCliJar({

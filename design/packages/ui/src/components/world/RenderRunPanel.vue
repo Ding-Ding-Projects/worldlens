@@ -203,7 +203,7 @@ function openMap(): void {
                     </p>
                     <p class="mb-world-run__note">{{ run.engineProvisioning.value.message }}</p>
                     <v-progress-linear
-                        :model-value="engineProvisionPercent ?? undefined"
+                        :model-value="engineProvisionPercent ?? 0"
                         :indeterminate="engineProvisionPercent === null"
                         color="primary"
                         height="8"

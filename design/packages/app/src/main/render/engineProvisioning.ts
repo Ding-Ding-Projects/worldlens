@@ -10,9 +10,10 @@
 
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { downloadVerified, type FetchBinary } from "../java/download.js";
 import { managedJarDirectory } from "../java/jars.js";
+import { verifyJarFile } from "../../../scripts/jar-verifier.mjs";
 
 export const PINNED_UPSTREAM_JAVA = {
     version: "5.23",
@@ -57,7 +58,14 @@ export interface EngineProvisionResult {
     readonly reused: boolean;
 }
 
-const inflight = new Map<string, Promise<EngineProvisionResult | null>>();
+interface EngineFlight {
+    readonly controller: AbortController;
+    readonly listeners: Set<(progress: EngineProvisionProgress) => void>;
+    waiters: number;
+    readonly promise: Promise<EngineProvisionResult | null>;
+}
+
+const inflight = new Map<string, EngineFlight>();
 const RETRY_COUNT = 8;
 const RETRY_DELAY_MS = 25;
 
@@ -66,6 +74,13 @@ export function managedUpstreamJavaJar(
     release: EngineRelease = PINNED_UPSTREAM_JAVA,
 ): string {
     return join(managedJarDirectory(dataDir), release.asset);
+}
+
+export async function verifyManagedUpstreamJava(
+    dataDir: string,
+    release: EngineRelease = PINNED_UPSTREAM_JAVA,
+): Promise<boolean> {
+    return verifyJar(managedUpstreamJavaJar(dataDir, release), release);
 }
 
 /**
@@ -102,7 +117,11 @@ export async function packagedUpstreamJavaIsUsable(
         )
             return false;
         if (typeof jar.size !== "number" || typeof jar.sha256 !== "string") return false;
-        return await verifyJar(join(resourcesPath, "jars", jar.fileName), {
+        const jarsRoot = resolve(resourcesPath, "jars");
+        const jarPath = resolve(jarsRoot, jar.fileName);
+        if (!jarPath.startsWith(`${jarsRoot}${process.platform === "win32" ? "\\" : "/"}`))
+            return false;
+        return await verifyJar(jarPath, {
             ...release,
             version: java.version,
             asset: jar.fileName,
@@ -124,10 +143,47 @@ export function ensureManagedUpstreamJava(
     const release = options.release ?? PINNED_UPSTREAM_JAVA;
     const key = managedUpstreamJavaJar(options.dataDir, release);
     const running = inflight.get(key);
-    if (running !== undefined) return running;
-    const operation = ensureManagedUpstreamJavaOnce(options).finally(() => inflight.delete(key));
-    inflight.set(key, operation);
-    return operation;
+    if (running !== undefined) return attachFlight(running, options);
+    const controller = new AbortController();
+    const listeners = new Set<(progress: EngineProvisionProgress) => void>();
+    const operation = Promise.resolve()
+        .then(() =>
+            ensureManagedUpstreamJavaOnce({
+                ...options,
+                signal: controller.signal,
+                onProgress: (progress) => listeners.forEach((listener) => listener(progress)),
+            }),
+        )
+        .finally(() => inflight.delete(key));
+    const flight = { controller, listeners, waiters: 0, promise: operation };
+    inflight.set(key, flight);
+    return attachFlight(flight, options);
+}
+
+function attachFlight(
+    flight: EngineFlight,
+    options: EngineProvisionOptions,
+): Promise<EngineProvisionResult | null> {
+    return new Promise((resolve, reject) => {
+        flight.waiters += 1;
+        const listener = options.onProgress === undefined ? null : options.onProgress;
+        if (listener !== null) flight.listeners.add(listener);
+        const abort = (): void => {
+            if (listener !== null) flight.listeners.delete(listener);
+            if (flight.waiters === 1) flight.controller.abort();
+            reject(new Error("engine provisioning was cancelled"));
+        };
+        if (options.signal?.aborted === true) {
+            abort();
+            return;
+        }
+        options.signal?.addEventListener("abort", abort, { once: true });
+        flight.promise.then(resolve, reject).finally(() => {
+            if (listener !== null) flight.listeners.delete(listener);
+            flight.waiters -= 1;
+            options.signal?.removeEventListener("abort", abort);
+        });
+    });
 }
 
 async function ensureManagedUpstreamJavaOnce(
@@ -201,6 +257,7 @@ async function downloadToTemporary(
         sha256: release.sha256,
         target,
         expectedSize: release.sizeBytes,
+        maxSize: release.sizeBytes,
         ...(options.fetchBinary === undefined ? {} : { fetchBinary: options.fetchBinary }),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
         onProgress: (progress) =>
@@ -211,7 +268,7 @@ async function downloadToTemporary(
                 total: progress.total ?? release.sizeBytes,
             }),
     });
-    if (!(await jarDescriptorIsSane(target)))
+    if (!(await verifyJarFile(target)).ok)
         throw new Error("BlueMap engine is not a valid JAR archive");
 }
 
@@ -220,7 +277,7 @@ async function verifyJar(path: string, release: EngineRelease): Promise<boolean>
         const info = await stat(path);
         if (!info.isFile() || info.size !== release.sizeBytes) return false;
         if ((await sha256File(path)) !== release.sha256) return false;
-        return await jarDescriptorIsSane(path);
+        return (await verifyJarFile(path)).ok;
     } catch {
         return false;
     }
@@ -231,32 +288,6 @@ async function sha256File(path: string): Promise<string> {
     const bytes = await readFile(path);
     hash.update(bytes);
     return hash.digest("hex");
-}
-
-async function jarDescriptorIsSane(path: string): Promise<boolean> {
-    const bytes = await readFile(path);
-    if (bytes.length < 4096 || bytes.readUInt32LE(0) !== 0x04034b50) return false;
-    const tailStart = Math.max(0, bytes.length - 65_557);
-    const end = bytes.indexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]), tailStart);
-    if (end < 0 || end + 22 > bytes.length) return false;
-    const entries = bytes.readUInt16LE(end + 10);
-    const centralSize = bytes.readUInt32LE(end + 12);
-    const centralOffset = bytes.readUInt32LE(end + 16);
-    if (entries === 0 || centralOffset + centralSize > end) return false;
-    let cursor = centralOffset;
-    let manifest = false;
-    let classFile = false;
-    for (let index = 0; index < entries && cursor + 46 <= bytes.length; index += 1) {
-        if (bytes.readUInt32LE(cursor) !== 0x02014b50) return false;
-        const nameLength = bytes.readUInt16LE(cursor + 28);
-        const extraLength = bytes.readUInt16LE(cursor + 30);
-        const commentLength = bytes.readUInt16LE(cursor + 32);
-        const name = bytes.subarray(cursor + 46, cursor + 46 + nameLength).toString("utf8");
-        manifest ||= name.toUpperCase() === "META-INF/MANIFEST.MF";
-        classFile ||= name.endsWith(".class");
-        cursor += 46 + nameLength + extraLength + commentLength;
-    }
-    return manifest && classFile;
 }
 
 async function replaceWithRetry(source: string, target: string): Promise<void> {

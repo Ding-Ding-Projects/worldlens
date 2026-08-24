@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifyJarFile } from "./jar-verifier.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, "..");
@@ -209,6 +210,7 @@ async function stageRuntimePackageClosure(outputDirectory) {
  */
 export async function stageRenderEngines(
     outputDirectory = join(appRoot, "dist", "render-engines"),
+    options = {},
 ) {
     await rm(outputDirectory, { recursive: true, force: true });
     await mkdir(outputDirectory, { recursive: true });
@@ -226,7 +228,7 @@ export async function stageRenderEngines(
     await cp(driverSource, join(outputDirectory, "typescript", "render-ts.mjs"));
     const stagedWorkspacePackages = await stageRuntimePackageClosure(outputDirectory);
 
-    const java = await resolveJavaArtifact();
+    const java = await resolveJavaArtifact(options.requireJava === true);
     const javaVersion = java.version;
     const javaArtifact = java.artifact;
 
@@ -279,7 +281,7 @@ export async function stageRenderEngines(
     return manifest;
 }
 
-async function resolveJavaArtifact() {
+async function resolveJavaArtifact(requireJava) {
     const stagedManifestPath = join(jarDirectory, "manifest.json");
     try {
         const stagedManifest = JSON.parse(await readFile(stagedManifestPath, "utf8"));
@@ -287,7 +289,7 @@ async function resolveJavaArtifact() {
             ? stagedManifest.jars.find((jar) => jar?.implementation === "cli")
             : null;
         if (typeof cli?.fileName === "string") {
-            const candidate = join(jarDirectory, cli.fileName);
+            const candidate = stagedJarPath(cli.fileName);
             const actual = await verifiedJarMetadata(candidate);
             if (typeof cli.size !== "number" || cli.size !== actual.size) {
                 throw new Error(`staged CLI jar size differs from manifest: ${candidate}`);
@@ -359,6 +361,9 @@ async function resolveJavaArtifact() {
         };
     }
 
+    if (!requireJava) {
+        return { version: null, artifact: null };
+    }
     const detail = stagedError instanceof Error ? ` Staging error: ${stagedError.message}` : "";
     throw new Error(
         `No verified BlueMap CLI jar is available for packaging. Looked in ${jarDirectory} and ${gradleJarDirectory}.${detail} ` +
@@ -410,6 +415,15 @@ async function newestJar(directory) {
     return candidates[0] ?? null;
 }
 
+function stagedJarPath(fileName) {
+    if (basename(fileName) !== fileName)
+        throw new Error(`staged CLI jar path contains traversal: ${fileName}`);
+    const candidate = resolve(jarDirectory, fileName);
+    if (!candidate.startsWith(`${resolve(jarDirectory)}${sep}`))
+        throw new Error(`staged CLI jar path escapes staging: ${fileName}`);
+    return candidate;
+}
+
 async function newestGradleCliJar() {
     let entries;
     try {
@@ -440,22 +454,12 @@ async function verifiedJarMetadata(path) {
     if (!info.isFile() || info.size < 4096)
         throw new Error(`BlueMap CLI jar is not a usable file: ${path}`);
     const actual = await artifactMetadata(path);
-    if (!(await jarDescriptorIsSane(path)))
-        throw new Error(`BlueMap CLI jar is not a valid JAR archive: ${path}`);
+    const descriptor = await verifyJarFile(path);
+    if (!descriptor.ok)
+        throw new Error(
+            `BlueMap CLI jar is not a valid JAR archive: ${path} (${descriptor.reason})`,
+        );
     return actual;
-}
-
-async function jarDescriptorIsSane(path) {
-    const bytes = await readFile(path);
-    if (bytes.length < 4096 || bytes.readUInt32LE(0) !== 0x04034b50) return false;
-    const tailStart = Math.max(0, bytes.length - 65_557);
-    const end = bytes.indexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]), tailStart);
-    if (end < 0 || end + 22 > bytes.length) return false;
-    const entries = bytes.readUInt16LE(end + 10);
-    const centralSize = bytes.readUInt32LE(end + 12);
-    const centralOffset = bytes.readUInt32LE(end + 16);
-    if (entries === 0 || centralOffset + centralSize > end) return false;
-    return bytes.readUInt32LE(centralOffset) === 0x02014b50;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
