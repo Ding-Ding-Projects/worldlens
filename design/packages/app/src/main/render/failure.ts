@@ -38,6 +38,8 @@ export type RenderFailureCode =
     | "no-maps-rendered"
     /** The CLI exited non-zero, or could not be spawned at all. */
     | "cli-failed"
+    /** The engine ended, but the output/session could not be verified into the catalogue. */
+    | "promotion-unverified"
     /**
      * A container render was asked for and Docker cannot take one right now.
      *
@@ -198,6 +200,14 @@ export function cliFailed(exitCode: number, detail: string | null): RenderFailur
         exitCode,
         ...(detail === null ? {} : { detail }),
     });
+}
+
+export function promotionUnverified(detail: string): RenderFailure {
+    return failure(
+        "promotion-unverified",
+        "The render ended, but its output could not be verified into the map catalogue.",
+        { detail },
+    );
 }
 
 export function spawnFailed(detail: string): RenderFailure {

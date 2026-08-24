@@ -472,6 +472,34 @@ export interface RenderSummary {
     dataRoot: string | null;
 }
 
+export interface FinishedRenderPromotion {
+    readonly promotionVersion: 1;
+    readonly promotionId: string;
+    readonly renderId: string;
+    readonly worldIds: string[];
+    readonly projectId: string | null;
+    readonly mapIds: string[];
+    readonly outputRoot: string;
+    readonly dataRoot: string;
+    readonly engine: {
+        readonly id: "upstream-java" | "typescript";
+        readonly version: string;
+        readonly source: "bundled" | "staged" | "gradle" | "managed" | null;
+        readonly javaVersion: string | null;
+    };
+    readonly provenance: {
+        readonly recordFile: string;
+        readonly sessionFile: string;
+        readonly recordVersion: number;
+        readonly sessionVersion: number;
+        readonly sourceCommit: string | null;
+    };
+    readonly startedAt: string;
+    readonly finishedAt: string;
+    readonly outputIdentity: string;
+    readonly verifiedReceipt: { readonly verifiedAt: string; readonly requiredFiles: string[] };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Downloading                                                                */
 /* -------------------------------------------------------------------------- */
@@ -2768,6 +2796,9 @@ interface WorldlensBridge {
     /** Every render on disk, finished or not, with the engine that produced it. */
     listRenders(): Promise<RenderSummary[]>;
 
+    /** Verified finished outputs, recovered from the durable promotion catalogue. */
+    finishedRenderPromotions(): Promise<FinishedRenderPromotion[]>;
+
     /**
      * Renders that were cut off and could be carried on, newest first.
      *
@@ -3773,6 +3804,7 @@ const bridge: WorldlensBridge = {
         ipcRenderer.invoke("render:adjustSpeed", renderId, level),
     activeRenders: () => ipcRenderer.invoke("render:active"),
     listRenders: () => ipcRenderer.invoke("render:list"),
+    finishedRenderPromotions: () => ipcRenderer.invoke("render:promotions"),
     interruptedRenders: () => ipcRenderer.invoke("render:interrupted"),
     resumeRender: (renderId, maps) => ipcRenderer.invoke("render:resume", renderId, maps),
     dismissResume: (renderId) => ipcRenderer.invoke("render:dismissResume", renderId),

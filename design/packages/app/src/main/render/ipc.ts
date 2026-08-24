@@ -39,6 +39,7 @@ import { findInterruptedRenders, planResume } from "./resume.js";
 import type { InterruptedRenderSummary, ResumeRefused } from "./resume.js";
 import { RenderSessionStore } from "./session.js";
 import { expandStorageDirectory, listRenderIds, renderWorkspace } from "./workspace.js";
+import { RenderPromotionStore, type FinishedRenderPromotion } from "./promotion.js";
 
 /** The channel every progress, phase, log and outcome event arrives on. */
 export const RENDER_EVENT_CHANNEL = "render:event";
@@ -120,6 +121,7 @@ export interface RenderIpcOptions {
      * with whatever heap the JVM picks for itself, exactly as before this existed.
      */
     readonly jvmArgs?: () => readonly string[];
+    readonly promotions?: RenderPromotionStore;
 }
 
 /**
@@ -146,6 +148,7 @@ export interface RenderIpc {
      * the note on {@link RenderIpcOptions.containers} for what two of them cost.
      */
     readonly containers: ContainerHandoffStore;
+    readonly promotions: RenderPromotionStore;
     /**
      * Where maps are being written right now.
      *
@@ -162,6 +165,7 @@ export interface RenderIpc {
     restoreExisting(): Promise<RenderSummary[]>;
     /** Renders that were cut off and could be carried on, newest first. */
     interruptedRenders(): Promise<InterruptedRenderSummary[]>;
+    finishedPromotions(): Promise<readonly FinishedRenderPromotion[]>;
     dispose(): void;
 }
 
@@ -197,6 +201,8 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
     // session store above. See the note on the option for why passing one in matters.
     const containers =
         options.containers ?? new ContainerHandoffStore({ storageDir: () => storageDir });
+    const promotions =
+        options.promotions ?? new RenderPromotionStore({ storageDir: () => storageDir });
 
     const orchestrator = new RenderOrchestrator({
         storageDir: () => storageDir,
@@ -211,6 +217,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         appVersion: options.appVersion ?? null,
         sessions,
         containers,
+        promoteFinished: async (renderId: string) => await promotions.promote(renderId),
         ...(options.docker === undefined ? {} : { docker: options.docker }),
         ...(options.dockerImage === undefined ? {} : { dockerImage: options.dockerImage }),
         ...(options.home === undefined ? {} : { home: options.home }),
@@ -327,7 +334,15 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         },
     );
 
-    ipcMain.handle("render:list", async () => await summarise(storageDir, options.mounts));
+    ipcMain.handle("render:list", async () => {
+        await restoreFinished();
+        return await summarise(storageDir, options.mounts);
+    });
+
+    ipcMain.handle("render:promotions", async () => {
+        await restoreFinished();
+        return await promotions.list();
+    });
 
     // Which engine rendered a given map. The README promises the app never switches
     // engines silently, and this is where the interface gets the answer to check it.
@@ -367,24 +382,38 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         return found.map((entry) => entry.summary);
     }
 
+    async function restoreFinished(): Promise<void> {
+        await interrupted();
+        for (const renderId of await listRenderIds(storageDir)) {
+            const record = await orchestrator.mountExisting(renderId);
+            if (record !== null) await promotions.promote(renderId);
+        }
+        await promotions.reconcile();
+    }
+
     return {
         orchestrator,
         mounts: options.mounts,
         sessions,
         containers,
+        promotions,
         storageDirectory: () => storageDir,
         async restoreExisting(): Promise<RenderSummary[]> {
             // Done first, and on every launch: this is the moment a render that was
             // running when the app died stops being described as running. The list it
             // returns is dropped here because the interface asks for it over IPC; what
             // matters is that the files on disk have been made honest.
-            await interrupted();
+            await restoreFinished();
             const summaries: RenderSummary[] = [];
             for (const renderId of await listRenderIds(storageDir)) {
                 const record = await orchestrator.mountExisting(renderId);
                 if (record !== null) summaries.push(toSummary(record, options.mounts));
             }
             return summaries;
+        },
+        async finishedPromotions(): Promise<readonly FinishedRenderPromotion[]> {
+            await restoreFinished();
+            return await promotions.list();
         },
         interruptedRenders: interrupted,
         dispose(): void {
@@ -404,6 +433,7 @@ const RENDER_CHANNELS = [
     "render:resume",
     "render:dismissResume",
     "render:list",
+    "render:promotions",
     "render:engine",
     "render:storageDirectory",
     "render:setStorageDirectory",

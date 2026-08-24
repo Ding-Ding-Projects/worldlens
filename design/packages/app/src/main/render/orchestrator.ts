@@ -80,6 +80,7 @@ import type { RenderMapRequest } from "./config.js";
 import * as failures from "./failure.js";
 import type { RenderFailure } from "./failure.js";
 import { LocalMapHandler } from "./LocalMapHandler.js";
+import type { PromotionResult } from "./promotion.js";
 import type { RenderPhase, RenderSignal, RenderTaskProgress, CliLogLevel } from "./progress.js";
 import {
     RENDER_ENGINE_LABELS,
@@ -464,6 +465,8 @@ export interface RenderOrchestratorOptions {
      * settings-wide default rather than being silently replaced by it.
      */
     readonly jvmArgs?: readonly string[] | (() => readonly string[]);
+    /** Persist and verify a finished output before its terminal event is broadcast. */
+    readonly promoteFinished?: (renderId: string) => Promise<PromotionResult>;
 
     /* ---- The container half. Every one of these is optional and local ignores them. ---- */
 
@@ -1211,6 +1214,19 @@ export class RenderOrchestrator {
         await this.saveRecord(workspace, record);
         await this.options.sessions?.complete(renderId);
         this.mount(workspace, record);
+        const promotion = await this.options.promoteFinished?.(renderId);
+        if (promotion?.failure !== null && promotion?.failure !== undefined) {
+            const detail = `${promotion.failure.reason}: ${promotion.failure.detail}`;
+            const failedRecord = {
+                ...record,
+                outcome: "failed" as const,
+                failureCode: "promotion-unverified",
+            };
+            this.options.mounts?.removeMount(renderId);
+            await this.saveRecord(workspace, failedRecord);
+            await this.options.sessions?.interrupt(renderId, "failed", detail);
+            return this.fail(renderId, failures.promotionUnverified(detail), failedRecord);
+        }
 
         const dataRoot = LocalMapHandler.dataRoot(renderId);
         this.emit({
