@@ -108,8 +108,8 @@ set "NPM_CLI="
 for /f "tokens=* usebackq" %%p in (`node -e "const fs=require('node:fs'),path=require('node:path'),d=path.dirname(process.execPath);const p=[path.join(d,'node_modules','npm','bin','npm-cli.js'),path.join(d,'..','lib','node_modules','npm','bin','npm-cli.js'),path.join(d,'..','share','node_modules','npm','bin','npm-cli.js')].find(fs.existsSync);if(p)process.stdout.write(p)" 2^>nul`) do set "NPM_CLI=%%p"
 if not defined NPM_CLI goto :no_pnpm
 set "PNPM_ACTUAL="
-for /f "tokens=* usebackq" %%v in (`node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm --version 2^>nul`) do set "PNPM_ACTUAL=%%v"
-if not "%PNPM_ACTUAL%"=="%PNPM_VERSION%" goto :no_pnpm
+for /f "tokens=* usebackq" %%v in (`node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm --version 2^>nul`) do if "%%v"=="%PNPM_VERSION%" set "PNPM_ACTUAL=%%v"
+if not defined PNPM_ACTUAL goto :no_pnpm
 echo       pnpm %PNPM_ACTUAL% is runnable through the pinned npm CLI
 echo.
 
