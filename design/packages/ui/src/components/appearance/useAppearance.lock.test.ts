@@ -5,15 +5,18 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import { LOCK_STORE } from "../locks/useLocks.js";
 import { createLockStore } from "../locks/lockStore.js";
-import { createLock } from "../locks/lockModel.js";
+import { createLock, type LockRecord } from "../locks/lockModel.js";
+import { emptyRecord } from "./appearanceRecord.js";
 import { emptyState } from "./appearanceStore.js";
+import { appearancePropertyLockTarget } from "./appearanceLocks.js";
 import { appearanceState, commitAppearance, useAppearanceTarget } from "./useAppearance.js";
 
 describe("appearance setters and real lock store", () => {
     it("refuses a locked property while allowing a different property target", async () => {
         commitAppearance(emptyState());
+        const gapTarget = appearancePropertyLockTarget("locked", "gap");
         const locked = await createLock(
-            { surface: "appearance", path: "element:locked/base/gap", label: "Gap" },
+            gapTarget,
             { method: "password", password: "test-only" },
             { id: "appearance-gap-lock", iterations: 1, now: "2026-08-24T00:00:00.000Z" },
         );
@@ -31,8 +34,9 @@ describe("appearance setters and real lock store", () => {
         await store.load();
 
         const Test = defineComponent({
-            setup() {
+            setup(_, { expose }) {
                 const target = useAppearanceTarget("locked");
+                expose({ target });
                 return () => h("button", { onClick: () => target.setSurface("gap", 42) }, "set");
             },
         });
@@ -40,6 +44,69 @@ describe("appearance setters and real lock store", () => {
         await view.find("button").trigger("click");
         await nextTick();
         expect(appearanceState().value.elements.locked).toBeUndefined();
-        expect(store.isLocked("appearance", "element:locked/base/gap")).toBe(true);
+        expect(store.isLocked(gapTarget.surface, gapTarget.path)).toBe(true);
+    });
+
+    it("preserves locked properties through every reset route", async () => {
+        const paths = [
+            appearancePropertyLockTarget("locked", "fontSize"),
+            appearancePropertyLockTarget("locked", "gap"),
+            appearancePropertyLockTarget("locked", "gap", "hover"),
+            appearancePropertyLockTarget("global", "gap"),
+        ];
+        const records: LockRecord[] = [];
+        for (const [index, target] of paths.entries()) {
+            const made = await createLock(
+                target,
+                { method: "password", password: `test-${index}` },
+                { id: `reset-lock-${index}`, iterations: 1, now: "2026-08-24T00:00:00.000Z" },
+            );
+            expect(made.ok).toBe(true);
+            if (made.ok) records.push(made.record);
+        }
+        const store = createLockStore({
+            host: {
+                name: "reset test host",
+                load: async () => records,
+                save: async () => {},
+                vault: null,
+                dataFolder: "C:/test-data",
+            },
+        });
+        await store.load();
+        const source = {
+            typography: { fontSize: 18 },
+            surface: { gap: 4 },
+            states: { hover: { surface: { gap: 8 } } },
+        };
+        commitAppearance({
+            ...emptyState(),
+            elements: {
+                locked: { ...emptyRecord(), ...source },
+                global: { ...emptyRecord(), surface: { gap: 2 } },
+            },
+        });
+        const Test = defineComponent({
+            setup(_, { expose }) {
+                const target = useAppearanceTarget("locked");
+                expose({ target });
+                return () => h("div");
+            },
+        });
+        const view = mount(Test, { global: { provide: { [LOCK_STORE as symbol]: store } } });
+        const target = (view.vm as unknown as { target: ReturnType<typeof useAppearanceTarget> })
+            .target;
+        target.resetTypographyProperty("fontSize");
+        target.resetSurfaceProperty("gap");
+        target.resetStateProperty("hover", "surface", "gap");
+        target.resetElement();
+        await nextTick();
+        expect(appearanceState().value.elements.locked?.typography.fontSize).toBe(18);
+        expect(appearanceState().value.elements.locked?.surface.gap).toBe(4);
+        expect(appearanceState().value.elements.locked?.states.hover?.surface?.gap).toBe(8);
+        target.resetEverything();
+        await nextTick();
+        expect(appearanceState().value.elements.locked?.surface.gap).toBe(4);
+        expect(appearanceState().value.elements.global?.surface.gap).toBe(2);
     });
 });

@@ -9,6 +9,19 @@ import { TYPOGRAPHY_PROPERTIES, type TypographyPropertyId } from "./typographySp
 
 /** The lock-store surface used by every appearance property. */
 export const APPEARANCE_LOCK_SURFACE = "appearance";
+export const MAX_APPEARANCE_LOCK_PART_LENGTH = 256;
+
+function encodePart(value: string, label: string): string {
+    if (value.length === 0 || value.length > MAX_APPEARANCE_LOCK_PART_LENGTH) {
+        throw new Error(
+            `${label} is empty or exceeds ${MAX_APPEARANCE_LOCK_PART_LENGTH} characters.`,
+        );
+    }
+    if ([...value].some((character) => character.charCodeAt(0) < 0x20)) {
+        throw new Error(`${label} contains a control character.`);
+    }
+    return `${value.length}:${value}`;
+}
 
 export interface AppearancePropertyLockTarget {
     readonly surface: string;
@@ -27,7 +40,7 @@ function target(
     const statePart = state === undefined ? "base" : `state:${state}`;
     return {
         surface: APPEARANCE_LOCK_SURFACE,
-        path: `element:${elementId}/${statePart}/${property}`,
+        path: `appearance/${encodePart(elementId, "element id")}/${encodePart(statePart, "state")}/${encodePart(property, "property")}`,
         label:
             state === undefined
                 ? `${label} on ${elementId}`
@@ -35,6 +48,15 @@ function target(
         ...(state === undefined ? {} : { state }),
         property,
     };
+}
+
+/** Pre-versioned path accepted while existing lock records migrate deterministically. */
+export function legacyAppearancePropertyLockPath(
+    elementId: string,
+    property: string,
+    state?: AppearanceStateName,
+): string {
+    return `element:${elementId}/${state === undefined ? "base" : `state:${state}`}/${property}`;
 }
 
 /** Stable target identity, deliberately independent from credentials or rendered labels. */

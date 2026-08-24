@@ -31,8 +31,19 @@ const props = withDefaults(
         /** Honest "showing X of Y" line, rendered beneath the field. */
         summary?: string;
         density?: "default" | "comfortable" | "compact";
+        inputId?: string | undefined;
+        inputAriaActivedescendant?: string | undefined;
+        inputAriaControls?: string | undefined;
     }>(),
-    { placeholder: "", sample: "", summary: "", density: "compact" },
+    {
+        placeholder: "",
+        sample: "",
+        summary: "",
+        density: "compact",
+        inputId: undefined,
+        inputAriaActivedescendant: undefined,
+        inputAriaControls: undefined,
+    },
 );
 
 const emit = defineEmits<{
@@ -51,7 +62,6 @@ const query = computed<string>({
     set: (value) => emit("update:modelValue", value),
 });
 
-
 /**
  * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`,
  * so an optional prop of ours is normalised once here rather than coalesced at
@@ -60,10 +70,14 @@ const query = computed<string>({
 const placeholderValue = computed(() => props.placeholder ?? "");
 const sampleValue = computed(() => props.sample ?? "");
 const summaryValue = computed(() => props.summary ?? "");
-const densityValue = computed<"default" | "comfortable" | "compact">(() => props.density ?? "compact");
+const densityValue = computed<"default" | "comfortable" | "compact">(
+    () => props.density ?? "compact",
+);
 
 /** The compile error, so an invalid pattern is visible rather than silently empty. */
-const error = computed(() => createSettingMatcher(props.modelValue, props.regex, props.flags).error);
+const error = computed(
+    () => createSettingMatcher(props.modelValue, props.regex, props.flags).error,
+);
 
 function toggleRegex(): void {
     emit("update:regex", !props.regex);
@@ -98,6 +112,9 @@ function clear(): void {
             autocomplete="off"
             hide-details="auto"
             role="searchbox"
+            :id="props.inputId"
+            :aria-activedescendant="props.inputAriaActivedescendant"
+            :aria-controls="props.inputAriaControls"
         >
             <template #append-inner>
                 <v-btn
@@ -113,7 +130,10 @@ function clear(): void {
                     :icon="mdiRegex"
                     :aria-label="
                         regex
-                            ? t('config.search.regexOff', 'Search plain text instead of a regular expression')
+                            ? t(
+                                  'config.search.regexOff',
+                                  'Search plain text instead of a regular expression',
+                              )
                             : t('config.search.regexOn', 'Search with a regular expression')
                     "
                     :aria-pressed="regex ? 'true' : 'false'"
@@ -128,8 +148,14 @@ function clear(): void {
                         location="top"
                         :text="
                             regex
-                                ? t('config.search.regexOffHint', 'Back to plain text. The query stays exactly as typed.')
-                                : t('config.search.regexOnHint', 'Treat the query as a regular expression.')
+                                ? t(
+                                      'config.search.regexOffHint',
+                                      'Back to plain text. The query stays exactly as typed.',
+                                  )
+                                : t(
+                                      'config.search.regexOnHint',
+                                      'Treat the query as a regular expression.',
+                                  )
                         "
                     />
                 </v-btn>
@@ -147,7 +173,11 @@ function clear(): void {
                     density="comfortable"
                 >
                     {{ t("config.search.builderShort", ".*") }}
-                    <v-tooltip activator="parent" location="top" :text="t('config.search.builder', 'Open the regex builder')" />
+                    <v-tooltip
+                        activator="parent"
+                        location="top"
+                        :text="t('config.search.builder', 'Open the regex builder')"
+                    />
                     <v-menu
                         v-model="builderOpen"
                         activator="parent"
@@ -173,7 +203,9 @@ function clear(): void {
             </template>
         </v-text-field>
 
-        <p v-if="summaryValue" class="mb-config-search__summary" aria-live="polite">{{ summaryValue }}</p>
+        <p v-if="summaryValue" class="mb-config-search__summary" aria-live="polite">
+            {{ summaryValue }}
+        </p>
     </div>
 </template>
 

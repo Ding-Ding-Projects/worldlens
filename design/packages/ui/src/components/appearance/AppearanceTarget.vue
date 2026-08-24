@@ -72,8 +72,20 @@ const props = withDefaults(
 
 const { t } = useI18n();
 
-const interactionState = ref<AppearanceStateName | undefined>(undefined);
-const activeState = computed(() => props.state ?? interactionState.value);
+const pointerInside = ref(false);
+const focusWithin = ref(false);
+const pressed = ref(false);
+const activeState = computed(
+    () =>
+        props.state ??
+        (pressed.value
+            ? "pressed"
+            : focusWithin.value
+              ? "focus"
+              : pointerInside.value
+                ? "hover"
+                : undefined),
+);
 const target = useAppearanceTarget(
     () => props.id,
     () => activeState.value,
@@ -131,6 +143,11 @@ const editorOpen = ref(false);
  */
 const menuContent = ref<HTMLElement | null>(null);
 const editorContent = ref<HTMLElement | null>(null);
+
+function onFocusOut(event: FocusEvent): void {
+    const next = event.relatedTarget;
+    if (!(next instanceof Node) || !root.value?.contains(next)) focusWithin.value = false;
+}
 
 const FOCUSABLE_SELECTOR =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -533,12 +550,12 @@ function onKeydown(event: KeyboardEvent): void {
         :aria-owns="menuOpen ? menuId : editorOpen ? editorId : undefined"
         @contextmenu="onContextMenu"
         @keydown="onKeydown"
-        @mouseenter="interactionState = 'hover'"
-        @mouseleave="interactionState = undefined"
-        @focusin="interactionState = 'focus'"
-        @focusout="interactionState = undefined"
-        @mousedown="interactionState = 'pressed'"
-        @mouseup="interactionState = activeState === 'pressed' ? 'active' : activeState"
+        @mouseenter="pointerInside = true"
+        @mouseleave="pointerInside = false"
+        @focusin="focusWithin = true"
+        @focusout="onFocusOut"
+        @mousedown="pressed = true"
+        @mouseup="pressed = false"
     >
         <!--
             The slot, made genuinely unusable while the lock is closed.

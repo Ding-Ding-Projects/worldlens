@@ -613,7 +613,7 @@ export function exportTheme(state: AppearanceState): string {
     );
 }
 
-export type ImportError = "not-json" | "not-a-theme";
+export type ImportError = "not-json" | "not-a-theme" | "unsupported-version";
 
 export interface ImportReport {
     elements: number;
@@ -638,6 +638,16 @@ export function importState(raw: unknown): ImportResult {
     if (raw.format !== APPEARANCE_FORMAT && raw.format !== LEGACY_APPEARANCE_FORMAT) {
         return { ok: false, error: "not-a-theme" };
     }
+    const version =
+        raw.version === undefined
+            ? raw.format === LEGACY_APPEARANCE_FORMAT
+                ? 1
+                : APPEARANCE_VERSION
+            : raw.version;
+    if (typeof version !== "number" || !Number.isInteger(version) || version < 1) {
+        return { ok: false, error: "unsupported-version" };
+    }
+    if (version > APPEARANCE_VERSION) return { ok: false, error: "unsupported-version" };
 
     const state = emptyState();
     const preservedKeys: string[] = [];

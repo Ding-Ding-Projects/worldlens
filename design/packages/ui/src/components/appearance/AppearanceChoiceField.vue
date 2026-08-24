@@ -31,12 +31,14 @@ const menuContent = ref<HTMLElement | null>(null);
 const active = ref(0);
 const uid = useId();
 const listId = `${uid}-listbox`;
+const searchInputId = `${uid}-search`;
 
 const corpus = computed(() => props.items.map((item) => `${item.title} ${item.value}`).join("\n"));
 const visible = computed(() => {
     const matcher = createSettingMatcher(query.value, regex.value, flags.value);
     return props.items.filter((item) => matcher.test(`${item.title} ${item.value}`));
 });
+const activeOption = computed(() => visible.value[active.value]);
 const currentTitle = computed(
     () => props.items.find((item) => item.value === props.modelValue)?.title ?? props.modelValue,
 );
@@ -106,6 +108,11 @@ function onKeydown(event: KeyboardEvent): void {
                     v-model="query"
                     v-model:regex="regex"
                     v-model:flags="flags"
+                    :input-id="searchInputId"
+                    :input-aria-activedescendant="
+                        activeOption ? `${uid}-option-${activeOption.value}` : undefined
+                    "
+                    :input-aria-controls="listId"
                     :label="t('appearance.choice.search', { label }, 'Search {label}')"
                     :sample="corpus"
                     :summary="
@@ -122,7 +129,7 @@ function onKeydown(event: KeyboardEvent): void {
                     role="listbox"
                     :aria-label="label"
                     :aria-activedescendant="
-                        visible[active] ? `${uid}-option-${visible[active].value}` : undefined
+                        activeOption ? `${uid}-option-${activeOption.value}` : undefined
                     "
                     class="mb-appearance-choice__list"
                 >

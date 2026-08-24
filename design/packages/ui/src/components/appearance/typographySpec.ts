@@ -101,6 +101,8 @@ export interface TypographySpec {
      * finished stack is handed to {@link typographyCss} as its `fontStack` argument.
      */
     fontFamily: string;
+    /** Stable platform identity, distinct from the localized display family name. */
+    fontIdentity: string;
     /** Size as a bare number; the unit lives in {@link fontSizeUnit}. */
     fontSize: number;
     fontSizeUnit: FontSizeUnit;
@@ -207,6 +209,7 @@ const PROPERTY_ORDER = {
     lineHeight: 24,
     textDirection: 25,
     textAlign: 26,
+    fontIdentity: 27,
 } satisfies Record<TypographyPropertyId, number>;
 
 /**
@@ -228,6 +231,7 @@ export const TYPOGRAPHY_PROPERTIES: readonly TypographyPropertyId[] = (
  */
 export const DEFAULT_TYPOGRAPHY: TypographySpec = {
     fontFamily: "Roboto",
+    fontIdentity: "",
     fontSize: 14,
     fontSizeUnit: "px",
     fontWeight: 400,
@@ -268,6 +272,7 @@ function pick<T>(current: T, next: T | undefined): T {
 function applyLayer(base: TypographySpec, layer: Partial<TypographySpec>): TypographySpec {
     return {
         fontFamily: pick(base.fontFamily, layer.fontFamily),
+        fontIdentity: pick(base.fontIdentity, layer.fontIdentity),
         fontSize: pick(base.fontSize, layer.fontSize),
         fontSizeUnit: pick(base.fontSizeUnit, layer.fontSizeUnit),
         fontWeight: pick(base.fontWeight, layer.fontWeight),
@@ -298,7 +303,8 @@ function applyLayer(base: TypographySpec, layer: Partial<TypographySpec>): Typog
         // supplied `shadow` as complete, so for a well-typed layer this is indistinguishable
         // from wholesale replacement; for a half-written record it keeps the fields the file
         // did not mention instead of resetting them to zero.
-        shadow: layer.shadow === undefined ? { ...base.shadow } : { ...base.shadow, ...layer.shadow },
+        shadow:
+            layer.shadow === undefined ? { ...base.shadow } : { ...base.shadow, ...layer.shadow },
         glow: layer.glow === undefined ? { ...base.glow } : { ...base.glow, ...layer.glow },
         letterSpacing: pick(base.letterSpacing, layer.letterSpacing),
         wordSpacing: pick(base.wordSpacing, layer.wordSpacing),
@@ -319,7 +325,10 @@ function applyLayer(base: TypographySpec, layer: Partial<TypographySpec>): Typog
  * Neither the base nor any layer is mutated; the nested objects are rebuilt too, so the
  * result shares no reference with its inputs.
  */
-export function mergeTypography(base: TypographySpec, ...layers: Partial<TypographySpec>[]): TypographySpec {
+export function mergeTypography(
+    base: TypographySpec,
+    ...layers: Partial<TypographySpec>[]
+): TypographySpec {
     return layers.reduce<TypographySpec>(applyLayer, applyLayer(base, {}));
 }
 
@@ -421,7 +430,11 @@ const CAPABILITY_PROBES: readonly CapabilityProbe[] = [
     { property: "vertical-align", value: "2px", gates: ["baselineOffset"] },
     { property: "color", value: "#000000", gates: ["textColor"] },
     { property: "background-color", value: "#ffff00", gates: ["highlight"] },
-    { property: "-webkit-text-stroke", value: "1px #000000", gates: ["outlineWidth", "outlineColor"] },
+    {
+        property: "-webkit-text-stroke",
+        value: "1px #000000",
+        gates: ["outlineWidth", "outlineColor"],
+    },
     { property: "text-shadow", value: "0 0 2px #000000", gates: ["shadow", "glow"] },
     { property: "letter-spacing", value: "0.5px", gates: ["letterSpacing"] },
     { property: "word-spacing", value: "2px", gates: ["wordSpacing"] },
@@ -476,9 +489,7 @@ export function detectTypographyCapabilities(support: CssSupport | null): Typogr
 
 /** What a note is about. Each code has exactly one cause, spelled out in {@link typographyCss}. */
 export type TypographyNoteCode =
-    | "decoration-style-conflict"
-    | "decoration-color-shared"
-    | "baseline-offset-ignored";
+    "decoration-style-conflict" | "decoration-color-shared" | "baseline-offset-ignored";
 
 /**
  * A value that survived capability detection but still could not be drawn faithfully,
@@ -573,17 +584,23 @@ export function typographyCss(
     if (can("fontFamily")) style["font-family"] = fontStack;
 
     if (can("fontSize") && can("fontSizeUnit")) {
-        const scaled = spec.baselineShift === "none" ? spec.fontSize : spec.fontSize * BASELINE_SHIFT_FONT_SCALE;
+        const scaled =
+            spec.baselineShift === "none"
+                ? spec.fontSize
+                : spec.fontSize * BASELINE_SHIFT_FONT_SCALE;
         style["font-size"] = `${round2(scaled)}${spec.fontSizeUnit}`;
     }
 
     if (can("fontWeight")) {
         const bold = spec.bold && can("bold");
-        style["font-weight"] = String(bold ? Math.max(spec.fontWeight, BOLD_MINIMUM_WEIGHT) : spec.fontWeight);
+        style["font-weight"] = String(
+            bold ? Math.max(spec.fontWeight, BOLD_MINIMUM_WEIGHT) : spec.fontWeight,
+        );
     }
 
     if (can("italic") && spec.italic !== "none") {
-        style["font-style"] = spec.italic === "oblique" ? `oblique ${spec.obliqueAngle}deg` : "italic";
+        style["font-style"] =
+            spec.italic === "oblique" ? `oblique ${spec.obliqueAngle}deg` : "italic";
     }
 
     if (can("variableAxes")) {
@@ -636,7 +653,8 @@ export function typographyCss(
                 notes.push({
                     property: "underlineColor",
                     code: "decoration-color-shared",
-                    message: "CSS colours every decoration line at once, so this colour is also used for the other lines on this text.",
+                    message:
+                        "CSS colours every decoration line at once, so this colour is also used for the other lines on this text.",
                 });
             }
         }
@@ -657,7 +675,8 @@ export function typographyCss(
             notes.push({
                 property: "baselineOffset",
                 code: "baseline-offset-ignored",
-                message: "CSS has one vertical-align, and the superscript or subscript is using it, so this manual offset is not applied; the setting is kept.",
+                message:
+                    "CSS has one vertical-align, and the superscript or subscript is using it, so this manual offset is not applied; the setting is kept.",
             });
         }
     } else if (spec.baselineOffset !== 0 && can("baselineOffset")) {
@@ -670,12 +689,15 @@ export function typographyCss(
 
     // --- effects ------------------------------------------------------------------------
     if (spec.outlineWidth > 0 && can("outlineWidth") && can("outlineColor")) {
-        style["-webkit-text-stroke"] = `${px(spec.outlineWidth)} ${spec.outlineColor === "" ? "currentColor" : spec.outlineColor}`;
+        style["-webkit-text-stroke"] =
+            `${px(spec.outlineWidth)} ${spec.outlineColor === "" ? "currentColor" : spec.outlineColor}`;
     }
 
     const shadows: string[] = [];
     if (spec.shadow.color !== "" && can("shadow")) {
-        shadows.push(`${px(spec.shadow.offsetX)} ${px(spec.shadow.offsetY)} ${px(spec.shadow.blur)} ${spec.shadow.color}`);
+        shadows.push(
+            `${px(spec.shadow.offsetX)} ${px(spec.shadow.offsetY)} ${px(spec.shadow.blur)} ${spec.shadow.color}`,
+        );
     }
     if (spec.glow.color !== "" && spec.glow.radius > 0 && can("glow")) {
         shadows.push(`0 0 ${px(spec.glow.radius)} ${spec.glow.color}`);
@@ -683,7 +705,8 @@ export function typographyCss(
     if (shadows.length > 0) style["text-shadow"] = shadows.join(", ");
 
     // --- spacing and paragraph ----------------------------------------------------------
-    if (spec.letterSpacing !== 0 && can("letterSpacing")) style["letter-spacing"] = px(spec.letterSpacing);
+    if (spec.letterSpacing !== 0 && can("letterSpacing"))
+        style["letter-spacing"] = px(spec.letterSpacing);
     if (spec.wordSpacing !== 0 && can("wordSpacing")) style["word-spacing"] = px(spec.wordSpacing);
     if (spec.lineHeight > 0 && can("lineHeight")) style["line-height"] = String(spec.lineHeight);
     if (can("textDirection")) style.direction = spec.textDirection;
@@ -721,6 +744,7 @@ export function typographyPropertyLabelKey(id: TypographyPropertyId): string {
  */
 const SEARCH_TEXT: Record<TypographyPropertyId, string> = {
     fontFamily: "font family typeface face font name",
+    fontIdentity: "font identity stable id postscript name",
     fontSize: "font size text size point size",
     fontSizeUnit: "font size unit px pt rem points pixels",
     fontWeight: "font weight thin light regular medium semibold bold black numeric weight",
@@ -732,7 +756,8 @@ const SEARCH_TEXT: Record<TypographyPropertyId, string> = {
     underlineColor: "underline colour underline color decoration colour line colour",
     strikethrough: "strikethrough strike through struck out crossed out line through",
     overline: "overline line above overscore",
-    capitalization: "capitalization capitalisation uppercase lowercase title case all caps text transform",
+    capitalization:
+        "capitalization capitalisation uppercase lowercase title case all caps text transform",
     smallCaps: "small caps small capitals",
     baselineShift: "superscript subscript baseline shift raised lowered",
     baselineOffset: "baseline offset raise lower vertical nudge vertical align",

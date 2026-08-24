@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from "vue";
+import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiRestore } from "@mdi/js";
+import { mdiLockOpenVariantOutline, mdiLockOutline, mdiRestore } from "@mdi/js";
 import { VBtn, VCheckbox, VChip, VMenu, VSlider, VTextField, VTooltip } from "vuetify/components";
 
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -57,7 +57,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     set: [id: TypographyPropertyId, value: unknown];
     reset: [id: TypographyPropertyId];
-    lock: [id: TypographyPropertyId];
+    lock: [id: TypographyPropertyId, anchor: HTMLElement];
 }>();
 
 const { t } = useI18n();
@@ -75,6 +75,7 @@ const { t } = useI18n();
  */
 const LABELS: Readonly<Record<TypographyPropertyId, string>> = {
     fontFamily: "Font",
+    fontIdentity: "Font identity",
     fontSize: "Size",
     fontSizeUnit: "Size unit",
     fontWeight: "Weight",
@@ -140,8 +141,11 @@ const searchCorpus = computed(() =>
 
 const fontOpen = ref(false);
 const fontActive = ref(0);
+const fontButton = ref<HTMLElement | null>(null);
+const fontPanel = ref<HTMLElement | null>(null);
 const fontUid = useId();
 const fontListId = `${fontUid}-listbox`;
+const fontSearchInputId = `${fontUid}-search`;
 const fontSearch = ref("");
 const fontRegex = ref(false);
 const fontFlags = ref("i");
@@ -150,11 +154,18 @@ const visibleFonts = computed(() => {
     const matcher = createSettingMatcher(fontSearch.value, fontRegex.value, fontFlags.value);
     return searchFonts(props.fonts, (text) => matcher.test(text));
 });
+const activeFontOption = computed(() => visibleFonts.value[fontActive.value]);
 
 const fontCorpus = computed(() => props.fonts.map((font) => font.family).join("\n"));
 
 watch(visibleFonts, (fonts) => {
     fontActive.value = Math.min(Math.max(fonts.length - 1, 0), fontActive.value);
+});
+
+watch(fontOpen, async (open) => {
+    await nextTick();
+    if (open) fontPanel.value?.querySelector<HTMLInputElement>("input")?.focus();
+    else fontButton.value?.focus();
 });
 
 function onFontKeydown(event: KeyboardEvent): void {
@@ -179,6 +190,8 @@ function onFontKeydown(event: KeyboardEvent): void {
 
 function chooseFont(family: string): void {
     emit("set", "fontFamily", family);
+    const selected = props.fonts.find((font) => font.family === family);
+    if (selected?.stableId !== undefined) emit("set", "fontIdentity", selected.stableId);
     fontOpen.value = false;
 }
 
@@ -391,6 +404,7 @@ function number(value: string, fallback: number): number {
                 </v-btn>
                 <v-btn
                     v-if="props.locked !== undefined"
+                    :icon="props.locked(row.id) ? mdiLockOpenVariantOutline : mdiLockOutline"
                     size="x-small"
                     variant="text"
                     :aria-label="
@@ -402,10 +416,8 @@ function number(value: string, fallback: number): number {
                               )
                             : t('appearance.lock.lock', { property: row.label }, 'Lock {property}')
                     "
-                    @click="emit('lock', row.id)"
-                >
-                    {{ props.locked(row.id) ? "🔓" : "🔒" }}
-                </v-btn>
+                    @click="emit('lock', row.id, $event.currentTarget as HTMLElement)"
+                />
             </div>
 
             <!--
@@ -419,6 +431,7 @@ function number(value: string, fallback: number): number {
             <div class="mb-type-row__control">
                 <template v-if="row.id === 'fontFamily'">
                     <v-btn
+                        ref="fontButton"
                         variant="outlined"
                         size="small"
                         class="mb-type-editor__fontButton"
@@ -441,11 +454,22 @@ function number(value: string, fallback: number): number {
                             location="bottom start"
                             offset="8"
                         >
-                            <div class="mb-type-editor__fontPanel" @keydown="onFontKeydown">
+                            <div
+                                ref="fontPanel"
+                                class="mb-type-editor__fontPanel"
+                                @keydown="onFontKeydown"
+                            >
                                 <ConfigSearchField
                                     v-model="fontSearch"
                                     v-model:regex="fontRegex"
                                     v-model:flags="fontFlags"
+                                    :input-id="fontSearchInputId"
+                                    :input-aria-activedescendant="
+                                        activeFontOption
+                                            ? `${fontUid}-option-${activeFontOption.stableId ?? activeFontOption.family}`
+                                            : undefined
+                                    "
+                                    :input-aria-controls="fontListId"
                                     :label="t('appearance.type.fontSearch', 'Search fonts')"
                                     :sample="fontCorpus"
                                     :summary="
@@ -462,8 +486,8 @@ function number(value: string, fallback: number): number {
                                     role="listbox"
                                     :aria-label="t('appearance.type.fontSearch', 'Search fonts')"
                                     :aria-activedescendant="
-                                        visibleFonts[fontActive]
-                                            ? `${fontUid}-option-${visibleFonts[fontActive].stableId ?? visibleFonts[fontActive].family}`
+                                        activeFontOption
+                                            ? `${fontUid}-option-${activeFontOption.stableId ?? activeFontOption.family}`
                                             : undefined
                                     "
                                 >
@@ -518,6 +542,19 @@ function number(value: string, fallback: number): number {
                         </v-menu>
                     </v-btn>
                 </template>
+
+                <v-text-field
+                    v-else-if="row.id === 'fontIdentity'"
+                    :model-value="
+                        spec.fontIdentity ||
+                        t('appearance.type.fontIdentityAutomatic', 'Automatic by family')
+                    "
+                    readonly
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    :label="row.label"
+                />
 
                 <template v-else-if="row.id === 'fontSize'">
                     <v-text-field

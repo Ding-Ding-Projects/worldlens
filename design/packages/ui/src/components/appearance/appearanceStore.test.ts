@@ -289,7 +289,7 @@ describe("export and import", () => {
         });
     });
 
-    it("keeps a section from a newer build instead of deleting it", () => {
+    it("rejects a newer format without partially applying it", () => {
         const fromTheFuture = JSON.stringify({
             format: APPEARANCE_FORMAT,
             version: 99,
@@ -302,17 +302,7 @@ describe("export and import", () => {
         });
 
         const result = importTheme(fromTheFuture);
-        expect(result.ok).toBe(true);
-        if (!result.ok) return;
-
-        expect(result.state.elements["app.tab"]?.typography.fontSize).toBe(20);
-        expect(result.state.elements["app.tab"]?.preserved).toEqual({
-            animation: { bounce: true },
-        });
-        expect(result.report.preservedKeys).toEqual(["app.tab.animation"]);
-
-        // And it comes back out again, so a round trip through this build loses nothing.
-        expect(exportTheme(result.state)).toContain("bounce");
+        expect(result).toEqual({ ok: false, error: "unsupported-version" });
     });
 
     it("keeps a value of the wrong type rather than dropping it, and names it", () => {

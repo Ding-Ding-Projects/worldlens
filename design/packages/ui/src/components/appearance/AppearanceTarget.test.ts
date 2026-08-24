@@ -1161,4 +1161,48 @@ describe("host pseudo-state and rainbow rendering", () => {
         expect(element.style.getPropertyValue("--appearance-rainbow-duration")).toBe("6s");
         expect(JSON.stringify(appearanceState().value)).toContain('"rainbowSpeed":5');
     });
+
+    it("keeps pointer, focus, pressed, and explicit state independent with documented precedence", async () => {
+        commitAppearance(
+            withRecord(appearanceState().value, "test.row", {
+                ...emptyRecord(),
+                states: {
+                    hover: { surface: { borderRadius: 1 } },
+                    focus: { surface: { borderRadius: 2 } },
+                    pressed: { surface: { borderRadius: 3 } },
+                    selected: { surface: { borderRadius: 4 } },
+                },
+            }),
+        );
+        wrapper = mount(AppearanceTarget, {
+            attachTo: document.body,
+            global: { plugins: [vuetify, i18n] },
+            props: { id: "test.row", label: "The test row" },
+            slots: { default: () => h("button", { class: "host-button" }, "Host control") },
+        });
+        const element = targetElement();
+        element.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("1px");
+        element.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("2px");
+        element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("3px");
+        element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+        await nextTick();
+        element.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("2px");
+        const explicit = mount(AppearanceTarget, {
+            attachTo: document.body,
+            global: { plugins: [vuetify, i18n] },
+            props: { id: "test.row", label: "The test row", state: "selected" },
+            slots: { default: () => h("button", { class: "host-button" }, "Host control") },
+        });
+        await nextTick();
+        expect(explicit.element.style.borderRadius).toBe("4px");
+        explicit.unmount();
+    });
 });

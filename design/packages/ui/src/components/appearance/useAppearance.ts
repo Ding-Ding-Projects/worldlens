@@ -37,7 +37,9 @@ import {
 
 import {
     appearanceStyle,
+    APPEARANCE_STATES,
     emptyRecord,
+    SURFACE_PROPERTIES,
     resetSurface,
     resetTypography,
     resetAppearanceStateProperty,
@@ -48,22 +50,25 @@ import {
     type AppearanceStateLayer,
     type AppearanceStateName,
     type AppearanceStatePropertyGroup,
+    isRecordEmpty,
 } from "./appearanceRecord.js";
-import { appearancePropertyLockTarget } from "./appearanceLocks.js";
+import {
+    appearancePropertyLockTarget,
+    legacyAppearancePropertyLockPath,
+} from "./appearanceLocks.js";
 import { useLockStore } from "../locks/useLocks.js";
 import {
     EDITOR_CHROME_TARGETS,
     readAppearanceState,
     recordFor,
     resolveTarget,
-    withElementReset,
-    withGlobalReset,
     withRecord,
     writeAppearanceState,
     type AppearanceState,
     type AppearanceTargetInfo,
 } from "./appearanceStore.js";
 import { BUNDLED_FONTS, queryInstalledFonts, type FontFamily } from "./fontCatalog.js";
+import { TYPOGRAPHY_PROPERTIES } from "./typographySpec.js";
 import {
     detectTypographyCapabilities,
     type TypographyCapabilities,
@@ -218,10 +223,70 @@ export function useAppearanceTarget(
         commitAppearance(withRecord(state.value, targetId.value, next));
     }
 
-    function locked(property: string, stateName?: AppearanceStateName): boolean {
+    function lockedFor(
+        elementId: string,
+        property: string,
+        stateName?: AppearanceStateName,
+    ): boolean {
         if (!locks.canList) return false;
-        const target = appearancePropertyLockTarget(targetId.value, property, stateName);
-        return locks.isLocked(target.surface, target.path);
+        const target = appearancePropertyLockTarget(elementId, property, stateName);
+        return (
+            locks.isLocked(target.surface, target.path) ||
+            locks.isLocked(
+                target.surface,
+                legacyAppearancePropertyLockPath(elementId, property, stateName),
+            )
+        );
+    }
+
+    function locked(property: string, stateName?: AppearanceStateName): boolean {
+        return lockedFor(targetId.value, property, stateName);
+    }
+
+    function preserveLockedRecord(elementId: string, source: AppearanceRecord): AppearanceRecord {
+        const kept = emptyRecord();
+        for (const property of TYPOGRAPHY_PROPERTIES) {
+            if (lockedFor(elementId, property) && source.typography[property] !== undefined) {
+                (kept.typography as Record<string, unknown>)[property] =
+                    source.typography[property];
+            }
+        }
+        for (const property of SURFACE_PROPERTIES) {
+            if (lockedFor(elementId, property) && source.surface[property] !== undefined) {
+                (kept.surface as Record<string, unknown>)[property] = source.surface[property];
+            }
+        }
+        for (const stateName of APPEARANCE_STATES) {
+            const layer = source.states[stateName];
+            if (layer === undefined) continue;
+            const nextLayer: AppearanceStateLayer = {};
+            for (const group of [
+                "typography",
+                "surface",
+                "effect",
+                "icon",
+                "badge",
+                "separator",
+                "spacing",
+            ] as const) {
+                const values = layer[group];
+                if (values === undefined) continue;
+                const keptValues: Record<string, unknown> = {};
+                for (const property of Object.keys(values)) {
+                    if (lockedFor(elementId, property, stateName)) {
+                        keptValues[property] = (values as Record<string, unknown>)[property];
+                    }
+                }
+                if (Object.keys(keptValues).length > 0) {
+                    (nextLayer as Record<string, unknown>)[group] = keptValues;
+                }
+            }
+            if (layer.shape !== undefined && lockedFor(elementId, "shape", stateName)) {
+                nextLayer.shape = layer.shape;
+            }
+            if (Object.keys(nextLayer).length > 0) kept.states[stateName] = nextLayer;
+        }
+        return kept;
     }
 
     return {
@@ -244,6 +309,7 @@ export function useAppearanceTarget(
         },
 
         resetTypographyProperty(property) {
+            if (locked(property)) return;
             update(resetTypography(record.value, property));
         },
 
@@ -257,11 +323,22 @@ export function useAppearanceTarget(
         },
 
         resetElement() {
-            commitAppearance(withElementReset(state.value, targetId.value));
+            commitAppearance(
+                withRecord(
+                    state.value,
+                    targetId.value,
+                    preserveLockedRecord(targetId.value, record.value),
+                ),
+            );
         },
 
         resetEverything() {
-            commitAppearance(withGlobalReset(state.value));
+            const elements: Record<string, AppearanceRecord> = {};
+            for (const [elementId, source] of Object.entries(state.value.elements)) {
+                const kept = preserveLockedRecord(elementId, source);
+                if (!isRecordEmpty(kept)) elements[elementId] = kept;
+            }
+            commitAppearance({ ...state.value, elements, activePreset: "" });
         },
         setState(stateName, layer) {
             const previous = record.value.states[stateName] ?? {};

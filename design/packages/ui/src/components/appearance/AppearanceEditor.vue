@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiContentSave, mdiDelete, mdiDownload, mdiRestore, mdiUpload } from "@mdi/js";
+import {
+    mdiContentSave,
+    mdiDelete,
+    mdiDownload,
+    mdiLockOpenVariantOutline,
+    mdiLockOutline,
+    mdiRestore,
+    mdiUpload,
+} from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -23,7 +31,12 @@ import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import TypographyEditor from "./TypographyEditor.vue";
-import { SURFACE_PROPERTIES, type SurfacePropertyId } from "./appearanceRecord.js";
+import {
+    appearanceStyle,
+    SURFACE_PROPERTIES,
+    type BorderStyle,
+    type SurfacePropertyId,
+} from "./appearanceRecord.js";
 import {
     APPEARANCE_STATES,
     resolveStateAppearance,
@@ -134,6 +147,8 @@ const editingState = ref<AppearanceStateName | "base">("base");
 const propertyLockTarget = ref<ReturnType<typeof appearancePropertyLockTarget> | null>(null);
 const propertyLockOpen = ref(false);
 const propertyUnlockOpen = ref(false);
+const propertyLockAnchor = ref<HTMLElement | null>(null);
+const propertyMenuContent = ref<HTMLElement | null>(null);
 const propertyLock = computed(() =>
     propertyLockTarget.value === null
         ? undefined
@@ -170,24 +185,48 @@ const resolved = computed(() =>
         editingState.value === "base" ? undefined : editingState.value,
     ),
 );
-const style = computed(() => target.style.value);
+const style = computed(() =>
+    appearanceStyle(
+        resolved.value,
+        typographyCapabilities,
+        fonts.value,
+        editingState.value === "base" ? undefined : editingState.value,
+        state.value.rainbowSpeed,
+    ),
+);
+
+watch([propertyLockOpen, propertyUnlockOpen], async ([lockOpen, unlockOpen]) => {
+    await nextTick();
+    if (lockOpen || unlockOpen) propertyMenuContent.value?.focus();
+    else propertyLockAnchor.value?.focus();
+});
 
 const stateChoices = computed(() => [
     { title: t("appearance.state.base", "Base appearance"), value: "base" },
     ...APPEARANCE_STATES.map((stateName) => ({
-        title: t(`appearance.state.${stateName}`, stateName[0].toUpperCase() + stateName.slice(1)),
+        title: t(
+            `appearance.state.${stateName}`,
+            stateName.slice(0, 1).toUpperCase() + stateName.slice(1),
+        ),
         value: stateName,
     })),
 ]);
 
-function openPropertyLock(property: string): void {
+function openPropertyLock(property: string, anchor?: EventTarget | null): void {
     const stateName = editingState.value === "base" ? undefined : editingState.value;
     propertyLockTarget.value = appearancePropertyLockTarget(props.targetId, property, stateName);
+    propertyLockAnchor.value = anchor instanceof HTMLElement ? anchor : null;
     if (locks.at(propertyLockTarget.value.surface, propertyLockTarget.value.path) === undefined) {
         propertyLockOpen.value = true;
     } else {
         propertyUnlockOpen.value = true;
     }
+}
+
+function closePropertyPopup(): void {
+    propertyLockOpen.value = false;
+    propertyUnlockOpen.value = false;
+    void nextTick(() => propertyLockAnchor.value?.focus());
 }
 
 function propertyIsLocked(property: string): boolean {
@@ -314,6 +353,13 @@ const borderStyles = computed(() =>
         value,
     })),
 );
+
+function setBorderStyle(value: string): void {
+    const allowed: readonly BorderStyle[] = ["none", "solid", "dashed", "dotted", "double"];
+    if (allowed.includes(value as BorderStyle)) {
+        setSurfaceValue("borderStyle", value as BorderStyle);
+    }
+}
 
 const shapeChoices = computed(() => [
     { title: "Square", value: "square" },
@@ -489,7 +535,10 @@ async function onFileChosen(event: Event): Promise<void> {
                                 ? target.resetTypographyProperty(id)
                                 : target.resetStateProperty(editingState, 'typography', id)
                     "
-                    @lock="openPropertyLock"
+                    @lock="
+                        (id: TypographyPropertyId, anchor: HTMLElement) =>
+                            openPropertyLock(id, anchor)
+                    "
                 />
             </v-window-item>
 
@@ -537,10 +586,7 @@ async function onFileChosen(event: Event): Promise<void> {
                             :model-value="resolved.surface.borderStyle"
                             :items="borderStyles"
                             :label="surfaceLabel(id)"
-                            @update:model-value="
-                                (value: 'none' | 'solid' | 'dashed' | 'dotted' | 'double') =>
-                                    setSurfaceValue('borderStyle', value)
-                            "
+                            @update:model-value="setBorderStyle"
                         />
                         <div v-else-if="id === 'icon'" class="mb-appearance-editor__nested">
                             <v-text-field
@@ -716,6 +762,9 @@ async function onFileChosen(event: Event): Promise<void> {
                         />
                         <v-btn
                             v-if="locks.canList"
+                            :icon="
+                                propertyIsLocked(id) ? mdiLockOpenVariantOutline : mdiLockOutline
+                            "
                             size="x-small"
                             variant="text"
                             :aria-label="
@@ -731,10 +780,8 @@ async function onFileChosen(event: Event): Promise<void> {
                                           'Lock {property}',
                                       )
                             "
-                            @click="openPropertyLock(id)"
-                        >
-                            {{ propertyIsLocked(id) ? "🔓" : "🔒" }}
-                        </v-btn>
+                            @click="openPropertyLock(id, $event.currentTarget)"
+                        />
                     </div>
                 </div>
             </v-window-item>
@@ -949,31 +996,45 @@ async function onFileChosen(event: Event): Promise<void> {
 
         <v-menu
             v-model="propertyLockOpen"
+            :target="propertyLockAnchor ?? undefined"
             :close-on-content-click="false"
             location="bottom start"
-            @update:model-value="(value: boolean) => !value && (propertyLockTarget = null)"
+            @update:model-value="(value: boolean) => !value && closePropertyPopup()"
         >
-            <LockWizard
-                v-if="propertyLockTarget !== null"
-                :target="propertyLockTarget"
-                @created="propertyLockOpen = false"
-                @cancel="propertyLockOpen = false"
-            />
+            <div
+                ref="propertyMenuContent"
+                tabindex="-1"
+                class="mb-appearance-editor__property-menu"
+            >
+                <LockWizard
+                    v-if="propertyLockTarget !== null"
+                    :target="propertyLockTarget"
+                    @created="closePropertyPopup"
+                    @cancel="closePropertyPopup"
+                />
+            </div>
         </v-menu>
         <v-menu
             v-model="propertyUnlockOpen"
+            :target="propertyLockAnchor ?? undefined"
             :close-on-content-click="false"
             location="bottom start"
-            @update:model-value="(value: boolean) => !value && (propertyLockTarget = null)"
+            @update:model-value="(value: boolean) => !value && closePropertyPopup()"
         >
-            <UnlockPrompt
-                v-if="propertyLockTarget !== null && propertyLock !== undefined"
-                :lock="propertyLock"
-                :data-folder="locks.dataFolder"
-                @unlocked="propertyUnlockOpen = false"
-                @cancel="propertyUnlockOpen = false"
-                @support="propertyUnlockOpen = false"
-            />
+            <div
+                ref="propertyMenuContent"
+                tabindex="-1"
+                class="mb-appearance-editor__property-menu"
+            >
+                <UnlockPrompt
+                    v-if="propertyLockTarget !== null && propertyLock !== undefined"
+                    :lock="propertyLock"
+                    :data-folder="locks.dataFolder"
+                    @unlocked="closePropertyPopup"
+                    @cancel="closePropertyPopup"
+                    @support="closePropertyPopup"
+                />
+            </div>
         </v-menu>
     </section>
 </template>
