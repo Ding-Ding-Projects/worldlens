@@ -121,6 +121,10 @@
             "at": "2026-08-15T18:47:01Z",
             "source": "captured"
         },
+        "direct-world-browse-before.png": {
+            "at": "2026-08-24T04:17:41Z",
+            "source": "committed"
+        },
         "drop-render-zone.png": {
             "at": "2026-08-15T18:48:23Z",
             "source": "captured"
@@ -230,7 +234,7 @@
             "source": "committed"
         },
         "issue-148-in-progress-project-render-route.png": {
-            "at": "2026-08-24T04:14:11Z",
+            "at": "2026-08-24T04:14:26Z",
             "source": "committed"
         },
         "issue-149-in-progress-java-wizard.png": {

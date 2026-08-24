@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 233,
+  "expectedTargetCount": 234,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -355,9 +355,10 @@
         "docs/screenshots/issue-149-in-progress-server-list.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de",
         "docs/screenshots/issue-149-in-progress-java-wizard.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de",
         "docs/screenshots/issue-82-in-progress-java-install.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de",
-        "docs/screenshots/issue-148-in-progress-project-render-route.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de"
+        "docs/screenshots/issue-148-in-progress-project-render-route.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de",
+        "docs/screenshots/direct-world-browse-before.png": "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de"
       },
-      "expectedCount": 21,
+      "expectedCount": 22,
       "targets": [
         "design/docs/assets/issues/106-before-startup-blocked.png",
         "docs/screenshots/issue-100-in-progress-container-offers.png",
@@ -379,7 +380,8 @@
         "docs/screenshots/issue-149-in-progress-server-list.png",
         "docs/screenshots/issue-149-in-progress-java-wizard.png",
         "docs/screenshots/issue-82-in-progress-java-install.png",
-        "docs/screenshots/issue-148-in-progress-project-render-route.png"
+        "docs/screenshots/issue-148-in-progress-project-render-route.png",
+        "docs/screenshots/direct-world-browse-before.png"
       ],
       "capturedFromInterfaceSource": false,
       "notGradedBecause": "point-in-time evidence attached to numbered issues; freshness is judged against each target's exact historical source commit rather than current interface source"
