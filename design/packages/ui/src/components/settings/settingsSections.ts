@@ -169,6 +169,7 @@ export const SETTINGS_SECTIONS = [
     "updates",
     "vocabulary",
     "app-logo",
+    "runtime-settings",
     "history",
     "diagnostics",
 ] as const;

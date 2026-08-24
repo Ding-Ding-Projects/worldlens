@@ -73,6 +73,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     updates: "Updates",
     vocabulary: "Personal vocabulary",
     "app-logo": "App logo",
+    "runtime-settings": "Runtime settings and accommodations",
     history: "Version history",
     diagnostics: "Diagnostics",
 };

@@ -66,6 +66,7 @@ import {
     type SettingsSectionText,
 } from "./settingsSections.js";
 import { productDisplayName } from "../../stores/productName.js";
+import { RuntimeSettingsPanel } from "../runtimeSettings/index.js";
 
 /**
  * The settings surface a failed render points at.
@@ -188,6 +189,7 @@ const blueMapSourceSection = ref<InstanceType<typeof SettingsSection> | null>(nu
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const vocabularySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const appLogoSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const runtimeSettingsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 
@@ -497,6 +499,25 @@ const sections = computed<SettingsSectionText[]>(() => {
             description: text["app-logo"].description,
             values: [logoStore.custom !== null ? logoStore.custom.format : logoStore.presetId],
         },
+        {
+            anchor: "runtime-settings",
+            title: text["runtime-settings"].title,
+            description: text["runtime-settings"].description,
+            values: [
+                "Status Hub",
+                "narrator",
+                "English",
+                "Cantonese",
+                "scheduled settings",
+                "HTTPS",
+                "Home Assistant",
+                "Focus",
+                "Low stimulation",
+                "Time awareness",
+                "One thing at a time",
+                "Momentum",
+            ],
+        },
         // The two headings this tab actually renders, so typing "profiles" or "application
         // settings" finds the version-history tab, the same "search what is on screen"
         // rule every other section follows.
@@ -513,11 +534,7 @@ const sections = computed<SettingsSectionText[]>(() => {
             values: [],
         },
     ];
-    return rows.filter(
-        (section) =>
-            !schoolModeEnabled() ||
-            (section.anchor !== "vocabulary" && section.anchor !== "language-and-tone"),
-    );
+    return rows.filter((section) => !schoolModeEnabled() || section.anchor !== "vocabulary");
 });
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
@@ -565,11 +582,7 @@ const searchSummary = computed(() => {
 
 /** One tab per section, in the surface's own order, labelled from the live copy. */
 const settingsPages = computed<TabPage[]>(() =>
-    SETTINGS_SECTIONS.filter(
-        (anchor) =>
-            !schoolModeEnabled() ||
-            (anchor !== "vocabulary" && anchor !== "language-and-tone"),
-    ).map(
+    SETTINGS_SECTIONS.filter((anchor) => !schoolModeEnabled() || anchor !== "vocabulary").map(
         (anchor) => ({
             id: anchor,
             label: copy.value[anchor].title,
@@ -627,6 +640,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return vocabularySection.value;
         case "app-logo":
             return appLogoSection.value;
+        case "runtime-settings":
+            return runtimeSettingsSection.value;
         case "history":
             return historySection.value;
         case "diagnostics":
@@ -1232,6 +1247,17 @@ function onDrawer(value: boolean): void {
                         :description="copy['app-logo'].description"
                     >
                         <AppLogoRow />
+                    </SettingsSection>
+                </template>
+
+                <template #runtime-settings>
+                    <SettingsSection
+                        ref="runtimeSettingsSection"
+                        anchor="runtime-settings"
+                        :title="copy['runtime-settings'].title"
+                        :description="copy['runtime-settings'].description"
+                    >
+                        <RuntimeSettingsPanel />
                     </SettingsSection>
                 </template>
 

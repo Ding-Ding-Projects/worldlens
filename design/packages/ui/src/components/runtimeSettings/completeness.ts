@@ -1,0 +1,93 @@
+/** Hand-written runtime-settings inventory. A row disappearing is a red contract failure. */
+export interface RuntimeCoverageRow {
+    readonly id: string;
+    readonly implementation: readonly string[];
+    readonly documentation: readonly string[];
+    readonly localization: readonly string[];
+    readonly persistence: readonly string[];
+    readonly tests: readonly string[];
+    /** `pending` is honest until the final built-artifact capture wave promotes it. */
+    readonly capture: "pending" | string;
+}
+
+export const RUNTIME_COVERAGE: readonly RuntimeCoverageRow[] = [
+    {
+        id: "status-hub",
+        implementation: [
+            "design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue",
+        ],
+        documentation: ["docs/runtime-settings-and-accommodations.md"],
+        localization: ["settings.runtime.title", "settings.runtime.description"],
+        persistence: ["design/packages/ui/src/components/runtimeSettings/store.ts"],
+        tests: ["design/packages/ui/src/components/runtimeSettings/model.test.ts"],
+        capture: "pending",
+    },
+    {
+        id: "spoken-narrator",
+        implementation: [
+            "design/packages/ui/src/components/runtimeSettings/narrator.ts",
+            "design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue",
+        ],
+        documentation: ["docs/runtime-settings-and-accommodations.md"],
+        localization: ["runtime.narrator.testQueued"],
+        persistence: ["design/packages/ui/src/components/runtimeSettings/store.ts"],
+        tests: ["design/packages/ui/src/components/runtimeSettings/schedule.test.ts"],
+        capture: "pending",
+    },
+    {
+        id: "scheduled-settings",
+        implementation: [
+            "design/packages/ui/src/components/runtimeSettings/model.ts",
+            "design/packages/ui/src/components/runtimeSettings/schedule.ts",
+        ],
+        documentation: ["docs/runtime-settings-and-accommodations.md"],
+        localization: ["runtime.schedule.invalid", "runtime.schedule.added"],
+        persistence: ["design/packages/ui/src/components/runtimeSettings/store.ts"],
+        tests: [
+            "design/packages/ui/src/components/runtimeSettings/model.test.ts",
+            "design/packages/ui/src/components/runtimeSettings/schedule.test.ts",
+        ],
+        capture: "pending",
+    },
+    {
+        id: "attention-modes",
+        implementation: [
+            "design/packages/ui/src/components/runtimeSettings/model.ts",
+            "design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue",
+        ],
+        documentation: ["docs/runtime-settings-and-accommodations.md"],
+        localization: ["runtime.status.saved"],
+        persistence: ["design/packages/ui/src/components/runtimeSettings/store.ts"],
+        tests: ["design/packages/ui/src/components/runtimeSettings/store.test.ts"],
+        capture: "pending",
+    },
+];
+
+export function validateRuntimeCoverage(
+    rows: readonly RuntimeCoverageRow[] = RUNTIME_COVERAGE,
+): string[] {
+    const errors: string[] = [];
+    const ids = new Set<string>();
+    for (const row of rows) {
+        if (ids.has(row.id)) errors.push(`duplicate:${row.id}`);
+        ids.add(row.id);
+        for (const [field, values] of Object.entries(row)) {
+            if (field === "id" || field === "capture") continue;
+            if (
+                !Array.isArray(values) ||
+                values.length === 0 ||
+                values.some((value) => typeof value !== "string" || value.length === 0)
+            )
+                errors.push(`${row.id}:${field}`);
+        }
+    }
+    for (const required of [
+        "status-hub",
+        "spoken-narrator",
+        "scheduled-settings",
+        "attention-modes",
+    ]) {
+        if (!ids.has(required)) errors.push(`missing:${required}`);
+    }
+    return errors;
+}
