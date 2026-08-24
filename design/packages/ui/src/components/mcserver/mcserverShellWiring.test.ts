@@ -79,4 +79,15 @@ describe("the renderer provides one server store, from the real host", () => {
         expect(APP_CODE).toContain("<WebConsolePanel");
         expect(APP_CODE).toContain("<CreateServerWizard");
     });
+
+    it("has exactly one active-owner guard for every server surface and one back route", () => {
+        expect(APP_CODE.match(/mcServerOwner === 'kid'/g)).toHaveLength(1);
+        expect(APP_CODE.match(/mcServerOwner === 'host'/g)).toHaveLength(1);
+        expect(APP_CODE.match(/mcServerOwner === 'work'/g)).toHaveLength(1);
+        expect(APP_CODE.match(/@back="closeMcServerPanel"/g)).toHaveLength(3);
+        expect(APP_CODE.match(/@forgotten="forgetMcServerPanel"/g)).toHaveLength(3);
+        expect(APP_CODE.match(/:return-server-id="mcServerReturnId"/g)).toHaveLength(3);
+        expect(APP_CODE).toContain("function closeMcServerPanel()");
+        expect(APP_CODE).toContain("mcServerReturnId.value = mcServerOpenId.value");
+    });
 });

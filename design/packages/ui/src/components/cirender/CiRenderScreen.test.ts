@@ -818,9 +818,54 @@ describe("a running row shows the real numbers the main process actually sends",
         });
         await flushPromises();
 
-        const text = wrapper.find('[data-test="transfer"]').text();
-        expect(text).toContain("Uploading part 2 of 3");
-        expect(text).toContain("1 of 3 pieces");
+        const transfer = wrapper.find('[data-test="transfer"]');
+        expect(transfer.find('[data-test="transfer-description"]').text()).toContain(
+            "Uploading part 2 of 3",
+        );
+        expect(transfer.find('[data-test="transfer-current-item"]').text()).toContain(
+            "world.zip.001",
+        );
+        expect(transfer.find('[data-test="transfer-bytes-done"]').text()).toContain("500");
+        expect(transfer.find('[data-test="transfer-bytes-total"]').text()).toContain("1 kB");
+        expect(transfer.find('[data-test="transfer-pieces"]').text()).toContain("1 of 3 pieces");
+        expect(transfer.find('[data-test="transfer-milestone"]').text()).not.toContain("500");
+    });
+
+    it("labels an unknown transfer total instead of inventing a zero-size total", async () => {
+        const { bridge, emit } = eventBridge(preflight());
+        const wrapper = mountScreen(bridge);
+
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        emit({
+            type: "phase",
+            syncId: "s",
+            phase: "uploading",
+            route: "gh",
+            at: "2026-08-04T10:00:01Z",
+        });
+        emit({
+            type: "progress",
+            syncId: "s",
+            phase: "uploading",
+            description: "Uploading",
+            bytesDone: 500,
+            bytesTotal: 0,
+            assetsDone: 0,
+            assetsTotal: 0,
+            asset: null,
+            at: "2026-08-04T10:00:02Z",
+        });
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="transfer-bytes-total"]').text()).toContain("Unknown");
+        expect(wrapper.find('[data-test="transfer-bar"]').attributes("aria-busy")).toBe("true");
     });
 
     it("groups shards by the wave their own name says, and shows it per job too", async () => {

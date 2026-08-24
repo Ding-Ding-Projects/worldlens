@@ -126,6 +126,32 @@ describe("createServerStore with a host", () => {
         await store.refreshStatus("survival");
         expect(store.runningCount.value).toBe(1);
     });
+
+    it("forwards the explicit transport and keeps local Docker creation disabled without typed capability", async () => {
+        const create = vi.fn(async (request: Parameters<NonNullable<McServerHost["create"]>>[0]) =>
+            ok(record(request.id)),
+        );
+        const host = fakeHost({ create });
+        const store = createServerStore({ host });
+        expect(store.canCreateLocalDocker).toBe(false);
+
+        const request = {
+            id: "docker-server",
+            name: "Docker server",
+            flavour: "paper",
+            version: "1.21",
+            memoryMb: 2048,
+            acceptedEula: true,
+            transport: {
+                kind: "local-docker" as const,
+                containerRef: "docker-server",
+                serverDir: "/srv/docker-server",
+            },
+        };
+        await store.createServer(request);
+
+        expect(create).toHaveBeenCalledWith(request);
+    });
 });
 
 describe("resolveServerHost", () => {
@@ -144,5 +170,11 @@ describe("resolveServerHost", () => {
         const resolved = resolveServerHost({ worldlens: { mcserver: host } });
         expect(resolved).not.toBeNull();
         expect(resolved?.name).toBe("Electron shell");
+    });
+
+    it("preserves the typed Docker-create capability when the host advertises it", () => {
+        const host = { ...fakeHost(), createCapabilities: { localDocker: true } };
+        const resolved = resolveServerHost({ worldlens: { mcserver: host } });
+        expect(resolved?.createCapabilities?.localDocker).toBe(true);
     });
 });

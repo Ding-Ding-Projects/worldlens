@@ -54,6 +54,12 @@ beforeAll(() => {
     });
 });
 
+afterEach(() => {
+    // Every mounted panel is attached to document.body for Vuetify teleports. Clear it
+    // between cases so a later negative filter assertion cannot read an older mount.
+    document.body.innerHTML = "";
+});
+
 const record: ServerRecord = {
     id: "srv-1",
     name: "Test Server",
@@ -82,28 +88,73 @@ function fakeHost(): McServerHost {
                 runtimeVersion: "1.21",
                 message: "",
                 checkedAt: "2026-01-01T00:00:00Z",
-                capabilities: { canCreate: true, canLifecycle: true, canWriteFiles: true, canDestroy: true, console: "stdin" },
+                capabilities: {
+                    canCreate: true,
+                    canLifecycle: true,
+                    canWriteFiles: true,
+                    canDestroy: true,
+                    console: "stdin",
+                },
             },
         }),
         status: vi.fn().mockResolvedValue({
             ok: true,
-            value: { state: "running", running: true, startedAt: null, exitCode: null, checkedAt: "2026-01-01T00:00:00Z" },
+            value: {
+                state: "running",
+                running: true,
+                startedAt: null,
+                exitCode: null,
+                checkedAt: "2026-01-01T00:00:00Z",
+            },
         }),
         start: vi.fn().mockResolvedValue({ ok: true }),
         stop: vi.fn().mockResolvedValue({ ok: true }),
         files: {
             list: vi.fn().mockResolvedValue({ ok: true, value: [] }),
-            read: vi.fn().mockResolvedValue({ ok: false, failure: { code: "not-found", message: "not found", detail: null } }),
-            write: vi.fn().mockResolvedValue({ ok: true, value: { hash: "h", size: 0, writtenAt: "2026-01-01T00:00:00Z", backupPath: null } }),
+            read: vi
+                .fn()
+                .mockResolvedValue({
+                    ok: false,
+                    failure: { code: "not-found", message: "not found", detail: null },
+                }),
+            write: vi
+                .fn()
+                .mockResolvedValue({
+                    ok: true,
+                    value: {
+                        hash: "h",
+                        size: 0,
+                        writtenAt: "2026-01-01T00:00:00Z",
+                        backupPath: null,
+                    },
+                }),
         },
         logTail: vi.fn().mockResolvedValue({ ok: true, value: [] }),
     };
 }
 
 const installedPlugins = [
-    { path: "plugins/EssentialsX.jar", name: "EssentialsX", source: "modrinth", version: "2.20.1", enabled: true },
-    { path: "plugins/WorldEdit.jar", name: "WorldEdit", source: "modrinth", version: "7.3.0", enabled: true },
-    { path: "plugins/Vault.jar", name: "Vault", source: "hangar", version: "1.7.3", enabled: false },
+    {
+        path: "plugins/EssentialsX.jar",
+        name: "EssentialsX",
+        source: "modrinth",
+        version: "2.20.1",
+        enabled: true,
+    },
+    {
+        path: "plugins/WorldEdit.jar",
+        name: "WorldEdit",
+        source: "modrinth",
+        version: "7.3.0",
+        enabled: true,
+    },
+    {
+        path: "plugins/Vault.jar",
+        name: "Vault",
+        source: "hangar",
+        version: "1.7.3",
+        enabled: false,
+    },
 ];
 
 function stubBridge(): void {
@@ -114,7 +165,10 @@ function stubBridge(): void {
             consoleSend: vi.fn().mockResolvedValue({ ok: true }),
             consoleClose: vi.fn().mockResolvedValue({ ok: true }),
             onConsoleLine: vi.fn().mockReturnValue(() => {}),
-            players: { list: vi.fn().mockResolvedValue({ ok: true, value: [] }), action: vi.fn().mockResolvedValue({ ok: true }) },
+            players: {
+                list: vi.fn().mockResolvedValue({ ok: true, value: [] }),
+                action: vi.fn().mockResolvedValue({ ok: true }),
+            },
             plugins: {
                 search: vi.fn().mockResolvedValue({ ok: true, value: [] }),
                 versions: vi.fn().mockResolvedValue({ ok: true, value: [] }),
@@ -122,7 +176,9 @@ function stubBridge(): void {
                 list: vi.fn().mockResolvedValue({ ok: true, value: installedPlugins }),
                 toggle: vi.fn().mockResolvedValue({ ok: true }),
                 remove: vi.fn().mockResolvedValue({ ok: true }),
-                updates: vi.fn().mockResolvedValue({ ok: true, value: { hasUpdate: false, latest: null } }),
+                updates: vi
+                    .fn()
+                    .mockResolvedValue({ ok: true, value: { hasUpdate: false, latest: null } }),
             },
             adopt: {
                 discover: vi.fn().mockResolvedValue({ ok: true, value: [] }),
@@ -132,7 +188,13 @@ function stubBridge(): void {
             webConsole: {
                 status: vi.fn().mockResolvedValue({
                     ok: true,
-                    value: { running: false, host: "127.0.0.1", port: null, loopbackOnly: true, hasPassword: false },
+                    value: {
+                        running: false,
+                        host: "127.0.0.1",
+                        port: null,
+                        loopbackOnly: true,
+                        hasPassword: false,
+                    },
                 }),
                 start: vi.fn().mockResolvedValue({ ok: true }),
                 stop: vi.fn().mockResolvedValue({ ok: true }),
@@ -143,11 +205,7 @@ function stubBridge(): void {
     };
 }
 
-async function mountWith(
-    component: unknown,
-    props: Record<string, unknown>,
-    host = fakeHost(),
-) {
+async function mountWith(component: unknown, props: Record<string, unknown>, host = fakeHost()) {
     const i18n = createI18n({ legacy: false, locale: "en", messages: { en: {} } });
     const vuetify = createVuetify();
     const store = createServerStore({ host });
@@ -204,40 +262,47 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
     beforeAll(stubBridge);
 
     it("filters the wizard's catalogue versions with plain text by default", async () => {
-        const host = fakeHost();
-        host.catalogue = {
-            list: vi.fn().mockResolvedValue({
-                ok: true,
-                value: {
-                    fetchedAt: "2026-01-01T00:00:00Z",
-                    stale: false,
-                    flavours: [
-                        {
-                            flavour: "paper",
-                            versions: [
-                                { version: "1.21.4", releasedAt: null, javaFeature: 21 },
-                                { version: "1.20.6", releasedAt: null, javaFeature: 21 },
-                            ],
-                        },
-                    ],
-                },
-            }),
-            refresh: vi.fn(),
+        const host: McServerHost = {
+            ...fakeHost(),
+            catalogue: {
+                list: vi.fn().mockResolvedValue({
+                    ok: true,
+                    value: {
+                        fetchedAt: "2026-01-01T00:00:00Z",
+                        stale: false,
+                        flavours: [
+                            {
+                                flavour: "paper",
+                                versions: [
+                                    { version: "1.21.4", releasedAt: null, javaFeature: 21 },
+                                    { version: "1.20.6", releasedAt: null, javaFeature: 21 },
+                                ],
+                            },
+                        ],
+                        failures: [],
+                    },
+                }),
+                refresh: vi.fn(),
+            },
         };
         const wrapper = await mountWith(CreateServerWizard, { modelValue: true }, host);
         await flushPromises();
-        const nextButton = wrapper.findAll("button").find((button) => button.text().includes("Next"));
+        const nextButton = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+            (button) => button.textContent?.includes("Next"),
+        );
         expect(nextButton).toBeDefined();
-        await nextButton!.trigger("click");
+        nextButton?.click();
         await flushPromises();
-        expect(wrapper.find('input[placeholder="Search versions"]').exists()).toBe(true);
-        expect(wrapper.text()).toContain("1.21.4");
-        expect(wrapper.text()).toContain("1.20.6");
-        const field = wrapper.find('input[placeholder="Search versions"]');
-        await field.setValue("1.21.4");
+        const searchField = document.querySelector<HTMLInputElement>('input[role="searchbox"]');
+        expect(searchField).not.toBeNull();
+        expect(document.body.textContent).toContain("1.21.4");
+        expect(document.body.textContent).toContain("1.20.x");
+        if (searchField === null) return;
+        searchField.value = "1.21.4";
+        searchField.dispatchEvent(new Event("input", { bubbles: true }));
         await flushPromises();
-        expect(wrapper.text()).toContain("1.21.4");
-        expect(wrapper.text()).not.toContain("1.20.6");
+        expect(document.body.textContent).toContain("1.21.4");
+        expect(document.body.textContent).not.toContain("1.20.6");
     });
 
     it("filters live console lines and exposes the anchored regex opt-in field", async () => {
@@ -251,7 +316,7 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
         });
         const wrapper = await mountWith(ServerConsole, { serverId: "srv-1" }, host);
         await flushPromises();
-        const field = wrapper.find('input[placeholder="Search log"]');
+        const field = wrapper.find(".wl-mcserver-console__search input");
         expect(field.exists()).toBe(true);
         expect(wrapper.text()).toContain("Started world");
         expect(wrapper.text()).toContain("Failed to bind port");
@@ -264,18 +329,15 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
 
 describe("AdoptionReviewDialog evidence/mounts/ports filter", () => {
     beforeAll(stubBridge);
-    // VDialog teleports to document.body, and nothing else in this suite tears the previous
-    // mount down first -- so a later test's read of document.body.textContent would otherwise
-    // pick up every prior mount's dialog too, and "not.toContain" would fail against content
-    // this test never rendered.
-    afterEach(() => {
-        document.body.innerHTML = "";
-    });
 
     const dialogProps = {
         modelValue: true,
         record,
-        evidence: ["Found server.properties", "Found a world/ directory", "Image name matches a known Paper build"],
+        evidence: [
+            "Found server.properties",
+            "Found a world/ directory",
+            "Image name matches a known Paper build",
+        ],
         confidence: "high" as const,
         mounts: [
             { source: "/host/data", target: "/data" },
@@ -301,7 +363,9 @@ describe("AdoptionReviewDialog evidence/mounts/ports filter", () => {
     it("narrows all three lists together and hides non-matching rows", async () => {
         await mountWith(AdoptionReviewDialog, dialogProps);
         await flushPromises();
-        const field = document.querySelector<HTMLInputElement>('input[placeholder="Path, port or evidence text"]');
+        const field = document.querySelector<HTMLInputElement>(
+            'input[placeholder="Path, port or evidence text"]',
+        );
         expect(field).not.toBeNull();
         field!.value = "plugins";
         field!.dispatchEvent(new Event("input"));
@@ -315,7 +379,9 @@ describe("AdoptionReviewDialog evidence/mounts/ports filter", () => {
     it("shows an honest per-section no-match state rather than a blank section", async () => {
         await mountWith(AdoptionReviewDialog, dialogProps);
         await flushPromises();
-        const field = document.querySelector<HTMLInputElement>('input[placeholder="Path, port or evidence text"]');
+        const field = document.querySelector<HTMLInputElement>(
+            'input[placeholder="Path, port or evidence text"]',
+        );
         expect(field).not.toBeNull();
         field!.value = "nothing-will-ever-match-this";
         field!.dispatchEvent(new Event("input"));

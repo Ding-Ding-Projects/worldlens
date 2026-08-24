@@ -158,6 +158,18 @@ describe("mcserver panels mount against a real store and bridge", () => {
         expect(wrapper.text()).toContain("Web console");
     });
 
+    it("offers a non-destructive back action without forgetting the server", async () => {
+        const wrapper = await mountWith(WebConsolePanel, { serverId: "srv-1" });
+        await flushPromises();
+
+        const back = wrapper.find('[data-test="back-to-minecraft-servers"]');
+        expect(back.exists()).toBe(true);
+        await back.trigger("click");
+
+        expect(wrapper.emitted("back")).toEqual([[]]);
+        expect(wrapper.emitted("forgotten")).toBeUndefined();
+    });
+
     it("AdoptionReviewDialog mounts closed without throwing", async () => {
         const wrapper = await mountWith(AdoptionReviewDialog, { modelValue: false, record });
         await flushPromises();

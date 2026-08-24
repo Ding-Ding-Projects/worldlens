@@ -5,6 +5,7 @@ import {
     mdiAlertCircleOutline,
     mdiEject,
     mdiFolderPlusOutline,
+    mdiFolderSearchOutline,
     mdiPencilOutline,
     mdiRefresh,
 } from "@mdi/js";
@@ -301,6 +302,23 @@ async function browseForFolder(): Promise<void> {
     await mount(chosen);
 }
 
+/**
+ * Chooses one world directly without mounting or persisting its parent folder.
+ *
+ * The world step owns inspection and validation, so this list only emits the selected
+ * path. Cancellation is deliberately a no-op: opening a picker must not clear the current
+ * world or create a mount record just because the user changed their mind.
+ */
+async function browseForWorld(): Promise<void> {
+    if (host === null) return;
+    const chosen = await host.pickDirectory({
+        title: t("world.list.browseWorldPrompt", "Choose the world folder, the one that contains level.dat"),
+        ...(props.modelValue.trim() === "" ? {} : { startIn: props.modelValue.trim() }),
+    });
+    if (chosen === null) return;
+    emit("choose", chosen);
+}
+
 async function mount(folder: string): Promise<void> {
     const bridge = props.bridge;
     if (bridge === null) return;
@@ -490,6 +508,16 @@ function failureOf(folder: MinecraftFolder): string | null {
         </ul>
 
         <div class="mb-world-list__mount-actions">
+            <v-btn
+                data-test="browse-world-folder"
+                :prepend-icon="mdiFolderSearchOutline"
+                :disabled="host === null"
+                variant="tonal"
+                size="small"
+                @click="browseForWorld"
+            >
+                {{ t("world.list.browseWorld", "Browse for a world folder") }}
+            </v-btn>
             <v-btn
                 data-test="mount-minecraft-folder"
                 :prepend-icon="mdiFolderPlusOutline"
