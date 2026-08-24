@@ -304,6 +304,8 @@ export function adoptConfirm(
     request: {
         id: string;
         containerId: string;
+        hostId?: string | null;
+        rcon?: { port: number; password: string };
         consent?: { configWrite?: boolean; lifecycle?: boolean; pluginInstall?: boolean; consoleWrite?: boolean };
     },
     root: unknown = globalThis,

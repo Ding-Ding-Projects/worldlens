@@ -96,4 +96,24 @@ describe("capabilitiesForConsent", () => {
         const consoleOnly = capabilitiesForConsent({ ...NO_CONSENT, consoleWrite: true });
         expect(consoleOnly.console).toBeUndefined();
     });
+
+    it("keeps all four consent dimensions independent across the full matrix", () => {
+        for (const configWrite of [false, true]) {
+            for (const lifecycle of [false, true]) {
+                for (const pluginInstall of [false, true]) {
+                    for (const consoleWrite of [false, true]) {
+                        const caps = capabilitiesForConsent({ configWrite, lifecycle, pluginInstall, consoleWrite });
+                        expect(caps.canWriteConfig).toBe(configWrite);
+                        expect(caps.canWritePlugins).toBe(pluginInstall);
+                        expect(caps.canWriteWorlds).toBe(false);
+                        expect(caps.canBackupRestore).toBe(false);
+                        expect(caps.canLifecycle).toBe(lifecycle);
+                        expect(caps.console).toBe(consoleWrite ? undefined : "none");
+                        expect(caps.canCreate).toBe(false);
+                        expect(caps.canDestroy).toBe(false);
+                    }
+                }
+            }
+        }
+    });
 });

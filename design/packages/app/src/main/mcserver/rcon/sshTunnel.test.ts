@@ -6,18 +6,18 @@ import type { SshOptionsInput } from "../../remote/ssh.js";
 
 const ssh: SshOptionsInput = {
     target: {
-        id: "andyville",
-        label: "Andyville",
-        host: "fowshan",
+        id: "fixture-host",
+        label: "Fixture host",
+        host: "fixture.example",
         port: 22,
         user: "docker",
-        identityFile: "C:/Users/test/.ssh/id_ed25519",
-        workDir: "/home/docker/WorldLens",
-        image: "heapandyville-minecraft:26.1.2-72",
+        identityFile: "C:/fixture/id_ed25519",
+        workDir: "/srv/fixture",
+        image: "example/minecraft:fixture",
         docker: "docker",
         keepRemoteFiles: false,
     },
-    knownHostsFile: "C:/Users/test/AppData/WorldLens/known_hosts",
+    knownHostsFile: "C:/fixture/known_hosts",
 };
 
 describe("SSH RCON tunnel", () => {

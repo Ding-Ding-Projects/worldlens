@@ -194,10 +194,10 @@ export async function togglePlugin(options: TogglePluginOptions): Promise<Answer
     const read = await transport.fileRead(path);
     if (!read.ok) return read;
 
-    const write = await transport.fileWrite(targetPath, read.value.bytes, { expectedHash: null, backup: false });
+    const write = await transport.fileWrite(targetPath, read.value.bytes, { expectedHash: null, backup: false, kind: "plugin" });
     if (!write.ok) return write;
 
-    const removed = await transport.fileDelete(path);
+    const removed = await transport.fileDelete(path, "plugin");
     if (!removed.ok) return removed;
 
     return ok({ path: targetPath });
@@ -209,7 +209,7 @@ export interface RemovePluginOptions {
 }
 
 export async function removePlugin(options: RemovePluginOptions): Promise<Answer<void>> {
-    return options.transport.fileDelete(options.path);
+    return options.transport.fileDelete(options.path, "plugin");
 }
 
 export interface UpdateCheck {

@@ -87,6 +87,20 @@ function profileFrom(value: unknown): HostProfileRecord | null {
     return checked.ok ? { hostId, target: checked.target, createdAt, updatedAt } : null;
 }
 
+function profileFailure(value: unknown): string | null {
+    if (typeof value !== "object" || value === null) return "record is not an object";
+    const raw = value as Record<string, unknown>;
+    const allowed = new Set(["hostId", "target", "createdAt", "updatedAt"]);
+    const extra = Object.keys(raw).find((key) => !allowed.has(key));
+    if (extra !== undefined) return `record contains forbidden field ${extra}`;
+    const parsed = profileFrom(value);
+    if (parsed === null) return "record contains invalid host or connection metadata";
+    const target = raw.target as Record<string, unknown>;
+    const targetAllowed = new Set(["id", "label", "host", "port", "user", "identityFile", "workDir", "image", "docker", "keepRemoteFiles"]);
+    const targetExtra = Object.keys(target).find((key) => !targetAllowed.has(key));
+    return targetExtra === undefined ? null : `target contains forbidden field ${targetExtra}`;
+}
+
 export function parseHostProfile(value: unknown): HostProfileRecord | null {
     return profileFrom(value);
 }
@@ -119,12 +133,24 @@ export function createHostProfileStore(options: HostProfileStoreOptions): HostPr
             return fail("invalid-request", "The saved SSH host profiles are not readable.");
         }
         const stored = parsed as Partial<StoredFile>;
-        if (stored.version !== HOST_PROFILES_VERSION || !Array.isArray(stored.profiles)) {
-            return fail("invalid-request", "The saved SSH host profiles use an unsupported format.");
+        if (stored.version !== HOST_PROFILES_VERSION) {
+            return fail("invalid-request", `The saved SSH host profiles use version ${String(stored.version)}; version ${String(HOST_PROFILES_VERSION)} is required.`);
         }
-        cache = stored.profiles.slice(0, HOST_PROFILES_MAX_RECORDS)
-            .map(profileFrom)
-            .filter((profile): profile is HostProfileRecord => profile !== null);
+        if (!Array.isArray(stored.profiles)) {
+            return fail("invalid-request", "The saved SSH host profiles do not contain a profile list.");
+        }
+        if (stored.profiles.length > HOST_PROFILES_MAX_RECORDS) {
+            return fail("invalid-request", `The saved SSH host profiles contain ${String(stored.profiles.length)} records; at most ${String(HOST_PROFILES_MAX_RECORDS)} are allowed.`);
+        }
+        const profiles: HostProfileRecord[] = [];
+        for (const [index, value] of stored.profiles.entries()) {
+            const reason = profileFailure(value);
+            if (reason !== null) return fail("invalid-request", `The saved SSH host profile record ${String(index + 1)} is invalid: ${reason}.`);
+            const profile = profileFrom(value);
+            if (profile === null) return fail("invalid-request", `The saved SSH host profile record ${String(index + 1)} is invalid.`);
+            profiles.push(profile);
+        }
+        cache = profiles;
         return ok(cache);
     }
 

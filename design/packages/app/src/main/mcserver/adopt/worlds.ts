@@ -78,6 +78,9 @@ export async function switchActiveWorld(
     serverDir: string,
     worldName: string,
 ): Promise<Answer<void>> {
+    if (!(transport.capabilities.canWriteWorlds ?? transport.capabilities.canWriteFiles)) {
+        return fail("unsupported", "WorldLens has not been given permission to change this server's active world.");
+    }
     const propertiesPath = joinServerPath(serverDir, "server.properties");
     const read = await transport.fileRead(propertiesPath);
     if (!read.ok) return read;
@@ -98,6 +101,7 @@ export async function switchActiveWorld(
     const write = await transport.fileWrite(propertiesPath, new Uint8Array(Buffer.from(nextText, "utf8")), {
         expectedHash: read.value.hash,
         backup: true,
+        kind: "world",
     });
     if (!write.ok) return write;
     return ok(undefined);
@@ -119,7 +123,7 @@ export async function deleteWorld(
     transport: ServerTransport,
     worldPath: string,
 ): Promise<Answer<void>> {
-    if (!transport.capabilities.canWriteFiles) {
+    if (!(transport.capabilities.canWriteWorlds ?? transport.capabilities.canWriteFiles)) {
         return fail("unsupported", "This installation was not given permission to change this server's files.");
     }
     return fail(

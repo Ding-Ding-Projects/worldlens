@@ -167,7 +167,23 @@ export async function trustHostKey(
         return { ok: false, message: "That is not a SHA-256 host-key fingerprint." };
     }
 
+    const recorded = await recordedFor(target, options.knownHostsFile);
     const scanned = await scanHostKeys(target, options);
+    // A matching algorithm never masks a changed one. If the store already has an
+    // ed25519 key and the current scan offers a different ed25519 key, accepting a
+    // matching RSA key would still approve a host whose identity changed. Every
+    // recorded host+port+algorithm tuple must still match before any new line is added.
+    for (const oldKey of recorded) {
+        const current = scanned.offers.find((offer) => offer.type === oldKey.type);
+        if (current === undefined || current.fingerprint !== oldKey.fingerprint) {
+            return {
+                ok: false,
+                message:
+                    `${target.host} is offering a changed ${oldKey.type} host key for port ${String(target.port)}. ` +
+                    "Nothing was recorded. Remove the old known_hosts entry only after out-of-band verification.",
+            };
+        }
+    }
     const match = scanned.offers.find((offer) => offer.fingerprint === approvedFingerprint);
     if (match === undefined) {
         return {

@@ -508,7 +508,7 @@ async function create(): Promise<void> {
             provisionJavaIfMissing: true,
             ...(isModLoader.value
                 ? {
-                      loaderVersion: modLoaderVersion.value.trim() || undefined,
+                      ...(modLoaderVersion.value.trim() === "" ? {} : { loaderVersion: modLoaderVersion.value.trim() }),
                       modsDirectory: modsDirectory.value.trim() || DEFAULT_MODS_DIRECTORY,
                       preinstallApiLibraries: [...preinstallApiLibraries.value],
                   }
@@ -1017,7 +1017,7 @@ const canAdvance = computed(() => {
                     <VTextField
                         v-model="modsDirectory"
                         :label="t('mcserver.wizard.modsDirectory', 'Mods directory')"
-                        :error-messages="validateModsDirectory(modsDirectory) ?? undefined"
+                        :error-messages="validateModsDirectory(modsDirectory) ?? null"
                         :hint="t('mcserver.wizard.modsDirectoryHint', 'The folder inside the server directory where mods are installed.')"
                         persistent-hint
                     />
@@ -1026,7 +1026,7 @@ const canAdvance = computed(() => {
                         :key="library"
                         :model-value="preinstallApiLibraries.includes(library)"
                         :label="t('mcserver.wizard.preinstallApi', { library }, 'Pre-install {library}')"
-                        @update:model-value="(enabled) => setApiLibraryEnabled(library, enabled)"
+                        @update:model-value="(enabled) => setApiLibraryEnabled(library, Boolean(enabled))"
                     />
                 </div>
 
@@ -1123,7 +1123,19 @@ const canAdvance = computed(() => {
                             :loading="hostProfileLoading"
                             :hint="t('mcserver.wizard.sshHostHint', 'Choose a saved profile, then review an existing remote container. This route does not create or mutate a container before consent.')"
                             persistent-hint
-                        />
+                        >
+                            <template #prepend-item>
+                                <div class="pa-2" @click.stop>
+                                    <ConfigSearchField
+                                        v-model="hostProfileQuery"
+                                        v-model:regex="hostProfileRegex"
+                                        v-model:flags="hostProfileFlags"
+                                        :label="t('mcserver.wizard.hostProfileDropdownSearch', 'Search this host list')"
+                                        :sample="hostProfiles.map((profile) => `${profile.hostId} ${profile.target.label} ${profile.target.host}`).join(String.fromCharCode(10))"
+                                    />
+                                </div>
+                            </template>
+                        </VSelect>
                         <VAlert v-if="hostProfileFailure" type="warning" variant="tonal">{{ hostProfileFailure }}</VAlert>
                         <VAlert v-else-if="!hostProfileLoading && hostProfiles.length === 0" type="info" variant="tonal">
                             {{ t("mcserver.wizard.noHostProfiles", "No SSH host profiles are saved yet. Close this wizard and add one from the server list first.") }}
@@ -1161,7 +1173,7 @@ const canAdvance = computed(() => {
                             )
                         }}
                     </VAlert>
-                    <template v-else-if="whereItRuns !== 'ssh-docker'">
+                    <template v-else>
                         <VAlert v-if="javaChecking" type="info" variant="tonal" density="compact">
                             {{ t("mcserver.wizard.checkingJava", "Looking for a suitable Java…") }}
                         </VAlert>

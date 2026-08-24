@@ -162,6 +162,10 @@ export function createDockerTransport(options: DockerTransportOptions): ServerTr
         canCreate: true,
         canLifecycle: true,
         canWriteFiles: true,
+        canWriteConfig: true,
+        canWritePlugins: true,
+        canWriteWorlds: true,
+        canBackupRestore: true,
         canDestroy: true,
         console: "rcon",
         ...options.capabilities,
@@ -208,7 +212,17 @@ export function createDockerTransport(options: DockerTransportOptions): ServerTr
 
         const args = ["create", "--name", container];
         for (const port of spec.ports) {
-            args.push("--publish", `${port.host}:${port.container}`);
+            args.push("--publish", `127.0.0.1:${String(port.host)}:${String(port.container)}`);
+        }
+        for (const volume of spec.volumes ?? []) {
+            if (!volume.host || !volume.container || /[\r\n\0]/.test(volume.host) || /[\r\n\0]/.test(volume.container)) {
+                return fail("invalid-request", "A Docker volume path is not valid.");
+            }
+            args.push("--volume", `${volume.host}:${volume.container}`);
+        }
+        for (const [key, value] of Object.entries(spec.labels ?? {})) {
+            if (!/^[A-Za-z0-9_.-]+$/.test(key) || /[\r\n\0]/.test(value)) return fail("invalid-request", "A Docker ownership label is not valid.");
+            args.push("--label", `${key}=${value}`);
         }
         for (const [key, value] of Object.entries(spec.env)) {
             if (/[\r\n\0]/.test(key) || /[\r\n\0]/.test(value)) {
@@ -348,7 +362,16 @@ export function createDockerTransport(options: DockerTransportOptions): ServerTr
     }
 
     async function fileWrite(path: string, blob: Uint8Array, writeOptions: WriteOptions): Promise<Answer<WriteReceipt>> {
-        if (!capabilities.canWriteFiles) {
+        const kindAllowed = writeOptions.kind === "config"
+            ? capabilities.canWriteConfig ?? capabilities.canWriteFiles
+            : writeOptions.kind === "plugin"
+              ? capabilities.canWritePlugins ?? capabilities.canWriteFiles
+              : writeOptions.kind === "world"
+                ? capabilities.canWriteWorlds ?? capabilities.canWriteFiles
+                : writeOptions.kind === "backup"
+                  ? capabilities.canBackupRestore ?? capabilities.canWriteFiles
+                  : capabilities.canWriteFiles;
+        if (!capabilities.canWriteFiles || !kindAllowed) {
             return fail("unsupported", "WorldLens has not been given permission to change this server's files.");
         }
         const resolved = resolveForWrite(path, scope);
@@ -394,8 +417,17 @@ export function createDockerTransport(options: DockerTransportOptions): ServerTr
         }
     }
 
-    async function fileDelete(path: string): Promise<Answer<void>> {
-        if (!capabilities.canWriteFiles) {
+    async function fileDelete(path: string, kind?: "config" | "plugin" | "world" | "backup"): Promise<Answer<void>> {
+        const kindAllowed = kind === "config"
+            ? capabilities.canWriteConfig ?? capabilities.canWriteFiles
+            : kind === "plugin"
+              ? capabilities.canWritePlugins ?? capabilities.canWriteFiles
+              : kind === "world"
+                ? capabilities.canWriteWorlds ?? capabilities.canWriteFiles
+                : kind === "backup"
+                  ? capabilities.canBackupRestore ?? capabilities.canWriteFiles
+                  : capabilities.canWriteFiles;
+        if (!capabilities.canWriteFiles || !kindAllowed) {
             return fail("unsupported", "WorldLens has not been given permission to change this server's files.");
         }
         const resolved = resolveForWrite(path, scope);
@@ -408,8 +440,17 @@ export function createDockerTransport(options: DockerTransportOptions): ServerTr
         return ok(undefined);
     }
 
-    async function dirEnsure(path: string): Promise<Answer<void>> {
-        if (!capabilities.canWriteFiles) {
+    async function dirEnsure(path: string, kind?: "config" | "plugin" | "world" | "backup"): Promise<Answer<void>> {
+        const kindAllowed = kind === "config"
+            ? capabilities.canWriteConfig ?? capabilities.canWriteFiles
+            : kind === "plugin"
+              ? capabilities.canWritePlugins ?? capabilities.canWriteFiles
+              : kind === "world"
+                ? capabilities.canWriteWorlds ?? capabilities.canWriteFiles
+                : kind === "backup"
+                  ? capabilities.canBackupRestore ?? capabilities.canWriteFiles
+                  : capabilities.canWriteFiles;
+        if (!capabilities.canWriteFiles || !kindAllowed) {
             return fail("unsupported", "WorldLens has not been given permission to change this server's files.");
         }
         const resolved = resolveForWrite(path, scope);

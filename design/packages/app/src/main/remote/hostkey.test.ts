@@ -30,11 +30,11 @@ afterEach(async () => {
 const KEY_A = "AAAAC3NzaC1lZDI1NTE5AAAAIJ7Zt5cQKJhX0m0bZ0m2Q2K1nZ8xY6fW3Vd1aJ9kLm2p";
 const KEY_B = "AAAAC3NzaC1lZDI1NTE5AAAAIGx1bmNoVGltZUlzVGhlQmVzdFRpbWVGb3JEaW1TdW0h";
 
-function keyscanOutput(key: string, port = 2222): ReturnType<typeof output> {
+function keyscanOutput(key: string, port = 2222, extra = ""): ReturnType<typeof output> {
     return output({
         stdout:
             `# render.example:${String(port)} SSH-2.0-OpenSSH_9.6\n` +
-            `[render.example]:${String(port)} ssh-ed25519 ${key}\n`,
+            `[render.example]:${String(port)} ssh-ed25519 ${key}\n${extra}`,
     });
 }
 
@@ -170,5 +170,18 @@ describe("trustHostKey", () => {
         const written = await readFile(knownHostsFile, "utf8");
         expect(written).toContain("other.example");
         expect(written).toContain("[render.example]:2222");
+    });
+
+    it("refuses a changed recorded algorithm even when another algorithm still matches", async () => {
+        const oldRsa = "AAAAB3NzaC1yc2EAAAADAQABAAABAQC7b2xkLWtleS1mb3ItdGVzdA==";
+        const newRsa = "AAAAB3NzaC1yc2EAAAADAQABAAABAQC7bmV3LWtleS1mb3ItdGVzdA==";
+        const runner = fakeRunner([
+            { when: /ssh-keyscan/, answer: keyscanOutput(KEY_A, 2222, `[render.example]:2222 ssh-rsa ${newRsa}\n`) },
+        ]);
+        await writeFile(knownHostsFile, `[render.example]:2222 ssh-rsa ${oldRsa}\n`, "utf8");
+        const result = await trustHostKey(testTarget(), fingerprintOf(KEY_A), { knownHostsFile, runner: runner.runner });
+        expect(result.ok).toBe(false);
+        expect(result.message).toContain("changed ssh-rsa");
+        expect(await readFile(knownHostsFile, "utf8")).toBe(`[render.example]:2222 ssh-rsa ${oldRsa}\n`);
     });
 });

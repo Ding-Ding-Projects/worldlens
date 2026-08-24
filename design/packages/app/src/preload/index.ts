@@ -2439,6 +2439,7 @@ interface WorldlensBridge {
                 id: string;
                 containerId: string;
                 hostId?: string | null;
+                rcon?: { port: number; password: string };
                 consent?: { configWrite?: boolean; lifecycle?: boolean; pluginInstall?: boolean; consoleWrite?: boolean };
             }): Promise<unknown>;
             /** Forgets the adoption. Never stops, removes or deletes the container or its files. */
@@ -2450,13 +2451,15 @@ interface WorldlensBridge {
         backup: {
             create(
                 id: string,
-                request: { owner: string; repo: string; worldFolder: string; accountId?: string; acknowledgePublic?: boolean; resumeTag?: string },
+                request: { owner: string; repo: string; worldFolder: string; accountId?: string; acknowledgePublic?: boolean; resumeTag?: string; backupConsent?: boolean },
             ): Promise<unknown>;
             list(owner: string, repo: string): Promise<unknown>;
-            restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string }): Promise<unknown>;
+            restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string; worldFolder?: string; restoreConsent?: boolean; restoreReceipt?: string }): Promise<unknown>;
         };
         /** Proves the stored RCON password and port work. Never returns the password. */
         rconTest(id: string): Promise<unknown>;
+        /** Stores an inbound RCON password in the main-process credential vault. */
+        rconConfigure(id: string, request: { port: number; password: string }): Promise<unknown>;
         /**
          * Opens a stable console session and starts listening for its lines. Subscribe
          * with `onConsoleLine` BEFORE (or right after) calling this, since lines can
@@ -3612,6 +3615,7 @@ const bridge: WorldlensBridge = {
         // main process holds it, uses it, and only ever hands back an Answer<T> saying
         // whether a call worked.
         rconTest: (id) => ipcRenderer.invoke("mcserver:rcon:test", id),
+        rconConfigure: (id, request) => ipcRenderer.invoke("mcserver:rcon:configure", id, request),
         consoleOpen: (id, tail) => ipcRenderer.invoke("mcserver:console:open", id, tail),
         consoleSend: (id, sessionId, command) =>
             ipcRenderer.invoke("mcserver:console:send", id, sessionId, command),

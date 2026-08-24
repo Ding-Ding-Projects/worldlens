@@ -173,6 +173,18 @@ describe("registerMcServerHandlers", () => {
         expect(answer.failure.code).toBe("invalid-request");
     });
 
+    it("configures RCON through the vault without returning the password", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.rconConfigure, "survival", { port: 25_575, password: "fixture-password" })) as {
+            ok: boolean;
+            value?: { configured: boolean; port: number };
+        };
+        expect(answer).toEqual({ ok: true, value: { configured: true, port: 25_575 } });
+        const saved = await registered.registry.get("survival");
+        expect(saved.ok && saved.value.hasRconSecret).toBe(true);
+        expect(saved.ok && saved.value.rconPort).toBe(25_575);
+        expect(JSON.stringify(answer)).not.toContain("fixture-password");
+    });
+
     it("carries the record's write scope into the transport", async () => {
         await registered.registry.put({ ...RECORD, writeScope: ["plugins"] });
         const answer = (await invoke(MCSERVER_CHANNELS.fileWrite, "survival", "server.properties", {
@@ -184,6 +196,31 @@ describe("registerMcServerHandlers", () => {
         // would silently ignore what the user consented to on an adopted container.
         expect(answer.ok).toBe(false);
         expect(answer.failure.code).toBe("out-of-scope");
+    });
+
+    it("uses the typed local Docker create route without invoking local-process creation", async () => {
+        calls.length = 0;
+        const answer = (await invoke(MCSERVER_CHANNELS.create, {
+            id: "fixture-docker",
+            name: "Fixture Docker",
+            flavour: "paper",
+            version: "1.21.4",
+            memoryMb: 1024,
+            acceptedEula: true,
+            runtime: "local-docker",
+            dockerPlan: {
+                image: "example/minecraft@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                imageVerified: true,
+                containerRef: "fixture-container",
+                serverDir: "/data",
+                ports: [{ host: 25565, container: 25565 }],
+            },
+        })) as { ok: boolean; value?: ServerRecord };
+        expect(answer.ok).toBe(true);
+        expect(calls.some((call) => call.command === "docker" && call.args.includes("--label"))).toBe(true);
+        expect(calls.some((call) => call.args.includes("127.0.0.1:25565:25565"))).toBe(true);
+        expect(calls.some((call) => call.args.includes("java"))).toBe(false);
+        expect(answer.value?.ref).toEqual({ kind: "local-docker", containerRef: "fixture-container", serverDir: "/data" });
     });
 
     it("forgetting a server never asks Docker to remove anything", async () => {

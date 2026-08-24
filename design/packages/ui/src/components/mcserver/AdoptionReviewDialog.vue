@@ -14,6 +14,7 @@ import {
     VList,
     VListItem,
     VSwitch,
+    VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
@@ -58,11 +59,15 @@ const consent = reactive({
     pluginInstall: false,
     consoleWrite: false,
 });
+const rconPort = ref("");
+const rconPassword = ref("");
 
 watch(
     () => [props.modelValue, props.record?.id] as const,
     async ([isOpen, id]) => {
         if (isOpen && typeof id === "string") {
+            rconPort.value = String(props.ports?.find((port) => port.container === 25_575)?.container ?? "");
+            rconPassword.value = "";
             probing.value = true;
             await store.probe(id);
             probing.value = false;
@@ -118,9 +123,21 @@ async function confirm(): Promise<void> {
         containerId: props.containerId,
         consent: { ...consent },
         ...(props.hostId === undefined ? {} : { hostId: props.hostId }),
+        ...(rconPort.value.trim() === "" && rconPassword.value === ""
+            ? {}
+            : { rcon: { port: Number(rconPort.value), password: rconPassword.value } }),
     };
+    if ((rconPort.value.trim() === "") !== (rconPassword.value === "")) {
+        failure.value = t("mcserver.adopt.rconBoth", "Enter both the RCON port and password, or leave both empty.");
+        return;
+    }
+    if (rconPassword.value !== "" && !consent.consoleWrite) {
+        failure.value = t("mcserver.adopt.rconConsent", "Enable console commands before saving an RCON password.");
+        return;
+    }
     const result = await store.adoptConfirm(request);
     if (result.ok) {
+        rconPassword.value = "";
         emit("confirmed", result.value ?? props.record);
         open.value = false;
     } else {
@@ -217,6 +234,13 @@ async function confirmRelease(): Promise<void> {
                 <VSwitch v-model="consent.lifecycle" :label="t('mcserver.adopt.consentLifecycle', 'Start and stop it')" hide-details density="compact" />
                 <VSwitch v-model="consent.pluginInstall" :label="t('mcserver.adopt.consentPlugins', 'Install and remove plugins')" hide-details density="compact" />
                 <VSwitch v-model="consent.consoleWrite" :label="t('mcserver.adopt.consentConsole', 'Send console commands')" hide-details density="compact" />
+
+                <div class="text-subtitle-2 mt-3">{{ t("mcserver.adopt.rconTitle", "Remote RCON configuration") }}</div>
+                <div class="text-body-2 mb-2">{{ t("mcserver.adopt.rconDisclosure", "Optional. The password is written only to this computer's credential vault and is never returned to the interface or logs.") }}</div>
+                <div class="wl-mcserver-adopt__rcon-fields">
+                    <VTextField v-model="rconPort" type="number" min="1" max="65535" :label="t('mcserver.adopt.rconPort', 'RCON port')" />
+                    <VTextField v-model="rconPassword" type="password" autocomplete="new-password" :label="t('mcserver.adopt.rconPassword', 'RCON password')" />
+                </div>
 
                 <VAlert v-if="probing" type="info" variant="tonal" class="mt-3">
                     {{ t("mcserver.adopt.probing", "Checking what this app may do...") }}

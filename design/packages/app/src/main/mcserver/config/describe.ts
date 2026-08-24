@@ -264,6 +264,7 @@ export async function applyConfigChanges(options: ApplyOptions): Promise<Answer<
     const next = format === "properties" ? serializeProperties(document) : format === "toml" ? serializeToml(document) : document.sourceText;
     const written = await options.transport.fileWrite(options.path, new Uint8Array(Buffer.from(next, "utf8")), {
         expectedHash: read.value.hash,
+        kind: "config",
     });
     if (!written.ok) return written;
 

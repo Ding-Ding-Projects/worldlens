@@ -21,9 +21,10 @@ const message = ref<string | null>(null);
 const scan = ref<Awaited<ReturnType<typeof store.hostProfiles.scan>>["value"] | null>(null);
 
 const changedKey = computed(() => {
-    if (scan.value === null || scan.value.recorded.length === 0) return false;
-    return scan.value.offers.length > 0 && !scan.value.offers.some((offer) =>
-        scan.value?.recorded.some((known) => known.fingerprint === offer.fingerprint),
+    const current = scan.value;
+    if (current === null || current === undefined || current.recorded.length === 0) return false;
+    return current.offers.length > 0 && !current.offers.some((offer) =>
+        current.recorded.some((known) => known.fingerprint === offer.fingerprint),
     );
 });
 

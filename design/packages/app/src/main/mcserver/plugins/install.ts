@@ -149,6 +149,7 @@ export async function installPluginVersion(options: InstallPluginOptions): Promi
         const write = await options.transport.fileWrite(targetPath, new Uint8Array(bytes), {
             expectedHash: null,
             backup: true,
+            kind: "plugin",
         });
         if (!write.ok) return write;
 

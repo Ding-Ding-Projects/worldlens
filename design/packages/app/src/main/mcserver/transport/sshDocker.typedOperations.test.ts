@@ -19,21 +19,21 @@ describe("remote Docker typed operations", () => {
             return output();
         };
         const transport = createSshDockerTransport({
-            hostId: "andyville",
+            hostId: "fixture-host",
             target: {
-                id: "fowshan",
+                id: "fixture-host",
                 label: "Fow Shan",
-                host: "fowshan",
+                host: "fixture.example",
                 port: 22,
                 user: "docker",
-                identityFile: "C:/Users/test/.ssh/id_ed25519",
-                workDir: "/home/docker/WorldLens",
-                image: "heapandyville-minecraft:26.1.2-72",
+                identityFile: "C:/fixture/id_ed25519",
+                workDir: "/srv/fixture",
+                image: "example/minecraft:fixture",
                 docker: "docker",
                 keepRemoteFiles: false,
             },
-            knownHostsFile: "C:/Users/test/AppData/WorldLens/known_hosts",
-            containerRef: "heapandyville-minecraft",
+            knownHostsFile: "C:/fixture/known_hosts",
+            containerRef: "fixture-container",
             serverDir: "/data",
             runner,
         });
@@ -58,21 +58,21 @@ describe("remote Docker typed operations", () => {
     it("refuses remote writes before SSH or Docker when consent is absent", async () => {
         let calls = 0;
         const transport = createSshDockerTransport({
-            hostId: "andyville",
+            hostId: "fixture-host",
             target: {
-                id: "fowshan",
+                id: "fixture-host",
                 label: "Fow Shan",
-                host: "fowshan",
+                host: "fixture.example",
                 port: 22,
                 user: "docker",
                 identityFile: null,
-                workDir: "/home/docker/WorldLens",
-                image: "heapandyville-minecraft:26.1.2-72",
+                workDir: "/srv/fixture",
+                image: "example/minecraft:fixture",
                 docker: "docker",
                 keepRemoteFiles: false,
             },
-            knownHostsFile: "C:/Users/test/AppData/WorldLens/known_hosts",
-            containerRef: "heapandyville-minecraft",
+            knownHostsFile: "C:/fixture/known_hosts",
+            containerRef: "fixture-container",
             serverDir: "/data",
             runner: async () => {
                 calls += 1;
@@ -84,5 +84,49 @@ describe("remote Docker typed operations", () => {
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.failure.code).toBe("unsupported");
         expect(calls).toBe(0);
+    });
+
+    it("does not let config consent authorize plugin or world writes", async () => {
+        const calls: string[] = [];
+        const transport = createSshDockerTransport({
+            hostId: "fixture-host",
+            target: {
+                id: "fixture-host",
+                label: "Fixture host",
+                host: "fixture.example",
+                port: 22,
+                user: "runner",
+                identityFile: null,
+                workDir: "/srv/fixture",
+                image: "example/minecraft:fixture",
+                docker: "docker",
+                keepRemoteFiles: false,
+            },
+            knownHostsFile: "C:/fixture/known_hosts",
+            containerRef: "fixture-container",
+            serverDir: "/data",
+            runner: async (command) => {
+                calls.push(command);
+                return output();
+            },
+            capabilities: {
+                canCreate: false,
+                canLifecycle: false,
+                canWriteFiles: true,
+                canWriteConfig: true,
+                canWritePlugins: false,
+                canWriteWorlds: false,
+                canBackupRestore: false,
+                canDestroy: false,
+                console: "none",
+            },
+        });
+        const config = await transport.fileWrite("server.properties", new Uint8Array([1]), { expectedHash: null, kind: "config" });
+        const plugin = await transport.fileWrite("plugins/example.jar", new Uint8Array([1]), { expectedHash: null, kind: "plugin" });
+        const world = await transport.fileWrite("world/level.dat", new Uint8Array([1]), { expectedHash: null, kind: "world" });
+        expect(config.ok).toBe(true);
+        expect(plugin.ok).toBe(false);
+        expect(world.ok).toBe(false);
+        expect(calls.filter((command) => command === "ssh")).toHaveLength(2);
     });
 });

@@ -195,7 +195,19 @@ function choose(candidate: AdoptionCandidate): void {
                         :loading="profileLoading"
                         clearable
                         class="mb-2"
-                    />
+                    >
+                        <template #prepend-item>
+                            <div class="pa-2" @click.stop>
+                                <ConfigSearchField
+                                    v-model="profileQuery"
+                                    v-model:regex="profileRegex"
+                                    v-model:flags="profileFlags"
+                                    :label="t('mcserver.adoptBrowser.dropdownSearch', 'Search this host list')"
+                                    :sample="profiles.map((profile) => `${profile.hostId} ${profile.target.label} ${profile.target.host}`).join(String.fromCharCode(10))"
+                                />
+                            </div>
+                        </template>
+                    </VSelect>
                     <VAlert v-if="profileFailure" type="warning" variant="tonal" class="mb-2">{{ profileFailure }}</VAlert>
                     <VAlert v-else-if="!profileLoading && profiles.length === 0" type="info" variant="tonal" class="mb-2">
                         {{ t("mcserver.adoptBrowser.noProfiles", "No saved SSH host profiles yet. Local container discovery remains available; add a profile from the server list to inspect a remote host.") }}

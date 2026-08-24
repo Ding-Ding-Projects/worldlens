@@ -127,6 +127,14 @@ export interface CreateServerRequest {
     readonly loaderVersion?: string;
     readonly modsDirectory?: string;
     readonly preinstallApiLibraries?: readonly string[];
+    readonly runtime?: "local-process" | "local-docker";
+    readonly dockerPlan?: {
+        readonly image: string;
+        readonly imageVerified: boolean;
+        readonly containerRef: string;
+        readonly serverDir: string;
+        readonly ports: readonly { readonly host: number; readonly container: number }[];
+    };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -196,6 +204,7 @@ export interface AdoptConfirmRequest {
     readonly id: string;
     readonly containerId: string;
     readonly hostId?: string | null;
+    readonly rcon?: { readonly port: number; readonly password: string };
     readonly consent?: {
         readonly configWrite?: boolean;
         readonly lifecycle?: boolean;
@@ -337,10 +346,11 @@ export interface McServerHost {
                 accountId?: string;
                 acknowledgePublic?: boolean;
                 resumeTag?: string;
+                backupConsent?: boolean;
             },
         ): Promise<Answer<BackupEntry>>;
         list(owner: string, repo: string): Promise<Answer<readonly BackupEntry[]>>;
-        restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string }): Promise<Answer<void>>;
+        restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string; worldFolder?: string; restoreConsent?: boolean; restoreReceipt?: string }): Promise<Answer<void>>;
     };
     readonly webConsole?: {
         status(): Promise<Answer<WebConsoleStatus>>;
@@ -526,7 +536,7 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             // would find out only when the server was written somewhere unexpected.
             if (host === null || host.suggestFolder === undefined) return null;
             const result = await host.suggestFolder(name);
-            return result.ok ? result.value : null;
+            return result.ok && result.value !== undefined ? result.value : null;
         },
 
         async forget(id): Promise<Answer<void>> {

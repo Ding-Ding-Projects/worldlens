@@ -33,7 +33,7 @@ import { releaseAdoption } from "./adopt/release.js";
 import { listWorlds } from "./adopt/worlds.js";
 import { createServerBackup, listServerBackups, restoreServerBackup } from "./adopt/backups.js";
 import { createTransport, type FactoryDeps } from "./transport/factory.js";
-import { createLocalServer, type CreateLocalServerOptions } from "./create.js";
+import { createLocalDockerServer, createLocalServer, type CreateLocalServerOptions } from "./create.js";
 import type { FetchBinary } from "./install.js";
 import { listCatalogue, refreshCatalogue, FLAVOUR_IDS, type FetchText, type FlavourId } from "./flavours/catalogue.js";
 import { requiredJavaFeature } from "./flavours/javaRequirement.js";
@@ -112,6 +112,7 @@ export const MCSERVER_CHANNELS = {
     configApply: "mcserver:config:apply",
     create: "mcserver:create",
     rconTest: "mcserver:rcon:test",
+    rconConfigure: "mcserver:rcon:configure",
     consoleOpen: "mcserver:console:open",
     consoleSend: "mcserver:console:send",
     consoleClose: "mcserver:console:close",
@@ -500,7 +501,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     }
 
     function rconConsoleTransport(id: string, transport: ServerTransport): ServerTransport {
-        if (transport.ref.kind !== "ssh-docker") return transport;
+        if (transport.ref.kind !== "ssh-docker" || transport.capabilities.console === "none") return transport;
         return {
             ...transport,
             capabilities: { ...transport.capabilities, console: "rcon" },
@@ -659,6 +660,24 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             return testConnection(rconOptions.value);
         },
 
+        [MCSERVER_CHANNELS.rconConfigure]: async (_event: never, id: unknown, request: unknown) => {
+            if (!isRecordId(id) || typeof request !== "object" || request === null) {
+                return fail("invalid-request", "RCON configuration needs a server id, port and password.");
+            }
+            const body = request as Record<string, unknown>;
+            if (typeof body.port !== "number" || !Number.isInteger(body.port) || body.port < 1 || body.port > 65_535 ||
+                typeof body.password !== "string" || body.password.length === 0 || body.password.length > 512) {
+                return fail("invalid-request", "RCON configuration needs a valid port and password.");
+            }
+            if (!rconSecrets.vaultAvailable()) return fail("unsupported", "This build cannot store an RCON password in its credential vault.");
+            const found = await registry.get(id);
+            if (!found.ok) return found;
+            const stored = await rconSecrets.put(id, body.password);
+            if (!stored) return fail("denied", "The RCON password could not be stored in the credential vault.");
+            const saved = await registry.put({ ...found.value, hasRconSecret: true, rconPort: body.port, updatedAt: now() });
+            return saved.ok ? ok({ configured: true, port: body.port }) : saved;
+        },
+
         // Starts (or reuses, per-call - each open() gets its own supervisor and id) a
         // stable console session and pushes further lines to whichever renderer opened
         // it, over MCSERVER_CONSOLE_LINE_EVENT, for as long as that session stays open.
@@ -710,6 +729,11 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         // requests and holding a second authenticated socket open for them would only be
         // one more thing that can go stale.
         [MCSERVER_CHANNELS.playersList]: async (_event: never, id: unknown) => {
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            if (opened.value.transport.capabilities.console === "none") {
+                return fail("unsupported", "This server has not been granted console-write consent for player actions.");
+            }
             const rconOptions = await openRcon(id);
             if (!rconOptions.ok) return rconOptions;
             const reply = await runOneCommand(rconOptions.value, "list");
@@ -744,6 +768,11 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             });
             if (!built.ok) return built;
 
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            if (opened.value.transport.capabilities.console === "none") {
+                return fail("unsupported", "This server has not been granted console-write consent for player actions.");
+            }
             const rconOptions = await openRcon(id);
             if (!rconOptions.ok) return rconOptions;
             return runOneCommand(rconOptions.value, built.value);
@@ -765,6 +794,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             return opened.value.transport.fileWrite(path, new Uint8Array(Buffer.from(body.text, "utf8")), {
                 expectedHash,
                 backup: body.backup !== false,
+                kind: "config",
             });
         },
 
@@ -1099,6 +1129,39 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (typeof body.memoryMb !== "number") {
                 return fail("invalid-request", "A server needs a memory limit to be created.");
             }
+            const runtime = body.runtime ?? body.transport ?? "local-process";
+            if (runtime === "local-docker") {
+                if (typeof body.dockerPlan !== "object" || body.dockerPlan === null) return fail("invalid-request", "A local Docker server needs its verified Docker plan.");
+                const plan = body.dockerPlan as Record<string, unknown>;
+                if (typeof plan.image !== "string" || typeof plan.containerRef !== "string" || typeof plan.serverDir !== "string" || !Array.isArray(plan.ports)) {
+                    return fail("invalid-request", "The local Docker plan is incomplete.");
+                }
+                const ports = plan.ports.map((port) => typeof port === "object" && port !== null && typeof (port as Record<string, unknown>).host === "number" && typeof (port as Record<string, unknown>).container === "number"
+                    ? { host: (port as Record<string, unknown>).host as number, container: (port as Record<string, unknown>).container as number }
+                    : null);
+                if (ports.some((port) => port === null)) return fail("invalid-request", "The local Docker plan contains an invalid port entry.");
+                return createLocalDockerServer({
+                    id: body.id,
+                    name: body.name,
+                    flavour: body.flavour,
+                    version: body.version,
+                    memoryMb: body.memoryMb,
+                    acceptedEula: body.acceptedEula === true,
+                    serversRoot,
+                    registry,
+                    dockerPlan: {
+                        image: plan.image,
+                        imageVerified: plan.imageVerified === true,
+                        containerRef: plan.containerRef,
+                        serverDir: plan.serverDir,
+                        ports: ports.filter((port): port is { host: number; container: number } => port !== null),
+                        ...(options.factory?.runner === undefined ? {} : { runner: options.factory.runner }),
+                        ...(options.docker === undefined ? {} : { docker: options.docker }),
+                    },
+                    ...(options.now === undefined ? {} : { now: options.now }),
+                });
+            }
+            if (runtime !== "local-process") return fail("invalid-request", "That server runtime is not supported by this build.");
             const createOptions: CreateLocalServerOptions = {
                 id: body.id,
                 name: body.name,
@@ -1159,11 +1222,18 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             const port = typeof req.port === "number" && Number.isInteger(req.port) && req.port >= 0 && req.port <= 65_535 ? req.port : undefined;
             const tlsTerminated = req.tlsTerminated === true;
             try {
+                const loadedProfiles = await hostProfiles.list();
+                if (!loadedProfiles.ok) return loadedProfiles;
+                const factory = options.factory === undefined
+                    ? { sshHost: (hostId: string) => hostProfiles.sshHost(hostId) }
+                    : options.factory.sshHost === undefined
+                      ? { ...options.factory, sshHost: (hostId: string) => hostProfiles.sshHost(hostId) }
+                      : options.factory;
                 const handle = await startWebConsoleServer({
                     registry,
                     safeStorage: options.safeStorage,
                     dataFolder: options.dataFolder,
-                    ...(options.factory === undefined ? {} : { factory: options.factory }),
+                    factory,
                     ...(host === undefined ? {} : { host }),
                     ...(port === undefined ? {} : { port }),
                     tlsTerminated,
@@ -1222,6 +1292,21 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             const body = request as Record<string, unknown>;
             if (!isRecordId(body.id) || typeof body.containerId !== "string" || body.containerId === "") {
                 return fail("invalid-request", "That adoption request is missing a server name or a container to adopt.");
+            }
+            const rconRaw = typeof body.rcon === "object" && body.rcon !== null ? body.rcon as Record<string, unknown> : null;
+            const rconPort = rconRaw === null ? null : rconRaw.port;
+            const rconPassword = rconRaw === null ? null : rconRaw.password;
+            if (rconRaw !== null &&
+                (typeof rconPort !== "number" || !Number.isInteger(rconPort) || rconPort < 1 || rconPort > 65_535 ||
+                    typeof rconPassword !== "string" || rconPassword.length === 0 || rconPassword.length > 512)) {
+                return fail("invalid-request", "Remote RCON needs a valid port and password, or no RCON configuration.");
+            }
+            if (rconRaw !== null && body.consent !== undefined &&
+                (typeof body.consent !== "object" || body.consent === null || (body.consent as Record<string, unknown>).consoleWrite !== true)) {
+                return fail("denied", "Remote RCON configuration requires the console-write consent switch.");
+            }
+            if (rconRaw !== null && !rconSecrets.vaultAvailable()) {
+                return fail("unsupported", "This build cannot store the remote RCON password in its credential vault.");
             }
             const selected = await adoptionRunner(body.hostId);
             if (!selected.ok) return selected;
@@ -1303,12 +1388,19 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 origin: "adopted",
                 createdAt: now(),
                 updatedAt: now(),
-                hasRconSecret: false,
-                rconPort: null,
+                hasRconSecret: rconRaw !== null,
+                rconPort: rconRaw === null ? null : rconPort as number,
                 writeScope,
             };
+            if (rconRaw !== null) {
+                const stored = await rconSecrets.put(body.id, rconPassword as string);
+                if (!stored) return fail("denied", "The remote RCON password could not be stored in the credential vault.");
+            }
             const savedServer = await registry.put(serverRecord);
-            if (!savedServer.ok) return savedServer;
+            if (!savedServer.ok) {
+                if (rconRaw !== null) await rconSecrets.remove(body.id);
+                return savedServer;
+            }
 
             return { ok: true, value: { adoption: saved.value, server: savedServer.value } };
         },
@@ -1339,8 +1431,12 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.worldFolder !== "string") {
                 return fail("invalid-request", "A backup needs a world folder and a repository to back up to.");
             }
+            if (opened.value.record.origin === "adopted" && body.backupConsent !== true) {
+                return fail("denied", "Backing up an adopted server needs explicit backup consent.");
+            }
             return createServerBackup(options.backup.runnerOptions, {
                 ref: opened.value.record.ref,
+                transport: opened.value.transport,
                 worldFolder: body.worldFolder,
                 owner: body.owner,
                 repo: body.repo,
@@ -1374,12 +1470,25 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
                 return fail("invalid-request", "A restore needs a repository owner, name and release tag.");
             }
+            if (opened.value.record.origin === "adopted" && (body.restoreConsent !== true || typeof body.restoreReceipt !== "string" || body.restoreReceipt.length < 16)) {
+                return fail("denied", "Restoring an adopted server needs dedicated restore consent and destructive confirmation.");
+            }
+            const restoreTransport = opened.value.record.origin === "adopted"
+                ? {
+                      ...opened.value.transport,
+                      // Dedicated restore consent and the destructive receipt are per-call,
+                      // separate from the four persistent adoption switches.
+                      capabilities: { ...opened.value.transport.capabilities, canBackupRestore: true },
+                  }
+                : opened.value.transport;
             return restoreServerBackup(options.backup.restoreRunnerOptions, {
                 ref: opened.value.record.ref,
                 owner: body.owner,
                 repo: body.repo,
                 tag: body.tag,
                 adopted: opened.value.record.origin === "adopted",
+                transport: restoreTransport,
+                targetFolder: typeof body.worldFolder === "string" ? body.worldFolder : opened.value.record.ref.serverDir,
                 ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
             });
         },

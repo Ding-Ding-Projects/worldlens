@@ -135,6 +135,12 @@ export interface TransportCapabilities {
     readonly canLifecycle: boolean;
     /** May write files under the server root. */
     readonly canWriteFiles: boolean;
+    /** Optional narrower capability flags for adopted transports. Omitted means the
+     * transport uses the aggregate canWriteFiles capability for backwards compatibility. */
+    readonly canWriteConfig?: boolean;
+    readonly canWritePlugins?: boolean;
+    readonly canWriteWorlds?: boolean;
+    readonly canBackupRestore?: boolean;
     /** May remove the container or directory entirely. */
     readonly canDestroy: boolean;
     /**
@@ -224,6 +230,7 @@ export interface WriteOptions {
     readonly expectedHash: string | null;
     /** Copy the existing file aside before replacing it. Default true. */
     readonly backup?: boolean;
+    readonly kind?: "config" | "plugin" | "world" | "backup";
     readonly signal?: AbortSignal;
 }
 
@@ -275,6 +282,8 @@ export interface ServerSpec {
     readonly memoryMb: number;
     readonly ports: readonly { readonly host: number; readonly container: number }[];
     readonly env: Readonly<Record<string, string>>;
+    readonly volumes?: readonly { readonly host: string; readonly container: string }[];
+    readonly labels?: Readonly<Record<string, string>>;
 }
 
 export interface InstanceHandle {
@@ -308,8 +317,12 @@ export interface ServerTransport {
     fileList(dir: string): Promise<Answer<readonly FileEntry[]>>;
     fileRead(path: string, options?: ReadOptions): Promise<Answer<FileBlob>>;
     fileWrite(path: string, blob: Uint8Array, options: WriteOptions): Promise<Answer<WriteReceipt>>;
-    fileDelete(path: string): Promise<Answer<void>>;
-    dirEnsure(path: string): Promise<Answer<void>>;
+    fileDelete(path: string, kind?: "config" | "plugin" | "world" | "backup"): Promise<Answer<void>>;
+    dirEnsure(path: string, kind?: "config" | "plugin" | "world" | "backup"): Promise<Answer<void>>;
+    /** Atomic replacement primitive available only for transports that can stage and rename
+     * inside the same managed filesystem. Cancellation is ignored only between the two
+     * critical renames. */
+    atomicRestoreDirectory?(sourceFolder: string, targetFolder: string, options?: { signal?: AbortSignal; retainRollback?: boolean }): Promise<Answer<{ restoredFiles: number; rolledBack: boolean }>>;
 }
 
 /** Shared dependencies every transport takes, so none of them reaches for a global. */

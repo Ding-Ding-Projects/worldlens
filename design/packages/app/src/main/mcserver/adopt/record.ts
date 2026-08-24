@@ -305,6 +305,10 @@ export function capabilitiesForConsent(consent: AdoptionConsent): Partial<Transp
         canCreate: false,
         canLifecycle: consent.lifecycle,
         canWriteFiles: consent.configWrite || consent.pluginInstall,
+        canWriteConfig: consent.configWrite,
+        canWritePlugins: consent.pluginInstall,
+        canWriteWorlds: false,
+        canBackupRestore: false,
         canDestroy: false,
         ...(consent.consoleWrite ? {} : { console: "none" as const }),
     };

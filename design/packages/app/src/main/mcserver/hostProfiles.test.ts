@@ -17,11 +17,11 @@ afterEach(async () => {
 
 function target(overrides: Record<string, unknown> = {}) {
     return {
-        host: "fowshan",
+        host: "fixture.example",
         user: "docker",
         port: 22,
-        workDir: "/home/docker/WorldLens",
-        identityFile: "C:/Users/test/.ssh/id_ed25519",
+        workDir: "/srv/fixture",
+        identityFile: "C:/fixture/id_ed25519",
         ...overrides,
     };
 }
@@ -35,30 +35,30 @@ async function store() {
 describe("host profile validation", () => {
     it("keeps only validated metadata and drops secret-looking fields", () => {
         const parsed = parseHostProfile({
-            hostId: "andyville",
+            hostId: "fixture-host",
             target: { ...target(), password: "do-not-copy", privateKeyBytes: "do-not-copy" },
             createdAt: "2026-01-01T00:00:00.000Z",
             updatedAt: "2026-01-01T00:00:00.000Z",
         });
-        expect(parsed?.target.host).toBe("fowshan");
+        expect(parsed?.target.host).toBe("fixture.example");
         expect(parsed?.target.identityFile).toContain("id_ed25519");
         expect(JSON.stringify(parsed)).not.toMatch(/password|privateKeyBytes|do-not-copy/i);
     });
 
     it("drops traversal and invalid host records", () => {
         expect(parseHostProfile({ hostId: "../escape", target: target(), createdAt: "a", updatedAt: "b" })).toBeNull();
-        expect(parseHostProfile({ hostId: "andyville", target: target({ host: "-oProxyCommand=bad" }), createdAt: "a", updatedAt: "b" })).toBeNull();
+        expect(parseHostProfile({ hostId: "fixture-host", target: target({ host: "-oProxyCommand=bad" }), createdAt: "a", updatedAt: "b" })).toBeNull();
     });
 });
 
 describe("createHostProfileStore", () => {
     it("saves, lists, updates and returns SshOptionsInput without key bytes", async () => {
         const { value: profileStore, dir } = await store();
-        const saved = await profileStore.save({ hostId: "andyville", target: target() });
+        const saved = await profileStore.save({ hostId: "fixture-host", target: target() });
         expect(saved.ok).toBe(true);
         const listed = await profileStore.list();
-        expect(listed.ok && listed.value[0]?.hostId).toBe("andyville");
-        const ssh = profileStore.sshHost("andyville");
+        expect(listed.ok && listed.value[0]?.hostId).toBe("fixture-host");
+        const ssh = profileStore.sshHost("fixture-host");
         expect(ssh?.target.identityFile).toContain("id_ed25519");
         expect(ssh).toMatchObject({ knownHostsFile: join(dir, "known_hosts") });
         const text = await readFile(join(dir, HOST_PROFILES_FILE), "utf8");
@@ -67,9 +67,9 @@ describe("createHostProfileStore", () => {
 
     it("refuses changed identity and host-key options are owned by the store", async () => {
         const { value: profileStore, dir } = await store();
-        const saved = await profileStore.save({ hostId: "andyville", target: target({ knownHostsFile: "C:/user/.ssh/known_hosts" }) });
+        const saved = await profileStore.save({ hostId: "fixture-host", target: target({ knownHostsFile: "C:/fixture/user-known_hosts" }) });
         expect(saved.ok).toBe(true);
-        const ssh = profileStore.sshHost("andyville");
+        const ssh = profileStore.sshHost("fixture-host");
         expect(ssh?.knownHostsFile).toBe(join(dir, "known_hosts"));
         expect(ssh?.userKnownHostsFile).toBeUndefined();
     });
@@ -80,5 +80,32 @@ describe("createHostProfileStore", () => {
         const result = await profileStore.list();
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.failure.code).toBe("invalid-request");
+    });
+
+    it("rejects the whole saved file for wrong versions, oversized lists, invalid records, and forbidden fields", async () => {
+        const cases: readonly [string, unknown, string][] = [
+            ["wrong version", { version: 99, profiles: [] }, "version 99"],
+            ["invalid record", { version: 1, profiles: [{ hostId: "bad" }] }, "record 1"],
+            ["forbidden field", { version: 1, profiles: [{ hostId: "fixture-host", target: { ...target(), password: "secret" }, createdAt: "a", updatedAt: "b" }] }, "forbidden field password"],
+        ];
+        for (const [, payload, expected] of cases) {
+            const { value: profileStore, dir } = await store();
+            await writeFile(join(dir, HOST_PROFILES_FILE), JSON.stringify(payload), "utf8");
+            const result = await profileStore.list();
+            expect(result.ok).toBe(false);
+            if (!result.ok) expect(result.failure.message).toContain(expected);
+        }
+
+        const { value: profileStore, dir } = await store();
+        const profiles = Array.from({ length: 101 }, (_, index) => ({
+            hostId: `host-${String(index)}`,
+            target: target(),
+            createdAt: "a",
+            updatedAt: "b",
+        }));
+        await writeFile(join(dir, HOST_PROFILES_FILE), JSON.stringify({ version: 1, profiles }), "utf8");
+        const result = await profileStore.list();
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.failure.message).toContain("101 records");
     });
 });
