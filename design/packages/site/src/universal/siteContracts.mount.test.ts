@@ -2,12 +2,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18n } from "../i18n/I18n.js";
 import { Preferences } from "../platform/Preferences.js";
-import { createSiteUniversalContractsView, disposeSiteUniversalContractsView } from "./siteContracts.js";
+import { createSiteUniversalContractsView, disposeSiteUniversalContractsView, SAFE_QR_CAPTURE_MODE, siteSchoolModeEnabled } from "./siteContracts.js";
+import { SchoolMode } from "../settings/schoolMode.js";
 
 const appearanceStub = { store: { subscribe: () => () => undefined } } as never;
 
 afterEach(() => {
     document.body.replaceChildren();
+    window.localStorage.clear();
     vi.restoreAllMocks();
 });
 
@@ -47,5 +49,39 @@ describe("mounted universal contracts surface", () => {
         document.body.append(view);
         expect(() => disposeSiteUniversalContractsView(view)).not.toThrow();
         expect(view.dataset.cleanup).toBe("site-contracts-local-only");
+    });
+
+    it("uses the credential-bearing SchoolMode record, never a raw storage flag", () => {
+        window.localStorage.setItem("mbm-site:school.enabled", "true");
+        const mode = new SchoolMode(new Preferences());
+        expect(mode.enabled).toBe(false);
+        expect(siteSchoolModeEnabled(mode)).toBe(false);
+        const view = createSiteUniversalContractsView({ i18n: new I18n(new Preferences()), appearance: appearanceStub, schoolMode: mode });
+        document.body.append(view);
+        expect(view.querySelector("#contract-ladder")?.textContent).toContain("dim-sum rung");
+    });
+
+    it("opens an exact-origin anchored lock wizard and returns focus on cancellation", () => {
+        const view = createSiteUniversalContractsView({ i18n: new I18n(new Preferences()), appearance: appearanceStub });
+        document.body.append(view);
+        const origin = view.querySelector<HTMLElement>("button");
+        expect(origin).not.toBeNull();
+        origin?.focus();
+        origin?.dispatchEvent(new KeyboardEvent("keydown", { key: "F10", shiftKey: true, bubbles: true }));
+        const menuAction = document.querySelector<HTMLButtonElement>('[role="menuitem"]');
+        expect(menuAction).not.toBeNull();
+        menuAction?.click();
+        const wizard = document.querySelector<HTMLElement>(".mb-contract-lock-wizard");
+        expect(wizard).not.toBeNull();
+        expect(wizard?.dataset.targetId).toBe(origin?.dataset.contractElementId);
+        expect(wizard?.querySelector("[data-lock-wizard-target] select")).toBeNull();
+        (wizard?.querySelector("button:last-of-type") as HTMLButtonElement | null)?.click();
+        expect(document.querySelector(".mb-contract-lock-wizard")).toBeNull();
+        expect(document.activeElement).toBe(origin);
+    });
+
+    it("marks the QR evidence mode as synthetic and secret-free", () => {
+        expect(SAFE_QR_CAPTURE_MODE.includesSecret).toBe(false);
+        expect(SAFE_QR_CAPTURE_MODE.captureMetadataOmitted).toEqual(expect.arrayContaining(["secret", "uri", "qrPayload"]));
     });
 });

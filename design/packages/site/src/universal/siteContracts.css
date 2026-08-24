@@ -126,6 +126,29 @@
     box-shadow: var(--e3, 0 8px 24px rgb(0 0 0 / 28%));
 }
 
+.mb-contract-lock-wizard {
+    position: fixed;
+    z-index: 10001;
+    inline-size: min(460px, calc(100vw - 16px));
+    max-block-size: min(680px, calc(100vh - 16px));
+    overflow: auto;
+    padding: 16px;
+    border: 1px solid var(--outv);
+    border-radius: 16px;
+    background: var(--s-cont, #202124);
+    color: var(--on-s-cont, #fff);
+    box-shadow: var(--e3, 0 12px 32px rgb(0 0 0 / 34%));
+}
+
+.mb-contract-lock-wizard h2 {
+    margin-block-start: 0;
+}
+
+.mb-contract-wizard-form {
+    display: grid;
+    gap: 12px;
+}
+
 .mb-contract-page select,
 .mb-contract-page input,
 .mb-contract-page textarea {

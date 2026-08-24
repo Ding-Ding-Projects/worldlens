@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertGlobalPagesCrossCheck, assertSiteUniversalInventory, REQUIRED_UNIVERSAL_SITE_IDS, SITE_UNIVERSAL_INVENTORY } from "./siteUniversalInventory.js";
+import { assertGlobalPagesCrossCheck, assertSiteEvidenceReady, assertSiteUniversalInventory, REQUIRED_UNIVERSAL_SITE_IDS, SITE_UNIVERSAL_INVENTORY } from "./siteUniversalInventory.js";
 import { PAGES_FEATURE_COVERAGE } from "./globalFeatureCoverage.js";
 
 describe("site universal inventory", () => {
@@ -39,11 +39,13 @@ describe("site universal inventory", () => {
         expect(() => assertGlobalPagesCrossCheck(PAGES_FEATURE_COVERAGE)).not.toThrow();
     });
 
-    it("turns red for pending or stale evidence and green when restored", () => {
+    it("turns red for pending or stale evidence and green when the structural record is restored", () => {
         const pending = SITE_UNIVERSAL_INVENTORY.map((row, index) => index === 0 ? { ...row, status: "pending" as const } : row);
         expect(() => assertSiteUniversalInventory(pending)).toThrow(/pending/);
         const stale = SITE_UNIVERSAL_INVENTORY.map((row, index) => index === 0 ? { ...row, freshness: "candidate" as never } : row);
         expect(() => assertSiteUniversalInventory(stale)).toThrow(/stale/);
         expect(() => assertSiteUniversalInventory(SITE_UNIVERSAL_INVENTORY)).not.toThrow();
+        expect(() => assertSiteEvidenceReady()).toThrow(/pending/);
+        expect(() => assertSiteEvidenceReady(SITE_UNIVERSAL_INVENTORY, "1fdad79212ef5dd9a5dcb55f181545e0757ec4c7")).toThrow(/pending/);
     });
 });

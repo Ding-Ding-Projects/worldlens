@@ -14,6 +14,7 @@ import { confirmDestructive } from "../settings/confirm.js";
 import qrcode from "qrcode-generator";
 import type { AppearanceController } from "../appearance/controller.js";
 import { openAppearanceEditor } from "../appearance/editor/appearanceEditor.js";
+import type { SchoolMode } from "../settings/schoolMode.js";
 
 const STATE_KEY = "site.universal.contracts.v1";
 const MAX_TICKETS = 100;
@@ -21,11 +22,24 @@ const MAX_HISTORY = 250;
 const LADDER_WINDOW_MS = 60 * 60 * 1000;
 const LADDER_BUDGET = 3;
 const MAX_SECRET_BYTES = 128;
+let closeActiveLockWizard: (() => void) | null = null;
 
 export type LockMethod = "password" | "totp";
 export type LockDuration = "session" | "15m" | "1h";
 export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
 export type TotpDigits = 6 | 8;
+
+/** A safe synthetic capture marker. Real enrollment secrets and QR payloads never enter evidence. */
+export const SAFE_QR_CAPTURE_MODE = {
+    id: "authenticator-redacted",
+    includesSecret: false,
+    captureMetadataOmitted: ["secret", "uri", "qrPayload"] as const,
+    evidence: "synthetic-redacted-only",
+} as const;
+
+export function siteSchoolModeEnabled(schoolMode?: SchoolMode): boolean {
+    return schoolMode?.enabled === true;
+}
 
 export const PBKDF2_ITERATIONS = 120_000;
 
@@ -940,6 +954,7 @@ export function createSiteUniversalContractsView(options: {
     readonly i18n: I18n;
     readonly appearance: AppearanceController;
     readonly store?: SiteContractStore;
+    readonly schoolMode?: SchoolMode;
 }): HTMLElement {
     const store = options.store ?? new SiteContractStore();
     const root = document.createElement("div");
@@ -1254,9 +1269,14 @@ export function createSiteUniversalContractsView(options: {
         });
         support.append(ticketSearch, ticketActions, ticketList, resetInfo, inputLabel("Recovery key one", clearKeyOne), inputLabel("Recovery key two", clearKeyTwo), inputLabel("Full-range confirmation", clearSlider), clearButton); root.append(support);
 
-        const ladder = section("Waiting-only unlock ladder", "A static site cannot grade a server-side nonce. This local equivalent clears waiting only, never credentials, sessions, or the attempt budget. Under the site's named school setting, it starts at sums and never shows the dim-sum rung.");
+        const schoolEnabled = siteSchoolModeEnabled(options.schoolMode);
+        const ladder = section(
+            "Waiting-only unlock ladder",
+            schoolEnabled
+                ? "A static site cannot grade a server-side nonce. This local equivalent starts at sums and clears waiting only, never credentials, sessions, or the attempt budget. The dim-sum rung is not available in the site's named school setting."
+                : "A static site cannot grade a server-side nonce. This local equivalent clears waiting only, never credentials, sessions, or the attempt budget. Under the site's named school setting, it starts at sums and never shows the dim-sum rung.",
+        );
         ladder.id = "contract-ladder";
-        const schoolEnabled = window.localStorage.getItem("mbm-site:school.enabled") === "true";
         const ladderMachine = new UnlockLadderMachine({ schoolMode: schoolEnabled, initial: store.snapshot.ladderMachine });
         const saveLadder = (): void => store.saveLadderMachine(ladderMachine.snapshot());
         const ladderBody = document.createElement("div"); ladderBody.className = "mb-contract-ladder-body";
@@ -1293,13 +1313,7 @@ export function createSiteUniversalContractsView(options: {
         history.append(button("Export redacted local history", () => safeDownload("worldlens-site-history.json", JSON.stringify({ version: 1, omitted: ["passwords", "TOTP secrets", "QR payloads", "file metadata"], entries: store.snapshot.history }, null, 2))), historyList); root.append(history);
 
         installUniversalLockWizards(root, (origin, id, name) => {
-            const matching = [...target.options].find((option) => option.value === id);
-            if (matching === undefined) { const option = document.createElement("option"); option.value = id; option.textContent = name; target.append(option); }
-            target.value = id;
-            scope.value = "element";
-            locks.scrollIntoView({ behavior: "smooth", block: "start" });
-            credential.focus();
-            origin.dataset.lockWizardOrigin = id;
+            openAnchoredLockWizard({ origin, id, name, store });
         });
 
         if (version !== renderVersion) return;
@@ -1326,6 +1340,160 @@ export function disposeSiteUniversalContractsView(root: HTMLElement): void {
     root.dispatchEvent(new Event("site-contracts-dispose"));
 }
 
+function openAnchoredLockWizard(options: {
+    readonly origin: HTMLElement;
+    readonly id: string;
+    readonly name: string;
+    readonly store: SiteContractStore;
+}): void {
+    closeActiveLockWizard?.();
+    const { origin, id, name, store } = options;
+    const wizard = document.createElement("section");
+    wizard.className = "mb-contract-lock-wizard";
+    wizard.setAttribute("role", "dialog");
+    wizard.setAttribute("aria-modal", "false");
+    wizard.setAttribute("aria-labelledby", "mb-contract-lock-wizard-title");
+    wizard.dataset.targetId = id;
+    wizard.dataset.originId = id;
+
+    const heading = document.createElement("h2");
+    heading.id = "mb-contract-lock-wizard-title";
+    heading.textContent = "Lock this exact element";
+    const targetLine = document.createElement("p");
+    targetLine.className = "mb-help";
+    targetLine.dataset.lockWizardTarget = id;
+    targetLine.textContent = `Target: ${name} (${id}). This wizard cannot switch to another target.`;
+    const disclosure = document.createElement("p");
+    disclosure.className = "mb-help";
+    disclosure.textContent = "This is a visitor-local experience lock, not encryption. Clearing this site's storage is the recovery route.";
+    const form = document.createElement("form");
+    form.className = "mb-contract-wizard-form";
+
+    const picker = (label: string, values: readonly string[]): HTMLSelectElement => {
+        const select = document.createElement("select");
+        select.className = "md-field__input";
+        values.forEach((value) => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            select.append(option);
+        });
+        const filter = document.createElement("input");
+        filter.type = "search";
+        filter.className = "md-field__input";
+        filter.placeholder = `Filter ${label.toLocaleLowerCase()}`;
+        filter.setAttribute("aria-label", `Filter ${label.toLocaleLowerCase()}`);
+        const refill = (): void => {
+            const previous = select.value;
+            select.replaceChildren();
+            values.filter((value) => matchesContractQuery(value, filter.value, filter.dataset.regexPattern ?? "", filter.dataset.regexFlags ?? "i")).forEach((value) => {
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = value;
+                select.append(option);
+            });
+            if ([...select.options].some((option) => option.value === previous)) select.value = previous;
+        };
+        filter.addEventListener("input", refill);
+        filter.addEventListener("regexchange", refill);
+        const wrapper = inputLabel(label, select);
+        wrapper.append(inputLabel(`Filter ${label.toLocaleLowerCase()}`, filter));
+        regexBuilder(wrapper, filter, label);
+        form.append(wrapper);
+        return select;
+    };
+
+    const method = picker("Credential method", ["password", "totp"]);
+    const duration = picker("Unlock duration", ["session", "15m", "1h"]);
+    const algorithm = picker("TOTP algorithm", ["SHA1", "SHA256", "SHA512"]);
+    const digits = picker("TOTP digits", ["6", "8"]);
+    const period = document.createElement("input");
+    period.type = "number";
+    period.className = "md-field__input";
+    period.min = "5";
+    period.max = "300";
+    period.value = "30";
+    const credential = document.createElement("input");
+    credential.type = "password";
+    credential.className = "md-field__input";
+    credential.autocomplete = "new-password";
+    const status = document.createElement("p");
+    status.className = "mb-help";
+    status.setAttribute("role", "status");
+    const actions = document.createElement("div");
+    actions.className = "mb-contract-actions";
+    const cancel = button("Cancel", () => finish());
+    const create = button("Create lock", () => undefined, "md-button md-button--filled");
+    actions.append(create, cancel);
+    form.append(inputLabel("TOTP period seconds", period), inputLabel("Password or one-time setup value", credential), actions, status);
+    wizard.append(heading, targetLine, disclosure, form);
+    document.body.append(wizard);
+
+    let raf = 0;
+    let closed = false;
+    const place = (): void => {
+        if (closed) return;
+        const anchor = origin.getBoundingClientRect();
+        const box = wizard.getBoundingClientRect();
+        const left = Math.max(8, Math.min(anchor.left, window.innerWidth - box.width - 8));
+        const below = anchor.bottom + 8;
+        const top = below + box.height <= window.innerHeight - 8
+            ? below
+            : Math.max(8, anchor.top - box.height - 8);
+        wizard.style.left = `${left}px`;
+        wizard.style.top = `${top}px`;
+    };
+    const track = (): void => {
+        place();
+        if (!closed) raf = window.requestAnimationFrame(track);
+    };
+    const finish = (): void => {
+        if (closed) return;
+        closed = true;
+        window.cancelAnimationFrame(raf);
+        wizard.remove();
+        if (closeActiveLockWizard === finish) closeActiveLockWizard = null;
+        if (origin.isConnected) origin.focus();
+    };
+    closeActiveLockWizard = finish;
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        void (async () => {
+            if (credential.value.trim() === "") {
+                status.textContent = "Enter a credential before creating this exact lock.";
+                credential.focus();
+                return;
+            }
+            try {
+                const salt = freshCredentialSalt();
+                const digest = await deriveCredential(credential.value, salt);
+                const totp = { algorithm: algorithm.value as TotpAlgorithm, digits: Number(digits.value) as TotpDigits, period: numberInRange(Number(period.value), 5, 300, 30) };
+                store.addLock(method.value === "totp"
+                    ? { target: id, targetLabel: name, scope: "element", method: "totp", credentialDigest: digest, credentialSalt: salt, iterations: PBKDF2_ITERATIONS, duration: duration.value as LockDuration, sessionSecret: credential.value, totp }
+                    : { target: id, targetLabel: name, scope: "element", method: "password", credentialDigest: digest, credentialSalt: salt, iterations: PBKDF2_ITERATIONS, duration: duration.value as LockDuration, totp: null });
+                finish();
+            } catch (error) {
+                status.textContent = error instanceof Error ? error.message : "The browser could not create this local lock.";
+            }
+        })();
+    });
+    wizard.addEventListener("keydown", (event) => {
+        if (event instanceof KeyboardEvent && event.key === "Escape") {
+            event.preventDefault();
+            finish();
+        }
+    });
+    form.addEventListener("keydown", (event) => {
+        if (event instanceof KeyboardEvent && event.key === "Enter" && event.target !== credential) {
+            event.preventDefault();
+            form.requestSubmit();
+        }
+    });
+    place();
+    raf = window.requestAnimationFrame(track);
+    credential.focus();
+}
+
 function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTMLElement, id: string, name: string) => void): void {
     let elementIndex = 0;
     const targets = [root, ...root.querySelectorAll<HTMLElement>("*")];
@@ -1346,7 +1514,12 @@ function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTM
             filter.className = "md-field__input";
             filter.placeholder = "Filter lock actions";
             filter.setAttribute("aria-label", "Filter lock actions");
-            const action = button(`Lock this element: ${name}`, () => { menu.remove(); openWizard(target, stableId, name); });
+            let dismiss: ((next: Event) => void) | undefined;
+            const closeMenu = (): void => {
+                menu.remove();
+                if (dismiss !== undefined) document.removeEventListener("pointerdown", dismiss);
+            };
+            const action = button(`Lock this element: ${name}`, () => { closeMenu(); openWizard(target, stableId, name); });
             action.setAttribute("role", "menuitem");
             filter.addEventListener("input", () => { action.hidden = !matchesContractQuery(action.textContent ?? "", filter.value, filter.dataset.regexPattern ?? "", filter.dataset.regexFlags ?? "i"); });
             filter.addEventListener("regexchange", () => { action.hidden = !matchesContractQuery(action.textContent ?? "", filter.value, filter.dataset.regexPattern ?? "", filter.dataset.regexFlags ?? "i"); });
@@ -1359,8 +1532,8 @@ function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTM
             menu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - 320))}px`;
             menu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - 120))}px`;
             action.focus();
-            const dismiss = (next: Event): void => { if (!menu.contains(next.target as Node)) { menu.remove(); document.removeEventListener("pointerdown", dismiss); target.focus(); } };
-            document.addEventListener("pointerdown", dismiss);
+            dismiss = (next: Event): void => { if (!menu.contains(next.target as Node)) { closeMenu(); target.focus(); } };
+            if (dismiss !== undefined) document.addEventListener("pointerdown", dismiss);
         };
         target.addEventListener("contextmenu", open);
         target.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.shiftKey && event.key === "F10") open(event); });

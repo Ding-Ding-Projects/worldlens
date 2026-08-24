@@ -40,8 +40,11 @@ SHA-256. TOTP locks keep their own algorithm, digit count, period, and tab-memor
 static site has no operating-system vault; after a reload the site asks the visitor to register
 the URI again rather than pretending the secret survived safely.
 The lock list keeps locked targets searchable and offers an honest Support Tickets route after a
-wrong answer. Clearing this site's storage is the self-service recovery route. These are toy
-experience locks, not encryption or security boundaries.
+wrong answer. Every rendered element's context menu, including the ContextMenu key and Shift+F10
+path, opens a non-modal wizard anchored beside that exact element. The wizard keeps an immutable
+target id, tracks the anchor while open, stays inside the viewport, and returns focus to the
+originating element after cancel or creation. Clearing this site's storage is the self-service
+recovery route. These are toy experience locks, not encryption or security boundaries.
 
 ## Authenticator
 
@@ -86,9 +89,16 @@ when a server, native vault, or second window cannot exist on a static host.
 ## Verification
 
 The hand-written inventory is `src/policy/siteUniversalInventory.ts`. Its negative regression
-removes a row and proves red, then restores the row and proves green. Focused tests cover URI
-round-tripping, RFC 6238 SHA-1 vectors, malformed base32, secret exclusion, lock digest storage,
-waiting-only clearing, and inventory deletion detection.
+removes a row and proves red, then restores the row and proves green. The structural inventory
+retains older captures as pending evidence when their candidate commit is not the current build.
+The strict evidence check remains red until a fresh built capture is produced with a matching
+screen, state, theme, viewport, scale, accessibility tuple and candidate SHA. This source lane
+does not publish a new built capture, so those older images are never relabelled as current proof.
+Authenticator evidence is restricted to the synthetic redacted mode: it contains no secret, URI,
+or QR payload metadata, and a real enrollment QR is never captured.
+Focused tests cover URI round-tripping, RFC 6238 SHA-1 vectors, malformed base32, secret exclusion,
+lock digest storage, waiting-only clearing, exact-origin wizard focus return, School-mode storage
+handling, synthetic QR evidence, and inventory deletion detection.
 
 Run:
 
