@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "2d40a237818ec370238710f4da91c032d7dd43c1",
+        shortSha: "2d40a23781",
+        date: "2026-08-24T04:17:19-04:00",
+        subject: "Keep runtime coverage browser safe",
+        details: "The completeness inventory now receives its filesystem probe from tests instead of importing node:fs into the browser bundle. Release validation still stays fail-closed, while the production UI build keeps its browser legs under it.\n\nCoverage inventory 而家由 test 傳入 filesystem probe，唔會將 node:fs 偷渡入 browser bundle。Release validation 照樣 fail-closed，production UI build 就唔會畀個 browser 腳絆親。",
+        category: "interface",
+        areas: ["interface"],
+        files: 2,
+    },
+    {
         sha: "b427eae7835c64d089cd34c8f37c0fb4dfdb0c8e",
         shortSha: "b427eae783",
         date: "2026-08-24T04:15:16-04:00",
