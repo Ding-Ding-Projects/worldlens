@@ -66,8 +66,16 @@ export interface TypeScriptEngineOptions {
  */
 export function upstreamJavaEngine(
     options: UpstreamEngineOptions,
-): (engine?: RenderEngineId) => Promise<ResolvedEngine> {
-    return async (engine: RenderEngineId = "upstream-java"): Promise<ResolvedEngine> => {
+): (
+    engine?: RenderEngineId,
+    signal?: AbortSignal,
+    onProgress?: (progress: EngineProvisionProgress) => void,
+) => Promise<ResolvedEngine> {
+    return async (
+        engine: RenderEngineId = "upstream-java",
+        signal = options.signal,
+        onProgress = options.onEngineProvisionProgress,
+    ): Promise<ResolvedEngine> => {
         if (engine !== "upstream-java") {
             throw new EngineUnavailableError(
                 "engine",
@@ -87,10 +95,8 @@ export function upstreamJavaEngine(
                     ...(options.fetchBinary === undefined
                         ? {}
                         : { fetchBinary: options.fetchBinary }),
-                    ...(options.onEngineProvisionProgress === undefined
-                        ? {}
-                        : { onProgress: options.onEngineProvisionProgress }),
-                    ...(options.signal === undefined ? {} : { signal: options.signal }),
+                    ...(onProgress === undefined ? {} : { onProgress }),
+                    ...(signal === undefined ? {} : { signal }),
                 });
             } catch (error) {
                 throw new EngineUnavailableError("jar", describe(error));
@@ -98,8 +104,17 @@ export function upstreamJavaEngine(
         }
         let jar;
         try {
-            const lookup = options.jarLookup ?? lookupFrom(options);
-            jar = resolveCliJar({ ...lookup, dataDir: options.dataDir });
+            if (managedRepair?.source === "managed" && managedRepair.jarPath !== null) {
+                jar = {
+                    implementation: "cli" as const,
+                    path: managedRepair.jarPath,
+                    version: managedRepair.version,
+                    source: "managed" as const,
+                };
+            } else {
+                const lookup = options.jarLookup ?? lookupFrom(options);
+                jar = resolveCliJar({ ...lookup, dataDir: options.dataDir });
+            }
         } catch (error) {
             throw new EngineUnavailableError("jar", describe(error));
         }
@@ -128,9 +143,19 @@ export function upstreamJavaEngine(
                 ...(options.resourcesPath === undefined
                     ? {}
                     : { resourcesPath: options.resourcesPath }),
-                ...(options.allowProvisioning === undefined
+                allowProvisioning: options.allowProvisioning ?? true,
+                ...(onProgress === undefined
                     ? {}
-                    : { allowProvisioning: options.allowProvisioning }),
+                    : {
+                          onEvent: (event) =>
+                              onProgress({
+                                  stage: event.stage === "downloading" ? "downloading" : "checking",
+                                  message: event.message,
+                                  received: event.received,
+                                  total: event.total,
+                              }),
+                      }),
+                ...(signal === undefined ? {} : { signal }),
             });
         } catch (error) {
             if (error instanceof NoUsableJavaError) {

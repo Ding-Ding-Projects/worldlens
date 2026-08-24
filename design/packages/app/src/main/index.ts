@@ -645,8 +645,19 @@ function startRendering(): RenderIpc {
         resourcesPath: app.isPackaged ? process.resourcesPath : null,
         repositoryRoot: process.cwd(),
     });
-    const resolveEngine = (choice: "upstream-java" | "typescript") =>
-        choice === "typescript" ? typescriptResolver(choice) : javaResolver(choice);
+    const resolveEngine = (
+        choice: "upstream-java" | "typescript",
+        signal?: AbortSignal,
+        onProgress?: (progress: {
+            readonly stage: string;
+            readonly message: string;
+            readonly received: number | null;
+            readonly total: number | null;
+        }) => void,
+    ) =>
+        choice === "typescript"
+            ? typescriptResolver(choice)
+            : javaResolver(choice, signal, onProgress);
 
     const render = installRenderIpc({
         storageDir,

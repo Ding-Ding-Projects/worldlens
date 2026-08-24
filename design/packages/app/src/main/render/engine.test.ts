@@ -20,11 +20,17 @@ const javaModule = vi.hoisted(() => ({
     resolveCliJar: vi.fn(),
     ensureJava: vi.fn(),
 }));
+const provisioningModule = vi.hoisted(() => ({
+    ensureManagedUpstreamJava: vi.fn(),
+}));
 
 vi.mock("../java/index.js", () => ({
     resolveCliJar: javaModule.resolveCliJar,
     ensureJava: javaModule.ensureJava,
     NoUsableJavaError: class NoUsableJavaError extends Error {},
+}));
+vi.mock("./engineProvisioning.js", () => ({
+    ensureManagedUpstreamJava: provisioningModule.ensureManagedUpstreamJava,
 }));
 
 import { upstreamJavaEngine } from "./engine.js";
@@ -53,7 +59,33 @@ const JAVA: EnsureJavaResult = {
 };
 
 describe("upstreamJavaEngine", () => {
+    it("uses the exact managed path after a repair instead of reselecting a bundled jar", async () => {
+        javaModule.resolveCliJar.mockReturnValue({
+            ...JAR,
+            path: "/resources/jars/cli-5.23-shadow.jar",
+            version: "5.23",
+        });
+        javaModule.ensureJava.mockResolvedValue(JAVA);
+        provisioningModule.ensureManagedUpstreamJava.mockResolvedValue({
+            jarPath: "/data/render-engines/upstream-java/bluemap-5.23-cli.jar",
+            source: "managed",
+            version: "5.23",
+            reused: false,
+        });
+
+        const resolved = await upstreamJavaEngine({
+            dataDir: "/data",
+            resourcesPath: "/resources",
+            probeEngine: async () => ({ ok: true }),
+        })();
+
+        expect(resolved.enginePath).toBe("/data/render-engines/upstream-java/bluemap-5.23-cli.jar");
+        expect(resolved.engineSource).toBe("managed");
+        expect(provisioningModule.ensureManagedUpstreamJava).toHaveBeenCalledOnce();
+    });
+
     it("resolves to the Java engine, pinning it as the standing default (D17, amended 2026-08-05)", async () => {
+        provisioningModule.ensureManagedUpstreamJava.mockResolvedValue(null);
         javaModule.resolveCliJar.mockReturnValue(JAR);
         javaModule.ensureJava.mockResolvedValue(JAVA);
 

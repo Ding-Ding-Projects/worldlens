@@ -73,7 +73,16 @@ export interface RenderIpcOptions {
     readonly defaultStorageDir: string;
     /** Home and `%APPDATA%`, for expanding the token form the setup step stores. */
     readonly environment: { readonly home: string; readonly appData?: string | undefined };
-    readonly resolveEngine: (engine: RenderEngineId) => Promise<ResolvedEngine>;
+    readonly resolveEngine: (
+        engine: RenderEngineId,
+        signal?: AbortSignal,
+        onProgress?: (progress: {
+            readonly stage: string;
+            readonly message: string;
+            readonly received: number | null;
+            readonly total: number | null;
+        }) => void,
+    ) => Promise<ResolvedEngine>;
     readonly mounts: LocalMapHandler;
     readonly appVersion?: string | null;
     /** Overridable so a test can watch what was broadcast. Defaults to every window. */
@@ -205,7 +214,9 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         ...(options.docker === undefined ? {} : { docker: options.docker }),
         ...(options.dockerImage === undefined ? {} : { dockerImage: options.dockerImage }),
         ...(options.home === undefined ? {} : { home: options.home }),
-        ...(options.rememberFailure === undefined ? {} : { rememberFailure: options.rememberFailure }),
+        ...(options.rememberFailure === undefined
+            ? {}
+            : { rememberFailure: options.rememberFailure }),
         ...(options.jvmArgs === undefined ? {} : { jvmArgs: options.jvmArgs }),
     });
 
@@ -246,7 +257,11 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
      */
     ipcMain.handle(
         "render:adjustSpeed",
-        async (_event: IpcMainInvokeEvent, renderId: unknown, level: unknown): Promise<SpeedAdjustmentResult> => {
+        async (
+            _event: IpcMainInvokeEvent,
+            renderId: unknown,
+            level: unknown,
+        ): Promise<SpeedAdjustmentResult> => {
             const id = typeof renderId === "string" ? renderId : "";
             return await orchestrator.adjustSpeed(id, level as SpeedLevelNumber);
         },
@@ -304,10 +319,13 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
     );
 
     /** Declines the offer, so it is made once rather than at every launch. */
-    ipcMain.handle("render:dismissResume", async (_event: IpcMainInvokeEvent, renderId: unknown) => {
-        if (typeof renderId !== "string") return false;
-        return await sessions.dismiss(renderId);
-    });
+    ipcMain.handle(
+        "render:dismissResume",
+        async (_event: IpcMainInvokeEvent, renderId: unknown) => {
+            if (typeof renderId !== "string") return false;
+            return await sessions.dismiss(renderId);
+        },
+    );
 
     ipcMain.handle("render:list", async () => await summarise(storageDir, options.mounts));
 

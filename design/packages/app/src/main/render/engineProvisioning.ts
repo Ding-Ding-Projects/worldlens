@@ -10,7 +10,7 @@
 
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { downloadVerified, type FetchBinary } from "../java/download.js";
 import { managedJarDirectory } from "../java/jars.js";
 
@@ -70,8 +70,10 @@ export function managedUpstreamJavaJar(
 
 /**
  * Checks the package manifest and jar without trusting either one by itself.
- * A stale version, wrong digest, bad ZIP directory or missing manifest sends the
- * caller to the managed repair route.
+ * The packaged manifest is authoritative for the build's locally compiled jar.
+ * Its bytes therefore do not have to equal the official fallback asset. A stale
+ * version, wrong digest, bad ZIP directory or missing manifest sends the caller
+ * to the managed repair route.
  */
 export async function packagedUpstreamJavaIsUsable(
     resourcesPath: string,
@@ -85,12 +87,28 @@ export async function packagedUpstreamJavaIsUsable(
         const engines = parsed.engines;
         if (!isRecord(engines)) return false;
         const java = engines["upstream-java"];
-        if (!isRecord(java) || java.available !== true || java.version !== release.version)
+        if (
+            !isRecord(java) ||
+            java.available !== true ||
+            typeof java.version !== "string" ||
+            !(java.version === release.version || java.version.startsWith(`${release.version}-`))
+        )
             return false;
         const jar = java.jar;
-        if (!isRecord(jar) || jar.fileName !== release.asset) return false;
-        if (jar.size !== release.sizeBytes || jar.sha256 !== release.sha256) return false;
-        return await verifyJar(join(resourcesPath, "jars", release.asset), release);
+        if (
+            !isRecord(jar) ||
+            typeof jar.fileName !== "string" ||
+            basename(jar.fileName) !== jar.fileName
+        )
+            return false;
+        if (typeof jar.size !== "number" || typeof jar.sha256 !== "string") return false;
+        return await verifyJar(join(resourcesPath, "jars", jar.fileName), {
+            ...release,
+            version: java.version,
+            asset: jar.fileName,
+            sizeBytes: jar.size,
+            sha256: jar.sha256,
+        });
     } catch {
         return false;
     }

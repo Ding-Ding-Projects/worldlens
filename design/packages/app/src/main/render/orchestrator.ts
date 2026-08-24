@@ -348,6 +348,16 @@ export interface RenderCancelledEvent {
     readonly at: string;
 }
 
+export interface RenderEngineProvisionEvent {
+    readonly type: "engine-provisioning";
+    readonly renderId: string;
+    readonly stage: string;
+    readonly message: string;
+    readonly received: number | null;
+    readonly total: number | null;
+    readonly at: string;
+}
+
 /**
  * Cancellation is its own event rather than a failure with a code.
  *
@@ -363,7 +373,8 @@ export type RenderEvent =
     | RenderLogEvent
     | RenderFinishedEvent
     | RenderFailedEvent
-    | RenderCancelledEvent;
+    | RenderCancelledEvent
+    | RenderEngineProvisionEvent;
 
 export interface RenderSuccess {
     readonly ok: true;
@@ -403,7 +414,16 @@ export interface RenderOrchestratorOptions {
      */
     readonly hasConsent: () => boolean;
     /** Resolves exactly the requested engine; it must not substitute another one. */
-    readonly resolveEngine: (engine: RenderEngineId) => Promise<ResolvedEngine>;
+    readonly resolveEngine: (
+        engine: RenderEngineId,
+        signal?: AbortSignal,
+        onProgress?: (progress: {
+            readonly stage: string;
+            readonly message: string;
+            readonly received: number | null;
+            readonly total: number | null;
+        }) => void,
+    ) => Promise<ResolvedEngine>;
     /** Where a finished render is mounted for the viewer. */
     readonly mounts?: LocalMapHandler;
     /**
@@ -530,6 +550,7 @@ export class EngineUnavailableError extends Error {
 export class RenderOrchestrator {
     private readonly options: RenderOrchestratorOptions;
     private readonly running = new Map<string, RunningRender>();
+    private readonly pending = new Map<string, AbortController>();
 
     constructor(options: RenderOrchestratorOptions) {
         this.options = options;
@@ -543,7 +564,7 @@ export class RenderOrchestrator {
 
     /** Renders are keyed by id; this is what is in flight right now. */
     activeRenderIds(): string[] {
-        return [...this.running.keys()];
+        return [...new Set([...this.running.keys(), ...this.pending.keys()])];
     }
 
     /**
@@ -555,7 +576,12 @@ export class RenderOrchestrator {
      */
     cancel(renderId: string): boolean {
         const running = this.running.get(renderId);
-        if (running === undefined) return false;
+        if (running === undefined) {
+            const pending = this.pending.get(renderId);
+            if (pending === undefined) return false;
+            pending.abort();
+            return true;
+        }
         running.run.cancel();
         return true;
     }
@@ -817,6 +843,9 @@ export class RenderOrchestrator {
         if (this.running.has(renderId)) {
             return this.fail(renderId, failures.alreadyRunning(renderId), null);
         }
+        if (this.pending.has(renderId)) {
+            return this.fail(renderId, failures.alreadyRunning(renderId), null);
+        }
 
         for (const map of request.maps) {
             if (!(await isDirectory(map.world))) {
@@ -860,10 +889,29 @@ export class RenderOrchestrator {
             }
         }
 
+        const provisionAbort = new AbortController();
+        this.pending.set(renderId, provisionAbort);
         let engine: ResolvedEngine;
         try {
-            engine = await this.options.resolveEngine(requestedEngine);
+            engine = await this.options.resolveEngine(
+                requestedEngine,
+                provisionAbort.signal,
+                (progress) =>
+                    this.emit({
+                        type: "engine-provisioning",
+                        renderId,
+                        stage: progress.stage,
+                        message: progress.message,
+                        received: progress.received,
+                        total: progress.total,
+                        at: this.timestamp(),
+                    }),
+            );
         } catch (error) {
+            this.pending.delete(renderId);
+            if (provisionAbort.signal.aborted) {
+                return this.cancelledBeforeRun(renderId);
+            }
             const failure =
                 error instanceof EngineUnavailableError && error.reason === "jar"
                     ? failures.cliJarMissing(error.detail)
@@ -871,6 +919,10 @@ export class RenderOrchestrator {
                       ? failures.invalidRequest(error.detail)
                       : failures.javaUnavailable(describe(error));
             return this.fail(renderId, failure, null);
+        }
+        this.pending.delete(renderId);
+        if (provisionAbort.signal.aborted) {
+            return this.cancelledBeforeRun(renderId);
         }
 
         if (engine.engine !== requestedEngine) {
@@ -1421,6 +1473,12 @@ export class RenderOrchestrator {
     ): RenderFailureResult {
         this.emit({ type: "failed", renderId, failure, at: this.timestamp() });
         return { ok: false, renderId, failure, record };
+    }
+
+    private cancelledBeforeRun(renderId: string): RenderFailureResult {
+        const failure = failures.cancelled();
+        this.emit({ type: "cancelled", renderId, at: this.timestamp() });
+        return { ok: false, renderId, failure, record: null };
     }
 
     private emit(event: RenderEvent): void {

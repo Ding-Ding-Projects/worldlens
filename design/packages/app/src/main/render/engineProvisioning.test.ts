@@ -73,7 +73,7 @@ function zipFixture(): Buffer {
 
 const FIXTURE = zipFixture();
 const RELEASE: EngineRelease = {
-    version: "fixture",
+    version: "5.23",
     asset: "bluemap-fixture-cli.jar",
     sizeBytes: FIXTURE.length,
     sha256: createHash("sha256").update(FIXTURE).digest("hex"),
@@ -230,5 +230,80 @@ describe("managed upstream Java engine repair", () => {
         });
         expect(result?.source).toBe("bundled");
         expect(fixtureFetch.calls()).toBe(0);
+    });
+
+    it("keeps a valid local Gradle jar even when it differs from the official fallback asset", async () => {
+        const root = await mkdtemp(join(tmpdir(), "worldlens-engine-gradle-bundle-"));
+        const localAsset = "cli-5.23-shadow.jar";
+        await mkdir(join(root, "jars"), { recursive: true });
+        await writeFile(join(root, "jars", localAsset), FIXTURE);
+        await mkdir(join(root, "render-engines"), { recursive: true });
+        await writeFile(
+            join(root, "render-engines", "manifest.json"),
+            JSON.stringify({
+                manifestVersion: 1,
+                engines: {
+                    "upstream-java": {
+                        available: true,
+                        version: "5.23",
+                        jar: {
+                            fileName: localAsset,
+                            size: FIXTURE.length,
+                            sha256: RELEASE.sha256,
+                            source: "gradle",
+                        },
+                    },
+                },
+            }),
+        );
+        expect(await packagedUpstreamJavaIsUsable(root, RELEASE)).toBe(true);
+        const fixtureFetch = fetchFixture(Buffer.from("must not download"));
+        const result = await ensureManagedUpstreamJava({
+            dataDir: root,
+            resourcesPath: root,
+            release: RELEASE,
+            fetchBinary: fixtureFetch.fetchBinary,
+        });
+        expect(result).toMatchObject({
+            source: "bundled",
+            jarPath: null,
+            version: "5.23",
+            reused: true,
+        });
+        expect(fixtureFetch.calls()).toBe(0);
+    });
+
+    it("repairs when the bundled manifest points at malformed bytes", async () => {
+        const root = await mkdtemp(join(tmpdir(), "worldlens-engine-invalid-bundle-"));
+        await mkdir(join(root, "jars"), { recursive: true });
+        await writeFile(join(root, "jars", "cli-5.23-shadow.jar"), Buffer.from("not a jar"));
+        await mkdir(join(root, "render-engines"), { recursive: true });
+        await writeFile(
+            join(root, "render-engines", "manifest.json"),
+            JSON.stringify({
+                manifestVersion: 1,
+                engines: {
+                    "upstream-java": {
+                        available: true,
+                        version: "5.23",
+                        jar: {
+                            fileName: "cli-5.23-shadow.jar",
+                            size: 9,
+                            sha256: RELEASE.sha256,
+                            source: "gradle",
+                        },
+                    },
+                },
+            }),
+        );
+        const fixtureFetch = fetchFixture();
+        const result = await ensureManagedUpstreamJava({
+            dataDir: root,
+            resourcesPath: root,
+            release: RELEASE,
+            fetchBinary: fixtureFetch.fetchBinary,
+        });
+        expect(result?.source).toBe("managed");
+        expect(fixtureFetch.calls()).toBe(1);
     });
 });
