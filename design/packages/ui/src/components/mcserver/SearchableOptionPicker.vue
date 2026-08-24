@@ -81,15 +81,15 @@ function choose(option: SearchablePickerOption): void {
                     v-model:regex="useRegex"
                     v-model:flags="flags"
                     :label="t('mcserver.picker.search', 'Search options')"
-                    :sample="sample"
+                    :sample="sample ?? ''"
                 />
                 <VList v-if="visible.length > 0" role="listbox" :aria-label="label">
                     <VListItem
                         v-for="option in visible"
                         :key="option.value"
                         :title="option.title"
-                        :subtitle="option.subtitle"
-                        :disabled="option.disabled"
+                        :subtitle="option.subtitle ?? ''"
+                        :disabled="option.disabled ?? false"
                         :aria-selected="option.value === modelValue"
                         @click="choose(option)"
                     />

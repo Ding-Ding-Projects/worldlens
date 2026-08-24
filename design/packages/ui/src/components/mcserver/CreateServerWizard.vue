@@ -560,6 +560,7 @@ async function create(): Promise<void> {
     createFailure.value = null;
 
     if (store.hasCreate) {
+        const loaderVersion = modLoaderVersion.value.trim();
         const result = await store.createServer({
             id: serverId.value,
             name: serverName.value,
@@ -568,9 +569,9 @@ async function create(): Promise<void> {
             memoryMb: memoryMb.value,
             acceptedEula: eulaAccepted.value,
             provisionJavaIfMissing: true,
-            ...(isModLoader.value
+            ...(isModLoader.value && loaderVersion !== ""
                 ? {
-                      loaderVersion: modLoaderVersion.value.trim() || undefined,
+                      loaderVersion,
                       modsDirectory: modsDirectory.value.trim() || DEFAULT_MODS_DIRECTORY,
                       preinstallApiLibraries: [...preinstallApiLibraries.value],
                   }

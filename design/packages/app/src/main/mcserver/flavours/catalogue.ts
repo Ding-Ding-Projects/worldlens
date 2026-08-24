@@ -744,7 +744,7 @@ export async function refreshCatalogue(
             return {
                 ...previousEntry,
                 stale: true,
-                lastFetchedAt: previous?.fetchedAt,
+                ...(previous?.fetchedAt === undefined ? {} : { lastFetchedAt: previous.fetchedAt }),
                 ...(failure === undefined ? {} : { failure }),
             };
         }

@@ -88,6 +88,8 @@ export interface CatalogueVersionEntry {
     readonly releasedAt: string | null;
     /** The main boundary's latest article check, or an honest offline-unverified state. */
     readonly wikiState?: WikiArticleState;
+    readonly availability?: "available" | "missing-server-artifact";
+    readonly availabilityReason?: string;
 }
 
 export interface CatalogueFlavour {
@@ -488,7 +490,7 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             // would find out only when the server was written somewhere unexpected.
             if (host === null || host.suggestFolder === undefined) return null;
             const result = await host.suggestFolder(name);
-            return result.ok ? result.value : null;
+            return result.ok ? (result.value ?? null) : null;
         },
 
         async forget(id): Promise<Answer<void>> {
