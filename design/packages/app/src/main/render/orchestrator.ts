@@ -550,7 +550,10 @@ export class EngineUnavailableError extends Error {
 export class RenderOrchestrator {
     private readonly options: RenderOrchestratorOptions;
     private readonly running = new Map<string, RunningRender>();
-    private readonly pending = new Map<string, AbortController>();
+    private readonly pending = new Map<
+        string,
+        { readonly controller: AbortController; visible: boolean }
+    >();
 
     constructor(options: RenderOrchestratorOptions) {
         this.options = options;
@@ -564,7 +567,14 @@ export class RenderOrchestrator {
 
     /** Renders are keyed by id; this is what is in flight right now. */
     activeRenderIds(): string[] {
-        return [...this.running.keys()];
+        return [
+            ...new Set([
+                ...this.running.keys(),
+                ...[...this.pending.entries()]
+                    .filter(([, pending]) => pending.visible)
+                    .map(([id]) => id),
+            ]),
+        ];
     }
 
     /**
@@ -579,7 +589,7 @@ export class RenderOrchestrator {
         if (running === undefined) {
             const pending = this.pending.get(renderId);
             if (pending === undefined) return false;
-            pending.abort();
+            pending.controller.abort();
             return true;
         }
         running.run.cancel();
@@ -890,13 +900,15 @@ export class RenderOrchestrator {
         }
 
         const provisionAbort = new AbortController();
-        this.pending.set(renderId, provisionAbort);
+        const pendingRender = { controller: provisionAbort, visible: false };
+        this.pending.set(renderId, pendingRender);
         let engine: ResolvedEngine;
         try {
             engine = await this.options.resolveEngine(
                 requestedEngine,
                 provisionAbort.signal,
-                (progress) =>
+                (progress) => {
+                    pendingRender.visible = true;
                     this.emit({
                         type: "engine-provisioning",
                         renderId,
@@ -905,7 +917,8 @@ export class RenderOrchestrator {
                         received: progress.received,
                         total: progress.total,
                         at: this.timestamp(),
-                    }),
+                    });
+                },
             );
         } catch (error) {
             this.pending.delete(renderId);

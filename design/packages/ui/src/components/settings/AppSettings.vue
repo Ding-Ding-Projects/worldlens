@@ -930,6 +930,7 @@ function onDrawer(value: boolean): void {
                             :render-engine-version="java.renderEngineVersion.value"
                             :render-engine-source="java.renderEngineSource.value"
                             :render-engine-reason="java.renderEngineReason.value"
+                            :render-engine-path="java.renderEnginePath.value"
                         />
                     </SettingsSection>
                 </template>

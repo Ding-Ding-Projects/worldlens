@@ -74,6 +74,7 @@ export interface JavaSetting {
     readonly renderEngineVersion: ComputedRef<string | null>;
     readonly renderEngineSource: ComputedRef<string | null>;
     readonly renderEngineReason: ComputedRef<string | null>;
+    readonly renderEnginePath: ComputedRef<string | null>;
 
     load(): Promise<void>;
 
@@ -187,6 +188,9 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
     );
     const renderEngineReason = computed<string | null>(
         () => report.value?.renderEngine?.reason ?? null,
+    );
+    const renderEnginePath = computed<string | null>(
+        () => report.value?.renderEngine?.path ?? null,
     );
 
     async function loadRenders(): Promise<void> {
@@ -319,6 +323,7 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
         renderEngineVersion,
         renderEngineSource,
         renderEngineReason,
+        renderEnginePath,
         load,
         canProvision,
         consent,

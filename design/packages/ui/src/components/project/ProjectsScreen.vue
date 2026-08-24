@@ -124,6 +124,7 @@ const javaAvailable = computed<boolean | null>(() => {
 });
 const renderEngineAvailable = computed<boolean | null>(() => java.renderEngineAvailable.value);
 const renderEngineReason = computed<string | null>(() => java.renderEngineReason.value);
+const renderEnginePath = computed<string | null>(() => java.renderEnginePath.value);
 
 const host = props.host === undefined ? resolveProjectHost() : props.host;
 const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
@@ -911,6 +912,7 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :java-version="java.report.value?.installation?.version.version ?? null"
             :render-engine-available="renderEngineAvailable"
             :render-engine-reason="renderEngineReason"
+            :render-engine-path="renderEnginePath"
             :separator="separator"
             :default-root="defaultRoot"
             @update:project="(value) => (openProject = value)"

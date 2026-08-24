@@ -197,6 +197,44 @@ describe("managed upstream Java engine repair", () => {
         expect(secondProgress).toContain("downloading");
     });
 
+    it("aborts the underlying transfer only after every waiter cancels", async () => {
+        const dataDir = await mkdtemp(join(tmpdir(), "worldlens-engine-all-cancel-"));
+        const firstController = new AbortController();
+        const secondController = new AbortController();
+        let underlyingSignal: AbortSignal | undefined;
+        const fetchBinary = async (_url: string, init: { readonly signal?: AbortSignal }) => {
+            underlyingSignal = init.signal;
+            return {
+                ok: true,
+                status: 200,
+                headers: { get: () => String(FIXTURE.length) },
+                body: (async function* () {
+                    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+                    yield FIXTURE;
+                })(),
+            };
+        };
+        const first = ensureManagedUpstreamJava({
+            dataDir,
+            release: RELEASE,
+            fetchBinary,
+            signal: firstController.signal,
+        });
+        const second = ensureManagedUpstreamJava({
+            dataDir,
+            release: RELEASE,
+            fetchBinary,
+            signal: secondController.signal,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        firstController.abort();
+        expect(underlyingSignal?.aborted).toBe(false);
+        secondController.abort();
+        await expect(first).rejects.toThrow(/cancelled/i);
+        await expect(second).rejects.toThrow(/cancelled/i);
+        expect(underlyingSignal?.aborted).toBe(true);
+    });
+
     it("cancels without publishing a temporary or final jar", async () => {
         const dataDir = await mkdtemp(join(tmpdir(), "worldlens-engine-cancel-"));
         const controller = new AbortController();

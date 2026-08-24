@@ -86,6 +86,7 @@ export interface RenderEngineRuntimeSummary {
     readonly version: string | null;
     readonly source: "bundled" | "staged" | "gradle" | "managed" | null;
     readonly reason: string | null;
+    readonly path: string | null;
 }
 
 /**

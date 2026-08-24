@@ -791,6 +791,7 @@ describe("cancellation", () => {
 
         const pending = orchestrator.render(request({ renderId: "engine-repair" }));
         await waitUntil(() => events.some((event) => event.type === "engine-provisioning"));
+        expect(orchestrator.activeRenderIds()).toEqual(["engine-repair"]);
         expect(orchestrator.cancel("engine-repair")).toBe(true);
         const result = await pending;
 

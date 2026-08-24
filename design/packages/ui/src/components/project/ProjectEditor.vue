@@ -134,6 +134,7 @@ const props = withDefaults(
         javaVersion?: string | null;
         renderEngineAvailable?: boolean | null;
         renderEngineReason?: string | null;
+        renderEnginePath?: string | null;
         separator?: string;
         /** Where the app writes renders, used as the root of a new file storage. */
         defaultRoot?: string;
@@ -156,6 +157,7 @@ const props = withDefaults(
         javaVersion: null,
         renderEngineAvailable: null,
         renderEngineReason: null,
+        renderEnginePath: null,
         separator: "/",
         defaultRoot: "",
     },
@@ -1461,6 +1463,7 @@ const renderButtonLabel = computed(() =>
                                     :java-version="props.javaVersion"
                                     :render-engine-available="props.renderEngineAvailable"
                                     :render-engine-reason="props.renderEngineReason"
+                                    :render-engine-path="props.renderEnginePath"
                                     :project-engine="project.render.engine"
                                     @update:project-engine="setRenderEngine"
                                 />

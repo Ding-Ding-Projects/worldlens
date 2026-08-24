@@ -33,6 +33,7 @@ const props = withDefaults(
         renderEngineVersion?: string | null;
         renderEngineSource?: string | null;
         renderEngineReason?: string | null;
+        renderEnginePath?: string | null;
     }>(),
     {
         projectKey: null,
@@ -44,6 +45,7 @@ const props = withDefaults(
         renderEngineVersion: null,
         renderEngineSource: null,
         renderEngineReason: null,
+        renderEnginePath: null,
     },
 );
 
@@ -383,6 +385,20 @@ function descriptorText(descriptor: (typeof RENDER_ENGINE_DESCRIPTORS)[number]):
             <div>
                 <dt>{{ t("settings.engineChoice.provenance", "Provenance") }}</dt>
                 <dd>{{ resolvedDescriptor.provenance }}</dd>
+            </div>
+            <div v-if="props.renderEngineSource !== null">
+                <dt>{{ t("settings.engineChoice.source", "Verified source") }}</dt>
+                <dd>{{ props.renderEngineSource }}</dd>
+            </div>
+            <div v-if="props.renderEngineVersion !== null">
+                <dt>
+                    {{ t("settings.engineChoice.artifactVersion", "Verified artifact version") }}
+                </dt>
+                <dd>{{ props.renderEngineVersion }}</dd>
+            </div>
+            <div v-if="props.renderEnginePath !== null">
+                <dt>{{ t("settings.engineChoice.artifactPath", "Verified artifact path") }}</dt>
+                <dd class="mb-engine-choice__path">{{ props.renderEnginePath }}</dd>
             </div>
         </dl>
 

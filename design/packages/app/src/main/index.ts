@@ -833,25 +833,43 @@ function startJavaDiscovery(): JavaIpc {
                         managed.source === "managed" &&
                         (await verifyManagedUpstreamJava(app.getPath("userData")));
                     return {
-                        available: verifiedManaged,
-                        version: verifiedManaged ? managed.version : null,
-                        source: verifiedManaged ? "managed" : null,
-                        reason: verifiedManaged
-                            ? "The packaged jar needs repair; a verified managed copy is ready."
-                            : "The packaged BlueMap jar is missing or malformed.",
+                        available: verifiedManaged !== false && verifiedManaged !== null,
+                        version:
+                            verifiedManaged !== false && verifiedManaged !== null
+                                ? verifiedManaged.version
+                                : null,
+                        source:
+                            verifiedManaged !== false && verifiedManaged !== null
+                                ? verifiedManaged.source
+                                : null,
+                        reason:
+                            verifiedManaged !== false && verifiedManaged !== null
+                                ? "The packaged jar needs repair; a verified managed copy is ready."
+                                : "The packaged BlueMap jar is missing or malformed.",
+                        path:
+                            verifiedManaged !== false && verifiedManaged !== null
+                                ? verifiedManaged.path
+                                : null,
                     };
                 }
                 const jar = resolveCliJar({
                     resourcesPath: app.isPackaged ? process.resourcesPath : null,
                     dataDir: app.getPath("userData"),
                 });
-                return { available: true, version: jar.version, source: jar.source, reason: null };
+                return {
+                    available: true,
+                    version: jar.version,
+                    source: jar.source,
+                    reason: null,
+                    path: jar.path,
+                };
             } catch (error) {
                 return {
                     available: false,
                     version: null,
                     source: null,
                     reason: error instanceof Error ? error.message : String(error),
+                    path: null,
                 };
             }
         },

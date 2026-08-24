@@ -58,6 +58,14 @@ export interface EngineProvisionResult {
     readonly reused: boolean;
 }
 
+export interface VerifiedManagedEngine {
+    readonly path: string;
+    readonly version: string;
+    readonly size: number;
+    readonly sha256: string;
+    readonly source: "managed";
+}
+
 interface EngineFlight {
     readonly controller: AbortController;
     readonly listeners: Set<(progress: EngineProvisionProgress) => void>;
@@ -79,8 +87,17 @@ export function managedUpstreamJavaJar(
 export async function verifyManagedUpstreamJava(
     dataDir: string,
     release: EngineRelease = PINNED_UPSTREAM_JAVA,
-): Promise<boolean> {
-    return verifyJar(managedUpstreamJavaJar(dataDir, release), release);
+): Promise<VerifiedManagedEngine | null> {
+    const path = managedUpstreamJavaJar(dataDir, release);
+    if (!(await verifyJar(path, release))) return null;
+    const info = await stat(path);
+    return {
+        path,
+        version: release.version,
+        size: info.size,
+        sha256: release.sha256,
+        source: "managed",
+    };
 }
 
 /**
@@ -168,9 +185,17 @@ function attachFlight(
         flight.waiters += 1;
         const listener = options.onProgress === undefined ? null : options.onProgress;
         if (listener !== null) flight.listeners.add(listener);
-        const abort = (): void => {
+        let settled = false;
+        const finish = (): void => {
+            if (settled) return;
+            settled = true;
+            flight.waiters -= 1;
             if (listener !== null) flight.listeners.delete(listener);
-            if (flight.waiters === 1) flight.controller.abort();
+            options.signal?.removeEventListener("abort", abort);
+        };
+        const abort = (): void => {
+            finish();
+            if (flight.waiters === 0) flight.controller.abort();
             reject(new Error("engine provisioning was cancelled"));
         };
         if (options.signal?.aborted === true) {
@@ -178,11 +203,7 @@ function attachFlight(
             return;
         }
         options.signal?.addEventListener("abort", abort, { once: true });
-        flight.promise.then(resolve, reject).finally(() => {
-            if (listener !== null) flight.listeners.delete(listener);
-            flight.waiters -= 1;
-            options.signal?.removeEventListener("abort", abort);
-        });
+        flight.promise.then(resolve, reject).finally(finish);
     });
 }
 
