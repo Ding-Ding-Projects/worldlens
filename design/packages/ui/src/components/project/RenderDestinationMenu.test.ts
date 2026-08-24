@@ -97,6 +97,18 @@ describe("RenderDestinationMenu", () => {
         expect(wrapper.emitted("choose")).toBeUndefined();
     });
 
+    it("keeps SSH setup reachable before target and preflight, while not claiming render readiness", () => {
+        const wrapper = render({ hasRemoteTarget: false, remotePreflightPassed: false });
+        const vm = wrapper.vm as unknown as {
+            choose: (id: string) => void;
+            items: readonly { id: string; disabled?: boolean; reason?: string }[];
+        };
+        const remote = vm.items.find((item) => item.id === "remote");
+        expect(remote?.disabled).toBe(false);
+        vm.choose("remote");
+        expect(wrapper.emitted("choose")?.[0]).toEqual(["remote"]);
+    });
+
     it("keeps import and publish visible with truthful disabled reasons", async () => {
         const wrapper = render({ canImportProject: false, canPublishExisting: false });
         const vm = wrapper.vm as unknown as {

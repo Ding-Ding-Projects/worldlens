@@ -403,6 +403,40 @@ describe("the discovered-worlds panel, wired into the tab", () => {
 });
 
 describe("the saved render route", () => {
+    it("turning Pages off clears the local enablement state without removing the published site", async () => {
+        const folder = "/home/ada/.minecraft/saves/Bastion";
+        const project = withRender(
+            withMapAdded(createProject("Bastion"), {
+                id: "overworld",
+                name: "Overworld",
+                dimension: "minecraft:overworld",
+                world: folder,
+            }),
+            { hosting: "github-pages" },
+        );
+        const host: ProjectHost = {
+            ...fakeHost(),
+            readProject: async () => ({
+                ok: true as const,
+                file: `${folder}/worldlens.project.json`,
+                project,
+            }),
+        };
+        const view = screen(host, null, { openWorld: folder });
+        await flushPromises();
+        const editor = view.findComponent(ProjectEditor);
+        await editor
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
+        await flushPromises();
+        editor.find(".mb-project-editor__pages-toggle").findComponent({ name: "VSwitch" }).vm.$emit("update:modelValue", false);
+        await flushPromises();
+        expect((editor.props("project") as ProjectFile).render.hosting).toBe("local");
+        expect(view.emitted("publishExisting")).toBeUndefined();
+        view.unmount();
+    });
+
     it("opens the GitHub Actions renderer instead of starting a local engine", async () => {
         const folder = "/home/ada/.minecraft/saves/Bastion";
         const project = withRender(

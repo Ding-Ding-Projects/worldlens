@@ -1281,7 +1281,8 @@ const renderButtonLabel = computed(() =>
                 <RenderDestinationMenu
                     :label="renderButtonLabel"
                     :location="renderLocationValue"
-                    :disabled="!canStart"
+                    :main-disabled="!canStart"
+                    :disabled="isRendering"
                     :rendering="isRendering"
                     :can-render-locally="renderable"
                     :can-render-in-docker="props.canRenderInDocker"

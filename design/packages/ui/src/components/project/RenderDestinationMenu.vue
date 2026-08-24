@@ -26,6 +26,9 @@ const props = withDefaults(
         importReason?: string;
         publishReason?: string;
         rendering?: boolean;
+        /** Disables only the primary render action. The chooser remains usable. */
+        mainDisabled?: boolean;
+        /** Disables the chooser itself, reserved for an active render. */
         disabled?: boolean;
         label?: string;
     }>(),
@@ -42,6 +45,7 @@ const props = withDefaults(
         importReason: "Importing a project needs a desktop file picker and a verified project host.",
         publishReason: "No verified finished render is available to publish yet.",
         rendering: false,
+        mainDisabled: false,
         disabled: false,
         label: "Render",
     },
@@ -55,6 +59,7 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const open = ref(false);
 const isDisabled = computed(() => props.disabled === true || props.rendering === true);
+const isMainDisabled = computed(() => props.mainDisabled === true || props.rendering === true);
 const isRendering = computed(() => props.rendering === true);
 
 const items = computed<readonly MenuSearchItem[]>(() => [
@@ -80,11 +85,11 @@ const items = computed<readonly MenuSearchItem[]>(() => [
     {
         id: "remote",
         label: t("project.destination.remote", "SSH remote machine"),
-        disabled: !props.canRenderRemotely || !props.hasRemoteTarget || !props.remotePreflightPassed,
+        disabled: !props.canRenderRemotely,
         reason:
             !props.canRenderRemotely
                 ? t("project.destination.remoteBridge", "The SSH render bridge is not available.")
-                : !props.hasRemoteTarget
+            : !props.hasRemoteTarget
                   ? t("project.destination.remoteTarget", "Add and select a remote machine first.")
                   : !props.remotePreflightPassed
                     ? t(
@@ -140,7 +145,7 @@ defineExpose({ open, items, choose });
         <v-btn-group divided :disabled="isDisabled" color="primary" variant="tonal">
             <v-btn
                 :prepend-icon="mdiPlay"
-                :disabled="isDisabled"
+                :disabled="isMainDisabled"
                 :loading="isRendering"
                 class="mb-render-destination__main"
                 data-render-destination-main

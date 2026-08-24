@@ -757,7 +757,7 @@ describe("the render location", () => {
         pagesSwitch.vm.$emit("update:modelValue", true);
         await flushPromises();
         expect(wrapper.emitted("pages-toggle")?.[0]).toEqual([true]);
-        expect((wrapper.props().project as ProjectFile).render.hosting).toBeUndefined();
+        expect(wrapper.emitted("update:project")).toBeUndefined();
         wrapper.unmount();
     });
 });

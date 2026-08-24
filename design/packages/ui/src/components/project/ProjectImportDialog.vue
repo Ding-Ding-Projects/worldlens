@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArchiveOutline, mdiFolderOpenOutline, mdiFileDocumentOutline } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VDivider, VProgressLinear, VSpacer } from "vuetify/components";
@@ -23,6 +23,8 @@ const { t } = useI18n();
 const busy = ref(false);
 const failure = ref<string | null>(null);
 const selectedPath = ref<string | null>(null);
+const sshPanel = ref<InstanceType<typeof SshWorldSourcePanel> | null>(null);
+const activeTransfer = computed(() => sshPanel.value?.fetching === true);
 
 function folderFromFile(file: string): string | null {
     const slash = Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\"));
@@ -73,11 +75,25 @@ function importedFromSsh(world: string): void {
     void validateAndUse(world);
 }
 
-defineExpose({ pickFolder, pickProjectFile, validateAndUse, busy, failure });
+function requestClose(): void {
+    if (activeTransfer.value) return;
+    emit("close");
+}
+
+async function cancelTransferAndClose(): Promise<void> {
+    if (!activeTransfer.value) {
+        emit("close");
+        return;
+    }
+    await sshPanel.value?.cancelFetch();
+    if (!activeTransfer.value) emit("close");
+}
+
+defineExpose({ pickFolder, pickProjectFile, validateAndUse, cancelTransferAndClose, busy, failure, activeTransfer });
 </script>
 
 <template>
-    <v-dialog :model-value="true" max-width="760" scrollable @update:model-value="emit('close')">
+    <v-dialog :model-value="true" :persistent="activeTransfer" max-width="760" scrollable @update:model-value="requestClose">
         <v-card class="mb-project-import" data-project-import>
             <v-card-title>{{ t("project.import.title", "Import a rendering project") }}</v-card-title>
             <v-card-text>
@@ -107,7 +123,7 @@ defineExpose({ pickFolder, pickProjectFile, validateAndUse, busy, failure });
 
                 <section class="mb-project-import__section" aria-labelledby="project-import-ssh">
                     <h3 id="project-import-ssh">{{ t("project.import.sshTitle", "SSH remote machine") }}</h3>
-                    <SshWorldSourcePanel :remote-bridge="remoteBridge" @use="importedFromSsh" />
+                    <SshWorldSourcePanel ref="sshPanel" :remote-bridge="remoteBridge" @use="importedFromSsh" />
                 </section>
 
                 <section class="mb-project-import__section" aria-labelledby="project-import-archive">
@@ -123,7 +139,9 @@ defineExpose({ pickFolder, pickProjectFile, validateAndUse, busy, failure });
             <v-divider />
             <v-card-actions>
                 <v-spacer />
-                <v-btn variant="text" @click="emit('close')">{{ t("project.import.cancel", "Cancel") }}</v-btn>
+                <v-btn variant="text" :disabled="busy && !activeTransfer" @click="cancelTransferAndClose">
+                    {{ activeTransfer ? t("project.import.cancelTransfer", "Cancel transfer and close") : t("project.import.cancel", "Cancel") }}
+                </v-btn>
             </v-card-actions>
         </v-card>
     </v-dialog>

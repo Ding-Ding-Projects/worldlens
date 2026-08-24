@@ -350,6 +350,7 @@ defineExpose({
     localParent,
     survey,
     fetchId,
+    fetching,
     fetchLines,
     chooseTarget,
     chooseRemoteFolder,

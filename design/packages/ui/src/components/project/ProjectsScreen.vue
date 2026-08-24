@@ -165,10 +165,13 @@ provideSettingsOpener((target) => emit("settings", target));
 const renderLocation = ref<RunLocation>("local");
 const renderTarget = ref<RemoteTarget | null>(null);
 const remotePreflightPassed = ref(false);
+const preflightTargetId = ref<string | null>(null);
+const preflightContextKey = ref<string | null>(null);
 const renderModes = ref<readonly string[]>(["local"]);
 const importOpen = ref(false);
 const projectPagesState = ref<ProjectPagesState>("off");
 const pagesFailure = ref<string | null>(null);
+const verifiedRenders = ref<Record<string, { world: string; projectId: string; renderId: string; projectSnapshot: string }>>({});
 
 async function loadRenderModes(): Promise<void> {
     if (runtime === null) return;
@@ -292,6 +295,33 @@ const dirty = computed(
         openProject.value !== null &&
         (savedProject.value === null ||
             serializeProjectFile(openProject.value) !== serializeProjectFile(savedProject.value)),
+);
+
+const renderContextKey = computed(() =>
+    openWorld.value === null || openProject.value === null
+        ? null
+        : `${openWorld.value}\0${openProject.value.id}`,
+);
+const currentVerifiedRender = computed(() => {
+    if (renderContextKey.value === null || openProject.value === null) return null;
+    const record = verifiedRenders.value[renderContextKey.value];
+    return record !== undefined && record.projectSnapshot === serializeProjectFile(openProject.value)
+        ? record
+        : null;
+});
+
+function resetRenderDestination(): void {
+    renderLocation.value = "local";
+    renderTarget.value = null;
+    remotePreflightPassed.value = false;
+    preflightTargetId.value = null;
+    preflightContextKey.value = null;
+}
+
+watch(
+    [openWorld, () => openProject.value?.id ?? null],
+    () => resetRenderDestination(),
+    { flush: "sync" },
 );
 
 /**
@@ -725,7 +755,9 @@ function chooseDestination(destination: RenderDestinationId): void {
         case "publish-existing":
             projectPagesState.value = "pending";
             pagesFailure.value = null;
-            if (openWorld.value !== null) emit("publishExisting", openWorld.value, null);
+            if (openWorld.value !== null && currentVerifiedRender.value !== null) {
+                emit("publishExisting", openWorld.value, currentVerifiedRender.value.renderId);
+            }
             return;
     }
 }
@@ -872,7 +904,11 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
     }
     if (
         renderLocation.value === "remote" &&
-        (remote === null || renderTarget.value === null || !remotePreflightPassed.value)
+        (remote === null ||
+            renderTarget.value === null ||
+            !remotePreflightPassed.value ||
+            preflightTargetId.value !== renderTarget.value.id ||
+            preflightContextKey.value !== renderContextKey.value)
     ) {
         raiseNotice(
             "warning",
@@ -914,6 +950,17 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
     }
 
     const result = await run.start(projectToRenderRequest(project, world));
+    if (result?.ok === true) {
+        verifiedRenders.value = {
+            ...verifiedRenders.value,
+            [`${world}\0${project.id}`]: {
+                world,
+                projectId: project.id,
+                renderId: result.renderId,
+                projectSnapshot: serializeProjectFile(project),
+            },
+        };
+    }
     if (result === null && run.failure.value === null) {
         raiseNotice(
             "error",
@@ -1029,19 +1076,36 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :remote-preflight-passed="remotePreflightPassed"
             :can-open-ci="props.canOpenCi ?? false"
             :can-import-project="host !== null && configHost !== null"
-            :can-publish-existing="false"
+            :can-publish-existing="currentVerifiedRender !== null"
             :pages-state="props.pagesState ?? projectPagesState"
             :pages-failure="pagesFailure"
             @update:project="(value) => (openProject = value)"
             @update:render-location="(value: RunLocation) => (renderLocation = value)"
-            @update:render-target="(value: RemoteTarget | null) => (renderTarget = value)"
-            @update:render-preflight="(value: boolean) => (remotePreflightPassed = value)"
+            @update:render-target="(value: RemoteTarget | null) => {
+                renderTarget = value
+                remotePreflightPassed = false
+                preflightTargetId = null
+                preflightContextKey = null
+            }"
+            @update:render-preflight="(value: boolean) => {
+                remotePreflightPassed = value
+                preflightTargetId = value ? renderTarget?.id ?? null : null
+                preflightContextKey = value ? renderContextKey : null
+            }"
             @destination="chooseDestination"
             @pages-toggle="(enabled: boolean) => {
                 if (enabled) {
-                    projectPagesState = 'pending'
+                    if (currentVerifiedRender === null) {
+                        projectPagesState = 'failed'
+                        pagesFailure = 'Pages setup needs a verified finished render for this project first.'
+                    } else {
+                        projectPagesState = 'pending'
+                        pagesFailure = null
+                        if (openWorld !== null) emit('publishExisting', openWorld, currentVerifiedRender.renderId)
+                    }
+                } else {
+                    projectPagesState = 'off'
                     pagesFailure = null
-                    if (openWorld !== null) emit('publishExisting', openWorld, null)
                 }
             }"
             @save="save"
