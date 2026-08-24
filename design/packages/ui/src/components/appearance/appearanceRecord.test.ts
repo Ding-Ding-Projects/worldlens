@@ -120,6 +120,17 @@ describe("reset", () => {
 });
 
 describe("turning an appearance into CSS", () => {
+    it("resolves chrome metadata and state layers without losing unknown values", () => {
+        const record = recordWithState();
+        const resolved = resolveRecords(record);
+        expect(resolved.surface.shape).toBe("pill");
+        expect(resolved.surface.icon.name).toBe("star");
+        const hover = appearanceStyle(resolved, CAPABILITIES, undefined, "hover");
+        expect(hover.style["border-radius"]).toBe("20px");
+        expect(hover.style["--appearance-gap"]).toBe("8px");
+        expect(resolveRecords(record).states.hover?.preserved).toEqual({ future: "kept" });
+    });
+
     it("emits the typography and the surface together", () => {
         const style = appearanceStyle(
             resolveRecords(
@@ -232,3 +243,19 @@ describe("turning an appearance into CSS", () => {
         expect(style.notes.some((note) => note.code === "decoration-style-conflict")).toBe(true);
     });
 });
+
+function recordWithState(): AppearanceRecord {
+    return record({
+        surface: {
+            icon: { name: "star", color: "gold", size: 20, opacity: 1 },
+            shape: "pill",
+            borderRadius: 12,
+        },
+        states: {
+            hover: {
+                surface: { borderRadius: 20, gap: 8 },
+                preserved: { future: "kept" },
+            },
+        },
+    });
+}

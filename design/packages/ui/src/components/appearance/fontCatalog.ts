@@ -26,8 +26,17 @@
  */
 export type FontGeneric = "sans-serif" | "serif" | "monospace";
 
+export interface FontAxisMetadata {
+    tag: string;
+    min: number;
+    max: number;
+    defaultValue: number;
+}
+
 export interface FontFamily {
     family: string;
+    /** Stable identity, preferring the platform's PostScript name over display text. */
+    stableId?: string;
     /**
      * `"bundled"` means the app can count on this family being available. For the two
      * `@fontsource` packages that is literally true — the files ship inside the application.
@@ -41,6 +50,10 @@ export interface FontFamily {
     /** True when the family can draw CJK text. */
     cjk: boolean;
     generic?: FontGeneric;
+    /** Axis ranges reported by the platform, when its API exposes them. */
+    axes?: readonly FontAxisMetadata[];
+    /** Installed styles seen for this family, retained for an honest picker preview. */
+    styles?: readonly string[];
 }
 
 const LATIN_SAMPLE = "The quick brown fox";
@@ -65,27 +78,129 @@ const KOREAN_SAMPLE = "한국어 샘플 Sample";
  * left with whatever the browser's default happens to be.
  */
 export const BUNDLED_FONTS: readonly FontFamily[] = [
-    { family: "Roboto", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "sans-serif" },
-    { family: "Roboto Mono", source: "bundled", sample: MONO_SAMPLE, cjk: false, generic: "monospace" },
-    { family: "Segoe UI", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "sans-serif" },
+    {
+        family: "Roboto",
+        source: "bundled",
+        sample: LATIN_SAMPLE,
+        cjk: false,
+        generic: "sans-serif",
+    },
+    {
+        family: "Roboto Mono",
+        source: "bundled",
+        sample: MONO_SAMPLE,
+        cjk: false,
+        generic: "monospace",
+    },
+    {
+        family: "Segoe UI",
+        source: "bundled",
+        sample: LATIN_SAMPLE,
+        cjk: false,
+        generic: "sans-serif",
+    },
     { family: "Arial", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "sans-serif" },
-    { family: "Calibri", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "sans-serif" },
-    { family: "Tahoma", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "sans-serif" },
-    { family: "Verdana", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "sans-serif" },
+    {
+        family: "Calibri",
+        source: "bundled",
+        sample: LATIN_SAMPLE,
+        cjk: false,
+        generic: "sans-serif",
+    },
+    {
+        family: "Tahoma",
+        source: "bundled",
+        sample: LATIN_SAMPLE,
+        cjk: false,
+        generic: "sans-serif",
+    },
+    {
+        family: "Verdana",
+        source: "bundled",
+        sample: LATIN_SAMPLE,
+        cjk: false,
+        generic: "sans-serif",
+    },
     { family: "Georgia", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "serif" },
     { family: "Cambria", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "serif" },
-    { family: "Times New Roman", source: "bundled", sample: LATIN_SAMPLE, cjk: false, generic: "serif" },
-    { family: "Consolas", source: "bundled", sample: MONO_SAMPLE, cjk: false, generic: "monospace" },
-    { family: "Courier New", source: "bundled", sample: MONO_SAMPLE, cjk: false, generic: "monospace" },
-    { family: "Cascadia Code", source: "bundled", sample: MONO_SAMPLE, cjk: false, generic: "monospace" },
-    { family: "Microsoft YaHei", source: "bundled", sample: SIMPLIFIED_SAMPLE, cjk: true, generic: "sans-serif" },
-    { family: "Microsoft JhengHei", source: "bundled", sample: TRADITIONAL_SAMPLE, cjk: true, generic: "sans-serif" },
-    { family: "Yu Gothic", source: "bundled", sample: JAPANESE_SAMPLE, cjk: true, generic: "sans-serif" },
-    { family: "Malgun Gothic", source: "bundled", sample: KOREAN_SAMPLE, cjk: true, generic: "sans-serif" },
-    { family: "Noto Sans CJK SC", source: "bundled", sample: SIMPLIFIED_SAMPLE, cjk: true, generic: "sans-serif" },
-    { family: "Noto Sans CJK TC", source: "bundled", sample: TRADITIONAL_SAMPLE, cjk: true, generic: "sans-serif" },
+    {
+        family: "Times New Roman",
+        source: "bundled",
+        sample: LATIN_SAMPLE,
+        cjk: false,
+        generic: "serif",
+    },
+    {
+        family: "Consolas",
+        source: "bundled",
+        sample: MONO_SAMPLE,
+        cjk: false,
+        generic: "monospace",
+    },
+    {
+        family: "Courier New",
+        source: "bundled",
+        sample: MONO_SAMPLE,
+        cjk: false,
+        generic: "monospace",
+    },
+    {
+        family: "Cascadia Code",
+        source: "bundled",
+        sample: MONO_SAMPLE,
+        cjk: false,
+        generic: "monospace",
+    },
+    {
+        family: "Microsoft YaHei",
+        source: "bundled",
+        sample: SIMPLIFIED_SAMPLE,
+        cjk: true,
+        generic: "sans-serif",
+    },
+    {
+        family: "Microsoft JhengHei",
+        source: "bundled",
+        sample: TRADITIONAL_SAMPLE,
+        cjk: true,
+        generic: "sans-serif",
+    },
+    {
+        family: "Yu Gothic",
+        source: "bundled",
+        sample: JAPANESE_SAMPLE,
+        cjk: true,
+        generic: "sans-serif",
+    },
+    {
+        family: "Malgun Gothic",
+        source: "bundled",
+        sample: KOREAN_SAMPLE,
+        cjk: true,
+        generic: "sans-serif",
+    },
+    {
+        family: "Noto Sans CJK SC",
+        source: "bundled",
+        sample: SIMPLIFIED_SAMPLE,
+        cjk: true,
+        generic: "sans-serif",
+    },
+    {
+        family: "Noto Sans CJK TC",
+        source: "bundled",
+        sample: TRADITIONAL_SAMPLE,
+        cjk: true,
+        generic: "sans-serif",
+    },
     { family: "SimSun", source: "bundled", sample: SIMPLIFIED_SAMPLE, cjk: true, generic: "serif" },
-    { family: "MingLiU", source: "bundled", sample: TRADITIONAL_SAMPLE, cjk: true, generic: "serif" },
+    {
+        family: "MingLiU",
+        source: "bundled",
+        sample: TRADITIONAL_SAMPLE,
+        cjk: true,
+        generic: "serif",
+    },
 ];
 
 /**
@@ -146,7 +261,10 @@ function findEntry(catalog: readonly FontFamily[], family: string): FontFamily |
  * Duplicates are removed case-insensitively, keeping the earliest occurrence, so the result
  * is stable and short enough to assert on in a test.
  */
-export function fontFamilyStack(family: string, catalog: readonly FontFamily[] = BUNDLED_FONTS): string {
+export function fontFamilyStack(
+    family: string,
+    catalog: readonly FontFamily[] = BUNDLED_FONTS,
+): string {
     const entry = findEntry(catalog, family);
     const generic: FontGeneric = entry?.generic ?? "sans-serif";
 
@@ -165,6 +283,10 @@ export function fontFamilyStack(family: string, catalog: readonly FontFamily[] =
 /** The shape this module needs from an enumerated font; Chromium's `FontData` has more. */
 export interface LocalFontLike {
     family: string;
+    postscriptName?: string;
+    fullName?: string;
+    style?: string;
+    axes?: readonly FontAxisMetadata[];
 }
 
 /** CJK ideographs, kana and Hangul — enough to recognise a family named in its own script. */
@@ -205,7 +327,18 @@ export function mergeFontCatalog(
         const key = family.toLowerCase();
         const known = byKey.get(key);
         if (known !== undefined) {
-            byKey.set(key, { ...known, source: "installed" });
+            const stableId = found.postscriptName || known.stableId;
+            const styles = new Set([
+                ...(known.styles ?? []),
+                ...(found.style ? [found.style] : []),
+            ]);
+            byKey.set(key, {
+                ...known,
+                source: "installed",
+                ...(stableId === undefined ? {} : { stableId }),
+                ...(styles.size === 0 ? {} : { styles: [...styles].sort() }),
+                ...(found.axes === undefined ? {} : { axes: found.axes }),
+            });
             continue;
         }
         const cjk = CJK_NAME_SCRIPTS.test(family);
@@ -214,6 +347,9 @@ export function mergeFontCatalog(
             source: "installed",
             sample: cjk ? SIMPLIFIED_SAMPLE : LATIN_SAMPLE,
             cjk,
+            ...(found.postscriptName === undefined ? {} : { stableId: found.postscriptName }),
+            ...(found.style === undefined ? {} : { styles: [found.style] }),
+            ...(found.axes === undefined ? {} : { axes: found.axes }),
         });
     }
 
@@ -228,7 +364,10 @@ export function mergeFontCatalog(
  * growing a second, subtly different one. Matching is against the family name only: the
  * sample text is a rendering of the face, not a searchable property of it.
  */
-export function searchFonts(catalog: readonly FontFamily[], matches: (text: string) => boolean): FontFamily[] {
+export function searchFonts(
+    catalog: readonly FontFamily[],
+    matches: (text: string) => boolean,
+): FontFamily[] {
     return catalog.filter((entry) => matches(entry.family));
 }
 

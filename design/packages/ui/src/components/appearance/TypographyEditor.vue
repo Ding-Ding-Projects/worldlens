@@ -7,7 +7,6 @@ import {
     VCheckbox,
     VChip,
     VMenu,
-    VSelect,
     VSlider,
     VTextField,
     VTooltip,
@@ -16,6 +15,7 @@ import {
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import ColorField from "./ColorField.vue";
+import AppearanceChoiceField from "./AppearanceChoiceField.vue";
 import { fontFamilyStack, searchFonts, type FontFamily } from "./fontCatalog.js";
 import {
     ASSUMED_SUPPORT_LABEL_KEY,
@@ -425,13 +425,10 @@ function number(value: string, fallback: number): number {
                     />
                 </template>
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'fontSizeUnit'"
                     :model-value="spec.fontSizeUnit"
                     :items="sizeUnits"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'fontSizeUnit', value)"
                 />
@@ -458,13 +455,10 @@ function number(value: string, fallback: number): number {
                     @update:model-value="(value: boolean | null) => emit('set', 'bold', value === true)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'italic'"
                     :model-value="spec.italic"
                     :items="italicChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'italic', value)"
                 />
@@ -556,13 +550,10 @@ function number(value: string, fallback: number): number {
                     </div>
                 </template>
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'underline'"
                     :model-value="spec.underline"
                     :items="underlineChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'underline', value)"
                 />
@@ -574,13 +565,10 @@ function number(value: string, fallback: number): number {
                     @update:model-value="(value: string) => emit('set', 'underlineColor', value)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'strikethrough'"
                     :model-value="spec.strikethrough"
                     :items="strikethroughChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'strikethrough', value)"
                 />
@@ -594,13 +582,10 @@ function number(value: string, fallback: number): number {
                     @update:model-value="(value: boolean | null) => emit('set', 'overline', value === true)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'capitalization'"
                     :model-value="spec.capitalization"
                     :items="capitalizationChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'capitalization', value)"
                 />
@@ -614,13 +599,10 @@ function number(value: string, fallback: number): number {
                     @update:model-value="(value: boolean | null) => emit('set', 'smallCaps', value === true)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'baselineShift'"
                     :model-value="spec.baselineShift"
                     :items="baselineChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'baselineShift', value)"
                 />
@@ -771,24 +753,18 @@ function number(value: string, fallback: number): number {
                     @update:model-value="(value: number) => emit('set', 'lineHeight', value)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'textDirection'"
                     :model-value="spec.textDirection"
                     :items="directionChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'textDirection', value)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'textAlign'"
                     :model-value="spec.textAlign"
                     :items="alignChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'textAlign', value)"
                 />

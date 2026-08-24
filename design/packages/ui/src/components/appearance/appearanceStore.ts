@@ -29,7 +29,10 @@ import {
     resolveRecords,
     SURFACE_PROPERTIES,
     DEFAULT_SURFACE,
+    APPEARANCE_STATES,
     type AppearanceRecord,
+    type AppearanceStateLayer,
+    type AppearanceStateName,
     type ResolvedAppearance,
     type SurfaceSpec,
 } from "./appearanceRecord.js";
@@ -47,7 +50,7 @@ export const APPEARANCE_STORAGE_KEY = "worldlens-appearance";
 export const APPEARANCE_FORMAT = "worldlens-appearance";
 export const LEGACY_APPEARANCE_FORMAT = "material-bluemap-appearance";
 
-export const APPEARANCE_VERSION = 1;
+export const APPEARANCE_VERSION = 2;
 
 /**
  * The id of the record that applies to everything.
@@ -91,11 +94,6 @@ export const EDITOR_CHROME_TARGETS: readonly AppearanceTargetInfo[] = [
         fallback: "Everything (global)",
     },
     {
-        id: "appearance.editor",
-        labelKey: "appearance.target.editor",
-        fallback: "The appearance editor itself",
-    },
-    {
         id: "appearance.colorPicker",
         labelKey: "appearance.target.colorPicker",
         fallback: "The colour picker panel",
@@ -136,7 +134,12 @@ export const BUILT_IN_PRESETS: readonly AppearancePreset[] = [
     preset("builtin.default", "App default", {}),
     preset("builtin.highContrast", "High contrast", {
         typography: { fontWeight: 600, textColor: "#ffffff" },
-        surface: { backgroundColor: "#000000", borderColor: "#ffffff", borderWidth: 1, borderStyle: "solid" },
+        surface: {
+            backgroundColor: "#000000",
+            borderColor: "#ffffff",
+            borderWidth: 1,
+            borderStyle: "solid",
+        },
     }),
     preset("builtin.largeText", "Large text", {
         typography: { fontSize: 18, lineHeight: 1.6 },
@@ -347,8 +350,53 @@ function sanitiseRecord(raw: unknown, path: string): Sanitised {
         }
     }
 
+    if (isObject(raw.states)) {
+        for (const [stateName, rawLayer] of Object.entries(raw.states)) {
+            if (
+                !APPEARANCE_STATES.includes(stateName as AppearanceStateName) ||
+                !isObject(rawLayer)
+            ) {
+                record.preserved[`states.${stateName}`] = rawLayer;
+                preservedKeys.push(`${path}states.${stateName}`);
+                continue;
+            }
+            const layer: AppearanceStateLayer = {};
+            for (const [key, value] of Object.entries(rawLayer)) {
+                if (
+                    key === "typography" ||
+                    key === "surface" ||
+                    key === "effect" ||
+                    key === "icon" ||
+                    key === "badge" ||
+                    key === "separator" ||
+                    key === "spacing" ||
+                    key === "shape"
+                ) {
+                    if (isObject(value) || key === "shape") {
+                        (layer as Record<string, unknown>)[key] = value;
+                    } else {
+                        record.preserved[`states.${stateName}.${key}`] = value;
+                        preservedKeys.push(`${path}states.${stateName}.${key}`);
+                    }
+                } else if (key === "preserved" && isObject(value)) {
+                    layer.preserved = value;
+                } else {
+                    record.preserved[`states.${stateName}.${key}`] = value;
+                    preservedKeys.push(`${path}states.${stateName}.${key}`);
+                }
+            }
+            record.states[stateName as AppearanceStateName] = layer;
+        }
+    }
+
     for (const [key, value] of Object.entries(raw)) {
-        if (key === "typography" || key === "surface" || key === "inherit" || key === "preserved") {
+        if (
+            key === "typography" ||
+            key === "surface" ||
+            key === "inherit" ||
+            key === "preserved" ||
+            key === "states"
+        ) {
             continue;
         }
         record.preserved[key] = value;
@@ -470,8 +518,7 @@ export interface ImportReport {
 }
 
 export type ImportResult =
-    | { ok: true; state: AppearanceState; report: ImportReport }
-    | { ok: false; error: ImportError };
+    { ok: true; state: AppearanceState; report: ImportReport } | { ok: false; error: ImportError };
 
 /** The import half, over already-parsed JSON, so storage and files share one implementation. */
 export function importState(raw: unknown): ImportResult {

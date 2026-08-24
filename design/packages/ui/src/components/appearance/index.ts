@@ -14,9 +14,11 @@ export { default as AppearanceTarget } from "./AppearanceTarget.vue";
 export { default as ColorField } from "./ColorField.vue";
 export { default as InfiniteColorPicker } from "./InfiniteColorPicker.vue";
 export { default as TypographyEditor } from "./TypographyEditor.vue";
+export { default as AppearanceChoiceField } from "./AppearanceChoiceField.vue";
 
 export * from "./appearanceRecord.js";
 export * from "./appearanceStore.js";
+export * from "./appearanceLocks.js";
 export * from "./colorFormat.js";
 export * from "./colorNames.js";
 export * from "./colorParse.js";
@@ -24,3 +26,4 @@ export * from "./colorSpaces.js";
 export * from "./fontCatalog.js";
 export * from "./typographySpec.js";
 export * from "./useAppearance.js";
+export * from "./rainbow.js";

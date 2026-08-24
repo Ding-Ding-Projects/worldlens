@@ -5,8 +5,8 @@ import { mdiContentSave, mdiDelete, mdiDownload, mdiRestore, mdiUpload } from "@
 import {
     VAlert,
     VBtn,
+    VCheckbox,
     VDivider,
-    VSelect,
     VSlider,
     VTab,
     VTabs,
@@ -17,6 +17,7 @@ import {
 } from "vuetify/components";
 
 import ColorField from "./ColorField.vue";
+import AppearanceChoiceField from "./AppearanceChoiceField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
@@ -35,6 +36,7 @@ import {
     commitAppearance,
     fontCatalog,
     typographyCapabilities,
+    useRegisteredTarget,
     useAppearanceTarget,
 } from "./useAppearance.js";
 import { resolveTarget } from "./appearanceStore.js";
@@ -107,6 +109,14 @@ const target = useAppearanceTarget(() => props.targetId);
 
 /** The editor's own appearance, which is what makes it a target like any other. */
 const self = useAppearanceTarget("appearance.editor");
+
+// The editor is a real rendered target, so it registers for as long as this instance exists.
+// This keeps the palette and target list honest when an anchored editor is mounted and closed.
+useRegisteredTarget({
+    id: "appearance.editor",
+    labelKey: "appearance.target.editor",
+    fallback: "The appearance editor itself",
+});
 
 const tab = ref<"typography" | "surface" | "presets">("typography");
 
@@ -197,6 +207,15 @@ const SURFACE_LABELS: Readonly<Record<SurfacePropertyId, string>> = {
     paddingBlock: "Space above and below",
     elevation: "Elevation",
     opacity: "Opacity",
+    icon: "Icon",
+    badge: "Badge",
+    separator: "Separator",
+    shape: "Shape",
+    density: "Density",
+    motion: "Motion",
+    gap: "Gap",
+    marginInline: "Margin at the sides",
+    marginBlock: "Margin above and below",
 };
 
 function surfaceLabel(id: SurfacePropertyId): string {
@@ -217,6 +236,26 @@ const borderStyles = computed(() =>
         value,
     })),
 );
+
+const shapeChoices = computed(() => [
+    { title: "Square", value: "square" },
+    { title: "Rounded", value: "rounded" },
+    { title: "Pill", value: "pill" },
+    { title: "Cut", value: "cut" },
+    { title: "Soft", value: "soft" },
+]);
+const densityChoices = computed(() => [
+    { title: "Comfortable", value: "comfortable" },
+    { title: "Compact", value: "compact" },
+    { title: "Spacious", value: "spacious" },
+    { title: "Custom", value: "custom" },
+]);
+const motionChoices = computed(() => [
+    { title: "System", value: "system" },
+    { title: "Standard", value: "standard" },
+    { title: "Reduced", value: "reduced" },
+    { title: "None", value: "none" },
+]);
 
 /* -------------------------------------------------------------------------- */
 /* Presets, export and import                                                 */
@@ -399,17 +438,155 @@ async function onFileChosen(event: Event): Promise<void> {
                                 (value: string) => target.setSurface('borderColor', value)
                             "
                         />
-                        <v-select
+                        <AppearanceChoiceField
                             v-else-if="id === 'borderStyle'"
                             :model-value="resolved.surface.borderStyle"
                             :items="borderStyles"
                             :label="surfaceLabel(id)"
-                            density="compact"
-                            variant="outlined"
-                            hide-details
                             @update:model-value="
                                 (value: 'none' | 'solid' | 'dashed' | 'dotted' | 'double') =>
                                     target.setSurface('borderStyle', value)
+                            "
+                        />
+                        <div v-else-if="id === 'icon'" class="mb-appearance-editor__nested">
+                            <v-text-field
+                                :model-value="resolved.surface.icon.name"
+                                :label="t('appearance.surface.iconName', 'Icon name')"
+                                density="compact"
+                                variant="outlined"
+                                hide-details
+                                @update:model-value="
+                                    (value: string) =>
+                                        target.setSurface('icon', {
+                                            ...resolved.surface.icon,
+                                            name: value,
+                                        })
+                                "
+                            />
+                            <ColorField
+                                :model-value="resolved.surface.icon.color"
+                                :label="t('appearance.surface.iconColor', 'Icon colour')"
+                                @update:model-value="
+                                    (value: string) =>
+                                        target.setSurface('icon', {
+                                            ...resolved.surface.icon,
+                                            color: value,
+                                        })
+                                "
+                            />
+                            <v-slider
+                                :model-value="resolved.surface.icon.size"
+                                min="1"
+                                max="96"
+                                step="1"
+                                thumb-label
+                                density="compact"
+                                hide-details
+                                :aria-label="t('appearance.surface.iconSize', 'Icon size')"
+                                @update:model-value="
+                                    (value: number) =>
+                                        target.setSurface('icon', {
+                                            ...resolved.surface.icon,
+                                            size: value,
+                                        })
+                                "
+                            />
+                        </div>
+                        <div v-else-if="id === 'badge'" class="mb-appearance-editor__nested">
+                            <v-text-field
+                                :model-value="resolved.surface.badge.text"
+                                :label="t('appearance.surface.badgeText', 'Badge text')"
+                                density="compact"
+                                variant="outlined"
+                                hide-details
+                                @update:model-value="
+                                    (value: string) =>
+                                        target.setSurface('badge', {
+                                            ...resolved.surface.badge,
+                                            text: value,
+                                        })
+                                "
+                            />
+                            <AppearanceChoiceField
+                                :model-value="resolved.surface.badge.shape"
+                                :items="[
+                                    { title: 'Rounded', value: 'rounded' },
+                                    { title: 'Pill', value: 'pill' },
+                                    { title: 'Square', value: 'square' },
+                                ]"
+                                :label="t('appearance.surface.badgeShape', 'Badge shape')"
+                                @update:model-value="
+                                    (value: string) =>
+                                        target.setSurface('badge', {
+                                            ...resolved.surface.badge,
+                                            shape: value as 'rounded' | 'pill' | 'square',
+                                        })
+                                "
+                            />
+                        </div>
+                        <div v-else-if="id === 'separator'" class="mb-appearance-editor__nested">
+                            <v-checkbox
+                                :model-value="resolved.surface.separator.visible"
+                                :label="t('appearance.surface.separatorVisible', 'Show separator')"
+                                density="compact"
+                                hide-details
+                                @update:model-value="
+                                    (value: boolean | null) =>
+                                        target.setSurface('separator', {
+                                            ...resolved.surface.separator,
+                                            visible: value === true,
+                                        })
+                                "
+                            />
+                            <ColorField
+                                :model-value="resolved.surface.separator.color"
+                                :label="t('appearance.surface.separatorColor', 'Separator colour')"
+                                @update:model-value="
+                                    (value: string) =>
+                                        target.setSurface('separator', {
+                                            ...resolved.surface.separator,
+                                            color: value,
+                                        })
+                                "
+                            />
+                        </div>
+                        <AppearanceChoiceField
+                            v-else-if="id === 'shape'"
+                            :model-value="resolved.surface.shape"
+                            :items="shapeChoices"
+                            :label="surfaceLabel(id)"
+                            @update:model-value="
+                                (value: string) =>
+                                    target.setSurface(
+                                        'shape',
+                                        value as 'square' | 'rounded' | 'pill' | 'cut' | 'soft',
+                                    )
+                            "
+                        />
+                        <AppearanceChoiceField
+                            v-else-if="id === 'density'"
+                            :model-value="resolved.surface.density"
+                            :items="densityChoices"
+                            :label="surfaceLabel(id)"
+                            @update:model-value="
+                                (value: string) =>
+                                    target.setSurface(
+                                        'density',
+                                        value as 'comfortable' | 'compact' | 'spacious' | 'custom',
+                                    )
+                            "
+                        />
+                        <AppearanceChoiceField
+                            v-else-if="id === 'motion'"
+                            :model-value="resolved.surface.motion"
+                            :items="motionChoices"
+                            :label="surfaceLabel(id)"
+                            @update:model-value="
+                                (value: string) =>
+                                    target.setSurface(
+                                        'motion',
+                                        value as 'system' | 'standard' | 'reduced' | 'none',
+                                    )
                             "
                         />
                         <template v-else>
@@ -451,23 +628,17 @@ async function onFileChosen(event: Event): Promise<void> {
 
             <v-window-item value="presets">
                 <div class="mb-appearance-editor__presets">
-                    <v-select
+                    <AppearanceChoiceField
                         :model-value="target.record.value.inherit"
                         :items="presetChoices"
                         :label="t('appearance.preset.forElement', 'This element follows')"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
                         @update:model-value="(value: string) => target.setInherit(value)"
                     />
 
-                    <v-select
+                    <AppearanceChoiceField
                         :model-value="state.activePreset"
                         :items="presetChoices"
                         :label="t('appearance.preset.forEverything', 'Everything follows')"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
                         @update:model-value="setActivePreset"
                     />
 
@@ -735,6 +906,14 @@ async function onFileChosen(event: Event): Promise<void> {
     align-items: center;
     gap: 8px;
     min-inline-size: 0;
+}
+
+.mb-appearance-editor__nested {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    inline-size: 100%;
 }
 
 .mb-appearance-editor__row > :not(.mb-appearance-editor__rowLabel) {
