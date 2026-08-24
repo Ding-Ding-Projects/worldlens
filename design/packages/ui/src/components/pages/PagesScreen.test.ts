@@ -93,6 +93,8 @@ function preflight(overrides: Partial<PagesPreflight> = {}): PagesPreflight {
             changedSettings: false,
             addedNoJekyll: false,
             maps: [{ id: "world", missing: [] }],
+            missingAssets: [],
+            rootAbsoluteAssets: [],
             totalBytes: 2_400_000_000,
             fileCount: 41_233,
             oversizedFiles: [],
@@ -140,6 +142,14 @@ const HOSTED: PagesRecord = {
     publishedAt: "2026-08-04T12:00:00Z",
 };
 
+interface TestProjectPagesStateRecord {
+    readonly key: string;
+    readonly state: "off" | "pending" | "published" | "failed";
+    readonly renderId: string;
+    readonly projectSnapshot: string;
+    readonly generation: number;
+}
+
 interface Fake {
     readonly bridge: PagesBridge;
     readonly published: PagesPublishRequest[];
@@ -155,6 +165,7 @@ function fakeBridge(
         hosted?: readonly PagesRecord[];
         canStop?: boolean;
         publishResult?: PagesResult;
+        publish?: (request: PagesPublishRequest) => Promise<PagesResult>;
     } = {},
 ): Fake {
     const published: PagesPublishRequest[] = [];
@@ -171,6 +182,7 @@ function fakeBridge(
                 : Promise.resolve({ ok: true, value: report }),
         publish: (request) => {
             published.push(request);
+            if (options.publish !== undefined) return options.publish(request);
             return Promise.resolve(
                 options.publishResult ?? {
                     ok: false,
@@ -207,9 +219,9 @@ function fakeBridge(
     return { bridge, published, removed, fire: (event) => { for (const l of [...listeners]) l(event); } };
 }
 
-function mountScreen(bridge: PagesBridge | null) {
+function mountScreen(bridge: PagesBridge | null, publicationRecord?: TestProjectPagesStateRecord | null) {
     return mount(PagesScreen, {
-        props: { bridge },
+        props: publicationRecord === undefined ? { bridge } : { bridge, publicationRecord },
         global: {
             plugins: [
                 createVuetify(),
@@ -217,6 +229,14 @@ function mountScreen(bridge: PagesBridge | null) {
             ],
         },
     });
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((complete) => {
+        resolve = complete;
+    });
+    return { promise, resolve };
 }
 
 async function check(wrapper: ReturnType<typeof mountScreen>): Promise<void> {
@@ -371,6 +391,81 @@ describe("nothing is pushed until the report has been seen and agreed to", () =>
         expect(fake.published).toHaveLength(1);
         expect(fake.published[0]?.acknowledgePublish).toBe(true);
         expect(fake.published[0]?.branch).toBe("gh-pages");
+    });
+
+    it("ignores a late publication answer for record A after record B replaces it", async () => {
+        const first = deferred<PagesResult>();
+        const second = deferred<PagesResult>();
+        let calls = 0;
+        const recordA: TestProjectPagesStateRecord = {
+            key: "C:/world\\0project-a",
+            state: "pending",
+            renderId: RENDER.renderId,
+            projectSnapshot: "snapshot-a",
+            generation: 1,
+        };
+        const recordB: TestProjectPagesStateRecord = {
+            ...recordA,
+            generation: 2,
+            projectSnapshot: "snapshot-b",
+        };
+        const fake = fakeBridge({
+            publish: async () => {
+                calls += 1;
+                return calls === 1 ? first.promise : second.promise;
+            },
+        });
+        const wrapper = mountScreen(fake.bridge, recordA);
+        await flushPromises();
+        await check(wrapper);
+        await wrapper.find('[data-test="acknowledge"] input').setValue(true);
+        await wrapper.find('[data-test="publish"]').trigger("click");
+
+        await wrapper.setProps({ publicationRecord: recordB });
+        first.resolve({
+            ok: true,
+            report: {
+                renderId: RENDER.renderId,
+                owner: "octocat",
+                repo: "maps",
+                branch: "gh-pages",
+                repositoryUrl: "https://github.com/octocat/maps",
+                commit: "a".repeat(40),
+                pushVerified: true,
+                status: "live",
+                url: "https://octocat.github.io/maps/",
+                verified: true,
+                httpStatus: 200,
+                site: preflight().site!,
+                notes: [],
+            },
+            durationMs: 1,
+        });
+        await flushPromises();
+        expect(wrapper.emitted("state")).toBeUndefined();
+
+        await wrapper.find('[data-test="publish"]').trigger("click");
+        second.resolve({
+            ok: true,
+            report: {
+                renderId: RENDER.renderId,
+                owner: "octocat",
+                repo: "maps",
+                branch: "gh-pages",
+                repositoryUrl: "https://github.com/octocat/maps",
+                commit: "b".repeat(40),
+                pushVerified: true,
+                status: "live",
+                url: "https://octocat.github.io/maps/",
+                verified: true,
+                httpStatus: 200,
+                site: preflight().site!,
+                notes: [],
+            },
+            durationMs: 1,
+        });
+        await flushPromises();
+        expect(wrapper.emitted("state")).toEqual([[{ ...recordB, state: "published" }]]);
     });
 });
 

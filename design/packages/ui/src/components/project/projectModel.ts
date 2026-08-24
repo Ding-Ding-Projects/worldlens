@@ -876,6 +876,18 @@ export function withRender(project: ProjectFile, render: Partial<ProjectRender>)
     return { ...project, render: { ...project.render, ...render } };
 }
 
+/**
+ * The settings that make an existing render reusable.
+ *
+ * Hosting intent is deliberately excluded: switching Pages on or off must not invalidate
+ * the verified render that Pages is about to publish. Every map, storage and render setting
+ * that can change the produced files remains in the canonical serialized snapshot.
+ */
+export function renderAffectingProjectSnapshot(project: ProjectFile): string {
+    const { hosting: _hosting, ...render } = project.render;
+    return JSON.stringify({ ...project, render });
+}
+
 /** Every render option {@link isRenderFieldDefault} and {@link withRenderFieldDefault} know how to reset. */
 export type RenderFieldKey = keyof ProjectRender;
 

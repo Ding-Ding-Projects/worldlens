@@ -114,6 +114,9 @@ const fetchId = ref<string | null>(null);
 const fetchLines = ref<string[]>([]);
 const fetchFailure = ref<string | null>(null);
 const fetchedFolder = ref<string | null>(null);
+const cancelRequested = ref(false);
+const cancellationPending = ref(false);
+let fetchGeneration = 0;
 let baselineActive = new Set<string>();
 let stopListening: (() => void) | null = null;
 let activePoll: ReturnType<typeof setInterval> | null = null;
@@ -160,6 +163,15 @@ function resetAfterTarget(): void {
 }
 
 function chooseTarget(id: string | null): void {
+    if (fetching.value) {
+        if (id === selectedId.value || cancellationPending.value) return;
+        void cancelFetch().then((confirmed) => {
+            if (confirmed) chooseTarget(id);
+        });
+        return;
+    }
+    fetchGeneration += 1;
+    cancelRequested.value = true;
     selectedId.value = id;
     resetAfterTarget();
 }
@@ -259,15 +271,16 @@ function localWorldPath(): string {
 }
 
 function listenForFetch(event: SshWorldSourceEvent): void {
-    if (!fetching.value || baselineActive.has(event.id)) return;
+    if (!fetching.value || cancelRequested.value || baselineActive.has(event.id)) return;
     fetchId.value ??= event.id;
     if (event.kind === "line") fetchLines.value = [...fetchLines.value.slice(-19), event.message];
 }
 
-function startActivePoll(): void {
+function startActivePoll(generation: number): void {
     if (bridge === null) return;
     activePoll = setInterval(() => {
         void bridge.active().then((ids) => {
+            if (generation !== fetchGeneration || cancelRequested.value || !fetching.value) return;
             const own = ids.find((id) => !baselineActive.has(id));
             if (own !== undefined) fetchId.value ??= own;
         });
@@ -282,25 +295,31 @@ function stopActivePoll(): void {
 async function fetchWorld(): Promise<void> {
     const target = selected.value;
     if (bridge === null || target === null || !canFetch.value) return;
+    const generation = ++fetchGeneration;
+    cancelRequested.value = false;
+    cancellationPending.value = false;
     fetching.value = true;
     fetchId.value = null;
     fetchLines.value = [];
     fetchFailure.value = null;
     fetchedFolder.value = null;
-    baselineActive = new Set(await bridge.active());
-    startActivePoll();
     try {
+        baselineActive = new Set(await bridge.active());
+        if (generation !== fetchGeneration || cancelRequested.value) return;
+        startActivePoll(generation);
         const answer = await bridge.fetch({
             target,
             remotePath: remotePath.value,
             localPath: localParent.value.trim(),
         });
+        if (generation !== fetchGeneration || cancelRequested.value) return;
         fetchId.value = answer.id || fetchId.value;
         if (!answer.result.ok) {
             fetchFailure.value = answer.result.failure.message;
             raiseNotice("error", answer.result.failure.message);
             return;
         }
+        if (generation !== fetchGeneration || cancelRequested.value) return;
         fetchedFolder.value = localWorldPath();
         raiseNotice(
             "info",
@@ -312,22 +331,54 @@ async function fetchWorld(): Promise<void> {
         );
         emit("use", fetchedFolder.value);
     } catch (error) {
+        if (generation !== fetchGeneration || cancelRequested.value) return;
         fetchFailure.value = error instanceof Error ? error.message : String(error);
         raiseNotice("error", fetchFailure.value);
     } finally {
         stopActivePoll();
-        fetching.value = false;
+        if (generation === fetchGeneration) fetching.value = false;
     }
 }
 
-async function cancelFetch(): Promise<void> {
-    if (bridge === null || fetchId.value === null) return;
-    const stopped = await bridge.cancel(fetchId.value);
-    if (!stopped) {
+async function cancelFetch(): Promise<boolean> {
+    if (bridge === null || fetchId.value === null || cancellationPending.value) return false;
+    const id = fetchId.value;
+    cancelRequested.value = true;
+    fetchGeneration += 1;
+    cancellationPending.value = true;
+    stopActivePoll();
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+        fetchFailure.value = t(
+            "world.ssh.cancelTimeout",
+            "Cancellation has not been confirmed after five seconds. The transfer and this dialog stay open until the bridge confirms it.",
+        );
+    }, 5000);
+    try {
+        const stopped = await bridge.cancel(id);
+        if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+        if (stopped === true) {
+            cancellationPending.value = false;
+            fetching.value = false;
+            fetchFailure.value = null;
+            return true;
+        }
+        cancellationPending.value = false;
         fetchFailure.value = t(
             "world.ssh.cancelMiss",
-            "That transfer had already ended before cancellation reached it.",
+            "That transfer did not confirm cancellation. The transfer stays open so its state is not hidden.",
         );
+        return false;
+    } catch (error) {
+        if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+        cancellationPending.value = false;
+        fetchFailure.value = t(
+            "world.ssh.cancelFailed",
+            { message: error instanceof Error ? error.message : String(error) },
+            "Cancellation could not reach the transfer: {message}",
+        );
+        return false;
     }
 }
 
@@ -350,7 +401,11 @@ defineExpose({
     localParent,
     survey,
     fetchId,
+    fetching,
+    cancelRequested,
+    cancellationPending,
     fetchLines,
+    fetchFailure,
     chooseTarget,
     chooseRemoteFolder,
     detect,
@@ -616,13 +671,18 @@ defineExpose({
                             <v-btn
                                 v-if="fetching"
                                 :prepend-icon="mdiStop"
-                                :disabled="fetchId === null"
+                                :disabled="fetchId === null || cancellationPending"
+                                :loading="cancellationPending"
                                 color="error"
                                 variant="tonal"
                                 data-test="ssh-cancel"
                                 @click="cancelFetch"
                             >
-                                {{ t("world.ssh.cancel", "Cancel the transfer") }}
+                                {{
+                                    cancellationPending
+                                        ? t("world.ssh.cancelling", "Waiting for cancellation")
+                                        : t("world.ssh.cancel", "Cancel the transfer")
+                                }}
                             </v-btn>
                         </div>
                         <p v-if="!canFetch" class="mb-ssh-world__disabled">

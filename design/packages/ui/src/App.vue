@@ -76,6 +76,8 @@ import {
 import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
+import type { ProjectPagesStateRecord } from "./components/project/ProjectEditor.vue";
+import { acceptsPagesState } from "./components/project/pagesState.js";
 import { CiRenderScreen } from "./components/cirender/index.js";
 import { createCiRenders } from "./components/cirender/ciRenders.js";
 import { resolveCiRenderBridge } from "./components/cirender/ciRenderBridge.js";
@@ -1466,6 +1468,13 @@ function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: s
  */
 const projectToOpen = ref<string | null>(null);
 const ciWorldToOpen = ref<string | null>(null);
+const pagesRenderIdToOpen = ref<string | null>(null);
+const pagesStateByKey = ref<Record<string, ProjectPagesStateRecord>>({});
+const activePagesKey = ref<string | null>(null);
+const pagesProjectState = computed<ProjectPagesStateRecord | null>(() => {
+    const key = activePagesKey.value;
+    return key === null ? null : pagesStateByKey.value[key] ?? null;
+});
 const droppedWorldPath = ref<string | null>(null);
 
 function revealDroppedWorld(path: string): void {
@@ -1555,6 +1564,34 @@ function onWorldProjectOpened(world: string): void {
 function openCiRender(world: string | null = null): void {
     ciWorldToOpen.value = world;
     revealPage(PAGE_CIRENDER);
+}
+
+/** Opens the existing Pages flow with a typed render id when the project surface knows one. */
+function openPagesForWorld(record: ProjectPagesStateRecord): void {
+    activePagesKey.value = record.key;
+    pagesStateByKey.value = { ...pagesStateByKey.value, [record.key]: record };
+    pagesRenderIdToOpen.value = record.renderId;
+    revealPage(PAGE_PAGES);
+}
+
+function onPagesState(record: ProjectPagesStateRecord): void {
+    if (pagesProjectState.value?.key !== record.key) return;
+    const current = pagesStateByKey.value[record.key];
+    if (!acceptsPagesState(activePagesKey.value, current, record)) return;
+    pagesStateByKey.value = {
+        ...pagesStateByKey.value,
+        [record.key]: record,
+    };
+    if (record.renderId !== "") pagesRenderIdToOpen.value = record.renderId;
+}
+
+function onPagesInvalidated(key: string, generation: number): void {
+    const current = pagesStateByKey.value[key];
+    if (current === undefined || generation < current.generation) return;
+    const next = { ...pagesStateByKey.value };
+    delete next[key];
+    pagesStateByKey.value = next;
+    if (activePagesKey.value === key) activePagesKey.value = null;
 }
 
 /**
@@ -2250,10 +2287,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <ProjectsScreen
                             :settings-epoch="settingsEpoch"
                             :open-world="projectToOpen"
+                            :can-open-ci="true"
+                            :pages-state="pagesProjectState"
                             @consent="openSettings('mojang-download-consent')"
                             @settings="revealSetting"
                             @open-map="onLocalRenderOpened"
                             @cloud-render="openCiRender"
+                            @publish-existing="openPagesForWorld"
+                            @pages-invalidated="onPagesInvalidated"
                             @dirty-change="unsavedProjectChanges = $event"
                         />
                     </div>
@@ -2393,7 +2434,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #pages>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
-                            <PagesScreen @open="onPagesOpened" />
+                            <PagesScreen :initial-render-id="pagesRenderIdToOpen" :publication-record="pagesProjectState" @open="onPagesOpened" @state="onPagesState" />
                         </div>
                     </div>
                 </template>
@@ -2704,10 +2745,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     <ProjectsScreen
                                         :settings-epoch="settingsEpoch"
                                         :open-world="projectToOpen"
+                                        :can-open-ci="true"
+                                        :pages-state="pagesProjectState"
                                         @consent="openSettings('mojang-download-consent')"
                                         @settings="revealSetting"
                                         @open-map="onLocalRenderOpened"
                                         @cloud-render="openCiRender"
+                                        @publish-existing="openPagesForWorld"
+                                        @pages-invalidated="onPagesInvalidated"
                                         @dirty-change="unsavedProjectChanges = $event"
                                     />
                                 </div>
@@ -2913,7 +2958,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #pages>
                                 <div class="mb-world-host mb-interactive">
                                     <div class="mb-shell-centre">
-                                        <PagesScreen @open="onPagesOpened" />
+                                        <PagesScreen :initial-render-id="pagesRenderIdToOpen" :publication-record="pagesProjectState" @open="onPagesOpened" @state="onPagesState" />
                                     </div>
                                 </div>
                             </template>

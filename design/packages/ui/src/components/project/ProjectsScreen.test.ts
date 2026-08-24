@@ -23,6 +23,7 @@ import ProjectsScreen from "./ProjectsScreen.vue";
 import ProjectEditor from "./ProjectEditor.vue";
 import type { ProjectHost, ProjectListing, ProjectWriteAnswer } from "./projectHost.js";
 import { createProject, withMapAdded, withRender } from "./projectModel.js";
+import { canonicalWorldIdentity } from "./projectIdentity.js";
 import type {
     FolderScanResult,
     MinecraftFolder,
@@ -403,6 +404,75 @@ describe("the discovered-worlds panel, wired into the tab", () => {
 });
 
 describe("the saved render route", () => {
+    it("invalidates the exact previous project key when switching projects", async () => {
+        const worldA = "/home/ada/.minecraft/saves/A";
+        const worldB = "/home/ada/.minecraft/saves/B";
+        const projectA = withMapAdded(createProject("A"), {
+            id: "overworld",
+            name: "Overworld",
+            dimension: "minecraft:overworld",
+            world: worldA,
+        });
+        const projectB = withMapAdded(createProject("B"), {
+            id: "overworld",
+            name: "Overworld",
+            dimension: "minecraft:overworld",
+            world: worldB,
+        });
+        const host: ProjectHost = {
+            ...fakeHost(),
+            readProject: async (world) => ({
+                ok: true as const,
+                file: `${world}/worldlens.project.json`,
+                project: world === worldA ? projectA : projectB,
+            }),
+        };
+        const view = screen(host, null, { openWorld: worldA });
+        await flushPromises();
+        await view.setProps({ openWorld: worldB });
+        await flushPromises();
+
+        expect(view.emitted("pages-invalidated")).toContainEqual([
+            `${canonicalWorldIdentity(worldA)}\0${projectA.id}`,
+            expect.any(Number),
+        ]);
+        view.unmount();
+    });
+
+    it("turning Pages off clears the local enablement state without removing the published site", async () => {
+        const folder = "/home/ada/.minecraft/saves/Bastion";
+        const project = withRender(
+            withMapAdded(createProject("Bastion"), {
+                id: "overworld",
+                name: "Overworld",
+                dimension: "minecraft:overworld",
+                world: folder,
+            }),
+            { hosting: "github-pages" },
+        );
+        const host: ProjectHost = {
+            ...fakeHost(),
+            readProject: async () => ({
+                ok: true as const,
+                file: `${folder}/worldlens.project.json`,
+                project,
+            }),
+        };
+        const view = screen(host, null, { openWorld: folder });
+        await flushPromises();
+        const editor = view.findComponent(ProjectEditor);
+        await editor
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
+        await flushPromises();
+        editor.find(".mb-project-editor__pages-toggle").findComponent({ name: "VSwitch" }).vm.$emit("update:modelValue", false);
+        await flushPromises();
+        expect((editor.props("project") as ProjectFile).render.hosting).toBe("local");
+        expect(view.emitted("publishExisting")).toBeUndefined();
+        view.unmount();
+    });
+
     it("opens the GitHub Actions renderer instead of starting a local engine", async () => {
         const folder = "/home/ada/.minecraft/saves/Bastion";
         const project = withRender(

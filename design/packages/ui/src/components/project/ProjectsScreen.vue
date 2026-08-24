@@ -21,6 +21,8 @@ import DiscoveredWorldsPanel from "./DiscoveredWorldsPanel.vue";
 import {
     createProjectFromGeneratedDefaults,
     projectRenderRoute,
+    projectHostingRoute,
+    renderAffectingProjectSnapshot,
     projectToRenderRequest,
     renderProblems,
     touch,
@@ -40,6 +42,7 @@ import { consentIsAccepted, refreshConsent } from "../world/consentState.js";
 import { resolveWorldCatalogBridge, type WorldCatalogBridge } from "../world/worldCatalog.js";
 import {
     readStorageDirectory,
+    probeWorldFolder,
     resolveOptionalWorldBridge,
     resolveWorldBridge,
     type OptionalWorldBridge,
@@ -55,6 +58,19 @@ import { provideSettingsOpener } from "../downloads/index.js";
 import { raiseNotice } from "../../stores/notices.js";
 import { createJavaSetting } from "../settings/javaSetting.js";
 import { globalRenderEngineDefault, resolveRenderEngine } from "../settings/engineChoice.js";
+import {
+    createRenderRouter,
+    resolveRemoteBridge,
+    resolveRuntimeBridge,
+    type RemoteBridge,
+    type RemoteTarget,
+    type RuntimeBridge,
+    type RunLocation,
+} from "../remote/index.js";
+import type { RenderDestinationId } from "./RenderDestinationMenu.vue";
+import type { ProjectPagesState, ProjectPagesStateRecord } from "./ProjectEditor.vue";
+import { canonicalWorldIdentity } from "./projectIdentity.js";
+import ProjectImportDialog from "./ProjectImportDialog.vue";
 
 /**
  * Projects: the list of them, the editor for one, and the render one starts.
@@ -97,8 +113,12 @@ const props = withDefaults(
          * prop works whether the screen was already there or has just been created.
          */
         openWorld?: string | null;
+        remoteBridge?: RemoteBridge | null;
+        runtimeBridge?: RuntimeBridge | null;
+        canOpenCi?: boolean;
+        pagesState?: ProjectPagesStateRecord | null;
     }>(),
-    { settingsEpoch: 0, openWorld: null },
+    { settingsEpoch: 0, openWorld: null, canOpenCi: false },
 );
 
 const emit = defineEmits<{
@@ -110,6 +130,9 @@ const emit = defineEmits<{
     openMap: [dataRoot: string, mapIds: readonly string[]];
     /** Opens the click-and-run GitHub Actions surface with this project's world prefilled. */
     cloudRender: [world: string];
+    /** Opens the existing Pages flow with a verified render selected by the host. */
+    publishExisting: [record: ProjectPagesStateRecord];
+    "pages-invalidated": [key: string, generation: number];
     /** Reports the editor's real serialized dirty state to process-wide restart protection. */
     "dirty-change": [dirty: boolean];
 }>();
@@ -133,6 +156,8 @@ const optional =
 const worldCatalogBridge =
     props.worldCatalogBridge === undefined ? resolveWorldCatalogBridge() : props.worldCatalogBridge;
 const configHost = props.configHost === undefined ? createBridgeConfigHost() : props.configHost;
+const remote = props.remoteBridge === undefined ? resolveRemoteBridge() : props.remoteBridge;
+const runtime = props.runtimeBridge === undefined ? resolveRuntimeBridge() : props.runtimeBridge;
 provideConfigHost(configHost);
 
 /**
@@ -142,10 +167,35 @@ provideConfigHost(configHost);
  */
 provideSettingsOpener((target) => emit("settings", target));
 
-// Always "local": this screen renders through `bridge` directly, with no router and no
-// location picker, so every render it starts runs on this computer. See
-// `RenderRunOptions.route`.
-const run = createRenderRun(bridge, { route: "local" });
+/** The destination selected from the project editor's split button. */
+const renderLocation = ref<RunLocation>("local");
+const renderTarget = ref<RemoteTarget | null>(null);
+const remotePreflightPassed = ref(false);
+const preflightTargetId = ref<string | null>(null);
+const preflightContextKey = ref<string | null>(null);
+const preflightContextGeneration = ref<number | null>(null);
+const renderModes = ref<readonly string[]>(["local"]);
+const importOpen = ref(false);
+const projectPagesState = ref<ProjectPagesState>("off");
+const pagesFailure = ref<string | null>(null);
+const publicationGeneration = ref(0);
+const renderContextGeneration = ref(0);
+const verifiedRenders = ref<Record<string, { world: string; projectId: string; renderId: string; projectSnapshot: string }>>({});
+
+async function loadRenderModes(): Promise<void> {
+    if (runtime === null) return;
+    try {
+        renderModes.value = await runtime.renderModes();
+    } catch {
+        renderModes.value = ["local"];
+    }
+}
+
+const router = createRenderRouter(bridge, remote, () => ({
+    location: renderLocation.value,
+    target: renderTarget.value,
+}));
+const run = createRenderRun(router ?? bridge, { route: () => renderLocation.value });
 
 const separator = computed(() => configHost?.separator ?? "/");
 
@@ -207,6 +257,7 @@ onMounted(async () => {
     void reload();
     void refreshConsent(bridge);
     void java.load();
+    void loadRenderModes();
     try {
         const directory = await readStorageDirectory(optional);
         defaultRoot.value = directory?.current ?? "";
@@ -217,6 +268,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     run.dispose();
+    router?.dispose();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -252,6 +304,66 @@ const dirty = computed(
         openProject.value !== null &&
         (savedProject.value === null ||
             serializeProjectFile(openProject.value) !== serializeProjectFile(savedProject.value)),
+);
+
+const renderContextKey = computed(() =>
+    openWorld.value === null || openProject.value === null
+        ? null
+        : `${canonicalWorldIdentity(openWorld.value)}\0${openProject.value.id}`,
+);
+const currentVerifiedRender = computed(() => {
+    if (renderContextKey.value === null || openProject.value === null) return null;
+    const record = verifiedRenders.value[renderContextKey.value];
+    return record !== undefined && record.projectSnapshot === renderAffectingProjectSnapshot(openProject.value)
+        ? record
+        : null;
+});
+const shellPagesState = computed<ProjectPagesState>(() => {
+    const record = props.pagesState;
+    if (
+        record !== null &&
+        record !== undefined &&
+        record.key === renderContextKey.value &&
+        openProject.value !== null &&
+        record.projectSnapshot === renderAffectingProjectSnapshot(openProject.value) &&
+        (currentVerifiedRender.value === null || record.renderId === currentVerifiedRender.value.renderId)
+    ) {
+        return record.state;
+    }
+    return projectPagesState.value;
+});
+
+function resetRenderDestination(previousKey: string | null): void {
+    renderContextGeneration.value += 1;
+    publicationGeneration.value += 1;
+    if (previousKey !== null) emit("pages-invalidated", previousKey, publicationGeneration.value);
+    renderLocation.value = "local";
+    renderTarget.value = null;
+    remotePreflightPassed.value = false;
+    preflightTargetId.value = null;
+    preflightContextKey.value = null;
+    preflightContextGeneration.value = null;
+}
+
+watch(
+    renderContextKey,
+    (_next, previous) => resetRenderDestination(previous),
+    { flush: "sync" },
+);
+
+watch(
+    () => (openProject.value === null ? null : renderAffectingProjectSnapshot(openProject.value)),
+    (next, previous) => {
+        if (next === null || previous === undefined || next === previous) return;
+        renderContextGeneration.value += 1;
+        const key = renderContextKey.value;
+        publicationGeneration.value += 1;
+        if (key !== null) emit("pages-invalidated", key, publicationGeneration.value);
+        preflightTargetId.value = null;
+        preflightContextKey.value = null;
+        preflightContextGeneration.value = null;
+        remotePreflightPassed.value = false;
+    },
 );
 
 /**
@@ -384,6 +496,8 @@ async function open(world: string): Promise<void> {
         openWorld.value = world;
         openProject.value = answer.project;
         savedProject.value = answer.project;
+        projectPagesState.value = projectHostingRoute(answer.project) === "github-pages" ? "published" : "off";
+        pagesFailure.value = null;
     } catch (error) {
         openFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
@@ -629,6 +743,8 @@ function openNewProjectFor(world: string, route: "local" | "github-actions" = "l
     openProject.value = project;
     savedProject.value = null;
     saveFailure.value = null;
+    projectPagesState.value = "off";
+    pagesFailure.value = null;
 
     raiseNotice(
         "info",
@@ -649,6 +765,64 @@ function confirmCreate(): void {
         createWorld.value = "";
         createRoute.value = "local";
     }
+}
+
+function setProjectRenderRoute(project: ProjectFile, route: "local" | "github-actions"): void {
+    openProject.value = withRender(project, { route });
+}
+
+function pagesRecord(state: ProjectPagesState, renderId: string): ProjectPagesStateRecord | null {
+    if (renderContextKey.value === null || openProject.value === null) return null;
+    return {
+        key: renderContextKey.value,
+        state,
+        renderId,
+        projectSnapshot: renderAffectingProjectSnapshot(openProject.value),
+        generation: publicationGeneration.value,
+    };
+}
+
+/**
+ * The editor's destination menu is a dispatch surface, not a second render implementation.
+ * Local, Docker and SSH update the live router; GitHub opens the existing full wizard; import
+ * uses the native folder/file pickers and then the same schema-validating ProjectHost reader.
+ */
+function chooseDestination(destination: RenderDestinationId): void {
+    switch (destination) {
+        case "local":
+            renderLocation.value = "local";
+            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "local");
+            return;
+        case "docker":
+            renderLocation.value = "docker";
+            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "local");
+            return;
+        case "remote":
+            renderLocation.value = "remote";
+            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "local");
+            return;
+        case "github-actions":
+            renderLocation.value = "local";
+            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "github-actions");
+            if (openWorld.value !== null) emit("cloudRender", openWorld.value);
+            return;
+        case "import-project":
+            importOpen.value = true;
+            return;
+        case "publish-existing":
+            projectPagesState.value = "pending";
+            pagesFailure.value = null;
+            if (currentVerifiedRender.value !== null) {
+                const record = pagesRecord("pending", currentVerifiedRender.value.renderId);
+                if (record !== null) emit("publishExisting", record);
+            }
+            return;
+    }
+}
+
+async function acceptImportedWorld(world: string): Promise<void> {
+    importOpen.value = false;
+    await open(world);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -776,6 +950,35 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
     }
     if (run.active.value) return;
 
+    if (renderLocation.value === "docker" && !renderModes.value.includes("docker")) {
+        raiseNotice(
+            "error",
+            t(
+                "project.render.dockerUnavailable",
+                "Docker is not an active render channel in this build. The render was not sent to this computer as a fallback.",
+            ),
+        );
+        return;
+    }
+    if (
+        renderLocation.value === "remote" &&
+        (remote === null ||
+            renderTarget.value === null ||
+            !remotePreflightPassed.value ||
+            preflightTargetId.value !== renderTarget.value.id ||
+            preflightContextKey.value !== renderContextKey.value ||
+            preflightContextGeneration.value !== renderContextGeneration.value)
+    ) {
+        raiseNotice(
+            "warning",
+            t(
+                "project.render.remoteNeedsPreflight",
+                "Choose an SSH machine and complete its host-key, Docker and disk checks before sending this world.",
+            ),
+        );
+        return;
+    }
+
     const problems = renderProblems(project);
     if (problems.length > 0) {
         const first = problems[0];
@@ -806,6 +1009,17 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
     }
 
     const result = await run.start(projectToRenderRequest(project, world));
+    if (result?.ok === true) {
+        verifiedRenders.value = {
+            ...verifiedRenders.value,
+            [`${canonicalWorldIdentity(world)}\0${project.id}`]: {
+                world,
+                projectId: project.id,
+                renderId: result.renderId,
+                projectSnapshot: renderAffectingProjectSnapshot(project),
+            },
+        };
+    }
     if (result === null && run.failure.value === null) {
         raiseNotice(
             "error",
@@ -846,6 +1060,47 @@ async function renderRow(world: string): Promise<void> {
 
 function notify(level: "info" | "success" | "warning" | "error", message: string): void {
     raiseNotice(level, message);
+}
+
+async function handlePagesToggle(enabled: boolean): Promise<void> {
+    if (!enabled) {
+        projectPagesState.value = "off";
+        pagesFailure.value = null;
+        publicationGeneration.value += 1;
+        if (renderContextKey.value !== null) {
+            emit("pages-invalidated", renderContextKey.value, publicationGeneration.value);
+        }
+        return;
+    }
+    if (currentVerifiedRender.value === null || openWorld.value === null || openProject.value === null) {
+        projectPagesState.value = "failed";
+        pagesFailure.value = "Pages setup needs a verified finished render for this project first.";
+        return;
+    }
+
+    const world = openWorld.value;
+    const project = openProject.value;
+    try {
+        const pending = await host?.notifyAutosaveChange?.(world, project);
+        const flushed = await host?.flushAutosave?.(world, "boundary");
+        if (flushed !== undefined && flushed !== null && !flushed.ok) {
+            throw new Error(flushed.message);
+        }
+        if (host?.flushAutosave === undefined && host?.writeProject !== undefined) {
+            const written = await host.writeProject(world, project);
+            if (!written.ok) throw new Error(written.message);
+        } else if (host === null || (host.flushAutosave === undefined && pending === undefined)) {
+            throw new Error("The project host could not persist the Pages setting.");
+        }
+        savedProject.value = project;
+        projectPagesState.value = "pending";
+        pagesFailure.value = null;
+        const record = pagesRecord("pending", currentVerifiedRender.value.renderId);
+        if (record !== null) emit("publishExisting", record);
+    } catch (error) {
+        projectPagesState.value = "failed";
+        pagesFailure.value = error instanceof Error ? error.message : String(error);
+    }
 }
 </script>
 
@@ -915,7 +1170,36 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :render-engine-path="renderEnginePath"
             :separator="separator"
             :default-root="defaultRoot"
+            :render-location="renderLocation"
+            :render-target="renderTarget"
+            :remote-bridge="remote"
+            :runtime-bridge="runtime"
+            :can-render-in-docker="renderModes.includes('docker')"
+            :can-render-remotely="remote !== null"
+            :remote-preflight-passed="remotePreflightPassed"
+            :render-context-generation="renderContextGeneration"
+            :can-open-ci="props.canOpenCi ?? false"
+            :can-import-project="host !== null && configHost !== null"
+            :can-publish-existing="currentVerifiedRender !== null"
+            :pages-state="shellPagesState"
+            :pages-failure="pagesFailure"
             @update:project="(value) => (openProject = value)"
+            @update:render-location="(value: RunLocation) => (renderLocation = value)"
+            @update:render-target="(value: RemoteTarget | null) => {
+                renderTarget = value
+                remotePreflightPassed = false
+                preflightTargetId = null
+                preflightContextKey = null
+                preflightContextGeneration = null
+            }"
+            @update:render-preflight="(value: boolean) => {
+                remotePreflightPassed = value
+                preflightTargetId = value ? renderTarget?.id ?? null : null
+                preflightContextKey = value ? renderContextKey : null
+                preflightContextGeneration = value ? renderContextGeneration : null
+            }"
+            @destination="chooseDestination"
+            @pages-toggle="handlePagesToggle"
             @save="save"
             @revert="revert"
             @close="closeEditor"
@@ -963,8 +1247,10 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             <DiscoveredWorldsPanel
                 :bridge="worldCatalogBridge"
                 :project-worlds="projectWorldPaths"
+                :probe="(folder: string) => probeWorldFolder(optional, folder)"
                 @use="useDiscoveredWorld"
                 @use-many="useDiscoveredWorlds"
+                @use-direct="useDiscoveredWorld"
                 @notify="notify"
             />
 
@@ -1053,6 +1339,15 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
                 </v-btn>
             </v-card-actions>
         </v-card>
+
+        <ProjectImportDialog
+            v-if="importOpen"
+            :config-host="configHost"
+            :project-host="host"
+            :remote-bridge="remote"
+            @close="importOpen = false"
+            @imported="acceptImportedWorld"
+        />
     </div>
 </template>
 

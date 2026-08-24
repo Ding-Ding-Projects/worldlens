@@ -48,6 +48,7 @@ import {
     type MinecraftWorldSummary,
     type WorldCatalogBridge,
 } from "../world/worldCatalog.js";
+import type { WorldInspection } from "../world/worldFolder.js";
 
 /**
  * Worlds this computer already has, that nobody has started a project for yet.
@@ -84,6 +85,8 @@ const props = defineProps<{
     bridge: WorldCatalogBridge | null;
     /** The `world` path of every existing project, so its world is left out of this list. */
     projectWorlds: readonly string[];
+    /** The same direct world inspection used by the wizard's typed/browsed path. */
+    probe?: (folder: string) => Promise<WorldInspection>;
 }>();
 
 const emit = defineEmits<{
@@ -91,6 +94,8 @@ const emit = defineEmits<{
     use: [world: string];
     /** Several worlds selected for an explicit, review-before-save start flow. */
     useMany: [worlds: readonly string[]];
+    /** One direct world folder, inspected but never mounted or persisted. */
+    useDirect: [world: string];
     notify: [level: "info" | "success" | "warning" | "error", message: string];
 }>();
 
@@ -342,6 +347,30 @@ async function browseForFolder(): Promise<void> {
     await mount(chosenFolder);
 }
 
+async function browseDirectWorld(): Promise<void> {
+    if (host === null || props.probe === undefined) return;
+    const chosenFolder = await host.pickDirectory({
+        title: t("project.discovered.pickWorld", "Choose the world folder containing level.dat"),
+    });
+    if (chosenFolder === null) return;
+    const inspection = await props.probe(chosenFolder);
+    if (!inspection.ok) {
+        mountFailure.value = t(
+            "project.discovered.directInvalid",
+            { folder: chosenFolder },
+            "That folder is not a renderable world yet: {folder}.",
+        );
+        return;
+    }
+    mountFailure.value = null;
+    mountNotice.value = t(
+        "project.discovered.directReady",
+        { folder: chosenFolder },
+        "The direct world folder was checked and is ready to review.",
+    );
+    emit("useDirect", chosenFolder);
+}
+
 async function mount(folder: string): Promise<void> {
     const bridge = props.bridge;
     if (bridge === null) return;
@@ -530,6 +559,16 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
             </ul>
 
             <div class="mb-discovered__mount-actions">
+                <v-btn
+                    :prepend-icon="mdiFolderOpenOutline"
+                    :disabled="host === null || props.probe === undefined"
+                    variant="tonal"
+                    size="small"
+                    data-test="browse-direct-world"
+                    @click="browseDirectWorld"
+                >
+                    {{ t("project.discovered.browseWorld", "Browse for a world folder") }}
+                </v-btn>
                 <v-btn
                     :prepend-icon="mdiFolderPlusOutline"
                     :disabled="host === null"
