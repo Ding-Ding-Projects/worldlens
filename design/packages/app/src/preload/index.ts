@@ -2457,6 +2457,7 @@ interface WorldlensBridge {
             list(owner: string, repo: string): Promise<unknown>;
             issueRestoreChallenge(id: string, request: { owner: string; repo: string; tag: string; worldFolder?: string }): Promise<unknown>;
             restoreStep(id: string, request: { challenge: string; step: "key-one" | "key-two" | "slider"; value: boolean | 100 }): Promise<unknown>;
+            authorizeRestore(id: string, request: { challenge: string }): Promise<unknown>;
             issueRestoreReceipt(id: string, request: { owner: string; repo: string; tag: string; worldFolder?: string; challenge: string }): Promise<unknown>;
             restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string; worldFolder?: string; restoreConsent?: boolean; restoreReceipt?: string }): Promise<unknown>;
         };
@@ -3609,6 +3610,7 @@ const bridge: WorldlensBridge = {
             list: (owner, repo) => ipcRenderer.invoke("mcserver:backup:list", owner, repo),
             issueRestoreChallenge: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:challenge", id, request),
             restoreStep: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:step", id, request),
+            authorizeRestore: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:authorize", id, request),
             issueRestoreReceipt: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:issue", id, request),
             restore: (id, request) => ipcRenderer.invoke("mcserver:backup:restore", id, request),
         },

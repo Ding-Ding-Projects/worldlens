@@ -129,6 +129,7 @@ export const MCSERVER_CHANNELS = {
     backupRestore: "mcserver:backup:restore",
     backupRestoreChallenge: "mcserver:backup:restore:challenge",
     backupRestoreStep: "mcserver:backup:restore:step",
+    backupRestoreAuthorize: "mcserver:backup:restore:authorize",
     backupRestoreIssue: "mcserver:backup:restore:issue",
     awsPlan: "mcserver:aws:plan",
     awsProvision: "mcserver:aws:provision",
@@ -197,6 +198,8 @@ export interface McServerIpcOptions {
     /** Injectable profile store for tests; production uses the app-owned JSON store. */
     readonly hostProfiles?: HostProfileStore;
     readonly now?: () => string;
+    /** Main-process native confirmation session, never renderer-supplied proof. */
+    readonly nativeRestoreConfirm?: (request: { serverId: string; target: string; owner: string; repo: string; tag: string }) => Promise<boolean>;
     readonly adoptions?: AdoptionStore;
     /**
      * This installation's own Docker ownership value - see `adopt/discover.ts`'s note on
@@ -368,11 +371,13 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     const restoreReceipts = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
     const restoreChallenges = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number; keyOne: boolean; keyTwo: boolean; travel: number }>();
     const activeBackupControllers = new Map<string, AbortController>();
+    const restoreAuthorizations = new Map<string, { readonly challengeDigest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
     const RESTORE_AUTH_LIMIT = 128;
     const sweepRestoreAuth = (): void => {
         const current = Date.now();
         for (const [digest, value] of restoreReceipts) if (value.expiresAt <= current) restoreReceipts.delete(digest);
         for (const [digest, value] of restoreChallenges) if (value.expiresAt <= current) restoreChallenges.delete(digest);
+        for (const [digest, value] of restoreAuthorizations) if (value.expiresAt <= current) restoreAuthorizations.delete(digest);
     };
 
     async function closeRconTunnelIfUnused(serverId: string): Promise<void> {
@@ -1562,11 +1567,29 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             return ok({ keyOne: challenge.keyOne, keyTwo: challenge.keyTwo, travel: challenge.travel });
         },
 
+        [MCSERVER_CHANNELS.backupRestoreAuthorize]: async (_event: never, id: unknown, request: unknown) => {
+            sweepRestoreAuth();
+            if (!isRecordId(id) || typeof request !== "object" || request === null) return fail("invalid-request", "A native restore authorization could not be read.");
+            const body = request as Record<string, unknown>;
+            if (typeof body.challenge !== "string") return fail("denied", "A main-process restore challenge is required.");
+            const challengeDigest = createHash("sha256").update(body.challenge).digest("hex");
+            const challenge = restoreChallenges.get(challengeDigest);
+            if (challenge === undefined || challenge.serverId !== id || challenge.expiresAt < Date.now() || !challenge.keyOne || !challenge.keyTwo || challenge.travel !== 100) return fail("denied", "The main-process confirmation session is incomplete or expired.");
+            if (options.nativeRestoreConfirm === undefined) return fail("unsupported", "This build has no main-process native restore confirmation provider.");
+            const confirmed = await options.nativeRestoreConfirm({ serverId: id, target: challenge.target, owner: challenge.owner, repo: challenge.repo, tag: challenge.tag });
+            if (!confirmed) return fail("denied", "The main-process native restore confirmation was not completed.");
+            const authorization = randomBytes(32).toString("hex");
+            const authorizationDigest = createHash("sha256").update(authorization).digest("hex");
+            restoreAuthorizations.set(authorizationDigest, { challengeDigest, serverId: id, target: challenge.target, owner: challenge.owner, repo: challenge.repo, tag: challenge.tag, expiresAt: challenge.expiresAt });
+            restoreChallenges.delete(challengeDigest);
+            return ok({ authorization, expiresAt: challenge.expiresAt });
+        },
+
         [MCSERVER_CHANNELS.backupRestoreIssue]: async (_event: never, id: unknown, request: unknown) => {
             sweepRestoreAuth();
             if (!isRecordId(id) || typeof request !== "object" || request === null) return fail("invalid-request", "A restore confirmation needs a server and backup identity.");
             const body = request as Record<string, unknown>;
-            if (typeof body.challenge !== "string" || typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
+            if (typeof body.challenge !== "string" || typeof body.authorization !== "string" || typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
                 return fail("denied", "This restore needs the main-process challenge and native confirmation evidence.");
             }
             const opened = await open(id);
@@ -1576,14 +1599,17 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return fail("invalid-request", "The restore target is outside this server's scoped folder.");
             }
             const challengeDigest = createHash("sha256").update(body.challenge).digest("hex");
+            const authorizationDigest = createHash("sha256").update(body.authorization).digest("hex");
+            const authorization = restoreAuthorizations.get(authorizationDigest);
             const challenge = restoreChallenges.get(challengeDigest);
-            if (challenge === undefined || challenge.expiresAt < Date.now() || challenge.serverId !== id || challenge.target !== target || challenge.owner !== body.owner || challenge.repo !== body.repo || challenge.tag !== body.tag || !challenge.keyOne || !challenge.keyTwo || challenge.travel !== 100) return fail("denied", "This native confirmation challenge is incomplete, expired, already used, or scoped to another restore.");
-            restoreChallenges.delete(challengeDigest);
+            if (authorization === undefined || authorization.serverId !== id || authorization.expiresAt < Date.now() || authorization.challengeDigest !== challengeDigest || challenge !== undefined || authorization.target !== target || authorization.owner !== body.owner || authorization.repo !== body.repo || authorization.tag !== body.tag) return fail("denied", "This native confirmation authorization is incomplete, expired, already used, or scoped to another restore.");
+            const challengeSnapshot = { serverId: authorization.serverId, target: authorization.target, owner: authorization.owner, repo: authorization.repo, tag: authorization.tag, expiresAt: authorization.expiresAt };
+            restoreAuthorizations.delete(authorizationDigest);
             if (restoreReceipts.size >= RESTORE_AUTH_LIMIT) return fail("timeout", "Too many restore receipts are waiting. Complete one or wait for them to expire.");
             const receipt = randomBytes(32).toString("hex");
             const digest = createHash("sha256").update(receipt).digest("hex");
-            const expiresAt = Date.now() + 60_000;
-            restoreReceipts.set(digest, { digest, serverId: id, target, owner: body.owner, repo: body.repo, tag: body.tag, expiresAt });
+            const expiresAt = challengeSnapshot.expiresAt;
+            restoreReceipts.set(digest, { digest, serverId: id, target: challengeSnapshot.target, owner: challengeSnapshot.owner, repo: challengeSnapshot.repo, tag: challengeSnapshot.tag, expiresAt });
             return ok({ receipt, expiresAt });
         },
 
@@ -1729,6 +1755,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             for (const tunnel of rconTunnels.values()) void tunnel.close();
             rconTunnels.clear();
             restoreChallenges.clear();
+            restoreAuthorizations.clear();
             restoreReceipts.clear();
             for (const controller of activeBackupControllers.values()) controller.abort();
             activeBackupControllers.clear();

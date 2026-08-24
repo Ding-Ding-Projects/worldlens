@@ -78,7 +78,7 @@ describe("registerMcServerHandlers", () => {
             }
             return dockerOutput();
         };
-        registered = registerMcServerHandlers(ipc, { dataFolder: dir, factory: { runner }, safeStorage: fakeSafeStorage() });
+        registered = registerMcServerHandlers(ipc, { dataFolder: dir, factory: { runner }, safeStorage: fakeSafeStorage(), nativeRestoreConfirm: async () => true });
         await registered.registry.put(RECORD);
     });
 
@@ -218,9 +218,11 @@ describe("registerMcServerHandlers", () => {
             const transition = (await invoke(MCSERVER_CHANNELS.backupRestoreStep, "survival", { challenge: challenge.value?.challenge, ...step })) as { ok: boolean };
             expect(transition.ok).toBe(true);
         }
+        const authorized = (await invoke(MCSERVER_CHANNELS.backupRestoreAuthorize, "survival", { challenge: challenge.value?.challenge })) as { ok: boolean; value?: { authorization: string } };
+        expect(authorized.ok).toBe(true);
         const issued = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
             owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
-            challenge: challenge.value?.challenge,
+            challenge: challenge.value?.challenge, authorization: authorized.value?.authorization,
         })) as { ok: boolean; value?: { receipt: string; expiresAt: number } };
         expect(issued.ok).toBe(true);
         expect(issued.value?.receipt.length).toBe(64);
@@ -240,7 +242,7 @@ describe("registerMcServerHandlers", () => {
         expect(challenge.ok).toBe(true);
         const wrongProof = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
             owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
-            challenge: challenge.value?.challenge, superConfirmed: true,
+            challenge: challenge.value?.challenge, authorization: "fabricated-authorization", superConfirmed: true,
             proof: { keyOne: true, keyTwo: false, travel: 100 },
         })) as { ok: boolean; failure: { code: string } };
         expect(wrongProof.ok).toBe(false);

@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VCard, VCardText, VChip, VList, VListItem, VSelect, VSwitch, VTextField } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
-import { backupCancel, backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, backupRestoreStep, type BackupEntry } from "./mcserverBridge.js";
+import { backupAuthorizeRestore, backupCancel, backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, backupRestoreStep, type BackupEntry } from "./mcserverBridge.js";
 import { useServerStore } from "./useServers.js";
 
 const props = defineProps<{ serverId: string }>();
@@ -68,9 +68,16 @@ async function restore(): Promise<void> {
         return;
     }
     busy.value = true;
+    await transitionQueue;
+    const authorized = await backupAuthorizeRestore(props.serverId, { challenge: restoreChallenge.value });
+    if (!authorized.ok || authorized.value === undefined) {
+        busy.value = false;
+        message.value = authorized.failure?.message ?? t("mcserver.backup.authorizeFailed", "The main native confirmation did not authorize this restore.");
+        return;
+    }
     const receipt = await backupIssueRestoreReceipt(props.serverId, {
         owner: owner.value.trim(), repo: repo.value.trim(), tag: selectedTag.value, worldFolder: target.value,
-        challenge: restoreChallenge.value,
+        challenge: restoreChallenge.value, authorization: authorized.value.authorization,
     });
     if (!receipt.ok || receipt.value === undefined) {
         busy.value = false;
