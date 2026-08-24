@@ -16,6 +16,7 @@ import { SERVER_STORE } from "./useServers.js";
 import {
     createServerStore,
     type Answer,
+    type CatalogueVersionEntry,
     type CatalogueSnapshot,
     type JavaProvisionProgress,
     type JavaResolution,
@@ -127,7 +128,7 @@ describe("CreateServerWizard", () => {
     function catalogueHost(
         failures: readonly { flavour: "vanilla" | "paper"; reason: string }[] = [],
     ): McServerHost {
-        const versions = [
+        const versions: CatalogueVersionEntry[] = [
             "1.21.1",
             "1.21.2",
             "1.21.3",
@@ -169,6 +170,8 @@ describe("CreateServerWizard", () => {
         step: string;
         whereItRuns: string;
         minecraftVersion: string;
+        canAdvance: boolean;
+        advanceBlockedReason: string | null;
         checkJava: () => Promise<void>;
         provisionJava: () => Promise<void>;
     };
@@ -212,7 +215,9 @@ describe("CreateServerWizard", () => {
         };
     }
 
-    async function javaVm(host: McServerHost): Promise<{ wrapper: ReturnType<typeof mountWizard>; vm: WizardVm }> {
+    async function javaVm(
+        host: McServerHost,
+    ): Promise<{ wrapper: ReturnType<typeof mountWizard>; vm: WizardVm }> {
         const wrapper = mountWizard(host);
         await flushAll();
         const vm = wrapper.vm as unknown as WizardVm;
@@ -258,7 +263,9 @@ describe("CreateServerWizard", () => {
         next?.click();
         await flushAll();
 
-        const families = [...document.querySelectorAll<HTMLElement>('[data-test="version-family"]')];
+        const families = [
+            ...document.querySelectorAll<HTMLElement>('[data-test="version-family"]'),
+        ];
         expect(families).toHaveLength(3);
         expect(families[0]?.textContent).toContain("1.21.x");
         expect(families[0]?.querySelector("[aria-expanded='true']")).not.toBeNull();
@@ -310,12 +317,12 @@ describe("CreateServerWizard", () => {
             ?.click();
         await flushAll();
 
-        expect(document.querySelector('[data-test="version-catalogue-status"]')?.textContent).toContain(
-            "complete",
-        );
-        expect(document.querySelector('[data-test="version-catalogue-status"]')?.textContent).not.toContain(
-            "incomplete",
-        );
+        expect(
+            document.querySelector('[data-test="version-catalogue-status"]')?.textContent,
+        ).toContain("complete");
+        expect(
+            document.querySelector('[data-test="version-catalogue-status"]')?.textContent,
+        ).not.toContain("incomplete");
     });
 
     it("mounts a Java-capable host and shows a found runtime", async () => {
@@ -328,10 +335,20 @@ describe("CreateServerWizard", () => {
         expect(vm.step).toBe("java");
     });
 
+    it("refuses the no-Java path when this build cannot create a verified server", async () => {
+        const { vm } = await javaVm(fakeHost());
+
+        expect(vm.canAdvance).toBe(false);
+        expect(vm.advanceBlockedReason).toContain("cannot verify Java and cannot create a server");
+    });
+
     it("shows resolution failure, retries once, and blocks unresolved local Java", async () => {
         const resolve = vi
             .fn<(version: string) => Promise<Answer<JavaResolution>>>()
-            .mockResolvedValueOnce({ ok: false, failure: { code: "probe", message: "Java probe failed", detail: null } })
+            .mockResolvedValueOnce({
+                ok: false,
+                failure: { code: "probe", message: "Java probe failed", detail: null },
+            })
             .mockResolvedValueOnce(ok(foundJava()));
         const { vm } = await javaVm(javaHost({ resolve }));
 
@@ -357,7 +374,9 @@ describe("CreateServerWizard", () => {
 
         vm.minecraftVersion = "1.20.6";
         await flushAll();
-        expect(resolve).toHaveBeenCalledTimes(2);
+        // The old request remains the sole host operation until it settles. The new
+        // generation is queued rather than overlapping the real check.
+        expect(resolve).toHaveBeenCalledTimes(1);
         pending[0]?.(ok(foundJava("21")));
         await flushAll();
         expect(resolve).toHaveBeenCalledTimes(2);
@@ -401,7 +420,10 @@ describe("CreateServerWizard", () => {
         await flushAll();
         expect(provision).toHaveBeenCalledWith("21");
         expect(document.querySelector('[data-test="java-progress"]')).not.toBeNull();
-        finishProvision?.({
+        const completeProvision = finishProvision as unknown as (
+            answer: Answer<JavaResolution>,
+        ) => void;
+        completeProvision({
             ok: false,
             failure: { code: "download", message: "Java download failed", detail: null },
         });
@@ -442,7 +464,10 @@ describe("CreateServerWizard", () => {
         await flushAll();
         expect(document.querySelector('[data-test="java-progress"]')).toBeNull();
 
-        finishProvision?.(ok(foundJava()));
+        const completeProvision = finishProvision as unknown as (
+            answer: Answer<JavaResolution>,
+        ) => void;
+        completeProvision(ok(foundJava()));
         await provisioning;
         expect(document.querySelector('[data-test="java-found"]')).toBeNull();
     });
@@ -455,9 +480,7 @@ describe("CreateServerWizard", () => {
         vm.whereItRuns = "local-docker";
         await flushAll();
 
-        expect(document.body.textContent).toContain(
-            "cannot create a Docker server yet",
-        );
+        expect(document.body.textContent).toContain("cannot create a Docker server yet");
         expect(document.querySelector('[data-test="docker-container-ref"]')).not.toBeNull();
     });
 });

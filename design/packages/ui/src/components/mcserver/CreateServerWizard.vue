@@ -142,11 +142,15 @@ const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
     const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);
     return entry?.versions ?? [];
 });
-const selectedCatalogueId = computed(() => FLAVOUR_CARDS.find((card) => card.id === flavour.value)?.cataloguedId ?? null);
+const selectedCatalogueId = computed(
+    () => FLAVOUR_CARDS.find((card) => card.id === flavour.value)?.cataloguedId ?? null,
+);
 const selectedCatalogueFailures = computed(() =>
     catalogue.value === null || selectedCatalogueId.value === null
         ? []
-        : catalogue.value.failures.filter((failure) => failure.flavour === selectedCatalogueId.value),
+        : catalogue.value.failures.filter(
+              (failure) => failure.flavour === selectedCatalogueId.value,
+          ),
 );
 
 /**
@@ -331,19 +335,28 @@ const javaProvisioning = ref(false);
 const javaProgress = ref<JavaProvisionProgress | null>(null);
 const javaFailure = ref<string | null>(null);
 let unsubscribeJavaProgress: (() => void) | null = null;
-let javaRequestId = 0;
+type JavaOperation = {
+    kind: "check" | "provision";
+    generation: number;
+};
+
+let javaGeneration = 0;
+let javaOperation: JavaOperation | null = null;
+let queuedJavaGeneration: number | null = null;
+let javaDisposed = false;
 
 const requiredJavaFeature = computed(() => selectedVersionEntry.value?.javaFeature ?? 21);
 const javaNotRequired = computed(() => whereItRuns.value === "ssh-docker");
 
 async function checkJava(): Promise<void> {
-    if (!store.hasJava || javaNotRequired.value || javaChecking.value || javaProvisioning.value) return;
-    const requestId = ++javaRequestId;
+    if (!store.hasJava || javaNotRequired.value || javaOperation !== null || javaDisposed) return;
+    const generation = javaGeneration;
+    javaOperation = { kind: "check", generation };
     javaChecking.value = true;
     javaFailure.value = null;
     try {
         const result = await store.javaResolve(String(requiredJavaFeature.value));
-        if (requestId !== javaRequestId) return;
+        if (generation !== javaGeneration || javaDisposed) return;
         if (result.ok && result.value) {
             javaResolution.value = result.value;
             javaFailure.value = null;
@@ -354,25 +367,36 @@ async function checkJava(): Promise<void> {
                 t("mcserver.wizard.javaCheckFailed", "The Java check could not finish.");
         }
     } catch (error) {
-        if (requestId !== javaRequestId) return;
+        if (generation !== javaGeneration || javaDisposed) return;
         javaResolution.value = null;
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
-        if (requestId === javaRequestId) {
+        if (javaOperation?.generation === generation && javaOperation.kind === "check") {
+            javaOperation = null;
             javaChecking.value = false;
+        }
+        if (
+            !javaDisposed &&
+            queuedJavaGeneration === javaGeneration &&
+            step.value === "java" &&
+            !javaNotRequired.value
+        ) {
+            queuedJavaGeneration = null;
+            void checkJava();
         }
     }
 }
 
 async function provisionJava(): Promise<void> {
-    if (!store.hasJava || javaNotRequired.value || javaProvisioning.value || javaChecking.value) return;
-    const requestId = ++javaRequestId;
+    if (!store.hasJava || javaNotRequired.value || javaOperation !== null || javaDisposed) return;
+    const generation = javaGeneration;
+    javaOperation = { kind: "provision", generation };
     javaProvisioning.value = true;
     javaProgress.value = null;
     javaFailure.value = null;
     try {
         const result = await store.javaProvision(String(requiredJavaFeature.value));
-        if (requestId !== javaRequestId) return;
+        if (generation !== javaGeneration || javaDisposed) return;
         if (result.ok && result.value) {
             javaResolution.value = result.value;
             javaFailure.value = null;
@@ -383,42 +407,60 @@ async function provisionJava(): Promise<void> {
                 t("mcserver.wizard.javaProvisionFailed", "Java could not be installed.");
         }
     } catch (error) {
-        if (requestId !== javaRequestId) return;
+        if (generation !== javaGeneration || javaDisposed) return;
         javaResolution.value = null;
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
-        if (requestId === javaRequestId) {
+        if (javaOperation?.generation === generation && javaOperation.kind === "provision") {
+            javaOperation = null;
             javaProvisioning.value = false;
-        } else {
-            javaProvisioning.value = false;
-            javaProgress.value = null;
+        }
+        if (
+            !javaDisposed &&
+            queuedJavaGeneration === javaGeneration &&
+            step.value === "java" &&
+            !javaNotRequired.value
+        ) {
+            queuedJavaGeneration = null;
+            void checkJava();
+        } else if (!javaDisposed && generation === javaGeneration && javaFailure.value === null) {
+            // The provision response is not proof that the executable is discoverable
+            // through the same route a later server start will use.
+            await checkJava();
         }
     }
-    // Ask the host again after provisioning. The provision response is not proof that the
-    // executable is discoverable through the same route a later server start will use.
-    if (requestId === javaRequestId && javaFailure.value === null) await checkJava();
 }
 
 watch(step, (value) => {
-    if (value === "java" && javaResolution.value === null && store.hasJava && !javaNotRequired.value) {
+    if (
+        value === "java" &&
+        javaResolution.value === null &&
+        store.hasJava &&
+        !javaNotRequired.value
+    ) {
         void checkJava();
     }
 });
 
 watch([flavour, minecraftVersion, whereItRuns], () => {
-    javaRequestId += 1;
+    javaGeneration += 1;
     javaResolution.value = null;
     javaFailure.value = null;
     javaProgress.value = null;
     javaChecking.value = false;
     javaProvisioning.value = false;
-    if (step.value === "java" && !javaNotRequired.value) {
+    if (javaOperation !== null) {
+        queuedJavaGeneration = javaGeneration;
+    } else if (step.value === "java" && !javaNotRequired.value && store.hasJava) {
         void checkJava();
     }
 });
 
 onMounted(() => {
+    javaDisposed = false;
     unsubscribeJavaProgress = store.onJavaProgress((progress) => {
+        if (javaOperation?.kind !== "provision" || javaOperation.generation !== javaGeneration)
+            return;
         javaProgress.value = progress;
         if (progress.phase === "failed") javaFailure.value = progress.message;
     });
@@ -430,7 +472,9 @@ onMounted(() => {
 });
 onUnmounted(() => {
     unsubscribeJavaProgress?.();
-    javaRequestId += 1;
+    javaDisposed = true;
+    javaGeneration += 1;
+    queuedJavaGeneration = null;
     javaChecking.value = false;
     javaProvisioning.value = false;
     javaProgress.value = null;
@@ -562,55 +606,32 @@ async function create(): Promise<void> {
     creating.value = true;
     createFailure.value = null;
 
-    if (store.hasCreate) {
-        const result = await store.createServer({
-            id: serverId.value,
-            name: serverName.value,
-            flavour: flavour.value,
-            version: minecraftVersion.value,
-            memoryMb: memoryMb.value,
-            acceptedEula: eulaAccepted.value,
-            transport: transportRef(),
-            provisionJavaIfMissing: !javaNotRequired.value,
-            ...(isModLoader.value
-                ? {
-                      loaderVersion: modLoaderVersion.value.trim() || undefined,
-                      modsDirectory: modsDirectory.value.trim() || DEFAULT_MODS_DIRECTORY,
-                      preinstallApiLibraries: [...preinstallApiLibraries.value],
-                  }
-                : {}),
-        });
+    if (!store.hasCreate) {
         creating.value = false;
-        if (result.ok) {
-            emit("created", serverId.value);
-            if (whereItRuns.value === "aws") emit("open-aws", serverId.value);
-            open.value = false;
-            resetWizard();
-            return;
-        }
-        createFailure.value =
-            result.failure?.message ??
-            t("mcserver.wizard.createFailed", "The server could not be created.");
+        createFailure.value = t(
+            "mcserver.wizard.createUnavailable",
+            "This build cannot create a server through its verified host route, so no server was saved.",
+        );
         return;
     }
 
-    // No dedicated `create` namespace on this build's bridge: fall back to registering
-    // the record directly, exactly as the pre-wizard form did, so the wizard still works
-    // end to end against an older shell.
-    const now = new Date().toISOString();
-    const result = await store.save({
+    const loaderVersion = modLoaderVersion.value.trim();
+    const result = await store.createServer({
         id: serverId.value,
         name: serverName.value,
         flavour: flavour.value,
-        minecraftVersion:
-            minecraftVersion.value.trim() === "" ? null : minecraftVersion.value.trim(),
-        ref: transportRef(),
-        origin: "created",
-        createdAt: now,
-        updatedAt: now,
-        hasRconSecret: false,
-        rconPort: port.value,
-        writeScope: [],
+        version: minecraftVersion.value,
+        memoryMb: memoryMb.value,
+        acceptedEula: eulaAccepted.value,
+        transport: transportRef(),
+        provisionJavaIfMissing: !javaNotRequired.value,
+        ...(isModLoader.value
+            ? {
+                  ...(loaderVersion ? { loaderVersion } : {}),
+                  modsDirectory: modsDirectory.value.trim() || DEFAULT_MODS_DIRECTORY,
+                  preinstallApiLibraries: [...preinstallApiLibraries.value],
+              }
+            : {}),
     });
     creating.value = false;
     if (result.ok) {
@@ -618,11 +639,11 @@ async function create(): Promise<void> {
         if (whereItRuns.value === "aws") emit("open-aws", serverId.value);
         open.value = false;
         resetWizard();
-    } else {
-        createFailure.value =
-            result.failure?.message ??
-            t("mcserver.wizard.createFailed", "The server could not be created.");
+        return;
     }
+    createFailure.value =
+        result.failure?.message ??
+        t("mcserver.wizard.createFailed", "The server could not be created.");
 }
 
 /**
@@ -701,7 +722,8 @@ const canAdvanceFromVersion = computed(() => minecraftVersion.value.trim() !== "
 const canAdvanceFromModLoader = computed(
     () =>
         !isModLoader.value ||
-        (modLoaderVersion.value.trim() !== "" && validateModsDirectory(modsDirectory.value) === null),
+        (modLoaderVersion.value.trim() !== "" &&
+            validateModsDirectory(modsDirectory.value) === null),
 );
 const canAdvanceFromRuntime = computed(() => {
     // The server folder field lives on THIS step, so this step is where a missing one has
@@ -723,7 +745,7 @@ const canAdvanceFromRuntime = computed(() => {
 const canAdvanceFromJava = computed(
     () =>
         javaNotRequired.value ||
-        (!store.hasJava && !javaChecking.value && !javaProvisioning.value) ||
+        (store.hasCreate && !store.hasJava && !javaChecking.value && !javaProvisioning.value) ||
         (javaResolution.value?.found === true && !javaChecking.value && !javaProvisioning.value),
 );
 const canAdvanceFromResources = computed(
@@ -753,8 +775,8 @@ const advanceBlockedReason = computed<string | null>(() => {
         case "mod-loader":
             return canAdvanceFromModLoader.value
                 ? null
-                : validateModsDirectory(modsDirectory.value) ??
-                  t("mcserver.wizard.pickModLoader", "Choose a loader version first.");
+                : (validateModsDirectory(modsDirectory.value) ??
+                      t("mcserver.wizard.pickModLoader", "Choose a loader version first."));
         case "runtime":
             if (folderError.value !== null) return folderError.value;
             if (whereItRuns.value === "local-docker" && dockerAvailability.available !== true) {
@@ -788,6 +810,12 @@ const advanceBlockedReason = computed<string | null>(() => {
                 return t("mcserver.wizard.javaBusy", "Wait for the Java check to finish.");
             }
             if (!store.hasJava) {
+                if (!store.hasCreate) {
+                    return t(
+                        "mcserver.wizard.javaUnavailableNoCreate",
+                        "This build cannot verify Java and cannot create a server, so this route is unavailable.",
+                    );
+                }
                 return t(
                     "mcserver.wizard.javaOnCreate",
                     "This build cannot check Java here. Create will provision the required runtime automatically.",
@@ -992,7 +1020,10 @@ const canAdvance = computed(() => {
                                         completeness:
                                             selectedCatalogueFailures.length === 0
                                                 ? t("mcserver.wizard.catalogueComplete", "complete")
-                                                : t("mcserver.wizard.catalogueIncomplete", "incomplete"),
+                                                : t(
+                                                      "mcserver.wizard.catalogueIncomplete",
+                                                      "incomplete",
+                                                  ),
                                     },
                                     "Catalogue refreshed {fetchedAt}; {completeness} for this flavour.",
                                 )
@@ -1007,18 +1038,31 @@ const canAdvance = computed(() => {
                             <button
                                 type="button"
                                 class="wl-mcserver-wizard__version-family-toggle"
-                                :aria-expanded="familyExpanded(family.key, familyIndex) ? 'true' : 'false'"
+                                :aria-expanded="
+                                    familyExpanded(family.key, familyIndex) ? 'true' : 'false'
+                                "
                                 :aria-controls="`mcserver-version-family-${family.key.replace(/[^a-z0-9]+/gi, '-')}`"
                                 @click="toggleFamily(family.key, familyIndex)"
                             >
                                 <span>
                                     {{ family.label }}
                                     <span class="text-caption text-medium-emphasis">
-                                        · {{ family.stability === "release" ? t("mcserver.wizard.releases", "release") : t("mcserver.wizard.snapshots", "snapshot") }}
+                                        ·
+                                        {{
+                                            family.stability === "release"
+                                                ? t("mcserver.wizard.releases", "release")
+                                                : t("mcserver.wizard.snapshots", "snapshot")
+                                        }}
                                     </span>
                                 </span>
                                 <span class="text-caption text-medium-emphasis">
-                                    {{ t("mcserver.wizard.buildCount", { n: family.versions.length }, "{n} builds") }}
+                                    {{
+                                        t(
+                                            "mcserver.wizard.buildCount",
+                                            { n: family.versions.length },
+                                            "{n} builds",
+                                        )
+                                    }}
                                 </span>
                             </button>
                             <div
@@ -1058,7 +1102,7 @@ const canAdvance = computed(() => {
                                     </VBtn>
                                     <a
                                         class="wl-mcserver-wizard__version-wiki"
-                                        :href="wikiUrlFor(entry.version)"
+                                        :href="wikiUrlFor(entry.version) ?? undefined"
                                         target="_blank"
                                         rel="noopener"
                                         :aria-label="`Minecraft Wiki for ${entry.version}`"
@@ -1137,29 +1181,48 @@ const canAdvance = computed(() => {
                         v-model="modLoaderVersion"
                         :items="modLoaderVersions"
                         :label="t('mcserver.wizard.loaderVersion', 'Mod-loader version')"
-                        :hint="t('mcserver.wizard.loaderVersionHint', 'Choose a published loader build.')"
+                        :hint="
+                            t(
+                                'mcserver.wizard.loaderVersionHint',
+                                'Choose a published loader build.',
+                            )
+                        "
                         persistent-hint
                     />
                     <VTextField
                         v-else
                         v-model="modLoaderVersion"
                         :label="t('mcserver.wizard.loaderVersion', 'Mod-loader version')"
-                        :hint="t('mcserver.wizard.loaderVersionUnavailable', 'Enter the loader version published for this Minecraft version.')"
+                        :hint="
+                            t(
+                                'mcserver.wizard.loaderVersionUnavailable',
+                                'Enter the loader version published for this Minecraft version.',
+                            )
+                        "
                         persistent-hint
                     />
                     <VTextField
                         v-model="modsDirectory"
                         :label="t('mcserver.wizard.modsDirectory', 'Mods directory')"
-                        :error-messages="validateModsDirectory(modsDirectory) ?? undefined"
-                        :hint="t('mcserver.wizard.modsDirectoryHint', 'The folder inside the server directory where mods are installed.')"
+                        :error-messages="validateModsDirectory(modsDirectory) ?? null"
+                        :hint="
+                            t(
+                                'mcserver.wizard.modsDirectoryHint',
+                                'The folder inside the server directory where mods are installed.',
+                            )
+                        "
                         persistent-hint
                     />
                     <VSwitch
                         v-for="library in commonApiLibraries"
                         :key="library"
                         :model-value="preinstallApiLibraries.includes(library)"
-                        :label="t('mcserver.wizard.preinstallApi', { library }, 'Pre-install {library}')"
-                        @update:model-value="(enabled) => setApiLibraryEnabled(library, enabled)"
+                        :label="
+                            t('mcserver.wizard.preinstallApi', { library }, 'Pre-install {library}')
+                        "
+                        @update:model-value="
+                            (enabled) => setApiLibraryEnabled(library, Boolean(enabled))
+                        "
                     />
                 </div>
 
@@ -1177,7 +1240,9 @@ const canAdvance = computed(() => {
                             <VRadio
                                 :value="option.id"
                                 :label="option.name"
-                                :disabled="option.id === 'local-docker' && !store.canCreateLocalDocker"
+                                :disabled="
+                                    option.id === 'local-docker' && !store.canCreateLocalDocker
+                                "
                             />
                             <div
                                 class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc"
@@ -1244,7 +1309,7 @@ const canAdvance = computed(() => {
                             v-model="dockerContainerRef"
                             label="Docker container name"
                             hint="Use lower-case letters, numbers, and hyphens."
-                            :error-messages="dockerContainerError ?? undefined"
+                            :error-messages="dockerContainerError ?? null"
                             persistent-hint
                             data-test="docker-container-ref"
                         />

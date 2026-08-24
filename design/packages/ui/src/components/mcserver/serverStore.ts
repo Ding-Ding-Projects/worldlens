@@ -21,12 +21,21 @@
 
 import { computed, reactive, ref, shallowRef, type ComputedRef, type Ref } from "vue";
 
-import type { InstanceStatus, ServerRecord, TransportCapabilities } from "./serverModel.js";
+import type {
+    InstanceStatus,
+    ServerRecord,
+    TransportCapabilities,
+    TransportRef,
+} from "./serverModel.js";
 
 export interface Answer<T> {
     readonly ok: boolean;
     readonly value?: T;
-    readonly failure?: { readonly code: string; readonly message: string; readonly detail: string | null };
+    readonly failure?: {
+        readonly code: string;
+        readonly message: string;
+        readonly detail: string | null;
+    };
 }
 
 export interface FileEntry {
@@ -68,7 +77,8 @@ export interface ProbeResult {
 /* Catalogue + Java resolution, for the create wizard                         */
 /* -------------------------------------------------------------------------- */
 
-export type CatalogueFlavourId = "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
+export type CatalogueFlavourId =
+    "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
 
 export type VersionStability = "release" | "snapshot";
 
@@ -274,13 +284,19 @@ export interface McServerHost {
             id: string,
             request: { version: PluginVersionEntry; pluginsDir?: string; modsDir?: string },
         ): Promise<Answer<InstalledPlugin>>;
-        list(id: string, request?: { pluginsDir?: string; modsDir?: string }): Promise<Answer<readonly InstalledPlugin[]>>;
+        list(
+            id: string,
+            request?: { pluginsDir?: string; modsDir?: string },
+        ): Promise<Answer<readonly InstalledPlugin[]>>;
         toggle(id: string, request: { path: string; enable: boolean }): Promise<Answer<void>>;
         remove(id: string, path: string): Promise<Answer<void>>;
     };
     readonly players?: {
         list(id: string): Promise<Answer<readonly PlayerEntry[]>>;
-        action(id: string, request: { action: string; name: string; reason?: string }): Promise<Answer<void>>;
+        action(
+            id: string,
+            request: { action: string; name: string; reason?: string },
+        ): Promise<Answer<void>>;
     };
     readonly adopt?: {
         discover(): Promise<Answer<readonly AdoptionCandidate[]>>;
@@ -303,11 +319,18 @@ export interface McServerHost {
             },
         ): Promise<Answer<BackupEntry>>;
         list(owner: string, repo: string): Promise<Answer<readonly BackupEntry[]>>;
-        restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string }): Promise<Answer<void>>;
+        restore(
+            id: string,
+            request: { owner: string; repo: string; tag: string; accountId?: string },
+        ): Promise<Answer<void>>;
     };
     readonly webConsole?: {
         status(): Promise<Answer<WebConsoleStatus>>;
-        start(options?: { host?: string; port?: number; tlsTerminated?: boolean }): Promise<Answer<void>>;
+        start(options?: {
+            host?: string;
+            port?: number;
+            tlsTerminated?: boolean;
+        }): Promise<Answer<void>>;
         stop(): Promise<Answer<void>>;
         setPassword(password: string): Promise<Answer<void>>;
         bind(): Promise<Answer<void>>;
@@ -360,7 +383,10 @@ export interface ServerStore {
     worldsList(id: string): Promise<Answer<readonly WorldEntry[]>>;
 
     playersList(id: string): Promise<Answer<readonly PlayerEntry[]>>;
-    playersAction(id: string, request: { action: string; name: string; reason?: string }): Promise<Answer<void>>;
+    playersAction(
+        id: string,
+        request: { action: string; name: string; reason?: string },
+    ): Promise<Answer<void>>;
 }
 
 export interface ServerStoreOptions {
@@ -381,11 +407,16 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
     const probes = reactive<Record<string, ProbeResult | undefined>>({});
 
     function noHost<T>(): Answer<T> {
-        return fail("This build cannot reach a Minecraft server host, so this action is unavailable.");
+        return fail(
+            "This build cannot reach a Minecraft server host, so this action is unavailable.",
+        );
     }
 
     function notWired<T>(namespace: string): Answer<T> {
-        return fail(`This build has not wired up ${namespace} yet, so this action is unavailable.`, "not-wired");
+        return fail(
+            `This build has not wired up ${namespace} yet, so this action is unavailable.`,
+            "not-wired",
+        );
     }
 
     return {
@@ -432,7 +463,9 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             const result = await host.save(record);
             if (result.ok && result.value) {
                 const next = servers.value.some((server) => server.id === record.id)
-                    ? servers.value.map((server) => (server.id === record.id ? result.value! : server))
+                    ? servers.value.map((server) =>
+                          server.id === record.id ? result.value! : server,
+                      )
                     : [...servers.value, result.value];
                 servers.value = next;
             }
@@ -445,7 +478,7 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             // would find out only when the server was written somewhere unexpected.
             if (host === null || host.suggestFolder === undefined) return null;
             const result = await host.suggestFolder(name);
-            return result.ok ? result.value : null;
+            return result.ok ? (result.value ?? null) : null;
         },
 
         async forget(id): Promise<Answer<void>> {
