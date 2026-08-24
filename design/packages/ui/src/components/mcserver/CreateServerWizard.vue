@@ -12,12 +12,10 @@ import {
     VDialog,
     VDivider,
     VIcon,
-    VListItem,
     VLabel,
     VProgressLinear,
     VRadio,
     VRadioGroup,
-    VSelect,
     VSlider,
     VSpacer,
     VSwitch,
@@ -26,6 +24,7 @@ import {
 import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
 import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import SearchableOptionPicker from "./SearchableOptionPicker.vue";
 import {
     releaseDateLabel,
     wikiArticleStateFor,
@@ -46,6 +45,7 @@ import type {
     CatalogueVersionEntry,
     JavaProvisionProgress,
     JavaResolution,
+    WikiArticleState,
 } from "./serverStore.js";
 import {
     FLAVOUR_CARDS,
@@ -111,8 +111,10 @@ const versionQuery = ref("");
 const versionUseRegex = ref(false);
 const versionFlags = ref("i");
 const minecraftVersion = ref("");
+const wikiStates = ref<Record<string, WikiArticleState>>({});
 const expandedFamilies = ref<Record<string, boolean>>({});
 const MAX_RENDERED_VERSION_ROWS = 500;
+const versionPage = ref(0);
 
 function familyStorageKey(): string {
     return `worldlens.mcserver.version-families.v1:${flavour.value}`;
@@ -159,13 +161,25 @@ function toggleFamily(stability: string, family: string): void {
     };
 }
 
+async function selectVersion(version: string): Promise<void> {
+    minecraftVersion.value = version;
+    if (!store.hasCatalogue) return;
+    const result = await store.catalogueVerifyWiki(version);
+    if (result.ok && result.value)
+        wikiStates.value = { ...wikiStates.value, [version]: result.value.state };
+}
+
 const renderedVersionGroups = computed(() => {
-    let remaining = MAX_RENDERED_VERSION_ROWS;
+    const first = versionPage.value * MAX_RENDERED_VERSION_ROWS;
+    let seen = 0;
     return versionGroups.value.map((group) => ({
         ...group,
         families: group.families.map((family) => {
-            const versions = family.versions.slice(0, Math.max(0, remaining));
-            remaining -= versions.length;
+            const versions = family.versions.filter((_entry, index) => {
+                const globalIndex = seen + index;
+                return globalIndex >= first && globalIndex < first + MAX_RENDERED_VERSION_ROWS;
+            });
+            seen += family.versions.length;
             return { ...family, versions };
         }),
     }));
@@ -210,6 +224,10 @@ const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
     const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);
     return entry?.versions ?? [];
 });
+const selectedFlavourCatalogue = computed(() => {
+    const card = FLAVOUR_CARDS.find((candidate) => candidate.id === flavour.value);
+    return catalogue.value?.flavours.find((entry) => entry.flavour === card?.cataloguedId) ?? null;
+});
 
 /**
  * Whether the user has deliberately asked to type a version the catalogue does not list.
@@ -241,7 +259,9 @@ const versionEnteredByHand = computed(
 const selectedWikiUrl = computed(() =>
     minecraftVersion.value.trim() === "" ? null : wikiUrlFor(minecraftVersion.value),
 );
-const selectedWikiState = computed(() => wikiArticleStateFor(minecraftVersion.value));
+const selectedWikiState = computed(
+    () => wikiStates.value[minecraftVersion.value] ?? wikiArticleStateFor(minecraftVersion.value),
+);
 
 const versionOptions = computed(() =>
     filteredVersions.value.map((entry) => {
@@ -266,6 +286,12 @@ const filteredVersions = computed(() =>
     ),
 );
 const versionGroups = computed(() => groupVersions(filteredVersions.value));
+const versionPageCount = computed(() =>
+    Math.max(1, Math.ceil(filteredVersions.value.length / MAX_RENDERED_VERSION_ROWS)),
+);
+watch([versionQuery, versionUseRegex, versionFlags, flavour], () => {
+    versionPage.value = 0;
+});
 const versionSample = computed(() => flavourVersions.value.map((v) => v.version).join("\n"));
 
 const selectedVersionEntry = computed<CatalogueVersionEntry | undefined>(() =>
@@ -890,6 +916,30 @@ const canAdvance = computed(() => {
                                 </VBtn>
                             </template>
                         </VAlert>
+                        <VAlert
+                            v-if="selectedFlavourCatalogue?.stale"
+                            type="warning"
+                            variant="tonal"
+                            density="compact"
+                        >
+                            {{
+                                t(
+                                    "mcserver.wizard.flavourCatalogueStale",
+                                    {
+                                        flavour,
+                                        at: selectedFlavourCatalogue.lastFetchedAt ?? "unknown",
+                                        reason:
+                                            selectedFlavourCatalogue.failure ?? "unknown reason",
+                                    },
+                                    "The {flavour} list is from {at} and could not be refreshed: {reason}",
+                                )
+                            }}
+                            <template #append>
+                                <span class="text-caption">{{
+                                    selectedFlavourCatalogue.failure
+                                }}</span>
+                            </template>
+                        </VAlert>
                         <ConfigSearchField
                             v-model="versionQuery"
                             v-model:regex="versionUseRegex"
@@ -909,6 +959,7 @@ const canAdvance = computed(() => {
                             }}
                         </div>
                         <div
+                            :id="`mcserver-version-families-${group.stability}`"
                             v-for="group in renderedVersionGroups"
                             :key="group.stability"
                             class="wl-mcserver-wizard__version-group"
@@ -967,12 +1018,16 @@ const canAdvance = computed(() => {
                                         <VBtn
                                             variant="text"
                                             class="wl-mcserver-wizard__version-row"
+                                            :disabled="
+                                                entry.availability === 'missing-server-artifact'
+                                            "
+                                            :title="entry.availabilityReason ?? undefined"
                                             :class="{
                                                 'wl-mcserver-wizard__version-row--selected':
                                                     minecraftVersion === entry.version,
                                             }"
                                             :aria-label="entry.version"
-                                            @click="minecraftVersion = entry.version"
+                                            @click="selectVersion(entry.version)"
                                         >
                                             <span>{{ entry.version }}</span>
                                             <span class="text-caption text-medium-emphasis">
@@ -987,6 +1042,19 @@ const canAdvance = computed(() => {
                                                     &#183; {{ releaseDateLabel(entry.releasedAt) }}
                                                 </template>
                                             </span>
+                                            <span
+                                                v-if="
+                                                    entry.availability === 'missing-server-artifact'
+                                                "
+                                                class="text-caption text-error"
+                                            >
+                                                {{
+                                                    t(
+                                                        "mcserver.wizard.missingServerArtifact",
+                                                        "Server download unavailable",
+                                                    )
+                                                }}
+                                            </span>
                                         </VBtn>
                                         <a
                                             v-if="wikiUrlFor(entry.version)"
@@ -994,13 +1062,14 @@ const canAdvance = computed(() => {
                                             target="_blank"
                                             rel="noreferrer noopener"
                                             class="wl-mcserver-wizard__wiki-action"
-                                            :aria-label="`${entry.version}: ${wikiArticleStateLabel(entry.wikiState ?? wikiArticleStateFor(entry.version))}`"
+                                            :aria-label="`${entry.version}: ${wikiArticleStateLabel(wikiStates[entry.version] ?? entry.wikiState ?? wikiArticleStateFor(entry.version))}`"
                                         >
                                             <VIcon :icon="mdiOpenInNew" size="x-small" />
                                             <span>{{ t("mcserver.wizard.wiki", "Wiki") }}</span>
                                             <span class="text-caption">{{
                                                 wikiArticleStateLabel(
-                                                    entry.wikiState ??
+                                                    wikiStates[entry.version] ??
+                                                        entry.wikiState ??
                                                         wikiArticleStateFor(entry.version),
                                                 )
                                             }}</span>
@@ -1013,43 +1082,67 @@ const canAdvance = computed(() => {
                             </section>
                         </div>
                         <div
-                            v-if="flavourVersions.length > MAX_RENDERED_VERSION_ROWS"
-                            class="text-caption text-medium-emphasis"
+                            v-if="filteredVersions.length > MAX_RENDERED_VERSION_ROWS"
+                            class="wl-mcserver-wizard__version-pages"
                         >
-                            {{
-                                t(
-                                    "mcserver.wizard.versionRenderLimit",
-                                    { n: MAX_RENDERED_VERSION_ROWS },
-                                    "Showing the first {n} matching versions. Search to narrow the list.",
-                                )
-                            }}
+                            <span class="text-caption text-medium-emphasis">
+                                {{
+                                    t(
+                                        "mcserver.wizard.versionRenderLimit",
+                                        {
+                                            shown: Math.min(
+                                                MAX_RENDERED_VERSION_ROWS,
+                                                filteredVersions.length -
+                                                    versionPage * MAX_RENDERED_VERSION_ROWS,
+                                            ),
+                                            total: filteredVersions.length,
+                                        },
+                                        "Showing {shown} of {total} matching versions.",
+                                    )
+                                }}
+                            </span>
+                            <VBtn
+                                size="small"
+                                variant="text"
+                                :disabled="versionPage === 0"
+                                aria-controls="mcserver-version-families-release mcserver-version-families-snapshot"
+                                @click="versionPage -= 1"
+                            >
+                                {{ t("common.previous", "Previous") }}
+                            </VBtn>
+                            <span class="text-caption" aria-live="polite">
+                                {{ versionPage + 1 }} / {{ versionPageCount }}
+                            </span>
+                            <VBtn
+                                size="small"
+                                variant="text"
+                                :disabled="versionPage + 1 >= versionPageCount"
+                                aria-controls="mcserver-version-families-release mcserver-version-families-snapshot"
+                                @click="versionPage += 1"
+                            >
+                                {{ t("common.next", "Next") }}
+                            </VBtn>
                         </div>
                     </template>
-                    <VSelect
+                    <SearchableOptionPicker
                         v-if="!versionEnteredByHand"
                         v-model="minecraftVersion"
-                        :items="versionOptions"
-                        item-title="title"
-                        item-value="value"
-                        :label="t('mcserver.wizard.version', 'Minecraft version')"
-                        :hint="
-                            t(
-                                'mcserver.wizard.versionHint',
-                                'Chosen from the versions this flavour actually publishes.',
-                            )
+                        :options="
+                            versionOptions.map((option) => ({
+                                title: option.title,
+                                value: option.value,
+                                subtitle: option.subtitle,
+                            }))
                         "
-                        persistent-hint
-                        :no-data-text="
+                        :label="t('mcserver.wizard.version', 'Minecraft version')"
+                        :sample="versionSample"
+                        :no-match-text="
                             t(
                                 'mcserver.wizard.noVersions',
                                 'No versions were fetched for this flavour.',
                             )
                         "
-                    >
-                        <template #item="{ props: itemProps, item }">
-                            <VListItem v-bind="itemProps" :subtitle="item.raw.subtitle" />
-                        </template>
-                    </VSelect>
+                    />
                     <VTextField
                         v-else
                         v-model="minecraftVersion"
@@ -1122,18 +1215,15 @@ const canAdvance = computed(() => {
                             )
                         }}
                     </VAlert>
-                    <VSelect
+                    <SearchableOptionPicker
                         v-if="modLoaderVersions.length > 0"
                         v-model="modLoaderVersion"
-                        :items="modLoaderVersions"
+                        :options="modLoaderVersions.map((value) => ({ title: value, value }))"
                         :label="t('mcserver.wizard.loaderVersion', 'Mod-loader version')"
-                        :hint="
-                            t(
-                                'mcserver.wizard.loaderVersionHint',
-                                'Choose a published loader build.',
-                            )
+                        :sample="modLoaderVersions.join('\n')"
+                        :no-match-text="
+                            t('mcserver.wizard.noLoaderVersions', 'No matching loader versions.')
                         "
-                        persistent-hint
                     />
                     <VTextField
                         v-else
@@ -1429,10 +1519,14 @@ const canAdvance = computed(() => {
                                 )
                             "
                         />
-                        <VSelect
+                        <SearchableOptionPicker
                             v-model="levelType"
-                            :items="LEVEL_TYPES"
+                            :options="LEVEL_TYPES"
                             :label="t('mcserver.wizard.levelType', 'World type')"
+                            :sample="LEVEL_TYPES.map((option) => option.title).join('\n')"
+                            :no-match-text="
+                                t('mcserver.wizard.noWorldTypes', 'No matching world types.')
+                            "
                         />
                         <VSwitch
                             v-model="generateStructures"
@@ -1658,6 +1752,13 @@ const canAdvance = computed(() => {
 .wl-mcserver-wizard__version-row-wrap {
     display: flex;
     align-items: center;
+    gap: 8px;
+    min-height: 48px;
+}
+.wl-mcserver-wizard__version-pages {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     min-height: 48px;
 }

@@ -2548,6 +2548,7 @@ interface WorldlensBridge {
         catalogue: {
             list(): Promise<unknown>;
             refresh(): Promise<unknown>;
+            verifyWiki(version: string): Promise<unknown>;
         };
         java: {
             resolve(version: string): Promise<unknown>;
@@ -3666,6 +3667,7 @@ const bridge: WorldlensBridge = {
         catalogue: {
             list: () => ipcRenderer.invoke("mcserver:catalogue:list"),
             refresh: () => ipcRenderer.invoke("mcserver:catalogue:refresh"),
+            verifyWiki: (version) => ipcRenderer.invoke("mcserver:catalogue:wikiVerify", version),
         },
         java: {
             resolve: (version) => ipcRenderer.invoke("mcserver:java:resolve", version),

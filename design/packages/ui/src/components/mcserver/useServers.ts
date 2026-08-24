@@ -37,7 +37,17 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
     const isFunction = (value: unknown): value is (...args: never[]) => unknown =>
         typeof value === "function";
 
-    const required = ["list", "get", "save", "forget", "probe", "status", "start", "stop", "logTail"];
+    const required = [
+        "list",
+        "get",
+        "save",
+        "forget",
+        "probe",
+        "status",
+        "start",
+        "stop",
+        "logTail",
+    ];
     if (!required.every((name) => isFunction(api[name]))) return null;
 
     const filesApi = api["files"] as Record<string, unknown> | undefined;
@@ -54,10 +64,12 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         typeof catalogueApi === "object" &&
         catalogueApi !== null &&
         isFunction(catalogueApi["list"]) &&
-        isFunction(catalogueApi["refresh"]);
+        isFunction(catalogueApi["refresh"]) &&
+        isFunction(catalogueApi["verifyWiki"]);
 
     const javaApi = api["java"] as Record<string, unknown> | undefined;
-    const javaReady = typeof javaApi === "object" && javaApi !== null && isFunction(javaApi["resolve"]);
+    const javaReady =
+        typeof javaApi === "object" && javaApi !== null && isFunction(javaApi["resolve"]);
 
     const pluginsApi = api["plugins"] as Record<string, unknown> | undefined;
     const pluginsReady =
@@ -86,7 +98,8 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         isFunction(adoptApi["release"]);
 
     const worldsApi = api["worlds"] as Record<string, unknown> | undefined;
-    const worldsReady = typeof worldsApi === "object" && worldsApi !== null && isFunction(worldsApi["list"]);
+    const worldsReady =
+        typeof worldsApi === "object" && worldsApi !== null && isFunction(worldsApi["list"]);
 
     const backupApi = api["backup"] as Record<string, unknown> | undefined;
     const backupReady =
@@ -118,26 +131,48 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         stop: api["stop"] as McServerHost["stop"],
         files: filesApi as unknown as McServerHost["files"],
         logTail: api["logTail"] as McServerHost["logTail"],
-        ...(catalogueReady ? { catalogue: catalogueApi as unknown as NonNullable<McServerHost["catalogue"]> } : {}),
+        ...(catalogueReady
+            ? { catalogue: catalogueApi as unknown as NonNullable<McServerHost["catalogue"]> }
+            : {}),
         ...(javaReady
             ? {
                   java: {
                       resolve: javaApi!["resolve"] as NonNullable<McServerHost["java"]>["resolve"],
                       ...(isFunction(javaApi!["provision"])
-                          ? { provision: javaApi!["provision"] as NonNullable<McServerHost["java"]>["provision"] }
+                          ? {
+                                provision: javaApi!["provision"] as NonNullable<
+                                    McServerHost["java"]
+                                >["provision"],
+                            }
                           : {}),
                       ...(isFunction(javaApi!["onProgress"])
-                          ? { onProgress: javaApi!["onProgress"] as NonNullable<McServerHost["java"]>["onProgress"] }
+                          ? {
+                                onProgress: javaApi!["onProgress"] as NonNullable<
+                                    McServerHost["java"]
+                                >["onProgress"],
+                            }
                           : {}),
                   },
               }
             : {}),
-        ...(isFunction(api["create"]) ? { create: api["create"] as NonNullable<McServerHost["create"]> } : {}),
-        ...(pluginsReady ? { plugins: pluginsApi as unknown as NonNullable<McServerHost["plugins"]> } : {}),
-        ...(playersReady ? { players: playersApi as unknown as NonNullable<McServerHost["players"]> } : {}),
+        ...(isFunction(api["create"])
+            ? { create: api["create"] as NonNullable<McServerHost["create"]> }
+            : {}),
+        ...(pluginsReady
+            ? { plugins: pluginsApi as unknown as NonNullable<McServerHost["plugins"]> }
+            : {}),
+        ...(playersReady
+            ? { players: playersApi as unknown as NonNullable<McServerHost["players"]> }
+            : {}),
         ...(adoptReady ? { adopt: adoptApi as unknown as NonNullable<McServerHost["adopt"]> } : {}),
-        ...(worldsReady ? { worlds: worldsApi as unknown as NonNullable<McServerHost["worlds"]> } : {}),
-        ...(backupReady ? { backup: backupApi as unknown as NonNullable<McServerHost["backup"]> } : {}),
-        ...(webConsoleReady ? { webConsole: webConsoleApi as unknown as NonNullable<McServerHost["webConsole"]> } : {}),
+        ...(worldsReady
+            ? { worlds: worldsApi as unknown as NonNullable<McServerHost["worlds"]> }
+            : {}),
+        ...(backupReady
+            ? { backup: backupApi as unknown as NonNullable<McServerHost["backup"]> }
+            : {}),
+        ...(webConsoleReady
+            ? { webConsole: webConsoleApi as unknown as NonNullable<McServerHost["webConsole"]> }
+            : {}),
     } as McServerHost;
 }

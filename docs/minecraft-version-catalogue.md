@@ -9,22 +9,26 @@ replace a large manifest with a newest-25 sample. Each exact entry keeps its pub
 time, Java requirement, and server download when Mojang published one.
 
 The version step separates releases and snapshots, then groups exact rows into collapsible
-families such as `1.21.x`, `1.20.x`, and year-based snapshot families. Family counts are counts of
-the exact entries in that family. The newest release family is marked Recommended, and the newest
-exact entry is shown in the family header. Search filters exact rows first, so a matching family
-opens as a useful result without changing the user's saved collapsed or expanded preference.
+families such as `1.21.x`, `1.20.x`, `26.3 snapshots`, and year-based weekly snapshot families.
+Family counts are counts of the exact entries in that family. The newest release family is marked
+Recommended, and the newest exact entry is shown in the family header. Search filters exact rows
+first, so a matching family opens as a useful result without changing the user's saved collapsed
+or expanded preference.
 
-The list has a bounded render window of 500 exact rows. A large catalogue remains complete in the
-cache and in search, while the UI avoids mounting thousands of controls at once. The message below
-the list states when the render window is active, and narrowing the search reveals older rows.
+The list renders 500 exact rows per page. A large catalogue remains complete in the cache and
+search, while the UI avoids mounting thousands of controls at once. The page controls state the
+filtered count, and moving to the next page reveals older matching rows instead of hiding them.
+Rows with no published server artifact stay visible but disabled with the exact reason.
 
 ## Configuration and persistence
 
 The main process stores the catalogue in `mcserver-catalogue.v1.json` inside the app data folder.
-The cache carries a shape number, fetched timestamp, a stable SHA-256 source revision derived from
-the canonical vanilla result, and per-flavour failure facts. A fresh cache is served without a
+The cache carries a shape number, fetched timestamp, a stable SHA-256 digest of Mojang's raw
+canonical manifest, and per-flavour failure facts. A fresh cache is served without a
 network request. An expired cache attempts a refresh, then remains usable and visibly stale when
-the refresh cannot complete.
+the refresh cannot complete. A partially refreshed flavour keeps its prior rows and exposes its
+last fetched timestamp and failure reason. Cache reads validate nested records, timestamps,
+duplicate version identifiers, digest fields, and every stored HTTPS URL before any row is returned.
 
 Family expansion is a renderer preference stored under
 `worldlens.mcserver.version-families.v1:<flavour>` in local browser storage. It is keyed by
@@ -32,7 +36,10 @@ stability and family name, so a search never destroys the user's normal layout c
 
 ## Wiki actions
 
-Every exact row has a Wiki action. `versionPresentation.ts` derives only HTTPS URLs from the exact
+Every exact row has a Wiki action. The main process owns a bounded Wiki verification cache and
+checks a selected article with a timeout-limited HEAD request, falling back to GET when the server
+does not support HEAD. A 403, 408, or 429 remains offline-unverified rather than being called
+unavailable. `versionPresentation.ts` derives only HTTPS URLs from the exact
 version identifier and refuses empty, path-like, or unsafe identifiers. Numbered releases use the
 `Java_Edition_<version>` title convention; snapshots use their own exact title. The action labels
 one of three honest states: Wiki article verified, Wiki article unavailable, or Wiki link not

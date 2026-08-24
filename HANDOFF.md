@@ -1,5 +1,27 @@
 # Handoff
 
+## 2026-08-24: catalogue hardening continuation
+
+The catalogue lane now ingests the complete Mojang manifest without a fixed version cap and
+records the raw manifest digest as `sourceRevision`. Main-boundary response reads are bounded
+before decoding, redirects are rejected, all upstream response shapes and HTTPS URLs are checked,
+and cache reads validate nested records, timestamps, duplicate ids, digests, and URLs. A partial
+refresh keeps a failed flavour's prior rows but marks that flavour stale with its last fetched
+timestamp and failure reason. Missing Mojang server artifacts remain visible disabled rows.
+
+The selected exact row can ask the main process to verify its Wiki article through a bounded
+HEAD or fallback GET and a local verification cache. HTTP 403, 408, and 429 stay
+`offline-unverified`; 404 and 410 are unavailable. The wizard now pages 500 filtered rows at a
+time, groups `26.3-snapshot-9` under `26.3 snapshots`, and uses a searchable picker with its own
+regex builder for version, loader, and world-type dropdowns. New catalogue labels are in the
+English and Cantonese five-level copy catalogue.
+
+Focused evidence for this continuation: 42 relevant tests passed, including the 5001-entry
+manifest, stale partial refresh, deep cache rejection, Wiki verification cache, modern snapshot
+families, searchable picker, and mounted wizard. The IPC suite remains unrun because workspace
+package declarations for `@worldlens/parts` are not built in this Gerk Tong Hui. The copy suite
+still reports pre-existing unrelated catalogue and em-dash poke guys.
+
 ## 2026-08-24: complete Java version catalogue lane
 
 The version-catalogue lane now keeps the complete Mojang release and snapshot manifest instead

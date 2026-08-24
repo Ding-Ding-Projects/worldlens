@@ -99,6 +99,11 @@ describe("groupVersions", () => {
     it("uses a bounded fallback family for unusual exact identifiers", () => {
         expect(versionFamily("old-alpha-build")).toBe("Other versions");
     });
+
+    it("keeps modern named snapshots with their numbered snapshot family", () => {
+        expect(versionFamily("26.3-snapshot-9")).toBe("26.3 snapshots");
+        expect(versionFamily("26w05a")).toBe("26 snapshots");
+    });
 });
 
 describe("filterVersions", () => {

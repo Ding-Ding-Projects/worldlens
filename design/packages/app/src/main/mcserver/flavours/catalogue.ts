@@ -57,11 +57,17 @@ export interface VersionEntry {
     readonly releasedAt: string | null;
     /** The UI can show a safe action even when the article has not been checked online. */
     readonly wikiState?: WikiArticleState;
+    readonly availability?: "available" | "missing-server-artifact";
+    readonly availabilityReason?: string;
 }
 
 export interface FlavourCatalogue {
     readonly flavour: FlavourId;
     readonly versions: readonly VersionEntry[];
+    /** Present when this flavour was reused after its own refresh failed. */
+    readonly stale?: boolean;
+    readonly lastFetchedAt?: string;
+    readonly failure?: string;
 }
 
 export interface CatalogueSnapshot {
@@ -97,7 +103,6 @@ export const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHE_BYTES = 16 * 1024 * 1024;
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 const MAX_VERSION_DETAIL_BYTES = 512 * 1024;
-const MAX_VANILLA_VERSIONS = 5000;
 const REQUEST_TIMEOUT_MS = 15_000;
 
 function cacheFile(dataDir: string): string {
@@ -110,19 +115,35 @@ const defaultFetchText: FetchText = async (url) => {
     try {
         const response = await globalThis.fetch(url, {
             headers: { accept: "application/json" },
-            redirect: "follow",
+            redirect: "error",
             signal: controller.signal,
         });
         if (!response.ok) {
             throw new Error(`HTTP ${String(response.status)} fetching ${url}`);
         }
-        const text = await response.text();
-        if (Buffer.byteLength(text, "utf8") > MAX_RESPONSE_BYTES) {
+        const advertisedLength = Number(response.headers.get("content-length"));
+        if (Number.isFinite(advertisedLength) && advertisedLength > MAX_RESPONSE_BYTES) {
             throw new Error(
                 `Response from ${url} is larger than the ${MAX_RESPONSE_BYTES} byte limit.`,
             );
         }
-        return text;
+        if (response.body === null) return await response.text();
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let total = 0;
+        while (true) {
+            const next = await reader.read();
+            if (next.done) break;
+            total += next.value.byteLength;
+            if (total > MAX_RESPONSE_BYTES) {
+                await reader.cancel();
+                throw new Error(
+                    `Response from ${url} is larger than the ${MAX_RESPONSE_BYTES} byte limit.`,
+                );
+            }
+            chunks.push(next.value);
+        }
+        return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString("utf8");
     } finally {
         clearTimeout(timer);
     }
@@ -159,6 +180,96 @@ function httpsUrl(value: unknown, label: string): string {
     return parsed.toString();
 }
 
+function isoTimestamp(value: unknown): value is string {
+    return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function validateCachedFlavours(value: unknown): FlavourCatalogue[] | null {
+    if (!Array.isArray(value)) return null;
+    const seenFlavours = new Set<string>();
+    const output: FlavourCatalogue[] = [];
+    for (const rawFlavour of value) {
+        if (!isRecord(rawFlavour) || typeof rawFlavour.flavour !== "string") return null;
+        if (!(FLAVOUR_IDS as readonly string[]).includes(rawFlavour.flavour)) return null;
+        if (seenFlavours.has(rawFlavour.flavour)) return null;
+        seenFlavours.add(rawFlavour.flavour);
+        if (!Array.isArray(rawFlavour.versions)) return null;
+        const seenVersions = new Set<string>();
+        const versions: VersionEntry[] = [];
+        for (const rawVersion of rawFlavour.versions) {
+            if (!isRecord(rawVersion)) return null;
+            if (
+                !("downloadUrl" in rawVersion) ||
+                !("sha256" in rawVersion) ||
+                !("releasedAt" in rawVersion)
+            )
+                return null;
+            if (
+                typeof rawVersion.version !== "string" ||
+                rawVersion.version.length === 0 ||
+                rawVersion.version.length > 128
+            )
+                return null;
+            if (seenVersions.has(rawVersion.version)) return null;
+            seenVersions.add(rawVersion.version);
+            if (rawVersion.stability !== "release" && rawVersion.stability !== "snapshot")
+                return null;
+            if (
+                typeof rawVersion.javaFeature !== "number" ||
+                !Number.isInteger(rawVersion.javaFeature) ||
+                rawVersion.javaFeature < 1 ||
+                rawVersion.javaFeature > 100
+            )
+                return null;
+            if (rawVersion.downloadUrl !== null && rawVersion.downloadUrl !== undefined) {
+                try {
+                    httpsUrl(
+                        rawVersion.downloadUrl,
+                        `Cached download URL for ${rawVersion.version}`,
+                    );
+                } catch {
+                    return null;
+                }
+            }
+            if (
+                rawVersion.sha256 !== null &&
+                rawVersion.sha256 !== undefined &&
+                !isSha256(rawVersion.sha256)
+            )
+                return null;
+            if (
+                rawVersion.releasedAt !== null &&
+                rawVersion.releasedAt !== undefined &&
+                !isoTimestamp(rawVersion.releasedAt)
+            )
+                return null;
+            if (
+                rawVersion.wikiState !== undefined &&
+                !["verified", "unavailable", "offline-unverified"].includes(
+                    String(rawVersion.wikiState),
+                )
+            )
+                return null;
+            versions.push(rawVersion as unknown as VersionEntry);
+        }
+        if (rawFlavour.stale !== undefined && typeof rawFlavour.stale !== "boolean") return null;
+        if (rawFlavour.lastFetchedAt !== undefined && !isoTimestamp(rawFlavour.lastFetchedAt))
+            return null;
+        if (rawFlavour.failure !== undefined && typeof rawFlavour.failure !== "string") return null;
+        const stale = rawFlavour.stale;
+        const lastFetchedAt = rawFlavour.lastFetchedAt;
+        const failure = rawFlavour.failure;
+        output.push({
+            flavour: rawFlavour.flavour as FlavourId,
+            versions,
+            ...(typeof stale === "boolean" ? { stale } : {}),
+            ...(typeof lastFetchedAt === "string" ? { lastFetchedAt } : {}),
+            ...(typeof failure === "string" ? { failure } : {}),
+        });
+    }
+    return output;
+}
+
 function isSha256(value: unknown): value is string {
     return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value);
 }
@@ -186,12 +297,20 @@ interface VanillaVersionDetail {
     readonly javaVersion?: { readonly majorVersion?: number };
 }
 
+interface FetchFlavourResult {
+    readonly versions: readonly VersionEntry[];
+    readonly sourceRevision?: string;
+}
+
 /**
  * The manifest lists every version Mojang has ever shipped, and this app only cares about
  * the ones that actually have a server jar - a release or snapshot - so `old_alpha` and
  * `old_beta` entries are skipped before a single per-version fetch is made.
  */
-async function fetchVanillaVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
+async function fetchVanillaVersions(
+    fetchText: FetchText,
+    limit: number,
+): Promise<FetchFlavourResult> {
     void limit;
     const manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
     const manifestText = await fetchText(manifestUrl);
@@ -200,17 +319,15 @@ async function fetchVanillaVersions(fetchText: FetchText, limit: number): Promis
         throw new Error("Mojang's version manifest did not contain a versions array.");
     }
     const manifest = rawManifest as unknown as VanillaManifest;
-    const candidates = manifest.versions
-        .filter((entry) => {
-            if (!isRecord(entry)) return false;
-            return (
-                (entry.type === "release" || entry.type === "snapshot") &&
-                typeof entry.id === "string" &&
-                entry.id.length > 0 &&
-                entry.id.length <= 64
-            );
-        })
-        .slice(0, MAX_VANILLA_VERSIONS);
+    const candidates = manifest.versions.filter((entry) => {
+        if (!isRecord(entry)) return false;
+        return (
+            (entry.type === "release" || entry.type === "snapshot") &&
+            typeof entry.id === "string" &&
+            entry.id.length > 0 &&
+            entry.id.length <= 64
+        );
+    });
 
     const entries: VersionEntry[] = [];
     for (const candidate of candidates) {
@@ -235,9 +352,19 @@ async function fetchVanillaVersions(fetchText: FetchText, limit: number): Promis
             // from a SHA-1 digest would be worse than recording none at all.
             sha256: null,
             releasedAt: candidate.releaseTime ?? null,
+            ...(downloadUrl === null
+                ? {
+                      availability: "missing-server-artifact" as const,
+                      availabilityReason:
+                          "Mojang published no server download for this exact version.",
+                  }
+                : {}),
         });
     }
-    return entries;
+    return {
+        versions: entries,
+        sourceRevision: createHash("sha256").update(manifestText, "utf8").digest("hex"),
+    };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -294,16 +421,33 @@ async function fetchPaperFamilyVersions(
     project: "paper" | "velocity",
     limit: number,
 ): Promise<VersionEntry[]> {
-    const projectText = await fetchText(`https://fill.papermc.io/v3/projects/${project}`);
-    const projectInfo = JSON.parse(projectText) as PaperProjectV3;
+    const projectUrl = `https://fill.papermc.io/v3/projects/${project}`;
+    const projectText = await fetchText(projectUrl);
+    const rawProject = boundedJson(projectText, projectUrl);
+    if (!isRecord(rawProject) || !isRecord(rawProject.versions)) {
+        throw new Error(`PaperMC ${project} response did not contain a versions object.`);
+    }
+    const projectInfo = rawProject as unknown as PaperProjectV3;
     const gameVersions = paperVersionsNewestFirst(projectInfo).slice(0, limit);
 
     const entries: VersionEntry[] = [];
     for (const version of gameVersions) {
-        const buildsText = await fetchText(
-            `https://fill.papermc.io/v3/projects/${project}/versions/${encodeURIComponent(version)}/builds`,
-        );
-        const builds = JSON.parse(buildsText) as readonly PaperBuildV3[];
+        const buildsUrl = `https://fill.papermc.io/v3/projects/${project}/versions/${encodeURIComponent(version)}/builds`;
+        const buildsText = await fetchText(buildsUrl);
+        const rawBuilds = boundedJson(buildsText, buildsUrl);
+        if (!Array.isArray(rawBuilds))
+            throw new Error(`PaperMC ${project} builds response was not an array.`);
+        if (
+            rawBuilds.some(
+                (build) =>
+                    !isRecord(build) || typeof build.id !== "number" || !Number.isInteger(build.id),
+            )
+        ) {
+            throw new Error(
+                `PaperMC ${project} builds response contained an invalid build record.`,
+            );
+        }
+        const builds = rawBuilds as readonly PaperBuildV3[];
         // v3 returns builds newest first, the opposite of v2. Reading the last entry here
         // would quietly offer the oldest build of every version.
         const latest = Array.isArray(builds) ? builds[0] : undefined;
@@ -312,13 +456,17 @@ async function fetchPaperFamilyVersions(
         // The server jar is published under this key; anything else is a different artifact.
         const download = latest.downloads?.["server:default"];
         if (download?.url === undefined) continue;
+        const downloadUrl = httpsUrl(
+            download.url,
+            `PaperMC ${project} download URL for ${version}`,
+        );
 
         entries.push({
             version: `${version}#${String(latest.id)}`,
             // Upstream says STABLE for a finished build and names a channel otherwise.
             stability: (latest.channel ?? "").toUpperCase() === "STABLE" ? "release" : "snapshot",
             javaFeature: 21,
-            downloadUrl: download.url,
+            downloadUrl,
             sha256: isSha256(download.checksums?.sha256)
                 ? download.checksums.sha256.toLowerCase()
                 : null,
@@ -341,21 +489,41 @@ interface PurpurVersionBuilds {
 }
 
 async function fetchPurpurVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
-    const projectText = await fetchText("https://api.purpurmc.org/v2/purpur");
-    const project = JSON.parse(projectText) as PurpurProject;
+    const projectUrl = "https://api.purpurmc.org/v2/purpur";
+    const projectText = await fetchText(projectUrl);
+    const rawProject = boundedJson(projectText, projectUrl);
+    if (
+        !isRecord(rawProject) ||
+        !Array.isArray(rawProject.versions) ||
+        rawProject.versions.some((version) => typeof version !== "string")
+    ) {
+        throw new Error("Purpur response did not contain a versions array of strings.");
+    }
+    const project = rawProject as unknown as PurpurProject;
     const gameVersions = project.versions.slice(-limit).reverse();
 
     const entries: VersionEntry[] = [];
     for (const version of gameVersions) {
-        const versionText = await fetchText(`https://api.purpurmc.org/v2/purpur/${version}`);
-        const versionInfo = JSON.parse(versionText) as PurpurVersionBuilds;
+        const versionUrl = `https://api.purpurmc.org/v2/purpur/${encodeURIComponent(version)}`;
+        const versionText = await fetchText(versionUrl);
+        const rawVersion = boundedJson(versionText, versionUrl);
+        if (
+            !isRecord(rawVersion) ||
+            !isRecord(rawVersion.builds) ||
+            (rawVersion.builds.latest !== undefined && typeof rawVersion.builds.latest !== "string")
+        )
+            throw new Error(`Purpur response for ${version} did not contain builds.`);
+        const versionInfo = rawVersion as unknown as PurpurVersionBuilds;
         const latest = versionInfo.builds.latest;
         if (latest === undefined) continue;
         entries.push({
             version: `${version}#${latest}`,
             stability: "release",
             javaFeature: 21,
-            downloadUrl: `https://api.purpurmc.org/v2/purpur/${version}/${latest}/download`,
+            downloadUrl: httpsUrl(
+                `https://api.purpurmc.org/v2/purpur/${encodeURIComponent(version)}/${encodeURIComponent(latest)}/download`,
+                `Purpur download URL for ${version}`,
+            ),
             // Purpur's build API does not publish a digest for this endpoint.
             sha256: null,
             // This API publishes no release date, and a guessed one would be repeated as fact.
@@ -390,8 +558,21 @@ async function fetchFabricLoaderVersions(
     fetchText: FetchText,
     limit: number,
 ): Promise<VersionEntry[]> {
-    const text = await fetchText("https://meta.fabricmc.net/v2/versions/loader");
-    const loaders = JSON.parse(text) as readonly FabricLoaderEntry[];
+    const url = "https://meta.fabricmc.net/v2/versions/loader";
+    const text = await fetchText(url);
+    const rawLoaders = boundedJson(text, url);
+    if (
+        !Array.isArray(rawLoaders) ||
+        rawLoaders.some(
+            (loader) =>
+                !isRecord(loader) ||
+                typeof loader.version !== "string" ||
+                typeof loader.stable !== "boolean",
+        )
+    ) {
+        throw new Error("Fabric response was not an array of loader records.");
+    }
+    const loaders = rawLoaders as readonly FabricLoaderEntry[];
     return loaders.slice(0, limit).map((loader) => ({
         version: loader.version,
         stability: loader.stable ? "release" : "snapshot",
@@ -430,21 +611,31 @@ export interface CatalogueOptions {
 async function fetchAllFlavours(
     fetchText: FetchText,
     limit: number,
-): Promise<{ flavours: FlavourCatalogue[]; failures: { flavour: FlavourId; reason: string }[] }> {
-    const fetchers: Record<FlavourId, () => Promise<VersionEntry[]>> = {
+): Promise<{
+    flavours: FlavourCatalogue[];
+    failures: { flavour: FlavourId; reason: string }[];
+    sourceRevision: string | null;
+}> {
+    const fetchers: Record<FlavourId, () => Promise<FetchFlavourResult>> = {
         vanilla: () => fetchVanillaVersions(fetchText, limit),
-        paper: () => fetchPaperFamilyVersions(fetchText, "paper", limit),
-        velocity: () => fetchPaperFamilyVersions(fetchText, "velocity", limit),
-        purpur: () => fetchPurpurVersions(fetchText, limit),
-        fabric: () => fetchFabricLoaderVersions(fetchText, limit),
+        paper: async () => ({
+            versions: await fetchPaperFamilyVersions(fetchText, "paper", limit),
+        }),
+        velocity: async () => ({
+            versions: await fetchPaperFamilyVersions(fetchText, "velocity", limit),
+        }),
+        purpur: async () => ({ versions: await fetchPurpurVersions(fetchText, limit) }),
+        fabric: async () => ({ versions: await fetchFabricLoaderVersions(fetchText, limit) }),
     };
 
     const flavours: FlavourCatalogue[] = [];
     const failures: { flavour: FlavourId; reason: string }[] = [];
+    let sourceRevision: string | null = null;
     for (const flavour of FLAVOUR_IDS) {
         try {
-            const versions = await fetchers[flavour]();
-            flavours.push({ flavour, versions });
+            const result = await fetchers[flavour]();
+            flavours.push({ flavour, versions: result.versions });
+            if (flavour === "vanilla") sourceRevision = result.sourceRevision ?? null;
         } catch (error) {
             failures.push({
                 flavour,
@@ -452,23 +643,40 @@ async function fetchAllFlavours(
             });
         }
     }
-    return { flavours, failures };
+    return { flavours, failures, sourceRevision };
 }
 
 async function readCache(dataDir: string): Promise<CatalogueSnapshot | null> {
     try {
         const bytes = await readFile(cacheFile(dataDir));
         if (bytes.byteLength > MAX_CACHE_BYTES) return null;
-        const parsed = JSON.parse(bytes.toString("utf8")) as Partial<CatalogueSnapshot>;
-        if (!Array.isArray(parsed.flavours) || typeof parsed.fetchedAt !== "string") return null;
+        const parsed = JSON.parse(bytes.toString("utf8")) as unknown;
+        if (!isRecord(parsed) || !isoTimestamp(parsed.fetchedAt)) return null;
         // An older shape is refused rather than upgraded in place: guessing what a missing
         // field should have been is how a wrong release date would get invented.
-        if ((parsed as { shape?: unknown }).shape !== CATALOGUE_CACHE_SHAPE) return null;
+        if (parsed.shape !== CATALOGUE_CACHE_SHAPE) return null;
+        const flavours = validateCachedFlavours(parsed.flavours);
+        if (flavours === null) return null;
+        if (!Array.isArray(parsed.failures)) return null;
+        const failures = parsed.failures.filter(
+            (entry): entry is { flavour: FlavourId; reason: string } =>
+                isRecord(entry) &&
+                typeof entry.flavour === "string" &&
+                (FLAVOUR_IDS as readonly string[]).includes(entry.flavour) &&
+                typeof entry.reason === "string",
+        );
+        if (failures.length !== parsed.failures.length) return null;
+        if (
+            parsed.sourceRevision !== null &&
+            parsed.sourceRevision !== undefined &&
+            !isSha256(parsed.sourceRevision)
+        )
+            return null;
         return {
-            flavours: parsed.flavours,
+            flavours,
             fetchedAt: parsed.fetchedAt,
             stale: false, // recomputed by the caller against the current clock
-            failures: Array.isArray(parsed.failures) ? parsed.failures : [],
+            failures,
             sourceRevision:
                 typeof parsed.sourceRevision === "string" ? parsed.sourceRevision : null,
         };
@@ -516,7 +724,7 @@ export async function refreshCatalogue(
     const now = options.now ?? (() => new Date().toISOString());
     const limit = options.limitPerFlavour ?? 25;
 
-    const { flavours, failures } = await fetchAllFlavours(fetchText, limit);
+    const { flavours, failures, sourceRevision } = await fetchAllFlavours(fetchText, limit);
     if (flavours.length === 0) {
         return fail(
             "unreachable",
@@ -530,14 +738,24 @@ export async function refreshCatalogue(
     const merged = FLAVOUR_IDS.map((id) => {
         const fetched = flavours.find((entry) => entry.flavour === id);
         if (fetched !== undefined) return fetched;
-        return previousById.get(id) ?? { flavour: id, versions: [] };
+        const previousEntry = previousById.get(id);
+        const failure = failures.find((entry) => entry.flavour === id)?.reason;
+        if (previousEntry !== undefined) {
+            return {
+                ...previousEntry,
+                stale: true,
+                lastFetchedAt: previous?.fetchedAt,
+                ...(failure === undefined ? {} : { failure }),
+            };
+        }
+        return {
+            flavour: id,
+            versions: [],
+            stale: true,
+            ...(failure === undefined ? {} : { failure }),
+        };
     });
 
-    const vanilla = merged.find((entry) => entry.flavour === "vanilla");
-    const sourceRevision =
-        vanilla === undefined
-            ? null
-            : createHash("sha256").update(JSON.stringify(vanilla.versions)).digest("hex");
     const snapshot: CatalogueSnapshot = {
         flavours: merged,
         fetchedAt: now(),

@@ -230,6 +230,8 @@ describe("refreshCatalogue", () => {
         const paper = result.value.flavours.find((f) => f.flavour === "paper");
         // The previous run's Paper entries survive rather than being wiped to nothing.
         expect(paper?.versions.length).toBeGreaterThan(0);
+        expect(paper?.stale).toBe(true);
+        expect(paper?.failure).toContain("PaperMC is down");
     });
 
     it("fails when every flavour is unreachable", async () => {
@@ -293,6 +295,84 @@ describe("refreshCatalogue", () => {
         });
         expect(oversized.ok).toBe(false);
         if (!oversized.ok) expect(oversized.failure.detail ?? "").toContain("byte limit");
+    });
+
+    it("does not silently truncate a manifest with more than five thousand exact entries", async () => {
+        const versions = Array.from({ length: 5001 }, (_, index) => ({
+            id: `1.${Math.floor(index / 10)}.${index % 10}`,
+            type: "release",
+            url: `https://example.test/large-${index}.json`,
+            releaseTime: "2026-01-01T00:00:00Z",
+        }));
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                if (url === "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+                    return JSON.stringify({ versions });
+                if (url.startsWith("https://example.test/large-")) return VANILLA_DETAIL;
+                return fakeFetch(ALL_ROUTES)(url);
+            },
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(
+            result.value.flavours.find((entry) => entry.flavour === "vanilla")?.versions,
+        ).toHaveLength(5001);
+    });
+
+    it("rejects duplicate versions, invalid timestamps, and non-HTTPS cached URLs", async () => {
+        const invalid = {
+            shape: 3,
+            fetchedAt: "not-a-time",
+            sourceRevision: "not-a-digest",
+            failures: [],
+            flavours: [{ flavour: "vanilla", versions: [] }],
+        };
+        await writeFile(join(dir, CATALOGUE_FILE), JSON.stringify(invalid), "utf8");
+        let fetches = 0;
+        const answer = await listCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                fetches += 1;
+                return fakeFetch(ALL_ROUTES)(url);
+            },
+        });
+        expect(fetches).toBeGreaterThan(0);
+        expect(answer.ok).toBe(true);
+
+        const duplicate = {
+            shape: 3,
+            fetchedAt: "2026-08-21T00:00:00Z",
+            sourceRevision: "a".repeat(64),
+            failures: [],
+            flavours: [
+                {
+                    flavour: "vanilla",
+                    versions: [
+                        {
+                            version: "1.21.4",
+                            stability: "release",
+                            javaFeature: 21,
+                            downloadUrl: "http://bad",
+                            sha256: null,
+                            releasedAt: null,
+                        },
+                        {
+                            version: "1.21.4",
+                            stability: "release",
+                            javaFeature: 21,
+                            downloadUrl: null,
+                            sha256: null,
+                            releasedAt: null,
+                        },
+                    ],
+                },
+            ],
+        };
+        await writeFile(join(dir, CATALOGUE_FILE), JSON.stringify(duplicate), "utf8");
+        const reread = await listCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES) });
+        expect(reread.ok).toBe(true);
+        if (reread.ok) expect(reread.value.sourceRevision).not.toBe("a".repeat(64));
     });
 });
 

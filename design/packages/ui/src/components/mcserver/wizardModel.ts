@@ -134,7 +134,9 @@ export interface VersionFamily {
 
 function familyForVersion(version: string): string {
     const gameVersion = version.split("#", 1)[0] ?? version;
-    const numbered = /^(\d+\.\d+)(?:\.\d+)?(?:-(?:pre|rc).*)?$/.exec(gameVersion);
+    const modernSnapshot = /^(\d+\.\d+)-snapshot(?:-|$)/i.exec(gameVersion);
+    if (modernSnapshot?.[1] !== undefined) return `${modernSnapshot[1]} snapshots`;
+    const numbered = /^(\d+\.\d+)(?:\.\d+)?(?:-(?:pre|rc|snapshot).*)?$/.exec(gameVersion);
     if (numbered?.[1] !== undefined) return `${numbered[1]}.x`;
     const snapshot = /^(\d{2})w\d{2}[a-z](?:-.*)?$/i.exec(gameVersion);
     if (snapshot?.[1] !== undefined) return `${snapshot[1]} snapshots`;

@@ -28,16 +28,8 @@ import {
 import { CHANGELOG_FACTS, CHANGELOG_FIXED, CHANGELOG_VOICED } from "./changelog.js";
 import { CHROME_FACTS, CHROME_FIXED, CHROME_VOICED } from "./chrome.js";
 import { CHUNKER_FACTS, CHUNKER_FIXED, CHUNKER_VOICED } from "./chunker.js";
-import {
-    CHUNKERROUTE_FACTS,
-    CHUNKERROUTE_FIXED,
-    CHUNKERROUTE_VOICED,
-} from "./chunkerRoute.js";
-import {
-    CIRENDERROUTE_FACTS,
-    CIRENDERROUTE_FIXED,
-    CIRENDERROUTE_VOICED,
-} from "./ciRenderRoute.js";
+import { CHUNKERROUTE_FACTS, CHUNKERROUTE_FIXED, CHUNKERROUTE_VOICED } from "./chunkerRoute.js";
+import { CIRENDERROUTE_FACTS, CIRENDERROUTE_FIXED, CIRENDERROUTE_VOICED } from "./ciRenderRoute.js";
 import { SHELL_FACTS, SHELL_FIXED, SHELL_VOICED } from "./shell.js";
 import { CIRENDER_FACTS, CIRENDER_FIXED, CIRENDER_VOICED } from "./cirender.js";
 import { CONFIGEDITOR_FACTS, CONFIGEDITOR_FIXED, CONFIGEDITOR_VOICED } from "./configEditor.js";
@@ -61,10 +53,19 @@ import { KID_FACTS, KID_FIXED, KID_VOICED } from "./kid.js";
 import { LIVESPEED_FACTS, LIVESPEED_FIXED, LIVESPEED_VOICED } from "./liveSpeed.js";
 import { MARKERREGEX_FACTS, MARKERREGEX_FIXED, MARKERREGEX_VOICED } from "./markerRegex.js";
 import { MASKDRAW_FACTS, MASKDRAW_FIXED, MASKDRAW_VOICED } from "./maskDraw.js";
-import { MASKDRAWCANVAS_FACTS, MASKDRAWCANVAS_FIXED, MASKDRAWCANVAS_VOICED } from "./maskDrawCanvas.js";
+import {
+    MASKDRAWCANVAS_FACTS,
+    MASKDRAWCANVAS_FIXED,
+    MASKDRAWCANVAS_VOICED,
+} from "./maskDrawCanvas.js";
 import { MENU_FACTS, MENU_FIXED, MENU_VOICED } from "./menu.js";
+import { MCSERVER_FACTS, MCSERVER_FIXED, MCSERVER_VOICED } from "./mcserver.js";
 import { MENUSEARCH_FACTS, MENUSEARCH_FIXED, MENUSEARCH_VOICED } from "./menuSearch.js";
-import { NOTIFICATIONSBULK_FACTS, NOTIFICATIONSBULK_FIXED, NOTIFICATIONSBULK_VOICED } from "./notificationsBulk.js";
+import {
+    NOTIFICATIONSBULK_FACTS,
+    NOTIFICATIONSBULK_FIXED,
+    NOTIFICATIONSBULK_VOICED,
+} from "./notificationsBulk.js";
 import { OLLAMA_FACTS, OLLAMA_FIXED, OLLAMA_VOICED } from "./ollama.js";
 import { PAGES_FACTS, PAGES_FIXED, PAGES_VOICED } from "./pages.js";
 import { PALETTE_FACTS, PALETTE_FIXED, PALETTE_VOICED } from "./palette.js";
@@ -83,7 +84,11 @@ import {
 } from "./rendersInProgress.js";
 import { SETTINGS_FACTS, SETTINGS_FIXED, SETTINGS_VOICED } from "./settings.js";
 import { SPEED_FACTS, SPEED_FIXED, SPEED_VOICED } from "./speed.js";
-import { TABGROUPPICKER_FACTS, TABGROUPPICKER_FIXED, TABGROUPPICKER_VOICED } from "./tabGroupPicker.js";
+import {
+    TABGROUPPICKER_FACTS,
+    TABGROUPPICKER_FIXED,
+    TABGROUPPICKER_VOICED,
+} from "./tabGroupPicker.js";
 import { TABS_FACTS, TABS_FIXED, TABS_VOICED } from "./tabs.js";
 import { TUTORIAL_FACTS, TUTORIAL_FIXED, TUTORIAL_VOICED } from "./tutorial.js";
 import { WORLD_FACTS, WORLD_FIXED, WORLD_VOICED } from "./world.js";
@@ -125,6 +130,7 @@ export const SURFACE_VOICED = {
     ...MASKDRAW_VOICED,
     ...MASKDRAWCANVAS_VOICED,
     ...MENU_VOICED,
+    ...MCSERVER_VOICED,
     ...MENUSEARCH_VOICED,
     ...NOTIFICATIONSBULK_VOICED,
     ...OLLAMA_VOICED,
@@ -184,6 +190,7 @@ export const SURFACE_FIXED = {
     ...MASKDRAW_FIXED,
     ...MASKDRAWCANVAS_FIXED,
     ...MENU_FIXED,
+    ...MCSERVER_FIXED,
     ...MENUSEARCH_FIXED,
     ...NOTIFICATIONSBULK_FIXED,
     ...OLLAMA_FIXED,
@@ -243,6 +250,7 @@ export const SURFACE_FACTS = {
     ...MASKDRAW_FACTS,
     ...MASKDRAWCANVAS_FACTS,
     ...MENU_FACTS,
+    ...MCSERVER_FACTS,
     ...MENUSEARCH_FACTS,
     ...NOTIFICATIONSBULK_FACTS,
     ...OLLAMA_FACTS,

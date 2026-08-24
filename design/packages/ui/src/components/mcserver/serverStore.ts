@@ -93,6 +93,9 @@ export interface CatalogueVersionEntry {
 export interface CatalogueFlavour {
     readonly flavour: CatalogueFlavourId;
     readonly versions: readonly CatalogueVersionEntry[];
+    readonly stale?: boolean;
+    readonly lastFetchedAt?: string;
+    readonly failure?: string;
     /** Optional mod-loader metadata supplied by catalogues that publish it. */
     readonly loaderVersions?: readonly string[];
     readonly commonApiLibraries?: readonly string[];
@@ -253,6 +256,13 @@ export interface McServerHost {
     readonly catalogue?: {
         list(): Promise<Answer<CatalogueSnapshot>>;
         refresh(): Promise<Answer<CatalogueSnapshot>>;
+        verifyWiki(version: string): Promise<
+            Answer<{
+                readonly url: string;
+                readonly state: WikiArticleState;
+                readonly checkedAt: string;
+            }>
+        >;
     };
     readonly java?: {
         resolve(version: string): Promise<Answer<JavaResolution>>;
@@ -365,6 +375,13 @@ export interface ServerStore {
 
     catalogueList(): Promise<Answer<CatalogueSnapshot>>;
     catalogueRefresh(): Promise<Answer<CatalogueSnapshot>>;
+    catalogueVerifyWiki(version: string): Promise<
+        Answer<{
+            readonly url: string;
+            readonly state: WikiArticleState;
+            readonly checkedAt: string;
+        }>
+    >;
     javaResolve(version: string): Promise<Answer<JavaResolution>>;
     javaProvision(version: string): Promise<Answer<JavaResolution>>;
     onJavaProgress(listener: (progress: JavaProvisionProgress) => void): () => void;
@@ -542,6 +559,10 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             if (host === null) return noHost();
             if (host.catalogue === undefined) return notWired("the server catalogue");
             return host.catalogue.refresh();
+        },
+        async catalogueVerifyWiki(version: string) {
+            if (host?.catalogue === undefined) return notWired("the server catalogue Wiki checker");
+            return host.catalogue.verifyWiki(version);
         },
         async javaResolve(version): Promise<Answer<JavaResolution>> {
             if (host === null) return noHost();
