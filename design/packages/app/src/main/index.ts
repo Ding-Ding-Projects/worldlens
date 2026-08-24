@@ -9,6 +9,7 @@ import {
     dialog,
     shell,
 } from "electron";
+import type { MessageBoxOptions } from "electron";
 import {
     acceptDownload,
     completeFirstRun,
@@ -562,6 +563,23 @@ function registerIpc(): void {
         // perfectly good one, which is the exact state bundling exists to remove.
         resourcesPath: app.isPackaged ? process.resourcesPath : null,
         safeStorage,
+        nativeRestoreConfirm: async (request) => {
+            const ownerWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+            const dialogOptions: MessageBoxOptions = {
+                type: "warning",
+                title: "Confirm world restore",
+                message: `Restore ${request.tag} into ${request.target}?`,
+                detail: `Server ${request.serverId}\nBackup ${request.owner}/${request.repo}\nThis replaces the current world after the staged copy is verified.`,
+                buttons: ["Cancel", "Restore"],
+                defaultId: 0,
+                cancelId: 0,
+                noLink: true,
+            };
+            const answer = ownerWindow === undefined
+                ? await dialog.showMessageBox(dialogOptions)
+                : await dialog.showMessageBox(ownerWindow, dialogOptions);
+            return answer.response === 1;
+        },
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
 
