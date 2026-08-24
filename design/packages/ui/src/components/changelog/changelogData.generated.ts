@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "b427eae7835c64d089cd34c8f37c0fb4dfdb0c8e",
+        shortSha: "b427eae783",
+        date: "2026-08-24T04:15:16-04:00",
+        subject: "Index runtime settings documentation",
+        details: "The new runtime article now sits in the same application order the docs browser renders, so the reader does not have to know a file exists before finding it.\n\nRuntime 文件而家加入 docs browser 同一份 application order，讀者唔使預先知道個檔案存在先搵得到。",
+        category: "interface",
+        areas: ["interface"],
+        files: 1,
+    },
+    {
         sha: "44f3153e4dfcfdaa71aa8189de9ef387c000b38b",
         shortSha: "44f3153e4d",
         date: "2026-08-24T04:13:46-04:00",
