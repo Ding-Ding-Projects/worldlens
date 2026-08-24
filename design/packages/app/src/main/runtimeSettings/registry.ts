@@ -1,4 +1,5 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { dirname } from "node:path";
 import type { SafeStorageLike } from "../worlddownloader/credentialStore.js";
 import { validateRuntimeExternalUrl } from "./service.js";
@@ -8,6 +9,80 @@ const MAX_SOURCES = 64;
 const MAX_ID = 80;
 const MAX_ENTITY = 256;
 const MAX_URL = 2048;
+const MAX_SECRET_REFERENCE = 200;
+
+function isSecretEntry(entry: unknown): entry is { reference: string; ciphertext: string } {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return false;
+    const value = entry as Record<string, unknown>;
+    return typeof value.reference === "string" && value.reference.length <= MAX_SECRET_REFERENCE && typeof value.ciphertext === "string" && value.ciphertext.length > 0;
+}
+
+export class RuntimeCredentialStore {
+    readonly #file: string;
+    readonly #safeStorage: SafeStorageLike;
+
+    constructor(options: { readonly file: string; readonly safeStorage: SafeStorageLike }) {
+        this.#file = options.file;
+        this.#safeStorage = options.safeStorage;
+    }
+
+    available(): boolean {
+        try { return this.#safeStorage.isEncryptionAvailable(); } catch { return false; }
+    }
+
+    presence(reference: string): boolean {
+        return this.readEnvelope().some((entry) => entry.reference === reference);
+    }
+
+    save(reference: string, secret: string): { readonly ok: boolean; readonly message: string } {
+        if (!/^[a-zA-Z0-9_.-]{1,200}$/.test(reference) || secret.length === 0 || secret.length > 4096 || /[\u0000-\u001f\u007f]/.test(secret))
+            return { ok: false, message: "The credential reference or value is not valid." };
+        if (!this.available()) return { ok: false, message: "This computer has no working credential store." };
+        let ciphertext: Buffer;
+        try { ciphertext = this.#safeStorage.encryptString(secret); } catch { return { ok: false, message: "The operating-system credential store refused the credential." }; }
+        const next = [{ reference, ciphertext: ciphertext.toString("base64") }, ...this.readEnvelope().filter((entry) => entry.reference !== reference)];
+        return this.writeEnvelope(next) ? { ok: true, message: "The credential was saved in the operating-system vault." } : { ok: false, message: "The credential could not be saved." };
+    }
+
+    async use<T>(reference: string, run: (secret: string) => Promise<T>): Promise<T | null> {
+        const entry = this.readEnvelope().find((candidate) => candidate.reference === reference);
+        if (entry === undefined || !this.available()) return null;
+        try {
+            const secret = this.#safeStorage.decryptString(Buffer.from(entry.ciphertext, "base64"));
+            if (secret.length === 0 || secret.length > 4096) return null;
+            return await run(secret);
+        } catch { return null; }
+    }
+
+    remove(reference: string): boolean {
+        const next = this.readEnvelope().filter((entry) => entry.reference !== reference);
+        return this.writeEnvelope(next);
+    }
+
+    private readEnvelope(): readonly { readonly reference: string; readonly ciphertext: string }[] {
+        try {
+            const parsed = JSON.parse(readFileSync(this.#file, "utf8")) as { version?: unknown; entries?: unknown };
+            if (parsed.version !== 1 || !Array.isArray(parsed.entries)) return [];
+            return parsed.entries.filter(isSecretEntry).slice(0, 32);
+        } catch { return []; }
+    }
+
+    private writeEnvelope(entries: readonly { readonly reference: string; readonly ciphertext: string }[]): boolean {
+        try {
+            mkdirSync(dirname(this.#file), { recursive: true });
+            const staging = `${this.#file}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
+            writeFileSync(staging, JSON.stringify({ version: 1, entries: entries.slice(0, 32) }) + "\n", { encoding: "utf8", mode: 0o600 });
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+                try { renameSync(staging, this.#file); return true; }
+                catch (error) {
+                    const code = (error as NodeJS.ErrnoException).code;
+                    if (!["EPERM", "EACCES", "EBUSY"].includes(code ?? "") || attempt === 3) throw error;
+                }
+            }
+            return false;
+        } catch { return false; }
+    }
+}
 
 export interface HomeAssistantSourceInput {
     readonly id: string;
@@ -148,7 +223,7 @@ export class RuntimeSourceRegistry {
         if (!validEntity(input.entityId)) return { ok: false, message: "The Home Assistant entity id is not valid." };
         if (!validCredential(input.credential)) return { ok: false, message: "The Home Assistant credential is not valid." };
         if (input.url.length > MAX_URL) return { ok: false, message: "The Home Assistant URL is too long." };
-        const checked = validateRuntimeExternalUrl(input.url, true);
+        const checked = validateRuntimeExternalUrl(input.url, true, true);
         if (!checked.ok) return { ok: false, message: checked.message };
         if (!this.encryptionAvailable())
             return { ok: false, message: "This computer has no working credential store, so the Home Assistant credential was not saved." };
@@ -197,10 +272,16 @@ export class RuntimeSourceRegistry {
     private writeFile(file: RegistryFile): boolean {
         try {
             mkdirSync(dirname(this.#file), { recursive: true });
-            const staging = `${this.#file}.${process.pid}.tmp`;
+            const staging = `${this.#file}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
             writeFileSync(staging, `${JSON.stringify(file)}\n`, { encoding: "utf8", mode: 0o600 });
-            renameSync(staging, this.#file);
-            return true;
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+                try { renameSync(staging, this.#file); return true; }
+                catch (error) {
+                    const code = (error as NodeJS.ErrnoException).code;
+                    if (!["EPERM", "EACCES", "EBUSY"].includes(code ?? "") || attempt === 3) throw error;
+                }
+            }
+            return false;
         } catch { return false; }
     }
 }

@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+
 /** Hand-written runtime-settings inventory. A row disappearing is a red contract failure. */
 export interface RuntimeCoverageRow {
     readonly id: string;
@@ -99,7 +101,7 @@ export const RUNTIME_COVERAGE: readonly RuntimeCoverageRow[] = [
 
 export function validateRuntimeCoverage(
     rows: readonly RuntimeCoverageRow[] = RUNTIME_COVERAGE,
-    options: { requireCaptures?: boolean } = {},
+    options: { requireCaptures?: boolean; root?: string } = {},
 ): string[] {
     const errors: string[] = [];
     const ids = new Set<string>();
@@ -114,6 +116,12 @@ export function validateRuntimeCoverage(
                 values.some((value) => typeof value !== "string" || value.length === 0)
             )
                 errors.push(`${row.id}:${field}`);
+            if (options.root !== undefined && field !== "localization" && Array.isArray(values)) {
+                for (const value of values) {
+                    const path = `${options.root}/${value}`.replaceAll("/", "\\");
+                    if (!existsSync(path)) errors.push(`${row.id}:${field}:missing:${value}`);
+                }
+            }
         }
         if (options.requireCaptures === true && row.capture === "pending")
             errors.push(`${row.id}:capture-pending`);
@@ -129,4 +137,9 @@ export function validateRuntimeCoverage(
         if (!ids.has(required)) errors.push(`missing:${required}`);
     }
     return errors;
+}
+
+/** Release validation is fail-closed for real built-artifact evidence. */
+export function validateRuntimeCoverageForRelease(rows: readonly RuntimeCoverageRow[] = RUNTIME_COVERAGE, root?: string): string[] {
+    return validateRuntimeCoverage(rows, { requireCaptures: true, ...(root === undefined ? {} : { root }) });
 }

@@ -4,7 +4,7 @@ export interface RuntimeCoordinatorBridge {
     refreshExternal(request: {
         readonly id: string;
         readonly source: "https" | "homeAssistant";
-        readonly url: string;
+        readonly url?: string;
         readonly entityId?: string;
     }): Promise<{
         readonly ok: boolean;
@@ -15,7 +15,7 @@ export interface RuntimeCoordinatorBridge {
 
 export function createRuntimeSettingsCoordinator(options: {
     readState: () => RuntimeSettingsState;
-    applyTemporary: (values: Readonly<Record<string, unknown>>) => void;
+    applyTemporary: (values: Readonly<Record<string, any>>) => void;
     clearTemporary?: () => void;
     bridge: RuntimeCoordinatorBridge | null;
     intervalMs?: number;
@@ -45,10 +45,12 @@ export function createRuntimeSettingsCoordinator(options: {
                 options.bridge!.refreshExternal({
                     id: rule.id,
                     source: rule.source as "https" | "homeAssistant",
-                    url: rule.sourceConfig.url!,
-                    ...(rule.sourceConfig.entityId === undefined
+                    ...(rule.source === "homeAssistant" ? {} : { url: rule.sourceConfig.url! }),
+                    ...(rule.source === "homeAssistant"
                         ? {}
-                        : { entityId: rule.sourceConfig.entityId }),
+                        : rule.sourceConfig.entityId === undefined
+                          ? {}
+                          : { entityId: rule.sourceConfig.entityId }),
                 }),
             ),
         );

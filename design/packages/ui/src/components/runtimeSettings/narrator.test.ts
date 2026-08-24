@@ -69,6 +69,12 @@ describe("runtime narrator", () => {
         );
         expect(status.installed).toBe(false);
         expect(status.effective).toBeNull();
+        const fallback = resolveVoiceStatus(
+            listVoices({ getVoices: () => [voice] } as unknown as SpeechAdapter),
+            null,
+            "yue",
+        );
+        expect(fallback.networkBacked).toBe(true);
     });
 
     it("watches late voice enumeration and serializes Both", () => {

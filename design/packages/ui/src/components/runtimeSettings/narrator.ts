@@ -68,7 +68,7 @@ export function resolveVoiceStatus(
     return {
         chosenId,
         installed: chosen !== null,
-        networkBacked: chosen?.networkBacked ?? false,
+        networkBacked: effective?.networkBacked ?? false,
         effective,
     };
 }

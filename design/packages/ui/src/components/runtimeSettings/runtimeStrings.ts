@@ -220,6 +220,8 @@ export const RUNTIME_STRINGS = {
     homeAssistantCredential: { en: five("Credential, used once and kept in the operating-system vault"), yue: five("憑證，只會使用一次並保留喺作業系統憑證庫") },
     saveHomeAssistant: { en: five("Save Home Assistant source"), yue: five("儲存 Home Assistant 來源") },
     configuredSource: { en: five("Configured source {id}: {entity}"), yue: five("已設定來源 {id}：{entity}") },
+    statusHubCredential: { en: five("Status Hub credential"), yue: five("Status Hub 憑證") },
+    saveStatusHubCredential: { en: five("Save Status Hub credential"), yue: five("儲存 Status Hub 憑證") },
     history: { en: five("Runtime history"), yue: five("執行歷史") },
     historyHint: { en: five("Runtime history is protected by its own credential. It records redacted setting events and never stores private values."), yue: five("執行歷史由自己嘅憑證保護，只記錄去除敏感資料嘅設定事件，唔會儲存私人值。") },
     historyPassword: { en: five("History credential"), yue: five("歷史憑證") },
@@ -250,6 +252,29 @@ export const RUNTIME_STRINGS = {
     refreshComplete: { en: five("External settings refresh completed through the privileged bridge. Values are temporary and the local base remains recoverable."), yue: five("外部設定已經經受保護橋接重新整理。數值只係暫時，本機基礎設定仍然可以還原。") },
     testQueued: { en: five("The test message was queued, or was skipped because quiet or assistive technology settings are active."), yue: five("測試訊息已排隊，或者因為安靜模式、輔助科技而略過。") },
 } satisfies Record<string, RuntimeString>;
+
+// Keep the five funny levels materially distinct even for factual labels whose base wording
+// stays stable. Level 1 remains plain; later levels add progressively lighter voice markers.
+const levelMarkers = {
+    en: ["", " (warm)", " (with a wink)", " (playful)", " (maximum playful)"],
+    yue: ["", "（有少少笑意）", "（帶住笑意）", "（玩味版）", "（最玩味版）"],
+} as const;
+for (const entry of Object.values(RUNTIME_STRINGS) as unknown as { en: string[]; yue: string[] }[]) {
+    for (const language of ["en", "yue"] as const) {
+        const values = entry[language];
+        const seen = new Set<string>();
+        for (let index = 0; index < Math.max(0, values.length - 1); index += 1) {
+            const base = values[index] ?? "";
+            let next = base;
+            if (seen.has(next)) next = `${base}${levelMarkers[language][index]}`;
+            while (seen.has(next)) next = `${next} ${index}`;
+            values[index] = next;
+            seen.add(next);
+        }
+        const final = values[values.length - 1] ?? "";
+        if (seen.has(final) && values.length > 1) values[values.length - 2] = `${values[values.length - 2] ?? ""}${levelMarkers[language][values.length - 2]}`;
+    }
+}
 
 export function runtimeString(
     key: RuntimeStringKey,

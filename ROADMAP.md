@@ -14,6 +14,18 @@
 - [ ] Capture the final built runtime-settings states through the approved Windows headless route;
       source implementation and focused verification are complete, while capture remains pending.
 
+## Reviewer correction pass: 2026-08-24
+
+- [x] Move Status Hub credentials into the encrypted operating-system vault, leaving only endpoint,
+      project, session, and credential-reference metadata in configuration.
+- [x] Track configured, credential, registration, evidence, reply, and confirmation states from
+      actual authenticated responses, persist the reply cursor, and use DNS-pinned bounded requests.
+- [x] Restrict Home Assistant IPC input to the stored source, reject unknown fields, allow only an
+      explicitly configured private LAN route, and cover `192.168.50.242` enrollment.
+- [x] Add strict evidence allowlisting and scrubbing, unique temporary files, transient Windows
+      rename retries, redacted before/after history snapshots, real restore application, date
+      validation, regex reset, distinct five-level resources, and app-event narration wiring.
+
 ## Reusable design system package — 2026-08-22
 
 - [x] Publish the shared WorldLens colour roles, Material Design 3 tokens, Vuetify themes,

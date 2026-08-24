@@ -19,6 +19,19 @@ workspace type checks remain red on pre-existing unrelated package errors; no ne
 the runtime-settings files. Final built-artifact capture evidence remains pending for the Windows
 headless capture lane.
 
+### Reviewer correction pass
+
+The follow-up correction keeps Status Hub endpoint, project, session, and credential-reference
+metadata separate from its credential. The credential is enrolled through the protected bridge and
+stored with the operating-system vault. Status state now distinguishes configuration and credential
+availability from real registration, evidence, reply-poll, and confirmation outcomes. The reply
+cursor is persisted, Status Hub requests pin DNS results and bound response fields, and evidence is
+restricted to a small scrubbed allowlist. Home Assistant IPC ignores caller URL and entity fields for
+refresh, rejects unknown input, and accepts private LAN routing only through an explicit configured
+source. Runtime history now keeps scrubbed before/after snapshots so diff and restore operate on real
+settings, with strict date validation and regex last-index reset. All 40 focused runtime and notice
+Chuts pass, the UI build remains green, and only built-artifact HuiShot evidence remains pending.
+
 ## 2026-08-23: runtimes inside the installer, and the GUI defects that exposed them
 
 ### What the project is now, in one paragraph

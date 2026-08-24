@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RUNTIME_COVERAGE, validateRuntimeCoverage } from "./completeness.js";
+import { RUNTIME_COVERAGE, validateRuntimeCoverage, validateRuntimeCoverageForRelease } from "./completeness.js";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -34,5 +34,13 @@ describe("runtime settings hand-written completeness inventory", () => {
                 expect(existsSync(resolve(process.cwd(), "..", path)), path).toBe(true);
             }
         }
+    });
+
+    it("checks implementation and documentation paths when a repository root is supplied", () => {
+        const cwd = resolve(process.cwd());
+        const root = existsSync(resolve(cwd, "packages")) ? resolve(cwd, "..") : resolve(cwd, "..", "..", "..");
+        const errors = validateRuntimeCoverage(RUNTIME_COVERAGE, { root });
+        expect(errors).toEqual([]);
+        expect(validateRuntimeCoverageForRelease()).toEqual(expect.arrayContaining(["status-hub:capture-pending"]));
     });
 });

@@ -704,7 +704,7 @@ interface RuntimeSettingsBridge {
     refreshExternal(request: {
         readonly id: string;
         readonly source: "https" | "homeAssistant";
-        readonly url: string;
+        readonly url?: string;
         readonly entityId?: string;
     }): Promise<{
         readonly ok: boolean;
@@ -717,6 +717,10 @@ interface RuntimeSettingsBridge {
         readonly deliveryAvailable: boolean;
         readonly source: "local-main-process";
         readonly message: string;
+        readonly registration: "unrun" | "confirmed" | "failed";
+        readonly evidence: "unrun" | "confirmed" | "failed";
+        readonly replies: "unrun" | "confirmed" | "failed";
+        readonly confirmation: "unrun" | "confirmed" | "failed";
     }>;
     sources(): Promise<readonly {
         readonly id: string;
@@ -742,11 +746,13 @@ interface RuntimeSettingsBridge {
     statusHubSubmitEvidence(evidence: unknown): Promise<RuntimeStatusHubResult>;
     statusHubPollReplies(cursor?: string): Promise<RuntimeStatusHubResult>;
     statusHubConfirmReply(replyId: string): Promise<RuntimeStatusHubResult>;
+    statusHubCredentialPresence(): Promise<boolean>;
+    statusHubSaveCredential(value: string): Promise<{ readonly ok: boolean; readonly message: string }>;
     historyPresence(): Promise<{ readonly configured: boolean; readonly unlocked: boolean }>;
     historySetCredential(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
     historyVerify(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
     historyList(input?: { readonly query?: string; readonly action?: string; readonly from?: string; readonly to?: string }): Promise<readonly { readonly id: string; readonly at: string; readonly action: string; readonly fields: readonly string[]; readonly digest: string }[]>;
-    historyAppend(input: { readonly action: string; readonly fields: readonly string[] }): Promise<unknown>;
+    historyAppend(input: { readonly action: string; readonly fields: readonly string[]; readonly before?: unknown; readonly after?: unknown }): Promise<unknown>;
     historyExport(format: "json" | "markdown"): Promise<string>;
     historyDiff(id: string): Promise<unknown>;
     historyRestore(id: string): Promise<unknown>;
@@ -759,6 +765,7 @@ interface RuntimeStatusHubResult {
     readonly sessionId?: string;
     readonly cursor?: string;
     readonly replies?: readonly { readonly id: string; readonly at: string; readonly kind: string; readonly text: string }[];
+    readonly evidenceId?: string;
     readonly authRequired?: boolean;
 }
 

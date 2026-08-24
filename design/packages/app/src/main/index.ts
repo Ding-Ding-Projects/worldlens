@@ -176,7 +176,7 @@ import type { AddonIpc } from "./addons/index.js";
 import { registerVocabularyHandlers } from "./vocabulary/index.js";
 import { registerRuntimeSettingsHandlers } from "./runtimeSettings/ipc.js";
 import type { RuntimeSettingsIpc } from "./runtimeSettings/ipc.js";
-import { RuntimeSourceRegistry } from "./runtimeSettings/registry.js";
+import { RuntimeCredentialStore, RuntimeSourceRegistry } from "./runtimeSettings/registry.js";
 import { createRuntimeSettingsService } from "./runtimeSettings/service.js";
 import { RuntimeHistoryService } from "./runtimeSettings/history.js";
 
@@ -484,6 +484,7 @@ let lockIpc: LockIpc | null = null;
 let mcServerIpc: McServerIpc | null = null;
 let runtimeSettingsIpc: RuntimeSettingsIpc | null = null;
 let runtimeSourceRegistry: RuntimeSourceRegistry | null = null;
+let runtimeCredentialStore: RuntimeCredentialStore | null = null;
 let runtimeHistoryService: RuntimeHistoryService | null = null;
 
 function registerIpc(): void {
@@ -577,6 +578,10 @@ function registerIpc(): void {
         file: path.join(app.getPath("userData"), "runtime-settings-sources.json"),
         safeStorage,
     });
+    runtimeCredentialStore = new RuntimeCredentialStore({
+        file: path.join(app.getPath("userData"), "runtime-settings-credentials.json"),
+        safeStorage,
+    });
     runtimeHistoryService = new RuntimeHistoryService({
         file: path.join(app.getPath("userData"), "runtime-settings-history.json"),
         credentialFile: path.join(app.getPath("userData"), "runtime-settings-history-credential.json"),
@@ -585,9 +590,8 @@ function registerIpc(): void {
     const statusHubUrl = process.env.WORLDLENS_STATUS_HUB_URL?.trim() ?? "";
     const statusHubProject = process.env.WORLDLENS_STATUS_HUB_PROJECT?.trim() ?? "";
     const statusHubSession = process.env.WORLDLENS_STATUS_HUB_SESSION?.trim() ?? "";
-    const statusHubToken = process.env.WORLDLENS_STATUS_HUB_TOKEN ?? "";
     const statusHub =
-        statusHubUrl !== "" && statusHubProject !== "" && statusHubSession !== "" && statusHubToken !== ""
+        statusHubUrl !== "" && statusHubProject !== "" && statusHubSession !== ""
             ? {
                   baseUrl: statusHubUrl,
                   projectId: statusHubProject,
@@ -596,13 +600,34 @@ function registerIpc(): void {
               }
             : null;
     const runtimeServiceOptions = {
-        readConfiguredSource: (id) => runtimeSourceRegistry?.get(id) ?? null,
-        readCredential: (id) => runtimeSourceRegistry?.useCredential(id, async (value) => value) ?? Promise.resolve(null),
+        readConfiguredSource: (id: string) => runtimeSourceRegistry?.get(id) ?? null,
+        readCredential: (id: string) => runtimeSourceRegistry?.useCredential(id, async (value) => value) ?? Promise.resolve(null),
         statusHub,
-        ...(statusHub === null ? {} : { readStatusHubCredential: async (_reference: string) => statusHubToken }),
+        ...(statusHub === null || runtimeCredentialStore === null ? {} : {
+            readStatusHubCredential: async (reference: string) => runtimeCredentialStore!.use(reference, async (secret) => secret),
+            statusHubCredentialAvailable: () => runtimeCredentialStore!.presence(statusHub.credentialRef),
+            readStatusHubState: () => {
+                try { return JSON.parse(fs.readFileSync(path.join(app.getPath("userData"), "runtime-settings-status-hub.json"), "utf8")) as Record<string, unknown>; } catch { return {}; }
+            },
+            writeStatusHubState: (state: Record<string, unknown>) => {
+                try {
+                    const target = path.join(app.getPath("userData"), "runtime-settings-status-hub.json");
+                    fs.mkdirSync(path.dirname(target), { recursive: true });
+                    const staging = `${target}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
+                    fs.writeFileSync(staging, JSON.stringify(state) + "\n", { encoding: "utf8", mode: 0o600 });
+                    for (let attempt = 0; attempt < 4; attempt += 1) {
+                        try { fs.renameSync(staging, target); break; }
+                        catch (error) {
+                            const code = (error as NodeJS.ErrnoException).code;
+                            if (!["EPERM", "EACCES", "EBUSY"].includes(code ?? "") || attempt === 3) throw error;
+                        }
+                    }
+                } catch { /* status is still reported as unpersisted */ }
+            },
+        }),
     };
     const runtimeService = createRuntimeSettingsService(runtimeServiceOptions);
-    runtimeSettingsIpc = registerRuntimeSettingsHandlers(ipcMain, runtimeService, runtimeSourceRegistry, runtimeHistoryService);
+    runtimeSettingsIpc = registerRuntimeSettingsHandlers(ipcMain, runtimeService, runtimeSourceRegistry, runtimeHistoryService, runtimeCredentialStore);
     app.on("will-quit", () => runtimeSettingsIpc?.dispose());
 
     registerVocabularyHandlers(ipcMain, { applicationDataDirectory });

@@ -57,13 +57,28 @@ describe("main-process runtime settings service", () => {
                 return new Response(JSON.stringify({ projectId: "project", sessionId: "session", cursor: "next", replies: [{ id: "reply-1", at: new Date().toISOString(), kind: "question", text: "Ready?" }] }), { status: 200 });
             },
         });
-        expect(service.status()).toMatchObject({ registered: true, deliveryAvailable: true });
+        expect(service.status()).toMatchObject({ registered: false, deliveryAvailable: true });
+        expect(service.status().registration).toBe("unrun");
         expect((await service.statusHubRegister()).ok).toBe(true);
-        expect((await service.statusHubSubmitEvidence({ state: "running" })).ok).toBe(true);
+        expect(service.status().registration).toBe("confirmed");
+        expect((await service.statusHubSubmitEvidence({ sessionSeconds: 12, stateVersion: 1, scheduleCount: 0, narratorVoices: 1, at: new Date().toISOString() })).ok).toBe(true);
         expect((await service.statusHubPollReplies()).replies?.[0]?.id).toBe("reply-1");
         expect((await service.statusHubConfirmReply("reply-1")).ok).toBe(true);
         expect(calls.map((call) => call.method)).toEqual(["POST", "POST", "GET", "POST"]);
         expect(calls.every((call) => call.body === undefined || !call.body.includes("vault-only-token"))).toBe(true);
+        service.dispose();
+    });
+
+    it("rejects unbounded or unknown evidence before any Status Hub request", async () => {
+        let called = false;
+        const service = createRuntimeSettingsService({
+            statusHub: { baseUrl: "http://127.0.0.1:8099", projectId: "project", sessionId: "session", credentialRef: "status-hub" },
+            readStatusHubCredential: async () => "vault-only-token",
+            fetcher: async () => { called = true; return new Response("{}"); },
+        });
+        const result = await service.statusHubSubmitEvidence({ token: "do-not-send", huge: "x".repeat(20_000) });
+        expect(result.ok).toBe(false);
+        expect(called).toBe(false);
         service.dispose();
     });
 });

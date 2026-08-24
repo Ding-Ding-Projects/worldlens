@@ -2188,7 +2188,7 @@ interface AppSettingsHistoryBridge {
 export interface RuntimeExternalRequest {
     readonly id: string;
     readonly source: "https" | "homeAssistant";
-    readonly url: string;
+    readonly url?: string;
     readonly entityId?: string;
 }
 
@@ -2203,6 +2203,10 @@ export interface RuntimeStatusRecord {
     readonly deliveryAvailable: boolean;
     readonly source: "local-main-process";
     readonly message: string;
+    readonly registration: "unrun" | "confirmed" | "failed";
+    readonly evidence: "unrun" | "confirmed" | "failed";
+    readonly replies: "unrun" | "confirmed" | "failed";
+    readonly confirmation: "unrun" | "confirmed" | "failed";
 }
 
 export interface RuntimeConfiguredSource {
@@ -2227,6 +2231,7 @@ export interface RuntimeStatusHubResult {
     readonly sessionId?: string;
     readonly cursor?: string;
     readonly replies?: readonly RuntimeStatusHubReply[];
+    readonly evidenceId?: string;
     readonly authRequired?: boolean;
 }
 
@@ -2245,11 +2250,13 @@ export interface RuntimeSettingsBridge {
     statusHubSubmitEvidence(evidence: unknown): Promise<RuntimeStatusHubResult>;
     statusHubPollReplies(cursor?: string): Promise<RuntimeStatusHubResult>;
     statusHubConfirmReply(replyId: string): Promise<RuntimeStatusHubResult>;
+    statusHubCredentialPresence(): Promise<boolean>;
+    statusHubSaveCredential(value: string): Promise<{ readonly ok: boolean; readonly message: string }>;
     historyPresence(): Promise<{ readonly configured: boolean; readonly unlocked: boolean }>;
     historySetCredential(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
     historyVerify(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
     historyList(input?: { readonly query?: string; readonly action?: string; readonly from?: string; readonly to?: string }): Promise<readonly { readonly id: string; readonly at: string; readonly action: string; readonly fields: readonly string[]; readonly digest: string }[]>;
-    historyAppend(input: { readonly action: string; readonly fields: readonly string[] }): Promise<unknown>;
+    historyAppend(input: { readonly action: string; readonly fields: readonly string[]; readonly before?: unknown; readonly after?: unknown }): Promise<unknown>;
     historyExport(format: "json" | "markdown"): Promise<string>;
     historyDiff(id: string): Promise<unknown>;
     historyRestore(id: string): Promise<unknown>;
@@ -4367,6 +4374,8 @@ const bridge: WorldlensBridge = {
         statusHubSubmitEvidence: (evidence) => ipcRenderer.invoke("runtimeSettings:statusHubSubmitEvidence", evidence),
         statusHubPollReplies: (cursor) => ipcRenderer.invoke("runtimeSettings:statusHubPollReplies", cursor),
         statusHubConfirmReply: (replyId) => ipcRenderer.invoke("runtimeSettings:statusHubConfirmReply", replyId),
+        statusHubCredentialPresence: () => ipcRenderer.invoke("runtimeSettings:statusHubCredentialPresence"),
+        statusHubSaveCredential: (value) => ipcRenderer.invoke("runtimeSettings:statusHubSaveCredential", value),
         historyPresence: () => ipcRenderer.invoke("runtimeSettings:historyPresence"),
         historySetCredential: (password) => ipcRenderer.invoke("runtimeSettings:historySetCredential", password),
         historyVerify: (password) => ipcRenderer.invoke("runtimeSettings:historyVerify", password),

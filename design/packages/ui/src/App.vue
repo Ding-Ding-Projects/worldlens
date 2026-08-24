@@ -132,7 +132,9 @@ import { useTheme } from "vuetify";
 import { isWorldArchive, looksLikeMinecraftWorld } from "./components/world/worldDropModel.js";
 import {
     createRuntimeSettingsCoordinator,
+    createNarratorController,
     loadRuntimeSettings,
+    resolveScheduledValues,
 } from "./components/runtimeSettings/index.js";
 
 const { t } = useI18n();
@@ -215,19 +217,21 @@ const rootRuntimeCoordinator = createRuntimeSettingsCoordinator({
     readState: () => loadRuntimeSettings(),
     applyTemporary: applyRootRuntimeValues,
     clearTemporary: () => {
-        const base = loadRuntimeSettings().values;
-        applyRootRuntimeValues({
-            accent: base.accent,
-            fontFamily: base.fontFamily,
-            fontSize: base.fontSize,
-            displayName: base.displayName,
-        });
+        const state = loadRuntimeSettings();
+        applyRootRuntimeValues(resolveScheduledValues(state.values, state.schedules) as unknown as Readonly<Record<string, unknown>>);
     },
     bridge:
         typeof window === "undefined" || window.worldlens?.runtimeSettings === undefined
             ? null
             : window.worldlens.runtimeSettings,
 });
+const rootNarrator = createNarratorController();
+const onRuntimeNotice = (event: Event): void => {
+    const detail = (event as CustomEvent<{ level?: string; message?: string; title?: string; detail?: string }>).detail;
+    const values = loadRuntimeSettings().values;
+    const screenReaderActive = document.documentElement.dataset.screenReaderActive === "true" || document.body.dataset.screenReaderActive === "true";
+    rootNarrator.speak(values.narrator, { en: `${detail.title ?? ""} ${detail.message ?? ""} ${detail.detail ?? ""}`.trim(), yue: `${detail.title ?? ""} ${detail.message ?? ""} ${detail.detail ?? ""}`.trim() }, `notice:${detail.level ?? "info"}`, { screenReaderActive, reducedSound: values.narrator.quietHours });
+};
 onMounted(() => {
     document.documentElement.dataset.runtimeCoordinator = "active";
     if (typeof BroadcastChannel !== "undefined") {
@@ -235,11 +239,14 @@ onMounted(() => {
         rootRuntimeChannel.onmessage = () => applyRootRuntimeValues(loadRuntimeSettings().values as unknown as Readonly<Record<string, unknown>>);
     }
     rootRuntimeCoordinator.start();
+    window.addEventListener("worldlens:notice", onRuntimeNotice);
 });
 onUnmounted(() => {
     rootRuntimeCoordinator.stop();
     rootRuntimeChannel?.close();
     rootRuntimeChannel = null;
+    window.removeEventListener("worldlens:notice", onRuntimeNotice);
+    rootNarrator.dispose();
     delete document.documentElement.dataset.runtimeCoordinator;
 });
 provideBlueMap(currentApp);

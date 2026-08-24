@@ -61,7 +61,9 @@ export function raiseNotice(
         typeof options === "string"
             ? { title: productDisplayName.value, detail: options }
             : { ...(options ?? {}), title: options?.title ?? productDisplayName.value };
-    return notify(notices, level, message, { ...resolved, delivery: "history" });
+    const notice = notify(notices, level, message, { ...resolved, delivery: "history" });
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("worldlens:notice", { detail: { level, message, title: notice.title, detail: notice.detail } }));
+    return notice;
 }
 
 /**

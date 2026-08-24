@@ -488,3 +488,27 @@ body {
         animation-duration: 0.01ms !important;
     }
 }
+
+/* Runtime settings are shell-wide state, not a panel-only preview. */
+html[data-runtime-motion="reduced"] #app,
+html[data-runtime-motion="reduced"] #app * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+}
+html[data-runtime-density="compact"] #app {
+    --worldlens-runtime-density-gap: 8px;
+}
+html[data-runtime-density="spacious"] #app {
+    --worldlens-runtime-density-gap: 20px;
+}
+html[data-runtime-density="comfortable"] #app {
+    --worldlens-runtime-density-gap: 12px;
+}
+html[data-runtime-focus="true"] #app .mb-runtime-secondary {
+    opacity: 0.42;
+}
+html[data-runtime-focus="true"] #app .mb-runtime-primary {
+    opacity: 1;
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 3px;
+}

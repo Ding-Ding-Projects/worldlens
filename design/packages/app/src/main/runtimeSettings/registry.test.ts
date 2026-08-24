@@ -36,4 +36,13 @@ describe("runtime source registry", () => {
             expect(registry.saveHomeAssistant({ id: "night", url: "http://127.0.0.1:8123/api", entityId: "input_boolean.night", credential: "secret-value" }).ok).toBe(false);
         } finally { rmSync(root, { recursive: true, force: true }); }
     });
+
+    it("allows an explicitly configured private LAN Home Assistant source", () => {
+        const root = mkdtempSync(join(tmpdir(), "worldlens-runtime-registry-"));
+        try {
+            const registry = new RuntimeSourceRegistry({ file: join(root, "sources.json"), safeStorage: safe() });
+            expect(registry.saveHomeAssistant({ id: "lan", url: "http://192.168.50.242:8123/api", entityId: "input_boolean.night", credential: "secret-value" }).ok).toBe(true);
+            expect(registry.get("lan")?.url).toContain("192.168.50.242");
+        } finally { rmSync(root, { recursive: true, force: true }); }
+    });
 });

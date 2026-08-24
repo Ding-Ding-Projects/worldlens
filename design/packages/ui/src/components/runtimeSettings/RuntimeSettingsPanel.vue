@@ -5,6 +5,7 @@ import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     DEFAULT_RUNTIME_SETTINGS,
     resolveScheduledValues,
+    parseRuntimeSettingsState,
     type AccommodationKey,
     type RuntimeLanguage,
     type RuntimeSettingKey,
@@ -21,6 +22,7 @@ import {
 } from "./narrator.js";
 import {
     loadRuntimeSettings,
+    saveRuntimeSettings,
     recordRuntimeHistory,
     setAccommodation,
     updateRuntimeValues,
@@ -65,13 +67,18 @@ const statusRecord = ref<{
     deliveryAvailable: boolean;
     source: "local-main-process";
     message: string;
+    registration: "unrun" | "confirmed" | "failed";
+    evidence: "unrun" | "confirmed" | "failed";
+    replies: "unrun" | "confirmed" | "failed";
+    confirmation: "unrun" | "confirmed" | "failed";
 } | null>(null);
 const configuredSources = ref<readonly { id: string; source: "homeAssistant"; url: string; entityId: string; credentialRef: string }[]>([]);
 const haSourceId = ref("");
 const haUrl = ref("");
 const haEntityId = ref("");
 const haCredential = ref("");
-const statusHubResult = ref<{ ok: boolean; message: string; cursor?: string; replies?: readonly { id: string; at: string; kind: string; text: string }[] } | null>(null);
+const statusHubResult = ref<{ ok: boolean; message: string; cursor?: string; evidenceId?: string; replies?: readonly { id: string; at: string; kind: string; text: string }[] } | null>(null);
+const statusHubCredential = ref("");
 const historyConfigured = ref(false);
 const historyUnlocked = ref(false);
 const historyPassword = ref("");
@@ -91,6 +98,7 @@ const clock = ref(Date.now());
 const momentumDismissedUntil = ref(0);
 let clockTimer: ReturnType<typeof setInterval> | null = null;
 let temporaryTimer: ReturnType<typeof setTimeout> | null = null;
+let statusHubTimer: ReturnType<typeof setInterval> | null = null;
 let runtimeChannel: BroadcastChannel | null = null;
 const onRuntimeStorage = (event: StorageEvent): void => {
     if (event.key === "worldlens:runtime-settings:v1") state.value = loadRuntimeSettings();
@@ -196,21 +204,23 @@ const summary = computed(() => {
 });
 
 function persistValues(patch: Parameters<typeof updateRuntimeValues>[1]): void {
+    const before = state.value;
     state.value = updateRuntimeValues(state.value, patch);
     recordAppSetting("runtimeSettings", state.value);
     runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
     lastChangedAt.value = Date.now();
     statusMessage.value = rt("saved");
-    void runtimeBridge?.historyAppend({ action: "updated", fields: Object.keys(patch) });
+    void runtimeBridge?.historyAppend({ action: "updated", fields: Object.keys(patch), before, after: state.value });
 }
 
 function setAccommodationValue(key: AccommodationKey, enabled: boolean): void {
+    const before = state.value;
     state.value = setAccommodation(state.value, key, enabled);
     recordAppSetting("runtimeSettings", state.value);
     runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
     lastChangedAt.value = Date.now();
     statusMessage.value = rt("saved");
-    void runtimeBridge?.historyAppend({ action: "updated", fields: [`accommodations.${key}`] });
+    void runtimeBridge?.historyAppend({ action: "updated", fields: [`accommodations.${key}`], before, after: state.value });
 }
 
 function openItem(item: (typeof searchableItems.value)[number]): void {
@@ -246,6 +256,15 @@ async function registerStatusHub(): Promise<void> {
         ? { ok: false, message: rt("statusHubUnavailable") }
         : await runtimeBridge.statusHubRegister();
     statusMessage.value = statusHubResult.value.message;
+}
+
+async function saveStatusHubCredential(): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    const result = await runtimeBridge.statusHubSaveCredential(statusHubCredential.value);
+    statusHubCredential.value = "";
+    statusMessage.value = result.message;
+    const record = await runtimeBridge.status();
+    statusRecord.value = record;
 }
 
 async function submitStatusEvidence(): Promise<void> {
@@ -313,13 +332,19 @@ async function exportHistory(): Promise<void> {
 
 async function viewHistoryDiff(id: string): Promise<void> {
     if (runtimeBridge === undefined) return;
-    const result = await runtimeBridge.historyDiff(id) as { ok?: boolean; message?: string; entry?: { digest: string; fields: readonly string[] } };
-    historyDiff.value = result.entry === undefined ? (result.message ?? "") : `${result.entry.fields.join(", ")} · ${result.entry.digest}`;
+    const result = await runtimeBridge.historyDiff(id) as { ok?: boolean; message?: string; entry?: { digest: string; fields: readonly string[]; before?: unknown; after?: unknown } };
+    historyDiff.value = result.entry === undefined ? (result.message ?? "") : `${JSON.stringify(result.entry.before ?? null)} → ${JSON.stringify(result.entry.after ?? null)} · ${result.entry.digest}`;
 }
 
 async function restoreHistory(id: string): Promise<void> {
     if (runtimeBridge === undefined) return;
-    const result = await runtimeBridge.historyRestore(id) as { ok?: boolean; message?: string };
+    const result = await runtimeBridge.historyRestore(id) as { ok?: boolean; message?: string; snapshot?: unknown };
+    const restored = parseRuntimeSettingsState(result.snapshot);
+    if (result.ok === true && restored !== null) {
+        saveRuntimeSettings(restored);
+        state.value = restored;
+        runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
+    }
     statusMessage.value = result.message ?? rt("historyUnavailable");
     await refreshHistory();
 }
@@ -391,12 +416,13 @@ function addSchedule(): void {
     } as const;
     const next = { ...state.value, schedules: [...state.value.schedules, rule] };
     try {
+        const before = state.value;
         state.value = next;
         // The shared store parser is the final bounded validation boundary.
         const saved = updateRuntimeValues(next, {}, undefined);
         state.value = saved;
         recordRuntimeHistory("created", ["schedules", scheduleSetting.value]);
-        void runtimeBridge?.historyAppend({ action: "created", fields: ["schedules", scheduleSetting.value] });
+        void runtimeBridge?.historyAppend({ action: "created", fields: ["schedules", scheduleSetting.value], before, after: state.value });
         recordAppSetting("runtimeSettings", state.value);
         runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
         statusMessage.value = rt("scheduleAdded");
@@ -410,6 +436,7 @@ function addSchedule(): void {
 }
 
 function removeSchedule(id: string): void {
+    const before = state.value;
     state.value = {
         ...state.value,
         schedules: state.value.schedules.filter((rule) => rule.id !== id),
@@ -417,7 +444,7 @@ function removeSchedule(id: string): void {
     // Save the new state through the same validator used for ordinary setting changes.
     updateRuntimeValues(state.value, {});
     recordRuntimeHistory("deleted", ["schedules"]);
-    void runtimeBridge?.historyAppend({ action: "deleted", fields: ["schedules"] });
+    void runtimeBridge?.historyAppend({ action: "deleted", fields: ["schedules"], before, after: state.value });
     recordAppSetting("runtimeSettings", state.value);
     runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
     statusMessage.value = rt("scheduleDeleted");
@@ -542,6 +569,10 @@ onMounted(() => {
     if (bridge !== undefined)
         void bridge.status().then((record) => {
             statusRecord.value = record;
+            if (record.deliveryAvailable) {
+                void registerStatusHub();
+                statusHubTimer = setInterval(() => { void pollStatusReplies(); }, 60_000);
+            }
         });
     void loadConfiguredSources();
     void refreshHistory();
@@ -559,6 +590,8 @@ onUnmounted(() => {
     coordinator = null;
     if (clockTimer !== null) clearInterval(clockTimer);
     if (temporaryTimer !== null) clearTimeout(temporaryTimer);
+    if (statusHubTimer !== null) clearInterval(statusHubTimer);
+    statusHubTimer = null;
     window.removeEventListener("storage", onRuntimeStorage);
     window.removeEventListener("pointerdown", onRuntimeActivity);
     window.removeEventListener("keydown", onRuntimeActivity);
@@ -707,6 +740,9 @@ onUnmounted(() => {
                     <p v-if="statusRecord !== null && !statusRecord.deliveryAvailable" class="mb-runtime-settings__hint">
                         {{ rt("statusHubUnavailable") }}
                     </p>
+                    <p v-if="statusHubResult?.evidenceId" class="mb-runtime-settings__hint">Evidence id: {{ statusHubResult.evidenceId }}</p>
+                    <label>{{ rt("statusHubCredential") }} <input v-model="statusHubCredential" type="password" autocomplete="new-password" /></label>
+                    <button type="button" @click="saveStatusHubCredential">{{ rt("saveStatusHubCredential") }}</button>
                     <ul v-if="statusHubResult?.replies?.length" class="mb-runtime-settings__rules" :aria-label="rt('pollReplies')">
                         <li v-for="reply in statusHubResult.replies" :key="reply.id">
                             <span><strong>{{ reply.kind }}</strong> · {{ reply.text }}</span>

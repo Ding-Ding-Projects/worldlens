@@ -1,11 +1,12 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 
 export interface RuntimeExternalRequest {
     readonly id: string;
     readonly source: "https" | "homeAssistant";
-    readonly url: string;
+    readonly url?: string;
     readonly entityId?: string;
 }
 export interface RuntimeConfiguredSource {
@@ -26,6 +27,10 @@ export interface RuntimeStatusRecord {
     readonly deliveryAvailable: boolean;
     readonly source: "local-main-process";
     readonly message: string;
+    readonly registration: "unrun" | "confirmed" | "failed";
+    readonly evidence: "unrun" | "confirmed" | "failed";
+    readonly replies: "unrun" | "confirmed" | "failed";
+    readonly confirmation: "unrun" | "confirmed" | "failed";
 }
 
 export interface RuntimeStatusHubConfig {
@@ -50,6 +55,7 @@ export interface RuntimeStatusHubResult {
     readonly cursor?: string;
     readonly replies?: readonly RuntimeStatusHubReply[];
     readonly authRequired?: boolean;
+    readonly evidenceId?: string;
 }
 
 const PRIVATE_V4 = [
@@ -101,6 +107,7 @@ export function validateRuntimeExternalUrl(
         return { ok: false, message: "External settings URLs cannot contain credentials." };
     const loopback =
         url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
+    const explicitPrivateHost = loopback || (isIP(url.hostname) !== 0 && isBlockedRuntimeAddress(url.hostname)) || url.hostname.toLowerCase().endsWith(".local") || url.hostname.toLowerCase().endsWith(".lan");
     if (
         isIP(url.hostname) !== 0 &&
         isBlockedRuntimeAddress(url.hostname) &&
@@ -114,7 +121,7 @@ export function validateRuntimeExternalUrl(
     if (
         url.protocol !== "https:" &&
         !(allowLoopbackDev && url.protocol === "http:" && loopback) &&
-        !(allowPrivateNetwork && url.protocol === "http:")
+        !(allowPrivateNetwork && url.protocol === "http:" && explicitPrivateHost)
     )
         return {
             ok: false,
@@ -186,14 +193,14 @@ async function withDeadline<T>(promise: Promise<T>, signal: AbortSignal): Promis
     });
 }
 
-function pinnedHttpsRequest(
+function pinnedRequest(
     url: URL,
     address: string,
     headers: Record<string, string>,
     signal: AbortSignal,
 ): Promise<{ status: number; body: string }> {
     return new Promise((resolve, reject) => {
-        const request = httpsRequest(
+        const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
             {
                 hostname: address,
                 port: url.port || 443,
@@ -235,12 +242,41 @@ export function createRuntimeSettingsService(
         fetcher?: typeof fetch;
         readCredential?: (reference: string) => Promise<string | null>;
         readConfiguredSource?: (id: string) => RuntimeConfiguredSource | null;
-        statusHub?: RuntimeStatusHubConfig | null;
-        readStatusHubCredential?: (reference: string) => Promise<string | null>;
+    statusHub?: RuntimeStatusHubConfig | null;
+    readStatusHubCredential?: (reference: string) => Promise<string | null>;
+    statusHubCredentialAvailable?: () => boolean;
+    readStatusHubState?: () => Record<string, unknown>;
+    writeStatusHubState?: (state: Record<string, unknown>) => void;
     } = {},
 ): RuntimeSettingsService {
     const fetcher = options.fetcher ?? fetch;
+    const customFetcher = options.fetcher;
     let generation = 0;
+    const persistedHubState = options.readStatusHubState?.() ?? {};
+    let hubState = {
+        registration: persistedHubState.registration === "confirmed" ? "confirmed" : "unrun",
+        evidence: persistedHubState.evidence === "confirmed" ? "confirmed" : "unrun",
+        replies: persistedHubState.replies === "confirmed" ? "confirmed" : "unrun",
+        confirmation: persistedHubState.confirmation === "confirmed" ? "confirmed" : "unrun",
+        cursor: typeof persistedHubState.cursor === "string" ? persistedHubState.cursor : undefined,
+    } as { registration: "unrun" | "confirmed" | "failed"; evidence: "unrun" | "confirmed" | "failed"; replies: "unrun" | "confirmed" | "failed"; confirmation: "unrun" | "confirmed" | "failed"; cursor?: string };
+    const saveHubState = (): void => options.writeStatusHubState?.({ ...hubState });
+    const sanitizeEvidence = (value: unknown): Record<string, string | number> | null => {
+        if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+        const allowed = new Set(["sessionSeconds", "stateVersion", "scheduleCount", "narratorVoices", "at", "evidenceId"]);
+        const input = value as Record<string, unknown>;
+        if (Object.keys(input).length > allowed.size || Object.keys(input).some((key) => !allowed.has(key))) return null;
+        const output: Record<string, string | number> = {};
+        for (const [key, raw] of Object.entries(input)) {
+            if (key === "at" || key === "evidenceId") {
+                if (typeof raw !== "string" || raw.length > 120 || /[\u0000-\u001f\u007f]/.test(raw) || (key === "at" && Number.isNaN(Date.parse(raw)))) return null;
+                output[key] = raw;
+            } else if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw < 0 || raw > 1_000_000) return null;
+            else output[key] = raw;
+        }
+        const encoded = JSON.stringify(output);
+        return encoded.length <= 16_384 ? output : null;
+    };
     const statusHubRequest = async (
         method: "GET" | "POST",
         path: string,
@@ -273,32 +309,31 @@ export function createRuntimeSettingsService(
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
         try {
-            const response = await fetcher(target, {
-                method,
-                headers: {
-                    Accept: "application/json",
-                    Authorization: `Bearer ${token}`,
-                    ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-                },
-                ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-                redirect: "error",
-                signal: controller.signal,
-            });
-            const text = await response.text();
+            const addresses = (await withDeadline(lookup(checked.url.hostname, { all: true, verbatim: true }), controller.signal)).map((entry) => entry.address);
+            if (addresses.length === 0) return { ok: false, message: "The Status Hub host could not be resolved." };
+            const headers = { Accept: "application/json", Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) };
+            const response = customFetcher === undefined ? null : await customFetcher(target, { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }), redirect: "error", signal: controller.signal });
+            const pinned = customFetcher === undefined ? await pinnedRequest(target, addresses[0]!, headers, controller.signal) : null;
+            const afterAddresses = (await lookup(checked.url.hostname, { all: true, verbatim: true })).map((entry) => entry.address);
+            if (afterAddresses.length === 0 || afterAddresses.some((address) => !addresses.includes(address))) return { ok: false, message: "The Status Hub host changed address during the request." };
+            const status = response?.status ?? pinned?.status ?? 0;
+            const text = response === null ? (pinned?.body ?? "") : await response.text();
             if (text.length > 512 * 1024)
                 return { ok: false, message: "The Status Hub response exceeded the 512 KiB limit." };
             let parsed: unknown = {};
             try { parsed = text.length === 0 ? {} : JSON.parse(text); } catch { return { ok: false, message: "The Status Hub response was not valid JSON." }; }
-            if (!response.ok)
-                return { ok: false, message: `The Status Hub answered HTTP ${response.status}.` };
+            if (!(response?.ok ?? (status >= 200 && status < 300)))
+                return { ok: false, message: `The Status Hub answered HTTP ${status}.` };
             if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
                 return { ok: false, message: "The Status Hub response had an invalid shape." };
             const record = parsed as Record<string, unknown>;
+            const responseKeys = new Set(["projectId", "sessionId", "cursor", "replies", "evidenceId"]);
+            if (Object.keys(record).some((key) => !responseKeys.has(key))) return { ok: false, message: "The Status Hub response contains an unknown field." };
             const replies = Array.isArray(record.replies)
                 ? record.replies
                       .filter((reply): reply is Record<string, unknown> => typeof reply === "object" && reply !== null && !Array.isArray(reply))
                       .slice(0, 100)
-                      .filter((reply) => typeof reply.id === "string" && typeof reply.at === "string" && typeof reply.kind === "string" && typeof reply.text === "string")
+                      .filter((reply) => typeof reply.id === "string" && reply.id.length <= 200 && typeof reply.at === "string" && reply.at.length <= 80 && typeof reply.kind === "string" && reply.kind.length <= 80 && typeof reply.text === "string" && reply.text.length <= 4096)
                       .map((reply) => ({ id: reply.id as string, at: reply.at as string, kind: reply.kind as string, text: reply.text as string }))
                 : undefined;
             return {
@@ -307,6 +342,7 @@ export function createRuntimeSettingsService(
                 ...(typeof record.projectId === "string" ? { projectId: record.projectId } : {}),
                 ...(typeof record.sessionId === "string" ? { sessionId: record.sessionId } : {}),
                 ...(typeof record.cursor === "string" ? { cursor: record.cursor } : {}),
+                ...(typeof record.evidenceId === "string" ? { evidenceId: record.evidenceId } : {}),
                 ...(replies === undefined ? {} : { replies }),
             };
         } catch (error) {
@@ -320,21 +356,42 @@ export function createRuntimeSettingsService(
     };
     return {
         status: () => ({
-            registered: options.statusHub !== null && options.statusHub !== undefined,
-            deliveryAvailable: options.statusHub !== null && options.statusHub !== undefined && options.readStatusHubCredential !== undefined,
+            registered: hubState.registration === "confirmed",
+            deliveryAvailable: options.statusHub !== null && options.statusHub !== undefined && options.readStatusHubCredential !== undefined && (options.statusHubCredentialAvailable?.() ?? true),
             source: "local-main-process",
             message: options.statusHub === null || options.statusHub === undefined
                 ? "Authenticated Status Hub delivery is not configured for this build. No submission route is exposed."
-                : options.readStatusHubCredential === undefined
+                : options.statusHubCredentialAvailable !== undefined && !options.statusHubCredentialAvailable()
+                  ? "Authenticated Status Hub is configured but its operating-system credential is unavailable."
+                  : options.readStatusHubCredential === undefined
                   ? "Authenticated Status Hub is configured without an operating-system credential reader."
-                  : "Authenticated Status Hub delivery is configured through the main process.",
+                  : `Authenticated Status Hub state: registration ${hubState.registration}, evidence ${hubState.evidence}, replies ${hubState.replies}, confirmation ${hubState.confirmation}.`,
+            registration: hubState.registration,
+            evidence: hubState.evidence,
+            replies: hubState.replies,
+            confirmation: hubState.confirmation,
         }),
-        statusHubRegister: () => statusHubRequest("POST", "/api/projects/register", { projectId: options.statusHub?.projectId, sessionId: options.statusHub?.sessionId }),
-        statusHubSubmitEvidence: (evidence) => statusHubRequest("POST", `/api/projects/${options.statusHub?.projectId ?? "unconfigured"}/evidence`, evidence),
-        statusHubPollReplies: (cursor) => statusHubRequest("GET", `/api/agent/sessions/${options.statusHub?.sessionId ?? "unconfigured"}/replies${cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`}`),
-        statusHubConfirmReply: (replyId) => /^[a-zA-Z0-9_.:-]{1,200}$/.test(replyId)
-            ? statusHubRequest("POST", `/api/agent/sessions/${options.statusHub?.sessionId ?? "unconfigured"}/replies/${encodeURIComponent(replyId)}/confirm`, { replyId })
-            : Promise.resolve({ ok: false, message: "The Status Hub reply id is not valid." }),
+        statusHubRegister: async () => {
+            const result = await statusHubRequest("POST", "/api/projects/register", { projectId: options.statusHub?.projectId, sessionId: options.statusHub?.sessionId });
+            hubState.registration = result.ok ? "confirmed" : "failed"; saveHubState(); return result;
+        },
+        statusHubSubmitEvidence: async (evidence) => {
+            const clean = sanitizeEvidence(evidence);
+            if (clean === null) { hubState.evidence = "failed"; saveHubState(); return { ok: false, message: "The evidence payload contains an unknown, secret-looking or out-of-bounds field." }; }
+            const result = await statusHubRequest("POST", `/api/projects/${options.statusHub?.projectId ?? "unconfigured"}/evidence`, clean);
+            hubState.evidence = result.ok ? "confirmed" : "failed"; saveHubState(); return result;
+        },
+        statusHubPollReplies: async (cursor) => {
+            const result = await statusHubRequest("GET", `/api/agent/sessions/${options.statusHub?.sessionId ?? "unconfigured"}/replies${cursor === undefined && hubState.cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor ?? hubState.cursor!)}`}`);
+            hubState.replies = result.ok ? "confirmed" : "failed";
+            if (result.cursor !== undefined) hubState.cursor = result.cursor;
+            saveHubState(); return result;
+        },
+        statusHubConfirmReply: async (replyId) => {
+            if (!/^[a-zA-Z0-9_.:-]{1,200}$/.test(replyId)) return { ok: false, message: "The Status Hub reply id is not valid." };
+            const result = await statusHubRequest("POST", `/api/agent/sessions/${options.statusHub?.sessionId ?? "unconfigured"}/replies/${encodeURIComponent(replyId)}/confirm`, { replyId });
+            hubState.confirmation = result.ok ? "confirmed" : "failed"; saveHubState(); return result;
+        },
         async refresh(request) {
             const run = ++generation;
             if (typeof request.id !== "string" || !/^[a-zA-Z0-9_.-]{1,80}$/.test(request.id))
@@ -368,6 +425,7 @@ export function createRuntimeSettingsService(
                     message: "The configured Home Assistant entity id is not valid.",
                 };
             const requestUrl = configured?.url ?? request.url;
+            if (typeof requestUrl !== "string") return { ok: false, message: "The external settings URL is missing." };
             const checked = validateRuntimeExternalUrl(requestUrl, request.source === "homeAssistant", request.source === "homeAssistant");
             if (!checked.ok) return checked;
             const controller = new AbortController();
@@ -419,7 +477,7 @@ export function createRuntimeSettingsService(
                         : null;
                 const pinned =
                     options.fetcher === undefined
-                        ? await pinnedHttpsRequest(
+                        ? await pinnedRequest(
                               checked.url,
                               addresses[0]!,
                               headers,
