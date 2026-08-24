@@ -28,6 +28,7 @@ import {
 } from "./store.js";
 import SearchablePicker from "./SearchablePicker.vue";
 import { createRuntimeSettingsCoordinator, type RuntimeCoordinatorBridge } from "./coordinator.js";
+import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 type RuntimeTab = "status" | "narrator" | "schedule" | "accommodations";
@@ -41,7 +42,7 @@ interface RuntimeSearchItem {
 
 const { t } = useI18n();
 const state = ref<RuntimeSettingsState>(loadRuntimeSettings());
-const activeTab = ref<RuntimeTab>("status");
+const runtimeTabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const query = ref("");
 const regexMode = ref(false);
 const flags = ref("im");
@@ -220,15 +221,15 @@ function setAccommodationValue(key: AccommodationKey, enabled: boolean): void {
 }
 
 function openItem(item: (typeof searchableItems.value)[number]): void {
-    activeTab.value = item.tab;
+    runtimeTabs.value?.revealPage(item.tab);
 }
 
-const tabs: readonly { id: RuntimeTab; label: string }[] = [
-    { id: "status", label: "Status Hub" },
-    { id: "narrator", label: "Narrator" },
-    { id: "schedule", label: "Scheduled settings" },
-    { id: "accommodations", label: "Attention modes" },
-];
+const runtimePages = computed<TabPage[]>(() => [
+    { id: "status", label: "Status Hub", icon: null },
+    { id: "narrator", label: "Narrator", icon: null },
+    { id: "schedule", label: "Scheduled settings", icon: null },
+    { id: "accommodations", label: "Attention modes", icon: null },
+]);
 
 const scheduleSetting = ref<RuntimeSettingKey>("theme");
 const scheduleValue = ref("dark");
@@ -531,27 +532,9 @@ onUnmounted(() => {
             </li>
         </ul>
 
-        <div
-            class="mb-runtime-settings__tabs"
-            role="tablist"
-            aria-label="Runtime settings sections"
-        >
-            <button
-                v-for="tab in tabs"
-                :id="`runtime-tab-${tab.id}`"
-                :key="tab.id"
-                type="button"
-                role="tab"
-                :aria-selected="activeTab === tab.id"
-                :aria-controls="`runtime-panel-${tab.id}`"
-                @click="activeTab = tab.id"
-            >
-                {{ tab.label }}
-            </button>
-        </div>
-
+        <TabbedNavigation ref="runtimeTabs" :pages="runtimePages" storage-key="worldlens-runtime-settings-tabs" window-label="Runtime settings" strip-label="Runtime settings sections">
+        <template #status>
         <article
-            v-if="activeTab === 'status'"
             id="runtime-panel-status"
             role="tabpanel"
             aria-labelledby="runtime-tab-status"
@@ -615,9 +598,9 @@ onUnmounted(() => {
                 instead of pretending a message was sent.
             </p>
         </article>
-
+        </template>
+        <template #narrator>
         <article
-            v-else-if="activeTab === 'narrator'"
             id="runtime-panel-narrator"
             role="tabpanel"
             aria-labelledby="runtime-tab-narrator"
@@ -756,9 +739,9 @@ onUnmounted(() => {
             >
             <button type="button" @click="speakTest">Speak a test message</button>
         </article>
-
+        </template>
+        <template #schedule>
         <article
-            v-else-if="activeTab === 'schedule'"
             id="runtime-panel-schedule"
             role="tabpanel"
             aria-labelledby="runtime-tab-schedule"
@@ -888,9 +871,9 @@ onUnmounted(() => {
                 </li>
             </ul>
         </article>
-
+        </template>
+        <template #accommodations>
         <article
-            v-else
             id="runtime-panel-accommodations"
             role="tabpanel"
             aria-labelledby="runtime-tab-accommodations"
@@ -946,6 +929,8 @@ onUnmounted(() => {
                 {{ activeValues.motion }}, display name {{ activeValues.displayName }}.
             </p>
         </article>
+        </template>
+        </TabbedNavigation>
     </section>
 </template>
 
