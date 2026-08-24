@@ -59,7 +59,7 @@ export interface AdoptionCandidate {
      *  `record.ts` stores, alongside `containerId`, `imageDigest` and the mount sources. */
     readonly createdAt: string | null;
     readonly state: string;
-    readonly ports: readonly number[];
+    readonly ports: readonly { readonly container: number; readonly host: number | null }[];
     readonly mounts: readonly { readonly source: string; readonly destination: string }[];
     readonly detected: Detected;
     /** Every signal that contributed to `detected`, in the order it was checked. */
@@ -232,15 +232,22 @@ export function scoreCandidate(
     }
 
     // Signal 3: port 25565.
-    const ports: number[] = [];
+    const ports: { container: number; host: number | null }[] = [];
     const portMap = inspected.NetworkSettings?.Ports ?? {};
     for (const [containerPort, bindings] of Object.entries(portMap)) {
-        if (containerPort.startsWith("25565")) evidence.push("container publishes port 25565");
-        for (const binding of bindings ?? []) {
+        const container = Number.parseInt(containerPort.split("/")[0] ?? "", 10);
+        if (!Number.isInteger(container) || container < 1 || container > 65_535) continue;
+        if (container === 25565) evidence.push("container publishes port 25565");
+        const published = bindings ?? [];
+        if (published.length === 0) {
+            ports.push({ container, host: null });
+            continue;
+        }
+        for (const binding of published) {
             const hostPort = asString(binding.HostPort);
             if (hostPort !== null) {
                 const parsed = Number.parseInt(hostPort, 10);
-                if (Number.isInteger(parsed)) ports.push(parsed);
+                if (Number.isInteger(parsed) && parsed > 0 && parsed <= 65_535) ports.push({ container, host: parsed });
             }
         }
     }

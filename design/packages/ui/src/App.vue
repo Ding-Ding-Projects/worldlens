@@ -209,15 +209,27 @@ const mcServerAdoptOpen = ref(false);
 const mcServerAdoptBrowseOpen = ref(false);
 const mcServerAdoptRecord = ref<ServerRecord | null>(null);
 const mcServerAdoptContainerId = ref<string | null>(null);
+const mcServerAdoptHostId = ref<string | null>(null);
+const mcServerAdoptEvidence = ref<readonly string[]>([]);
+const mcServerAdoptConfidence = ref<"high" | "medium" | "low" | null>(null);
+const mcServerAdoptMounts = ref<readonly { source: string; target: string }[]>([]);
+const mcServerAdoptPorts = ref<readonly { container: number; host: number | null }[]>([]);
+const mcServerAdoptBlockers = ref<readonly string[]>([]);
 
-function adoptionRecord(candidate: AdoptionCandidate): ServerRecord {
+function adoptionRecord(candidate: AdoptionCandidate, hostId: string | null): ServerRecord {
     const now = new Date().toISOString();
+    const serverDir = candidate.mounts?.find((mount) => {
+        const target = mount.destination.toLowerCase();
+        return target === "/data" || target === "/server" || target.includes("minecraft");
+    })?.destination ?? candidate.mounts?.[0]?.destination ?? "/data";
     return {
         id: `adopt-${candidate.containerId}`,
         name: candidate.containerName,
         flavour: (candidate.guessedFlavour ?? "unknown") as ServerRecord["flavour"],
         minecraftVersion: candidate.guessedVersion,
-        ref: { kind: "local-docker", containerRef: candidate.containerId, serverDir: "" },
+        ref: hostId !== null
+            ? { kind: "ssh-docker", hostId, containerRef: candidate.containerId, serverDir }
+            : { kind: "local-docker", containerRef: candidate.containerId, serverDir },
         origin: "adopted",
         createdAt: now,
         updatedAt: now,
@@ -245,14 +257,26 @@ function adoptionRecord(candidate: AdoptionCandidate): ServerRecord {
  * is why it no longer needs to be async.
  */
 function openMcServerAdoption(): void {
+    mcServerAdoptHostId.value = null;
     mcServerAdoptBrowseOpen.value = true;
 }
 
 /** Step two: the chosen candidate goes to the review dialog that was always there. */
-function reviewMcServerCandidate(candidate: AdoptionCandidate): void {
-    mcServerAdoptRecord.value = adoptionRecord(candidate);
+function reviewMcServerCandidate(candidate: AdoptionCandidate, hostId: string | null = null): void {
+    mcServerAdoptRecord.value = adoptionRecord(candidate, hostId);
     mcServerAdoptContainerId.value = candidate.containerId;
+    mcServerAdoptHostId.value = hostId;
+    mcServerAdoptEvidence.value = candidate.evidence ?? [];
+    mcServerAdoptConfidence.value = candidate.confidence ?? null;
+    mcServerAdoptMounts.value = (candidate.mounts ?? []).map((mount) => ({ source: mount.source, target: mount.destination }));
+    mcServerAdoptPorts.value = candidate.ports ?? [];
+    mcServerAdoptBlockers.value = candidate.blockers ?? [];
     mcServerAdoptOpen.value = true;
+}
+
+function openRemoteAdoption(hostId: string): void {
+    mcServerAdoptHostId.value = hostId;
+    mcServerAdoptBrowseOpen.value = true;
 }
 
 function completeMcServerAdoption(record: ServerRecord): void {
@@ -2219,19 +2243,26 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @host-profile="mcServerHostProfileOpen = true"
                         />
                         <HostProfileWizard v-if="mcServerModalOwner === 'kid' && mcServerHostProfileOpen" @close="mcServerHostProfileOpen = false" @saved="mcServerHostProfileOpen = false" />
-                        <CreateServerWizard v-if="mcServerModalOwner === 'kid'" v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
                         <AdoptionBrowser v-if="mcServerModalOwner === 'kid'"
+                            :host-id="mcServerAdoptHostId"
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
                         />
                         <AdoptionReviewDialog v-if="mcServerModalOwner === 'kid'"
+                            :host-id="mcServerAdoptHostId"
                             v-model="mcServerAdoptOpen"
                             :record="mcServerAdoptRecord"
                             :container-id="mcServerAdoptContainerId"
+                            :evidence="mcServerAdoptEvidence"
+                            :confidence="mcServerAdoptConfidence"
+                            :mounts="mcServerAdoptMounts"
+                            :ports="mcServerAdoptPorts"
+                            :blockers="mcServerAdoptBlockers"
                             @confirmed="completeMcServerAdoption"
                         />
                         <CreateServerWizard v-if="mcServerModalOwner === 'kid'"
                             v-model="mcServerCreateOpen"
+                            @open-remote-adoption="openRemoteAdoption"
                             @created="
                                 (id) => {
                                     mcServerOpenTab = 'console';
@@ -2480,19 +2511,26 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @host-profile="mcServerHostProfileOpen = true"
                         />
                         <HostProfileWizard v-if="mcServerModalOwner === 'adult-host' && mcServerHostProfileOpen" @close="mcServerHostProfileOpen = false" @saved="mcServerHostProfileOpen = false" />
-                        <CreateServerWizard v-if="mcServerModalOwner === 'adult-host'" v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
                         <AdoptionBrowser v-if="mcServerModalOwner === 'adult-host'"
+                            :host-id="mcServerAdoptHostId"
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
                         />
                         <AdoptionReviewDialog v-if="mcServerModalOwner === 'adult-host'"
+                            :host-id="mcServerAdoptHostId"
                             v-model="mcServerAdoptOpen"
                             :record="mcServerAdoptRecord"
                             :container-id="mcServerAdoptContainerId"
+                            :evidence="mcServerAdoptEvidence"
+                            :confidence="mcServerAdoptConfidence"
+                            :mounts="mcServerAdoptMounts"
+                            :ports="mcServerAdoptPorts"
+                            :blockers="mcServerAdoptBlockers"
                             @confirmed="completeMcServerAdoption"
                         />
                         <CreateServerWizard v-if="mcServerModalOwner === 'adult-host'"
                             v-model="mcServerCreateOpen"
+                            @open-remote-adoption="openRemoteAdoption"
                             @created="
                                 (id) => {
                                     mcServerOpenTab = 'console';
@@ -2764,6 +2802,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     />
                                     <HostProfileWizard v-if="mcServerModalOwner === 'work' && mcServerHostProfileOpen" @close="mcServerHostProfileOpen = false" @saved="mcServerHostProfileOpen = false" />
                                     <CreateServerWizard v-if="mcServerModalOwner === 'work'"
+                                        @open-remote-adoption="openRemoteAdoption"
                                         v-model="mcServerCreateOpen"
                                         @created="
                                             (id) => {
@@ -2779,13 +2818,20 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         "
                                     />
                                     <AdoptionBrowser v-if="mcServerModalOwner === 'work'"
+                                        :host-id="mcServerAdoptHostId"
                                         v-model="mcServerAdoptBrowseOpen"
                                         @picked="reviewMcServerCandidate"
                                     />
                         <AdoptionReviewDialog v-if="mcServerModalOwner === 'work'"
+                                        :host-id="mcServerAdoptHostId"
                                         v-model="mcServerAdoptOpen"
                                         :record="mcServerAdoptRecord"
                                         :container-id="mcServerAdoptContainerId"
+                                        :evidence="mcServerAdoptEvidence"
+                                        :confidence="mcServerAdoptConfidence"
+                                        :mounts="mcServerAdoptMounts"
+                                        :ports="mcServerAdoptPorts"
+                                        :blockers="mcServerAdoptBlockers"
                                         @confirmed="completeMcServerAdoption"
                                     />
                                 </div>

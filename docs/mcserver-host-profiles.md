@@ -19,6 +19,13 @@ host, the app creates a bounded SSH local forward bound to `127.0.0.1` on this c
 that short-lived endpoint for the vault-backed password. The forward is owned by the app session,
 is closed on app shutdown, and never publishes a new network port.
 
+Choosing an SSH profile in the server wizard opens remote container discovery rather than trying
+to create a local record with a remote-looking id. Discovery reads the remote Docker daemon,
+shows the actual container identity, mount layout, published ports, evidence and blockers, and
+then opens the same four-switch consent review used for local adoption. Confirming it saves an
+`ssh-docker` server record with the selected host profile and the detected server directory. The
+remote image supplies Java, so the local Java installer is skipped for this route.
+
 ## External integrations and automatic repair
 
 SSH and Docker are optional integration targets, not prerequisites for the app itself. The local
@@ -46,4 +53,7 @@ typed health checks.
 secret-field exclusion, and app-owned trust-store paths. `rcon/sshTunnel.test.ts` covers the
 loopback-only forward shape, early process exit, invalid ports, and no-spawn refusal.
 `flavours/catalogue.test.ts` covers complete build retention and paginated Paper responses.
-Real-host verification and packaged captures remain separate evidence work and are not claimed.
+`transport/sshDocker.typedOperations.test.ts` covers health, lifecycle, logs, and scope refusal
+through a fake SSH host. `sshAdoption.test.ts` covers remote discovery and `ssh-docker` record
+creation when the app workspace packages are built. Real-host verification and packaged captures
+remain separate evidence work and are not claimed.

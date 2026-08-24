@@ -2438,6 +2438,7 @@ interface WorldlensBridge {
             confirm(request: {
                 id: string;
                 containerId: string;
+                hostId?: string | null;
                 consent?: { configWrite?: boolean; lifecycle?: boolean; pluginInstall?: boolean; consoleWrite?: boolean };
             }): Promise<unknown>;
             /** Forgets the adoption. Never stops, removes or deletes the container or its files. */
@@ -3588,7 +3589,7 @@ const bridge: WorldlensBridge = {
         },
         logTail: (id, lines) => ipcRenderer.invoke("mcserver:log:tail", id, lines),
         adopt: {
-            discover: () => ipcRenderer.invoke("mcserver:adopt:discover"),
+            discover: (request?: { hostId?: string | null }) => ipcRenderer.invoke("mcserver:adopt:discover", request),
             confirm: (request) => ipcRenderer.invoke("mcserver:adopt", request),
             release: (id, options) => ipcRenderer.invoke("mcserver:adopt:release", id, options),
         },
