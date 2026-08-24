@@ -525,6 +525,7 @@ async function main() {
         const adapterContract = await readAdapterContract(options.vendor, implementation);
         described.push({
             implementation,
+            version,
             fileName,
             stagedFrom: source.fileName,
             title: platform.title,
@@ -540,6 +541,7 @@ async function main() {
                 repository: options.upstreamRepository,
                 commit: options.upstreamCommit,
                 path: adapterContract?.sourcePath ?? null,
+                version,
             },
             entryCount: inspection.entryCount,
             mainClass: inspection.mainClass,
